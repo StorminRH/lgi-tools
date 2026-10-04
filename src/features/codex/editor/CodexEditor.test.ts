@@ -12,7 +12,7 @@ const props: CodexEditorProps = {
   sectionId: 'strategy',
   initialBlocks: [],
   notice: null,
-  catalogue: { sources: [] },
+  tools: { catalogue: { sources: [] }, uploadPrefix: 'codex/local/pending/u1/' },
   onCancel: () => {},
 };
 

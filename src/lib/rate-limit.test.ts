@@ -63,6 +63,19 @@ describe('rateLimit', () => {
     );
   });
 
+  it('counts a daily quota over a one-day sliding window', async () => {
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
+    vi.stubEnv('NODE_ENV', 'production');
+    limitMock.mockResolvedValue({ success: true, remaining: 19, reset: Date.now() + 60_000, pending: Promise.resolve() });
+    const { Ratelimit } = await import('@upstash/ratelimit');
+
+    const { rateLimit } = await importHelper();
+    expect(await rateLimit('u1', { name: 'codex-upload-tokens', perDay: 20 })).toEqual({ ok: true, remaining: 19 });
+    expect(Ratelimit.slidingWindow).toHaveBeenLastCalledWith(20, '1 d');
+    expect(limitMock).toHaveBeenCalledWith('u1');
+  });
+
   it('returns denied with retryAfter rounded up to next whole second', async () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');

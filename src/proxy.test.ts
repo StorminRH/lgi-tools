@@ -136,3 +136,12 @@ describe("proxy Codex edit route", () => {
     },
   );
 });
+
+describe("proxy content security policy", () => {
+  it("lets Codex screenshots load from Vercel Blob and browser uploads reach the Blob API", () => {
+    const policy = proxy(request("/codex/guides/rolling-a-c3")).headers.get("Content-Security-Policy") ?? "";
+
+    expect(policy).toContain("img-src 'self' blob: data: https://images.evetech.net https://*.public.blob.vercel-storage.com;");
+    expect(policy).toMatch(/connect-src [^;]*https:\/\/vercel\.com[ ;]/);
+  });
+});

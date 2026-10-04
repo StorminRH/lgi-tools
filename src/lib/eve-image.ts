@@ -40,3 +40,11 @@ export function characterPortraitUrl(characterId: number, size: EveImageSize = 6
 export function corporationLogoUrl(corporationId: number, size: EveImageSize = 64): string {
   return `${IMAGE_HOST}/corporations/${corporationId}/logo?size=${size}`;
 }
+
+export const CODEX_IMAGE_WIDTHS = [640, 1280, 1920] as const;
+
+export type CodexImageWidth = (typeof CODEX_IMAGE_WIDTHS)[number];
+
+export function snapCodexImageWidth(requestedWidth: number): CodexImageWidth {
+  return CODEX_IMAGE_WIDTHS.find((width) => width >= requestedWidth) ?? CODEX_IMAGE_WIDTHS.at(-1)!;
+}

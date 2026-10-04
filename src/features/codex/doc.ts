@@ -151,3 +151,30 @@ export function parseCodexDoc(
   const problems = blockIdProblems(doc);
   return problems.length > 0 ? { ok: false, problems } : { ok: true, doc };
 }
+
+export interface UntrustedNodeAt {
+  readonly path: string;
+  readonly node: Record<string, unknown> & { readonly type: string };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function findUntrustedNodes(blocks: readonly unknown[], types: ReadonlySet<string>): UntrustedNodeAt[] {
+  const found: UntrustedNodeAt[] = [];
+  const stack: { node: unknown; at: string }[] = [];
+  const pushChildren = (nodes: readonly unknown[], path: string) => {
+    for (let index = nodes.length - 1; index >= 0; index--) stack.push({ node: nodes[index], at: `${path}.${index}` });
+  };
+  pushChildren(blocks, 'content');
+  while (stack.length > 0) {
+    const { node, at } = stack.pop()!;
+    if (!isRecord(node)) continue;
+    if (typeof node.type === 'string' && types.has(node.type)) {
+      found.push({ path: at, node: node as UntrustedNodeAt['node'] });
+    }
+    if (Array.isArray(node.content)) pushChildren(node.content, `${at}.content`);
+  }
+  return found;
+}

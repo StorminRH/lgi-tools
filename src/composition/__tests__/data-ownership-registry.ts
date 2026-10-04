@@ -1072,4 +1072,21 @@ export const DATA_OWNERSHIP = [
     },
     dataClass: 'personal',
   },
+  {
+    table: schema.codexAssets,
+    owner: 'features/codex',
+    reads: [],
+    invariants: [
+      'check(codex_assets_published_has_time)',
+      'fk(character_id→characters.character_id)',
+      'fk(user_id→user.id)',
+      "partial-unique(user_id,sha256) where(\"status\" <> 'removed')",
+      'pk(id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'Finalize inserts one pending row ON CONFLICT DO NOTHING; publish flips referenced pending rows inside the page compare-and-set statement; housekeeping retires unreferenced pending rows in one guarded UPDATE and deletes a removed row only after its blobs are gone.',
+    },
+    dataClass: 'personal',
+  },
 ] as const satisfies readonly DataOwnershipEntry[];

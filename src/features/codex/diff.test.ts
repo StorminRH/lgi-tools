@@ -103,3 +103,19 @@ test('a 200-block page reports each edited block once', () => {
   expect(diff.map(({ id }) => id)).toEqual(Array.from({ length: 67 }, (_, index) => `b${index * 3}`));
   expect(diff.every((entry) => entry.kind === 'changed' && 'words' in entry)).toBe(true);
 });
+
+const ASSET = '0b9a3c1e-6f0d-4b55-9e0e-2f8c1d7a9b10';
+const image = (alt: string): CodexBlockNode =>
+  ({ type: 'image', attrs: { id: 'i1', assetId: ASSET, alt, caption: '' }, content: [] }) as CodexBlockNode;
+
+test('an added image carries its asset and alt text', () => {
+  expect(diffCodexBlocks([p('a', 'One')], [p('a', 'One'), image('Gila holding')])).toEqual([
+    { kind: 'added', id: 'i1', text: 'Image: Gila holding', image: { assetId: ASSET, alt: 'Gila holding', caption: '' } },
+  ]);
+});
+
+test('a changed alt text is an attribute change', () => {
+  expect(diffCodexBlocks([image('a')], [image('b')])).toEqual([
+    { kind: 'changed', id: 'i1', attrs: [{ name: 'alt', before: 'a', after: 'b' }] },
+  ]);
+});

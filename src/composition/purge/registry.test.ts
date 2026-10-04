@@ -47,6 +47,7 @@ describe('purge registry gate', () => {
         'character_skill_syncs',
         'character_skills',
         'characters',
+        'codex_assets',
         'codex_proposals',
         'codex_revisions',
         'corp_access_audit',

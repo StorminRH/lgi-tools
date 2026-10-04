@@ -10,6 +10,7 @@ const sameOriginMock = vi.fn();
 const submitMock = vi.fn();
 const decideMock = vi.fn();
 const dataBlockProblemsMock = vi.fn();
+const assetProblemsMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({ auth: { api: { getSession: () => getSessionMock() } } }));
 vi.mock('@/platform/auth/same-origin', () => ({ requireSameOrigin: () => sameOriginMock() }));
@@ -19,6 +20,9 @@ vi.mock('@/features/codex/proposals', () => ({
 }));
 vi.mock('@/composition/codex-sources', () => ({
   codexDataBlockProblems: (blocks: unknown) => dataBlockProblemsMock(blocks),
+}));
+vi.mock('@/features/codex/assets', () => ({
+  codexAssetProblems: (blocks: unknown, actor: unknown) => assetProblemsMock(blocks, actor),
 }));
 vi.mock('@/composition/codex-templates', () => ({ codexTemplate: async () => null }));
 vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: vi.fn().mockResolvedValue(undefined) }));
@@ -58,6 +62,7 @@ describe('POST /api/codex/proposals', () => {
     submitMock.mockReset().mockResolvedValue({ status: 'submitted', id: PROPOSAL });
     decideMock.mockReset().mockResolvedValue('withdrawn');
     dataBlockProblemsMock.mockReset().mockResolvedValue([]);
+    assetProblemsMock.mockReset().mockResolvedValue([]);
   });
 
   it('needs a signed-in pilot with a character', async () => {
@@ -100,6 +105,18 @@ describe('POST /api/codex/proposals', () => {
     dataBlockProblemsMock.mockResolvedValue(['bad source']);
     expect(await send(suggestion)).toEqual({ status: 303, location: page('invalid') });
     expect(submitMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses another pilot's unpublished screenshot before filing", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    assetProblemsMock.mockResolvedValue(['content.0 (image): asset "x" belongs to another pilot and is not published']);
+    expect(await send(suggestion)).toEqual({ status: 303, location: page('invalid') });
+    expect(assetProblemsMock).toHaveBeenCalledWith([{ type: 'paragraph', attrs: { id: 's1' } }], {
+      userId: 'u1',
+      isAdmin: false,
+    });
+    expect(submitMock).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('withdraws only the caller’s own suggestion', async () => {

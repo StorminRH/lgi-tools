@@ -4,16 +4,32 @@ import { plainText } from './sections';
 
 export type CodexWordChange = { readonly op: 'same' | 'added' | 'removed'; readonly text: string };
 
-const DATA_ATTRS = ['source', 'key', 'fields', 'layout'] as const;
+const ATTRS_BY_TYPE = {
+  dataBlock: ['source', 'key', 'fields', 'layout'],
+  image: ['assetId', 'alt', 'caption'],
+} as const;
+
+type AttrBlockType = keyof typeof ATTRS_BY_TYPE;
 
 export type CodexAttrChange = {
-  readonly name: (typeof DATA_ATTRS)[number];
+  readonly name: (typeof ATTRS_BY_TYPE)[keyof typeof ATTRS_BY_TYPE][number];
   readonly before: string;
   readonly after: string;
 };
 
+export interface CodexImageRef {
+  readonly assetId: string;
+  readonly alt: string;
+  readonly caption: string;
+}
+
 export type CodexBlockDiff =
-  | { readonly kind: 'added' | 'removed'; readonly id: string; readonly text: string }
+  | {
+      readonly kind: 'added' | 'removed';
+      readonly id: string;
+      readonly text: string;
+      readonly image?: CodexImageRef;
+    }
   | { readonly kind: 'moved'; readonly id: string; readonly from: number; readonly to: number }
   | { readonly kind: 'changed'; readonly id: string; readonly words: readonly CodexWordChange[] }
   | { readonly kind: 'changed'; readonly id: string; readonly change: 'format' }
@@ -28,11 +44,13 @@ function attrText(value: unknown): string {
 }
 
 function attrChanges(before: CodexBlockNode, after: CodexBlockNode): CodexAttrChange[] {
-  if (before.type !== 'dataBlock' || after.type !== 'dataBlock') return [];
-  return DATA_ATTRS.flatMap((name) => {
-    const was = attrText(before.attrs[name]);
-    const now = attrText(after.attrs[name]);
-    return was === now ? [] : [{ name, before: was, after: now }];
+  if (before.type !== after.type || !Object.hasOwn(ATTRS_BY_TYPE, before.type)) return [];
+  const was = before.attrs as Record<string, unknown>;
+  const now = after.attrs as Record<string, unknown>;
+  return ATTRS_BY_TYPE[before.type as AttrBlockType].flatMap((name) => {
+    const from = attrText(was[name]);
+    const to = attrText(now[name]);
+    return from === to ? [] : [{ name, before: from, after: to }];
   });
 }
 
@@ -53,12 +71,22 @@ export function canonicalBlock(block: CodexBlockNode): string {
   );
 }
 
+function blockText(block: CodexBlockNode): string {
+  return block.type === 'image' ? `Image: ${block.attrs.alt}` : plainText(block);
+}
+
+function wholeBlock(kind: 'added' | 'removed', id: string, block: CodexBlockNode): CodexBlockDiff {
+  if (block.type !== 'image') return { kind, id, text: plainText(block) };
+  const { assetId, alt, caption } = block.attrs;
+  return { kind, id, text: blockText(block), image: { assetId, alt, caption } };
+}
+
 function changeOf(id: string, before: CodexBlockNode, after: CodexBlockNode): CodexBlockDiff | null {
   if (canonicalBlock(before) === canonicalBlock(after)) return null;
   const attrs = attrChanges(before, after);
   if (attrs.length > 0) return { kind: 'changed', id, attrs };
-  const was = plainText(before);
-  const now = plainText(after);
+  const was = blockText(before);
+  const now = blockText(after);
   if (was === now) return { kind: 'changed', id, change: 'format' };
   const words = diffWordsWithSpace(was, now).map(
     (part): CodexWordChange => ({ op: part.added ? 'added' : part.removed ? 'removed' : 'same', text: part.value }),
@@ -82,7 +110,7 @@ export function diffCodexBlocks(
   const toIndex = order(now.keys(), was);
   const diff: CodexBlockDiff[] = [];
   for (const [id, block] of was) {
-    if (!now.has(id)) diff.push({ kind: 'removed', id, text: plainText(block) });
+    if (!now.has(id)) diff.push(wholeBlock('removed', id, block));
   }
   for (const [id, from] of fromIndex) {
     const to = toIndex.get(id)!;
@@ -91,7 +119,7 @@ export function diffCodexBlocks(
     if (change) diff.push(change);
   }
   for (const [id, block] of now) {
-    if (!was.has(id)) diff.push({ kind: 'added', id, text: plainText(block) });
+    if (!was.has(id)) diff.push(wholeBlock('added', id, block));
   }
   return diff;
 }

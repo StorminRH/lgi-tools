@@ -12,7 +12,7 @@ import { CODEX_EDIT_MODES, type CodexEditMode } from '../edit-modes';
 import type { RenderedCodexSection } from '../render';
 import { PAGE_SCOPE } from '../sections';
 import { CODEX_SUBJECTS, codexHistoryHref, codexPageHref, type CodexEditorNotice, type CodexSubject } from '../subjects';
-import type { CodexSourceCatalogue } from './CodexDataView';
+import type { CodexEditorTools } from '../editor/CodexEditor';
 import { CodexEmptySection } from './CodexEmptySection';
 import { CodexPageLayout } from './CodexPageLayout';
 import { CodexSectionFrame } from './CodexSectionFrame';
@@ -76,7 +76,7 @@ export function CodexAdminArticle({
   initialScope,
   initialNotice,
   goneSectionId = null,
-  catalogue,
+  tools,
 }: {
   mode: CodexEditMode;
   viewerName: string;
@@ -90,7 +90,7 @@ export function CodexAdminArticle({
   initialScope: string | null;
   initialNotice: CodexEditorNotice | null;
   goneSectionId?: string | null;
-  catalogue: CodexSourceCatalogue;
+  tools: CodexEditorTools;
 }) {
   const router = useRouter();
   const labels = CODEX_EDIT_MODES[mode];
@@ -123,7 +123,7 @@ export function CodexAdminArticle({
         goneSectionId={sectionId === null && notice !== null ? goneSectionId : null}
         initialBlocks={blocks}
         notice={notice}
-        catalogue={catalogue}
+        tools={tools}
         onCancel={cancel}
       />
     </Suspense>

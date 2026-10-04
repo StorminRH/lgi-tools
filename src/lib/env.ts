@@ -39,6 +39,7 @@ const VERBATIM_ENV = {
   VERCEL_URL: verbatim,
   VERCEL_GIT_COMMIT_REF: verbatim,
   VERCEL_TARGET_ENV: verbatim,
+  BLOB_READ_WRITE_TOKEN: verbatim,
   LGI_PREVIEW_LINE: verbatim,
   NEXT_RUNTIME: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,

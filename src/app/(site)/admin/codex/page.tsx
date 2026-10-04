@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
 import { loadCodexProposalBases, type CodexProposalBase } from '@/composition/codex-proposal-bases';
+import { collectCodexAssetIds, loadCodexAssetViews, type CodexAssetView } from '@/features/codex/assets';
 import { diffCodexBlocks, wordStats } from '@/features/codex/diff';
 import { listPendingCodexProposals, type CodexProposalView, type ReviewOutcome } from '@/features/codex/proposals';
 import { formatRelativeTime } from '@/lib/format/time';
@@ -60,11 +61,13 @@ function ProposalItem({
   base,
   open,
   page,
+  assets,
 }: {
   proposal: CodexProposalView;
   base: CodexProposalBase;
   open: boolean;
   page: number;
+  assets: ReadonlyMap<string, CodexAssetView>;
 }) {
   const diff = diffCodexBlocks(base.before, proposal.blocks);
   const firstName = proposal.character.name.split(' ')[0];
@@ -118,7 +121,7 @@ function ProposalItem({
             </span>
           </span>
         </div>
-        <ProposalDiff diff={diff} />
+        <ProposalDiff diff={diff} assets={assets} />
         <label className="flex flex-col gap-2">
           <span className="font-ui text-label font-semibold uppercase tracking-eyebrow text-muted">
             Note to {firstName}{' '}
@@ -145,6 +148,10 @@ async function CodexQueue({ searchParams }: { searchParams: Promise<QueueParams>
   const page = pageNumber(raw.page, pageCount);
   const proposals = await listPendingCodexProposals({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
   const bases = await loadCodexProposalBases(proposals);
+  const assets = await loadCodexAssetViews(
+    collectCodexAssetIds(proposals.flatMap((proposal) => [...proposal.blocks, ...bases.get(proposal.id)!.before])),
+    { kind: 'admin' },
+  );
   const outcome = outcomeMessage(raw.outcome);
   const oldest = page === 1 ? proposals[0] : undefined;
   return (
@@ -166,6 +173,7 @@ async function CodexQueue({ searchParams }: { searchParams: Promise<QueueParams>
               base={bases.get(proposal.id)!}
               open={index === 0}
               page={page}
+              assets={assets}
             />
           ))
         )}

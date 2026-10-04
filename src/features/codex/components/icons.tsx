@@ -42,6 +42,13 @@ export const CalloutIcon = strokeIcon(
     <path d="M11 9h6M11 13h4" />
   </>,
 );
+export const ImageIcon = strokeIcon(
+  <>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.5" />
+    <path d="M21 16l-5-5-8 8" />
+  </>,
+);
 export const DataIcon = strokeIcon(
   <>
     <rect x="3" y="4" width="18" height="16" rx="3" />

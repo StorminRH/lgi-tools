@@ -13,7 +13,7 @@ vi.mock('next/cache', () => cache);
 
 const harness = await createDbTestHarness({
   schema: 'test_codex_purge',
-  tables: ['user', 'characters', 'codex_pages', 'codex_revisions', 'codex_proposals'],
+  tables: ['user', 'characters', 'codex_pages', 'codex_revisions', 'codex_proposals', 'codex_assets'],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
 });

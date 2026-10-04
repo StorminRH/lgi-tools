@@ -12,6 +12,7 @@ const components: CodexInjectedComponents = {
   dataBlock: ({ attrs }) =>
     createElement('aside', { 'data-stub': `${attrs.source}:${attrs.key}:${attrs.fields.join(',')}:${attrs.layout}` }),
   dataInline: ({ attrs }) => createElement('span', { 'data-stub': `${attrs.source}:${attrs.key}:${attrs.fields.join(',')}` }),
+  image: ({ attrs }) => createElement('figure', { 'data-stub': `${attrs.assetId}:${attrs.alt}` }),
 };
 
 const text = (value: string, marks: unknown[] = []) => ({ type: 'text', text: value, marks });

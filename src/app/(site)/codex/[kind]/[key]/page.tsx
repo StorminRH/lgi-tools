@@ -2,7 +2,14 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { listCodexEntries } from '@/composition/codex-templates';
 import { CODEX_SUBJECT_KINDS, CODEX_SUBJECTS } from '@/features/codex/subjects';
-import { CodexReaderView, CodexSubjectShell, describe, loadPage, type CodexParams } from './codex-subject';
+import {
+  CodexReaderView,
+  CodexSubjectShell,
+  describe,
+  loadPage,
+  loadReaderAssets,
+  type CodexParams,
+} from './codex-subject';
 
 export async function generateStaticParams(): Promise<{ kind: string; key: string }[]> {
   const kinds = CODEX_SUBJECT_KINDS.filter((kind) => CODEX_SUBJECTS[kind].entity);
@@ -23,7 +30,8 @@ export async function CodexReader({ params }: { params: CodexParams }) {
   const { kind, key } = await params;
   const { subject, page, credits } = await loadPage(kind, key);
   if (!page) notFound();
-  return <CodexReaderView subject={subject} page={page} credits={credits} />;
+  const assets = await loadReaderAssets(subject, page);
+  return <CodexReaderView subject={subject} page={page} credits={credits} assets={assets} />;
 }
 
 export default function CodexSubjectPage({ params }: { params: CodexParams }) {

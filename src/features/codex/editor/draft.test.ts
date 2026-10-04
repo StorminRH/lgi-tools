@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import {
   codexDraftKey,
   dropDraft,
+  formSummary,
   initialEditorBlocks,
   keepCodexDraft,
   keepJsonDraft,
@@ -137,4 +138,11 @@ test('any JSON value round-trips through a slot when its guard accepts it', () =
   };
   expect(peekRawDraft('counter', blocked)).toBeNull();
   expect(() => dropDraft('counter', blocked)).not.toThrow();
+});
+
+test('reads the edit summary from the submitted form, empty when the field is absent', () => {
+  const form = new FormData();
+  expect(formSummary(form)).toBe('');
+  form.set('summary', 'Fix range');
+  expect(formSummary(form)).toBe('Fix range');
 });

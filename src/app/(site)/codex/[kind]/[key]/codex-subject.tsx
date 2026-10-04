@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, Suspense, type ReactNode } from 'react';
-import { codexComponents } from '@/components/composition/codex-data-block';
+import { codexComponents, codexComponentsFor } from '@/components/composition/codex-data-block';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SITE_URL } from '@/config/site-url';
 import { codexTemplate, type CodexTemplate } from '@/composition/codex-templates';
 import type { CodexDoc } from '@/features/codex/doc';
+import { loadCodexPageAssets, type CodexAssetView } from '@/features/codex/assets';
 import { CodexEmptySection } from '@/features/codex/components/CodexEmptySection';
 import { CodexPageLayout } from '@/features/codex/components/CodexPageLayout';
 import { CodexFooter } from '@/features/codex/credits';
@@ -149,16 +150,23 @@ export function codexPageFrame(subject: CodexSubject, page: CodexPage) {
   };
 }
 
+export function loadReaderAssets(subject: CodexSubject, page: CodexPage) {
+  return loadCodexPageAssets(subject, page.doc.content, { kind: 'reader' });
+}
+
 export function CodexReaderView({
   subject,
   page,
   credits,
+  assets,
 }: {
   subject: CodexSubject;
   page: CodexPage;
   credits: readonly CodexCredit[];
+  assets: ReadonlyMap<string, CodexAssetView>;
 }) {
   const { header, aside, omit } = codexPageFrame(subject, page);
+  const components = codexComponentsFor(assets);
   return (
     <CodexPageLayout
       header={header}
@@ -166,7 +174,7 @@ export function CodexReaderView({
         <>
           <CodexArticle
             doc={page.doc}
-            components={codexComponents}
+            components={components}
             omit={omit}
             placeholder={CODEX_SUBJECTS[subject.kind].entity ? <CodexEmptySection /> : undefined}
           />

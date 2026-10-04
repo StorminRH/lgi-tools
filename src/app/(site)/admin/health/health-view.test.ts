@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveServiceLevels } from './health-view';
+import { blobUsageRow, deriveServiceLevels } from './health-view';
 
 const healthy = { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 };
 const idleQueue = { due: 0, deadLettered: 0, oldestDueHours: null };
@@ -29,5 +29,14 @@ describe('deriveServiceLevels', () => {
     expect(dead).toMatchObject({ value: '4 active · 2 dead', level: 'red' });
     const stale = deriveServiceLevels(healthy, { due: 4, deadLettered: 0, oldestDueHours: 30 }).at(-1);
     expect(stale).toMatchObject({ level: 'amber' });
+  });
+});
+
+describe('blobUsageRow', () => {
+  it('reads Blob bytes against the 1 GB Hobby limit', () => {
+    expect(blobUsageRow(123_456_789)).toEqual({ value: '123.5 MB used', target: '1 GB Hobby limit', level: 'green' });
+    expect(blobUsageRow(750_000_000).level).toBe('amber');
+    expect(blobUsageRow(950_000_000)).toEqual({ value: '950.0 MB used', target: '1 GB Hobby limit', level: 'red' });
+    expect(blobUsageRow(null)).toEqual({ value: 'unavailable', target: '1 GB Hobby limit', level: 'neutral' });
   });
 });

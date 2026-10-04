@@ -10,6 +10,7 @@ const sameOriginMock = vi.fn();
 const publishMock = vi.fn();
 const dataBlockProblemsMock = vi.fn();
 const codexTemplateMock = vi.fn();
+const assetProblemsMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({ auth: { api: { getSession: () => getSessionMock() } } }));
 vi.mock('@/platform/auth/same-origin', () => ({ requireSameOrigin: () => sameOriginMock() }));
@@ -18,6 +19,9 @@ vi.mock('@/features/codex/publish', () => ({
 }));
 vi.mock('@/composition/codex-sources', () => ({
   codexDataBlockProblems: (blocks: unknown) => dataBlockProblemsMock(blocks),
+}));
+vi.mock('@/features/codex/assets', () => ({
+  codexAssetProblems: (blocks: unknown, actor: unknown) => assetProblemsMock(blocks, actor),
 }));
 vi.mock('@/composition/codex-templates', () => ({
   codexTemplate: (subject: unknown) => codexTemplateMock(subject),
@@ -57,6 +61,20 @@ describe('POST /api/admin/codex/revisions', () => {
     publishMock.mockReset().mockResolvedValue({ status: 'published', revisionId: OLD });
     dataBlockProblemsMock.mockReset().mockResolvedValue([]);
     codexTemplateMock.mockReset().mockResolvedValue(null);
+    assetProblemsMock.mockReset().mockResolvedValue([]);
+  });
+
+  it('sends a save with a removed screenshot back to its editor, checking assets as the admin', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const image = { type: 'image', attrs: { id: 'i1', assetId: BASE, alt: 'Gila', caption: '' } };
+    assetProblemsMock.mockResolvedValue([`content.0 (image): asset "${BASE}" is removed`]);
+    expect(await send({ ...sectionEdit, blocks: JSON.stringify([image]) })).toEqual({
+      status: 303,
+      location: 'http://localhost:3000/codex/guides/rolling-a-c3?edit=ships&notice=invalid',
+    });
+    expect(assetProblemsMock).toHaveBeenCalledWith([image], { userId: 'user-admin', isAdmin: true });
+    expect(publishMock).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('refuses a caller without admin authority', async () => {

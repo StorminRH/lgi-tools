@@ -61,6 +61,17 @@ export const CODEX_NODES = {
     content: null,
   },
   dataInline: { topLevel: false, injected: true, attrs: z.object(dataRef), content: null },
+  image: {
+    topLevel: true,
+    injected: true,
+    attrs: z.object({
+      id: blockId,
+      assetId: z.uuid(),
+      alt: z.string().trim().min(1).max(300),
+      caption: z.string().trim().max(300).default(''),
+    }),
+    content: null,
+  },
   text: { topLevel: false, attrs: z.object({}), content: 'text' },
 } as const satisfies Record<string, CodexNodeSpec>;
 

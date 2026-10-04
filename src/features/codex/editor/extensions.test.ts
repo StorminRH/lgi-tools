@@ -2,7 +2,7 @@ import { Editor, getSchema, type JSONContent } from '@tiptap/core';
 import { expect, test } from 'vitest';
 import { CODEX_CALLOUT_LABELS, CODEX_MARKS, CODEX_NODES } from '../nodes';
 import type { DataNode } from './data-block-picker-state';
-import { codexEditorExtensions, dataInsertion, editorBlocks } from './extensions';
+import { codexEditorExtensions, dataInsertion, editorBlocks, imageNode } from './extensions';
 
 const schema = getSchema(codexEditorExtensions);
 
@@ -225,4 +225,31 @@ test('bold over an inline value marks the text around it and never the value', (
     },
   ]);
   editor.destroy();
+});
+
+test('an image is one draggable atom that previews the 1280 variant and keeps its alt and caption', () => {
+  const spec = schema.nodes.image!.spec;
+  expect([spec.atom, spec.draggable, spec.selectable, spec.group]).toEqual([true, true, true, 'block']);
+  const stem = 'https://s.public.blob.vercel-storage.com/codex/local/img/ab12';
+  const inserted = imageNode({ id: 'asset-1', stem });
+  const node = schema.nodeFromJSON({ ...inserted, attrs: { ...inserted.attrs, alt: 'Gila', caption: 'Wave 2' } });
+
+  expect(spec.toDOM!(node)).toEqual([
+    'figure',
+    {
+      'data-codex-image': '',
+      'data-asset-id': 'asset-1',
+      'data-alt': 'Gila',
+      'data-caption': 'Wave 2',
+      'data-src': stem,
+      class: 'codex-image-node',
+    },
+    ['img', { src: `${stem}-1280.webp`, alt: 'Gila' }],
+    ['figcaption', {}, 'Wave 2'],
+  ]);
+  expect(spec.toDOM!(schema.nodes.image!.create({ assetId: 'asset-1', alt: 'Gila' }))).toContainEqual([
+    'div',
+    { class: 'codex-image-missing' },
+    'Image unavailable',
+  ]);
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import Image, { type ImageLoaderProps, type ImageProps } from 'next/image';
-import { snapEveImageSize, type EveImageFamily } from '@/lib/eve-image';
+import { snapCodexImageWidth, snapEveImageSize, type EveImageFamily } from '@/lib/eve-image';
 
 export type SharedImageProps = Omit<
   ImageProps,
@@ -23,7 +23,16 @@ export type StaticEveImageProps = SharedImageProps & {
   family?: never;
 };
 
-export type EveImageProps = RemoteEveImageProps | StaticEveImageProps;
+export type CodexImageProps = SharedImageProps & {
+  source: 'codex';
+  family?: never;
+};
+
+export type EveImageProps = RemoteEveImageProps | StaticEveImageProps | CodexImageProps;
+
+export function codexImageUrl({ src, width }: Pick<ImageLoaderProps, 'src' | 'width'>): string {
+  return `${src}-${snapCodexImageWidth(width)}.webp`;
+}
 
 export function eveImageUrl(
   family: EveImageFamily,
@@ -38,6 +47,11 @@ export function EveImage(props: EveImageProps) {
   if (props.source === 'static') {
     const { source: _source, alt, ...imageProps } = props;
     return <Image {...imageProps} alt={alt} unoptimized />;
+  }
+
+  if (props.source === 'codex') {
+    const { source: _source, alt, ...imageProps } = props;
+    return <Image {...imageProps} alt={alt} loader={codexImageUrl} />;
   }
 
   const { source: _source, family, alt, ...imageProps } = props;

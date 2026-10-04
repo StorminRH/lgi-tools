@@ -64,7 +64,7 @@ export const CAPABILITIES = catalogueFromSpec({
   cron: { cron: ['drain-esi-refresh-jobs', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'purge-maps', 'housekeeping', 'revalue-net-worth'] },
   market: { mutation: ['refresh-market-prices', 'refresh-market-history'] },
   feedback: { mutation: ['submit-feedback'] },
-  codex: { mutation: ['propose-edit'], read: ['search-sources'] },
+  codex: { mutation: ['propose-edit', 'upload-image', 'finalize-image'], read: ['search-sources'] },
   sync: { mutation: ['leave-location'], job: ['process-esi-refresh-job'] },
 });
 

@@ -13,6 +13,7 @@ const h = vi.hoisted(() => {
     reconcileTrackingMerges: vi.fn(),
     scopeLegacyMaps: vi.fn(),
     pruneTrackingMergeReceipts: vi.fn(),
+    sweepOrphanPendingBlobs: vi.fn(async () => 0),
   };
 });
 
@@ -28,6 +29,7 @@ const prunes = vi.hoisted(() => ({
   pruneEsiRefreshJobs: h.prune('esi_refresh_jobs'),
   pruneWhStaticsSnapshots: h.prune('wh_statics_snapshots'),
   pruneStaleMarketHistory: h.prune('market_history'),
+  pruneExpiredCodexAssets: h.prune('codex_pending_assets'),
 }));
 
 vi.mock('@/db', () => ({ db: {} }));
@@ -46,6 +48,10 @@ vi.mock('./esi-snapshot-retention', () => ({ pruneEsiSnapshots: prunes.pruneEsiS
 vi.mock('@/data/esi-refresh-jobs/queries', () => ({ pruneEsiRefreshJobs: prunes.pruneEsiRefreshJobs }));
 vi.mock('@/data/wh-statics/queries', () => ({ pruneWhStaticsSnapshots: prunes.pruneWhStaticsSnapshots }));
 vi.mock('@/data/market-history/ingest', () => ({ pruneStaleMarketHistory: prunes.pruneStaleMarketHistory }));
+vi.mock('@/features/codex/asset-storage', () => ({
+  pruneExpiredCodexAssets: prunes.pruneExpiredCodexAssets,
+  sweepOrphanPendingBlobs: h.sweepOrphanPendingBlobs,
+}));
 vi.mock('@/composition/account-lifecycle/account-purge', () => ({
   retryRequestedDeletions: h.retryRequestedDeletions,
 }));
@@ -96,8 +102,11 @@ describe('runHousekeeping', () => {
       'esi_refresh_jobs',
       'wh_statics_snapshots',
       'market_history',
+      'codex_pending_assets',
       'account_merge_tracking_receipts',
     ]);
+    expect(summary.deletes).toContainEqual({ task: 'codex_pending_assets', deleted: 0, finished: true, error: null });
+    expect(h.sweepOrphanPendingBlobs).toHaveBeenCalledWith(NOW);
     expect(summary.status).toBe('cleaned');
     expect(summary.deletes).toContainEqual({ task: 'session', deleted: 4, finished: true, error: null });
     expect(summary.retries).toEqual([

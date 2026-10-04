@@ -72,7 +72,7 @@ const render = (
       footer: null,
       sections: [section('lead', null), section('ships', 'Ships'), section('route', 'Route')],
       initialScope,
-      catalogue: { sources: [] },
+      tools: { catalogue: { sources: [] }, uploadPrefix: 'codex/local/pending/u1/' },
       ...conflict,
     }),
   );
@@ -138,7 +138,7 @@ const templateProps = {
   ],
   initialScope: null,
   initialNotice: null,
-  catalogue: { sources: [] },
+  tools: { catalogue: { sources: [] }, uploadPrefix: 'codex/local/pending/u1/' },
 } as const;
 
 type Props = { id?: string; onClick?: () => void; children?: ReactNode } & Record<string, unknown>;

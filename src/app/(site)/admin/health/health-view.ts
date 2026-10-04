@@ -1,4 +1,4 @@
-import type { StatusLevel } from '@/data/telemetry/health-metrics';
+import { targetLevel, type StatusLevel } from '@/data/telemetry/health-metrics';
 import type { FailureGroup, SlowOperation } from '@/data/telemetry/sli-breakdown';
 import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli';
 import {
@@ -77,4 +77,17 @@ export function dayLabel(date: Date): string {
 export function slowOperationNote(row: SlowOperation): string {
   const runs = `${row.count.toLocaleString()} ${row.count === 1 ? 'run' : 'runs'}`;
   return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency} on average`;
+}
+
+const BLOB_USAGE_TARGET = { warn: 7e8, fail: 9e8, direction: 'max' } as const;
+
+function decimalBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(2)} GB`;
+  return `${(bytes / 1e6).toFixed(1)} MB`;
+}
+
+export function blobUsageRow(bytes: number | null): { value: string; target: string; level: StatusLevel } {
+  const target = '1 GB Hobby limit';
+  if (bytes === null) return { value: 'unavailable', target, level: 'neutral' };
+  return { value: `${decimalBytes(bytes)} used`, target, level: targetLevel(bytes, BLOB_USAGE_TARGET) };
 }

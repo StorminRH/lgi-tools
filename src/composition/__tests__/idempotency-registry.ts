@@ -463,6 +463,18 @@ const codexProposalsRoute = mutationRoute({
   evidence:
     'The editor mints the proposal id once per open, and submit inserts it with ON CONFLICT (id) DO NOTHING against the unique primary key, so a replayed form lands as a duplicate without a second row; withdraw is an UPDATE guarded by status = pending and the submitter, so a replay changes nothing.',
 });
+const codexUploadsRoute = mutationRoute({
+  route: 'src/app/api/codex/uploads/route.ts',
+  verdict: 'inherently-idempotent',
+  evidence:
+    'Signs a short-lived upload token for a pathname under the caller\'s own pending folder and writes nothing; a replay signs another token for the same folder.',
+});
+const codexUploadsFinalizeRoute = mutationRoute({
+  route: 'src/app/api/codex/uploads/finalize/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'Variant keys are the content hash plus width, written with overwrite, and the asset insert is ON CONFLICT DO NOTHING on the partial unique (user_id, sha256) index; a replay of the same upload returns the existing asset as reused, and the raw upload is deleted after either outcome.',
+});
 const adminWhStaticsRoute = mutationRoute({
   route: 'src/app/api/admin/wh-statics/route.ts',
   verdict: 'key-protected',
@@ -682,6 +694,8 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   adminCodexRevisionsRoute,
   adminCodexProposalsRoute,
   codexProposalsRoute,
+  codexUploadsRoute,
+  codexUploadsFinalizeRoute,
   adminWhStaticsRoute,
   mapsSignatureEliminationRoute,
   mapsJumpRoute,

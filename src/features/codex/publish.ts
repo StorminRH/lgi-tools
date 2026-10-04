@@ -2,9 +2,10 @@ import { and, eq, sql } from 'drizzle-orm';
 import { revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
+import { collectCodexAssetIds } from './assets';
 import { parseCodexDoc, type CodexBlockNode, type CodexDoc, type CodexNode } from './doc';
 import { codexCacheTags, readCodexPageHead } from './queries';
-import { codexPages, codexProposals, codexRevisions } from './schema';
+import { codexAssets, codexPages, codexProposals, codexRevisions } from './schema';
 import { sectionBounds } from './sections';
 import type { CodexSubject } from './subjects';
 
@@ -186,6 +187,21 @@ async function appendRevisionIfHead(
       WHERE id = ${proposalId}::uuid AND status = 'pending' AND EXISTS (SELECT 1 FROM moved)
       RETURNING id
     )`;
+  const assetIds = collectCodexAssetIds(doc.content);
+  const assetArray = `{${assetIds.join(',')}}`;
+  const assetsLive =
+    assetIds.length === 0
+      ? sql``
+      : sql`AND NOT EXISTS (SELECT 1 FROM ${codexAssets} WHERE id = ANY(${assetArray}::uuid[]) AND status = 'removed')`;
+  const publishAssets =
+    assetIds.length === 0
+      ? sql``
+      : sql`, published AS (
+      UPDATE ${codexAssets}
+      SET status = 'published', published_at = now()
+      WHERE id = ANY(${assetArray}::uuid[]) AND status = 'pending' AND EXISTS (SELECT 1 FROM moved)
+      RETURNING id
+    )`;
   const result = await db.execute(sql`
     WITH moved AS (
       UPDATE ${codexPages}
@@ -193,8 +209,9 @@ async function appendRevisionIfHead(
       WHERE id = ${pageId}::uuid
         AND current_revision_id IS NOT DISTINCT FROM ${request.baseRevisionId}::uuid
         ${proposalPending}
+        ${assetsLive}
       RETURNING id
-    )${claimProposal}
+    )${claimProposal}${publishAssets}
     INSERT INTO ${codexRevisions}
       (id, page_id, parent_revision_id, doc, schema_version, user_id, character_id, origin, origin_ref, summary)
     SELECT ${revisionId}::uuid, moved.id, ${request.baseRevisionId}::uuid, ${JSON.stringify(stored)}::jsonb,

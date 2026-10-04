@@ -26,6 +26,8 @@ const PIPELINE_MUTATIONS = [
   'admin/characters/unlink/route.ts',
   'admin/sessions/revoke/route.ts',
   'codex/proposals/route.ts',
+  'codex/uploads/finalize/route.ts',
+  'codex/uploads/route.ts',
   'maps/access/route.ts',
   'maps/create/route.ts',
   'maps/delete/route.ts',

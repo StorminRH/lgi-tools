@@ -132,6 +132,41 @@ const dataInline = registryNode('dataInline', 'span', { attributes: dataRefAttri
   },
 });
 
+const textAttribute = (name: 'assetId' | 'alt' | 'caption' | 'src', fallback: string | null) => ({
+  default: fallback,
+  parseHTML: (element: HTMLElement) => element.dataset[name] ?? fallback,
+  renderHTML: () => ({}),
+});
+
+const image = registryNode('image', 'figure', {
+  attributes: {
+    assetId: textAttribute('assetId', null),
+    alt: textAttribute('alt', ''),
+    caption: textAttribute('caption', ''),
+    src: textAttribute('src', null),
+  },
+}).extend({
+  atom: true,
+  selectable: true,
+  draggable: true,
+  parseHTML: () => [{ tag: 'figure[data-codex-image][data-asset-id]' }],
+  renderHTML: ({ node }) => {
+    const { assetId, alt, caption, src } = node.attrs as Record<'assetId' | 'alt' | 'caption' | 'src', string | null>;
+    const figure = {
+      'data-codex-image': '',
+      'data-asset-id': assetId,
+      'data-alt': alt,
+      'data-caption': caption,
+      ...(src ? { 'data-src': src } : {}),
+      class: 'codex-image-node',
+    };
+    const picture = src
+      ? ['img', { src: `${src}-1280.webp`, alt: alt ?? '' }]
+      : ['div', { class: 'codex-image-missing' }, 'Image unavailable'];
+    return caption ? ['figure', figure, picture, ['figcaption', {}, caption]] : ['figure', figure, picture];
+  },
+});
+
 type StarterKitNode = 'paragraph' | 'heading' | 'bulletList' | 'orderedList' | 'horizontalRule' | 'text';
 
 const REGISTRY_NODES: Record<Exclude<CodexNodeName, StarterKitNode>, AnyExtension> = {
@@ -172,6 +207,7 @@ const REGISTRY_NODES: Record<Exclude<CodexNodeName, StarterKitNode>, AnyExtensio
   tableCell: registryNode('tableCell', 'td', { attributes: cellAttributes }),
   dataBlock,
   dataInline,
+  image,
 };
 
 export const codexEditorExtensions: AnyExtension[] = [
@@ -209,6 +245,10 @@ function withoutNulls(value: unknown): unknown {
 
 export function editorBlocks(json: { content?: unknown[] }): unknown[] {
   return (json.content ?? []).map(withoutNulls);
+}
+
+export function imageNode(asset: { id: string; stem: string }) {
+  return { type: 'image', attrs: { id: crypto.randomUUID(), assetId: asset.id, alt: '', caption: '', src: asset.stem } };
 }
 
 export function dataInsertion(

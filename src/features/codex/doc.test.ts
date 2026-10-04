@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { parseCodexDoc } from './doc';
+import { findUntrustedNodes, parseCodexDoc } from './doc';
 
 const paragraph = (id: string, text: string, marks: unknown[] = []) => ({
   type: 'paragraph',
@@ -195,4 +195,45 @@ test('accepts an inline data value inside a paragraph and nowhere at the top lev
     ok: false,
     problems: ['content.0.type: node type "dataInline" is not allowed here'],
   });
+});
+
+const ASSET = '0b9a3c1e-6f0d-4b55-9e0e-2f8c1d7a9b10';
+const image = (attrs: Record<string, unknown>) => ({ type: 'image', attrs: { id: 'i1', assetId: ASSET, alt: 'Gila', ...attrs } });
+
+test('stores an image as its asset id, alt text, and caption, never the editor preview address', () => {
+  const result = parseCodexDoc(doc([image({ src: 'https://s.public.blob.vercel-storage.com/codex/local/img/ab12' })]));
+
+  expect(result).toEqual({
+    ok: true,
+    doc: doc([{ type: 'image', attrs: { id: 'i1', assetId: ASSET, alt: 'Gila', caption: '' }, content: [] }]),
+  });
+});
+
+test('rejects an image without alt text, with a bad asset id, or inside a list', () => {
+  expect(parseCodexDoc(doc([image({ alt: '  ' })]))).toEqual({
+    ok: false,
+    problems: [expect.stringMatching(/^content\.0\.attrs\.alt: /)],
+  });
+  expect(parseCodexDoc(doc([image({ assetId: 'x' })]))).toEqual({
+    ok: false,
+    problems: [expect.stringMatching(/^content\.0\.attrs\.assetId: /)],
+  });
+  const nested = parseCodexDoc(
+    doc([{ type: 'bulletList', attrs: { id: 'l' }, content: [{ type: 'listItem', content: [image({})] }] }]),
+  );
+  expect(nested.ok ? [] : nested.problems).toContainEqual(expect.stringContaining('node type "image" is not allowed here'));
+});
+
+test('finds nodes of a type anywhere in untrusted JSON with their paths', () => {
+  const blocks = [
+    paragraph('p', 'Intro'),
+    image({}),
+    { type: 'blockquote', content: [null, image({ id: 'deep' })] },
+    'junk',
+  ];
+
+  expect(findUntrustedNodes(blocks, new Set(['image'])).map(({ path, node }) => [path, (node.attrs as { id: string }).id])).toEqual([
+    ['content.1', 'i1'],
+    ['content.2.content.1', 'deep'],
+  ]);
 });

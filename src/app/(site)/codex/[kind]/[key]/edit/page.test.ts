@@ -119,7 +119,7 @@ test('a viewer who is not the admin gets the plain reader', async () => {
 });
 
 test('the admin gets the editable article, opened on the section the address names', async () => {
-  mocks.getFullSession.mockResolvedValue({ isAdmin: true });
+  mocks.getFullSession.mockResolvedValue({ user: { id: 'admin-1' }, isAdmin: true });
   mocks.loadCodexPage.mockResolvedValue(page);
 
   await renderReader('guides', 'rolling-a-c3', { edit: 'ships', notice: 'conflict' });
@@ -132,12 +132,13 @@ test('the admin gets the editable article, opened on the section the address nam
       initialNotice: 'conflict',
     }),
   );
-  const { sections, catalogue } = mocks.adminArticle.mock.lastCall![0] as {
+  const { sections, tools } = mocks.adminArticle.mock.lastCall![0] as {
     sections: { id: string }[];
-    catalogue: { sources: { id: string }[] };
+    tools: { catalogue: { sources: { id: string }[] }; uploadPrefix: string };
   };
   expect(sections.map((section) => section.id)).toEqual(['lead', 'ships', 'route']);
-  expect(catalogue.sources.map((source) => source.id)).toEqual(SOURCE_IDS);
+  expect(tools.catalogue.sources.map((source) => source.id)).toEqual(SOURCE_IDS);
+  expect(tools.uploadPrefix).toBe('codex/local/pending/admin-1/');
 
   await renderReader('guides', 'rolling-a-c3', { edit: 'gone' });
   expect(mocks.adminArticle).toHaveBeenLastCalledWith(
@@ -154,7 +155,7 @@ test('the admin gets the editable article, opened on the section the address nam
 });
 
 test('the admin starts a new guide from a title on an empty address', async () => {
-  mocks.getFullSession.mockResolvedValue({ isAdmin: true });
+  mocks.getFullSession.mockResolvedValue({ user: { id: 'admin-1' }, isAdmin: true });
   mocks.loadCodexPage.mockResolvedValue(null);
 
   await renderReader('guides', 'new-one', { title: 'New one' });
@@ -167,8 +168,8 @@ test('the admin starts a new guide from a title on an empty address', async () =
       initialNotice: null,
     }),
   );
-  const { catalogue } = mocks.adminArticle.mock.lastCall![0] as { catalogue: { sources: { id: string }[] } };
-  expect(catalogue.sources.map((source) => source.id)).toEqual(SOURCE_IDS);
+  const { tools } = mocks.adminArticle.mock.lastCall![0] as { tools: { catalogue: { sources: { id: string }[] } } };
+  expect(tools.catalogue.sources.map((source) => source.id)).toEqual(SOURCE_IDS);
   expect(
     await generateMetadata({ params: params('guides', 'new-one'), searchParams: query({ title: 'New one' }) }),
   ).toMatchObject({ title: 'New one' });
@@ -178,7 +179,7 @@ test('the admin starts a new guide from a title on an empty address', async () =
 });
 
 test('the admin edits an unwritten entity page from its template', async () => {
-  mocks.getFullSession.mockResolvedValue({ isAdmin: true });
+  mocks.getFullSession.mockResolvedValue({ user: { id: 'admin-1' }, isAdmin: true });
   mocks.loadCodexPage.mockResolvedValue(null);
 
   await renderReader('wormholes', 'c247');
@@ -199,7 +200,7 @@ test('the admin edits an unwritten entity page from its template', async () => {
 });
 
 test('a signed-in pilot with a character suggests edits in the same article', async () => {
-  mocks.getFullSession.mockResolvedValue({ isAdmin: false, characterId: 1, name: 'Karaka' });
+  mocks.getFullSession.mockResolvedValue({ user: { id: 'pilot-1' }, isAdmin: false, characterId: 1, name: 'Karaka' });
   mocks.loadCodexPage.mockResolvedValue(page);
 
   await renderReader('guides', 'rolling-a-c3', { edit: 'ships', notice: 'license' });
@@ -219,7 +220,7 @@ test('a signed-in pilot with a character suggests edits in the same article', as
 });
 
 test('the admin publishes', async () => {
-  mocks.getFullSession.mockResolvedValue({ isAdmin: true, characterId: null, name: 'Stormin' });
+  mocks.getFullSession.mockResolvedValue({ user: { id: 'admin-1' }, isAdmin: true, characterId: null, name: 'Stormin' });
   mocks.loadCodexPage.mockResolvedValue(page);
   mocks.credits = [{ characterId: 9001, name: 'Tester', edits: 2 }];
 
@@ -233,7 +234,7 @@ test('the admin publishes', async () => {
 });
 
 test('a signed-in viewer without a character reads the template page', async () => {
-  mocks.getFullSession.mockResolvedValue({ isAdmin: false, characterId: null });
+  mocks.getFullSession.mockResolvedValue({ user: { id: 'pilot-1' }, isAdmin: false, characterId: null });
   mocks.loadCodexPage.mockResolvedValue(null);
 
   const html = await renderReader('wormholes', 'c247');

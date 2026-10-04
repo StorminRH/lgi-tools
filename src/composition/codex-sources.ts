@@ -17,6 +17,7 @@ import type {
   CodexSourceCatalogue,
   CodexSourceIcon,
 } from '@/features/codex/components/CodexDataView';
+import { findUntrustedNodes } from '@/features/codex/doc';
 import type { CodexDataLayout } from '@/features/codex/nodes';
 import { isPublishedWormholeSiteId } from '@/features/wormhole-sites/catalogue-boundary';
 import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-styles';
@@ -420,20 +421,10 @@ interface DataNodeAt {
 }
 
 function collectDataNodesFromUntrustedJson(blocks: readonly unknown[]): DataNodeAt[] {
-  const found: DataNodeAt[] = [];
-  const stack: { node: unknown; at: string }[] = [];
-  const pushChildren = (nodes: readonly unknown[], path: string) => {
-    for (let index = nodes.length - 1; index >= 0; index--) stack.push({ node: nodes[index], at: `${path}.${index}` });
-  };
-  pushChildren(blocks, 'content');
-  while (stack.length > 0) {
-    const { node, at } = stack.pop()!;
-    if (!isRecord(node)) continue;
-    const attrs = DATA_NODE_TYPES.has(node.type as string) ? dataNodeAttrs(node) : null;
-    if (attrs) found.push({ path: at, type: node.type as string, attrs });
-    if (Array.isArray(node.content)) pushChildren(node.content, `${at}.content`);
-  }
-  return found;
+  return findUntrustedNodes(blocks, DATA_NODE_TYPES).flatMap(({ path, node }) => {
+    const attrs = dataNodeAttrs(node);
+    return attrs ? [{ path, type: node.type, attrs }] : [];
+  });
 }
 
 async function blockProblems(attrs: CodexDataBlockAttrs): Promise<string[]> {

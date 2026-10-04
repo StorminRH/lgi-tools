@@ -32,7 +32,7 @@ vi.mock('@/features/wormhole-sites/components/SiteCard', () => ({
 }));
 
 import { codexSourceCatalogue, type CodexDataBlockAttrs } from '@/composition/codex-sources';
-import { CARD_VIEWS, CodexDataBlock } from './codex-data-block';
+import { CARD_VIEWS, CodexDataBlock, codexComponentsFor } from './codex-data-block';
 
 const C247 = {
   code: 'C247',
@@ -137,4 +137,27 @@ test('every source that offers the card layout has a card view', () => {
     .map((source) => source.id);
   expect(Object.keys(CARD_VIEWS)).toEqual(offering);
   expect(offering).toEqual(['site']);
+});
+
+test('an image renders its stored widths with the caption and credit, or a placeholder when unavailable', () => {
+  const stem = 'https://s.public.blob.vercel-storage.com/codex/local/img/ab12';
+  const assetId = '0b9a3c1e-6f0d-4b55-9e0e-2f8c1d7a9b10';
+  const assets = new Map([
+    [assetId, { id: assetId, stem, width: 1920, height: 1080, status: 'published' as const, credit: 'Karaka Haginen' }],
+  ]);
+  const { image } = codexComponentsFor(assets);
+  const attrs = { id: 'i1', assetId, alt: 'Gila holding at 30 km', caption: 'Wave 2 drifts in.' };
+
+  const shown = renderToStaticMarkup(createElement('div', null, image({ attrs, children: null })));
+  expect(shown).toContain('alt="Gila holding at 30 km"');
+  expect(shown).toContain(`${stem}-640.webp 640w`);
+  expect(shown).not.toContain('/_next/image');
+  expect(shown).toContain('Wave 2 drifts in.');
+  expect(shown).toContain('Screenshot by Karaka Haginen');
+
+  const missing = renderToStaticMarkup(
+    createElement('div', null, image({ attrs: { ...attrs, assetId: 'other' }, children: null })),
+  );
+  expect(missing).toContain('Image unavailable');
+  expect(missing).not.toContain('<img');
 });

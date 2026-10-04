@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { EveImage, eveImageUrl } from './eve-image';
+import { codexImageUrl, EveImage, eveImageUrl } from './eve-image';
 
 describe('EveImage loader', () => {
   it('replaces size while preserving other image-server parameters', () => {
@@ -46,6 +46,32 @@ describe('EveImage rendering', () => {
     );
 
     expect(markup).toContain('src="/eve-sso-login-black-large.png"');
+    expect(markup).not.toContain('/_next/image');
+  });
+});
+
+describe('EveImage codex source', () => {
+  const STEM = 'https://s.public.blob.vercel-storage.com/codex/local/img/ab12';
+
+  it('snaps the requested width to a stored variant', () => {
+    expect(codexImageUrl({ src: STEM, width: 900 })).toBe(`${STEM}-1280.webp`);
+    expect(codexImageUrl({ src: STEM, width: 2000 })).toBe(`${STEM}-1920.webp`);
+  });
+
+  it('points every candidate at a stored variant, never the Next optimizer', () => {
+    const markup = renderToStaticMarkup(
+      createElement(EveImage, {
+        source: 'codex',
+        src: STEM,
+        alt: 'Gila holding',
+        width: 1920,
+        height: 1080,
+        sizes: '(min-width: 1024px) 760px, 100vw',
+      }),
+    );
+
+    expect(markup).toContain(`${STEM}-640.webp 640w`);
+    expect(markup).toContain(`${STEM}-1920.webp`);
     expect(markup).not.toContain('/_next/image');
   });
 });

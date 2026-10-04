@@ -9,6 +9,8 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { loadCodexProposalMerge, type CodexProposalMerge } from '@/composition/codex-merge-review';
 import { codexSourceCatalogue } from '@/composition/codex-sources';
 import { codexQueuePage } from '@/features/codex/api-contract';
+import { collectCodexAssetIds, loadCodexAssetViews, withImageSources, type CodexAssetView } from '@/features/codex/assets';
+import { CodexImageFigure } from '@/features/codex/components/CodexImage';
 import { diffCodexBlocks } from '@/features/codex/diff';
 import type { CodexBlockNode } from '@/features/codex/doc';
 import type { CodexMergeConflict } from '@/features/codex/merge';
@@ -41,26 +43,42 @@ function queuePageOf(raw: string | string[] | undefined): string | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
-const against = (base: CodexBlockNode | null, side: CodexBlockNode | null) => (
-  <ProposalDiff diff={diffCodexBlocks(base ? [base] : [], side ? [side] : [])} />
+type Assets = ReadonlyMap<string, CodexAssetView>;
+
+const against = (base: CodexBlockNode | null, side: CodexBlockNode | null, assets: Assets) => (
+  <ProposalDiff diff={diffCodexBlocks(base ? [base] : [], side ? [side] : [])} assets={assets} />
 );
 
-function conflictRow({ blockId, base, head, proposal }: CodexMergeConflict): ConflictRow {
+function baseColumn(base: CodexBlockNode | null, assets: Assets) {
+  if (base?.type === 'image') return <CodexImageFigure attrs={base.attrs} asset={assets.get(base.attrs.assetId)} />;
+  return (
+    <p className={cn(insetSurface, 'px-4 py-3.5 font-ui text-nav leading-[1.75] whitespace-pre-wrap text-text')}>
+      {base ? plainText(base) : <span className="text-ui text-muted italic">Not in the original</span>}
+    </p>
+  );
+}
+
+function conflictRow({ blockId, base, head, proposal }: CodexMergeConflict, assets: Assets): ConflictRow {
+  const initial = proposal ?? head;
   return {
     blockId,
     columns: {
-      base: (
-        <p className={cn(insetSurface, 'px-4 py-3.5 font-ui text-nav leading-[1.75] whitespace-pre-wrap text-text')}>
-          {base ? plainText(base) : <span className="text-ui text-muted italic">Not in the original</span>}
-        </p>
-      ),
-      head: against(base, head),
-      proposal: against(base, proposal),
+      base: baseColumn(base, assets),
+      head: against(base, head, assets),
+      proposal: against(base, proposal, assets),
     },
     headPresent: head !== null,
     proposalPresent: proposal !== null,
-    initialBlocks: [proposal ?? head],
+    initialBlocks: initial === null ? [null] : withImageSources([initial], assets),
   };
+}
+
+function conflictAssets(conflicts: readonly CodexMergeConflict[]): Promise<Map<string, CodexAssetView>> {
+  const blocks = conflicts.flatMap(({ base, head, proposal }) => [base, head, proposal]);
+  return loadCodexAssetViews(
+    collectCodexAssetIds(blocks.filter((block) => block !== null)),
+    { kind: 'admin' },
+  );
 }
 
 function Byline({ proposal, merge }: CodexProposalMerge) {
@@ -92,6 +110,7 @@ export async function MergeReview({ params, searchParams }: { params: Params; se
   const notice = noticeOf(query.notice);
   const page = queuePageOf(query.page);
   const conflicts = merge.kind === 'conflict' ? merge.conflicts : [];
+  const assets = await conflictAssets(conflicts);
   return (
     <div className="reveal reveal-1 flex w-full flex-col gap-4">
       <Link
@@ -119,7 +138,7 @@ export async function MergeReview({ params, searchParams }: { params: Params; se
             page={page}
             notice={notice}
             catalogue={codexSourceCatalogue()}
-            rows={conflicts.map(conflictRow)}
+            rows={conflicts.map((conflict) => conflictRow(conflict, assets))}
           />
         ) : null}
       </Card>

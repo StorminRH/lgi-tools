@@ -8,7 +8,7 @@ import {
   type Editor,
   type JSONContent,
 } from '@tiptap/react';
-import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/components/ui/cn';
@@ -17,6 +17,7 @@ import {
   BulletIcon,
   CalloutIcon,
   DataIcon,
+  ImageIcon,
   ItalicIcon,
   LinkIcon,
   NumberedIcon,
@@ -29,8 +30,17 @@ import type { CodexEditorNotice, CodexSubject } from '../subjects';
 import { DataBlockPicker } from './DataBlockPicker';
 import type { DataNode } from './data-block-picker-state';
 import { EditorNotice } from './EditorNotice';
-import { codexDraftKey, initialEditorBlocks, keepCodexDraft, takeConflictDraft } from './draft';
+import { codexDraftKey, formSummary, initialEditorBlocks, keepCodexDraft, takeConflictDraft } from './draft';
 import { codexEditorExtensions, dataInsertion, editorBlocks } from './extensions';
+import { firstImageWithoutAlt } from './image-upload';
+import {
+  ImageRow,
+  MISSING_ALT_PROBLEM,
+  selectImage,
+  UploadLine,
+  useImageDrops,
+  useImageUpload,
+} from './ImageControls';
 
 export interface CodexEditorProps {
   readonly mode: CodexEditMode;
@@ -42,8 +52,13 @@ export interface CodexEditorProps {
   readonly goneSectionId?: string | null;
   readonly initialBlocks: readonly unknown[];
   readonly notice: CodexEditorNotice | null;
-  readonly catalogue: CodexSourceCatalogue;
+  readonly tools: CodexEditorTools;
   readonly onCancel: () => void;
+}
+
+export interface CodexEditorTools {
+  readonly catalogue: CodexSourceCatalogue;
+  readonly uploadPrefix: string;
 }
 
 function toolButtonClass(active: boolean | undefined, wide: boolean | undefined) {
@@ -89,6 +104,11 @@ const editorSurfaceClass = cn(
   '[&_.codex-data-chip]:font-data [&_.codex-data-chip]:text-ui [&_.codex-data-chip]:text-isk',
   '[&_span.codex-data-chip]:inline-flex [&_span.codex-data-chip]:px-1.5 [&_span.codex-data-chip]:py-0 [&_span.codex-data-chip]:align-baseline',
   '[&_.codex-data-chip.ProseMirror-selectednode]:border-solid [&_.codex-data-chip.ProseMirror-selectednode]:border-isk',
+  '[&_.codex-image-node]:my-3 [&_.codex-image-node]:cursor-grab [&_.codex-image-node]:rounded-card [&_.codex-image-node]:border',
+  '[&_.codex-image-node]:border-border [&_.codex-image-node]:p-1.5 [&_.codex-image-node_img]:block [&_.codex-image-node_img]:w-full',
+  '[&_.codex-image-node_img]:rounded-ctl [&_.codex-image-node_figcaption]:mt-1.5 [&_.codex-image-node_figcaption]:text-ui',
+  '[&_.codex-image-node_figcaption]:text-muted [&_.codex-image-missing]:py-8 [&_.codex-image-missing]:text-center [&_.codex-image-missing]:text-muted',
+  '[&_.codex-image-node.ProseMirror-selectednode]:border-isk',
 );
 
 const Divider = () => <span aria-hidden className="mx-1 h-5 w-px bg-border" />;
@@ -102,6 +122,7 @@ const IDLE_TOOLBAR = {
   bullets: false,
   numbers: false,
   callout: false,
+  image: false,
 };
 
 function useToolbarState(editor: Editor | null) {
@@ -116,6 +137,7 @@ function useToolbarState(editor: Editor | null) {
       bullets: current?.isActive('bulletList') ?? false,
       numbers: current?.isActive('orderedList') ?? false,
       callout: current?.isActive('callout') ?? false,
+      image: current?.isActive('image') ?? false,
     }),
   });
 }
@@ -169,16 +191,19 @@ function LinkRow({ editor, onClose }: { editor: Editor; onClose: () => void }) {
 
 function Toolbar({
   editor,
+  state,
   onLink,
+  onImage,
   data,
   bar,
 }: {
   editor: Editor | null;
+  state: typeof IDLE_TOOLBAR;
   onLink: () => void;
+  onImage: (() => void) | null;
   data: ReactNode;
   bar: RefObject<HTMLDivElement | null>;
 }) {
-  const state = useToolbarState(editor) ?? IDLE_TOOLBAR;
   const run = (command: (chain: ChainedCommands) => ChainedCommands) => () => {
     if (editor) command(editor.chain().focus()).run();
   };
@@ -216,6 +241,12 @@ function Toolbar({
         <CalloutIcon size={15} />
       </ToolButton>
       <Divider />
+      {onImage ? (
+        <ToolButton label="Image" wide active={state.image} onClick={onImage}>
+          <ImageIcon size={15} />
+          Image
+        </ToolButton>
+      ) : null}
       {data}
     </div>
   );
@@ -226,16 +257,33 @@ function insertDataNode(editor: Editor, node: DataNode) {
   editor.chain().focus().insertContentAt(at, content).run();
 }
 
-function EditorToolbar({ editor, catalogue }: { editor: Editor | null; catalogue: CodexSourceCatalogue }) {
+function EditorToolbar({
+  editor,
+  catalogue,
+  upload,
+  altRequest,
+  altBlocked,
+  onAltHandled,
+}: {
+  editor: Editor | null;
+  catalogue: CodexSourceCatalogue;
+  upload?: ReturnType<typeof useImageUpload>;
+  altRequest?: number;
+  altBlocked?: boolean;
+  onAltHandled?: () => void;
+}) {
   const [linking, setLinking] = useState(false);
   const [picking, setPicking] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
+  const state = useToolbarState(editor) ?? IDLE_TOOLBAR;
   return (
-    <>
+    <div className="sticky top-24 z-[1] rounded-t-card bg-bg-deep">
       <Toolbar
         bar={bar}
         editor={editor}
+        state={state}
         onLink={() => setLinking((open) => !open)}
+        onImage={upload ? upload.pick : null}
         data={
           <DataBlockPicker
             catalogue={catalogue}
@@ -254,7 +302,11 @@ function EditorToolbar({ editor, catalogue }: { editor: Editor | null; catalogue
         }
       />
       {linking && editor ? <LinkRow editor={editor} onClose={() => setLinking(false)} /> : null}
-    </>
+      {state.image && editor ? (
+        <ImageRow editor={editor} altRequest={altRequest} altBlocked={altBlocked} onAltHandled={onAltHandled} />
+      ) : null}
+      {upload ? <UploadLine state={upload.state} onDismiss={upload.dismiss} /> : null}
+    </div>
   );
 }
 
@@ -302,13 +354,15 @@ function EditorFooter({
   summary,
   saveLabel,
   canSave,
+  problem,
   onCancel,
 }: {
   mode: CodexEditMode;
   viewerName: string;
-  summary: string;
+  summary: string | undefined;
   saveLabel: string;
   canSave: boolean;
+  problem: string | null;
   onCancel: () => void;
 }) {
   const { summaryRequired, license } = CODEX_EDIT_MODES[mode];
@@ -324,10 +378,15 @@ function EditorFooter({
           maxLength={200}
           required={summaryRequired}
           placeholder={summaryRequired ? 'What did you change, and why?' : 'Briefly describe the change'}
-          defaultValue={summary}
+          defaultValue={summary ?? ''}
         />
       </label>
       {license ? <LicenseField /> : null}
+      {problem ? (
+        <p className="font-ui text-ui text-dps-mid">
+          {problem}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <span className="mr-auto font-ui text-ui text-faint">
           {mode === 'publish' ? 'Publishes immediately · saved to history' : `Signed in as ${viewerName}`}
@@ -347,6 +406,8 @@ const EDITOR_TEXT_LABELS = { page: 'Page text', section: 'Section text' } as con
 
 function useDraftForm(storageKey: string, editor: Editor | null) {
   const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [altRequest, setAltRequest] = useState(0);
   const blocksField = useRef<HTMLInputElement>(null);
 
   const save = (event: FormEvent<HTMLFormElement>) => {
@@ -355,12 +416,23 @@ function useDraftForm(storageKey: string, editor: Editor | null) {
       return;
     }
     const blocks = editorBlocks(editor.getJSON());
+    const missingAlt = firstImageWithoutAlt(blocks);
+    if (missingAlt !== null) {
+      event.preventDefault();
+      selectImage(editor, (_id, index) => index === missingAlt, false);
+      setAltRequest((count) => count + 1);
+      setProblem(MISSING_ALT_PROBLEM);
+      return;
+    }
+    setProblem(null);
     blocksField.current.value = JSON.stringify(blocks);
-    keepCodexDraft(storageKey, { blocks, summary: String(new FormData(event.currentTarget).get('summary') ?? '') });
+    keepCodexDraft(storageKey, { blocks, summary: formSummary(new FormData(event.currentTarget)) });
     setSaving(true);
   };
 
-  return { blocksField, saving, save };
+  const onAltHandled = useCallback(() => setAltRequest(0), []);
+
+  return { blocksField, saving, problem, altRequest, onAltHandled, save };
 }
 
 export function CodexBlockEditor({
@@ -399,13 +471,14 @@ export function CodexEditor({
   goneSectionId = null,
   initialBlocks,
   notice,
-  catalogue,
+  tools,
   onCancel,
 }: CodexEditorProps) {
   const storageKey = codexDraftKey(subject, sectionId);
   const [draft] = useState(() => takeConflictDraft(subject, sectionId, goneSectionId, notice !== null));
   const scope = sectionId === null ? 'page' : 'section';
 
+  const drops = useImageDrops();
   const editor = useEditor({
     extensions: codexEditorExtensions,
     content: { type: 'doc', content: initialEditorBlocks(draft, initialBlocks, goneSectionId !== null) as JSONContent[] },
@@ -413,11 +486,14 @@ export function CodexEditor({
     autofocus: 'start',
     editorProps: {
       attributes: { class: 'codex-prose', 'aria-label': EDITOR_TEXT_LABELS[scope] },
+      handlePaste: drops.handlePaste,
+      handleDrop: drops.handleDrop,
     },
     onCreate: () => performance.mark('codex-editor-ready'),
   });
 
-  const { blocksField, saving, save } = useDraftForm(storageKey, editor);
+  const upload = useImageUpload(editor, tools.uploadPrefix, drops.start);
+  const { blocksField, saving, problem, altRequest, onAltHandled, save } = useDraftForm(storageKey, editor);
 
   return (
     <form
@@ -430,16 +506,24 @@ export function CodexEditor({
       <TargetFields mode={mode} subject={subject} baseRevisionId={baseRevisionId} sectionId={sectionId} newTitle={newTitle} />
       <input ref={blocksField} type="hidden" name="blocks" />
       {notice ? <EditorNotice notice={notice} subject={subject} sectionId={sectionId} goneSectionId={goneSectionId} /> : null}
-      <EditorToolbar editor={editor} catalogue={catalogue} />
+      <EditorToolbar
+        editor={editor}
+        catalogue={tools.catalogue}
+        upload={upload}
+        altRequest={altRequest}
+        altBlocked={problem === MISSING_ALT_PROBLEM}
+        onAltHandled={onAltHandled}
+      />
       <div className={editorSurfaceClass}>
         <EditorContent editor={editor} />
       </div>
       <EditorFooter
         mode={mode}
         viewerName={viewerName}
-        summary={draft?.summary ?? ''}
+        summary={draft?.summary}
         saveLabel={CODEX_EDIT_MODES[mode].save[scope]}
-        canSave={editor !== null && !saving}
+        canSave={editor !== null && !saving && !upload.busy}
+        problem={problem}
         onCancel={onCancel}
       />
     </form>

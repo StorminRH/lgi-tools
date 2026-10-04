@@ -41,9 +41,9 @@ export function proxy(request: NextRequest): NextResponse {
     default-src 'self';
     script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https://images.evetech.net;
+    img-src 'self' blob: data: https://images.evetech.net https://*.public.blob.vercel-storage.com;
     font-src 'self';
-    connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com${CONVEX_CONNECT_SRC};
+    connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com https://vercel.com${CONVEX_CONNECT_SRC};
     frame-src 'none';
     frame-ancestors 'none';
     form-action 'self';

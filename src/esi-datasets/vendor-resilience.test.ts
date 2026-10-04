@@ -36,6 +36,7 @@ const EXPECTED_INTEGRATIONS: readonly VendorIntegrationId[] = [
   'ccp-static-data',
   'ccp-image-cdn',
   'anoik-statics',
+  'vercel-blob',
 ];
 
 const REDIS_CONSTRUCTION_SITES = ['src/lib/upstash.ts'];

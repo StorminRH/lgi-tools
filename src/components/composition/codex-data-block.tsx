@@ -7,7 +7,9 @@ import {
   type CodexDataBlockAttrs,
   type CodexSourceId,
 } from '@/composition/codex-sources';
+import type { CodexAssetView } from '@/features/codex/assets';
 import { CodexDataView } from '@/features/codex/components/CodexDataView';
+import { CodexImageFigure } from '@/features/codex/components/CodexImage';
 import type { CodexInjectedComponents } from '@/features/codex/render';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import type { SiteDetail } from '@/features/wormhole-sites/types';
@@ -51,7 +53,7 @@ export async function CodexDataBlock({ attrs }: { attrs: CodexDataBlockAttrs }) 
   return <CodexDataView view={formatDataBlock(resolution, row)} layout={resolution.layout} />;
 }
 
-export const codexComponents: CodexInjectedComponents = {
+export const codexComponents: Omit<CodexInjectedComponents, 'image'> = {
   dataBlock: ({ attrs }) => (
     <Suspense fallback={<Skeleton label="Loading data" className="h-32 w-full rounded-card" />}>
       <CodexDataBlock attrs={attrs} />
@@ -63,3 +65,10 @@ export const codexComponents: CodexInjectedComponents = {
     </Suspense>
   ),
 };
+
+export function codexComponentsFor(assets: ReadonlyMap<string, CodexAssetView>): CodexInjectedComponents {
+  return {
+    ...codexComponents,
+    image: ({ attrs }) => <CodexImageFigure attrs={attrs} asset={assets.get(attrs.assetId)} />,
+  };
+}

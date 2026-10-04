@@ -136,7 +136,7 @@ export function pickReviewForm(form: FormData): Record<string, unknown> {
   };
 }
 
-const codexSourceHitSchema =z.object({ key: z.string(), title: z.string(), hint: z.string() });
+const codexSourceHitSchema = z.object({ key: z.string(), title: z.string(), hint: z.string() });
 
 export type CodexSourceHit = z.infer<typeof codexSourceHitSchema>;
 
@@ -173,5 +173,50 @@ export const codexSourceEntityEndpoint = defineEndpoint({
     400: problem('invalid_query', 'unknown_source', 'invalid_key'),
     401: problem('unauthenticated'),
     404: problem('entity_not_found'),
+  },
+});
+
+export const codexUploadTokenRequestSchema = z.object({
+  type: z.literal('blob.generate-client-token'),
+  payload: z.looseObject({ pathname: z.string(), clientPayload: z.string().nullable(), multipart: z.boolean() }),
+});
+
+export const codexUploadTokenEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/codex/uploads',
+  request: codexUploadTokenRequestSchema,
+  responses: {
+    200: jsonBody(z.object({ type: z.string(), clientToken: z.string() })),
+    400: problem('invalid_body', 'invalid_json', 'bad_pathname'),
+    401: problem('unauthenticated'),
+    403: problem('character_required', 'forbidden'),
+    429: problem('rate_limited', 'upload_quota'),
+    503: problem('blob_unconfigured'),
+  },
+});
+
+export const codexUploadFinalizeRequestSchema = z.object({ url: z.url() });
+
+const codexUploadedAssetSchema = z.object({
+  id: z.string(),
+  stem: z.string(),
+  width: z.number(),
+  height: z.number(),
+});
+
+export type CodexUploadedAsset = z.infer<typeof codexUploadedAssetSchema>;
+
+export const codexUploadFinalizeEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/codex/uploads/finalize',
+  request: codexUploadFinalizeRequestSchema,
+  responses: {
+    200: jsonBody(z.object({ asset: codexUploadedAssetSchema })),
+    400: problem('invalid_body', 'invalid_json', 'forbidden_key', 'not_an_image', 'too_large', 'too_many_pixels'),
+    401: problem('unauthenticated'),
+    403: problem('character_required', 'forbidden'),
+    404: problem('pending_upload_missing'),
+    429: problem('rate_limited', 'upload_quota'),
+    503: problem('blob_unconfigured'),
   },
 });

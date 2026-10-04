@@ -98,3 +98,7 @@ export function initialEditorBlocks(
   if (draft) return draft.blocks;
   return initialBlocks.length > 0 ? [...initialBlocks] : [{ type: 'paragraph' }];
 }
+
+export function formSummary(form: FormData): string {
+  return String(form.get('summary') ?? '');
+}

@@ -1,6 +1,7 @@
 import { parseRange, rangeFor } from '@/composition/admin-period';
 import { AdminPageFrame, AdminSlot } from '../AdminFrame';
 import type { RangeSearchParams } from '../RangeControl';
+import { CodexBlobCard } from './CodexBlobCard';
 import { EventLogCard, ServiceLevelsCard } from './HealthCards';
 import { ScheduledTasks } from './ScheduledTasks';
 
@@ -16,6 +17,9 @@ async function HealthContent({ searchParams }: { searchParams: RangeSearchParams
       </AdminSlot>
       <AdminSlot label="Event log" rows={6} reveal={3}>
         <EventLogCard />
+      </AdminSlot>
+      <AdminSlot label="Codex images" rows={1} reveal={4}>
+        <CodexBlobCard />
       </AdminSlot>
     </>
   );
