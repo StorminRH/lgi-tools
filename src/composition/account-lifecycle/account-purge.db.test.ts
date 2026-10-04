@@ -78,6 +78,8 @@ const TABLE_NAMES = [
   'net_worth_days',
   'pending_tracking_merges',
   'pending_deletions',
+  'codex_pages',
+  'codex_revisions',
   'verification',
   'jwks',
 ] as const;

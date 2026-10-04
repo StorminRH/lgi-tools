@@ -11,6 +11,25 @@ export interface StaticTableColumn<Row> {
   render: (row: Row) => ReactNode;
 }
 
+const docTableClass = cn(
+  'overflow-x-auto rounded-card border border-border font-ui text-ui',
+  '[&_table]:w-full [&_table]:border-collapse',
+  '[&_td]:border-t [&_td]:border-border-soft [&_td]:px-3 [&_td]:py-2 [&_td]:text-left [&_td]:align-top',
+  '[&_th]:border-t [&_th]:border-border-soft [&_th]:bg-bg-deep [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:align-top',
+  '[&_th]:text-label [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.1em] [&_th]:text-muted',
+  '[&_tr:first-child>*]:border-t-0',
+);
+
+export function DocTable({ children }: { children: ReactNode }) {
+  return (
+    <div className={docTableClass}>
+      <table>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
 function cellClass(
   align: 'left' | 'right' = 'left',
   className?: string,

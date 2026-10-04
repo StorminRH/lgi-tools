@@ -12,7 +12,7 @@ import { mapAccess, maps } from '@/data/maps/schema';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv, isHostedVercel } from '@/lib/env';
-import { isLocalUrl } from '@/lib/url-safety';
+import { assertLocalDatabaseUrl, isLocalUrl } from '@/lib/url-safety';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
@@ -34,9 +34,7 @@ function assertLocalSyntheticEnvironment(): string {
   const ciDatabase =
     readEnv('CI') === 'true' &&
     isLocalUrl(databaseUrl, ['postgres:', 'postgresql:'], ['postgres']);
-  if (!isLocalUrl(databaseUrl, ['postgres:', 'postgresql:']) && !ciDatabase) {
-    throw new Error('Synthetic pilot reset requires a local Postgres DATABASE_URL');
-  }
+  if (!ciDatabase) assertLocalDatabaseUrl(databaseUrl, 'Synthetic pilot reset');
   if (!isLocalUrl(readEnv('BETTER_AUTH_URL'), ['http:'], ['localhost'])) {
     throw new Error('Synthetic pilot reset requires BETTER_AUTH_URL on http://localhost');
   }

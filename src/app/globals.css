@@ -31,6 +31,7 @@
 @import "../components/composition/board/HomeBoardView.css";
 @import "../components/composition/industry-workspace/IndustryShell.css";
 @import "../components/type-icon.css";
+@import "../features/codex/render.css";
 @import "../features/wormhole-sites/components/LazySiteDetails.css";
 @import "../features/wormhole-sites/components/SiteCardLightbox.css";
 @import "../features/wormhole-sites/components/SitesTable.css";

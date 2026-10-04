@@ -54,7 +54,9 @@
     "/api/sync-leave": "Dynamic authenticated mutation: the Atlas pagehide beacon retires one tab's location sync subject per request.",
     "/contact": "Static contact page; partial only because of the header's TQ status hole.",
     "/legal": "Static legal page; partial only because of the header's TQ status hole.",
-    "/preview/cards": "Static card preview over mock sites; partial only because of the header's TQ status hole."
+    "/preview/cards": "Static card preview over mock sites; partial only because of the header's TQ status hole.",
+    "/codex": "The guide listing is a 'max'-cached read tagged codex:index, so the whole index prerenders; partial only because of the header's TQ status hole.",
+    "/codex/[kind]/[key]": "Codex reader: the kind and key params, the tag-cached current revision, and the server-rendered document stream from one hole behind a page-shaped skeleton."
   },
   "routes": {
     "/": "partial",
@@ -166,6 +168,8 @@
     "/api/sites": "dynamic",
     "/api/sites/[id]": "dynamic",
     "/api/sync-leave": "dynamic",
-    "/api/telemetry": "dynamic"
+    "/api/telemetry": "dynamic",
+    "/codex": "partial",
+    "/codex/[kind]/[key]": "partial"
   }
 }

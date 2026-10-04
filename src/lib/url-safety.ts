@@ -10,3 +10,9 @@ export function isLocalUrl(
     return false;
   }
 }
+
+export function assertLocalDatabaseUrl(url: string | undefined, who: string): void {
+  if (!isLocalUrl(url, ['postgres:', 'postgresql:'])) {
+    throw new Error(`${who} requires a local Postgres DATABASE_URL`);
+  }
+}

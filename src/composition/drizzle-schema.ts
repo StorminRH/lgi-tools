@@ -25,3 +25,4 @@ export * from '../data/wh-statics/schema';
 export * from '../data/wh-observations/schema';
 export * from '../data/corp-holdings/schema';
 export * from '../data/location-tracking/schema';
+export * from '../features/codex/schema';

@@ -45,6 +45,7 @@ const PRODUCTION_POSTGRES_SITES = [
   'src/db/index.ts',
   'src/scripts/check-universe-assets.ts',
   'src/scripts/check-wh-statics.ts',
+  'src/scripts/codex-seed-guide.ts',
   'src/scripts/ci-sde-seed.ts',
   'src/scripts/ingest-sde.ts',
   'src/scripts/migrate.ts',

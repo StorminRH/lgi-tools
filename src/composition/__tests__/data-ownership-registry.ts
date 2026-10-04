@@ -18,6 +18,7 @@ export type SliceId =
   | 'data/wh-observations'
   | 'data/wh-statics'
   | 'features/character-sheet'
+  | 'features/codex'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
@@ -156,6 +157,16 @@ const WH_STATICS_PROMOTE_BATCH = {
   kind: 'transactional-batch',
   note: 'Operator-only promotion deletes the prior serving copy, inserts every normalized assignment bound to the selected snapshot, and marks that snapshot promoted in one postgres-js transaction.',
 } as const satisfies TransactionBoundary;
+
+const CODEX_PUBLISH = {
+  kind: 'transactional-batch',
+  note: 'A publish appends one revision and moves the page head to it in one transaction; revisions are never updated except when account purge clears their author columns.',
+} as const satisfies TransactionBoundary;
+
+const CODEX_SEED_WRITER = {
+  by: 'scripts',
+  reason: 'The dev-only guide seeder (src/scripts/codex-seed-guide.ts) writes one sample guide into a local database so a verifier can open a page with every node type.',
+} as const satisfies CrossOwnerWrite;
 
 export const DATA_OWNERSHIP = [
   {
@@ -1011,5 +1022,33 @@ export const DATA_OWNERSHIP = [
       note: 'Append-only: one insert per emitted event, plus the retention prune. Emission is deliberately outside the emitting write\'s failure path, so an event is only emitted once that write has stood.',
     },
     dataClass: 'operational',
+  },
+  {
+    table: schema.codexPages,
+    owner: 'features/codex',
+    reads: [],
+    writers: [CODEX_SEED_WRITER],
+    invariants: [
+      'fk(current_revision_id→codex_revisions.id)',
+      'pk(id)',
+      'unique(subject_kind,subject_key)',
+    ],
+    boundary: CODEX_PUBLISH,
+    dataClass: 'global-reference',
+  },
+  {
+    table: schema.codexRevisions,
+    owner: 'features/codex',
+    reads: [],
+    writers: [CODEX_SEED_WRITER],
+    invariants: [
+      'fk(character_id→characters.character_id)',
+      'fk(page_id→codex_pages.id)',
+      'fk(parent_revision_id→codex_revisions.id)',
+      'fk(user_id→user.id)',
+      'pk(id)',
+    ],
+    boundary: CODEX_PUBLISH,
+    dataClass: 'global-reference',
   },
 ] as const satisfies readonly DataOwnershipEntry[];
