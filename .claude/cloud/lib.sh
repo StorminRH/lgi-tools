@@ -22,6 +22,10 @@ LGI_SDE_COUNT_TABLES=(
   eve_system_jumps
   eve_types
   industry_blueprints
+  industry_target_filters
+  industry_modifiers
+  industry_assembly_lines
+  industry_installation_types
   blueprint_trees
   market_prices
   sites
@@ -230,6 +234,17 @@ lgi_sde_ready() {
   bin="$(lgi_pg16_bin)"
   ready="$("$bin/psql" "$url" -v ON_ERROR_STOP=1 -At -c "$(lgi_sde_ready_sql)")"
   [ "$ready" = 1 ]
+}
+
+lgi_ensure_sde_ready() {
+  if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
+    lgi_run_local_db pnpm db:refresh-sde --force || return 1
+  fi
+  if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
+    echo "ERROR: SDE census failed after refresh. Report:" >&2
+    lgi_sde_report "$LGI_LOCAL_DB_URL" >&2 || true
+    return 1
+  fi
 }
 
 lgi_jwks_has_signing_keys() {

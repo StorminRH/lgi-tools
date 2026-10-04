@@ -94,14 +94,7 @@ lgi_require_anonymous_convex_file .env.local
 
 lgi_run_local_db pnpm db:migrate
 
-if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
-  lgi_run_local_db pnpm db:refresh-sde --force
-fi
-if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
-  echo "ERROR: SDE census failed after refresh. Report:" >&2
-  lgi_sde_report "$LGI_LOCAL_DB_URL" >&2 || true
-  exit 1
-fi
+lgi_ensure_sde_ready || exit 1
 
 # The first `--once` creates the deployment and may fail until AUTH_* exist on it.
 export AUTH_ISSUER_URL=http://localhost:3000
