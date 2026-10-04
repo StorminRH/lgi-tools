@@ -22,6 +22,7 @@
     "/settings/account": "Per-user: section head in the static shell; the session-gated overview (active character, linked count, session count, created date) plus the purge / log-out-everywhere / delete controls are a request-time dynamic hole.",
     "/admin/users": "Per-user, admin only: the whole console renders after the admin check, so its static shell is the site frame and a loading line; the admin search, role grants, and role-change audit then stream from a request-time Suspense hole (moved from /settings/access).",
     "/admin/users/[userId]": "Per-user, admin only: the whole console renders after the admin check, so its static shell is the site frame and a loading line; the user detail (a user's linked characters + sessions; force-unlink / reassign / force-logout) then streams from a request-time Suspense hole (moved from /settings/access/[userId]).",
+    "/admin/codex/[proposalId]": "Per-user, admin only: the whole console renders after the admin check, so its static shell is the site frame and a loading line; the suggestion's three-way merge (base, page now, suggestion per conflicting block) and its resolve form then stream from a request-time Suspense hole.",
     "/api/admin/wh-statics": "Dynamic admin form mutation: same-origin refresh, promote, or reject action followed by a 303 redirect.",
     "/api/cron/refresh-wh-statics": "Dynamic weekly cron: conditional community-feed probe and lock-guarded pending snapshot write.",
     "/api/dev/synthetic-pilot": "Development localhost POST: resets the reserved test pilot and its access, then issues a session cookie and redirects home. Requires matching Host and Origin. GET is inert.",
@@ -66,7 +67,7 @@
     "/api/admin/codex/revisions": "Dynamic admin form mutation: same-origin publish or restore with a compare-and-set on the page head, followed by a 303 redirect.",
     "/api/codex/sources": "Signed-in picker search and preview over the closed Codex source registry; per-request session and query.",
     "/api/codex/proposals": "Dynamic signed-in form mutation: same-origin suggestion submit (keyed by a client-minted id) or withdraw, followed by a 303 redirect.",
-    "/api/admin/codex/proposals": "Dynamic admin form mutation: approve a suggestion through the page compare-and-set, or deny it with a note, followed by a 303 redirect."
+    "/api/admin/codex/proposals": "Dynamic admin form mutation: approve a suggestion through the page compare-and-set, merging it against the head the review was rendered on with the admin's per-block choices, or deny it with a note, followed by a 303 redirect."
   },
   "routes": {
     "/": "partial",
@@ -75,6 +76,7 @@
     "/icon.svg": "static",
     "/admin": "partial",
     "/admin/codex": "partial",
+    "/admin/codex/[proposalId]": "partial",
     "/admin/esi": "partial",
     "/admin/health": "partial",
     "/admin/queue": "partial",

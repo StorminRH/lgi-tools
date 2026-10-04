@@ -455,7 +455,7 @@ const adminCodexProposalsRoute = mutationRoute({
   route: 'src/app/api/admin/codex/proposals/route.ts',
   verdict: 'key-protected',
   evidence:
-    'Approve publishes through the page compare-and-set statement, whose claimed CTE flips the proposal from pending to approved only while it is still pending and the head still equals its base, behind a unique (origin_ref) index on proposal revisions; deny is an UPDATE guarded by status = pending. A replayed review finds the proposal no longer pending and changes nothing.',
+    'Approve merges the suggestion against the head the review was rendered on and publishes through the page compare-and-set statement, whose claimed CTE flips the proposal from pending to approved only while it is still pending and the head still equals that reviewed head, behind a unique (origin_ref) index on proposal revisions; deny is an UPDATE guarded by status = pending. A replayed review finds the proposal no longer pending, and a moved head fails the compare-and-set, so neither writes anything.',
 });
 const codexProposalsRoute = mutationRoute({
   route: 'src/app/api/codex/proposals/route.ts',

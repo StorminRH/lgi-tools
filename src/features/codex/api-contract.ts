@@ -27,10 +27,12 @@ const blocksJson = z.string().transform((raw, context) => {
   return z.NEVER;
 });
 
+const revisionRef = z.union([z.literal('').transform(() => null), z.uuid()]);
+
 const target = {
   kind: z.string(),
   key: z.string(),
-  baseRevisionId: z.union([z.literal('').transform(() => null), z.uuid()]),
+  baseRevisionId: revisionRef,
 };
 
 function withSubject<T extends { kind: string; key: string }>(form: T, context: z.RefinementCtx) {
@@ -99,11 +101,40 @@ export function pickProposalForm(form: FormData): Record<string, unknown> {
   );
 }
 
-export const codexReviewFormSchema = z.object({
-  proposalId: z.uuid(),
-  action: z.enum(['approve', 'deny']),
-  note: z.string().max(1000).optional(),
-});
+export const codexQueuePage = z.string().regex(/^[1-9]\d*$/);
+
+export const codexReviewFormSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('approve'),
+    proposalId: z.uuid(),
+    headRevisionId: revisionRef,
+    choices: z.record(z.string().min(1).max(200), z.union([z.enum(['head', 'proposal']), blocksJson])).default({}),
+    page: codexQueuePage.optional(),
+  }),
+  z.object({
+    action: z.literal('deny'),
+    proposalId: z.uuid(),
+    note: z.string().max(1000).optional(),
+    page: codexQueuePage.optional(),
+  }),
+]);
+
+export function pickReviewForm(form: FormData): Record<string, unknown> {
+  const choices: Record<string, unknown> = {};
+  for (const [name, value] of form) {
+    if (!name.startsWith('choice.')) continue;
+    const id = name.slice('choice.'.length);
+    choices[id] = value === 'edit' ? form.get(`edit.${id}`) : value;
+  }
+  return {
+    action: form.get('action') ?? undefined,
+    proposalId: form.get('proposalId') ?? undefined,
+    note: form.get('note') ?? undefined,
+    headRevisionId: form.get('headRevisionId') ?? '',
+    page: form.get('page') || undefined,
+    choices,
+  };
+}
 
 const codexSourceHitSchema =z.object({ key: z.string(), title: z.string(), hint: z.string() });
 

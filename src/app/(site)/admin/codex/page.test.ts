@@ -79,20 +79,24 @@ test('a pending suggestion shows who, where, why, and a word diff with one revie
   expect(/<del[^>]*>([^<]*)<\/del>/.exec(html)?.[1]).toBe('30');
   expect(/<ins[^>]*>([^<]*)<\/ins>/.exec(html)?.[1]).toBe('50');
   expect(html).toContain('<input type="hidden" name="proposalId" value="33333333-3333-4333-8333-333333333333"/>');
+  expect(html).toContain('<input type="hidden" name="headRevisionId" value="rev-1"/>');
   expect(html).toContain('Approve and publish');
   expect(html).toContain('Note to Karaka');
-  expect(html).not.toContain('Needs merge');
+  expect(html).not.toContain('Review merge');
 });
 
-test('a suggestion written against an older page is flagged for a merge', async () => {
+test('a suggestion written against an older page links to its merge review', async () => {
   mocks.proposals = [proposal('rev-2')];
-  expect(await render()).toContain('Needs merge');
+  const html = await render();
+  expect(html).toContain('href="/admin/codex/33333333-3333-4333-8333-333333333333"');
+  expect(html).toContain('Review merge');
+  expect(html).toContain('<input type="hidden" name="headRevisionId" value="rev-2"/>');
 });
 
 test('the review outcome and an empty queue read plainly', async () => {
   mocks.proposals = [];
-  const html = await render('needs-merge');
-  expect(html).toContain('The page changed since this was written, so it stays pending.');
+  const html = await render('not-pending');
+  expect(html).toContain('That suggestion was already reviewed or withdrawn.');
   expect(html).toContain('0 pending');
   expect(html).toContain('No suggestions are waiting for review.');
 });
@@ -110,4 +114,12 @@ test('a long queue renders 25 suggestions a page with links between pages', asyn
   expect(ids(second)).toEqual(['p-25', 'p-26', 'p-27', 'p-28', 'p-29']);
   expect(second).toContain('href="/admin/codex?page=1"');
   expect(ids(await render(undefined, '9'))).toEqual(['p-25', 'p-26', 'p-27', 'p-28', 'p-29']);
+});
+
+test('review links and forms on a later page send the admin back to that page', async () => {
+  mocks.proposals = [...Array.from({ length: 25 }, (_, index) => proposal('rev-1', `p-${index}`)), proposal('rev-2', 'p-25')];
+  const second = await render(undefined, '2');
+  expect(second).toContain('href="/admin/codex/p-25?page=2"');
+  expect(second).toContain('<input type="hidden" name="page" value="2"/>');
+  expect(await render()).not.toContain('name="page"');
 });

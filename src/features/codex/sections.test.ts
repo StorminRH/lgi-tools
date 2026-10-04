@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { parseCodexDoc, type CodexBlockNode, type CodexDoc } from './doc';
-import { codexSections, isBlankSection, leadInfobox, sectionBounds } from './sections';
+import { codexSections, isBlankSection, leadInfobox, sectionBounds, sectionTitle } from './sections';
 
 const paragraph = (id: string) => ({
   type: 'paragraph',
@@ -107,4 +107,11 @@ test('a section is blank when it holds nothing but empty paragraphs', () => {
   expect(isBlankSection(blank('  '))).toBe(true);
   expect(isBlankSection(blank('x'))).toBe(false);
   expect(isBlankSection(parsed([dataBlock('infobox')]).content)).toBe(false);
+});
+
+test('names a section by its heading, the lead as the introduction, and a missing one by id', () => {
+  expect(sectionTitle(fixture(), 'strategy')).toBe('strategy');
+  expect(sectionTitle(fixture(), 'lead')).toBe('Introduction');
+  expect(sectionTitle(fixture(), 'gone')).toBe('gone');
+  expect(sectionTitle(null, 'lead')).toBe('Introduction');
 });

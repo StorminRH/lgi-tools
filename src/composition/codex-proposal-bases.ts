@@ -1,7 +1,7 @@
 import { codexTemplate } from '@/composition/codex-templates';
 import type { CodexBlockNode, CodexDoc } from '@/features/codex/doc';
 import { readCodexRevisionDocs, type CodexProposalView } from '@/features/codex/proposals';
-import { LEAD_SECTION_ID, plainText, sectionBounds } from '@/features/codex/sections';
+import { sectionBounds, sectionTitle } from '@/features/codex/sections';
 
 export interface CodexProposalBase {
   readonly sectionTitle: string;
@@ -9,10 +9,9 @@ export interface CodexProposalBase {
 }
 
 function baseSection(doc: CodexDoc | null, sectionId: string): CodexProposalBase {
-  const heading = doc?.content.find((block) => block.type === 'heading' && block.attrs.id === sectionId);
   const bounds = doc ? sectionBounds(doc.content, sectionId) : null;
   return {
-    sectionTitle: heading ? plainText(heading) : sectionId === LEAD_SECTION_ID ? 'Introduction' : sectionId,
+    sectionTitle: sectionTitle(doc, sectionId),
     before: doc && bounds ? doc.content.slice(bounds.start, bounds.end) : [],
   };
 }

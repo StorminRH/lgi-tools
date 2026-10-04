@@ -7,26 +7,19 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
-import { Pill, type PillTone } from '@/components/ui/pill';
+import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { loadCodexProposalBases } from '@/composition/codex-proposal-bases';
 import { getFullSession } from '@/composition/session';
+import { CODEX_PROPOSAL_STATUS } from '@/features/codex/proposal-status';
 import { listCodexProposalsBy, type CodexProposalView } from '@/features/codex/proposals';
-import type { CodexProposalStatus } from '@/features/codex/schema';
 import { codexPageHref } from '@/features/codex/subjects';
 import { formatRelativeTime } from '@/lib/format/time';
 
 export const metadata: Metadata = { title: 'My Codex suggestions', robots: { index: false } };
 
 type SearchParams = Promise<{ notice?: string | string[] }>;
-
-const STATUS: Record<CodexProposalStatus, { tone: PillTone; label: string }> = {
-  pending: { tone: 'orange', label: 'Pending review' },
-  approved: { tone: 'green', label: 'Published' },
-  denied: { tone: 'red', label: 'Denied' },
-  withdrawn: { tone: 'neutral', label: 'Withdrawn' },
-};
 
 const NOTICES: Readonly<Record<string, string>> = {
   submitted: 'Your suggestion was sent. The site admin reviews it before it goes live.',
@@ -35,7 +28,7 @@ const NOTICES: Readonly<Record<string, string>> = {
 };
 
 function SuggestionRow({ proposal, sectionTitle }: { proposal: CodexProposalView; sectionTitle: string }) {
-  const status = STATUS[proposal.status];
+  const status = CODEX_PROPOSAL_STATUS[proposal.status];
   return (
     <li className="flex flex-wrap items-start justify-between gap-3 border-b border-border-soft px-4 py-3.5 last:border-b-0">
       <div className="min-w-0 flex-1">

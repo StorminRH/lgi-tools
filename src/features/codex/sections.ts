@@ -57,6 +57,12 @@ export function sectionBounds(
   return { start, end: next === -1 ? content.length : next };
 }
 
+export function sectionTitle(doc: CodexDoc | null, sectionId: string): string {
+  const heading = doc?.content.find((block) => block.type === 'heading' && block.attrs.id === sectionId);
+  if (heading) return plainText(heading);
+  return sectionId === LEAD_SECTION_ID ? 'Introduction' : sectionId;
+}
+
 export function plainText(node: CodexNode): string {
   if (node.type === 'text') return node.text;
   const children: CodexNodeSpec['content'] = CODEX_NODES[node.type].content;

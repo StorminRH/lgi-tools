@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { CharacterPortrait } from '@/components/character-portrait';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,10 +12,10 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { loadCodexProposalBases, type CodexProposalBase } from '@/composition/codex-proposal-bases';
 import { diffCodexBlocks, wordStats } from '@/features/codex/diff';
 import { listPendingCodexProposals, type CodexProposalView, type ReviewOutcome } from '@/features/codex/proposals';
-import { codexPageHref } from '@/features/codex/subjects';
 import { formatRelativeTime } from '@/lib/format/time';
 import { AdminPageFrame } from '../AdminFrame';
 import { getCodexPendingShared } from '../codex-pending-shared';
+import { ProposalByline } from './ProposalByline';
 import { ProposalDiff } from './ProposalDiff';
 import { QueuePager } from './QueuePager';
 
@@ -27,11 +26,8 @@ type QueueParams = { outcome?: string | string[]; page?: string | string[] };
 const OUTCOME_LABELS: Readonly<Partial<Record<ReviewOutcome, string>>> = {
   approved: 'The suggestion was published and its author credited on the page.',
   denied: 'The suggestion was denied and the note was saved for its author.',
-  'needs-merge':
-    'The page changed since this was written, so it stays pending. Merging arrives in a later release.',
   'not-pending': 'That suggestion was already reviewed or withdrawn.',
   'note-required': 'Write a note to the author before denying a suggestion.',
-  invalid: 'That suggestion no longer passes the page checks, so it stays pending.',
 };
 
 function outcomeMessage(raw: string | string[] | undefined): string | undefined {
@@ -42,6 +38,8 @@ function pageNumber(raw: string | string[] | undefined, pageCount: number): numb
   const page = typeof raw === 'string' ? Number.parseInt(raw, 10) : 1;
   return Number.isFinite(page) ? Math.min(Math.max(page, 1), pageCount) : 1;
 }
+
+const pageQuery = (page: number) => (page > 1 ? `?page=${page}` : '');
 
 async function PendingCount() {
   const pending = await getCodexPendingShared();
@@ -61,10 +59,12 @@ function ProposalItem({
   proposal,
   base,
   open,
+  page,
 }: {
   proposal: CodexProposalView;
   base: CodexProposalBase;
   open: boolean;
+  page: number;
 }) {
   const diff = diffCodexBlocks(base.before, proposal.blocks);
   const firstName = proposal.character.name.split(' ')[0];
@@ -74,25 +74,25 @@ function ProposalItem({
       headerClassName="items-start gap-3.5 px-4 py-3.5"
       header={
         <>
-          <CharacterPortrait characterId={proposal.character.id} name={proposal.character.name} size={38} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="font-ui text-nav font-medium text-name">{proposal.character.name}</span>
-              <span className="font-ui text-ui text-muted">suggested an edit to</span>
-              <Link href={codexPageHref(proposal.subject)} className="font-ui text-ui text-isk hover:underline">
-                {proposal.pageTitle}
-              </Link>
-              <span className="text-faint">›</span>
-              <span className="font-ui text-ui text-text">{base.sectionTitle}</span>
-              {proposal.headRevisionId !== proposal.baseRevisionId ? <Pill tone="yellow">Needs merge</Pill> : null}
-            </div>
-            <p className="mt-1 font-ui text-ui text-text">“{proposal.summary}”</p>
+          <ProposalByline
+            proposal={proposal}
+            sectionTitle={base.sectionTitle}
+            trailing={
+              proposal.headRevisionId !== proposal.baseRevisionId ? (
+                <Pill tone="yellow">
+                  <Link href={`/admin/codex/${proposal.id}${pageQuery(page)}`} className="hover:underline">
+                    Review merge
+                  </Link>
+                </Pill>
+              ) : null
+            }
+          >
             <div className="mt-1.5 flex flex-wrap items-center gap-3">
               <Stats {...wordStats(diff)} />
               <span className="font-ui text-label text-faint">{formatRelativeTime(proposal.createdAt)}</span>
               <span className="font-ui text-label text-faint">CC BY-SA 4.0 accepted</span>
             </div>
-          </div>
+          </ProposalByline>
           <ChevronDownIcon size={16} className="mt-1 shrink-0 text-faint group-open:rotate-180" />
         </>
       }
@@ -103,6 +103,8 @@ function ProposalItem({
         className="flex flex-col gap-4 border-t border-border-soft px-4 pt-4 pb-4 sm:pl-[68px]"
       >
         <input type="hidden" name="proposalId" value={proposal.id} />
+        <input type="hidden" name="headRevisionId" value={proposal.headRevisionId ?? ''} />
+        {page > 1 ? <input type="hidden" name="page" value={page} /> : null}
         <div className="flex items-center justify-between gap-3">
           <span className="font-ui text-label font-semibold uppercase tracking-eyebrow text-muted">
             Changes to {base.sectionTitle}
@@ -158,7 +160,13 @@ async function CodexQueue({ searchParams }: { searchParams: Promise<QueueParams>
           <EmptyState>No suggestions are waiting for review.</EmptyState>
         ) : (
           proposals.map((proposal, index) => (
-            <ProposalItem key={proposal.id} proposal={proposal} base={bases.get(proposal.id)!} open={index === 0} />
+            <ProposalItem
+              key={proposal.id}
+              proposal={proposal}
+              base={bases.get(proposal.id)!}
+              open={index === 0}
+              page={page}
+            />
           ))
         )}
         {pageCount > 1 ? <QueuePager page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} /> : null}

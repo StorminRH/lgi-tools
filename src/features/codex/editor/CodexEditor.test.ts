@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
-import { CodexEditor, type CodexEditorProps } from './CodexEditor';
+import { CodexBlockEditor, CodexEditor, type CodexEditorProps } from './CodexEditor';
 
 const props: CodexEditorProps = {
   mode: 'suggest',
@@ -43,4 +43,15 @@ test('the admin publishes straight away with no license box', () => {
   expect(html).toContain('Publishes immediately · saved to history');
   expect(html).toContain('Save section');
   expect(html).not.toContain('Required');
+});
+
+test('the block editor is a bare editing surface with no form of its own', () => {
+  const html = renderToStaticMarkup(
+    createElement(CodexBlockEditor, { initialBlocks: [], catalogue: { sources: [] }, onChange: () => {} }),
+  );
+
+  expect(html).not.toContain('<form');
+  expect(html).not.toContain('type="hidden"');
+  expect(html).toContain('aria-label="Formatting"');
+  expect(html).not.toContain('Edit summary');
 });

@@ -363,6 +363,32 @@ function useDraftForm(storageKey: string, editor: Editor | null) {
   return { blocksField, saving, save };
 }
 
+export function CodexBlockEditor({
+  initialBlocks,
+  catalogue,
+  onChange,
+}: {
+  initialBlocks: readonly unknown[];
+  catalogue: CodexSourceCatalogue;
+  onChange: (blocks: unknown[]) => void;
+}) {
+  const editor = useEditor({
+    extensions: codexEditorExtensions,
+    content: { type: 'doc', content: initialBlocks as JSONContent[] },
+    immediatelyRender: false,
+    editorProps: { attributes: { class: 'codex-prose', 'aria-label': 'Block text' } },
+    onUpdate: ({ editor: current }) => onChange(editorBlocks(current.getJSON())),
+  });
+  return (
+    <div className="rounded-card border border-isk/30 bg-bg-deep/50 shadow-card-edge">
+      <EditorToolbar editor={editor} catalogue={catalogue} />
+      <div className={editorSurfaceClass}>
+        <EditorContent editor={editor} />
+      </div>
+    </div>
+  );
+}
+
 export function CodexEditor({
   mode,
   viewerName,

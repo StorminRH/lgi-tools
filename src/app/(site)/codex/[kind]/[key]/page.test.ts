@@ -250,11 +250,14 @@ test('the reader routes reach no Codex admin or editor module', () => {
   );
 });
 
-test('only the signed-in Codex route imports the admin article', () => {
+test('only the signed-in Codex route and the admin merge review reach the admin article or the editor', () => {
   const appFiles = readdirSync('src/app', { recursive: true })
     .map((file) => path.join('src/app', String(file)))
     .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file));
   expect(
     appFiles.filter((file) => /\b(CodexAdminArticle|CodexAdminSlot|CodexEditor)\b/.test(readFileSync(file, 'utf8'))),
-  ).toEqual(['src/app/(site)/codex/[kind]/[key]/edit/page.tsx']);
+  ).toEqual([
+    'src/app/(site)/admin/codex/[proposalId]/ConflictResolver.tsx',
+    'src/app/(site)/codex/[kind]/[key]/edit/page.tsx',
+  ]);
 });

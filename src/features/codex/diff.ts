@@ -36,6 +36,10 @@ function attrChanges(before: CodexBlockNode, after: CodexBlockNode): CodexAttrCh
   });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 // The editor gives nested paragraphs ids that stored documents may lack; only top-level ids align blocks.
 function withoutId(node: CodexNode): unknown {
   if (node.type === 'text') return node;
@@ -43,12 +47,14 @@ function withoutId(node: CodexNode): unknown {
   return { ...node, attrs, content: node.content.map(withoutId) };
 }
 
-function canonical(block: CodexBlockNode): string {
-  return JSON.stringify({ ...block, content: block.content.map(withoutId) });
+export function canonicalBlock(block: CodexBlockNode): string {
+  return JSON.stringify({ ...block, content: block.content.map(withoutId) }, (_, value: unknown) =>
+    isRecord(value) ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]])) : value,
+  );
 }
 
 function changeOf(id: string, before: CodexBlockNode, after: CodexBlockNode): CodexBlockDiff | null {
-  if (canonical(before) === canonical(after)) return null;
+  if (canonicalBlock(before) === canonicalBlock(after)) return null;
   const attrs = attrChanges(before, after);
   if (attrs.length > 0) return { kind: 'changed', id, attrs };
   const was = plainText(before);

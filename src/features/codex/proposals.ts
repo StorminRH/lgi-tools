@@ -5,7 +5,8 @@ import { withLockedUsers } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { parseCodexDoc, type CodexBlockNode, type CodexDoc } from './doc';
-import { composeCodexSectionBlocks, publishCodexRevision, type CodexTemplateSeed } from './publish';
+import { mergeCodexDocs, proposalDocument, resolveCodexMerge, type CodexChoice, type CodexMerge } from './merge';
+import { composeCodexSectionBlocks, publishCodexRevision, type CodexPublishResult, type CodexTemplateSeed } from './publish';
 import { readCodexPageHead } from './queries';
 import { codexPages, codexProposals, codexRevisions, type CodexProposalStatus } from './schema';
 import { resolveCodexSubject, type CodexSubject } from './subjects';
@@ -22,10 +23,16 @@ export type ReviewOutcome =
   | 'approved'
   | 'denied'
   | 'withdrawn'
-  | 'needs-merge'
+  | 'conflict'
+  | 'moved'
   | 'not-pending'
   | 'note-required'
   | 'invalid';
+
+export interface CodexReview {
+  readonly headRevisionId: string | null;
+  readonly choices: Readonly<Record<string, CodexChoice>>;
+}
 
 export interface CodexSubmitter {
   readonly userId: string;
@@ -110,27 +117,85 @@ async function readProposalStatus(id: string): Promise<CodexProposalStatus | nul
   return row?.status ?? null;
 }
 
-export async function approveCodexProposal(id: string, seedFor: CodexSeedLookup): Promise<ReviewOutcome> {
+export function mergeCodexProposal(
+  proposal: Pick<CodexProposalView, 'sectionId' | 'blocks'>,
+  base: CodexDoc | null,
+  head: CodexDoc | null,
+): CodexMerge | { readonly kind: 'invalid'; readonly problems: readonly string[] } {
+  if (base === null) return { kind: 'invalid', problems: ['template missing'] };
+  const proposed = proposalDocument(base, proposal.sectionId, proposal.blocks);
+  if (!proposed) {
+    return { kind: 'invalid', problems: [`section ${JSON.stringify(proposal.sectionId)} is not on this page`] };
+  }
+  return mergeCodexDocs(base, head ?? base, proposed);
+}
+
+async function readBaseDoc(baseRevisionId: string | null, seed: CodexTemplateSeed): Promise<CodexDoc | null> {
+  if (baseRevisionId !== null) return (await readCodexRevisionDocs([baseRevisionId])).get(baseRevisionId) ?? null;
+  const template = seed.ok && seed.template ? parseCodexDoc(seed.template.doc) : null;
+  return template?.ok ? template.doc : null;
+}
+
+type ProposalRow = typeof codexProposals.$inferSelect;
+
+async function mergedBlocks(
+  row: ProposalRow,
+  seed: CodexTemplateSeed,
+  review: CodexReview,
+): Promise<readonly unknown[] | Extract<ReviewOutcome, 'moved' | 'invalid' | 'conflict'>> {
+  const headId = review.headRevisionId;
+  const head = headId === null ? null : (await readCodexRevisionDocs([headId])).get(headId);
+  if (!head) return 'moved';
+  const base = await readBaseDoc(row.baseRevisionId, seed);
+  const merge = mergeCodexProposal({ sectionId: row.sectionId, blocks: proposalBlocks(row.doc) }, base, head);
+  if (merge.kind === 'invalid') return 'invalid';
+  return resolveCodexMerge(merge, review.choices) ?? 'conflict';
+}
+
+async function outcomeOf(id: string, result: CodexPublishResult): Promise<ReviewOutcome> {
+  if (result.status === 'published') return 'approved';
+  if (result.status === 'invalid') return 'invalid';
+  return (await readProposalStatus(id)) === 'pending' ? 'moved' : 'not-pending';
+}
+
+export async function approveCodexProposal(
+  id: string,
+  seedFor: CodexSeedLookup,
+  review: CodexReview,
+): Promise<ReviewOutcome> {
   const [row] = await db.select().from(codexProposals).where(eq(codexProposals.id, id));
   if (!row || row.status !== 'pending') return 'not-pending';
   const subject = resolveCodexSubject(row.subjectKind, row.subjectKey);
   if (!subject || !Array.isArray(row.doc)) return 'invalid';
   const seed = await seedFor(subject, row.baseRevisionId);
   if (!seed.ok) return 'invalid';
+  const author = { userId: row.userId, characterId: row.characterId };
 
+  if (review.headRevisionId === row.baseRevisionId) {
+    const result = await publishCodexRevision({
+      subject,
+      title: seed.template?.title ?? row.pageTitle,
+      baseRevisionId: row.baseRevisionId,
+      template: seed.template?.doc,
+      edit: { kind: 'section', sectionId: row.sectionId, blocks: row.doc },
+      summary: row.summary,
+      author,
+      proposalId: id,
+    });
+    return outcomeOf(id, result);
+  }
+  const blocks = await mergedBlocks(row, seed, review);
+  if (typeof blocks === 'string') return blocks;
   const result = await publishCodexRevision({
     subject,
-    title: seed.template?.title ?? row.pageTitle,
-    baseRevisionId: row.baseRevisionId,
-    template: seed.template?.doc,
-    edit: { kind: 'section', sectionId: row.sectionId, blocks: row.doc },
+    title: null,
+    baseRevisionId: review.headRevisionId,
+    edit: { kind: 'page', blocks },
     summary: row.summary,
-    author: { userId: row.userId, characterId: row.characterId },
+    author,
     proposalId: id,
   });
-  if (result.status === 'published') return 'approved';
-  if (result.status === 'invalid') return 'invalid';
-  return (await readProposalStatus(id)) === 'pending' ? 'needs-merge' : 'not-pending';
+  return outcomeOf(id, result);
 }
 
 export async function decideCodexProposal(
@@ -238,6 +303,11 @@ export function listPendingCodexProposals(window: CodexQueueWindow): Promise<Cod
 
 export function listCodexProposalsBy(userId: string): Promise<CodexProposalView[]> {
   return listProposals(eq(codexProposals.userId, userId), true);
+}
+
+export async function readCodexProposal(id: string): Promise<CodexProposalView | null> {
+  const [proposal] = await listProposals(eq(codexProposals.id, id), true);
+  return proposal ?? null;
 }
 
 export async function readCodexRevisionDocs(ids: readonly string[]): Promise<Map<string, CodexDoc>> {

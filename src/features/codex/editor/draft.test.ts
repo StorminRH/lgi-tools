@@ -1,5 +1,16 @@
 import { expect, test } from 'vitest';
-import { codexDraftKey, initialEditorBlocks, keepCodexDraft, takeCodexDraft, takeConflictDraft } from './draft';
+import {
+  codexDraftKey,
+  dropDraft,
+  initialEditorBlocks,
+  keepCodexDraft,
+  keepJsonDraft,
+  parseDraft,
+  peekRawDraft,
+  takeCodexDraft,
+  takeConflictDraft,
+  takeJsonDraft,
+} from './draft';
 
 function memoryStore() {
   const items = new Map<string, string>();
@@ -100,4 +111,30 @@ test('a conflict on a live section restores the draft kept under its own key', (
 
   expect(takeConflictDraft(subject, 'ships', null, true, store)).toEqual(typed);
   expect(items.size).toBe(0);
+});
+
+test('any JSON value round-trips through a slot when its guard accepts it', () => {
+  const { items, store } = memoryStore();
+  const isCount = (value: unknown): value is { count: number } =>
+    typeof value === 'object' && value !== null && typeof (value as { count?: unknown }).count === 'number';
+
+  expect(keepJsonDraft('counter', { count: 3 }, store)).toBe(true);
+  expect(takeJsonDraft('counter', true, isCount, store)).toEqual({ count: 3 });
+  expect(items.size).toBe(0);
+
+  keepJsonDraft('counter', { count: 'three' }, store);
+  expect(takeJsonDraft('counter', true, isCount, store)).toBeNull();
+  expect(items.size).toBe(0);
+
+  keepJsonDraft('counter', { count: 5 }, store);
+  expect(peekRawDraft('counter', store)).toBe('{"count":5}');
+  expect(parseDraft(peekRawDraft('counter', store), isCount)).toEqual({ count: 5 });
+  expect(parseDraft('{broken', isCount)).toBeNull();
+  dropDraft('counter', store);
+  expect(peekRawDraft('counter', store)).toBeNull();
+  const blocked = () => {
+    throw new Error('storage disabled');
+  };
+  expect(peekRawDraft('counter', blocked)).toBeNull();
+  expect(() => dropDraft('counter', blocked)).not.toThrow();
 });

@@ -12,6 +12,7 @@ export const uiAdoptionRegistry = {
     },
   ],
   hiddenInputs: [
+    'src/app/(site)/admin/codex/[proposalId]/ConflictResolver.tsx',
     'src/app/(site)/admin/codex/page.tsx',
     'src/app/(site)/admin/queue/RetryJobForm.tsx',
     'src/app/(site)/admin/statics/page.tsx',

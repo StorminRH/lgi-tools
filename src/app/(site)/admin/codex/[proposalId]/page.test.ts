@@ -1,0 +1,166 @@
+import { createElement, type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { prerender } from 'react-dom/static';
+import { beforeEach, expect, test, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  loaded: null as unknown,
+  notFound: vi.fn(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  }),
+}));
+
+vi.mock('next/navigation', () => ({ notFound: () => mocks.notFound() }));
+vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => ({ isAdmin: true }) }));
+vi.mock('@/composition/codex-merge-review', () => ({ loadCodexProposalMerge: async () => mocks.loaded }));
+vi.mock('@/composition/codex-sources', () => ({ codexSourceCatalogue: () => ({ sources: [] }) }));
+vi.mock('next/dynamic', () => ({ default: () => () => null }));
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...rest }: { href: string; children?: ReactNode }) =>
+    createElement('a', { href, ...rest }, children),
+}));
+vi.mock('@/components/character-portrait', () => ({
+  CharacterPortrait: ({ name }: { name: string }) => createElement('span', { 'data-portrait': name }),
+}));
+
+import { parseCodexDoc } from '@/features/codex/doc';
+import { mergeCodexDocs } from '@/features/codex/merge';
+import CodexMergeReviewPage, { MergeReview } from './page';
+
+const P1 = '33333333-3333-4333-8333-333333333333';
+const text = (id: string, value: string) => ({ type: 'paragraph', attrs: { id }, content: [{ type: 'text', text: value }] });
+const heading = { type: 'heading', attrs: { id: 'strategy', level: 2 }, content: [{ type: 'text', text: 'Strategy' }] };
+const doc = (...blocks: unknown[]) => {
+  const parsed = parseCodexDoc({ type: 'doc', attrs: { schemaVersion: 1 }, content: blocks });
+  if (!parsed.ok) throw new Error(parsed.problems.join('; '));
+  return parsed.doc;
+};
+const base = doc(heading, text('s1', 'Warp in at 30 km.'));
+
+function loaded(headBlocks: unknown[], status = 'pending', proposalBlocks: unknown[] = [text('s1', 'Warp in at 50 km.')]) {
+  const head = doc(...headBlocks);
+  const proposal = doc(heading, ...proposalBlocks);
+  return {
+    proposal: {
+      id: P1,
+      subject: { kind: 'guides', key: 'rolling-a-c3' },
+      pageTitle: 'Rolling a C3 static',
+      sectionId: 'strategy',
+      baseRevisionId: 'rev-1',
+      headRevisionId: 'rev-2',
+      blocks: proposal.content.slice(1),
+      summary: 'Fix range',
+      status,
+      reviewNote: null,
+      createdAt: new Date(Date.now() - 3 * 3_600_000),
+      character: { id: 9001, name: 'Karaka Haginen' },
+    },
+    headRevisionId: 'rev-2',
+    merge: mergeCodexDocs(base, head, proposal),
+  };
+}
+
+const params = (proposalId: string) => Promise.resolve({ proposalId });
+const query = (notice?: string, page?: string) =>
+  Promise.resolve({ ...(notice ? { notice } : {}), ...(page ? { page } : {}) });
+
+async function render(notice?: string, page?: string): Promise<string> {
+  const { prelude } = await prerender(
+    createElement(CodexMergeReviewPage, { params: params(P1), searchParams: query(notice, page) }),
+  );
+  return (await new Response(prelude).text()).replaceAll('<!-- -->', '');
+}
+
+beforeEach(() => {
+  mocks.notFound.mockClear();
+});
+
+test('a conflicting paragraph shows base, page now, and suggestion with a choice per block', async () => {
+  mocks.loaded = loaded([heading, text('s1', 'Warp in at 40 km.')]);
+  const html = await render();
+
+  expect(html).toContain('Review a suggestion');
+  expect(html).toContain('data-portrait="Karaka Haginen"');
+  expect(html).toContain('href="/codex/guides/rolling-a-c3"');
+  expect(html).toContain('Strategy');
+  expect(html).toContain('“Fix range”');
+  expect(html).toContain('1 block to settle');
+  expect(html).toContain('Base');
+  expect(html).toContain('Page now');
+  expect(html).toContain('Suggestion');
+  expect(html).toContain('Warp in at 30 km.');
+  expect(html).toContain('40');
+  expect(html).toContain('50');
+  expect(html).toContain('aria-label="Resolve s1"');
+  expect(html).toContain("Keep the page&#x27;s version");
+  expect(html).toContain('Use the suggestion');
+  expect(html).toContain('Edit it by hand');
+  expect(html).toContain('<input type="hidden" name="proposalId" value="33333333-3333-4333-8333-333333333333"/>');
+  expect(html).toContain('<input type="hidden" name="headRevisionId" value="rev-2"/>');
+  expect(html).not.toContain('name="choice.s1"');
+  expect(html).toContain('Approve and publish');
+  expect(html).not.toContain('Merges cleanly');
+});
+
+test('a block the page removed offers to leave it out, and a block both sides added has no original', async () => {
+  mocks.loaded = loaded([heading]);
+  const removed = await render();
+  expect(removed).toContain('Leave it out (the page removed it)');
+  expect(removed).not.toContain('Not in the original');
+
+  mocks.loaded = loaded([heading, text('s1', 'Warp in at 30 km.'), text('x', 'Admin add.')], 'pending', [
+    text('s1', 'Warp in at 30 km.'),
+    text('x', 'Pilot add.'),
+  ]);
+  const added = await render();
+  expect(added).toContain('aria-label="Resolve x"');
+  expect(added).toContain('Not in the original');
+  expect(added).toContain('Admin add.');
+  expect(added).toContain('Pilot add.');
+});
+
+test('a clean merge offers one-click approval', async () => {
+  mocks.loaded = loaded([text('lead', 'New lead.'), heading, text('s1', 'Warp in at 30 km.')]);
+  const html = await render();
+  expect(html).toContain('Merges cleanly');
+  expect(html).not.toContain('Resolve');
+  expect(html).toContain('Approve and publish');
+});
+
+test('a reviewed suggestion shows its status and no form', async () => {
+  mocks.loaded = loaded([heading, text('s1', 'Warp in at 40 km.')], 'approved');
+  const html = await render();
+  expect(html).toContain('Published');
+  expect(html).not.toContain('<form');
+  expect(html).not.toContain('Approve and publish');
+});
+
+test('each notice explains what happened', async () => {
+  mocks.loaded = loaded([heading, text('s1', 'Warp in at 40 km.')]);
+  expect(await render('moved')).toContain('The page changed while you were reviewing, so nothing was published.');
+  expect(await render('invalid')).toContain('An edited block did not pass the page checks');
+  expect(await render('conflict')).toContain('Pick a version for every block below, then approve.');
+  expect(await render('bogus')).not.toContain('role="status"');
+});
+
+test('an unknown or malformed id is not found', async () => {
+  mocks.loaded = null;
+  await expect(
+    (async () => renderToStaticMarkup(await MergeReview({ params: params(P1), searchParams: query() })))(),
+  ).rejects.toThrow('NEXT_NOT_FOUND');
+  mocks.loaded = loaded([heading]);
+  await expect(
+    (async () => renderToStaticMarkup(await MergeReview({ params: params('not-a-uuid'), searchParams: query() })))(),
+  ).rejects.toThrow('NEXT_NOT_FOUND');
+  expect(mocks.notFound).toHaveBeenCalledTimes(2);
+});
+
+test('the way back to the queue keeps the page the admin came from', async () => {
+  mocks.loaded = loaded([heading, text('s1', 'Warp in at 40 km.')]);
+  const later = await render(undefined, '3');
+  expect(later).toContain('href="/admin/codex?page=3"');
+  expect(later).toContain('<input type="hidden" name="page" value="3"/>');
+  const first = await render();
+  expect(first).toContain('href="/admin/codex"');
+  expect(first).not.toContain('name="page"');
+});

@@ -37,11 +37,14 @@ import {
   countPendingCodexProposals,
   decideCodexProposal,
   listPendingCodexProposals,
+  mergeCodexProposal,
+  readCodexProposal,
+  readCodexRevisionDocs,
   submitCodexProposal,
   type CodexProposalInput,
 } from './proposals';
 import { directClient } from '@/db';
-import { publishCodexRevision } from './publish';
+import { publishCodexRevision, type CodexEdit } from './publish';
 import { listCodexCredits } from './queries';
 
 const harness = await createDbTestHarness({
@@ -74,6 +77,7 @@ const c247Template: CodexDoc = {
   type: 'doc',
   attrs: { schemaVersion: 1 },
   content: [
+    { type: 'dataBlock', attrs: { id: 'data', source: 'wormholeType', key: 'C247', fields: [], layout: 'infobox' }, content: [] },
     { type: 'heading', attrs: { id: 'overview', level: 2 }, content: [{ type: 'text', text: 'Overview', marks: [] }] },
     { type: 'paragraph', attrs: { id: 'blank' }, content: [] },
   ],
@@ -115,9 +119,47 @@ function suggestion(over: Partial<CodexProposalInput> = {}): CodexProposalInput 
 }
 
 const proposal = async (id = P1) => (await harness.db.select().from(codexProposals).where(eq(codexProposals.id, id)))[0];
-const head = async (key = guide.key) =>
+const head = async (key: string = guide.key) =>
   (await harness.db.select().from(codexPages).where(eq(codexPages.subjectKey, key)))[0];
 const revisions = () => harness.db.select().from(codexRevisions).orderBy(asc(codexRevisions.createdAt));
+const headDoc = async () => {
+  const current = (await head())!.currentRevisionId;
+  return JSON.stringify((await revisions()).find((row) => row.id === current)!.doc);
+};
+const review = (headRevisionId: string | null, choices: Record<string, 'head' | 'proposal' | unknown[]> = {}) => ({
+  headRevisionId,
+  choices,
+});
+
+async function adminPublishes(baseRevisionId: string, edit: CodexEdit): Promise<string> {
+  const result = await publishCodexRevision({
+    subject: guide,
+    title: null,
+    baseRevisionId,
+    edit,
+    summary: null,
+    author: { userId: 'admin', characterId: null },
+  });
+  if (result.status !== 'published') throw new Error(`admin publish ${result.status}`);
+  return result.revisionId;
+}
+
+const leadEdit = (text: string): CodexEdit => ({ kind: 'section', sectionId: 'lead', blocks: [paragraph('lead', text)] });
+const strategyEdit = (text: string): CodexEdit => ({ kind: 'section', sectionId: 'strategy', blocks: [paragraph('s1', text)] });
+
+async function reviewMerge(id = P1) {
+  const view = (await readCodexProposal(id))!;
+  const docs = await readCodexRevisionDocs([view.baseRevisionId!, view.headRevisionId!]);
+  return { view, merge: mergeCodexProposal(view, docs.get(view.baseRevisionId!)!, docs.get(view.headRevisionId!)!) };
+}
+
+function allIds(node: unknown, into: string[] = []): string[] {
+  if (typeof node !== 'object' || node === null) return into;
+  const { attrs, content } = node as { attrs?: { id?: string }; content?: unknown[] };
+  if (attrs?.id) into.push(attrs.id);
+  for (const child of content ?? []) allIds(child, into);
+  return into;
+}
 
 test.skipIf(!harness.reachable)('a submitted suggestion is stored once and a replay is a duplicate', async () => {
   expect(await submitCodexProposal(suggestion(), noTemplate)).toEqual({ status: 'submitted', id: P1 });
@@ -128,7 +170,7 @@ test.skipIf(!harness.reachable)('a submitted suggestion is stored once and a rep
 
 test.skipIf(!harness.reachable)('approving publishes the suggestion as the submitter and credits them', async () => {
   await submitCodexProposal(suggestion(), noTemplate);
-  expect(await approveCodexProposal(P1, seedNone)).toBe('approved');
+  expect(await approveCodexProposal(P1, seedNone, review(R1))).toBe('approved');
 
   const page = await head();
   const [, published] = await revisions();
@@ -147,7 +189,7 @@ test.skipIf(!harness.reachable)('approving publishes the suggestion as the submi
   expect(approved!.decidedAt).toBeInstanceOf(Date);
   expect(await listCodexCredits(guide)).toEqual([{ characterId: 9001, name: 'Tester', edits: 1 }]);
 
-  expect(await approveCodexProposal(P1, seedNone)).toBe('not-pending');
+  expect(await approveCodexProposal(P1, seedNone, review(R1))).toBe('not-pending');
   expect(await revisions()).toHaveLength(2);
 });
 
@@ -171,19 +213,134 @@ test.skipIf(!harness.reachable)('only the submitter withdraws, and only while pe
   expect(await decideCodexProposal(P2, 'withdraw', { userId: 'u1' })).toBe('not-pending');
 });
 
-test.skipIf(!harness.reachable)('a suggestion against a page that moved needs a merge and stays pending', async () => {
+test.skipIf(!harness.reachable)('a suggestion merges on its own when the page changed elsewhere', async () => {
   await submitCodexProposal(suggestion(), noTemplate);
-  const R2 = await publishCodexRevision({
-    subject: guide,
-    title: null,
-    baseRevisionId: R1,
-    edit: { kind: 'section', sectionId: 'lead', blocks: [paragraph('lead', 'Start over here.')] },
+  const R2 = await adminPublishes(R1, leadEdit('Start over here.'));
+
+  expect(await approveCodexProposal(P1, seedNone, review(R2))).toBe('approved');
+  const page = await head();
+  const merged = (await revisions()).find((row) => row.id === page!.currentRevisionId)!;
+  expect(merged).toMatchObject({ parentRevisionId: R2, origin: 'proposal', originRef: P1, userId: 'u1', characterId: 9001 });
+  expect(JSON.stringify(merged.doc)).toContain('Start over here.');
+  expect(JSON.stringify(merged.doc)).toContain('Warp in at 50 km.');
+  expect(await proposal()).toMatchObject({ status: 'approved', resultRevisionId: page!.currentRevisionId });
+  expect(await listCodexCredits(guide)).toEqual([{ characterId: 9001, name: 'Tester', edits: 1 }]);
+});
+
+test.skipIf(!harness.reachable)('an approval pinned to a head the page has left publishes nothing', async () => {
+  await submitCodexProposal(suggestion(), noTemplate);
+  const R2 = await adminPublishes(R1, leadEdit('Start over here.'));
+
+  expect(await approveCodexProposal(P1, seedNone, review(R1))).toBe('moved');
+  expect((await proposal())!.status).toBe('pending');
+  expect((await head())!.currentRevisionId).toBe(R2);
+  expect(await revisions()).toHaveLength(2);
+});
+
+test.skipIf(!harness.reachable)('a paragraph both sides changed waits for the admin to pick or rewrite it', async () => {
+  await submitCodexProposal(suggestion(), noTemplate);
+  const R2 = await adminPublishes(R1, strategyEdit('Warp in at 40 km.'));
+
+  expect(await approveCodexProposal(P1, seedNone, review(R2))).toBe('conflict');
+  expect((await proposal())!.status).toBe('pending');
+  expect(await approveCodexProposal(P1, seedNone, review(R2, { s1: 'proposal' }))).toBe('approved');
+  expect(await headDoc()).toContain('Warp in at 50 km.');
+  expect(await headDoc()).not.toContain('Warp in at 40 km.');
+
+  const P2 = '22222222-2222-4222-8222-222222222222';
+  await submitCodexProposal(suggestion({ proposalId: P2, blocks: [paragraph('s1', 'Warp in at 60 km.')] }), noTemplate);
+  const R3 = (await head())!.currentRevisionId!;
+  expect(await approveCodexProposal(P2, seedNone, review(R3))).toBe('conflict');
+  expect(await approveCodexProposal(P2, seedNone, review(R3, { s1: [paragraph('s1', 'Warp in at 45 km.')] }))).toBe('approved');
+  expect(await headDoc()).toContain('Warp in at 45 km.');
+  expect(await listCodexCredits(guide)).toEqual([{ characterId: 9001, name: 'Tester', edits: 2 }]);
+});
+
+test.skipIf(!harness.reachable)('a page that moves again during review returns a fresh conflict and keeps the edit', async () => {
+  await submitCodexProposal(suggestion(), noTemplate);
+  const R2 = await adminPublishes(R1, strategyEdit('Warp in at 40 km.'));
+  const shown = await reviewMerge();
+  expect(shown.view.headRevisionId).toBe(R2);
+  expect(shown.merge.kind === 'conflict' ? shown.merge.conflicts.map((c) => c.blockId) : []).toEqual(['s1']);
+
+  const R3 = await adminPublishes(R2, leadEdit('Moved again.'));
+  expect(await approveCodexProposal(P1, seedNone, review(R2, { s1: 'proposal' }))).toBe('moved');
+  expect((await proposal())!.status).toBe('pending');
+  expect((await head())!.currentRevisionId).toBe(R3);
+
+  const fresh = await reviewMerge();
+  expect(fresh.view.headRevisionId).toBe(R3);
+  expect(fresh.merge.kind === 'conflict' ? fresh.merge.conflicts.map((c) => c.blockId) : []).toEqual(['s1']);
+  expect(await approveCodexProposal(P1, seedNone, review(R3, { s1: 'proposal' }))).toBe('approved');
+  expect(await headDoc()).toContain('Moved again.');
+  expect(await headDoc()).toContain('Warp in at 50 km.');
+});
+
+test.skipIf(!harness.reachable)('a page that moves between the head read and the write publishes nothing', async () => {
+  await submitCodexProposal(suggestion(), noTemplate);
+  headRead.hold = async () => {
+    headRead.hold = null;
+    await adminPublishes(R1, leadEdit('Slipped in.'));
+  };
+  expect(await approveCodexProposal(P1, seedNone, review(R1))).toBe('moved');
+  headRead.hold = null;
+  expect((await proposal())!.status).toBe('pending');
+  expect(await revisions()).toHaveLength(2);
+});
+
+test.skipIf(!harness.reachable)('a template-based suggestion merges into a page the admin wrote meanwhile', async () => {
+  const c247 = { kind: 'wormholes', key: 'c247' } as const;
+  await submitCodexProposal(
+    suggestion({ subject: c247, sectionId: 'overview', baseRevisionId: null, blocks: [paragraph('o1', 'Big.')] }),
+    templateSeed,
+  );
+  const written = await publishCodexRevision({
+    subject: c247,
+    title: 'C247',
+    baseRevisionId: null,
+    template: c247Template,
+    edit: { kind: 'section', sectionId: 'overview', blocks: [paragraph('o9', 'Admin text.')] },
     summary: null,
     author: { userId: 'admin', characterId: null },
   });
-  expect(await approveCodexProposal(P1, seedNone)).toBe('needs-merge');
+  if (written.status !== 'published') throw new Error('admin publish failed');
+
+  expect(await approveCodexProposal(P1, async () => templateSeed, review(written.revisionId))).toBe('approved');
+  const page = await head('c247');
+  const merged = (await revisions()).find((row) => row.id === page!.currentRevisionId)!;
+  expect(allIds(merged.doc)).toEqual(['data', 'overview', 'o1', 'o9']);
+});
+
+test.skipIf(!harness.reachable)('nested ids that collide across the merge are re-keyed on publish', async () => {
+  const bullets = (listId: string, text: string) => ({
+    type: 'bulletList',
+    attrs: { id: listId },
+    content: [{ type: 'listItem', attrs: { id: 'n1' }, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] }],
+  });
+  await submitCodexProposal(
+    suggestion({ blocks: [paragraph('s1', 'Warp in at 50 km.'), bullets('l2', 'From the suggestion')] }),
+    noTemplate,
+  );
+  const R2 = await adminPublishes(R1, {
+    kind: 'section',
+    sectionId: 'lead',
+    blocks: [paragraph('lead', 'Start here.'), bullets('l1', 'From the admin')],
+  });
+
+  expect(await approveCodexProposal(P1, seedNone, review(R2))).toBe('approved');
+  const ids = allIds(JSON.parse(await headDoc()));
+  expect(ids).toContain('l1');
+  expect(ids).toContain('l2');
+  expect(new Set(ids).size).toBe(ids.length);
+});
+
+test.skipIf(!harness.reachable)('a hand edit that fails the page checks publishes nothing', async () => {
+  await submitCodexProposal(suggestion(), noTemplate);
+  const R2 = await adminPublishes(R1, strategyEdit('Warp in at 40 km.'));
+
+  expect(await approveCodexProposal(P1, seedNone, review(R2, { s1: [{ type: 'script' }] }))).toBe('invalid');
   expect((await proposal())!.status).toBe('pending');
-  expect((await head())!.currentRevisionId).toBe(R2.status === 'published' ? R2.revisionId : null);
+  expect(await revisions()).toHaveLength(2);
 });
 
 test.skipIf(!harness.reachable)('a suggestion on an unwritten entity page creates it from the template', async () => {
@@ -193,7 +350,7 @@ test.skipIf(!harness.reachable)('a suggestion on an unwritten entity page create
     templateSeed,
   );
   expect(outcome).toEqual({ status: 'submitted', id: P1 });
-  expect(await approveCodexProposal(P1, async () => templateSeed)).toBe('approved');
+  expect(await approveCodexProposal(P1, async () => templateSeed, review(null))).toBe('approved');
   const pages = await harness.db.select().from(codexPages).where(eq(codexPages.subjectKind, 'wormholes'));
   expect(pages.map(({ title }) => title)).toEqual(['C247']);
   const [created] = await harness.db
@@ -306,7 +463,10 @@ test.skipIf(!harness.reachable)('two reviewers approving at once publish exactly
     if (arrived === 2) releaseBoth();
     return bothRead;
   };
-  const outcomes = await Promise.all([approveCodexProposal(P1, seedNone), approveCodexProposal(P1, seedNone)]);
+  const outcomes = await Promise.all([
+    approveCodexProposal(P1, seedNone, review(R1)),
+    approveCodexProposal(P1, seedNone, review(R1)),
+  ]);
   headRead.hold = null;
 
   expect(arrived).toBe(2);
@@ -322,7 +482,7 @@ test.skipIf(!harness.reachable)('an approval racing a withdrawal publishes nothi
     await withdrawer`SET LOCAL idle_in_transaction_session_timeout = '10s'`;
     await withdrawer`UPDATE codex_proposals SET status = 'withdrawn', decided_at = now() WHERE id = ${P1}`;
     const [holder] = await withdrawer<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
-    const approval = approveCodexProposal(P1, seedNone);
+    const approval = approveCodexProposal(P1, seedNone, review(R1));
     await expect
       .poll(
         async () => {
@@ -350,7 +510,7 @@ test.skipIf(!harness.reachable)('the database refuses a denial without a note an
   await expect(
     harness.db.execute(sql`UPDATE codex_proposals SET status = 'denied', decided_at = now() WHERE id = ${P1}`),
   ).rejects.toMatchObject({ cause: { code: '23514', constraint_name: 'codex_proposals_denied_has_note' } });
-  await approveCodexProposal(P1, seedNone);
+  await approveCodexProposal(P1, seedNone, review(R1));
   const page = await head();
   await expect(
     harness.db.insert(codexRevisions).values({
