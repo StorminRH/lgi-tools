@@ -202,3 +202,21 @@ test('screenshots in a conflict render for the admin, pending ones included', as
   expect(html).toContain('Screenshot · awaiting review');
   expect(html).toContain(`assetId: <del`);
 });
+
+test('videos in a conflict show the original as a player facade and each side as a change', async () => {
+  const video = (videoId: string, title: string) => ({ type: 'video', attrs: { id: 'clip', provider: 'youtube', videoId, title } });
+  const merge = mergeCodexDocs(
+    doc(heading, video('dQw4w9WgXcQ', 'Full clear')),
+    doc(heading, video('aBcDeFgHiJk', 'Page now')),
+    doc(heading),
+  );
+  mocks.loaded = { ...(loaded([heading]) as object), merge };
+  const html = await render();
+
+  expect(html).toContain('aria-label="Play Full clear (loads YouTube)"');
+  expect(html).toContain('src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"');
+  expect(html).toContain('videoId: <del');
+  expect(html).toContain('>aBcDeFgHiJk</ins>');
+  expect(html).toContain('Video: Full clear (youtube dQw4w9WgXcQ)</del>');
+  expect(html).not.toContain('<iframe');
+});

@@ -31,6 +31,7 @@ test('a suggester submits for review with a required summary and the license box
   expect(html).toContain('· Required');
   expect(html).toContain('Signed in as Karaka');
   expect(html).toContain('Submit for review');
+  expect(html).toContain('aria-label="Video"');
 });
 
 test('the admin publishes straight away with no license box', () => {
@@ -43,6 +44,7 @@ test('the admin publishes straight away with no license box', () => {
   expect(html).toContain('Publishes immediately · saved to history');
   expect(html).toContain('Save section');
   expect(html).not.toContain('Required');
+  expect(html).toContain('aria-label="Video"');
 });
 
 test('the block editor is a bare editing surface with no form of its own', () => {
@@ -54,4 +56,5 @@ test('the block editor is a bare editing surface with no form of its own', () =>
   expect(html).not.toContain('type="hidden"');
   expect(html).toContain('aria-label="Formatting"');
   expect(html).not.toContain('Edit summary');
+  expect(html).toContain('aria-label="Video"');
 });

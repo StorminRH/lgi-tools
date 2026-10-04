@@ -1,17 +1,17 @@
 'use client';
 
 import { useEditorState, type Editor } from '@tiptap/react';
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { CODEX_UPLOAD_CONTENT_TYPES } from '../constants';
+import { blockInsertPosition, requiredTextProblem, selectBlock } from './block-select';
 import { imageNode } from './extensions';
 import { imageFileFrom, uploadCodexImage, type ImageUploadState } from './image-upload';
+import { RequiredField, useRequiredFieldFocus, type RequiredFocus } from './RequiredField';
 
 const IDLE: ImageUploadState = { phase: 'idle' };
-
-export const MISSING_ALT_PROBLEM = 'Add alt text to every image before saving';
 
 const PHASE_LABELS = {
   shrinking: 'Preparing the image…',
@@ -19,28 +19,10 @@ const PHASE_LABELS = {
   finalizing: 'Making screen-sized copies…',
 } as const;
 
-export function selectImage(
-  editor: Editor,
-  match: (id: string, index: number) => boolean,
-  focusEditor = true,
-): void {
-  let found: number | null = null;
-  let index = 0;
-  editor.state.doc.forEach((node, offset) => {
-    if (found === null && node.type.name === 'image' && match(String(node.attrs.id), index)) found = offset;
-    index += 1;
-  });
-  if (found === null) return;
-  const chain = editor.chain();
-  (focusEditor ? chain.focus() : chain).setNodeSelection(found).run();
-}
-
 export function insertImage(editor: Editor, asset: { id: string; stem: string }): void {
   const node = imageNode(asset);
-  const { $from, to } = editor.state.selection;
-  const at = $from.depth > 1 ? $from.after(1) : to;
-  editor.chain().focus().insertContentAt(at, node).run();
-  selectImage(editor, (id) => id === node.attrs.id);
+  editor.chain().focus().insertContentAt(blockInsertPosition(editor), node).run();
+  selectBlock(editor, 'image', (attrs) => attrs.id === node.attrs.id);
 }
 
 export function useImageDrops() {
@@ -115,65 +97,14 @@ export function UploadLine({ state, onDismiss }: { state: ImageUploadState; onDi
   );
 }
 
-function useAltFocus(editor: Editor, altRequest: number, onAltHandled?: () => void) {
-  const altInput = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (altRequest === 0) return;
-    const figure = editor.view.nodeDOM(editor.state.selection.from);
-    if (figure instanceof HTMLElement) figure.scrollIntoView({ block: 'center' });
-    altInput.current?.focus({ preventScroll: true });
-    onAltHandled?.();
-  }, [altRequest, editor, onAltHandled]);
-  return altInput;
-}
-
-function AltField({
-  inputRef,
-  alt,
-  missing,
-  onChange,
-}: {
-  inputRef: RefObject<HTMLInputElement | null>;
-  alt: string;
-  missing: boolean;
-  onChange: (value: string) => void;
-}) {
-  const problemId = useId();
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <Input
-        ref={inputRef}
-        size="sm"
-        aria-label="Alt text (required)"
-        placeholder="Alt text: what the screenshot shows"
-        value={alt}
-        maxLength={300}
-        onChange={(event) => onChange(event.target.value)}
-        aria-describedby={missing ? problemId : undefined}
-        aria-invalid={missing || undefined}
-        autoFocus
-      />
-      {missing ? (
-        <p id={problemId} className="font-ui text-ui text-dps-mid">
-          {MISSING_ALT_PROBLEM}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 export function ImageRow({
   editor,
-  altRequest = 0,
-  altBlocked = false,
-  onAltHandled,
+  focus,
 }: {
   editor: Editor;
-  altRequest?: number;
-  altBlocked?: boolean;
-  onAltHandled?: () => void;
+  focus: RequiredFocus;
 }) {
-  const altInput = useAltFocus(editor, altRequest, onAltHandled);
+  const altInput = useRequiredFieldFocus(editor, focus);
   const attrs = useEditorState({
     editor,
     selector: ({ editor: current }) => current.getAttributes('image') as { alt?: string; caption?: string },
@@ -184,7 +115,16 @@ export function ImageRow({
   };
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border-soft bg-row-hover px-3 py-2">
-      <AltField inputRef={altInput} alt={alt} missing={altBlocked && alt === ''} onChange={(value) => update('alt', value)} />
+      <RequiredField
+        inputRef={altInput}
+        label="Alt text (required)"
+        placeholder="Alt text: what the screenshot shows"
+        value={alt}
+        maxLength={300}
+        problem={requiredTextProblem(focus.blocked, 'image', alt)}
+        autoFocus
+        onChange={(value) => update('alt', value)}
+      />
       <Input
         size="sm"
         aria-label="Caption"

@@ -21,6 +21,7 @@ import {
   ItalicIcon,
   LinkIcon,
   NumberedIcon,
+  VideoIcon,
 } from '../components/icons';
 import { Input } from '@/components/ui/input';
 import type { CodexSourceCatalogue } from '../components/CodexDataView';
@@ -32,15 +33,10 @@ import type { DataNode } from './data-block-picker-state';
 import { EditorNotice } from './EditorNotice';
 import { codexDraftKey, formSummary, initialEditorBlocks, keepCodexDraft, takeConflictDraft } from './draft';
 import { codexEditorExtensions, dataInsertion, editorBlocks } from './extensions';
-import { firstImageWithoutAlt } from './image-upload';
-import {
-  ImageRow,
-  MISSING_ALT_PROBLEM,
-  selectImage,
-  UploadLine,
-  useImageDrops,
-  useImageUpload,
-} from './ImageControls';
+import { blockedBy, firstBlockMissingText, MISSING_TEXT, selectBlock } from './block-select';
+import { ImageRow, UploadLine, useImageDrops, useImageUpload } from './ImageControls';
+import { NO_FOCUS, type RequiredFocus } from './RequiredField';
+import { VideoInsertRow, VideoRow } from './VideoRow';
 
 export interface CodexEditorProps {
   readonly mode: CodexEditMode;
@@ -123,6 +119,7 @@ const IDLE_TOOLBAR = {
   numbers: false,
   callout: false,
   image: false,
+  video: false,
 };
 
 function useToolbarState(editor: Editor | null) {
@@ -138,6 +135,7 @@ function useToolbarState(editor: Editor | null) {
       numbers: current?.isActive('orderedList') ?? false,
       callout: current?.isActive('callout') ?? false,
       image: current?.isActive('image') ?? false,
+      video: current?.isActive('video') ?? false,
     }),
   });
 }
@@ -194,6 +192,7 @@ function Toolbar({
   state,
   onLink,
   onImage,
+  onVideo,
   data,
   bar,
 }: {
@@ -201,6 +200,7 @@ function Toolbar({
   state: typeof IDLE_TOOLBAR;
   onLink: () => void;
   onImage: (() => void) | null;
+  onVideo: () => void;
   data: ReactNode;
   bar: RefObject<HTMLDivElement | null>;
 }) {
@@ -247,6 +247,10 @@ function Toolbar({
           Image
         </ToolButton>
       ) : null}
+      <ToolButton label="Video" wide active={state.video} onClick={onVideo}>
+        <VideoIcon size={15} />
+        Video
+      </ToolButton>
       {data}
     </div>
   );
@@ -257,22 +261,49 @@ function insertDataNode(editor: Editor, node: DataNode) {
   editor.chain().focus().insertContentAt(at, content).run();
 }
 
+type ToolbarPanel = 'link' | 'video' | null;
+
+function SelectedBlockRow({ editor, state, focus }: { editor: Editor; state: typeof IDLE_TOOLBAR; focus: RequiredFocus }) {
+  if (state.image) return <ImageRow editor={editor} focus={focus} />;
+  if (state.video) return <VideoRow editor={editor} focus={focus} />;
+  return null;
+}
+
+function EditorRows({
+  editor,
+  state,
+  panel,
+  focus,
+  onClose,
+}: {
+  editor: Editor;
+  state: typeof IDLE_TOOLBAR;
+  panel: ToolbarPanel;
+  focus: RequiredFocus;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      {panel === 'link' ? <LinkRow editor={editor} onClose={onClose} /> : null}
+      {panel === 'video' ? <VideoInsertRow editor={editor} onClose={onClose} /> : null}
+      <SelectedBlockRow editor={editor} state={state} focus={focus} />
+    </>
+  );
+}
+
 function EditorToolbar({
   editor,
   catalogue,
   upload,
-  altRequest,
-  altBlocked,
-  onAltHandled,
+  focus = NO_FOCUS,
 }: {
   editor: Editor | null;
   catalogue: CodexSourceCatalogue;
   upload?: ReturnType<typeof useImageUpload>;
-  altRequest?: number;
-  altBlocked?: boolean;
-  onAltHandled?: () => void;
+  focus?: RequiredFocus;
 }) {
-  const [linking, setLinking] = useState(false);
+  const [panel, setPanel] = useState<ToolbarPanel>(null);
+  const toggle = (next: ToolbarPanel) => () => setPanel((open) => (open === next ? null : next));
   const [picking, setPicking] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
   const state = useToolbarState(editor) ?? IDLE_TOOLBAR;
@@ -282,8 +313,9 @@ function EditorToolbar({
         bar={bar}
         editor={editor}
         state={state}
-        onLink={() => setLinking((open) => !open)}
+        onLink={toggle('link')}
         onImage={upload ? upload.pick : null}
+        onVideo={toggle('video')}
         data={
           <DataBlockPicker
             catalogue={catalogue}
@@ -301,9 +333,8 @@ function EditorToolbar({
           />
         }
       />
-      {linking && editor ? <LinkRow editor={editor} onClose={() => setLinking(false)} /> : null}
-      {state.image && editor ? (
-        <ImageRow editor={editor} altRequest={altRequest} altBlocked={altBlocked} onAltHandled={onAltHandled} />
+      {editor ? (
+        <EditorRows editor={editor} state={state} panel={panel} focus={focus} onClose={() => setPanel(null)} />
       ) : null}
       {upload ? <UploadLine state={upload.state} onDismiss={upload.dismiss} /> : null}
     </div>
@@ -407,7 +438,7 @@ const EDITOR_TEXT_LABELS = { page: 'Page text', section: 'Section text' } as con
 function useDraftForm(storageKey: string, editor: Editor | null) {
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const [altRequest, setAltRequest] = useState(0);
+  const [focusRequest, setFocusRequest] = useState(0);
   const blocksField = useRef<HTMLInputElement>(null);
 
   const save = (event: FormEvent<HTMLFormElement>) => {
@@ -416,12 +447,12 @@ function useDraftForm(storageKey: string, editor: Editor | null) {
       return;
     }
     const blocks = editorBlocks(editor.getJSON());
-    const missingAlt = firstImageWithoutAlt(blocks);
-    if (missingAlt !== null) {
+    const missing = firstBlockMissingText(blocks);
+    if (missing !== null) {
       event.preventDefault();
-      selectImage(editor, (_id, index) => index === missingAlt, false);
-      setAltRequest((count) => count + 1);
-      setProblem(MISSING_ALT_PROBLEM);
+      selectBlock(editor, missing.type, (_attrs, index) => index === missing.index, false);
+      setFocusRequest((count) => count + 1);
+      setProblem(MISSING_TEXT[missing.type]);
       return;
     }
     setProblem(null);
@@ -430,9 +461,10 @@ function useDraftForm(storageKey: string, editor: Editor | null) {
     setSaving(true);
   };
 
-  const onAltHandled = useCallback(() => setAltRequest(0), []);
+  const onHandled = useCallback(() => setFocusRequest(0), []);
+  const focus: RequiredFocus = { request: focusRequest, blocked: blockedBy(problem), onHandled };
 
-  return { blocksField, saving, problem, altRequest, onAltHandled, save };
+  return { blocksField, saving, problem, focus, save };
 }
 
 export function CodexBlockEditor({
@@ -493,7 +525,7 @@ export function CodexEditor({
   });
 
   const upload = useImageUpload(editor, tools.uploadPrefix, drops.start);
-  const { blocksField, saving, problem, altRequest, onAltHandled, save } = useDraftForm(storageKey, editor);
+  const { blocksField, saving, problem, focus, save } = useDraftForm(storageKey, editor);
 
   return (
     <form
@@ -510,9 +542,7 @@ export function CodexEditor({
         editor={editor}
         catalogue={tools.catalogue}
         upload={upload}
-        altRequest={altRequest}
-        altBlocked={problem === MISSING_ALT_PROBLEM}
-        onAltHandled={onAltHandled}
+        focus={focus}
       />
       <div className={editorSurfaceClass}>
         <EditorContent editor={editor} />

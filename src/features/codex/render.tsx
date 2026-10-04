@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { DocTable } from '@/components/ui/static-table';
 import { CodexSectionFrame } from './components/CodexSectionFrame';
+import { CodexVideo } from './components/CodexVideo';
 import type { CodexBlockNode, CodexDoc, CodexMark, CodexNode, CodexTextNode } from './doc';
 import {
   CODEX_CALLOUT_LABELS,
@@ -10,6 +11,7 @@ import {
   type CodexNodeName,
 } from './nodes';
 import { codexSections, isBlankSection, plainText, type CodexSection } from './sections';
+import { codexVideoEmbed } from './video-embed';
 
 type BlockName = Exclude<CodexNodeName, 'text'>;
 type BuiltinName = Exclude<BlockName, CodexInjectedNodeName>;
@@ -53,6 +55,7 @@ const BLOCKS: { [K in BuiltinName]: NodeRenderer<K> } = {
   tableHeader: ({ attrs, children }) => <th {...spans(attrs)}>{children}</th>,
   tableCell: ({ attrs, children }) => <td {...spans(attrs)}>{children}</td>,
   horizontalRule: () => <hr />,
+  video: ({ attrs }) => <CodexVideo title={attrs.title} embed={codexVideoEmbed(attrs)} />,
 };
 
 const MARKS: Record<CodexMarkName, (attrs: CodexMark['attrs'], children: ReactNode) => ReactNode> = {

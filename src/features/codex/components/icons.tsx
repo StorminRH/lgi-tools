@@ -49,6 +49,17 @@ export const ImageIcon = strokeIcon(
     <path d="M21 16l-5-5-8 8" />
   </>,
 );
+export const VideoIcon = strokeIcon(
+  <>
+    <rect x="3" y="5" width="18" height="14" rx="3" />
+    <path d="M10 9.5v5l4.5-2.5z" />
+  </>,
+);
+export const PlayIcon = ({ size = 22, className }: { size?: number; className?: string }) => (
+  <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" className={className}>
+    <path d="M8 5.5v13l11-6.5z" fill="currentColor" />
+  </svg>
+);
 export const DataIcon = strokeIcon(
   <>
     <rect x="3" y="4" width="18" height="16" rx="3" />

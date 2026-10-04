@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CODEX_VIDEO_PROVIDER_IDS, isCodexVideoRef } from './video';
 
 export interface CodexNodeSpec {
   readonly topLevel: boolean;
@@ -70,6 +71,18 @@ export const CODEX_NODES = {
       alt: z.string().trim().min(1).max(300),
       caption: z.string().trim().max(300).default(''),
     }),
+    content: null,
+  },
+  video: {
+    topLevel: true,
+    attrs: z
+      .object({
+        id: blockId,
+        provider: z.enum(CODEX_VIDEO_PROVIDER_IDS),
+        videoId: z.string().min(1).max(100),
+        title: z.string().trim().min(1).max(200),
+      })
+      .refine(isCodexVideoRef, { error: 'videoId does not fit its provider', path: ['videoId'] }),
     content: null,
   },
   text: { topLevel: false, attrs: z.object({}), content: 'text' },

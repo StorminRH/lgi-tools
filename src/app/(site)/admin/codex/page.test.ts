@@ -123,3 +123,21 @@ test('review links and forms on a later page send the admin back to that page', 
   expect(second).toContain('<input type="hidden" name="page" value="2"/>');
   expect(await render()).not.toContain('name="page"');
 });
+
+test('a suggested video shows in the diff as its title and a thumbnail that loads no player', async () => {
+  mocks.proposals = [
+    {
+      ...proposal('rev-1'),
+      blocks: [
+        text('s1', 'Warp in at 30 km.'),
+        { type: 'video', attrs: { id: 'clip', provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear' } },
+      ],
+    },
+  ];
+  const html = await render();
+
+  expect(html).toContain('Video: Full clear (youtube dQw4w9WgXcQ)</ins>');
+  expect(html).toContain('aria-label="Play Full clear (loads YouTube)"');
+  expect(html).toContain('src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"');
+  expect(html).not.toContain('<iframe');
+});

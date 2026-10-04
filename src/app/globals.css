@@ -79,6 +79,11 @@
   background-size: 256px 256px;
 }
 
+/* Twitch refuses autoplay when anything covers its player, the grain and the Feedback button included. */
+body:has([data-video-player]) :is(.page-grain, [data-site-feedback]) {
+  display: none;
+}
+
 @media (hover: none) and (pointer: coarse) {
   .page-backdrop,
   .page-grain {

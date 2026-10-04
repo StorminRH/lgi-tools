@@ -11,11 +11,13 @@ import { codexSourceCatalogue } from '@/composition/codex-sources';
 import { codexQueuePage } from '@/features/codex/api-contract';
 import { collectCodexAssetIds, loadCodexAssetViews, withImageSources, type CodexAssetView } from '@/features/codex/assets';
 import { CodexImageFigure } from '@/features/codex/components/CodexImage';
+import { CodexVideo } from '@/features/codex/components/CodexVideo';
 import { diffCodexBlocks } from '@/features/codex/diff';
 import type { CodexBlockNode } from '@/features/codex/doc';
 import type { CodexMergeConflict } from '@/features/codex/merge';
 import { CODEX_PROPOSAL_STATUS } from '@/features/codex/proposal-status';
 import { plainText, sectionTitle } from '@/features/codex/sections';
+import { codexVideoEmbed } from '@/features/codex/video-embed';
 import { formatRelativeTime } from '@/lib/format/time';
 import { AdminPageFrame } from '../../AdminFrame';
 import { ProposalByline } from '../ProposalByline';
@@ -51,6 +53,7 @@ const against = (base: CodexBlockNode | null, side: CodexBlockNode | null, asset
 
 function baseColumn(base: CodexBlockNode | null, assets: Assets) {
   if (base?.type === 'image') return <CodexImageFigure attrs={base.attrs} asset={assets.get(base.attrs.assetId)} />;
+  if (base?.type === 'video') return <CodexVideo title={base.attrs.title} embed={codexVideoEmbed(base.attrs)} />;
   return (
     <p className={cn(insetSurface, 'px-4 py-3.5 font-ui text-nav leading-[1.75] whitespace-pre-wrap text-text')}>
       {base ? plainText(base) : <span className="text-ui text-muted italic">Not in the original</span>}

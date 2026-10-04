@@ -22,14 +22,6 @@ export function imageFileFrom(data: Pick<DataTransfer, 'files'> | null): File | 
   return [...(data?.files ?? [])].find((file) => ALLOWED_TYPES.has(file.type)) ?? null;
 }
 
-export function firstImageWithoutAlt(blocks: readonly unknown[]): number | null {
-  const index = blocks.findIndex((block) => {
-    const node = block as { type?: unknown; attrs?: { alt?: unknown } } | null;
-    return node?.type === 'image' && (typeof node.attrs?.alt !== 'string' || node.attrs.alt.trim() === '');
-  });
-  return index === -1 ? null : index;
-}
-
 type Shrunk = { readonly ok: true; readonly blob: Blob; readonly ext: 'webp' | 'png' } | { readonly ok: false; readonly message: string };
 
 async function shrinkImage(file: Blob): Promise<Shrunk> {

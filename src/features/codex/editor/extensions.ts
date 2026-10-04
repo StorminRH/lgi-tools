@@ -18,6 +18,7 @@ import {
   type CodexNodeAttrs,
   type CodexNodeName,
 } from '../nodes';
+import { CODEX_VIDEO_PROVIDERS, type CodexVideoProvider, type CodexVideoRef } from '../video';
 import type { DataNode } from './data-block-picker-state';
 
 const TOP_LEVEL = (Object.keys(CODEX_NODES) as CodexNodeName[]).filter((name) => CODEX_NODES[name].topLevel);
@@ -132,7 +133,10 @@ const dataInline = registryNode('dataInline', 'span', { attributes: dataRefAttri
   },
 });
 
-const textAttribute = (name: 'assetId' | 'alt' | 'caption' | 'src', fallback: string | null) => ({
+const textAttribute = (
+  name: 'assetId' | 'alt' | 'caption' | 'src' | 'provider' | 'videoId' | 'title',
+  fallback: string | null,
+) => ({
   default: fallback,
   parseHTML: (element: HTMLElement) => element.dataset[name] ?? fallback,
   renderHTML: () => ({}),
@@ -164,6 +168,27 @@ const image = registryNode('image', 'figure', {
       ? ['img', { src: `${src}-1280.webp`, alt: alt ?? '' }]
       : ['div', { class: 'codex-image-missing' }, 'Image unavailable'];
     return caption ? ['figure', figure, picture, ['figcaption', {}, caption]] : ['figure', figure, picture];
+  },
+});
+
+const video = registryNode('video', 'figure', {
+  attributes: {
+    provider: textAttribute('provider', null),
+    videoId: textAttribute('videoId', null),
+    title: textAttribute('title', ''),
+  },
+}).extend({
+  atom: true,
+  selectable: true,
+  draggable: true,
+  parseHTML: () => [{ tag: 'figure[data-codex-video][data-provider][data-video-id]' }],
+  renderHTML: ({ node }) => {
+    const { provider, videoId, title } = node.attrs as { provider: CodexVideoProvider; videoId: string; title: string };
+    return [
+      'figure',
+      { 'data-codex-video': '', 'data-provider': provider, 'data-video-id': videoId, 'data-title': title, class: 'codex-data-chip' },
+      `Video · ${CODEX_VIDEO_PROVIDERS[provider].label} · ${title}`,
+    ];
   },
 });
 
@@ -208,6 +233,7 @@ const REGISTRY_NODES: Record<Exclude<CodexNodeName, StarterKitNode>, AnyExtensio
   dataBlock,
   dataInline,
   image,
+  video,
 };
 
 export const codexEditorExtensions: AnyExtension[] = [
@@ -249,6 +275,10 @@ export function editorBlocks(json: { content?: unknown[] }): unknown[] {
 
 export function imageNode(asset: { id: string; stem: string }) {
   return { type: 'image', attrs: { id: crypto.randomUUID(), assetId: asset.id, alt: '', caption: '', src: asset.stem } };
+}
+
+export function videoNode(ref: CodexVideoRef, title: string): JSONContent {
+  return { type: 'video', attrs: { provider: ref.provider, videoId: ref.videoId, title } };
 }
 
 export function dataInsertion(

@@ -237,3 +237,37 @@ test('finds nodes of a type anywhere in untrusted JSON with their paths', () => 
     ['content.2.content.1', 'deep'],
   ]);
 });
+
+const video = (attrs: Record<string, unknown>, content?: unknown[]) => ({
+  type: 'video',
+  attrs: { id: 'v1', provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear', ...attrs },
+  ...(content ? { content } : {}),
+});
+
+test('stores a video as its provider, id, and trimmed title', () => {
+  expect(parseCodexDoc(doc([video({ title: '  Full clear  ' })]))).toEqual({
+    ok: true,
+    doc: doc([
+      { type: 'video', attrs: { id: 'v1', provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear' }, content: [] },
+    ]),
+  });
+});
+
+test('rejects a video whose id does not fit its provider, an unknown provider, a blank title, or text inside it', () => {
+  expect(parseCodexDoc(doc([video({ videoId: 'https://youtu.be/dQw4w9WgXcQ' })]))).toEqual({
+    ok: false,
+    problems: ['content.0.attrs.videoId: videoId does not fit its provider'],
+  });
+  expect(parseCodexDoc(doc([video({ provider: 'vimeo' })]))).toEqual({
+    ok: false,
+    problems: [expect.stringMatching(/^content\.0\.attrs\.provider: /)],
+  });
+  expect(parseCodexDoc(doc([video({ title: '' })]))).toEqual({
+    ok: false,
+    problems: [expect.stringMatching(/^content\.0\.attrs\.title: /)],
+  });
+  expect(parseCodexDoc(doc([video({}, [{ type: 'text', text: 'Hi' }])]))).toEqual({
+    ok: false,
+    problems: ['content.0.content.0: Invalid input: expected never, received object'],
+  });
+});

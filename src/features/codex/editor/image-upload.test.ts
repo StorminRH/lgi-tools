@@ -4,7 +4,7 @@ const transport = vi.hoisted(() => ({ upload: vi.fn(), apiFetch: vi.fn() }));
 vi.mock('@/lib/codex-blob-client', () => ({ uploadCodexBlob: transport.upload }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: transport.apiFetch }));
 
-import { firstImageWithoutAlt, imageFileFrom, shrinkTarget, uploadCodexImage } from './image-upload';
+import { imageFileFrom, shrinkTarget, uploadCodexImage } from './image-upload';
 
 test('shrinks the long edge to 2560 and keeps the aspect ratio', () => {
   expect(shrinkTarget(5120, 2880)).toEqual({ width: 2560, height: 1440 });
@@ -21,12 +21,6 @@ test('takes the first PNG, JPEG, or WebP from a paste or drop', () => {
   expect(imageFileFrom({ files: [pdf, jpeg, png] as unknown as FileList })).toBe(jpeg);
   expect(imageFileFrom({ files: [pdf, gif] as unknown as FileList })).toBeNull();
   expect(imageFileFrom(null)).toBeNull();
-});
-
-test('finds the first image still missing its alt text', () => {
-  expect(firstImageWithoutAlt([{ type: 'paragraph' }, { type: 'image', attrs: { assetId: 'x', alt: '' } }])).toBe(1);
-  expect(firstImageWithoutAlt([{ type: 'paragraph' }, { type: 'image', attrs: { assetId: 'x', alt: 'Gila' } }])).toBeNull();
-  expect(firstImageWithoutAlt([{ type: 'image', attrs: { assetId: 'x', alt: '   ' } }])).toBe(0);
 });
 
 describe('uploadCodexImage', () => {

@@ -41,10 +41,10 @@ export function proxy(request: NextRequest): NextResponse {
     default-src 'self';
     script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https://images.evetech.net https://*.public.blob.vercel-storage.com;
+    img-src 'self' blob: data: https://images.evetech.net https://*.public.blob.vercel-storage.com https://i.ytimg.com;
     font-src 'self';
     connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com https://vercel.com${CONVEX_CONNECT_SRC};
-    frame-src 'none';
+    frame-src https://www.youtube-nocookie.com https://player.twitch.tv https://clips.twitch.tv;
     frame-ancestors 'none';
     form-action 'self';
     base-uri 'self';

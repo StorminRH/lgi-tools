@@ -138,10 +138,22 @@ describe("proxy Codex edit route", () => {
 });
 
 describe("proxy content security policy", () => {
-  it("lets Codex screenshots load from Vercel Blob and browser uploads reach the Blob API", () => {
-    const policy = proxy(request("/codex/guides/rolling-a-c3")).headers.get("Content-Security-Policy") ?? "";
+  it("allows Codex screenshots, video thumbnails, and the YouTube and Twitch players and nothing else", () => {
+    const policy = proxy(request("/codex/guides/rolling-a-c3")).headers.get("Content-Security-Policy");
+    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL ? new URL(process.env.NEXT_PUBLIC_CONVEX_URL) : null;
+    const convex = convexUrl
+      ? ` ${convexUrl.origin} ${convexUrl.protocol === "http:" ? "ws:" : "wss:"}//${convexUrl.host}`
+      : "";
 
-    expect(policy).toContain("img-src 'self' blob: data: https://images.evetech.net https://*.public.blob.vercel-storage.com;");
-    expect(policy).toMatch(/connect-src [^;]*https:\/\/vercel\.com[ ;]/);
+    expect(policy).toBe(
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' blob: data: https://images.evetech.net https://*.public.blob.vercel-storage.com https://i.ytimg.com; " +
+        "font-src 'self'; " +
+        "connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com https://vercel.com" +
+        convex +
+        "; frame-src https://www.youtube-nocookie.com https://player.twitch.tv https://clips.twitch.tv; " +
+        "frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests;",
+    );
+    expect(policy).not.toContain("frame-src 'none'");
   });
 });

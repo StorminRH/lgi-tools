@@ -119,3 +119,37 @@ test('a changed alt text is an attribute change', () => {
     { kind: 'changed', id: 'i1', attrs: [{ name: 'alt', before: 'a', after: 'b' }] },
   ]);
 });
+
+const video = (attrs: { provider?: string; videoId?: string; title?: string } = {}): CodexBlockNode =>
+  ({
+    type: 'video',
+    attrs: { id: 'v1', provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear', ...attrs },
+    content: [],
+  }) as CodexBlockNode;
+
+test('an added video names its title, provider, and id', () => {
+  expect(diffCodexBlocks([], [video()])).toEqual([
+    {
+      kind: 'added',
+      id: 'v1',
+      text: 'Video: Full clear (youtube dQw4w9WgXcQ)',
+      video: { provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear' },
+    },
+  ]);
+});
+
+test('a swapped video and a retitled video are attribute changes', () => {
+  expect(diffCodexBlocks([video()], [video({ provider: 'twitch-clip', videoId: 'Slug' })])).toEqual([
+    {
+      kind: 'changed',
+      id: 'v1',
+      attrs: [
+        { name: 'provider', before: 'youtube', after: 'twitch-clip' },
+        { name: 'videoId', before: 'dQw4w9WgXcQ', after: 'Slug' },
+      ],
+    },
+  ]);
+  const retitled = diffCodexBlocks([video({ title: 'a' })], [video({ title: 'b' })]);
+  expect(retitled).toEqual([{ kind: 'changed', id: 'v1', attrs: [{ name: 'title', before: 'a', after: 'b' }] }]);
+  expect(wordStats(retitled)).toEqual({ added: 0, removed: 0 });
+});

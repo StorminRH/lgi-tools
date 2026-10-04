@@ -110,6 +110,24 @@ test('renders sections, lists, tables, links, and the outline from a parsed docu
   expect(html).not.toContain('style=');
 });
 
+test('a video renders as its click-to-load thumbnail with no player', () => {
+  const parsed = parseCodexDoc({
+    type: 'doc',
+    attrs: { schemaVersion: 1 },
+    content: [
+      { type: 'heading', attrs: { id: 'clears', level: 2 }, content: [text('Clears')] },
+      { type: 'video', attrs: { id: 'clear', provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear' } },
+    ],
+  });
+  if (!parsed.ok) throw new Error(parsed.problems.join('; '));
+  const html = renderToStaticMarkup(createElement('div', null, renderCodexSections(parsed.doc, components).map(({ body }) => body)));
+
+  expect(codexOutline(parsed.doc)).toEqual([{ id: 'clears', label: 'Clears' }]);
+  expect(html).toContain('src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"');
+  expect(html).toContain('aria-label="Play Full clear (loads YouTube)"');
+  expect(html).not.toContain('<iframe');
+});
+
 test('the callout eyebrow reads from the shared label table', () => {
   for (const [tone, label] of Object.entries(CODEX_CALLOUT_LABELS)) {
     const parsed = parseCodexDoc({

@@ -37,6 +37,7 @@ const VERBATIM_ENV = {
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
   VERCEL_URL: verbatim,
+  VERCEL_BRANCH_URL: verbatim,
   VERCEL_GIT_COMMIT_REF: verbatim,
   VERCEL_TARGET_ENV: verbatim,
   BLOB_READ_WRITE_TOKEN: verbatim,

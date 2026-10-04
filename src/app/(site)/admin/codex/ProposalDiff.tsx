@@ -1,19 +1,33 @@
 import type { ReactNode } from 'react';
 import type { CodexAssetView } from '@/features/codex/assets';
 import { CodexImageFigure } from '@/features/codex/components/CodexImage';
-import type { CodexBlockDiff, CodexImageRef } from '@/features/codex/diff';
+import { CodexVideo } from '@/features/codex/components/CodexVideo';
+import type { CodexBlockDiff } from '@/features/codex/diff';
+import { codexVideoEmbed } from '@/features/codex/video-embed';
 
 const INS = 'rounded-sm border-b border-isk/45 bg-isk/12 px-0.5 text-isk no-underline';
 const DEL = 'rounded-sm bg-dps-high/12 px-0.5 text-dps-high decoration-dps-high/70';
 const NOTE = 'font-ui text-ui italic text-muted';
 
-function figure(image: CodexImageRef | undefined, assets: ReadonlyMap<string, CodexAssetView>): ReactNode {
-  if (!image) return null;
-  return (
-    <div className="mt-2 max-w-[480px]">
-      <CodexImageFigure attrs={image} asset={assets.get(image.assetId)} />
-    </div>
-  );
+function figure(
+  { image, video }: Extract<CodexBlockDiff, { kind: 'added' | 'removed' }>,
+  assets: ReadonlyMap<string, CodexAssetView>,
+): ReactNode {
+  if (image) {
+    return (
+      <div className="mt-2 max-w-[480px]">
+        <CodexImageFigure attrs={image} asset={assets.get(image.assetId)} />
+      </div>
+    );
+  }
+  if (video) {
+    return (
+      <div className="mt-2 max-w-[480px] whitespace-normal">
+        <CodexVideo title={video.title} embed={codexVideoEmbed(video)} />
+      </div>
+    );
+  }
+  return null;
 }
 
 function entryBody(entry: CodexBlockDiff, assets: ReadonlyMap<string, CodexAssetView>): ReactNode {
@@ -22,14 +36,14 @@ function entryBody(entry: CodexBlockDiff, assets: ReadonlyMap<string, CodexAsset
       return (
         <>
           <ins className={INS}>{entry.text}</ins>
-          {figure(entry.image, assets)}
+          {figure(entry, assets)}
         </>
       );
     case 'removed':
       return (
         <>
           <del className={DEL}>{entry.text}</del>
-          {figure(entry.image, assets)}
+          {figure(entry, assets)}
         </>
       );
     case 'moved':

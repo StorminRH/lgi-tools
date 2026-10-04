@@ -1,12 +1,14 @@
 import { diffWordsWithSpace } from 'diff';
 import type { CodexBlockNode, CodexNode } from './doc';
 import { plainText } from './sections';
+import type { CodexVideoRef } from './video';
 
 export type CodexWordChange = { readonly op: 'same' | 'added' | 'removed'; readonly text: string };
 
 const ATTRS_BY_TYPE = {
   dataBlock: ['source', 'key', 'fields', 'layout'],
   image: ['assetId', 'alt', 'caption'],
+  video: ['provider', 'videoId', 'title'],
 } as const;
 
 type AttrBlockType = keyof typeof ATTRS_BY_TYPE;
@@ -23,12 +25,17 @@ export interface CodexImageRef {
   readonly caption: string;
 }
 
+export interface CodexVideoBlockRef extends CodexVideoRef {
+  readonly title: string;
+}
+
 export type CodexBlockDiff =
   | {
       readonly kind: 'added' | 'removed';
       readonly id: string;
       readonly text: string;
       readonly image?: CodexImageRef;
+      readonly video?: CodexVideoBlockRef;
     }
   | { readonly kind: 'moved'; readonly id: string; readonly from: number; readonly to: number }
   | { readonly kind: 'changed'; readonly id: string; readonly words: readonly CodexWordChange[] }
@@ -72,13 +79,22 @@ export function canonicalBlock(block: CodexBlockNode): string {
 }
 
 function blockText(block: CodexBlockNode): string {
-  return block.type === 'image' ? `Image: ${block.attrs.alt}` : plainText(block);
+  if (block.type === 'image') return `Image: ${block.attrs.alt}`;
+  if (block.type === 'video') return `Video: ${block.attrs.title} (${block.attrs.provider} ${block.attrs.videoId})`;
+  return plainText(block);
 }
 
 function wholeBlock(kind: 'added' | 'removed', id: string, block: CodexBlockNode): CodexBlockDiff {
-  if (block.type !== 'image') return { kind, id, text: plainText(block) };
-  const { assetId, alt, caption } = block.attrs;
-  return { kind, id, text: blockText(block), image: { assetId, alt, caption } };
+  const text = blockText(block);
+  if (block.type === 'image') {
+    const { assetId, alt, caption } = block.attrs;
+    return { kind, id, text, image: { assetId, alt, caption } };
+  }
+  if (block.type === 'video') {
+    const { provider, videoId, title } = block.attrs;
+    return { kind, id, text, video: { provider, videoId, title } };
+  }
+  return { kind, id, text };
 }
 
 function changeOf(id: string, before: CodexBlockNode, after: CodexBlockNode): CodexBlockDiff | null {

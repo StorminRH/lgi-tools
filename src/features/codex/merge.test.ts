@@ -205,3 +205,27 @@ test('ids the editor adds to nested paragraphs are not a change', () => {
   const merge = mergeCodexDocs(doc(A, S, steps(null)), doc(p('a', 'A2'), S, steps('n-head')), doc(A, S, steps('n-prop')));
   expect(merge).toEqual({ kind: 'clean', doc: doc(p('a', 'A2'), S, steps('n-head')) });
 });
+
+test('videos merge by their attributes like any other block', () => {
+  const video = (videoId: string, title: string) => ({ type: 'video', attrs: { id: 'v', provider: 'youtube', videoId, title } });
+  const base = doc(A, S, video('dQw4w9WgXcQ', 'Full clear'));
+
+  expect(mergeCodexDocs(base, doc(p('a', 'A2'), S, video('dQw4w9WgXcQ', 'Full clear')), doc(A, S, video('dQw4w9WgXcQ', 'Full clear run')))).toEqual({
+    kind: 'clean',
+    doc: doc(p('a', 'A2'), S, video('dQw4w9WgXcQ', 'Full clear run')),
+  });
+  expect(mergeCodexDocs(base, base, doc(A, S, video('dQw4w9WgXcQ', 'Full clear')))).toEqual({ kind: 'clean', doc: base });
+
+  const head = video('aBcDeFgHiJk', 'Page now');
+  const proposal = video('ZyXwVuTsRqP', 'Suggested');
+  const merge = mergeCodexDocs(base, doc(A, S, head), doc(A, S, proposal));
+  expect(merge.kind).toBe('conflict');
+  expect((merge as Extract<CodexMerge, { kind: 'conflict' }>).conflicts).toEqual([
+    {
+      blockId: 'v',
+      base: doc(video('dQw4w9WgXcQ', 'Full clear')).content[0],
+      head: doc(head).content[0],
+      proposal: doc(proposal).content[0],
+    },
+  ]);
+});

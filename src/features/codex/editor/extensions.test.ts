@@ -2,7 +2,7 @@ import { Editor, getSchema, type JSONContent } from '@tiptap/core';
 import { expect, test } from 'vitest';
 import { CODEX_CALLOUT_LABELS, CODEX_MARKS, CODEX_NODES } from '../nodes';
 import type { DataNode } from './data-block-picker-state';
-import { codexEditorExtensions, dataInsertion, editorBlocks, imageNode } from './extensions';
+import { codexEditorExtensions, dataInsertion, editorBlocks, imageNode, videoNode } from './extensions';
 
 const schema = getSchema(codexEditorExtensions);
 
@@ -252,4 +252,30 @@ test('an image is one draggable atom that previews the 1280 variant and keeps it
     { class: 'codex-image-missing' },
     'Image unavailable',
   ]);
+});
+
+test('a video is one draggable atom that the editor shows as a chip naming its provider and title', () => {
+  const spec = schema.nodes.video!.spec;
+  expect([spec.atom, spec.draggable, spec.selectable, spec.group]).toEqual([true, true, true, 'block']);
+  const inserted = videoNode({ provider: 'youtube', videoId: 'dQw4w9WgXcQ' }, 'Full clear');
+  expect(inserted).toEqual({ type: 'video', attrs: { provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear' } });
+
+  expect(spec.toDOM!(schema.nodeFromJSON(inserted))).toEqual([
+    'figure',
+    {
+      'data-codex-video': '',
+      'data-provider': 'youtube',
+      'data-video-id': 'dQw4w9WgXcQ',
+      'data-title': 'Full clear',
+      class: 'codex-data-chip',
+    },
+    'Video · YouTube · Full clear',
+  ]);
+});
+
+test('a video leaves the editor as its block id, provider, id, and title', () => {
+  const block = { type: 'video', attrs: { id: 'v1', provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear' } };
+  const editor = new Editor({ element: null, extensions: codexEditorExtensions, content: { type: 'doc', content: [block] } });
+  expect(editorBlocks(editor.getJSON())).toEqual([block]);
+  editor.destroy();
 });
