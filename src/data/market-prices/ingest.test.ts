@@ -26,8 +26,9 @@ function row(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
 }
 
 function fakeDb() {
-  const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
-  const values = vi.fn(() => ({ onConflictDoUpdate }));
+  const values = vi.fn((rows: RawMarketPrice[]) => ({
+    onConflictDoUpdate: vi.fn(() => ({ returning: vi.fn().mockResolvedValue(rows) })),
+  }));
   const insert = vi.fn(() => ({ values }));
   return { insert };
 }
@@ -97,6 +98,17 @@ describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', 
     const summary = await persistPrices(db as never, []);
     expect(db.insert).not.toHaveBeenCalled();
     expect(summary).toMatchObject({ requested: 0, fetched: 0, written: 0, budgetExhausted: false });
+  });
+
+  it('preserves the source fetch time when a cached result is written later', async () => {
+    const db = fakeDb();
+    const fetchedAt = new Date(Date.now() - 60_000);
+    await persistPrices(db as never, [row(34, 'esi')], {
+      fetchedAtByType: new Map([[34, fetchedAt]]),
+    });
+    const saved = db.insert.mock.results[0]!.value.values.mock.calls[0]![0][0];
+    expect(saved.updatedAt).toEqual(fetchedAt);
+    expect(saved.staleAfter.getTime()).toBe(fetchedAt.getTime() + 300_000);
   });
 
   it('chunks a large batch into ≤1,000-row inserts', async () => {

@@ -24,7 +24,9 @@ export const BEST_DUST_VOLUME_DIVISOR = BigInt(1000);
 export const BUY_SPREAD_FLOOR_RATIO = 0.35;
 
 /**
- * The daily batch refreshes prices that expire within this lead, so a run that
- * starts slightly earlier than yesterday's still refreshes every price.
+ * The nightly backstop selects rows last fetched about a day ago, independently
+ * of their five-minute viewing expiry. The lead accommodates daily run drift.
  */
 export const BATCH_REFRESH_LEAD_MS = 3 * 60 * 60 * 1000;
+
+export const BATCH_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
