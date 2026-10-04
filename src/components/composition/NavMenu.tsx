@@ -48,7 +48,7 @@ export function NavMenu() {
     <Menu
       label="Menu"
       trigger={<HamburgerGlyph />}
-      triggerClassName="hidden size-10 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-row-on hover:text-name data-[popup-open]:bg-row-on data-[popup-open]:text-name max-lg:inline-flex"
+      triggerClassName="hidden size-10 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-row-on hover:text-name data-[popup-open]:bg-row-on data-[popup-open]:text-name max-xl:inline-flex"
       triggerProps={{ 'data-nav-menu-toggle': '' }}
       popupProps={{ 'data-nav-menu-panel': '' }}
       className="mt-2 min-w-56"
@@ -58,7 +58,7 @@ export function NavMenu() {
         <NavMenuItems />
       </Suspense>
       <PageMenuSection />
-      <div data-nav-login-footer className="flex border-t border-border px-4 py-3">
+      <div data-nav-login-footer className="flex border-t lg:hidden border-border px-4 py-3">
         <LoginButton variant="flat" />
       </div>
     </Menu>

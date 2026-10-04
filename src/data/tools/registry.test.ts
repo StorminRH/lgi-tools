@@ -6,7 +6,7 @@ const sites = TOOLS.find((t) => t.label === 'Wormhole Sites')!;
 describe('nav tools', () => {
   it('hides unfinished tools and resolves active, soon, and disabled items', () => {
     const labels = visibleNavTools().map((t) => t.label);
-    expect(labels).toEqual(['Wormhole Sites', 'Industry Planner', 'Atlas']);
+    expect(labels).toEqual(['Wormhole Sites', 'Codex', 'Industry Planner', 'Atlas']);
     expect(labels).not.toContain('Skill Queues');
     expect(labels).not.toContain('Industry Jobs');
 
@@ -14,6 +14,9 @@ describe('nav tools', () => {
     expect(isToolActive(sites, '/sites/30002')).toBe(true);
     expect(isToolActive(sites, '/industry')).toBe(false);
     expect(isToolActive(sites, null)).toBe(false);
+    const codex = TOOLS.find((tool) => tool.href === '/codex')!;
+    expect(isToolActive(codex, '/codex/sites/3')).toBe(true);
+    expect(isToolActive(sites, '/codex/sites/3')).toBe(false);
     expect(isToolActive({ label: 'X', abbr: 'X', href: '/x' }, '/x')).toBe(false);
     const industry = TOOLS.find((tool) => tool.href === '/industry')!;
     expect(isToolActive(industry, '/jobs')).toBe(true);

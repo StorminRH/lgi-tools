@@ -184,6 +184,30 @@ test('an unwritten site keeps its card at the top of the reading column', async 
   expect(html).toContain('href="#waves"');
 });
 
+test('a site page leaves its share image to the site card and every reader page stays indexable', async () => {
+  mocks.loadCodexPage.mockResolvedValue(null);
+  const site = await generateMetadata({ params: params('sites', '20') });
+  const wormhole = await generateMetadata({ params: params('wormholes', 'c247') });
+
+  expect(site.openGraph).toEqual(expect.objectContaining({ url: '/codex/sites/20' }));
+  expect(site.openGraph).not.toHaveProperty('images');
+  expect(site.twitter).toMatchObject({ card: 'summary_large_image' });
+  expect(site.twitter).not.toHaveProperty('images');
+  expect(wormhole.openGraph).toMatchObject({ images: [{ url: '/opengraph-image' }] });
+  expect(Object.hasOwn(site, 'robots')).toBe(false);
+  expect(Object.hasOwn(wormhole, 'robots')).toBe(false);
+});
+
+test('every reader page carries the text license and the game-data notice', async () => {
+  mocks.loadCodexPage.mockResolvedValue(null);
+  const html = renderToStaticMarkup(await CodexReader({ params: params('wormholes', 'c247') }));
+
+  expect(html).toContain('href="https://creativecommons.org/licenses/by-sa/4.0/"');
+  expect(html).toContain('CC BY-SA 4.0');
+  expect(html).toContain('EVE Online data and images © Fenris Creations.');
+  expect(html).not.toContain('CCP hf');
+});
+
 test('unknown, uppercase, and unpublished entity addresses 404', async () => {
   mocks.loadCodexPage.mockResolvedValue(null);
   for (const [kind, key] of [

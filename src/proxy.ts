@@ -2,28 +2,24 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SITE_URL } from "@/config/site-url";
-import { isPublishedWormholeSiteId } from "@/features/wormhole-sites/catalogue-boundary";
-import { parseNumericRouteId } from "@/transport/route-id";
+import { classifyProxyPath, type ProxyRoute } from "./proxy-routes";
 
 const CANONICAL_HOST = new URL(SITE_URL).host;
 
-function isUnpublishedDirectSitePath(pathname: string): boolean {
-  const rawId = /^\/sites\/([^/]+)$/.exec(pathname)?.[1];
-  if (rawId === undefined) return false;
-
-  const id = parseNumericRouteId(rawId);
-  return id === null || !isPublishedWormholeSiteId(id);
-}
-
-const CODEX_EDIT_PATH = /^\/codex(\/[^/]+\/[^/]+)?$/;
-
-function routeResponse(request: NextRequest, isUnpublishedSite: boolean): NextResponse {
-  if (isUnpublishedSite) return NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
-  // Only signed-in viewers reach the Codex routes that carry the editor, so signed-out readers never download it.
-  if (!CODEX_EDIT_PATH.test(request.nextUrl.pathname) || !getSessionCookie(request)) return NextResponse.next();
-  const url = request.nextUrl.clone();
-  url.pathname = `${url.pathname}/edit`;
-  return NextResponse.rewrite(url);
+function routeResponse(request: NextRequest, route: ProxyRoute): NextResponse {
+  switch (route.kind) {
+    case "not-found":
+      return NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
+    case "redirect":
+      return NextResponse.redirect(new URL(route.location, request.url), 308);
+    case "rewrite": {
+      const url = request.nextUrl.clone();
+      url.pathname = route.pathname;
+      return NextResponse.rewrite(url);
+    }
+    case "next":
+      return NextResponse.next();
+  }
 }
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -54,12 +50,12 @@ export function proxy(request: NextRequest): NextResponse {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const isUnpublishedSite = isUnpublishedDirectSitePath(request.nextUrl.pathname);
-  const response = routeResponse(request, isUnpublishedSite);
+  const route = classifyProxyPath(request.nextUrl.pathname, Boolean(getSessionCookie(request)));
+  const response = routeResponse(request, route);
   response.headers.set("Content-Security-Policy", cspHeader);
 
   const host = request.headers.get("host");
-  if (isUnpublishedSite || !host || host !== CANONICAL_HOST) {
+  if (route.kind === "not-found" || !host || host !== CANONICAL_HOST) {
     response.headers.set("X-Robots-Tag", "noindex");
   }
   return response;
@@ -75,6 +71,7 @@ export const config = {
       ],
     },
     { source: "/codex" },
+    { source: "/sites/:id" },
     { source: "/codex/:kind/:key" },
   ],
 };

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const lifecycle = vi.hoisted(() => ({
   root: null as {
-    querySelector: (selector: string) => (EventTarget & { open: boolean }) | null;
+    querySelector: (selector: string) => (EventTarget & { open: boolean; scrollIntoView(): void }) | null;
   } | null,
   cleanup: undefined as (() => void) | undefined,
 }));
@@ -18,7 +18,7 @@ vi.mock('react', async (importOriginal) => ({
 import { UrlSync } from './url-sync';
 
 function mount(basePath: string, entityId: number | string, href: string) {
-  const details = Object.assign(new EventTarget(), { open: false });
+  const details = Object.assign(new EventTarget(), { open: false, scrolled: false, scrollIntoView() { details.scrolled = true; } });
   const browser = {
     location: new URL(href),
     history: {
@@ -41,16 +41,26 @@ afterEach(() => {
 });
 
 describe('UrlSync', () => {
-  it('opens and closes a site path while preserving the current query', () => {
+  it('keeps an open site card on /sites in the fragment while preserving the current query', () => {
     const { details, browser } = mount('/sites', 42, 'http://localhost:3000/sites?sort=name&dir=desc');
     details.open = true;
     details.dispatchEvent(new Event('toggle'));
-    expect(browser.location.href).toBe('http://localhost:3000/sites/42?sort=name&dir=desc');
+    expect(browser.location.href).toBe('http://localhost:3000/sites?sort=name&dir=desc#/42');
 
-    browser.location = new URL('http://localhost:3000/sites/42?sort=isk&dir=asc');
+    browser.location = new URL('http://localhost:3000/sites?sort=isk&dir=asc#/42');
     details.open = false;
     details.dispatchEvent(new Event('toggle'));
     expect(browser.location.href).toBe('http://localhost:3000/sites?sort=isk&dir=asc');
+  });
+
+  it('reopens and scrolls to the card named by the address it wrote, after a reload', () => {
+    const { details } = mount('/sites', 42, 'http://localhost:3000/sites?sort=name&dir=desc#/42');
+    expect(details.open).toBe(true);
+    expect(details.scrolled).toBe(true);
+
+    lifecycle.cleanup?.();
+    const other = mount('/sites', 7, 'http://localhost:3000/sites?sort=name&dir=desc#/42');
+    expect(other.details.open).toBe(false);
   });
 
   it('keeps the query outside an empty base fragment when opening and closing', () => {
@@ -94,11 +104,11 @@ describe('UrlSync', () => {
     const { details, browser } = mount('/sites', 42, 'http://localhost:3000/sites?sort=name');
     details.open = true;
     details.dispatchEvent(new Event('toggle'));
-    expect(browser.location.href).toBe('http://localhost:3000/sites/42?sort=name');
+    expect(browser.location.href).toBe('http://localhost:3000/sites?sort=name#/42');
 
     lifecycle.cleanup?.();
     details.open = false;
     details.dispatchEvent(new Event('toggle'));
-    expect(browser.location.href).toBe('http://localhost:3000/sites/42?sort=name');
+    expect(browser.location.href).toBe('http://localhost:3000/sites?sort=name#/42');
   });
 });

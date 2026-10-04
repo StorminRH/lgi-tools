@@ -220,3 +220,20 @@ export const codexUploadFinalizeEndpoint = defineEndpoint({
     503: problem('blob_unconfigured'),
   },
 });
+
+export const CODEX_NON_SITE_KINDS = ['guides', 'wormholes', 'classes'] as const;
+
+const codexSearchEntrySchema = z.object({
+  kind: z.enum(CODEX_NON_SITE_KINDS),
+  key: z.string().max(80),
+  title: z.string().max(120),
+});
+
+export type CodexSearchEntry = z.infer<typeof codexSearchEntrySchema>;
+
+export const codexIndexEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/codex/index',
+  request: null,
+  responses: { 200: jsonBody(z.object({ entries: z.array(codexSearchEntrySchema) })) },
+});

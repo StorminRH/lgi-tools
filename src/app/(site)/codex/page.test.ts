@@ -4,7 +4,7 @@ import { prerender } from 'react-dom/static';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  listCodexEntries: vi.fn(),
+  listCodexIndex: vi.fn(),
   listRecentCodexEdits: vi.fn(),
   getFullSession: vi.fn(),
 }));
@@ -14,7 +14,7 @@ vi.mock('next/link', () => ({
     createElement('a', { href, ...rest }, children),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('@/composition/codex-templates', () => ({ listCodexEntries: mocks.listCodexEntries }));
+vi.mock('@/composition/codex-templates', () => ({ listCodexIndex: mocks.listCodexIndex }));
 vi.mock('@/features/codex/queries', () => ({ listRecentCodexEdits: mocks.listRecentCodexEdits }));
 vi.mock('@/composition/session', () => ({ getFullSession: mocks.getFullSession }));
 
@@ -30,10 +30,13 @@ const ENTRIES: Record<string, { key: string; title: string }[]> = {
   guides: [{ key: 'rolling-a-c3', title: 'Rolling a C3 static' }],
 };
 
+const indexRows = (entries: Record<string, { key: string; title: string }[]>) =>
+  Object.entries(entries).flatMap(([kind, rows]) => rows.map((row) => ({ kind, ...row })));
+
 const query = (values: Record<string, string> = {}) => Promise.resolve(values);
 
 beforeEach(() => {
-  mocks.listCodexEntries.mockReset().mockImplementation(async (kind: string) => ENTRIES[kind]);
+  mocks.listCodexIndex.mockReset().mockResolvedValue(indexRows(ENTRIES));
   mocks.listRecentCodexEdits.mockReset().mockResolvedValue([]);
 });
 
@@ -47,7 +50,7 @@ test('the index tiles each kind with its live count', async () => {
   expect(html).toContain('action="/codex"');
   expect(html).toContain('name="q"');
 
-  mocks.listCodexEntries.mockImplementation(async (kind: string) => (kind === 'guides' ? [] : ENTRIES[kind]));
+  mocks.listCodexIndex.mockResolvedValue(indexRows({ ...ENTRIES, guides: [] }));
   expect(renderToStaticMarkup(await CodexIndex({ searchParams: query() }))).toContain('0 guides');
 });
 

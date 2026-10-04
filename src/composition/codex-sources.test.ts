@@ -184,7 +184,7 @@ describe('site source', () => {
       ['Type', 'Combat'],
       ['Blue loot', '45.1M ISK'],
     ]);
-    expect(defaults.href).toBe('/sites/20');
+    expect(defaults.href).toBe('/codex/sites/20');
     const gas = await rowsFor({ source: 'site', key: '50', fields: ['wormholeClass', 'siteType'] });
     expect(pairs(gas)).toEqual([
       ['Class', 'C3–C6'],

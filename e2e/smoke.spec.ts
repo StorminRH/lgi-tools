@@ -66,6 +66,29 @@ test('public home shell loads without console or page errors', async ({ page }) 
   diag.assertClean();
 });
 
+for (const width of [1024, 1100, 1280]) {
+  test(`the signed-out header fits a ${width}px window and reaches every tool`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/codex');
+    const banner = page.getByRole('banner');
+    await expect(banner.getByRole('button', { name: /Log in with EVE Online/i })).toBeVisible();
+    // The dev-only synthetic-pilot form never ships, so measure the production header without it.
+    await page.locator('form', { hasText: 'Reset and continue' }).evaluateAll((forms) => forms.forEach((form) => form.remove()));
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    const strip = banner.getByRole('navigation', { name: 'Tools' });
+    const tools = (await strip.isVisible()) ? strip : await openNavMenu(page);
+    for (const name of ['Wormhole Sites', 'Codex', 'Industry Planner', 'Atlas']) {
+      await expect(tools.getByRole(strip === tools ? 'link' : 'menuitem', { name })).toBeVisible();
+    }
+  });
+}
+
+async function openNavMenu(page: Page) {
+  await page.locator('[data-nav-menu-toggle]').click();
+  return page.locator('[data-nav-menu-panel]');
+}
+
 test.describe('authenticated smoke', () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 

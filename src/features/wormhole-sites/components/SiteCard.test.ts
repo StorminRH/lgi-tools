@@ -66,7 +66,7 @@ describe('SiteCard', () => {
     expect(catalogue).toContain('data-collapsible');
     expect(catalogue).toContain('<details');
     expect(catalogue).toContain('<summary');
-    expect(catalogue).toContain('View full page');
+    expect(catalogue).not.toContain('Open in Codex');
     expect(catalogue).toContain('data-site-card-lightbox');
     expect(catalogue).toContain('data-lazy-site-details');
     expect(catalogue).not.toContain('data-site-details-body');
@@ -76,6 +76,7 @@ describe('SiteCard', () => {
         site: site(),
         presentation: 'standalone',
         contentAlign: 'center',
+        detailHref: '/codex/sites/42',
       }),
     );
     expect(standalone).toContain('data-presentation="standalone"');
@@ -84,8 +85,15 @@ describe('SiteCard', () => {
     expect(standalone).not.toContain('data-collapsible');
     expect(standalone).not.toContain('<details');
     expect(standalone).not.toContain('<summary');
-    expect(standalone).not.toContain('View full page');
+    expect(standalone).not.toContain('/codex/sites');
     expect(standalone).not.toContain('data-site-card-lightbox');
     expect(standalone).not.toContain('data-lazy-site-details');
+  });
+
+  it('links a catalogue card to the page its caller names', () => {
+    const catalogue = renderToStaticMarkup(createElement(SiteCard, { site: site(), detailHref: '/codex/sites/3' }));
+
+    expect(catalogue).toContain('href="/codex/sites/3"');
+    expect(catalogue).toContain('Open in Codex');
   });
 });

@@ -44,4 +44,21 @@ describe('buildPageMetadata', () => {
     expect(absolute.title).toEqual({ absolute: 'Eve Tools — LGI.tools' });
     expect(absolute.openGraph?.title).toBe('Eve Tools — LGI.tools');
   });
+
+  it('leaves the share image to the route segment when asked', () => {
+    const meta = buildPageMetadata({
+      title: 'Outpost',
+      description: 'A combat site.',
+      canonical: '/codex/sites/20',
+      image: 'segment',
+    });
+
+    expect(meta.openGraph).toEqual({
+      type: 'website',
+      title: 'Outpost',
+      description: 'A combat site.',
+      url: '/codex/sites/20',
+    });
+    expect(meta.twitter).toEqual({ card: 'summary_large_image', title: 'Outpost', description: 'A combat site.' });
+  });
 });

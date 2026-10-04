@@ -61,6 +61,7 @@ export function describe(subject: CodexSubject, title: string, description?: str
     description:
       description ?? `${title}: a pilot-written ${CODEX_SUBJECTS[subject.kind].singular.toLowerCase()} in the LGI.tools Codex.`,
     canonical: codexPageHref(subject),
+    image: subject.kind === 'sites' ? 'segment' : 'root',
   });
 }
 

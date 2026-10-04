@@ -18,6 +18,7 @@ import type {
   CodexSourceIcon,
 } from '@/features/codex/components/CodexDataView';
 import { findUntrustedNodes } from '@/features/codex/doc';
+import { codexSiteHref } from '@/features/codex/subjects';
 import type { CodexDataLayout } from '@/features/codex/nodes';
 import { isPublishedWormholeSiteId } from '@/features/wormhole-sites/catalogue-boundary';
 import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-styles';
@@ -243,7 +244,7 @@ const site: CodexSource<SiteDetail> = {
   },
   load: (key) => getPricedSiteDetail(Number(key)),
   title: (row) => row.name,
-  href: (row) => `/sites/${row.id}`,
+  href: (row) => codexSiteHref(row.id),
   fields: {
     wormholeClass: { label: 'Class', format: (row) => siteClassLabel(row) ?? '—' },
     siteType: { label: 'Type', format: (row) => SITE_TYPE_LABEL[row.siteType] },

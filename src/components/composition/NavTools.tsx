@@ -14,7 +14,7 @@ import { cn } from '@/components/ui/cn';
 
 function NavStrip({ pathname }: { pathname: string | null }) {
   return (
-    <NavigationMenu label="Tools" className="ml-auto max-lg:hidden">
+    <NavigationMenu label="Tools" className="ml-auto max-xl:hidden">
       {visibleNavTools().map((tool) => {
         const item = deriveNavToolItem(tool, pathname);
         if (item.kind === 'soon') {

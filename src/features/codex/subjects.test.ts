@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { codexKindHref, resolveCodexSubject } from './subjects';
+import { codexKindHref, codexSiteHref, resolveCodexSubject } from './subjects';
 
 test('resolves lowercase entity keys and refuses everything else', () => {
   expect(resolveCodexSubject('wormholes', 'c247')).toEqual({ kind: 'wormholes', key: 'c247' });
@@ -20,4 +20,8 @@ test('resolves lowercase entity keys and refuses everything else', () => {
 
 test('links each kind to its own index', () => {
   expect(codexKindHref('sites')).toBe('/codex/sites');
+});
+
+test('codexSiteHref names the Codex page of a wormhole site', () => {
+  expect(codexSiteHref(7)).toBe('/codex/sites/7');
 });

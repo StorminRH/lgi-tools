@@ -1,8 +1,6 @@
 import { desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { cacheLife, cacheTag } from 'next/cache';
-import { db, type Sql } from '@/db';
-import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
+import type { Sql } from '@/db';
 import { refreshPrices, type RefreshSummary } from './ingest';
 import { listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
@@ -24,13 +22,6 @@ async function getPricesFreshness(
 }
 
 export const PRICES_FRESHNESS_TAG = 'market-prices-freshness';
-
-export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date | null }> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
-  return withColdStartRetry(() => getPricesFreshness(db));
-}
 
 export async function refreshStalePrices(client: Sql): Promise<CachedRefreshResult> {
   const db = drizzle(client);

@@ -9,7 +9,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
-import { listCodexEntries } from '@/composition/codex-templates';
+import { listCodexIndex } from '@/composition/codex-templates';
 import { ArrowRightIcon, ClassIcon, GuideIcon, SiteIcon, WormholeIcon } from '@/features/codex/components/icons';
 import { formatCodexDate } from '@/features/codex/format';
 import { filterCodexIndex } from '@/features/codex/index-search';
@@ -37,11 +37,6 @@ const KIND_ICONS: Record<CodexSubjectKind, { Icon: typeof GuideIcon; className: 
   classes: { Icon: ClassIcon, className: 'text-tone-purple' },
   guides: { Icon: GuideIcon, className: 'text-isk' },
 };
-
-async function loadIndex() {
-  const lists = await Promise.all(CODEX_SUBJECT_KINDS.map((kind) => listCodexEntries(kind)));
-  return CODEX_SUBJECT_KINDS.map((kind, index) => ({ kind, entries: lists[index]! }));
-}
 
 function KindTile({ kind, count }: { kind: CodexSubjectKind; count: number }) {
   const spec = CODEX_SUBJECTS[kind];
@@ -96,11 +91,7 @@ async function CodexSearchBox({ searchParams }: { searchParams: SearchParams }) 
 export async function CodexSearchResults({ searchParams }: { searchParams: SearchParams }) {
   const q = readQuery(await searchParams);
   if (q === '') return null;
-  const index = await loadIndex();
-  const hits = filterCodexIndex(
-    index.flatMap(({ kind, entries }) => entries.map((entry) => ({ kind, ...entry }))),
-    q,
-  );
+  const hits = filterCodexIndex(await listCodexIndex(), q);
   return (
     <Card className="overflow-hidden">
       <SectionHeader size="md" label={`Results for "${q}"`} />
@@ -162,7 +153,7 @@ export async function RecentEdits() {
 }
 
 export async function CodexIndex({ searchParams, actions }: { searchParams: SearchParams; actions?: ReactNode }) {
-  const index = await loadIndex();
+  const index = await listCodexIndex();
   return (
     <PageShell mode="workspace">
       <div className="flex flex-col gap-8 pb-20">
@@ -180,9 +171,9 @@ export async function CodexIndex({ searchParams, actions }: { searchParams: Sear
           <CodexSearchResults searchParams={searchParams} />
         </Suspense>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {index.map(({ kind, entries }) => (
+          {CODEX_SUBJECT_KINDS.map((kind) => (
             <li key={kind}>
-              <KindTile kind={kind} count={entries.length} />
+              <KindTile kind={kind} count={index.filter((row) => row.kind === kind).length} />
             </li>
           ))}
         </ul>

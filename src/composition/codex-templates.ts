@@ -1,8 +1,10 @@
 import { getWormholeCodex } from '@/data/eve-data/universe-assets';
 import type { CodexEntity } from '@/features/codex/api-contract';
 import type { CodexDoc } from '@/features/codex/doc';
+import type { CodexIndexRow } from '@/features/codex/index-search';
 import { listCodexPages } from '@/features/codex/queries';
 import {
+  CODEX_SUBJECT_KINDS,
   CODEX_SUBJECTS,
   slugify,
   type CodexSubject,
@@ -143,4 +145,9 @@ export async function listCodexEntries(kind: CodexSubjectKind): Promise<CodexInd
   if (spec) return spec.entries();
   const pages = await listCodexPages(kind);
   return pages.map(({ key, title }) => ({ key, title }));
+}
+
+export async function listCodexIndex(): Promise<CodexIndexRow[]> {
+  const lists = await Promise.all(CODEX_SUBJECT_KINDS.map((kind) => listCodexEntries(kind)));
+  return CODEX_SUBJECT_KINDS.flatMap((kind, index) => lists[index]!.map((entry) => ({ kind, ...entry })));
 }

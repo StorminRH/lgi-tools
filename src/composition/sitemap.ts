@@ -1,17 +1,20 @@
 import type { MetadataRoute } from 'next';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { SITE_URL } from '@/config/site-url';
 import { toChangelogDocuments } from '@/features/changelog/browser';
 import { loadChangelog } from '@/features/changelog/load';
-import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
+import type { CodexIndexRow } from '@/features/codex/index-search';
+import { codexCacheTags } from '@/features/codex/queries';
+import { CODEX_SUBJECT_KINDS, codexKindHref, codexPageHref } from '@/features/codex/subjects';
+import { listCodexIndex } from './codex-templates';
 
 export type SitemapInputs = {
-  sites: { id: number }[];
+  codex: readonly Pick<CodexIndexRow, 'kind' | 'key'>[];
   changelog: { slug: string; updated: string }[];
 };
 
 export function buildSitemapEntries({
-  sites,
+  codex,
   changelog,
 }: SitemapInputs): MetadataRoute.Sitemap {
   const latestChangelogDate = changelog[0]?.updated;
@@ -28,11 +31,19 @@ export function buildSitemapEntries({
     { url: `${SITE_URL}/contact`, changeFrequency: 'yearly', priority: 0.2 },
   ];
 
-  const siteRoutes: MetadataRoute.Sitemap = sites.map((s) => ({
-    url: `${SITE_URL}/sites/${s.id}`,
-    changeFrequency: 'weekly',
-    priority: 0.7,
-  }));
+  const codexRoutes: MetadataRoute.Sitemap = [
+    { url: `${SITE_URL}/codex`, changeFrequency: 'weekly', priority: 0.8 },
+    ...CODEX_SUBJECT_KINDS.map((kind) => ({
+      url: `${SITE_URL}${codexKindHref(kind)}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    })),
+    ...codex.map((subject) => ({
+      url: `${SITE_URL}${codexPageHref(subject)}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    })),
+  ];
 
   const changelogRoutes: MetadataRoute.Sitemap = changelog
     .slice(1)
@@ -43,24 +54,19 @@ export function buildSitemapEntries({
       priority: 0.3,
     }));
 
-  return [...staticRoutes, ...siteRoutes, ...changelogRoutes];
+  return [...staticRoutes, ...codexRoutes, ...changelogRoutes];
 }
 
 export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   'use cache';
   cacheLife('max');
+  cacheTag(codexCacheTags.index);
 
-  const [sites, changelogMasters] = await Promise.all([
-    getSiteSearchIndex(),
-    loadChangelog(),
-  ]);
+  const [codex, changelogMasters] = await Promise.all([listCodexIndex(), loadChangelog()]);
   const changelog = toChangelogDocuments(changelogMasters).flatMap(({ slug, master }) => {
     const updated = master.subVersions[0]?.date;
     return updated ? [{ slug, updated }] : [];
   });
 
-  return buildSitemapEntries({
-    sites,
-    changelog,
-  });
+  return buildSitemapEntries({ codex, changelog });
 }

@@ -2,17 +2,21 @@ import { ImageResponse } from 'next/og';
 import { notFound } from 'next/navigation';
 import { toneHex } from '@/components/ui/tones';
 import { socialCardFonts } from '@/app/_social-card/fonts';
+import { resolveCodexSubject } from '@/features/codex/subjects';
+import { isPublishedWormholeSiteId } from '@/features/wormhole-sites/catalogue-boundary';
 import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { deriveSiteSocialCardContent } from '@/features/wormhole-sites/site-social-card';
-import { parseNumericRouteId } from '@/transport/route-id';
 
 export const alt = 'LGI.tools wormhole site overview';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const id = parseNumericRouteId((await params).id);
-  if (id === null) notFound();
+export default async function Image({ params }: { params: Promise<{ kind: string; key: string }> }) {
+  const { kind, key } = await params;
+  const subject = resolveCodexSubject(kind, key);
+  if (subject?.kind !== 'sites') notFound();
+  const id = Number(subject.key);
+  if (!isPublishedWormholeSiteId(id)) notFound();
 
   const site = await getPricedSiteDetail(id);
   if (!site) notFound();

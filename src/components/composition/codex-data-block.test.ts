@@ -107,7 +107,7 @@ test('a site renders as the standalone site card or as an infobox linked to the 
   expect(card).toContain('data-site-card=""');
   expect(card).toContain('data-presentation="standalone"');
   const infobox = await render({ source: 'site', key: '20', fields: ['wormholeClass'], layout: 'infobox' });
-  expect(infobox).toContain('<a href="/sites/20" class="hover:text-isk">Outpost Frontier Stronghold</a>');
+  expect(infobox).toContain('<a href="/codex/sites/20" class="hover:text-isk">Outpost Frontier Stronghold</a>');
   expect(text(infobox)).toContain('PropertiesSDE · Prices');
 });
 

@@ -114,6 +114,8 @@ export function codexPageHref(
 
 export const codexKindHref = (kind: CodexSubjectKind) => `/codex/${kind}`;
 
+export const codexSiteHref = (id: number) => codexPageHref({ kind: 'sites', key: String(id) });
+
 export function codexHistoryHref(subject: CodexSubject, notice?: CodexEditorNotice): string {
   return `/codex/${subject.kind}/${subject.key}/history${notice ? `?notice=${notice}` : ''}`;
 }

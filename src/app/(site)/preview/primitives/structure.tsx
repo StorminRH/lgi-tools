@@ -92,7 +92,7 @@ export function StructureGroup() {
       <Specimen
         name="Collapsible + UrlSync"
         source="collapsible · url-sync"
-        note="Native disclosure rows. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
+        note="Native disclosure rows. UrlSync mirrors the open state into the address bar, here as a #fragment, so a reload stays on this page and reopens the row."
       >
         <Card className="overflow-hidden">
           <Collapsible header={<span className="text-name">Material breakdown</span>} defaultOpen>
