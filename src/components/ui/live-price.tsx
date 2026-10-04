@@ -107,7 +107,7 @@ export function LivePrice({
       ref={ref}
       data-price-state={pending ? 'pending' : 'settled'}
       aria-busy={pending || undefined}
-      className={cn('price-live font-data tabular-nums', pending && 'price-pending', className)}
+      className={cn('price-live font-ui tabular-nums', pending && 'price-pending', className)}
     >
       {value}
     </span>

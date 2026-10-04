@@ -3,27 +3,27 @@ import {
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
+  ESI_AVAILABILITY_TARGET,
   fallbackRatePoints,
   formatAgo,
-  formatPct,
   loginFrequencyBuckets,
   PRICES_HEALTHY_OUTCOMES,
-  ratio,
   refreshVolumeSummary,
   SDE_HEALTHY_OUTCOMES,
   SDE_NEUTRAL_OUTCOMES,
+  targetLevel,
 } from './health-metrics';
 import type { CronOutcomeCount } from './types';
 
-describe('ratio + formatPct', () => {
-  it('returns null for a zero denominator', () => {
-    expect(ratio(5, 0)).toBeNull();
-    expect(formatPct(null)).toBe('—');
-  });
-
-  it('renders a real 0% distinctly from an empty window', () => {
-    expect(formatPct(ratio(0, 10))).toBe('0%');
-    expect(formatPct(ratio(10, 10))).toBe('100%');
+describe('targetLevel', () => {
+  it('turns amber past the warn line and red past the fail line, in either direction', () => {
+    expect(targetLevel(0.99, ESI_AVAILABILITY_TARGET)).toBe('green');
+    expect(targetLevel(0.9, ESI_AVAILABILITY_TARGET)).toBe('amber');
+    expect(targetLevel(0.5, ESI_AVAILABILITY_TARGET)).toBe('red');
+    const latency = { warn: 1500, fail: 3000, direction: 'max' } as const;
+    expect(targetLevel(1000, latency)).toBe('green');
+    expect(targetLevel(2000, latency)).toBe('amber');
+    expect(targetLevel(4000, latency)).toBe('red');
   });
 });
 

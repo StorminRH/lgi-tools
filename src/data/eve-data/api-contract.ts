@@ -6,6 +6,7 @@ import {
 } from '@/transport/endpoint';
 import type { IngestSummary } from './ingest';
 import type { ResolveSummary } from './tree-resolver';
+import type { StationSearchEntry } from './stations-search';
 import type { SystemSearchEntry } from './systems-search';
 import type {
   AdjacencyAsset,
@@ -93,6 +94,22 @@ export const systemsEndpoint = defineEndpoint({
   request: null,
   responses: {
     200: jsonBody(systemsResponseSchema),
+  },
+});
+
+const stationSearchEntrySchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  systemId: z.number(),
+  security: z.number().nullable(),
+}) satisfies z.ZodType<StationSearchEntry>;
+
+export const stationsEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/industry/stations',
+  request: null,
+  responses: {
+    200: jsonBody(z.object({ stations: z.array(stationSearchEntrySchema) })),
   },
 });
 

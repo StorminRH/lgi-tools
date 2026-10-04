@@ -1,68 +1,52 @@
 'use client';
 
-import Link from 'next/link';
-import { Pill } from '@/components/ui/pill';
-import { formatQuantity } from '@/lib/format/number';
-import { activityLabel } from '../industry-styles';
+import { addTransitionType, startTransition, useState, ViewTransition } from 'react';
 import type { BlueprintStructure } from '../types';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
-import { CockpitKpis } from './CockpitKpis';
-import { HeroCard } from './HeroCard';
-import { usePlannerConfig } from './planner-contexts';
-import { TemplatesMenu } from './TemplatesMenu';
+import { CockpitRawLedger } from './CockpitRawLedger';
+import { ComponentDrawer } from './ComponentDrawer';
+import { useMarketData } from './planner-contexts';
+import { PlannerRail } from './PlannerRail';
 
-function PlannerHead({
-  name,
-  group,
-  activity,
-  perRun,
-  blueprintTypeId,
-}: {
-  name: string;
-  group: string;
-  activity: string;
-  perRun: string;
-  blueprintTypeId: number;
-}) {
-  return (
-    <header className="reveal grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
-      <div className="inline-flex items-baseline gap-5 justify-self-start text-label tracking-label text-muted">
-        <span className="font-data">
-          <span className="text-isk">lgi://</span>
-          <Link href="/industry" className="hover:text-isk">
-            industry
-          </Link>
-        </span>
-        <TemplatesMenu blueprintTypeId={blueprintTypeId} productName={name} />
-      </div>
-      <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-optical text-name">
-        {name}
-      </h1>
-      <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 text-label uppercase tracking-label text-muted">
-        {group && <span>{group}</span>}
-        <Pill tone="blue">{activity}</Pill>
-        <Pill tone="neutral">{perRun} per Run</Pill>
-      </div>
-    </header>
-  );
+type BodyView = 'build' | 'ledger';
+
+/** The build and its raw ledger trade places the way the workspace's tabs do. */
+const VIEW_MOTION = { 'planner-view': 'industry-section', default: 'none' };
+
+function RawLedgerView({ structure }: { structure: BlueprintStructure }) {
+  const { pricing, refreshing } = useMarketData();
+  return <CockpitRawLedger pricing={pricing} structure={structure} refreshing={refreshing} />;
 }
 
+/** The blueprint and its numbers on a rail; beside it the build, or its raw ledger. */
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-  const { marginMode, setMarginMode } = usePlannerConfig();
-  const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
-
+  const [view, setView] = useState<BodyView>('build');
+  // The component jobs opened in the drawer, the shown one last.
+  const [drawer, setDrawer] = useState<number[]>([]);
+  const toggleLedger = () =>
+    startTransition(() => {
+      addTransitionType('planner-view');
+      setView((shown) => (shown === 'ledger' ? 'build' : 'ledger'));
+    });
   return (
-    <>
-      <PlannerHead
-        name={structure.product.name}
-        group={group}
-        activity={activityLabel(structure.activityId)}
-        perRun={formatQuantity(structure.product.quantityPerRun)}
-        blueprintTypeId={structure.blueprintTypeId}
-      />
-      <HeroCard structure={structure} />
-      <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
-      <CockpitBuildPlan structure={structure} />
-    </>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-8">
+      <PlannerRail structure={structure} ledgerShown={view === 'ledger'} onToggleLedger={toggleLedger} />
+      <div className="flex min-w-0 flex-col">
+        {view === 'ledger' ? (
+          <ViewTransition key="ledger" enter={VIEW_MOTION} exit={VIEW_MOTION} default="none">
+            <div>
+              <RawLedgerView structure={structure} />
+            </div>
+          </ViewTransition>
+        ) : (
+          <ViewTransition key="build" enter={VIEW_MOTION} exit={VIEW_MOTION} default="none">
+            <div>
+              <CockpitBuildPlan structure={structure} onOpen={(typeId) => setDrawer([typeId])} />
+            </div>
+          </ViewTransition>
+        )}
+      </div>
+      <ComponentDrawer structure={structure} stack={drawer} onStackChange={setDrawer} />
+    </div>
   );
 }

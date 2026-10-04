@@ -1,14 +1,14 @@
-import { clearPreferenceCookies } from '@/lib/preferences';
+import { clearRetiredPreferenceCookies } from '@/lib/preferences';
 import { writeSignedInHint } from './signed-in-hint';
 
 /**
  * Drop what this browser kept from the session that just ended: the
- * signed-in hint, and the preference cookies that may hold the account's
- * values. Call before the post sign-out navigation.
+ * signed-in hint, and any retired preference cookies that may hold the
+ * account's values. Call before the post sign-out navigation.
  */
 export function forgetSignedInBrowser(): void {
   writeSignedInHint(false);
-  clearPreferenceCookies();
+  clearRetiredPreferenceCookies();
 }
 
 export function reloadDocumentHome(): void {

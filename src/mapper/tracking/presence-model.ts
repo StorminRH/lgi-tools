@@ -10,7 +10,6 @@ export interface TrackedLocationSnapshot {
 }
 
 export interface TrackedPresenceRow {
-  readonly userId: string;
   readonly characterId: number;
   readonly location: TrackedLocationSnapshot | null;
 }
@@ -28,7 +27,7 @@ export interface SystemPresence {
 
 export interface PresenceInput {
   readonly tracked: readonly TrackedPresenceRow[];
-  readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
+  readonly coverage: ReadonlyMap<number, boolean>;
 }
 
 function betterPilot(a: PresencePilot, b: PresencePilot): PresencePilot {
@@ -40,7 +39,7 @@ export function derivePresence(input: PresenceInput): ReadonlyMap<number, System
 
   for (const row of input.tracked) {
     if (row.location === null) continue;
-    if (input.coverage.get(row.userId)?.get(row.characterId) !== true) continue;
+    if (input.coverage.get(row.characterId) !== true) continue;
     const pilot: PresencePilot = {
       characterId: row.characterId,
       shipTypeId: row.location.shipTypeId,
@@ -74,19 +73,10 @@ export interface TrackingPayload {
 }
 
 export interface CoveragePayload {
-  readonly coverage: readonly {
-    userId: string;
-    characterId: number;
-    covered: boolean;
-  }[];
+  readonly coverage: readonly { characterId: number; covered: boolean }[];
 }
 
-export type CoverageQueryArgs =
-  | {
-      mapId: string;
-      identities: { userId: string; characterId: number }[];
-    }
-  | 'skip';
+export type CoverageQueryArgs = { mapId: string; characterIds: number[] } | 'skip';
 
 export function holdDefined<T>(
   previous: T | undefined,
@@ -102,26 +92,13 @@ export function coverageQueryArgs(
   if (tracking === undefined) return 'skip';
   return {
     mapId,
-    identities: tracking.tracked
-      .map((row) => ({ userId: row.userId, characterId: row.characterId }))
-      .sort(
-        (left, right) =>
-          left.userId.localeCompare(right.userId)
-          || left.characterId - right.characterId,
-      ),
+    characterIds: [...new Set(tracking.tracked.map((row) => row.characterId))]
+      .sort((left, right) => left - right),
   };
 }
 
-export function coverageIndex(
-  payload: CoveragePayload | undefined,
-): ReadonlyMap<string, ReadonlyMap<number, boolean>> {
-  const index = new Map<string, Map<number, boolean>>();
-  for (const entry of payload?.coverage ?? []) {
-    const byCharacter = index.get(entry.userId) ?? new Map();
-    byCharacter.set(entry.characterId, entry.covered);
-    index.set(entry.userId, byCharacter);
-  }
-  return index;
+export function coverageIndex(payload: CoveragePayload | undefined): ReadonlyMap<number, boolean> {
+  return new Map((payload?.coverage ?? []).map((entry) => [entry.characterId, entry.covered]));
 }
 
 export function derivePresenceFromPayload(

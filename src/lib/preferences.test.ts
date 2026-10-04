@@ -46,8 +46,7 @@ installDocumentShim();
 
 const {
   sitesView,
-  plannerBuildLocation,
-  plannerBuildCharacter,
+  atlasDockCharacter,
   PREFERENCE_KEYS,
   pruneRetiredPreferences,
   STRIP_SURFACE_IDS,
@@ -56,12 +55,8 @@ const {
   validatePreferenceValue,
   peekLocalPreference,
   writeLocalPreference,
-  cookieNameFor,
-  writePreferenceCookie,
-  readPreferenceCookieValue,
   reconcilePreferences,
-  syncPreferenceCookies,
-  clearPreferenceCookies,
+  clearRetiredPreferenceCookies,
 } = await import('./preferences');
 
 const lsKey = (key: string) => `lgi:pref:${key}`;
@@ -73,7 +68,7 @@ beforeEach(() => {
 describe('peekLocalPreference', () => {
   it('returns undefined when nothing is stored (absence, not the fallback)', () => {
     expect(peekLocalPreference(sitesView)).toBeUndefined();
-    expect(peekLocalPreference(plannerBuildLocation)).toBeUndefined();
+    expect(peekLocalPreference(atlasDockCharacter)).toBeUndefined();
   });
 
   it('round-trips a written value', () => {
@@ -91,96 +86,53 @@ describe('peekLocalPreference', () => {
     expect(peekLocalPreference(sitesView)).toBeUndefined();
   });
 
-  it('round-trips the nullable build-location identifier, including a stored null', () => {
-    const loc = { systemId: 30000142, systemName: 'Jita', security: 0.9 };
-    writeLocalPreference(plannerBuildLocation, loc);
-    expect(peekLocalPreference(plannerBuildLocation)).toEqual(loc);
-    writeLocalPreference(plannerBuildLocation, null);
-    expect(peekLocalPreference(plannerBuildLocation)).toBeNull();
+  it('round-trips a nullable character id, including a stored null', () => {
+    writeLocalPreference(atlasDockCharacter, 90000001);
+    expect(peekLocalPreference(atlasDockCharacter)).toBe(90000001);
+    writeLocalPreference(atlasDockCharacter, null);
+    expect(peekLocalPreference(atlasDockCharacter)).toBeNull();
   });
 
   it('keeps preference keys isolated', () => {
     writeLocalPreference(sitesView, 'table');
-    expect(peekLocalPreference(plannerBuildLocation)).toBeUndefined();
+    expect(peekLocalPreference(atlasDockCharacter)).toBeUndefined();
   });
 });
 
 describe('validatePreferenceValue', () => {
   it('accepts a known key with a valid value', () => {
     expect(validatePreferenceValue('sites.view', 'table')).toBe(true);
-    expect(
-      validatePreferenceValue('planner.buildLocation', {
-        systemId: 1,
-        systemName: 'X',
-        security: null,
-      }),
-    ).toBe(true);
-    expect(validatePreferenceValue('planner.buildLocation', null)).toBe(true);
+    expect(validatePreferenceValue('atlas.dockCharacterId', 2114872920)).toBe(true);
+    expect(validatePreferenceValue('atlas.dockCharacterId', null)).toBe(true);
   });
 
   it('rejects a known key with an invalid value', () => {
     expect(validatePreferenceValue('sites.view', 'grid')).toBe(false);
-    expect(validatePreferenceValue('planner.buildLocation', { systemId: -1 })).toBe(false);
+    expect(validatePreferenceValue('atlas.dockCharacterId', -1)).toBe(false);
+    expect(validatePreferenceValue('atlas.dockCharacterId', '2114872920')).toBe(false);
+  });
+
+  it('keeps favorite blueprints as a bounded list of named blueprints', () => {
+    const favorite = (typeId: number) => ({ typeId, name: 'Damage Control II' });
+    expect(validatePreferenceValue('industry.favoriteBlueprints', [favorite(2049)])).toBe(true);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', Array.from({ length: 24 }, (_, i) => favorite(i + 1)))).toBe(true);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', Array.from({ length: 25 }, (_, i) => favorite(i + 1)))).toBe(false);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', [{ typeId: 2049, name: '' }])).toBe(false);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', [2049])).toBe(false);
   });
 
   it('rejects an unknown key', () => {
     expect(validatePreferenceValue('sites.theme', 'dark')).toBe(false);
   });
 
-  it('lists every registry key', () => {
+  it('lists registry keys callers read', () => {
     expect(PREFERENCE_KEYS).toContain('sites.view');
-    expect(PREFERENCE_KEYS).toContain('planner.buildLocation');
-    expect(PREFERENCE_KEYS).toContain('planner.buildCharacterId');
+    expect(PREFERENCE_KEYS).toContain('industry.profileId');
   });
 });
 
-describe('build-character def', () => {
-  it('registers an ssr-readable nullable id defaulting to unset', () => {
-    expect(plannerBuildCharacter.key).toBe('planner.buildCharacterId');
-    expect(plannerBuildCharacter.fallback).toBeNull();
-    expect(plannerBuildCharacter.ssrReadable).toBe(true);
-    expect(cookieNameFor(plannerBuildCharacter)).toBe('lgi_pref_planner_buildCharacterId');
-  });
-
-  it('validates the wire value at the server trust boundary', () => {
-    expect(validatePreferenceValue('planner.buildCharacterId', 2114872920)).toBe(true);
-    expect(validatePreferenceValue('planner.buildCharacterId', null)).toBe(true);
-    expect(validatePreferenceValue('planner.buildCharacterId', 0)).toBe(false);
-    expect(validatePreferenceValue('planner.buildCharacterId', -1)).toBe(false);
-    expect(validatePreferenceValue('planner.buildCharacterId', 1.5)).toBe(false);
-    expect(validatePreferenceValue('planner.buildCharacterId', '2114872920')).toBe(false);
-  });
-
-  it('round-trips through the local codec, including a stored null', () => {
-    writeLocalPreference(plannerBuildCharacter, 90000001);
-    expect(peekLocalPreference(plannerBuildCharacter)).toBe(90000001);
-    writeLocalPreference(plannerBuildCharacter, null);
-    expect(peekLocalPreference(plannerBuildCharacter)).toBeNull();
-  });
-});
-
-describe('cookie codec', () => {
-  it('derives a cookie-safe name (dots → underscores)', () => {
-    expect(cookieNameFor(sitesView)).toBe('lgi_pref_sites_view');
-  });
-
-  it('reads a valid (url-encoded) cookie value', () => {
-    const raw = encodeURIComponent(JSON.stringify('table'));
-    expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
-  });
-
-  it('writes an ssrReadable key as a Lax, path-/, url-encoded cookie', () => {
-    lastCookieWrite = '';
-    writePreferenceCookie(sitesView, 'table');
-    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
-    expect(lastCookieWrite).toContain('Path=/');
-    expect(lastCookieWrite).toContain('SameSite=Lax');
-    expect(lastCookieWrite).not.toContain('Secure');
-    const raw = lastCookieWrite.split(';')[0]!.split('=')[1];
-    expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
-  });
-
-  it('expires every ssrReadable cookie and only those on clear', () => {
+describe('retired preference cookies', () => {
+  it('expires the cookies preferences were once mirrored into', () => {
     const writes: string[] = [];
     Object.defineProperty(globalThis, 'document', {
       configurable: true,
@@ -191,40 +143,14 @@ describe('cookie codec', () => {
       },
     });
     try {
-      clearPreferenceCookies();
-      expect(writes).toContain('lgi_pref_sites_view=; Path=/; Max-Age=0; SameSite=Lax');
-      expect(writes).toContain('lgi_pref_planner_buildCharacterId=; Path=/; Max-Age=0; SameSite=Lax');
-      expect(writes.some((w) => w.startsWith(`${cookieNameFor(plannerBuildLocation)}=`))).toBe(false);
+      clearRetiredPreferenceCookies();
+      expect(writes).toEqual([
+        'lgi_pref_sites_view=; Path=/; Max-Age=0; SameSite=Lax',
+        'lgi_pref_strip_jobs_dimmed=; Path=/; Max-Age=0; SameSite=Lax',
+      ]);
     } finally {
       installDocumentShim();
     }
-  });
-
-  it('does not write a cookie for a non-ssrReadable key', () => {
-    lastCookieWrite = '';
-    writePreferenceCookie(plannerBuildLocation, { systemId: 1, systemName: 'X', security: null });
-    expect(lastCookieWrite).toBe('');
-  });
-
-  it('marks the cookie Secure on https', () => {
-    const loc = globalThis.location as unknown as { protocol: string };
-    loc.protocol = 'https:';
-    try {
-      lastCookieWrite = '';
-      writePreferenceCookie(sitesView, 'cards');
-      expect(lastCookieWrite).toContain('; Secure');
-    } finally {
-      loc.protocol = 'http:';
-    }
-  });
-
-  it('falls back on a missing cookie', () => {
-    expect(readPreferenceCookieValue(undefined, sitesView)).toBe('cards');
-  });
-
-  it('falls back on a garbage or schema-mismatched cookie', () => {
-    expect(readPreferenceCookieValue('%%not-json', sitesView)).toBe('cards');
-    expect(readPreferenceCookieValue(encodeURIComponent('"list"'), sitesView)).toBe('cards');
   });
 });
 
@@ -255,13 +181,12 @@ describe('reconcilePreferences', () => {
 });
 
 describe('strip dimmed-set defs', () => {
-  it('registers one ssr-readable def per strip surface with the [] lit-by-default fallback', () => {
+  it('registers one def per strip surface with the [] lit-by-default fallback', () => {
     for (const id of STRIP_SURFACE_IDS) {
       const def = stripDimmedDef(id);
       expect(def.key).toBe(`strip.${id}.dimmed`);
       expect(PREFERENCE_KEYS).toContain(def.key);
       expect(def.fallback).toEqual([]);
-      expect(def.ssrReadable).toBe(true);
     }
   });
 
@@ -293,27 +218,16 @@ describe('retired preference keys', () => {
   it('prunes retired rows and leaves keys that are still registered', () => {
     window.localStorage.setItem(lsKey('atlas.autoLayout'), JSON.stringify(false));
     window.localStorage.setItem(lsKey('strip.skills.dimmed'), JSON.stringify([1]));
+    window.localStorage.setItem(lsKey('planner.buildLocation'), JSON.stringify(null));
+    window.localStorage.setItem(lsKey('planner.buildCharacterId'), JSON.stringify(90000001));
     window.localStorage.setItem(lsKey('sites.view'), JSON.stringify('table'));
     pruneRetiredPreferences();
     expect(window.localStorage.getItem(lsKey('atlas.autoLayout'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('strip.skills.dimmed'))).toBeNull();
+    expect(window.localStorage.getItem(lsKey('planner.buildLocation'))).toBeNull();
+    expect(window.localStorage.getItem(lsKey('planner.buildCharacterId'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('sites.view'))).toBe(JSON.stringify('table'));
     pruneRetiredPreferences();
   });
 });
 
-describe('syncPreferenceCookies', () => {
-  it('writes resolved values to the SSR cookie and leaves localStorage alone', () => {
-    lastCookieWrite = '';
-    window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('cards'));
-    syncPreferenceCookies(new Map([[sitesView.key, 'table']]));
-    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
-    expect(peekLocalPreference(sitesView)).toBe('cards');
-  });
-
-  it('leaves unresolved keys alone', () => {
-    lastCookieWrite = '';
-    syncPreferenceCookies(new Map());
-    expect(lastCookieWrite).toBe('');
-  });
-});

@@ -311,3 +311,30 @@ describe('computeNetMargin', () => {
     expect(net.netMargin).not.toBeNull();
   });
 });
+
+describe('computeNetMargin with the input jobs’ fees', () => {
+  const base = {
+    buildCost: 1_000,
+    productSell: 2_000,
+    productQty: 1,
+    baseMaterials: [{ typeId: 1, quantity: 10 }],
+    adjustedPriceOf: () => 50,
+    systemCostIndex: 0.1,
+  };
+
+  it('adds them to the net cost and takes them off the margin', () => {
+    const without = computeNetMargin(base);
+    const withJobs = computeNetMargin({ ...base, componentJobFees: 120 });
+    expect(withJobs.netCost).toBeCloseTo(without.netCost! + 120, 9);
+    expect(withJobs.netMargin).toBeCloseTo(without.netMargin! - 120, 9);
+    expect(withJobs.jobFee).toEqual(without.jobFee);
+    expect(withJobs.incomplete).toBe(false);
+  });
+
+  it('leaves the net open when one of them cannot be priced', () => {
+    const net = computeNetMargin({ ...base, componentJobFees: null });
+    expect(net.netCost).toBeNull();
+    expect(net.netMargin).toBeNull();
+    expect(net.incomplete).toBe(true);
+  });
+});

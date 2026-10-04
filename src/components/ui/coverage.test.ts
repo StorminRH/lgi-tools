@@ -59,7 +59,7 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { LoadingToastProvider } from '@/components/ui/loading-toast';
 import { MenuRadioGroup, MenuRadioItem, MenuRadioItemIndicator } from '@/components/ui/menu';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
-import { Breadcrumb, PageTitle } from '@/components/ui/page-head';
+import { PageTitle } from '@/components/ui/page-head';
 import { Pagination } from '@/components/ui/pagination';
 import { PopoverRow } from '@/components/ui/popover';
 import { PriceConfidence } from '@/components/ui/price-confidence';
@@ -86,7 +86,6 @@ describe('coverage-gaps', () => {
       MenuRadioItemIndicator,
       MultiplesCell,
       MultiplesGrid,
-      Breadcrumb,
       PageTitle,
       Pagination,
       PopoverRow,

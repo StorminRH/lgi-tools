@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import {
   createCustomStructureEndpoint,
   createCustomStructureRequestSchema,
@@ -12,9 +11,8 @@ import {
   createCustomStructure,
   listCustomStructures,
 } from '@/features/custom-structures/queries';
-import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
-import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
-import { conflictFailure, validationFailure } from '@/lib/failure';
+import { rejectInvalidCustomStructure } from '@/features/custom-structures/save-boundary';
+import { conflictFailure } from '@/lib/failure';
 import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
@@ -26,18 +24,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, createCustomStructureRequestSchema),
     handle: async ({ userId }, body) => {
-      const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
-      const check = validateCustomStructureSelection(body, types, rigs);
-      if (!check.ok) {
-        return apiResponse(
-          createCustomStructureEndpoint,
-          400,
-          validationFailure('invalid_structure', check.reason),
-        );
-      }
-
-      const pin = await rejectUnknownSystemPin(body.systemId);
-      if (!pin.ok) return apiResponse(createCustomStructureEndpoint, 400, pin.failure);
+      const check = await rejectInvalidCustomStructure(body);
+      if (!check.ok) return apiResponse(createCustomStructureEndpoint, 400, check.failure);
 
       if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
         return apiResponse(
@@ -47,16 +35,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
-      await createCustomStructure(userId, {
-        id: randomUUID(),
-        name: body.name,
-        structureTypeId: body.structureTypeId,
-        rigTypeIds: body.rigTypeIds,
-        systemId: body.systemId,
-        taxPct: body.taxPct,
-      });
+      const createdId = randomUUID();
+      await createCustomStructure(userId, { id: createdId, ...body });
       const structures = await listCustomStructures(userId);
-      return apiResponse(createCustomStructureEndpoint, 201, { structures });
+      return apiResponse(createCustomStructureEndpoint, 201, { structures, createdId });
     },
   });
 }

@@ -25,21 +25,23 @@ vi.mock('@/platform/auth/affiliation', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_access_projection_pipeline',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_access_changes', 'pending_tracking_merges'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes', 'pending_tracking_merges'],
   foreignKeys: [
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_block_accounts', column: 'block_id', refTable: 'map_blocks', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
   ],
   steerDbProxy: true,
   resetBetweenTests: 'truncate',
 });
 
+// Envs stay stubbed until the harness's afterAll, which needs its DATABASE_URL stub to close the clients.
 afterEach(() => {
   vi.unstubAllGlobals();
-  vi.unstubAllEnvs();
 });
 
 describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Convex', () => {
@@ -79,8 +81,8 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
     await projectMapAccess(mapId);
     const gate = (userId: string) => t.withIdentity({ subject: userId })
       .query(api.mapChainAccess.watchMapAccess, { mapId });
-    expect(await gate('member')).toEqual({ granted: true, canEdit: false });
-    expect(await gate('direct')).toEqual({ granted: true, canEdit: true });
+    expect(await gate('member')).toEqual({ granted: true, canEdit: false, trackableCharacterIds: null });
+    expect(await gate('direct')).toEqual({ granted: true, canEdit: true, trackableCharacterIds: null });
 
     expect(await updateAffiliations([
       { characterId: 42, corporationId: 991, allianceId: null, factionId: null },
@@ -94,8 +96,8 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
     vi.stubGlobal('fetch', vi.fn(deliver));
     expect(await reconcileAffiliationAccess()).toEqual({ processed: 1, failed: 0 });
     expect(await readPendingMapAccessChanges()).toEqual([]);
-    expect(await gate('member')).toEqual({ granted: false, canEdit: false });
-    expect(await gate('direct')).toEqual({ granted: true, canEdit: true });
-    expect(await gate('creator')).toEqual({ granted: true, canEdit: true });
+    expect(await gate('member')).toEqual({ granted: false, canEdit: false, trackableCharacterIds: null });
+    expect(await gate('direct')).toEqual({ granted: true, canEdit: true, trackableCharacterIds: null });
+    expect(await gate('creator')).toEqual({ granted: true, canEdit: true, trackableCharacterIds: null });
   });
 });

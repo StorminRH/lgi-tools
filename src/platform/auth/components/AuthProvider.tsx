@@ -5,6 +5,7 @@ import { createClientStore, useClientStore } from '@/lib/client-store';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { authClient } from '../auth-client';
 import { writeSignedInHint } from '../signed-in-hint';
+import { publishReadIdentity } from '../read-identity';
 import { HELD_AUTH_STATE, resolveAuthState, type AuthState } from './auth-state';
 
 const authStore = createClientStore<AuthState>(HELD_AUTH_STATE);
@@ -25,8 +26,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useLayoutEffect(() => {
+    publishReadIdentity(state.session === null || data === null ? null : {
+      userId: data.user.id,
+      characterId: state.session.characterId,
+    });
     authStore.set(state);
-  }, [state]);
+  }, [state, data]);
 
   const signedIn = state.session !== null;
   useEffect(() => {

@@ -1,9 +1,9 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { GemIcon, HourglassIcon } from './MeAdjuster';
-import { structureBonusRows, type StructureBonusRow } from '../structure-bonus-view';
+import { structureBonusColumns, type StructureBonusRow } from '../structure-bonus-view';
 import type { StructureReadout } from '../structure-factors';
 
 function Metric({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
@@ -22,6 +22,19 @@ function Metric({ icon, title, value }: { icon: ReactNode; title: string; value:
   );
 }
 
+function RxnMarker() {
+  return <span className="font-data text-label uppercase leading-none tracking-label text-muted">rxn</span>;
+}
+
+function ReactionMetric({ withMarker, children }: { withMarker: boolean; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {withMarker && <RxnMarker />}
+      {children}
+    </span>
+  );
+}
+
 const BONUS_ROW: {
   [K in StructureBonusRow['kind']]: (row: Extract<StructureBonusRow, { kind: K }>) => ReactNode;
 } = {
@@ -36,13 +49,15 @@ const BONUS_ROW: {
       </span>
     </Tooltip>
   ),
+  'rxn-me': (row) => (
+    <ReactionMetric withMarker={row.withMarker}>
+      <Metric icon={<GemIcon state="bonus" />} title={`Reaction ME −${row.pct}`} value={row.pct} />
+    </ReactionMetric>
+  ),
   'rxn-te': (row) => (
-    <span className="inline-flex items-center gap-1">
-      {row.withMarker && (
-        <span className="font-data text-label uppercase leading-none tracking-label text-muted">rxn</span>
-      )}
+    <ReactionMetric withMarker={row.withMarker}>
       <Metric icon={<HourglassIcon state="bonus" />} title={`Reaction TE −${row.pct}`} value={row.pct} />
-    </span>
+    </ReactionMetric>
   ),
   tax: (row) => (
     <Tooltip content={`Owner-set facility tax ${row.taxPct}%`}>
@@ -58,19 +73,34 @@ function BonusRowView({ row }: { row: StructureBonusRow }) {
   return <>{render(row)}</>;
 }
 
-export function StructureBonusReadout({
+const unmarked = (row: StructureBonusRow): StructureBonusRow =>
+  row.kind === 'rxn-me' || row.kind === 'rxn-te' ? { ...row, withMarker: false } : row;
+
+/**
+ * The same readout in fixed columns, so a list of structures lines up. The
+ * leading column holds the reaction marker; a caller can size it through
+ * `--bonus-label-col` (auto by default).
+ */
+export function StructureBonusColumns({
   readout,
   taxPct,
 }: {
   readout: StructureReadout;
   taxPct?: number | null;
 }) {
-  const rows = structureBonusRows(readout, taxPct);
-  if (rows.length === 0) return null;
+  const lines = structureBonusColumns(readout, taxPct);
+  if (lines.length === 0) return null;
   return (
-    <span className="inline-flex flex-wrap items-center gap-2.5">
-      {rows.map((row, i) => (
-        <BonusRowView key={i} row={row} />
+    <span className="grid grid-cols-[var(--bonus-label-col,auto)_repeat(2,calc(1rem+6ch))_repeat(2,10ch)] items-center gap-x-3 gap-y-1.5 font-data text-micro">
+      {lines.map((line) => (
+        <Fragment key={line.reactions ? 'rxn' : 'mfg'}>
+          <span className="justify-self-end">{line.reactions ? <RxnMarker /> : null}</span>
+          {line.cells.map((row, i) => (
+            <span key={i} className="flex">
+              {row ? <BonusRowView row={unmarked(row)} /> : null}
+            </span>
+          ))}
+        </Fragment>
       ))}
     </span>
   );

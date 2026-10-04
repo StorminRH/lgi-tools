@@ -61,6 +61,8 @@ const viewerSlotsSchema = z.object({
   characterId: z.number(),
   slots: slotCapacitySchema,
   synced: z.boolean(),
+  // Levels of the slot and job-time skills only, keyed by skill type id; null until synced.
+  levels: z.record(z.string(), z.number().int()).nullable(),
 });
 
 const industrySlotsResponseSchema = z.object({

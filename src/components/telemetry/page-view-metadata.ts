@@ -1,6 +1,6 @@
 import { EVE_SSO_HOST } from '@/lib/eve-provider';
 
-const SKIP_PREFIXES = ['/admin', '/settings/access', '/api/'];
+const SKIP_PREFIXES = ['/admin', '/api/'];
 
 export function shouldSkip(path: string): boolean {
   return SKIP_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix));

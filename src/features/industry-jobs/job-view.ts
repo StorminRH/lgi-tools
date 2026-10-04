@@ -4,7 +4,7 @@ import {
   type EveImageDescriptor,
 } from '@/data/eve-data/type-images';
 import { formatRemaining } from '@/lib/format/time';
-import type { IndustryJob, JobStatus } from './esi-projection';
+import type { IndustryJob } from './esi-projection';
 import { JOB_STATUS_META, jobActivityLabel } from './industry-jobs-styles';
 import { type JobsSummary, jobProgress, summarizeJobs } from './job-state';
 import type { CharacterJobsData } from './types';
@@ -60,18 +60,6 @@ export function runnerName(installerId: number | undefined, entityNames: Record<
   return entityNames[String(installerId)] ?? `Pilot #${installerId}`;
 }
 
-export function activeJobStatusText(status: JobStatus, remainingMs: number | null): string {
-  if (remainingMs !== null) return formatRemaining(remainingMs);
-  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
-}
-
-export function formatEndDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 export function jobsSubtitle(summary: JobsSummary): string {
   const count = summary.total === 1 ? '1 job' : `${summary.total} jobs`;
   const ready = summary.readyCount > 0 ? ` · ${summary.readyCount} ready` : '';
@@ -115,12 +103,4 @@ export function corpGroupState(corp: { syncError: string | null; data: Character
   if (corp.syncError === 'needs_role') return 'needs-role';
   if (corp.data === null) return 'sync-error';
   return corp.data.jobs.length === 0 ? 'empty' : 'rows';
-}
-
-export const JOBS_LOAD_FAILED = 'Couldn’t load your industry jobs — reload to try again.';
-
-export function corpJobsEmptyLine(failed: boolean): string {
-  return failed
-    ? 'Couldn’t load your corporation’s industry jobs — reload to try again.'
-    : 'No corporation industry jobs yet — they’ll appear here once a sync completes.';
 }

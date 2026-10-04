@@ -1,7 +1,14 @@
 import { z } from 'zod';
-import { type MapPrincipals, resolveMatchedMapRoles } from '@/data/maps/access';
-import type { MapRole } from '@/data/maps/access-contract';
 import {
+  orderEligibleCharacters,
+  resolveMatchedMapRoles,
+  type DatedMapGrant,
+  type MapPrincipals,
+} from '@/data/maps/access';
+import type { MapRole } from '@/data/maps/access-contract';
+import { getBlockedMapUserIds } from '@/data/maps/blocks';
+import {
+  getCharacterNames,
   getMapAccessSubject,
   getMapGrants,
   getMapAccessCandidateUserIds,
@@ -10,9 +17,16 @@ import {
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
 
+export interface MapClaimCharacter {
+  readonly characterId: number;
+  readonly name: string;
+}
+
+/** `characters` is sent only for character-scoped maps; its absence keeps Convex on account-level tracking. */
 export interface MapAccessClaim {
   readonly userId: string;
   readonly roles: readonly MapRole[];
+  readonly characters?: readonly MapClaimCharacter[];
 }
 
 export interface ProjectionCounts {
@@ -24,6 +38,7 @@ export interface ProjectionCounts {
 
 export type ProjectionResult = ProjectionCounts & {
   readonly outcome: 'applied' | 'duplicate' | 'stale';
+  readonly characterScoped?: true;
 };
 
 const projectionCountFields = {
@@ -32,10 +47,12 @@ const projectionCountFields = {
   deleted: z.number().int().nonnegative(),
   unchanged: z.number().int().nonnegative(),
 };
+const characterScopedField = { characterScoped: z.literal(true).optional() };
 const projectionResultSchema = z.discriminatedUnion('outcome', [
-  z.strictObject({ ...projectionCountFields, outcome: z.literal('applied') }),
-  z.strictObject({ ...projectionCountFields, outcome: z.literal('duplicate') }),
+  z.strictObject({ ...projectionCountFields, ...characterScopedField, outcome: z.literal('applied') }),
+  z.strictObject({ ...projectionCountFields, ...characterScopedField, outcome: z.literal('duplicate') }),
   z.strictObject({ ...projectionCountFields, outcome: z.literal('stale') }),
+  z.strictObject({ ...projectionCountFields, outcome: z.literal('unscoped-refused') }),
 ]);
 
 const userPurgeResultSchema = z.strictObject({
@@ -58,12 +75,70 @@ export class ProjectionUnavailableError extends Error {
   }
 }
 
+function sharedAccessRows(rows: readonly CachedAffiliation[]): CachedAffiliation[] {
+  return rows.filter((row) => row.sharedAccessEligible);
+}
+
 function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrincipals {
-  const eligible = rows.filter((row) => row.sharedAccessEligible);
+  const eligible = sharedAccessRows(rows);
   return {
     characterIds: eligible.map((row) => row.characterId),
     corporationIds: [...new Set(eligible.flatMap((row) => row.corporationId ?? []))],
   };
+}
+
+export type AccountAffiliation = CachedAffiliation & { readonly userId: string };
+
+/** Every linked character of these accounts, read as the projection reads them. */
+export function readAccountAffiliations(userIds: readonly string[]): Promise<AccountAffiliation[]> {
+  return getUsersAffiliations(userIds);
+}
+
+/** The ids each user's eligible characters are chosen from, in actor-name order. */
+export function eligibleCharacterIds(
+  grants: readonly DatedMapGrant[],
+  rows: readonly CachedAffiliation[],
+): number[] {
+  return orderEligibleCharacters(grants, sharedAccessRows(rows));
+}
+
+function groupByUser(
+  rows: readonly (CachedAffiliation & { userId: string })[],
+): Map<string, CachedAffiliation[]> {
+  const byUser = new Map<string, CachedAffiliation[]>();
+  for (const row of rows) {
+    const held = byUser.get(row.userId) ?? [];
+    held.push(row);
+    byUser.set(row.userId, held);
+  }
+  return byUser;
+}
+
+function grantOwnerIds(grants: readonly DatedMapGrant[], ownerType: DatedMapGrant['ownerType']) {
+  return [...new Set(grants.filter((grant) => grant.ownerType === ownerType).map((g) => g.ownerId))];
+}
+
+async function nameCharacters(
+  claims: readonly { userId: string; roles: readonly MapRole[]; characterIds: number[] }[],
+): Promise<MapAccessClaim[]> {
+  const names = await getCharacterNames(claims.flatMap((claim) => claim.characterIds));
+  return claims.map(({ characterIds, ...claim }) => ({
+    ...claim,
+    characters: characterIds.map((characterId) => ({
+      characterId,
+      name: names.get(characterId) ?? `Character ${characterId}`,
+    })),
+  }));
+}
+
+/** Blocked accounts get no claim; the creator is never blocked. */
+export function unblockedCandidates(
+  candidateUserIds: readonly string[],
+  blockedUserIds: readonly string[],
+  creatorUserId: string,
+): string[] {
+  const blocked = new Set(blockedUserIds);
+  return candidateUserIds.filter((userId) => userId !== creatorUserId && !blocked.has(userId));
 }
 
 async function computeMapAccessClaimsForState(
@@ -73,34 +148,22 @@ async function computeMapAccessClaimsForState(
   const map = await getMapAccessSubject(mapId);
   if (map === null) return [];
   if (map.archivedAt !== null && !allowArchived) return [];
+  const scoped = map.characterScopedAt !== null;
 
   const grants = await getMapGrants(mapId);
-  const characterIds = [
-    ...new Set(
-      grants
-        .filter((grant) => grant.ownerType === 'character')
-        .map((grant) => grant.ownerId),
+  const candidateUserIds = unblockedCandidates(
+    await getMapAccessCandidateUserIds(
+      grantOwnerIds(grants, 'character'),
+      grantOwnerIds(grants, 'corporation'),
     ),
-  ];
-  const corporationIds = [
-    ...new Set(
-      grants
-        .filter((grant) => grant.ownerType === 'corporation')
-        .map((grant) => grant.ownerId),
-    ),
-  ];
+    await getBlockedMapUserIds(mapId),
+    map.userId,
+  );
+  const byUser = groupByUser(await getUsersAffiliations(
+    scoped ? [...candidateUserIds, map.userId] : candidateUserIds,
+  ));
 
-  const candidateUserIds = (await getMapAccessCandidateUserIds(characterIds, corporationIds))
-    .filter((userId) => userId !== map.userId);
-  const affiliations = await getUsersAffiliations(candidateUserIds);
-  const byUser = new Map<string, CachedAffiliation[]>();
-  for (const row of affiliations) {
-    const rows = byUser.get(row.userId) ?? [];
-    rows.push(row);
-    byUser.set(row.userId, rows);
-  }
-
-  const claims: MapAccessClaim[] = [{ userId: map.userId, roles: ['admin'] }];
+  const claims = [{ userId: map.userId, roles: ['admin'] as MapRole[], characterIds: [] as number[] }];
   for (const userId of candidateUserIds) {
     const roles = resolveMatchedMapRoles({
       isCreator: false,
@@ -108,11 +171,15 @@ async function computeMapAccessClaimsForState(
       principals: principalsIgnoringStampAge(byUser.get(userId) ?? []),
     });
     if (roles.length === 0) continue;
-    claims.push({ userId, roles });
+    claims.push({ userId, roles: [...roles], characterIds: [] });
   }
-
   claims.sort((left, right) => left.userId.localeCompare(right.userId));
-  return claims;
+  if (!scoped) return claims.map(({ userId, roles }) => ({ userId, roles }));
+
+  for (const claim of claims) {
+    claim.characterIds = eligibleCharacterIds(grants, byUser.get(claim.userId) ?? []);
+  }
+  return nameCharacters(claims);
 }
 
 export function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
@@ -127,7 +194,7 @@ export interface ProjectMapAccessOptions {
 function postMapAccessProjection(
   body: unknown,
   options: ProjectMapAccessOptions = {},
-): Promise<ProjectionResult> {
+): Promise<z.infer<typeof projectionResultSchema>> {
   return postConvexHttpDoor({
     path: '/project-map-access',
     body,
@@ -137,6 +204,31 @@ function postMapAccessProjection(
     timeoutMs: options.timeoutMs,
     signal: options.signal,
   });
+}
+
+function claimsCarryCharacters(claims: readonly MapAccessClaim[]): boolean {
+  return claims.length > 0 && claims.every((claim) => claim.characters !== undefined);
+}
+
+/**
+ * A character-scoped claim set only counts once Convex confirms it kept the
+ * characters; an older Convex drops them silently, so the change stays queued.
+ */
+function requireScopedDelivery(
+  claims: readonly MapAccessClaim[],
+  result: z.infer<typeof projectionResultSchema>,
+): ProjectionResult {
+  if (result.outcome === 'unscoped-refused') {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: Convex refused account-level claims for a character-scoped map',
+    );
+  }
+  if (claimsCarryCharacters(claims) && result.outcome !== 'stale' && result.characterScoped !== true) {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: Convex did not confirm character-scoped claims',
+    );
+  }
+  return result;
 }
 
 async function projectMapAccessState(
@@ -152,7 +244,10 @@ async function projectMapAccessState(
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
-  return postMapAccessProjection({ mapId, revision, claims }, options);
+  return requireScopedDelivery(
+    claims,
+    await postMapAccessProjection({ mapId, revision, claims }, options),
+  );
 }
 
 export function projectMapAccess(
@@ -171,13 +266,11 @@ export function projectStagedMapAccess(
 
 export async function teardownMapAccessProjection(mapId: string): Promise<ProjectionResult> {
   const revision = await reserveMapAccessProjectionRevision();
-  return requireCurrentProjection(
-    await postMapAccessProjection({
-      mapId,
-      revision,
-      claims: [],
-    }),
-  );
+  return requireCurrentProjection(requireScopedDelivery([], await postMapAccessProjection({
+    mapId,
+    revision,
+    claims: [],
+  })));
 }
 
 export async function purgeUserMapAccessProjection(

@@ -1,80 +1,80 @@
-import { describe, expect, it } from 'vitest';
-import {
-  isRecentBlueprint,
-  mergeRecent,
-  parseRecentBlueprints,
-  type RecentBlueprint,
-} from './recent-blueprints';
+import { beforeEach, expect, test, vi } from 'vitest';
 
-const bp = (typeId: number, name = `BP ${typeId}`): RecentBlueprint => ({
-  typeId,
-  productTypeId: typeId + 1000,
-  name,
+const h = vi.hoisted(() => ({ hydrated: true, subscribe: null as ((listener: () => void) => () => void) | null }));
+
+vi.mock('react', () => ({
+  useSyncExternalStore: (subscribe: (listener: () => void) => () => void, client: () => unknown, server: () => unknown) => {
+    h.subscribe = subscribe;
+    return h.hydrated ? client() : server();
+  },
+}));
+
+const stored = new Map<string, string>();
+vi.stubGlobal('window', {
+  localStorage: {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => void stored.set(key, value),
+  },
 });
 
-describe('mergeRecent', () => {
-  it('prepends a new entry, newest first', () => {
-    expect(mergeRecent([bp(1)], bp(2))).toEqual([bp(2), bp(1)]);
-  });
+const { recordRecentBlueprint, useRecentBlueprints } = await import('./recent-blueprints');
 
-  it('floats a re-viewed blueprint back to the top, deduped by typeId', () => {
-    const merged = mergeRecent([bp(1), bp(2), bp(3)], bp(3, 'Renamed'));
-    expect(merged).toEqual([bp(3, 'Renamed'), bp(1), bp(2)]);
-  });
+const KEY = 'lgi:industry:recent-blueprints';
+const blueprint = (typeId: number) => ({ typeId, productTypeId: typeId + 1, name: `Blueprint ${typeId}` });
 
-  it('caps the list at the max, dropping the oldest', () => {
-    const four = [bp(1), bp(2), bp(3), bp(4)];
-    expect(mergeRecent(four, bp(5), 4)).toEqual([bp(5), bp(1), bp(2), bp(3)]);
-  });
+beforeEach(() => {
+  stored.clear();
+  h.hydrated = true;
 });
 
-describe('isRecentBlueprint', () => {
-  it('accepts a well-formed entry', () => {
-    expect(isRecentBlueprint({ typeId: 1, productTypeId: 2, name: 'x' })).toBe(true);
-  });
-
-  it('rejects non-objects and null', () => {
-    expect(isRecentBlueprint(null)).toBe(false);
-    expect(isRecentBlueprint(42)).toBe(false);
-    expect(isRecentBlueprint('x')).toBe(false);
-  });
-
-  it('rejects entries missing or mistyping any field', () => {
-    expect(isRecentBlueprint({ typeId: 1, productTypeId: 2 })).toBe(false);
-    expect(isRecentBlueprint({ typeId: '1', productTypeId: 2, name: 'x' })).toBe(false);
-    expect(isRecentBlueprint({ typeId: 1, productTypeId: 2, name: 3 })).toBe(false);
-  });
+test('nothing is read until hydrated, then an empty device has no recents', () => {
+  h.hydrated = false;
+  expect(useRecentBlueprints()).toBeNull();
+  h.hydrated = true;
+  expect(useRecentBlueprints()).toEqual([]);
 });
 
-describe('parseRecentBlueprints', () => {
-  it('returns [] for null, empty, or non-array JSON', () => {
-    expect(parseRecentBlueprints(null)).toEqual([]);
-    expect(parseRecentBlueprints('')).toEqual([]);
-    expect(parseRecentBlueprints('{"a":1}')).toEqual([]);
-  });
+test('the blueprint opened last leads, a reopened one moves up rather than repeating, and eight are kept', () => {
+  for (const typeId of [1, 2, 3, 4, 5, 6, 7, 8, 9, 3]) recordRecentBlueprint(blueprint(typeId));
+  expect(useRecentBlueprints()!.map((r) => r.typeId)).toEqual([3, 9, 8, 7, 6, 5, 4, 2]);
+});
 
-  it('returns [] on malformed JSON without throwing', () => {
-    expect(parseRecentBlueprints('not json')).toEqual([]);
-  });
+test('recents kept by the old landing page still read, and anything malformed is skipped', () => {
+  stored.set(KEY, JSON.stringify([blueprint(691), { typeId: 'x' }, null, blueprint(2047)]));
+  expect(useRecentBlueprints()).toEqual([blueprint(691), blueprint(2047)]);
+  stored.set(KEY, '{not json');
+  expect(useRecentBlueprints()).toEqual([]);
+  stored.set(KEY, '{"typeId":1}');
+  expect(useRecentBlueprints()).toEqual([]);
+});
 
-  it('keeps valid entries and drops foreign ones', () => {
-    const raw = JSON.stringify([
-      { typeId: 1, productTypeId: 1001, name: 'A' },
-      { typeId: 'bad' },
-      { typeId: 2, productTypeId: 1002, name: 'B' },
-    ]);
-    expect(parseRecentBlueprints(raw)).toEqual([
-      { typeId: 1, productTypeId: 1001, name: 'A' },
-      { typeId: 2, productTypeId: 1002, name: 'B' },
-    ]);
-  });
+test('the same stored list reads as the same list, so the page does not re-render for nothing', () => {
+  recordRecentBlueprint(blueprint(1));
+  expect(useRecentBlueprints()).toBe(useRecentBlueprints());
+});
 
-  it('caps the parsed list at the max (8)', () => {
-    const many = Array.from({ length: 12 }, (_, i) => ({
-      typeId: i,
-      productTypeId: i + 1000,
-      name: `BP ${i}`,
-    }));
-    expect(parseRecentBlueprints(JSON.stringify(many))).toHaveLength(8);
+test('a recorded blueprint tells whoever is listening, until they stop', () => {
+  useRecentBlueprints();
+  const listener = vi.fn();
+  const unsubscribe = h.subscribe!(listener);
+  recordRecentBlueprint(blueprint(1));
+  expect(listener).toHaveBeenCalledTimes(1);
+  unsubscribe();
+  recordRecentBlueprint(blueprint(2));
+  expect(listener).toHaveBeenCalledTimes(1);
+});
+
+test('a device that will not store anything still opens blueprints', () => {
+  vi.stubGlobal('window', {
+    localStorage: { getItem: () => null, setItem: () => { throw new Error('quota'); } },
   });
+  expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
+  vi.stubGlobal('window', {
+    get localStorage(): Storage {
+      throw new Error('blocked');
+    },
+  });
+  expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
+  expect(useRecentBlueprints()).toEqual([]);
+  vi.unstubAllGlobals();
 });

@@ -1,5 +1,7 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { stackedShareLayout } from './stacked-share-bar';
+import { SlimShareBar, stackedShareLayout } from './stacked-share-bar';
 
 describe('stackedShareLayout', () => {
   it('lays segments end-to-end across the width with cumulative x and share %', () => {
@@ -16,5 +18,32 @@ describe('stackedShareLayout', () => {
 
   it('returns nothing when the total is zero', () => {
     expect(stackedShareLayout([{ label: 'a', value: 0, tone: 'blue' }], 200)).toEqual([]);
+  });
+});
+
+describe('SlimShareBar', () => {
+  it('draws one segment per share with a gap before each later segment', () => {
+    const html = renderToStaticMarkup(
+      createElement(SlimShareBar, {
+        ariaLabel: 'Sync runs',
+        segments: [
+          { label: 'synced', value: 23, tone: 'green' },
+          { label: 'partial', value: 6, tone: 'orange' },
+        ],
+      }),
+    );
+    expect(html).toContain('aria-label="Sync runs"');
+    expect(html.match(/<rect/g)).toHaveLength(2);
+    expect(html.match(/<line/g)).toHaveLength(1);
+  });
+
+  it('renders nothing when every share is zero', () => {
+    const html = renderToStaticMarkup(
+      createElement(SlimShareBar, {
+        ariaLabel: 'Empty',
+        segments: [{ label: 'a', value: 0, tone: 'green' }],
+      }),
+    );
+    expect(html).toBe('');
   });
 });

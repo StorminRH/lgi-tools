@@ -1,5 +1,7 @@
+import { composeFeeInputs } from './structure-factors';
 import { describe, expect, it } from 'vitest';
 import { computeBatchLedger } from './build-batch';
+import { deriveMarginFigures } from './industry-styles';
 import {
   assemblePricing,
   buildConfidenceInputs,
@@ -25,6 +27,7 @@ const STRUCTURE: BlueprintStructure = {
   topJobSeconds: null,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeFilterIds: {},
   nodeTimeSkills: {},
 };
 
@@ -410,6 +413,7 @@ const FERNITE_STRUCTURE: BlueprintStructure = {
   topJobSeconds: null,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeFilterIds: {},
   nodeTimeSkills: {},
 };
 
@@ -580,5 +584,119 @@ describe('buildConfidenceInputs', () => {
       buyVolume: 30,
       unitBuy: 1_000,
     });
+  });
+});
+
+describe('assemblePricing component job fees', () => {
+  // A widget from 5 plates a run; the plates take 7 Tritanium a run and come 10 to a run.
+  const CHAIN: BlueprintStructure = {
+    ...STRUCTURE,
+    tree: [
+      {
+        typeId: 500,
+        quantity: 5,
+        producedBy: { blueprintTypeId: 1500, quantityPerRun: 10, runsNeeded: 0.5 },
+        inputs: [{ typeId: 34, quantity: 7, inputs: [] }],
+      },
+    ],
+    buildTree: [
+      {
+        typeId: 999,
+        quantity: 1,
+        inputs: [{ typeId: 500, quantity: 5, inputs: [{ typeId: 34, quantity: 7, inputs: [] }] }],
+      },
+    ],
+    buildNodeDisplay: DISPLAY,
+    nodeActivityByBlueprint: { 1500: 1 },
+  };
+  const adjusted = (id: number) => ({ 34: 5, 500: 40 })[id] ?? null;
+  const components = {
+    siteOf: () => ({ systemId: 7, facilityTaxPct: 1, costBonusPct: 4 }),
+    costIndexOf: (systemId: number) => (systemId === 7 ? 0.1 : null),
+  };
+  const price = (basis: 'batched' | 'marginal', withComponents = true) =>
+    assemblePricing(CHAIN, (t) => NET_PRICES[t], {
+      basis,
+      fee: { adjustedPriceOf: adjusted, systemCostIndex: 0.04, ...(withComponents ? { components } : {}) },
+    });
+
+  it('without a profile only the product’s own job is charged, as before', () => {
+    const net = price('batched', false).net!;
+    expect(net.componentJobs).toBeNull();
+    // 35 of Tritanium, and the widget's job on 5 plates at 40: 8 + 0.5 + 8.
+    expect(net.jobFee.total).toBeCloseTo(16.5, 9);
+    expect(net.netCost).toBeCloseTo(51.5, 9);
+  });
+
+  it('the full line charges the plates’ whole run where the profile builds them', () => {
+    const pricing = price('batched');
+    const net = pricing.net!;
+    // One whole run of plates: 7 Tritanium at 5 is 35; at 10% less 4%, 1% tax, 4% SCC.
+    expect(net.componentJobs!.jobs).toHaveLength(1);
+    expect(net.componentJobs!.jobs[0]).toMatchObject({ typeId: 500, runs: 1, systemId: 7, systemCostIndex: 0.1 });
+    expect(net.componentJobs!.total).toBeCloseTo(3.36 + 0.35 + 1.4, 9);
+    expect(net.netCost).toBeCloseTo(35 + 16.5 + 5.11, 9);
+    expect(net.netMargin).toBeCloseTo(1_000 - 105 - 56.61, 9);
+    // The fees shown add up to the cost charged.
+    expect(net.netCost! - pricing.summary.inputCost - net.jobFee.total!).toBeCloseTo(net.componentJobs!.total!, 9);
+  });
+
+  it('one build charges only the half run of plates it draws', () => {
+    const net = price('marginal').net!;
+    expect(net.componentJobs!.jobs[0]!.runs).toBe(0.5);
+    expect(net.componentJobs!.total).toBeCloseTo(2.555, 9);
+    expect(net.netCost).toBeCloseTo(17.5 + 16.5 + 2.555, 9);
+  });
+
+  it.each([1, 11])('a component-only profile charges known jobs while uncovered activity %i and net remain unknown', (activityId) => {
+    const fee = composeFeeInputs({
+      location: null, reactionLocation: null, buildStructure: null, reactionStructure: null,
+      structureCostBonusPct: 0, components: { ...components, adjustedPriceOf: adjusted },
+    });
+    const net = assemblePricing({ ...CHAIN, activityId }, (t) => NET_PRICES[t], { fee }).net!;
+    expect(net.componentJobs!.total).toBeCloseTo(5.11, 9);
+    expect(net.componentJobs!.jobs[0]!.systemId).toBe(7);
+    expect(net.systemCostIndex).toBeNull();
+    expect(net.jobFee.missingSystemCostIndex).toBe(true);
+    expect(net.jobFee.total).toBeNull();
+    expect(net.netCost).toBeNull();
+    expect(net.netMargin).toBeNull();
+  });
+
+  it('a component job in a system with no index leaves the net cost open', () => {
+    const pricing = assemblePricing(CHAIN, (t) => NET_PRICES[t], {
+      fee: {
+        adjustedPriceOf: adjusted,
+        systemCostIndex: 0.04,
+        components: { ...components, costIndexOf: () => null },
+      },
+    });
+    expect(pricing.net!.componentJobs!.total).toBeNull();
+    expect(pricing.net!.netCost).toBeNull();
+    expect(pricing.net!.netMargin).toBeNull();
+    expect(deriveMarginFigures(pricing.summary, pricing.net).missingSystemCostIndex).toBe(true);
+  });
+
+  it('a nested input with no adjusted price counts as nothing and keeps the net, named as unpriced', () => {
+    const net = assemblePricing(CHAIN, (t) => NET_PRICES[t], {
+      fee: { adjustedPriceOf: (id) => id === 34 ? null : adjusted(id), systemCostIndex: 0.04, components },
+    }).net!;
+    expect(net.jobFee.missingAdjustedPriceTypeIds).toEqual([]);
+    expect(net.jobFee.total).toBeCloseTo(16.5, 9);
+    // The plates' only input is unpriced, so their job is valued at nothing.
+    expect(net.componentJobs!.jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([34]);
+    expect(net.componentJobs!.total).toBe(0);
+    expect(net.netCost).toBeCloseTo(35 + 16.5, 9);
+    expect(net.netMargin).toBeCloseTo(1_000 - 105 - 51.5, 9);
+    expect(deriveMarginFigures(null, net).missingAdjustedPriceCount).toBe(1);
+  });
+
+  it('a precomputed ledger charges the same runs as walking the tree', () => {
+    const walked = price('batched').net!;
+    const reused = assemblePricing(CHAIN, (t) => NET_PRICES[t], {
+      ledger: computeBatchLedger(CHAIN.tree, 1),
+      fee: { adjustedPriceOf: adjusted, systemCostIndex: 0.04, components },
+    }).net!;
+    expect(reused).toEqual(walked);
   });
 });

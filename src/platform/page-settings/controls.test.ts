@@ -42,7 +42,7 @@ describe('resolveMenuControls', () => {
       resolveMenuControls(
         spec([
           { key: 'sites.unregistered', placement: 'section' },
-          { key: 'planner.buildLocation', placement: 'section' },
+          { key: 'atlas.dockCharacterId', placement: 'section' },
           { key: 'sites.view', placement: 'section' },
         ]),
       ).map((m) => m.key),
@@ -129,7 +129,7 @@ describe('resolvePageControls', () => {
       resolvePageControls(
         spec([
           { key: 'sites.unregistered', placement: 'inline' },
-          { key: 'planner.buildLocation', placement: 'inline' },
+          { key: 'atlas.dockCharacterId', placement: 'inline' },
           { key: 'sites.view', placement: 'inline' },
         ]),
       ),

@@ -12,6 +12,7 @@ import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';
 import { Kbd } from '@/components/ui/kbd';
+import { SearchIcon } from '@/components/ui/icons';
 import { flattenSections, searchIconClass, searchRowImage, splitMatchRuns } from './global-search-view';
 
 export type Props = {
@@ -109,7 +110,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           data-search-input
           aria-label="Search"
           className="nav-search max-lg:w-full"
-          prompt={<span className="shrink-0 font-data text-ui font-bold text-isk">&gt;</span>}
+          prompt={<SearchIcon size={15} />}
           trailing={<SearchHints active={active} />}
           type="text"
           spellCheck={false}

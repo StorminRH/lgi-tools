@@ -216,6 +216,8 @@ export function defineCronRoute<Body, Pre = void>(
 export type CronBatchStep = {
   name: string;
   due: (now: Date) => boolean;
+  /** An earlier step that must have succeeded in this run, or this one is skipped. */
+  requires?: string;
   run: () => Promise<Response>;
 };
 
@@ -223,12 +225,18 @@ export type CronBatchStep = {
 export function cronBatchStep<Body, Pre>(
   declaration: CronRouteDeclaration<Body, Pre>,
   due: (now: Date) => boolean = () => true,
+  requires?: { name: string },
 ): CronBatchStep {
   return {
     name: declaration.name,
     due,
+    requires: requires?.name,
     run: () => runDeclaredCron(declaration),
   };
+}
+
+function requirementMet(step: CronBatchStep, results: CronBatchResponse['steps']): boolean {
+  return step.requires === undefined || results.find((result) => result.name === step.requires)?.status === 'ok';
 }
 
 async function runBatchStep(step: CronBatchStep): Promise<CronBatchStepStatus> {
@@ -244,7 +252,7 @@ async function runBatchStep(step: CronBatchStep): Promise<CronBatchStepStatus> {
 /**
  * Runs declared crons one after another in a single invocation, so their
  * order holds however late the platform fires the schedule. Each step records
- * its own telemetry, and a failed step never stops the steps after it. Body
+ * its own telemetry, and a failed step stops only the steps that require it. Body
  * names the route's contract type, as it does for defineCronRoute.
  */
 export function defineCronBatchRoute<Body extends CronBatchResponse>(
@@ -256,7 +264,7 @@ export function defineCronBatchRoute<Body extends CronBatchResponse>(
     const now = new Date();
     const results: CronBatchResponse['steps'] = [];
     for (const step of steps) {
-      const status = step.due(now) ? await runBatchStep(step) : 'skipped';
+      const status = step.due(now) && requirementMet(step, results) ? await runBatchStep(step) : 'skipped';
       results.push({ name: step.name, status });
     }
     const failed = results.some((result) => result.status === 'failed');

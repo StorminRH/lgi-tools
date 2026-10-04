@@ -4,6 +4,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
+  MapBlockOption,
 } from '@/data/maps/access-contract';
 import type {
   AuthorizedMapRow,
@@ -15,6 +16,7 @@ export interface MapCatalogueData {
   readonly deletedMaps: readonly DeletedRestorableMapRow[];
   readonly corporations: readonly CorporationAccessOption[];
   readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
+  readonly blocksByMapId: Readonly<Record<string, readonly MapBlockOption[]>>;
   readonly listingAvailable: boolean;
 }
 

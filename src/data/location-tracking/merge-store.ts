@@ -26,6 +26,18 @@ export async function readPendingTrackingMerges(userId?: string) {
     .orderBy(asc(pendingTrackingMerges.queuedAt), asc(pendingTrackingMerges.id)).limit(10);
 }
 
+export async function readPendingMapTrackingTransfers(mapId: string, database: AnyPgDb = db) {
+  const result = await database.execute<{ userId: string; characterId: number | string }>(sql`
+    SELECT DISTINCT pending.user_id AS "userId", (selection->>'characterId')::bigint AS "characterId"
+    FROM ${pendingTrackingMerges} AS pending
+    CROSS JOIN LATERAL jsonb_array_elements(pending.selections) AS selection
+    WHERE selection->>'mapId' = ${mapId}
+    ORDER BY "userId", "characterId"
+  `);
+  const rows: { userId: string; characterId: number | string }[] = Array.isArray(result) ? result : result.rows;
+  return rows.map(({ userId, characterId }) => ({ userId, characterId: Number(characterId) }));
+}
+
 const operationIdSchema = z.guid();
 
 export async function readPendingTrackingOperationIds(

@@ -14,11 +14,15 @@ import {
 } from '@/data/industry-math/profitability';
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 import {
+  computeBatchLedger,
   computeBatchMaterials,
   computeMarginalMaterials,
+  computeMarginalRuns,
+  feeJobs,
   type BatchLedger,
   type MeOptions,
 } from './build-batch';
+import { computeComponentJobFees, type ComponentFeeSources } from './component-job-fees';
 import type { ConfidenceInput } from './industry-styles';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
 import type {
@@ -26,6 +30,7 @@ import type {
   BlueprintStructure,
   BuildNode,
   BuildNodeDisplay,
+  ComponentJobFees,
   IntermediatePrice,
   MaterialCostRow,
   NetMarginView,
@@ -126,21 +131,49 @@ export interface AssembleOptions {
       systemCostIndex: number | null;
       facilityTaxPct?: number | null;
     };
+    /** Where each job below the product's runs; without it only the product's own job is charged. */
+    components?: Pick<ComponentFeeSources, 'siteOf' | 'costIndexOf'>;
   };
   meOf?: (blueprintTypeId: number) => number | undefined;
   structureMeFactorOf?: (blueprintTypeId: number) => number;
   basis?: 'batched' | 'marginal';
 }
 
+/**
+ * The install fees of the jobs below the product's, at the runs the cost
+ * basis counts: whole runs for the full line, the consumed share for one
+ * build.
+ */
+function componentJobFees(
+  structure: BlueprintStructure,
+  fee: NonNullable<AssembleOptions['fee']>,
+  bill: CostBill,
+): ComponentJobFees | null {
+  if (!fee.components) return null;
+  const runsOf =
+    bill.basis === 'marginal'
+      ? computeMarginalRuns(structure.tree, bill.runs, bill.meOpts)
+      : new Map(
+          [...(bill.ledger ?? computeBatchLedger(structure.tree, bill.runs, bill.meOpts)).builds].map(
+            ([typeId, build]) => [typeId, build.runs],
+          ),
+        );
+  return computeComponentJobFees(feeJobs(structure.tree, runsOf), {
+    ...fee.components,
+    activityOf: (blueprintTypeId) => structure.nodeActivityByBlueprint[blueprintTypeId],
+    adjustedPriceOf: fee.adjustedPriceOf,
+  });
+}
+
 function computeNet(
   structure: BlueprintStructure,
   fee: AssembleOptions['fee'],
-  runs: number,
-  buildCost: number,
+  bill: CostBill,
   productSell: number | null,
   outputUnits: number,
 ): NetMarginView | null {
   if (!fee) return null;
+  const { runs } = bill;
   let systemCostIndex: number | null;
   let enteredTaxPct: number | null;
   let rates: FeeRates;
@@ -150,9 +183,9 @@ function computeNet(
     enteredTaxPct = fee.facilityTaxPct ?? null;
     rates = { ...DEFAULT_FEE_RATES, facilityTax: effectiveFacilityTaxRate(enteredTaxPct) };
     structureCostBonusPct = fee.structureCostBonusPct ?? 0;
-  } else if (structure.activityId === REACTION_ACTIVITY && fee.reaction) {
-    systemCostIndex = fee.reaction.systemCostIndex;
-    enteredTaxPct = fee.reaction.facilityTaxPct ?? null;
+  } else if (structure.activityId === REACTION_ACTIVITY && (fee.reaction || fee.components)) {
+    systemCostIndex = fee.reaction?.systemCostIndex ?? null;
+    enteredTaxPct = fee.reaction?.facilityTaxPct ?? null;
     rates = {
       ...DEFAULT_FEE_RATES,
       facilityTax: effectiveFacilityTaxRate(enteredTaxPct),
@@ -166,8 +199,9 @@ function computeNet(
     typeId: i.typeId,
     quantity: i.quantity * runs,
   }));
+  const componentJobs = componentJobFees(structure, fee, bill);
   const result = computeNetMargin({
-    buildCost,
+    buildCost: bill.buildCost.total,
     productSell,
     productQty: outputUnits,
     baseMaterials,
@@ -175,6 +209,7 @@ function computeNet(
     systemCostIndex,
     rates,
     structureCostBonusPct,
+    componentJobFees: componentJobs?.total,
   });
   return {
     netMargin: result.netMargin,
@@ -185,7 +220,18 @@ function computeNet(
     facilityTaxAssumed: enteredTaxPct === null,
     jobFee: result.jobFee,
     sellSide: result.sellSide,
+    componentJobs,
   };
+}
+
+interface CostBill {
+  basis: 'batched' | 'marginal';
+  runs: number;
+  meOpts: MeOptions;
+  ledger: BatchLedger | undefined;
+  rowsCost: BuildCost;
+  buildCost: BuildCost;
+  bases: { batched: number; marginal: number };
 }
 
 function resolveCostBills(
@@ -193,12 +239,7 @@ function resolveCostBills(
   runs: number,
   opts: AssembleOptions,
   buyOf: PriceOf,
-): {
-  basis: 'batched' | 'marginal';
-  rowsCost: BuildCost;
-  buildCost: BuildCost;
-  bases: { batched: number; marginal: number };
-} {
+): CostBill {
   const meOpts: MeOptions = {
     meOf: opts.meOf ?? (() => undefined),
     topBlueprintTypeId: structure.blueprintTypeId,
@@ -216,6 +257,9 @@ function resolveCostBills(
   const buildCost = basis === 'marginal' ? marginalCost : rowsCost;
   return {
     basis,
+    runs,
+    meOpts,
+    ledger: opts.ledger,
     rowsCost,
     buildCost,
     bases: { batched: rowsCost.total, marginal: marginalCost.total },
@@ -233,7 +277,8 @@ export function assemblePricing(
     return p ? { bestBuy: p.bestBuy, bestSell: p.bestSell } : undefined;
   };
 
-  const { basis, rowsCost, buildCost, bases } = resolveCostBills(structure, runs, opts, buyOf);
+  const bill = resolveCostBills(structure, runs, opts, buyOf);
+  const { basis, rowsCost, buildCost, bases } = bill;
   const productPrice = priceOf(structure.product.typeId);
   const outputUnits = structure.product.quantityPerRun * runs;
   const margin = computeMargin({
@@ -275,13 +320,6 @@ export function assemblePricing(
         buildCost.missingTypeIds.length > 0 ||
         (productPrice?.bestSell ?? null) === null,
     },
-    net: computeNet(
-      structure,
-      opts.fee,
-      runs,
-      buildCost.total,
-      productPrice?.bestSell ?? null,
-      outputUnits,
-    ),
+    net: computeNet(structure, opts.fee, bill, productPrice?.bestSell ?? null, outputUnits),
   };
 }

@@ -17,8 +17,10 @@ const FALLBACK_SIZE_CLASS: Record<number, string> = {
   22: 'size-icon-lg',
   26: 'w-[26px] h-[26px]',
   32: 'w-[32px] h-[32px]',
+  40: 'size-10',
   64: 'w-[64px] h-[64px]',
   88: 'w-[88px] h-[88px]',
+  112: 'size-28',
 };
 
 export function TypeIcon({

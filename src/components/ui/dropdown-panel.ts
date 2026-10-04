@@ -4,16 +4,14 @@ export const panelSurface = 'border border-border-idle glass-dense glass-lit sha
 
 export const menuPanelSurface = `${panelSurface} rounded-card overflow-hidden`;
 
-export const dropdownPanel = `${panelSurface} rounded-card p-[5px] outline-none`;
+export const dropdownPanel = `${panelSurface} dropdown-panel-in rounded-card p-1.5 outline-none`;
+
+export const dropdownOption = 'dropdown-option cursor-default select-none outline-none';
 
 export const dropdownItem =
-  'flex cursor-default select-none items-center justify-between gap-2 rounded-ctl px-2.5 py-2 ' +
-  'text-ui font-data text-text outline-none ' +
-  'data-[highlighted]:bg-row-on data-[highlighted]:text-name ' +
-  'data-[selected]:bg-pill-green-bg data-[selected]:text-isk';
+  `${dropdownOption} flex items-center justify-between gap-2.5 font-ui text-nav text-text`;
 
-export const dropdownGroupLabel =
-  `px-2.5 pt-2 pb-1 ${eyebrow({ tone: 'faint', emphasis: 'strong' })}`;
+export const dropdownGroupLabel = 'px-2.5 pt-2.5 pb-1 font-ui text-label font-medium text-faint';
 
 export const menuRow =
   'flex w-full cursor-pointer items-center gap-2 px-3 py-2 font-ui text-nav text-muted outline-none ' +

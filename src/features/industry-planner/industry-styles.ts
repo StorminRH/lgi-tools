@@ -1,3 +1,5 @@
+import { cn } from '@/components/ui/cn';
+import { fieldVariants, triggerShape } from '@/components/ui/input';
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
 import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
@@ -9,54 +11,40 @@ const THIN_MARGIN_PCT = 5;
 
 export type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
 
-export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
-  'border-border-soft bg-bg-deep text-isk shadow-field-inset hover:border-border-idle hover:bg-row-active hover:text-isk data-[popup-open]:border-border-idle data-[popup-open]:bg-row-active';
-
-export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
-
-export const HERO_LOCATION_GROUP_CLASS =
-  'flex w-full min-w-0 max-w-[332px] sm:w-[332px] flex-col justify-center gap-1.5';
-
-export const HERO_LOCATION_ROW_CLASS = 'flex min-w-0 items-center gap-2';
-
-export const HERO_LOCATION_CONTROL_WELL_CLASS = 'min-w-0 flex-1 max-w-[260px]';
+/** The rail's tool buttons wear the frosted trigger the profile picker wears. */
+export const PLANNER_TOOL_TRIGGER_CLASS = cn(
+  fieldVariants({ size: 'md' }),
+  triggerShape,
+  'flex cursor-pointer items-center justify-between gap-2 whitespace-nowrap font-ui text-nav text-name',
+);
 
 export const EFFICIENCY_TONE_CLASSES: Record<
   EfficiencyToneState,
-  { fill: string; glow: string; stroke: string; text: string; frame: string }
+  { glow: string; text: string; frame: string }
 > = {
   unowned: {
-    fill: 'fill-none',
     glow: '',
-    stroke: 'stroke-muted',
     text: 'text-muted',
-    frame: 'border-border-soft',
+    // An unowned blueprint's icon looks like any other until its research says something.
+    frame: 'border-transparent',
   },
   owned: {
-    fill: 'fill-evb-bright',
     glow: 'drop-shadow-[0_0_4px_var(--color-evb-glow)]',
-    stroke: 'stroke-evb-bright',
     text: 'text-evb-bright',
     frame: 'border-isk',
   },
   manual: {
-    fill: 'fill-[var(--color-dps-mid)]',
     glow: 'drop-shadow-[0_0_4px_var(--color-dps-mid)]',
-    stroke: 'stroke-[var(--color-dps-mid)]',
     text: 'text-[var(--color-dps-mid)]',
     frame: 'border-[var(--color-dps-mid)]',
   },
   bonus: {
-    fill: 'fill-[var(--color-isk)]',
     glow: 'drop-shadow-[0_0_4px_var(--color-isk)]',
-    stroke: 'stroke-[var(--color-isk)]',
     text: 'text-isk',
     frame: 'border-isk',
   },
   reaction: {
-    fill: 'fill-[var(--color-reaction-purple)]',
     glow: 'drop-shadow-[0_0_4px_var(--color-reaction-purple)]',
-    stroke: 'stroke-[var(--color-reaction-purple)]',
     text: 'text-[var(--color-reaction-purple)]',
     frame: 'border-[var(--color-reaction-purple)]',
   },
@@ -84,18 +72,22 @@ export function deriveMarginFigures(
     netMargin: number | null;
     netMarginPct: number | null;
     jobFee: { missingSystemCostIndex: boolean; missingAdjustedPriceTypeIds: readonly unknown[] };
+    componentJobs?: {
+      jobs: readonly { fee: { missingSystemCostIndex: boolean; missingAdjustedPriceTypeIds: readonly unknown[] } }[];
+    } | null;
   } | null,
 ): MarginFigures {
   const showNet = net !== null;
   const margin = net !== null ? net.netMargin : (summary?.margin ?? null);
   const marginPct = net !== null ? net.netMarginPct : (summary?.marginPct ?? null);
+  const fees = net ? [net.jobFee, ...(net.componentJobs?.jobs.map((job) => job.fee) ?? [])] : [];
   return {
     showNet,
     margin,
     marginPct,
     sign: margin !== null && margin > 0 ? '+' : '',
-    missingSystemCostIndex: net !== null ? net.jobFee.missingSystemCostIndex : false,
-    missingAdjustedPriceCount: net !== null ? net.jobFee.missingAdjustedPriceTypeIds.length : 0,
+    missingSystemCostIndex: fees.some((fee) => fee.missingSystemCostIndex),
+    missingAdjustedPriceCount: new Set(fees.flatMap((fee) => fee.missingAdjustedPriceTypeIds)).size,
   };
 }
 

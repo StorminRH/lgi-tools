@@ -7,6 +7,7 @@ import { EVE_CHARACTER_SEARCH_SCOPE } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveScopeHealth } from '@/platform/auth/scope-health';
 import { esiFetch, esiUrl } from '@/platform/esi';
+import { fetchCharacterSearch } from './esi-character-search';
 
 const MAX_TYPEAHEAD_RESULTS = 20;
 
@@ -34,18 +35,8 @@ async function searchWithScopedToken(
   accessToken: string,
   search: string,
 ): Promise<SearchCharactersResponse> {
-  const query = new URLSearchParams({
-    categories: 'character',
-    search,
-    strict: 'false',
-  });
-  const response = await esiFetch(
-    esiUrl(`/characters/${characterId}/search/?${query.toString()}`),
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
-  if (!response.ok) throw new Error(`Scoped ESI character search failed (${response.status})`);
-
-  const parsed = esiCharacterSearchSchema.safeParse(await response.json());
+  const body = await fetchCharacterSearch(characterId, accessToken, 'character', search);
+  const parsed = esiCharacterSearchSchema.safeParse(body);
   if (!parsed.success) throw new Error('Scoped ESI character search returned an invalid body');
 
   const ids = uniqueIds(parsed.data.character ?? []);

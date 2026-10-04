@@ -3,6 +3,7 @@ import {
   registerSearchSource,
   registerLazySearchSource,
   searchAll,
+  searchOneSource,
   __resetSearchSources,
   type SearchContext,
   type SearchResult,
@@ -393,5 +394,30 @@ describe('searchAll scoping', () => {
     await expect(
       searchAll('q', makeCtx({ signal: controller.signal }), ['slow']),
     ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
+
+describe('searchOneSource', () => {
+  afterEach(() => __resetSearchSources());
+
+  it('returns only the named source, signed out, even when it is excluded from the default scope', async () => {
+    const seen: SearchContext[] = [];
+    registerSearchSource(makeSource('Tools', [{ kind: 'tool', id: 't', label: 'Tool', href: '/t' }]));
+    registerSearchSource({
+      ...makeSource('Structures', [{ kind: 'structure', id: 's', label: 'Azbel', href: '#' }]),
+      excludeFromDefaultScope: true,
+      async search(_query, ctx) {
+        seen.push(ctx);
+        return [{ kind: 'structure', id: 's', label: 'Azbel', href: '#' }];
+      },
+    });
+    const out = await searchOneSource('azb', 'structures', new AbortController().signal);
+    expect(out.map((r) => r.label)).toEqual(['Azbel']);
+    expect(seen[0]).toMatchObject({ session: null, isAdmin: false, recents: [] });
+  });
+
+  it('returns an empty list when the source has nothing', async () => {
+    registerSearchSource(makeSource('Structures', []));
+    expect(await searchOneSource('azb', 'structures', new AbortController().signal)).toEqual([]);
   });
 });

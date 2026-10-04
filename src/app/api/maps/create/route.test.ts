@@ -36,6 +36,7 @@ function request(body: unknown): Request {
 
 const VALID_BODY = {
   name: 'Home chain',
+  creatorCharacterIds: [7],
   grants: [{ ownerType: 'character', ownerId: 42, role: 'editor' }],
 };
 
@@ -47,6 +48,17 @@ beforeEach(() => {
 });
 
 describe('POST /api/maps/create', () => {
+  it('requires at least one linked creator character', async () => {
+    expect((await POST(request({ ...VALID_BODY, creatorCharacterIds: [] }))).status).toBe(400);
+    expect(
+      (await POST(request({ ...VALID_BODY, creatorCharacterIds: [42] }))).status,
+    ).toBe(400);
+    h.createProjectedMap.mockResolvedValueOnce({ ok: false, reason: 'unlinked-creator-character' });
+    const response = await POST(request({ ...VALID_BODY, creatorCharacterIds: [9] }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: 'invalid_body' });
+  });
+
   it('reuses one authenticated identity for preflight and authorization', async () => {
     const response = await POST(request(VALID_BODY));
 

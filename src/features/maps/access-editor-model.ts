@@ -118,8 +118,18 @@ export type PreparedMapCreation =
   | { readonly ok: true; readonly input: CreateMapRequest }
   | { readonly ok: false; readonly message: string };
 
+/** Character ids holding a saved grant on the list. */
+export function grantedCharacterIds(drafts: readonly AccessGrantDraft[]): ReadonlySet<number> {
+  return new Set(drafts
+    .filter((draft) => draft.ownerType === 'character' && draft.role !== null)
+    .map((draft) => draft.ownerId));
+}
+
+export const CREATOR_CHARACTER_REQUIRED_MESSAGE = 'Choose at least one of your characters.';
+
 export function prepareMapCreation(
   name: string,
+  creatorCharacterIds: readonly number[],
   drafts: readonly AccessGrantDraft[],
   maxNameLength: number,
 ): PreparedMapCreation {
@@ -130,14 +140,23 @@ export function prepareMapCreation(
       message: `Enter a map name up to ${maxNameLength} characters.`,
     };
   }
-  const grants = createMapGrantsFromDrafts(drafts);
+  if (creatorCharacterIds.length === 0) {
+    return { ok: false, message: CREATOR_CHARACTER_REQUIRED_MESSAGE };
+  }
+  const own = new Set(creatorCharacterIds);
+  const grants = createMapGrantsFromDrafts(
+    drafts.filter((draft) => draft.ownerType !== 'character' || !own.has(draft.ownerId)),
+  );
   if (grants === null) {
     return {
       ok: false,
       message: 'Choose Read-only or Write for every selected principal.',
     };
   }
-  return { ok: true, input: { name: normalizedName, grants } };
+  return {
+    ok: true,
+    input: { name: normalizedName, creatorCharacterIds: [...creatorCharacterIds], grants },
+  };
 }
 
 export function characterSearchPopupOpen(

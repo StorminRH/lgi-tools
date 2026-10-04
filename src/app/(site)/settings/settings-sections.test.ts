@@ -3,16 +3,10 @@ import {
   deriveActiveSettingsSection,
   SETTINGS_GROUPS,
   SETTINGS_LANDING_HREF,
-  visibleSettingsGroups,
 } from './settings-sections';
 
-test('the rail hides administration for members, keeps every href unique, and lands on a real section', () => {
-  const member = visibleSettingsGroups(false);
-  expect(member.map((group) => group.id)).toEqual(['personal']);
-  expect(member.some((group) => group.adminOnly)).toBe(false);
-
-  const admin = visibleSettingsGroups(true);
-  expect(admin.map((group) => group.id)).toEqual(['personal', 'administration']);
+test('the rail holds only personal sections, keeps every href unique, and lands on a real section', () => {
+  expect(SETTINGS_GROUPS.map((group) => group.id)).toEqual(['personal']);
 
   const hrefs = SETTINGS_GROUPS.flatMap((group) => group.sections.map((section) => section.href));
   expect(new Set(hrefs).size).toBe(hrefs.length);
@@ -20,16 +14,11 @@ test('the rail hides administration for members, keeps every href unique, and la
   expect(hrefs).toContain(SETTINGS_LANDING_HREF);
 });
 
-test('the active section follows the pathname, including nested detail routes and trailing slashes', () => {
-  const groups = visibleSettingsGroups(true);
-
-  expect(deriveActiveSettingsSection('/settings/characters', groups)?.id).toBe('characters');
-  expect(deriveActiveSettingsSection('/settings/characters/', groups)?.id).toBe('characters');
-  expect(deriveActiveSettingsSection('/settings/access/user-123', groups)?.id).toBe('access');
-  expect(deriveActiveSettingsSection('/settings/accessories', groups)).toBeNull();
-  expect(deriveActiveSettingsSection('/settings', groups)).toBeNull();
-  expect(deriveActiveSettingsSection('/atlas', groups)).toBeNull();
-
-  const memberOnly = visibleSettingsGroups(false);
-  expect(deriveActiveSettingsSection('/settings/access', memberOnly)).toBeNull();
+test('the active section follows the pathname, including nested routes and trailing slashes', () => {
+  expect(deriveActiveSettingsSection('/settings/characters', SETTINGS_GROUPS)?.id).toBe('characters');
+  expect(deriveActiveSettingsSection('/settings/characters/', SETTINGS_GROUPS)?.id).toBe('characters');
+  expect(deriveActiveSettingsSection('/settings/account/extra', SETTINGS_GROUPS)?.id).toBe('account');
+  expect(deriveActiveSettingsSection('/settings/accounts', SETTINGS_GROUPS)).toBeNull();
+  expect(deriveActiveSettingsSection('/settings', SETTINGS_GROUPS)).toBeNull();
+  expect(deriveActiveSettingsSection('/atlas', SETTINGS_GROUPS)).toBeNull();
 });

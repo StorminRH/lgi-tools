@@ -5,6 +5,7 @@ import type { CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 const mocks = vi.hoisted(() => ({
   getAuthorizedMapGrantsForMaps: vi.fn(),
+  getAuthorizedMapBlocksForMaps: vi.fn(),
   listAuthorizedMapsForPrincipals: vi.fn(),
   listDeletedRestorableMapsForPrincipals: vi.fn(),
   getUserAffiliations: vi.fn(),
@@ -16,6 +17,9 @@ vi.mock('@/data/maps/queries', () => ({
   getAuthorizedMapGrantsForMaps: mocks.getAuthorizedMapGrantsForMaps,
   listAuthorizedMapsForPrincipals: mocks.listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals: mocks.listDeletedRestorableMapsForPrincipals,
+}));
+vi.mock('@/data/maps/blocks', () => ({
+  getAuthorizedMapBlocksForMaps: mocks.getAuthorizedMapBlocksForMaps,
 }));
 vi.mock('@/platform/auth/affiliation-store', () => ({
   getUserAffiliations: mocks.getUserAffiliations,
@@ -56,6 +60,7 @@ beforeEach(() => {
   });
   mocks.getUserAffiliations.mockResolvedValue([]);
   mocks.getAuthorizedMapGrantsForMaps.mockResolvedValue([]);
+  mocks.getAuthorizedMapBlocksForMaps.mockResolvedValue([]);
   mocks.listAuthorizedMapsForPrincipals.mockResolvedValue([]);
   mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue([]);
   mocks.resolveEntityNames.mockResolvedValue({});
@@ -96,7 +101,12 @@ describe('map chrome data', () => {
         role: 'viewer',
       },
     ]);
+    mocks.getAuthorizedMapBlocksForMaps.mockResolvedValue([
+      { mapId: 'map-a', characterId: 77 },
+      { mapId: 'map-a', characterId: 78 },
+    ]);
     mocks.resolveEntityNames.mockResolvedValue({
+      '77': 'Spy',
       '42': 'Scout',
       '99': 'Signal Cartel',
     });
@@ -137,7 +147,18 @@ describe('map chrome data', () => {
           },
         ],
       },
+      blocksByMapId: {
+        'map-a': [
+          { characterId: 77, name: 'Spy' },
+          { characterId: 78, name: 'Character 78' },
+        ],
+      },
     });
+    expect(mocks.getAuthorizedMapBlocksForMaps).toHaveBeenCalledWith(
+      'user-1',
+      { characterIds: [42, 43], corporationIds: [99, 100] },
+      ['map-a'],
+    );
     expect(mocks.listAuthorizedMapsForPrincipals).toHaveBeenCalledWith(
       'user-1',
       { characterIds: [42, 43], corporationIds: [99, 100] },
@@ -151,7 +172,7 @@ describe('map chrome data', () => {
       { characterIds: [42, 43], corporationIds: [99, 100] },
       ['map-a'],
     );
-    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100]);
+    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100, 77, 78]);
     expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
   });
 });

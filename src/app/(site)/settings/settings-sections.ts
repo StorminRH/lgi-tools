@@ -3,8 +3,7 @@ export type SettingsSectionId =
   | 'characters'
   | 'corporations'
   | 'preferences'
-  | 'account'
-  | 'access';
+  | 'account';
 
 export type SettingsSection = {
   id: SettingsSectionId;
@@ -13,13 +12,10 @@ export type SettingsSection = {
 };
 
 export type SettingsGroup = {
-  id: 'personal' | 'administration';
+  id: 'personal';
   label: string;
-  adminOnly: boolean;
   sections: readonly SettingsSection[];
 };
-
-export const ACCESS_HREF = '/settings/access';
 
 export const SETTINGS_LANDING_HREF = '/settings/characters';
 
@@ -27,7 +23,6 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   {
     id: 'personal',
     label: 'Personal',
-    adminOnly: false,
     sections: [
       {
         id: 'characters',
@@ -51,23 +46,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
       },
     ],
   },
-  {
-    id: 'administration',
-    label: 'Administration',
-    adminOnly: true,
-    sections: [
-      {
-        id: 'access',
-        href: ACCESS_HREF,
-        title: 'Users & roles',
-      },
-    ],
-  },
 ];
-
-export function visibleSettingsGroups(isAdmin: boolean): readonly SettingsGroup[] {
-  return SETTINGS_GROUPS.filter((group) => isAdmin || !group.adminOnly);
-}
 
 export function deriveActiveSettingsSection(
   pathname: string,

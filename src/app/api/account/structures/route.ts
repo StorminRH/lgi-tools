@@ -1,10 +1,10 @@
-import { getStructureTypes, getTypeAttributesBatch } from '@/data/eve-data/queries';
+import { getCapitalShipyardHullIds, getIndustryTargetFilterSets, getProductionModifiers, getStructureTypes } from '@/data/eve-data/queries';
 import { getAvailableCorpStructuresForUser } from '@/composition/sync/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 import { availableStructuresEndpoint } from '@/features/industry-planner/api-contract';
 import {
   buildAvailableStructures,
-  collectDogmaTypeIds,
+  collectModifierSourceTypeIds,
 } from '@/features/industry-planner/available-structures';
 import { getCurrentUserId } from '@/composition/session';
 import { apiResponse } from '@/transport/api-response';
@@ -15,16 +15,21 @@ export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
 
-  const [custom, corp, structureTypes] = await Promise.all([
+  const [custom, corp, structureTypes, capitalHulls] = await Promise.all([
     listCustomStructures(userId),
     getAvailableCorpStructuresForUser(userId),
     getStructureTypes(),
+    getCapitalShipyardHullIds(),
   ]);
   if (custom.length === 0 && corp.length === 0) {
     return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
   }
 
-  const dogma = await getTypeAttributesBatch(collectDogmaTypeIds(custom, corp));
-  const structures = buildAvailableStructures(custom, corp, structureTypes, dogma);
+  const [modifiers, targetFilterSets] = await Promise.all([
+    getProductionModifiers(collectModifierSourceTypeIds(custom, corp)),
+    getIndustryTargetFilterSets(),
+  ]);
+  const hulls = structureTypes.map((t) => ({ ...t, hostsCapitals: capitalHulls.includes(t.typeId) }));
+  const structures = buildAvailableStructures(custom, corp, hulls, modifiers, targetFilterSets);
   return apiResponse(availableStructuresEndpoint, 200, { structures });
 }

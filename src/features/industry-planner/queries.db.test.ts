@@ -1,12 +1,14 @@
-import { expect, test, vi } from 'vitest';
+import { beforeAll, expect, test, vi } from 'vitest';
 import {
   blueprintTrees,
   eveCategories,
   eveGroups,
   eveTypes,
   industryBlueprints,
+  industryTargetFilters,
   typeDogma,
 } from '@/data/eve-data/schema';
+import { adjustedPrices, industryCostIndices } from '@/data/industry-indices/schema';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 
@@ -15,7 +17,7 @@ vi.mock('next/cache', () => ({
   cacheTag: vi.fn(),
 }));
 
-import { getBlueprintStructure } from './queries';
+import { getBlueprintStructure, getBuildLocation } from './queries';
 
 const harness = await createDbTestHarness({
   schema: 'test_industry_planner_structure',
@@ -26,6 +28,11 @@ const harness = await createDbTestHarness({
     'type_dogma',
     'industry_blueprints',
     'blueprint_trees',
+    'industry_target_filters',
+    'industry_cost_indices',
+    'adjusted_prices',
+    'eve_npc_stations',
+    'eve_station_operations',
   ],
   steerDbProxy: true,
 });
@@ -160,12 +167,22 @@ async function seedWidgetChain(): Promise<void> {
   await harness.db
     .insert(blueprintTrees)
     .values({ blueprintTypeId: 1000, treeJson: tree, computedAt: new Date() });
+  await harness.db.insert(industryTargetFilters).values([
+    { id: 3, name: 'Ships', categoryIds: [6, 32], groupIds: [] },
+    { id: 4, name: 'Charges', categoryIds: [8], groupIds: [] },
+    { id: 5, name: 'Small T1 Ships', categoryIds: [], groupIds: [25, 31, 420] },
+    { id: 14, name: 'Components', categoryIds: [], groupIds: [332, 334, 716, 964] },
+    { id: 18, name: 'Composite Reactions', categoryIds: [], groupIds: [428, 429, 4932] },
+  ]);
 }
+
+beforeAll(async () => {
+  if (harness.reachable) await seedWidgetChain();
+});
 
 test.skipIf(!harness.reachable)(
   'assembles a blueprint structure with raw buckets, job times, and manufacturing time skills',
   async () => {
-    await seedWidgetChain();
 
     const structure = await getBlueprintStructure(1000);
     expect(structure).not.toBeNull();
@@ -199,6 +216,9 @@ test.skipIf(!harness.reachable)(
     expect(structure.topJobSeconds).toBe(600);
     expect(structure.nodeJobSeconds).toEqual({ 1000: 600, 1100: 300, 1200: 3600 });
     expect(structure.nodeActivityByBlueprint).toEqual({ 1000: 1, 1100: 1, 1200: 11 });
+    // Each job is tagged with the target filters its product falls in, by
+    // category (Ships) or by group (Small T1 Ships, Components, Composite Reactions).
+    expect(structure.nodeFilterIds).toEqual({ 1000: [3, 5], 1100: [14], 1200: [18] });
 
     // Only manufacturing skills with a non-zero time bonus become levers; the
     // reaction formula's skill does not.
@@ -224,9 +244,46 @@ test.skipIf(!harness.reachable)(
     expect(plate?.buildTree).toEqual([]);
     expect(plate?.materialCategories).toEqual([]);
     expect(plate?.nodeJobSeconds).toEqual({ 1100: 300 });
+    expect(plate?.nodeFilterIds).toEqual({ 1100: [14] });
     expect(plate?.nodeTimeSkills).toEqual({
       1100: [{ skillTypeId: 3396, skillName: 'Skill 3396', timePctPerLevel: -1 }],
     });
     await expect(getBlueprintStructure(1300)).resolves.toBeNull();
+  },
+);
+
+
+test.skipIf(!harness.reachable)(
+  'build location prices every nested job input and leaves unavailable data unknown',
+  async () => {
+    const updatedAt = new Date();
+    await harness.db.insert(industryCostIndices).values([
+      { solarSystemId: 30000142, activity: 'manufacturing', costIndex: 0.03, updatedAt },
+      { solarSystemId: 30000142, activity: 'reaction', costIndex: 0.07, updatedAt },
+    ]);
+    await harness.db.insert(adjustedPrices).values([
+      { typeId: 34, adjustedPrice: 5, updatedAt },
+      { typeId: 2100, adjustedPrice: 120, updatedAt },
+      { typeId: 2200, adjustedPrice: 80, updatedAt },
+      { typeId: 16634, adjustedPrice: 20, updatedAt },
+      { typeId: 2393, adjustedPrice: null, updatedAt },
+      { typeId: 2000, adjustedPrice: 999, updatedAt },
+    ]);
+    const location = await getBuildLocation(30000142, 1000);
+    expect(location.stations).toEqual([]);
+    expect(location.costIndices).toEqual({ manufacturing: 0.03, reaction: 0.07 });
+    // Intermediate products and their own nested inputs are needed for sub-job fees.
+    // Duplicate Tritanium appears once; null prices and the final product stay out.
+    expect(location.adjustedPrices.sort((a, b) => a.typeId - b.typeId)).toEqual([
+      { typeId: 34, adjustedPrice: 5 },
+      { typeId: 2100, adjustedPrice: 120 },
+      { typeId: 2200, adjustedPrice: 80 },
+      { typeId: 16634, adjustedPrice: 20 },
+    ]);
+    await expect(getBuildLocation(30004759, 1300)).resolves.toEqual({
+      stations: [],
+      costIndices: { manufacturing: null, reaction: null },
+      adjustedPrices: [],
+    });
   },
 );

@@ -82,22 +82,22 @@ export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
 export const SDE_SKILL_CATEGORY_ID = 16;
 
 /**
- * Dogma attribute ids used ONLY to enumerate + fit-match industry rigs in the SDE
- * picker. A rig FITS a structure when one of its `canFitShipGroup01/02/03` attrs
- * equals the structure's group id AND its rig-size attr equals the structure's
- * (CCP's actual fitting rule — not a "role"). A rig is an INDUSTRY rig (vs a
- * defensive/service module that also fits these groups) when it carries the
- * material-reduction attr (manufacturing) or the reaction-time attr (reaction).
- * The full bonus math reads the rest of the dogma in the industry-planner slice —
- * these ids are duplicated here purely for the enumeration filter, because the
- * data slice may not import the feature and the verified structure-bonus constants
- * must not be edited this session.
+ * Dogma attribute ids for fit-matching structure rigs. A rig FITS a structure
+ * when one of its `canFitShipGroup01/02/03` attrs equals the structure's group
+ * id AND its rig-size attr equals the structure's (CCP's actual fitting rule —
+ * not a "role"). Whether a rig is an industry rig, and what it bonuses, comes
+ * from CCP's industry modifier sources (`industry_modifiers`), not from these.
  */
 export const STRUCTURE_RIG_SIZE_ATTR = 1547;
 export const RIG_CAN_FIT_GROUP_ATTRS = [1298, 1299, 1300] as const;
-export const RIG_MFG_MATERIAL_ATTR = 2594;
-export const RIG_REACTION_TIME_ATTR = 2713;
 
 export const DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL = 1982;
+
+/**
+ * Standup Capital Shipyard I: the service module a structure must fit to build
+ * capital ships. Which hulls take it comes from the module's own
+ * canFitShipType / canFitShipGroup attributes, not from a list kept here.
+ */
+export const SDE_CAPITAL_SHIPYARD_TYPE_ID = 35881;
 
 export const BLUEPRINT_STRUCTURE_TAG = 'blueprint-structure';

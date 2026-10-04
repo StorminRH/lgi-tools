@@ -2,16 +2,10 @@
 
 import type { ReactNode } from 'react';
 import { cn } from './cn';
-import { eyebrow } from './type-roles';
+import { CheckIcon, CopyIcon } from './icons';
 import { useCopyFeedback } from './use-copy-feedback';
 
 type CopyState = ReturnType<typeof useCopyFeedback>['state'];
-
-const STATE_CLASS: Record<CopyState, string | undefined> = {
-  idle: undefined,
-  copied: 'border-isk bg-isk text-isk-ink hover:text-isk-ink',
-  unavailable: 'border-pill-red-border text-pill-red-text',
-};
 
 export function CopyButton({
   value,
@@ -35,8 +29,8 @@ export function CopyButton({
   className?: string;
 }) {
   const { state, copy } = useCopyFeedback(value);
-  const labels: Record<CopyState, ReactNode> = {
-    idle: label,
+  const bubbles: Record<CopyState, ReactNode> = {
+    idle: null,
     copied: copiedLabel,
     unavailable: unavailableLabel,
   };
@@ -47,26 +41,23 @@ export function CopyButton({
   };
 
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-2 rounded-ctl border border-border-soft bg-bg-deep px-2.5 py-1.5 ' +
-          'font-data text-ui text-name shadow-field-inset',
-        className,
-      )}
-    >
-      <span className="select-text tabular-nums text-isk">{displayValue ?? value}</span>
+    <span className={cn('copy-chip', className)}>
+      <span className="select-text font-ui text-nav tabular-nums text-name">{displayValue ?? value}</span>
       <button
         type="button"
+        aria-label={label}
         disabled={disabled}
+        data-state={state}
         onClick={() => void copy()}
-        className={cn(
-          'rounded-ctl border border-border-idle bg-section px-2 py-0.5 shadow-btn-bezel hover:border-isk-dim hover:text-isk ' +
-            eyebrow({ size: 'micro' }),
-          'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border-idle disabled:hover:text-name',
-          STATE_CLASS[state],
-        )}
+        className="copy-icon-btn"
       >
-        {labels[state]}
+        <CopyIcon size={15} className="copy-glyph-idle" />
+        <CheckIcon size={15} className="copy-glyph-done" />
+        {bubbles[state] ? (
+          <span aria-hidden className="copy-bubble">
+            {bubbles[state]}
+          </span>
+        ) : null}
       </button>
       <span className="sr-only" role="status" aria-live="polite">
         {announcements[state]}

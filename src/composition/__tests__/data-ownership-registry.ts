@@ -218,6 +218,38 @@ export const DATA_OWNERSHIP = [
     dataClass: 'global-reference',
   },
   {
+    table: schema.industryTargetFilters,
+    owner: 'data/eve-data',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: SDE_BATCH,
+    dataClass: 'global-reference',
+  },
+  {
+    table: schema.industryModifiers,
+    owner: 'data/eve-data',
+    reads: 'open',
+    invariants: ['pk(source_type_id,activity,kind,attribute_id)'],
+    boundary: SDE_BATCH,
+    dataClass: 'global-reference',
+  },
+  {
+    table: schema.industryAssemblyLines,
+    owner: 'data/eve-data',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: SDE_BATCH,
+    dataClass: 'global-reference',
+  },
+  {
+    table: schema.industryInstallationTypes,
+    owner: 'data/eve-data',
+    reads: 'open',
+    invariants: ['pk(type_id)'],
+    boundary: SDE_BATCH,
+    dataClass: 'global-reference',
+  },
+  {
     table: schema.blueprintFlatMaterials,
     owner: 'data/eve-data',
     reads: 'open',
@@ -602,6 +634,36 @@ export const DATA_OWNERSHIP = [
     dataClass: 'personal',
   },
   {
+    table: schema.mapBlocks,
+    owner: 'data/maps',
+    reads: [],
+    invariants: [
+      'fk(map_id→maps.id)',
+      'pk(id)',
+      'unique(map_id,character_id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'Block and unblock each require admin authority on an active map and enqueue the map in the same statement; a block also refuses a character held by the caller or the map creator, and records its current holder, in that statement. Projection then drops every blocked account. Map deletion cascades blocks and their holder rows; account deletion clears the blocker of record and keeps the block; a merge moves the blocker of record to the survivor.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.mapBlockAccounts,
+    owner: 'data/maps',
+    reads: [],
+    invariants: [
+      'fk(block_id→map_blocks.id)',
+      'fk(user_id→user.id)',
+      'pk(block_id,user_id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'Each account that holds a blocked character while the block stands is recorded once, never the map creator: at block time inside the block statement, and on every character link change inside the statement that enqueues the affected maps. Unblock and map deletion cascade the rows; account deletion deletes that account\'s rows; a merge moves them to the survivor without duplicates.',
+    },
+    dataClass: 'personal',
+  },
+  {
     table: schema.pendingDeletions,
     owner: 'platform/auth',
     reads: [{ by: 'composition/account-lifecycle', purpose: 'Resumes the immutable deletion or transfer request, including reconciliation after its original link is gone.' }],
@@ -647,7 +709,7 @@ export const DATA_OWNERSHIP = [
       },
       {
         by: 'data/maps',
-        reason: 'Authorized grant edits, lifecycle archive and restore, and character-grant purge enqueue the same pending generation in the same statement as the mutation.',
+        reason: 'Authorized grant and block edits, lifecycle archive and restore, and character-grant purge enqueue the same pending generation in the same statement as the mutation.',
       },
     ],
     invariants: ['fk(map_id→maps.id)', 'pk(map_id)'],
@@ -691,7 +753,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(user_id,day)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One statement per board view: a data-modifying CTE upserts the account\'s row for the UTC day (last view of the day wins) and the outer DELETE prunes the account to its newest 365 days, ranked against the pre-statement rows plus today, so the snapshot and its prune land together on the transaction-free request path.',
+      note: 'One statement per revalue (the nightly daily-batch step, or a roster change): a data-modifying CTE upserts the account\'s row for the UTC day (last write of the day wins) and the outer DELETE prunes the account to its newest 365 days, ranked against the pre-statement rows plus today, so the snapshot and its prune land together without a transaction on the neon-http driver both writers share.',
     },
     dataClass: 'personal',
   },
@@ -766,6 +828,17 @@ export const DATA_OWNERSHIP = [
     boundary: {
       kind: 'single-statement',
       note: 'One insert, update, or delete per user action. The per-user plan cap is application-enforced (count, then insert) and cannot be expressed as a plain constraint; its compensating delete can over-correct under concurrency — operator-declined as impractical for human click rates (2026-08-11 triage).',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.industryProfiles,
+    owner: 'features/industry-planner',
+    reads: [],
+    invariants: ['fk(user_id→user.id)', 'pk(id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One insert or update per user action. Edits are revision-guarded in the update statement itself, so a stale writer changes nothing. Delete stamps deleted_at and keeps the row for later references. The per-user profile cap is application-enforced (count, insert, recount, compensating delete), like saved plans.',
     },
     dataClass: 'personal',
   },

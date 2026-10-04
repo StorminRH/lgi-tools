@@ -2,10 +2,14 @@ export interface SdeRowCounts {
   typeDogma: number;
   npcStations: number;
   systemJumps: number;
+  industryTargetFilters: number;
+  industryModifiers: number;
+  industryAssemblyLines: number;
+  industryInstallationTypes: number;
 }
 
 export function hasCompleteSdeData(counts: SdeRowCounts): boolean {
-  return counts.typeDogma > 0 && counts.npcStations > 0 && counts.systemJumps > 0;
+  return Object.values(counts).every((count) => count > 0);
 }
 
 export function describeSdeStandDown(

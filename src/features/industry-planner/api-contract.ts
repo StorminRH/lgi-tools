@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
+import { PRODUCTION_ACTIVITIES, type ProductionModifier } from '@/data/eve-data/structures';
 import {
   defineEndpoint,
   jsonBody,
@@ -15,6 +17,7 @@ import type {
   OwnedAssetsResponse,
   OwnedBlueprintMeEntry,
   OwnedBlueprintsResponse,
+  SystemJobCostIndex,
 } from './types';
 
 const PG_INT4_MAX = 2_147_483_647;
@@ -66,6 +69,32 @@ export const buildLocationEndpoint = defineEndpoint({
   request: buildLocationRequestSchema,
   responses: {
     200: jsonBody(buildLocationResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
+
+/** Enough for every facility a profile runs jobs in. */
+const MAX_COST_INDEX_SYSTEMS = 64;
+
+export const costIndicesRequestSchema = z.object({
+  systemIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_COST_INDEX_SYSTEMS),
+});
+
+const systemCostIndexSchema = z.object({
+  systemId: z.number(),
+  manufacturing: z.number().nullable(),
+  reaction: z.number().nullable(),
+}) satisfies z.ZodType<SystemJobCostIndex>;
+
+const costIndicesResponseSchema = z.object({
+  systems: z.array(systemCostIndexSchema),
+});
+export const costIndicesEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/industry/cost-indices',
+  request: costIndicesRequestSchema,
+  responses: {
+    200: jsonBody(costIndicesResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
   },
 });
@@ -149,7 +178,30 @@ export const skillLevelsEndpoint = defineEndpoint({
   },
 });
 
-const attrMapSchema = z.record(z.string(), z.number());
+const teamSkillLevelsResponseSchema = z.object({
+  characters: z.array(
+    z.object({
+      characterId: z.number(),
+      levels: z.record(z.string(), z.number()).nullable(),
+    }),
+  ),
+});
+export const teamSkillLevelsEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/industry/team-skill-levels',
+  request: null,
+  responses: {
+    200: jsonBody(teamSkillLevelsResponseSchema),
+  },
+});
+
+const structureModifierSchema = z.object({
+  activity: z.enum(PRODUCTION_ACTIVITIES),
+  kind: z.enum(['material', 'time', 'cost']),
+  filterId: z.number().nullable(),
+  factor: z.object({ high: z.number(), low: z.number(), null: z.number() }),
+}) satisfies z.ZodType<ProductionModifier>;
+export type StructureModifier = z.infer<typeof structureModifierSchema>;
 
 export const availableStructureSchema = z.object({
   id: z.string(),
@@ -157,11 +209,13 @@ export const availableStructureSchema = z.object({
   name: z.string(),
   structureTypeId: z.number(),
   groupId: z.number(),
+  hostsCapitals: z.boolean(),
   systemId: z.number().nullable(),
-  structureAttrs: attrMapSchema,
-  rigAttrs: z.array(attrMapSchema),
+  modifiers: z.array(structureModifierSchema),
+  targetFilterSets: z.array(z.array(z.number())),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),
   taxPct: z.number().nullable(),
+  enteredBonuses: enteredBonusesSchema.nullable(),
 });
 
 export const availableStructuresResponseSchema = z.object({
@@ -180,7 +234,7 @@ export const availableStructuresEndpoint = defineEndpoint({
   },
 });
 
-export const MAX_SAVED_PLAN_NAME_LEN = 80;
+const MAX_SAVED_PLAN_NAME_LEN = 80;
 export const MAX_SAVED_PLANS_PER_USER = 50;
 const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
 

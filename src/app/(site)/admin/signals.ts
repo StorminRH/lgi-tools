@@ -1,14 +1,19 @@
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
+  type AlertTarget,
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
+  ESI_AVAILABILITY_TARGET,
+  GSC_OUTCOME_RULES,
   HOUSEKEEPING_HEALTHY_OUTCOMES,
+  type OutcomeRules,
   PRICES_HEALTHY_OUTCOMES,
   SDE_HEALTHY_OUTCOMES,
   SDE_NEUTRAL_OUTCOMES,
   type StatusLevel,
   type SubsystemStatus,
+  targetLevel,
 } from '@/data/telemetry/health-metrics';
 import type {
   CronLastRun,
@@ -79,6 +84,13 @@ export interface CronStatuses {
   housekeeping: SubsystemStatus;
 }
 
+export const CRON_OUTCOME_RULES = {
+  price: { healthy: PRICES_HEALTHY_OUTCOMES },
+  sde: { healthy: SDE_HEALTHY_OUTCOMES, neutral: SDE_NEUTRAL_OUTCOMES },
+  gsc: GSC_OUTCOME_RULES,
+  housekeeping: { healthy: HOUSEKEEPING_HEALTHY_OUTCOMES },
+} as const satisfies Record<keyof CronStatuses, OutcomeRules>;
+
 export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses {
   const lastFor = (action: UsageAction) =>
     crons.lastRuns.find((run) => run.action === action) ?? null;
@@ -86,15 +98,14 @@ export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses 
     price: deriveCronStatus({
       lastRun: lastFor('cron_prices'),
       outcomes: crons.priceOutcomes,
-      healthy: PRICES_HEALTHY_OUTCOMES,
+      ...CRON_OUTCOME_RULES.price,
       expectedEveryHours: 24,
       now,
     }),
     sde: deriveCronStatus({
       lastRun: lastFor('cron_sde'),
       outcomes: crons.sdeOutcomes,
-      healthy: SDE_HEALTHY_OUTCOMES,
-      neutral: SDE_NEUTRAL_OUTCOMES,
+      ...CRON_OUTCOME_RULES.sde,
       expectedEveryHours: 24,
       now,
     }),
@@ -108,7 +119,7 @@ export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses 
     housekeeping: deriveCronStatus({
       lastRun: lastFor('cron_housekeeping'),
       outcomes: crons.housekeepingOutcomes,
-      healthy: HOUSEKEEPING_HEALTHY_OUTCOMES,
+      ...CRON_OUTCOME_RULES.housekeeping,
       expectedEveryHours: 24,
       now,
     }),
@@ -120,21 +131,13 @@ export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses 
 const SLI_TARGETS = {
   readSuccess: { warn: 0.99, fail: 0.95, direction: 'min' },
   mutationSuccess: { warn: 0.99, fail: 0.95, direction: 'min' },
-  esiSuccess: { warn: 0.95, fail: 0.8, direction: 'min' },
+  esiSuccess: ESI_AVAILABILITY_TARGET,
   latencyP95: { warn: 1500, fail: 3000, direction: 'max' },
-} as const satisfies Record<
-  keyof SliSignals,
-  { warn: number; fail: number; direction: 'min' | 'max' }
->;
+} as const satisfies Record<keyof SliSignals, AlertTarget>;
 
 export function sliLevel(key: keyof SliSignals, value: Loaded<number | null>): StatusLevel {
   if (value === SECTION_LOAD_FAILED || value === null || Number.isNaN(value)) return 'neutral';
-  const target = SLI_TARGETS[key];
-  const breaches = (limit: number) =>
-    target.direction === 'min' ? value < limit : value > limit;
-  if (breaches(target.fail)) return 'red';
-  if (breaches(target.warn)) return 'amber';
-  return 'green';
+  return targetLevel(value, SLI_TARGETS[key]);
 }
 
 export function formatSliValue(key: keyof SliSignals, value: Loaded<number | null>): string {
@@ -171,7 +174,7 @@ export interface StatusGroup {
 
 // deriveCronStatus headlines read "<state> · <detail>"; the overview shows
 // the state as the value and the detail beneath it.
-export function splitHeadline(status: SubsystemStatus): { value: string; note: string } {
+function splitHeadline(status: SubsystemStatus): { value: string; note: string } {
   const [value = '', ...rest] = status.headline.split(' · ');
   return { value, note: rest.join(' · ') };
 }

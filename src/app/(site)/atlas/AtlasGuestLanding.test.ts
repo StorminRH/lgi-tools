@@ -14,8 +14,7 @@ it('gates guests behind EVE sign-in that returns to the shared map, and lists th
   );
   expect(landing).toContain('data-atlas-guest-landing');
   expect(landing).toContain('data-page-shell-mode="workspace"');
-  expect(landing).toContain('lgi://</span>atlas');
-  expect(landing).toContain('>Atlas</h1>');
+  expect(landing).toContain('<h1 class="sr-only">Atlas</h1>');
   expect(landing).toContain('Sign in required');
   expect(landing).toContain('data-eve-sign-in="/atlas"');
   expect(landing).toContain('Set up tracking');

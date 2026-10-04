@@ -1,9 +1,12 @@
-import { ProgressBar } from './progress-bar';
+import { ProgressBar, type ProgressTone } from './progress-bar';
 
 export interface DistributionInput {
   key: string;
   label: string;
   count: number;
+  tone?: ProgressTone;
+  /** Extra text after the count and share, such as an average duration. */
+  detail?: string;
 }
 
 export interface DistributionBar extends DistributionInput {
@@ -11,18 +14,24 @@ export interface DistributionBar extends DistributionInput {
   fillPct: number;
 }
 
+/**
+ * `fill: 'max'` scales each track against the largest row, for rankings.
+ * `fill: 'share'` fills each track to its share of the total, for parts of a whole.
+ */
 export function distributionBars(
   rows: DistributionInput[],
   sort: 'desc' | 'none' = 'desc',
   denominator?: number,
+  fill: 'max' | 'share' = 'max',
 ): DistributionBar[] {
   const total = denominator ?? rows.reduce((sum, r) => sum + r.count, 0);
   const max = rows.reduce((m, r) => Math.max(m, r.count), 0);
+  const scale = fill === 'share' ? total : max;
   const ordered = sort === 'desc' ? [...rows].sort((a, b) => b.count - a.count) : rows;
   return ordered.map((r) => ({
     ...r,
     sharePct: total === 0 ? 0 : (r.count / total) * 100,
-    fillPct: max === 0 ? 0 : Math.max(2, (r.count / max) * 100),
+    fillPct: scale === 0 ? 0 : Math.max(2, (r.count / scale) * 100),
   }));
 }
 
@@ -36,14 +45,16 @@ export function DistributionBars({
   sort = 'desc',
   ariaLabel,
   total,
+  fill = 'max',
 }: {
   rows: DistributionInput[];
   formatCount?: (n: number) => string;
   sort?: 'desc' | 'none';
   ariaLabel?: string;
   total?: number;
+  fill?: 'max' | 'share';
 }) {
-  const bars = distributionBars(rows, sort, total);
+  const bars = distributionBars(rows, sort, total, fill);
   return (
     <ul aria-label={ariaLabel}>
       {bars.map((bar) => (
@@ -52,9 +63,10 @@ export function DistributionBars({
             <span className="font-data text-ui text-text break-all">{bar.label}</span>
             <span className="font-data text-ui text-muted tabular-nums shrink-0 ml-3">
               {formatCount(bar.count)} · {shareLabel(bar.sharePct)}
+              {bar.detail === undefined ? null : ` · ${bar.detail}`}
             </span>
           </div>
-          <ProgressBar pct={bar.fillPct} />
+          <ProgressBar pct={bar.fillPct} tone={bar.tone} />
         </li>
       ))}
     </ul>

@@ -1,5 +1,6 @@
 import { doublePrecision, integer, jsonb, pgTable } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
+import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
 import { ownedRowIdentityColumns } from '@/lib/db-columns';
 
 /**
@@ -21,6 +22,10 @@ import { ownedRowIdentityColumns } from '@/lib/db-columns';
  * so an FK would block the ingest (the corp_structures posture); the pin
  * routes validate existence at the boundary instead. `rig_type_ids` is stored
  * as JSONB (the corp_structure_syncs.page_etags precedent), not a pg array.
+ *
+ * `bonuses` holds values the pilot typed from the in-game industry window for a
+ * structure whose fit they cannot see. When set, the row carries no rigs and the
+ * planner applies the numbers as-is: no hull bonus, no security scaling.
  */
 export const customStructures = pgTable('custom_structures', {
   ...ownedRowIdentityColumns(() => user.id),
@@ -28,4 +33,5 @@ export const customStructures = pgTable('custom_structures', {
   rigTypeIds: jsonb('rig_type_ids').$type<number[]>().notNull().default([]),
   systemId: integer('system_id'),
   taxPct: doublePrecision('tax_pct'),
+  bonuses: jsonb('bonuses').$type<EnteredBonuses>(),
 });

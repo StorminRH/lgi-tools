@@ -19,14 +19,28 @@ describe('formatSdeVersions', () => {
 });
 
 describe('hasCompleteSdeData', () => {
+  const complete = {
+    typeDogma: 5500,
+    npcStations: 5000,
+    systemJumps: 8000,
+    industryTargetFilters: 18,
+    industryModifiers: 744,
+    industryAssemblyLines: 100,
+    industryInstallationTypes: 200,
+  };
+
   it('is true only when every sentinel dataset has rows', () => {
-    expect(hasCompleteSdeData({ typeDogma: 5500, npcStations: 5000, systemJumps: 8000 })).toBe(true);
+    expect(hasCompleteSdeData(complete)).toBe(true);
   });
 
   it.each([
-    { typeDogma: 0, npcStations: 5000, systemJumps: 8000 },
-    { typeDogma: 5500, npcStations: 0, systemJumps: 8000 },
-    { typeDogma: 5500, npcStations: 5000, systemJumps: 0 },
+    { ...complete, typeDogma: 0 },
+    { ...complete, npcStations: 0 },
+    { ...complete, systemJumps: 0 },
+    { ...complete, industryTargetFilters: 0 },
+    { ...complete, industryModifiers: 0 },
+    { ...complete, industryAssemblyLines: 0 },
+    { ...complete, industryInstallationTypes: 0 },
   ])('is false when any sentinel is empty (%o)', (counts) => {
     expect(hasCompleteSdeData(counts)).toBe(false);
   });

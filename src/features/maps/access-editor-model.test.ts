@@ -6,6 +6,7 @@ import {
   addAccessPrincipal,
   createMapGrantsFromDrafts,
   characterSearchPopupOpen,
+  grantedCharacterIds,
   initialCreationAccessDrafts,
   mapRoleLabel,
   prepareMapCreation,
@@ -47,13 +48,18 @@ describe('map access editor model', () => {
     ).toEqual([]);
     expect(createMapGrantsFromDrafts([])).toEqual([]);
 
-    expect(prepareMapCreation('   ', [], 80)).toEqual({
+    expect(prepareMapCreation('   ', [7], [], 80)).toEqual({
       ok: false,
       message: 'Enter a map name up to 80 characters.',
+    });
+    expect(prepareMapCreation('Home', [], [], 80)).toEqual({
+      ok: false,
+      message: 'Choose at least one of your characters.',
     });
     expect(
       prepareMapCreation(
         'Home',
+        [7],
         [{ ownerType: 'character', ownerId: 42, name: 'Scout', role: null }],
         80,
       ),
@@ -61,9 +67,27 @@ describe('map access editor model', () => {
       ok: false,
       message: 'Choose Read-only or Write for every selected principal.',
     });
-    expect(prepareMapCreation('  Home  ', [], 80)).toEqual({
+    expect(prepareMapCreation('  Home  ', [7], [], 80)).toEqual({
       ok: true,
-      input: { name: 'Home', grants: [] },
+      input: { name: 'Home', creatorCharacterIds: [7], grants: [] },
+    });
+    expect(
+      prepareMapCreation(
+        'Home',
+        [7],
+        [
+          { ownerType: 'character', ownerId: 7, name: 'Me', role: null },
+          { ownerType: 'character', ownerId: 42, name: 'Scout', role: 'viewer' },
+        ],
+        80,
+      ),
+    ).toEqual({
+      ok: true,
+      input: {
+        name: 'Home',
+        creatorCharacterIds: [7],
+        grants: [{ ownerType: 'character', ownerId: 42, role: 'viewer' }],
+      },
     });
   });
 
@@ -102,5 +126,10 @@ describe('map access editor model', () => {
     expect(characterSearchPopupOpen(false, 3)).toBe(false);
     expect(characterSearchPopupOpen(true, 3)).toBe(true);
     expect(characterSearchPopupOpen(true, 0)).toBe(false);
+    expect(grantedCharacterIds([
+      { ownerType: 'character', ownerId: 7, name: 'Me', role: 'admin' },
+      { ownerType: 'character', ownerId: 8, name: 'Pending', role: null },
+      { ownerType: 'corporation', ownerId: 9, name: 'Corp', role: 'viewer' },
+    ])).toEqual(new Set([7]));
   });
 });

@@ -12,8 +12,11 @@ const PIPELINE_MUTATIONS = [
   'account/corp-structures/rigs/route.ts',
   'account/custom-structures/delete/route.ts',
   'account/custom-structures/route.ts',
-  'account/custom-structures/set-pin/route.ts',
-  'account/custom-structures/set-tax/route.ts',
+  'account/custom-structures/update/route.ts',
+  'account/industry-profiles/delete/route.ts',
+  'account/industry-profiles/duplicate/route.ts',
+  'account/industry-profiles/route.ts',
+  'account/industry-profiles/update/route.ts',
   'account/purge-character/route.ts',
   'account/saved-plans/delete/route.ts',
   'account/saved-plans/favorite/route.ts',
@@ -77,9 +80,17 @@ const EXEMPT_MUTATIONS = {
     authz: 'public',
     reason: 'public stateless planner computation',
   },
+  'industry/cost-indices/route.ts': {
+    authz: 'public',
+    reason: 'public stateless reference read',
+  },
   'account/custom-structures/parse-fit/route.ts': {
     authz: 'auth',
     reason: 'authenticated stateless fit parsing',
+  },
+  'account/custom-structures/search/route.ts': {
+    authz: 'auth',
+    reason: 'authenticated read-only ESI structure search',
   },
   'telemetry/route.ts': {
     authz: 'public',

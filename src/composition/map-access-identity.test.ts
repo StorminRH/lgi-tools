@@ -12,17 +12,24 @@ const mocks = vi.hoisted(() => ({
   revokeUserMapClaims: vi.fn(),
   teardownLocationTracking: vi.fn(),
   enqueueAffectedMapAccessChanges: vi.fn(),
+  getGrantedMapIdsForCharacter: vi.fn(),
   acknowledgeMapAccessChanges: vi.fn(),
   readPendingMapAccessChanges: vi.fn(),
   eraseNetWorthHistoryForCharacter: vi.fn(),
+  revalueAfterRosterChange: vi.fn(),
 }));
 
 vi.mock('@/features/net-worth/purge', () => ({
   eraseNetWorthHistoryForCharacter: mocks.eraseNetWorthHistoryForCharacter,
 }));
 
+vi.mock('@/composition/board/net-worth-link', () => ({
+  revalueAfterRosterChange: mocks.revalueAfterRosterChange,
+}));
+
 vi.mock('@/data/maps/queries', () => ({
   enqueueAffectedMapAccessChanges: mocks.enqueueAffectedMapAccessChanges,
+  getGrantedMapIdsForCharacter: mocks.getGrantedMapIdsForCharacter,
   getOwnedMapIds: mocks.getOwnedMapIds,
 }));
 
@@ -58,10 +65,12 @@ import {
 } from './map-access-identity';
 
 const pending = (ids: string[]) => ids.map((mapId) => ({ mapId, version: mapId }));
+const GRANTED = [...Array.from({ length: 101 }, (_, index) => `map-${index}`), 'map-a', 'map-b'];
 
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.getOwnedMapIds.mockResolvedValue([]);
+  mocks.getGrantedMapIdsForCharacter.mockResolvedValue(GRANTED);
   mocks.projectMapAccess.mockResolvedValue({
     inserted: 0,
     updated: 0,
@@ -116,6 +125,7 @@ describe('map-access-identity', () => {
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
     expect(mocks.enqueueAffectedMapAccessChanges).toHaveBeenCalledWith(42);
     expect(mocks.projectMapAccess).not.toHaveBeenCalled();
+    expect(mocks.revalueAfterRosterChange).toHaveBeenCalledWith('from-user');
 
     const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
     mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(ids));
@@ -127,6 +137,14 @@ describe('map-access-identity', () => {
     );
     expect(mocks.readPendingMapAccessChanges).toHaveBeenCalled();
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
+  });
+
+  it('queues a map that only blocks the character but leaves the claim there for the reprojection', async () => {
+    mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(['map-a', 'own-blocking-map']));
+    mocks.getGrantedMapIdsForCharacter.mockResolvedValue(['map-a']);
+    await expect(revokeCharacterMapClaims('creator', 42)).resolves.toEqual(['map-a']);
+    expect(mocks.revokeUserMapClaims).toHaveBeenCalledExactlyOnceWith('creator', ['map-a']);
+    expect(mocks.getGrantedMapIdsForCharacter).toHaveBeenCalledWith(42);
   });
 
   it('queues every affected map durably before revoking them for only the departing user', async () => {

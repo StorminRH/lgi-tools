@@ -5,7 +5,7 @@ import {
   computeBatchMaterials,
   type BatchLedger,
 } from './build-batch';
-import { chainLevelsFrom, consolidateBuild, scaleTiersToBatched } from './build-consolidate';
+import { consolidateBuild, scaleTiersToBatched } from './build-consolidate';
 import type { BlueprintStructure } from './types';
 
 function makeStructure(): BlueprintStructure {
@@ -73,29 +73,6 @@ describe('consolidateBuild', () => {
     expect([...(childrenOf.get(2) ?? [])].sort()).toEqual([8, 9]);
     expect([...(childrenOf.get(3) ?? [])].sort()).toEqual([9]);
     expect([...(childrenOf.get(9) ?? [])]).toEqual([]);
-  });
-});
-
-describe('chainLevelsFrom', () => {
-  const { childrenOf } = consolidateBuild(makeStructure());
-
-  it('indexes a buildable’s chain by depth relative to the focus', () => {
-    const levels = chainLevelsFrom(2, childrenOf);
-    expect([...(levels.get(0) ?? [])]).toEqual([2]);
-    expect([...(levels.get(1) ?? [])].sort()).toEqual([8, 9]);
-    expect(levels.has(2)).toBe(false);
-  });
-
-  it('walks the product’s whole chain across depths', () => {
-    const levels = chainLevelsFrom(1, childrenOf);
-    expect([...(levels.get(1) ?? [])].sort()).toEqual([2, 3, 9]);
-    expect([...(levels.get(2) ?? [])].sort()).toEqual([8, 9]);
-  });
-
-  it('returns just the root for a raw (no chain)', () => {
-    const levels = chainLevelsFrom(9, childrenOf);
-    expect([...(levels.get(0) ?? [])]).toEqual([9]);
-    expect(levels.size).toBe(1);
   });
 });
 

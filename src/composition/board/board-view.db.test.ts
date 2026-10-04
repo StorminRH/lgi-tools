@@ -454,7 +454,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(ilyana.status).toEqual({ state: 'reconnect' });
   });
 
-  it('values the synced pilot from stored prices only, flooring junk bids and excluding blueprints, SKINs and skillbooks', async () => {
+  it("serves each pilot's latest recorded day and never values on view", async () => {
     const board = await getBoardForUserOnView(USER_ID);
     const aurel = pilotAt(board, 0);
     const bram = pilotAt(board, 1);
@@ -462,28 +462,25 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
 
     expect(aurel.netWorth).toEqual({
       state: 'ready',
-      refreshedAt: STAMP_MS,
-      data: {
-        total: NET_WORTH,
-        liquid: WALLET,
-        assets: ASSET_VALUE,
-        sellOrders: SELL_ORDERS,
-        buyEscrow: BUY_ESCROW,
-        implants: IMPLANTS,
-      },
+      refreshedAt: Date.parse('2026-09-25T00:00:00Z'),
+      data: { total: 100, liquid: 50 },
     });
-    expect(ASSET_VALUE).toBe(424_545_641.51);
-    expect(NET_WORTH).toBe(4_256_663_273.66);
     expect(bram.netWorth).toEqual({ state: 'reconnect' });
     expect(ilyana.netWorth).toEqual({ state: 'reconnect' });
     expect(board.history).toEqual([
       { day: '2026-09-20', netWorth: 90, liquidIsk: 40, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 90, liquidIsk: 40 } } },
       { day: '2026-09-25', netWorth: 100, liquidIsk: 50, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 100, liquidIsk: 50 } } },
     ]);
+    expect(await harness.db.select().from(netWorthDays)).toHaveLength(2);
   });
 
-  it('records the day after the write-behind and seeds price rows for unpriced marketable types', async () => {
+  it('records the day from stored prices only, flooring junk bids and excluding blueprints, SKINs and skillbooks, and seeds price rows for unpriced marketable types', async () => {
+    expect(ASSET_VALUE).toBe(424_545_641.51);
+    expect(SELL_ORDERS + BUY_ESCROW + IMPLANTS).toBe(628_001_750);
+    expect(NET_WORTH).toBe(4_256_663_273.66);
+    mocks.resolveEntityNames.mockClear();
     await recordNetWorthSnapshot(USER_ID, new Date(STAMP));
+    expect(mocks.resolveEntityNames).not.toHaveBeenCalled();
 
     const rows = await harness.db.select().from(netWorthDays).orderBy(netWorthDays.day);
     expect(rows.map((row) => row.day)).toEqual(['2026-09-20', '2026-09-25', '2026-09-27']);
@@ -500,14 +497,16 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
 
     const [pyerite] = await harness.db.select().from(marketPrices).where(eq(marketPrices.typeId, PYERITE));
     expect(pyerite).toMatchObject({ typeId: PYERITE, pct5Buy: null, pct5Sell: null, staleAfter: new Date(0), source: 'esi' });
-    expect((await getBoardForUserOnView(USER_ID)).history).toHaveLength(3);
+    const board = await getBoardForUserOnView(USER_ID);
+    expect(board.history).toHaveLength(3);
+    expect(pilotAt(board, 0).netWorth).toMatchObject({ data: { total: NET_WORTH, liquid: WALLET } });
   });
 
   it('returns an empty roster for a user with no linked characters', async () => {
     await expect(getBoardForUserOnView('nobody')).resolves.toMatchObject({ characters: [], history: [] });
   });
 
-  it.each([false, true])('records the refreshed wallet through after even with a stale sheet cache (first view: %s)', async (firstView) => {
+  it.each([false, true])('refreshes through after without recording, and the snapshot reads past a stale sheet cache (first view: %s)', async (firstView) => {
     const userId = `refresh-user-${firstView}`;
     const characterId = firstView ? 90000201 : 90000202;
     await seedUser(harness.db, userId);
@@ -531,6 +530,8 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       expect(before.characters[0]?.wallet).toMatchObject(firstView ? { state: 'pending' } : { data: { balance: 100 } });
       const callback = mocks.after.mock.lastCall?.[0] as () => Promise<void>;
       await callback();
+      expect(await harness.db.select().from(netWorthDays).where(eq(netWorthDays.userId, userId))).toEqual([]);
+      await recordNetWorthSnapshot(userId);
       const [row] = await harness.db.select().from(netWorthDays).where(eq(netWorthDays.userId, userId));
       expect(row).toMatchObject({ day: new Date().toISOString().slice(0, 10), liquidIsk: 750, netWorth: 750 });
       expect(row?.pilots).toEqual({ [characterId]: { liquidIsk: 750, netWorth: 750 } });

@@ -1,26 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
-import { SectionLabel } from '@/components/ui/section-label';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
-import { chainActualsFrom } from '../build-batch';
+import { isEfficiencyEligible, tierColumnView, unitPriceMap, type TierRowView } from '../build-plan-view';
 import {
-  isEfficiencyEligible,
-  levelAt,
-  tierColumnView,
-  unitPriceMap,
-  type TierRowView,
-} from '../build-plan-view';
-import { batchedCostOfRows } from '../cost-basis-view';
-import { PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
-import {
-  chainLevelsFrom,
   consolidateBuild,
   scaleTiersToBatched,
   type ConsolidatedItem,
@@ -28,30 +15,28 @@ import {
 } from '../build-consolidate';
 import { nodeFrameState } from '../node-frame-state';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
-import { CockpitRawLedger } from './CockpitRawLedger';
 import { NodeAdjusters } from './MeAdjuster';
-import { MultibuyPanel } from './MultibuyPanel';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
+import { useSettledHover } from './use-settled-hover';
 
 const COLS_TABLET = ['', 'sm:grid-cols-1', 'sm:grid-cols-2'];
+/**
+ * Every tier shares the page, as many columns as the tree is deep, down to
+ * the narrowest column a card still reads in; a tree deeper than that
+ * scrolls sideways instead of crushing its cards.
+ */
 const COLS_DESKTOP = [
   '',
-  'cockpit:grid-cols-1',
-  'cockpit:grid-cols-2',
-  'cockpit:grid-cols-3',
-  'cockpit:grid-cols-4',
-  'cockpit:grid-cols-5',
-  'cockpit:grid-cols-6',
-  'cockpit:grid-cols-7',
-  'cockpit:grid-cols-8',
+  'cockpit:grid-cols-[repeat(1,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(2,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(3,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(4,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(5,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(6,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(7,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(8,minmax(8rem,1fr))]',
 ];
-
-interface Focus {
-  depth: number;
-  typeId: number;
-  name: string;
-}
 
 function TierRow({
   item,
@@ -62,10 +47,10 @@ function TierRow({
   detail,
   ownedQty,
   heldBy,
-  selected,
-  related,
-  faded,
-  onSelect,
+  lit,
+  dimmed,
+  onOpen,
+  onHover,
 }: {
   item: ConsolidatedItem;
   icon: ReturnType<typeof nodeImage>;
@@ -75,10 +60,10 @@ function TierRow({
   detail?: OwnedComponentDetail;
   ownedQty?: number;
   heldBy?: AssetHolding[];
-  selected: boolean;
-  related: boolean;
-  faded: boolean;
-  onSelect?: () => void;
+  lit: boolean;
+  dimmed: boolean;
+  onOpen?: () => void;
+  onHover?: (entering: boolean) => void;
 }) {
   return (
     <NodeCard
@@ -92,31 +77,25 @@ function TierRow({
       detail={detail}
       ownedQty={ownedQty}
       heldBy={heldBy}
-      selected={selected}
-      related={related}
-      faded={faded}
-      onSelect={onSelect}
+      lit={lit}
+      dimmed={dimmed}
+      onOpen={onOpen}
+      onHover={onHover}
     />
   );
 }
 
-function TierRowSlot({
-  row,
-  depth,
-  iconFor,
-  efficiencyFor,
-  detailFor,
-  ownedAssetFor,
-  onToggle,
-}: {
-  row: TierRowView;
-  depth: number;
+interface RowHandlers {
   iconFor: (typeId: number) => ReturnType<typeof nodeImage>;
   efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
   detailFor: (typeId: number) => OwnedComponentDetail | undefined;
   ownedAssetFor: (typeId: number) => OwnedAssetEntry | undefined;
-  onToggle: (depth: number, item: ConsolidatedItem) => void;
-}) {
+  onOpen: (typeId: number) => void;
+  onHover: (typeId: number, entering: boolean) => void;
+}
+
+function TierRowSlot({ row, handlers }: { row: TierRowView; handlers: RowHandlers }) {
+  const { iconFor, efficiencyFor, detailFor, ownedAssetFor, onOpen, onHover } = handlers;
   const { item } = row;
   const { ownedQty, heldBy } = ownedAssetFor(item.typeId) ?? {};
   return (
@@ -129,10 +108,10 @@ function TierRowSlot({
       detail={detailFor(item.typeId)}
       ownedQty={ownedQty}
       heldBy={heldBy}
-      selected={row.selected}
-      related={row.related}
-      faded={row.faded}
-      onSelect={item.hasChildren ? () => onToggle(depth, item) : undefined}
+      lit={row.lit}
+      dimmed={row.dimmed}
+      onOpen={item.hasChildren ? () => onOpen(item.typeId) : undefined}
+      onHover={(entering) => onHover(item.typeId, entering)}
     />
   );
 }
@@ -140,121 +119,52 @@ function TierRowSlot({
 function TierColumn({
   tier,
   unitPriceOf,
-  iconFor,
-  efficiencyFor,
-  detailFor,
-  ownedAssetFor,
-  focus,
-  inChain,
-  actualLevel,
+  lit,
   refreshing,
-  onToggle,
+  handlers,
 }: {
   tier: ConsolidatedTier;
   unitPriceOf: Map<number, number | null>;
-  iconFor: (typeId: number) => ReturnType<typeof nodeImage>;
-  efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
-  detailFor: (typeId: number) => OwnedComponentDetail | undefined;
-  ownedAssetFor: (typeId: number) => OwnedAssetEntry | undefined;
-  focus: Focus | null;
-  inChain: Set<number> | null;
-  actualLevel: Map<number, number> | null;
+  lit: ReadonlySet<number> | null;
   refreshing: boolean;
-  onToggle: (depth: number, item: ConsolidatedItem) => void;
+  handlers: RowHandlers;
 }) {
-  const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
+  const { rows, subtotal } = tierColumnView(tier, { unitPriceOf, lit });
   return (
-    <div className="min-w-0">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
-        Tier {tier.depth}
-        <span className="text-faint">· {tier.items.length}</span>
-        <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
+    <div className="@container min-w-0">
+      {/* A narrow column stacks its subtotal under the tier name, so every column's cards start level. */}
+      <div className="mb-2 flex items-center gap-x-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted @max-[14rem]:flex-col @max-[14rem]:items-start">
+        <span className="flex items-center gap-2">
+          Tier {tier.depth}
+          <span className="text-faint">· {tier.items.length}</span>
+        </span>
+        <span className="h-0 flex-1 border-b border-dotted border-border-idle @max-[14rem]:hidden" />
         <LivePrice
           value={formatIsk(subtotal)}
           pending={refreshing}
           className="text-ui font-semibold tracking-normal text-isk"
         />
       </div>
-      <Card>
+      <div className="flex flex-col gap-2">
         {rows.map((row) => (
-          <TierRowSlot
-            key={row.item.typeId}
-            row={row}
-            depth={tier.depth}
-            iconFor={iconFor}
-            efficiencyFor={efficiencyFor}
-            detailFor={detailFor}
-            ownedAssetFor={ownedAssetFor}
-            onToggle={onToggle}
-          />
+          <TierRowSlot key={row.item.typeId} row={row} handlers={handlers} />
         ))}
-      </Card>
+      </div>
     </div>
   );
 }
 
-function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => void }) {
-  if (!focus) {
-    return (
-      <span className="text-ui text-muted">
-        Consolidated · by tier · click a ▸ component to trace its sub-tree
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-2 text-ui text-muted">
-      <Button
-        variant="bare"
-        type="button"
-        onClick={onClear}
-        className="cursor-pointer uppercase tracking-wide text-muted hover:text-name"
-      >
-        ✕ Clear
-      </Button>
-      <span>
-        Tracing <span className="text-name">{focus.name}</span> down its chain
-      </span>
-    </span>
-  );
-}
-
-function RawLedgerToggle({
-  grandTotal,
-  open,
-  refreshing,
-  onToggle,
+/**
+ * The build by tier. Pointing at a buildable lights it and everything that
+ * goes into it; opening one hands it to the component drawer.
+ */
+export function CockpitBuildPlan({
+  structure,
+  onOpen,
 }: {
-  grandTotal: number | null;
-  open: boolean;
-  refreshing: boolean;
-  onToggle: () => void;
+  structure: BlueprintStructure;
+  onOpen: (typeId: number) => void;
 }) {
-  return (
-    <Button
-      variant="bare"
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={cn(
-        chipVariants({ tone: 'green' }),
-        PLANNER_DISCLOSURE_TRIGGER_CLASS,
-        'group cursor-pointer gap-2 py-1 transition-colors',
-      )}
-    >
-      <span>Raw ledger</span>
-      <LivePrice
-        value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
-        pending={refreshing}
-        className="text-ui font-semibold text-isk"
-      />
-      <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>
-        ▾
-      </span>
-    </Button>
-  );
-}
-
-export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
   const { pricing, refreshing } = useMarketData();
   const {
     ownedMe,
@@ -269,9 +179,8 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     resetTeOverride,
     ledger,
   } = useBuildPlan();
-  const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
-  const [focus, setFocus] = useState<Focus | null>(null);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const { tiers, descendants } = useMemo(() => consolidateBuild(structure), [structure]);
+  const [hovered, onHover] = useSettledHover();
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
   const iconFor = (typeId: number) => nodeImage(blueprintOf(typeId), typeId);
   const efficiencyFor = (typeId: number, name: string): NodeEfficiency | undefined => {
@@ -303,29 +212,23 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   };
   const ownedAssetFor = (typeId: number): OwnedAssetEntry | undefined => ownedAssets?.get(typeId);
   const batchedTiers = useMemo(() => scaleTiersToBatched(tiers, ledger), [tiers, ledger]);
-  const chainActuals = useMemo(
-    () => (focus ? chainActualsFrom(structure.tree, focus.typeId, ledger) : null),
-    [focus, structure.tree, ledger],
-  );
-
   const unitPriceOf = useMemo(() => unitPriceMap(pricing), [pricing]);
-
-  const chainLevels = useMemo(
-    () => (focus ? chainLevelsFrom(focus.typeId, childrenOf) : null),
-    [focus, childrenOf],
+  const lit = useMemo(
+    () => (hovered === null ? null : new Set([hovered, ...(descendants.get(hovered) ?? [])])),
+    [hovered, descendants],
   );
-
-  const toggleFocus = (depth: number, item: ConsolidatedItem) =>
-    setFocus((prev) =>
-      prev && prev.typeId === item.typeId && prev.depth === depth
-        ? null
-        : { depth, typeId: item.typeId, name: item.name },
-    );
+  const handlers: RowHandlers = {
+    iconFor,
+    efficiencyFor,
+    detailFor,
+    ownedAssetFor,
+    onOpen,
+    onHover,
+  };
 
   if (tiers.length === 0) {
     return (
-      <div className="reveal reveal-3 mt-7">
-        <SectionLabel className="mb-cluster">Build plan</SectionLabel>
+      <div className="reveal reveal-3">
         <Card>
           <p className="px-3.5 py-3 text-ui text-muted">
             No build breakdown — this blueprint has no resolved inputs yet.
@@ -335,39 +238,11 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     );
   }
 
-  const grandTotal = pricing ? batchedCostOfRows(pricing.rows) : null;
-
   return (
-    <div className="reveal reveal-3 mt-7">
-      <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
-        <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-          <SectionLabel>Build plan</SectionLabel>
-          <TraceMeta focus={focus} onClear={() => setFocus(null)} />
-        </div>
-        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
-          <MultibuyPanel structure={structure} />
-          <RawLedgerToggle
-            grandTotal={grandTotal}
-            open={ledgerOpen}
-            refreshing={refreshing}
-            onToggle={() => setLedgerOpen((o) => !o)}
-          />
-        </div>
-      </div>
-
-      {ledgerOpen && (
-        <div className="mb-5">
-          <CockpitRawLedger
-            pricing={pricing}
-            structure={structure}
-            refreshing={refreshing}
-          />
-        </div>
-      )}
-
+    <div className="reveal reveal-3">
       <div
         className={cn(
-          'grid grid-cols-1 items-start gap-4',
+          'grid grid-cols-1 items-start gap-4 cockpit:gap-3 cockpit:overflow-x-auto',
           COLS_TABLET[Math.min(batchedTiers.length, 2)],
           COLS_DESKTOP[Math.min(batchedTiers.length, 8)],
         )}
@@ -377,15 +252,9 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             key={tier.depth}
             tier={tier}
             unitPriceOf={unitPriceOf}
-            iconFor={iconFor}
-            efficiencyFor={efficiencyFor}
-            detailFor={detailFor}
-            ownedAssetFor={ownedAssetFor}
-            focus={focus}
-            inChain={levelAt(chainLevels, focus, tier.depth)}
-            actualLevel={levelAt(chainActuals, focus, tier.depth)}
+            lit={lit}
             refreshing={refreshing}
-            onToggle={toggleFocus}
+            handlers={handlers}
           />
         ))}
       </div>

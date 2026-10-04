@@ -16,7 +16,7 @@ export function IndustrySection({
       title="Industry"
       className={className}
       meta={
-        <Link href="/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
+        <Link href="/industry/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
           Open jobs →
         </Link>
       }

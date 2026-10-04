@@ -100,11 +100,12 @@ import AppSiteChangelogLayout from '@/app/(site)/changelog/layout';
 import AppSiteChangelogPage, { metadata as AppSiteChangelogPageMetadata } from '@/app/(site)/changelog/page';
 import AppSiteContactPage, { metadata as AppSiteContactPageMetadata } from '@/app/(site)/contact/page';
 import AppSiteError from '@/app/(site)/error';
-import { IndustryDashboardGrid } from '@/app/(site)/industry/IndustryDashboardGrid';
+import { IndustryLanding } from '@/app/(site)/industry/IndustryLanding';
 import AppSiteIndustryIdPage, { generateMetadata as AppSiteIndustryIdPageGenerateMetadata } from '@/app/(site)/industry/[id]/page';
 import AppSiteIndustryPage, { metadata as AppSiteIndustryPageMetadata } from '@/app/(site)/industry/page';
-import AppSiteIndustryTemplatesPage, { metadata as AppSiteIndustryTemplatesPageMetadata } from '@/app/(site)/industry/templates/page';
-import AppSiteJobsPage from '@/app/(site)/jobs/page';
+import AppSiteIndustryJobsPage, { metadata as AppSiteIndustryJobsPageMetadata } from '@/app/(site)/industry/jobs/page';
+import AppSiteIndustryLayout from '@/app/(site)/industry/layout';
+import AppSiteIndustryPlannerPage, { metadata as AppSiteIndustryPlannerPageMetadata } from '@/app/(site)/industry/planner/page';
 import AppSiteLegalPage, { metadata as AppSiteLegalPageMetadata } from '@/app/(site)/legal/page';
 import AppSitePage, { metadata as AppSitePageMetadata } from '@/app/(site)/page';
 import AppSitePreviewCardsPage, { metadata as AppSitePreviewCardsPageMetadata } from '@/app/(site)/preview/cards/page';
@@ -112,8 +113,8 @@ import { PrimitivesDemo } from '@/app/(site)/preview/primitives/PrimitivesDemo';
 import AppSitePreviewPrimitivesPage, { metadata as AppSitePreviewPrimitivesPageMetadata } from '@/app/(site)/preview/primitives/page';
 import AppSitePreviewWidgetsPage, { metadata as AppSitePreviewWidgetsPageMetadata } from '@/app/(site)/preview/widgets/page';
 import { UniverseAssetsProof } from '@/app/(site)/preview/widgets/universe-assets-proof';
-import AppSiteSettingsAccessUserIdPage from '@/app/(site)/settings/access/[userId]/page';
-import AppSiteSettingsAccessPage from '@/app/(site)/settings/access/page';
+import AppSiteAdminUsersUserIdPage from '@/app/(site)/admin/users/[userId]/page';
+import AppSiteAdminUsersPage from '@/app/(site)/admin/users/page';
 import AppSiteSettingsAccountPage from '@/app/(site)/settings/account/page';
 import AppSiteSettingsCharactersPage from '@/app/(site)/settings/characters/page';
 import AppSiteSettingsCorporationsPage from '@/app/(site)/settings/corporations/page';
@@ -125,7 +126,6 @@ import { SettingsNav, SettingsNavFallback } from '@/app/(site)/settings/settings
 import AppSiteSitesIdOpengraphImage, { alt, contentType, size } from '@/app/(site)/sites/[id]/opengraph-image';
 import { generateMetadata as AppSiteSitesIdPageGenerateMetadata, generateStaticParams as AppSiteSitesIdPageGenerateStaticParams } from '@/app/(site)/sites/[id]/page';
 import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(site)/sites/page';
-import AppSiteStructuresPage from '@/app/(site)/structures/page';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
@@ -202,14 +202,16 @@ describe('coverage-gaps', () => {
       AppSiteContactPageMetadata,
       AppSiteContactPage,
       AppSiteError,
-      IndustryDashboardGrid,
+      IndustryLanding,
       AppSiteIndustryIdPageGenerateMetadata,
       AppSiteIndustryIdPage,
       AppSiteIndustryPageMetadata,
       AppSiteIndustryPage,
-      AppSiteIndustryTemplatesPageMetadata,
-      AppSiteIndustryTemplatesPage,
-      AppSiteJobsPage,
+      AppSiteIndustryJobsPageMetadata,
+      AppSiteIndustryJobsPage,
+      AppSiteIndustryLayout,
+      AppSiteIndustryPlannerPageMetadata,
+      AppSiteIndustryPlannerPage,
       AppSiteLegalPageMetadata,
       AppSiteLegalPage,
       AppSitePageMetadata,
@@ -222,8 +224,8 @@ describe('coverage-gaps', () => {
       AppSitePreviewWidgetsPageMetadata,
       AppSitePreviewWidgetsPage,
       UniverseAssetsProof,
-      AppSiteSettingsAccessUserIdPage,
-      AppSiteSettingsAccessPage,
+      AppSiteAdminUsersUserIdPage,
+      AppSiteAdminUsersPage,
       AppSiteSettingsAccountPage,
       AppSiteSettingsCharactersPage,
       AppSiteSettingsCorporationsPage,
@@ -241,7 +243,6 @@ describe('coverage-gaps', () => {
       AppSiteSitesIdPageGenerateStaticParams,
       AppSiteSitesPageMetadata,
       AppSiteSitesPage,
-      AppSiteStructuresPage,
     ];
     expect(pinned.length).toBeGreaterThan(0);
     for (const value of pinned) {

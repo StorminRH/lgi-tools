@@ -81,7 +81,7 @@ export const TABLE_GROWTH_STORIES = [
     table: schema.netWorthDays,
     retentionDays: NET_WORTH_HISTORY_DAYS,
     retentionConstant: 'NET_WORTH_HISTORY_DAYS',
-    prunedBy: 'each board snapshot write, a row cap to the newest 365 recorded days per account',
+    prunedBy: 'each net worth snapshot write (nightly revalue or roster change), a row cap to the newest 365 recorded days per account',
     alsoPurgeManagedBy: 'net-worth',
   },
   {
@@ -167,6 +167,8 @@ export const TABLE_GROWTH_STORIES = [
   { kind: 'bounded', table: schema.pendingDeletions, reason: 'at most one coordinator per user; successful reconciliation deletes it, failed authorized deletions retain it for the daily retry' },
   { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
   { kind: 'purge-managed', table: schema.mapAccess, purgeContributor: 'maps' },
+  { kind: 'purge-managed', table: schema.mapBlocks, purgeContributor: 'maps' },
+  { kind: 'purge-managed', table: schema.mapBlockAccounts, purgeContributor: 'maps' },
   { kind: 'bounded', table: schema.pendingMapAccessChanges, reason: 'at most one pending generation per map; successful delivery deletes it and map deletion cascades it' },
   {
     kind: 'purge-managed',
@@ -177,6 +179,11 @@ export const TABLE_GROWTH_STORIES = [
     kind: 'purge-managed',
     table: schema.savedPlans,
     purgeContributor: 'saved-plans',
+  },
+  {
+    kind: 'purge-managed',
+    table: schema.industryProfiles,
+    purgeContributor: 'industry-profiles',
   },
 
   { kind: 'bounded', table: schema.sites, reason: 'replaced from the finite sites catalogue' },
@@ -198,6 +205,10 @@ export const TABLE_GROWTH_STORIES = [
   { kind: 'bounded', table: schema.dgmAttributeTypes, reason: 'replaced from the EVE SDE' },
   { kind: 'bounded', table: schema.typeDogma, reason: 'replaced from the EVE SDE' },
   { kind: 'bounded', table: schema.industryBlueprints, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryTargetFilters, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryModifiers, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryAssemblyLines, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryInstallationTypes, reason: 'replaced from the EVE SDE' },
   {
     kind: 'bounded',
     table: schema.blueprintTrees,

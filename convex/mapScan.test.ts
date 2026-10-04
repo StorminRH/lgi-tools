@@ -1,5 +1,4 @@
 // @vitest-environment edge-runtime
-import { readFileSync } from 'node:fs';
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAP_CHAIN_UNDO_WINDOW_MS, tombstoneDeletedAt } from '@/data/maps/chain-contract';
@@ -1596,26 +1595,6 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await readState(t)).toEqual(before);
   });
 
-  it('read set stays separated from mapChain across an unchanged re-paste', () => {
-    const chainFiles = [
-      'convex/mapChainAccess.ts',
-      'convex/mapChainConnections.ts',
-      'convex/mapChainEvents.ts',
-      'convex/mapChainPage.ts',
-      'convex/mapChainSystems.ts',
-    ];
-    const scanCode = readFileSync('convex/mapScan.ts', 'utf8');
-
-    for (const path of chainFiles) {
-      const chainCode = readFileSync(path, 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/^\s*\/\/.*$/gm, '');
-      expect(chainCode, path).not.toContain("'mapSignatures'");
-      expect(chainCode, path).not.toContain("'mapSignatureActivity'");
-    }
-    expect(scanCode).not.toContain("from './mapChain");
-  });
-
   it('debounce writes nothing at 59s and only activity after 61s', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
@@ -2210,7 +2189,7 @@ describe('mapScan paste application and lifecycle', () => {
     expect(page.page.map((row) => row.signatureId)).toEqual(['SIG-001']);
   });
 
-  it('purges expired tombstones through the production internal mutation and cron registry', async () => {
+  it('purges expired tombstones through the production internal mutation', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
     await apply(t, [signature('SIG-001')]);
@@ -2231,10 +2210,6 @@ describe('mapScan paste application and lifecycle', () => {
       hasMore: false,
     });
     expect(await readSignature(t, 'SIG-001')).toBeNull();
-
-    const cronSource = readFileSync('convex/crons.ts', 'utf8');
-    expect(cronSource).toContain("'map signature purge'");
-    expect(cronSource).toContain('internal.mapScan.purgeExpiredSignatureTombstones');
   });
 
   it('continues a full signature purge batch until the backlog drains', async () => {

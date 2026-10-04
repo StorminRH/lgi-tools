@@ -43,6 +43,7 @@ const savedRow = {
   rigTypeIds: [37170],
   systemId: 30000142,
   taxPct: 1,
+  bonuses: null,
 };
 
 function makeRequest(body: unknown): NextRequest {
@@ -110,7 +111,9 @@ describe('POST /api/account/custom-structures', () => {
   it('saves the structure and returns the updated list with 201', async () => {
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ structures: [savedRow] });
+    const createdId = h.createCustomStructureMock.mock.calls[0]![1].id as string;
+    expect(createdId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await res.json()).toEqual({ structures: [savedRow], createdId });
     expect(h.createCustomStructureMock).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({
@@ -120,6 +123,16 @@ describe('POST /api/account/custom-structures', () => {
         systemId: 30000142,
         taxPct: 1,
       }),
+    );
+  });
+
+  it('saves entered bonuses on a structure without rigs', async () => {
+    const bonuses = { manufacturing: { me: 3.38, te: 39.2, cost: 4 }, reactions: { me: 0, te: 0 } };
+    const res = await POST(makeRequest({ ...VALID_BODY, rigTypeIds: [], bonuses }));
+    expect(res.status).toBe(201);
+    expect(h.createCustomStructureMock).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ rigTypeIds: [], bonuses }),
     );
   });
 });

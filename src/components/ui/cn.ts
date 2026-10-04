@@ -63,6 +63,7 @@ const twMerge = extendTailwindMerge({
             'dot-orange',
             'dot-blue',
             'selected-rail',
+            'node-lift',
           ],
         },
       ],

@@ -7,14 +7,11 @@ import {
 } from './tracked-system';
 
 const SYSTEM = 31_000_001;
-const OWNER = 'owner';
 
 function coverage(
   entries: readonly { characterId: number; covered: boolean }[],
-): ReadonlyMap<string, ReadonlyMap<number, boolean>> {
-  return new Map([
-    [OWNER, new Map(entries.map((entry) => [entry.characterId, entry.covered]))],
-  ]);
+): ReadonlyMap<number, boolean> {
+  return new Map(entries.map((entry) => [entry.characterId, entry.covered]));
 }
 
 function located(
@@ -24,7 +21,6 @@ function located(
   observedAt = 1_000,
 ) {
   return {
-    userId: OWNER,
     characterId,
     location: { solarSystemId, transitionObservedAt, observedAt },
   };
@@ -39,7 +35,7 @@ describe('dockCharacters', () => {
           located(7, SYSTEM, 500),
           located(8, SYSTEM + 1, null, 900),
           located(42, SYSTEM + 2, 2_000),
-          { userId: OWNER, characterId: 9, location: null },
+          { characterId: 9, location: null },
         ],
         coverage: coverage([
           { characterId: 7, covered: true },

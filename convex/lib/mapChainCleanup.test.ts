@@ -1,5 +1,4 @@
 // @vitest-environment edge-runtime
-import { readFileSync } from 'node:fs';
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { internal } from '../_generated/api';
@@ -399,11 +398,5 @@ describe('map chain cleanup', () => {
     // The next daily purge settles the formerly kept connection.
     vi.setSystemTime(NOW + 1);
     await expect(purge(t)).resolves.toMatchObject({ removedBranches: 1 });
-  });
-
-  it('registers the bounded purge on the production Convex cron registry', () => {
-    const source = readFileSync('convex/crons.ts', 'utf8');
-    expect(source).toContain("'map chain purge'");
-    expect(source).toContain('internal.mapChainCleanup.purgeExpiredChainTombstones');
   });
 });

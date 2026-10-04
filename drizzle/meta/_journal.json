@@ -519,6 +519,48 @@
       "when": 1790808379416,
       "tag": "0073_deletion_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1790822879008,
+      "tag": "0074_character_scoped_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1790827768629,
+      "tag": "0075_map_blocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1790979938912,
+      "tag": "0076_industry_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1790980308885,
+      "tag": "0077_custom_structure_entered_bonuses",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1790980524250,
+      "tag": "0078_industry_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1790993417616,
+      "tag": "0079_industry_rules_runtime_grants",
+      "breakpoints": true
     }
   ]
 }

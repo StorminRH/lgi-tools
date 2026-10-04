@@ -1,0 +1,15 @@
+::view-transition-old(.industry-section) {
+  animation: 160ms ease-out both industry-section-out;
+}
+
+::view-transition-new(.industry-section) {
+  animation: 220ms ease-out both industry-section-in;
+}
+
+@keyframes industry-section-out {
+  to { opacity: 0; }
+}
+
+@keyframes industry-section-in {
+  from { opacity: 0; translate: 0 6px; }
+}

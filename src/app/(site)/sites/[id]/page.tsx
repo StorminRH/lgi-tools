@@ -111,7 +111,7 @@ function SiteDetailFallback() {
     <div className="flex w-full flex-col items-center gap-4 pb-20">
       <Skeleton label="Loading site" className="h-4 w-40 self-start" />
       <Skeleton aria-hidden="true" className="h-10 w-full max-w-[32rem]" />
-      <Skeleton aria-hidden="true" className="h-64 w-full max-w-[32rem]" />
+      <Skeleton aria-hidden="true" className="h-64 w-full max-w-[32rem] rounded-card" />
     </div>
   );
 }

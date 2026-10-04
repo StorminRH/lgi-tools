@@ -20,7 +20,7 @@ import { refreshSkillsOnView } from '@/composition/sync/skills-sync';
 import type { BoardResponse } from './api-contract';
 import { assembleBoard, type BoardRaw, collectNameIds, netWorthSnapshot, toHistoryDay } from './board-assemble';
 import { resolveNameBook } from './name-book';
-import { seedUnpricedTypes } from './price-book';
+import { resolveValuationBook, seedUnpricedTypes } from './price-book';
 
 async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<BoardRaw[]> {
   const ids = linked.map((character) => character.characterId);
@@ -70,23 +70,27 @@ async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<Board
 }
 
 /**
- * Runs after the write-behind refreshes: re-reads the roster, values it, records the account's day
- * (last view of the day wins) and seeds price rows for owned types the nightly sweep has never seen.
- * A roster with no computable pilot records nothing, so a fresh account's chart never starts at zero.
+ * Values the account from what Neon already holds (no ESI) and records the day; the last write of the day
+ * wins. The nightly revalue runs it after the price sweep, and a character link runs it after that pilot's
+ * first sync. A roster with no computable pilot records nothing, so a fresh account's chart never starts at
+ * zero. Owned types the sweep has never priced are seeded so the next sweep prices them; until then the CCP
+ * average values them.
  */
 export async function recordNetWorthSnapshot(userId: string, now = new Date()): Promise<void> {
   const linked = await listLinkedCharacters(userId);
   if (linked.length === 0) return;
   // SWR caches can still hold the pre-refresh view here; snapshots must read the completed writes.
   const raws = await readRaws(linked, true);
-  const names = await resolveNameBook(collectNameIds(raws));
-  const board = assembleBoard(raws, names, now.getTime(), []);
-  const snapshot = netWorthSnapshot(board.characters, utcDay(now));
+  const valuation = await resolveValuationBook(collectNameIds(raws).valuationTypeIds);
+  const snapshot = netWorthSnapshot(raws, {
+    prices: valuation.prices,
+    typeCategories: valuation.categories,
+  }, utcDay(now));
   if (snapshot.pilotsIncluded > 0) await upsertNetWorthDay(userId, snapshot, now);
-  await seedUnpricedTypes(names.unseededTypeIds);
+  await seedUnpricedTypes(valuation.unseeded);
 }
 
-function refreshEverything(userId: string): Promise<unknown> {
+export function refreshBoardDatasets(userId: string): Promise<unknown> {
   return Promise.allSettled([
     refreshSkillsOnView(userId),
     refreshJobsOnView(userId),
@@ -95,13 +99,17 @@ function refreshEverything(userId: string): Promise<unknown> {
   ]);
 }
 
+/**
+ * Serves net worth from the recorded days only: the view refreshes the pilots' datasets behind their
+ * freshness gates but never values or records them, so nothing prices on view.
+ */
 export async function getBoardForUserOnView(userId: string): Promise<BoardResponse> {
   const linked = await listLinkedCharacters(userId);
   const raws = await readRaws(linked);
-  after(async () => {
-    await refreshEverything(userId);
-    await recordNetWorthSnapshot(userId);
-  });
-  const [names, history] = await Promise.all([resolveNameBook(collectNameIds(raws)), getNetWorthHistory(userId)]);
+  after(() => refreshBoardDatasets(userId));
+  const [names, history] = await Promise.all([
+    resolveNameBook({ ...collectNameIds(raws), valuationTypeIds: [] }),
+    getNetWorthHistory(userId),
+  ]);
   return assembleBoard(raws, names, Date.now(), history.map(toHistoryDay));
 }

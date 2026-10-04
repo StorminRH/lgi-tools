@@ -11,20 +11,26 @@ import {
   getBlueprintSearchRows,
   getBlueprintTree,
   getIndustryStationsForSystem,
+  getIndustryTargetFilters,
   getTypeAttributesBatch,
   getTypeLabels,
   getTypeNames,
   type TypeLabel,
 } from '@/data/eve-data/queries';
+import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
-import { getAdjustedPrices, getSystemCostIndices } from '@/data/industry-indices/queries';
+import {
+  getAdjustedPrices,
+  getSystemCostIndices,
+  getSystemCostIndicesBatch,
+} from '@/data/industry-indices/queries';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { toPlainPriceFigures } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
-import { collectBlueprintTypeIds, collectRawTypeIds } from './build-batch';
+import { collectBlueprintTypeIds, collectRawTypeIds, productTypeByBlueprint } from './build-batch';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
@@ -37,6 +43,7 @@ import type {
   BlueprintPricing,
   BlueprintStructure,
   BuildLocationData,
+  SystemJobCostIndex,
 } from './types';
 
 function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
@@ -119,11 +126,12 @@ export async function getBlueprintStructure(
 
     const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
     const blueprintIds = collectBlueprintTypeIds(tree, blueprintId);
-    const [labels, activityByBlueprint, activityTimeMap, nodeTimeSkills] = await Promise.all([
+    const [labels, activityByBlueprint, activityTimeMap, nodeTimeSkills, targetFilters] = await Promise.all([
       getTypeLabels(labelIds),
       getActivityByBlueprint(blueprintIds),
       getBlueprintActivityTimes(blueprintIds),
       nodeTimeSkillsFor(blueprintIds),
+      getIndustryTargetFilters(),
     ]);
     const topJobSeconds = activityTimeMap.get(blueprintId) ?? null;
     const nodeJobSeconds: Record<number, number> = {};
@@ -166,9 +174,27 @@ export async function getBlueprintStructure(
       topJobSeconds,
       nodeJobSeconds,
       nodeActivityByBlueprint,
+      nodeFilterIds: nodeFilterIdsFor(
+        productTypeByBlueprint(tree, { blueprintTypeId: blueprintId, productTypeId: chosen.productTypeId }),
+        labels,
+        targetFilters,
+      ),
       nodeTimeSkills,
     };
   });
+}
+
+function nodeFilterIdsFor(
+  productByBlueprint: ReadonlyMap<number, number>,
+  labels: ReadonlyMap<number, TypeLabel>,
+  filters: readonly TargetFilter[],
+): Record<number, number[]> {
+  const out: Record<number, number[]> = {};
+  for (const [bp, typeId] of productByBlueprint) {
+    const label = labels.get(typeId);
+    if (label) out[bp] = matchingFilterIds(filters, label);
+  }
+  return out;
 }
 
 export async function getBlueprintPricing(
@@ -238,9 +264,8 @@ export async function getBuildLocation(
   blueprintId: number,
 ): Promise<BuildLocationData> {
   const structure = await getBlueprintStructure(blueprintId);
-  const baseTypeIds = dedupe(
-    structure?.buildTree[0]?.inputs.map((i) => i.typeId) ?? [],
-  );
+  // Every job in the tree is valued on its inputs' adjusted prices, not only the product's own.
+  const baseTypeIds = dedupe(collectTreeTypeIds(structure?.tree ?? []));
 
   const [stations, costIndices, adjustedMap] = await Promise.all([
     getIndustryStationsForSystem(systemId),
@@ -259,4 +284,15 @@ export async function getBuildLocation(
       adjustedPrice,
     })),
   };
+}
+
+/** Each system's manufacturing and reaction cost indices, in the order asked. */
+export async function getJobCostIndices(systemIds: number[]): Promise<SystemJobCostIndex[]> {
+  const ids = dedupe(systemIds);
+  const indices = await getSystemCostIndicesBatch(ids);
+  return ids.map((systemId) => ({
+    systemId,
+    manufacturing: indices.get(systemId)?.get('manufacturing') ?? null,
+    reaction: indices.get(systemId)?.get('reaction') ?? null,
+  }));
 }

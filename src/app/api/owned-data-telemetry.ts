@@ -6,6 +6,7 @@ export type OwnedDataEndpoint =
   | '/api/account/industry-jobs'
   | '/api/account/corp-industry-jobs'
   | '/api/industry/skill-levels'
+  | '/api/industry/team-skill-levels'
   | '/api/industry/owned-blueprints'
   | '/api/industry/owned-assets';
 

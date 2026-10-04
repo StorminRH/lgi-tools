@@ -16,7 +16,7 @@ import {
 } from '@/db/__tests__/support/db-test-harness';
 import { customStructures } from '@/features/custom-structures/schema';
 import { corpIndustryJobs, corpIndustryJobSyncs } from '@/features/industry-jobs/schema';
-import { savedPlans } from '@/features/industry-planner/schema';
+import { industryProfiles, savedPlans } from '@/features/industry-planner/schema';
 import { netWorthDays } from '@/features/net-worth/schema';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { MergeIncompleteError } from '@/platform/purge/merge';
@@ -39,12 +39,15 @@ const harness = await createDbTestHarness({
     'corp_access_audit',
     'maps',
     'map_access',
+    'map_blocks',
+    'map_block_accounts',
     'map_access_changes',
     'user_preferences',
     'net_worth_days',
     'corp_industry_jobs',
     'corp_industry_job_syncs',
     'saved_plans',
+    'industry_profiles',
     'custom_structures',
     'esi_refresh_jobs',
     'usage_logs',
@@ -57,10 +60,13 @@ const harness = await createDbTestHarness({
     { table: 'session', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_block_accounts', column: 'block_id', refTable: 'map_blocks', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
     { table: 'user_preferences', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'net_worth_days', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'saved_plans', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'industry_profiles', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'custom_structures', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
   ],
   steerDbProxy: true,
@@ -167,6 +173,12 @@ async function seedUserData() {
     productName: 'Thing',
     snapshot: {} as never,
   });
+  await harness.db.insert(industryProfiles).values({
+    id: 'profile-new',
+    userId: NEW,
+    name: 'Capital line',
+    document: { v: 2, members: [], facilities: [] },
+  });
   await harness.db.insert(customStructures).values({
     id: 'structure-new',
     userId: NEW,
@@ -265,6 +277,7 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
       await harness.db.select({ corporationId: corpIndustryJobSyncs.corporationId, userId: corpIndustryJobSyncs.userId }).from(corpIndustryJobSyncs),
     ).toEqual([{ corporationId: CORP + 1, userId: OLD }]);
     expect(await ownersOf(harness.db.select().from(savedPlans))).toEqual([OLD]);
+    expect(await ownersOf(harness.db.select().from(industryProfiles))).toEqual([OLD]);
     expect(await ownersOf(harness.db.select().from(customStructures))).toEqual([OLD]);
     expect(await harness.db.select().from(esiRefreshJobs)).toEqual([]);
     expect(

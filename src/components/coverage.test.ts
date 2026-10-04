@@ -53,10 +53,8 @@ vi.mock('convex/react', () => ({
 
 import { PreferencesProvider } from '@/components/PreferencesProvider';
 import { RigSupply } from '@/components/RigSupply';
-import { RunAsFrame } from '@/components/RunAsFrame';
 import { CharacterStripSection } from '@/components/character-strip-section';
 import { CharacterStrip } from '@/components/character-strip';
-import { LiveCharacterCard } from '@/components/live-character-card';
 import { buildTelemetryPayload } from '@/components/telemetry/telemetry-payload';
 import { useLiveDataset } from '@/components/use-live-dataset';
 
@@ -65,10 +63,8 @@ describe('coverage-gaps', () => {
     const pinned = [
       PreferencesProvider,
       RigSupply,
-      RunAsFrame,
       CharacterStripSection,
       CharacterStrip,
-      LiveCharacterCard,
       buildTelemetryPayload,
       useLiveDataset,
     ];

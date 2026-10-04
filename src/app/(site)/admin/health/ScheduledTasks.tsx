@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
-import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
+import { DistributionBars } from '@/components/ui/distribution-bars';
+import type { ShareSegment } from '@/components/ui/stacked-share-bar';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { refreshVolumeSummary } from '@/data/telemetry/health-metrics';
 import {
@@ -12,59 +12,42 @@ import {
   getRefreshVolume,
   getSdeCronOutcomes,
 } from '@/data/telemetry/queries';
-import type { CronOutcomeCount, DateRange } from '@/data/telemetry/types';
+import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
-import { AdminBarChart, AdminTrendChart } from '../charts';
+import { AdminTrendChart } from '../charts';
 import { getLastSyncedAtShared } from '../last-synced';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { SectionUnavailable } from '../SectionUnavailable';
-import { deriveCronStatuses } from '../signals';
+import { CRON_OUTCOME_RULES, deriveCronStatuses } from '../signals';
+import { formatDurationMs, toneOutcomes, type TonedOutcome } from './cron-outcomes';
+import { ChartBlock, DetailBody, DetailCaption } from './DetailBlocks';
 import { StatusRow } from './StatusRow';
 
 type Trend = ReturnType<typeof trendSeries>;
 type RefreshVolume = Awaited<ReturnType<typeof getRefreshVolume>>;
 
-function DetailBody({ children }: { children: ReactNode }) {
+function OutcomeBars({ outcomes, ariaLabel }: { outcomes: TonedOutcome[]; ariaLabel: string }) {
   return (
-    <div className="border-t border-border-soft px-3.5 py-3 flex flex-col gap-4">{children}</div>
-  );
-}
-
-function DetailCaption({ children }: { children: ReactNode }) {
-  return <div className="font-data text-ui text-muted">{children}</div>;
-}
-
-function ChartBlock({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <SectionHeader variant="sub" label={label} className="mb-2" />
-      {children}
+    <div className="-mx-3.5">
+      <DistributionBars
+        rows={outcomes.map((o) => ({
+          key: o.outcome,
+          label: o.outcome,
+          count: o.count,
+          tone: o.tone,
+          detail: `avg ${formatDurationMs(o.avgDurationMs)}`,
+        }))}
+        sort="none"
+        fill="share"
+        ariaLabel={ariaLabel}
+      />
     </div>
   );
 }
 
-function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
-  if (rows.length === 0) return null;
-  const columns = [
-    { key: 'outcome', label: 'Outcome', render: (row) => row.outcome, className: 'text-text' },
-    {
-      key: 'duration',
-      label: 'Average duration',
-      align: 'right',
-      render: (row) => `${row.avgDurationMs.toLocaleString()} ms`,
-      className: 'text-muted tabular-nums',
-    },
-  ] satisfies readonly StaticTableColumn<CronOutcomeCount>[];
-  return (
-    <ChartBlock label="Average duration by outcome">
-      <StaticTable
-        ariaLabel="Average duration by outcome"
-        columns={columns}
-        rows={rows}
-        getRowKey={(row) => row.outcome}
-      />
-    </ChartBlock>
-  );
+function shareOf(outcomes: TonedOutcome[]): ShareSegment[] | undefined {
+  if (outcomes.length === 0) return undefined;
+  return outcomes.map((o) => ({ label: o.outcome, value: o.count, tone: o.tone }));
 }
 
 function PriceCronDetail({
@@ -73,7 +56,7 @@ function PriceCronDetail({
   volumeTrend,
 }: {
   refreshVolume: RefreshVolume;
-  priceOutcomes: CronOutcomeCount[];
+  priceOutcomes: TonedOutcome[];
   volumeTrend: Trend;
 }) {
   return (
@@ -91,13 +74,9 @@ function PriceCronDetail({
       )}
       {priceOutcomes.length > 0 && (
         <ChartBlock label="Runs by outcome">
-          <AdminBarChart
-            data={priceOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
-            ariaLabel="Price-cron runs by outcome"
-          />
+          <OutcomeBars outcomes={priceOutcomes} ariaLabel="Price-cron runs by outcome" />
         </ChartBlock>
       )}
-      <DurationTable rows={priceOutcomes} />
     </DetailBody>
   );
 }
@@ -106,7 +85,7 @@ function CronOutcomeDetail({
   outcomes,
   ariaLabel,
 }: {
-  outcomes: CronOutcomeCount[];
+  outcomes: TonedOutcome[];
   ariaLabel: string;
 }) {
   return (
@@ -116,15 +95,9 @@ function CronOutcomeDetail({
           No runs in this period.
         </DetailCaption>
       ) : (
-        <>
-          <ChartBlock label="Runs by outcome">
-            <AdminBarChart
-              data={outcomes.map((o) => ({ label: o.outcome, value: o.count }))}
-              ariaLabel={ariaLabel}
-            />
-          </ChartBlock>
-          <DurationTable rows={outcomes} />
-        </>
+        <ChartBlock label="Runs by outcome">
+          <OutcomeBars outcomes={outcomes} ariaLabel={ariaLabel} />
+        </ChartBlock>
       )}
     </DetailBody>
   );
@@ -137,7 +110,7 @@ function GscSyncDetail({
 }: {
   gscConfigured: boolean;
   lastSyncedAt: Date | null;
-  gscOutcomes: CronOutcomeCount[];
+  gscOutcomes: TonedOutcome[];
 }) {
   return (
     <DetailBody>
@@ -155,10 +128,7 @@ function GscSyncDetail({
           </DetailCaption>
           {gscOutcomes.length > 0 && (
             <ChartBlock label="Sync runs by outcome">
-              <AdminBarChart
-                data={gscOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
-                ariaLabel="GSC sync runs by outcome"
-              />
+              <OutcomeBars outcomes={gscOutcomes} ariaLabel="GSC sync runs by outcome" />
             </ChartBlock>
           )}
         </>
@@ -196,6 +166,12 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
     },
     range.to,
   );
+  const toned = {
+    price: toneOutcomes(priceOutcomes, CRON_OUTCOME_RULES.price),
+    sde: toneOutcomes(sdeOutcomes, CRON_OUTCOME_RULES.sde),
+    gsc: toneOutcomes(gscOutcomes, CRON_OUTCOME_RULES.gsc),
+    housekeeping: toneOutcomes(housekeepingOutcomes, CRON_OUTCOME_RULES.housekeeping),
+  };
   const volumeTrend = trendSeries(
     refreshVolume.map((p) => p.day),
     refreshVolume.map((p) => p.fetched),
@@ -205,28 +181,32 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
     <Card id="scheduled" className="scroll-mt-24">
       <SectionHeader size="md" label="Scheduled tasks" />
 
-      <StatusRow name="Price cron" status={statuses.price}>
+      <StatusRow name="Price cron" status={statuses.price} share={shareOf(toned.price)}>
         <PriceCronDetail
           refreshVolume={refreshVolume}
-          priceOutcomes={priceOutcomes}
+          priceOutcomes={toned.price}
           volumeTrend={volumeTrend}
         />
       </StatusRow>
 
-      <StatusRow name="SDE cron" status={statuses.sde}>
-        <CronOutcomeDetail outcomes={sdeOutcomes} ariaLabel="SDE-cron runs by outcome" />
+      <StatusRow name="SDE cron" status={statuses.sde} share={shareOf(toned.sde)}>
+        <CronOutcomeDetail outcomes={toned.sde} ariaLabel="SDE-cron runs by outcome" />
       </StatusRow>
 
-      <StatusRow name="GSC sync" status={statuses.gsc}>
+      <StatusRow name="GSC sync" status={statuses.gsc} share={shareOf(toned.gsc)}>
         <GscSyncDetail
           gscConfigured={gscConfigured}
           lastSyncedAt={lastSyncedAt}
-          gscOutcomes={gscOutcomes}
+          gscOutcomes={toned.gsc}
         />
       </StatusRow>
 
-      <StatusRow name="Housekeeping" status={statuses.housekeeping}>
-        <CronOutcomeDetail outcomes={housekeepingOutcomes} ariaLabel="Housekeeping runs by outcome" />
+      <StatusRow
+        name="Housekeeping"
+        status={statuses.housekeeping}
+        share={shareOf(toned.housekeeping)}
+      >
+        <CronOutcomeDetail outcomes={toned.housekeeping} ariaLabel="Housekeeping runs by outcome" />
       </StatusRow>
     </Card>
   );

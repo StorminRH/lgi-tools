@@ -151,7 +151,7 @@ describe('map chain fixtures', () => {
       const byName = new Map(exported.tables.map((table) => [table.tableName, table]));
 
       const expectedFields: Record<string, string[]> = {
-        mapAccess: ['mapId', 'roles', 'userId'],
+        mapAccess: ['characters', 'mapId', 'roles', 'userId'],
         mapSystems: ['deletedAt', 'mapId', 'purgeAfter', 'systemId'],
         mapConnections: [
           'firstSeenAt',
@@ -453,6 +453,21 @@ describe('map chain fixtures', () => {
       });
       expect(after.connections).toEqual([]);
       expect(after.bookkeeping).toEqual([]);
+    });
+
+    it('refuses to seed a character outside a scoped claim', async () => {
+      const t = convexTest(schema, modules);
+      await t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+        mapId: MAP_A,
+        revision: 1,
+        claims: [{ userId: EDITOR, roles: ['editor'], characters: [{ characterId: 90_404_111, name: 'Listed' }] }],
+      });
+      const seed = (characterId: number) =>
+        t.mutation(internal.mapFixtureTracking.seedTrackedLocationFixture, {
+          mapId: MAP_A, userId: EDITOR, characterId, solarSystemId: JITA, shipTypeId: null, transitionObservedAt: NOW,
+        });
+      await expect(seed(90_404_222)).rejects.toThrow(/CHARACTER_NOT_ELIGIBLE/);
+      await expect(seed(90_404_111)).resolves.toMatchObject({ toSolarSystemId: JITA });
     });
 
     it('stamps the owner\'s location sync freshness on seed and advance', async () => {

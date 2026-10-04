@@ -92,7 +92,7 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
           {totals !== null && totals.covered !== totals.total ? (
             <span>{totals.covered} of {totals.total}</span>
           ) : null}
-          <Link href="/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
+          <Link href="/industry/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
             Open jobs →
           </Link>
         </span>

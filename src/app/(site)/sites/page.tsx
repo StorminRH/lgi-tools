@@ -1,15 +1,15 @@
-import { cookies } from 'next/headers';
 import { Suspense } from 'react';
 import { Banner } from '@/components/ui/banner';
 import { PageShell } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
   SitesFilterLayout,
   SitesResults,
+  SitesViewTools,
   type SiteCardItem,
 } from '@/features/wormhole-sites/components/SitesFilterLayout';
+import { SitesTable } from '@/features/wormhole-sites/components/SitesTable';
 import {
   SitesTableFromUrl,
   type SitesSearchParams,
@@ -18,7 +18,6 @@ import { selectDevSampleSites } from '@/features/wormhole-sites/dev-sample';
 import { listPricedSiteDetails } from '@/features/wormhole-sites/queries';
 import { siteClassSet } from '@/features/wormhole-sites/site-filter';
 import { buildPageMetadata } from '@/lib/page-metadata';
-import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
 
 export const metadata = buildPageMetadata({
   title: 'Wormhole Sites — Live Jita Loot & Resource Values',
@@ -48,20 +47,6 @@ function DevSampleBanner({
   );
 }
 
-async function SitesResultsFromCookie({
-  cards,
-  table,
-}: {
-  cards: SiteCardItem[];
-  table: React.ReactNode;
-}) {
-  const initialView = readPreferenceCookieValue(
-    (await cookies()).get(cookieNameFor(sitesView))?.value,
-    sitesView,
-  );
-  return <SitesResults cards={cards} table={table} initialView={initialView} />;
-}
-
 async function SitesCatalogue({
   searchParams,
 }: {
@@ -82,34 +67,21 @@ async function SitesCatalogue({
     ),
   }));
 
+  // The sort comes from the URL; until it resolves, the same sites stand in
+  // unsorted, so the table is real rows from the first paint.
   const table = (
-    <Suspense
-      fallback={
-        <Skeleton
-          label="Loading sorted sites"
-          className="h-[640px] w-full rounded-card"
-        />
-      }
-    >
+    <Suspense fallback={<SitesTable sites={sites} sortKey={null} sortDir="desc" currentParams={{}} />}>
       <SitesTableFromUrl sites={sites} searchParams={searchParams} />
     </Suspense>
-  );
-  const fallback = (
-    <div className="pt-[34px]">
-      <Skeleton
-        label="Loading saved sites view"
-        className="h-[720px] w-full rounded-card"
-      />
-    </div>
   );
 
   return (
     <>
       <DevSampleBanner sampled={sampled} shown={sites.length} total={fullCount} />
-      <SitesFilterLayout sites={cards.map((card) => card.meta)} total={sites.length}>
-        <Suspense fallback={fallback}>
-          <SitesResultsFromCookie cards={cards} table={table} />
-        </Suspense>
+      {/* Cards or table is an account setting read in the browser, so the
+          prerendered page carries every site instead of waiting on a cookie. */}
+      <SitesFilterLayout sites={cards.map((card) => card.meta)} total={sites.length} tools={<SitesViewTools />}>
+        <SitesResults cards={cards} table={table} />
       </SitesFilterLayout>
     </>
   );

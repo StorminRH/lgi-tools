@@ -6,28 +6,28 @@ import type { PillTone } from './tones';
 export type { PillTone };
 
 export const pillToneClasses = {
-  neutral:      'bg-surface-raised text-text border-border-idle',
-  green:        'bg-pill-green-bg text-isk border-isk-dim',
-  'green-strong':'bg-pill-green-bg text-tone-green-strong border-isk-dim',
-  orange:       'bg-pill-orange-bg text-tone-orange border-pill-orange-border',
-  'orange-soft':'bg-pill-orange-soft-bg text-tone-orange-soft border-pill-orange-soft-border',
-  red:          'bg-pill-red-bg text-pill-red-text border-pill-red-border',
-  'red-soft':   'bg-pill-red-soft-bg text-tone-red-soft border-pill-red-soft-border',
-  magenta:      'bg-pill-magenta-bg text-tone-magenta border-pill-magenta-border',
-  purple:       'bg-pill-purple-bg text-tone-purple border-pill-purple-border',
-  yellow:       'bg-pill-yellow-bg text-tone-yellow border-pill-yellow-border',
-  teal:         'bg-pill-teal-bg text-tone-teal border-pill-teal-border',
-  blue:         'bg-surface-sunk text-tone-blue border-pill-blue-border',
+  neutral:      'pill-soft border-transparent [--pill-tone:var(--color-muted)] text-text',
+  green:        'pill-soft border-transparent [--pill-tone:var(--color-isk)] text-isk',
+  'green-strong':'pill-soft border-transparent [--pill-tone:var(--color-tone-green-strong)] text-tone-green-strong',
+  orange:       'pill-soft border-transparent [--pill-tone:var(--color-tone-orange)] text-tone-orange',
+  'orange-soft':'pill-soft border-transparent [--pill-tone:var(--color-tone-orange-soft)] text-tone-orange-soft',
+  red:          'pill-soft border-transparent [--pill-tone:var(--color-alert-red)] text-pill-red-text',
+  'red-soft':   'pill-soft border-transparent [--pill-tone:var(--color-tone-red-soft)] text-tone-red-soft',
+  magenta:      'pill-soft border-transparent [--pill-tone:var(--color-tone-magenta)] text-tone-magenta',
+  purple:       'pill-soft border-transparent [--pill-tone:var(--color-tone-purple)] text-tone-purple',
+  yellow:       'pill-soft border-transparent [--pill-tone:var(--color-tone-yellow)] text-tone-yellow',
+  teal:         'pill-soft border-transparent [--pill-tone:var(--color-tone-teal)] text-tone-teal',
+  blue:         'pill-soft border-transparent [--pill-tone:var(--color-tone-blue)] text-tone-blue',
 } satisfies Record<PillTone, string>;
 
 const pillVariants = cva(
-  'font-data font-semibold border inline-flex items-center',
+  'font-ui font-semibold border inline-flex items-center gap-1.5',
   {
     variants: {
       tone: pillToneClasses,
       size: {
-        sm: 'text-ui px-[8px] py-[2px] tracking-copy rounded-full',
-        md: 'text-ui px-[10px] py-[3px] tracking-[0.05em] rounded-full',
+        sm: 'text-ui px-[9px] py-[2px] rounded-full',
+        md: 'text-ui px-[11px] py-[3px] rounded-full',
       },
     },
     defaultVariants: { tone: 'neutral', size: 'sm' },

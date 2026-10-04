@@ -13,8 +13,10 @@ import {
 
 const mergeDatabase = vi.hoisted(() => ({ current: null as PostgresJsDatabase | null }));
 const after = vi.hoisted(() => vi.fn());
+const revalueAfterRosterChange = vi.hoisted(() => vi.fn());
 
 vi.mock('next/server', () => ({ after }));
+vi.mock('@/composition/board/net-worth-link', () => ({ revalueAfterRosterChange }));
 vi.mock('./account-merge', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./account-merge')>();
   return {
@@ -47,6 +49,8 @@ const harness = await createDbTestHarness({
     'user',
     'maps',
     'map_access',
+    'map_blocks',
+    'map_block_accounts',
     'map_access_changes',
     'account',
     'characters',
@@ -59,6 +63,7 @@ const harness = await createDbTestHarness({
     'corp_industry_jobs',
     'corp_industry_job_syncs',
     'saved_plans',
+    'industry_profiles',
     'custom_structures',
     'esi_refresh_jobs',
     'pending_tracking_merges',
@@ -68,6 +73,8 @@ const harness = await createDbTestHarness({
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_block_accounts', column: 'block_id', refTable: 'map_blocks', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'session', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -95,6 +102,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   beforeEach(async () => {
     mergeDatabase.current = harness.db;
     after.mockReset();
+    revalueAfterRosterChange.mockReset();
     await seedUser(SOURCE_ID, MOVED_CHAR, new Date('2026-02-01T00:00:00Z'));
     await seedUser(TARGET_ID, null, new Date('2026-01-01T00:00:00Z'));
   });
@@ -340,6 +348,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     expect(await readAccount(MOVED_CHAR)).toBeUndefined();
     expect(await userIds()).toEqual([TARGET_ID]);
     expect(after).not.toHaveBeenCalled();
+    expect(revalueAfterRosterChange).toHaveBeenCalledWith(SOURCE_ID);
   });
 
   it('neither merges nor purges a cross-user link when the row has no owner evidence', async () => {

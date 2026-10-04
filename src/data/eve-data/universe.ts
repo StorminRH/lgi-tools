@@ -1,7 +1,4 @@
-import { createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
 import { sql } from 'drizzle-orm';
-import type { PgInsertValue, PgTable } from 'drizzle-orm/pg-core';
 import {
   eveConstellations,
   eveNpcStations,
@@ -11,13 +8,13 @@ import {
   eveSystemJumps,
 } from './schema';
 import { intOrNull, localizedEn, numOrNull } from './coerce';
+import { insertChunked, readJsonl } from './sde-io';
 import type { SdeJsonlPaths } from './source';
 import type { WormholeEffect } from './wormhole-contract';
 import type { AnyPgDb } from '@/lib/db-types';
 
 const PERSISTENT_REGION_MAX_EXCLUSIVE = 12_000_000;
 
-const INSERT_BATCH = 1000;
 
 export type UniverseRegion = {
   id: number;
@@ -342,20 +339,6 @@ function requireName(value: unknown, kind: string, id: number): string {
   return name;
 }
 
-async function readJsonl(path: string): Promise<Record<string, unknown>[]> {
-  const out: Record<string, unknown>[] = [];
-  const rl = createInterface({
-    input: createReadStream(path),
-    crlfDelay: Infinity,
-  });
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    out.push(JSON.parse(trimmed) as Record<string, unknown>);
-  }
-  return out;
-}
-
 export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDataset> {
   const [
     regions,
@@ -431,14 +414,4 @@ export async function emitUniverseNeon(
     stationOperationsWritten: dataset.operations.length,
     npcStationsWritten: dataset.stations.length,
   };
-}
-
-async function insertChunked<T extends Record<string, unknown>>(
-  tx: AnyPgDb,
-  table: PgTable,
-  rows: T[],
-): Promise<void> {
-  for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-    await tx.insert(table).values(rows.slice(i, i + INSERT_BATCH) as PgInsertValue<PgTable>[]);
-  }
 }
