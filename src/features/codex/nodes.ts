@@ -47,13 +47,18 @@ export type CodexNodeName = keyof typeof CODEX_NODES;
 
 export type CodexNodeAttrs<K extends CodexNodeName> = z.output<(typeof CODEX_NODES)[K]['attrs']>;
 
+export const CODEX_CALLOUT_LABELS: Record<CodexNodeAttrs<'callout'>['tone'], string> = {
+  tip: 'Tip',
+  warning: 'Warning',
+};
+
 export type CodexInjectedNodeName = {
   [K in CodexNodeName]: (typeof CODEX_NODES)[K] extends { injected: true } ? K : never;
 }[CodexNodeName];
 
 const SITE_ORIGIN = 'https://base.invalid';
 
-function isSafeHref(href: string): boolean {
+export function isSafeHref(href: string): boolean {
   if (/[\s\p{Cc}]/u.test(href)) return false;
   if (href.startsWith('/')) return URL.canParse(href, SITE_ORIGIN) && new URL(href, SITE_ORIGIN).origin === SITE_ORIGIN;
   return URL.canParse(href) && new URL(href).protocol === 'https:';

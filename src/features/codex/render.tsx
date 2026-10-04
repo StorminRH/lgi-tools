@@ -1,12 +1,15 @@
 import { Fragment, type ReactNode } from 'react';
 import { DocTable } from '@/components/ui/static-table';
-import type { CodexBlockNode, CodexDoc, CodexMark, CodexNode, CodexTextNode } from './doc';
-import type {
-  CodexInjectedNodeName,
-  CodexMarkName,
-  CodexNodeAttrs,
-  CodexNodeName,
+import { CodexSectionFrame } from './components/CodexSectionFrame';
+import type { CodexDoc, CodexMark, CodexNode, CodexTextNode } from './doc';
+import {
+  CODEX_CALLOUT_LABELS,
+  type CodexInjectedNodeName,
+  type CodexMarkName,
+  type CodexNodeAttrs,
+  type CodexNodeName,
 } from './nodes';
+import { codexSections, type CodexSection } from './sections';
 
 type BlockName = Exclude<CodexNodeName, 'text'>;
 type BuiltinName = Exclude<BlockName, CodexInjectedNodeName>;
@@ -41,7 +44,7 @@ const BLOCKS: { [K in BuiltinName]: NodeRenderer<K> } = {
   blockquote: ({ children }) => <blockquote>{children}</blockquote>,
   callout: ({ attrs, children }) => (
     <aside className="codex-callout" data-tone={attrs.tone}>
-      <span className="codex-callout-label">{attrs.tone === 'tip' ? 'Tip' : 'Warning'}</span>
+      <span className="codex-callout-label">{CODEX_CALLOUT_LABELS[attrs.tone]}</span>
       {children}
     </aside>
   ),
@@ -95,27 +98,27 @@ function plainText(node: CodexNode): string {
   return node.type === 'text' ? node.text : node.content.map(plainText).join('');
 }
 
-interface CodexSection {
-  readonly heading: Extract<CodexBlockNode, { type: 'heading' }> | null;
-  readonly blocks: CodexBlockNode[];
-}
-
-function splitSections(doc: CodexDoc): CodexSection[] {
-  const sections: CodexSection[] = [{ heading: null, blocks: [] }];
-  for (const block of doc.content) {
-    if (block.type === 'heading' && block.attrs.level === 2) {
-      sections.push({ heading: block, blocks: [] });
-    } else {
-      sections.at(-1)!.blocks.push(block);
-    }
-  }
-  return sections.filter((section) => section.heading !== null || section.blocks.length > 0);
-}
-
 export function codexOutline(doc: CodexDoc): { id: string; label: string }[] {
-  return splitSections(doc).flatMap(({ heading }) =>
-    heading?.attrs.id ? [{ id: heading.attrs.id, label: plainText(heading) }] : [],
+  return codexSections(doc).flatMap(({ id, heading }) =>
+    heading ? [{ id, label: plainText(heading) }] : [],
   );
+}
+
+export interface RenderedCodexSection extends CodexSection {
+  readonly title: ReactNode | null;
+  readonly body: ReactNode;
+}
+
+export function renderCodexSections(
+  doc: CodexDoc,
+  components: CodexInjectedComponents,
+): RenderedCodexSection[] {
+  const renderers = { ...BLOCKS, ...components } as Renderers;
+  return codexSections(doc).map((section) => ({
+    ...section,
+    title: section.heading ? renderNodes(section.heading.content, renderers) : null,
+    body: <div className="codex-prose">{renderNodes(section.blocks, renderers)}</div>,
+  }));
 }
 
 export function CodexArticle({
@@ -125,21 +128,9 @@ export function CodexArticle({
   doc: CodexDoc;
   components: CodexInjectedComponents;
 }) {
-  const renderers = { ...BLOCKS, ...components } as Renderers;
-  return splitSections(doc).map(({ heading, blocks }, index) => (
-    <section
-      key={heading?.attrs.id ?? `intro-${index}`}
-      id={heading?.attrs.id}
-      className="scroll-mt-24 pt-10 first:pt-0"
-    >
-      {heading ? (
-        <header className="mb-4 border-b border-border-soft pb-3">
-          <h2 className="font-display text-h2 font-bold uppercase leading-none tracking-optical text-name">
-            {renderNodes(heading.content, renderers)}
-          </h2>
-        </header>
-      ) : null}
-      <div className="codex-prose">{renderNodes(blocks, renderers)}</div>
-    </section>
+  return renderCodexSections(doc, components).map(({ id, title, body }) => (
+    <CodexSectionFrame key={id} id={id} title={title}>
+      {body}
+    </CodexSectionFrame>
   ));
 }

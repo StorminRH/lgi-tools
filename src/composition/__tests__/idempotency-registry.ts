@@ -445,6 +445,12 @@ const adminRoleRoute = mutationRoute({
   verdict: 'inherently-idempotent',
   evidence: 'Sets a user’s role to a named value; a repeat sets the same role.',
 });
+const adminCodexRevisionsRoute = mutationRoute({
+  route: 'src/app/api/admin/codex/revisions/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'Every publish and restore names the base revision it was made against, and one atomic compare-and-set statement moves the page head and appends the revision only while the head still equals that base; a replayed form finds the head already moved and lands as a conflict without writing a second revision. A first publish creates the page row behind the unique (subject_kind, subject_key) index.',
+});
 const adminWhStaticsRoute = mutationRoute({
   route: 'src/app/api/admin/wh-statics/route.ts',
   verdict: 'key-protected',
@@ -661,6 +667,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   savedPlansRenameRoute,
   savedPlansFavoriteRoute,
   adminRoleRoute,
+  adminCodexRevisionsRoute,
   adminWhStaticsRoute,
   mapsSignatureEliminationRoute,
   mapsJumpRoute,

@@ -46,6 +46,7 @@ const LOCAL_SYNTHETIC_MUTATIONS = ['dev/synthetic-pilot/route.ts'] as const;
 
 const ADMIN_MUTATIONS = [
   'admin/characters/reassign/route.ts',
+  'admin/codex/revisions/route.ts',
   'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/wh-statics/route.ts',

@@ -1,3 +1,4 @@
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SITE_URL } from "@/config/site-url";
@@ -12,6 +13,17 @@ function isUnpublishedDirectSitePath(pathname: string): boolean {
 
   const id = parseNumericRouteId(rawId);
   return id === null || !isPublishedWormholeSiteId(id);
+}
+
+const CODEX_PAGE_PATH = /^\/codex\/[^/]+\/[^/]+$/;
+
+function routeResponse(request: NextRequest, isUnpublishedSite: boolean): NextResponse {
+  if (isUnpublishedSite) return NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
+  // Only signed-in viewers reach the Codex route that carries the admin editor, so readers never download it.
+  if (!CODEX_PAGE_PATH.test(request.nextUrl.pathname) || !getSessionCookie(request)) return NextResponse.next();
+  const url = request.nextUrl.clone();
+  url.pathname = `${url.pathname}/admin`;
+  return NextResponse.rewrite(url);
 }
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -43,9 +55,7 @@ export function proxy(request: NextRequest): NextResponse {
     .trim();
 
   const isUnpublishedSite = isUnpublishedDirectSitePath(request.nextUrl.pathname);
-  const response = isUnpublishedSite
-    ? NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 })
-    : NextResponse.next();
+  const response = routeResponse(request, isUnpublishedSite);
   response.headers.set("Content-Security-Policy", cspHeader);
 
   const host = request.headers.get("host");
@@ -64,5 +74,6 @@ export const config = {
         { type: "header", key: "purpose", value: "prefetch" },
       ],
     },
+    { source: "/codex/:kind/:key" },
   ],
 };

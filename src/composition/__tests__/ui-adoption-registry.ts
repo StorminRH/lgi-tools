@@ -14,12 +14,14 @@ export const uiAdoptionRegistry = {
   hiddenInputs: [
     'src/app/(site)/admin/queue/RetryJobForm.tsx',
     'src/app/(site)/admin/statics/page.tsx',
+    'src/app/(site)/codex/[kind]/[key]/history/page.tsx',
     'src/components/composition/account/AdminForceLogoutForm.tsx',
     'src/components/composition/account/AdminReassignCharacterForm.tsx',
     'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
     'src/components/composition/account/RoleToggleForm.tsx',
     'src/components/composition/account/SwitchCharacterForm.tsx',
     'src/components/composition/account/UnlinkCharacterForm.tsx',
+    'src/features/codex/editor/CodexEditor.tsx',
   ],
   nativeTitles: [
     {

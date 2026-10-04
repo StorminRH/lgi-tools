@@ -55,8 +55,11 @@
     "/contact": "Static contact page; partial only because of the header's TQ status hole.",
     "/legal": "Static legal page; partial only because of the header's TQ status hole.",
     "/preview/cards": "Static card preview over mock sites; partial only because of the header's TQ status hole.",
-    "/codex": "The guide listing is a 'max'-cached read tagged codex:index, so the whole index prerenders; partial only because of the header's TQ status hole.",
-    "/codex/[kind]/[key]": "Codex reader: the kind and key params, the tag-cached current revision, and the server-rendered document stream from one hole behind a page-shaped skeleton."
+    "/codex": "The guide listing is a 'max'-cached read tagged codex:index, so the index prerenders; the admin's New guide control streams from a small session hole beside the list.",
+    "/codex/[kind]/[key]": "Codex reader for signed-out viewers: the kind and key params and the tag-cached current revision stream from one hole behind a page-shaped skeleton, and the route imports no admin code.",
+    "/codex/[kind]/[key]/admin": "Codex page for signed-in viewers, reached through the proxy rewrite: the params, the tag-cached revision, the viewer's admin check, and the edit query stream from one hole behind a page-shaped skeleton; the admin's editor loads only after a pencil press.",
+    "/codex/[kind]/[key]/history": "Per-page revision history, admin only: the admin check, params, and the uncached revision list stream from one hole behind a skeleton.",
+    "/api/admin/codex/revisions": "Dynamic admin form mutation: same-origin publish or restore with a compare-and-set on the page head, followed by a 303 redirect."
   },
   "routes": {
     "/": "partial",
@@ -170,6 +173,9 @@
     "/api/sync-leave": "dynamic",
     "/api/telemetry": "dynamic",
     "/codex": "partial",
-    "/codex/[kind]/[key]": "partial"
+    "/codex/[kind]/[key]": "partial",
+    "/codex/[kind]/[key]/admin": "partial",
+    "/codex/[kind]/[key]/history": "partial",
+    "/api/admin/codex/revisions": "dynamic"
   }
 }

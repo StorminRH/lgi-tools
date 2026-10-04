@@ -453,9 +453,18 @@ const reactFlowImportPatterns = [
   },
 ];
 
+const tiptapImportPatterns = [
+  {
+    group: ["@tiptap/*"],
+    message:
+      "TipTap is confined to the Codex editor island in src/features/codex/editor, which readers load only after an admin opens an editor.",
+  },
+];
+
 const crossCuttingImportPatterns = [
   ...stalenessImportPatterns,
   ...reactFlowImportPatterns,
+  ...tiptapImportPatterns,
 ];
 
 const upstashRedisImportPatterns = [
@@ -828,6 +837,29 @@ const eslintConfig = defineConfig([
           patterns: [
             ...vendorImportPatterns,
             ...stalenessImportPatterns,
+            ...tiptapImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/codex/editor/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...nextImageImportPaths,
+          ],
+          patterns: [
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
+            ...reactFlowImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1042,6 +1074,7 @@ const eslintConfig = defineConfig([
       "src/app/api/auth/**/route.{ts,tsx}",
       "src/app/(site)/industry/industry-characters.ts",
       "src/app/(site)/industry/industry-characters.test.ts",
+      "src/proxy.ts",
     ],
     rules: {
       "no-restricted-imports": [

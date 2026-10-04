@@ -1,7 +1,7 @@
-import { getRewrittenUrl, isRewrite } from "next/experimental/testing/server";
+import { getRewrittenUrl, isRewrite, unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
-import { proxy } from "./proxy";
+import { config, proxy } from "./proxy";
 
 const CANONICAL_ORIGIN = "https://lgi.tools";
 const PREVIEW_HOST = "lgi-tools-preview.vercel.app";
@@ -83,6 +83,48 @@ describe("proxy site detail fallback", () => {
       const response = proxy(request(pathname, PREVIEW_HOST));
 
       expect(response.headers.get("X-Robots-Tag")).toBe("noindex");
+    },
+  );
+});
+
+describe("proxy Codex admin route", () => {
+  function codexRequest(pathname: string, cookie?: string): NextRequest {
+    return new NextRequest(`https://lgi.tools${pathname}`, {
+      headers: cookie ? { host: "lgi.tools", cookie } : { host: "lgi.tools" },
+    });
+  }
+
+  it.each([
+    "better-auth.session_token=abc",
+    "__Secure-better-auth.session_token=abc",
+  ])("sends a signed-in viewer (%s) to the route that carries the editor", (cookie) => {
+    const response = proxy(codexRequest("/codex/guides/rolling-a-c3?edit=ships", cookie));
+
+    expect(getRewrittenUrl(response)).toBe(
+      `${CANONICAL_ORIGIN}/codex/guides/rolling-a-c3/admin?edit=ships`,
+    );
+    expect(response.headers.get("Content-Security-Policy")).toContain("default-src 'self'");
+  });
+
+  it("runs on Codex page prefetches so a signed-in prefetch also gets the editor route", () => {
+    const prefetch = { "next-router-prefetch": "1" };
+
+    expect(unstable_doesMiddlewareMatch({ config, url: "/codex/guides/rolling-a-c3", headers: prefetch })).toBe(true);
+    expect(unstable_doesMiddlewareMatch({ config, url: "/sites/3", headers: prefetch })).toBe(false);
+  });
+
+  it("serves the reader route to a signed-out viewer", () => {
+    const response = proxy(codexRequest("/codex/guides/rolling-a-c3", "theme=dark"));
+
+    expect(isRewrite(response)).toBe(false);
+  });
+
+  it.each(["/codex", "/codex/guides/rolling-a-c3/history"])(
+    "leaves %s alone for a signed-in viewer",
+    (pathname) => {
+      const response = proxy(codexRequest(pathname, "better-auth.session_token=abc"));
+
+      expect(isRewrite(response)).toBe(false);
     },
   );
 });

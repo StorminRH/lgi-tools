@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
@@ -67,4 +69,44 @@ test('reader renders a guide with breadcrumb, sections, and outline, and 404s ba
 
   mocks.loadCodexPage.mockResolvedValue(null);
   await expect(CodexReader({ params: params('guides', 'missing') })).rejects.toThrow('NEXT_NOT_FOUND');
+});
+
+function resolveImport(from: string, specifier: string): string | null {
+  let base: string | null = null;
+  if (specifier.startsWith('@/')) base = path.join('src', specifier.slice(2));
+  else if (specifier.startsWith('.')) base = path.join(path.dirname(from), specifier);
+  if (base === null) return null;
+  return ['.ts', '.tsx', '/index.ts', '/index.tsx'].map((ext) => base + ext).find((file) => existsSync(file)) ?? null;
+}
+
+function reachableModules(entry: string): string[] {
+  const seen = new Set<string>();
+  const queue = [entry];
+  while (queue.length > 0) {
+    const file = queue.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    for (const [, specifier] of readFileSync(file, 'utf8').matchAll(/(?:from|import\()\s*'([^']+)'/g)) {
+      const resolved = resolveImport(file, specifier!);
+      if (resolved) queue.push(resolved);
+    }
+  }
+  return [...seen];
+}
+
+test('the reader route reaches no Codex admin or editor module', () => {
+  const reached = reachableModules('src/app/(site)/codex/[kind]/[key]/page.tsx');
+  expect(reached).toContain('src/features/codex/render.tsx');
+  expect(
+    reached.filter((file) => /src\/features\/codex\/(components\/(CodexAdmin|NewGuideForm)|editor\/)/.test(file)),
+  ).toEqual([]);
+});
+
+test('only the signed-in Codex route imports the admin article', () => {
+  const appFiles = readdirSync('src/app', { recursive: true })
+    .map((file) => path.join('src/app', String(file)))
+    .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file));
+  expect(
+    appFiles.filter((file) => /CodexAdminArticle|CodexAdminSlot|CodexEditor/.test(readFileSync(file, 'utf8'))),
+  ).toEqual(['src/app/(site)/codex/[kind]/[key]/admin/page.tsx']);
 });

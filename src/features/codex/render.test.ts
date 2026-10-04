@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { parseCodexDoc, type CodexDoc } from './doc';
+import { CODEX_CALLOUT_LABELS } from './nodes';
 import { CodexArticle, codexOutline } from './render';
 
 const text = (value: string, marks: unknown[] = []) => ({ type: 'text', text: value, marks });
@@ -66,7 +68,7 @@ test('renders sections, lists, tables, links, and the outline from a parsed docu
     '<section class="scroll-mt-24 pt-10 first:pt-0"><div class="codex-prose"><p>Intro for <strong>C3</strong></p></div></section>',
   );
   expect(html).toContain(
-    '<section id="ships" class="scroll-mt-24 pt-10 first:pt-0"><header class="mb-4 border-b border-border-soft pb-3"><h2 class="font-display text-h2 font-bold uppercase leading-none tracking-optical text-name">Ship <em>choice</em></h2></header>',
+    '<section id="ships" class="scroll-mt-24 pt-10 first:pt-0"><header class="mb-4 flex items-center justify-between gap-4 border-b border-border-soft pb-3"><h2 class="font-display text-h2 font-bold uppercase leading-none tracking-optical text-name">Ship <em>choice</em></h2></header>',
   );
   expect(html).toContain('<h3 id="doctrine">Doctrine</h3>');
   expect(html).toContain('<ul><li><p>Gila</p></li><li><p><code>/fit</code></p></li></ul>');
@@ -80,4 +82,25 @@ test('renders sections, lists, tables, links, and the outline from a parsed docu
     '<aside class="codex-callout" data-tone="tip"><span class="codex-callout-label">Tip</span><p>Bring scouts.</p></aside><hr/>',
   );
   expect(html).not.toContain('style=');
+});
+
+test('the callout eyebrow reads from the shared label table', () => {
+  for (const [tone, label] of Object.entries(CODEX_CALLOUT_LABELS)) {
+    const parsed = parseCodexDoc({
+      type: 'doc',
+      attrs: { schemaVersion: 1 },
+      content: [{ type: 'callout', attrs: { id: 'note', tone }, content: [paragraph([text('Scout first.')])] }],
+    });
+    if (!parsed.ok) throw new Error(parsed.problems.join('; '));
+    expect(renderToStaticMarkup(createElement(CodexArticle, { doc: parsed.doc, components: {} }))).toContain(
+      `<span class="codex-callout-label">${label}</span>`,
+    );
+  }
+});
+
+test('prose paragraphs take the shared block spacing instead of resetting it', () => {
+  const rules = [...readFileSync('src/features/codex/render.css', 'utf8').matchAll(/([^{}]+)\{([^}]*)\}/g)];
+  const paragraphRules = rules.filter(([, selector]) => selector!.split(',').some((part) => part.trim() === '.codex-prose p'));
+  expect(paragraphRules.map(([, , body]) => body!.trim())).toEqual(['text-wrap: pretty;']);
+  expect(rules.find(([, selector]) => selector!.trim() === '.codex-prose > * + *')?.[2]?.trim()).toBe('margin-top: 0.85em;');
 });
