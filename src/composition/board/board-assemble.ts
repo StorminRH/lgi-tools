@@ -356,7 +356,7 @@ function worthEligible(raw: BoardRaw): boolean {
 }
 
 /** Values the stored holdings at stored prices; null until the wallet and the assets have both synced. */
-function pilotWorthOf(raw: BoardRaw, names: NameBook): PilotWorth | null {
+function pilotWorthOf(raw: BoardRaw, names: Pick<NameBook, 'prices' | 'typeCategories'>): PilotWorth | null {
   const wallet = raw.sheet?.wallet;
   if (!worthEligible(raw) || wallet === undefined || wallet.denied === true || raw.assets.rows === null) return null;
   const implants = implantIdsOf(raw);
@@ -469,7 +469,7 @@ export function toHistoryDay(day: NetWorthDay): BoardHistoryDay {
 }
 
 /** The account's day valued from stored holdings and prices: only pilots with a computable worth count. */
-export function netWorthSnapshot(raws: readonly BoardRaw[], names: NameBook, day: string): NetWorthDay {
+export function netWorthSnapshot(raws: readonly BoardRaw[], names: Pick<NameBook, 'prices' | 'typeCategories'>, day: string): NetWorthDay {
   const pilots: NetWorthDay['pilots'] = {};
   let netWorth = 0;
   let liquidIsk = 0;
