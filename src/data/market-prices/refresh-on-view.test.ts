@@ -59,7 +59,7 @@ function seed(typeId: number): MarketPrice {
     regionalDiscount: null,
     source: 'fuzzwork',
     updatedAt: new Date('2026-01-01T00:00:00Z'),
-    staleAfter: new Date('2026-01-01T01:00:00Z'),
+    staleAfter: new Date('2026-01-01T00:05:00Z'),
   };
 }
 
@@ -102,6 +102,55 @@ describe('getLivePrices', () => {
     expect(metrics).toMatchObject({ requested: 1, returned: 1, esiCount: 1 });
   });
 
+  it('reuses a Neon row under five minutes old without requesting ESI or rewriting it', async () => {
+    const row = { ...seed(34), updatedAt: new Date(Date.now() - 60_000), staleAfter: new Date(Date.now() + 240_000) };
+    getPricesMock.mockResolvedValue(new Map([[34, row]]));
+    const { prices, metrics } = await getLivePrices([34]);
+    expect(prices.get(34)).toEqual(row);
+    expect(metrics).toMatchObject({ requested: 1, returned: 1, esiCount: 0 });
+    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
+    expect(afterMock).not.toHaveBeenCalled();
+  });
+
+  it('refreshes only stale or missing rows and ignores legacy 24-hour expiry', async () => {
+    const now = Date.now();
+    const fresh = { ...seed(34), updatedAt: new Date(now - 60_000), staleAfter: new Date(now + 86_400_000) };
+    const stale = { ...seed(35), updatedAt: new Date(now - 300_000), staleAfter: new Date(now + 86_400_000) };
+    getPricesMock.mockResolvedValue(new Map([[34, fresh], [35, stale]]));
+    sourceByTypeId({ 35: { prices: [raw(35, 'esi')] }, 36: { prices: [raw(36, 'esi')] } });
+    const { prices } = await getLivePrices([34, 35, 36]);
+    expect(fetchPricesFromSourceMock.mock.calls.map(([ids]) => ids)).toEqual([[35], [36]]);
+    expect(prices.get(34)?.staleAfter.getTime()).toBe(fresh.updatedAt.getTime() + 300_000);
+    expect(prices.get(35)?.source).toBe('esi');
+    expect(prices.size).toBe(3);
+  });
+
+  it('does not make an expired fallback fresh when its legacy expiry is still in the future', async () => {
+    const row = { ...seed(34), updatedAt: new Date(Date.now() - 600_000), staleAfter: new Date(Date.now() + 86_400_000) };
+    getPricesMock.mockResolvedValue(new Map([[34, row]]));
+    sourceByTypeId({}, { throwFor: [34] });
+    const { prices } = await getLivePrices([34]);
+    expect(prices.get(34)?.updatedAt).toEqual(row.updatedAt);
+    expect(prices.get(34)!.staleAfter.getTime()).toBeLessThan(Date.now());
+    expect(afterMock).not.toHaveBeenCalled();
+  });
+
+  it('reuses a confirmed empty market book until it expires', async () => {
+    const row = { ...seed(34), bestBuy: null, bestSell: null, updatedAt: new Date(), staleAfter: new Date(Date.now() + 300_000) };
+    getPricesMock.mockResolvedValue(new Map([[34, row]]));
+    const { prices } = await getLivePrices([34]);
+    expect(prices.get(34)?.bestSell).toBeNull();
+    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
+  });
+
+  it('refreshes a newly seeded placeholder despite its recent updatedAt', async () => {
+    getPricesMock.mockResolvedValue(new Map([[34, { ...seed(34), updatedAt: new Date(), staleAfter: new Date(0) }]]));
+    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
+    const { prices } = await getLivePrices([34]);
+    expect(prices.get(34)?.source).toBe('esi');
+    expect(fetchPricesFromSourceMock).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the seed when a live fetch throws', async () => {
     getPricesMock.mockResolvedValue(new Map([[34, seed(34)]]));
     sourceByTypeId({}, { throwFor: [34] });
@@ -142,6 +191,13 @@ describe('getLivePrices', () => {
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
     const persisted = persistPricesMock.mock.calls[0]![1] as RawMarketPrice[];
     expect(persisted.map((r) => r.typeId)).toEqual([34]);
+  });
+
+  it('keeps the original source timestamp when write-behind runs after the response', async () => {
+    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
+    const { prices } = await getLivePrices([34]);
+    await afterMock.mock.calls[0]![0]();
+    expect(persistPricesMock.mock.calls[0]![2].fetchedAtByType.get(34)).toEqual(prices.get(34)!.updatedAt);
   });
 
   it('reports the asynchronous write-behind outcome through the optional observer', async () => {

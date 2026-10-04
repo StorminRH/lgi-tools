@@ -58,7 +58,7 @@ export interface LivePricesResult {
 
 async function fetchLivePrice(
   typeId: number,
-): Promise<{ raw: RawMarketPrice | null; budgetExhausted: boolean; resolutionId: string }> {
+): Promise<{ raw: RawMarketPrice | null; budgetExhausted: boolean; resolutionId: string; fetchedAtMs: number }> {
   'use cache: remote';
   cacheTag(priceTag(typeId));
   cacheLife(LIVE_CACHE_LIFE);
@@ -67,6 +67,7 @@ async function fetchLivePrice(
     raw: prices[0] ?? null,
     budgetExhausted,
     resolutionId: markFreshPriceResolution(),
+    fetchedAtMs: Date.now(),
   };
 }
 
@@ -109,8 +110,15 @@ export async function getLivePrices(
   if (ids.length === 0) return { prices: new Map(), degraded, metrics };
 
   const seed = await getPrices(ids);
-
-  const live = await mapBounded(ids, PER_TYPE_CONCURRENCY, async (id) => {
+  const now = Date.now();
+  const prices = new Map<number, MarketPrice>();
+  for (const [id, row] of seed) {
+    // Clamp pre-hotfix rows carrying the old 24-hour expiry without a migration.
+    const expiresAt = Math.min(row.staleAfter.getTime(), row.updatedAt.getTime() + MARKET_PRICES_FRESHNESS.ttlMs);
+    if (expiresAt > now) prices.set(id, { ...row, staleAfter: new Date(expiresAt) });
+  }
+  const staleIds = ids.filter((id) => !prices.has(id));
+  const live = await mapBounded(staleIds, PER_TYPE_CONCURRENCY, async (id) => {
     try {
       const result = await fetchLivePrice(id);
       return {
@@ -122,20 +130,17 @@ export async function getLivePrices(
         raw: null as RawMarketPrice | null,
         budgetExhausted: false,
         resolutionId: '',
+        fetchedAtMs: 0,
         cacheHit: false,
       };
     }
   });
 
-  const now = new Date();
-  const staleAfter = new Date(
-    now.getTime() + MARKET_PRICES_FRESHNESS.ttlMs,
-  );
-  const prices = new Map<number, MarketPrice>();
   const freshRaws: RawMarketPrice[] = [];
+  const fetchedAtByType = new Map<number, Date>();
 
-  ids.forEach((id, i) => {
-    const { raw, budgetExhausted, cacheHit } = live[i]!;
+  staleIds.forEach((id, i) => {
+    const { raw, budgetExhausted, cacheHit, fetchedAtMs } = live[i]!;
     if (budgetExhausted) degraded.budgetExhausted = true;
     if (raw) {
       degraded.fetched++;
@@ -144,11 +149,17 @@ export async function getLivePrices(
       if (cacheHit) metrics.cacheHits++;
       else if (raw.source === 'esi') metrics.esiCount++;
       else metrics.fuzzworkFallbackCount++;
+      const updatedAt = new Date(fetchedAtMs);
+      const staleAfter = new Date(fetchedAtMs + MARKET_PRICES_FRESHNESS.ttlMs);
       freshRaws.push(raw);
-      prices.set(id, { ...raw, updatedAt: now, staleAfter });
+      fetchedAtByType.set(id, updatedAt);
+      prices.set(id, { ...raw, updatedAt, staleAfter });
     } else {
       const seeded = seed.get(id);
-      if (seeded) prices.set(id, seeded);
+      if (seeded) prices.set(id, {
+        ...seeded,
+        staleAfter: new Date(Math.min(seeded.staleAfter.getTime(), seeded.updatedAt.getTime() + MARKET_PRICES_FRESHNESS.ttlMs)),
+      });
     }
   });
 
@@ -156,7 +167,7 @@ export async function getLivePrices(
     after(async () => {
       const startedAt = Date.now();
       try {
-        const summary = await persistPrices(db, freshRaws);
+        const summary = await persistPrices(db, freshRaws, { fetchedAtByType });
         notifyWriteBehind(onWriteBehind, {
           outcome: 'succeeded',
           attempted: freshRaws.length,

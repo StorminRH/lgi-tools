@@ -60,7 +60,7 @@ export async function seedPlaceholderPrices(db: AnyPgDb, typeIds: number[]): Pro
 export async function persistPrices(
   db: AnyPgDb,
   raw: RawMarketPrice[],
-  meta?: { requested?: number; budgetExhausted?: boolean },
+  meta?: { requested?: number; budgetExhausted?: boolean; fetchedAtByType?: ReadonlyMap<number, Date> },
 ): Promise<RefreshSummary> {
   const start = Date.now();
   const summary: RefreshSummary = {
@@ -82,29 +82,29 @@ export async function persistPrices(
     return summary;
   }
 
-  const updatedAt = new Date();
-  const staleAfter = new Date(
-    updatedAt.getTime() + MARKET_PRICES_FRESHNESS.ttlMs,
-  );
-  const rows = raw.map((r) => ({
-    typeId: r.typeId,
-    bestBuy: r.bestBuy,
-    bestSell: r.bestSell,
-    pct5Buy: r.pct5Buy,
-    pct5Sell: r.pct5Sell,
-    buyVolume: r.buyVolume,
-    sellVolume: r.sellVolume,
-    buyDepth: r.buyDepth,
-    sellDepth: r.sellDepth,
-    regionalDiscount: r.regionalDiscount ?? null,
-    updatedAt,
-    staleAfter,
-    source: r.source,
-  }));
+  const now = new Date();
+  const rows = raw.map((r) => {
+    const updatedAt = meta?.fetchedAtByType?.get(r.typeId) ?? now;
+    return {
+      typeId: r.typeId,
+      bestBuy: r.bestBuy,
+      bestSell: r.bestSell,
+      pct5Buy: r.pct5Buy,
+      pct5Sell: r.pct5Sell,
+      buyVolume: r.buyVolume,
+      sellVolume: r.sellVolume,
+      buyDepth: r.buyDepth,
+      sellDepth: r.sellDepth,
+      regionalDiscount: r.regionalDiscount ?? null,
+      updatedAt,
+      staleAfter: new Date(updatedAt.getTime() + MARKET_PRICES_FRESHNESS.ttlMs),
+      source: r.source,
+    };
+  });
 
   const BATCH = 1000;
   for (let i = 0; i < rows.length; i += BATCH) {
-    await db
+    const written = await db
       .insert(marketPrices)
       .values(rows.slice(i, i + BATCH))
       .onConflictDoUpdate({
@@ -123,10 +123,12 @@ export async function persistPrices(
           staleAfter: excluded('stale_after'),
           source: excluded('source'),
         },
-      });
+        setWhere: sql`${marketPrices.updatedAt} <= excluded.updated_at`,
+      })
+      .returning({ typeId: marketPrices.typeId });
+    summary.written += written.length;
   }
 
-  summary.written = rows.length;
   summary.durationMs = Date.now() - start;
   return summary;
 }

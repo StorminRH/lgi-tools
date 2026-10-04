@@ -37,10 +37,12 @@ const structure = {
 const h = vi.hoisted(() => ({
   profile: null as IndustryProfileRow | null,
   plan: null as ProfilePlan | null,
+  feesPending: false,
+  locationFailed: false,
   owned: new Map<number, { ownedQty: number }>(),
   net: null as {
     componentJobs: {
-      jobs: { typeId: number; runs: number; systemId: number; fee: { total: number | null; missingAdjustedPriceTypeIds: number[] } }[];
+      jobs: { typeId: number; runs: number; systemId: number | null; fee: { total: number | null; missingAdjustedPriceTypeIds: number[] } }[];
     };
   } | null,
 }));
@@ -67,7 +69,7 @@ vi.mock('./planner-contexts', () => ({
       net: h.net,
     },
   }),
-  useBuildSetup: () => ({ profile: h.profile, profilePlan: h.plan }),
+  useBuildSetup: () => ({ profile: h.profile, profilePlan: h.plan, feesPending: h.feesPending, locationFailed: h.locationFailed }),
   useBuildPlan: () => ({
     ledger: computeBatchLedger(tree, 1),
     ledgerMeOpts: { meOf: () => undefined, topBlueprintTypeId: 0 },
@@ -93,6 +95,8 @@ beforeEach(() => {
   h.plan = null;
   h.owned = new Map();
   h.net = null;
+  h.feesPending = false;
+  h.locationFailed = false;
 });
 
 test('nothing shows until a job is opened', () => {
@@ -167,4 +171,23 @@ test('a fee that counts an unpriced input as nothing shows amber and names it', 
   const html = render([10]);
   expect(html).toMatch(/Install fee<\/span><span[^>]*text-dps-mid[^>]*>600.00</);
   expect(html).toContain('Price Unavailable · Tritanium');
+});
+
+
+test('an unplaced job explains missing installation configuration without claiming prices are absent', () => {
+  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: null, fee: { total: null, missingAdjustedPriceTypeIds: [20, 40] } }] } };
+  const html = render([10]);
+  expect(html).toContain('Choose an installation system to calculate fees.');
+  expect(html).not.toContain('Price Unavailable');
+  expect(html).toMatch(/Build · per unit<\/span><span[^>]*><span[^>]*>—</);
+  expect(html).toContain('9.0K');
+});
+
+test.each(['pending', 'failed'])('an adjusted-price read that is %s does not claim inputs have no price', (status) => {
+  h.feesPending = status === 'pending';
+  h.locationFailed = status === 'failed';
+  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: null, missingAdjustedPriceTypeIds: [40] } }] } };
+  const html = render([10]);
+  expect(html).not.toContain('Price Unavailable');
+  expect(html).toContain(status === 'pending' ? 'Loading installation fees…' : 'Installation fees could not be loaded. Retry in build setup.');
 });

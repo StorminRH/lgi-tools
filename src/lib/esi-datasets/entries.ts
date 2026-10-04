@@ -168,9 +168,9 @@ export const ESI_DATASET_ENTRIES = [
       verifiedCacheSeconds: 300,
     },
     ttlOverride: {
-      milliseconds: 24 * 60 * 60 * 1000,
+      milliseconds: 5 * 60 * 1000,
       rationale:
-        'The marker schedules the nightly sweep; getLivePrices still fetches live on view.',
+        'On-view reads reuse Neon prices for five minutes, matching the upstream order cache. The nightly backstop has a separate selection window.',
     },
     mirrorTables: ['market_prices'],
   },

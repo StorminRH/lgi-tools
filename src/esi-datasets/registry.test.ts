@@ -120,7 +120,7 @@ describe('ESI dataset registry pure checks', () => {
   it('derives default, override, and non-static effective TTLs', () => {
     expect(effectiveTtlMs(entryNamed('skills'))).toBe(120_000);
     expect(effectiveTtlMs(entryNamed('market_prices'))).toBe(
-      24 * 60 * 60 * 1000,
+      5 * 60 * 1000,
     );
     expect(effectiveTtlMs(entryNamed('market_history'))).toBeNull();
     expect(effectiveTtlMs(entryNamed('sde'))).toBeNull();
@@ -392,7 +392,7 @@ describe('ESI dataset registry live gate', () => {
       3_600_000,
     );
     expect(effectiveTtlMs(entryNamed('market_prices'))).toBe(
-      86_400_000,
+      300_000,
     );
     expect(effectiveTtlMs(entryNamed('character_location'))).toBe(LOCATION_CADENCE_FLOOR_MS);
     expect(effectiveTtlMs(entryNamed('character_sheet_live'))).toBe(120_000);
