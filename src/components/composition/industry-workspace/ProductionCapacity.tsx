@@ -1,16 +1,16 @@
 'use client';
 
 import { EveImage } from '@/components/eve-image';
-import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import { StatFigure } from '../board/board-bits';
 import { SectionPanel } from '../board/SectionBody';
-import { type MemberCapacity, type PoolSummary, poolSummaries, type RailMember, SLOT_POOLS } from './workspace-model';
-
-const LABELS: Record<JobCategory, string> = {
-  manufacturing: 'Manufacturing',
-  reactions: 'Reactions',
-  science: 'Science',
-};
+import {
+  type MemberCapacity,
+  type PoolSummary,
+  poolSummaries,
+  type RailMember,
+  SLOT_POOL_LABELS,
+  SLOT_POOLS,
+} from './workspace-model';
 
 function capacityCount(pool: PoolSummary): string {
   const used = pool.unknownUsed > 0 ? '?' : String(pool.used);
@@ -41,7 +41,7 @@ export function ProductionCapacity({
           {SLOT_POOLS.map((pool) => (
             <StatFigure
               key={pool}
-              label={LABELS[pool]}
+              label={SLOT_POOL_LABELS[pool]}
               value={
                 <span className="flex items-center gap-2">
                   <EveImage

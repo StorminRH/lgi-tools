@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
@@ -18,6 +18,7 @@ import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentD
 import { NodeAdjusters } from './MeAdjuster';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
+import { useSettledHover } from './use-settled-hover';
 
 const COLS_TABLET = ['', 'sm:grid-cols-1', 'sm:grid-cols-2'];
 /**
@@ -144,11 +145,11 @@ function TierColumn({
           className="text-ui font-semibold tracking-normal text-isk"
         />
       </div>
-      <Card>
+      <div className="flex flex-col gap-2">
         {rows.map((row) => (
           <TierRowSlot key={row.item.typeId} row={row} handlers={handlers} />
         ))}
-      </Card>
+      </div>
     </div>
   );
 }
@@ -179,7 +180,7 @@ export function CockpitBuildPlan({
     ledger,
   } = useBuildPlan();
   const { tiers, descendants } = useMemo(() => consolidateBuild(structure), [structure]);
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [hovered, onHover] = useSettledHover();
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
   const iconFor = (typeId: number) => nodeImage(blueprintOf(typeId), typeId);
   const efficiencyFor = (typeId: number, name: string): NodeEfficiency | undefined => {
@@ -222,7 +223,7 @@ export function CockpitBuildPlan({
     detailFor,
     ownedAssetFor,
     onOpen,
-    onHover: (typeId, entering) => setHovered((shown) => (entering ? typeId : shown === typeId ? null : shown)),
+    onHover,
   };
 
   if (tiers.length === 0) {

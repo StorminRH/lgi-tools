@@ -2,7 +2,7 @@ import { expect, test, vi } from 'vitest';
 import type { IndustryProfileRow } from './api-contract';
 import { emptyProfileDocument } from './profile-document';
 import { createProfileSync, type ProfileSyncState, type ProfilesResult } from './profile-sync';
-import { copyName, suggestProfileName } from './profile-view';
+import { copyName, createFailureMessage, saveFailureMessage, suggestProfileName } from './profile-view';
 
 const row = (revision: number, name = 'Capitals'): IndustryProfileRow => ({
   id: 'p1',
@@ -65,7 +65,7 @@ test('a refused save drops the edit, says why and reloads the server copy', asyn
       listed += 1;
       return { ok: true, data: { profiles: [row(listed === 1 ? 1 : 5, 'Renamed elsewhere')] } };
     },
-    update: async () => ({ ok: false, status: 409 }),
+    update: async () => ({ ok: false, error: { code: 'stale_revision' } }),
     publish: (state) => states.push(state),
     notify: (message) => notices.push(message),
   });
@@ -73,8 +73,28 @@ test('a refused save drops the edit, says why and reloads the server copy', asyn
   sync.save('p1', { name: 'Mine', document: emptyProfileDocument() });
   expect(states.at(-1)?.profiles?.[0]?.name).toBe('Mine');
   await vi.waitFor(() => expect(notices).toHaveLength(1));
+  expect(notices[0]).toBe('This profile changed somewhere else. Showing the latest version.');
   expect(listed).toBe(2);
   expect(states.at(-1)?.profiles).toEqual([row(5, 'Renamed elsewhere')]);
+});
+
+test.each([
+  ['profile_missing', 'This profile was deleted somewhere else.'],
+  ['not_linked', 'A character on this profile is no longer linked to your account.'],
+  // A body the server would not take, such as one over a limit, does not blame a character.
+  ['invalid_body', "Couldn't save the profile. Showing the last saved version."],
+  [undefined, "Couldn't save the profile. Showing the last saved version."],
+])('a save refused for %s says so', (reason, message) => {
+  expect(saveFailureMessage(reason)).toBe(message);
+});
+
+test.each([
+  ['profile_limit', 'You have reached the profile limit. Delete one to make room.'],
+  ['not_linked', 'A character on this profile is no longer linked to your account.'],
+  ['invalid_body', "Couldn't create the profile."],
+  [undefined, "Couldn't create the profile."],
+])('a create refused for %s says so', (reason, message) => {
+  expect(createFailureMessage(reason)).toBe(message);
 });
 
 test('suggested and copied names skip names already in use', () => {
@@ -166,7 +186,7 @@ test('a queued edit keeps its original revision when another profile response re
     update: (body) => {
       sent.push(body);
       if (body.id === 'b') return reply.promise;
-      return Promise.resolve({ ok: false, status: 409 });
+      return Promise.resolve({ ok: false, error: { code: 'stale_revision' } });
     },
     publish: (s) => states.push(s),
     notify: (message) => notices.push(message),
@@ -197,7 +217,7 @@ test('a refresh cannot advance the revision underlying an optimistic edit', asyn
     },
     update: async (body) => {
       sent.push(body.expectedRevision);
-      return { ok: false, status: 409 };
+      return { ok: false, error: { code: 'stale_revision' } };
     },
     publish: (s) => states.push(s),
     notify: (message) => notices.push(message),
@@ -290,9 +310,9 @@ test('a failed delete leaves a queued edit intact and the queue continues after 
     notify: () => undefined,
   });
   await sync.refresh();
-  const failedDelete = sync.request(async (): Promise<ProfilesResult> => ({ ok: false, status: 500 }));
+  const failedDelete = sync.request(async (): Promise<ProfilesResult> => ({ ok: false }));
   sync.save('p1', { name: 'Still editable', document: emptyProfileDocument() });
-  expect(await failedDelete).toEqual({ ok: false, status: 500 });
+  expect(await failedDelete).toEqual({ ok: false });
   await vi.waitFor(() => expect(states.at(-1)?.profiles).toEqual([row(2, 'Still editable')]));
   expect(sent).toEqual([1]);
   await expect(sync.request(async (): Promise<ProfilesResult> => { throw new Error('Connection lost'); })).rejects.toThrow('Connection lost');
@@ -310,7 +330,7 @@ test('an own save advances queued edits by one revision even when its list inclu
     list: async () => ({ ok: true, data: { profiles: [serverRow] } }),
     update: (body) => {
       sent.push(body.expectedRevision);
-      return sent.length === 1 ? reply.promise : Promise.resolve({ ok: false, status: 409 });
+      return sent.length === 1 ? reply.promise : Promise.resolve({ ok: false, error: { code: 'stale_revision' } });
     },
     publish: (s) => states.push(s),
     notify: (message) => notices.push(message),
@@ -324,4 +344,72 @@ test('an own save advances queued edits by one revision even when its list inclu
   await vi.waitFor(() => expect(notices).toHaveLength(1));
   expect(sent).toEqual([1, 2]);
   expect(states.at(-1)?.profiles).toEqual([serverRow]);
+});
+
+test('retrying a failed list loads again rather than showing the old failure', async () => {
+  const states: ProfileSyncState[] = [];
+  const reply = deferred<ProfilesResult>();
+  let calls = 0;
+  const sync = createProfileSync({
+    list: () => (++calls === 1 ? Promise.resolve({ ok: false }) : reply.promise),
+    update: async () => ({ ok: false }),
+    publish: (s) => states.push(s),
+    notify: () => undefined,
+  });
+  await sync.refresh();
+  expect(states.at(-1)).toEqual({ profiles: null, listFailed: true });
+  const retry = sync.refresh();
+  await vi.waitFor(() => expect(states.at(-1)).toEqual({ profiles: null, listFailed: false }));
+  reply.resolve({ ok: true, data: { profiles: [row(1)] } });
+  await retry;
+  expect(states.at(-1)).toEqual({ profiles: [row(1)], listFailed: false });
+});
+
+test('an identity change discards late saves and cancels queued reads and mutations', async () => {
+  let current = true;
+  const reply = deferred<ProfilesResult>();
+  const list = vi.fn(async (): Promise<ProfilesResult> => ({ ok: true, data: { profiles: [row(1)] } }));
+  const update = vi.fn(() => reply.promise);
+  const duplicate = vi.fn(async (): Promise<ProfilesResult> => ({ ok: true, data: { profiles: [row(1)] } }));
+  const states: ProfileSyncState[] = [];
+  const notify = vi.fn();
+  const sync = createProfileSync({ list, update, publish: (state) => states.push(state), notify, isCurrent: () => current });
+  await sync.refresh();
+  sync.save('p1', { name: 'First', document: emptyProfileDocument() });
+  await vi.waitFor(() => expect(update).toHaveBeenCalledOnce());
+  sync.save('p1', { name: 'Queued', document: emptyProfileDocument() });
+  const request = sync.request(duplicate);
+  const rejected = expect(request).rejects.toThrow('Profile session changed');
+  const refresh = sync.refresh();
+  const beforeChange = states.length;
+  current = false;
+  reply.resolve({ ok: false, error: { code: 'stale_revision' } });
+  await rejected;
+  await refresh;
+  sync.save('p1', { name: 'After change', document: emptyProfileDocument() });
+  expect(update).toHaveBeenCalledOnce();
+  expect(list).toHaveBeenCalledOnce();
+  expect(duplicate).not.toHaveBeenCalled();
+  expect(notify).not.toHaveBeenCalled();
+  expect(states).toHaveLength(beforeChange);
+});
+
+test('an identity change during a create rejects its late success instead of returning the old id', async () => {
+  let current = true;
+  const reply = deferred<ProfilesResult & { ok: true; data: { profiles: IndustryProfileRow[]; id: string } }>();
+  const publish = vi.fn();
+  const sync = createProfileSync({
+    list: async () => ({ ok: false }),
+    update: async () => ({ ok: false }),
+    publish,
+    notify: () => undefined,
+    isCurrent: () => current,
+  });
+  const request = sync.request(() => reply.promise);
+  const rejected = expect(request).rejects.toThrow('Profile session changed');
+  await Promise.resolve();
+  current = false;
+  reply.resolve({ ok: true, data: { profiles: [row(1)], id: 'p1' } });
+  await rejected;
+  expect(publish).not.toHaveBeenCalled();
 });

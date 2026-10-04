@@ -10,6 +10,7 @@ import {
   type SetStateAction,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import { toggleCharacterId } from '@/components/character-portrait-picker';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,6 @@ import { OwnCharacterPicker } from './OwnCharacterPicker';
 import {
   addAccessPrincipal,
   CREATOR_CHARACTER_REQUIRED_MESSAGE,
-  toggleCharacterId,
   initialCreationAccessDrafts,
   prepareMapCreation,
   removeAccessPrincipal,

@@ -1,61 +1,50 @@
-import { cookies, headers } from 'next/headers';
-import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
-import { auth } from '@/composition/auth';
+import type { ReactNode } from 'react';
 import { EveSignInButton } from '@/components/composition/account/LoginButton';
-import { Card } from '@/components/ui/card';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
-import { toPanelCharacter } from '@/platform/auth/panel-character';
-import { listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { IntroCard } from '@/components/composition/industry-workspace/WorkspaceStates';
+import { SectionLabel } from '@/components/ui/section-label';
 import { CorpJobsBoard } from '@/features/industry-jobs/components/CorpJobsBoard';
 import { IndustryJobsPanel } from '@/features/industry-jobs/components/IndustryJobsPanel';
-import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';
+import { JobsCardSkeleton } from '@/features/industry-jobs/components/JobsCard';
 import { jobsPageSettings } from '@/features/industry-jobs/page-settings';
-import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
-import { cookieNameFor, readPreferenceCookieValue, stripDimmedDef } from '@/lib/preferences';
+import { industryCharacters } from '../industry-characters';
+
+function JobsIntro({ line, action }: { line: string; action: ReactNode }) {
+  return (
+    <IntroCard>
+      <div className="flex max-w-xl flex-col gap-1">
+        <h2 className="font-display text-h3 font-bold text-name">Active jobs</h2>
+        <p className="text-ui text-muted">{line}</p>
+      </div>
+      {action}
+    </IntroCard>
+  );
+}
 
 export async function JobsContent() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
+  const found = await industryCharacters();
+  if (found === null) {
     return (
-      <Card>
-        <div className="flex flex-col items-start gap-4 px-5 py-5">
-          <p className="text-ui text-muted">Sign in with EVE to see your active industry jobs.</p>
-          <EveSignInButton callbackURL="/industry/jobs" />
-        </div>
-      </Card>
+      <JobsIntro
+        line="View active jobs across your characters and corporations."
+        action={<EveSignInButton callbackURL="/industry/jobs" />}
+      />
+    );
+  }
+  if (found.characters.length === 0) {
+    return (
+      <JobsIntro
+        line="Link a character to see its industry jobs here."
+        action={<LinkCharacterButton label="Link a character" callbackURL="/industry/jobs" />}
+      />
     );
   }
 
-  const characters = await listLinkedCharacters(session.user.id);
-  const corpEligibleCharacterIds = characters
-    .filter((character) =>
-      canSyncCorpIndustryJobs({
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth({
-          scope: character.scope,
-          hasRefreshToken: character.hasRefreshToken,
-        }).missingScopes,
-      }),
-    )
-    .map((character) => character.characterId);
-
-  const stripDef = stripDimmedDef(jobsPageSettings.strip.surfaceId);
-  const initialDimmed = readPreferenceCookieValue(
-    (await cookies()).get(cookieNameFor(stripDef))?.value,
-    stripDef,
-  );
-
   return (
     <div className="flex w-full flex-col gap-10">
-      <IndustryJobsPanel
-        characters={characters.map((character) => toPanelCharacter(character, canSyncIndustryJobs))}
-        strip={jobsPageSettings.strip}
-        initialDimmed={initialDimmed}
-      />
+      <IndustryJobsPanel characters={found.characters} strip={jobsPageSettings.strip} />
       <CorpJobsBoard
-        eligibleCharacterIds={corpEligibleCharacterIds}
-        hasLinkedCharacters={characters.length > 0}
+        eligibleCharacterIds={found.corpIds}
         reconnectAction={
           <LinkCharacterButton
             label="Grant corp jobs access"
@@ -71,8 +60,12 @@ export async function JobsContent() {
 export function JobsLoading() {
   return (
     <div className="flex w-full flex-col gap-10">
-      <CharacterPanelSkeleton label="Loading personal jobs" />
-      <CharacterPanelSkeleton rows={1} label="Loading corporation jobs" />
+      {['Personal jobs', 'Corporation jobs'].map((heading) => (
+        <section key={heading} aria-label={heading} className="flex flex-col gap-4">
+          <SectionLabel>{heading}</SectionLabel>
+          <JobsCardSkeleton />
+        </section>
+      ))}
     </div>
   );
 }

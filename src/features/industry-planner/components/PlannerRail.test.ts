@@ -10,10 +10,12 @@ import type { BuildPlanValue, BuildSetupValue, PlannerConfigValue } from './plan
 const h = vi.hoisted(() => ({
   auth: { session: null as object | null, loading: false },
   setup: {} as Partial<BuildSetupValue>,
+  favorites: null as { typeId: number; name: string }[] | null,
 }));
 
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => h.auth }));
 vi.mock('@/platform/auth/auth-client', () => ({ authClient: { signIn: { oauth2: vi.fn() } } }));
+vi.mock('../favorite-blueprints', () => ({ useFavoriteBlueprints: () => ({ favorites: h.favorites, toggle: vi.fn() }) }));
 vi.mock('./CockpitKpis', () => ({ CockpitKpis: () => createElement('div', null, 'kpis') }));
 vi.mock('./MultibuyPanel', () => ({ MultibuyPanel: () => createElement('button', null, 'Multibuy') }));
 vi.mock('./planner-contexts', () => ({
@@ -55,6 +57,7 @@ const render = (activityId = MANUFACTURING_ACTIVITY) =>
 
 beforeEach(() => {
   h.auth = { session: null, loading: false };
+  h.favorites = null;
   h.setup = { profiles: null, profilesFailed: false, refreshProfiles: vi.fn(), profile: null, setProfileId: vi.fn(), locationFailed: false, retryLocation: vi.fn() };
 });
 
@@ -74,17 +77,13 @@ test('the rail shows the blueprint, its inputs and its numbers', () => {
   expect(html).toContain('kpis');
 });
 
-test.each([MANUFACTURING_ACTIVITY, REACTION_ACTIVITY])('failed system fees stay visible beside the selected profile for activity %i', (activityId) => {
+test('failed system fees leave the profile picker alone; their notice sits with the margin', () => {
   const profile = row('p', 'Production');
   h.auth.session = {};
   h.setup = { ...h.setup, profiles: [profile], profile, locationFailed: true };
-  const html = render(activityId);
+  const html = render();
   expect(html).toContain('Production');
-  expect(html).toContain('role="alert"');
-  expect(html).toContain('Could not load system fees. Estimates exclude these fees.');
-  expect(html).toContain('Retry system fees');
-  h.setup.locationFailed = false;
-  expect(render(activityId)).not.toContain('Estimates exclude these fees.');
+  expect(html).not.toContain('role="alert"');
 });
 
 test('a reaction has no blueprint research to set, only runs', () => {
@@ -115,12 +114,14 @@ test('signed in without a profile, the slot leads to the Profiles tab', () => {
   expect(html).toMatch(/<a[^>]*href="\/industry"[^>]*>Create a profile<\/a>/);
 });
 
-test('a failed initial profile read shows Retry instead of indefinite loading or creating a profile', () => {
+test("profiles that never loaded take the picker's place with a notice that retries when clicked", () => {
   h.auth = { session: {}, loading: false };
   h.setup.profilesFailed = true;
   const html = render();
-  expect(html).toContain('Could not load profiles.');
-  expect(html).toContain('>Retry<');
+  expect(html).toContain('role="alert"');
+  expect(html).toContain("Profiles didn&#x27;t load");
+  expect(html).toContain('Pricing without a profile');
+  expect(html).toContain('aria-label="Retry loading profiles"');
   expect(html).not.toContain('Loading profiles');
   expect(html).not.toContain('Create a profile');
 });
@@ -133,4 +134,21 @@ test('with profiles, the slot switches between them', () => {
   expect(html).toContain('aria-label="Production profile"');
   expect(html).toContain('Main production');
   expect(html).not.toContain('Create a profile');
+});
+
+test('the rail leads back to the blueprint search above the blueprint', () => {
+  const html = render();
+  expect(html).toMatch(/<a[^>]*href="\/industry\/planner"[^>]*><span aria-hidden="true">←<\/span> Back to search<\/a>/);
+  expect(html.indexOf('Back to search')).toBeLessThan(html.indexOf('Damage Control II'));
+});
+
+test('the star beside the name shows whether the blueprint is a favorite, and waits for the saved list', () => {
+  const star = () => /<button[^>]*aria-label="Favorite"[^>]*>/.exec(render())![0];
+  expect(star()).toContain('disabled=""');
+  h.favorites = [{ typeId: 691, name: 'Rifter' }];
+  expect(star()).toContain('aria-pressed="false"');
+  expect(star()).not.toContain('disabled=""');
+  h.favorites = [{ typeId: 100, name: 'Damage Control II' }];
+  expect(star()).toContain('aria-pressed="true"');
+  expect(render()).toMatch(/aria-label="Favorite"[^>]*><svg[^>]*class="fill-current"/);
 });

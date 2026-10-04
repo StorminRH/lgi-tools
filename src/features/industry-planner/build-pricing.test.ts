@@ -677,16 +677,17 @@ describe('assemblePricing component job fees', () => {
     expect(deriveMarginFigures(pricing.summary, pricing.net).missingSystemCostIndex).toBe(true);
   });
 
-  it('missing nested adjusted prices leave the net open even when the final job is fully priced', () => {
+  it('a nested input with no adjusted price counts as nothing and keeps the net, named as unpriced', () => {
     const net = assemblePricing(CHAIN, (t) => NET_PRICES[t], {
       fee: { adjustedPriceOf: (id) => id === 34 ? null : adjusted(id), systemCostIndex: 0.04, components },
     }).net!;
     expect(net.jobFee.missingAdjustedPriceTypeIds).toEqual([]);
     expect(net.jobFee.total).toBeCloseTo(16.5, 9);
+    // The plates' only input is unpriced, so their job is valued at nothing.
     expect(net.componentJobs!.jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([34]);
-    expect(net.componentJobs!.total).toBeNull();
-    expect(net.netCost).toBeNull();
-    expect(net.netMargin).toBeNull();
+    expect(net.componentJobs!.total).toBe(0);
+    expect(net.netCost).toBeCloseTo(35 + 16.5, 9);
+    expect(net.netMargin).toBeCloseTo(1_000 - 105 - 51.5, 9);
     expect(deriveMarginFigures(null, net).missingAdjustedPriceCount).toBe(1);
   });
 

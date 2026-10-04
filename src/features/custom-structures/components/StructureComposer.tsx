@@ -12,6 +12,7 @@ import { CloseIcon } from '@/components/ui/icons';
 import { Textarea } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
 import { Select, type SelectItems } from '@/components/ui/select';
+import { Tabs } from '@/components/ui/tabs';
 import { eyebrow } from '@/components/ui/type-roles';
 import { useSystemSearch } from '@/components/use-system-search';
 import {
@@ -46,8 +47,6 @@ import type { CustomStructureRow } from '../types';
 import { useStructureSearch } from '../use-structure-search';
 import { PickField, type PickOption } from './PickField';
 
-const actionLink =
-  'whitespace-nowrap font-ui text-micro font-normal uppercase tracking-eyebrow text-isk transition-colors hover:text-name disabled:text-muted';
 const label = eyebrow({ size: 'micro' });
 
 const HULL_GROUPS: [number, string][] = [
@@ -211,11 +210,16 @@ function FitPaste({ busy, onRead }: { busy: boolean; onRead: (fit: string) => vo
   );
 }
 
+/** How the bonuses are given: typed from the industry window, picked as rigs, or read from a pasted fit. */
+type BonusTab = 'values' | 'rigs' | 'fit';
+
 function BonusSection({
   draft,
   structure,
   rigs,
   busy,
+  pasting,
+  onPastingChange,
   onDraft,
   onReadFit,
 }: {
@@ -223,50 +227,56 @@ function BonusSection({
   structure: StructureTypeOption | null;
   rigs: StructureRigOption[];
   busy: boolean;
+  /** The fit tab is open; a fit read switches to rigs. */
+  pasting: boolean;
+  onPastingChange: (pasting: boolean) => void;
   onDraft: (next: Partial<StructureDraft>) => void;
   onReadFit: (fit: string) => void;
 }) {
-  const [fitOpen, setFitOpen] = useState(false);
-  const rigMode = draft.mode === 'rigs';
   const validRigs = structure ? rigs.filter((r) => rigFitsStructure(r, structure)) : [];
+  const tab: BonusTab = pasting ? 'fit' : draft.mode;
+  const choose = (next: string) => {
+    onPastingChange(next === 'fit');
+    if (next === 'values' || next === 'rigs') onDraft({ mode: next });
+  };
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between">
-        <span className={label}>{rigMode ? 'Rigs' : 'Bonuses'}</span>
-        <span className="flex gap-4">
-          {!rigMode && (
-            <Button variant="bare" className={actionLink} onClick={() => setFitOpen(!fitOpen)}>
-              {fitOpen ? 'Close fit' : 'Paste fit'}
-            </Button>
-          )}
-          {rigMode && (
-            <Button variant="bare" className={actionLink} onClick={() => onDraft({ mode: 'values' })}>
-              Enter values
-            </Button>
-          )}
-        </span>
-      </div>
-      {!rigMode && fitOpen && <FitPaste busy={busy} onRead={onReadFit} />}
-      {rigMode ? (
-        <RigSupply
-          validRigs={validRigs}
-          maxSlots={MAX_CUSTOM_STRUCTURE_RIGS}
-          slots={draft.rigSlots}
-          onSlotsChange={(rigSlots) => onDraft({ rigSlots })}
-          disabled={busy}
-        />
-      ) : (
-        <BonusGrid
-          bonus={draft.bonus}
-          reactions={structure?.groupId === SDE_REFINERY_GROUP_ID}
-          onChange={(field, value) => onDraft({ bonus: { ...draft.bonus, [field]: value } })}
-        />
-      )}
-    </div>
+    <Tabs
+      label="Structure bonuses"
+      value={tab}
+      onValueChange={choose}
+      panelClassName="p-0 pt-3"
+      tabs={[
+        {
+          value: 'values',
+          label: 'Bonuses',
+          content: (
+            <BonusGrid
+              bonus={draft.bonus}
+              reactions={structure?.groupId === SDE_REFINERY_GROUP_ID}
+              onChange={(field, value) => onDraft({ bonus: { ...draft.bonus, [field]: value } })}
+            />
+          ),
+        },
+        {
+          value: 'rigs',
+          label: 'Rigs',
+          content: (
+            <RigSupply
+              validRigs={validRigs}
+              maxSlots={MAX_CUSTOM_STRUCTURE_RIGS}
+              slots={draft.rigSlots}
+              onSlotsChange={(rigSlots) => onDraft({ rigSlots })}
+              disabled={busy}
+            />
+          ),
+        },
+        { value: 'fit', label: 'Paste fit', content: <FitPaste busy={busy} onRead={onReadFit} /> },
+      ]}
+    />
   );
 }
 
-type Mutation = { ok: true; data: { structures: CustomStructureRow[] } } | { ok: false };
+type Mutation = { ok: true; data: { structures: CustomStructureRow[]; createdId?: string } } | { ok: false };
 
 export function StructureComposer({
   structureTypes,
@@ -278,11 +288,12 @@ export function StructureComposer({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
   editing: CustomStructureRow | null;
-  onSaved: (structures: CustomStructureRow[]) => void;
+  onSaved: (structures: CustomStructureRow[], createdId?: string) => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<StructureDraft>(() => (editing ? draftFromRow(editing) : emptyStructureDraft()));
   const [busy, setBusy] = useState(false);
+  const [pasting, setPasting] = useState(false);
   const [error, setError] = useState<ComposerError | null>(null);
   const sys = useSystemField(draft.systemId);
   const structure = structureTypes.find((t) => t.typeId === draft.structureTypeId) ?? null;
@@ -292,8 +303,9 @@ export function StructureComposer({
   };
 
   function pickStructure(hit: StructureSearchResult) {
+    // When the search cannot tell the hull, the one already chosen (or read from a fit) stays.
     const known = structureTypes.some((t) => t.typeId === hit.structureTypeId);
-    const structureTypeId = known ? hit.structureTypeId : null;
+    const structureTypeId = hit.structureTypeId === null ? draft.structureTypeId : known ? hit.structureTypeId : null;
     update({
       name: hit.name,
       systemId: hit.systemId,
@@ -313,7 +325,7 @@ export function StructureComposer({
     const res = await run();
     setBusy(false);
     if (!res.ok) return setError('save');
-    onSaved(res.data.structures);
+    onSaved(res.data.structures, res.data.createdId);
   }
 
   async function readFit(fit: string) {
@@ -323,6 +335,7 @@ export function StructureComposer({
     const parsed = res.ok ? res.data.parsed : null;
     if (!parsed) return setError('fit');
     update(draftFromFit(draft, parsed, structureTypes));
+    setPasting(false);
   }
 
   function save() {
@@ -344,7 +357,7 @@ export function StructureComposer({
   return (
     <section className={cn(cardSurface, 'flex flex-col overflow-hidden')} aria-label={editing ? 'Edit structure' : 'New structure'}>
       <div className="flex items-center gap-3 border-b border-border-soft px-4 py-3">
-        <StructureHullTile hullName={structure?.name ?? null} groupId={structure?.groupId ?? null} />
+        <StructureHullTile typeId={structure?.typeId ?? null} hullName={structure?.name ?? null} />
         <h3 className="flex-1 font-display text-h3 font-bold text-name">{editing ? 'Edit structure' : 'New structure'}</h3>
         <Button variant="ghost" size="sm" aria-label="Close" onClick={onClose}>
           <CloseIcon size={14} />
@@ -374,6 +387,8 @@ export function StructureComposer({
           structure={structure}
           rigs={structureRigs}
           busy={busy}
+          pasting={pasting}
+          onPastingChange={setPasting}
           onDraft={update}
           onReadFit={(fit) => void readFit(fit)}
         />

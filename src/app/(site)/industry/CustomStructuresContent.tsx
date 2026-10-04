@@ -9,7 +9,7 @@ import { listCustomStructures } from '@/features/custom-structures/queries';
 
 export async function CustomStructuresContent() {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return (
+  if (!session || session.characterId == null) return (
     <div className="flex flex-col items-center gap-4">
       <EmptyState>Sign in to build and manage your structures.</EmptyState>
       <EveSignInButton callbackURL="/industry?panel=structures" />
@@ -24,6 +24,7 @@ export async function CustomStructuresContent() {
   ]);
   return (
     <StructuresManager
+      owner={{ userId: session.user.id, characterId: session.characterId }}
       structureTypes={structureTypes}
       structureRigs={structureRigs}
       initialCustom={initialCustom}

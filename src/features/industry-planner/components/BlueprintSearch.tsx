@@ -28,6 +28,11 @@ export function BlueprintSearch() {
         if (picked) open(picked);
         else setQuery(next);
       }}
+      // The highlighted result is the likely pick: fetch its route ahead of the press.
+      onItemHighlighted={(id) => {
+        const hit = hits.find((candidate) => candidate.id === id);
+        if (hit) router.prefetch(hit.href);
+      }}
       filter={null}
       mode="list"
     >

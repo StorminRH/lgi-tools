@@ -59,7 +59,7 @@ export const createCustomStructureEndpoint = defineEndpoint({
   path: '/api/account/custom-structures',
   request: createCustomStructureRequestSchema,
   responses: {
-    201: jsonBody(customStructuresResponseSchema),
+    201: jsonBody(customStructuresResponseSchema.extend({ createdId: z.string().uuid() })),
     400: problem('invalid_json', 'invalid_body', 'invalid_structure', 'unknown_system'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),

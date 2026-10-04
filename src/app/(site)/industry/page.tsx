@@ -4,7 +4,7 @@ import { IndustrySection } from '@/components/composition/industry-workspace/Ind
 import { WorkspaceSkeleton } from '@/components/composition/industry-workspace/WorkspaceStates';
 import { SITE_URL } from '@/config/site-url';
 import { getStructureTypes } from '@/data/eve-data/queries';
-import { activeJobCharacterIds, corpJobCharacterIds } from './active-job-character-ids';
+import { jobCharacterIds } from './industry-characters';
 import { IndustryLanding } from './IndustryLanding';
 
 export const metadata: Metadata = {
@@ -22,14 +22,10 @@ export const metadata: Metadata = {
   },
 };
 
-function jobCharacterIds() {
-  return Promise.all([activeJobCharacterIds(), corpJobCharacterIds()]);
-}
-
 async function Workspace() {
-  const [[characterIds, corpIds], structureTypes] = await Promise.all([jobCharacterIds(), getStructureTypes()]);
+  const [{ jobIds, corpIds }, structureTypes] = await Promise.all([jobCharacterIds(), getStructureTypes()]);
   const hulls = structureTypes.map((t) => ({ typeId: t.typeId, name: t.name }));
-  return <IndustryLanding characterIds={characterIds} corpEligibleCharacterIds={corpIds} hulls={hulls} />;
+  return <IndustryLanding characterIds={jobIds} corpEligibleCharacterIds={corpIds} hulls={hulls} />;
 }
 
 export default function IndustryProfilesPage() {

@@ -166,8 +166,8 @@ export function SitesFilterLayout({
   );
 }
 
-export function SitesViewTools({ initialView }: { initialView: 'cards' | 'table' }) {
-  const [view, setView] = usePreference(sitesView, { serverValue: initialView });
+export function SitesViewTools() {
+  const [view, setView] = usePreference(sitesView);
   const [detailMode, setDetailMode] = usePreference(sitesDetailMode);
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -189,17 +189,9 @@ export function SitesViewTools({ initialView }: { initialView: 'cards' | 'table'
   );
 }
 
-export function SitesResults({
-  cards,
-  table,
-  initialView,
-}: {
-  cards: SiteCardItem[];
-  table: ReactNode;
-  initialView: 'cards' | 'table';
-}) {
+export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: ReactNode }) {
   const { cls, types, reset } = useSitesFilter();
-  const [view] = usePreference(sitesView, { serverValue: initialView });
+  const [view] = usePreference(sitesView);
   const tableRef = useRef<HTMLDivElement>(null);
   const matches = (meta: SiteFilterMeta) => matchesFilter(meta, { cls, types });
   const filteredCount = cards.filter((card) => matches(card.meta)).length;

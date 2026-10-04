@@ -13,6 +13,10 @@ vi.mock('@/components/ui/dialog', () => ({
   DialogClose: ({ children }: { children: ReactNode }) => createElement('button', null, children),
 }));
 
+vi.mock('@/components/character-portrait', () => ({
+  CharacterPortrait: ({ name }: { name: string }) => createElement('img', { alt: name }),
+}));
+
 import { DeleteProfileDialog, ProfileNameDialog, RemoveMemberDialog } from './ProfileDialogs';
 import { type DialogContext, type DialogState, WorkspaceDialogs } from './WorkspaceDialogs';
 
@@ -56,12 +60,14 @@ function open(dialog: DialogState, ctx: DialogContext, current: IndustryProfileR
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-test('creating suggests a free name, can start with every linked character, and opens the new profile', async () => {
+test('creating suggests a free name, starts with the picked characters, and opens the new profile', async () => {
   const ctx = context({ created: 'new-id' });
   const create = open({ kind: 'create' }, ctx, null);
   expect(create.type).toBe(ProfileNameDialog);
   expect(create.props.initialName).toBe('Production 2');
-  (create.props.onSubmit as (name: string, includeRoster: boolean) => void)('Capitals', true);
+  type Submit = (name: string, characterIds: readonly number[]) => void;
+  // Picked out of order, the team still follows the roster.
+  (create.props.onSubmit as Submit)('Capitals', [REACTOR.characterId, BUILDER.characterId]);
   await settle();
   expect(ctx.state.create).toHaveBeenCalledWith(
     'Capitals',
@@ -74,19 +80,30 @@ test('creating suggests a free name, can start with every linked character, and 
 
   // A refused create keeps the dialog open and the current profile selected.
   const refused = context({ created: null });
-  (open({ kind: 'create' }, refused, null).props.onSubmit as (n: string, r: boolean) => void)('Solo', false);
+  (open({ kind: 'create' }, refused, null).props.onSubmit as Submit)('Solo', [REACTOR.characterId]);
   await settle();
-  expect(refused.state.create).toHaveBeenCalledWith('Solo', emptyProfileDocument([]));
+  expect(refused.state.create).toHaveBeenCalledWith(
+    'Solo',
+    emptyProfileDocument([{ characterId: REACTOR.characterId, name: REACTOR.name }]),
+  );
   expect(refused.onClose).not.toHaveBeenCalled();
   expect(refused.onSelectProfile).not.toHaveBeenCalled();
 
+  // Every linked character starts unpicked, and the profile needs at least one.
   const html = renderToStaticMarkup(createElement(ProfileNameDialog, { ...create.props } as never));
-  expect(html).toContain('Start with all 2 linked characters');
+  expect(html).toContain('aria-label="Characters"');
+  expect(html).toMatch(/aria-pressed="false"[^>]*aria-label="Builder"/);
+  expect(html).toMatch(/aria-pressed="false"[^>]*aria-label="Reactor"/);
+  expect(html).toContain('Select all');
+  expect(html).toMatch(/<button type="submit"[^>]*disabled=""[^>]*>Create profile</);
   expect(html).toContain('value="Production 2"');
+
   const rename = renderToStaticMarkup(
     createElement(ProfileNameDialog, { ...open({ kind: 'rename' }, context()).props } as never),
   );
-  expect(rename).not.toContain('linked characters');
+  expect(rename).not.toContain('Select all');
+  expect(rename).toMatch(/<button type="submit"[^>]*>Rename</);
+  expect(rename).not.toMatch(/<button type="submit"[^>]*disabled=""/);
 });
 
 test('rename, duplicate, delete and remove each act on the open profile', async () => {

@@ -31,7 +31,12 @@ export interface ComponentSheet {
   /** The job's inputs at market; null until every input is priced. */
   buildCost: number | null;
   /** The job's install fee where the profile runs it; null where no fee is charged. */
-  installFee: { value: number | null; systemId: number | null } | null;
+  installFee: {
+    value: number | null;
+    systemId: number | null;
+    /** Inputs the fee counts as nothing, having no CCP adjusted price. */
+    unpriced: string[];
+  } | null;
   /** One unit built: the job's inputs and fee over the units its runs make. */
   buildPerUnit: number | null;
   /** One unit bought at market instead. */
@@ -45,9 +50,17 @@ const sumOrNull = (values: (number | null)[]): number | null =>
  * The fee for the job's whole runs. The planner may have charged a share of
  * a run instead; a fee is linear in runs, so it scales exactly.
  */
-function installFeeFor(fee: ComponentJobFee | undefined, runs: number): ComponentSheet['installFee'] {
+function installFeeFor(
+  fee: ComponentJobFee | undefined,
+  runs: number,
+  nameOf: (typeId: number) => string,
+): ComponentSheet['installFee'] {
   if (!fee || fee.runs <= 0) return null;
-  return { value: fee.fee.total === null ? null : (fee.fee.total * runs) / fee.runs, systemId: fee.systemId };
+  return {
+    value: fee.fee.total === null ? null : (fee.fee.total * runs) / fee.runs,
+    systemId: fee.systemId,
+    unpriced: fee.fee.missingAdjustedPriceTypeIds.map(nameOf),
+  };
 }
 
 export function componentSheet(
@@ -79,7 +92,7 @@ export function componentSheet(
     };
   });
   const buildCost = sumOrNull(inputs.map((input) => input.value));
-  const installFee = installFeeFor(opts.jobFee, job.runs);
+  const installFee = installFeeFor(opts.jobFee, job.runs, nameOf);
   const jobCost = installFee === null ? buildCost : sumOrNull([buildCost, installFee.value]);
   const makes = job.runs * job.batch;
   return {

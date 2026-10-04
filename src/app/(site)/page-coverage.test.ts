@@ -106,8 +106,6 @@ import AppSiteIndustryPage, { metadata as AppSiteIndustryPageMetadata } from '@/
 import AppSiteIndustryJobsPage, { metadata as AppSiteIndustryJobsPageMetadata } from '@/app/(site)/industry/jobs/page';
 import AppSiteIndustryLayout from '@/app/(site)/industry/layout';
 import AppSiteIndustryPlannerPage, { metadata as AppSiteIndustryPlannerPageMetadata } from '@/app/(site)/industry/planner/page';
-import AppSiteIndustryTemplatesPage from '@/app/(site)/industry/templates/page';
-import AppSiteJobsPage from '@/app/(site)/jobs/page';
 import AppSiteLegalPage, { metadata as AppSiteLegalPageMetadata } from '@/app/(site)/legal/page';
 import AppSitePage, { metadata as AppSitePageMetadata } from '@/app/(site)/page';
 import AppSitePreviewCardsPage, { metadata as AppSitePreviewCardsPageMetadata } from '@/app/(site)/preview/cards/page';
@@ -128,7 +126,6 @@ import { SettingsNav, SettingsNavFallback } from '@/app/(site)/settings/settings
 import AppSiteSitesIdOpengraphImage, { alt, contentType, size } from '@/app/(site)/sites/[id]/opengraph-image';
 import { generateMetadata as AppSiteSitesIdPageGenerateMetadata, generateStaticParams as AppSiteSitesIdPageGenerateStaticParams } from '@/app/(site)/sites/[id]/page';
 import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(site)/sites/page';
-import AppSiteStructuresPage from '@/app/(site)/structures/page';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
@@ -215,8 +212,6 @@ describe('coverage-gaps', () => {
       AppSiteIndustryLayout,
       AppSiteIndustryPlannerPageMetadata,
       AppSiteIndustryPlannerPage,
-      AppSiteIndustryTemplatesPage,
-      AppSiteJobsPage,
       AppSiteLegalPageMetadata,
       AppSiteLegalPage,
       AppSitePageMetadata,
@@ -248,7 +243,6 @@ describe('coverage-gaps', () => {
       AppSiteSitesIdPageGenerateStaticParams,
       AppSiteSitesPageMetadata,
       AppSiteSitesPage,
-      AppSiteStructuresPage,
     ];
     expect(pinned.length).toBeGreaterThan(0);
     for (const value of pinned) {

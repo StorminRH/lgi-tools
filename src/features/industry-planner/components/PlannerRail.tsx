@@ -4,10 +4,9 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Banner } from '@/components/ui/banner';
 import { cn } from '@/components/ui/cn';
+import { StarIcon } from '@/components/ui/icons';
 import { LivePrice } from '@/components/ui/live-price';
-import { scrollArea } from '@/components/ui/scroll-area';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/ui/stepper';
@@ -18,17 +17,40 @@ import { formatQuantity } from '@/lib/format/number';
 import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { batchedCostOfRows } from '../cost-basis-view';
+import { useFavoriteBlueprints } from '../favorite-blueprints';
 import { activityLabel, PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { CockpitKpis } from './CockpitKpis';
+import { IndustryGlyph } from './IndustryGlyph';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { MultibuyPanel } from './MultibuyPanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 
 const PROFILES_HREF = '/industry';
+const SEARCH_HREF = '/industry/planner';
+
+/** Stars the blueprint so the planner's landing page lists it. */
+function FavoriteStar({ typeId, name }: { typeId: number; name: string }) {
+  const { favorites, toggle } = useFavoriteBlueprints();
+  const starred = favorites?.some((f) => f.typeId === typeId) ?? false;
+  return (
+    <Button
+      variant="bare"
+      type="button"
+      aria-label="Favorite"
+      aria-pressed={starred}
+      disabled={favorites === null}
+      onClick={() => toggle({ typeId, name })}
+      className="mt-1 size-7 shrink-0 justify-center rounded-ctl text-muted hover:text-isk aria-pressed:text-isk"
+    >
+      <StarIcon size={18} className={cn(starred && 'fill-current')} />
+    </Button>
+  );
+}
 
 /**
  * The blueprint floats on the backdrop like a pilot's portrait, its research
@@ -39,7 +61,17 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <h2 className="font-display text-h2 font-bold leading-tight text-name">{structure.product.name}</h2>
+        <Link
+          href={SEARCH_HREF}
+          transitionTypes={['industry-tab']}
+          className="mb-2 inline-flex items-center gap-2 self-start rounded-ctl py-1 font-data text-ui text-muted no-underline hover:text-isk"
+        >
+          <span aria-hidden>←</span> Back to search
+        </Link>
+        <div className="flex items-start gap-2">
+          <h2 className="min-w-0 font-display text-h2 font-bold leading-tight text-name">{structure.product.name}</h2>
+          <FavoriteStar typeId={structure.blueprintTypeId} name={structure.product.name} />
+        </div>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-data text-micro uppercase tracking-label text-muted">
           {group && (
             <>
@@ -75,7 +107,7 @@ const ctaClass = 'w-full justify-center';
  */
 function ProfileSwitch() {
   const { session, loading } = useAuth();
-  const { profiles, profilesFailed, refreshProfiles, profile, setProfileId, locationFailed, retryLocation } = useBuildSetup();
+  const { profiles, profilesFailed, refreshProfiles, profile, setProfileId } = useBuildSetup();
   if (loading) {
     return <Skeleton label="Loading profiles" className="h-9 w-full rounded-ctl" />;
   }
@@ -92,10 +124,12 @@ function ProfileSwitch() {
   }
   if (profiles === null) {
     return profilesFailed ? (
-      <div className="flex items-center justify-between gap-2 text-ui text-muted">
-        <span>Could not load profiles.</span>
-        <Button type="button" variant="bare" onClick={refreshProfiles}>Retry</Button>
-      </div>
+      <LoadFailed
+        title="Profiles didn't load"
+        detail="Pricing without a profile"
+        retryLabel="Retry loading profiles"
+        onRetry={refreshProfiles}
+      />
     ) : <Skeleton label="Loading profiles" className="h-9 w-full rounded-ctl" />;
   }
   if (profile === null) {
@@ -110,31 +144,13 @@ function ProfileSwitch() {
     );
   }
   return (
-    <div className="flex flex-col gap-2">
-      <Select
-        value={profile.id}
-        onValueChange={setProfileId}
-        items={profiles.map((p) => ({ value: p.id, label: p.name }))}
-        ariaLabel="Production profile"
-        className="w-full"
-      />
-      {locationFailed && (
-        <Banner tone="warn">
-          <p>Could not load system fees. Estimates exclude these fees.</p>
-          <Button type="button" variant="bare" onClick={retryLocation}>Retry system fees</Button>
-        </Banner>
-      )}
-    </div>
-  );
-}
-
-/** Two arrows chasing each other: the job repeated, run after run. */
-function RunsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full fill-none stroke-muted" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 11a7 7 0 0 1 12.5-4.3M20 13a7 7 0 0 1-12.5 4.3" />
-      <path d="M17 3v4h-4M7 21v-4h4" />
-    </svg>
+    <Select
+      value={profile.id}
+      onValueChange={setProfileId}
+      items={profiles.map((p) => ({ value: p.id, label: p.name }))}
+      ariaLabel="Production profile"
+      className="w-full"
+    />
   );
 }
 
@@ -185,7 +201,7 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
           />
         </StepperRow>
       )}
-      <StepperRow icon={<RunsIcon />}>
+      <StepperRow icon={<IndustryGlyph glyph="runs" className="text-muted" />}>
         <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" reserveTrailing />
       </StepperRow>
     </div>
@@ -228,7 +244,7 @@ function BuildTools({
   );
 }
 
-/** The blueprint, the profile it builds under, its tools and its numbers, kept in view beside the build. */
+/** The blueprint, the profile it builds under, its tools and its numbers, beside the build and open to the page. */
 export function PlannerRail({
   structure,
   ledgerShown,
@@ -240,17 +256,7 @@ export function PlannerRail({
 }) {
   const { marginMode, setMarginMode } = usePlannerConfig();
   return (
-    <aside
-      aria-label="Blueprint"
-      className={cn(
-        scrollArea,
-        'reveal flex min-w-0 flex-col gap-5 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto',
-        // Room inside the scroll box for the blueprint's glow, taken back
-        // outside so the rail's edges stay where the column puts them; the
-        // right side leaves space for the 10px scrollbar gutter.
-        'lg:-mx-4 lg:-mt-4 lg:pt-4 lg:pr-1.5 lg:pb-4 lg:pl-4',
-      )}
-    >
+    <aside aria-label="Blueprint" className="reveal flex min-w-0 flex-col gap-5">
       <BlueprintIdentity structure={structure} />
       <div className="flex flex-col gap-2">
         <h3 className={eyebrow({ size: 'micro', tone: 'muted' })}>Profiles</h3>

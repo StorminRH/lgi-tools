@@ -13,7 +13,7 @@ export function useCorpJobsLive(eligibleCharacterIds: number[]): {
   corporations: ViewerCorpJobs[];
 } & LiveDatasetState {
   const hasEligible = eligibleCharacterIds.length > 0;
-  const { response, now, loading, failed } = useLiveDataset(corpIndustryJobsEndpoint, hasEligible, corpJobsIsCold);
+  const { response, now, loading, failed, retry } = useLiveDataset(corpIndustryJobsEndpoint, hasEligible, corpJobsIsCold);
   const corporations = useMemo(() => deriveCorpJobs(response, now), [response, now]);
-  return { corporations, names: response?.names ?? {}, now, loading, failed };
+  return { corporations, names: response?.names ?? {}, now, loading, failed, retry };
 }

@@ -40,6 +40,6 @@ export function createClientStore<T>(serverValue: T): ClientStore<T> {
   };
 }
 
-export function useClientStore<T>(store: ClientStore<T>): T {
+export function useClientStore<T>(store: Pick<ClientStore<T>, 'get' | 'subscribe' | 'serverValue'>): T {
   return useSyncExternalStore(store.subscribe, store.get, () => store.serverValue);
 }

@@ -19,15 +19,6 @@ function isReaction(activityId: number): boolean {
   return activityId === 9 || activityId === 11;
 }
 
-export function jobActivityPill(activityId: number): { label: string; tone: Tone } {
-  if (activityId === 1) return { label: 'MFG', tone: 'blue' };
-  if (isReaction(activityId)) return { label: 'RX', tone: 'green' };
-  if (activityId === 3 || activityId === 4 || activityId === 5 || activityId === 8) {
-    return { label: 'SCI', tone: 'purple' };
-  }
-  return { label: 'IND', tone: 'neutral' };
-}
-
 export type JobCategory = 'manufacturing' | 'science' | 'reactions';
 
 export function jobCategory(activityId: number): JobCategory | null {

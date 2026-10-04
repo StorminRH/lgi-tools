@@ -1040,8 +1040,8 @@ const eslintConfig = defineConfig([
     files: [
       "src/platform/auth/**/*.{ts,tsx,mts}",
       "src/app/api/auth/**/route.{ts,tsx}",
-      "src/app/(site)/industry/active-job-character-ids.ts",
-      "src/app/(site)/industry/active-job-character-ids.test.ts",
+      "src/app/(site)/industry/industry-characters.ts",
+      "src/app/(site)/industry/industry-characters.test.ts",
     ],
     rules: {
       "no-restricted-imports": [

@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
+import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
 import { useSystemSearch } from '@/components/use-system-search';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { useReadIdentity } from '@/platform/auth/read-identity';
 import { apiFetch } from '@/transport/api-client';
 import { teamSkillLevelsEndpoint } from '../api-contract';
 import type { IndustryProfileRow } from '../profiles/api-contract';
@@ -36,6 +38,8 @@ async function readTeamSkillLevels(signal: AbortSignal): Promise<LevelsByCharact
 }
 
 const NO_LEVELS: LevelsByCharacter = new Map();
+// The last levels outlive the planner, so opening another blueprint plans with them at once.
+const levelsMemory = createRememberedRead<LevelsByCharacter>();
 
 /**
  * The production profile applied to this build: each job's facility from the
@@ -50,8 +54,10 @@ function usePlannerProfile(
   // The planner and the Profiles tab share the profile last used.
   const [profileId, setProfileId] = usePreference(industryProfile);
   const profile = profiles?.find((p) => p.id === profileId) ?? profiles?.[0] ?? null;
-  const [levels, setLevels] = useState<LevelsByCharacter>(NO_LEVELS);
-  useResourceRead(readTeamSkillLevels, { enabled: profile !== null, onData: setLevels });
+  const levels = useRememberedRead(levelsMemory) ?? NO_LEVELS;
+  const identity = useReadIdentity();
+  const rememberLevels = useCallback((next: LevelsByCharacter) => levelsMemory.set(next, identity), [identity]);
+  useResourceRead(readTeamSkillLevels, { enabled: profile !== null && identity !== null, onData: rememberLevels });
   const { systems } = useSystemSearch();
   const securityOf = useCallback(
     (systemId: number) => systems.find((s) => s.id === systemId)?.security ?? null,
@@ -78,6 +84,8 @@ function usePlannerProfile(
 /** The location state a profile drives so the product's own job prices where it runs. */
 export interface LocationWriters {
   locationRefreshKey: number;
+  /** The system whose read last failed, so it is not still waited on. */
+  failureSystemId: number | null;
   location: SelectedLocation | null;
   setLocation: (location: SelectedLocation | null) => void;
   applyBuildSystem: (
@@ -97,9 +105,10 @@ export interface LocationWriters {
  */
 function useProfileLocation(
   plan: ProfilePlan | null,
+  profileId: string | null,
   activityId: number,
   writers: LocationWriters,
-): void {
+): boolean {
   const { systems } = useSystemSearch();
   const facility = plan?.top.facility ?? null;
   const found = systems.find((s) => s.id === facility?.systemId);
@@ -111,6 +120,9 @@ function useProfileLocation(
     writers;
   const current = location?.systemId ?? null;
   const structure = facility?.structure ?? null;
+  const facilityId = facility?.id ?? null;
+  const needsRead = system !== null && current !== system.systemId;
+  const needsClearing = system === null && current !== null;
   useEffect(() => {
     if (activityId === REACTION_ACTIVITY) {
       setReactionSystem(system);
@@ -119,17 +131,20 @@ function useProfileLocation(
     }
     setSelectedStructure(structure);
     if (system === null) {
-      if (current !== null) setLocation(null);
+      if (needsClearing) setLocation(null);
       return;
     }
-    if (current === system.systemId) return;
+    if (!needsRead) return;
     const controller = new AbortController();
     void applyBuildSystem(system, { persist: false, signal: controller.signal });
     return () => controller.abort();
   }, [
     system,
     structure,
-    current,
+    needsRead,
+    needsClearing,
+    profileId,
+    facilityId,
     activityId,
     applyBuildSystem,
     setLocation,
@@ -138,6 +153,9 @@ function useProfileLocation(
     setReactionStructure,
     locationRefreshKey,
   ]);
+  // Whether the product's system is still being read.
+  return activityId !== REACTION_ACTIVITY && system !== null && current !== system.systemId &&
+    writers.failureSystemId !== system.systemId;
 }
 
 /**
@@ -150,11 +168,16 @@ export function useProfileFactors(
     availableStructures: AvailableStructure[] | null;
     structureFactors: StructureFactors;
   },
-): PlannerProfileState & { structureFactors: StructureFactors; skillTimeFactors: SkillTimeFactors | null } {
+): PlannerProfileState & {
+  structureFactors: StructureFactors;
+  skillTimeFactors: SkillTimeFactors | null;
+  locationPending: boolean;
+} {
   const profile = usePlannerProfile(structure, location.availableStructures);
-  useProfileLocation(profile.plan, structure.activityId, location);
+  const locationPending = useProfileLocation(profile.plan, profile.profile?.id ?? null, structure.activityId, location);
   return {
     ...profile,
+    locationPending,
     structureFactors: profile.plan?.structureFactors ?? location.structureFactors,
     skillTimeFactors: profile.plan?.skillTimeFactors ?? null,
   };

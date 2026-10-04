@@ -35,9 +35,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
-      await createCustomStructure(userId, { id: randomUUID(), ...body });
+      const createdId = randomUUID();
+      await createCustomStructure(userId, { id: createdId, ...body });
       const structures = await listCustomStructures(userId);
-      return apiResponse(createCustomStructureEndpoint, 201, { structures });
+      return apiResponse(createCustomStructureEndpoint, 201, { structures, createdId });
     },
   });
 }

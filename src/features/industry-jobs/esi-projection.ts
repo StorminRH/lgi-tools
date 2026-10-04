@@ -27,12 +27,15 @@ const industryJobsBodySchema = z.array(industryJobSchema);
 
 export type IndustryJob = z.infer<typeof industryJobSchema>;
 
+/** Jobs in the order they finish, ties broken by id so the order is stable. */
+export function byEndDate(a: IndustryJob, b: IndustryJob): number {
+  return Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id;
+}
+
 export function parseIndustryJobsBody(body: unknown): IndustryJob[] | null {
   const parsed = industryJobsBodySchema.safeParse(body);
   if (!parsed.success) return null;
-  return [...parsed.data].sort(
-    (a, b) => Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id,
-  );
+  return [...parsed.data].sort(byEndDate);
 }
 
 export function jobTypeIds(entries: { data: { jobs: IndustryJob[] } | null }[]): number[] {

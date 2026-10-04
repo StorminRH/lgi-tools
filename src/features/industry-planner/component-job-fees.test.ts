@@ -49,10 +49,10 @@ describe('computeComponentJobFees', () => {
     expect(total).toBeCloseTo(166.6 + 37.5, 9);
   });
 
-  it('the total is the sum of the jobs it lists, and a job with no runs is not one', () => {
+  it('leaves out a job with no runs, and the others still add up to the same fees', () => {
     const { jobs, total } = computeComponentJobFees([PLATES, IDLE, CARBIDE], sources());
     expect(jobs.map((j) => j.typeId)).toEqual([10, 20]);
-    expect(total).toBeCloseTo(jobs.reduce((sum, j) => sum + j.fee.total!, 0), 9);
+    expect(total).toBeCloseTo(166.6 + 37.5, 9);
   });
 
   it('a job in a system with no index keeps its tax and surcharge but leaves the total open', () => {
@@ -76,14 +76,15 @@ describe('computeComponentJobFees', () => {
     expect(total).toBeNull();
   });
 
-  it('an input with no adjusted price adds nothing to the value and is named', () => {
+  it('an input with no adjusted price counts as nothing, as in game, and is named', () => {
     const { jobs, total } = computeComponentJobFees([PLATES], sources({ adjustedPriceOf: (id) => (id === 30 ? 100 : null) }));
     expect(jobs[0]!.fee.estimatedItemValue).toBe(1_000);
     expect(jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([40]);
     expect(jobs[0]!.fee.facilityTax).toBe(10);
     expect(jobs[0]!.fee.sccSurcharge).toBe(40);
-    expect(jobs[0]!.fee.total).toBeNull();
-    expect(total).toBeNull();
+    // 1,000 at 5% less a 4% bonus, plus 1% tax and 4% SCC.
+    expect(jobs[0]!.fee.total).toBeCloseTo(48 + 10 + 40, 9);
+    expect(total).toBeCloseTo(98, 9);
   });
 
   it('nothing built, nothing charged', () => {

@@ -28,14 +28,6 @@ export function loginFrequencyBuckets(counts: number[]): LoginFrequencyBucket[] 
   }));
 }
 
-export function ratio(num: number, denom: number): number | null {
-  return denom === 0 ? null : num / denom;
-}
-
-export function formatPct(r: number | null, empty = '—'): string {
-  return r === null ? empty : `${Math.round(r * 100)}%`;
-}
-
 export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {
   if (points.length === 0) return 'No price refreshes recorded this period.';
   const fetched = points.reduce((s, p) => s + p.fetched, 0);
@@ -44,6 +36,28 @@ export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {
 }
 
 export type StatusLevel = 'green' | 'amber' | 'red' | 'neutral';
+
+/** An operator alert line: a breach of `warn` is amber, of `fail` red. */
+export interface AlertTarget {
+  warn: number;
+  fail: number;
+  direction: 'min' | 'max';
+}
+
+/** The share of ESI-dependent operations that must succeed. */
+export const ESI_AVAILABILITY_TARGET = {
+  warn: 0.95,
+  fail: 0.8,
+  direction: 'min',
+} as const satisfies AlertTarget;
+
+export function targetLevel(value: number, target: AlertTarget): Exclude<StatusLevel, 'neutral'> {
+  const breaches = (limit: number) =>
+    target.direction === 'min' ? value < limit : value > limit;
+  if (breaches(target.fail)) return 'red';
+  if (breaches(target.warn)) return 'amber';
+  return 'green';
+}
 
 export interface SubsystemStatus {
   level: StatusLevel;
