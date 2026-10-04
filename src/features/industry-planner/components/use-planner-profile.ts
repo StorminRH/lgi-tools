@@ -105,6 +105,7 @@ export interface LocationWriters {
  */
 function useProfileLocation(
   plan: ProfilePlan | null,
+  profileId: string | null,
   activityId: number,
   writers: LocationWriters,
 ): boolean {
@@ -119,6 +120,9 @@ function useProfileLocation(
     writers;
   const current = location?.systemId ?? null;
   const structure = facility?.structure ?? null;
+  const facilityId = facility?.id ?? null;
+  const needsRead = system !== null && current !== system.systemId;
+  const needsClearing = system === null && current !== null;
   useEffect(() => {
     if (activityId === REACTION_ACTIVITY) {
       setReactionSystem(system);
@@ -127,17 +131,20 @@ function useProfileLocation(
     }
     setSelectedStructure(structure);
     if (system === null) {
-      if (current !== null) setLocation(null);
+      if (needsClearing) setLocation(null);
       return;
     }
-    if (current === system.systemId) return;
+    if (!needsRead) return;
     const controller = new AbortController();
     void applyBuildSystem(system, { persist: false, signal: controller.signal });
     return () => controller.abort();
   }, [
     system,
     structure,
-    current,
+    needsRead,
+    needsClearing,
+    profileId,
+    facilityId,
     activityId,
     applyBuildSystem,
     setLocation,
@@ -167,7 +174,7 @@ export function useProfileFactors(
   locationPending: boolean;
 } {
   const profile = usePlannerProfile(structure, location.availableStructures);
-  const locationPending = useProfileLocation(profile.plan, structure.activityId, location);
+  const locationPending = useProfileLocation(profile.plan, profile.profile?.id ?? null, structure.activityId, location);
   return {
     ...profile,
     locationPending,
