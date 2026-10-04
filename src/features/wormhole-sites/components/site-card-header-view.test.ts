@@ -74,6 +74,11 @@ describe('deriveSiteCardHeaderView', () => {
     expect(view.typePill).toEqual({ tone: 'red-soft', label: 'Combat' });
   });
 
+  it('resolves the class pill from the class range of a gas site', () => {
+    const gas = site({ siteType: 'gas', name: 'Bountiful Frontier Reservoir', wormholeClass: null });
+    expect(deriveSiteCardHeaderView(gas, []).classPill).toEqual({ tone: 'orange', label: 'C3–C6' });
+  });
+
   it('has no class pill for a classless non-gas site', () => {
     expect(deriveSiteCardHeaderView(site({ siteType: 'ore', wormholeClass: null }), []).classPill).toBeNull();
   });

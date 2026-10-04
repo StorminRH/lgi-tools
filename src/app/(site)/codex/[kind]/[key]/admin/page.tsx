@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
+import { codexComponents } from '@/components/composition/codex-data-block';
 import { Banner } from '@/components/ui/banner';
+import { codexSourceCatalogue } from '@/composition/codex-sources';
 import { getFullSession } from '@/composition/session';
 import { CodexAdminArticle } from '@/features/codex/components/CodexAdminArticle';
 import { renderCodexSections } from '@/features/codex/render';
@@ -75,13 +77,14 @@ export async function CodexAdminReader({ params, searchParams }: { params: Codex
         sections={[]}
         initialScope={PAGE_SCOPE}
         initialNotice={request.notice}
+        catalogue={codexSourceCatalogue()}
       />
     );
   }
   if (!isAdmin) return <CodexReaderView subject={subject} page={page} />;
 
   const { header, aside } = codexPageFrame(subject, page);
-  const sections = renderCodexSections(page.doc, {});
+  const sections = renderCodexSections(page.doc, codexComponents);
   const scopes = new Set([PAGE_SCOPE, ...sections.map((section) => section.id)]);
   const requested = request.edit !== null && scopes.has(request.edit) ? request.edit : null;
   const goneSectionId = request.notice !== null && request.edit !== null && requested === null ? request.edit : null;
@@ -103,6 +106,7 @@ export async function CodexAdminReader({ params, searchParams }: { params: Codex
         initialScope={goneSectionId === null ? requested : PAGE_SCOPE}
         initialNotice={request.notice}
         goneSectionId={goneSectionId}
+        catalogue={codexSourceCatalogue()}
       />
     </>
   );

@@ -131,3 +131,68 @@ test('parses lists nested up to the depth limit and rejects deeper ones instead 
   expect(JSON.stringify(deep).length).toBeLessThan(32 * 1024);
   expect(parseCodexDoc(deep)).toEqual({ ok: false, problems: ['document nests deeper than 64 levels'] });
 });
+
+const dataBlock = (attrs: Record<string, unknown>) => ({
+  type: 'dataBlock',
+  attrs: { id: 'd', source: 'wormholeType', key: 'C247', layout: 'infobox', ...attrs },
+});
+
+test('accepts a data block that names a source, key, fields, and layout, and stores no values', () => {
+  const result = parseCodexDoc(doc([dataBlock({})]));
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.doc.content[0]).toEqual({
+    type: 'dataBlock',
+    attrs: { id: 'd', source: 'wormholeType', key: 'C247', fields: [], layout: 'infobox' },
+    content: [],
+  });
+});
+
+test('rejects a data block with a bad layout, repeated or too many fields, a nested place, or no id', () => {
+  expect(parseCodexDoc(doc([dataBlock({ layout: 'poster' })]))).toEqual({
+    ok: false,
+    problems: ['content.0.attrs.layout: Invalid option: expected one of "infobox"|"table"|"card"'],
+  });
+  expect(parseCodexDoc(doc([dataBlock({ layout: 'inline' })])).ok).toBe(false);
+
+  expect(parseCodexDoc(doc([dataBlock({ fields: ['a', 'a'] })]))).toEqual({
+    ok: false,
+    problems: ['content.0.attrs.fields: fields must be unique'],
+  });
+
+  const many = Array.from({ length: 17 }, (_, index) => `f${index}`);
+  expect(parseCodexDoc(doc([dataBlock({ fields: many })]))).toEqual({
+    ok: false,
+    problems: ['content.0.attrs.fields: Too big: expected array to have <=16 items'],
+  });
+
+  expect(
+    parseCodexDoc(
+      doc([{ type: 'bulletList', attrs: { id: 'l' }, content: [{ type: 'listItem', content: [dataBlock({})] }] }]),
+    ),
+  ).toEqual({ ok: false, problems: ['content.0.content.0.content.0.type: node type "dataBlock" is not allowed here'] });
+
+  expect(parseCodexDoc(doc([{ type: 'dataBlock', attrs: { source: 'site', key: '20', layout: 'card' } }]))).toEqual({
+    ok: false,
+    problems: ['content.0: block has no id'],
+  });
+});
+
+const dataInline = { type: 'dataInline', attrs: { source: 'wormholeType', key: 'C247', fields: ['totalMass'] } };
+
+test('accepts an inline data value inside a paragraph and nowhere at the top level', () => {
+  const sentence = {
+    type: 'paragraph',
+    attrs: { id: 'p' },
+    content: [{ type: 'text', text: 'A ' }, dataInline, { type: 'text', text: ' hole.' }],
+  };
+  const result = parseCodexDoc(doc([sentence]));
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.doc.content[0]!.content[1]).toEqual({ ...dataInline, content: [] });
+
+  expect(parseCodexDoc(doc([{ ...dataInline, attrs: { ...dataInline.attrs, id: 'x' } }]))).toEqual({
+    ok: false,
+    problems: ['content.0.type: node type "dataInline" is not allowed here'],
+  });
+});

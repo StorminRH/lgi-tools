@@ -48,6 +48,7 @@ const allowConvexSync = ['src/data/convex/use-sync-subject.ts', 'convex/react'];
 const allowGoogleGsc = ['src/data/gsc/source.ts', 'google-auth-library'];
 const allowTiptapEditor = ['src/features/codex/editor/CodexEditor.tsx', '@tiptap/react'];
 const allowTiptapExtensions = ['src/features/codex/editor/extensions.ts', '@tiptap/starter-kit'];
+const allowTiptapHeading = ['src/features/codex/editor/extensions.ts', '@tiptap/extension-heading'];
 
 const crossUpstashRatelimit = ['src/lib/upstash.ts', '@upstash/ratelimit'];
 const crossRateLimitRedis = ['src/lib/rate-limit.ts', '@upstash/redis'];
@@ -130,6 +131,7 @@ describe('vendor rail', () => {
       allowGoogleGsc,
       allowTiptapEditor,
       allowTiptapExtensions,
+      allowTiptapHeading,
     ])('allows %s importing its own vendor %s', async (filePath, packageName) => {
       await expectImportEmpty(filePath, packageName);
     });

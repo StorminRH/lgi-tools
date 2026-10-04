@@ -46,6 +46,7 @@ const render = (
       footer: null,
       sections: [section('lead', null), section('ships', 'Ships'), section('route', 'Route')],
       initialScope,
+      catalogue: { sources: [] },
       ...conflict,
     }),
   );
@@ -61,7 +62,9 @@ test('while one section is in edit, History, Edit page and every other pencil ar
   expect(html).not.toContain('href="/codex/guides/rolling-a-c3/history"');
   expect(disabledButtons(html)).toEqual(['History', 'Edit page', 'Edit introduction', 'Edit section']);
   expect(html).toContain('Editing');
-  expect(html).toContain('data-editor="ships"');
+  expect(html).toContain('<section id="ships" class="scroll-mt-24 pt-10 first:pt-0 clear-right">');
+  expect(html).toContain('</header><form data-editor="ships"');
+  expect(html).toContain('<section id="route" class="scroll-mt-24 pt-10 first:pt-0">');
   expect(html).toContain('lead text');
   expect(html).toContain('route text');
   expect(html).not.toContain('ships text');

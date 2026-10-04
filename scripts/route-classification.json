@@ -59,7 +59,8 @@
     "/codex/[kind]/[key]": "Codex reader for signed-out viewers: the kind and key params and the tag-cached current revision stream from one hole behind a page-shaped skeleton, and the route imports no admin code.",
     "/codex/[kind]/[key]/admin": "Codex page for signed-in viewers, reached through the proxy rewrite: the params, the tag-cached revision, the viewer's admin check, and the edit query stream from one hole behind a page-shaped skeleton; the admin's editor loads only after a pencil press.",
     "/codex/[kind]/[key]/history": "Per-page revision history, admin only: the admin check, params, and the uncached revision list stream from one hole behind a skeleton.",
-    "/api/admin/codex/revisions": "Dynamic admin form mutation: same-origin publish or restore with a compare-and-set on the page head, followed by a 303 redirect."
+    "/api/admin/codex/revisions": "Dynamic admin form mutation: same-origin publish or restore with a compare-and-set on the page head, followed by a 303 redirect.",
+    "/api/codex/sources": "Signed-in picker search and preview over the closed Codex source registry; per-request session and query."
   },
   "routes": {
     "/": "partial",
@@ -176,6 +177,7 @@
     "/codex/[kind]/[key]": "partial",
     "/codex/[kind]/[key]/admin": "partial",
     "/codex/[kind]/[key]/history": "partial",
-    "/api/admin/codex/revisions": "dynamic"
+    "/api/admin/codex/revisions": "dynamic",
+    "/api/codex/sources": "dynamic"
   }
 }

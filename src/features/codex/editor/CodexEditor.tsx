@@ -1,23 +1,27 @@
 'use client';
 
 import { EditorContent, useEditor, useEditorState, type Editor, type JSONContent } from '@tiptap/react';
-import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import {
   BoldIcon,
   BulletIcon,
   CalloutIcon,
+  DataIcon,
   ItalicIcon,
   LinkIcon,
   NumberedIcon,
 } from '../components/icons';
 import { Input } from '@/components/ui/input';
+import type { CodexSourceCatalogue } from '../components/CodexDataView';
 import { isSafeHref } from '../nodes';
 import type { CodexEditorNotice, CodexSubject } from '../subjects';
+import { DataBlockPicker } from './DataBlockPicker';
+import type { DataNode } from './data-block-picker-state';
 import { EditorNotice } from './EditorNotice';
 import { codexDraftKey, initialEditorBlocks, keepCodexDraft, takeConflictDraft } from './draft';
-import { codexEditorExtensions, editorBlocks } from './extensions';
+import { codexEditorExtensions, dataInsertion, editorBlocks } from './extensions';
 
 export interface CodexEditorProps {
   readonly subject: CodexSubject;
@@ -27,7 +31,18 @@ export interface CodexEditorProps {
   readonly goneSectionId?: string | null;
   readonly initialBlocks: readonly unknown[];
   readonly notice: CodexEditorNotice | null;
+  readonly catalogue: CodexSourceCatalogue;
   readonly onCancel: () => void;
+}
+
+function toolButtonClass(active: boolean | undefined, wide: boolean | undefined) {
+  return cn(
+    'h-8 justify-center gap-1.5 rounded-ctl border font-ui text-ui font-semibold',
+    wide ? 'px-2.5' : 'w-8',
+    active
+      ? 'border-border-active bg-row-on text-isk shadow-card-edge'
+      : 'border-transparent text-muted hover:bg-row-related hover:text-name',
+  );
 }
 
 function ToolButton({
@@ -44,19 +59,7 @@ function ToolButton({
   wide?: boolean;
 }) {
   return (
-    <Button
-      variant="bare"
-      aria-label={label}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        'h-8 justify-center gap-1.5 rounded-ctl border font-ui text-ui font-semibold',
-        wide ? 'px-2.5' : 'w-8',
-        active
-          ? 'border-border-active bg-row-on text-isk shadow-card-edge'
-          : 'border-transparent text-muted hover:bg-row-related hover:text-name',
-      )}
-    >
+    <Button variant="bare" aria-label={label} aria-pressed={active} onClick={onClick} className={toolButtonClass(active, wide)}>
       {children}
     </Button>
   );
@@ -69,6 +72,12 @@ const editorSurfaceClass = cn(
   '[&_td]:border [&_td]:border-border-soft [&_td]:px-2.5 [&_td]:py-1.5 [&_td]:text-left [&_td]:align-top',
   '[&_th]:border [&_th]:border-border-soft [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_th]:align-top',
   '[&_th]:bg-bg-deep [&_th]:text-muted',
+  '[&_.codex-data-chip]:flex [&_.codex-data-chip]:cursor-grab [&_.codex-data-chip]:items-center [&_.codex-data-chip]:gap-2',
+  '[&_.codex-data-chip]:rounded-ctl [&_.codex-data-chip]:border [&_.codex-data-chip]:border-dashed [&_.codex-data-chip]:border-border-active',
+  '[&_.codex-data-chip]:bg-bg-deep [&_.codex-data-chip]:px-3 [&_.codex-data-chip]:py-2',
+  '[&_.codex-data-chip]:font-data [&_.codex-data-chip]:text-ui [&_.codex-data-chip]:text-isk',
+  '[&_span.codex-data-chip]:inline-flex [&_span.codex-data-chip]:px-1.5 [&_span.codex-data-chip]:py-0 [&_span.codex-data-chip]:align-baseline',
+  '[&_.codex-data-chip.ProseMirror-selectednode]:border-solid [&_.codex-data-chip.ProseMirror-selectednode]:border-isk',
 );
 
 const Divider = () => <span aria-hidden className="mx-1 h-5 w-px bg-border" />;
@@ -136,11 +145,22 @@ function LinkRow({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   );
 }
 
-function Toolbar({ editor, onLink }: { editor: Editor | null; onLink: () => void }) {
+function Toolbar({
+  editor,
+  onLink,
+  data,
+  bar,
+}: {
+  editor: Editor | null;
+  onLink: () => void;
+  data: ReactNode;
+  bar: RefObject<HTMLDivElement | null>;
+}) {
   const state = useToolbarState(editor);
   const chain = () => editor?.chain().focus();
   return (
     <div
+      ref={bar}
       role="toolbar"
       aria-label="Formatting"
       className="flex flex-wrap items-center gap-0.5 rounded-t-card border-b border-border-soft bg-row-hover px-2 py-1.5"
@@ -171,7 +191,46 @@ function Toolbar({ editor, onLink }: { editor: Editor | null; onLink: () => void
       <ToolButton label="Callout" active={state?.callout} onClick={() => chain()?.toggleWrap('callout').run()}>
         <CalloutIcon size={15} />
       </ToolButton>
+      <Divider />
+      {data}
     </div>
+  );
+}
+
+function insertDataNode(editor: Editor, node: DataNode) {
+  const { at, content } = dataInsertion(editor.state.selection, node);
+  editor.chain().focus().insertContentAt(at, content).run();
+}
+
+function EditorToolbar({ editor, catalogue }: { editor: Editor | null; catalogue: CodexSourceCatalogue }) {
+  const [linking, setLinking] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const bar = useRef<HTMLDivElement>(null);
+  return (
+    <>
+      <Toolbar
+        bar={bar}
+        editor={editor}
+        onLink={() => setLinking((open) => !open)}
+        data={
+          <DataBlockPicker
+            catalogue={catalogue}
+            open={picking}
+            onOpenChange={setPicking}
+            onInsert={(node) => editor && insertDataNode(editor, node)}
+            trigger={
+              <>
+                <DataIcon size={15} />
+                Data
+              </>
+            }
+            triggerClassName={cn('inline-flex items-center', toolButtonClass(picking, true))}
+            anchor={bar}
+          />
+        }
+      />
+      {linking && editor ? <LinkRow editor={editor} onClose={() => setLinking(false)} /> : null}
+    </>
   );
 }
 
@@ -260,11 +319,11 @@ export function CodexEditor({
   goneSectionId = null,
   initialBlocks,
   notice,
+  catalogue,
   onCancel,
 }: CodexEditorProps) {
   const storageKey = codexDraftKey(subject, sectionId);
   const [draft] = useState(() => takeConflictDraft(subject, sectionId, goneSectionId, notice !== null));
-  const [linking, setLinking] = useState(false);
   const labels = sectionId === null ? EDITOR_LABELS.page : EDITOR_LABELS.section;
 
   const editor = useEditor({
@@ -291,8 +350,7 @@ export function CodexEditor({
       <TargetFields subject={subject} baseRevisionId={baseRevisionId} sectionId={sectionId} newTitle={newTitle} />
       <input ref={blocksField} type="hidden" name="blocks" />
       {notice ? <EditorNotice notice={notice} subject={subject} sectionId={sectionId} goneSectionId={goneSectionId} /> : null}
-      <Toolbar editor={editor} onLink={() => setLinking((open) => !open)} />
-      {linking && editor ? <LinkRow editor={editor} onClose={() => setLinking(false)} /> : null}
+      <EditorToolbar editor={editor} catalogue={catalogue} />
       <div className={editorSurfaceClass}>
         <EditorContent editor={editor} />
       </div>

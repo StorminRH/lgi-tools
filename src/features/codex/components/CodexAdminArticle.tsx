@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { RenderedCodexSection } from '../render';
 import { PAGE_SCOPE } from '../sections';
 import { codexHistoryHref, codexPageHref, type CodexEditorNotice, type CodexSubject } from '../subjects';
+import type { CodexSourceCatalogue } from './CodexDataView';
 import { CodexPageLayout } from './CodexPageLayout';
 import { CodexSectionFrame } from './CodexSectionFrame';
 import { openCodexScope } from './editing-scope';
@@ -61,6 +62,7 @@ export function CodexAdminArticle({
   initialScope,
   initialNotice,
   goneSectionId = null,
+  catalogue,
 }: {
   subject: CodexSubject;
   newTitle: string | null;
@@ -72,6 +74,7 @@ export function CodexAdminArticle({
   initialScope: string | null;
   initialNotice: CodexEditorNotice | null;
   goneSectionId?: string | null;
+  catalogue: CodexSourceCatalogue;
 }) {
   const router = useRouter();
   const [scope, setScope] = useState(initialScope);
@@ -101,6 +104,7 @@ export function CodexAdminArticle({
         goneSectionId={sectionId === null && notice !== null ? goneSectionId : null}
         initialBlocks={blocks}
         notice={notice}
+        catalogue={catalogue}
         onCancel={cancel}
       />
     </Suspense>
@@ -130,8 +134,18 @@ export function CodexAdminArticle({
     ) : (
       <>
         {sections.map((section) => (
-          <CodexSectionFrame key={section.id} id={section.id} title={section.title} action={sectionAction(section)}>
-            {scope === section.id ? editor(section.id, section.blocks) : <Fragment key={section.id}>{section.body}</Fragment>}
+          <CodexSectionFrame
+            key={section.id}
+            id={section.id}
+            title={section.title}
+            action={sectionAction(section)}
+            editing={scope === section.id}
+          >
+            {scope === section.id ? (
+              editor(section.id, section.blocks)
+            ) : (
+              <Fragment key={section.id}>{section.body}</Fragment>
+            )}
           </CodexSectionFrame>
         ))}
         {footer}

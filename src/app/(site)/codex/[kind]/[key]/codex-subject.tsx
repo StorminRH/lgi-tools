@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, Suspense, type ReactNode } from 'react';
+import { codexComponents } from '@/components/composition/codex-data-block';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -116,7 +117,7 @@ export function CodexReaderView({ subject, page }: { subject: CodexSubject; page
       header={header}
       article={
         <>
-          <CodexArticle doc={page.doc} components={{}} />
+          <CodexArticle doc={page.doc} components={codexComponents} />
           {licenseFooter}
         </>
       }

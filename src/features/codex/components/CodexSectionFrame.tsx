@@ -5,17 +5,19 @@ export function CodexSectionFrame({
   id,
   title,
   action,
+  editing = false,
   children,
 }: {
   id: string;
   title: ReactNode | null;
   action?: ReactNode;
+  editing?: boolean;
   children: ReactNode;
 }) {
   return (
     <section
       id={title === null ? undefined : id}
-      className={cn('scroll-mt-24 pt-10 first:pt-0', title === null && action && 'flow-root')}
+      className={cn('scroll-mt-24 pt-10 first:pt-0', editing && 'clear-right')}
     >
       {title === null ? (
         action ? <div className="float-right -mt-1 -mb-2 ml-3">{action}</div> : null

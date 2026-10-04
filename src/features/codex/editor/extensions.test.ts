@@ -1,7 +1,8 @@
 import { Editor, getSchema, type JSONContent } from '@tiptap/core';
 import { expect, test } from 'vitest';
 import { CODEX_CALLOUT_LABELS, CODEX_MARKS, CODEX_NODES } from '../nodes';
-import { codexEditorExtensions, editorBlocks } from './extensions';
+import type { DataNode } from './data-block-picker-state';
+import { codexEditorExtensions, dataInsertion, editorBlocks } from './extensions';
 
 const schema = getSchema(codexEditorExtensions);
 
@@ -118,4 +119,110 @@ test('pasting a copied paragraph and heading gives the copies new ids', () => {
   expect(ids.slice(0, 2)).toEqual(['steps', 'intro']);
   expect(ids).toHaveLength(4);
   expect(new Set(ids).size).toBe(4);
+});
+
+test('a data block is one selectable atom in the block group that keeps an empty field list', () => {
+  const node = schema.nodes.dataBlock!;
+  expect(node.spec.atom).toBe(true);
+  expect(node.spec.group).toBe('block');
+  const block = { type: 'dataBlock', attrs: { id: 'd', source: 'site', key: '20', fields: [], layout: 'card' } };
+  expect(editorBlocks({ content: [block] })).toEqual([block]);
+  expect(schema.nodeFromJSON(block).toJSON()).toEqual(block);
+});
+
+test('an inline data value is an atom in the inline group that a paragraph accepts beside text', () => {
+  const node = schema.nodes.dataInline!;
+  expect(node.spec.atom).toBe(true);
+  expect(node.isInline).toBe(true);
+  const inline = { type: 'dataInline', attrs: { source: 'wormholeType', key: 'C247', fields: ['totalMass'] } };
+  const sentence = {
+    type: 'paragraph',
+    attrs: { id: 'p' },
+    content: [{ type: 'text', text: 'A ' }, inline, { type: 'text', text: ' hole.' }],
+  };
+  expect(schema.nodeFromJSON(sentence).toJSON()).toEqual(sentence);
+  expect(() => schema.nodeFromJSON(sentence).check()).not.toThrow();
+});
+
+test('data nodes parse back only from the editor chip, never from the reader markup', () => {
+  const tags = (name: 'dataBlock' | 'dataInline') => schema.nodes[name]!.spec.parseDOM!.map((rule) => rule.tag);
+  expect(tags('dataBlock')).toEqual(['div[data-codex-chip][data-source][data-key][data-layout]']);
+  expect(tags('dataInline')).toEqual(['span[data-codex-chip][data-source][data-key]']);
+});
+
+const chip: DataNode = { type: 'dataInline', attrs: { source: 'wormholeType', key: 'C247', fields: ['totalMass'] } };
+
+test('a heading holds text only, as the published page model does', () => {
+  expect(schema.nodes.heading!.contentMatch.matchType(schema.nodes.dataInline!)).toBeNull();
+  const heading = {
+    type: 'heading',
+    attrs: { id: 'h', level: 2 },
+    content: [{ type: 'text', text: 'Mass ' }, chip],
+  };
+  expect(() => schema.nodeFromJSON(heading).check()).toThrow();
+});
+
+test('a heading still carries bold, italic, and link marks on its text', () => {
+  const heading = {
+    type: 'heading',
+    attrs: { id: 'h', level: 3 },
+    content: [{ type: 'text', text: 'Mass', marks: [{ type: 'bold' }, { type: 'link', attrs: { href: '/codex' } }] }],
+  };
+  expect(() => schema.nodeFromJSON(heading).check()).not.toThrow();
+});
+
+test('an inline value picked inside a heading lands in a new paragraph after it', () => {
+  const doc = schema.nodeFromJSON({
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { id: 'h', level: 2 }, content: [{ type: 'text', text: 'Mass' }] },
+      { type: 'paragraph', attrs: { id: 'p' }, content: [{ type: 'text', text: 'Body' }] },
+    ],
+  });
+  const insertion = dataInsertion({ $from: doc.resolve(3), from: 3, to: 3 }, chip);
+  expect(insertion).toEqual({ at: 6, content: { type: 'paragraph', content: [chip] } });
+  const added = schema.nodeFromJSON(insertion.content);
+  const next = doc.copy(doc.content.cut(0, 6).addToEnd(added).append(doc.content.cut(6)));
+  expect(() => next.check()).not.toThrow();
+  expect(next.child(1).toJSON()).toMatchObject({ type: 'paragraph', content: [chip] });
+});
+
+test('an inline value picked inside a paragraph replaces the selection in place', () => {
+  const doc = schema.nodeFromJSON({
+    type: 'doc',
+    content: [{ type: 'paragraph', attrs: { id: 'p' }, content: [{ type: 'text', text: 'A hole' }] }],
+  });
+  expect(dataInsertion({ $from: doc.resolve(2), from: 2, to: 3 }, chip)).toEqual({
+    at: { from: 2, to: 3 },
+    content: chip,
+  });
+});
+
+test('bold over an inline value marks the text around it and never the value', () => {
+  const editor = new Editor({
+    element: null,
+    extensions: codexEditorExtensions,
+    content: {
+      type: 'doc',
+      content: [{ type: 'paragraph', attrs: { id: 'p' }, content: [{ type: 'text', text: 'A ' }, chip, { type: 'text', text: ' hole' }] }],
+    },
+  });
+  // A headless editor installs its plugins only when it mounts a view.
+  editor.view.updateState(editor.state.reconfigure({ plugins: editor.extensionManager.plugins }));
+  editor.chain().setNodeSelection(3).toggleBold().run();
+  editor.chain().selectAll().toggleBold().run();
+  expect(editor.state.doc.firstChild!.child(1).marks).toEqual([]);
+  const bold = [{ type: 'bold' }];
+  expect(editorBlocks(editor.getJSON())).toEqual([
+    {
+      type: 'paragraph',
+      attrs: { id: 'p' },
+      content: [
+        { type: 'text', text: 'A ', marks: bold },
+        chip,
+        { type: 'text', text: ' hole', marks: bold },
+      ],
+    },
+  ]);
+  editor.destroy();
 });

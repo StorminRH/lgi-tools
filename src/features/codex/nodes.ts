@@ -15,8 +15,22 @@ const cellAttrs = z.object({
 });
 const FLOW = ['paragraph', 'bulletList', 'orderedList'] as const;
 
+const CODEX_BLOCK_LAYOUTS = ['infobox', 'table', 'card'] as const;
+export type CodexDataLayout = (typeof CODEX_BLOCK_LAYOUTS)[number] | 'inline';
+
+const ident = z.string().min(1).max(40).regex(/^[a-z][A-Za-z0-9]*$/);
+const dataRef = {
+  source: ident,
+  key: z.string().min(1).max(80),
+  fields: z
+    .array(ident)
+    .max(16)
+    .default([])
+    .refine((fields) => new Set(fields).size === fields.length, { error: 'fields must be unique' }),
+};
+
 export const CODEX_NODES = {
-  paragraph: { topLevel: true, attrs: blockAttrs, content: ['text'] },
+  paragraph: { topLevel: true, attrs: blockAttrs, content: ['text', 'dataInline'] },
   heading: {
     topLevel: true,
     attrs: z.object({ id: blockId, level: z.union([z.literal(2), z.literal(3), z.literal(4)]) }),
@@ -40,6 +54,13 @@ export const CODEX_NODES = {
   tableHeader: { topLevel: false, attrs: cellAttrs, content: ['paragraph'] },
   tableCell: { topLevel: false, attrs: cellAttrs, content: ['paragraph'] },
   horizontalRule: { topLevel: true, attrs: blockAttrs, content: null },
+  dataBlock: {
+    topLevel: true,
+    injected: true,
+    attrs: z.object({ id: blockId, ...dataRef, layout: z.enum(CODEX_BLOCK_LAYOUTS) }),
+    content: null,
+  },
+  dataInline: { topLevel: false, injected: true, attrs: z.object(dataRef), content: null },
   text: { topLevel: false, attrs: z.object({}), content: 'text' },
 } as const satisfies Record<string, CodexNodeSpec>;
 

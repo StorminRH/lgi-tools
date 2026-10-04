@@ -1,4 +1,4 @@
-import { and, eq, inArray, like } from 'drizzle-orm';
+import { and, asc, eq, inArray, like, sql } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import {
@@ -104,6 +104,17 @@ export async function getTypeNames(ids: number[]): Promise<Map<number, string>> 
 }
 
 export type TypeLabel = { name: string; groupId: number; groupName: string; categoryId: number; categoryName: string };
+
+export async function searchPublishedTypesByName(query: string, limit: number): Promise<{ id: number; name: string; groupName: string }[]> {
+  const prefix = query.replace(/[\\%_]/g, '\\$&');
+  return db
+    .select({ id: eveTypes.id, name: eveTypes.name, groupName: eveGroups.name })
+    .from(eveTypes)
+    .innerJoin(eveGroups, eq(eveGroups.id, eveTypes.groupId))
+    .where(and(eq(eveTypes.published, true), sql`lower(${eveTypes.name}) like lower(${prefix}) || '%'`))
+    .orderBy(sql`length(${eveTypes.name})`, asc(eveTypes.name))
+    .limit(limit);
+}
 
 export async function getTypeLabels(ids: number[]): Promise<Map<number, TypeLabel>> {
   const out = new Map<number, TypeLabel>();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classRangeIncludes, formatClassRange, gasClassRange } from './gas-classes';
+import { classRangeIncludes, formatClassRange, gasClassRange, siteClassLabel } from './gas-classes';
 
 describe('gas class range', () => {
   it('maps a gas name to a formatted range and membership check', () => {
@@ -16,5 +16,11 @@ describe('gas class range', () => {
     expect(classRangeIncludes(frontier, 'C3')).toBe(true);
     expect(classRangeIncludes(frontier, 'C6')).toBe(true);
     expect(classRangeIncludes(frontier, 'C1')).toBe(false);
+  });
+
+  it('labels a site by its wormhole class, else by its gas range', () => {
+    expect(siteClassLabel({ name: 'Perimeter Ambush Point', siteType: 'combat', wormholeClass: 'C2' })).toBe('C2');
+    expect(siteClassLabel({ name: 'Bountiful Frontier Reservoir', siteType: 'gas', wormholeClass: null })).toBe('C3–C6');
+    expect(siteClassLabel({ name: 'Core Garrison', siteType: 'combat', wormholeClass: null })).toBeNull();
   });
 });

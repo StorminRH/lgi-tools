@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { capabilityRoute } from '@/app/api/capability-route';
+import { codexDataBlockProblems } from '@/composition/codex-sources';
 import { publishCodexRevision } from '@/features/codex/publish';
 import {
   codexRevisionFormSchema,
@@ -43,6 +44,14 @@ async function handlePost(request: NextRequest): Promise<Response> {
   );
   if (!parsed.ok) return problemResponse(parsed.failure);
   const form = parsed.data;
+
+  if (form.action === 'publish') {
+    const problems = await codexDataBlockProblems(form.blocks);
+    if (problems.length > 0) {
+      console.warn('[admin/codex/revisions] rejected invalid data blocks', problems);
+      return redirectTo(request, landing(form, 'invalid'));
+    }
+  }
 
   const result = await publishCodexRevision({
     subject: form.subject,

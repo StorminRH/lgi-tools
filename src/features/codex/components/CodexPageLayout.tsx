@@ -18,7 +18,7 @@ export function CodexPageLayout({
         {actions}
       </div>
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_200px]">
-        <article className="min-w-0 max-w-[760px]">{article}</article>
+        <article className="flow-root min-w-0 max-w-[760px]">{article}</article>
         {aside}
       </div>
     </div>

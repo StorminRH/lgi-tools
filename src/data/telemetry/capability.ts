@@ -18,7 +18,8 @@ export type CapabilityFeature =
   | 'maps'
   | 'sync'
   | 'cron'
-  | 'feedback';
+  | 'feedback'
+  | 'codex';
 
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
@@ -63,6 +64,7 @@ export const CAPABILITIES = catalogueFromSpec({
   cron: { cron: ['drain-esi-refresh-jobs', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'purge-maps', 'housekeeping', 'revalue-net-worth'] },
   market: { mutation: ['refresh-market-prices', 'refresh-market-history'] },
   feedback: { mutation: ['submit-feedback'] },
+  codex: { read: ['search-sources'] },
   sync: { mutation: ['leave-location'], job: ['process-esi-refresh-job'] },
 });
 

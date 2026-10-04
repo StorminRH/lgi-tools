@@ -27,6 +27,7 @@
   text-transform: uppercase;
   color: var(--color-name);
 }
+.codex-prose [data-codex-block] a { color: inherit; }
 .codex-prose h3,
 .codex-prose h4 {
   margin-top: 1.4em;
@@ -80,4 +81,14 @@
   font-weight: 600;
   color: var(--color-callout-label);
   margin-bottom: 2px;
+}
+.codex-prose [data-codex-missing] { color: var(--color-faint); }
+.codex-prose > :is(div, aside, blockquote, hr):not([data-codex-layout="infobox"]) { clear: right; }
+@media (min-width: 900px) {
+  .codex-prose > [data-codex-layout="infobox"] {
+    float: right;
+    width: 310px;
+    margin: 0.25em 0 1em 1.5rem;
+  }
+  .codex-prose code { white-space: nowrap; }
 }

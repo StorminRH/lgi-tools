@@ -8,11 +8,15 @@ const OLD = '22222222-2222-4222-8222-222222222222';
 const getSessionMock = vi.fn();
 const sameOriginMock = vi.fn();
 const publishMock = vi.fn();
+const dataBlockProblemsMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({ auth: { api: { getSession: () => getSessionMock() } } }));
 vi.mock('@/platform/auth/same-origin', () => ({ requireSameOrigin: () => sameOriginMock() }));
 vi.mock('@/features/codex/publish', () => ({
   publishCodexRevision: (request: unknown) => publishMock(request),
+}));
+vi.mock('@/composition/codex-sources', () => ({
+  codexDataBlockProblems: (blocks: unknown) => dataBlockProblemsMock(blocks),
 }));
 vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
@@ -47,6 +51,7 @@ describe('POST /api/admin/codex/revisions', () => {
     getSessionMock.mockReset().mockResolvedValue(ADMIN);
     sameOriginMock.mockReset().mockReturnValue({ ok: true });
     publishMock.mockReset().mockResolvedValue({ status: 'published', revisionId: OLD });
+    dataBlockProblemsMock.mockReset().mockResolvedValue([]);
   });
 
   it('refuses a caller without admin authority', async () => {
@@ -97,6 +102,35 @@ describe('POST /api/admin/codex/revisions', () => {
     expect((await send(restore)).location).toBe(
       'http://localhost:3000/codex/guides/rolling-a-c3/history?notice=conflict',
     );
+  });
+
+  it('sends a save with an invalid data block back to its editor without publishing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const block = { type: 'dataBlock', attrs: { id: 'd', source: 'ships', key: '1', fields: [], layout: 'infobox' } };
+    dataBlockProblemsMock.mockResolvedValue(['x']);
+    expect(await send({ ...sectionEdit, blocks: JSON.stringify([block]) })).toEqual({
+      status: 303,
+      location: 'http://localhost:3000/codex/guides/rolling-a-c3?edit=ships&notice=invalid',
+    });
+    expect(dataBlockProblemsMock).toHaveBeenCalledWith([block]);
+    expect(publishMock).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('publishes valid data block attributes verbatim and skips the check on restore', async () => {
+    const block = {
+      type: 'dataBlock',
+      attrs: { id: 'd', source: 'wormholeType', key: 'C247', fields: ['totalMass'], layout: 'infobox' },
+    };
+    await send({ ...sectionEdit, blocks: JSON.stringify([block]) });
+    expect(publishMock).toHaveBeenCalledWith(
+      expect.objectContaining({ edit: { kind: 'section', sectionId: 'ships', blocks: [block] } }),
+    );
+
+    dataBlockProblemsMock.mockClear();
+    await send({ action: 'restore', kind: 'guides', key: 'rolling-a-c3', baseRevisionId: BASE, revisionId: OLD });
+    expect(dataBlockProblemsMock).not.toHaveBeenCalled();
   });
 
   it('rejects a malformed form before publishing', async () => {

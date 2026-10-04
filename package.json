@@ -66,6 +66,7 @@
     "@convex-dev/rate-limiter": "^0.3.2",
     "@neondatabase/serverless": "^1.1.0",
     "@tiptap/core": "~3.31.3",
+    "@tiptap/extension-heading": "~3.31.3",
     "@tiptap/extension-unique-id": "~3.31.3",
     "@tiptap/pm": "~3.31.3",
     "@tiptap/react": "~3.31.3",

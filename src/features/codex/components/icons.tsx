@@ -42,3 +42,28 @@ export const CalloutIcon = strokeIcon(
     <path d="M11 9h6M11 13h4" />
   </>,
 );
+export const DataIcon = strokeIcon(
+  <>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <path d="M3 10h18M9 10v10" />
+  </>,
+);
+export const WormholeIcon = strokeIcon(
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5a4.5 4.5 0 1 1-4.5 4.5" />
+    <circle cx="12" cy="12" r="1.2" />
+  </>,
+);
+export const SiteIcon = strokeIcon(
+  <>
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+    <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" />
+  </>,
+);
+export const ClassIcon = strokeIcon(
+  <>
+    <path d="M4 7h16M4 12h16M4 17h10" />
+    <path d="M18 15l2 2-2 2" />
+  </>,
+);

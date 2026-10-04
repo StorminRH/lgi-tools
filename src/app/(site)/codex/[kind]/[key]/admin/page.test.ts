@@ -29,6 +29,7 @@ vi.mock('@/features/codex/components/CodexAdminArticle', () => ({
 
 import CodexAdminSubjectPage, { CodexAdminReader, generateMetadata } from './page';
 
+const SOURCE_IDS = ['wormholeType', 'site', 'wormholeClass', 'eveType'];
 const params = (kind: string, key: string) => Promise.resolve({ kind, key });
 const query = (values: Record<string, string> = {}) => Promise.resolve(values);
 const renderReader = async (kind: string, key: string, values: Record<string, string> = {}) =>
@@ -112,8 +113,12 @@ test('the admin gets the editable article, opened on the section the address nam
       initialNotice: 'conflict',
     }),
   );
-  const { sections } = mocks.adminArticle.mock.lastCall![0] as { sections: { id: string }[] };
+  const { sections, catalogue } = mocks.adminArticle.mock.lastCall![0] as {
+    sections: { id: string }[];
+    catalogue: { sources: { id: string }[] };
+  };
   expect(sections.map((section) => section.id)).toEqual(['lead', 'ships', 'route']);
+  expect(catalogue.sources.map((source) => source.id)).toEqual(SOURCE_IDS);
 
   await renderReader('guides', 'rolling-a-c3', { edit: 'gone' });
   expect(mocks.adminArticle).toHaveBeenLastCalledWith(
@@ -143,6 +148,8 @@ test('the admin starts a new guide from a title on an empty address', async () =
       initialNotice: null,
     }),
   );
+  const { catalogue } = mocks.adminArticle.mock.lastCall![0] as { catalogue: { sources: { id: string }[] } };
+  expect(catalogue.sources.map((source) => source.id)).toEqual(SOURCE_IDS);
   expect(
     await generateMetadata({ params: params('guides', 'new-one'), searchParams: query({ title: 'New one' }) }),
   ).toMatchObject({ title: 'New one' });

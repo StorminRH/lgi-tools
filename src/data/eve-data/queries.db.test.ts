@@ -23,6 +23,7 @@ import {
   getProductionModifiers,
   getStructureRigs,
   readShipMassByType,
+  searchPublishedTypesByName,
 } from './queries';
 
 const harness = await createDbTestHarness({
@@ -231,5 +232,35 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
       { typeId: REACTOR_RIG, name: 'Standup M-Set Composite Reactor Material Efficiency I', canFitGroups: [1406], rigSize: 2 },
       { typeId: EQUIPMENT_RIG, name: 'Standup M-Set Equipment Manufacturing Material Efficiency I', canFitGroups: [1404], rigSize: 2 },
     ]);
+  });
+});
+
+describe.skipIf(!harness.reachable)('searchPublishedTypesByName executes against Postgres', () => {
+  beforeAll(async () => {
+    await harness.db.insert(eveGroups).values([
+      { id: 9_001, categoryId: 6, name: 'Fixture Cruiser', useBasePrice: false, anchored: false, anchorable: false, fittableNonSingleton: false, published: true },
+    ]);
+    await harness.db.insert(eveTypes).values([
+      { id: 17_715, groupId: 9_001, name: 'Gila', published: true },
+      { id: 17_716, groupId: 9_001, name: 'Gila Blueprint', published: true },
+      { id: 17_717, groupId: 9_001, name: 'Gilamesh', published: false },
+      { id: 17_718, groupId: 9_001, name: 'The Gila', published: true },
+      { id: 17_719, groupId: 9_001, name: '100% Gila', published: true },
+    ]);
+  });
+
+  it('finds published types whose name starts with the query, shortest first', async () => {
+    await expect(searchPublishedTypesByName('gil', 8)).resolves.toEqual([
+      { id: 17_715, name: 'Gila', groupName: 'Fixture Cruiser' },
+      { id: 17_716, name: 'Gila Blueprint', groupName: 'Fixture Cruiser' },
+    ]);
+  });
+
+  it('matches LIKE wildcards literally', async () => {
+    await expect(searchPublishedTypesByName('100%', 8)).resolves.toEqual([
+      { id: 17_719, name: '100% Gila', groupName: 'Fixture Cruiser' },
+    ]);
+    await expect(searchPublishedTypesByName('1_0', 8)).resolves.toEqual([]);
+    await expect(searchPublishedTypesByName('%', 8)).resolves.toEqual([]);
   });
 });
