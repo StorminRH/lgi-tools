@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { jobImage } from '@/data/eve-data/type-images';
 import type { IndustryJob } from './esi-projection';
 import {
-  activeJobStatusText,
   corpEntityIds,
   corpGroupState,
-  corpJobsEmptyLine,
-  formatEndDate,
   jobRowFrameData,
   jobRowModel,
   jobsCardModel,
@@ -75,21 +72,6 @@ describe('runnerName', () => {
   });
 });
 
-describe('activeJobStatusText', () => {
-  it('shows the countdown when remaining, else the capitalized status', () => {
-    expect(activeJobStatusText('active', 3_600_000)).toMatch(/1h|60m/);
-    expect(activeJobStatusText('paused', null)).toBe('Paused');
-    expect(activeJobStatusText('reverted', null)).toBe('Reverted');
-  });
-});
-
-describe('formatEndDate', () => {
-  it('formats as EVE YYYY.MM.DD HH:MM in local time, or returns the raw unparseable string', () => {
-    expect(formatEndDate('2026-06-13T00:00:00Z')).toMatch(/^\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}$/);
-    expect(formatEndDate('not-a-date')).toBe('not-a-date');
-  });
-});
-
 describe('jobsSubtitle', () => {
   it('pluralizes and appends ready/paused clauses only when non-zero', () => {
     expect(jobsSubtitle({ total: 1, readyCount: 0, pausedCount: 0, nextEndAt: null })).toBe('1 job');
@@ -133,11 +115,5 @@ describe('corpGroupState', () => {
     expect(corpGroupState({ syncError: null, data: null })).toBe('sync-error');
     expect(corpGroupState({ syncError: null, data: { jobs: [] } })).toBe('empty');
     expect(corpGroupState({ syncError: null, data: { jobs: [job({})] } })).toBe('rows');
-  });
-});
-
-describe('corpJobsEmptyLine', () => {
-  it('says the corp feed failed, else that no jobs have synced yet', () => {
-    expect(corpJobsEmptyLine(true)).not.toBe(corpJobsEmptyLine(false));
   });
 });

@@ -72,7 +72,10 @@ function startingCategories(doc: ProfileDocument, reactions: boolean): CategoryK
   return roots.filter((root) => !covered.has(root));
 }
 
-export function structureFacility(doc: ProfileDocument, structure: AvailableStructure): ProfileFacility {
+export function structureFacility(
+  doc: ProfileDocument,
+  structure: Pick<AvailableStructure, 'id' | 'name' | 'systemId' | 'groupId'>,
+): ProfileFacility {
   return {
     kind: 'structure',
     id: structure.id,

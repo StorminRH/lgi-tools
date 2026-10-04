@@ -8,6 +8,7 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LivePrice } from '@/components/ui/live-price';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -60,6 +61,7 @@ function SyncToastTrigger() {
 
 export function FeedbackGroup() {
   const [bannerVisible, setBannerVisible] = useState(true);
+  const [retries, setRetries] = useState(0);
 
   return (
     <ReferenceGroup
@@ -70,7 +72,7 @@ export function FeedbackGroup() {
       <Specimen
         name="Banner"
         source="banner"
-        note="Page-level platform notices. Info announces politely; warn is an alert. Either can be dismissible."
+        note="Page-level platform notices. Info announces politely; warn is an alert. Either can be dismissible, or retry a failed load when clicked."
         wide
       >
         <div className="flex flex-col gap-2.5">
@@ -87,6 +89,20 @@ export function FeedbackGroup() {
             <strong className="font-medium text-name">ESI degraded</strong> — prices may be stale up to 3h.
           </Banner>
         </div>
+      </Specimen>
+
+      <Specimen
+        name="LoadFailed"
+        source="load-failed"
+        note="A read that failed every automatic retry: what did not load and what that leaves. Clicking anywhere on it tries again."
+        wide
+      >
+        <LoadFailed
+          title="System fees didn't load"
+          detail={retries === 0 ? 'Net margin is unavailable' : `Retried ${retries}×`}
+          retryLabel="Retry system fees"
+          onRetry={() => setRetries((n) => n + 1)}
+        />
       </Specimen>
 
       <Specimen

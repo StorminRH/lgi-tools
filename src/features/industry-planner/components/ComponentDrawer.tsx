@@ -23,6 +23,7 @@ import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { useBuildPlan, useBuildSetup, useMarketData } from './planner-contexts';
+import { UnpricedInputs } from './UnpricedInputs';
 
 function Steppers({ sheet }: { sheet: ComponentSheet }) {
   const plan = useBuildPlan();
@@ -172,6 +173,23 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
   );
 }
 
+/** The job's install fee where the profile runs it; amber where it counts an unpriced input as nothing. */
+function InstallFee({ fee, refreshing }: { fee: NonNullable<ComponentSheet['installFee']>; refreshing: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5 px-2">
+      <div className="flex items-baseline justify-between">
+        <span className={eyebrow({ size: 'micro', tone: 'muted' })}>Install fee</span>
+        <LivePrice
+          value={formatIsk(fee.value)}
+          pending={refreshing}
+          className={cn('font-data text-ui', fee.unpriced.length > 0 ? 'text-dps-mid' : 'text-isk')}
+        />
+      </div>
+      <UnpricedInputs names={fee.unpriced} className="self-end" />
+    </div>
+  );
+}
+
 function Sheet({
   sheet,
   previous,
@@ -217,12 +235,7 @@ function Sheet({
         </Stat>
       </div>
       <JobRoute blueprintTypeId={sheet.blueprintTypeId} />
-      {sheet.installFee && (
-        <div className="flex items-baseline justify-between px-2">
-          <span className={eyebrow({ size: 'micro', tone: 'muted' })}>Install fee</span>
-          <LivePrice value={formatIsk(sheet.installFee.value)} pending={refreshing} className="font-data text-ui text-isk" />
-        </div>
-      )}
+      {sheet.installFee && <InstallFee fee={sheet.installFee} refreshing={refreshing} />}
       <section aria-label="Inputs" className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between px-2">
           <h3 className={eyebrow({ size: 'micro', tone: 'muted' })}>Inputs</h3>
@@ -236,6 +249,8 @@ function Sheet({
       </section>
       <Link
         href={`/industry/${sheet.blueprintTypeId}`}
+        // Opening the drawer is the intent: carry the blueprint's cached plan ahead of the click.
+        prefetch
         transitionTypes={['industry-tab']}
         onClick={onLeave}
         className={cn(buttonVariants({ variant: 'primary' }), 'self-start')}

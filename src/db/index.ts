@@ -1,5 +1,7 @@
 import { neon, neonConfig } from '@neondatabase/serverless';
+import type { SQL } from 'drizzle-orm';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { addDependencyTiming } from '@/lib/dependency-timing';
@@ -99,6 +101,27 @@ export function getDeletionClient(): Sql {
     connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,
   });
   return _deletionClient;
+}
+
+const dialect = new PgDialect();
+
+/**
+ * Runs one statement alone in a serializable transaction. Nothing waits on a
+ * lock: when a concurrent write conflicts with what the statement read,
+ * Postgres rejects it with a serialization failure (see isSerializationFailure)
+ * for the caller to retry. Over Neon's HTTP driver it is a single request.
+ */
+export async function runSerializable(query: SQL): Promise<Record<string, unknown>[]> {
+  const { sql: text, params } = dialect.sqlToQuery(query);
+  if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
+    const client = (getDb() as unknown as { $client: Sql }).$client;
+    const rows = await client.begin('isolation level serializable', (tx) => tx.unsafe(text, params as never[]));
+    return rows as unknown as Record<string, unknown>[];
+  }
+  const [rows = []] = await getClient().transaction<false, false>((tx) => [tx.query(text, params)], {
+    isolationLevel: 'Serializable',
+  });
+  return rows;
 }
 
 export const db: Db = new Proxy({} as Db, {

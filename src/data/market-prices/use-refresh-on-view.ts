@@ -29,6 +29,32 @@ export interface RefreshOnViewResult {
   refreshing: boolean;
 }
 
+// Prices this document refreshed, each kept until the server says it is stale.
+// A page that mounts again shows them without asking again or flashing them
+// pending; only the stale ones are refreshed.
+const refreshed = new Map<number, RefreshedPrice>();
+
+function freshPrices(typeIds: readonly number[], now: number): Map<number, RefreshedPrice> {
+  const fresh = new Map<number, RefreshedPrice>();
+  for (const typeId of typeIds) {
+    const price = refreshed.get(typeId);
+    if (price !== undefined && price.staleAfterMs > now) fresh.set(typeId, price);
+  }
+  return fresh;
+}
+
+/** One batch's refreshed prices: null when the server didn't answer, 'aborted' once the read is cancelled. */
+async function readBatch(batch: number[], signal: AbortSignal): Promise<RefreshedPrice[] | 'aborted' | null> {
+  const result = await apiFetch(refreshPricesEndpoint, { body: { typeIds: batch }, cache: 'no-store', signal });
+  if (!result.ok) return result.kind === 'network' && result.aborted ? 'aborted' : null;
+  return result.data.prices.map((p) => ({
+    typeId: p.typeId,
+    ...toPlainPriceFigures(p),
+    source: p.source,
+    staleAfterMs: Date.parse(p.staleAfter),
+  }));
+}
+
 export function useRefreshOnView(
   typeIds: number[],
   opts: {
@@ -56,12 +82,18 @@ export function useRefreshOnView(
 
   useEffect(() => {
     if (!enabled) return;
-    const toRefresh = [...new Set(typeIdsRef.current)];
-    if (toRefresh.length === 0) return;
+    const wanted = [...new Set(typeIdsRef.current)];
+    if (wanted.length === 0) return;
+    const map = freshPrices(wanted, Date.now());
+    const toRefresh = wanted.filter((typeId) => !map.has(typeId));
 
     const controller = new AbortController();
     const batches = chunk(toRefresh, ON_DEMAND_REFRESH_MAX_TYPE_IDS);
-    const map = new Map<number, RefreshedPrice>();
+    const publish = () => {
+      const snapshot = new Map(map);
+      setPrices(snapshot);
+      onBatchRef.current?.(snapshot);
+    };
 
     const clearBatch = (batch: number[]) =>
       setPending((prev) => {
@@ -71,33 +103,20 @@ export function useRefreshOnView(
       });
 
     (async () => {
+      if (map.size > 0) publish();
+      if (toRefresh.length === 0) return;
       setPending(new Set(toRefresh));
       setRefreshing(true);
       try {
         for (const batch of batches) {
           try {
-            const result = await apiFetch(refreshPricesEndpoint, {
-              body: { typeIds: batch },
-              cache: 'no-store',
-              signal: controller.signal,
-            });
-            if (!result.ok) {
-              if (result.kind === 'network' && result.aborted) break;
-              continue;
+            const prices = await readBatch(batch, controller.signal);
+            if (prices === 'aborted') break;
+            for (const price of prices ?? []) {
+              map.set(price.typeId, price);
+              refreshed.set(price.typeId, price);
             }
-            for (const p of result.data.prices) {
-              map.set(p.typeId, {
-                typeId: p.typeId,
-                ...toPlainPriceFigures(p),
-                source: p.source,
-                staleAfterMs: Date.parse(p.staleAfter),
-              });
-            }
-            if (!controller.signal.aborted) {
-              const snapshot = new Map(map);
-              setPrices(snapshot);
-              onBatchRef.current?.(snapshot);
-            }
+            if (prices !== null && !controller.signal.aborted) publish();
           } finally {
             if (!controller.signal.aborted) clearBatch(batch);
           }

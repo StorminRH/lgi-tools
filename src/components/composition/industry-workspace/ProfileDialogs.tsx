@@ -1,11 +1,15 @@
 'use client';
 
 import { type FormEvent, useId, useRef, useState } from 'react';
+import {
+  CharacterPortraitPicker,
+  type PickerCharacter,
+  toggleCharacterId,
+} from '@/components/character-portrait-picker';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogClose, DialogHeader } from '@/components/ui/dialog';
-import { Field } from '@/components/ui/field';
+import { Field, fieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { MAX_PROFILE_NAME_LEN } from '@/features/industry-planner/profiles/profile-document';
 
@@ -25,31 +29,70 @@ const NAME_DIALOG_COPY: Record<NameDialogMode, { title: string; action: string; 
   },
 };
 
+/** The linked characters a new profile starts with, picked by portrait. */
+function TeamPicker({
+  roster,
+  selected,
+  onChange,
+}: {
+  roster: readonly PickerCharacter[];
+  selected: readonly number[];
+  onChange: (next: readonly number[]) => void;
+}) {
+  const labelId = useId();
+  const all = selected.length === roster.length;
+  return (
+    <section aria-labelledby={labelId} className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <span id={labelId} className={fieldLabel}>
+          Characters
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-my-1 -mr-2.5"
+          onClick={() => onChange(all ? [] : roster.map((c) => c.characterId))}
+        >
+          {all ? 'Clear' : 'Select all'}
+        </Button>
+      </div>
+      <CharacterPortraitPicker
+        label="Characters"
+        characters={roster}
+        selectedIds={new Set(selected)}
+        onToggle={(change) => onChange(toggleCharacterId(selected, change))}
+      />
+    </section>
+  );
+}
+
 /**
  * One dialog for naming a profile: creating one, renaming one, or naming a
- * copy. Creating can start with every linked character on the team.
+ * copy. Creating also picks which linked characters start on the team.
  */
 export function ProfileNameDialog({
   mode,
   initialName,
-  rosterSize,
+  roster,
   busy,
   onSubmit,
   onClose,
 }: {
   mode: NameDialogMode;
   initialName: string;
-  rosterSize: number;
+  roster: readonly PickerCharacter[];
   busy: boolean;
-  onSubmit: (name: string, includeRoster: boolean) => void;
+  onSubmit: (name: string, characterIds: readonly number[]) => void;
   onClose: () => void;
 }) {
   const titleId = useId();
   const [name, setName] = useState(initialName);
-  const [includeRoster, setIncludeRoster] = useState(true);
+  const [team, setTeam] = useState<readonly number[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const copy = NAME_DIALOG_COPY[mode];
   const trimmed = name.trim();
+  const picking = mode === 'create' && roster.length > 0;
+  const ready = trimmed !== '' && !(picking && team.length === 0);
 
   return (
     <Dialog
@@ -63,7 +106,7 @@ export function ProfileNameDialog({
         className="flex flex-col"
         onSubmit={(event: FormEvent<HTMLFormElement>) => {
           event.preventDefault();
-          if (trimmed !== '') onSubmit(trimmed, includeRoster);
+          if (ready) onSubmit(trimmed, team);
         }}
       >
         <DialogHeader titleId={titleId} title={copy.title} description={copy.description} closeLabel="Close" />
@@ -78,22 +121,11 @@ export function ProfileNameDialog({
               onChange={(event) => setName(event.currentTarget.value)}
             />
           </Field>
-          {mode === 'create' && rosterSize > 0 ? (
-            <div className="flex items-center gap-2.5 text-ui text-text">
-              <Checkbox
-                checked={includeRoster}
-                onCheckedChange={setIncludeRoster}
-                label="Start with all linked characters"
-              />
-              <span aria-hidden>
-                Start with all {rosterSize} linked {rosterSize === 1 ? 'character' : 'characters'}
-              </span>
-            </div>
-          ) : null}
+          {picking ? <TeamPicker roster={roster} selected={team} onChange={setTeam} /> : null}
         </div>
         <footer className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
           <DialogClose render={<Button variant="secondary" size="sm" />}>Cancel</DialogClose>
-          <Button type="submit" variant="primary" size="sm" disabled={trimmed === '' || busy}>
+          <Button type="submit" variant="primary" size="sm" disabled={!ready || busy}>
             {copy.action}
           </Button>
         </footer>

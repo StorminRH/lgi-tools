@@ -54,7 +54,7 @@ vi.mock('convex/react', () => ({
 import { corpIndustryJobsEndpoint, industryJobsEndpoint, industrySlotsEndpoint } from '@/features/industry-jobs/api-contract';
 import { CorpJobsBoard } from '@/features/industry-jobs/components/CorpJobsBoard';
 import { IndustryJobsPanel } from '@/features/industry-jobs/components/IndustryJobsPanel';
-import { JobRowFrame } from '@/features/industry-jobs/components/JobRowFrame';
+import { JobRow } from '@/features/industry-jobs/components/JobRow';
 import { useCorpJobsLive } from '@/features/industry-jobs/use-corp-jobs-live';
 import { useJobsLive } from '@/features/industry-jobs/use-jobs-live';
 import { useSlotsLive } from '@/features/industry-jobs/use-slots-live';
@@ -67,7 +67,7 @@ describe('coverage-gaps', () => {
       industrySlotsEndpoint,
       CorpJobsBoard,
       IndustryJobsPanel,
-      JobRowFrame,
+      JobRow,
       useCorpJobsLive,
       useJobsLive,
       useSlotsLive,

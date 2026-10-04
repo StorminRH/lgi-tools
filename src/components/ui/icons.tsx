@@ -50,6 +50,15 @@ export const AlertIcon = strokeIcon(
     <path d="M12 10v4M12 17h.01" />
   </>,
 );
+export const RetryIcon = strokeIcon(
+  <>
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+    <path d="M19.5 4.5v4h-4" />
+  </>,
+);
+export const StarIcon = strokeIcon(
+  <path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z" />,
+);
 export const InboxIcon = strokeIcon(
   <>
     <path d="M4 13l2.5-7h11L20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />

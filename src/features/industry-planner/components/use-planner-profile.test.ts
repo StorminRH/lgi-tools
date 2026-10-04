@@ -21,6 +21,7 @@ vi.mock('react', () => ({
   useEffect: (effect: () => void) => effect(),
   useMemo: <T>(make: () => T) => make(),
   useCallback: <T>(fn: T) => fn,
+  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
 }));
 vi.mock('@/components/PreferencesProvider', () => ({ usePreference: () => [h.profileId, vi.fn()] }));
 vi.mock('@/components/use-system-search', () => ({
@@ -76,9 +77,10 @@ const planAt = (top: PlanFacility | null): ProfilePlan => ({
   top: { facility: top, characterId: 9001, bonus: null },
 });
 
-function writers(currentSystemId: number | null = null) {
+function writers(currentSystemId: number | null = null, failureSystemId: number | null = null) {
   return {
     locationRefreshKey: 0,
+    failureSystemId,
     location: currentSystemId === null ? null : ({ systemId: currentSystemId } as never),
     setLocation: vi.fn(),
     availableStructures: [SOTIYO],
@@ -121,7 +123,7 @@ test('with no profile the build is baseline, wherever it last priced', () => {
   h.profiles = [];
   const w = writers(30004759);
   const state = useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
-  expect(state).toMatchObject({ profile: null, plan: null, structureFactors: MANUAL, skillTimeFactors: null });
+  expect(state).toMatchObject({ profile: null, plan: null, structureFactors: MANUAL, skillTimeFactors: null, locationPending: false });
   expect(w.setSelectedStructure).toHaveBeenCalledWith(null);
   expect(w.setLocation).toHaveBeenCalledWith(null);
   expect(w.applyBuildSystem).not.toHaveBeenCalled();
@@ -136,19 +138,27 @@ test('a profile prices the product where its facility stands, moving the build t
   h.plan = planAt(facility({ kind: 'station', id: '60003760', name: 'Jita IV - Moon 4', structure: null, systemId: 30002537 }));
   const w = writers(30004759);
   const state = useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
-  expect(state).toMatchObject({ profile: CAPS, structureFactors: PROFILE });
+  // The system priced until now stays while the new one is read.
+  expect(state).toMatchObject({ profile: CAPS, structureFactors: PROFILE, locationPending: true });
   expect(w.setSelectedStructure).toHaveBeenCalledWith(null);
+  expect(w.setLocation).not.toHaveBeenCalled();
   expect(w.applyBuildSystem).toHaveBeenCalledWith(
     { systemId: 30002537, systemName: 'Amamake', security: 0.4 },
     { persist: false, signal: expect.any(AbortSignal) },
   );
 });
 
+test('a system whose read failed is no longer waited on', () => {
+  h.profiles = [CAPS];
+  h.plan = planAt(facility({ kind: 'station', id: '60003760', name: 'Jita IV - Moon 4', structure: null, systemId: 30002537 }));
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers(null, 30002537)).locationPending).toBe(false);
+});
+
 test('a structure in the system already in use only swaps the structure', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({}));
   const w = writers(30004759);
-  useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), w).locationPending).toBe(false);
   expect(w.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
   expect(w.applyBuildSystem).not.toHaveBeenCalled();
   expect(w.setLocation).not.toHaveBeenCalled();
@@ -158,7 +168,8 @@ test('a reaction runs at the facility the profile gives reactions', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({}));
   const w = writers(30002537);
-  useProfileFactors(built(REACTION_ACTIVITY), w);
+  // A reaction's own read says when it is pending.
+  expect(useProfileFactors(built(REACTION_ACTIVITY), w).locationPending).toBe(false);
   expect(w.setReactionSystem).toHaveBeenCalledWith({ systemId: 30004759, systemName: '1DQ1-A', security: -0.4 });
   expect(w.setReactionStructure).toHaveBeenCalledWith(SOTIYO);
   expect(w.setSelectedStructure).not.toHaveBeenCalled();

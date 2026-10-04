@@ -6,7 +6,7 @@ vi.mock('./character-portrait', () => ({
   CharacterPortrait: ({ name }: { name: string }) => createElement('img', { alt: name }),
 }));
 
-import { CharacterPortraitPicker } from './character-portrait-picker';
+import { CharacterPortraitPicker, toggleCharacterId } from './character-portrait-picker';
 
 test('CharacterPortraitPicker presses the chosen portraits', () => {
   const markup = renderToStaticMarkup(createElement(CharacterPortraitPicker, {
@@ -46,4 +46,10 @@ test('CharacterPortraitPicker reports the one portrait a group change flipped', 
   expect(onToggle).not.toHaveBeenCalled();
   group.props.onValueChange(['1']);
   expect(onToggle).toHaveBeenCalledWith({ characterId: 2, selected: false });
+});
+
+test('toggleCharacterId adds a picked id once and drops an unpicked one', () => {
+  expect(toggleCharacterId([1], { characterId: 2, selected: true })).toEqual([1, 2]);
+  expect(toggleCharacterId([1, 2], { characterId: 2, selected: true })).toEqual([1, 2]);
+  expect(toggleCharacterId([1, 2], { characterId: 1, selected: false })).toEqual([2]);
 });

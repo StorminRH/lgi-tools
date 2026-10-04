@@ -358,7 +358,15 @@ function usePriceClock(
     seeded,
     assemble,
   ]);
-  return { assemble, priceSnapshot, pricing, seed, seeded, locationFailed: locationRead.failed || componentFees.failed };
+  return {
+    assemble,
+    priceSnapshot,
+    pricing,
+    seed,
+    seeded,
+    locationFailed: locationRead.failed || componentFees.failed,
+    componentFeesPending: componentFees.pending,
+  };
 }
 
 function useMarketRefresh(
@@ -500,6 +508,7 @@ export function PricingProvider({
     ...locationState,
     applyBuildSystem: locationWrites.applyBuildSystem,
     locationRefreshKey: locationWrites.retry,
+    failureSystemId: locationWrites.failureSystemId,
   });
   const locationFailed = locationWrites.failureSystemId !== null &&
     locationWrites.failureSystemId === profile.plan?.top.facility?.systemId;
@@ -585,6 +594,7 @@ export function PricingProvider({
       profilesFailed: profile.profilesFailed,
       refreshProfiles: profile.refreshProfiles,
       locationFailed: clock.locationFailed,
+      feesPending: profile.locationPending || locationWrites.reactionPending || clock.componentFeesPending,
       retryLocation: locationWrites.retryLocation,
       profile: profile.profile,
       setProfileId: profile.setProfileId,
@@ -599,6 +609,9 @@ export function PricingProvider({
       profile.profilesFailed,
       profile.refreshProfiles,
       clock.locationFailed,
+      profile.locationPending,
+      locationWrites.reactionPending,
+      clock.componentFeesPending,
       locationWrites.retryLocation,
       profile.profile,
       profile.setProfileId,

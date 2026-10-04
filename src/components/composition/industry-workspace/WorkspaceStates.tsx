@@ -33,7 +33,8 @@ export function WorkspaceSkeleton() {
   );
 }
 
-function IntroCard({ children }: { children: ReactNode }) {
+/** The industry sections' intro: what the section is for, and the one thing to do next. */
+export function IntroCard({ children }: { children: ReactNode }) {
   return (
     <div className={cn(readoutSurface, 'flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between')}>
       {children}
@@ -41,19 +42,37 @@ function IntroCard({ children }: { children: ReactNode }) {
   );
 }
 
-const INTRO =
-  'A production profile describes how you actually build: which characters are on the team, where you build, and who builds what.';
+const PURPOSE = 'Profiles give the planner more accurate pricing for your supply chain.';
+const STEPS = ['Add characters', 'Add structures', 'Simulate a build'] as const;
+
+function IntroBody({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-display text-h3 font-bold text-name">{title}</h2>
+        <p className="text-ui text-muted">{PURPOSE}</p>
+      </div>
+      <ol className="flex flex-wrap gap-x-5 gap-y-2">
+        {STEPS.map((step, i) => (
+          <li key={step} className="flex items-center gap-2 font-ui text-ui text-text">
+            <span
+              aria-hidden
+              className="inline-flex size-5 items-center justify-center rounded-full bg-isk/[0.12] font-data text-micro text-isk tabular-nums"
+            >
+              {i + 1}
+            </span>
+            {step}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 export function SignedOutWorkspace() {
   return (
     <IntroCard>
-      <div className="flex max-w-xl flex-col gap-1.5">
-        <h2 className="font-display text-h3 font-bold text-name">Production profiles</h2>
-        <p className="text-ui text-muted">
-          {INTRO} Sign in with EVE to build one from your characters&apos; real skills, slots and structures.
-          The Planner works without signing in.
-        </p>
-      </div>
+      <IntroBody title="Production profiles" />
       <EveSignInButton callbackURL="/industry" />
     </IntroCard>
   );
@@ -62,13 +81,7 @@ export function SignedOutWorkspace() {
 export function FirstProfile({ onCreate, busy }: { onCreate: () => void; busy: boolean }) {
   return (
     <IntroCard>
-      <div className="flex max-w-xl flex-col gap-1.5">
-        <h2 className="font-display text-h3 font-bold text-name">Create your first production profile</h2>
-        <p className="text-ui text-muted">
-          {INTRO} Research and plans will use the profile you choose. Nothing has to be complete to start;
-          anything missing is listed.
-        </p>
-      </div>
+      <IntroBody title="Create your first production profile" />
       <Button variant="primary" onClick={onCreate} disabled={busy} className="shrink-0">
         Create profile
       </Button>

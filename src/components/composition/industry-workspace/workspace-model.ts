@@ -9,6 +9,13 @@ import { type BoardView, OVERVIEW } from '../board/board-view-model';
 
 export const SLOT_POOLS: readonly JobCategory[] = ['manufacturing', 'reactions', 'science'];
 
+/** What each slot pool is called wherever its figures appear. */
+export const SLOT_POOL_LABELS: Readonly<Record<JobCategory, string>> = {
+  manufacturing: 'Manufacturing',
+  reactions: 'Reactions',
+  science: 'Science',
+};
+
 // ---------------------------------------------------------------------------
 // Selection: the URL names the profile and the member; the remembered profile
 // fills in when the URL does not. A profile id that no longer exists is

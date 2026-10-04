@@ -17,6 +17,12 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // Validate every page's navigations for instant UI in development and
+    // report what would block. Pinned so a framework default change cannot
+    // quietly switch it off.
+    instantInsights: { validationLevel: "warning" },
+  },
   images: {
     imageSizes: [32, 64, 128, 256, 512],
     remotePatterns: [
@@ -41,6 +47,24 @@ const nextConfig: NextConfig = {
         source: "/industry",
         has: [{ type: "query", key: "tab", value: "jobs" }],
         destination: "/industry/jobs",
+        permanent: false,
+      },
+      // Legacy industry URLs land on their workspace sections before any page
+      // renders. Their query strings carry across.
+      {
+        source: "/jobs",
+        destination: "/industry/jobs",
+        permanent: false,
+      },
+      {
+        source: "/structures",
+        destination: "/industry?panel=structures",
+        permanent: false,
+      },
+      {
+        // Build templates are set aside for now.
+        source: "/industry/templates",
+        destination: "/industry",
         permanent: false,
       },
       {

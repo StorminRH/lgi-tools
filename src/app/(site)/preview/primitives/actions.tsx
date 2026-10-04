@@ -11,6 +11,7 @@ import {
   InboxIcon,
   InfoIcon,
   SearchIcon,
+  StarIcon,
 } from '@/components/ui/icons';
 import { Kbd } from '@/components/ui/kbd';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
@@ -26,6 +27,7 @@ const ICONS = [
   { name: 'Info', Icon: InfoIcon },
   { name: 'Alert', Icon: AlertIcon },
   { name: 'Inbox', Icon: InboxIcon },
+  { name: 'Star', Icon: StarIcon },
 ] as const;
 
 export function ActionsGroup() {
