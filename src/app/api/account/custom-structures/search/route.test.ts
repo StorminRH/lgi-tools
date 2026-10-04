@@ -50,7 +50,7 @@ describe('POST /api/account/custom-structures/search', () => {
     const res = await POST(makeRequest({ search: '  Sobaseki ' }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ results: [HIT] });
-    expect(h.searchUpwellStructures).toHaveBeenCalledWith('user-1', 'Sobaseki');
+    expect(h.searchUpwellStructures).toHaveBeenCalledWith('user-1', 'Sobaseki', expect.any(AbortSignal));
   });
 
   it('returns 503 when ESI is unavailable', async () => {

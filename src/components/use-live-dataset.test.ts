@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   apiFetch: vi.fn(),
+  identity: { userId: 'account-a', characterId: 7 } as { userId: string; characterId: number } | null,
   cleanups: [] as Array<() => void>,
   refs: [] as Array<{ current: unknown }>,
   refIndex: 0,
@@ -52,6 +53,10 @@ vi.mock('./remembered-read', () => ({
 vi.mock('@/transport/api-client', () => ({
   apiFetch: (...args: unknown[]) => h.apiFetch(...args),
 }));
+vi.mock('@/platform/auth/read-identity', () => ({
+  useReadIdentity: () => h.identity,
+  currentReadIdentity: () => h.identity,
+}));
 
 import { useLiveDataset } from './use-live-dataset';
 
@@ -75,6 +80,7 @@ async function flush(): Promise<void> {
 beforeEach(() => {
   vi.useFakeTimers();
   h.apiFetch.mockReset();
+  h.identity = { userId: 'account-a', characterId: 7 };
   h.cleanups.length = 0;
   h.refs.length = 0;
   h.refIndex = 0;
@@ -100,7 +106,7 @@ describe('useLiveDataset', () => {
     useLiveDataset(endpoint, 'k', neverCold);
     await flush();
     expect(remembered()).toEqual({ rows: 1 });
-    expect(setFailed()).toHaveBeenCalledWith(false);
+    expect(setFailed()).toHaveBeenCalledWith(null);
   });
 
   it('retries a failed first load once, then settles as failed', async () => {
@@ -112,7 +118,7 @@ describe('useLiveDataset', () => {
 
     await vi.advanceTimersByTimeAsync(4_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
-    expect(setFailed()).toHaveBeenCalledWith(true);
+    expect(setFailed()).toHaveBeenCalledWith(h.identity);
     expect(remembered()).toBeNull();
 
     await vi.advanceTimersByTimeAsync(60_000);
@@ -124,7 +130,7 @@ describe('useLiveDataset', () => {
     useLiveDataset(endpoint, 'k', neverCold);
     await vi.advanceTimersByTimeAsync(4_000);
     expect(remembered()).toEqual({ rows: 2 });
-    expect(setFailed()).not.toHaveBeenCalledWith(true);
+    expect(setFailed()).not.toHaveBeenCalledWith(h.identity);
   });
 
   it('follows a reconcile schedule while the data stays cold, then stops', async () => {
@@ -153,7 +159,7 @@ describe('useLiveDataset', () => {
     useLiveDataset(endpoint, 'k', () => true);
     await vi.advanceTimersByTimeAsync(4_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
-    expect(setFailed()).not.toHaveBeenCalledWith(true);
+    expect(setFailed()).not.toHaveBeenCalledWith(h.identity);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
   });
@@ -167,12 +173,12 @@ describe('useLiveDataset', () => {
     useLiveDataset(endpoint, 'b', neverCold);
     await vi.advanceTimersByTimeAsync(10_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
-    expect(setFailed()).not.toHaveBeenCalledWith(true);
+    expect(setFailed()).not.toHaveBeenCalledWith(h.identity);
   });
 
   it('reports failed and not loading once the failure has settled', () => {
     h.apiFetch.mockReturnValue(new Promise(() => {}));
-    h.state.push(true);
+    h.state.push(h.identity);
     const result = useLiveDataset(endpoint, 'k', neverCold);
     expect(result).toMatchObject({ response: null, loading: false, failed: true });
   });
@@ -202,8 +208,25 @@ describe('useLiveDataset', () => {
     h.apiFetch.mockReturnValue(new Promise(() => {}));
     const { retry } = useLiveDataset(endpoint, 'k', neverCold);
     retry();
-    expect(setFailed()).toHaveBeenLastCalledWith(false);
+    expect(setFailed()).toHaveBeenLastCalledWith(null);
     const bump = setAttempts().mock.calls.at(-1)?.[0] as (n: number) => number;
     expect(bump(2)).toBe(3);
+  });
+
+  it('discards an old identity response before effect cleanup runs', async () => {
+    let resolve!: (value: unknown) => void;
+    h.apiFetch.mockReturnValue(new Promise((r) => (resolve = r)));
+    useLiveDataset(endpoint, 'k', neverCold);
+    h.identity = { userId: 'account-b', characterId: 7 };
+    resolve(ok({ rows: 99 }));
+    await flush();
+    expect(remembered()).toBeNull();
+    expect(setFailed()).not.toHaveBeenCalled();
+  });
+
+  it('does not read a private endpoint before the identity is known', () => {
+    h.identity = null;
+    useLiveDataset(endpoint, 'k', neverCold);
+    expect(h.apiFetch).not.toHaveBeenCalled();
   });
 });

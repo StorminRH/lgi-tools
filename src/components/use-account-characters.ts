@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/transport/api-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { useReadIdentity } from '@/platform/auth/read-identity';
 import { createRememberedRead, useRememberedRead } from './remembered-read';
 import { deriveRoster, type BuildCharacter } from './run-as-state';
 
@@ -19,10 +20,11 @@ export function useActiveCharacterId(): number | null {
 export function useAccountCharacters(): BuildCharacter[] | null {
   const { session, loading } = useAuth();
   const characterId = session?.characterId ?? null;
+  const identity = useReadIdentity();
   const fetched = useRememberedRead(rosterMemory);
 
   useEffect(() => {
-    if (characterId === null) return;
+    if (characterId === null || identity === null) return;
     let ignore = false;
     const controller = new AbortController();
     apiFetch(accountCharactersEndpoint, { cache: 'no-store', signal: controller.signal })
@@ -30,18 +32,18 @@ export function useAccountCharacters(): BuildCharacter[] | null {
         if (ignore) return;
         // A failed refresh keeps the roster already drawn.
         if (res.ok || rosterMemory.get()?.characterId !== characterId) {
-          rosterMemory.set({ characterId, list: res.ok ? res.data.characters : [] });
+          rosterMemory.set({ characterId, list: res.ok ? res.data.characters : [] }, identity);
         }
       })
       .catch(() => {
         if (ignore || rosterMemory.get()?.characterId === characterId) return;
-        rosterMemory.set({ characterId, list: [] });
+        rosterMemory.set({ characterId, list: [] }, identity);
       });
     return () => {
       ignore = true;
       controller.abort();
     };
-  }, [characterId]);
+  }, [characterId, identity]);
 
   return deriveRoster({ loading, characterId }, fetched);
 }

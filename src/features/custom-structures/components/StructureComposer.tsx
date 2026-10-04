@@ -276,7 +276,7 @@ function BonusSection({
   );
 }
 
-type Mutation = { ok: true; data: { structures: CustomStructureRow[] } } | { ok: false };
+type Mutation = { ok: true; data: { structures: CustomStructureRow[]; createdId?: string } } | { ok: false };
 
 export function StructureComposer({
   structureTypes,
@@ -288,7 +288,7 @@ export function StructureComposer({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
   editing: CustomStructureRow | null;
-  onSaved: (structures: CustomStructureRow[]) => void;
+  onSaved: (structures: CustomStructureRow[], createdId?: string) => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<StructureDraft>(() => (editing ? draftFromRow(editing) : emptyStructureDraft()));
@@ -325,7 +325,7 @@ export function StructureComposer({
     const res = await run();
     setBusy(false);
     if (!res.ok) return setError('save');
-    onSaved(res.data.structures);
+    onSaved(res.data.structures, res.data.createdId);
   }
 
   async function readFit(fit: string) {

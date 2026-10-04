@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -33,7 +33,7 @@ import {
   structureFacility,
   unavailableCategories,
 } from './facilities-model';
-import { requestNewStructure } from './structures-panel';
+import { type NewStructure, requestNewStructure } from './structures-panel';
 import { roleLine } from './workspace-model';
 
 export interface HullName {
@@ -194,6 +194,13 @@ export function FacilitiesPanel({
   };
   const add = (pick: FacilityPick) =>
     addAndOpen(pick.kind === 'structure' ? structureFacility(doc, pick.structure) : stationFacility(doc, pick.station));
+  const addNew = useRef((saved: NewStructure) =>
+    addAndOpen(structureFacility(doc, saved)));
+  const cancelNew = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    addNew.current = (saved) => addAndOpen(structureFacility(doc, saved));
+  });
+  useLayoutEffect(() => () => cancelNew.current?.(), []);
   return (
     <SectionPanel title="Facilities">
       {views.length > 0 ? (
@@ -218,7 +225,10 @@ export function FacilitiesPanel({
           taken={new Set(views.map((v) => v.key))}
           describe={describe}
           onAdd={add}
-          onNewStructure={() => requestNewStructure((saved) => addAndOpen(structureFacility(doc, saved)))}
+          onNewStructure={() => {
+            cancelNew.current?.();
+            cancelNew.current = requestNewStructure((saved) => addNew.current(saved));
+          }}
           full={doc.facilities.length >= MAX_PROFILE_FACILITIES}
         />
       </div>

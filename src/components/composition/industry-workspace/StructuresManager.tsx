@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { eyebrow } from '@/components/ui/type-roles';
 import { useSystemSearch } from '@/components/use-system-search';
@@ -19,7 +21,10 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import { refreshAvailableStructures, useAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { CorpRigEditor } from '@/features/owned-structures/components/CorpRigEditor';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
-import { type NewStructure, settleNewStructure, useNewStructureAsked } from './structures-panel';
+import { useClientCommitted } from '@/lib/use-client-committed';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { type NewStructure, settleNewStructure, useNewStructureRequest } from './structures-panel';
 
 type Filter = 'all' | 'corp' | 'yours';
 type Composer = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'corp'; structureId: number } | null;
@@ -258,32 +263,50 @@ const withCorpRigs = (structureId: number, saved: Pick<CorpStructurePageStructur
 
 /** The structure a save just added, in the shape a profile takes it. */
 export function savedStructure(
-  before: readonly CustomStructureRow[],
-  after: readonly CustomStructureRow[],
+  structures: readonly CustomStructureRow[],
+  createdId: string,
   types: readonly StructureTypeOption[],
 ): NewStructure | null {
-  const row = after.find((s) => !before.some((b) => b.id === s.id));
+  const row = structures.find((s) => s.id === createdId);
   const groupId = row && types.find((t) => t.typeId === row.structureTypeId)?.groupId;
   return row && groupId !== undefined ? { id: row.id, name: row.name, systemId: row.systemId, groupId } : null;
 }
 
-export function StructuresManager({
-  structureTypes,
-  structureRigs,
-  initialCustom,
-  initialCorps,
-}: {
+export interface StructuresManagerProps {
+  owner: ReadIdentity;
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
   initialCustom: CustomStructureRow[];
   initialCorps: CorpStructurePageView[];
-}) {
+}
+
+export function StructuresManager(props: StructuresManagerProps) {
+  const { owner, ...data } = props;
+  const identity = useReadIdentity();
+  const committed = useClientCommitted();
+  const { loading } = useAuth();
+  const router = useRouter();
+  const matches = identity?.userId === owner.userId && identity.characterId === owner.characterId;
+  useEffect(() => {
+    if (committed && !loading && !matches) router.refresh();
+  }, [committed, loading, matches, identity, router]);
+  if (committed && !matches) return <Skeleton label="Loading custom structures" className="h-56 w-full rounded-card" />;
+  return <StructuresManagerContent key={`${owner.userId}:${owner.characterId}`} {...data} identity={identity} />;
+}
+
+function StructuresManagerContent({
+  structureTypes,
+  structureRigs,
+  initialCustom,
+  initialCorps,
+  identity,
+}: Omit<StructuresManagerProps, 'owner'> & { identity: ReadIdentity | null }) {
   const [custom, setCustom] = useState(initialCustom);
   const [corps, setCorps] = useState(() => initialCorps.filter((c) => c.structures.length > 0));
   const [ownComposer, setComposer] = useState<Composer>(null);
   // A profile asking for a new structure opens the form, and gets what it saves.
-  const forProfile = useNewStructureAsked();
-  const composer: Composer = forProfile ? { kind: 'new' } : ownComposer;
+  const request = useNewStructureRequest();
+  const composer: Composer = request !== null ? { kind: 'new' } : ownComposer;
   const [filter, setFilter] = useState<Filter>('all');
   const lookups = useLookups(structureTypes);
   const counts = { corp: corps.reduce((n, c) => n + c.structures.length, 0), yours: custom.length };
@@ -298,12 +321,15 @@ export function StructuresManager({
       structureTypes={structureTypes}
       structureRigs={structureRigs}
       editing={row}
-      onSaved={(structures) => {
-        if (row === null && forProfile) settleNewStructure(savedStructure(custom, structures, structureTypes));
+      onSaved={(structures, createdId) => {
+        if (identity === null || identity !== currentReadIdentity()) return;
+        if (request !== null && createdId !== undefined) {
+          settleNewStructure(request, savedStructure(structures, createdId, structureTypes));
+        }
         setCustom(structures);
         settle();
       }}
-      onClose={() => (row === null && forProfile ? settleNewStructure(null) : setComposer(null))}
+      onClose={() => (row === null && request !== null ? settleNewStructure(request, null) : setComposer(null))}
     />
   );
 
@@ -324,6 +350,7 @@ export function StructuresManager({
             composer={composer}
             setComposer={setComposer}
             onCorpSaved={(structureId, saved) => {
+              if (identity === null || identity !== currentReadIdentity()) return;
               setCorps((prev) => prev.map(withCorpRigs(structureId, saved)));
               settle();
             }}

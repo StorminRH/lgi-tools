@@ -8,6 +8,7 @@ const location = vi.hoisted(() => ({
   pathname: '/industry',
   plannerHref: null as string | null,
   runEffects: false,
+  runLayoutEffects: false,
 }));
 const structuresPanel = vi.hoisted(() => ({ props: null as ComponentProps<typeof SidePanel> | null }));
 vi.mock('next/navigation', () => ({
@@ -35,9 +36,13 @@ vi.mock('react', async (importOriginal) => ({
   useEffect: (effect: () => void) => {
     if (location.runEffects) effect();
   },
+  useLayoutEffect: (effect: () => void) => {
+    if (location.runLayoutEffects) effect();
+  },
 }));
 
 import { IndustryNav, IndustryNavFallback, RememberPlanner, StructuresDrawer } from './IndustryShell';
+import { cancelNewStructure, requestNewStructure, settleNewStructure, useNewStructureRequest } from './structures-panel';
 
 const tabs = (html: string) =>
   [...html.matchAll(/<a ([^>]*)>([^<]*)/g)].map(([, attrs, label]) => ({
@@ -47,8 +52,34 @@ const tabs = (html: string) =>
   }));
 
 beforeEach(() => {
+  cancelNewStructure();
   location.plannerHref = null;
   location.runEffects = false;
+  location.runLayoutEffects = false;
+});
+
+test('browser Back closing the URL-controlled drawer cancels its profile request without rewriting history', () => {
+  const delivery = vi.fn();
+  const pushState = vi.fn();
+  vi.stubGlobal('window', {
+    location: { href: 'https://example.test/industry' },
+    history: { pushState },
+  });
+  try {
+    requestNewStructure(delivery);
+    const token = useNewStructureRequest()!;
+    location.params = new URLSearchParams('panel=structures');
+    location.runLayoutEffects = true;
+    drawer();
+    location.params = new URLSearchParams();
+    drawer();
+    expect(useNewStructureRequest()).toBeNull();
+    settleNewStructure(token, { id: 'new', name: 'Raitaru', systemId: null, groupId: 1404 });
+    expect(delivery).not.toHaveBeenCalled();
+    expect(pushState).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 
 test.each([

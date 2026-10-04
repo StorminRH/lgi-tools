@@ -4,15 +4,18 @@ import { createClientStore, useClientStore } from '@/lib/client-store';
 /** A structure saved for a profile that asked for one, as much of it as the profile needs. */
 export type NewStructure = Pick<AvailableStructure, 'id' | 'name' | 'systemId' | 'groupId'>;
 
-// A profile's ask for a new structure: the drawer opens on its form, and the
-// saved structure goes back to the profile that asked.
-const newStructureAsked = createClientStore(false);
-let deliver: ((structure: NewStructure) => void) | null = null;
+const newStructureRequest = createClientStore<{
+  token: symbol;
+  deliver: (structure: NewStructure) => void;
+} | null>(null);
+
+export function cancelNewStructure(): void {
+  newStructureRequest.set(null);
+}
 
 export function setStructuresPanelOpen(open: boolean): void {
   if (!open) {
-    newStructureAsked.set(false);
-    deliver = null;
+    cancelNewStructure();
   }
   const url = new URL(window.location.href);
   if (open) url.searchParams.set('panel', 'structures');
@@ -21,23 +24,26 @@ export function setStructuresPanelOpen(open: boolean): void {
 }
 
 /** Opens the drawer on a new structure; once it is saved, `then` gets it and the drawer closes. */
-export function requestNewStructure(then: (structure: NewStructure) => void): void {
-  deliver = then;
-  newStructureAsked.set(true);
+export function requestNewStructure(then: (structure: NewStructure) => void): () => void {
+  const request = { token: Symbol(), deliver: then };
+  newStructureRequest.set(request);
   setStructuresPanelOpen(true);
+  return () => {
+    if (newStructureRequest.get() === request) cancelNewStructure();
+  };
 }
 
-/** Whether the drawer's new-structure form is open for a profile. */
-export function useNewStructureAsked(): boolean {
-  return useClientStore(newStructureAsked);
+/** The profile request the drawer's form belongs to. */
+export function useNewStructureRequest(): symbol | null {
+  return useClientStore(newStructureRequest)?.token ?? null;
 }
 
 /** Ends a profile's ask: a saved structure goes back to it, a cancelled form just closes. */
-export function settleNewStructure(saved: NewStructure | null): void {
-  const then = deliver;
-  deliver = null;
-  newStructureAsked.set(false);
-  if (saved === null || then === null) return;
-  then(saved);
+export function settleNewStructure(token: symbol, saved: NewStructure | null): void {
+  const request = newStructureRequest.get();
+  if (request?.token !== token) return;
+  cancelNewStructure();
+  if (saved === null) return;
+  request.deliver(saved);
   setStructuresPanelOpen(false);
 }

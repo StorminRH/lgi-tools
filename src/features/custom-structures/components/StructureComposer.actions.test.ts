@@ -197,7 +197,8 @@ test('saving a new structure creates it and hands back the list', async () => {
   c.call(named, 'onName', 'Home Raitaru');
   c.call(hull, 'onValueChange', '35825');
   c.call(bonuses, 'onDraft', { bonus: { me: '1', te: '', cost: '', rxnMe: '', rxnTe: '' } });
-  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: SAVED } });
+  const createdId = '38534fe4-6d47-4007-8d99-0890bc6c9770';
+  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: SAVED, createdId } });
   c.button('Save');
   expect(c.busy()).toBe(true);
   await settle();
@@ -206,7 +207,7 @@ test('saving a new structure creates it and hands back the list', async () => {
     cache: 'no-store',
   });
   expect(c.busy()).toBe(false);
-  expect(c.onSaved).toHaveBeenCalledWith(SAVED);
+  expect(c.onSaved).toHaveBeenCalledWith(SAVED, createdId);
 });
 
 test('an edited structure updates or deletes in place, and a failed save says so', async () => {
@@ -225,7 +226,7 @@ test('an edited structure updates or deletes in place, and a failed save says so
   c.button('Delete');
   await settle();
   expect(h.apiFetch).toHaveBeenLastCalledWith(deleteCustomStructureEndpoint, { body: { id: 'cs-1' }, cache: 'no-store' });
-  expect(c.onSaved).toHaveBeenCalledWith([]);
+  expect(c.onSaved).toHaveBeenCalledWith([], undefined);
   expect(c.find((p) => p['aria-label'] === 'Close')!.onClick).toBe(c.onClose);
 });
 

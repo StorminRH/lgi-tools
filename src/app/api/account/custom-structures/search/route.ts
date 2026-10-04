@@ -21,7 +21,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
   if (!parsed.ok) return apiResponse(searchStructuresEndpoint, 400, parsed.failure);
 
   try {
-    const results = await searchUpwellStructures(gate.userId, parsed.data.search);
+    const results = await searchUpwellStructures(gate.userId, parsed.data.search, request.signal);
     return apiResponse(searchStructuresEndpoint, 200, { results });
   } catch (cause) {
     return apiResponse(

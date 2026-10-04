@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { type ReactNode, startTransition, useEffect, useState, ViewTransition } from 'react';
+import { type ReactNode, startTransition, useEffect, useLayoutEffect, useState, ViewTransition } from 'react';
 import { cn } from '@/components/ui/cn';
 import { tabItem, tabSpotlight, tabTrack } from '@/components/ui/tabs';
 import { SidePanel } from '@/components/ui/side-panel';
 import { refreshAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { createClientStore, useClientStore } from '@/lib/client-store';
-import { setStructuresPanelOpen } from './structures-panel';
+import { cancelNewStructure, setStructuresPanelOpen } from './structures-panel';
 
 /**
  * The industry planner is one workspace: Profiles, the Planner and Active
@@ -118,6 +118,10 @@ export function IndustrySection({ children }: { children: ReactNode }) {
 export function StructuresDrawer({ children }: { children: ReactNode }) {
   const open = useSearchParams().get('panel') === 'structures';
   const [visited, setVisited] = useState(open);
+
+  useLayoutEffect(() => {
+    if (!open) cancelNewStructure();
+  }, [open]);
 
   useEffect(() => {
     if (open) startTransition(() => setVisited(true));

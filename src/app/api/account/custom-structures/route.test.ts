@@ -111,7 +111,9 @@ describe('POST /api/account/custom-structures', () => {
   it('saves the structure and returns the updated list with 201', async () => {
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ structures: [savedRow] });
+    const createdId = h.createCustomStructureMock.mock.calls[0]![1].id as string;
+    expect(createdId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await res.json()).toEqual({ structures: [savedRow], createdId });
     expect(h.createCustomStructureMock).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({

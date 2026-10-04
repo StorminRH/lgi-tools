@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
@@ -16,6 +16,7 @@ import { readWithRetries } from '../read-with-retries';
 import type { ProfileDocument } from './profile-document';
 import { createProfileSync, type ProfileSync, type ProfileSyncState, type ProfilesResult } from './profile-sync';
 import { createFailureMessage, type PendingEdit } from './profile-view';
+import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 
 export interface IndustryProfilesState extends ProfileSyncState {
   busy: boolean;
@@ -52,37 +53,47 @@ const profilesMemory = createRememberedRead<IndustryProfileRow[]>();
 /** The signed-in account's production profiles, with create, edit and delete. */
 export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
   const remembered = useRememberedRead(profilesMemory);
-  const [state, setState] = useState<ProfileSyncState>({ profiles: null, listFailed: false });
-  const [busy, setBusy] = useState(false);
-  const [sync] = useState<ProfileSync>(() =>
+  const identity = useReadIdentity();
+  const [published, setPublished] = useState<{ identity: ReadIdentity | null; state: ProfileSyncState }>({
+    identity,
+    state: { profiles: null, listFailed: false },
+  });
+  const state = published.identity === identity ? published.state : { profiles: null, listFailed: false };
+  const [busyIdentity, setBusyIdentity] = useState<ReadIdentity | null>(null);
+  const busy = identity !== null && busyIdentity === identity;
+  const sync = useMemo<ProfileSync>(() =>
     createProfileSync({
-      initial: profilesMemory.get(),
+      initial: identity === null ? null : profilesMemory.get(),
       list: listProfiles,
       update: updateProfile,
       publish: (next) => {
-        setState(next);
-        if (next.profiles !== null) profilesMemory.set(next.profiles);
+        setPublished({ identity, state: next });
+        if (next.profiles !== null) profilesMemory.set(next.profiles, identity);
       },
       notify: (message) => toast.error(message),
+      isCurrent: () => identity !== null && identity === currentReadIdentity(),
     }),
+    [identity],
   );
 
   useEffect(() => {
-    if (enabled) void sync.refresh();
-  }, [enabled, sync]);
+    if (enabled && identity !== null) void sync.refresh();
+  }, [enabled, identity, sync]);
 
   const addProfile = useCallback(
     async (call: () => Promise<AddOutcome>): Promise<string | null> => {
-      setBusy(true);
+      if (identity === null || identity !== currentReadIdentity()) return null;
+      setBusyIdentity(identity);
       const res = await sync.request(call).catch(() => null);
-      setBusy(false);
+      if (identity !== currentReadIdentity()) return null;
+      setBusyIdentity(null);
       if (!res?.ok) {
         toast.error(createFailureMessage(res?.error?.code));
         return null;
       }
       return res.data.id;
     },
-    [sync],
+    [sync, identity],
   );
 
   const create = useCallback(
@@ -99,16 +110,18 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
 
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
-      setBusy(true);
+      if (identity === null || identity !== currentReadIdentity()) return false;
+      setBusyIdentity(identity);
       const res = await sync.request(() => apiFetch(deleteIndustryProfileEndpoint, { body: { id } })).catch(() => null);
-      setBusy(false);
+      if (identity !== currentReadIdentity()) return false;
+      setBusyIdentity(null);
       if (!res?.ok) {
         toast.error("Couldn't delete the profile.");
         return false;
       }
       return true;
     },
-    [sync],
+    [sync, identity],
   );
 
   const refresh = useCallback(() => void sync.refresh(), [sync]);

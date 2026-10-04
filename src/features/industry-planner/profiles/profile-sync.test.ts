@@ -364,3 +364,52 @@ test('retrying a failed list loads again rather than showing the old failure', a
   await retry;
   expect(states.at(-1)).toEqual({ profiles: [row(1)], listFailed: false });
 });
+
+test('an identity change discards late saves and cancels queued reads and mutations', async () => {
+  let current = true;
+  const reply = deferred<ProfilesResult>();
+  const list = vi.fn(async (): Promise<ProfilesResult> => ({ ok: true, data: { profiles: [row(1)] } }));
+  const update = vi.fn(() => reply.promise);
+  const duplicate = vi.fn(async (): Promise<ProfilesResult> => ({ ok: true, data: { profiles: [row(1)] } }));
+  const states: ProfileSyncState[] = [];
+  const notify = vi.fn();
+  const sync = createProfileSync({ list, update, publish: (state) => states.push(state), notify, isCurrent: () => current });
+  await sync.refresh();
+  sync.save('p1', { name: 'First', document: emptyProfileDocument() });
+  await vi.waitFor(() => expect(update).toHaveBeenCalledOnce());
+  sync.save('p1', { name: 'Queued', document: emptyProfileDocument() });
+  const request = sync.request(duplicate);
+  const rejected = expect(request).rejects.toThrow('Profile session changed');
+  const refresh = sync.refresh();
+  const beforeChange = states.length;
+  current = false;
+  reply.resolve({ ok: false, error: { code: 'stale_revision' } });
+  await rejected;
+  await refresh;
+  sync.save('p1', { name: 'After change', document: emptyProfileDocument() });
+  expect(update).toHaveBeenCalledOnce();
+  expect(list).toHaveBeenCalledOnce();
+  expect(duplicate).not.toHaveBeenCalled();
+  expect(notify).not.toHaveBeenCalled();
+  expect(states).toHaveLength(beforeChange);
+});
+
+test('an identity change during a create rejects its late success instead of returning the old id', async () => {
+  let current = true;
+  const reply = deferred<ProfilesResult & { ok: true; data: { profiles: IndustryProfileRow[]; id: string } }>();
+  const publish = vi.fn();
+  const sync = createProfileSync({
+    list: async () => ({ ok: false }),
+    update: async () => ({ ok: false }),
+    publish,
+    notify: () => undefined,
+    isCurrent: () => current,
+  });
+  const request = sync.request(() => reply.promise);
+  const rejected = expect(request).rejects.toThrow('Profile session changed');
+  await Promise.resolve();
+  current = false;
+  reply.resolve({ ok: true, data: { profiles: [row(1)], id: 'p1' } });
+  await rejected;
+  expect(publish).not.toHaveBeenCalled();
+});
