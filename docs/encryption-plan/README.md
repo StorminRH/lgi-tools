@@ -25,7 +25,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 3 | Who sees old map history after a key rotation | Agreed 2026-10-06 |
 | 4 | Standard tier | Agreed 2026-10-06: dropped |
 | 5 | Recovery delay | Agreed 2026-10-06: none |
-| 6 | Auto re-admit after a short affiliation loss | Not started |
+| 6 | Auto re-admit after a short affiliation loss | Agreed 2026-10-06: match today |
 | 7 | High-security mode | Not started |
 | 8 | One-owner personal maps | Not started |
 | 9 | Recovery secret requirement | Not started |
@@ -68,6 +68,12 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **No recovery delay.** Every unlock (sealed key service, passkey or recovery key) happens after an EVE login and works immediately.
 - **Principle: EVE SSO is the access gate.** Whoever can log in to a user's EVE account can reach their LGI data, as today. Encryption protects users from LGI's operators and from database leaks, not from someone holding their EVE login.
 - Consequences for the doc: the recovery delay and veto, account-proof cooldowns, and the separate recovery signing and anchor keys are removed or simplified in the identity section.
+
+### Decision 6, agreed 2026-10-06
+
+- **Match today, no special rule.** Leaving a corporation that grants map access removes access and rotates the map key at once. Rejoining restores access automatically through the corp grant, like any other access-list member (decision 1). Affiliation is checked against ESI's one-hour cache, as today.
+- The only exception is decision 1's sale rule: a character detected as sold stays blocked until an owner removes the block.
+- Consequences for the doc: the 7-day suspension grace, pinned-key re-admission and suspension states are removed.
 
 ### Working notes from decision 2 (to settle in the section review)
 
