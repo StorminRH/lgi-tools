@@ -27,7 +27,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 5 | Recovery delay | Agreed 2026-10-06: none |
 | 6 | Auto re-admit after a short affiliation loss | Agreed 2026-10-06: match today |
 | 7 | High-security mode | Agreed 2026-10-06: none |
-| 8 | One-owner personal maps | Not started |
+| 8 | One-owner personal maps | Agreed 2026-10-06: match today |
 | 9 | Recovery secret requirement | Not started |
 
 ### Decision 1, agreed 2026-10-06
@@ -79,6 +79,11 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 
 - **No high-security mode.** The browser stays signed in and unlocked like today's session; users log in with EVE again only when the session expires or they sign out. No prompts, no extra setting.
 - Consequences for the doc: high-security mode, its prompts for owners, managers and directors, and the related device classes are removed.
+
+### Decision 8, agreed 2026-10-06
+
+- **Match today.** The map creator owns the map; one owner is fine for any map. No two-owner requirement, no "only you can recover this" warning, no succession voting. Character-scoped maps work as today.
+- Consequences for the doc: the distinct-account two-owner rule, the personal-map genesis policy and its warning, and manager succession voting are removed.
 
 ### Working notes from decision 2 (to settle in the section review)
 
