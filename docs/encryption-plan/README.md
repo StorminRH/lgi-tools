@@ -23,7 +23,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 1 | How members get into maps, and how a user gets their keys back on a new device | Agreed 2026-10-06 |
 | 2 | How the change ships (was: do corp spaces gate cutover?) | Agreed 2026-10-06 |
 | 3 | Who sees old map history after a key rotation | Agreed 2026-10-06 |
-| 4 | Standard tier | Not started |
+| 4 | Standard tier | Agreed 2026-10-06: dropped |
 | 5 | Recovery delay | Not started |
 | 6 | Auto re-admit after a short affiliation loss | Not started |
 | 7 | High-security mode | Not started |
@@ -57,11 +57,17 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **Retention stays as today:** 7-day event log, 24-hour undo. The earlier 30-day op log and revert-by-character are dropped unless revisited later.
 - **History keys are not limited to managers.** This replaces the earlier "Manager+ only" default.
 
+### Decision 4, agreed 2026-10-06
+
+- **No tiers.** The Standard tier is dropped; everything is sealed, with no tier badges, labels or tier wording anywhere in the app.
+- What Standard was for is covered by the sealed service: recovery (decision 1), background location tracking (decision 1), and, when corp spaces are built, scheduled corp pulls using a Director's token stored sealed in the enclave. Future features that need to read map contents (for example Discord alerts) must run inside the sealed service or a corp's own bot.
+- Consequences for the doc: the escrow principal, the Steward service, tier fields in group genesis, tier badges, the leak accounting between tiers, and Standard-to-Sealed conversion are all removed.
+
 ### Working notes from decision 2 (to settle in the section review)
 
 - **One domain:** keep everything on lgi.tools, no separate subdomain for the crypto core. Implication: the whole site follows the stricter security rules (tight content security policy, no third-party scripts on pages that hold keys).
 - **Passkeys and recovery keys:** shown as options at login; no nudges, alerts or prompts.
-- **Sealed and Standard:** keep the concept; the wording needs to be rethought.
+- **Sealed and Standard:** resolved by decision 4; there are no tiers.
 - **Banners and notices:** nothing beyond what exists today unless required (for example, a user blocked from a map, or a sale-detected notice to map owners).
 - **Location tracking:** resolved; see decision 1 (polling runs in the sealed service, behaviour unchanged).
 
