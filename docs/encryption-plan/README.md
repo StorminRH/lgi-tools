@@ -26,7 +26,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 4 | Standard tier | Agreed 2026-10-06: dropped |
 | 5 | Recovery delay | Agreed 2026-10-06: none |
 | 6 | Auto re-admit after a short affiliation loss | Agreed 2026-10-06: match today |
-| 7 | High-security mode | Not started |
+| 7 | High-security mode | Agreed 2026-10-06: none |
 | 8 | One-owner personal maps | Not started |
 | 9 | Recovery secret requirement | Not started |
 
@@ -74,6 +74,11 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **Match today, no special rule.** Leaving a corporation that grants map access removes access and rotates the map key at once. Rejoining restores access automatically through the corp grant, like any other access-list member (decision 1). Affiliation is checked against ESI's one-hour cache, as today.
 - The only exception is decision 1's sale rule: a character detected as sold stays blocked until an owner removes the block.
 - Consequences for the doc: the 7-day suspension grace, pinned-key re-admission and suspension states are removed.
+
+### Decision 7, agreed 2026-10-06
+
+- **No high-security mode.** The browser stays signed in and unlocked like today's session; users log in with EVE again only when the session expires or they sign out. No prompts, no extra setting.
+- Consequences for the doc: high-security mode, its prompts for owners, managers and directors, and the related device classes are removed.
 
 ### Working notes from decision 2 (to settle in the section review)
 
