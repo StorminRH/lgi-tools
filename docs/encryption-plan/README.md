@@ -40,7 +40,8 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **Other key changes** (new device, passkey, recovery, logging in elsewhere) are automatic and need no one.
 - **Getting keys back:** a user gets their keys back by logging in with EVE. A sealed key service running in an AWS Nitro Enclave holds users' keys sealed (via AWS KMS bound to the enclave's code fingerprint), checks the CCP-signed login, and returns the keys to the user's browser wrapped to a fresh key. LGI's operators cannot read the sealed keys. No other members or bots need to be online.
 - **Built from day one**, on AWS Nitro with a 1-year commitment (about $32/month). Reproducible enclave builds with published code fingerprints; browsers verify the enclave's attestation before sending anything.
-- **Backups:** passkeys and a recovery key are optional extras, nudged but not required. They cover a key-service outage or loss of the AWS account.
+- **Location polling runs inside the sealed service too.** Users' EVE refresh tokens are stored sealed so only the enclave can open them. While a user's tab heartbeats (same 5 min / 90 min cold-off rules as today), the enclave polls ESI with today's policy (online gate, Expires-driven cadence with a 5 s floor, ship read only on system change), seals each update so only the map's members can read it, and posts it through Convex. Tracking behaves exactly as today, including with the tab hidden while in game. LGI's operators never see tokens or locations. The enclave code grows to include the ESI client and scheduler (reusing the current location-sync code); expected to fit the same server and cost at current scale.
+- **Backups:** passkeys and a recovery key are optional extras: available as options at login, no prompts or alerts. They cover a key-service outage or loss of the AWS account.
 - **Honest caveat for users:** AWS signs the enclave's proof, and the AWS account owner could change the key-release rule; such a change would be visible through the published fingerprints.
 - **Doc impact:** the identity, recovery and key-directory parts of the design will be reworked around this during the section-by-section review.
 
@@ -49,6 +50,14 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **Ship in parts.** There is no separate "new app" and no single cutover day. Each feature moves to its encrypted version through normal development → staging → main releases when it is ready (mapper, then personal data, then corp data), and its plaintext tables and server-held tokens are removed once its users are migrated. "Cutover" is just the last such release.
 - **No visible change for users.** The app should look and work as it does today; only the backend becomes more secure. No in-app messaging about encryption; the owner may post about it on the forums at some point.
 - **Guiding principle for the review:** anything in the design that shows users something new must be justified or removed. To revisit in the section review: the crypto core on its own subdomain, passkey and recovery-key nudges, trust-tier badges and labels, new banners and notices, and the change to location tracking when no tab is open (today the server keeps polling for up to 90 minutes while the tab is hidden).
+
+### Working notes from decision 2 (to settle in the section review)
+
+- **One domain:** keep everything on lgi.tools, no separate subdomain for the crypto core. Implication: the whole site follows the stricter security rules (tight content security policy, no third-party scripts on pages that hold keys).
+- **Passkeys and recovery keys:** shown as options at login; no nudges, alerts or prompts.
+- **Sealed and Standard:** keep the concept; the wording needs to be rethought.
+- **Banners and notices:** nothing beyond what exists today unless required (for example, a user blocked from a map, or a sale-detected notice to map owners).
+- **Location tracking:** resolved; see decision 1 (polling runs in the sealed service, behaviour unchanged).
 
 ### Section-by-section review
 
