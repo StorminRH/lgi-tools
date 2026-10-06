@@ -28,7 +28,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 6 | Auto re-admit after a short affiliation loss | Agreed 2026-10-06: match today |
 | 7 | High-security mode | Agreed 2026-10-06: none |
 | 8 | One-owner personal maps | Agreed 2026-10-06: match today |
-| 9 | Recovery secret requirement | Not started |
+| 9 | Recovery secret requirement | Agreed 2026-10-06: optional |
 
 ### Decision 1, agreed 2026-10-06
 
@@ -84,6 +84,12 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 
 - **Match today.** The map creator owns the map; one owner is fine for any map. No two-owner requirement, no "only you can recover this" warning, no succession voting. Character-scoped maps work as today.
 - Consequences for the doc: the distinct-account two-owner rule, the personal-map genesis policy and its warning, and manager succession voting are removed.
+
+### Decision 9, agreed 2026-10-06
+
+- **Optional for users.** No one is required to set up a passkey or recovery key, and there are no prompts (as in decision 1).
+- **Owner-side safeguards, no extra cost:** the AWS KMS key that seals users' keys has a deletion waiting period (it cannot be deleted instantly and deletion can be cancelled during the wait), and an alert fires if deletion is ever scheduled. No second-region key copy and no extra backups.
+- **Accepted risk:** if the sealed key records were destroyed anyway, users without a passkey or recovery key would lose personal data only (profiles, custom structures, saved plans, net worth history). Maps survive with other members, and EVE-derived data re-downloads.
 
 ### Working notes from decision 2 (to settle in the section review)
 
