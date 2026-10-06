@@ -20,7 +20,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 
 | # | Decision | Status |
 |---|---|---|
-| 1 | How members get into maps, and how a user gets their keys back on a new device | In discussion |
+| 1 | How members get into maps, and how a user gets their keys back on a new device | Agreed 2026-10-06 |
 | 2 | Do corp spaces gate cutover? | Not started |
 | 3 | Who sees old map history after a key rotation | Not started |
 | 4 | Standard tier | Not started |
@@ -30,12 +30,15 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 8 | One-owner personal maps | Not started |
 | 9 | Recovery secret requirement | Not started |
 
-### Working notes on decision 1 (not yet agreed)
+### Decision 1, agreed 2026-10-06
 
-- Everyone on a map's access list is admitted automatically; no strict-approval mode or waiting period by default.
-- A key change caused by a character changing hands (EVE owner hash changes) needs a manager to confirm.
-- Direction under discussion: users get their keys back simply by logging in with EVE. A small key-release service running in a hardware enclave holds users' keys sealed, checks the CCP-signed login, and returns the key to the user's browser. LGI's operators cannot read the sealed keys. This would replace passkeys and recovery keys as the main path (they become optional), and remove any need for other members or bots to be online.
-- Provider options: AWS Nitro Enclaves (about $32-50/month), or Azure confidential VMs with an immutable key-release policy (about $63/month, the only option where even the owner cannot change the release rule). Vercel, Neon, Cloudflare and Convex offer nothing equivalent.
+- **Joining maps:** anyone on a map's access list is admitted automatically, with or without an invite link. No strict-approval mode and no waiting period.
+- **Character sold:** if EVE's owner hash shows a character changed hands, a manager confirms before that character regains access. All other key changes are automatic.
+- **Getting keys back:** a user gets their keys back by logging in with EVE. A sealed key service running in an AWS Nitro Enclave holds users' keys sealed (via AWS KMS bound to the enclave's code fingerprint), checks the CCP-signed login, and returns the keys to the user's browser wrapped to a fresh key. LGI's operators cannot read the sealed keys. No other members or bots need to be online.
+- **Built from day one**, on AWS Nitro with a 1-year commitment (about $32/month). Reproducible enclave builds with published code fingerprints; browsers verify the enclave's attestation before sending anything.
+- **Backups:** passkeys and a recovery key are optional extras, nudged but not required. They cover a key-service outage or loss of the AWS account.
+- **Honest caveat for users:** AWS signs the enclave's proof, and the AWS account owner could change the key-release rule; such a change would be visible through the published fingerprints.
+- **Doc impact:** the identity, recovery and key-directory parts of the design will be reworked around this during the section-by-section review.
 
 ### Section-by-section review
 
