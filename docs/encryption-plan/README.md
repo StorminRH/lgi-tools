@@ -33,7 +33,11 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 ### Decision 1, agreed 2026-10-06
 
 - **Joining maps:** anyone on a map's access list is admitted automatically, with or without an invite link. No strict-approval mode and no waiting period.
-- **Character sold:** if EVE's owner hash shows a character changed hands, a manager confirms before that character regains access. All other key changes are automatic.
+- **Character sold (owner-hash change):** detected at login before any key is released, as the current app already does. The seller's link and data for that character are removed (unchanged from today). Then, automatically and with no prompts:
+  - the character is removed from every map access list it is named on, and map owners get a notice ("Character sale detected: [name] has been removed from your map's access list");
+  - if the character is still in a corporation that has access to a map, it is added to that map's block list, so the corp grant cannot let the buyer in. This uses the existing block, created after the seller is unlinked, so it records only the buyer's account and never affects the seller or their other characters. Owners re-admit by removing the block;
+  - the corporation (directors, members using LGI, and owners of maps granting that corp) gets a heads-up that a character in the corp changed owners.
+- **Other key changes** (new device, passkey, recovery, logging in elsewhere) are automatic and need no one.
 - **Getting keys back:** a user gets their keys back by logging in with EVE. A sealed key service running in an AWS Nitro Enclave holds users' keys sealed (via AWS KMS bound to the enclave's code fingerprint), checks the CCP-signed login, and returns the keys to the user's browser wrapped to a fresh key. LGI's operators cannot read the sealed keys. No other members or bots need to be online.
 - **Built from day one**, on AWS Nitro with a 1-year commitment (about $32/month). Reproducible enclave builds with published code fingerprints; browsers verify the enclave's attestation before sending anything.
 - **Backups:** passkeys and a recovery key are optional extras, nudged but not required. They cover a key-service outage or loss of the AWS account.
