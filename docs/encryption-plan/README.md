@@ -14,6 +14,13 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 04-detailed-spec.md | Implementation-level rules (D-… IDs) |
 | 05-sources.md | Pages the research used |
 
+## Guiding principles (agreed 2026-10-06)
+
+1. **Users notice nothing.** The app looks and behaves for users exactly as it does today. Anything that shows users something new must be justified.
+2. **Encrypt only what needs hiding.** Metadata can stay readable on LGI's servers: who uses the app, which corporations, that maps exist, map names, membership and access lists. What users must not have exposed is content: map contents (systems, connections, signatures), character locations, assets, structures, industry data and corp holdings.
+3. **LGI's servers keep doing the bulk of the work.** Prefer keeping computation and storage on LGI's servers (Convex, Neon) over moving it into the browser. Where server-side work needs to read encrypted content, prefer the sealed AWS service over the browser. Use the browser only where neither works.
+4. **EVE SSO is the access gate** (decision 5).
+
 ## Review status
 
 ### Owner decisions
