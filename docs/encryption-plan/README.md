@@ -22,7 +22,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 |---|---|---|
 | 1 | How members get into maps, and how a user gets their keys back on a new device | Agreed 2026-10-06 |
 | 2 | How the change ships (was: do corp spaces gate cutover?) | Agreed 2026-10-06 |
-| 3 | Who sees old map history after a key rotation | Not started |
+| 3 | Who sees old map history after a key rotation | Agreed 2026-10-06 |
 | 4 | Standard tier | Not started |
 | 5 | Recovery delay | Not started |
 | 6 | Auto re-admit after a short affiliation loss | Not started |
@@ -50,6 +50,12 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **Ship in parts.** There is no separate "new app" and no single cutover day. Each feature moves to its encrypted version through normal development → staging → main releases when it is ready (mapper, then personal data, then corp data), and its plaintext tables and server-held tokens are removed once its users are migrated. "Cutover" is just the last such release.
 - **No visible change for users.** The app should look and work as it does today; only the backend becomes more secure. No in-app messaging about encryption; the owner may post about it on the forums at some point.
 - **Guiding principle for the review:** anything in the design that shows users something new must be justified or removed. To revisit in the section review: the crypto core on its own subdomain, passkey and recovery-key nudges, trust-tier badges and labels, new banners and notices, and the change to location tracking when no tab is open (today the server keeps polling for up to 90 minutes while the tab is hidden).
+
+### Decision 3, agreed 2026-10-06
+
+- **Match today.** Anyone currently on a map can read its recent history after a key change, including people who just joined. When the key rotates, current members' apps pass the old keys along.
+- **Retention stays as today:** 7-day event log, 24-hour undo. The earlier 30-day op log and revert-by-character are dropped unless revisited later.
+- **History keys are not limited to managers.** This replaces the earlier "Manager+ only" default.
 
 ### Working notes from decision 2 (to settle in the section review)
 
