@@ -24,7 +24,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | 2 | How the change ships (was: do corp spaces gate cutover?) | Agreed 2026-10-06 |
 | 3 | Who sees old map history after a key rotation | Agreed 2026-10-06 |
 | 4 | Standard tier | Agreed 2026-10-06: dropped |
-| 5 | Recovery delay | Not started |
+| 5 | Recovery delay | Agreed 2026-10-06: none |
 | 6 | Auto re-admit after a short affiliation loss | Not started |
 | 7 | High-security mode | Not started |
 | 8 | One-owner personal maps | Not started |
@@ -62,6 +62,12 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **No tiers.** The Standard tier is dropped; everything is sealed, with no tier badges, labels or tier wording anywhere in the app.
 - What Standard was for is covered by the sealed service: recovery (decision 1), background location tracking (decision 1), and, when corp spaces are built, scheduled corp pulls using a Director's token stored sealed in the enclave. Future features that need to read map contents (for example Discord alerts) must run inside the sealed service or a corp's own bot.
 - Consequences for the doc: the escrow principal, the Steward service, tier fields in group genesis, tier badges, the leak accounting between tiers, and Standard-to-Sealed conversion are all removed.
+
+### Decision 5, agreed 2026-10-06
+
+- **No recovery delay.** Every unlock (sealed key service, passkey or recovery key) happens after an EVE login and works immediately.
+- **Principle: EVE SSO is the access gate.** Whoever can log in to a user's EVE account can reach their LGI data, as today. Encryption protects users from LGI's operators and from database leaks, not from someone holding their EVE login.
+- Consequences for the doc: the recovery delay and veto, account-proof cooldowns, and the separate recovery signing and anchor keys are removed or simplified in the identity section.
 
 ### Working notes from decision 2 (to settle in the section review)
 
