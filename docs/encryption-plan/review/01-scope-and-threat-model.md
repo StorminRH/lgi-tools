@@ -1,6 +1,17 @@
 # Part 01: Scope, principles and threat model
 
-**Status:** Draft for owner review
+**Status:** Agreed 2026-10-07 (owner review outcome below overrides anything in this part that disagrees)
+
+## Owner review outcome (2026-10-07)
+
+- **Readable is not trusted: dropped.** The sealed service does not re-verify readable access lists, links, roles or blocks before releasing keys. A leaked database write credential could change access; that risk is accepted. Rule 9 is withdrawn. Guiding preference: rely on the sealed service as little as possible.
+- **Release checks:** no "Visible change: none" PR line and no lint blocking words (rules 23 and 24 withdrawn). Visual checks are the owner's call on the dev server or staging; Playwright journeys are welcome but optional (rule 22 softened). Small interface differences are acceptable at the owner's discretion; no extra code just to keep the interface bit-identical.
+- **Timing budgets:** no formal numbers (question 4). One design rule stays: page loads, reloads and new tabs never wait on the sealed service. The owner judges the feel on staging (rule 25 reduced to this).
+- **Future features that read content:** no rule locking them into the sealed service. Placement is data-driven: a feature that must read encrypted content runs where that content can be read; otherwise anywhere (rule 10 replaced).
+- **Threat model:** internal, repo docs only (question 1).
+- **Dropped list:** approved as written (question 2).
+- **User-authored document checks:** run in the browser; LGI stores the sealed blobs (question 6).
+- **Outages:** expected to be rare (AWS single-instance availability is about 99.5%, region about 99.99%); the more likely causes are our own releases or crashes, covered by blue/green releases, automatic restart and an alert. No second always-on instance.
 
 ## In one paragraph
 

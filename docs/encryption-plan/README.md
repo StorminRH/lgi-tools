@@ -112,7 +112,7 @@ The plan is now split into 32 review parts in [review/](review/00-index.md), rew
 
 | Part | Status |
 |---|---|
-| [Part 01: Scope, principles and threat model](review/01-scope-and-threat-model.md) | Not started |
+| [Part 01: Scope, principles and threat model](review/01-scope-and-threat-model.md) | Agreed 2026-10-07 |
 | [Part 02: Data classification and storage shapes](review/02-data-classification.md) | Not started |
 | [Part 03: What stays readable and what it reveals](review/03-readable-metadata.md) | Not started |
 | [Part 04: Leaks to close first](review/04-leaks-to-close-first.md) | Not started |
