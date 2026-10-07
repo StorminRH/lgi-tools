@@ -1,6 +1,14 @@
 # Part 02: Data classification and storage shapes
 
-**Status:** Draft for owner review
+**Status:** In owner review
+
+## Owner review outcome (in progress, 2026-10-07)
+
+This section overrides the rest of the part where they disagree.
+
+- **Question 1, session IP and user agent:** keep readable with today's retention.
+- **Where map logic runs:** confirmed that "loads the map into memory" means the sealed service's memory on AWS, never the browser. The browser holds what it holds today (the rows it draws) and runs no map rules. The sealed service polls ESI over TLS that ends inside the enclave and writes sealed rows straight to Convex.
+- **Signatures are readable.** A signature without its system protects nothing, so `mapSignatures` and `mapSignatureActivity` content stays readable. Systems stay sealed. Each signature carries a readable reference to its `mapSystems` row's random ID, never the EVE system ID, so Convex serves one system's signatures by index as today (`by_map_signature` keyed on the opaque system row ID). The browser no longer loads every live signature for the map. Details, including which signature fields could hint at the system (wormhole type codes, site names, connection links), are settled in Part 16.
 
 ## In one paragraph
 
