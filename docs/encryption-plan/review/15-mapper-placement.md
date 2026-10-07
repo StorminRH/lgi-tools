@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 2 review (2026-10-07), to decide here:** map reads never touch the sealed service (browsers subscribe to Convex and decrypt). The owner confirmed rule-running edits belong on the server side, not in browsers. Open: a direct path for rule-free edits (for example a system rename or custom label), where the browser seals the one field and writes it to Convex without the sealed service, at the cost of two edit paths. Also from Part 2: today's indexes stay, using keyed system tags in place of sealed system IDs, and signatures are readable.
+
 ## In one paragraph
 
 Today every mapper rule runs on LGI's servers: Convex mutations plus two Vercel resolvers. Once map contents are sealed, those rules need plaintext, so they must run somewhere that can decrypt. In Option 1, today's mutation logic moves into the sealed service, nearly unchanged. Convex keeps its tables and reactive queries but stores sealed rows that only the enclave writes, and browsers decrypt what Convex pushes. In Option 2, every member's browser runs the rules as deterministic reducers over an ordered sealed log (the old Path A). This part recommends Option 1: it keeps the app behaving as today, keeps the work on the server side, and reuses the most code. The cost is that the enclave sees active maps in plaintext, every mapper change becomes an enclave release, and map edits pause while the sealed service is down.
