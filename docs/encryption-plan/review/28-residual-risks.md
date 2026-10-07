@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**From the Part 2 review (2026-10-07):** a database restore to an older genuine row is not detected; users see stale data until the next refresh. Accepted as a user-experience limit, not a privacy risk. No guard is built.
+
 ## In one paragraph
 
 This part tests the design against concrete attacks. For each it says what happens, how the owner finds out, and whether it is stopped or accepted. It shows what rejecting Part 12's access-list signing would cost. It replaces 01's accepted-risk list with a shorter one for the sealed-service design, and sets the checklist every phase must pass before promotion: the security-review and code-review skills at the highest level, plus adversarial tests in CI. There are no paid audits, formal models or relay simulator.
