@@ -1,6 +1,12 @@
 # Part 04: Leaks to close first
 
-**Status:** Draft for owner review
+**Status:** In owner review
+
+## Owner review outcome (in progress, 2026-10-07)
+
+This section overrides the rest of the part where they disagree. The owner is reviewing each Phase 0 PR individually.
+
+- **0-1, token leases:** cleanup only until Phase 1 (question 2): delete a user's leases when their tab goes cold, sweep expired leases from an existing Convex cron, and test that no lease reaches a log, error or telemetry event. Phase 1 deletes the table and the eve-token route.
 
 ## In one paragraph
 
