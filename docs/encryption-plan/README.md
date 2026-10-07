@@ -108,4 +108,40 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 
 ### Section-by-section review
 
-After the owner decisions are settled, the full document will be split into review parts and walked through one at a time. Each part is marked agreed here as it is settled.
+The plan is now split into 32 review parts in [review/](review/00-index.md), rewritten under the decisions and principles above, each adversarially reviewed and checked for consistency. They are walked through in order; each part is marked agreed here as it is settled. The older files (01-06) are kept as background and are superseded by the review parts where they disagree.
+
+| Part | Status |
+|---|---|
+| [Part 01: Scope, principles and threat model](review/01-scope-and-threat-model.md) | Not started |
+| [Part 02: Data classification and storage shapes](review/02-data-classification.md) | Not started |
+| [Part 03: What stays readable and what it reveals](review/03-readable-metadata.md) | Not started |
+| [Part 04: Leaks to close first](review/04-leaks-to-close-first.md) | Not started |
+| [Part 05: The sealed service: shape, runtime and availability](review/05-sealed-service-shape.md) | Not started |
+| [Part 06: Attestation, KMS sealing and the key-release rule](review/06-attestation-and-kms.md) | Not started |
+| [Part 07: Reaching the sealed service: transport and request authentication](review/07-sealed-channel.md) | Not started |
+| [Part 08: EVE login, token custody and token-bearing calls](review/08-eve-login-and-tokens.md) | Not started |
+| [Part 09: Keys, sealed formats and getting keys back](review/09-key-hierarchy.md) | Not started |
+| [Part 10: Optional passkeys and recovery keys](review/10-passkeys-and-recovery.md) | Not started |
+| [Part 11: Account lifecycle: link, unlink, merge, transfer and deletion](review/11-account-lifecycle.md) | Not started |
+| [Part 12: Map access lists, auto-admission, blocks and their integrity](review/12-map-access-and-integrity.md) | Not started |
+| [Part 13: Map keys, rotation, history and map lifecycle](review/13-map-keys-and-history.md) | Not started |
+| [Part 14: Character sales: detection, auto-blocks and notices](review/14-sale-detection-and-notices.md) | Not started |
+| [Part 15: Where map logic runs: sealed service or browsers](review/15-mapper-placement.md) | Not started |
+| [Part 16: Porting map logic and sealing Convex map rows](review/16-mapper-port-and-sealed-rows.md) | Not started |
+| [Part 17: Location tracking in the sealed service](review/17-location-tracking.md) | Not started |
+| [Part 18: Personal ESI sync in the sealed service](review/18-personal-esi-sync.md) | Not started |
+| [Part 19: Personal reads: board, character sheet, skills and jobs](review/19-personal-reads.md) | Not started |
+| [Part 20: User-authored documents: profiles, custom structures and preferences](review/20-personal-documents.md) | Not started |
+| [Part 21: Industry planner, jobs and structures](review/21-industry.md) | Not started |
+| [Part 22: Assets, valuation and net-worth history](review/22-assets-and-net-worth.md) | Not started |
+| [Part 23: Corp data: structures, holdings, jobs and visibility](review/23-corp-data.md) | Not started |
+| [Part 24: Public data and private-interest lookups](review/24-public-data.md) | Not started |
+| [Part 25: Infrastructure, environments and cost](review/25-infrastructure-and-cost.md) | Not started |
+| [Part 26: Browser security on lgi.tools: CSP, scripts and key handling](review/26-browser-security.md) | Not started |
+| [Part 27: Code integrity: reproducible enclave builds, fingerprints and releases](review/27-code-integrity-and-releases.md) | Not started |
+| [Part 28: Residual risks and adversarial review](review/28-residual-risks.md) | Not started |
+| [Part 29: Operations: monitoring, support, admin tools and incidents](review/29-operations.md) | Not started |
+| [Part 30: Shipping in parts: phases and exit criteria](review/30-phasing.md) | Not started |
+| [Part 31: Migrating existing data and retiring plaintext](review/31-data-migration.md) | Not started |
+| [Part 32: Testing strategy](review/32-testing.md) | Not started |
+

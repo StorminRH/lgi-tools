@@ -4,25 +4,25 @@
 
 ## In one paragraph
 
-This part checks 06-data-classification.md against the code and fixes the storage rules later parts build on. Most of 06 stands. It changes five things: corp structure rigs become one sealed document per corp, so they need no blind index; `locationSync` and the location ETags leave Convex entirely; the jump timestamp leaves the account-merge payload; and the unused `mapNotes`, `saved_plans` and `wh_observations` tables are dropped. It settles three storage shapes: readable rows, rows with one sealed field, and one sealed document per owner whose readable version number takes over from today's unique-index guard. It sets the blind-index rule: use none unless a Convex or Neon query cannot work without one. Today the answer is none.
+This part checks 06-data-classification.md against the code and fixes the storage rules later parts build on. Most of 06 stands. It changes five things: corp structure rigs become one sealed document per corp, so they need no blind index; `locationSync` leaves Convex entirely and the location ETags move inside the sealed location row; the jump timestamp in the account-merge payload becomes a sealed field; and the unused `mapNotes`, `saved_plans` and `wh_observations` tables are dropped. It settles three storage shapes: readable rows, rows with one sealed field, and one sealed document per owner whose readable version number takes over from today's guards. It says how sealed rows survive account merge and concurrent writes without users noticing. It sets the blind-index rule: use none unless a Convex or Neon query cannot work without one. Today the answer is none.
 
 ## How it works today
 
-- Neon tables are the Drizzle schemas exported from `src/composition/drizzle-schema.ts`. Convex tables are in `convex/schema.ts`. Content is stored as plaintext. The exceptions are EVE tokens and corp asset snapshot bodies, which are encrypted with env keys that the operator can read.
-- Owner sets (assets, blueprints, corp structures, holding nodes, job boards) are replaced in full on each ESI pull: delete, then insert, on the neon-http driver, which has no transactions. Only `owned_assets` has a guard. Its `owned_assets_natural_key_unique` index turns two overlapping refreshes into a unique violation, which the writer reports as `superseded`. `owned_blueprints` has only a non-unique owner index.
-- Convex map tables are indexed on content: `by_map_system`, `by_map_from`/`by_map_to`, `by_map_signature`, `by_map_live_group` (on the signature group) and `by_tombstone_death_latest` (on `lifetime.latestAt`). Retention uses readable `purgeAfter` indexes.
-- `session.ipAddress` and `session.userAgent` are filled in by Better Auth. Nothing in `src/` reads them. Housekeeping deletes a session one day after it expires (`SESSION_RETENTION_DAYS = 1`).
-- Preferences load and save through `/api/preferences`, which checks each value with `validatePreferenceValue`. `industry.favoriteBlueprints` holds up to 24 `{typeId, name}` pairs. The other keys are UI toggles, a profile ID or character IDs.
-- When accounts merge, `convex/accountMerge.ts` (`snapshotMergeTracking`) copies each tracking selection into `pending_tracking_merges`, including `lastProcessedTransitionAt` from `mapJumpBookkeeping`. `restoreTransitionStamp` writes it back afterwards.
+- Neon tables are exported from `src/composition/drizzle-schema.ts`; Convex tables are in `convex/schema.ts`. Content is plaintext, except Neon refresh and access tokens and corp asset snapshot bodies, encrypted with operator-readable env keys. Convex `characterLocationAccess` holds plaintext ESI access tokens (Part 04).
+- Full-replace pulls differ by writer. Character `owned_assets` and `corp_structures` (primary key `(corporationId, structureId)`) are delete-then-insert on the neon-http `db`, no transaction; `owned_assets_natural_key_unique` turns overlapping refreshes into `superseded`. Blueprints, corp assets with `corp_holding_nodes`, and `corp_profiles` with `corp_member_bases` ("one authorization snapshot") each commit in one `directClient` transaction. Sheets, skills and both job tables are already one row per owner, written by upsert.
+- Some writers merge into a shared row: `mergeSheetSection` (`sections || excluded.sections`, freshness by `jsonb_set`), `saveCharacterSkills` (queue or skills half alone) and `upsertCorpStructureRigs` (one structure, tri-state `taxPct`, untouched by the hourly replace).
+- Account merge moves rows. `rekey` sets `userId` to the survivor (`account`, `session`, `custom_structures`, `industry_profiles`, `pending_tracking_merges`). `survivor-wins` drops collisions, then rekeys (`net_worth_days`, `user_preferences`). `follows-character` leaves rows under a `characterId` that moves (sheets, skills, assets, blueprints, character jobs, `corp_member_bases`). `corp_industry_jobs` moves as a custom pair.
+- Convex map tables are indexed on content (`by_map_system`, `by_map_from`/`by_map_to`, `by_map_signature`, `by_map_live_group`, `by_tombstone_death_latest`); retention uses readable `purgeAfter` indexes. `watchMapGlanceGroups` returns deduplicated `(systemId, group)` pairs. The hourly ceiling collapse selects connections with `lifetime.latestAt <= now - 4h`.
+- The server reads custom structures twice: `CustomStructuresContent.tsx` renders them with corp structures in the drawer, behind a "Loading custom structures" skeleton, and `/api/account/structures` runs `buildAvailableStructures` with SDE modifiers. The profile duplicate route copies documents on the server. `industry_profiles.revision` backs a CAS returning `stale_revision`. `/api/industry/owned-assets` returns only rows matching the planner's `typeIds`.
+- Better Auth fills `session.ipAddress` and `session.userAgent`; nothing in `src/` reads them. Sessions are deleted one day after expiry (`SESSION_RETENTION_DAYS = 1`).
+- `/api/preferences` checks each value with `validatePreferenceValue`. `industry.favoriteBlueprints` holds up to 24 `{typeId, name}` pairs; other keys are toggles, a profile ID or character IDs.
+- On merge, `snapshotMergeTracking` copies selections with `lastProcessedTransitionAt` into `pending_tracking_merges`. The purge deletes untracked bookkeeping (`deleteBookkeepingIfUntracked`); `restoreTransitionStamp` writes the stamp back, so a processed transition cannot author a duplicate jump.
 - `corp_member_roles` stores each character's ESI role arrays and `fetchedAt`. `corp-viewer.ts` reads it to build corp grants.
 - `mapTracking` rows are `(mapId, userId, characterId)`, capped at 32 characters per user per map and 1,024 per map.
 - `characterLocationApply.ts` writes `locationSync.coveredCharacterIds`, `characterLocation.etagLocation`/`etagShip` and `characterLocationOnline.etagOnline`.
-- `wh_observations` is written only by the jump and elimination resolvers. Its `dedupe_key` equals `mapConnections.observationKey`, so each row can be traced to a map.
-- `saved_plans` has GET and POST routes plus delete, favourite and rename routes. Apart from those routes, only `api-contract.ts` and the purge contributor refer to it.
-- `mapNotes` has no UI. It is written only by the internal `insertNoteFixture`, paged in `convex/mapFixtures.ts` and listed in `convex/mapPurge.ts`.
-- `corp_structure_rigs` is keyed by `(corporationId, structureId)`. `corp_member_bases` is replaced per corp and purged per character (`follows-character`).
+- `wh_observations` is written only by the jump and elimination resolvers; its `dedupe_key` equals `mapConnections.observationKey`. `saved_plans` is referenced only by its own routes, `api-contract.ts` and its purge contributor. `mapNotes` has no UI; only the internal `insertNoteFixture`, `convex/mapFixtures.ts` and `convex/mapPurge.ts` touch it.
 
-Files: `src/composition/drizzle-schema.ts`, `convex/schema.ts`, `src/features/owned-assets/schema.ts`, `src/db/auth-schema.ts`, `src/platform/auth/verification-retention.ts`, `src/lib/preferences.ts`, `src/app/api/preferences/route.ts`, `src/data/location-tracking/schema.ts`, `convex/accountMerge.ts`, `convex/characterLocationApply.ts`, `src/data/wh-observations/schema.ts`, `src/features/industry-planner/schema.ts`, `src/app/api/account/saved-plans/`, `convex/mapFixtureNotes.ts`, `convex/mapPurge.ts`, `src/lib/db-columns.ts`.
+Files: `src/composition/drizzle-schema.ts`, `convex/schema.ts`, `src/lib/db-columns.ts`, `src/platform/purge/merge.ts`, the `purge.ts` contributors, the `queries.ts` writers in `src/features/{owned-assets,owned-blueprints,character-sheet,skill-queue,industry-jobs,owned-structures}/` and `src/data/corp-holdings/`, `src/features/industry-planner/profiles/queries.ts`, `src/app/(site)/industry/{CustomStructuresContent,layout}.tsx`, `src/app/api/account/{structures,industry-profiles/duplicate}/route.ts`, `src/app/api/industry/owned-assets/route.ts`, `src/app/api/preferences/route.ts`, `src/lib/preferences.ts`, `src/platform/auth/constants.ts`, `convex/{accountMerge,characterLocationPurge,mapTrackingTeardown,mapScan,mapAuthoringSweep,crons,characterLocationApply,mapFixtureNotes,mapPurge}.ts`.
 
 ## What changes
 
@@ -35,106 +35,149 @@ Only storage changes. Every table keeps its role. Content columns become sealed 
 | Shape | Use when | Columns |
 |---|---|---|
 | **R: readable row** | Metadata, public data, queues, sync state | Unchanged |
-| **F: sealed field** | The row is already the unit that is written, purged and merged, and readable keys drive queries | Readable keys and timestamps, one `sealed` blob replacing all content columns, readable `key_id`, readable `version` |
-| **D: sealed document per owner** | A set replaced in full per owner, or read whole per owner | One row per (owner, dataset): owner key, `sealed`, `key_id`, `version`, `updated_at` |
+| **F: sealed field** | The row is already the unit written, purged and merged; readable keys drive queries | Readable keys and timestamps, one `sealed` blob for all content, `key_id`, `version` |
+| **D: sealed document per owner** | A set replaced or read whole per owner | One row per (owner, dataset): owner key, `sealed`, `key_id`, `version`, `updated_at` |
+
+An existing revision column is the version: `industry_profiles.revision` keeps its CAS and `stale_revision` result. Other tables gain `version`. `name` moves out of `ownedRowIdentityColumns` into each table's sealed blob, for both `custom_structures` and `industry_profiles`.
 
 Rules for **D**:
-- A write is a single compare-and-swap: `UPDATE … SET sealed=$1, version=version+1 WHERE owner=… AND version=$expected`. If no row matches, the writer returns `superseded`, the same result the unique index gives today. One statement needs no transaction.
-- The first write is `INSERT … ON CONFLICT DO NOTHING`.
-- Each feature keeps its own table, so purge contributors and the `.fallowrc.json` boundaries stay as they are. A shared `sealedDocumentColumns()` helper goes in `src/lib/db-columns.ts`, next to `ownerSyncStateColumns`.
-- The document's owner must be the unit that purge, unlink and merge delete by. Where a purge removes one character from a corp set, keep shape F per character instead. This is why `corp_member_bases` stays per character.
+- A single-document write is one compare-and-swap: `UPDATE … SET sealed=$1, version=version+1 WHERE owner=… AND version=$expected`. The first write is `INSERT … ON CONFLICT DO NOTHING`.
+- **Full-replace pulls** (assets, blueprints, structures, jobs): a lost CAS returns `superseded`, the result `owned_assets` gives today.
+- **Personal ESI documents** (Part 18): the character sheet is one document per (character, section), each with a readable `last_refreshed_at`, and the public `profile` section stays a readable row. A section refresh writes only its own document, so refreshes of different sections never conflict. Section refreshes and skills half refreshes read, modify and compare-and-swap once; a lost CAS returns `superseded`, as for full-replace pulls.
+- **Merge-style writes** (rig edits): the sealed service re-reads, merges, re-seals and retries the CAS, up to five times. Users never see `superseded`.
+- **Sets committed together today** (corp assets with holding nodes, corp profile with member bases, chunks of one document): the sealed service keeps today's `directClient` transaction and does every write inside it. If any CAS misses, the transaction rolls back and returns `superseded`.
+- Each feature keeps its own table, so purge contributors and `.fallowrc.json` boundaries stay. A shared `sealedDocumentColumns()` helper goes in `src/lib/db-columns.ts`.
+- The document's owner must be the unit that purge, unlink and merge address. Where a purge removes one character from a corp set, use shape F per character, as for `corp_member_bases`.
 
-The envelope binds table, owner key, row ID and version as associated data (Part 09 sets the format). A row copied to another owner or rolled back to an old version then fails to open.
+### Associated data and keys
 
-Keys (Part 09): personal and user-authored data is sealed under the account's user key. Corp documents use the corp key, which never leaves the enclave, and each viewer's filtered result is sealed to that viewer (Part 23). Map and location rows use the map key epoch. Tokens use the token key.
+The envelope binds table, owner key, row ID and version as associated data (Part 09 sets the format). This detects rows moved between owners or tables, and mismatched version and ciphertext. It does not detect a whole row rolled back to an earlier valid state, for example by a Neon point-in-time restore. Recommendation: accept and state this limit; an operator can already destroy data.
+
+Keys (Part 09): personal and user-authored data is sealed under the account's user key. Per-character ESI documents bind `characterId`, their stable owner, not `userId`. Corp documents use the corp key, which never leaves the enclave, and each viewer's filtered result is sealed to that viewer (Part 23). Map and location rows use the map key epoch. Tokens use the token key.
+
+### Merge of sealed rows
+
+Every merge rule that moves a sealed row runs through the sealed service, in the same merge job, sequenced by Part 11. It holds both user keys.
+
+| Rule | Tables with sealed content | Sealed service action |
+|---|---|---|
+| `rekey` | `custom_structures`, `industry_profiles`, `pending_tracking_merges` | Re-seal under the survivor's user key with new associated data |
+| `survivor-wins` | `net_worth_days`, `user_preferences` | Drop collisions as today, then re-seal the moved rows |
+| `follows-character` | Sheets, skills, assets, blueprints, character jobs, `corp_member_bases` | Associated data is unchanged; re-wrap to the survivor's user key |
+| custom pair | `corp_industry_jobs` | Re-seal the pair under the survivor |
+
+`account` and `session` hold only token-key or readable data and rekey as today.
+
+### Where content is read
+
+The parts that own each read set its placement and record the reason for any browser step. This part adopts them in the data table below.
+
+| Consumer | Owner | Placement |
+|---|---|---|
+| Board, character sheet, skills, slots and personal jobs reads | Part 19 | Workers build sealed views after each write; read routes serve ciphertext and never call the sealed service (Part 19 rule 5); the browser decrypts |
+| Custom structure, profile and favourite writes | Part 20 | The browser seals and posts the blob to today's routes, not as a sealed request, so Part 07's 64 KiB cap does not apply. LGI checks only session, caps, envelope header and size, plus the existing profile revision CAS. The hull, rig and system checks are dropped. Saves keep working during a sealed-service outage |
+| Profile duplicate | Part 20 | Route deleted; the browser opens the source and seals a copy through the create route |
+| `/api/account/structures`, `buildAvailableStructures` | Parts 20, 21 | The browser runs it over decrypted custom structures, the decrypted `corp_structures` view and Part 24's public tables |
+| Structures drawer first paint | Part 21 | The server renders the readable parts; rows decrypt in the browser behind today's "Loading custom structures" skeleton |
+| `/api/industry/owned-assets`, `/api/industry/owned-blueprints` | Parts 21, 22 | Workers build whole `holding_index` and `blueprint_index` views; the browser filters them by type. Requests carry no type IDs. Corp-grant filtering runs in the workers (Part 23) |
+| Glance groups | Part 16 | Sealed service keeps one sealed glance summary row per map, updated on each scan or identify edit. The browser keeps a small reactive payload. |
 
 ### Blind indexes
 
-Default: no blind index unless a readable index must drive a Convex or Neon query that cannot instead load the owner's or map's sealed set and filter it inside the sealed service or the browser. Checked against today's indexes:
+Default: no blind index unless a readable index must drive a Convex or Neon query that cannot instead load the owner's or map's sealed set and filter it in the sealed service.
 
 | Index today | After | Blind index? |
 |---|---|---|
-| `mapSystems.by_map_system`, `mapConnections.by_map_from/to`, `mapSignatures.by_map_signature`, `mapSignatureActivity.by_map_signature` | The sealed service loads the map and searches in memory. Today's per-operation caps, such as `COLLAPSE_MAP_SCAN_CAP = 128`, keep this small. | No |
-| `mapSignatures.by_map_live_group` | Glance groups are computed after decryption | No |
-| `mapConnections.by_tombstone_death_latest` | Replaced by a readable `sweepAfter`, rounded up to the hour | No |
-| `owned_assets_natural_key_unique` per-type lookup | Load the owner document and filter it | No |
-| `corp_structure_rigs` primary key on `structureId` | One sealed rig document per corp | No |
+| `by_map_system`, `by_map_from/to`, `by_map_signature` (signatures and activity) | The sealed service loads the map and searches in memory. Caps such as `COLLAPSE_MAP_SCAN_CAP = 128` keep this small. | No |
+| `mapSignatures.by_map_live_group` | Sealed glance summary row | No |
+| `mapConnections.by_tombstone_death_latest` | Readable `sweepAfter`, rounded down to the hour | No |
+| `owned_assets_natural_key_unique` per-type lookup | The browser filters the decrypted `holding_index` view (Parts 21, 22) | No |
+| `corp_structure_rigs` primary key | One sealed rig document per corp | No |
 | `mapNotes.by_map_target` | Table dropped | No |
 
-If one is ever needed: HMAC-SHA-256 under an index key derived inside the enclave per map or per corp, truncated to 128 bits. The key never leaves the enclave, so map key rotation does not force recomputing the index.
+If one is ever needed: HMAC-SHA-256, truncated to 128 bits, under a per-map or per-corp index key derived and kept inside the enclave, so map key rotation does not force recomputing it.
 
 ### Readable timestamps
 
-Readable: Convex `deletedAt`, `purgeAfter`, connection tombstone `kind`/`deletedAt`/`purgeAfter`, coarse `sweepAfter`, `mapEvents.at`/`kind`/`actor`/`purgeAfter`, and `syncPresence` times. Neon `session.expiresAt`, every `*_syncs.lastRefreshedAt`, document `updated_at`, `net_worth_days.day`/`recordedAt`, profile `updatedAt`/`deletedAt`, map lifecycle times, queue and audit times.
+Readable: Convex `purgeAfter` (including the connection tombstone's), coarse `sweepAfter`, `mapEvents.at`/`kind`/`actor`/`purgeAfter`, `syncPresence` times. Neon `session.expiresAt`, every `*_syncs.lastRefreshedAt`, each sheet section document's `last_refreshed_at` (Part 18), document `updated_at`, `net_worth_days.day`/`recordedAt`, profile `updatedAt`/`deletedAt`, map lifecycle, queue and audit times.
 
-Sealed: anything that dates in-game activity, including `transitionObservedAt`, `observedAt`, `lastProcessedTransitionAt`, `mapSignatureActivity.lastSeenAt`, `firstSeenAt`, `seatOrderAt` and connection lifetimes.
+Sealed: map row `deletedAt` and connection tombstone `kind`/`deletedAt`, which `purgeAfter` implies (Part 16), and anything that dates in-game activity, including `transitionObservedAt`, `observedAt`, `lastProcessedTransitionAt`, `mapSignatureActivity.lastSeenAt`, `firstSeenAt`, `seatOrderAt` and connection lifetimes. The sweep selects rows by `sweepAfter`, then re-checks the exact sealed `latestAt + CEILING_COLLAPSE_GRACE_MS` and skips rows not yet due. Collapse timing matches today.
 
-ETags: readable only where the response body is too varied to guess from its ETag (asset and structure pages, skills, queue, jobs). Location, ship and online ETags are content.
+ETags: readable only where the response body is too varied to guess from its ETag (asset and structure pages, skills, queue, jobs). Location, ship and online ETags are content: location and ship ETags go inside the sealed location row, and the online ETag stays in worker memory (Part 17).
 
 ### Settled rows
 
 | Row | 06 said | This part |
 |---|---|---|
 | `session` IP, user agent | Readable | Confirm readable, today's retention |
-| `user_preferences.industry.favoriteBlueprints` | Sealed value | Confirm. The browser seals and checks it. The server checks only envelope shape and a size cap. |
-| `pending_tracking_merges` jump time | Optional | **Amend:** drop `lastProcessedTransitionAt` from `selections`. Jump bookkeeping is keyed by (map, character), so the sealed service keeps it across a merge (Part 11). |
+| `user_preferences.industry.favoriteBlueprints` | Sealed value | Confirm. The browser seals and keeps the 24-item cap; LGI checks only envelope shape and size (Part 20). |
+| `pending_tracking_merges` jump time | Optional | **Amend:** keep it, as a sealed field per selection under the map key. The sealed service snapshots and restores it in the merge job. `mapJumpBookkeeping` stays a sealed F row in Convex. |
 | `corp_member_roles` | Readable | Confirm. The sealed service re-checks roles before releasing corp data (Part 23). |
 | `mapTracking` | Readable | Confirm |
+| `map_access` grant types | Character, corp or alliance grants | **Amend:** character and corporation grants only (`MAP_ACCESS_OWNER_TYPES` in `src/data/maps/access-contract.ts`); there are no alliance grants (Part 12) |
+| Convex `deletedAt`, connection tombstone `kind`/`deletedAt` | Readable | **Amend:** sealed; readable `purgeAfter` implies them (Part 16) |
+| `character_sheets` | Encrypt whole row; readable `characterId`, `lastRefreshedAt` | **Amend:** one shape-D document per (character, section) with readable `last_refreshed_at`; the public `profile` section stays a readable row (Part 18) |
 | `locationSync.coveredCharacterIds` | Leaves Convex | **Amend:** drop the whole `locationSync` table when polling moves (Part 17). Coverage goes inside the sealed location row. |
-| Location ETags | Content | **Amend:** held in the sealed service's poller state, not in the per-map location row |
+| Location ETags | Content | **Amend:** `etagLocation` and `etagShip` go inside the sealed per-(map, character) location row; after a restart the workers rebuild them from it (Parts 04, 17) |
 | `wh_observations` | Drop | Confirm. Drop both emitters too (Part 04). |
 | `saved_plans` | Drop | Confirm. Drop the table, routes, contract entries, queries and purge contributor. |
 | `mapNotes` | Encrypt fields | **Amend:** drop the table, `convex/mapFixtureNotes.ts`, the notes branch in `mapFixtures.ts` and the `mapPurge.ts` entry |
-| `corp_structure_rigs` | Fields plus blind index | **Amend:** shape D, one rig document per corp. It survives the hourly structure replace because it is a separate document. |
+| `corp_structure_rigs` | Fields plus blind index | **Amend:** shape D, one rig document per corp, written merge-style. It survives the hourly structure replace because it is a separate document. |
 | `esi_snapshots` | Re-key or drop | Default drop, with `owned_assets.snapshot_id` (Part 23) |
 
 ## Data: readable vs encrypted
 
-| Data item | Stays readable on LGI servers | Encrypted | Where computed |
+| Data item (merge rule) | Stays readable on LGI servers | Encrypted | Where computed |
 |---|---|---|---|
 | `user`, `characters`, `session`, `verification`, `jwks`, `corp_member_roles`, `corp_structure_sharing`, `corp_access_audit`, `pending_deletions` | All (R) | — | LGI server |
-| `account` | IDs, scope, owner hash, health counters (F) | Tokens (token key) | Sealed service |
-| `maps`, `map_access`, `map_blocks`, `map_block_accounts`, `map_access_changes`, `tracking_receipt_cleanup` | All (R) | — | LGI server; access integrity in Part 12 |
-| `pending_tracking_merges` | IDs, map and character selections, `queuedAt` | — (jump time removed) | LGI server |
-| `character_sheets`, `character_skills`, `character_industry_jobs` | `characterId`, version, `updated_at` (D per character) | Body | Sealed service; browser decrypts |
-| `owned_assets`, `owned_blueprints` | Owner type and ID, version (D per owner) | Holdings | Sealed service |
-| `net_worth_days` | `userId`, `day`, pilot counts, `recordedAt` (F) | Values, per-pilot breakdown | Sealed service |
-| `custom_structures`, `industry_profiles` | `id`, `userId`, `revision`, timestamps (F) | `name` and body | Browser; LGI stores blobs |
-| `user_preferences` | Every key except one | `industry.favoriteBlueprints` value | Browser (decrypt only) |
-| `corp_structures`, `corp_holding_nodes`, `corp_structure_rigs` | `corporationId`, version (D per corp) | Body | Sealed service |
-| `corp_industry_jobs` | `userId`, `corporationId`, version (D) | Jobs | Sealed service |
-| `corp_profiles` | `corporationId`, `hqStationId`, refresh time (F) | Division, container and structure names | Sealed service |
-| `corp_member_bases` | `characterId`, `corporationId` (F) | `baseId` | Sealed service |
+| `account` (rekey) | IDs, scope, owner hash, health counters (F) | Tokens (token key) | Sealed service |
+| `maps`, `map_access` (character and corporation grants only), `map_blocks`, `map_block_accounts`, `map_access_changes`, `tracking_receipt_cleanup` | All (R) | — | LGI server; access integrity in Part 12 |
+| `pending_tracking_merges` (rekey) | IDs, map and character selections, `queuedAt` | Jump time per selection (map key) | Sealed service |
+| `character_sheets` (follows-character) | `characterId`, section, version, `last_refreshed_at`, `updated_at` (D per section); the whole public `profile` section (R) | Eight non-profile sections | Sealed service; views per Part 19; browser decrypts |
+| `character_skills`, `character_industry_jobs` (follows-character) | `characterId`, version, `updated_at` (D) | Body | Sealed service; views per Part 19; browser decrypts |
+| `owned_assets`, `owned_blueprints` (follows-character) | Owner type and ID, version (D) | Holdings | Sealed service builds `holding_index` and `blueprint_index` views; the browser filters by type (Parts 21, 22) |
+| `net_worth_days` (survivor-wins) | `userId`, `day`, pilot counts, `recordedAt` (F) | Values, per-pilot breakdown | Sealed service |
+| `custom_structures` (rekey) | `id`, `userId`, `createdAt`, `version` (F) | `name` and body | Browser seals, opens and builds available structures (Parts 20, 21); LGI checks envelope shape and size; sealed service re-seals only for merge and migration |
+| `industry_profiles` (rekey) | `id`, `userId`, `revision`, `createdAt`, `updatedAt`, `deletedAt` (F) | `name` and document | Browser seals, opens and duplicates (Part 20); LGI keeps the cap and revision CAS; sealed service re-seals only for merge and migration |
+| `user_preferences` (survivor-wins) | Every key except one | `industry.favoriteBlueprints` value | Browser seals, opens and keeps the 24-item cap (Part 20); LGI checks envelope shape and size |
+| `corp_structures`, `corp_holding_nodes`, `corp_structure_rigs` | `corporationId`, version (D per corp) | Body | Sealed service builds per-viewer views; browser decrypts and composes available structures (Part 21) |
+| `corp_industry_jobs` (custom pair) | `userId`, `corporationId`, version (D) | Jobs | Sealed service |
+| `corp_profiles` | `corporationId`, `hqStationId`, refresh time (F) | Division, container and structure names | Sealed service, one transaction with bases |
+| `corp_member_bases` (follows-character) | `characterId`, `corporationId` (F) | `baseId` | Sealed service |
 | `*_syncs`, `esi_refresh_jobs`, `domain_events`, `usage_logs`, `gsc_*` | All; error fields as codes (Part 04) | — | LGI server |
 | Public data (SDE, market, indices, statics, sites) | All | — | LGI server |
 | Convex `syncPresence`, `mapAccess`, watermarks, `mapTracking`, receipts | All (R) | — | LGI server |
-| `mapSystems`, `mapConnections`, `mapSignatures`, `mapSignatureActivity`, `mapEvents`, `mapJumpBookkeeping` | `mapId`, opaque IDs, retention fields listed above (F) | Everything else (map key) | Sealed service writes; browser decrypts |
-| `characterLocation` per (map, character) | `mapId`, `characterId` | Location, ship, coverage | Sealed service writes; browser decrypts |
+| `mapSystems`, `mapConnections`, `mapSignatures`, `mapSignatureActivity`, `mapEvents`, `mapJumpBookkeeping`, glance summary | `mapId`, opaque IDs, retention fields listed above (F) | Everything else (map key) | Sealed service writes; browser decrypts |
+| `characterLocation` per (map, character) | `mapId`, `characterId` | Location, ship, coverage, location and ship ETags | Sealed service writes; browser decrypts |
 | `locationSync`, `characterLocationCovered`, `characterLocationOnline`, `characterLocationAccess`, `syncSubjects`, `characterOnline`, `mapNotes`, `saved_plans`, `wh_observations`, `esi_snapshots` | Dropped | — | — |
 
 ## Hard rules
 
 1. [Agreed] Content is sealed and metadata stays readable, as in principle 2. No new table may store content columns in plaintext.
-2. [Agreed] Logic that reads content runs in the sealed service, or in the browser only where 06 or a later part says so.
+2. [Agreed] Logic that reads content runs in the sealed service. It runs in the browser only where the sealed service cannot do it, or the browser already does that work today (decrypt-only), with the reason recorded in the part.
 3. [Proposed] Every sealed value uses one of shapes F or D. There are no ad hoc per-column ciphertexts.
-4. [Proposed] Every sealed row has a readable `version` and `key_id`. Writes are compare-and-swap on `version`.
-5. [Proposed] A document's owner is the unit that purge, unlink and merge delete by.
-6. [Proposed] The envelope binds table, owner key, row ID and version as associated data.
-7. [Proposed] No blind index without a named Convex or Neon query that needs it, recorded in this part. Any blind-index key stays inside the enclave.
-8. [Proposed] Timestamps of in-game activity are sealed. Retention and sweep times stay readable, and `sweepAfter` is rounded up to the hour.
-9. [Proposed] An ETag is readable only if its response body cannot practically be guessed from it.
-10. [Proposed] `mapNotes`, `saved_plans`, `wh_observations` and their code are deleted, not encrypted.
+4. [Proposed] Every sealed row has a readable version and `key_id`. An existing revision column is the version. Writes are compare-and-swap on it.
+5. [Proposed] A document's owner is the unit that purge, unlink and merge address.
+6. [Proposed] The envelope binds table, owner key, row ID and version as associated data. Per-character documents bind `characterId`.
+7. [Proposed] Full-replace writes return `superseded` on a lost CAS. Merge-style writes retry inside the sealed service and never surface `superseded`. Sets committed together today stay in one transaction.
+8. [Proposed] Every merge rule that moves a sealed row runs through the sealed service in the merge job, re-sealing or re-wrapping under the survivor's user key.
+9. [Proposed] No blind index without a named Convex or Neon query that needs it, recorded in this part. Any blind-index key stays inside the enclave.
+10. [Proposed] Timestamps of in-game activity are sealed. Retention and sweep times stay readable. `sweepAfter` is rounded down to the hour, and the sealed service re-checks the exact due time.
+11. [Proposed] An ETag is readable only if its response body cannot practically be guessed from it.
+12. [Proposed] `mapNotes`, `saved_plans`, `wh_observations` and their code are deleted, not encrypted.
 
 ## Assumptions
 
-- **The largest corp asset document fits one Neon HTTP request and one enclave memory budget.** Check: measure the largest current `owned_assets` owner in production. If it is too large, split the document into numbered chunks that share one version.
+- **The largest corp asset document fits one Neon request and one enclave memory budget.** Check: measure the largest current `owned_assets` owner in production. If too large, split it into numbered chunks written in one transaction under one version.
 - **No UI or job reads `saved_plans` or `mapNotes`.** Check: run Fallow after removal and search production logs for calls to the routes.
 - **Under Option 1, the sealed service can hold one map's rows in memory for each edit.** Check: the Part 05 memory budget.
+- **Decrypting the structures drawer adds no visible delay behind today's skeleton.** Check: time it on staging against today.
+- **Five CAS retries are enough for merge-style writes.** Check: count retries in staging telemetry.
 - **Readable pilot counts in `net_worth_days` reveal nothing beyond the linked characters LGI already knows.** Part 22 confirms.
 
 ## What users see
 
-Nothing new. Favourite blueprints, profiles and custom structures load as they do today. The browser decrypts them after the same API calls.
+Nothing new. Favourite blueprints, profiles and custom structures load and save as they do today, in the same number of round trips. The structures drawer shows today's skeleton until its data is ready. Merges keep profiles, custom structures, favourites and net-worth history. Concurrent rig and sheet saves both land, as today.
 
 ## Questions for the owner
 
@@ -142,4 +185,6 @@ Nothing new. Favourite blueprints, profiles and custom structures load as they d
 2. **One sealed document per owner, chunked only if too large?** Recommend yes.
 3. **Blind indexes only on demand, none at launch?** Recommend yes.
 4. **Drop `mapNotes` now rather than encrypt it?** Recommend drop. A future notes feature would seal notes in the browser.
-5. **Remove the jump timestamp from `pending_tracking_merges`?** Recommend yes, with the sealed service keeping jump bookkeeping across merges.
+5. **Keep the merge jump timestamp as a sealed field rather than drop it?** Recommend yes. Dropping it would let a processed transition author a duplicate jump after a merge.
+6. **Accept that whole-row rollback from a backup is not detected?** Recommend accept and state it. The alternative is a per-owner version high-water mark in the sealed service.
+7. **Rigs: one document per corp with merge-style retries, or one F row per structure?** Recommend one document. Per-structure F rows with opaque IDs also need no blind index, since reads already load every rig for a corp.
