@@ -9,6 +9,7 @@ This section overrides the rest of the part where they disagree.
 - **Voided by Part 1:** "Readable is not trusted" was dropped, so the "Readable is not trusted" table, rule 3, rule 4 and question 5 are withdrawn. Question 3 is settled by Part 1: the readable list lives in internal repo docs, not linked from the app. Rows in the big table that describe later-part machinery (signed access snapshots, link records, sealed request log) are revisited when those parts are reviewed.
 - **Question 1, timing leaks:** accepted as is. Location rows stay keyed by readable `characterId`, so who and when a tracked character updated is visible (an activity pattern over time), but never where, which ship or docked status. Map edit times, row counts and site heartbeats are also accepted. No per-map location tags, no constant-rate or dummy writes.
 - **Question 2, padding:** no padding anywhere (rule 7 withdrawn). The cost in Convex bandwidth and storage outweighs hiding volume, which ESI page counts already show. Sealed sizes roughly reveal how much data an owner has; accepted.
+- **Question 3, retention:** keep today's values, except the corp access audit drops from 400 to 180 days (`CORP_ACCESS_AUDIT_RETENTION_DAYS` in `src/platform/auth/constants.ts`). Telemetry stays at 180 days: it feeds the admin table and is the owner's only analytics. Domain events and GSC stay at 400 days. Future idea, not in scope: show corps their access audit in the app so they never need to request it.
 
 ## In one paragraph
 
