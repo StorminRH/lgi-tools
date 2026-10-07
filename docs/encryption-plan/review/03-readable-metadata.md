@@ -1,6 +1,13 @@
 # Part 03: What stays readable and what it reveals
 
-**Status:** Draft for owner review
+**Status:** In owner review
+
+## Owner review outcome (in progress, 2026-10-07)
+
+This section overrides the rest of the part where they disagree.
+
+- **Voided by Part 1:** "Readable is not trusted" was dropped, so the "Readable is not trusted" table, rule 3, rule 4 and question 5 are withdrawn. Question 3 is settled by Part 1: the readable list lives in internal repo docs, not linked from the app. Rows in the big table that describe later-part machinery (signed access snapshots, link records, sealed request log) are revisited when those parts are reviewed.
+- **Question 1, timing leaks:** accepted as is. Location rows stay keyed by readable `characterId`, so who and when a tracked character updated is visible (an activity pattern over time), but never where, which ship or docked status. Map edit times, row counts and site heartbeats are also accepted. No per-map location tags, no constant-rate or dummy writes.
 
 ## In one paragraph
 
