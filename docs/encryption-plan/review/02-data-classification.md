@@ -1,8 +1,8 @@
 # Part 02: Data classification and storage shapes
 
-**Status:** In owner review
+**Status:** Agreed 2026-10-07
 
-## Owner review outcome (in progress, 2026-10-07)
+## Owner review outcome (2026-10-07)
 
 This section overrides the rest of the part where they disagree.
 
@@ -16,6 +16,8 @@ This section overrides the rest of the part where they disagree.
 - **`wh_observations` redesign (agreed):** the table becomes totals only: `(solar_system_id, wh_type_code, count)`. No time, no provenance, no dedupe key, no per-sighting rows. The owner draws a per-system distribution; the top types are the statics. The sealed service counts: each map connection carries a sealed "counted" flag, so a hole is counted once however many members jump or identify it; a retype moves its count from the old type to the new one. Increments are held in the sealed service and added once a day in one batch across all maps, so write times do not line up with any map's activity. Pending increments lost to a restart before the daily write are accepted. The readable `observationKey` on Convex rows goes away.
 - **Question 5, merge jump time:** keep it, sealed. All jump and activity times are sealed (Readable timestamps below); the merge snapshot in `pending_tracking_merges` is one more copy and follows the same rule.
 - **Question 6, whole-row rollback:** accepted as a user-experience limit, not a security risk. No anti-rollback machinery and no rollback guards are built; the owner does not plan rollbacks. Honest restores keep working because restored rows are genuine and still decrypt (old map key epochs are kept anyway for map history), and rows of deleted accounts stay unreadable after a restore because their keys are gone, with no extra code.
+- **Question 7, corp structure rigs:** one sealed F row per structure, keeping today's `(corporationId, structure)` shape. `corporationId` stays readable; the structure ID becomes a keyed tag (like map system tags); rig list, tax rate and set time are sealed. Edits write one small row, so no retry loop is needed.
+- **Hard rules adjusted by these outcomes:** rule 9 now reads "keep today's indexes; where an indexed column is sealed, replace it with a keyed tag computed in the enclave". Rule 12 now covers `mapNotes` and `saved_plans` only; `wh_observations` is kept as anonymous totals.
 
 ## In one paragraph
 
