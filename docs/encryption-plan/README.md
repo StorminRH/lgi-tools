@@ -20,6 +20,8 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 2. **Encrypt only what needs hiding.** Metadata can stay readable on LGI's servers: who uses the app, which corporations, that maps exist, map names, membership and access lists. What users must not have exposed is content: map contents (systems, connections, signatures), character locations, assets, structures, industry data and corp holdings.
 3. **LGI's servers keep doing the bulk of the work.** Prefer keeping computation and storage on LGI's servers (Convex, Neon) over moving it into the browser. Where server-side work needs to read encrypted content, prefer the sealed AWS service over the browser. Use the browser only where neither works.
 4. **EVE SSO is the access gate** (decision 5).
+5. **Efficiency first** (Part 02 review). Wherever a service is touched, keep it cheap and fast: keep database indexes, avoid extra Convex reads and bandwidth, no padding or dummy writes.
+6. **Guard stored data, not the owner's own code** (Part 04 review). Leaks this plan closes are data that is stored or logged. Request contents handled in memory and never stored are not guarded; a rogue code change is a known limit, not something to design around.
 
 ## Review status
 
