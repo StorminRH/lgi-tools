@@ -8,6 +8,7 @@ This section overrides the rest of the part where they disagree. The owner is re
 
 - **0-1, token leases:** cleanup only until Phase 1 (question 2): delete a user's leases when their tab goes cold, sweep expired leases from an existing Convex cron, and test that no lease reaches a log, error or telemetry event. Phase 1 deletes the table and the eve-token route.
 - **0-2, wormhole observations: replaced, not dropped** (per Part 2). Phase 0 creates the totals table `(solar_system_id, wh_type_code, count)`, converts existing rows once (grouped by system and type, each `dedupe_key` counted once), then drops the old table. Each connection or signature gets a "counted as" type field: learning a type adds one and records it, the same type again does nothing, a retype moves the count. Resolvers write counts immediately until the sealed service exists; the daily batch arrives with it. In Phase 2 the field and `observationKey` move inside the sealed rows. Occasional double or missed counts from a half-failed write across Neon and Convex are accepted.
+- **0-3, statics per system:** agreed as written. One versioned statics asset (about 15 KB) loaded with the universe assets; three releases (add asset, switch browser and Convex, delete the per-system route). Also an efficiency gain: one cached download replaces a Vercel call per system added.
 
 ## In one paragraph
 
