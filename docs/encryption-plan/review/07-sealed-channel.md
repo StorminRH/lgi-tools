@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 3 review (2026-10-07):** decide whether the readable sealed-request record needs the account ID at all. Map event `kind` and `actor` are now sealed, so the request record is the remaining place that shows who edited a map and when.
+
 ## In one paragraph
 
 This part decides how browsers, Vercel and Convex send work to the sealed service and get answers back. The default is to relay everything through Convex. A browser writes a sealed request row, the enclave picks it up over a connection it opens itself, and it writes a reply row. AWS needs no inbound port, and no new origin appears. Each request is encrypted to a key the browser found in an attestation it verified before sending anything. It is signed by the browser session key registered at EVE login, so the enclave never relies on Vercel's cookie or Convex's JWT. The part also ties keys to today's rolling sessions and sets idempotency, ordering, size limits, deadlines, cron work, which of today's paths move, and the credential that lets only the enclave write sealed Convex rows.

@@ -1,8 +1,8 @@
 # Part 03: What stays readable and what it reveals
 
-**Status:** In owner review
+**Status:** Agreed 2026-10-07
 
-## Owner review outcome (in progress, 2026-10-07)
+## Owner review outcome (2026-10-07)
 
 This section overrides the rest of the part where they disagree.
 
@@ -10,6 +10,8 @@ This section overrides the rest of the part where they disagree.
 - **Question 1, timing leaks:** accepted as is. Location rows stay keyed by readable `characterId`, so who and when a tracked character updated is visible (an activity pattern over time), but never where, which ship or docked status. Map edit times, row counts and site heartbeats are also accepted. No per-map location tags, no constant-rate or dummy writes.
 - **Question 2, padding:** no padding anywhere (rule 7 withdrawn). The cost in Convex bandwidth and storage outweighs hiding volume, which ESI page counts already show. Sealed sizes roughly reveal how much data an owner has; accepted.
 - **Question 3, retention:** keep today's values, except the corp access audit drops from 400 to 180 days (`CORP_ACCESS_AUDIT_RETENTION_DAYS` in `src/platform/auth/constants.ts`). Telemetry stays at 180 days: it feeds the admin table and is the owner's only analytics. Domain events and GSC stay at 400 days. Future idea, not in scope: show corps their access audit in the app so they never need to request it.
+- **Question 4, map event log:** seal `mapEvents.kind` and `actor` inside `payload`, as proposed. The rule applied throughout: a field stays readable only if LGI-server logic needs it. This hides the kind of each edit fully; who edited may still be visible from other records (Part 07's request record), which Part 07 revisits.
+- **Rule changes from these outcomes:** rule 3, rule 4 and rule 7 are withdrawn. Rule 9's disclosure page becomes the internal readable list in the repo docs, kept in step with 06 and this part.
 
 ## In one paragraph
 
