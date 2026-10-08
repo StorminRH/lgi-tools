@@ -5,7 +5,8 @@ An EVE Online multi-tool focused on simplifying complex tasks.
 ## Work Flow
 
 Work targets `development`. Promote is `development` → `staging`;
-release is `staging` → `main`. There are no per-PR preview
+release is `staging` → `main`. Merge with merge commits, never squash. Fixes
+made on `staging` or `main` come back to `development` by merging. There are no per-PR preview
 deployments: test with local dev servers, and `staging` is the
 long-lived test environment.
 
@@ -22,7 +23,7 @@ Before every commit, run `pnpm check` through the test-runner agent:
 typecheck, lint, tests related to the change, and static Fallow over
 the whole tree. `pnpm verify` is the full gate, with the full suite
 under coverage and CRAP. The Coverage health workflow runs its coverage
-half on every pull request push. Run `pnpm verify` before promote or
+half on pull request pushes that touch code. Run `pnpm verify` before promote or
 release and whenever Coverage health fails.
 
 Fix every Fallow finding when it appears, whoever introduced it. Do not

@@ -101,8 +101,9 @@ Each CLI reads its credential from the environment. Read before writing,
 and change production only when the user asks for that change.
 
 - **Neon:** `neon` reads `NEON_API_KEY`, for example
-`neon branches list --project-id <id>`. Never point the local stack at a
-Neon URL.
+`neon branches list --project-id "$NEON_PROJECT_ID"`. The key is scoped to
+that project, so `neon projects list` is refused. Never point the local
+stack at a Neon URL.
 - **Vercel:** `vercel` reads `VERCEL_TOKEN`; with `VERCEL_ORG_ID` and
 `VERCEL_PROJECT_ID` set it needs no `vercel link`, for example
 `vercel ls` or `vercel env ls`.
@@ -110,9 +111,10 @@ Neon URL.
 reads `LGI_CONVEX_STAGING_DEPLOY_KEY`, accepts only the staging deployment,
 refuses `dev`, and needs `LGI_ALLOW_STAGING_PUSH=1` for `deploy` or
 `import`. Plain `convex` commands stay on the local anonymous backend.
-- **Remote checks:** `PLAYWRIGHT_BASE_URL` with
-`VERCEL_AUTOMATION_BYPASS_SECRET` reaches protected staging; see
-`.env.example`.
+- **Remote checks:** the agent proxy adds the bypass header to every
+request for `staging.lgi.tools`, so `curl "$PLAYWRIGHT_BASE_URL"` returns
+200 without one. `vercel` commands can sit silent for a minute; give them a
+timeout.
 
 ESI (`esi.evetech.net`), EVE images, EVE SSO, and the SDE on
 `developers.eveonline.com` are on the network allowlist, so EVE-facing

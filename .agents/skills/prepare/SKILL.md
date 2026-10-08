@@ -31,8 +31,12 @@ configured bots may run on ordinary pushes; do not solicit extra reviews.
 
 Do not promote to `staging`, release to `main`, deploy, or open a promotion
 PR. Do not bypass branch protection, use admin merge, enable auto-merge,
-force-push, or rewrite branch history. Do not delete branches or clean up
-unrelated worktrees as part of preparation.
+force-push, squash, or rewrite branch history. Do not delete branches or
+clean up unrelated worktrees as part of preparation. Never `git stash` in a
+shared checkout; use a worktree.
+
+While waiting on CI, check quietly every few minutes. Do not post progress
+messages; report when the wait ends.
 
 ## Establish the merge order
 
@@ -56,8 +60,11 @@ release, or unrelated-base PR into a development PR.
 
 ## Make each PR ready
 
-Work on one merge candidate at a time. Check its latest head against the latest
-`development`, not a snapshot taken before earlier merges.
+Fix every requested PR that needs it before waiting on any CI, and push each
+fix, so their checks run in parallel. Then merge in dependency order as each
+turns green. Before each merge, check that PR's latest head against the
+latest `development`, not a snapshot taken before earlier merges; a dependent
+usually needs `development` merged in again after its prerequisite lands.
 
 If it conflicts or must be updated to satisfy repository merge rules, merge
 the current `origin/development` into its head branch using `--no-commit`
@@ -78,7 +85,11 @@ for Codex, give the subagent the repository's test-runner instructions from
 `.claude/agents/test-runner.md`, without copying Claude model settings.
 Whenever Coverage health fails, run `pnpm verify` through that agent and fix
 its failures before pushing. Full verification is otherwise not a preparation
-requirement. Never run production builds locally.
+requirement. Never run production builds locally. Database suites need the
+local Postgres (`docker compose up -d`); skipped suites mean it is down, not
+green. Stop any running `pnpm dev` before verifying; it exhausts Postgres
+connections. If a date or time test fails only locally, compare the database
+timezone (`SHOW timezone`) with CI's UTC before changing code.
 
 Confirm the checked-out branch is the PR head before committing or pushing.
 Push only the intended fixes, then wait for automatic checks on the new head.
@@ -97,8 +108,8 @@ that exclusion accurately. Do not demand a manual Verify run just because
 If checks need manual dispatch/rerun, access is unavailable, a required review
 is missing, or mergeability stays unknown, stop the affected PR and report
 the concrete blocker. Do not invoke bots or bypass requirements to clear it.
-If automatic CI remains pending beyond a reasonable bounded wait, report
-pending rather than merging. Stop repeated repair attempts when the same
+If automatic CI is still pending after 30 minutes, report pending rather than
+merging. Stop repeated repair attempts when the same
 failure persists without a new actionable diagnosis. Continue independent
 requested PRs when safe; hold dependents of a blocked PR.
 
@@ -107,12 +118,8 @@ mergeability. Confirm the base is `development`, the intended diff remains
 intact, and all applicable checks pass. If the head or base advanced, reassess
 readiness. Mark an authorized draft ready when needed and recheck requirements.
 
-Use the repository's allowed merge method and pin the operation to the checked
-head with `gh pr merge <number> --repo <owner/repo> --match-head-commit <sha>`
-plus the appropriate merge-method flag. Prefer a merge commit when allowed
-for a stack so ancestry remains intact. If squash is required, reassess the
-remaining stack's diff and ancestry after each merge; never assume an ancestor
-PR's commits disappeared from its dependents automatically.
+Merge with a merge commit, never squash or rebase, pinned to the checked head:
+`gh pr merge <number> --repo <owner/repo> --merge --match-head-commit <sha>`.
 
 Verify GitHub reports the PR merged into `development`, fetch the resulting
 branch, and confirm the recorded merge commit is included. Then refresh and
