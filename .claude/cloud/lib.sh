@@ -358,14 +358,14 @@ lgi_setup_summary() {
 }
 
 # Hosted CLIs, by variable name only. Network secrets read as the
-# placeholder `proxy-injected`; the agent proxy adds the real header.
+# placeholder `proxyinjected`; the agent proxy adds the real header.
 lgi_hosted_credential_summary() {
   local name val out=""
   for name in VERCEL_TOKEN NEON_API_KEY VERCEL_AUTOMATION_BYPASS_SECRET LGI_CONVEX_STAGING_DEPLOY_KEY EVE_CLIENT_SECRET; do
     val="${!name-}"
     if [ -z "$val" ]; then
       out="$out $name=missing"
-    elif [ "$val" = proxy-injected ]; then
+    elif [ "$val" = proxyinjected ]; then
       out="$out $name=proxy"
     else
       out="$out $name=set"

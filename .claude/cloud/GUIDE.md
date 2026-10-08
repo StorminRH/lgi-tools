@@ -15,24 +15,29 @@ The environment's Edit dialog at claude.ai/code holds what the repo cannot.
 Changing the setup script or allowed domains rebuilds the snapshot, which is
 only kept when setup finishes within about five minutes.
 
-Setup script, verbatim. It finds the clone itself and never blocks the
+Setup script, verbatim. It finds the clone itself, logs where it ran to
+`~/.local/share/lgi/environment-setup.log`, and never blocks the
 session; the SessionStart hook reruns `setup.sh` when provisioning did not
 finish.
 
 ```bash
 #!/bin/bash
+log="$HOME/.local/share/lgi/environment-setup.log"
+mkdir -p "$(dirname "$log")"
 repo="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 if [ ! -f "$repo/.claude/cloud/setup.sh" ]; then
-  f="$(find /home /root /workspace /workspaces -maxdepth 4 -path '*/.claude/cloud/setup.sh' 2>/dev/null | head -1)"
+  f="$(find / -maxdepth 5 -path '*/.claude/cloud/setup.sh' -not -path '/proc/*' 2>/dev/null | head -1)"
   repo="${f%/.claude/cloud/setup.sh}"
 fi
-bash "$repo/.claude/cloud/setup.sh" || echo "lgi setup.sh failed; see ~/.local/share/lgi/setup.log"
+echo "$(date -u +%FT%TZ) cwd=$PWD repo=${repo:-none} branch=$(git -C "${repo:-/}" rev-parse --abbrev-ref HEAD 2>/dev/null)" >>"$log"
+bash "$repo/.claude/cloud/setup.sh" || echo "setup.sh exit $?" >>"$log"
 exit 0
 ```
 
 Network secrets (the agent proxy adds the header; the session never sees
 the value). Their environment variables hold the placeholder
-`proxy-injected` so the CLIs start; that value is expected.
+`proxyinjected` so the CLIs start; that value is expected. It has no hyphen
+because the Vercel CLI rejects a `VERCEL_TOKEN` containing one.
 
 | Secret | Allowed website | Header |
 | --- | --- | --- |

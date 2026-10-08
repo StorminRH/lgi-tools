@@ -17,6 +17,11 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
 fi
 
 echo "cloud setup: $(lgi_setup_summary)"
+if [ -f "$LGI_STATE_DIR/environment-setup.log" ]; then
+  echo "cloud setup: environment script: $(tail -n 2 "$LGI_STATE_DIR/environment-setup.log" | tr '\n' ' ')"
+else
+  echo "cloud setup: environment script: no log (it did not run, or predates the logging version)"
+fi
 echo "cloud setup: $(lgi_hosted_credential_summary)"
 
 if [ ! -f "$LGI_PROVISIONED_MARKER" ]; then
