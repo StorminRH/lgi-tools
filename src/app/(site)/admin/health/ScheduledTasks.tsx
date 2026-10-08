@@ -15,7 +15,7 @@ import {
 import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
 import { AdminTrendChart } from '../charts';
-import { getLastSyncedAtShared } from '../last-synced';
+import { getLastSyncedAtShared } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { CRON_OUTCOME_RULES, deriveCronStatuses } from '../signals';

@@ -7,9 +7,8 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { getSystemStatics } from '@/data/wh-statics/queries';
 import { deriveActionRows, type AdminActionRow } from './actions-view';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { getEsiRefreshQueueStatsShared } from './queue-stats-shared';
+import { getEsiRefreshQueueStatsShared, getStaticsReviewShared } from './shared-reads';
 import { summarizeQueue } from './signals';
-import { getStaticsReviewShared } from './statics-review-shared';
 
 const REFERENCE_LINKS = [
   { href: '/preview/primitives', label: 'Primitives' },

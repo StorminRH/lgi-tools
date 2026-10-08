@@ -14,12 +14,9 @@ import {
 } from '@/data/telemetry/queries';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { loadDeployMarkers } from './deploy-markers';
-import { getBudgetExhaustionCountShared, getFallbackRateShared } from './esi-source-shared';
-import { getLastSyncedAtShared } from './last-synced';
+import { getBudgetExhaustionCountShared, getEsiRefreshQueueStatsShared, getFallbackRateShared, getLastSyncedAtShared, getStaticsReviewShared } from './shared-reads';
 import { loadSection } from './load-section';
-import { getEsiRefreshQueueStatsShared } from './queue-stats-shared';
 import type { AdminSignals, SliSignals } from './signals';
-import { getStaticsReviewShared } from './statics-review-shared';
 
 // One read per request feeds both the attention list and the status cards.
 // Each source is its own section, so one failed read leaves the rest intact.

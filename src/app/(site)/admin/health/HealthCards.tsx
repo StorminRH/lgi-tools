@@ -22,7 +22,7 @@ import {
 import type { DateRange } from '@/data/telemetry/types';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { summarizeDomainEvent } from '../ops-view';
-import { getEsiRefreshQueueStatsShared } from '../queue-stats-shared';
+import { getEsiRefreshQueueStatsShared } from '../shared-reads';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { summarizeQueue } from '../signals';
 import { deriveServiceLevels } from './health-view';

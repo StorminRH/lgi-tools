@@ -16,7 +16,7 @@ import { formatIsoDay } from '@/lib/format/time';
 import { AdminTrendChart } from '../charts';
 import { DeltaBadge } from '../DeltaBadge';
 import { deriveGscMultiples } from '../gsc-multiples-view';
-import { getLastSyncedAtShared } from '../last-synced';
+import { getLastSyncedAtShared } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { deriveGscPerformanceView } from '../traffic-view';

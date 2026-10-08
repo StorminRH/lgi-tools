@@ -1,9 +1,8 @@
 import { AdminNav, AdminNavFallback } from './admin-nav';
 import { ADMIN_NAV_GROUPS, deriveNavBadges, type AdminNavBadges } from './admin-sections';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { getEsiRefreshQueueStatsShared } from './queue-stats-shared';
+import { getEsiRefreshQueueStatsShared, getStaticsReviewShared } from './shared-reads';
 import { summarizeQueue } from './signals';
-import { getStaticsReviewShared } from './statics-review-shared';
 
 async function loadNavBadges(): Promise<AdminNavBadges> {
   const fetched = await loadSection('admin-nav-badges', () =>

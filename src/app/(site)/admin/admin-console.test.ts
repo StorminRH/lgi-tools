@@ -19,13 +19,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 
-vi.mock('./queue-stats-shared', () => ({
+vi.mock('./shared-reads', () => ({
   getEsiRefreshQueueStatsShared: async () => {
     throw new Error('offline');
   },
-}));
-
-vi.mock('./statics-review-shared', () => ({
   getStaticsReviewShared: async () => null,
 }));
 

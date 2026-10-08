@@ -10,7 +10,7 @@ import {
 } from '@/data/wh-statics/queries';
 import type { WhStaticsSystemCodes } from '@/data/wh-statics/schema';
 import { AdminPageFrame } from '../AdminFrame';
-import { getStaticsReviewShared } from '../statics-review-shared';
+import { getStaticsReviewShared } from '../shared-reads';
 
 const OUTCOME_LABELS: Readonly<Record<string, string>> = {
   busy: 'Another statics refresh is already running.',
