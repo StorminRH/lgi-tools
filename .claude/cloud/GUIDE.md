@@ -15,22 +15,19 @@ The environment's Edit dialog at claude.ai/code holds what the repo cannot.
 Changing the setup script or allowed domains rebuilds the snapshot, which is
 only kept when setup finishes within about five minutes.
 
-Setup script, verbatim. It finds the clone itself, logs where it ran to
-`~/.local/share/lgi/environment-setup.log`, and never blocks the
+Setup script, verbatim. It runs from `/home/user`, outside the clone, so it
+only finds and runs [environment-setup.sh](environment-setup.sh), which logs
+the run to `~/.local/share/lgi/environment-setup.log` and never blocks the
 session; the SessionStart hook reruns `setup.sh` when provisioning did not
 finish.
 
 ```bash
 #!/bin/bash
-log="$HOME/.local/share/lgi/environment-setup.log"
-mkdir -p "$(dirname "$log")"
-repo="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-if [ ! -f "$repo/.claude/cloud/setup.sh" ]; then
-  f="$(find / -maxdepth 5 -path '*/.claude/cloud/setup.sh' -not -path '/proc/*' 2>/dev/null | head -1)"
-  repo="${f%/.claude/cloud/setup.sh}"
-fi
-echo "$(date -u +%FT%TZ) cwd=$PWD repo=${repo:-none} branch=$(git -C "${repo:-/}" rev-parse --abbrev-ref HEAD 2>/dev/null)" >>"$log"
-bash "$repo/.claude/cloud/setup.sh" || echo "setup.sh exit $?" >>"$log"
+for f in /home/user/*/.claude/cloud/environment-setup.sh "$PWD"/*/.claude/cloud/environment-setup.sh; do
+  [ -f "$f" ] && exec bash "$f"
+done
+mkdir -p "$HOME/.local/share/lgi"
+echo "$(date -u +%FT%TZ) cwd=$PWD environment-setup.sh not found" >>"$HOME/.local/share/lgi/environment-setup.log"
 exit 0
 ```
 
@@ -41,7 +38,7 @@ because the Vercel CLI rejects a `VERCEL_TOKEN` containing one.
 
 | Secret | Allowed website | Header |
 | --- | --- | --- |
-| `VERCEL_TOKEN` | `api.vercel.com` | `Authorization: Bearer` |
+| `VERCEL_TOKEN` (team-scoped; the CLI refuses a project-scoped token) | `api.vercel.com` | `Authorization: Bearer` |
 | `NEON_API_KEY` | `console.neon.tech` | `Authorization: Bearer` |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | `staging.lgi.tools` | `x-vercel-protection-bypass` (no prefix) |
 
