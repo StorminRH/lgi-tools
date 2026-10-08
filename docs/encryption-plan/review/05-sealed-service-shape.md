@@ -1,8 +1,8 @@
 # Part 05: The sealed service: shape, runtime and availability
 
-**Status:** In owner review
+**Status:** Agreed 2026-10-08
 
-## Owner review outcome (in progress, 2026-10-08)
+## Owner review outcome (2026-10-08)
 
 This section overrides the rest of the part where they disagree.
 
@@ -16,6 +16,17 @@ This section overrides the rest of the part where they disagree.
 - **Question 4, region and instance:** us-east-1, beside every existing service. c7g.large, with m7g.large (about $39/month on the plan) as the fallback if the memory check with the largest corp fails.
 - **Question 5:** replaced by the automated blue/green release above.
 - **Question 6, sign-in during an outage:** accepted. Sessions are created only from the sealed service's assertion, so during an outage nobody can sign in, passkey or not; users already signed in keep reading with keys stored for the rolling 7-day session, and edits, tracking and syncs pause and catch up. Passkeys and recovery keys cover permanent loss only. Wording fixed in README decision 1 and Part 01. No new sign-in message: sign-in shows today's error, and a "Login server" status row is added to the existing TQ status popover on the nav bar (next to Tranquility, ESI and Static data). It reads the enclave heartbeat age through the same server-side status path as the existing popover (cached, like `getNavServerStatus`), not a per-tab Convex subscription.
+- **Clean-ups from the verification (owner approved all nine):**
+  1. Access-list edits (grant, role, block, unblock) stay on today's readable path during an outage; only the map-key rotation after a removal waits for the sealed service. The outage table row is split accordingly.
+  2. Request-ID replay records are dropped (rule 9 withdrawn, and the "recorded request IDs" data row): honest retries are covered by Part 07's request row plus per-row version checks.
+  3. The CI protocol-version gate is dropped (release step 3 and rule 12's CI clause). One `PROTOCOL_VERSION` constant in `platform/sealed-envelope`; current and previous accepted; changes needing both sides ship the enclave first in a separate PR.
+  4. The whole-service lease renews about every 60 seconds with an expiry of a few minutes, in an enclave-only row separate from the browser-read status row (which changes only per boot or attestation refresh). The lease fences stale completions (Part 07) and is the blue/green handover.
+  5. The sealed service claims due `esi_refresh_jobs` rows from Neon itself with today's conditional-update claim; while it is down nothing is claimed and no attempt is spent, and it catches up on boot. No Vercel requeue code and no Convex job inbox for these. Today's stale-running recovery spends an attempt, so recovery after an enclave restart must not count one. Interactive searches fail with today's error when their deadline passes.
+  6. An unreachable sealed service never starts the 24-hour authorization suspension clock; this needs its own branch, since today transient failures start it.
+  7. No map-wide version: per-row conditional updates only (Part 02); the per-map queue orders the enclave's own writes and any row-version mismatch evicts and reloads the cached map.
+  8. Upstash leaves the enclave allowlist (in-memory scoreboard, Part 18).
+  9. CloudWatch log groups get an explicit retention matching today's log retention.
+- **Code facts corrected:** normal ESI syncs run inline in `after()` on page view; `esi_refresh_jobs` is a daily retry lane for budget-deferred work (at most 5 per drain). The authorization re-check is activity-triggered (each character at most daily while its user is on the site). Only 4 of 7 daily-batch steps take an advisory lock; the others use idempotency guards.
 
 **Review notes (2026-10-08):** the owner has created a new AWS account. Service regions, confirmed by the owner: Vercel `iad1` (AWS us-east-1); Neon `aws-us-east-1` (project LGI-Tools-DB); Convex `aws-us-east-1` (prod `doting-zebra-317`, staging `proper-squid-200`); Upstash `iad1` (primary, no read replicas). Everything is in us-east-1, so the enclave goes there too. Nitro Enclaves carry no extra charge; only the EC2 instance and services used (such as KMS) are billed.
 
