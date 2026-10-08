@@ -1,8 +1,8 @@
 # Part 04: Leaks to close first
 
-**Status:** In owner review
+**Status:** Agreed 2026-10-08
 
-## Owner review outcome (in progress, 2026-10-07)
+## Owner review outcome (2026-10-07 to 2026-10-08)
 
 This section overrides the rest of the part where they disagree. The owner is reviewing each Phase 0 PR individually.
 
@@ -29,6 +29,9 @@ This section overrides the rest of the part where they disagree. The owner is re
   2. Convex error details carry codes, never system, character, signature or location values (about six sites, plus fixtures); `errorCode()` returns `unexpected:<name>`; location sync failures use a closed list of codes; drop `syncSubjects.lastError`.
   3. Statics jobs stop storing `{mapId, systemId}` in scheduled args; folded into 0-3, which rewrites that code.
   4. Code-only columns (`esi_refresh_jobs.last_error_code`, `domain_events` failure codes, jobs `sync_error`, `corp_access_audit.reason`, budget reasons) become closed unions or enums, so free text cannot creep in. Public-feed and site-analytics reasons (`wh-statics`, GSC) also move to codes.
+- **Question 7, AAD for env-key ciphertexts:** leave as is. Both env keys are retired (tokens move into the sealed service in Phase 1 with row binding from the start; corp snapshots are dropped in Phase 4).
+- **Question 1, Phase 0 scope:** settled item by item above. Phase 0 is 0-1 (lease cleanup), 0-2 (observation totals), 0-3 (statics asset, including scheduled args), 0-4 (industry assets with preload, efficiency only), 0-5 (permanent name cache), 0-6 (seed every marketable type, remove `seedUnpricedTypes`), 0-8 (telemetry), 0-9 (errors and logs), plus the role-audit bug fix. 0-7 is dropped.
+- **Rule changes from these outcomes:** rule 5 applies to lookups that are stored or logged (URL paths in request logs), not to POST bodies handled in memory. Rule 7 becomes "private content never uses `'use cache: remote'` or any other persistent cache"; the existing in-memory wrappers stay until Parts 19 and 23. Rule 9 is widened: no raw error object or message reaches a log or stored field, only codes from closed unions, and `ConvexError` details carry no system, character, signature or location values. Rule 14 is withdrawn (no type-ID rejection; the write-behind is unchanged). Rule 10 and the `wh_observations` rows follow Part 02's totals design.
 
 ## In one paragraph
 

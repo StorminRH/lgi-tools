@@ -117,7 +117,7 @@ The plan is now split into 32 review parts in [review/](review/00-index.md), rew
 | [Part 01: Scope, principles and threat model](review/01-scope-and-threat-model.md) | Agreed 2026-10-07 |
 | [Part 02: Data classification and storage shapes](review/02-data-classification.md) | Agreed 2026-10-07 |
 | [Part 03: What stays readable and what it reveals](review/03-readable-metadata.md) | Agreed 2026-10-07 |
-| [Part 04: Leaks to close first](review/04-leaks-to-close-first.md) | Not started |
+| [Part 04: Leaks to close first](review/04-leaks-to-close-first.md) | Agreed 2026-10-08 |
 | [Part 05: The sealed service: shape, runtime and availability](review/05-sealed-service-shape.md) | Not started |
 | [Part 06: Attestation, KMS sealing and the key-release rule](review/06-attestation-and-kms.md) | Not started |
 | [Part 07: Reaching the sealed service: transport and request authentication](review/07-sealed-channel.md) | Not started |
