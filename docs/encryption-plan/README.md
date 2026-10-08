@@ -9,6 +9,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 | File | Contents |
 |---|---|
 | 01-design-and-spec.md | The design: goals, threat model, reuse map, alignment with the current app, recommended architecture, identity and keys, maps, mapper engine, ESI data, infrastructure, security, UX flows, review findings, rebuild plan, open questions |
+| HANDOFF.md | Session handoff: how the review runs and where it stopped |
 | 02-decision-records.md | Decision records (DR-…) |
 | 03-reference-tables.md | Features by tier, route map, datasets, metadata the server sees |
 | 04-detailed-spec.md | Implementation-level rules (D-… IDs) |
