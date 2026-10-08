@@ -38,7 +38,7 @@ because the Vercel CLI rejects a `VERCEL_TOKEN` containing one.
 
 | Secret | Allowed website | Header |
 | --- | --- | --- |
-| `VERCEL_TOKEN` (team-scoped; the CLI refuses a project-scoped token) | `api.vercel.com` | `Authorization: Bearer` |
+| `VERCEL_TOKEN` (personal Full Account scope; the CLI cannot load the user with a team- or project-scoped token) | `api.vercel.com` | `Authorization: Bearer` |
 | `NEON_API_KEY` | `console.neon.tech` | `Authorization: Bearer` |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | `staging.lgi.tools` | `x-vercel-protection-bypass` (no prefix) |
 
