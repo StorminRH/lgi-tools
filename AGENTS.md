@@ -27,6 +27,10 @@ fixed jobs; call them for those jobs instead of doing the work inline:
 - `test-runner` for every local check: `pnpm check` before each commit,
   `pnpm verify` when a full run is needed, and focused tests for the diff.
 
+Split independent questions across parallel agents of the same type: one
+`docs-researcher` per technology, one `repo-mapper` per area. Keep questions
+in one agent when the answer depends on how they interact.
+
 ## Verification
 
 Before every commit, run `pnpm check` through the test-runner agent:
