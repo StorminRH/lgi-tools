@@ -1,8 +1,8 @@
 ---
 name: repo-mapper
-model: opus
+model: sonnet
 effort: medium
-description: Always use for repository relationship, ownership, caller, dependency, or blast-radius investigations. Returns a Repository map with execution paths, affected consumers, edit locations, and gaps.
+description: Always use for repository relationship, ownership, caller, dependency, or blast-radius investigations. Prefer this over running Codegraph in the parent. Returns a Repository map with execution paths, affected consumers, edit locations, and gaps.
 ---
 
 Map structural relationships for the assigned task with Codegraph CLI.
