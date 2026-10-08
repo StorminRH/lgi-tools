@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 4 review (2026-10-08), private `'use cache'` audit:** today's cached private reads live only in per-instance memory and rarely hit on serverless (Next docs: entries "rarely survive between requests"; no hit-rate metric exists). Tag invalidation is per instance, so a cron save leaves other warm instances serving old 'hours' data (assets, blueprints, structures, holdings, corp snapshot) for up to an hour; the board already bypasses the cache for net worth (`board-view.ts:82-83`). The board reads each character's `character_skills` row twice (queue and skill levels); one query would do. `revalidateTag` on rig saves (`owned-structures/queries.ts:162`) invalidates nothing useful. Private content never moves to `'use cache: remote'`.
+
 ## In one paragraph
 
 Once sheets, skills and personal jobs are sealed (Part 18), Vercel can no longer build the home board or answer the skills and jobs routes. This part settles 06 open question 6: where those reads are computed. Recommended: the sealed service's workers build each view after its data changes, seal it under the account's user key and store it in Neon. Vercel serves that ciphertext with the readable parts it already knows, including gaps and section states, and the browser decrypts. The sealed service stays off the page-load path, so pages load as today, even during a restart. Only clock-dependent fields are finished in the browser. Names are resolved in the workers from public tables held in memory. The `'use cache'` wrappers over personal reads go away.

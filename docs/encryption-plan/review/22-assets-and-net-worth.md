@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 4 review (2026-10-08), private `'use cache'` audit:** today's cached private reads live only in per-instance memory and rarely hit on serverless (Next docs: entries "rarely survive between requests"; no hit-rate metric exists). Tag invalidation is per instance, so a cron save leaves other warm instances serving old 'hours' data (assets, blueprints, structures, holdings, corp snapshot) for up to an hour; the board already bypasses the cache for net worth (`board-view.ts:82-83`). The board reads each character's `character_skills` row twice (queue and skill levels); one query would do. `revalidateTag` on rig saves (`owned-structures/queries.ts:162`) invalidates nothing useful. Private content never moves to `'use cache: remote'`.
+
 ## In one paragraph
 
 Owned assets and blueprints become one sealed document per character, written by the workers at sync time (Part 18). Net worth keeps filling in once a night, exactly as today. The difference is that the valuation runs inside the sealed service. It reads the whole public price book from Neon and each account's sealed holdings, and writes a sealed day row under the account's user key. The daily batch keeps its order: prices, then the queue drain, then revaluation, and the sealed service enforces that order itself, because drain jobs can still be running there when the Vercel steps move on. Pilot counts and a new list of pilot IDs stay readable, so LGI's servers can still delete every day that included an unlinked or sold pilot without opening anything. Merges stay a plain SQL move. Price rows stop being seeded from what users own. Users see nothing new.

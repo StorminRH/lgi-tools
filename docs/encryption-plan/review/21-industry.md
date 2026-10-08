@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 4 review (2026-10-08), private `'use cache'` audit:** today's cached private reads live only in per-instance memory and rarely hit on serverless (Next docs: entries "rarely survive between requests"; no hit-rate metric exists). Tag invalidation is per instance, so a cron save leaves other warm instances serving old 'hours' data (assets, blueprints, structures, holdings, corp snapshot) for up to an hour; the board already bypasses the cache for net worth (`board-view.ts:82-83`). The board reads each character's `character_skills` row twice (queue and skill levels); one query would do. `revalidateTag` on rig saves (`owned-structures/queries.ts:162`) invalidates nothing useful. Private content never moves to `'use cache: remote'`.
+
 ## In one paragraph
 
 The planner's maths already runs in the browser. Encryption changes only where its inputs come from. Private inputs (skill levels, owned blueprints and assets, corp structures with their rigs and tax, job boards) become sealed views that the workers build at sync time. LGI serves them as ciphertext, the browser decrypts them with the user key it already holds, and the planner filters them locally. Public inputs that are fetched per ID today, and so reveal where a user builds, ship as whole versioned tables. Corp rigs and tax become one sealed document per corp, validated and written by the sealed service. Structure search runs in the workers with the sealed token. Users see nothing new.

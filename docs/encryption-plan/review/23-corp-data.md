@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 4 review (2026-10-08), private `'use cache'` audit:** today's cached private reads live only in per-instance memory and rarely hit on serverless (Next docs: entries "rarely survive between requests"; no hit-rate metric exists). Tag invalidation is per instance, so a cron save leaves other warm instances serving old 'hours' data (assets, blueprints, structures, holdings, corp snapshot) for up to an hour; the board already bypasses the cache for net worth (`board-view.ts:82-83`). The board reads each character's `character_skills` row twice (queue and skill levels); one query would do. `revalidateTag` on rig saves (`owned-structures/queries.ts:162`) invalidates nothing useful. Private content never moves to `'use cache: remote'`.
+
 ## In one paragraph
 
 Corp features keep working exactly as they do today. Pulls still use the token of a member who holds the required in-game role, but that token is now opened only in the sealed service (decisions 1 and 4). Corp structures, the holding index, corp assets and blueprints, division, container and structure names, and member bases become sealed documents under a per-corp key that never leaves the enclave. The workers compile each viewer's grant with today's code, filter rows to it, and seal the result to that viewer's user key. Each result carries a readable expiry that mirrors today's read-time freshness limits, and is rebuilt or deleted whenever a grant input changes. The browser never receives rows beyond its grant. Roles, sharing state and the corp access audit stay readable, but the sealed service trusts only role reads it made itself and rows carrying its own tag. `esi_snapshots` is dropped. Corp data ships last (Phase 4).
