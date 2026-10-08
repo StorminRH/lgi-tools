@@ -1,6 +1,12 @@
 # Part 05: The sealed service: shape, runtime and availability
 
-**Status:** Draft for owner review
+**Status:** In owner review
+
+## Owner review outcome (in progress, 2026-10-08)
+
+This section overrides the rest of the part where they disagree.
+
+- **Purchasing:** on demand (pay as you go) during setup and testing, paid largely from the new account's credits, switching to a 1-year EC2 Instance Savings Plan for c7g at full release (no-upfront $34.89/month or all-upfront $391/year, chosen then). Checks 1 to 5 run on demand before the plan is bought. Before buying: the account is on the Paid plan and the on-demand vCPU quota is at least 4.
 
 **Review notes (2026-10-08):** the owner has created a new AWS account. Vercel runs in `iad1` (AWS us-east-1). Repo examples and test fixtures point Neon at `us-east-2` (Ohio); confirm in the Neon console. Convex's region is unconfirmed (check the deployment settings). Nitro Enclaves carry no extra charge; only the EC2 instance and services used (such as KMS) are billed.
 
