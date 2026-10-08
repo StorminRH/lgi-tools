@@ -18,7 +18,7 @@ export function refreshAvailableStructures(): void {
 }
 
 /** The account's custom and shared corporation structures. */
-export async function readAvailableStructures(signal: AbortSignal): Promise<AvailableStructure[] | null> {
+async function readAvailableStructures(signal: AbortSignal): Promise<AvailableStructure[] | null> {
   const res = await apiFetch(availableStructuresEndpoint, { cache: 'no-store', signal });
   return res.ok ? res.data.structures : null;
 }

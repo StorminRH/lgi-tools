@@ -139,14 +139,7 @@ phase "postgres: migrations"
 lgi_run_local_db pnpm db:migrate
 
 phase "postgres: SDE"
-if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
-  lgi_run_local_db pnpm db:refresh-sde --force
-fi
-if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
-  echo "ERROR: SDE census failed after refresh. Report:" >&2
-  lgi_sde_report "$LGI_LOCAL_DB_URL" >&2 || true
-  exit 1
-fi
+lgi_ensure_sde_ready || exit 1
 
 phase "convex: anonymous local backend"
 # The first `--once` creates the deployment and may fail until AUTH_* exist on it.

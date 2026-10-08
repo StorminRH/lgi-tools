@@ -84,6 +84,10 @@ cmd_start() {
     echo "ERROR: pnpm db:migrate failed; see $LGI_LOG_DIR/migrate.log" >&2
     return 1
   }
+  lgi_ensure_sde_ready >"$LGI_LOG_DIR/sde.log" 2>&1 || {
+    echo "ERROR: SDE readiness failed; see $LGI_LOG_DIR/sde.log" >&2
+    return 1
+  }
   start_convex
   start_next
   start_auth

@@ -7,14 +7,13 @@ import { createBuildSystemApplier, type ApplySystemOptions, type BuildSystemRef 
 import { readWithRetries } from '../read-with-retries';
 import type { ReactionLocationSnapshot } from '../selection-policy';
 import { REACTION_ACTIVITY } from '../structure-bonus';
-import type { AvailableStructure, BlueprintStructure } from '../types';
-import { readAvailableStructures } from '../use-available-structures';
+import type { BlueprintStructure } from '../types';
 import { useResourceRead } from '../use-resource-read';
 import type { SelectedLocation } from './planner-contexts';
 
 /**
- * Reads the build and reaction systems' cost indices and prices, and the
- * account's structures. A profile picks the systems; with none, nothing is
+ * Reads the build and reaction systems' cost indices and prices.
+ * A profile picks the systems; with none, nothing is
  * read and the build prices without fees.
  */
 export function usePlannerLocationWrites(
@@ -22,7 +21,6 @@ export function usePlannerLocationWrites(
   setLocation: (loc: SelectedLocation | null) => void,
   reactionSystemId: number | null,
   setFetchedReactionLocation: Dispatch<SetStateAction<ReactionLocationSnapshot | null>>,
-  setAvailableStructures: Dispatch<SetStateAction<AvailableStructure[] | null>>,
   reactionLocation: ReactionLocationSnapshot | null,
 ) {
   const [failureSystemId, setFailureSystemId] = useState<number | null>(null);
@@ -105,10 +103,6 @@ export function usePlannerLocationWrites(
     enabled: readsReaction,
     onData: setFetchedReactionLocation,
     refreshKey: retry,
-  });
-  useResourceRead(readAvailableStructures, {
-    enabled: true,
-    onData: setAvailableStructures,
   });
   return {
     applyBuildSystem,

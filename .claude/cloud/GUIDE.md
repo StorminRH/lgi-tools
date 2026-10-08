@@ -66,8 +66,9 @@ Check readiness before assuming a failure is in the app:
 - Next is `http://localhost:3000`; PostgreSQL is `localhost:5433`
 (`postgres://lgi:lgi@localhost:5433/lgi_tools`); anonymous Convex is
 `http://127.0.0.1:3210` with HTTP actions on `:3211`. Logs are in `/tmp/lgi`.
-- `stack.sh start` applies pending migrations, so a branch with new
-migrations needs no extra step. The snapshot already holds the SDE.
+- `stack.sh start` applies pending migrations and checks the SDE datasets,
+including industry rules. It refreshes incomplete data before starting the
+services. A failed refresh stops startup and writes `/tmp/lgi/sde.log`.
 - Authenticated Atlas work needs `convex-auth` to read `ready`. Its status
 file is `/tmp/lgi-convex-auth.status` (`0` is success). A running Next or
 Convex server alone does not prove authentication is ready.

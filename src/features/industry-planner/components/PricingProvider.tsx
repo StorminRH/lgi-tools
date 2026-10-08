@@ -46,6 +46,7 @@ import type { ProfilePlan } from '../profiles/profile-plan';
 import { usePlannerLocationWrites } from './use-planner-location-writes';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
 import { useResourceRead } from '../use-resource-read';
+import { useAvailableStructures } from '../use-available-structures';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
@@ -161,7 +162,7 @@ function usePlannerPrefs() {
 
 function usePlannerLocationState(structure: BlueprintStructure) {
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
-  const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
+  const availableStructures = useAvailableStructures();
   const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
   const [reactionSystem, setReactionSystem] = useState<SelectedReactionSystem | null>(null);
@@ -212,7 +213,6 @@ function usePlannerLocationState(structure: BlueprintStructure) {
     reactionStructure,
     reactionSystem,
     selectedStructure,
-    setAvailableStructures,
     setFetchedReactionLocation,
     setLocation: setLocationState,
     setReactionStructure,
@@ -500,7 +500,6 @@ export function PricingProvider({
     locationState.setLocation,
     locationState.reactionSystem?.systemId ?? null,
     locationState.setFetchedReactionLocation,
-    locationState.setAvailableStructures,
     locationState.reactionLocation,
   );
   // Under a profile each job takes its own facility's bonus and character; with none, the build is baseline.

@@ -26,7 +26,6 @@ vi.mock('../read-with-retries', async (load) => {
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 
-vi.mock('../use-available-structures', () => ({ readAvailableStructures: vi.fn() }));
 vi.mock('../use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, options: { enabled: boolean; refreshKey?: number }) => {
     h.reads.push({ read, ...options });
@@ -43,7 +42,6 @@ const DATA: BuildLocationData = {
 };
 const setLocation = vi.fn();
 const setReactionLocation = vi.fn();
-const setStructures = vi.fn();
 function resetRenderState() {
   h.cursor = 0;
   h.reads = [];
@@ -54,7 +52,6 @@ function useWrites(activityId: number, reactionSystemId: number | null = SYSTEM.
     setLocation,
     reactionSystemId,
     setReactionLocation,
-    setStructures,
     snapshot,
   );
   const reaction = h.reads[0];

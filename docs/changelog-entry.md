@@ -45,7 +45,7 @@ before the first entry:
 ```markdown
 ## v<X.Y> — <theme>
 
-<One or two plain-text sentences describing the master version for players.>
+<One to three short plain-text paragraphs describing the master version for players.>
 ```
 
 The master summary names what the version *is* for a player, not how the
