@@ -121,7 +121,7 @@ The plan is now split into 32 review parts in [review/](review/00-index.md), rew
 | [Part 04: Leaks to close first](review/04-leaks-to-close-first.md) | Agreed 2026-10-08 |
 | [Part 05: The sealed service: shape, runtime and availability](review/05-sealed-service-shape.md) | Agreed 2026-10-08 |
 | [Part 06: Attestation, KMS sealing and the key-release rule](review/06-attestation-and-kms.md) | Agreed 2026-10-08 |
-| [Part 07: Reaching the sealed service: transport and request authentication](review/07-sealed-channel.md) | Not started |
+| [Part 07: Reaching the sealed service: transport and request authentication](review/07-sealed-channel.md) | In review |
 | [Part 08: EVE login, token custody and token-bearing calls](review/08-eve-login-and-tokens.md) | Not started |
 | [Part 09: Keys, sealed formats and getting keys back](review/09-key-hierarchy.md) | Not started |
 | [Part 10: Optional passkeys and recovery keys](review/10-passkeys-and-recovery.md) | Not started |

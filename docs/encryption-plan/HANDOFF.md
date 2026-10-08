@@ -49,7 +49,19 @@ Key agreed outcomes are in each part file. Highlights:
 
 ## Where we stopped: Part 07, awaiting the owner's answers
 
-The Part 07 verification is done and saved in `review/07-sealed-channel.md`. The owner has not answered yet. Present these again, in plain English.
+The Part 07 verification is done and saved in `review/07-sealed-channel.md`. The owner asked to take the questions one short step at a time, one question per step, recording and pushing each answer:
+
+1. Who is asking (A) — **agreed 2026-10-08: the stamp** (recorded in Part 07's outcome section)
+2. Enclave write credential (the "Also open" item)
+3. Background work (B: job inbox, corp recheck, elimination)
+4. Map rules (B: dedupe and versions, access lists and map creation, roles)
+5. Timing and cost (B: deadlines, latency table, status row, Convex cost)
+6. Channel key across restarts (C1)
+7. User ID on request rows (C2)
+8. Character search and non-wormhole identify (C3, C4)
+9. The draft's remaining defaults: JSON messages, login through the Vercel pass-through with today's IP limit, no per-minute limits (draft questions 2, 6, 8)
+
+Resume at the first step not marked agreed. The detail behind each step:
 
 **A. Request authentication (the judgment call).** Someone holding Neon plus Vercel secrets can mint a Convex JWT for any user. If the enclave trusted that token, they could pull a user's keys or personal data without changing any code.
 

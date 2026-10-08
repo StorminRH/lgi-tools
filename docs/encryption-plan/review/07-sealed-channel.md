@@ -1,6 +1,12 @@
 # Part 07: Reaching the sealed service: transport and request authentication
 
-**Status:** Draft for owner review
+**Status:** In review
+
+## Owner review outcome (2026-10-08, in progress)
+
+This section overrides the rest of the part where they disagree. The owner is taking the questions one step at a time.
+
+- **Step 1, request authentication: a per-session stamp (HMAC), not the Convex JWT.** At EVE login the enclave derives a per-session HMAC key from a key under the service root key, `sessionKeyId` and `accountId`, and returns it inside the HPKE login reply. The browser stores it as a non-extractable key in IndexedDB, shared by tabs and kept across reloads, so page loads never wait. Every request carries an HMAC over the AAD and body inside the ciphertext; the enclave re-derives the key, checks the HMAC, then requires a Neon session row with that `sessionKeyId`, the same user and an unexpired `expiresAt` (cached up to 60 s). `sessionKeyId` reaches the session row through the identity assertion, as drafted. Better Auth keeps its default rolling refresh; sign-out, log out everywhere, admin revoke, expiry and deletion carry over unchanged. The Convex JWT only filters out strangers. Reason: anyone holding the Neon `jwks` row and the Vercel secret can mint a Convex JWT for any user and, if the enclave trusted it, pull that user's keys or personal data with no code change. Dropped: the sealed session-key registration store, ECDSA request signatures, `session.touch` and the `session` class. No extra Convex calls. Check: a browser spike that a non-extractable HMAC key in IndexedDB works on Safari, Firefox and Chrome (Safari may clear storage after 7 days without a visit, which means signing in again, as today).
 
 **Verification findings (2026-10-08, to apply as questions are settled):**
 - Code facts: 11 optimistic edits confirmed; `swallowMutationRejection` wraps all 14 chain-authoring mutations (remove and restore also have an unswallowed path in the missing-signature flow); the two map routes take only IDs from the browser and read map content through service-secret actions; Upstash also limits map creation to 5 per minute per user; revocation never reaches Convex today (an issued Convex JWT stays valid up to 7 days; the cookie cache honours a revoked session up to 5 minutes); `/api/internal/eve-token`, `/api/internal/eve-characters` and `/leave-sync` are missing from the mapping table.
