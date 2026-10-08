@@ -12,6 +12,7 @@
 - **Threat model:** internal, repo docs only (question 1).
 - **Dropped list:** approved as written (question 2).
 - **User-authored document checks:** run in the browser; LGI stores the sealed blobs (question 6).
+- **Amended in the Part 05 review (2026-10-08):** no sign-in is possible during a sealed-service outage, passkey or not; backups cover permanent loss only. The planned `service_unavailable` sign-in text is replaced by a "Login server" row in the existing TQ status popover.
 - **Outages:** expected to be rare (AWS single-instance availability is about 99.5%, region about 99.99%); the more likely causes are our own releases or crashes, covered by blue/green releases, automatic restart and an alert. No second always-on instance.
 
 ## In one paragraph
@@ -76,10 +77,10 @@ Nothing visible to users: same pages, flows, timings and copy. Behind the scenes
 | Corp heads-up to directors, members and granting map owners | Decision 1 (Part 14) |
 | `NoMapAccess` for a blocked buyer (existing screen) | Decision 1; being blocked from a map |
 | Passkey and recovery-key section in `/settings/account` | Decision 9 (Part 10) |
-| Passkey or recovery-key unlock shown during an outage | Decision 1 backups; the only way in while the sealed service is down (Part 10) |
+| ~~Passkey or recovery-key unlock shown during an outage~~ | Withdrawn in the Part 05 review: sessions are created only from the sealed service, so no backup signs anyone in during an outage |
 | Same unlock panel when a restore is needed (the sealed service has no key record and the account has backups) | Decisions 1 and 9; otherwise a backup could never be used (Part 10) |
 | One failure line after a passkey that cannot do PRF | Decision 9; enrolment failed, so the user must know the passkey is not a backup (Part 10) |
-| New `service_unavailable` text at sign-in: "Sign-in is temporarily unavailable. Wait a moment and try again." | Required: during an outage nobody can log in, and no existing key fits (Part 06) |
+| A "Login server" status row in the existing TQ status popover on the nav bar (replaces the planned `service_unavailable` sign-in text) | Owner choice in the Part 05 review: during an outage sign-in shows today's error, and the nav status shows why |
 | Blank `/auth/callback` interstitial in place of today's server redirect | Required: the browser holds the verifier, so the code must reach it (Part 08) |
 | Normal EVE login when browser key storage is gone but the session cookie survives | Required: the sealed service must not release keys on Vercel's cookie alone; today's login screen, as when a session expires (Part 08 rule 15, Part 09) |
 | One sign-in within 7 days for sessions created before the Phase 1 switch, on today's screen | Required: keys come only from a fresh EVE login (Part 30 question 3) |
@@ -186,7 +187,7 @@ Nothing new, except the "Allowed new UI" list in Design:
 - **Sale notices** to map owners, and a heads-up to the affected corp (decision 1, Part 14). These use existing toast and notice components.
 - **A blocked buyer** sees today's `NoMapAccess` screen (Part 12).
 - **Optional passkey and recovery-key settings** in `/settings/account`. These are a quiet option at login, never a prompt (decision 9, Part 10).
-- **During a real sealed-service outage**, nobody can log in, which is new compared with today: Vercel can only create sessions from the enclave's identity assertion. Users already signed in keep reading with their stored keys; edits, tracking and syncs pause behind today's error states. Users with a passkey or recovery key see that unlock option plainly (Part 10). Planned enclave releases cause no gap (rule 18).
+- **During a real sealed-service outage**, nobody can log in, which is new compared with today: Vercel can only create sessions from the enclave's identity assertion. Users already signed in keep reading with their stored keys; edits, tracking and syncs pause behind today's error states. Sign-in shows today's error, and the TQ status popover shows the login server as down. Planned enclave releases cause no gap (rule 18).
 - **Small, rare changes on existing surfaces**, each on the list with its reason: the `service_unavailable` sign-in text (Part 06), the blank `/auth/callback` interstitial (Part 08), the normal EVE login when key storage is gone but the cookie survives (Parts 08 and 09), one sign-in within 7 days for pre-switch sessions and a silent full page load for stale tabs (Part 30), the restore-needed unlock panel and the passkey failure line (Part 10), the optional "Blocked after a character sale" line (Part 14), and the existing error toast when a queued edit expires (Part 15).
 
 ## Questions for the owner
