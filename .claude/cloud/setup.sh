@@ -59,7 +59,7 @@ clis_pid=$!
 bg_pids=("$apt_pid" "$clis_pid")
 lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
-pnpm install --frozen-lockfile
+lgi_install_deps
 
 # The image ships an older Playwright Chromium and skips browser downloads by
 # default; install the revision this repo's Playwright pins while the

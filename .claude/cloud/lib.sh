@@ -15,6 +15,8 @@ LGI_SETUP_LOG="$LGI_STATE_DIR/setup.log"
 LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
 LGI_LOG_DIR="${LGI_LOG_DIR:-/tmp/lgi}"
 LGI_STACK_STATUS="${LGI_STACK_STATUS:-$LGI_LOG_DIR/stack.status}"
+LGI_BOOTSTRAP_STATUS="${LGI_BOOTSTRAP_STATUS:-$LGI_LOG_DIR/bootstrap.status}"
+LGI_LOCK_HASH="$LGI_STATE_DIR/pnpm-lock.sha256"
 LGI_PLACEHOLDER_JWKS='data:text/plain;charset=utf-8;base64,e30='
 LGI_AUTH_STATUS="${LGI_AUTH_STATUS:-/tmp/lgi-convex-auth.status}"
 LGI_ANONYMOUS_DEPLOYMENT="anonymous:anonymous-agent"
@@ -349,6 +351,25 @@ lgi_save_env_local() {
   local file="${1:-.env.local}"
   mkdir -p "$LGI_STATE_DIR"
   install -m 600 "$file" "$LGI_ENV_LOCAL_STATE"
+}
+
+lgi_write_bootstrap_status() {
+  mkdir -p "$(dirname "$LGI_BOOTSTRAP_STATUS")"
+  printf '%s\n' "$1" >"$LGI_BOOTSTRAP_STATUS"
+}
+
+# pnpm install is slow even when nothing changed, so skip it while the
+# lockfile matches the last install and node_modules is present.
+lgi_install_deps() {
+  local hash
+  hash="$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)"
+  if [ -f node_modules/.modules.yaml ] && [ "$(cat "$LGI_LOCK_HASH" 2>/dev/null)" = "$hash" ]; then
+    echo "pnpm install skipped: lockfile unchanged"
+    return 0
+  fi
+  pnpm install --frozen-lockfile --prefer-offline || return 1
+  mkdir -p "$LGI_STATE_DIR"
+  printf '%s\n' "$hash" >"$LGI_LOCK_HASH"
 }
 
 # Record how setup.sh ended: exit code, the phase it reached, and its runtime.

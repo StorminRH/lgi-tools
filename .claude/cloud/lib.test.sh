@@ -183,4 +183,25 @@ LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
 LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
 pass "setup status and summary"
 
+deps_dir="$(mktemp -d)"
+(
+  cd "$deps_dir"
+  LGI_STATE_DIR="$deps_dir/state"
+  LGI_LOCK_HASH="$LGI_STATE_DIR/pnpm-lock.sha256"
+  mkdir -p bin node_modules "$LGI_STATE_DIR"
+  printf '#!/bin/sh\necho fake-pnpm "$@"\n' > bin/pnpm && chmod +x bin/pnpm
+  PATH="$deps_dir/bin:$PATH"
+  echo 'lockfileVersion: 9' > pnpm-lock.yaml
+  lgi_install_deps | grep -q '^fake-pnpm install' || fail "install runs without a recorded hash"
+  touch node_modules/.modules.yaml
+  lgi_install_deps | grep -q 'skipped: lockfile unchanged' || fail "install skips on an unchanged lockfile"
+  rm node_modules/.modules.yaml
+  lgi_install_deps | grep -q '^fake-pnpm install' || fail "install runs when node_modules is missing"
+  touch node_modules/.modules.yaml
+  echo 'lockfileVersion: 9 # changed' > pnpm-lock.yaml
+  lgi_install_deps | grep -q '^fake-pnpm install' || fail "install reruns after a lockfile change"
+) || exit 1
+rm -rf "$deps_dir"
+pass "dependency install skips an unchanged lockfile"
+
 echo "lib.test.sh: all assertions passed"

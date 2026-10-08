@@ -55,10 +55,14 @@ Allowed domains beyond the defaults: `console.neon.tech`, `api.neon.tech`,
 
 ## Dev stack
 
-Check readiness before assuming a failure is in the app:
+The SessionStart hook returns at once and starts
+[bootstrap.sh](bootstrap.sh) in the background: dependency install (skipped
+while `pnpm-lock.yaml` is unchanged), then the stack, then the codegraph
+index. Wait for it before using pnpm, the database, or the local servers:
 
 ```bash
-.claude/cloud/stack.sh status    # postgres, convex, next, convex-auth
+.claude/cloud/stack.sh wait      # blocks until ready (default 300s)
+.claude/cloud/stack.sh status    # bootstrap, postgres, convex, next, convex-auth
 .claude/cloud/stack.sh logs next # or postgres, convex, convex-auth, migrate
 .claude/cloud/stack.sh restart
 ```
