@@ -54,7 +54,7 @@ The Part 07 verification is done and saved in `review/07-sealed-channel.md`. The
 1. Who is asking (A) — **agreed 2026-10-08: the stamp** (recorded in Part 07's outcome section)
 2. Enclave write credential (the "Also open" item) — **agreed 2026-10-08: shared secret**
 3. Background work (B: job inbox, corp recheck, elimination) — **agreed 2026-10-08: all three cuts**
-4. Map rules (B: dedupe and versions, access lists and map creation, roles)
+4. Map rules (B: dedupe and versions, access lists and map creation, roles) — **agreed 2026-10-08: all three**
 5. Timing and cost (B: deadlines, latency table, status row, Convex cost)
 6. Channel key across restarts (C1)
 7. User ID on request rows (C2)
