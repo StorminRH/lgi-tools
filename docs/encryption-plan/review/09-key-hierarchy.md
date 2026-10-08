@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 05 and 06 reviews (2026-10-08):** passkeys and recovery keys cover permanent loss only; no sign-in is possible during a sealed-service outage. Attestation `public_key` is at most 1024 bytes and `user_data` 512, so a post-quantum HPKE key must be referenced by hash.
+
 ## In one paragraph
 
 This part sets the whole key model. KMS seals one service root key. Under it sit one user key per LGI account, a map key per map in numbered key epochs, a corp key per corp, and one token key. The corp and token keys never leave the enclave. At each EVE login the browser makes a fresh browser session key. The sealed service checks the login and returns the user's key wrapped to that session key. The browser keeps it non-extractable in IndexedDB until the session ends. Map keys reach the browser as wraps under the user key. Every sealed row uses one envelope format. That format names its key and binds the table, owner, row ID and version, so a row cannot be swapped or mixed with another version. This part also says how keys follow account merges and character moves, and retires the older design's identity machinery.

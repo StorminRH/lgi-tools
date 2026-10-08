@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 05 and 06 reviews (2026-10-08):** passkeys and recovery keys cover permanent loss only; no sign-in is possible during a sealed-service outage, so outage unlock wording is removed.
+
 ## In one paragraph
 
 A user can add a passkey, a recovery key, or both, as an optional backup of their user key. Nothing prompts for them. They matter only if the sealed service is down, the AWS account is lost, or the sealed key records are destroyed. A backup never replaces the EVE login: the browser unwraps the user key itself, only after an EVE login created the session (decision 5), and the user key then opens the user's map key wraps. This part sets the backup format, enrolment and removal, when the unlock panel appears, what an outage unlock can do, and how backups restore keys after permanent loss.

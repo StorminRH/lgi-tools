@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 05 and 06 reviews (2026-10-08):** no outage sign-in via passkeys; the daily drift job is dropped, and the heartbeat-fingerprint-on-list check is the operational signal. Nitro root certificate expires 2049-10-28.
+
 ## In one paragraph
 
 This part sets how one owner runs LGI.tools once content is sealed. The admin console stays metadata only. Admin reassign goes (recommended), and readable `account` rows never extend key release. Session revoke also cuts off the browser session key. Pause switches stop worker ESI work without an enclave release, never the checks behind key release. An hourly Convex cron re-posts a nightly revaluation that an enclave outage made the daily batch miss. Telemetry, logs and alerts carry normalised paths, codes, counts and opaque IDs. A Convex check and an admin panel watch the sealed service; AWS alarms cover KMS. Each likely incident has a playbook that needs no user data. Users see nothing new, except the passkey or recovery-key option during a sealed-service outage.

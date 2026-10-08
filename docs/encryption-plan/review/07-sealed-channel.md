@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 06 review (2026-10-08):** browsers read the attestation document from the status row; the per-login nonce round trip is dropped (question 7 settled for the status-row document).
+
 **Carried from the Part 3 review (2026-10-07):** decide whether the readable sealed-request record needs the account ID at all. Map event `kind` and `actor` are now sealed, so the request record is the remaining place that shows who edited a map and when.
 
 ## In one paragraph

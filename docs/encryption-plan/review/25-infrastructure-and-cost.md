@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 05 and 06 reviews (2026-10-08):** releases are the automated blue/green workflow on push to `staging` and `main` with no approval, no GitHub environments, no EVE-downtime window and no batch-hour ban; the KMS policy holds only the running hash at rest. KMS is about $2/month for two keys.
+
 ## In one paragraph
 
 This part lists every component and how it runs in production, staging, local development and cloud sessions. Vercel, Convex, Neon and Upstash stay as they are. Only AWS is new: per environment, one EC2 parent instance with one Nitro Enclave, a KMS key, and CloudTrail alerts. The part covers deploying and restarting the enclave without a gap, regions, what backups hold once content is sealed, and cost. Production adds about $38 a month, and staging adds $5 to $40 depending on question 1. It also sets the guards that keep the dev sealed service out of release builds while letting CI test sealed flows.

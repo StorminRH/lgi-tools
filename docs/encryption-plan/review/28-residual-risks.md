@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 06 review (2026-10-08):** question 4 (public policy-hash check) is answered no; the limit is stated in internal docs only.
+
 **From the Part 2 review (2026-10-07):** a database restore to an older genuine row is not detected; users see stale data until the next refresh. Accepted as a user-experience limit, not a privacy risk. No guard is built.
 
 ## In one paragraph

@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 06 review (2026-10-08):** the fingerprint list is append-only and committed in the same PR as the enclave change (a PR check prints the line to add); the release workflow rebuilds and refuses unless PCR0 equals the list head, waits for the live list, then rolls. No post-merge `fingerprints:add`, no per-environment states, no every-PR-into-staging/main rule, no three-build rule, no weekly rebuild and no scheduled public attestation check (a manual `pnpm check:attestation` script may stay). `SOURCE_DATE_EPOCH` is a pinned constant.
+
 ## In one paragraph
 
 This part makes decision 1's code promise real. CI builds the enclave image on GitHub's arm64 runners from the public repo, with every input pinned, so anyone can rebuild it and get the same fingerprint (PCR0). Each fingerprint goes into `sealed-service/fingerprints.json` with GitHub build provenance. The app bundles that file, and browsers accept only listed fingerprints. Enclave changes travel only through development → staging → main: staging key first, then Part 06's production key-policy rollover. Release jobs rebuild, require a matching PCR0 and attest what they deploy. An optional public check confirms the answering enclave runs a listed image. The limit stays plain: whoever serves lgi.tools could ship browser code that leaks keys after login. That can be detected, not prevented without new UI.

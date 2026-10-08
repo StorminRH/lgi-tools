@@ -51,7 +51,7 @@ The live, editable version is the shared Claude doc "LGI.tools Encryption-First 
 - **Built from day one**, on AWS Nitro with a 1-year commitment (about $32/month). Reproducible enclave builds with published code fingerprints; browsers verify the enclave's attestation before sending anything.
 - **Location polling runs inside the sealed service too.** Users' EVE refresh tokens are stored sealed so only the enclave can open them. While a user's tab heartbeats (same 5 min / 90 min cold-off rules as today), the enclave polls ESI with today's policy (online gate, Expires-driven cadence with a 5 s floor, ship read only on system change), seals each update so only the map's members can read it, and posts it through Convex. Tracking behaves exactly as today, including with the tab hidden while in game. LGI's operators never see tokens or locations. The enclave code grows to include the ESI client and scheduler (reusing the current location-sync code); expected to fit the same server and cost at current scale.
 - **Backups:** passkeys and a recovery key are optional extras: available as options at login, no prompts or alerts. They cover permanent loss, such as loss of the AWS account. During a sealed-service outage nobody can sign in, passkey or not; users already signed in keep reading with their stored keys (amended in the Part 05 review).
-- **Honest caveat for users:** AWS signs the enclave's proof, and the AWS account owner could change the key-release rule; such a change would be visible through the published fingerprints.
+- **Honest caveat for users:** AWS signs the enclave's proof, and the AWS account owner could change the key-release rule. A change that serves users shows in the published fingerprints; an offline unseal shows only in the account owner's alerts (reworded in the Part 06 review).
 - **Doc impact:** the identity, recovery and key-directory parts of the design will be reworked around this during the section-by-section review.
 
 ### Decision 2, agreed 2026-10-06
@@ -119,7 +119,7 @@ The plan is now split into 32 review parts in [review/](review/00-index.md), rew
 | [Part 03: What stays readable and what it reveals](review/03-readable-metadata.md) | Agreed 2026-10-07 |
 | [Part 04: Leaks to close first](review/04-leaks-to-close-first.md) | Agreed 2026-10-08 |
 | [Part 05: The sealed service: shape, runtime and availability](review/05-sealed-service-shape.md) | Agreed 2026-10-08 |
-| [Part 06: Attestation, KMS sealing and the key-release rule](review/06-attestation-and-kms.md) | Not started |
+| [Part 06: Attestation, KMS sealing and the key-release rule](review/06-attestation-and-kms.md) | Agreed 2026-10-08 |
 | [Part 07: Reaching the sealed service: transport and request authentication](review/07-sealed-channel.md) | Not started |
 | [Part 08: EVE login, token custody and token-bearing calls](review/08-eve-login-and-tokens.md) | Not started |
 | [Part 09: Keys, sealed formats and getting keys back](review/09-key-hierarchy.md) | Not started |
