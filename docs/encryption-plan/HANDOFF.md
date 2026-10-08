@@ -56,7 +56,7 @@ The Part 07 verification is done and saved in `review/07-sealed-channel.md`. The
 3. Background work (B: job inbox, corp recheck, elimination) — **agreed 2026-10-08: all three cuts**
 4. Map rules (B: dedupe and versions, access lists and map creation, roles) — **agreed 2026-10-08: all three**
 5. Timing and cost (B: deadlines, latency table, status row, Convex cost) — **agreed 2026-10-08: all four** (owner asked for the Convex cost breakdown first; recorded in the outcome)
-6. Channel key across restarts (C1)
+6. Channel key across restarts (C1) — **agreed 2026-10-08: kept across restarts**
 7. User ID on request rows (C2)
 8. Character search and non-wormhole identify (C3, C4)
 9. The draft's remaining defaults: JSON messages, login through the Vercel pass-through with today's IP limit, no per-minute limits (draft questions 2, 6, 8)
