@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Review notes (2026-10-08):** the owner has created a new AWS account. Vercel runs in `iad1` (AWS us-east-1). Repo examples and test fixtures point Neon at `us-east-2` (Ohio); confirm in the Neon console. Convex's region is unconfirmed (check the deployment settings). Nitro Enclaves carry no extra charge; only the EC2 instance and services used (such as KMS) are billed.
+
 ## In one paragraph
 
 This part fixes what the sealed service physically is and how it runs. It is one EC2 parent instance that only relays encrypted bytes, and one Nitro Enclave inside it with no disk or network of its own. TLS to ESI, EVE SSO, Convex, Neon and KMS ends inside the enclave. The enclave runs Node and reuses today's TypeScript: the ESI client, the owner-sync engine, location sync, map logic, valuation and corp visibility. It settles code layout and Fallow zones, sizing, write ordering, releases and version skew, restart behaviour and the checks to run before buying the 1-year commitment. Attestation is Part 06, transport Part 07, cost Part 25.
