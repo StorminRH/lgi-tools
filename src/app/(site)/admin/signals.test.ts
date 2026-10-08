@@ -250,6 +250,19 @@ describe('release and budget-hold lines', () => {
       level: 'amber',
     });
   });
+
+  it('keeps the price-source sentence in the note, not the value column', () => {
+    expect(line(signals(), 'price-source')).toMatchObject({
+      value: 'healthy',
+      note: 'ESI served every priced item this period',
+      level: 'green',
+    });
+    expect(line(signals({ fallback: { esi: 0, fallback: 0, perDay: [] } }), 'price-source')).toMatchObject({
+      value: 'idle',
+      note: 'no price refreshes this period',
+      level: 'neutral',
+    });
+  });
 });
 
 describe('a source that failed to load', () => {

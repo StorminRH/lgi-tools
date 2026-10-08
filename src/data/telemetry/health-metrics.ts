@@ -182,7 +182,7 @@ export function deriveEsiSourceStatus({
   budgetExhaustions,
 }: EsiSourceStatusInput): SubsystemStatus {
   const denom = fallback.esi + fallback.fallback;
-  if (denom === 0) return { level: 'neutral', headline: 'no price refreshes this period' };
+  if (denom === 0) return { level: 'neutral', headline: 'idle · no price refreshes this period' };
 
   const rate = fallback.fallback / denom;
   const ratePct = rate * 100 < 1 && rate > 0 ? '<1%' : `${Math.round(rate * 100)}%`;
@@ -197,7 +197,7 @@ export function deriveEsiSourceStatus({
     }
     return { level: 'amber', headline: `partial · ${parts.join(' · ')}` };
   }
-  return { level: 'green', headline: 'ESI served every priced item this period' };
+  return { level: 'green', headline: 'healthy · ESI served every priced item this period' };
 }
 
 export function fallbackRatePoints(
