@@ -1,11 +1,13 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Collapsible } from '@/components/ui/collapsible';
 import { Measured } from '@/components/ui/measured';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { PageFooter } from '@/components/ui/page-footer';
 import { Pill } from '@/components/ui/pill';
+import { ReadoutLine, ReadoutList, ReadoutRow, type ReadoutLineProps } from '@/components/ui/readout';
 import { EntityRow, LabeledChipRow, ResourceRow, Stat } from '@/components/ui/row';
 import { SectionFooter } from '@/components/ui/section-footer';
 import { QuietSectionHead, SectionHead } from '@/components/ui/section-head';
@@ -21,6 +23,50 @@ const MULTIPLES = [
   { title: 'Margin today', value: '+41.2M', note: 'ISK across 3 plans' },
   { title: 'Sites cleared', value: '7', note: 'this week' },
 ] as const;
+
+type SampleReadout = ReadoutLineProps & { id: string };
+
+const READOUTS: SampleReadout[] = [
+  { id: 'budget', tone: 'green', status: 'Healthy', label: 'Error budget', note: 'floor 20 · live', value: '100 left' },
+  { id: 'source', tone: 'orange', status: 'Warning', label: 'Price source', note: 'no price refreshes this period', value: 'idle', valueTone: 'orange' },
+  { id: 'cron', tone: 'red', status: 'Failing', label: 'Price cron', value: 'never ran', valueTone: 'red' },
+  { id: 'esi', tone: 'neutral', status: 'No data', label: 'ESI availability', note: 'target ≥ 95%', value: 'no data', valueTone: 'muted' },
+  { id: 'scoreboard', label: 'Scoreboard source', note: 'development fallback', value: 'process-local' },
+];
+
+const OVERFLOW_READOUTS: SampleReadout[] = [
+  {
+    id: 'long-value',
+    tone: 'red',
+    status: 'Failing',
+    label: 'GSC sync',
+    note: 'last success 2026-09-30 04:12 UTC',
+    value: 'last attempt failed: upstream returned 503 Service Unavailable',
+    valueTone: 'red',
+  },
+  {
+    id: 'long-label',
+    tone: 'orange',
+    status: 'Warning',
+    label: 'Dead-lettered owned-data refreshes for characters without a valid token',
+    note: 'retry_exhausted · esi_5xx · token_revoked · scope_missing · rate_limited',
+    value: '3 dead · 12 queued',
+    valueTone: 'orange',
+    trailing: <Button variant="secondary" size="sm">Open</Button>,
+  },
+];
+
+function SampleReadouts({ rows }: { rows: SampleReadout[] }) {
+  return (
+    <Card className="overflow-hidden">
+      <ReadoutList>
+        {rows.map(({ id, ...line }) => (
+          <ReadoutRow key={id} {...line} />
+        ))}
+      </ReadoutList>
+    </Card>
+  );
+}
 
 export function StructureGroup() {
   return (
@@ -73,6 +119,20 @@ export function StructureGroup() {
       </Specimen>
 
       <Specimen
+        name="ReadoutList + ReadoutRow"
+        source="readout"
+        note="The key/value status row: an optional dot with a screen-reader verdict, a label with a note beneath, a right-aligned value, and a trailing slot. The dot centres on the label's first line. The value is capped at half the row and wraps, so a long value never overprints its label."
+        wide
+      >
+        <div className="flex flex-col gap-4">
+          <SampleReadouts rows={READOUTS} />
+          <Variant label="overflow · 60-character value, long label, trailing button">
+            <SampleReadouts rows={OVERFLOW_READOUTS} />
+          </Variant>
+        </div>
+      </Specimen>
+
+      <Specimen
         name="Rows"
         source="row"
         note="EntityRow, ResourceRow, Stat, and LabeledChipRow: the dense list rows inside cards."
@@ -91,10 +151,26 @@ export function StructureGroup() {
 
       <Specimen
         name="Collapsible + UrlSync"
-        source="collapsible · url-sync"
-        note="Native disclosure rows. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
+        source="collapsible · url-sync · readout"
+        note="Native disclosure rows. chevron adds the turning ▾, hidden from screen readers. A ReadoutLine makes a status row the summary. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
       >
         <Card className="overflow-hidden">
+          <Collapsible
+            chevron
+            headerClassName="py-2.5"
+            header={
+              <ReadoutLine
+                tone="orange"
+                status="Warning"
+                label="Tracked operation p95"
+                note="target ≤ 1,500 ms"
+                value="1,840 ms"
+                valueTone="orange"
+              />
+            }
+          >
+            <p className="px-3.5 pb-3 font-ui text-ui text-muted">The detail behind the status line.</p>
+          </Collapsible>
           <Collapsible header={<span className="text-name">Material breakdown</span>} defaultOpen>
             <p className="px-3.5 pb-3 font-ui text-ui text-muted">Opens by default; the header row is the summary.</p>
           </Collapsible>

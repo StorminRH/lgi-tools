@@ -29,14 +29,25 @@ const dotVariants = cva('inline-block rounded-full shrink-0', {
   defaultVariants: { size: 'md' },
 });
 
+/**
+ * The dot is decorative and hidden from assistive technology. When its colour
+ * carries a verdict, pass `label` so screen readers hear it as text beside it.
+ */
 export function Dot({
   tone,
   size = 'md',
+  label,
   className,
 }: {
   tone: DotTone;
   size?: 'sm' | 'md' | 'lg';
+  label?: string;
   className?: string;
 }) {
-  return <span aria-hidden className={cn(dotVariants({ tone, size }), className)} />;
+  return (
+    <>
+      <span aria-hidden className={cn(dotVariants({ tone, size }), className)} />
+      {label ? <span className="sr-only">{label}</span> : null}
+    </>
+  );
 }
