@@ -204,4 +204,27 @@ deps_dir="$(mktemp -d)"
 rm -rf "$deps_dir"
 pass "dependency install skips an unchanged lockfile"
 
+# A setup.sh that overruns the cap, with a child that would outlive it.
+cap_root="$(mktemp -d)"
+mkdir -p "$cap_root/.claude/cloud"
+cp "$ROOT/.claude/cloud/environment-setup.sh" "$ROOT/.claude/cloud/lib.sh" "$cap_root/.claude/cloud/"
+cat >"$cap_root/.claude/cloud/setup.sh" <<'EOF2'
+#!/usr/bin/env bash
+sleep 300 &
+echo $! >"$LGI_STATE_DIR/child.pid"
+sleep 300
+EOF2
+chmod +x "$cap_root/.claude/cloud/setup.sh"
+cap_start=$SECONDS
+LGI_STATE_DIR="$cap_root/state" LGI_SETUP_CAP_SECONDS=2 bash "$cap_root/.claude/cloud/environment-setup.sh"
+cap_rc=$?
+[ "$cap_rc" = 0 ] || fail "environment-setup exits 0 when setup.sh overruns"
+[ $((SECONDS - cap_start)) -lt 25 ] || fail "environment-setup stops at the cap"
+grep -q 'hit the 2s cap' "$cap_root/state/environment-setup.log" || fail "cap is logged"
+cap_child="$(cat "$cap_root/state/child.pid")"
+sleep 0.5
+kill -0 "$cap_child" 2>/dev/null && fail "setup.sh children are stopped at the cap"
+rm -rf "$cap_root"
+pass "environment setup caps setup.sh and stops its children"
+
 echo "lib.test.sh: all assertions passed"

@@ -18,14 +18,16 @@ only kept when setup finishes within about five minutes. Pushing changes to
 dialog's setup script to force a rebuild.
 
 Setup script, verbatim. It runs from `/home/user`, outside the clone, so it
-only finds and runs [environment-setup.sh](environment-setup.sh), which logs
-the run to `~/.local/share/lgi/environment-setup.log` and never blocks the
-session; the SessionStart hook reruns `setup.sh` when provisioning did not
-finish.
+only finds and runs [environment-setup.sh](environment-setup.sh). That runs
+`setup.sh` under a 200-second cap, because the platform kills an overlong
+setup script and fails the session (exit code -1). Whatever finishes stays in
+the snapshot; the session's bootstrap reruns `setup.sh` in the background to
+finish the rest. Each run is logged to
+`~/.local/share/lgi/environment-setup.log`.
 
 ```bash
 #!/bin/bash
-# snapshot rev 2
+# snapshot rev 3
 for f in /home/user/*/.claude/cloud/environment-setup.sh "$PWD"/*/.claude/cloud/environment-setup.sh; do
   [ -f "$f" ] && exec bash "$f"
 done

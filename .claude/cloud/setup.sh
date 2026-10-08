@@ -40,6 +40,7 @@ on_exit() {
   echo "[setup +${SECONDS}s] exit $rc at phase $setup_phase"
 }
 trap on_exit EXIT
+trap 'exit 143' TERM INT
 
 # Wait for a background step and replay its log if it failed.
 wait_step() {

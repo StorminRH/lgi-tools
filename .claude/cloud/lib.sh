@@ -51,6 +51,8 @@ lgi_ensure_pg16() {
   # The setup script runs as root, where sudo may not exist.
   local sudo=()
   [ "$(id -u)" = 0 ] || sudo=(sudo)
+  # A capped setup run can interrupt dpkg; finish any half-done install.
+  "${sudo[@]}" env DEBIAN_FRONTEND=noninteractive dpkg --configure -a || true
   "${sudo[@]}" apt-get update -q
   "${sudo[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y -q postgresql-16 postgresql-client-16
   lgi_pg16_bin >/dev/null
