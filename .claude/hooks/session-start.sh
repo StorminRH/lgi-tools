@@ -16,6 +16,9 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   echo 'export CONVEX_AGENT_MODE=anonymous' >>"$CLAUDE_ENV_FILE"
 fi
 
+echo "cloud setup: $(lgi_setup_summary)"
+echo "cloud setup: $(lgi_hosted_credential_summary)"
+
 if [ ! -f "$LGI_PROVISIONED_MARKER" ]; then
   echo "cloud setup: snapshot not provisioned; running .claude/cloud/setup.sh (log $LGI_LOG_DIR/setup.log)"
   if ! "$REPO_ROOT/.claude/cloud/setup.sh" >"$LGI_LOG_DIR/setup.log" 2>&1; then

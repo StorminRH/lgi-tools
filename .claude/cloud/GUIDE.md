@@ -4,7 +4,52 @@ Notes for Claude Code cloud sessions. The environment's setup script runs
 [setup.sh](setup.sh) once per snapshot; the SessionStart hook
 ([../hooks/session-start.sh](../hooks/session-start.sh)) restores
 `.env.local` on the fresh clone and starts the dev stack in the background.
-The hook's first lines in the session context say whether that worked.
+The hook's first lines in the session context say whether that worked:
+`provisioned=yes|no` with the last setup result, phase, and runtime, then
+which hosted credentials are `set`, `proxy` (a network secret), or
+`missing`. The last setup log is `~/.local/share/lgi/setup.log`.
+
+## Environment configuration
+
+The environment's Edit dialog at claude.ai/code holds what the repo cannot.
+Changing the setup script or allowed domains rebuilds the snapshot, which is
+only kept when setup finishes within about five minutes.
+
+Setup script, verbatim. It finds the clone itself and never blocks the
+session; the SessionStart hook reruns `setup.sh` when provisioning did not
+finish.
+
+```bash
+#!/bin/bash
+repo="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ ! -f "$repo/.claude/cloud/setup.sh" ]; then
+  f="$(find /home /root /workspace /workspaces -maxdepth 4 -path '*/.claude/cloud/setup.sh' 2>/dev/null | head -1)"
+  repo="${f%/.claude/cloud/setup.sh}"
+fi
+bash "$repo/.claude/cloud/setup.sh" || echo "lgi setup.sh failed; see ~/.local/share/lgi/setup.log"
+exit 0
+```
+
+Network secrets (the agent proxy adds the header; the session never sees
+the value). Their environment variables hold the placeholder
+`proxy-injected` so the CLIs start; that value is expected.
+
+| Secret | Allowed website | Header |
+| --- | --- | --- |
+| `VERCEL_TOKEN` | `api.vercel.com` | `Authorization: Bearer` |
+| `NEON_API_KEY` | `console.neon.tech` | `Authorization: Bearer` |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | `staging.lgi.tools` | `x-vercel-protection-bypass` (no prefix) |
+
+Environment variables: `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
+`NEON_PROJECT_ID`, `PLAYWRIGHT_BASE_URL`, `EVE_CLIENT_ID`, plus two secrets
+that code reads directly: `EVE_CLIENT_SECRET` (the localhost dev EVE app)
+and `LGI_CONVEX_STAGING_DEPLOY_KEY` (a deploy key scoped to
+`proper-squid-200`).
+
+Allowed domains beyond the defaults: `console.neon.tech`, `api.neon.tech`,
+`api.vercel.com`, `vercel.com`, `staging.lgi.tools`,
+`proper-squid-200.convex.cloud`, `proper-squid-200.convex.site`,
+`api.convex.dev`.
 
 ## Dev stack
 

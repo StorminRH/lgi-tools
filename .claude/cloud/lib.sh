@@ -10,6 +10,9 @@ LGI_PGDATA="${LGI_PGDATA:-/var/lib/lgi-pgdata}"
 LGI_PG_LOG="$LGI_PGDATA/server.log"
 LGI_ENV_LOCAL_STATE="$LGI_STATE_DIR/env.local"
 LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
+# setup.sh's last run: its log and a one-line result the SessionStart hook reports.
+LGI_SETUP_LOG="$LGI_STATE_DIR/setup.log"
+LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
 LGI_LOG_DIR="${LGI_LOG_DIR:-/tmp/lgi}"
 LGI_STACK_STATUS="${LGI_STACK_STATUS:-$LGI_LOG_DIR/stack.status}"
 LGI_PLACEHOLDER_JWKS='data:text/plain;charset=utf-8;base64,e30='
@@ -39,8 +42,11 @@ lgi_ensure_pg16() {
   if [ -x "${LGI_PG16_BIN}/pg_ctl" ]; then
     return 0
   fi
-  sudo apt-get update -q
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q postgresql-16 postgresql-client-16
+  # The setup script runs as root, where sudo may not exist.
+  local sudo=()
+  [ "$(id -u)" = 0 ] || sudo=(sudo)
+  "${sudo[@]}" apt-get update -q
+  "${sudo[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y -q postgresql-16 postgresql-client-16
   lgi_pg16_bin >/dev/null
 }
 
@@ -328,6 +334,44 @@ lgi_save_env_local() {
   local file="${1:-.env.local}"
   mkdir -p "$LGI_STATE_DIR"
   install -m 600 "$file" "$LGI_ENV_LOCAL_STATE"
+}
+
+# Record how setup.sh ended: exit code, the phase it reached, and its runtime.
+lgi_write_setup_status() {
+  local rc="$1" phase="$2" seconds="$3" result=ok
+  [ "$rc" = 0 ] || result=failed
+  mkdir -p "$LGI_STATE_DIR"
+  printf 'result=%s exit=%s phase=%s seconds=%s finished=%s\n' \
+    "$result" "$rc" "$phase" "$seconds" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LGI_SETUP_STATUS"
+}
+
+# One line for session context. Snapshots are only kept when setup finishes
+# within about five minutes, so the runtime is part of the report.
+lgi_setup_summary() {
+  local snapshot=no
+  [ -f "$LGI_PROVISIONED_MARKER" ] && snapshot=yes
+  if [ -f "$LGI_SETUP_STATUS" ]; then
+    printf 'provisioned=%s last setup: %s\n' "$snapshot" "$(head -1 "$LGI_SETUP_STATUS")"
+  else
+    printf 'provisioned=%s last setup: none recorded\n' "$snapshot"
+  fi
+}
+
+# Hosted CLIs, by variable name only. Network secrets read as the
+# placeholder `proxy-injected`; the agent proxy adds the real header.
+lgi_hosted_credential_summary() {
+  local name val out=""
+  for name in VERCEL_TOKEN NEON_API_KEY VERCEL_AUTOMATION_BYPASS_SECRET LGI_CONVEX_STAGING_DEPLOY_KEY EVE_CLIENT_SECRET; do
+    val="${!name-}"
+    if [ -z "$val" ]; then
+      out="$out $name=missing"
+    elif [ "$val" = proxy-injected ]; then
+      out="$out $name=proxy"
+    else
+      out="$out $name=set"
+    fi
+  done
+  printf 'credentials:%s\n' "$out"
 }
 
 # A crashed `convex dev` leaves its local backend reparented to init, still

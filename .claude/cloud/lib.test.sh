@@ -156,4 +156,31 @@ eve_line="$(unset EVE_CLIENT_ID EVE_CLIENT_SECRET; lgi_eve_runtime_secret_presen
 [ "$eve_line" = "EVE runtime secrets: absent" ] || fail "eve absence"
 pass "EVE secret presence is names-only"
 
+cred_line="$(
+  VERCEL_TOKEN=proxy-injected NEON_API_KEY=dummy-neon-value \
+    LGI_CONVEX_STAGING_DEPLOY_KEY=dummy-convex-value EVE_CLIENT_SECRET=dummy-eve-value \
+    bash -c 'unset VERCEL_AUTOMATION_BYPASS_SECRET; source "$1"; lgi_hosted_credential_summary' _ "$ROOT/.claude/cloud/lib.sh"
+)"
+printf '%s' "$cred_line" | grep -q 'VERCEL_TOKEN=proxy' || fail "proxy-injected placeholder"
+printf '%s' "$cred_line" | grep -q 'NEON_API_KEY=set' || fail "set credential"
+printf '%s' "$cred_line" | grep -q 'VERCEL_AUTOMATION_BYPASS_SECRET=missing' || fail "missing credential"
+printf '%s' "$cred_line" | grep -q dummy && fail "credential summary leaked a value"
+pass "hosted credential summary is names-only"
+
+prev_state="$LGI_STATE_DIR"
+LGI_STATE_DIR="$(mktemp -d)"
+LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
+LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
+lgi_setup_summary | grep -q '^provisioned=no last setup: none recorded$' || fail "summary before setup"
+lgi_write_setup_status 1 "postgres: SDE" 412
+grep -q '^result=failed exit=1 phase=postgres: SDE seconds=412 finished=' "$LGI_SETUP_STATUS" || fail "failed status"
+lgi_write_setup_status 0 done 251
+touch "$LGI_PROVISIONED_MARKER"
+lgi_setup_summary | grep -q '^provisioned=yes last setup: result=ok exit=0 phase=done seconds=251 ' || fail "summary after setup"
+rm -rf "$LGI_STATE_DIR"
+LGI_STATE_DIR="$prev_state"
+LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
+LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
+pass "setup status and summary"
+
 echo "lib.test.sh: all assertions passed"
