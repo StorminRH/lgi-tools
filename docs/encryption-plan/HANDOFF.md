@@ -52,7 +52,7 @@ Key agreed outcomes are in each part file. Highlights:
 The Part 07 verification is done and saved in `review/07-sealed-channel.md`. The owner asked to take the questions one short step at a time, one question per step, recording and pushing each answer:
 
 1. Who is asking (A) — **agreed 2026-10-08: the stamp** (recorded in Part 07's outcome section)
-2. Enclave write credential (the "Also open" item)
+2. Enclave write credential (the "Also open" item) — **agreed 2026-10-08: shared secret**
 3. Background work (B: job inbox, corp recheck, elimination)
 4. Map rules (B: dedupe and versions, access lists and map creation, roles)
 5. Timing and cost (B: deadlines, latency table, status row, Convex cost)
