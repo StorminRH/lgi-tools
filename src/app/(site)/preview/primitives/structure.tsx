@@ -185,7 +185,7 @@ export function StructureGroup() {
       <Specimen
         name="MultiplesGrid + Measured"
         source="multiples-grid · measured"
-        note="Small-multiple stat tiles on a hairline grid; Measured hands its width to children such as charts."
+        note="Small-multiple stat tiles on a hairline grid, marked up as a description list. The chart slot is optional. Measured hands its width to children such as charts."
       >
         <div className="flex flex-col gap-4">
           <Card className="overflow-hidden">
@@ -197,6 +197,19 @@ export function StructureGroup() {
               ))}
             </MultiplesGrid>
           </Card>
+          <Variant label="figures only · composed value with a delta">
+            <Card className="overflow-hidden">
+              <MultiplesGrid columns={2}>
+                <MultiplesCell title="User accounts" value="1,204" />
+                <MultiplesCell
+                  title="Page views"
+                  value={<>12.4<span className="text-muted">k</span></>}
+                  delta={<Pill tone="green">+6%</Pill>}
+                  note="412 / day"
+                />
+              </MultiplesGrid>
+            </Card>
+          </Variant>
           <Variant label="measured">
             <Measured>
               {(width) => <span className="font-data text-ui text-isk">This slot is {width}px wide</span>}

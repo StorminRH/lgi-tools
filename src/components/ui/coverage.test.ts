@@ -58,7 +58,6 @@ import { DistributionBars } from '@/components/ui/distribution-bars';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { LoadingToastProvider } from '@/components/ui/loading-toast';
 import { MenuRadioGroup, MenuRadioItem, MenuRadioItemIndicator } from '@/components/ui/menu';
-import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { PageTitle } from '@/components/ui/page-head';
 import { Pagination } from '@/components/ui/pagination';
 import { PopoverRow } from '@/components/ui/popover';
@@ -84,8 +83,6 @@ describe('coverage-gaps', () => {
       MenuRadioGroup,
       MenuRadioItem,
       MenuRadioItemIndicator,
-      MultiplesCell,
-      MultiplesGrid,
       PageTitle,
       Pagination,
       PopoverRow,
