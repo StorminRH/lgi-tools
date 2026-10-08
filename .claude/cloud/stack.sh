@@ -43,6 +43,8 @@ start_postgres() {
     return 1
   fi
   if ! lgi_pg_server "$PGBIN/pg_ctl" -D "$LGI_PGDATA" status >/dev/null 2>&1; then
+    # The snapshot can carry a lock file from the setup run; nothing holds it.
+    rm -f "$LGI_PGDATA/postmaster.pid"
     lgi_pg_server "$PGBIN/pg_ctl" -D "$LGI_PGDATA" -l "$LGI_PG_LOG" -w start >/dev/null
   fi
   lgi_wait_for_postgres

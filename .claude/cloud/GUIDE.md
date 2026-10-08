@@ -13,7 +13,9 @@ which hosted credentials are `set`, `proxy` (a network secret), or
 
 The environment's Edit dialog at claude.ai/code holds what the repo cannot.
 Changing the setup script or allowed domains rebuilds the snapshot, which is
-only kept when setup finishes within about five minutes.
+only kept when setup finishes within about five minutes. Pushing changes to
+`setup.sh` does not rebuild it; bump the `snapshot rev` comment in the
+dialog's setup script to force a rebuild.
 
 Setup script, verbatim. It runs from `/home/user`, outside the clone, so it
 only finds and runs [environment-setup.sh](environment-setup.sh), which logs
@@ -23,6 +25,7 @@ finish.
 
 ```bash
 #!/bin/bash
+# snapshot rev 2
 for f in /home/user/*/.claude/cloud/environment-setup.sh "$PWD"/*/.claude/cloud/environment-setup.sh; do
   [ -f "$f" ] && exec bash "$f"
 done
