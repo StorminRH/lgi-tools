@@ -112,14 +112,13 @@ cmd_stop() {
 }
 
 cmd_status() {
-  local ok=0 auth boot
+  local ok=0 auth
   report() { printf '%-12s %s\n' "$1" "$2"; }
-  boot="$(cat "$LGI_BOOTSTRAP_STATUS" 2>/dev/null || echo 'not started')"
-  report bootstrap "$boot"
-  # A bootstrap still running may yet install dependencies or start services,
-  # so the stack is not ready until it finishes. A failed one is reported but
-  # does not veto services a manual `stack.sh start` has since brought up.
-  case "$boot" in ok | failed*) ;; *) ok=1 ;; esac
+  # Reported for context only. Readiness is decided by the services: none of
+  # them can be up without dependencies installed, and a bootstrap that died
+  # or never ran must not veto a stack a manual `stack.sh start` brought up.
+  # `wait` still stops early on a failed bootstrap.
+  report bootstrap "$(cat "$LGI_BOOTSTRAP_STATUS" 2>/dev/null || echo 'not started')"
   if "$PGBIN/pg_isready" -h localhost -p 5433 -U lgi -d lgi_tools >/dev/null 2>&1; then
     report postgres "ready :5433"
   else
