@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatIsoDay, formatRelativeTime, formatRemaining, formatUtcDate, formatUtcTime } from './time';
+import {
+  formatIsoDay,
+  formatRelativeTime,
+  formatRemaining,
+  formatUtcDate,
+  formatUtcMinute,
+  formatUtcTime,
+} from './time';
 
 describe('time formatters', () => {
   it('formats UTC calendar dates including bare YYYY-MM-DD changelog pins', () => {
@@ -13,6 +20,8 @@ describe('time formatters', () => {
     expect(formatUtcTime(Date.parse('2026-01-02T23:30:00.000Z'))).toBe('23:30');
     expect(formatUtcTime(null)).toBe('—');
     expect(formatIsoDay(new Date('2026-06-19T15:00:00.000Z'))).toBe('2026-06-19');
+    expect(formatUtcMinute(new Date('2026-06-09T12:34:56.789Z'))).toBe('2026-06-09 12:34');
+    expect(formatUtcMinute(new Date('2026-01-02T23:30:00.000+02:00'))).toBe('2026-01-02 21:30');
   });
 
   it('floors relative and remaining time to the largest useful units', () => {

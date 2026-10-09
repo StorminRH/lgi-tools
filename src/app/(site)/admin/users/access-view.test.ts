@@ -3,7 +3,6 @@ import {
   adminRoleBadge,
   deriveAccessView,
   deriveAuditRowView,
-  formatDateTime,
   mergeAdminRows,
 } from './access-view';
 import type { AdminUser } from '@/platform/auth/admin-users';
@@ -20,8 +19,6 @@ function admin(overrides: Partial<AdminUser>): AdminUser {
 }
 
 test('mergeAdminRows flags or prepends the env superadmin and tones role badges', () => {
-  expect(formatDateTime(new Date('2026-06-09T12:34:56.789Z'))).toBe('2026-06-09 12:34');
-
   const flagged = mergeAdminRows(
     [admin({ userId: 'a', role: 'ADMIN' }), admin({ userId: 'b', role: 'ADMIN' })],
     admin({ userId: 'b' }),
@@ -66,6 +63,7 @@ test('deriveAuditRowView labels actor/target with id fallbacks and tones the rol
     from: 'USER',
     to: 'ADMIN',
   } as Parameters<typeof deriveAuditRowView>[0]);
+  expect(named.timestamp).toBe('2026-06-09 00:00');
   expect(named.actorLabel).toBe('Actor');
   expect(named.targetLabel).toBe('Character 2');
   expect(named.fromTone).toBe('blue');
