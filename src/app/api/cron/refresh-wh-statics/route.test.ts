@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 import { readSystemStatics } from '@/data/wh-statics/queries';
 import {
   whStaticsSnapshots,
@@ -13,10 +14,9 @@ const recordChangedMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
 let lockGot = true;
-const releaseMock = vi.fn();
-const reservedTag = vi.fn(() => Promise.resolve([{ got: lockGot }]));
-Object.assign(reservedTag, { release: releaseMock });
-const reserveMock = vi.fn(() => Promise.resolve(reservedTag));
+const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
+  () => Promise.resolve([{ got: lockGot }]),
+);
 
 vi.mock('@/composition/wh-statics-refresh', () => ({
   probeWhStaticsRefresh: (...args: unknown[]) => probeMock(...args),
@@ -78,7 +78,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     reserveMock.mockClear();
     reservedTag.mockClear();
-    releaseMock.mockClear();
+    reservedTag.release.mockClear();
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
@@ -212,7 +212,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       feed,
       BASELINE,
     );
-    expect(releaseMock).toHaveBeenCalledOnce();
+    expect(reservedTag.release).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_wh_statics',
       metadata: expect.objectContaining({
@@ -242,7 +242,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       feed,
       BASELINE,
     );
-    expect(releaseMock).toHaveBeenCalledOnce();
+    expect(reservedTag.release).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_wh_statics',
       metadata: expect.objectContaining({ outcome: 'unchanged' }),
@@ -281,7 +281,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
 
     expect(await response.json()).toEqual({ status: 'busy' });
     expect(recordChangedMock).not.toHaveBeenCalled();
-    expect(releaseMock).toHaveBeenCalledOnce();
+    expect(reservedTag.release).toHaveBeenCalledOnce();
   });
 
   it('rejects a request without the cron bearer token', async () => {

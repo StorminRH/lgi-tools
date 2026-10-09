@@ -1,18 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const h = vi.hoisted(() => ({
   purgeEligibleMaps: vi.fn(),
-  reserve: vi.fn(),
   logUsageEvent: vi.fn(),
 }));
+const lock = createReservedConnectionMock();
 
 vi.mock('@/composition/map-purge', () => ({
   purgeEligibleMaps: (...args: unknown[]) => h.purgeEligibleMaps(...args),
 }));
 vi.mock('@/db', () => ({
-  directClient: { reserve: (...args: unknown[]) => h.reserve(...args) },
+  directClient: { reserve: (...args: unknown[]) => lock.reserve(...args) },
 }));
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
@@ -33,12 +34,9 @@ beforeEach(() => {
     deletedDocuments: 300,
     projectionPending: 0,
   });
-  h.reserve.mockReset().mockImplementation(async () => {
-    const reserved = vi.fn()
-      .mockResolvedValueOnce([{ got: true }])
-      .mockResolvedValueOnce([{ unlocked: true }]);
-    return Object.assign(reserved, { release: vi.fn() });
-  });
+  lock.reserve.mockClear();
+  lock.reserved.mockClear();
+  lock.reserved.release.mockClear();
   h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   silenceConsolePrefixes('log', ['{"scope":"cron:']);
 });

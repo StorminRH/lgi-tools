@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const refreshIndustryIndicesMock = vi.fn();
@@ -7,11 +8,9 @@ const logUsageEventMock = vi.fn();
 const dbMock = {};
 
 let lockGot = true;
-const reservedTag = Object.assign(
-  vi.fn(() => Promise.resolve([{ got: lockGot }])),
-  { release: vi.fn() },
+const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
+  () => Promise.resolve([{ got: lockGot }]),
 );
-const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
 
 vi.mock('@/data/industry-indices/constants', () => ({
   ADVISORY_LOCK_INDUSTRY_INDICES: 41,

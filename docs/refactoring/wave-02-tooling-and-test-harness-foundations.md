@@ -16,7 +16,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 | ☑ | [P346](#p346) | Add a prefix-scoped console silencer in lib test support and migrate the unasserted blanket spies | testing | M | low | medium | — |
 | ☑ | [P342](#p342) | Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json | testing | S | low | low | — |
 | ☑ | [P343](#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
-| ☐ | [P349](#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
+| ☑ | [P349](#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
 | ☐ | [P244](#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
 | ☐ | [P347](#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
 | ☐ | [P348](#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
@@ -674,7 +674,7 @@ export function seedEveAccount(
 
 ## P349: Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -14 lines across 4 files; no additions
 - **Depends on:** —
