@@ -18,5 +18,7 @@ describe('number formatters', () => {
     expect(formatCount(0, 'job')).toBe('0 jobs');
     expect(formatCount(1234, 'session')).toBe('1,234 sessions');
     expect(formatCount(2, 'match', 'matches')).toBe('2 matches');
+    expect(formatCount(0.6, 'job')).toBe('1 job');
+    expect(formatCount(1.4, 'day')).toBe('1 day');
   });
 });

@@ -16,7 +16,7 @@ const STATIC_WINDOWS = [
   ['owned_blueprints', 3_600_000],
   ['owned_structures', 3_600_000],
   ['affiliations', 3_600_000],
-  ['market_prices', 86_400_000],
+  ['market_prices', 300_000],
 ] as const satisfies readonly (readonly [StaticWindowDatasetName, number])[];
 
 describe('freshnessGate', () => {

@@ -16,5 +16,6 @@ export function formatPct(value: number | null): string {
 
 /** A count with its noun, pluralised: `1 job`, `12 jobs`, `3 matches`. */
 export function formatCount(count: number, one: string, many = `${one}s`): string {
-  return `${formatQuantity(count)} ${count === 1 ? one : many}`;
+  const rounded = Math.round(count);
+  return `${formatQuantity(rounded)} ${rounded === 1 ? one : many}`;
 }

@@ -43,8 +43,14 @@ start_postgres() {
     return 1
   fi
   if ! lgi_pg_server "$PGBIN/pg_ctl" -D "$LGI_PGDATA" status >/dev/null 2>&1; then
-    # The snapshot can carry a lock file from the setup run; nothing holds it.
-    rm -f "$LGI_PGDATA/postmaster.pid"
+    # The snapshot can carry a lock file from the setup run that nothing
+    # holds. Remove it only when its postmaster is gone, so a start that
+    # raced this one (bootstrap and a manual start) keeps its lock file.
+    local lock_pid
+    lock_pid="$(head -n 1 "$LGI_PGDATA/postmaster.pid" 2>/dev/null || true)"
+    if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
+      rm -f "$LGI_PGDATA/postmaster.pid"
+    fi
     lgi_pg_server "$PGBIN/pg_ctl" -D "$LGI_PGDATA" -l "$LGI_PG_LOG" -w start >/dev/null
   fi
   lgi_wait_for_postgres
@@ -106,14 +112,13 @@ cmd_stop() {
 }
 
 cmd_status() {
-  local ok=0 auth boot
+  local ok=0 auth
   report() { printf '%-12s %s\n' "$1" "$2"; }
-  boot="$(cat "$LGI_BOOTSTRAP_STATUS" 2>/dev/null || echo 'not started')"
-  report bootstrap "$boot"
-  # A bootstrap still running may yet install dependencies or start services,
-  # so the stack is not ready until it finishes. A failed one is reported but
-  # does not veto services a manual `stack.sh start` has since brought up.
-  case "$boot" in ok | failed*) ;; *) ok=1 ;; esac
+  # Reported for context only. Readiness is decided by the services: none of
+  # them can be up without dependencies installed, and a bootstrap that died
+  # or never ran must not veto a stack a manual `stack.sh start` brought up.
+  # `wait` still stops early on a failed bootstrap.
+  report bootstrap "$(cat "$LGI_BOOTSTRAP_STATUS" 2>/dev/null || echo 'not started')"
   if "$PGBIN/pg_isready" -h localhost -p 5433 -U lgi -d lgi_tools >/dev/null 2>&1; then
     report postgres "ready :5433"
   else
