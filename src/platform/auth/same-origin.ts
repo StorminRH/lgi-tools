@@ -1,10 +1,9 @@
 import { PRODUCTION_SITE_URL, SITE_URL } from '@/config/site-url';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { readEnv } from '@/lib/env';
-import { forbiddenFailure, type AppFailure } from '@/lib/failure';
+import { forbiddenFailure, type CheckResult } from '@/lib/failure';
 
 type OriginSource = 'origin' | 'referer';
-export type SameOriginResult = { ok: true } | { ok: false; failure: AppFailure };
 
 function normalizeOrigin(value: string, addHttps = false): string | null {
   try {
@@ -29,7 +28,7 @@ function canonicalOrigin(): string {
     ?? PRODUCTION_SITE_URL;
 }
 
-export function requireSameOrigin(request: Request): SameOriginResult {
+export function requireSameOrigin(request: Request): CheckResult {
   const origin = request.headers.get('origin');
   const referer = origin === null ? request.headers.get('referer') : null;
   const rawOrigin = origin ?? referer;

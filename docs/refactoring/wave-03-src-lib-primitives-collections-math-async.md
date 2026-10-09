@@ -34,7 +34,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
 | ☑ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
 | ☑ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
-| ☐ | [P249](#p249) | Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions | contracts-validation | S | low | low | — |
+| ☑ | [P249](#p249) | Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions | contracts-validation | S | low | low | — |
 | ☐ | [P145](#p145) | Promote hasTimeoutAbort to a chain-aware isTimeoutError in lib and use it in every timeout classifier | error-handling | S | low | medium | — |
 | ☐ | [P140](#p140) | Move readWithRetries and a shared sleep into src/lib/retry.ts, let withColdStartRetry absorb warmNeon, and share the planner build-location read | error-handling | M | low | medium | [P145](#p145) |
 | ☐ | [P126](#p126) | Time dependencies through one performance.now helper and stop ESI double-counting Redis | generic-utility | S | low | medium | — |
@@ -903,7 +903,7 @@ export function errorCode(error: unknown): string {
 
 ## P249: Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -12 / +3
 - **Depends on:** —

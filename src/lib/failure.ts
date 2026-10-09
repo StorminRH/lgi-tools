@@ -20,6 +20,12 @@ export interface AppFailure {
   cause?: unknown;
 }
 
+/** The failure branch every pass/fail result shares. */
+export type FailureResult = { ok: false; failure: AppFailure };
+
+/** A guard that either passes with nothing to carry or fails with an AppFailure. */
+export type CheckResult = { ok: true } | FailureResult;
+
 function failure(
   category: FailureCategory,
   code: string,
