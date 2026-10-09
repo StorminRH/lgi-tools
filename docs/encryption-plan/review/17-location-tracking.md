@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 07 review (2026-10-09):** ESI budget gate: the enclave runs today's gate code (floor 20, per-route 429 blocks, 420 handling) with its own in-memory tally, replacing the Convex per-isolate scoreboard location polling uses today, and never calls Upstash. It reports its budget snapshot with its heartbeat (admin page shows both tallies), obeys the single shared "pause ESI" setting, raises one Discord alert on exhaustion through `src/lib/alerts.ts`, and sends today's `OUTBOUND_USER_AGENT` on every call. Location routes (`char-location`, 1200 tokens per 15 minutes per application and character) are bucket-limited per character, whatever the source IP.
+
 ## In one paragraph
 
 Decision 1 moves location polling into the sealed service with no change in behaviour. This part says how. The heartbeat, `syncPresence` and `mapTracking` stay readable in Convex and tell the sealed service when to poll. The workers run today's poll loop and scheduler with today's rules, holding tokens, online state, cadence and ETags in memory. Each result is written to Convex as one fixed-size sealed row per (map, character) under that map's key, with coverage inside, and only for a tracking selection the character's own account signed. Members' browsers decrypt it into the shape the UI uses today. Four Convex tables go away (`characterLocationAccess`, `characterLocationOnline`, `characterLocationCovered`, `locationSync`). The jump doorbell goes too, in a form that keeps today's choice of which maps receive a jump. Rows are written only on change, as today, so LGI can see when a row changes but not where a character is.

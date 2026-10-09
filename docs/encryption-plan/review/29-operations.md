@@ -4,6 +4,8 @@
 
 **Carried from the Part 05 and 06 reviews (2026-10-08):** no outage sign-in via passkeys; the daily drift job is dropped, and the heartbeat-fingerprint-on-list check is the operational signal. Nitro root certificate expires 2049-10-28.
 
+**Carried from the Part 07 review (2026-10-09):** one ESI control panel across both gates: the admin ESI health page shows Vercel's Upstash tally and the enclave's in-memory tally (from its heartbeat); one readable "pause ESI" setting (`esiPaused`) is obeyed by both; enclave budget exhaustion posts one Discord alert through `src/lib/alerts.ts`, rate-limited like today's public budget alert. Rule 8's scoreboard means each side's own tally.
+
 ## In one paragraph
 
 This part sets how one owner runs LGI.tools once content is sealed. The admin console stays metadata only. Admin reassign goes (recommended), and readable `account` rows never extend key release. Session revoke also cuts off the browser session key. Pause switches stop worker ESI work without an enclave release, never the checks behind key release. An hourly Convex cron re-posts a nightly revaluation that an enclave outage made the daily batch miss. Telemetry, logs and alerts carry normalised paths, codes, counts and opaque IDs. A Convex check and an admin panel watch the sealed service; AWS alarms cover KMS. Each likely incident has a playbook that needs no user data. Users see nothing new, except the passkey or recovery-key option during a sealed-service outage.
