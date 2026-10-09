@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { directClient, getDeletionClient } from '@/db';
 import {
@@ -14,8 +14,8 @@ import {
   deleteLinkedCharacter,
   getAccountTotals,
   getActiveSessionCount,
-  getUserByCharacterId,
   getUserById,
+  getUserOwningCharacter,
   listAdminUsers,
   reassignCharacter,
   revokeUserSessions,
@@ -140,10 +140,47 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       },
     ]);
     await expect(getUserById(SOURCE_ID)).resolves.toMatchObject({ characterId: MOVED_CHAR });
-    await expect(getUserByCharacterId(SURVIVOR_CHAR)).resolves.toMatchObject({
-      userId: SOURCE_ID,
-      characterId: SURVIVOR_CHAR,
+    await expect(getUserOwningCharacter(SURVIVOR_CHAR)).resolves.toEqual(rows[0]);
+  });
+
+  it('finds the owner of any linked character in one read, shown as the two-step lookup showed it', async () => {
+    const THIRD_ID = 'third-user';
+    const ALT_CHAR = 90000023;
+    const OTHER_CHAR = 90000024;
+    const UNLINKED_CHAR = 90000025;
+    await seedUser(THIRD_ID, { name: 'Third Pilot', image: 'third-image' });
+    await seedEveAccount('source-main', MOVED_CHAR, SOURCE_ID, new Date('2026-07-01'));
+    await seedEveAccount('source-alt', ALT_CHAR, SOURCE_ID, new Date('2026-07-03'));
+    await seedEveAccount('target-main', SURVIVOR_CHAR, TARGET_ID, new Date('2026-07-02'));
+    await seedEveAccount('target-alt', OTHER_CHAR, TARGET_ID, new Date('2026-06-01'));
+    await seedCharacter(harness.db, MOVED_CHAR, { name: 'Source Main', portraitUrl: 'source-portrait' });
+    await seedCharacter(harness.db, OTHER_CHAR, { name: 'Target Oldest', portraitUrl: 'target-portrait' });
+    // Same account id under another provider must not resolve to its holder.
+    await harness.db.insert(account).values({
+      id: 'third-discord', accountId: String(UNLINKED_CHAR), providerId: 'discord', userId: THIRD_ID,
     });
+
+    // The superadmin lookup before it was one query: the owning account row,
+    // then that user read through its oldest EVE character.
+    async function twoStepOwner(characterId: number) {
+      const [owner] = await harness.db
+        .select({ userId: account.userId })
+        .from(account)
+        .where(and(eq(account.providerId, 'eve'), eq(account.accountId, String(characterId))))
+        .limit(1);
+      return owner ? getUserById(owner.userId) : null;
+    }
+
+    for (const characterId of [MOVED_CHAR, ALT_CHAR, SURVIVOR_CHAR, OTHER_CHAR, UNLINKED_CHAR]) {
+      await expect(getUserOwningCharacter(characterId)).resolves.toEqual(await twoStepOwner(characterId));
+    }
+    await expect(getUserOwningCharacter(ALT_CHAR)).resolves.toEqual({
+      userId: SOURCE_ID, characterId: MOVED_CHAR, name: 'Source Main', portraitUrl: 'source-portrait', role: 'USER',
+    });
+    await expect(getUserOwningCharacter(SURVIVOR_CHAR)).resolves.toMatchObject({
+      userId: TARGET_ID, characterId: OTHER_CHAR, name: 'Target Oldest',
+    });
+    await expect(getUserOwningCharacter(UNLINKED_CHAR)).resolves.toBeNull();
   });
 
   it('keeps displayed identity coherent and finds an account through any linked character', async () => {
@@ -207,7 +244,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     runners.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
     await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).rejects.toBe(failure);
     expect(await getStoredActiveCharacterId(SOURCE_ID)).toBe(SURVIVOR_CHAR);
-    expect(await getUserByCharacterId(MOVED_CHAR)).toBeNull();
+    expect(await getUserOwningCharacter(MOVED_CHAR)).toBeNull();
     expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: SOURCE_ID, characterId: MOVED_CHAR });
   });
 
@@ -218,7 +255,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     const failure = new Error('history deletion failed');
     runners.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
     await expect(reassignCharacter({ characterId: MOVED_CHAR, fromUserId: SOURCE_ID, toUserId: TARGET_ID, runners })).rejects.toBe(failure);
-    expect(await getUserByCharacterId(MOVED_CHAR)).toMatchObject({ userId: TARGET_ID });
+    expect(await getUserOwningCharacter(MOVED_CHAR)).toMatchObject({ userId: TARGET_ID });
     if (survivor) expect(await getStoredActiveCharacterId(SOURCE_ID)).toBe(SURVIVOR_CHAR);
     else expect(await getUserById(SOURCE_ID)).toBeNull();
     expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: SOURCE_ID, characterId: MOVED_CHAR });
@@ -226,24 +263,46 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
 
   it('counts only unexpired sessions and revokes the exact stored row count', async () => {
     await seedSession('future', SOURCE_ID, new Date(Date.now() + 60_000));
+    await seedSession('later', SOURCE_ID, new Date(Date.now() + 86_400_000));
     await seedSession('expired', SOURCE_ID, new Date(Date.now() - 60_000));
+    await seedSession('other-user', TARGET_ID, new Date(Date.now() + 60_000));
 
-    await expect(getActiveSessionCount(SOURCE_ID)).resolves.toBe(1);
-    await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(2);
+    await expect(getActiveSessionCount(SOURCE_ID)).resolves.toBe(2);
+    await expect(getActiveSessionCount('missing-user')).resolves.toBe(0);
+    await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(3);
     await expect(getActiveSessionCount(SOURCE_ID)).resolves.toBe(0);
+    await expect(getActiveSessionCount(TARGET_ID)).resolves.toBe(1);
   });
 
   it('counts every user and each distinct linked EVE character', async () => {
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID);
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID);
-    await harness.db.insert(account).values({
-      id: 'discord',
-      accountId: 'not-a-character',
-      providerId: 'discord',
-      userId: TARGET_ID,
-    });
+    await seedEveAccount('target', 90000023, TARGET_ID);
+    await harness.db.insert(account).values([
+      { id: 'discord', accountId: 'not-a-character', providerId: 'discord', userId: TARGET_ID },
+      // Another provider may reuse an EVE character's id; it is not a character.
+      { id: 'discord-clash', accountId: String(MOVED_CHAR), providerId: 'discord', userId: TARGET_ID },
+    ]);
 
-    await expect(getAccountTotals()).resolves.toEqual({ users: 2, characters: 2 });
+    await expect(getAccountTotals()).resolves.toEqual({ users: 2, characters: 3 });
+  });
+
+  it('matches wildcard characters in a search literally', async () => {
+    await harness.db.insert(user).values([
+      { id: 'percent', name: 'Rate 100% Pilot', email: 'percent@eve.invalid' },
+      { id: 'near-percent', name: 'Rate 1000 Pilot', email: 'near-percent@eve.invalid' },
+      { id: 'underscore', name: 'Under_Score', email: 'underscore@eve.invalid' },
+      { id: 'near-underscore', name: 'UnderXScore', email: 'near-underscore@eve.invalid' },
+      { id: 'backslash', name: 'Back\\Slash', email: 'backslash@eve.invalid' },
+    ]);
+    const ids = async (query: string) =>
+      (await searchUsersByLinkedCharacterName(query)).map((row) => row.userId);
+
+    await expect(ids('100%')).resolves.toEqual(['percent']);
+    await expect(ids('under_score')).resolves.toEqual(['underscore']);
+    await expect(ids('_')).resolves.toEqual(['underscore']);
+    await expect(ids('%')).resolves.toEqual(['percent']);
+    await expect(ids('k\\s')).resolves.toEqual(['backslash']);
   });
 
   it('moves the last character, deletes the emptied source, and cascades its sessions', async () => {
@@ -317,7 +376,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
 
     await expect(getUserById(SOURCE_ID)).resolves.toBeNull();
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(0);
-    await expect(getUserByCharacterId(MOVED_CHAR)).resolves.toMatchObject({ userId: TARGET_ID });
+    await expect(getUserOwningCharacter(MOVED_CHAR)).resolves.toMatchObject({ userId: TARGET_ID });
   });
 
   it('refuses admin reassignment and unlink while an independent deletion receipt owns the link', async () => {

@@ -1,3 +1,5 @@
+import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatIsoDay } from '@/lib/format/time';
 import type {
   CronOutcomeCount,
   FallbackRateData,
@@ -28,11 +30,11 @@ export function loginFrequencyBuckets(counts: number[]): LoginFrequencyBucket[] 
   }));
 }
 
+/** One line on the period's price refreshes; an empty period shows an empty state instead. */
 export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {
-  if (points.length === 0) return 'No price refreshes recorded this period.';
   const fetched = points.reduce((s, p) => s + p.fetched, 0);
   const written = points.reduce((s, p) => s + p.written, 0);
-  return `Refreshed on ${points.length} day${points.length === 1 ? '' : 's'}, writing ${written.toLocaleString()} of ${fetched.toLocaleString()} fetched rows.`;
+  return `Refreshed on ${formatCount(points.length, 'day')}, writing ${formatQuantity(written)} of ${formatQuantity(fetched)} fetched rows.`;
 }
 
 export type StatusLevel = 'green' | 'amber' | 'red' | 'neutral';
@@ -59,9 +61,17 @@ export function targetLevel(value: number, target: AlertTarget): Exclude<StatusL
   return 'green';
 }
 
+/**
+ * A subsystem's verdict, already split for a status row: `value` is the
+ * short state or figure for the value column ("healthy", "late", "5 left"),
+ * `note` the detail under the label. `quiet` marks amber that informs
+ * rather than asks for action, such as a cron that failed and recovered.
+ */
 export interface SubsystemStatus {
   level: StatusLevel;
-  headline: string;
+  value: string;
+  note?: string;
+  quiet?: boolean;
 }
 
 export const GSC_OUTCOME_RULES = {
@@ -111,23 +121,23 @@ export function classifyOutcome(
 
 export function deriveCronStatus(input: CronStatusInput): SubsystemStatus {
   const { lastRun, outcomes, expectedEveryHours, now } = input;
-  if (!lastRun) return { level: 'red', headline: 'never ran' };
+  if (!lastRun) return { level: 'red', value: 'never ran' };
 
   const ago = formatAgo(lastRun.timestamp, now);
   const ageHours = (now.getTime() - lastRun.timestamp.getTime()) / 3_600_000;
   const lastKind = classifyOutcome(lastRun.outcome, input);
 
   if (lastKind === 'unhealthy') {
-    return { level: 'red', headline: `failing · ${lastRun.outcome ?? 'unknown outcome'} ${ago}` };
+    return { level: 'red', value: 'failing', note: `${lastRun.outcome ?? 'unknown outcome'} ${ago}` };
   }
   if (ageHours > expectedEveryHours * STALE_RED_FACTOR) {
-    return { level: 'red', headline: `stale · last run ${ago}` };
+    return { level: 'red', value: 'stale', note: `last run ${ago}` };
   }
   if (lastKind === 'degraded') {
-    return { level: 'amber', headline: `degraded · ${lastRun.outcome} ${ago}` };
+    return { level: 'amber', value: 'degraded', note: `${lastRun.outcome} ${ago}` };
   }
   if (ageHours > expectedEveryHours * STALE_AMBER_FACTOR) {
-    return { level: 'amber', headline: `late · last run ${ago}` };
+    return { level: 'amber', value: 'late', note: `last run ${ago}` };
   }
 
   const failures = outcomes
@@ -136,10 +146,12 @@ export function deriveCronStatus(input: CronStatusInput): SubsystemStatus {
   if (failures > 0) {
     return {
       level: 'amber',
-      headline: `recovered · ${failures} failed run${failures === 1 ? '' : 's'} this period, latest healthy ${ago}`,
+      value: 'recovered',
+      note: `${formatCount(failures, 'failed run')} this period, latest healthy ${ago}`,
+      quiet: true,
     };
   }
-  return { level: 'green', headline: `healthy · last run ${ago}` };
+  return { level: 'green', value: 'healthy', note: `last run ${ago}` };
 }
 
 export interface GscStatusInput {
@@ -152,7 +164,7 @@ export interface GscStatusInput {
 
 export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
   if (!input.configured) {
-    return { level: 'neutral', headline: 'not connected' };
+    return { level: 'neutral', value: 'not connected' };
   }
   const base = deriveCronStatus({
     lastRun: input.lastRun,
@@ -162,10 +174,7 @@ export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
     now: input.now,
   });
   if (base.level === 'green' && input.lastSyncedAt) {
-    return {
-      level: 'green',
-      headline: `${base.headline} · last synced ${input.lastSyncedAt.toISOString().slice(0, 10)}`,
-    };
+    return { ...base, note: `${base.note} · last synced ${formatIsoDay(input.lastSyncedAt)}` };
   }
   return base;
 }
@@ -182,22 +191,20 @@ export function deriveEsiSourceStatus({
   budgetExhaustions,
 }: EsiSourceStatusInput): SubsystemStatus {
   const denom = fallback.esi + fallback.fallback;
-  if (denom === 0) return { level: 'neutral', headline: 'no price refreshes this period' };
+  if (denom === 0) return { level: 'neutral', value: 'idle', note: 'no price refreshes this period' };
 
   const rate = fallback.fallback / denom;
   const ratePct = rate * 100 < 1 && rate > 0 ? '<1%' : `${Math.round(rate * 100)}%`;
   if (rate > FALLBACK_RED_RATE) {
-    return { level: 'red', headline: `degraded · Fuzzwork covered ${ratePct} of priced items` };
+    return { level: 'red', value: 'degraded', note: `Fuzzwork covered ${ratePct} of priced items` };
   }
   if (fallback.fallback > 0 || budgetExhaustions > 0) {
     const parts: string[] = [];
     if (fallback.fallback > 0) parts.push(`${ratePct} fallback`);
-    if (budgetExhaustions > 0) {
-      parts.push(`${budgetExhaustions} budget exhaustion${budgetExhaustions === 1 ? '' : 's'}`);
-    }
-    return { level: 'amber', headline: `partial · ${parts.join(' · ')}` };
+    if (budgetExhaustions > 0) parts.push(formatCount(budgetExhaustions, 'budget exhaustion'));
+    return { level: 'amber', value: 'partial', note: parts.join(' · ') };
   }
-  return { level: 'green', headline: 'ESI served every priced item this period' };
+  return { level: 'green', value: 'healthy', note: 'ESI served every priced item this period' };
 }
 
 export function fallbackRatePoints(

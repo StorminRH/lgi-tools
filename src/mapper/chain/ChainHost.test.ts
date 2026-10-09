@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   authed: true,
@@ -146,6 +146,13 @@ async function renderHost(): Promise<string> {
   const { ChainHost } = await import('./ChainHost');
   return renderToStaticMarkup(createElement(ChainHost, { mapId: 'map-a' }));
 }
+
+// The first import transforms the whole canvas graph, and under coverage
+// instrumentation that alone can take most of a test's budget on a busy
+// machine. Pay it once here so each test times only its own render.
+beforeAll(async () => {
+  await import('./ChainHost');
+}, 120_000);
 
 function withAccess(
   access: boolean | undefined,

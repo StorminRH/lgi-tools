@@ -7,6 +7,7 @@ import {
   ESI_DEAD_LETTER_RETENTION_DAYS,
   ESI_REFRESH_JOB_RETENTION_DAYS,
   ESI_REFRESH_JOB_MAX_ATTEMPTS,
+  ESI_REFRESH_JOB_STATUSES,
   LIVE_ESI_REFRESH_JOB_STATUSES,
 } from './constants';
 import { esiRefreshJobs } from './schema';
@@ -186,6 +187,14 @@ export async function claimDueEsiRefreshJobs(
   return claimed;
 }
 
+// Live jobs and dead letters count however old they are; the remaining
+// (finished) statuses count only inside the retention window. Naming the
+// finished statuses in the second arm lets (status, finished_at) serve it.
+const ALWAYS_COUNTED_STATUSES: readonly EsiRefreshJobStatus[] = [...LIVE_ESI_REFRESH_JOB_STATUSES, 'dead_lettered'];
+const RECENTLY_FINISHED_STATUSES = ESI_REFRESH_JOB_STATUSES.filter(
+  (status) => !ALWAYS_COUNTED_STATUSES.includes(status),
+);
+
 export async function getEsiRefreshQueueStats(now = new Date()): Promise<EsiRefreshQueueStat[]> {
   const oldestCreatedAt = sql`min(${esiRefreshJobs.createdAt})`.mapWith(
     esiRefreshJobs.createdAt,
@@ -198,8 +207,11 @@ export async function getEsiRefreshQueueStats(now = new Date()): Promise<EsiRefr
     })
     .from(esiRefreshJobs)
     .where(or(
-      inArray(esiRefreshJobs.status, [...LIVE_ESI_REFRESH_JOB_STATUSES, 'dead_lettered']),
-      gte(esiRefreshJobs.finishedAt, new Date(now.getTime() - ESI_REFRESH_JOB_RETENTION_DAYS * 86_400_000)),
+      inArray(esiRefreshJobs.status, ALWAYS_COUNTED_STATUSES),
+      and(
+        inArray(esiRefreshJobs.status, RECENTLY_FINISHED_STATUSES),
+        gte(esiRefreshJobs.finishedAt, new Date(now.getTime() - ESI_REFRESH_JOB_RETENTION_DAYS * 86_400_000)),
+      ),
     ))
     .groupBy(esiRefreshJobs.status)
     .orderBy(asc(esiRefreshJobs.status));

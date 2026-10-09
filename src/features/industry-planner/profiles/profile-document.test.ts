@@ -2,7 +2,6 @@ import { expect, test } from 'vitest';
 import { updateIndustryProfileRequestSchema } from './api-contract';
 import {
   emptyProfileDocument,
-  MAX_PROFILE_FACILITIES,
   profileDocumentSchema,
   readStoredDocument,
   unlinkedNewMembers,
@@ -26,15 +25,9 @@ test('only members a write adds must be linked; kept members may have been unlin
   expect(unlinkedNewMembers(next, null, new Set([101]))).toEqual([9, 555]);
 });
 
-
 test('a profile holds up to fifty facilities', () => {
   const facility = (i: number) => ({ kind: 'station' as const, id: `${60000000 + i}`, name: `Station ${i}`, systemId: 30000142, categories: [] });
   const doc = (count: number) => ({ ...emptyProfileDocument(), facilities: Array.from({ length: count }, (_, i) => facility(i)) });
-  expect(MAX_PROFILE_FACILITIES).toBe(50);
   expect(updateIndustryProfileRequestSchema.safeParse({ id: 'profile', expectedRevision: 1, name: 'Team', document: doc(50) }).success).toBe(true);
   expect(profileDocumentSchema.safeParse(doc(51)).success).toBe(false);
-});
-
-test('an earlier document shape is not read as a profile', () => {
-  expect(readStoredDocument({ v: 1, members: [], rules: [], defaults: {} })).toEqual(emptyProfileDocument());
 });

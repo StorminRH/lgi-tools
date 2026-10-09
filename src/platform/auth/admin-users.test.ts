@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { searchUsersByLinkedCharacterName, toAdminUser } from './admin-users';
+import { containsPattern, searchUsersByLinkedCharacterName, toAdminUser } from './admin-users';
 
 vi.mock('@/db', () => ({
   db: {
@@ -15,6 +15,19 @@ describe('searchUsersByLinkedCharacterName', () => {
   it('returns [] for empty or whitespace input without touching the DB', async () => {
     await expect(searchUsersByLinkedCharacterName('')).resolves.toEqual([]);
     await expect(searchUsersByLinkedCharacterName('   \t\n')).resolves.toEqual([]);
+  });
+});
+
+describe('containsPattern', () => {
+  it('wraps plain text in match-anywhere wildcards', () => {
+    expect(containsPattern('pilot')).toBe('%pilot%');
+  });
+
+  it('escapes the LIKE wildcards and the escape character itself', () => {
+    expect(containsPattern('100%')).toBe('%100\\%%');
+    expect(containsPattern('a_b')).toBe('%a\\_b%');
+    expect(containsPattern('back\\slash')).toBe('%back\\\\slash%');
+    expect(containsPattern('%_\\')).toBe('%\\%\\_\\\\%');
   });
 });
 

@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FailureGroup } from '@/data/telemetry/sli-breakdown';
+import type { FailureGroup } from '@/data/telemetry/capability-stats';
 import { SECTION_LOAD_FAILED } from '../load-section';
 import { AdminTrendChart } from '../charts';
 import { deriveServiceLevels, type ServiceLevelRow } from './health-view';
@@ -35,6 +35,7 @@ function failure(operation: string): FailureGroup {
 
 function emptyDetails(): ServiceLevelDetails {
   return {
+    now: range.to,
     read: { range, groups: [], daily: [] },
     mutation: { range, groups: [], daily: [] },
     slowest: [],
@@ -52,6 +53,18 @@ function render(id: ServiceLevelRow['id'], details: ServiceLevelDetails): string
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+describe('service level rows', () => {
+  it('reads like the overview: verdict spoken, value in the value column, target under the title', () => {
+    const html = render('job_backlog', emptyDetails());
+
+    expect(html).toContain('<span class="sr-only">Critical</span>');
+    expect(html).toMatch(/<span class="block font-ui[^"]*">Active jobs and exhausted retries<\/span><span class="block font-data[^"]*">target 0 dead<\/span>/);
+    expect(html).toMatch(/<span class="max-w-2\/3[^"]*text-tone-red">4 active · 1 dead<\/span>/);
+    expect(html).toContain('Review the refresh queue.');
+    expect(html).toContain('data-chevron="true" aria-hidden="true"');
+  });
+});
 
 describe('service level details', () => {
   it.each([
@@ -133,6 +146,7 @@ describe('service level details', () => {
 
   it.each(rows.map((row) => [row.id] as const))('keeps %s available when its detail query fails', (id) => {
     const html = render(id, {
+      now: range.to,
       read: SECTION_LOAD_FAILED,
       mutation: SECTION_LOAD_FAILED,
       slowest: SECTION_LOAD_FAILED,
@@ -141,7 +155,7 @@ describe('service level details', () => {
       deadLetters: SECTION_LOAD_FAILED,
     });
 
-    expect(html).toContain('Target ');
+    expect(html).toContain('>target ');
     expect(html).toContain('Details unavailable.');
     expect(AdminTrendChart).not.toHaveBeenCalled();
   });

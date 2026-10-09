@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
+  getPendingWhStaticsReview,
+  getPendingWhStaticsSummary,
   promoteSnapshot,
   pruneWhStaticsSnapshots,
   getSnapshotProbeBaseline,
@@ -79,6 +81,35 @@ describe.skipIf(!harness.reachable)(
       await expect(readSystemStatics(harness.db)).resolves.toEqual({
         version: '',
         systems: [],
+      });
+    });
+
+    it('summarises only the pending snapshot, as its full review reads it', async () => {
+      await expect(getPendingWhStaticsSummary(harness.db)).resolves.toBeNull();
+      await expect(getPendingWhStaticsReview(harness.db)).resolves.toBeNull();
+
+      await insertSnapshot({ feedVersion: '9', status: 'promoted', difference: { ...EMPTY_DIFF, totalDifferences: 3 } });
+      await insertSnapshot({ feedVersion: '10', status: 'superseded', difference: { ...EMPTY_DIFF, totalDifferences: 8 } });
+      await insertSnapshot({ feedVersion: '10b', status: 'rejected', difference: { ...EMPTY_DIFF, totalDifferences: 2 } });
+      await expect(getPendingWhStaticsSummary(harness.db)).resolves.toBeNull();
+
+      await insertSnapshot({
+        feedVersion: '12',
+        status: 'pending',
+        difference: {
+          ...EMPTY_DIFF,
+          systemsAdded: [{ systemId: 31_000_009, codes: ['C247'] }],
+          codesAdded: ['C247'],
+          totalDifferences: 1234,
+        },
+      });
+
+      const review = await getPendingWhStaticsReview(harness.db);
+      const summary = await getPendingWhStaticsSummary(harness.db);
+      expect(summary).toEqual({ feedVersion: '12', totalDifferences: 1234 });
+      expect(summary).toEqual({
+        feedVersion: review?.feedVersion,
+        totalDifferences: review?.difference.totalDifferences,
       });
     });
 

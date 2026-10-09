@@ -15,6 +15,7 @@ import { readPathfinderLineage } from '@/data/wh-statics/lineage';
 import { parseStaticsPayload } from '@/data/wh-statics/parse';
 import {
   getPendingWhStaticsReview,
+  getPendingWhStaticsSummary,
   getSnapshotProbeBaseline,
   promoteSnapshot,
   readPromotedWhStaticsAssignments,
@@ -111,4 +112,8 @@ export function rejectWhStaticsSnapshot(snapshotId: number) {
 
 export function getWhStaticsOperatorReview() {
   return getPendingWhStaticsReview(db);
+}
+
+export function getWhStaticsOperatorSummary() {
+  return getPendingWhStaticsSummary(db);
 }

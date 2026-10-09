@@ -1,45 +1,42 @@
 import type { ReactNode } from 'react';
 import { Collapsible } from '@/components/ui/collapsible';
-import { Dot } from '@/components/ui/dot';
+import { ReadoutLine } from '@/components/ui/readout';
 import { type ShareSegment, SlimShareBar } from '@/components/ui/stacked-share-bar';
 import type { SubsystemStatus } from '@/data/telemetry/health-metrics';
-import { LEVEL_DOT_TONE } from '../status-tone';
+import { levelReadout } from '../status-tone';
 
+/** A status line that opens onto its detail, laid out like the overview's status rows. */
 export function StatusRow({
-  name,
+  label,
   status,
   share,
   children,
 }: {
-  name: string;
+  label: string;
   status: SubsystemStatus;
-  /** Optional split shown under the header so the mix is visible while collapsed. */
+  /** Optional split shown under the line so the mix is visible while collapsed. */
   share?: ShareSegment[];
   children: ReactNode;
 }) {
+  const line = <ReadoutLine label={label} value={status.value} note={status.note} {...levelReadout(status.level)} />;
   return (
     <Collapsible
+      chevron
+      headerClassName="py-2.5"
       header={
-        <span className="flex min-w-0 flex-1 flex-col gap-1.5 py-1">
-          <span className="flex min-w-0 items-center gap-3">
-            <Dot tone={LEVEL_DOT_TONE[status.level]} size="lg" />
-            <span className="w-[110px] shrink-0 font-data text-ui text-name">{name}</span>
-            <span className="truncate font-data text-ui text-muted">{status.headline}</span>
-            <span
-              data-chevron
-              className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-            >
-              ▾
-            </span>
-          </span>
-          {share && (
+        share === undefined ? (
+          line
+        ) : (
+          <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+            {line}
+            {/* Indented past the dot, under the label. */}
             <SlimShareBar
               segments={share}
-              ariaLabel={`${name} runs: ${share.map((s) => `${s.value} ${s.label}`).join(', ')}`}
+              ariaLabel={`${label} runs: ${share.map((s) => `${s.value} ${s.label}`).join(', ')}`}
               className="ml-5"
             />
-          )}
-        </span>
+          </span>
+        )
       }
     >
       {children}

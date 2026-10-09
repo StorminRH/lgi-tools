@@ -1,5 +1,5 @@
 import { composeFeeInputs } from './structure-factors';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { computeBatchLedger } from './build-batch';
 import { deriveMarginFigures } from './industry-styles';
 import {
@@ -54,24 +54,13 @@ const PRICES: Record<number, PriceLite> = {
   },
 };
 
-describe('assemblePricing', () => {
-  it('carries source + buy/sell volume onto each material row', () => {
-    const pricing = assemblePricing(STRUCTURE, (typeId) => PRICES[typeId]);
+test('assemblePricing carries source + buy/sell volume onto each material row, null when unpriced', () => {
+  const pricing = assemblePricing(STRUCTURE, (typeId) => PRICES[typeId]);
+  expect(pricing.rows.find((r) => r.typeId === 34)).toMatchObject({ source: 'esi', buyVolume: 8_200, sellVolume: 1_200 });
+  expect(pricing.rows.find((r) => r.typeId === 35)).toMatchObject({ source: 'fuzzwork-fallback', buyVolume: 90, sellVolume: null });
 
-    const trit = pricing.rows.find((r) => r.typeId === 34);
-    expect(trit).toMatchObject({ source: 'esi', buyVolume: 8_200, sellVolume: 1_200 });
-
-    const pye = pricing.rows.find((r) => r.typeId === 35);
-    expect(pye).toMatchObject({ source: 'fuzzwork-fallback', buyVolume: 90, sellVolume: null });
-  });
-
-  it('leaves source + volume null for an unpriced material', () => {
-    const pricing = assemblePricing(STRUCTURE, (typeId) =>
-      typeId === 34 ? PRICES[34] : undefined,
-    );
-    const pye = pricing.rows.find((r) => r.typeId === 35);
-    expect(pye).toMatchObject({ source: null, buyVolume: null, sellVolume: null });
-  });
+  const partly = assemblePricing(STRUCTURE, (typeId) => (typeId === 34 ? PRICES[34] : undefined));
+  expect(partly.rows.find((r) => r.typeId === 35)).toMatchObject({ source: null, buyVolume: null, sellVolume: null });
 });
 
 describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
@@ -142,24 +131,20 @@ const BUILD_TREE: BuildNode[] = [
   },
 ];
 
-describe('collectIntermediateTypeIds', () => {
-  it('returns buildable non-root nodes, excluding roots and raws', () => {
-    expect(collectIntermediateTypeIds(BUILD_TREE, DISPLAY)).toEqual([500]);
-  });
+test('collectIntermediateTypeIds returns buildable non-root nodes once, excluding roots and raws', () => {
+  expect(collectIntermediateTypeIds(BUILD_TREE, DISPLAY)).toEqual([500]);
 
-  it('dedupes a component shared across the tree', () => {
-    const shared: BuildNode[] = [
-      {
-        typeId: 999,
-        quantity: 1,
-        inputs: [
-          { typeId: 500, quantity: 2, inputs: [] },
-          { typeId: 500, quantity: 3, inputs: [] },
-        ],
-      },
-    ];
-    expect(collectIntermediateTypeIds(shared, DISPLAY)).toEqual([500]);
-  });
+  const shared: BuildNode[] = [
+    {
+      typeId: 999,
+      quantity: 1,
+      inputs: [
+        { typeId: 500, quantity: 2, inputs: [] },
+        { typeId: 500, quantity: 3, inputs: [] },
+      ],
+    },
+  ];
+  expect(collectIntermediateTypeIds(shared, DISPLAY)).toEqual([500]);
 });
 
 describe('assemblePricing intermediate side-channel', () => {
@@ -514,45 +499,25 @@ const SELL_LADDER = [
   { pct: 5, cumVolume: 900 },
 ];
 
-describe('assemblePricing product depth (3.5.3b)', () => {
-  it('carries the product depth ladders onto the product, null when absent', () => {
-    const noDepth = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
-    expect(noDepth.product.buyDepth).toBeNull();
-    expect(noDepth.product.sellDepth).toBeNull();
+test('assemblePricing carries product depth ladders and pct5Sell onto the product without moving the gross payload', () => {
+  const base = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
+  expect(base.product.buyDepth).toBeNull();
+  expect(base.product.sellDepth).toBeNull();
+  // The Fuzzwork null-percentile shape carries through as null.
+  expect(base.product.pct5Sell).toBeNull();
 
-    const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
-      t === 999 ? { ...NET_PRICES[999]!, buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
-    );
-    expect(withDepth.product.buyDepth).toEqual(BUY_LADDER);
-    expect(withDepth.product.sellDepth).toEqual(SELL_LADDER);
-  });
-
-  it('leaves the gross payload byte-identical whether or not depth is present', () => {
-    const base = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
-    const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
-      t === 999 ? { ...NET_PRICES[999]!, buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
-    );
-    expect(withDepth.summary).toEqual(base.summary);
-    expect(withDepth.rows).toEqual(base.rows);
-    expect(withDepth.intermediatePrices).toEqual(base.intermediatePrices);
-    expect(withDepth.net).toEqual(base.net);
-    expect({ ...withDepth.product, buyDepth: null, sellDepth: null }).toEqual(base.product);
-  });
-});
-
-describe('assemblePricing product sell figures (3.7.25.1)', () => {
-  it('threads the product pct5Sell from the lookup (the thin-order badge reference)', () => {
-    const pricing = assemblePricing(NET_STRUCTURE, (t) =>
-      t === 999 ? { ...NET_PRICES[999]!, pct5Sell: 1_050 } : NET_PRICES[t],
-    );
-    expect(pricing.product.bestSell).toBe(1_000);
-    expect(pricing.product.pct5Sell).toBe(1_050);
-  });
-
-  it('null pct5Sell (the Fuzzwork null-percentile shape) carries through as null', () => {
-    const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
-    expect(pricing.product.pct5Sell).toBeNull();
-  });
+  const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
+    t === 999 ? { ...NET_PRICES[999]!, buyDepth: BUY_LADDER, sellDepth: SELL_LADDER, pct5Sell: 1_050 } : NET_PRICES[t],
+  );
+  expect(withDepth.product.buyDepth).toEqual(BUY_LADDER);
+  expect(withDepth.product.sellDepth).toEqual(SELL_LADDER);
+  expect(withDepth.product.bestSell).toBe(1_000);
+  expect(withDepth.product.pct5Sell).toBe(1_050);
+  expect(withDepth.summary).toEqual(base.summary);
+  expect(withDepth.rows).toEqual(base.rows);
+  expect(withDepth.intermediatePrices).toEqual(base.intermediatePrices);
+  expect(withDepth.net).toEqual(base.net);
+  expect({ ...withDepth.product, buyDepth: null, sellDepth: null, pct5Sell: null }).toEqual(base.product);
 });
 
 describe('buildConfidenceInputs', () => {

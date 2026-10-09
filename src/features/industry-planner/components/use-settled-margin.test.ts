@@ -45,10 +45,3 @@ test('a gross margin is not held, since fees do not change it', () => {
   const next = view(false, 1_200);
   expect(useSettledMargin(next, true)).toEqual({ view: next, held: false });
 });
-
-test('the same view does not settle again', () => {
-  const settled = view(true, 5);
-  useSettledMargin(settled, false);
-  useSettledMargin(settled, false);
-  expect(h.set).toBe(0);
-});

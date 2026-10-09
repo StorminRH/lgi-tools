@@ -4,7 +4,10 @@ import {
   deriveAttention,
   deriveBudgetStatus,
   deriveCronStatuses,
+  deriveSliSignals,
   deriveStatusGroups,
+  heldForBudget,
+  mapLoaded,
   sliLevel,
   summarizeQueue,
   type AdminSignals,
@@ -51,6 +54,43 @@ function stat(status: EsiRefreshQueueStat['status'], count: number, ageHours: nu
   return { status, count, oldestCreatedAt: hoursAgo(ageHours) };
 }
 
+describe('deriveSliSignals', () => {
+  const outcome = (operation: string, outcome: string, count: number, esi = false) => ({
+    operation, outcome, esi, feature: null, code: null, errorClass: null, day: null, count, lastSeen: NOW,
+  });
+
+  it('derives every headline from the two capability reads', () => {
+    const outcomes = [
+      outcome('read-owned-assets', 'succeeded', 3, true),
+      outcome('read-owned-assets', 'rate_limited', 1, true),
+      outcome('save-preferences', 'succeeded', 1),
+      outcome('save-preferences', 'validation', 5),
+    ];
+    expect(deriveSliSignals(outcomes, { p95: 420, slowest: [] })).toEqual({
+      readSuccess: 0.75,
+      mutationSuccess: 1,
+      latencyP95: 420,
+      esiSuccess: 0.75,
+    });
+  });
+
+  it('marks only the lines whose read failed', () => {
+    expect(deriveSliSignals(SECTION_LOAD_FAILED, { p95: null, slowest: [] })).toEqual({
+      readSuccess: SECTION_LOAD_FAILED,
+      mutationSuccess: SECTION_LOAD_FAILED,
+      latencyP95: null,
+      esiSuccess: SECTION_LOAD_FAILED,
+    });
+    expect(deriveSliSignals([], SECTION_LOAD_FAILED)).toEqual({
+      readSuccess: null,
+      mutationSuccess: null,
+      latencyP95: SECTION_LOAD_FAILED,
+      esiSuccess: null,
+    });
+    expect(mapLoaded(2, (value) => value * 2)).toBe(4);
+  });
+});
+
 describe('sliLevel', () => {
   it('grades success rates against warn and fail lines', () => {
     expect(sliLevel('readSuccess', 0.995)).toBe('green');
@@ -73,17 +113,23 @@ describe('sliLevel', () => {
 
 describe('deriveBudgetStatus', () => {
   it('fails closed when the scoreboard is unavailable', () => {
-    expect(deriveBudgetStatus(null)).toMatchObject({ level: 'red', value: 'unavailable' });
+    expect(deriveBudgetStatus(null)).toEqual({
+      level: 'red',
+      value: 'unavailable',
+      note: 'scoreboard unavailable · dispatch paused',
+    });
   });
 
   it('flags a budget below the dispatch floor', () => {
     expect(deriveBudgetStatus({ effectiveRemaining: 5, selfCount: 0, echo: 5, source: 'shared' }))
-      .toMatchObject({ level: 'red', value: '5 left' });
+      .toEqual({ level: 'red', value: '5 left', note: 'floor 20 · dispatch paused' });
   });
 
-  it('is green above the floor', () => {
-    expect(deriveBudgetStatus({ effectiveRemaining: 87, selfCount: 0, echo: null, source: 'shared' }))
-      .toMatchObject({ level: 'green', value: '87 left' });
+  it('is green from the floor up', () => {
+    expect(deriveBudgetStatus({ effectiveRemaining: 20, selfCount: 0, echo: null, source: 'shared' }))
+      .toEqual({ level: 'green', value: '20 left', note: 'floor 20 · live' });
+    expect(deriveBudgetStatus({ effectiveRemaining: 1_087, selfCount: 0, echo: null, source: 'shared' }).value)
+      .toBe('1,087 left');
   });
 });
 
@@ -102,6 +148,15 @@ describe('summarizeQueue', () => {
       deadLettered: 0,
       oldestDueHours: null,
     });
+  });
+});
+
+describe('heldForBudget', () => {
+  it('sums only the jobs deferred for budget', () => {
+    expect(
+      heldForBudget([stat('deferred_for_budget', 2, 1), stat('queued', 5, 1), stat('deferred_for_budget', 3, 4)]),
+    ).toBe(5);
+    expect(heldForBudget([stat('queued', 5, 1)])).toBe(0);
   });
 });
 
@@ -129,10 +184,9 @@ describe('deriveCronStatuses', () => {
   it('marks a cron that never ran as red', () => {
     const crons = { ...healthyCrons, lastRuns: [] };
     expect(deriveCronStatuses(crons, NOW).price.level).toBe('red');
-    expect(deriveStatusGroups(signals({ crons }))[2]!.lines[0]).toMatchObject({
-      value: 'never ran',
-      note: '',
-    });
+    const line = deriveStatusGroups(signals({ crons }))[2]!.lines[0]!;
+    expect(line).toMatchObject({ value: 'never ran', level: 'red' });
+    expect(line).not.toHaveProperty('note');
   });
 });
 
@@ -215,6 +269,12 @@ describe('deriveAttention', () => {
       'held-for-budget',
       'cron-prices',
     ]);
+    // The recovered cron stays quiet because its status says so, not because of its wording.
+    expect(lines.find((line) => line.id === 'cron-prices')).toMatchObject({
+      value: 'recovered',
+      note: '1 failed run this period, latest healthy 3h ago',
+      quiet: true,
+    });
     expect(attention(recovered)).toEqual([]);
   });
 
@@ -240,7 +300,12 @@ describe('release and budget-hold lines', () => {
   });
 
   it('handles an empty changelog', () => {
-    expect(line(signals({ releases: [] }), 'release')).toMatchObject({ value: 'none' });
+    expect(line(signals({ releases: [] }), 'release')).toEqual({
+      id: 'release',
+      label: 'Latest release',
+      value: 'none',
+      level: 'neutral',
+    });
   });
 
   it('counts refresh jobs held for budget', () => {
@@ -248,6 +313,19 @@ describe('release and budget-hold lines', () => {
     expect(line(signals({ queue: [stat('deferred_for_budget', 1, 1)] }), 'held-for-budget')).toMatchObject({
       value: '1 job',
       level: 'amber',
+    });
+  });
+
+  it('keeps the price-source sentence in the note, not the value column', () => {
+    expect(line(signals(), 'price-source')).toMatchObject({
+      value: 'healthy',
+      note: 'ESI served every priced item this period',
+      level: 'green',
+    });
+    expect(line(signals({ fallback: { esi: 0, fallback: 0, perDay: [] } }), 'price-source')).toMatchObject({
+      value: 'idle',
+      note: 'no price refreshes this period',
+      level: 'neutral',
     });
   });
 });
@@ -258,7 +336,7 @@ describe('a source that failed to load', () => {
 
   it('marks only its own lines unavailable', () => {
     for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'cron-housekeeping', 'queue', 'held-for-budget']) {
-      expect(byId.get(id)).toMatchObject({ value: 'unavailable', note: '', level: 'neutral' });
+      expect(byId.get(id)).toEqual({ id, label: expect.any(String), value: 'unavailable', level: 'neutral' });
     }
     expect(byId.get('readSuccess')).toMatchObject({ value: '99.9%', level: 'green' });
     expect(byId.get('budget')).toMatchObject({ value: '87 left', level: 'green' });

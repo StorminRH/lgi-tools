@@ -5,6 +5,7 @@ import { Measured } from '@/components/ui/measured';
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
 import type { SparklineTone } from '@/components/ui/sparkline';
 import type { BarDatum } from '@/components/ui/bar-chart';
+import { formatQuantity } from '@/lib/format/number';
 import { endLabelFor } from './end-label';
 import type { Delta } from '@/composition/admin-period';
 
@@ -26,7 +27,8 @@ const AnnotatedDailyChart = dynamic(
 function formatterFor(unit: 'percent' | 'count' | 'position'): (y: number) => string {
   if (unit === 'percent') return (y) => `${y}%`;
   if (unit === 'position') return (y) => y.toFixed(1);
-  return (y) => y.toLocaleString();
+  // Not rounded: axis ticks and averages can fall between whole counts.
+  return (y) => y.toLocaleString('en-US');
 }
 
 export function AdminDailyChart({
@@ -138,7 +140,7 @@ export function AdminBarChart({
           tone={tone}
           width={measuredWidth}
           height={height}
-          formatValue={(v) => v.toLocaleString()}
+          formatValue={formatQuantity}
           ariaLabel={ariaLabel}
         />
       )}

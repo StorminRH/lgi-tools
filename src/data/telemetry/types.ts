@@ -47,28 +47,6 @@ export interface DateRange {
   to: Date;
 }
 
-export interface DailyCount {
-  day: string;
-  totalEvents: number;
-  uniqueCharacters: number;
-  anonymousEvents: number;
-}
-
-export interface PathCount {
-  path: string;
-  count: number;
-}
-
-export interface ReferrerCount {
-  host: string;
-  count: number;
-}
-
-export interface EntryPageCount {
-  path: string;
-  count: number;
-}
-
 export interface RoleChangeAuditEntry {
   timestamp: Date;
   actorCharacterId: number | null;

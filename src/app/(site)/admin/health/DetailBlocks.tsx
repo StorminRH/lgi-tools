@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { SectionHeader } from '@/components/ui/section-header';
 
 export function DetailBody({ children }: { children: ReactNode }) {
   return (
@@ -9,13 +8,4 @@ export function DetailBody({ children }: { children: ReactNode }) {
 
 export function DetailCaption({ children }: { children: ReactNode }) {
   return <div className="font-data text-ui text-muted">{children}</div>;
-}
-
-export function ChartBlock({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <SectionHeader variant="sub" label={label} className="mb-2" />
-      {children}
-    </div>
-  );
 }

@@ -23,7 +23,7 @@ import {
   sampleTrend,
   sampleWeekend,
 } from './sample-series';
-import { ReferenceGroup, Specimen } from './specimen';
+import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 type Material = { material: string; quantity: number };
 
@@ -86,7 +86,14 @@ function ChartSlot({ children }: { children: (width: number) => ReactNode }) {
 }
 
 const formatIsk = (value: number) => `${value.toLocaleString('en-US')}M`;
+const formatClicks = (value: number) => `${value.toLocaleString('en-US')} clk`;
 const shortDay = (label: string) => label.slice(5);
+
+const TOP_QUERIES = [
+  { key: 'wormhole statics', label: 'wormhole statics', count: 64, sub: '2,310 impr · 2.8% CTR · pos 3.4' },
+  { key: 'c5 wormhole sites', label: 'c5 wormhole sites', count: 22, sub: '1,104 impr · 2.0% CTR · pos 6.1' },
+  { key: 'eve industry planner', label: 'eve industry planner', count: 9, sub: '880 impr · 1.0% CTR · pos 11.8' },
+];
 
 export function DataGroup() {
   return (
@@ -126,20 +133,27 @@ export function DataGroup() {
       <Specimen
         name="DistributionBars"
         source="distribution-bars"
-        note="Ranked counts with share percentages over thin progress tracks."
+        note="Ranked counts with share percentages over thin progress tracks. A row's sub adds a second line of detail under its bar."
       >
-        <Card className="overflow-hidden">
-          <DistributionBars
-            ariaLabel="Sites by type"
-            rows={sampleBars.map((bar) => ({ key: bar.label, label: bar.label, count: bar.value }))}
-          />
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card className="overflow-hidden">
+            <DistributionBars
+              ariaLabel="Sites by type"
+              rows={sampleBars.map((bar) => ({ key: bar.label, label: bar.label, count: bar.value }))}
+            />
+          </Card>
+          <Variant label="sub · share of all 412 clicks">
+            <Card className="overflow-hidden">
+              <DistributionBars ariaLabel="Top search queries" total={412} formatCount={formatClicks} rows={TOP_QUERIES} />
+            </Card>
+          </Variant>
+        </div>
       </Specimen>
 
       <Specimen
         name="StackedShareBar"
         source="stacked-share-bar"
-        note="One bar split into labelled shares."
+        note="One bar split into labelled shares. Screen readers hear the aria-label followed by each segment's value: “Wallet split: Liquid 62, Escrow 23, Assets 15”."
         wide
       >
         <Measured>
@@ -189,27 +203,47 @@ export function DataGroup() {
       <Specimen
         name="AnnotatedDailyChart"
         source="annotated-daily-chart"
-        note="Daily bars with a rolling average, weekend shading, a reference line, event markers, and an end label."
+        note="Daily bars with a rolling average, weekend shading, a reference line, event markers, and an end label. The first and last bars stay inside the plot, and the end label follows the last bar, so a short series keeps it beside its data."
         wide
       >
-        <ChartSlot>
-          {(width) => (
-            <AnnotatedDailyChart
-              points={sampleDaily}
-              average={sampleAverage}
-              labels={sampleLabels}
-              weekend={sampleWeekend}
-              referenceLine={{ value: 140, label: 'target' }}
-              eventMarkers={[{ x: 9, label: 'v4.1' }]}
-              endLabel={{ valueText: '128', deltaText: '+6%', deltaHex: null }}
-              tone="green"
-              width={width}
-              height={200}
-              formatTick={shortDay}
-              ariaLabel="Daily sample"
-            />
-          )}
-        </ChartSlot>
+        <div className="flex flex-col gap-4">
+          <ChartSlot>
+            {(width) => (
+              <AnnotatedDailyChart
+                points={sampleDaily}
+                average={sampleAverage}
+                labels={sampleLabels}
+                weekend={sampleWeekend}
+                referenceLine={{ value: 140, label: 'target' }}
+                eventMarkers={[{ x: 9, label: 'v4.1' }]}
+                endLabel={{ valueText: '128', deltaText: '+6%', deltaHex: null }}
+                tone="green"
+                width={width}
+                height={200}
+                formatTick={shortDay}
+                ariaLabel="Daily sample"
+              />
+            )}
+          </ChartSlot>
+          <Variant label="one day of data">
+            <ChartSlot>
+              {(width) => (
+                <AnnotatedDailyChart
+                  points={[{ x: 0, y: 12 }]}
+                  average={[12]}
+                  labels={['2026-10-08']}
+                  weekend={[false]}
+                  referenceLine={null}
+                  endLabel={{ valueText: '12', deltaText: 'new', deltaHex: null }}
+                  width={width}
+                  height={160}
+                  formatTick={shortDay}
+                  ariaLabel="Page views by day, one day of data"
+                />
+              )}
+            </ChartSlot>
+          </Variant>
+        </div>
       </Specimen>
 
       <Specimen name="StackedAreaChart" source="stacked-area-chart" note="Bands stacked from zero; a band can begin partway along.">

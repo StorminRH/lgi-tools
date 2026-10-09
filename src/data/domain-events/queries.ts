@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { desc, lt } from 'drizzle-orm';
+import { lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -26,11 +26,14 @@ export function emitDomainEvent(input: DomainEventInput): void {
   }
 }
 
+// Spelled out to match domain_events_occurred_idx (DESC NULLS LAST). Drizzle's
+// desc() means NULLS FIRST, which the index cannot serve, so Postgres would
+// sort the whole retention window to return one page.
 export async function listRecentDomainEvents(limit: number): Promise<DomainEventRow[]> {
   const rows = await db
     .select()
     .from(domainEvents)
-    .orderBy(desc(domainEvents.occurredAt), desc(domainEvents.id))
+    .orderBy(sql`${domainEvents.occurredAt} desc nulls last`, sql`${domainEvents.id} desc nulls last`)
     .limit(limit);
   return rows as DomainEventRow[];
 }

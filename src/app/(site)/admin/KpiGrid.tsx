@@ -10,11 +10,9 @@ export function KpiGrid({ rows }: { rows: MetricRow[] }) {
           key={row.label}
           title={row.label}
           value={row.value}
-          note={row.avg === null ? undefined : `${row.avg} / day`}
+          note={row.note}
           delta={row.delta ? <DeltaBadge delta={row.delta} /> : undefined}
-        >
-          {null}
-        </MultiplesCell>
+        />
       ))}
     </MultiplesGrid>
   );

@@ -1,26 +1,80 @@
 import { parseRange, rangeFor } from '@/composition/admin-period';
-import { AdminPageFrame, AdminSlot } from '../AdminFrame';
+import { AdminPageFrame } from '../AdminFrame';
+import { AdminSection } from '../AdminSection';
+import { CardLink } from '../CardLink';
+import { LevelRows } from '../LevelRows';
 import type { RangeSearchParams } from '../RangeControl';
-import { BudgetCard, CostCards, PressureCard, PriceSourceCard } from './EsiCards';
+import {
+  BudgetGauge,
+  EndpointBars,
+  loadBudget,
+  loadBusiestEndpoints,
+  loadOnDemandMetrics,
+  loadPressureLines,
+  loadPriceSources,
+  MetricList,
+  PriceSourceCharts,
+} from './EsiCards';
 
 async function EsiContent({ searchParams }: { searchParams: RangeSearchParams }) {
   const range = rangeFor(parseRange((await searchParams).range));
   return (
     <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <AdminSlot label="Error budget" rows={4} reveal={1}>
-          <BudgetCard />
-        </AdminSlot>
-        <AdminSlot label="Rate-limit pressure" rows={5} reveal={2}>
-          <PressureCard range={range} />
-        </AdminSlot>
+        <AdminSection
+          title="Error budget"
+          name="budget"
+          rows={4}
+          reveal={1}
+          slotClassName="h-full"
+          className="h-full"
+          load={loadBudget}
+        >
+          {(budget) => <BudgetGauge budget={budget} />}
+        </AdminSection>
+        <AdminSection
+          title="Rate-limit pressure"
+          name="pressure"
+          rows={5}
+          reveal={2}
+          slotClassName="h-full"
+          className="h-full"
+          hint={<CardLink href="/admin/queue">Queue</CardLink>}
+          load={() => loadPressureLines(range)}
+        >
+          {(lines) => <LevelRows lines={lines} />}
+        </AdminSection>
       </div>
-      <AdminSlot label="Price-source health" rows={4} reveal={3}>
-        <PriceSourceCard range={range} />
-      </AdminSlot>
-      <AdminSlot label="ESI cost" rows={6} reveal={4}>
-        <CostCards range={range} />
-      </AdminSlot>
+      <AdminSection
+        title="Scheduled price sources"
+        name="price-sources"
+        rows={4}
+        reveal={3}
+        load={() => loadPriceSources(range)}
+      >
+        {(sources) => <PriceSourceCharts sources={sources} />}
+      </AdminSection>
+      {/* Natural heights: the endpoint list is often much shorter than the figures. */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <AdminSection
+          title="On-demand prices & history"
+          name="on-demand"
+          rows={6}
+          reveal={4}
+          load={() => loadOnDemandMetrics(range)}
+        >
+          {(rows) => <MetricList rows={rows} />}
+        </AdminSection>
+        <AdminSection
+          title="Busiest owned-data endpoints"
+          name="endpoints"
+          rows={6}
+          reveal={4}
+          load={() => loadBusiestEndpoints(range)}
+        >
+          {(rows) => <EndpointBars rows={rows} />}
+        </AdminSection>
+      </div>
     </>
   );
 }

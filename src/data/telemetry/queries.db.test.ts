@@ -5,29 +5,23 @@ import {
   claimPublicEsiBudgetAlert,
   completePublicEsiBudgetAlertClaim,
   countPublicEsiBudgetExhaustionsInWindow,
-  getBudgetExhaustionCount,
-  getDailyCounts,
-  getDegradationByCaller,
-  getFallbackRate,
-  getGscCronOutcomes,
+  getCronOutcomes,
   getLastCronRuns,
   getLoginCountsPerUser,
-  getPriceCronOutcomes,
-  getRefreshVolume,
+  getPageViewRankings,
+  getPageViewStats,
+  getPriceRefreshDays,
+  getPriceSourceDegradation,
   getReturningVsNew,
   getRoleChangeAudit,
-  getSdeCronOutcomes,
-  getSearchVsDirect,
-  getTopEntryPages,
-  getTopPages,
-  getTopReferrers,
-  getTrafficTotals,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
   getWriteBehindOutcomes,
   hasPublicEsiBudgetAlertForWindow,
 } from './queries';
+import { fallbackRate } from './cron-stats';
+import { pageViewSources, pageViewTotals } from './page-view-stats';
 import { usageLogs } from './schema';
 
 const harness = await createDbTestHarness({
@@ -62,39 +56,38 @@ function expectPositiveNumber(result: unknown): void {
 }
 
 const cases: QueryCase[] = [
-  { name: 'getDailyCounts', run: () => getDailyCounts(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopPages', run: () => getTopPages(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopReferrers', run: () => getTopReferrers(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopEntryPages', run: () => getTopEntryPages(RANGE), check: expectNonEmptyArray },
-  { name: 'getRoleChangeAudit', run: () => getRoleChangeAudit(RANGE), check: expectNonEmptyArray },
+  { name: 'getPageViewStats', run: async () => (await getPageViewStats(RANGE, null)).current, check: expectNonEmptyArray },
   {
-    name: 'getFallbackRate',
-    run: () => getFallbackRate(RANGE),
+    name: 'getPageViewRankings',
+    run: () => getPageViewRankings(RANGE),
     check: (r) => {
-      const d = r as { esi: number; fallback: number; perDay: unknown[] };
-      expect(typeof d.esi).toBe('number');
-      expect(typeof d.fallback).toBe('number');
-      expect(Array.isArray(d.perDay)).toBe(true);
+      const d = r as { topPages: unknown[]; topReferrers: unknown[]; topEntryPages: unknown[] };
+      for (const list of [d.topPages, d.topReferrers, d.topEntryPages]) expectNonEmptyArray(list);
+    },
+  },
+  { name: 'getRoleChangeAudit', run: () => getRoleChangeAudit(RANGE), check: expectNonEmptyArray },
+  { name: 'getPriceRefreshDays', run: () => getPriceRefreshDays(RANGE), check: expectNonEmptyArray },
+  {
+    name: 'getPriceSourceDegradation',
+    run: () => getPriceSourceDegradation(RANGE),
+    check: (r) => {
+      const d = r as { byCaller: unknown[]; budgetExhaustions: number };
+      expectNonEmptyArray(d.byCaller);
+      expectPositiveNumber(d.budgetExhaustions);
     },
   },
   {
-    name: 'getBudgetExhaustionCount',
-    run: () => getBudgetExhaustionCount(RANGE),
-    check: expectPositiveNumber,
+    name: 'getCronOutcomes',
+    run: () => getCronOutcomes(RANGE),
+    check: (r) => {
+      const d = r as Record<string, unknown[]>;
+      for (const action of ['cron_prices', 'cron_sde', 'cron_gsc']) expectNonEmptyArray(d[action]);
+    },
   },
-  {
-    name: 'getDegradationByCaller',
-    run: () => getDegradationByCaller(RANGE),
-    check: expectNonEmptyArray,
-  },
-  { name: 'getPriceCronOutcomes', run: () => getPriceCronOutcomes(RANGE), check: expectNonEmptyArray },
-  { name: 'getSdeCronOutcomes', run: () => getSdeCronOutcomes(RANGE), check: expectNonEmptyArray },
-  { name: 'getGscCronOutcomes', run: () => getGscCronOutcomes(RANGE), check: expectNonEmptyArray },
   { name: 'getLastCronRuns', run: () => getLastCronRuns(), check: expectNonEmptyArray },
-  { name: 'getRefreshVolume', run: () => getRefreshVolume(RANGE), check: expectNonEmptyArray },
   {
     name: 'getReturningVsNew',
-    run: () => getReturningVsNew(RANGE),
+    run: async () => (await getReturningVsNew(RANGE, null)).current,
     check: (r) => {
       const d = r as { newUsers: number; returning: number };
       expect(d.newUsers).toBeGreaterThan(0);
@@ -103,8 +96,8 @@ const cases: QueryCase[] = [
   },
   { name: 'getLoginCountsPerUser', run: () => getLoginCountsPerUser(RANGE), check: expectNonEmptyArray },
   {
-    name: 'getSearchVsDirect',
-    run: () => getSearchVsDirect(RANGE),
+    name: 'pageViewSources',
+    run: async () => pageViewSources((await getPageViewStats(RANGE, null)).current),
     check: (r) => {
       const d = r as { referred: number; direct: number };
       expect(d.referred).toBeGreaterThan(0);
@@ -266,8 +259,8 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
   });
 
   it('uses the cron outcome for fallback volume and one degradation row per budget incident', async () => {
-    await expect(getFallbackRate(RANGE)).resolves.toMatchObject({ esi: 100, fallback: 5 });
-    await expect(getBudgetExhaustionCount(RANGE)).resolves.toBe(2);
+    expect(fallbackRate(await getPriceRefreshDays(RANGE))).toMatchObject({ esi: 100, fallback: 5 });
+    await expect(getPriceSourceDegradation(RANGE)).resolves.toMatchObject({ budgetExhaustions: 2 });
   });
 
   it('counts only public on-demand exhaustion events and finds the alert marker', async () => {
@@ -309,7 +302,7 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
       { timestamp: AT, action: 'page_view', characterId: CHAR_NEW, metadata: { path: '/planner' } },
     ]);
 
-    const before = await getDailyCounts(NEUTRALITY_RANGE);
+    const before = await getPageViewStats(NEUTRALITY_RANGE, null);
 
     await harness.db.insert(usageLogs).values(
       Array.from({ length: 25 }, () => ({
@@ -330,15 +323,10 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
       })),
     );
 
-    const after = await getDailyCounts(NEUTRALITY_RANGE);
+    const after = await getPageViewStats(NEUTRALITY_RANGE, null);
 
     expect(after).toEqual(before);
-    expect(before).toHaveLength(1);
-    expect(before[0]).toMatchObject({
-      totalEvents: 3,
-      uniqueCharacters: 2,
-      anonymousEvents: 1,
-    });
+    expect(before.current).toEqual([{ day: '2021-05-03', views: 3, entries: 0, referrals: 0 }]);
   });
 });
 
@@ -355,8 +343,8 @@ describe.skipIf(!harness.reachable)('human audience and activity boundaries', ()
       { timestamp: range.from, action: 'cron_prices', metadata: { outcome: 'refreshed' } },
       { timestamp: range.to, action: 'page_view', characterId: CHAR_NEW },
     ]);
-    expect(await getReturningVsNew(range)).toEqual({ newUsers: 0, returning: 1 });
-    expect((await getDailyCounts(range)).map((row) => row.totalEvents)).toEqual([2]);
+    expect(await getReturningVsNew(range, null)).toEqual({ current: { newUsers: 0, returning: 1 }, previous: null });
+    expect((await getPageViewStats(range, null)).current.map((row) => row.views)).toEqual([2]);
   });
 });
 
@@ -369,8 +357,30 @@ describe.skipIf(!harness.reachable)('SSO bounce attribution', () => {
       { timestamp: range.from, action: 'page_view', metadata: { referrer: 'google.com' } },
       { timestamp: range.from, action: 'page_view', metadata: {} },
     ]);
-    expect(await getTopReferrers(range)).toEqual([{ host: 'google.com', count: 1 }]);
-    expect(await getSearchVsDirect(range)).toEqual({ referred: 1, direct: 2 });
-    expect(await getTrafficTotals(range)).toEqual({ pageViews: 3, referrals: 1, entries: 0 });
+    expect((await getPageViewRankings(range)).topReferrers).toEqual([{ host: 'google.com', count: 1 }]);
+    const { current } = await getPageViewStats(range, null);
+    expect(pageViewSources(current)).toEqual({ referred: 1, direct: 2 });
+    expect(pageViewTotals(current)).toEqual({ views: 3, referrals: 1, entries: 0 });
+  });
+});
+
+describe.skipIf(!harness.reachable)('role change audit', () => {
+  it('lists the newest changes first, up to the limit', async () => {
+    const range = { from: new Date('2024-03-01T00:00:00Z'), to: new Date('2024-03-08T00:00:00Z') };
+    const days = ['2024-03-02', '2024-03-06', '2024-03-04', '2024-03-08', '2024-02-29'];
+    await harness.db.insert(usageLogs).values(
+      days.map((day, i) => ({
+        action: 'role_change',
+        characterId: CHAR_OLD,
+        timestamp: new Date(`${day}T12:00:00Z`),
+        metadata: { actorCharacterId: CHAR_OLD, targetCharacterId: CHAR_NEW, from: 'USER', to: i % 2 === 0 ? 'ADMIN' : 'USER' },
+      })),
+    );
+    const audit = await getRoleChangeAudit(range, 2);
+    expect(audit.map((row) => row.timestamp.toISOString())).toEqual([
+      '2024-03-06T12:00:00.000Z',
+      '2024-03-04T12:00:00.000Z',
+    ]);
+    expect(audit[0]).toMatchObject({ actorName: 'Old Pilot', targetName: 'New Pilot', from: 'USER', to: 'USER' });
   });
 });

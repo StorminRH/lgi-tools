@@ -1,12 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { usageLogs } from './schema';
-import {
-  getCriticalLatencyP95,
-  getEsiSuccessRate,
-  getMutationSuccessRate,
-  getReadSuccessRate,
-} from './queries';
+import { capabilitySuccessRate, esiAvailability } from './capability-stats';
+import { getEsiAvailability } from './queries';
+import { getCapabilityLatency, getCapabilityOutcomeStats } from './sli-breakdown';
 
 const harness = await createDbTestHarness({
   schema: 'test_telemetry_sli',
@@ -87,28 +84,33 @@ describe.skipIf(!harness.reachable)('service indicator queries', () => {
   });
 
   it('reports the tool-read success rate over the window', async () => {
-    expect(await getReadSuccessRate(RANGE)).toBeCloseTo(4 / 6, 5);
+    expect(capabilitySuccessRate(await getCapabilityOutcomeStats(RANGE), 'read')).toBeCloseTo(4 / 6, 5);
   });
 
   it('excludes validation failures from the mutation success rate', async () => {
-    expect(await getMutationSuccessRate(RANGE)).toBeCloseTo(2 / 3, 5);
+    expect(capabilitySuccessRate(await getCapabilityOutcomeStats(RANGE), 'mutation')).toBeCloseTo(2 / 3, 5);
   });
 
   it('reports p95 latency across user-facing operations only', async () => {
-    const p95 = await getCriticalLatencyP95(RANGE);
+    const { p95 } = await getCapabilityLatency(RANGE);
     expect(p95).not.toBeNull();
     expect(p95 as number).toBeLessThanOrEqual(1_000);
     expect(p95 as number).toBeGreaterThanOrEqual(900);
   });
 
   it('reports the ESI success rate over rows that recorded ESI time', async () => {
-    expect(await getEsiSuccessRate(RANGE)).toBeCloseTo(1 / 2, 5);
+    const availability = esiAvailability(await getCapabilityOutcomeStats(RANGE));
+    expect(availability).toEqual({ total: 2, healthy: 1, rate: 0.5 });
+    await expect(getEsiAvailability(RANGE)).resolves.toEqual(availability);
   });
 
   it('returns null rather than zero for a window with no recorded operations', async () => {
-    expect(await getReadSuccessRate(EMPTY_RANGE)).toBeNull();
-    expect(await getMutationSuccessRate(EMPTY_RANGE)).toBeNull();
-    expect(await getCriticalLatencyP95(EMPTY_RANGE)).toBeNull();
-    expect(await getEsiSuccessRate(EMPTY_RANGE)).toBeNull();
+    const stats = await getCapabilityOutcomeStats(EMPTY_RANGE);
+    expect(stats).toEqual([]);
+    expect(capabilitySuccessRate(stats, 'read')).toBeNull();
+    expect(capabilitySuccessRate(stats, 'mutation')).toBeNull();
+    expect(esiAvailability(stats).rate).toBeNull();
+    await expect(getCapabilityLatency(EMPTY_RANGE)).resolves.toEqual({ p95: null, slowest: [] });
+    await expect(getEsiAvailability(EMPTY_RANGE)).resolves.toEqual({ total: 0, healthy: 0, rate: null });
   });
 });
