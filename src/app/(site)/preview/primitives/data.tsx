@@ -153,7 +153,7 @@ export function DataGroup() {
       <Specimen
         name="StackedShareBar"
         source="stacked-share-bar"
-        note="One bar split into labelled shares."
+        note="One bar split into labelled shares. Screen readers hear the aria-label followed by each segment's value: “Wallet split: Liquid 62, Escrow 23, Assets 15”."
         wide
       >
         <Measured>

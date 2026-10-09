@@ -62,7 +62,6 @@ import { Pagination } from '@/components/ui/pagination';
 import { PopoverRow } from '@/components/ui/popover';
 import { PriceConfidence } from '@/components/ui/price-confidence';
 import { SectionHead } from '@/components/ui/section-head';
-import { StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { Tabs } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/toast';
 import { SplitAxisChart } from '@/components/ui/split-axis-chart';
@@ -86,7 +85,6 @@ describe('coverage-gaps', () => {
       PopoverRow,
       PriceConfidence,
       SectionHead,
-      StackedShareBar,
       Tabs,
       Toaster,
       SplitAxisChart,
