@@ -43,10 +43,12 @@ function StatusMark({ tone, status }: Pick<ReadoutLineProps, 'tone' | 'status'>)
  * trailing slot. Use it on its own inside a Collapsible summary; lists use
  * ReadoutRow. Only phrasing elements, so it is valid inside `<summary>`.
  *
- * Overflow-safe by construction: the label column starts at half the row,
- * takes any free space and wraps long words; the value is capped at half the
- * row and wraps instead of pushing into the label. When a long value and a
- * trailing control compete for a narrow row, label and value shrink together.
+ * Overflow-safe by construction: the label column starts at a third of the
+ * row, takes any free space and wraps long words; the value is capped at two
+ * thirds of the row and wraps instead of pushing into the label. A short
+ * label leaves a figure like "0 active · 0 dead" room for one line; when a
+ * long value and a trailing control compete for a narrow row, label and value
+ * shrink together.
  */
 export function ReadoutLine({
   label,
@@ -60,10 +62,10 @@ export function ReadoutLine({
   return (
     <span className="flex min-w-0 flex-1 items-start gap-3">
       <StatusMark tone={tone} status={status} />
-      {/* Half the row as a starting width, so a long value and a trailing
-          control shrink alongside the label instead of squeezing it to a
-          sliver; it still grows into whatever a short value leaves. */}
-      <span className="min-w-0 grow basis-1/2">
+      {/* A third of the row as a starting width, so a long value and a
+          trailing control shrink alongside the label instead of squeezing it
+          to a sliver; it still grows into whatever a short value leaves. */}
+      <span className="min-w-0 grow basis-1/3">
         <span className="block font-ui text-ui text-text wrap-break-word">{label}</span>
         {note === undefined ? null : (
           <span className="block font-data text-micro text-muted wrap-break-word">{note}</span>
@@ -72,7 +74,7 @@ export function ReadoutLine({
       {value === undefined ? null : (
         <span
           className={cn(
-            'max-w-1/2 text-right font-data text-ui tabular-nums wrap-anywhere',
+            'max-w-2/3 text-right font-data text-ui tabular-nums wrap-anywhere',
             VALUE_TONE[valueTone],
           )}
         >

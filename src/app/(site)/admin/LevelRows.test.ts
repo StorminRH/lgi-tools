@@ -37,7 +37,7 @@ describe('LevelRows', () => {
 
     expect(html).toContain(`<span class="block font-ui text-ui text-text wrap-break-word">Housekeeping</span>`);
     expect(html).toContain(
-      `<span class="max-w-1/2 text-right font-data text-ui tabular-nums wrap-anywhere text-tone-orange">${value}</span>`,
+      `<span class="max-w-2/3 text-right font-data text-ui tabular-nums wrap-anywhere text-tone-orange">${value}</span>`,
     );
     expect(html).not.toContain('shrink-0 text-right');
   });

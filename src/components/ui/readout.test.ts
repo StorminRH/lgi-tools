@@ -18,13 +18,13 @@ describe('ReadoutLine', () => {
       createElement(ReadoutLine, { label: 'Price cron', value: LONG_VALUE }),
     );
     const value = classOf(html, LONG_VALUE).split(' ');
-    expect(value).toEqual(expect.arrayContaining(['max-w-1/2', 'wrap-anywhere', 'text-right']));
+    expect(value).toEqual(expect.arrayContaining(['max-w-2/3', 'wrap-anywhere', 'text-right']));
     expect(value).not.toContain('shrink-0');
     expect(value).not.toContain('whitespace-nowrap');
-    expect(html).toContain('<span class="min-w-0 grow basis-1/2"><span class="block font-ui text-ui text-text wrap-break-word">Price cron');
+    expect(html).toContain('<span class="min-w-0 grow basis-1/3"><span class="block font-ui text-ui text-text wrap-break-word">Price cron');
   });
 
-  it('starts the label at half the row so a long value and a trailing control cannot squeeze it to a sliver', () => {
+  it('starts the label at a third of the row so a long value and a trailing control cannot squeeze it to a sliver', () => {
     const html = renderToStaticMarkup(
       createElement(ReadoutLine, {
         label: 'Dead-lettered owned-data refreshes for characters without a valid token',
@@ -33,7 +33,7 @@ describe('ReadoutLine', () => {
       }),
     );
     const label = /<span class="([^"]*)"><span class="block font-ui/.exec(html)![1]!.split(' ');
-    expect(label).toEqual(expect.arrayContaining(['min-w-0', 'grow', 'basis-1/2']));
+    expect(label).toEqual(expect.arrayContaining(['min-w-0', 'grow', 'basis-1/3']));
     expect(label).not.toContain('shrink-0');
     expect(html).toContain('<span class="flex h-lh shrink-0 items-center text-ui"><button type="button">Open</button></span>');
   });
@@ -78,7 +78,7 @@ describe('ReadoutLine', () => {
   it('puts the trailing slot on the first line and omits empty columns', () => {
     const html = renderToStaticMarkup(createElement(ReadoutLine, { label: 'Only', trailing: '▾' }));
     expect(html).toContain('<span class="flex h-lh shrink-0 items-center text-ui">▾</span>');
-    expect(html).not.toContain('max-w-1/2');
+    expect(html).not.toContain('max-w-2/3');
     expect(html).not.toContain('text-micro');
   });
 

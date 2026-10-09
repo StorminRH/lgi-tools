@@ -60,7 +60,7 @@ describe('service level rows', () => {
 
     expect(html).toContain('<span class="sr-only">Critical</span>');
     expect(html).toMatch(/<span class="block font-ui[^"]*">Active jobs and exhausted retries<\/span><span class="block font-data[^"]*">target 0 dead<\/span>/);
-    expect(html).toMatch(/<span class="max-w-1\/2[^"]*text-tone-red">4 active · 1 dead<\/span>/);
+    expect(html).toMatch(/<span class="max-w-2\/3[^"]*text-tone-red">4 active · 1 dead<\/span>/);
     expect(html).toContain('Review the refresh queue.');
     expect(html).toContain('data-chevron="true" aria-hidden="true"');
   });

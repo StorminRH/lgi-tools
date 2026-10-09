@@ -97,7 +97,7 @@ describe('admin ESI', () => {
     const value = (label: string) =>
       html.match(new RegExp(`>${label}</span>(?:<span[^>]*>[^<]*</span>)?</span><span class="([^"]*)">([^<]*)</span>`));
     expect(value('Item prices requested')?.slice(1)).toEqual([
-      'max-w-1/2 text-right font-data text-ui tabular-nums wrap-anywhere text-name',
+      'max-w-2/3 text-right font-data text-ui tabular-nums wrap-anywhere text-name',
       '1,200',
     ]);
     expect(value('Scoreboard source')?.[1]).toContain('text-name');
