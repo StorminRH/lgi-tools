@@ -243,7 +243,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P061](wave-01-quick-wins-delete-dead-code-fix-small.md#p061) | Read the user in PreferencesProvider from ReadIdentity, not a second useSession | react-hook | S | low | low | — |
 | ☑ | [P279](wave-01-quick-wins-delete-dead-code-fix-small.md#p279) | Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds | efficiency | S | low | medium | — |
 | ☑ | [P080](wave-01-quick-wins-delete-dead-code-fix-small.md#p080) | Read the board in the industry workspace only when a member sheet is open | client-data | S | low | medium | — |
-| ☐ | [P155](wave-01-quick-wins-delete-dead-code-fix-small.md#p155) | Render LoadFailed with useLiveDataset's retry in LiveBoard and delete BOARD_LOAD_FAILED | error-handling | S | low | medium | — |
+| ☑ | [P155](wave-01-quick-wins-delete-dead-code-fix-small.md#p155) | Render LoadFailed with useLiveDataset's retry in LiveBoard and delete BOARD_LOAD_FAILED | error-handling | S | low | medium | — |
 | ☐ | [P097](wave-01-quick-wins-delete-dead-code-fix-small.md#p097) | Render slot pools with one poolFigure encoding in the industry workspace | formatting | S | low | low | — |
 | ☐ | [P171](wave-01-quick-wins-delete-dead-code-fix-small.md#p171) | Count board used slots with countUsedSlots instead of a local filter | server-pipeline | S | low | low | — |
 | ☐ | [P330](wave-01-quick-wins-delete-dead-code-fix-small.md#p330) | Retire the stale tracking codemod, tokenize its three leftovers, and fix the IPv6 loopback checks in scripts/ | simplification | S | low | low | — |
