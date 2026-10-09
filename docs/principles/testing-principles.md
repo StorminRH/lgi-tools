@@ -27,7 +27,9 @@ instead of spying.
 
 Shared test helpers live under `src/db/__tests__/support/` and
 `convex/__tests__/*.setup.ts`. Import factories explicitly inside each test (or
-a per-test factory). Harness-owned `beforeAll` / `beforeEach` for disposable
+a per-test factory). A unit test that mocks `@/db` stands in the database with
+`createFakeQueryChain` from `src/db/__tests__/support/fake-query-chain.ts`, not
+a hand-built thenable chain. Harness-owned `beforeAll` / `beforeEach` for disposable
 schema lifecycle is the exception — do not introduce extra hooks that hide
 arrange steps. That conflicts with the principles below.
 

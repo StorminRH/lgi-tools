@@ -1,28 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-let cannedQueries: unknown[][] = [];
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
+});
 
-function queryFor(rows: unknown[]) {
-  const result = Promise.resolve(rows);
-  const query = {
-    from: vi.fn(),
-    where: vi.fn(),
-    groupBy: vi.fn(),
-    orderBy: vi.fn(),
-    then: result.then.bind(result),
-  };
-  query.from.mockReturnValue(query);
-  query.where.mockReturnValue(query);
-  query.groupBy.mockReturnValue(query);
-  query.orderBy.mockReturnValue(query);
-  return query;
-}
-
-vi.mock('@/db', () => ({
-  db: {
-    select: () => queryFor(cannedQueries.shift() ?? []),
-  },
-}));
+vi.mock('@/db', () => ({ db: chain }));
 
 import { getCronOutcomes, getPriceRefreshDays } from './queries';
 
@@ -32,12 +15,12 @@ const RANGE = {
 };
 
 beforeEach(() => {
-  cannedQueries = [];
+  reset();
 });
 
 describe('telemetry query result shaping', () => {
   it('normalizes price refresh days to numbers', async () => {
-    cannedQueries = [[{ day: '2026-07-02', esi: '20', fallback: '2', fetched: '300', written: '280' }]];
+    state.results = [[{ day: '2026-07-02', esi: '20', fallback: '2', fetched: '300', written: '280' }]];
 
     await expect(getPriceRefreshDays(RANGE)).resolves.toEqual([
       { day: '2026-07-02', esi: 20, fallback: 2, fetched: 300, written: 280 },
@@ -45,7 +28,7 @@ describe('telemetry query result shaping', () => {
   });
 
   it('splits cron outcomes by action with numeric counts and rounded durations', async () => {
-    cannedQueries = [
+    state.results = [
       [
         { action: 'cron_prices', outcome: 'refreshed', count: '3', avgDurationMs: '1500.6' },
         { action: 'cron_sde', outcome: 'up-to-date', count: '1', avgDurationMs: '0' },

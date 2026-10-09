@@ -17,7 +17,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 | ☑ | [P342](#p342) | Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json | testing | S | low | low | — |
 | ☑ | [P343](#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
 | ☑ | [P349](#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
-| ☐ | [P244](#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
+| ☑ | [P244](#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
 | ☐ | [P347](#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
 | ☐ | [P348](#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
 | ☐ | [P338](#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
@@ -735,7 +735,7 @@ createReservedConnectionMock(query?: (strings: TemplateStringsArray, ...values: 
 
 ## P244: Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -~100 (five inline chains) / +~60 (helper and its test); net about -40
 - **Depends on:** —
