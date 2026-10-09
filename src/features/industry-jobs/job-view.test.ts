@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { jobImage } from '@/data/eve-data/type-images';
-import type { IndustryJob } from './esi-projection';
+import { industryJob } from './__tests__/job-fixture';
 import {
   corpEntityIds,
   corpGroupState,
@@ -13,43 +13,29 @@ import {
 
 const NOW = Date.parse('2026-06-12T12:00:00Z');
 
-function job(overrides: Partial<IndustryJob>): IndustryJob {
-  return {
-    job_id: 1,
-    activity_id: 1,
-    blueprint_type_id: 691,
-    product_type_id: 587,
-    runs: 10,
-    status: 'active',
-    start_date: '2026-06-12T00:00:00Z',
-    end_date: '2026-06-13T00:00:00Z',
-    ...overrides,
-  };
-}
-
 describe('jobRowModel', () => {
   it('prefers the product headline, counts remaining only while active, and shows the bar for active/paused', () => {
-    const product = jobRowModel(job({}), NOW);
+    const product = jobRowModel(industryJob(), NOW);
     expect(product.headlineId).toBe(587);
     expect(product.icon).toEqual(jobImage(1, 587, 691));
 
-    const blueprint = jobRowModel(job({ product_type_id: undefined }), NOW);
+    const blueprint = jobRowModel(industryJob({ product_type_id: undefined }), NOW);
     expect(blueprint.headlineId).toBe(691);
     expect(blueprint.icon).toEqual(jobImage(1, undefined, 691));
 
-    expect(jobRowModel(job({ end_date: '2026-06-12T13:00:00Z' }), NOW).remainingMs).toBe(3_600_000);
-    expect(jobRowModel(job({ status: 'paused' }), NOW).remainingMs).toBeNull();
-    expect(jobRowModel(job({ end_date: 'not-a-date' }), NOW).remainingMs).toBeNull();
+    expect(jobRowModel(industryJob({ end_date: '2026-06-12T13:00:00Z' }), NOW).remainingMs).toBe(3_600_000);
+    expect(jobRowModel(industryJob({ status: 'paused' }), NOW).remainingMs).toBeNull();
+    expect(jobRowModel(industryJob({ end_date: 'not-a-date' }), NOW).remainingMs).toBeNull();
 
-    expect(jobRowModel(job({ status: 'active' }), NOW).showBar).toBe(true);
-    expect(jobRowModel(job({ status: 'paused' }), NOW).showBar).toBe(true);
-    expect(jobRowModel(job({ status: 'ready' }), NOW).showBar).toBe(false);
+    expect(jobRowModel(industryJob({ status: 'active' }), NOW).showBar).toBe(true);
+    expect(jobRowModel(industryJob({ status: 'paused' }), NOW).showBar).toBe(true);
+    expect(jobRowModel(industryJob({ status: 'ready' }), NOW).showBar).toBe(false);
   });
 });
 
 describe('jobRowFrameData', () => {
   it('builds the resolved-name row bundle, or a Type# fallback', () => {
-    const data = jobRowFrameData(job({ end_date: '2026-06-12T13:00:00Z' }), { '587': 'Ishkur' }, NOW);
+    const data = jobRowFrameData(industryJob({ end_date: '2026-06-12T13:00:00Z' }), { '587': 'Ishkur' }, NOW);
     expect(data.headlineName).toBe('Ishkur');
     expect(data.icon).toEqual(jobImage(1, 587, 691));
     expect(data.runs).toBe(10);
@@ -59,8 +45,8 @@ describe('jobRowFrameData', () => {
   });
 
   it('leaves an empty countdown label off an active job with no finite end', () => {
-    expect(jobRowFrameData(job({ status: 'paused' }), {}, NOW).remainingLabel).toBe('');
-    expect(jobRowFrameData(job({}), {}, NOW).headlineName).toBe('Type #587');
+    expect(jobRowFrameData(industryJob({ status: 'paused' }), {}, NOW).remainingLabel).toBe('');
+    expect(jobRowFrameData(industryJob(), {}, NOW).headlineName).toBe('Type #587');
   });
 });
 
@@ -87,7 +73,7 @@ describe('jobsCardModel', () => {
   });
 
   it('reports empty + a subtitle + the next-done countdown for a synced board', () => {
-    const model = jobsCardModel({ jobs: [job({ end_date: '2026-06-12T13:00:00Z' })] }, NOW);
+    const model = jobsCardModel({ jobs: [industryJob({ end_date: '2026-06-12T13:00:00Z' })] }, NOW);
     expect(model.isEmpty).toBe(false);
     expect(model.subtitle).toBe('1 job');
     expect(model.nextDoneMs).toBe(3_600_000);
@@ -101,7 +87,7 @@ describe('jobsCardModel', () => {
 describe('corpEntityIds', () => {
   it('collects corp + installer ids, deduped, sorted, and capped', () => {
     const corps = [
-      { corporationId: 5000, data: { jobs: [job({ installer_id: 20 }), job({ installer_id: 10 })] } },
+      { corporationId: 5000, data: { jobs: [industryJob({ installer_id: 20 }), industryJob({ installer_id: 10 })] } },
       { corporationId: 6000, data: null },
     ];
     expect(corpEntityIds(corps, 100)).toEqual([10, 20, 5000, 6000]);
@@ -114,6 +100,6 @@ describe('corpGroupState', () => {
     expect(corpGroupState({ syncError: 'needs_role', data: null })).toBe('needs-role');
     expect(corpGroupState({ syncError: null, data: null })).toBe('sync-error');
     expect(corpGroupState({ syncError: null, data: { jobs: [] } })).toBe('empty');
-    expect(corpGroupState({ syncError: null, data: { jobs: [job({})] } })).toBe('rows');
+    expect(corpGroupState({ syncError: null, data: { jobs: [industryJob()] } })).toBe('rows');
   });
 });

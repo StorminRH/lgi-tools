@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
+import { industryJob } from '@/features/industry-jobs/__tests__/job-fixture';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { setMemberCategories } from '@/features/industry-planner/profiles/assignments';
@@ -23,19 +23,6 @@ const MFG = 1;
 const REACTION = 11;
 const RESEARCH = 3;
 
-function job(job_id: number, activity_id: number, status: IndustryJob['status'], installer_id?: number): IndustryJob {
-  return {
-    job_id,
-    activity_id,
-    status,
-    installer_id,
-    blueprint_type_id: 1,
-    runs: 1,
-    start_date: '2026-09-29T00:00:00Z',
-    end_date: '2026-09-30T00:00:00Z',
-  };
-}
-
 function capacitiesFor(sources: CapacitySources, ids: number[]) {
   return new Map(ids.map((id) => [id, memberCapacity(id, sources)]));
 }
@@ -53,23 +40,23 @@ test('slot pools count each character once, dedupe jobs, and never add two teams
         {
           data: {
             jobs: [
-              job(1, MFG, 'active'),
-              job(2, MFG, 'ready'),
-              job(3, MFG, 'delivered'),
-              job(4, RESEARCH, 'paused'),
+              industryJob({ job_id: 1, activity_id: MFG, status: 'active' }),
+              industryJob({ job_id: 2, activity_id: MFG, status: 'ready' }),
+              industryJob({ job_id: 3, activity_id: MFG, status: 'delivered' }),
+              industryJob({ job_id: 4, activity_id: RESEARCH, status: 'paused' }),
             ],
           },
         },
       ],
-      [REACTOR, { data: { jobs: [job(10, REACTION, 'active')] } }],
+      [REACTOR, { data: { jobs: [industryJob({ job_id: 10, activity_id: REACTION, status: 'active' })] } }],
       [SPARE, { data: { jobs: [] } }],
     ]),
     corpJobs: [
       // The same job seen in the personal and the corporation feed.
-      job(2, MFG, 'ready', BUILDER),
-      job(20, MFG, 'active', BUILDER),
-      job(21, MFG, 'active', 999),
-      job(22, REACTION, 'active', REACTOR),
+      industryJob({ job_id: 2, activity_id: MFG, status: 'ready', installer_id: BUILDER }),
+      industryJob({ job_id: 20, activity_id: MFG, status: 'active', installer_id: BUILDER }),
+      industryJob({ job_id: 21, activity_id: MFG, status: 'active', installer_id: 999 }),
+      industryJob({ job_id: 22, activity_id: REACTION, status: 'active', installer_id: REACTOR }),
     ],
   };
   const linkedIds = new Set([BUILDER, REACTOR, SPARE]);

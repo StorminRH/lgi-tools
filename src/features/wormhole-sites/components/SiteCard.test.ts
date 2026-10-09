@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { SiteDetail } from '../types';
+import { siteDetail } from '../__tests__/site-fixtures';
 import { SiteCard } from './SiteCard';
 
 vi.mock('next/link', () => ({
@@ -42,25 +42,16 @@ vi.mock('./SiteCardLightbox', () => ({
   SiteCardLightbox: () => createElement('div', { 'data-site-card-lightbox': '' }),
 }));
 
-const site = (over: Partial<SiteDetail> = {}): SiteDetail => ({
-  id: 42,
-  name: 'Forgotten Perimeter Coronation Platform',
-  siteType: 'relic',
-  wormholeClass: 'C1',
-  signatureLabel: 'ABC-123',
-  sourceTab: 'Sheet',
-  blueLootIsk: 12_800_000,
-  iskPerEhp: null,
-  resourceValueIsk: null,
-  waves: [],
-  resources: [],
-  ...over,
-});
-
 describe('SiteCard', () => {
   it('keeps catalogue collapse and extras; standalone is always expanded', () => {
+    const site = siteDetail({
+      name: 'Forgotten Perimeter Coronation Platform',
+      siteType: 'relic',
+      wormholeClass: 'C1',
+      blueLootIsk: 12_800_000,
+    });
     const catalogue = renderToStaticMarkup(
-      createElement(SiteCard, { site: site(), contentAlign: 'center' }),
+      createElement(SiteCard, { site, contentAlign: 'center' }),
     );
     expect(catalogue).toContain('data-presentation="catalogue"');
     expect(catalogue).toContain('data-collapsible');
@@ -73,7 +64,7 @@ describe('SiteCard', () => {
 
     const standalone = renderToStaticMarkup(
       createElement(SiteCard, {
-        site: site(),
+        site,
         presentation: 'standalone',
         contentAlign: 'center',
       }),

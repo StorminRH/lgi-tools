@@ -1,23 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { IndustryJob, JobStatus } from './esi-projection';
+import { industryJob } from './__tests__/job-fixture';
+import type { JobStatus } from './esi-projection';
 import {
   countUsedSlots,
   jobOccupiesSlot,
   slotCapacity,
 } from './slots';
-
-function job(
-  overrides: Partial<IndustryJob> & { job_id: number; activity_id: number },
-): IndustryJob {
-  return {
-    blueprint_type_id: 999,
-    runs: 1,
-    status: 'active',
-    start_date: '2026-07-01T00:00:00Z',
-    end_date: '2026-07-02T00:00:00Z',
-    ...overrides,
-  };
-}
 
 describe('slotCapacity', () => {
   it('computes 1 + the two slot skills per activity', () => {
@@ -54,14 +42,14 @@ describe('countUsedSlots', () => {
 
   it('matches the hand-computed anchor: dedup, installer filter, activity 9', () => {
     const personal = [
-      job({ job_id: 101, activity_id: 1 }),
-      job({ job_id: 102, activity_id: 5 }),
-      job({ job_id: 103, activity_id: 1, status: 'delivered' }),
+      industryJob({ job_id: 101, activity_id: 1 }),
+      industryJob({ job_id: 102, activity_id: 5 }),
+      industryJob({ job_id: 103, activity_id: 1, status: 'delivered' }),
     ];
     const corp = [
-      job({ job_id: 101, activity_id: 1, installer_id: CHARACTER }),
-      job({ job_id: 201, activity_id: 9, status: 'ready', installer_id: CHARACTER }),
-      job({ job_id: 202, activity_id: 1, installer_id: 999 }),
+      industryJob({ job_id: 101, activity_id: 1, installer_id: CHARACTER }),
+      industryJob({ job_id: 201, activity_id: 9, status: 'ready', installer_id: CHARACTER }),
+      industryJob({ job_id: 202, activity_id: 1, installer_id: 999 }),
     ];
     expect(countUsedSlots(CHARACTER, personal, corp)).toEqual({
       manufacturing: 1,
@@ -72,14 +60,14 @@ describe('countUsedSlots', () => {
 
   it('counts reactions under both activity ids (9 live-ESI, 11 SDE)', () => {
     const corp = [
-      job({ job_id: 1, activity_id: 9, installer_id: CHARACTER }),
-      job({ job_id: 2, activity_id: 11, installer_id: CHARACTER }),
+      industryJob({ job_id: 1, activity_id: 9, installer_id: CHARACTER }),
+      industryJob({ job_id: 2, activity_id: 11, installer_id: CHARACTER }),
     ];
     expect(countUsedSlots(CHARACTER, [], corp).reactions).toBe(2);
   });
 
   it('skips a corp job with no installer_id — it cannot be attributed', () => {
-    expect(countUsedSlots(CHARACTER, [], [job({ job_id: 3, activity_id: 1 })])).toEqual({
+    expect(countUsedSlots(CHARACTER, [], [industryJob({ job_id: 3, activity_id: 1 })])).toEqual({
       manufacturing: 0,
       science: 0,
       reactions: 0,
@@ -93,10 +81,10 @@ describe('countUsedSlots', () => {
     for (const status of freed) expect(jobOccupiesSlot(status)).toBe(false);
 
     const personal = [
-      job({ job_id: 4, activity_id: 1, status: 'paused' }),
-      job({ job_id: 5, activity_id: 1, status: 'ready' }),
-      job({ job_id: 6, activity_id: 1, status: 'cancelled' }),
-      job({ job_id: 7, activity_id: 1, status: 'reverted' }),
+      industryJob({ job_id: 4, activity_id: 1, status: 'paused' }),
+      industryJob({ job_id: 5, activity_id: 1, status: 'ready' }),
+      industryJob({ job_id: 6, activity_id: 1, status: 'cancelled' }),
+      industryJob({ job_id: 7, activity_id: 1, status: 'reverted' }),
     ];
     expect(countUsedSlots(CHARACTER, personal, []).manufacturing).toBe(2);
   });
