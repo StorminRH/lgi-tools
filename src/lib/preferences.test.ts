@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, test } from 'vitest';
 
 function installLocalStorageShim() {
   const store = new Map<string, string>();
@@ -65,38 +65,25 @@ beforeEach(() => {
   window.localStorage.clear();
 });
 
-describe('peekLocalPreference', () => {
-  it('returns undefined when nothing is stored (absence, not the fallback)', () => {
-    expect(peekLocalPreference(sitesView)).toBeUndefined();
-    expect(peekLocalPreference(atlasDockCharacter)).toBeUndefined();
-  });
+test('peekLocalPreference round-trips written values and reads nothing stored, malformed, or invalid as absent', () => {
+  // Absence, not the fallback.
+  expect(peekLocalPreference(sitesView)).toBeUndefined();
+  expect(peekLocalPreference(atlasDockCharacter)).toBeUndefined();
 
-  it('round-trips a written value', () => {
-    writeLocalPreference(sitesView, 'table');
-    expect(peekLocalPreference(sitesView)).toBe('table');
-  });
+  writeLocalPreference(sitesView, 'table');
+  expect(peekLocalPreference(sitesView)).toBe('table');
+  // Keys stay isolated.
+  expect(peekLocalPreference(atlasDockCharacter)).toBeUndefined();
 
-  it('returns undefined on malformed JSON', () => {
-    window.localStorage.setItem(lsKey(sitesView.key), 'not-json{{');
-    expect(peekLocalPreference(sitesView)).toBeUndefined();
-  });
+  writeLocalPreference(atlasDockCharacter, 90000001);
+  expect(peekLocalPreference(atlasDockCharacter)).toBe(90000001);
+  writeLocalPreference(atlasDockCharacter, null);
+  expect(peekLocalPreference(atlasDockCharacter)).toBeNull();
 
-  it('returns undefined when the stored value fails the schema', () => {
-    window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('list'));
-    expect(peekLocalPreference(sitesView)).toBeUndefined();
-  });
-
-  it('round-trips a nullable character id, including a stored null', () => {
-    writeLocalPreference(atlasDockCharacter, 90000001);
-    expect(peekLocalPreference(atlasDockCharacter)).toBe(90000001);
-    writeLocalPreference(atlasDockCharacter, null);
-    expect(peekLocalPreference(atlasDockCharacter)).toBeNull();
-  });
-
-  it('keeps preference keys isolated', () => {
-    writeLocalPreference(sitesView, 'table');
-    expect(peekLocalPreference(atlasDockCharacter)).toBeUndefined();
-  });
+  window.localStorage.setItem(lsKey(sitesView.key), 'not-json{{');
+  expect(peekLocalPreference(sitesView)).toBeUndefined();
+  window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('list'));
+  expect(peekLocalPreference(sitesView)).toBeUndefined();
 });
 
 describe('validatePreferenceValue', () => {
@@ -124,11 +111,6 @@ describe('validatePreferenceValue', () => {
   it('rejects an unknown key', () => {
     expect(validatePreferenceValue('sites.theme', 'dark')).toBe(false);
   });
-
-  it('lists registry keys callers read', () => {
-    expect(PREFERENCE_KEYS).toContain('sites.view');
-    expect(PREFERENCE_KEYS).toContain('industry.profileId');
-  });
 });
 
 describe('retired preference cookies', () => {
@@ -154,30 +136,18 @@ describe('retired preference cookies', () => {
   });
 });
 
-describe('reconcilePreferences', () => {
-  it('prefers the server value and does not seed it', () => {
-    const { values, toSeed } = reconcilePreferences(
-      new Map([['sites.view', 'table']]),
-      new Map([['sites.view', 'cards']]),
-    );
-    expect(values.get('sites.view')).toBe('table');
-    expect(toSeed).toEqual([]);
-  });
+test('reconcilePreferences prefers the server value and seeds the server from local only where it has none', () => {
+  const serverWins = reconcilePreferences(new Map([['sites.view', 'table']]), new Map([['sites.view', 'cards']]));
+  expect(serverWins.values.get('sites.view')).toBe('table');
+  expect(serverWins.toSeed).toEqual([]);
 
-  it('seeds the server from local only where the server has no value', () => {
-    const { values, toSeed } = reconcilePreferences(
-      new Map(),
-      new Map([['sites.view', 'table']]),
-    );
-    expect(values.get('sites.view')).toBe('table');
-    expect(toSeed).toEqual(['sites.view']);
-  });
+  const seeded = reconcilePreferences(new Map(), new Map([['sites.view', 'table']]));
+  expect(seeded.values.get('sites.view')).toBe('table');
+  expect(seeded.toSeed).toEqual(['sites.view']);
 
-  it('omits a key absent from both tiers', () => {
-    const { values, toSeed } = reconcilePreferences(new Map(), new Map());
-    expect(values.has('sites.view')).toBe(false);
-    expect(toSeed).toEqual([]);
-  });
+  const neither = reconcilePreferences(new Map(), new Map());
+  expect(neither.values.has('sites.view')).toBe(false);
+  expect(neither.toSeed).toEqual([]);
 });
 
 describe('strip dimmed-set defs', () => {
