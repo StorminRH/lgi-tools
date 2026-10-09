@@ -14,7 +14,7 @@ import {
 } from '@/data/telemetry/queries';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { loadDeployMarkers } from './deploy-markers';
-import { getBudgetExhaustionCountShared, getEsiRefreshQueueStatsShared, getFallbackRateShared, getLastSyncedAtShared, getStaticsReviewShared } from './shared-reads';
+import { getBudgetExhaustionCountShared, getEsiRefreshQueueStatsShared, getFallbackRateShared, getLastSyncedAtShared, getStaticsSummaryShared } from './shared-reads';
 import { loadSection } from './load-section';
 import type { AdminSignals, SliSignals } from './signals';
 
@@ -57,12 +57,7 @@ export const loadAdminSignals = cache(async (rangeKey: RangeKey): Promise<AdminS
       return { readSuccess, mutationSuccess, latencyP95, esiSuccess };
     }),
     loadSection('admin-signals.queue', getEsiRefreshQueueStatsShared),
-    loadSection('admin-signals.statics', async () => {
-      const review = await getStaticsReviewShared();
-      return review
-        ? { feedVersion: review.feedVersion, totalDifferences: review.difference.totalDifferences }
-        : null;
-    }),
+    loadSection('admin-signals.statics', getStaticsSummaryShared),
     loadSection('admin-signals.releases', loadDeployMarkers),
   ]);
   return { now: range.to, crons, budget, fallback, budgetExhaustions, sli, queue, statics, releases };

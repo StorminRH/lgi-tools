@@ -23,7 +23,7 @@ vi.mock('./shared-reads', () => ({
   getEsiRefreshQueueStatsShared: async () => {
     throw new Error('offline');
   },
-  getStaticsReviewShared: async () => null,
+  getStaticsSummaryShared: async () => null,
 }));
 
 function staticsFrame() {

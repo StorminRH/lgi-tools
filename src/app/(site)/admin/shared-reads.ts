@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { getWhStaticsOperatorReview } from '@/composition/wh-statics-refresh';
+import { getWhStaticsOperatorReview, getWhStaticsOperatorSummary } from '@/composition/wh-statics-refresh';
 import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
 import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
 import { getBudgetExhaustionCount, getFallbackRate } from '@/data/telemetry/queries';
@@ -28,3 +28,5 @@ export const getBudgetExhaustionCountShared = sharedRangeRead(getBudgetExhaustio
 
 /** Daily search totals, read once for every card that covers the same window. */
 export const getSearchTrendShared = sharedRangeRead(getSearchTrend);
+/** The pending statics version and diff size; only /admin/statics needs the full review. */
+export const getStaticsSummaryShared = cache(getWhStaticsOperatorSummary);

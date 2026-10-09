@@ -7,7 +7,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { getSystemStatics } from '@/data/wh-statics/queries';
 import { deriveActionRows, type AdminActionRow } from './actions-view';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { getEsiRefreshQueueStatsShared, getStaticsReviewShared } from './shared-reads';
+import { getEsiRefreshQueueStatsShared, getStaticsSummaryShared } from './shared-reads';
 import { summarizeQueue } from './signals';
 
 const REFERENCE_LINKS = [
@@ -53,14 +53,14 @@ function ReferenceTile() {
 
 async function loadActionRows(): Promise<AdminActionRow[]> {
   const fetched = await loadSection('admin-actions', () =>
-    Promise.all([getStaticsReviewShared(), getSystemStatics(), getEsiRefreshQueueStatsShared()]),
+    Promise.all([getStaticsSummaryShared(), getSystemStatics(), getEsiRefreshQueueStatsShared()]),
   );
   if (fetched === SECTION_LOAD_FAILED) {
     return deriveActionRows({ statics: null, queue: null });
   }
-  const [review, promoted, queueStats] = fetched;
+  const [pending, promoted, queueStats] = fetched;
   return deriveActionRows({
-    statics: { pendingVersion: review?.feedVersion ?? null, servingVersion: promoted.version },
+    statics: { pendingVersion: pending?.feedVersion ?? null, servingVersion: promoted.version },
     queue: summarizeQueue(queueStats, new Date()),
   });
 }
