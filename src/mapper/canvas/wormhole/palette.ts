@@ -1,5 +1,6 @@
 import { securityBand } from '@/data/eve-data/security';
 import type { WormholeEffect } from '@/data/eve-data/wormhole-contract';
+import { djb2 } from '../../lib/prng';
 
 /** Art-directed approximations of destination nebulae, not official CCP RGB values.
  * References: https://wiki.eveuniversity.org/Visual_wormhole_identification
@@ -85,7 +86,5 @@ export function discBodyAppearance(
 }
 
 export function wormholeSeed(key: string): number {
-  let hash = 5381;
-  for (let i = 0; i < key.length; i += 1) hash = (hash * 33 + key.charCodeAt(i)) >>> 0;
-  return (hash % 4096) / 4096;
+  return (djb2(key) % 4096) / 4096;
 }

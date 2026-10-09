@@ -1,4 +1,4 @@
-import { mulberry32 } from '../lib/prng';
+import { djb2, mulberry32 } from '../lib/prng';
 import type { FogFrame, FogPaintDisc, FogPaintStroke } from './fog-model';
 
 export interface FogRect {
@@ -196,11 +196,7 @@ export interface FogPaintInput {
   readonly alphaOnly: boolean;
 }
 
-function stampAngle(key: string, index: number): number {
-  let hash = 5381;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 33 + key.charCodeAt(i)) >>> 0;
-  }
+function stampAngle(hash: number, index: number): number {
   return (((hash + index * 97) % 360) * Math.PI) / 180;
 }
 
@@ -244,6 +240,7 @@ function stampStroke(
   const length = Math.hypot(stroke.x2 - stroke.x1, stroke.y2 - stroke.y1);
   const spacing = input.strokeRadius * 0.8;
   const count = Math.max(1, Math.ceil(length / spacing));
+  const hash = djb2(stroke.key);
   for (let step = 0; step <= count; step += 1) {
     const t = step / count;
     stampBrush(
@@ -253,7 +250,7 @@ function stampStroke(
       stroke.y1 + (stroke.y2 - stroke.y1) * t,
       radius,
       alpha,
-      stampAngle(stroke.key, step),
+      stampAngle(hash, step),
     );
   }
 }
@@ -274,7 +271,7 @@ export function paintFog(ctx: FogPaintContext, input: FogPaintInput): void {
       input.revealRadius,
       input.alphaOnly,
     );
-    stampBrush(ctx, input, disc.x, disc.y, radius, alpha, stampAngle(disc.key, 0));
+    stampBrush(ctx, input, disc.x, disc.y, radius, alpha, stampAngle(djb2(disc.key), 0));
   }
   for (const stroke of input.frame.strokes) stampStroke(ctx, input, stroke);
   for (const wake of input.wakeStamps) {
@@ -285,7 +282,7 @@ export function paintFog(ctx: FogPaintContext, input: FogPaintInput): void {
       wake.y,
       input.strokeRadius,
       wake.strength * 0.7,
-      stampAngle(wake.key, 0),
+      stampAngle(djb2(wake.key), 0),
     );
   }
   ctx.globalCompositeOperation = 'source-over';

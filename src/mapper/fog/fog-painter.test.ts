@@ -177,6 +177,12 @@ test('paintFog lays cloud, erases reveals, scales by strength, and restores cont
   );
   expect(fillIndex).toBeLessThan(eraseIndex);
   expect(log.filter((entry) => entry.op === 'drawImage').length).toBe(2 + 6 + 1);
+  // Discs d:1 and d:2, stroke s:a steps 0-5 (each step turns 97 degrees), wake w:d:1.
+  expect(
+    log.filter((entry) => entry.op === 'rotate').map((entry) => entry.args[0]),
+  ).toEqual(
+    [100, 101, 283, 20, 117, 214, 311, 48, 237].map((degrees) => (degrees * Math.PI) / 180),
+  );
 
   const dynamic = recordingContext();
   paintFog(dynamic.ctx, paintInput({ frame: { ...FRAME, strokes: [] }, wakeStamps: [] }));
