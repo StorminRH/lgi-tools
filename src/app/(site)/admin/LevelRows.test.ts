@@ -1,12 +1,12 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { LevelRow } from './LevelRow';
+import { LevelRows } from './LevelRows';
 import type { StatusLine } from './signals';
 import { levelReadout } from './status-tone';
 
 function render(line: StatusLine): string {
-  return renderToStaticMarkup(createElement(LevelRow, { line }));
+  return renderToStaticMarkup(createElement(LevelRows, { lines: [line] }));
 }
 
 describe('levelReadout', () => {
@@ -18,11 +18,11 @@ describe('levelReadout', () => {
   });
 });
 
-describe('LevelRow', () => {
+describe('LevelRows', () => {
   it('says the verdict in words beside the dot', () => {
     const html = render({ id: 'cron', label: 'Price cron', value: 'failing', note: 'failed 3h ago', level: 'red' });
 
-    expect(html).toMatch(/^<li /);
+    expect(html).toMatch(/^<ul><li /);
     expect(html).toContain('<span aria-hidden="true" class="inline-block rounded-full');
     expect(html).toContain('<span class="sr-only">Critical</span>');
     expect(html).toContain('text-tone-red">failing</span>');

@@ -26,7 +26,7 @@ import {
   getPriceSourceDegradationShared,
 } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
-import { LevelRow } from '../LevelRow';
+import { LevelRows } from '../LevelRows';
 import { deriveCostLensView, type OpsMetricRow } from '../ops-view';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { deriveBudgetCard, derivePressureLines } from './esi-view';
@@ -87,11 +87,7 @@ export async function PressureCard({ range }: { range: DateRange }) {
         label="Rate-limit pressure"
         hint={<CardLink href="/admin/queue">Queue</CardLink>}
       />
-      <ReadoutList>
-        {derivePressureLines({ esiSuccess: esiSuccess.rate, esiSamples: esiSuccess.total, budgetExhaustions, fallback, degradation, queue }).map((line) => (
-          <LevelRow key={line.id} line={line} />
-        ))}
-      </ReadoutList>
+      <LevelRows lines={derivePressureLines({ esiSuccess: esiSuccess.rate, esiSamples: esiSuccess.total, budgetExhaustions, fallback, degradation, queue })} />
     </Card>
   );
 }

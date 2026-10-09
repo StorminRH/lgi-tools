@@ -187,11 +187,10 @@ export interface StatusLine extends SubsystemStatus {
   label: string;
 }
 
+export type StatusGroupId = 'app' | 'esi' | 'jobs';
+
 export interface StatusGroup {
-  id: 'app' | 'esi' | 'jobs';
-  title: string;
-  href: string;
-  linkLabel: string;
+  id: StatusGroupId;
   lines: StatusLine[];
 }
 
@@ -349,43 +348,29 @@ function queueStatusLine(signals: AdminSignals): StatusLine {
   return queueLine(summarizeQueue(signals.queue, signals.now));
 }
 
+const STATUS_GROUP_LINES: Record<StatusGroupId, (signals: AdminSignals) => StatusLine[]> = {
+  app: (signals) => [
+    sliLine('readSuccess', 'Page & tool reads', signals.sli),
+    sliLine('mutationSuccess', 'Mutations', signals.sli),
+    sliLine('latencyP95', 'p95 latency', signals.sli),
+    releaseLine(signals.releases, signals.now),
+  ],
+  esi: (signals) => [
+    budgetLine(signals.budget),
+    sliLine('esiSuccess', 'ESI availability', signals.sli),
+    priceSourceLine(signals),
+    heldForBudgetLine(signals.queue),
+  ],
+  jobs: (signals) => [...cronLines(signals), queueStatusLine(signals)],
+};
+
+/** One status card's lines; each card reads the same request-cached signals. */
+export function deriveStatusLines(signals: AdminSignals, id: StatusGroupId): StatusLine[] {
+  return STATUS_GROUP_LINES[id](signals);
+}
+
 export function deriveStatusGroups(signals: AdminSignals): StatusGroup[] {
-  return [
-    {
-      id: 'app',
-      title: 'App',
-      href: '/admin/health',
-      linkLabel: 'Health',
-      lines: [
-        sliLine('readSuccess', 'Page & tool reads', signals.sli),
-        sliLine('mutationSuccess', 'Mutations', signals.sli),
-        sliLine('latencyP95', 'p95 latency', signals.sli),
-        releaseLine(signals.releases, signals.now),
-      ],
-    },
-    {
-      id: 'esi',
-      title: 'ESI',
-      href: '/admin/esi',
-      linkLabel: 'ESI',
-      lines: [
-        budgetLine(signals.budget),
-        sliLine('esiSuccess', 'ESI availability', signals.sli),
-        priceSourceLine(signals),
-        heldForBudgetLine(signals.queue),
-      ],
-    },
-    {
-      id: 'jobs',
-      title: 'Jobs',
-      href: '/admin/health#scheduled',
-      linkLabel: 'Jobs',
-      lines: [
-        ...cronLines(signals),
-        queueStatusLine(signals),
-      ],
-    },
-  ];
+  return (['app', 'esi', 'jobs'] as const).map((id) => ({ id, lines: deriveStatusLines(signals, id) }));
 }
 
 export interface AttentionItem {

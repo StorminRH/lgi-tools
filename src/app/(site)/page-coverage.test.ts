@@ -53,17 +53,14 @@ vi.mock('convex/react', () => ({
 
 import { AccountTotals } from '@/app/(site)/admin/AccountsCard';
 import { AdminCard, AdminSection } from '@/app/(site)/admin/AdminSection';
-import { ActionsCard } from '@/app/(site)/admin/ActionsCard';
 import { ActivityChart } from '@/app/(site)/admin/ActivityChart';
 import { AdminPageFrame, AdminSlot } from '@/app/(site)/admin/AdminFrame';
 import { AdminGate } from '@/app/(site)/admin/AdminGate';
 import { AdminRail, AdminRailFallback } from '@/app/(site)/admin/AdminRail';
-import { AudienceCard } from '@/app/(site)/admin/AudienceCard';
 import { CardFallback } from '@/app/(site)/admin/CardFallback';
 import { CardLink } from '@/app/(site)/admin/CardLink';
 import { DeltaBadge } from '@/app/(site)/admin/DeltaBadge';
 import { KpiGrid } from '@/app/(site)/admin/KpiGrid';
-import { AttentionCard, StatusCards } from '@/app/(site)/admin/AdminOverviewCards';
 import { RangeControl } from '@/app/(site)/admin/RangeControl';
 import { RangeSelector, RangeSelectorFallback } from '@/app/(site)/admin/RangeSelector';
 import { SectionUnavailable } from '@/app/(site)/admin/SectionUnavailable';
@@ -135,20 +132,16 @@ describe('coverage-gaps', () => {
       AccountTotals,
       AdminCard,
       AdminSection,
-      ActionsCard,
       ActivityChart,
       AdminPageFrame,
       AdminSlot,
       AdminGate,
       AdminRail,
       AdminRailFallback,
-      AudienceCard,
       CardFallback,
       CardLink,
       DeltaBadge,
       KpiGrid,
-      AttentionCard,
-      StatusCards,
       RangeControl,
       RangeSelector,
       RangeSelectorFallback,
