@@ -18,7 +18,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P296](#p296) | Retire the per-deploy auth backfill: it re-creates users and accounts for deleted characters | efficiency | S | low | high | — |
 | ☑ | [P303](#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
 | ☑ | [P304](#p304) | Delete the test-only price-confidence aggregation code | simplification | S | low | medium | — |
-| ☐ | [P324](#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
+| ☑ | [P324](#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
 | ☐ | [P335](#p335) | Delete the dead refreshPricesOnDemand and drop the cache tags nothing invalidates | simplification | S | low | low | — |
 | ☐ | [P042](#p042) | Move wormhole-site domain constants out of the Drizzle schema so client bundles stop pulling in pg-core | efficiency | S | low | medium | — |
 | ☐ | [P277](#p277) | Delete the dead motion-variable write on the map shell; ChainSurface's scope is the only writer | efficiency | S | low | low | — |
@@ -226,7 +226,7 @@ No new API. Removed exports: priceConfidence, aggregateConfidence, aggregateConf
 
 ## P324: Retire the completed mapHallwayBackfill migration
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -275 / +0
 - **Depends on:** —
