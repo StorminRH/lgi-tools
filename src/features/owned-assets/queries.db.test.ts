@@ -54,15 +54,6 @@ async function committedRowCount(): Promise<number> {
   return rows.length;
 }
 
-async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 3000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (await predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-  throw new Error('waitFor: condition not met before timeout');
-}
-
 describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () => {
   it('returns saved and stores the aggregated set for a single writer', async () => {
     const outcome = await saveOwnedAssets(owner, [asset(), asset({ type_id: 35 })], ['"etag"']);
@@ -129,7 +120,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
     await winnerHasInserted;
 
     const loser = saveOwnedAssets(owner, [asset()], ['"loser"']);
-    await waitFor(async () => (await committedRowCount()) === 0);
+    await expect.poll(() => committedRowCount(), { timeout: 3_000, interval: 5 }).toBe(0);
     releaseWinner();
     await winner;
 

@@ -7,7 +7,7 @@ import { cancelPendingTracking, enqueueTrackingMerge } from '@/data/location-tra
 import { pendingTrackingMerges } from '@/data/location-tracking/schema';
 import { purgeLocationTracking } from '@/data/location-tracking/purge';
 import { account, user } from '@/db/auth-schema';
-import { createDbTestHarness, seedEveAccount, seedUser } from '@/db/__tests__/support/db-test-harness';
+import { createDbTestHarness, seedAccount, seedEveAccount, seedUser } from '@/db/__tests__/support/db-test-harness';
 import { projectMapAccess, purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { reconcileTrackingMerges } from './tracking-merge-retry';
 
@@ -107,7 +107,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
 
   it('filters against current EVE linkage so detached characters and other providers cannot regain tracking', async () => {
     await seedOwner();
-    await seedEveAccount(harness.db, { id: 'other-provider', userId: SURVIVOR, characterId: OTHER_CHARACTER }, { providerId: 'other' });
+    await seedAccount(harness.db, { id: 'other-provider', accountId: String(OTHER_CHARACTER), providerId: 'other', userId: SURVIVOR });
     await enqueueTrackingMerge(harness.db, SOURCE, SURVIVOR, [selection, { mapId: MAP, characterId: OTHER_CHARACTER }]);
     await harness.db.delete(account).where(eq(account.id, 'linked'));
 
