@@ -1,12 +1,12 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { listRouteFiles, listSourceFiles } from '@/lib/__tests__/source-scan';
 
 const API_DIR = dirname(fileURLToPath(import.meta.url));
-const SRC_DIR = join(API_DIR, '..', '..');
-const REPO_ROOT = join(SRC_DIR, '..');
+const REPO_ROOT = join(API_DIR, '..', '..', '..');
 const ROUTE_BODY_MODULE = '@/transport/route-body';
 const API_RESPONSE_MODULE = '@/transport/api-response';
 const SCHEMA_HELPERS = new Set(['parseFormBody', 'readJsonBody']);
@@ -40,17 +40,7 @@ const CONTRACTLESS_ROUTES = new Set([
   'dev/synthetic-pilot/route.ts',
 ]);
 
-function findFiles(dir: string, accept: (name: string) => boolean): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...findFiles(full, accept));
-    else if (accept(entry.name)) out.push(full);
-  }
-  return out;
-}
-
-const ALL_ROUTE_FILES = findFiles(API_DIR, (name) => /^route\.(ts|js|mts|mjs)$/.test(name));
+const ALL_ROUTE_FILES = listRouteFiles().map((file) => join(REPO_ROOT, file));
 const FIRST_PARTY_ROUTE_FILES = ALL_ROUTE_FILES.filter(
   (file) => !CONTRACTLESS_ROUTES.has(relative(API_DIR, file)),
 );
@@ -311,15 +301,17 @@ function declaredEndpoint(node: ts.Node, contract: string): DeclaredEndpoint | n
 
 function collectDeclaredEndpoints(): DeclaredEndpoint[] {
   const declared: DeclaredEndpoint[] = [];
-  for (const file of findFiles(SRC_DIR, (name) => name === 'api-contract.ts')) {
+  const contracts = listSourceFiles({ roots: ['src'], extensions: ['.ts'] }).filter((file) =>
+    file.endsWith('/api-contract.ts'),
+  );
+  for (const contract of contracts) {
     const source = ts.createSourceFile(
-      file,
-      readFileSync(file, 'utf8'),
+      contract,
+      readFileSync(join(REPO_ROOT, contract), 'utf8'),
       ts.ScriptTarget.Latest,
       true,
       ts.ScriptKind.TS,
     );
-    const contract = relative(REPO_ROOT, file);
     const visit = (node: ts.Node): void => {
       const endpoint = declaredEndpoint(node, contract);
       if (endpoint !== null) declared.push(endpoint);

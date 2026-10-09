@@ -1,17 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
+import { listSourceFiles } from '@/lib/__tests__/source-scan';
 
 function allStylesheets(): string {
-  const files: string[] = [];
-  const walk = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const file = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) walk(file);
-      else if (entry.name.endsWith('.css')) files.push(file);
-    }
-  };
-  walk('src');
-  return files.sort().map((file) => readFileSync(file, 'utf8')).join('\n');
+  return listSourceFiles({ roots: ['src'], extensions: ['.css'] })
+    .map((file) => readFileSync(file, 'utf8'))
+    .join('\n');
 }
 
 const LOOPING_CLASSES = [

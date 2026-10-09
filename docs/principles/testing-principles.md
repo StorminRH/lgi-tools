@@ -34,7 +34,13 @@ components as plain functions and needs state, memos or effects that persist
 across renders runs on `createHookRuntime` from
 `src/lib/__tests__/hook-runtime.ts`, not a hand-rolled slot runtime; a scripted
 single-purpose fake (a fixed ref, spy setters, a hydration switch) stays local,
-as does any copy in `components/ui`, which may not import `lib`. Domain
+as does any copy in `components/ui`, which may not import `lib`. A gate
+suite that scans the source tree lists files with `listSourceFiles` or
+`listRouteFiles` and reads them through `filesMatching`, `stripComments`,
+`valueImportSpecifiers` and `resolveLocalImport` from
+`src/lib/__tests__/source-scan.ts`, not a hand-rolled `readdirSync` walker,
+comment stripper or import regex; each gate still passes its own scan scope
+(roots, extensions, skipped directories and suffixes). Domain
 objects come from the owner's `__tests__/` fixture (`siteDetail`,
 `siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`), not a local literal builder;
 pass every field the test reads. Harness-owned `beforeAll` / `beforeEach` for disposable

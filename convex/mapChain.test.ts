@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { convexTest } from 'convex-test';
 import type { PaginationResult } from 'convex/server';
 import { describe, expect, it } from 'vitest';
+import { stripComments } from '@/lib/__tests__/source-scan';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { MAP_EVENT_READ_LIMIT } from './mapChainEvents';
@@ -510,10 +511,6 @@ describe('map chain read path', () => {
       'mapSignatureActivity',
     ] as const;
 
-    function codeOnly(source: string): string {
-      return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    }
-
     function countOccurrences(haystack: string, needle: string): number {
       return haystack.split(needle).length - 1;
     }
@@ -528,7 +525,7 @@ describe('map chain read path', () => {
       const rest = source.slice(start);
       const end = rest.indexOf('\n});');
       expect(end, `${name} must be a closed declaration`).toBeGreaterThan(0);
-      return codeOnly(rest.slice(0, end));
+      return stripComments(rest.slice(0, end));
     }
 
     function helperCode(source: string, startMarker: string, endMarker: string): string {
@@ -536,7 +533,7 @@ describe('map chain read path', () => {
       const end = source.indexOf(endMarker, start);
       expect(start, `${startMarker} must exist`).toBeGreaterThanOrEqual(0);
       expect(end, `${endMarker} must follow ${startMarker}`).toBeGreaterThan(start);
-      return codeOnly(source.slice(start, end));
+      return stripComments(source.slice(start, end));
     }
 
     it.each([

@@ -21,7 +21,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 | ☑ | [P347](#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
 | ☑ | [P348](#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
 | ☑ | [P338](#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
-| ☐ | [P339](#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
+| ☑ | [P339](#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
 
 <a id="p334"></a>
 
@@ -1081,7 +1081,7 @@ export const settle: () => Promise<void>; // setTimeout(0) flush, only if adopte
 
 ## P339: Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** about -220 across 17 files / about +100 helper and +70 helper test
 - **Depends on:** —

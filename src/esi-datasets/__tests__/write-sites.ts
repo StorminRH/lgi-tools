@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { sliceOfPath } from '@/composition/__tests__/data-ownership-census';
 import type { DataOwnershipEntry } from '@/composition/__tests__/data-ownership-registry';
 import { normalizeModulePath } from '@/lib/__tests__/module-path';
+import { listSourceFiles } from '@/lib/__tests__/source-scan';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 
 export interface WriteSite {
@@ -10,34 +11,13 @@ export interface WriteSite {
   readonly table: string;
 }
 
-const SKIPPED_DIRECTORIES = new Set([
-  'test-support',
-  '__tests__',
-  '__mocks__',
-  'node_modules',
-  '__fixtures__',
-]);
-const SKIPPED_SUFFIXES = ['.test.ts', '.db.test.ts', '.d.ts'];
-
-function isProductionSource(fileName: string): boolean {
-  if (!fileName.endsWith('.ts')) return false;
-  return !SKIPPED_SUFFIXES.some((suffix) => fileName.endsWith(suffix));
-}
-
 function collectProductionSources(rootDir: string): string[] {
-  const found: string[] = [];
-  const walk = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (!SKIPPED_DIRECTORIES.has(entry.name)) walk(path);
-      } else if (isProductionSource(entry.name)) {
-        found.push(path);
-      }
-    }
-  };
-  walk(rootDir);
-  return found.sort();
+  return listSourceFiles({
+    roots: [rootDir],
+    extensions: ['.ts'],
+    skipDirectories: ['test-support', '__tests__', '__mocks__', 'node_modules', '__fixtures__'],
+    skipSuffixes: ['.test.ts', '.d.ts'],
+  });
 }
 
 export function resolveImportPath(fromFile: string, specifier: string): string | null {
