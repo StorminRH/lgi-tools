@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#654](https://github.com/StorminRH/lgi-tools/pull/654).
+
 ← [Wave 1: Quick wins: delete dead code, fix small correctness and perf bugs](wave-01-quick-wins-delete-dead-code-fix-small.md) · [Index](README.md#roadmap) · [Wave 3: src/lib primitives: collections, math, async, errors, browser](wave-03-src-lib-primitives-collections-math-async.md) →
 
 Make every later PR cheaper and safer. P334 provides one ESLint exemption builder, so later lint additions are one-liners. P340 trims the coverage pins after wave-1 deletions. Shared helpers then replace the hand-rolled fakes: Convex error and seeding, route requests, session fixtures, console prefix silencing, problem bodies, DB harness, reserved connection, query chain, registry diff, domain fixtures, hook runtime and source-scan. The two medium-risk helpers (P338 hook runtime, P339 source-scan) go last. Each must show a planted violation still failing the gate it serves.
