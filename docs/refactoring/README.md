@@ -248,7 +248,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P171](wave-01-quick-wins-delete-dead-code-fix-small.md#p171) | Count board used slots with countUsedSlots instead of a local filter | server-pipeline | S | low | low | — |
 | ☑ | [P330](wave-01-quick-wins-delete-dead-code-fix-small.md#p330) | Retire the stale tracking codemod, tokenize its three leftovers, and fix the IPv6 loopback checks in scripts/ | simplification | S | low | low | — |
 | ☑ | [P197](wave-01-quick-wins-delete-dead-code-fix-small.md#p197) | Collapse the three purge drain loops in httpMapAccess into one private helper | convex | S | low | low | — |
-| ☐ | [P323](wave-01-quick-wins-delete-dead-code-fix-small.md#p323) | Delete the always-true locationChanged guard and fold the repeated no-location, jump-evidence and scan-routing literals | simplification | S | low | low | — |
+| ☑ | [P323](wave-01-quick-wins-delete-dead-code-fix-small.md#p323) | Delete the always-true locationChanged guard and fold the repeated no-location, jump-evidence and scan-routing literals | simplification | S | low | low | — |
 | ☐ | [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154) | Remove dead try/catch and .catch wrappers around apiFetch and convert the impossible-rejection test mocks to network outcomes | error-handling | S | low | low | — |
 | ☐ | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142) | Use rateLimitPreflight in account/active-character and sync-leave instead of inline copies | api-route | S | low | low | — |
 | ☐ | [P287](wave-01-quick-wins-delete-dead-code-fix-small.md#p287) | Reuse Better Auth's get-session result for the background authorization check | efficiency | S | low | low | — |

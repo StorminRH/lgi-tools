@@ -769,6 +769,39 @@ describe('automatic jump authoring', () => {
     ).rejects.toThrow('MAP_TOO_LARGE');
   });
 
+  it('returns empty evidence until a tracked location carries a transition', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    const readEvidence = () =>
+      t.query(jump.jumpEvidence, {
+        userId: EDITOR,
+        mapId: MAP,
+        characterId: CHARACTER,
+      });
+    const empty = {
+      transition: null,
+      lastProcessedTransitionAt: null,
+      originLive: false,
+      scannedTypeCodes: [],
+      candidates: [],
+    };
+    expect(await readEvidence()).toEqual({ canEdit: true, tracked: false, ...empty });
+
+    await seedTrackedTransition(t);
+    await t.run(async (ctx) => {
+      const location = requiredRow(
+        await ctx.db
+          .query('characterLocation')
+          .withIndex('by_user_character', (q) =>
+            q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+          )
+          .unique(),
+      );
+      await ctx.db.patch(location._id, { transitionObservedAt: undefined });
+    });
+    expect(await readEvidence()).toEqual({ canEdit: true, tracked: true, ...empty });
+  });
+
   it('returns processed evidence without origin candidates', async () => {
     const t = convexTest(schema, modules);
     await grant(t, EDITOR, ['editor']);
