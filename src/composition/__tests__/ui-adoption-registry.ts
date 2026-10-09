@@ -29,7 +29,6 @@ export const uiAdoptionRegistry = {
   ],
   disabledControlTitles: [
     'src/components/composition/account/AdminForceLogoutForm.tsx',
-    'src/components/composition/account/AdminReassignCharacterForm.tsx',
     'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
     'src/components/composition/account/RoleToggleForm.tsx',
     'src/components/composition/account/UnlinkCharacterForm.tsx',
