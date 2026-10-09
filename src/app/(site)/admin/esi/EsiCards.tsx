@@ -5,10 +5,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { trendSeries } from '@/composition/admin-period';
+import { esiAvailability } from '@/data/telemetry/capability-stats';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
 import {
   getDegradationByCaller,
-  getEsiAvailability,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
@@ -18,7 +18,12 @@ import type { DateRange } from '@/data/telemetry/types';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { AdminBarChart, AdminTrendChart } from '../charts';
 import { CardLink } from '../CardLink';
-import { getBudgetExhaustionCountShared, getEsiRefreshQueueStatsShared, getFallbackRateShared } from '../shared-reads';
+import {
+  getBudgetExhaustionCountShared,
+  getCapabilityOutcomeStatsShared,
+  getEsiRefreshQueueStatsShared,
+  getFallbackRateShared,
+} from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { deriveBudgetView, deriveCostLensView, type OpsMetricRow } from '../ops-view';
 import { SectionUnavailable } from '../SectionUnavailable';
@@ -65,7 +70,7 @@ export async function BudgetCard() {
 export async function PressureCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('esi-pressure', () =>
     Promise.all([
-      getEsiAvailability(range),
+      getCapabilityOutcomeStatsShared(range),
       getBudgetExhaustionCountShared(range),
       getFallbackRateShared(range),
       getDegradationByCaller(range),
@@ -73,7 +78,8 @@ export async function PressureCard({ range }: { range: DateRange }) {
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Rate-limit pressure" />;
-  const [esiSuccess, budgetExhaustions, fallback, degradation, queue] = fetched;
+  const [outcomes, budgetExhaustions, fallback, degradation, queue] = fetched;
+  const esiSuccess = esiAvailability(outcomes);
   return (
     <Card data-admin-pressure className="h-full">
       <SectionHeader

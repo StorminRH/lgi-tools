@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FailureGroup } from '@/data/telemetry/sli-breakdown';
+import type { FailureGroup } from '@/data/telemetry/capability-stats';
 import { SECTION_LOAD_FAILED } from '../load-section';
 import { AdminTrendChart } from '../charts';
 import { deriveServiceLevels, type ServiceLevelRow } from './health-view';
@@ -35,6 +35,7 @@ function failure(operation: string): FailureGroup {
 
 function emptyDetails(): ServiceLevelDetails {
   return {
+    now: range.to,
     read: { range, groups: [], daily: [] },
     mutation: { range, groups: [], daily: [] },
     slowest: [],
@@ -133,6 +134,7 @@ describe('service level details', () => {
 
   it.each(rows.map((row) => [row.id] as const))('keeps %s available when its detail query fails', (id) => {
     const html = render(id, {
+      now: range.to,
       read: SECTION_LOAD_FAILED,
       mutation: SECTION_LOAD_FAILED,
       slowest: SECTION_LOAD_FAILED,

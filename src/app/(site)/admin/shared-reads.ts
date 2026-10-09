@@ -3,6 +3,7 @@ import { getWhStaticsOperatorReview, getWhStaticsOperatorSummary } from '@/compo
 import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
 import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
 import { getBudgetExhaustionCount, getFallbackRate } from '@/data/telemetry/queries';
+import { getCapabilityLatency, getCapabilityOutcomeStats } from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
 
 // Reads that several cards, the rail, or the layout ask for in one request.
@@ -30,3 +31,7 @@ export const getBudgetExhaustionCountShared = sharedRangeRead(getBudgetExhaustio
 export const getSearchTrendShared = sharedRangeRead(getSearchTrend);
 /** The pending statics version and diff size; only /admin/statics needs the full review. */
 export const getStaticsSummaryShared = cache(getWhStaticsOperatorSummary);
+
+// Telemetry
+export const getCapabilityOutcomeStatsShared = sharedRangeRead(getCapabilityOutcomeStats);
+export const getCapabilityLatencyShared = sharedRangeRead(getCapabilityLatency);

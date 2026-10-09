@@ -1,5 +1,5 @@
 import type { StatusLevel } from '@/data/telemetry/health-metrics';
-import type { FailureGroup, SlowOperation } from '@/data/telemetry/sli-breakdown';
+import type { FailureGroup, SlowOperation } from '@/data/telemetry/capability-stats';
 import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli';
 import {
   formatSliValue,
@@ -58,13 +58,13 @@ export function deriveServiceLevels(sli: SliSignals, queue: QueueSummary): Servi
   }));
 }
 
-export function operationLabel(row: { feature: string; operation: string }): string {
+export function operationLabel(row: { feature: string | null; operation: string | null }): string {
   return `${row.feature} · ${row.operation}`;
 }
 
 /** The result, then its code and error class where they add something. */
 export function failureResultLabel(row: FailureGroup): string {
-  const parts = [row.outcome];
+  const parts: (string | null)[] = [row.outcome];
   if (row.code !== row.outcome) parts.push(row.code);
   if (row.errorClass !== null) parts.push(row.errorClass);
   return parts.join(' · ');

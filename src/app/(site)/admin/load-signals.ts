@@ -2,21 +2,18 @@ import { cache } from 'react';
 import { rangeFor, type RangeKey } from '@/composition/admin-period';
 import { isGscConfigured } from '@/data/gsc/constants';
 import {
-  getCriticalLatencyP95,
-  getEsiSuccessRate,
   getGscCronOutcomes,
   getHousekeepingCronOutcomes,
   getLastCronRuns,
-  getMutationSuccessRate,
   getPriceCronOutcomes,
-  getReadSuccessRate,
   getSdeCronOutcomes,
 } from '@/data/telemetry/queries';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { loadDeployMarkers } from './deploy-markers';
 import { getBudgetExhaustionCountShared, getEsiRefreshQueueStatsShared, getFallbackRateShared, getLastSyncedAtShared, getStaticsSummaryShared } from './shared-reads';
+import { getCapabilityLatencyShared, getCapabilityOutcomeStatsShared } from './shared-reads';
 import { loadSection } from './load-section';
-import type { AdminSignals, SliSignals } from './signals';
+import { deriveSliSignals, type AdminSignals, type SliSignals } from './signals';
 
 // One read per request feeds both the attention list and the status cards.
 // Each source is its own section, so one failed read leaves the rest intact.
@@ -48,13 +45,11 @@ export const loadAdminSignals = cache(async (rangeKey: RangeKey): Promise<AdminS
     loadSection('admin-signals.fallback', () => getFallbackRateShared(range)),
     loadSection('admin-signals.budget-exhaustions', () => getBudgetExhaustionCountShared(range)),
     loadSection<SliSignals>('admin-signals.sli', async () => {
-      const [readSuccess, mutationSuccess, latencyP95, esiSuccess] = await Promise.all([
-        loadSection('getReadSuccessRate', () => getReadSuccessRate(range)),
-        loadSection('getMutationSuccessRate', () => getMutationSuccessRate(range)),
-        loadSection('getCriticalLatencyP95', () => getCriticalLatencyP95(range)),
-        loadSection('getEsiSuccessRate', () => getEsiSuccessRate(range)),
+      const [outcomes, latency] = await Promise.all([
+        loadSection('capability-outcomes', () => getCapabilityOutcomeStatsShared(range)),
+        loadSection('capability-latency', () => getCapabilityLatencyShared(range)),
       ]);
-      return { readSuccess, mutationSuccess, latencyP95, esiSuccess };
+      return deriveSliSignals(outcomes, latency);
     }),
     loadSection('admin-signals.queue', getEsiRefreshQueueStatsShared),
     loadSection('admin-signals.statics', getStaticsSummaryShared),

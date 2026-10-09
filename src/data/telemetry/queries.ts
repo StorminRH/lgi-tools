@@ -16,12 +16,10 @@ import {
 import { EVE_SSO_HOST } from '@/lib/eve-provider';
 import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
-import { operationsOfKind, USER_FACING_CAPABILITY_KINDS } from './capability';
 import { usageLogs } from './schema';
 import {
   CAPABILITY_ACTION,
   capabilityOutcome,
-  capabilityRows,
   ESI_FAILURE_OUTCOMES,
   esiDependent,
   inRange,
@@ -409,56 +407,6 @@ export function lastNDaysRange(days: number, now: Date = new Date()): DateRange 
   return { from, to };
 }
 
-async function successRatio(
-  range: DateRange,
-  operations: readonly string[],
-  excludedOutcomes: readonly string[] = [],
-): Promise<number | null> {
-  const excluded =
-    excludedOutcomes.length === 0
-      ? sql<number>`0`
-      : sql<number>`count(*) filter (where ${inArray(capabilityOutcome, [...excludedOutcomes])})`;
-
-  const [row] = await db
-    .select({
-      total: count(),
-      succeeded: sql<number>`count(*) filter (where ${capabilityOutcome} = 'succeeded')`.mapWith(Number),
-      excluded: excluded.mapWith(Number),
-    })
-    .from(usageLogs)
-    .where(capabilityRows(range, operations));
-
-  const total = Number(row?.total ?? 0) - Number(row?.excluded ?? 0);
-  if (total <= 0) return null;
-  return Number(row?.succeeded ?? 0) / total;
-}
-
-export function getReadSuccessRate(range: DateRange): Promise<number | null> {
-  return successRatio(range, operationsOfKind('read'));
-}
-
-/** A rejected bad request is the system working, so it is left out of save/action success. */
-export const MUTATION_EXCLUDED_OUTCOMES = ['validation'] as const;
-
-export function getMutationSuccessRate(range: DateRange): Promise<number | null> {
-  return successRatio(range, operationsOfKind('mutation'), MUTATION_EXCLUDED_OUTCOMES);
-}
-
-export async function getCriticalLatencyP95(range: DateRange): Promise<number | null> {
-  const [row] = await db
-    .select({
-      p95: sql<number | null>`
-        percentile_cont(0.95) within group (order by ${jsonNumber('durationMs')})
-      `.mapWith(Number),
-    })
-    .from(usageLogs)
-    .where(capabilityRows(range, operationsOfKind(...USER_FACING_CAPABILITY_KINDS)));
-
-  const p95 = row?.p95;
-  if (p95 === null || p95 === undefined || Number.isNaN(p95)) return null;
-  return Math.round(p95);
-}
-
 export async function getEsiAvailability(range: DateRange) {
   const [row] = await db
     .select({
@@ -481,10 +429,6 @@ export async function getEsiAvailability(range: DateRange) {
   const total = Number(row?.total ?? 0);
   const healthy = Number(row?.healthy ?? 0);
   return { total, healthy, rate: total > 0 ? healthy / total : null };
-}
-
-export async function getEsiSuccessRate(range: DateRange): Promise<number | null> {
-  return (await getEsiAvailability(range)).rate;
 }
 
 export interface PriceSourceSplit {

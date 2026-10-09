@@ -1,5 +1,11 @@
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
+  capabilitySuccessRate,
+  esiAvailability,
+  type CapabilityLatency,
+  type CapabilityOutcomeStat,
+} from '@/data/telemetry/capability-stats';
+import {
   type AlertTarget,
   deriveCronStatus,
   deriveEsiSourceStatus,
@@ -45,6 +51,23 @@ export interface SliSignals {
 
 // Each source loads on its own, so one failed read marks only its own lines.
 export type Loaded<T> = T | typeof SECTION_LOAD_FAILED;
+
+export function mapLoaded<T, U>(value: Loaded<T>, derive: (loaded: T) => U): Loaded<U> {
+  return value === SECTION_LOAD_FAILED ? SECTION_LOAD_FAILED : derive(value);
+}
+
+/** The headline service levels from the capability outcome and latency reads. */
+export function deriveSliSignals(
+  outcomes: Loaded<CapabilityOutcomeStat[]>,
+  latency: Loaded<CapabilityLatency>,
+): SliSignals {
+  return {
+    readSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'read')),
+    mutationSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'mutation')),
+    latencyP95: mapLoaded(latency, (read) => read.p95),
+    esiSuccess: mapLoaded(outcomes, (rows) => esiAvailability(rows).rate),
+  };
+}
 
 export interface AdminSignals {
   now: Date;

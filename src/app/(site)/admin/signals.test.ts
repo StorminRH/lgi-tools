@@ -4,7 +4,9 @@ import {
   deriveAttention,
   deriveBudgetStatus,
   deriveCronStatuses,
+  deriveSliSignals,
   deriveStatusGroups,
+  mapLoaded,
   sliLevel,
   summarizeQueue,
   type AdminSignals,
@@ -50,6 +52,43 @@ function signals(overrides: Partial<AdminSignals> = {}): AdminSignals {
 function stat(status: EsiRefreshQueueStat['status'], count: number, ageHours: number): EsiRefreshQueueStat {
   return { status, count, oldestCreatedAt: hoursAgo(ageHours) };
 }
+
+describe('deriveSliSignals', () => {
+  const outcome = (operation: string, outcome: string, count: number, esi = false) => ({
+    operation, outcome, esi, feature: null, code: null, errorClass: null, day: null, count, lastSeen: NOW,
+  });
+
+  it('derives every headline from the two capability reads', () => {
+    const outcomes = [
+      outcome('read-owned-assets', 'succeeded', 3, true),
+      outcome('read-owned-assets', 'rate_limited', 1, true),
+      outcome('save-preferences', 'succeeded', 1),
+      outcome('save-preferences', 'validation', 5),
+    ];
+    expect(deriveSliSignals(outcomes, { p95: 420, slowest: [] })).toEqual({
+      readSuccess: 0.75,
+      mutationSuccess: 1,
+      latencyP95: 420,
+      esiSuccess: 0.75,
+    });
+  });
+
+  it('marks only the lines whose read failed', () => {
+    expect(deriveSliSignals(SECTION_LOAD_FAILED, { p95: null, slowest: [] })).toEqual({
+      readSuccess: SECTION_LOAD_FAILED,
+      mutationSuccess: SECTION_LOAD_FAILED,
+      latencyP95: null,
+      esiSuccess: SECTION_LOAD_FAILED,
+    });
+    expect(deriveSliSignals([], SECTION_LOAD_FAILED)).toEqual({
+      readSuccess: null,
+      mutationSuccess: null,
+      latencyP95: SECTION_LOAD_FAILED,
+      esiSuccess: null,
+    });
+    expect(mapLoaded(2, (value) => value * 2)).toBe(4);
+  });
+});
 
 describe('sliLevel', () => {
   it('grades success rates against warn and fail lines', () => {
