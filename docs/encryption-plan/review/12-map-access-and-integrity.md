@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 07 review (2026-10-09):** access-list edits and map creation stay on Vercel's readable path (`/api/maps/access`, `/api/maps/create`, Upstash 5 per minute); there is no `access` class and no sealed-service map creation. Role checks use today's `requireMapAccess` on the readable `mapAccess` row, re-checked in `complete`. There is no job inbox: affiliation and access-change work is driven by the enclave watching readable state.
+
 ## In one paragraph
 
 Map access keeps working as it does today. Access lists, blocks and map records stay readable in Neon and are projected to Convex. Anyone on a list gets in automatically. Roles, corp grants, blocks, character-scoped maps and the lost-access screen are unchanged. One thing is new: these readable rows now decide who gets map keys. Anyone who can write to `map_access`, such as a holder of leaked Neon credentials, could otherwise admit their own character and read the map. This part recommends option (b). The sealed service accepts every access-list edit itself and signs each accepted version as a snapshot of the list. It decides membership only from that signed snapshot, its own character-link record, its own stored affiliation observations and its own token state. LGI's own removals (sale, character purge, account deletion) need no member signature. Readable state that is stricter than the snapshot applies at once. Readable state that is looser is ignored and raises an alert. This protects against data edits, not against whoever ships lgi.tools code (Parts 26 to 28).

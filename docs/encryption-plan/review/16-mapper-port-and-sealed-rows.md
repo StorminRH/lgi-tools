@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 07 review (2026-10-09):** elimination is a second ordinary `map` request (no follow-up slot; the client's 15 s timeout and digest gate stay as today). Collapse and purge are scheduled by the enclave from readable `sweepAfter` and `purgeAfter`, with no `sealedJobs` row per map. Non-wormhole `identifySignature` stays a direct Convex mutation, checking the system is live by its readable `purgeAfter` and keyed by the opaque system row ID. No map version and no applied-request dedupe. No latency budgets (Part 01), so the 100 ms targets below become staging observations, not rules. Request rows carry no `userId`; prefer one reply watch per browser.
+
 ## In one paragraph
 
 Under Option 1 (Part 15), today's Convex map mutations move into the sealed service's workers almost unchanged. They run against a small storage interface instead of `ctx.db`. Convex keeps its tables, reactive queries, access checks, tracking, lifecycle, whole-map purges and timestamp purges. Map rows become sealed rows: readable `mapId`, an opaque `rowKey`, a version, a key epoch and a few scheduling timestamps, with content sealed under the map key. Only the enclave writes them, and members' browsers decrypt them. The two Vercel steps (the jump doorbell and signature elimination) fold into the workers, and jumps still reach only maps the pilot has open with edit rights. This part also fixes the browser's optimistic contract and how commits resist forged or stale rows. Users see nothing new.

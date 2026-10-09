@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 07 review (2026-10-09):** there is no `sealedJobs` inbox. Rework how a conversion starts (for example an owner admin action writing a readable Neon row the enclave watches), keeping the Neon cursor and resume behaviour.
+
 ## In one paragraph
 
 Existing plaintext becomes sealed feature by feature, on the server, with no user action. This part covers re-sealing stored EVE tokens, creating keys for every account (including users who never return), converting Neon and Convex rows with resumable jobs, and then removing plaintext: columns, tables, environment keys, history, backups, logs and caches. Part 30 sets the phases and switches; this part sets the conversion steps, the handling of history and backups, and the checklist proving nothing readable is left. One limit is permanent: copies taken before a feature retires (backups, env keys, logs) stay readable to whoever already holds them. Migration stops new exposure; it cannot undo old exposure.

@@ -1,6 +1,6 @@
 # Encryption plan review: session handoff
 
-Last updated 2026-10-08. Read this first, then `README.md`.
+Last updated 2026-10-09. Read this first, then `README.md`.
 
 ## What this is
 
@@ -16,7 +16,7 @@ The owner (solo developer, about 18 users, three of them the owner's own account
   3. conflicts with agreed decisions and any over-engineering.
 
   Present the findings after the workflow completes, and save them as a "Verification findings" note in the part file.
-- Ask the questions, recommending one option each. Wait for the owner's answer. Do not move to the next part until the owner says "ready". Batches of clean-ups are fine to approve together.
+- Ask the questions, recommending one option each. Break a part into short steps of one question each (the owner asked for this in Part 07: a whole part at once is too much), and record and push each answer before the next step. When the owner asks a follow-up, check it in the code and external sources (subagents are fine) before answering. Wait for the owner's answer. Do not move to the next part until the owner says "ready". Batches of clean-ups are fine to approve together.
 - Record every decision immediately in the part's Owner review outcome section. Mark the part `Agreed <date>` and update the status table in `README.md`. Add "Carried from …" notes to later parts the decision affects. Commit and push after each decision.
 - Check facts in the code rather than recalling them. The owner has corrected guesses before: EVE character and corp names never change, the market is seeded, and Neon is in us-east-1.
 
@@ -36,7 +36,7 @@ Further owner preferences:
 
 ## Status
 
-Parts 01–06 are **agreed**. Part 07 is in review. Parts 08–32 have not started.
+Parts 01–07 are **agreed**. Part 08 is next and has not been verified yet. Parts 08–32 have not started.
 
 Key agreed outcomes are in each part file. Highlights:
 - **Infrastructure:** one Nitro Enclave image on one `c7g.large` in us-east-1. Vercel, Neon, Convex and Upstash are all in us-east-1.
@@ -46,52 +46,8 @@ Key agreed outcomes are in each part file. Highlights:
 - **Outages:** no sign-in during an outage. A "Login server" row is added to the TQ status popover.
 - **Data shape:** signatures are readable, systems are sealed, and keyed tags keep indexes.
 - **Phase 0 (Part 04):** a set of leak fixes, plus the role-audit bug fix and the sign-in error message fix.
+- **Channel (Part 07):** requests relay through Convex as a short-lived mailbox (no `userId`, deleted hourly); each request carries a per-session HMAC stamp from the login reply, plus a live Neon session check; the enclave writes Convex with a shared secret; no job inbox and nothing on Vercel waits on the enclave (sign-in passes through Vercel and the browser reads its reply from Convex); the channel key is kept across restarts; two deadlines (20 s reads, 30 s writes); about 5–6 Convex calls per map edit; access lists and map creation stay on Vercel; non-wormhole identify stays a direct Convex call; map character search is a stamped lookup with a 5 s exact-name fallback; the enclave runs today's ESI gate code with its own tally, one admin view, one pause switch, one alert and today's User-Agent.
 
-## Where we stopped: Part 07, awaiting the owner's answers
+## Where we stopped: Part 07 agreed; Part 08 next, waiting for "ready"
 
-The Part 07 verification is done and saved in `review/07-sealed-channel.md`. The owner asked to take the questions one short step at a time, one question per step, recording and pushing each answer:
-
-1. Who is asking (A) — **agreed 2026-10-08: the stamp** (recorded in Part 07's outcome section)
-2. Enclave write credential (the "Also open" item) — **agreed 2026-10-08: shared secret**
-3. Background work (B: job inbox, corp recheck, elimination) — **agreed 2026-10-08: all three cuts**
-4. Map rules (B: dedupe and versions, access lists and map creation, roles) — **agreed 2026-10-08: all three**
-5. Timing and cost (B: deadlines, latency table, status row, Convex cost) — **agreed 2026-10-08: all four** (owner asked for the Convex cost breakdown first; recorded in the outcome)
-6. Channel key across restarts (C1) — **agreed 2026-10-08: kept across restarts**
-7. User ID on request rows (C2) — **agreed 2026-10-09: dropped** (owner asked why the rows exist; answer recorded in the outcome)
-8. Character search and non-wormhole identify (C3, C4) — **non-wormhole identify agreed 2026-10-09: skips the sealed service**; **character search agreed 2026-10-09: stamped lookup with a 5 s exact-name fallback**; **ESI budget gate agreed 2026-10-09: same gate code, the enclave keeps its own tally, one view, one pause switch, one alert, today's User-Agent** (carried to Parts 17, 18, 29)
-9. The draft's remaining defaults: JSON messages, login through the Vercel pass-through with today's IP limit, no per-minute limits (draft questions 2, 6, 8)
-
-Resume at the first step not marked agreed. The detail behind each step:
-
-**A. Request authentication (the judgment call).** Someone holding Neon plus Vercel secrets can mint a Convex JWT for any user. If the enclave trusted that token, they could pull a user's keys or personal data without changing any code.
-
-Recommended: keep a check that the token cannot fake, simplified as follows.
-- At EVE login the enclave derives a per-session HMAC key from `sessionKeyId` and `accountId`. It returns the key inside the HPKE login reply, and the browser stores it as a non-extractable key.
-- Every request carries an HMAC inside the ciphertext.
-- The enclave checks the Neon session row (cached 60 s) for revoke and expiry.
-- Better Auth keeps its default rolling refresh.
-- Drop the sealed registration store, ECDSA, `session.touch` and the `session` class.
-
-The alternative is to trust the JWT, which is simpler but weaker against an operator.
-
-**B. Cuts and fixes (approve as a batch).**
-- **Job inbox:** no `sealedJobs` inbox and no awaited jobs. The enclave schedules its own work: ESI jobs from Neon, collapse and purge from the readable `sweepAfter`/`purgeAfter` timestamps, and key wraps and rotation driven by the `mapAccess` projection.
-- **Corp recheck:** no corp recheck that makes a page wait. Serve the stored view and rebuild it in the background (Part 23).
-- **Elimination:** no follow-up reply slot. Elimination is a second ordinary request, as today.
-- **Dedupe and versions:** no 7-day dedupe and no map-wide version (Part 05).
-- **Access-list edits and map creation:** stay on Vercel, keeping the 5/min create limit. Map key epoch 0 is created lazily at the first sealed write.
-- **Deadlines:** two constants, 30 s and 20 s. `complete` refuses after the deadline. No per-row schedulers; an hourly batch delete clears old rows.
-- **Latency:** no latency-budget table.
-- **Roles:** today's `requireMapAccess` on the readable `mapAccess` row, re-checked in `complete`.
-- **Status row:** read once at login. The lease lives in a separate row.
-- **Convex cost:** trim from about 8 calls per edit to about 5–6. Keep the reply small, drop the body when done, and use a longer enclave token.
-
-**C. Smaller choices.**
-1. Seal the channel private key under the root key, and keep the previous key across boots. Restarts and blue/green releases then need no rekey. Recommended.
-2. Drop `userId` from request rows. Authorize by a random request ID and cap per map. This answers the question carried from Part 03. Recommended.
-3. Map character search becomes a browser `lookup` request, which removes the exception. The tokenless exact-name path stays on Vercel. Recommended.
-4. Optional: non-wormhole `identifySignature` skips the enclave.
-
-**Also open:** the enclave write credential. Choose a simple shared secret (mirroring `CONVEX_SERVICE_SECRET`) or a second `customJwt` provider. A shared secret is lower effort and gives the same protection.
-
-After Part 07 is agreed, apply its knock-on notes (in its verification section) to Parts 08, 09, 15, 16 and 23, then move to **Part 08: EVE login and tokens**.
+Part 07 is agreed (2026-10-09) and its knock-on notes are in Parts 06, 08–13, 15–19, 23, 29 and 31. When the owner says "ready", verify **Part 08: EVE login, token custody and token-bearing calls** with a small workflow (today's code, external facts, conflicts with agreed decisions and over-engineering), save the findings in the part file, then present it in short steps. Part 08 already carries a long "Carried from the Part 07 review" note; several of its draft rows (the awaited `characterSearch` job, the 35 s token re-check wait, registrations) are superseded by it.

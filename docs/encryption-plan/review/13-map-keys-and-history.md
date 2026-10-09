@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 07 review (2026-10-09):** epoch 0 is created lazily at a map's first sealed write, not in the creation step (creation stays on Vercel). Key wraps and rotation are driven by the enclave watching the readable `mapAccess` projection; there is no job inbox.
+
 ## In one paragraph
 
 Each map gets a map key, created and held by the sealed service, in numbered key epochs. Epoch 0 is made with the map, or by the migration for existing maps. Whenever an account becomes eligible for a map, the sealed service writes it a wrap of the map key under its user key, without waiting for a browser. When an account that was eligible during the current epoch loses access (removed from the list, blocked, left a granting corp, unlinked or deleted), the sealed service starts a new epoch at once. It then re-seals the map's rows under the new epoch in the background and retires the old one. Everyone currently on the map, new joiners included, can read the event log and use the 24-hour undo, exactly as today (decision 3). Archive, the 30-day trash, restore and purge work as today. Every purge path also destroys the map's wraps and key records. Users see nothing new.

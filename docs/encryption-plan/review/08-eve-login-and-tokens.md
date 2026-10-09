@@ -2,6 +2,13 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 07 review (2026-10-09):** request authentication is a per-session HMAC stamp. The login reply (inside HPKE) returns a per-session HMAC key the enclave derives under the root key from `sessionKeyId` and `accountId`; the browser keeps it non-extractable; `sessionKeyId` reaches the session row through the identity assertion; the enclave checks the Neon session row (cached 60 s) on every request. There is no ECDSA signing key and no session-key registration.
+- **Sign-in:** `/api/auth/sealed` applies the Upstash IP limit, forwards to `/sealed-submit` and returns at once; the browser reads its reply from Convex by request ID. No Vercel polling.
+- **No job inbox and no awaited jobs:** the daily token `recheck` no longer has Vercel wait 35 s, and decision-record follow-ups (`abandon`, `revoke-sessions`, `unlink`) are not inbox jobs; rework both around the enclave scheduling its own work from readable Neon state.
+- **Map character search:** no `characterSearch` service job and no rule 6 exception. A user with a scoped character sends a stamped `lookup` and the enclave runs today's logic; a user without one uses Vercel's exact-name lookup; the browser falls back to it if the sealed search fails or takes over 5 s. Settle here how the page learns which case applies from readable scope state.
+- **ESI gate:** the enclave runs today's gate code with its own in-memory tally and sends today's `OUTBOUND_USER_AGENT` on every ESI and EVE SSO call.
+- **Mapping gaps:** map `/api/internal/eve-token`, `/api/internal/eve-characters` and `/leave-sync`, which Part 07's mapping table missed.
+
 ## In one paragraph
 
 Today Vercel exchanges the EVE login code, sees every refresh token in plaintext, and stores tokens under an environment key the operator can read. This part moves the code exchange, the JWT check, the owner-hash check and every token into the sealed service. The browser makes the PKCE verifier and sends it only to the sealed service, which holds the client secret. The sealed service returns a signed identity assertion, and Better Auth creates the session and the Convex JWT from it as today. Refresh, the daily re-check, revoke on purge and the two token-bearing searches all run in the sealed service. Ending a session on Vercel also cuts the device off from the sealed service. The login button, the CCP consent screen, the 22 scopes, the reconnect state and the 7-day session stay the same.

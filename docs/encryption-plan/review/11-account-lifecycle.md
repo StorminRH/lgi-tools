@@ -2,6 +2,8 @@
 
 **Status:** Draft for owner review
 
+**Carried from the Part 07 review (2026-10-09):** there are no session-key registrations; revocation is deleting the Neon session row, which the enclave sees within its 60 s cache, and its "session not found" reply sends the browser down today's signed-out path. There are no awaited jobs, so `merge.confirm` cannot wait on one: rework it to ride the next sealed request or to be read by the enclave from readable merge state.
+
 ## In one paragraph
 
 Every lifecycle flow keeps the steps, rules and screens it has today. Readable rows still move or are deleted by the same rules. Rows under a user key name their key by `keyId`, not the readable owner, so a readable rekey never stops them opening. After the sealed service confirms a merge in Neon, the survivor gets the merged account's user key as a second key, every backup the survivor then holds is re-sealed to cover its whole key set, and rows re-seal when next written. Account deletion destroys the account's user key records (a crypto-shred), final once the Neon history window has passed. Admin reassign stops carrying tokens and data, a change only the admin sees. Character sales are Part 14.
