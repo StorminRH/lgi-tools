@@ -5,20 +5,12 @@ import { StatFigure } from '../board/board-bits';
 import { SectionPanel } from '../board/SectionBody';
 import {
   type MemberCapacity,
-  type PoolSummary,
+  poolFigure,
   poolSummaries,
   type RailMember,
   SLOT_POOL_LABELS,
   SLOT_POOLS,
 } from './workspace-model';
-
-function capacityCount(pool: PoolSummary): string {
-  const used = pool.unknownUsed > 0 ? '?' : String(pool.used);
-  const total = pool.unknownCapacity === 0
-    ? String(pool.capacity)
-    : pool.capacity > 0 ? `${pool.capacity}+` : '?';
-  return `${used}/${total}`;
-}
 
 /** The same slot pools, scoped to the profile's members or one open character. */
 export function ProductionCapacity({
@@ -52,7 +44,7 @@ export function ProductionCapacity({
                     height={32}
                     className="size-6 shrink-0 object-contain"
                   />
-                  <span>{capacityCount(pools[pool])}</span>
+                  <span>{poolFigure(pools[pool])}</span>
                 </span>
               }
             />

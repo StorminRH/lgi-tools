@@ -108,6 +108,14 @@ function capacityReadout(html: string): string {
   return capacity?.[1] ?? '';
 }
 
+/** A member's slot cells in the team table, in manufacturing, reactions, science order. */
+function slotCells(html: string, name: string): string[] {
+  const table = html.match(/<table aria-label="Production skills by member"[^>]*>([\s\S]*?)<\/table>/);
+  expect(table).not.toBeNull();
+  const row = (table?.[1] ?? '').split('</tr>').find((tr) => tr.includes(name)) ?? '';
+  return [...row.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((cell) => cell[1] ?? '');
+}
+
 function jobsFor(characterId: number, activities: readonly number[]): ViewerJobs {
   return {
     characterId,
@@ -195,6 +203,10 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(team).toContain('aria-label="Add a facility"');
   expect(team).toContain('Production Capacity');
   expect(capacityReadout(team)).toContain('?/8+');
+  // Each member's row reads its slots the way the panel does: known totals
+  // beside unknown usage, and "?" for skills that have not synced.
+  expect(slotCells(team, BUILDER.name)).toEqual(['?/8', '?/1', '?/1']);
+  expect(slotCells(team, REACTOR.name)).toEqual(['?/?', '?/?', '?/?']);
   expect(team).toContain('1 unlinked character is excluded.');
   // Skills that have not synced stay unknown rather than showing a zero bonus.
   expect(team).toContain('Syncing');

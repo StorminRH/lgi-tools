@@ -157,13 +157,15 @@ export function poolSummaries(
 }
 
 /**
- * Used over capacity when usage is known; capacity alone otherwise. "+" marks
- * capacity still syncing, and "?" a pool no one's skills have synced for yet.
+ * Used over capacity. Usage reads "?" while anyone's jobs are unknown. Capacity
+ * reads "N+" while some skills are still syncing, and "?" when none have.
  */
 export function poolFigure(pool: PoolSummary): string {
-  const unknownAll = pool.unknownCapacity > 0 && pool.capacity === 0;
-  const capacity = unknownAll ? '?' : pool.unknownCapacity > 0 ? `${pool.capacity}+` : String(pool.capacity);
-  return pool.unknownUsed > 0 || unknownAll ? capacity : `${pool.used}/${capacity}`;
+  const used = pool.unknownUsed > 0 ? '?' : String(pool.used);
+  const total = pool.unknownCapacity === 0
+    ? String(pool.capacity)
+    : pool.capacity > 0 ? `${pool.capacity}+` : '?';
+  return `${used}/${total}`;
 }
 
 // ---------------------------------------------------------------------------

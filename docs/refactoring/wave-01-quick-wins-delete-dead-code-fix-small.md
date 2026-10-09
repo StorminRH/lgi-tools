@@ -38,7 +38,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P279](#p279) | Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds | efficiency | S | low | medium | — |
 | ☑ | [P080](#p080) | Read the board in the industry workspace only when a member sheet is open | client-data | S | low | medium | — |
 | ☑ | [P155](#p155) | Render LoadFailed with useLiveDataset's retry in LiveBoard and delete BOARD_LOAD_FAILED | error-handling | S | low | medium | — |
-| ☐ | [P097](#p097) | Render slot pools with one poolFigure encoding in the industry workspace | formatting | S | low | low | — |
+| ☑ | [P097](#p097) | Render slot pools with one poolFigure encoding in the industry workspace | formatting | S | low | low | — |
 | ☐ | [P171](#p171) | Count board used slots with countUsedSlots instead of a local filter | server-pipeline | S | low | low | — |
 | ☐ | [P330](#p330) | Retire the stale tracking codemod, tokenize its three leftovers, and fix the IPv6 loopback checks in scripts/ | simplification | S | low | low | — |
 | ☐ | [P197](#p197) | Collapse the three purge drain loops in httpMapAccess into one private helper | convex | S | low | low | — |
@@ -1440,7 +1440,7 @@ export function LiveBoard({ mainId }: { mainId: number }) {
 
 ## P097: Render slot pools with one poolFigure encoding in the industry workspace
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -8 production lines; +15 test lines
 - **Depends on:** —

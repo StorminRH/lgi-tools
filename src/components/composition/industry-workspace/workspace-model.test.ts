@@ -7,6 +7,7 @@ import {
   type CapacitySources,
   memberCapacity,
   memberView,
+  poolFigure,
   poolSummaries,
   profileHref,
   railMembers,
@@ -100,6 +101,17 @@ test('unknown skills or jobs stay unknown instead of reading as free slots', () 
   };
   const pools = poolSummaries([BUILDER, SPARE], capacitiesFor(noJobs, [BUILDER, SPARE]));
   expect(pools.manufacturing).toEqual({ capacity: 3, used: 0, unknownCapacity: 1, unknownUsed: 2 });
+  // Usage no one knows reads "?", and capacity still syncing reads "3+".
+  expect(poolFigure(pools.manufacturing)).toBe('?/3+');
+});
+
+test('a pool figure always reads used over total, with "?" for what is not known', () => {
+  expect(poolFigure({ capacity: 10, used: 3, unknownCapacity: 0, unknownUsed: 0 })).toBe('3/10');
+  // Skills synced but the job feed unread: the total stays beside an unknown usage.
+  expect(poolFigure({ capacity: 10, used: 0, unknownCapacity: 0, unknownUsed: 1 })).toBe('?/10');
+  expect(poolFigure({ capacity: 0, used: 0, unknownCapacity: 1, unknownUsed: 1 })).toBe('?/?');
+  // Jobs read but skills not synced yet: the known usage still shows.
+  expect(poolFigure({ capacity: 0, used: 2, unknownCapacity: 1, unknownUsed: 0 })).toBe('2/?');
 });
 
 const row = (id: string, members: number[]): IndustryProfileRow => ({
