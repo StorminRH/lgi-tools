@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { AdminSignals } from './signals';
 
 const m = vi.hoisted(() => ({
@@ -10,7 +11,7 @@ const m = vi.hoisted(() => ({
   getReturningVsNew: vi.fn(),
 }));
 
-vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => ({ isAdmin: true }) }));
+vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => adminSessionFixture() }));
 vi.mock('next/navigation', () => ({
   unstable_rethrow: () => undefined,
   usePathname: () => '/admin',

@@ -1,18 +1,12 @@
 import { beforeEach, expect, test, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 import { postEmpty } from '@/lib/__tests__/route-requests';
 import { rateLimitedFailure } from '@/lib/failure';
 
-const SESSION = {
-  user: { id: 'eve-user-1' },
-  session: {},
-  characterId: 100,
-  name: 'Alice',
-  portraitUrl: 'a',
-  role: 'USER' as const,
-  isAdmin: false,
-};
+const SESSION = sessionFixture();
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const revokeUserSessionsMock = vi.fn();
 const checkRateLimitMock = vi.fn();
 

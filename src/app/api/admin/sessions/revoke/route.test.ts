@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const ADMIN_SESSION = {
-  user: { id: 'admin-1' },
-  characterId: 1,
-  isAdmin: true,
-};
+const ADMIN_SESSION = adminSessionFixture({ user: { id: 'admin-1' }, characterId: 1 });
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const getUserByIdMock = vi.fn();
 const revokeUserSessionsMock = vi.fn();
 const logUsageEventMock = vi.fn();

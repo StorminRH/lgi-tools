@@ -1,16 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const SESSION = {
-  user: { id: 'eve-user-1' },
-  session: {},
-  characterId: 100,
-  name: 'Alice',
-  portraitUrl: 'a',
-  role: 'USER' as const,
-  isAdmin: false,
-};
+const SESSION = sessionFixture();
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const unlinkAccountMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 const repointActiveToOldestMock = vi.fn();

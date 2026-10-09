@@ -12,7 +12,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 | ☑ | [P340](#p340) | Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body | testing | M | low | high | — |
 | ☑ | [P216](#p216) | Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup | testing | M | low | medium | — |
 | ☑ | [P341](#p341) | Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders | testing | M | low | medium | — |
-| ☐ | [P344](#p344) | Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests | testing | S | low | medium | — |
+| ☑ | [P344](#p344) | Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests | testing | S | low | medium | — |
 | ☐ | [P346](#p346) | Add a prefix-scoped console silencer in lib test support and migrate the unasserted blanket spies | testing | M | low | medium | — |
 | ☐ | [P342](#p342) | Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json | testing | S | low | low | — |
 | ☐ | [P343](#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
@@ -371,7 +371,7 @@ export function cronRequest(path: string, secret?: string): Request;
 
 ## P344: Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -110 lines of literals across 17 files, +40 for the fixture and its test, +17 import lines: net about -55
 - **Depends on:** —

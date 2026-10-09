@@ -1,11 +1,13 @@
 import { createElement, type ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 import { AdminPageFrame } from './AdminFrame';
 import AdminLayout from './layout';
 
 const mocks = vi.hoisted(() => ({
-  requireAdminPage: vi.fn(),
+  requireAdminPage: vi.fn<() => Promise<BetterAuthSession>>(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
@@ -88,7 +90,7 @@ describe('admin console gate', () => {
   });
 
   it('renders the console chrome and page for an admin', async () => {
-    mocks.requireAdminPage.mockResolvedValue({ user: { id: 'admin-1' }, isAdmin: true });
+    mocks.requireAdminPage.mockResolvedValue(adminSessionFixture({ user: { id: 'admin-1' } }));
 
     const markup = await renderConsole();
 

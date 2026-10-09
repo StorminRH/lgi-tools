@@ -1,16 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 import { postForm } from '@/lib/__tests__/route-requests';
 import type { AdminUser } from '@/platform/auth/admin-users';
 
-const ADMIN_VIEWER = {
+const ADMIN_VIEWER = adminSessionFixture({
   user: { id: 'eve-user-1000000000' },
-  session: {},
   characterId: 1000000000,
   name: 'Test Pilot',
   portraitUrl: 'https://images.evetech.net/characters/1000000000/portrait?size=128',
-  role: 'ADMIN' as const,
-  isAdmin: true,
-};
+});
 
 const TARGET_USER: AdminUser = {
   userId: 'eve-user-12345',
@@ -20,7 +19,7 @@ const TARGET_USER: AdminUser = {
   role: 'USER',
 };
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const getUserByIdMock = vi.fn();
 const setUserRoleMock = vi.fn();
 const logUsageEventMock = vi.fn();

@@ -1,15 +1,12 @@
 import type { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 import { postForm } from '@/lib/__tests__/route-requests';
 import { forbiddenFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 
-const ADMIN = {
-  user: { id: 'user-admin' },
-  session: {},
-  characterId: 90_000_001,
-  isAdmin: true,
-};
+const ADMIN = adminSessionFixture({ user: { id: 'user-admin' }, characterId: 90_000_001 });
 
 class SnapshotStateError extends Error {
   constructor(
@@ -26,7 +23,7 @@ class EmptySnapshotError extends Error {
   }
 }
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const sameOriginMock = vi.fn();
 const refreshMock = vi.fn();
 const promoteMock = vi.fn();

@@ -87,6 +87,7 @@ vi.mock('@/features/wormhole-sites/queries', () => ({
   getPricedSiteDetail: (...args: unknown[]) => h.getPricedSiteDetail(...args),
 }));
 
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import { eveTokenEndpoint } from '@/platform/auth/api-contract';
 import {
   MAX_CUSTOM_STRUCTURES_PER_USER,
@@ -107,15 +108,12 @@ import { POST as postCustomStructure } from './account/custom-structures/route';
 import { GET as getSiteDetail } from './sites/[id]/route';
 
 const SECRET = 'matrix-service-secret';
-const ADMIN_SESSION = {
+const ADMIN_SESSION = adminSessionFixture({
   user: { id: 'admin-user' },
-  session: {},
   characterId: 90000001,
   name: 'Admin',
   portraitUrl: '',
-  role: 'ADMIN' as const,
-  isAdmin: true,
-};
+});
 const EVE_BODY = { userId: 'user-1', characterId: 90000002 };
 const SAVED_PLAN_BODY = {
   name: 'Hulk batch',
