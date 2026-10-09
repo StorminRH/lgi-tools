@@ -8,7 +8,6 @@ const fetchPricesFromSourceMock = vi.fn();
 const getPricesMock = vi.fn();
 const persistPricesMock = vi.fn();
 const afterMock = vi.fn();
-const revalidateTagMock = vi.fn();
 
 vi.mock('./source', () => ({
   fetchPricesFromSource: (...args: unknown[]) => fetchPricesFromSourceMock(...args),
@@ -20,14 +19,10 @@ vi.mock('./ingest', () => ({
   persistPrices: (...args: unknown[]) => persistPricesMock(...args),
 }));
 vi.mock('next/server', () => ({ after: (cb: () => unknown) => afterMock(cb) }));
-vi.mock('next/cache', () => ({
-  cacheLife: vi.fn(),
-  cacheTag: vi.fn(),
-  revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
-}));
+vi.mock('next/cache', () => ({ cacheLife: vi.fn() }));
 vi.mock('@/db', () => ({ db: {} }));
 
-import { getLivePrices, priceTag, refreshPricesOnDemand } from './refresh-on-view';
+import { getLivePrices } from './refresh-on-view';
 
 function raw(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
   return {
@@ -80,7 +75,6 @@ beforeEach(() => {
   getPricesMock.mockReset();
   persistPricesMock.mockReset();
   afterMock.mockReset();
-  revalidateTagMock.mockReset();
   persistPricesMock.mockResolvedValue({ written: 1 });
   getPricesMock.mockResolvedValue(new Map());
 });
@@ -209,14 +203,5 @@ describe('getLivePrices', () => {
     expect(getPricesMock).not.toHaveBeenCalled();
     expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
     expect(afterMock).not.toHaveBeenCalled();
-  });
-});
-
-describe('refreshPricesOnDemand', () => {
-  it('busts each unique item tag with the max profile', async () => {
-    await refreshPricesOnDemand([34, 35, 34]);
-    expect(revalidateTagMock).toHaveBeenCalledTimes(2);
-    expect(revalidateTagMock).toHaveBeenCalledWith(priceTag(34), 'max');
-    expect(revalidateTagMock).toHaveBeenCalledWith(priceTag(35), 'max');
   });
 });

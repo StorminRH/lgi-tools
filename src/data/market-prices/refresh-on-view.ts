@@ -1,4 +1,4 @@
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife } from 'next/cache';
 import { after } from 'next/server';
 import { db } from '@/db';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
@@ -10,10 +10,6 @@ import { fetchPricesFromSource } from './source';
 import type { MarketPrice, RawMarketPrice } from './types';
 
 const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
-
-export function priceTag(typeId: number): string {
-  return `market-price-${typeId}`;
-}
 
 const LIVE_CACHE_LIFE = { stale: 30, revalidate: 30, expire: 60 };
 
@@ -60,7 +56,6 @@ async function fetchLivePrice(
   typeId: number,
 ): Promise<{ raw: RawMarketPrice | null; budgetExhausted: boolean; resolutionId: string }> {
   'use cache: remote';
-  cacheTag(priceTag(typeId));
   cacheLife(LIVE_CACHE_LIFE);
   const { prices, budgetExhausted } = await fetchPricesFromSource([typeId]);
   return {
@@ -177,10 +172,4 @@ export async function getLivePrices(
 
   metrics.returned = prices.size;
   return { prices, degraded, metrics };
-}
-
-export async function refreshPricesOnDemand(typeIds: number[]): Promise<void> {
-  for (const id of new Set(typeIds)) {
-    revalidateTag(priceTag(id), 'max');
-  }
 }

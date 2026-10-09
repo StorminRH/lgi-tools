@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ esiFetch: vi.fn() }));
 
-vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
+vi.mock('next/cache', () => ({ cacheLife: vi.fn() }));
 vi.mock('@/platform/esi', () => ({
   esiFetch: (...args: unknown[]) => h.esiFetch(...args),
   esiUrl: (path: string) => `https://esi.test${path}`,

@@ -225,7 +225,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
 | ☑ | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) | Delete the test-only price-confidence aggregation code | simplification | S | low | medium | — |
 | ☑ | [P324](wave-01-quick-wins-delete-dead-code-fix-small.md#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
-| ☐ | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335) | Delete the dead refreshPricesOnDemand and drop the cache tags nothing invalidates | simplification | S | low | low | — |
+| ☑ | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335) | Delete the dead refreshPricesOnDemand and drop the cache tags nothing invalidates | simplification | S | low | low | — |
 | ☐ | [P042](wave-01-quick-wins-delete-dead-code-fix-small.md#p042) | Move wormhole-site domain constants out of the Drizzle schema so client bundles stop pulling in pg-core | efficiency | S | low | medium | — |
 | ☐ | [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277) | Delete the dead motion-variable write on the map shell; ChainSurface's scope is the only writer | efficiency | S | low | low | — |
 | ☐ | [P312](wave-01-quick-wins-delete-dead-code-fix-small.md#p312) | Delete test-only signature-model exports and move signatureIdentityKey next to SignatureWindowRow | simplification | S | low | low | — |
