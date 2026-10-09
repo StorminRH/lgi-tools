@@ -312,11 +312,16 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
   };
 }
 
-function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
-  if (stats === SECTION_LOAD_FAILED) return unavailableLine('held-for-budget', 'Held for budget');
-  const held = stats
+/** Refresh jobs waiting for the ESI budget to recover. */
+export function heldForBudget(stats: readonly EsiRefreshQueueStat[]): number {
+  return stats
     .filter((stat) => stat.status === 'deferred_for_budget')
     .reduce((total, stat) => total + stat.count, 0);
+}
+
+function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
+  if (stats === SECTION_LOAD_FAILED) return unavailableLine('held-for-budget', 'Held for budget');
+  const held = heldForBudget(stats);
   return {
     id: 'held-for-budget',
     label: 'Held for budget',

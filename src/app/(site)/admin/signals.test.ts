@@ -6,6 +6,7 @@ import {
   deriveCronStatuses,
   deriveSliSignals,
   deriveStatusGroups,
+  heldForBudget,
   mapLoaded,
   sliLevel,
   summarizeQueue,
@@ -141,6 +142,15 @@ describe('summarizeQueue', () => {
       deadLettered: 0,
       oldestDueHours: null,
     });
+  });
+});
+
+describe('heldForBudget', () => {
+  it('sums only the jobs deferred for budget', () => {
+    expect(
+      heldForBudget([stat('deferred_for_budget', 2, 1), stat('queued', 5, 1), stat('deferred_for_budget', 3, 4)]),
+    ).toBe(5);
+    expect(heldForBudget([stat('queued', 5, 1)])).toBe(0);
   });
 });
 
