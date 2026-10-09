@@ -238,7 +238,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P135](wave-01-quick-wins-delete-dead-code-fix-small.md#p135) | Route isGscConfigured through readEnv instead of a process.env parameter | generic-utility | S | low | low | — |
 | ☑ | [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) | Derive problem-type URIs, the outbound UA contact and same-origin's fallback from PRODUCTION_SITE_URL | generic-utility | S | low | low | — |
 | ☑ | [P268](wave-01-quick-wins-delete-dead-code-fix-small.md#p268) | Resolve the Better Auth secret once with empty-string fallback (readAuthSecret in lib/env) | contracts-validation | S | low | medium | — |
-| ☐ | [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185) | Tag the wormhole-site detail caches with the SDE tag and rename it SDE_CACHE_TAG (no sdeCache helper) | server-pipeline | S | low | medium | — |
+| ☑ | [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185) | Tag the wormhole-site detail caches with the SDE tag and rename it SDE_CACHE_TAG (no sdeCache helper) | server-pipeline | S | low | medium | — |
 | ☐ | [P079](wave-01-quick-wins-delete-dead-code-fix-small.md#p079) | Rebuild useClientCommitted on createClientStore | client-data | S | low | low | — |
 | ☐ | [P061](wave-01-quick-wins-delete-dead-code-fix-small.md#p061) | Read the user in PreferencesProvider from ReadIdentity, not a second useSession | react-hook | S | low | low | — |
 | ☐ | [P279](wave-01-quick-wins-delete-dead-code-fix-small.md#p279) | Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds | efficiency | S | low | medium | — |

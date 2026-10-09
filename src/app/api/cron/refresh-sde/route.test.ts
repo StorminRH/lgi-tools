@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
 import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 
 const getSdeMetaValueMock = vi.fn();
@@ -98,6 +99,7 @@ describe('GET /api/cron/refresh-sde', () => {
       metadata: expect.objectContaining({ outcome: 'up-to-date' }),
     });
     expect(reserveMock).not.toHaveBeenCalled();
+    expect(revalidateTagMock).not.toHaveBeenCalled();
   });
 
   it('records a remote-unreachable run as cron_sde/remote-unreachable (O-3)', async () => {
@@ -144,6 +146,7 @@ describe('GET /api/cron/refresh-sde', () => {
         summary: PIPELINE_SUMMARY,
       }),
     });
+    expect(revalidateTagMock.mock.calls).toEqual([[SDE_CACHE_TAG, 'max']]);
   });
 
   it('rejects a request without the cron bearer token', async () => {

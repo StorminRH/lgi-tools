@@ -1,3 +1,4 @@
+import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
 import type { CombatStats } from '@/data/npc-stats/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SiteListItem } from './types';
@@ -48,7 +49,11 @@ vi.mock('./live-prices', () => ({
   overlayLivePrices: h.overlayLivePrices,
 }));
 
-import { listPricedSiteDetails, listSiteDetails } from './queries';
+import {
+  getPricedSiteDetail,
+  listPricedSiteDetails,
+  listSiteDetails,
+} from './queries';
 
 function siteRow(
   id: number,
@@ -128,24 +133,60 @@ beforeEach(() => {
 });
 
 describe('listPricedSiteDetails', () => {
-  it('caches the complete price-overlaid catalogue at hourly freshness', async () => {
+  it('caches the complete price-overlaid catalogue at hourly freshness over the SDE-tagged catalogue', async () => {
     h.state.results = [[]];
 
     await expect(listPricedSiteDetails()).resolves.toEqual([]);
 
     expect(h.overlayLivePrices).toHaveBeenCalledWith([]);
-    expect(h.cacheLife).toHaveBeenCalledWith('hours');
-    expect(h.cacheTag).toHaveBeenCalledWith('market-prices-freshness');
+    expect(h.cacheLife.mock.calls).toEqual([['hours'], ['max']]);
+    expect(h.cacheTag.mock.calls).toEqual([
+      ['market-prices-freshness'],
+      [SDE_CACHE_TAG],
+    ]);
     expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
   });
 });
 
+describe('getPricedSiteDetail', () => {
+  it('overlays prices on a site detail cached under the SDE tag, and returns null for a missing site', async () => {
+    const site = siteRow(9);
+    h.state.results = [[site], [], []];
+    h.getCombatStatsBatch.mockResolvedValue(new Map());
+
+    await expect(getPricedSiteDetail(9)).resolves.toEqual({
+      ...site,
+      waves: [],
+      resources: [],
+    });
+
+    expect(h.select).toHaveBeenCalledTimes(3);
+    expect(h.overlayLivePrices).toHaveBeenCalledWith([
+      { ...site, waves: [], resources: [] },
+    ]);
+    expect(h.cacheLife.mock.calls).toEqual([['hours'], ['max']]);
+    expect(h.cacheTag.mock.calls).toEqual([
+      ['market-prices-freshness'],
+      [SDE_CACHE_TAG],
+    ]);
+
+    h.overlayLivePrices.mockClear();
+    h.state.results = [[]];
+
+    await expect(getPricedSiteDetail(10)).resolves.toBeNull();
+
+    expect(h.overlayLivePrices).not.toHaveBeenCalled();
+  });
+});
+
 describe('listSiteDetails', () => {
-  it('short-circuits an empty catalogue without dependent reads', async () => {
+  it('caches under the SDE tag and short-circuits an empty catalogue without dependent reads', async () => {
     h.state.results = [[]];
 
     await expect(listSiteDetails({})).resolves.toEqual([]);
 
+    expect(h.cacheLife.mock.calls).toEqual([['max']]);
+    expect(h.cacheTag.mock.calls).toEqual([[SDE_CACHE_TAG]]);
     expect(h.select).toHaveBeenCalledTimes(1);
     expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
     expect(h.withColdStartRetry).toHaveBeenCalledTimes(1);
