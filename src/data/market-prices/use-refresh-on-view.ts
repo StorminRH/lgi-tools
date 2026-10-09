@@ -121,7 +121,6 @@ export function useRefreshOnView(
             if (!controller.signal.aborted) clearBatch(batch);
           }
         }
-      } catch {
       } finally {
         if (!controller.signal.aborted) {
           setRefreshing(false);

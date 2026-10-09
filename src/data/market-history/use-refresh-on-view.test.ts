@@ -72,22 +72,22 @@ test('refreshes unique type ids once enabled and publishes the fetched inputs', 
   expect(live.setRefreshing).toHaveBeenLastCalledWith(false);
 });
 
-test('keeps prior inputs on failed or thrown refreshes and goes quiet once unmounted', async () => {
-  h.apiFetch.mockResolvedValueOnce({ ok: false });
+test('keeps prior inputs on refused or unreachable refreshes and goes quiet once unmounted', async () => {
+  h.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'api', status: 429, error: {} });
   freshMount();
   useRefreshHistoryOnView([34], { enabled: true });
-  const rejected = mounted();
+  const refused = mounted();
   await settle();
-  expect(rejected.setInputs).not.toHaveBeenCalled();
-  expect(rejected.setRefreshing.mock.calls).toEqual([[true], [false]]);
+  expect(refused.setInputs).not.toHaveBeenCalled();
+  expect(refused.setRefreshing.mock.calls).toEqual([[true], [false]]);
 
-  h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  h.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'network', aborted: false, cause: new Error('offline') });
   freshMount();
   useRefreshHistoryOnView([34], { enabled: true });
-  const thrown = mounted();
+  const offline = mounted();
   await settle();
-  expect(thrown.setInputs).not.toHaveBeenCalled();
-  expect(thrown.setRefreshing.mock.calls).toEqual([[true], [false]]);
+  expect(offline.setInputs).not.toHaveBeenCalled();
+  expect(offline.setRefreshing.mock.calls).toEqual([[true], [false]]);
 
   let resolve: (value: unknown) => void = () => {};
   h.apiFetch.mockReturnValueOnce(new Promise((r) => { resolve = r; }));

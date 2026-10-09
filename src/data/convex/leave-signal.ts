@@ -12,5 +12,5 @@ export function postLeaveBeacon(input: {
     const ok = navigator.sendBeacon(leaveSyncEndpoint.path, blob);
     if (ok) return;
   }
-  void apiFetch(leaveSyncEndpoint, { body, keepalive: true }).catch(() => undefined);
+  void apiFetch(leaveSyncEndpoint, { body, keepalive: true });
 }

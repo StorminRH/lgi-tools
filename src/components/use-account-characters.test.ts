@@ -26,7 +26,8 @@ const roster: BuildCharacter[] = [{
   characterId: 7, name: 'Pilot Seven', portraitUrl: '/seven.png',
   needsReconnect: false, needsLocationReconnect: false,
 }];
-const failed = { ok: false, kind: 'http', status: 500 };
+const failed = { ok: false, kind: 'protocol', status: 500, detail: 'Endpoint returned an undeclared status' };
+const offline = { ok: false, kind: 'network', aborted: false, cause: new Error('offline') };
 
 function remount() {
   h.cleanup?.();
@@ -75,19 +76,19 @@ test('a first failed read settles empty, and a later successful refresh replaces
   expect(hooks.useAccountCharacters()).toEqual(roster);
 });
 
-test('a rejected refresh keeps the remembered pilots, but a different pilot never receives that roster', async () => {
+test('an unreachable refresh keeps the remembered pilots, but a different pilot never receives that roster', async () => {
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
   hooks.useAccountCharacters();
   await settle();
   remount();
-  h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  h.apiFetch.mockResolvedValueOnce(offline);
   hooks.useAccountCharacters();
   await settle();
   expect(hooks.useAccountCharacters()).toEqual(roster);
 
   h.auth.session = { characterId: 8 };
   identities.publishReadIdentity({ userId: 'account-a', characterId: 8 });
-  h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  h.apiFetch.mockResolvedValueOnce(offline);
   expect(hooks.useAccountCharacters()).toBeNull();
   await settle();
   expect(hooks.useAccountCharacters()).toEqual([]);
@@ -99,16 +100,15 @@ test('a rejected refresh keeps the remembered pilots, but a different pilot neve
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
 });
 
-test.each(['success', 'rejection'] as const)('unmount aborts the request and ignores a late %s', async (completion) => {
+test.each(['success', 'abort'] as const)('unmount aborts the request and ignores a late %s', async (completion) => {
   let resolve!: (value: unknown) => void;
-  let reject!: (reason: Error) => void;
-  h.apiFetch.mockReturnValueOnce(new Promise((yes, no) => { resolve = yes; reject = no; }));
+  h.apiFetch.mockReturnValueOnce(new Promise((yes) => { resolve = yes; }));
   hooks.useAccountCharacters();
   const signal = h.apiFetch.mock.calls[0]![1].signal as AbortSignal;
   remount();
   expect(signal.aborted).toBe(true);
   if (completion === 'success') resolve({ ok: true, data: { characters: roster } });
-  else reject(new Error('late failure'));
+  else resolve({ ok: false, kind: 'network', aborted: true, cause: new DOMException('aborted', 'AbortError') });
   await settle();
   h.apiFetch.mockReturnValueOnce(new Promise(() => {}));
   expect(hooks.useAccountCharacters()).toBeNull();

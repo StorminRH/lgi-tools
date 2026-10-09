@@ -19,7 +19,6 @@ import {
 } from '../categories';
 import { FEEDBACK_MESSAGE_MAX_LENGTH, FEEDBACK_TITLE_MAX_LENGTH } from '../constants';
 import {
-  FEEDBACK_NETWORK_ERROR_MESSAGE,
   feedbackErrorMessage,
   feedbackSubmitGate,
   type SubmitState,
@@ -31,15 +30,12 @@ async function submitFeedback(
   path: string,
   category: FeedbackCategory,
 ): Promise<SubmitState> {
-  try {
-    const result = await apiFetch(feedbackEndpoint, {
-      body: { title, message, path, category },
-    });
-    if (!result.ok) return { kind: 'error', message: feedbackErrorMessage(result) };
-    return { kind: 'success' };
-  } catch {
-    return { kind: 'error', message: FEEDBACK_NETWORK_ERROR_MESSAGE };
-  }
+  const result = await apiFetch(feedbackEndpoint, {
+    body: { title, message, path, category },
+  });
+  return result.ok
+    ? { kind: 'success' }
+    : { kind: 'error', message: feedbackErrorMessage(result) };
 }
 
 function FeedbackMeta({
