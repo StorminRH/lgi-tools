@@ -67,9 +67,8 @@ latest `development`, not a snapshot taken before earlier merges; a dependent
 usually needs `development` merged in again after its prerequisite lands.
 
 If it conflicts or must be updated to satisfy repository merge rules, merge
-the current `origin/development` into its head branch using `--no-commit`
-so the precommit gate runs before any merge commit, and resolve conflicts
-semantically. Preserve both changes where appropriate; do not blindly choose
+the current `origin/development` into its head branch using `--no-commit`,
+review the result, and resolve conflicts semantically. Preserve both changes where appropriate; do not blindly choose
 ours or theirs. Check overlap with earlier PRs for dropped, duplicated, or
 reintroduced changes. Stop for clarification if resolution requires choosing
 new product behavior or changing the PR's intent. Do not rebase.
@@ -79,7 +78,7 @@ repository's Fallow policy: fix all findings, with no weakened thresholds,
 baselines, overrides, or suppressions. If a necessary fix is too large or
 requires an intent change, report a blocker instead of expanding the task.
 
-Before every commit, run `pnpm check` through a test-runner subagent with
+Before every push, run `pnpm check` through a test-runner subagent with
 tests appropriate to the fix. Use the host's native delegation mechanism;
 for Codex, give the subagent the repository's test-runner instructions from
 `.claude/agents/test-runner.md`, without copying Claude model settings.
