@@ -104,7 +104,11 @@ export function useRefreshOnView(
 
     (async () => {
       if (map.size > 0) publish();
-      if (toRefresh.length === 0) return;
+      if (toRefresh.length === 0) {
+        setPending(new Set());
+        setRefreshing(false);
+        return;
+      }
       setPending(new Set(toRefresh));
       setRefreshing(true);
       try {

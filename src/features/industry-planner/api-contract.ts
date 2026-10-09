@@ -41,7 +41,8 @@ export const blueprintsEndpoint = defineEndpoint({
 });
 
 export const buildLocationRequestSchema = z.object({
-  systemId: z.number().int().positive().max(PG_INT4_MAX),
+  // Adjusted prices are global and can be read before choosing an installation system.
+  systemId: z.number().int().positive().max(PG_INT4_MAX).nullable(),
   blueprintId: z.number().int().positive().max(PG_INT4_MAX),
 });
 
