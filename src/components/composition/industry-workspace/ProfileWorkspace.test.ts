@@ -21,6 +21,12 @@ const live = vi.hoisted(() => ({
   boardCharacters: null as BoardCharacter[] | null,
   now: Date.parse('2026-10-01T12:00:00Z'),
 }));
+const useBoardLive = vi.hoisted(() =>
+  vi.fn(() => ({
+    response: live.boardCharacters === null ? null : { characters: live.boardCharacters },
+    now: live.now,
+  })),
+);
 
 // Next serves the app its canary React, which has <ViewTransition>; the stable
 // React that vitest resolves does not, so stand in a pass-through.
@@ -53,12 +59,7 @@ vi.mock('@/components/PreferencesProvider', () => ({
 vi.mock('@/features/industry-jobs/use-slots-live', () => ({
   useSlotsLive: () => ({ characters: live.slots, loading: false }),
 }));
-vi.mock('../board/use-board-live', () => ({
-  useBoardLive: () => ({
-    response: live.boardCharacters === null ? null : { characters: live.boardCharacters },
-    now: live.now,
-  }),
-}));
+vi.mock('../board/use-board-live', () => ({ useBoardLive }));
 vi.mock('@/features/industry-planner/use-available-structures', () => ({
   useAvailableStructures: () => live.structures,
 }));
@@ -172,9 +173,12 @@ test('the workspace walks from signed out, to a first profile, to a team and one
     { characterId: REACTOR.characterId, levels: null },
   ];
   live.structures = [TATARA];
-  // With no member open, the rail sits beside the whole profile.
+  // With no member open, the rail sits beside the whole profile, and the
+  // account board, which only a member's identity needs, stays unread.
   live.params = new URLSearchParams('profile=caps');
+  useBoardLive.mockClear();
   const team = render();
+  expect(useBoardLive).not.toHaveBeenCalled();
   expect(team).toContain('Capital line');
   expect(team).toContain(`data-member-id="${BUILDER.characterId}"`);
   expect(team).toContain(`${BUILDER.name}: Capital ships · All components`);
@@ -197,9 +201,11 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(team).not.toContain('All members');
   expect(team).not.toContain('The profile in this link no longer exists');
 
-  // A member in the link opens on its own sheet in place of the rail.
+  // A member in the link opens on its own sheet in place of the rail, which
+  // reads the account board once for its identity.
   live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
   const reactor = render();
+  expect(useBoardLive).toHaveBeenCalledTimes(1);
   expect(reactor).toContain(`aria-label="${REACTOR.name} in Capital line"`);
   expect(reactor).toContain('All members');
   expect(reactor).not.toContain('data-member-id');

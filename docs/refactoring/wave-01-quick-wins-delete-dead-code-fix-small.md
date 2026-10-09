@@ -36,7 +36,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P079](#p079) | Rebuild useClientCommitted on createClientStore | client-data | S | low | low | — |
 | ☑ | [P061](#p061) | Read the user in PreferencesProvider from ReadIdentity, not a second useSession | react-hook | S | low | low | — |
 | ☑ | [P279](#p279) | Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds | efficiency | S | low | medium | — |
-| ☐ | [P080](#p080) | Read the board in the industry workspace only when a member sheet is open | client-data | S | low | medium | — |
+| ☑ | [P080](#p080) | Read the board in the industry workspace only when a member sheet is open | client-data | S | low | medium | — |
 | ☐ | [P155](#p155) | Render LoadFailed with useLiveDataset's retry in LiveBoard and delete BOARD_LOAD_FAILED | error-handling | S | low | medium | — |
 | ☐ | [P097](#p097) | Render slot pools with one poolFigure encoding in the industry workspace | formatting | S | low | low | — |
 | ☐ | [P171](#p171) | Count board used slots with countUsedSlots instead of a local filter | server-pipeline | S | low | low | — |
@@ -1316,7 +1316,7 @@ export function useChainFocusMenus(
 
 ## P080: Read the board in the industry workspace only when a member sheet is open
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** efficiency · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -6 / +5 in ProfileWorkspace.tsx; +10 in the test
 - **Depends on:** —
