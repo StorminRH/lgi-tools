@@ -13,8 +13,9 @@ import type {
   SheetSectionKey,
   SheetSections,
 } from '@/features/character-sheet/types';
+import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import { deriveJobStatus } from '@/features/industry-jobs/job-state';
-import { jobOccupiesSlot, slotCapacity } from '@/features/industry-jobs/slots';
+import { countUsedSlots, slotCapacity } from '@/features/industry-jobs/slots';
 import { canSyncIndustryJobs, INDUSTRY_JOBS_SYNC_SCOPES } from '@/features/industry-jobs/sync-eligibility';
 import type { CharacterJobsData } from '@/features/industry-jobs/types';
 import { canSyncSkillQueue, SKILL_SYNC_SCOPES } from '@/features/skill-queue/sync-eligibility';
@@ -333,19 +334,23 @@ function mapSkills(data: CharacterSkillData, levels: Record<string, number> | nu
   };
 }
 
+const slotTotal = (perCategory: Readonly<Record<JobCategory, number>>): number =>
+  perCategory.manufacturing + perCategory.science + perCategory.reactions;
+
 function mapIndustry(
   data: CharacterJobsData,
   levels: Record<string, number> | null,
   now: number,
+  characterId: number,
 ): BoardIndustryData {
   const statuses = data.jobs.map((job) => deriveJobStatus(job.status, job.end_date, now));
-  const capacity = slotCapacity(levels);
   return {
     active: statuses.filter((status) => status === 'active').length,
     ready: statuses.filter((status) => status === 'ready').length,
     slots: {
-      used: statuses.filter(jobOccupiesSlot).length,
-      max: capacity.manufacturing + capacity.science + capacity.reactions,
+      // The board has no corp-job feed yet; pass the pilot's corp jobs here once it reads them.
+      used: slotTotal(countUsedSlots(characterId, data.jobs, [])),
+      max: slotTotal(slotCapacity(levels)),
     },
   };
 }
@@ -451,7 +456,7 @@ export function assembleBoardCharacter(
     wallet: sectionOf(eligible('wallet'), sheet?.wallet, (data) => ({ balance: data.balance })),
     journal: sectionOf(eligible('journal'), sheet?.journal, (data) => mapJournal(data.journal)),
     industry: datasetOf(canSyncIndustryJobs(health), raw.jobs.data, raw.jobs.refreshedAt, (data) =>
-      mapIndustry(data, raw.skills.levels, now),
+      mapIndustry(data, raw.skills.levels, now, identity.characterId),
     ),
     netWorth: storedWorthOf(raw, stored),
   };
