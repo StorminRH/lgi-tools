@@ -110,7 +110,10 @@ cmd_status() {
   report() { printf '%-12s %s\n' "$1" "$2"; }
   boot="$(cat "$LGI_BOOTSTRAP_STATUS" 2>/dev/null || echo 'not started')"
   report bootstrap "$boot"
-  [ "$boot" = ok ] || ok=1
+  # A bootstrap still running may yet install dependencies or start services,
+  # so the stack is not ready until it finishes. A failed one is reported but
+  # does not veto services a manual `stack.sh start` has since brought up.
+  case "$boot" in ok | failed*) ;; *) ok=1 ;; esac
   if "$PGBIN/pg_isready" -h localhost -p 5433 -U lgi -d lgi_tools >/dev/null 2>&1; then
     report postgres "ready :5433"
   else
