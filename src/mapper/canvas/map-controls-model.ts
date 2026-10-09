@@ -1,3 +1,4 @@
+import { clamp } from '@/lib/math';
 import type { FogConfig } from '../fog/fog-model';
 import type { HaloLimits } from '../halo/halo-model';
 import {
@@ -37,7 +38,7 @@ export function clampStepped(
   max: number,
   step: number,
 ): number {
-  const clamped = Math.min(max, Math.max(min, value));
+  const clamped = clamp(value, min, max);
   const steps = Math.round((clamped - min) / step);
   return min + steps * step;
 }

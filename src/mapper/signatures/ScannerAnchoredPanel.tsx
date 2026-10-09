@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { clamp } from '@/lib/math';
 import { CARD_ATTACH_Y } from '../windows/follower-model';
 import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
 import {
@@ -116,16 +117,15 @@ export function alignCardToRow(
   const rowTop = Math.max(rowBox.top, clip?.top ?? rowBox.top);
   const rowBottom = Math.min(rowBox.bottom, clip?.bottom ?? rowBox.bottom);
   const maxTop = Math.max(CARD_EDGE_PX, layer.clientHeight - panel.offsetHeight - CARD_FLOAT_PX);
-  const clamp = (value: number) => Math.min(Math.max(value, CARD_EDGE_PX), maxTop);
   if (rowBottom <= rowTop && panel.dataset.rowAligned !== undefined) {
     // The row is scrolled out of view: hold the card where it is, but keep it
     // inside the layer if the layer or the card changed size meanwhile.
     const held = Number.parseFloat(panel.style.getPropertyValue('--scanner-card-y'));
-    if (Number.isFinite(held)) panel.style.setProperty('--scanner-card-y', `${Math.round(clamp(held))}px`);
+    if (Number.isFinite(held)) panel.style.setProperty('--scanner-card-y', `${Math.round(clamp(held, CARD_EDGE_PX, maxTop))}px`);
     return;
   }
   const middle = (rowTop + rowBottom) / 2 - origin.top;
-  const top = clamp(middle - SCANNER_CARD_RISE_PX - CARD_ATTACH_Y);
+  const top = clamp(middle - SCANNER_CARD_RISE_PX - CARD_ATTACH_Y, CARD_EDGE_PX, maxTop);
   panel.style.setProperty('--scanner-card-y', `${Math.round(top)}px`);
   panel.dataset.rowAligned = '';
 }

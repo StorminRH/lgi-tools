@@ -1,3 +1,4 @@
+import { clamp01 } from '@/lib/math';
 import type { ChainPosition, MapChainIntent } from '../chain/intents';
 import { samePosition } from '../chain/intents';
 import type { TweenPlan } from './motion-contract';
@@ -50,7 +51,7 @@ function displacedAt(
   ease: (t: number) => number,
 ): ChainPosition {
   if (tween.durationMs <= 0) return tween.to;
-  const t = Math.min(1, Math.max(0, (now - tween.startedAt) / tween.durationMs));
+  const t = clamp01((now - tween.startedAt) / tween.durationMs);
   const eased = ease(t);
   return {
     x: tween.from.x + (tween.to.x - tween.from.x) * eased,

@@ -1,3 +1,4 @@
+import { clamp } from '@/lib/math';
 import { SYSTEM_DISC_SIZE } from '../canvas/disc-chrome';
 import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
 import { roundedLeaderPath } from './leader-path';
@@ -82,10 +83,6 @@ export type CardAnchorLift = 'up' | 'down';
 export const NODE_CARD_FALLBACK: ScreenSize = { width: 288, height: 208 };
 
 const LAYER_SIZE_FALLBACK: ScreenSize = { width: 1440, height: 900 };
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
 
 interface SharedFollowerFrame {
   readonly tx: number;

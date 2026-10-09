@@ -28,6 +28,7 @@ import {
   valueCharacter,
 } from '@/features/net-worth/valuation';
 import type { CharacterSkillData } from '@/features/skill-queue/types';
+import { roundIsk } from '@/lib/math';
 import {
   BOARD_GAPS,
   type BoardCharacter,
@@ -487,8 +488,8 @@ export function netWorthSnapshot(raws: readonly BoardRaw[], names: Pick<NameBook
   }
   return {
     day,
-    netWorth: Math.round(netWorth * 100) / 100,
-    liquidIsk: Math.round(liquidIsk * 100) / 100,
+    netWorth: roundIsk(netWorth),
+    liquidIsk: roundIsk(liquidIsk),
     pilotsIncluded: Object.keys(pilots).length,
     pilotsTotal: raws.length,
     pilots,

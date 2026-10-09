@@ -1,3 +1,4 @@
+import { roundIsk } from '@/lib/math';
 import { type EsiJournalEntry, parseJournalNewestFirst, parseStructureBody } from './esi-projection';
 import type {
   DirectSectionKey,
@@ -80,10 +81,6 @@ export function planSectionRead<K extends DirectSectionKey>(
     kind: 'save',
     envelope: { data: data as SheetSectionData[K], refreshedAt: now.toISOString(), etags },
   };
-}
-
-function roundIsk(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 function journalSeries(entries: EsiJournalEntry[], windowStartMs: number, nowMs: number): JournalSeriesPoint[] {

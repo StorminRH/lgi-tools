@@ -25,7 +25,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P105](#p105) | Add src/lib/math.ts (clamp with min-wins, clamp01, clampPct, roundTo, roundIsk) and delete the private copies | generic-utility | S | low | low | — |
+| ☑ | [P105](#p105) | Add src/lib/math.ts (clamp with min-wins, clamp01, clampPct, roundTo, roundIsk) and delete the private copies | generic-utility | S | low | low | — |
 | ☐ | [P096](#p096) | Export roundIsk from lib/format/isk and drop the three private copies and the inline pair | formatting | S | low | low | [P105](#p105) |
 | ☐ | [P101](#p101) | Add groupBy and getOrInsertComputed to src/lib/array.ts and replace the hand-rolled bucket and get-or-create loops | generic-utility | M | low | medium | — |
 | ☐ | [P102](#p102) | Promote eligibleIdsKey to sortedUniqueIds / idsKey / parseIdsKey in src/lib/array.ts and delete the local copies | generic-utility | S | low | low | — |
@@ -51,7 +51,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 
 ## P105: Add src/lib/math.ts (clamp with min-wins, clamp01, clampPct, roundTo, roundIsk) and delete the private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 production lines from deleted private helpers and inline expressions, +15 for lib/math.ts, +35 for tests
 - **Depends on:** —

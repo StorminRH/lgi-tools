@@ -1,3 +1,4 @@
+import { roundTo } from '@/lib/math';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from './wormhole-contract';
 
 /**
@@ -171,10 +172,6 @@ function foldResistances(modifiers: WormholeEffectModifier[]): WormholeEffectMod
   return [...modifiers.filter((modifier) => !folded.has(modifier)), ...merged];
 }
 
-function roundPercent(value: number): number {
-  return Math.round(value * 10) / 10;
-}
-
 function percentConverter(attribute: EffectAttributeRow): ((value: number) => number) | undefined {
   return PERCENT_BY_ATTRIBUTE.get(attribute.name)
     ?? (attribute.unitId === null ? undefined : PERCENT_BY_UNIT.get(attribute.unitId));
@@ -184,7 +181,7 @@ function percentConverter(attribute: EffectAttributeRow): ((value: number) => nu
 function attributeModifier(attribute: EffectAttributeRow, value: number): WormholeEffectModifier | null {
   const toPercent = percentConverter(attribute);
   if (toPercent === undefined) return null;
-  const raw = roundPercent(toPercent(value));
+  const raw = roundTo(toPercent(value), 1);
   if (raw === 0) return null;
   const resonance = RESONANCE.test(attribute.name) || RESONANCE.test(attribute.displayName ?? '');
   return {

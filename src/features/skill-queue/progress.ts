@@ -1,3 +1,4 @@
+import { clampPct } from '@/lib/math';
 import type { SkillQueueEntry } from './esi-projection';
 
 export type EntryStatus = 'done' | 'training' | 'pending' | 'paused';
@@ -13,10 +14,6 @@ function spPct(entry: SkillQueueEntry, trainedFraction: number): number | null {
   if (endSp <= startSp) return null;
   const currentSp = trainingStartSp + (endSp - trainingStartSp) * trainedFraction;
   return clampPct(((currentSp - startSp) / (endSp - startSp)) * 100);
-}
-
-function clampPct(pct: number): number {
-  return Math.min(100, Math.max(0, pct));
 }
 
 export function entryProgress(entry: SkillQueueEntry, now: number): EntryProgress {

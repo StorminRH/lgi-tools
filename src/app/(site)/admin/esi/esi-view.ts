@@ -4,6 +4,7 @@ import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/
 import { ESI_ERROR_CEILING } from '@/platform/esi/scoreboard/types';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { formatQuantity } from '@/lib/format/number';
+import { clampPct } from '@/lib/math';
 import type { OpsMetricRow } from '../ops-view';
 import {
   deriveBudgetStatus,
@@ -46,7 +47,7 @@ export function deriveBudgetCard(budget: EsiBudgetSnapshot | null) {
     pct:
       budget === null
         ? 0
-        : Math.max(0, Math.min(100, (budget.effectiveRemaining / ESI_ERROR_CEILING) * 100)),
+        : clampPct((budget.effectiveRemaining / ESI_ERROR_CEILING) * 100),
     figures: budget === null ? [] : budgetFigures(budget),
   };
 }
