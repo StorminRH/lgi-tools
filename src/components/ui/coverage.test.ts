@@ -51,7 +51,6 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { AnnotatedDailyChart } from '@/components/ui/annotated-daily-chart';
 import { BarChart } from '@/components/ui/bar-chart';
 import { ContentBrowser, landingContentSlug } from '@/components/ui/content-browser';
 import { DistributionBars } from '@/components/ui/distribution-bars';
@@ -73,7 +72,6 @@ import { TrendChart } from '@/components/ui/trend-chart';
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
-      AnnotatedDailyChart,
       BarChart,
       ContentBrowser,
       landingContentSlug,

@@ -203,27 +203,47 @@ export function DataGroup() {
       <Specimen
         name="AnnotatedDailyChart"
         source="annotated-daily-chart"
-        note="Daily bars with a rolling average, weekend shading, a reference line, event markers, and an end label."
+        note="Daily bars with a rolling average, weekend shading, a reference line, event markers, and an end label. The first and last bars stay inside the plot, and the end label follows the last bar, so a short series keeps it beside its data."
         wide
       >
-        <ChartSlot>
-          {(width) => (
-            <AnnotatedDailyChart
-              points={sampleDaily}
-              average={sampleAverage}
-              labels={sampleLabels}
-              weekend={sampleWeekend}
-              referenceLine={{ value: 140, label: 'target' }}
-              eventMarkers={[{ x: 9, label: 'v4.1' }]}
-              endLabel={{ valueText: '128', deltaText: '+6%', deltaHex: null }}
-              tone="green"
-              width={width}
-              height={200}
-              formatTick={shortDay}
-              ariaLabel="Daily sample"
-            />
-          )}
-        </ChartSlot>
+        <div className="flex flex-col gap-4">
+          <ChartSlot>
+            {(width) => (
+              <AnnotatedDailyChart
+                points={sampleDaily}
+                average={sampleAverage}
+                labels={sampleLabels}
+                weekend={sampleWeekend}
+                referenceLine={{ value: 140, label: 'target' }}
+                eventMarkers={[{ x: 9, label: 'v4.1' }]}
+                endLabel={{ valueText: '128', deltaText: '+6%', deltaHex: null }}
+                tone="green"
+                width={width}
+                height={200}
+                formatTick={shortDay}
+                ariaLabel="Daily sample"
+              />
+            )}
+          </ChartSlot>
+          <Variant label="one day of data">
+            <ChartSlot>
+              {(width) => (
+                <AnnotatedDailyChart
+                  points={[{ x: 0, y: 12 }]}
+                  average={[12]}
+                  labels={['2026-10-08']}
+                  weekend={[false]}
+                  referenceLine={null}
+                  endLabel={{ valueText: '12', deltaText: 'new', deltaHex: null }}
+                  width={width}
+                  height={160}
+                  formatTick={shortDay}
+                  ariaLabel="Page views by day, one day of data"
+                />
+              )}
+            </ChartSlot>
+          </Variant>
+        </div>
       </Specimen>
 
       <Specimen name="StackedAreaChart" source="stacked-area-chart" note="Bands stacked from zero; a band can begin partway along.">
