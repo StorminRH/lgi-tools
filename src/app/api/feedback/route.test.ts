@@ -38,10 +38,6 @@ vi.mock('@/lib/rate-limit', () => ({
     checkRateLimitMock(request, options),
 }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
 function buildRequest(
   body: unknown,
   origin?: string,
@@ -119,7 +115,7 @@ describe('POST /api/feedback', () => {
       new Response(JSON.stringify(LINEAR_SUCCESS), { status: 200 }),
     );
 
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(
       buildRequest(
         {
@@ -227,7 +223,7 @@ describe('POST /api/feedback', () => {
 
   it('rejects empty, malformed, oversized, and invalid path or category bodies before Linear', async () => {
     getSessionMock.mockResolvedValue(SESSION);
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
 
     await expectProblem(
       await POST(buildRawRequest('{not json')),
@@ -306,7 +302,7 @@ describe('POST /api/feedback', () => {
   });
 
   it('blocks cross-origin posts and maps unset token or Linear failure without telemetry', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     await expectProblem(
       await POST(
         buildRequest(

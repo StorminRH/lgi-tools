@@ -33,10 +33,6 @@ vi.mock('next/server', () => ({
   connection: () => Promise.resolve(),
 }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
 function authedRequest(secret = 'test-secret'): Request {
   return new Request('http://localhost:3000/api/cron/refresh-prices', {
     headers: { authorization: `Bearer ${secret}` },
@@ -73,7 +69,7 @@ describe('GET /api/cron/refresh-prices', () => {
   });
 
   it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(new Request('http://localhost:3000/api/cron/refresh-prices'));
     expect(res.status).toBe(401);
     expect(refreshStalePricesMock).not.toHaveBeenCalled();
@@ -85,7 +81,7 @@ describe('GET /api/cron/refresh-prices', () => {
       reason: 'empty-set',
       lastUpdatedAt: new Date('2026-05-30T11:00:00Z'),
     });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(authedRequest());
     expect((await res.json()).cached).toBe(true);
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -102,7 +98,7 @@ describe('GET /api/cron/refresh-prices', () => {
       lastUpdatedAt: new Date('2026-05-30T12:00:00Z'),
       summary: REFRESHED_SUMMARY,
     });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(authedRequest());
     expect(res.status).toBe(200);
     expect(revalidateTagMock).toHaveBeenCalledWith('market-prices-freshness', 'max');
@@ -146,7 +142,7 @@ describe('GET /api/cron/refresh-prices', () => {
         budgetExhausted: true,
       },
     });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     await GET(authedRequest());
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'price_source_degraded',
@@ -185,7 +181,7 @@ describe('GET /api/cron/refresh-prices', () => {
       lastUpdatedAt: new Date('2026-05-30T14:00:00Z'),
       summary: REFRESHED_SUMMARY,
     });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(authedRequest());
     expect(res.status).toBe(200);
     expect((await res.json()).written).toBe(10);

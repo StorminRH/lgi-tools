@@ -31,10 +31,6 @@ vi.mock('@/db', () => ({
 vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => dbMock }));
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
 function authedRequest(): Request {
   return new Request('http://localhost:3000/api/cron/refresh-industry-indices', {
     headers: { authorization: 'Bearer test-secret' },
@@ -65,7 +61,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
   });
 
   it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(
       new Request('http://localhost:3000/api/cron/refresh-industry-indices'),
     );
@@ -77,7 +73,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
 
   it('returns busy and records the contention metadata', async () => {
     lockGot = false;
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual({ status: 'busy' });
@@ -93,7 +89,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
 
   it('returns the dataset summary and records each dataset outcome', async () => {
     refreshIndustryIndicesMock.mockResolvedValue(SUMMARY);
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(refreshIndustryIndicesMock).toHaveBeenCalledWith(dbMock);

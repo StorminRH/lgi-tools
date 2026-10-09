@@ -46,10 +46,6 @@ vi.mock('next/cache', () => ({
 
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
 function authedRequest(): Request {
   return new Request('http://localhost:3000/api/cron/refresh-sde', {
     headers: { authorization: 'Bearer test-secret' },
@@ -91,7 +87,7 @@ describe('GET /api/cron/refresh-sde', () => {
   it('records a no-drift run as cron_sde/up-to-date (O-3)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-01');
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(authedRequest());
     expect((await res.json()).status).toBe('up-to-date');
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -105,7 +101,7 @@ describe('GET /api/cron/refresh-sde', () => {
   it('records a remote-unreachable run as cron_sde/remote-unreachable (O-3)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue(null);
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(authedRequest());
     expect((await res.json()).status).toBe('remote-unreachable');
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -119,7 +115,7 @@ describe('GET /api/cron/refresh-sde', () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-08');
     lockGot = false;
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(authedRequest());
     expect((await res.json()).status).toBe('busy');
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -134,7 +130,7 @@ describe('GET /api/cron/refresh-sde', () => {
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-08');
     lockGot = true;
     runSdePipelineMock.mockResolvedValue(PIPELINE_SUMMARY);
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(authedRequest());
     expect((await res.json()).status).toBe('reingested');
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -150,7 +146,7 @@ describe('GET /api/cron/refresh-sde', () => {
   });
 
   it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(new Request('http://localhost:3000/api/cron/refresh-sde'));
     expect(res.status).toBe(401);
     expect(getSdeMetaValueMock).not.toHaveBeenCalled();

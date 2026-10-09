@@ -40,10 +40,6 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
 function buildRequest(form: Record<string, string>): NextRequest {
   const body = new URLSearchParams(form).toString();
   return new NextRequest('http://localhost:3000/api/admin/role', {
@@ -69,7 +65,7 @@ describe('POST /api/admin/role', () => {
 
   it('returns 403 for a non-admin and for no session at all', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_VIEWER, isAdmin: false });
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
     expect(res.status).toBe(403);
 
@@ -81,7 +77,7 @@ describe('POST /api/admin/role', () => {
 
   it('returns 400 for self-toggle or an unknown role, and 404 when the target is missing', async () => {
     getSessionMock.mockResolvedValue(ADMIN_VIEWER);
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
 
     expect(
       (await POST(buildRequest({ userId: ADMIN_VIEWER.user.id, nextRole: 'USER' }))).status,
@@ -101,7 +97,7 @@ describe('POST /api/admin/role', () => {
     getSessionMock.mockResolvedValue(ADMIN_VIEWER);
     getUserByIdMock.mockResolvedValue(TARGET_USER);
     setUserRoleMock.mockResolvedValue({ ...TARGET_USER, role: 'ADMIN' });
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ userId: TARGET_USER.userId, nextRole: 'ADMIN' }));
     expect(res.status).toBe(303);
     expect(setUserRoleMock).toHaveBeenCalledWith(TARGET_USER.userId, 'ADMIN');

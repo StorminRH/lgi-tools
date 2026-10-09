@@ -66,10 +66,6 @@ function authedRequest(): Request {
   );
 }
 
-async function importRoute() {
-  return import('./route');
-}
-
 const BASELINE = { etag: '"feed-10"', latestSnapshotId: 11 } as const;
 
 function probeResolves(feed: unknown): void {
@@ -97,7 +93,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
 
   it('finishes an unchanged conditional probe before reserving the lock', async () => {
     probeResolves({ status: 'unchanged' });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
@@ -114,7 +110,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       status: 'unavailable',
       reason: 'anoik.is request failed: offline',
     });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual({
@@ -180,7 +176,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
         reason: 'anoik.is request failed: offline',
       });
 
-      const { GET } = await importRoute();
+      const { GET } = await import('./route');
       const response = await GET(authedRequest());
 
       expect((await response.json()).status).toBe('feed-unavailable');
@@ -210,7 +206,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     } as const;
     probeResolves(feed);
     recordChangedMock.mockResolvedValue(result);
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual(result);
@@ -240,7 +236,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     } as const;
     probeResolves(feed);
     recordChangedMock.mockResolvedValue({ status: 'unchanged' });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
@@ -265,7 +261,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     } as const;
     probeResolves(feed);
     recordChangedMock.mockResolvedValue({ status: 'stale-observation' });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual({ status: 'stale-observation' });
@@ -283,7 +279,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       etag: '"changed"',
       lastModified: null,
     });
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual({ status: 'busy' });
@@ -292,7 +288,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
   });
 
   it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(
       new Request('http://localhost:3000/api/cron/refresh-wh-statics'),
     );

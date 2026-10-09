@@ -67,10 +67,6 @@ function cleanResult(rows: MarketPrice[]) {
   };
 }
 
-async function importRoute() {
-  return await import('./route');
-}
-
 describe('POST /api/market-prices/refresh', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -86,7 +82,7 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('reads the requested typeIds live and returns the fresh rows', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ typeIds: [34] }));
     expect(res.status).toBe(200);
     expect(getLivePricesMock).toHaveBeenCalledWith([34], expect.any(Function));
@@ -99,7 +95,7 @@ describe('POST /api/market-prices/refresh', () => {
 
   it('omits types the engine returned no price for', async () => {
     getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ typeIds: [34, 99] }));
     const body = await res.json();
     expect(body.prices).toHaveLength(1);
@@ -127,7 +123,7 @@ describe('POST /api/market-prices/refresh', () => {
         fuzzworkFallbackCount: 2,
       },
     });
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     await POST(buildRequest({ typeIds: [34, 35, 36] }));
     expect(emitCostMetricMock).toHaveBeenCalledWith(
       'price_source_degraded',
@@ -153,7 +149,7 @@ describe('POST /api/market-prices/refresh', () => {
         fuzzworkFallbackCount: 0,
       },
     });
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     await POST(buildRequest({ typeIds: [34] }));
     expect(emitCostMetricMock).toHaveBeenCalledWith(
       'price_source_degraded',
@@ -162,7 +158,7 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('emits no degradation metric on a clean all-ESI read', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     await POST(buildRequest({ typeIds: [34] }));
     expect(emitCostMetricMock).toHaveBeenCalledTimes(2);
     expect(emitCostMetricMock).not.toHaveBeenCalledWith(
@@ -183,14 +179,14 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('deduplicates typeIds before passing to the engine', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     await POST(buildRequest({ typeIds: [34, 34, 35] }));
     const passed = getLivePricesMock.mock.calls[0]![0] as number[];
     expect(passed.sort()).toEqual([34, 35]);
   });
 
   it('rejects an empty typeIds array', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ typeIds: [] }));
     expect(res.status).toBe(400);
     const body = problemBodySchema.parse(await res.json());
@@ -199,7 +195,7 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('rejects more than 50 typeIds', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const tooMany = Array.from({ length: 51 }, (_, i) => i + 1);
     const res = await POST(buildRequest({ typeIds: tooMany }));
     expect(res.status).toBe(400);
@@ -207,20 +203,20 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('rejects non-integer typeIds', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ typeIds: [34.5] }));
     expect(res.status).toBe(400);
     expect(getLivePricesMock).not.toHaveBeenCalled();
   });
 
   it('rejects negative typeIds', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ typeIds: [-1] }));
     expect(res.status).toBe(400);
   });
 
   it('returns 400 on malformed JSON', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest('{ not json'));
     expect(res.status).toBe(400);
     const body = problemBodySchema.parse(await res.json());
@@ -236,7 +232,7 @@ describe('POST /api/market-prices/refresh', () => {
         retryAfterSeconds: 42,
       },
     });
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(buildRequest({ typeIds: [34] }));
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('42');
@@ -250,7 +246,7 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('hands the request and the slice limit policy to the guard', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     await POST(buildRequest({ typeIds: [34] }, '203.0.113.99'));
     expect(checkRateLimitMock).toHaveBeenCalledTimes(1);
     const [guardedRequest, options] = checkRateLimitMock.mock.calls[0] ?? [];
