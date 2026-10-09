@@ -2,20 +2,32 @@ import {
   and,
   avg,
   count,
-  countDistinct,
   desc,
   eq,
   gte,
   inArray,
   isNotNull,
   lt,
+  lte,
   or,
   sql,
   sum,
+  type SQL,
 } from 'drizzle-orm';
 import { EVE_SSO_HOST } from '@/lib/eve-provider';
 import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
+import {
+  readWindow,
+  splitAudience,
+  splitPageViewPeriods,
+  splitRankings,
+  type PageViewRankings,
+  type PageViewStats,
+  type PeriodPair,
+  type RankedList,
+  type RankedRow,
+} from './page-view-stats';
 import { usageLogs } from './schema';
 import {
   CAPABILITY_ACTION,
@@ -29,17 +41,12 @@ import {
 import type {
   CronLastRun,
   CronOutcomeCount,
-  DailyCount,
   DateRange,
   DegradationCallerCount,
-  EntryPageCount,
   FallbackRateData,
-  PathCount,
-  ReferrerCount,
   RefreshVolumePoint,
   ReturningVsNew,
   RoleChangeAuditEntry,
-  SearchVsDirect,
   UsageAction,
 } from './types';
 
@@ -50,83 +57,73 @@ export {
   pruneUsageLogs,
 } from './log';
 
-export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
-  const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
+const pagePath = sql<string | null>`${usageLogs.metadata} ->> 'path'`;
+const pageReferrer = sql<string | null>`${usageLogs.metadata} ->> 'referrer'`;
+const isEntry = sql`${usageLogs.metadata} ->> 'is_entry' = 'true'`;
+// An EVE SSO bounce is the login round trip, not a referral.
+const externalReferrer = sql`${pageReferrer} is not null and lower(${pageReferrer}) <> ${EVE_SSO_HOST}`;
+
+/**
+ * Page views per UTC day for the range and, when given, the period just
+ * before it, in one scan. The previous period must end where the range
+ * starts.
+ */
+export async function getPageViewStats(range: DateRange, previous: DateRange | null): Promise<PageViewStats> {
   const rows = await db
     .select({
-      day,
-      totalEvents: count(),
-      uniqueCharacters: countDistinct(usageLogs.characterId),
-      anonymousEvents:
-        sql<number>`count(*) filter (where ${usageLogs.characterId} is null)`.mapWith(Number),
+      current: sql<boolean>`${gte(usageLogs.timestamp, range.from)}`,
+      day: sql<string>`(${usageLogs.timestamp} at time zone 'UTC')::date`,
+      views: count(),
+      entries: sql<number>`count(*) filter (where ${isEntry})`.mapWith(Number),
+      referrals: sql<number>`count(*) filter (where ${externalReferrer})`.mapWith(Number),
+    })
+    .from(usageLogs)
+    .where(and(inRange(readWindow(range, previous)), eq(usageLogs.action, 'page_view')))
+    // The period test binds the range start, so group by position rather
+    // than repeat it as a second, different parameter.
+    .groupBy(sql`1`, sql`2`);
+  return splitPageViewPeriods(rows, previous !== null);
+}
+
+/**
+ * The top pages, entry pages and external referrers in one scan: one
+ * grouping set per list, ranked within its set.
+ */
+export async function getPageViewRankings(range: DateRange, limit = 10): Promise<PageViewRankings> {
+  // Project first, so the grouping sets reference plain columns rather than
+  // expressions carrying the bound SSO host.
+  const views = db
+    .select({
+      path: sql<string | null>`${pagePath}`.as('path'),
+      entryPath: sql<string | null>`case when ${isEntry} then ${pagePath} end`.as('entry_path'),
+      referrer: sql<string | null>`case when ${externalReferrer} then ${pageReferrer} end`.as('referrer'),
     })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, 'page_view')))
-    .groupBy(day)
-    .orderBy(day);
-
-  return rows.map((r) => ({
-    day: r.day,
-    totalEvents: Number(r.totalEvents),
-    uniqueCharacters: Number(r.uniqueCharacters),
-    anonymousEvents: Number(r.anonymousEvents),
-  }));
-}
-
-function topByMetadataKeyQuery(
-  metaKey: string,
-  action: UsageAction,
-  range: DateRange,
-  limit: number,
-  extraWhere?: ReturnType<typeof eq>,
-) {
-  const col = sql<string>`${usageLogs.metadata} ->> ${metaKey}`;
-  return db
-    .select({ value: col, count: count() })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
-    .groupBy(sql`1`)
-    .orderBy(desc(count()))
-    .limit(limit);
-}
-
-async function topByMetadataKey(
-  metaKey: string,
-  action: UsageAction,
-  range: DateRange,
-  limit: number,
-  extraWhere?: ReturnType<typeof eq>,
-): Promise<{ value: string; count: number }[]> {
-  const rows = await topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere);
-  return rows
-    .filter((r) => r.value !== null)
-    .map((r) => ({ value: r.value as string, count: Number(r.count) }));
-}
-
-export function topByMetadataKeyToSQL(
-  metaKey: string,
-  action: UsageAction,
-  range: DateRange,
-  limit: number,
-  extraWhere?: ReturnType<typeof eq>,
-) {
-  return topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere).toSQL();
-}
-
-export async function getTopPages(range: DateRange, limit = 10): Promise<PathCount[]> {
-  const rows = await topByMetadataKey('path', 'page_view', range, limit);
-  return rows.map((r) => ({ path: r.value, count: r.count }));
-}
-
-export async function getTopReferrers(range: DateRange, limit = 10): Promise<ReferrerCount[]> {
-  const rows = await topByMetadataKey('referrer', 'page_view', range, limit, sql`lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST}`);
-  return rows.map((r) => ({ host: r.value, count: r.count }));
-}
-
-export async function getTopEntryPages(range: DateRange, limit = 10): Promise<EntryPageCount[]> {
-  const isEntry = sql<string>`${usageLogs.metadata} ->> 'is_entry'`;
-  const rows = await topByMetadataKey('path', 'page_view', range, limit, eq(isEntry, 'true'));
-  return rows.map((r) => ({ path: r.value, count: r.count }));
+    .as('views');
+  const list = sql<RankedList>`case
+    when grouping(${views.path}) = 0 then 'pages'
+    when grouping(${views.entryPath}) = 0 then 'entries'
+    else 'referrers' end`;
+  // Within a set the other two columns are null, so this is the set's value.
+  const value = sql<string | null>`coalesce(${views.path}, ${views.entryPath}, ${views.referrer})`;
+  const ranked = db
+    .select({
+      list: list.as('list'),
+      value: value.as('value'),
+      count: count().as('count'),
+      rn: sql<number>`row_number() over (partition by ${list} order by count(*) desc, ${value})`.as('rn'),
+    })
+    .from(views)
+    .groupBy(sql`grouping sets ((${views.path}), (${views.entryPath}), (${views.referrer}))`)
+    .having(sql`${value} is not null`)
+    .as('ranked');
+  const rows = await db
+    .select({ list: ranked.list, value: ranked.value, count: ranked.count })
+    .from(ranked)
+    .where(lte(ranked.rn, limit))
+    .orderBy(ranked.list, ranked.rn);
+  return splitRankings(rows as RankedRow[]);
 }
 
 export async function getRoleChangeAudit(
@@ -361,13 +358,43 @@ const activityAccount = and(
 );
 const audienceActions = ['page_view', 'auth_login'] as const;
 
-export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNew> {
-  const [row] = await db.select({
-    newUsers: sql<number>`count(distinct ${user.id}) filter (where ${gte(user.createdAt, range.from)})`.mapWith(Number),
-    returning: sql<number>`count(distinct ${user.id}) filter (where ${lt(user.createdAt, range.from)})`.mapWith(Number),
-  }).from(usageLogs).innerJoin(account, activityAccount).innerJoin(user, eq(user.id, account.userId))
-    .where(and(inRange(range), inArray(usageLogs.action, [...audienceActions])));
-  return { newUsers: Number(row?.newUsers ?? 0), returning: Number(row?.returning ?? 0) };
+/**
+ * Active users new to the range or returning to it, for the range and,
+ * when given, the contiguous period before it. Characters are deduplicated
+ * before they are resolved to users.
+ */
+export async function getReturningVsNew(
+  range: DateRange,
+  previous: DateRange | null,
+): Promise<PeriodPair<ReturningVsNew>> {
+  const active = db
+    .select({
+      characterId: usageLogs.characterId,
+      inCurrent: sql<boolean>`bool_or(${gte(usageLogs.timestamp, range.from)})`.as('in_current'),
+      inPrevious: sql<boolean>`bool_or(${lt(usageLogs.timestamp, range.from)})`.as('in_previous'),
+    })
+    .from(usageLogs)
+    .where(and(
+      inRange(readWindow(range, previous)),
+      inArray(usageLogs.action, [...audienceActions]),
+      isNotNull(usageLogs.characterId),
+    ))
+    .groupBy(usageLogs.characterId)
+    .as('active');
+  const users = (period: SQL, joined: SQL) =>
+    sql<number>`count(distinct ${user.id}) filter (where ${period} and ${joined})`.mapWith(Number);
+  const previousFrom = previous?.from ?? range.from;
+  const [row] = await db
+    .select({
+      newUsers: users(sql`${active.inCurrent}`, gte(user.createdAt, range.from)),
+      returning: users(sql`${active.inCurrent}`, lt(user.createdAt, range.from)),
+      previousNew: users(sql`${active.inPrevious}`, gte(user.createdAt, previousFrom)),
+      previousReturning: users(sql`${active.inPrevious}`, lt(user.createdAt, previousFrom)),
+    })
+    .from(active)
+    .innerJoin(account, and(eq(account.providerId, 'eve'), eq(account.accountId, sql<string>`${active.characterId}::text`)))
+    .innerJoin(user, eq(user.id, account.userId));
+  return splitAudience(row, previous !== null);
 }
 
 export async function getLoginCountsPerUser(range: DateRange): Promise<number[]> {
@@ -376,29 +403,6 @@ export async function getLoginCountsPerUser(range: DateRange): Promise<number[]>
     .where(and(inRange(range), eq(usageLogs.action, 'auth_login')))
     .groupBy(account.userId);
   return rows.map((r) => Number(r.c));
-}
-
-export async function getTrafficTotals(range: DateRange) {
-  const [row] = await db.select({
-    pageViews: count(),
-    entries: sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'is_entry' = 'true')`.mapWith(Number),
-    referrals: sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null and lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST})`.mapWith(Number),
-  }).from(usageLogs).where(and(inRange(range), eq(usageLogs.action, 'page_view')));
-  return { pageViews: Number(row?.pageViews ?? 0), entries: Number(row?.entries ?? 0), referrals: Number(row?.referrals ?? 0) };
-}
-
-export async function getSearchVsDirect(range: DateRange): Promise<SearchVsDirect> {
-  const referred = sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null and lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST})`.mapWith(
-    Number,
-  );
-  const direct = sql<number>`count(*) filter (where (${usageLogs.metadata} ->> 'referrer' is null or lower(${usageLogs.metadata} ->> 'referrer') = ${EVE_SSO_HOST}))`.mapWith(
-    Number,
-  );
-  const [row] = await db
-    .select({ referred, direct })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, 'page_view')));
-  return { referred: Number(row?.referred ?? 0), direct: Number(row?.direct ?? 0) };
 }
 
 export function lastNDaysRange(days: number, now: Date = new Date()): DateRange {

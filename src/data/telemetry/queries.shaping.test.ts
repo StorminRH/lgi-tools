@@ -26,7 +26,7 @@ vi.mock('@/db', () => ({
   },
 }));
 
-import { getFallbackRate, getReturningVsNew, getSearchVsDirect } from './queries';
+import { getFallbackRate } from './queries';
 
 const RANGE = {
   from: new Date('2026-07-01T00:00:00Z'),
@@ -59,35 +59,5 @@ describe('telemetry query result shaping', () => {
       fallback: 0,
       perDay: [],
     });
-  });
-
-  it('normalizes returning and new user counts', async () => {
-    cannedQueries = [[{ newUsers: '7', returning: '4' }]];
-
-    await expect(getReturningVsNew(RANGE)).resolves.toEqual({
-      newUsers: 7,
-      returning: 4,
-    });
-  });
-
-  it('returns zero user counts for empty results', async () => {
-    cannedQueries = [[], []];
-
-    await expect(getReturningVsNew(RANGE)).resolves.toEqual({
-      newUsers: 0,
-      returning: 0,
-    });
-  });
-
-  it('normalizes referred and direct page-view counts', async () => {
-    cannedQueries = [[{ referred: '9', direct: '11' }]];
-
-    await expect(getSearchVsDirect(RANGE)).resolves.toEqual({ referred: 9, direct: 11 });
-  });
-
-  it('returns zero page-view counts for an empty result', async () => {
-    cannedQueries = [[]];
-
-    await expect(getSearchVsDirect(RANGE)).resolves.toEqual({ referred: 0, direct: 0 });
   });
 });

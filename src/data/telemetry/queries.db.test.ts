@@ -6,28 +6,25 @@ import {
   completePublicEsiBudgetAlertClaim,
   countPublicEsiBudgetExhaustionsInWindow,
   getBudgetExhaustionCount,
-  getDailyCounts,
   getDegradationByCaller,
   getFallbackRate,
   getGscCronOutcomes,
   getLastCronRuns,
   getLoginCountsPerUser,
+  getPageViewRankings,
+  getPageViewStats,
   getPriceCronOutcomes,
   getRefreshVolume,
   getReturningVsNew,
   getRoleChangeAudit,
   getSdeCronOutcomes,
-  getSearchVsDirect,
-  getTopEntryPages,
-  getTopPages,
-  getTopReferrers,
-  getTrafficTotals,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
   getWriteBehindOutcomes,
   hasPublicEsiBudgetAlertForWindow,
 } from './queries';
+import { pageViewSources, pageViewTotals } from './page-view-stats';
 import { usageLogs } from './schema';
 
 const harness = await createDbTestHarness({
@@ -62,10 +59,15 @@ function expectPositiveNumber(result: unknown): void {
 }
 
 const cases: QueryCase[] = [
-  { name: 'getDailyCounts', run: () => getDailyCounts(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopPages', run: () => getTopPages(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopReferrers', run: () => getTopReferrers(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopEntryPages', run: () => getTopEntryPages(RANGE), check: expectNonEmptyArray },
+  { name: 'getPageViewStats', run: async () => (await getPageViewStats(RANGE, null)).current, check: expectNonEmptyArray },
+  {
+    name: 'getPageViewRankings',
+    run: () => getPageViewRankings(RANGE),
+    check: (r) => {
+      const d = r as { topPages: unknown[]; topReferrers: unknown[]; topEntryPages: unknown[] };
+      for (const list of [d.topPages, d.topReferrers, d.topEntryPages]) expectNonEmptyArray(list);
+    },
+  },
   { name: 'getRoleChangeAudit', run: () => getRoleChangeAudit(RANGE), check: expectNonEmptyArray },
   {
     name: 'getFallbackRate',
@@ -94,7 +96,7 @@ const cases: QueryCase[] = [
   { name: 'getRefreshVolume', run: () => getRefreshVolume(RANGE), check: expectNonEmptyArray },
   {
     name: 'getReturningVsNew',
-    run: () => getReturningVsNew(RANGE),
+    run: async () => (await getReturningVsNew(RANGE, null)).current,
     check: (r) => {
       const d = r as { newUsers: number; returning: number };
       expect(d.newUsers).toBeGreaterThan(0);
@@ -103,8 +105,8 @@ const cases: QueryCase[] = [
   },
   { name: 'getLoginCountsPerUser', run: () => getLoginCountsPerUser(RANGE), check: expectNonEmptyArray },
   {
-    name: 'getSearchVsDirect',
-    run: () => getSearchVsDirect(RANGE),
+    name: 'pageViewSources',
+    run: async () => pageViewSources((await getPageViewStats(RANGE, null)).current),
     check: (r) => {
       const d = r as { referred: number; direct: number };
       expect(d.referred).toBeGreaterThan(0);
@@ -309,7 +311,7 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
       { timestamp: AT, action: 'page_view', characterId: CHAR_NEW, metadata: { path: '/planner' } },
     ]);
 
-    const before = await getDailyCounts(NEUTRALITY_RANGE);
+    const before = await getPageViewStats(NEUTRALITY_RANGE, null);
 
     await harness.db.insert(usageLogs).values(
       Array.from({ length: 25 }, () => ({
@@ -330,15 +332,10 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
       })),
     );
 
-    const after = await getDailyCounts(NEUTRALITY_RANGE);
+    const after = await getPageViewStats(NEUTRALITY_RANGE, null);
 
     expect(after).toEqual(before);
-    expect(before).toHaveLength(1);
-    expect(before[0]).toMatchObject({
-      totalEvents: 3,
-      uniqueCharacters: 2,
-      anonymousEvents: 1,
-    });
+    expect(before.current).toEqual([{ day: '2021-05-03', views: 3, entries: 0, referrals: 0 }]);
   });
 });
 
@@ -355,8 +352,8 @@ describe.skipIf(!harness.reachable)('human audience and activity boundaries', ()
       { timestamp: range.from, action: 'cron_prices', metadata: { outcome: 'refreshed' } },
       { timestamp: range.to, action: 'page_view', characterId: CHAR_NEW },
     ]);
-    expect(await getReturningVsNew(range)).toEqual({ newUsers: 0, returning: 1 });
-    expect((await getDailyCounts(range)).map((row) => row.totalEvents)).toEqual([2]);
+    expect(await getReturningVsNew(range, null)).toEqual({ current: { newUsers: 0, returning: 1 }, previous: null });
+    expect((await getPageViewStats(range, null)).current.map((row) => row.views)).toEqual([2]);
   });
 });
 
@@ -369,8 +366,9 @@ describe.skipIf(!harness.reachable)('SSO bounce attribution', () => {
       { timestamp: range.from, action: 'page_view', metadata: { referrer: 'google.com' } },
       { timestamp: range.from, action: 'page_view', metadata: {} },
     ]);
-    expect(await getTopReferrers(range)).toEqual([{ host: 'google.com', count: 1 }]);
-    expect(await getSearchVsDirect(range)).toEqual({ referred: 1, direct: 2 });
-    expect(await getTrafficTotals(range)).toEqual({ pageViews: 3, referrals: 1, entries: 0 });
+    expect((await getPageViewRankings(range)).topReferrers).toEqual([{ host: 'google.com', count: 1 }]);
+    const { current } = await getPageViewStats(range, null);
+    expect(pageViewSources(current)).toEqual({ referred: 1, direct: 2 });
+    expect(pageViewTotals(current)).toEqual({ views: 3, referrals: 1, entries: 0 });
   });
 });

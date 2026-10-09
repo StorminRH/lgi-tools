@@ -2,7 +2,7 @@ import { cache } from 'react';
 import { getWhStaticsOperatorReview, getWhStaticsOperatorSummary } from '@/composition/wh-statics-refresh';
 import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
 import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
-import { getBudgetExhaustionCount, getFallbackRate } from '@/data/telemetry/queries';
+import { getBudgetExhaustionCount, getFallbackRate, getPageViewStats } from '@/data/telemetry/queries';
 import { getCapabilityLatency, getCapabilityOutcomeStats } from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
 
@@ -35,3 +35,24 @@ export const getStaticsSummaryShared = cache(getWhStaticsOperatorSummary);
 // Telemetry
 export const getCapabilityOutcomeStatsShared = sharedRangeRead(getCapabilityOutcomeStats);
 export const getCapabilityLatencyShared = sharedRangeRead(getCapabilityLatency);
+
+/** As `sharedRangeRead`, for reads over a range and the period before it. */
+function sharedPeriodRead<T>(
+  load: (range: DateRange, previous: DateRange | null) => Promise<T>,
+): (range: DateRange, previous: DateRange | null) => Promise<T> {
+  const read = cache((from: string, to: string, previousFrom: string | null, previousTo: string | null) =>
+    load(
+      { from: new Date(from), to: new Date(to) },
+      previousFrom === null || previousTo === null ? null : { from: new Date(previousFrom), to: new Date(previousTo) },
+    ),
+  );
+  return (range, previous) =>
+    read(
+      range.from.toISOString(),
+      range.to.toISOString(),
+      previous?.from.toISOString() ?? null,
+      previous?.to.toISOString() ?? null,
+    );
+}
+
+export const getPageViewStatsShared = sharedPeriodRead(getPageViewStats);

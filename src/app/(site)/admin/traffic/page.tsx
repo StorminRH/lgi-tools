@@ -12,10 +12,10 @@ async function TrafficContent({ searchParams }: { searchParams: RangeSearchParam
         <ActivityCard rangeKey={rangeKey} range={range} />
       </AdminSlot>
       <AdminSlot label="Top pages" rows={8} reveal={2}>
-        <TrafficLists range={range} />
+        <TrafficLists rangeKey={rangeKey} range={range} />
       </AdminSlot>
       <AdminSlot label="Visitors & pilots" rows={4} reveal={3}>
-        <PilotsCard range={range} />
+        <PilotsCard rangeKey={rangeKey} range={range} />
       </AdminSlot>
     </>
   );

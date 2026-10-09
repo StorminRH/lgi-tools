@@ -5,9 +5,8 @@ import type { DateRange } from '@/data/telemetry/types';
 const q = vi.hoisted(() => ({
   getLatestReportDate: vi.fn(),
   getSearchTotals: vi.fn(),
-  getSearchVsDirect: vi.fn(),
+  getPageViewStats: vi.fn(),
   getReturningVsNew: vi.fn(),
-  getDailyCounts: vi.fn(),
 }));
 
 vi.mock('@/data/gsc/queries', () => ({
@@ -15,9 +14,10 @@ vi.mock('@/data/gsc/queries', () => ({
   getSearchTotals: q.getSearchTotals,
 }));
 vi.mock('@/data/telemetry/queries', () => ({
-  getSearchVsDirect: q.getSearchVsDirect,
   getReturningVsNew: q.getReturningVsNew,
-  getDailyCounts: q.getDailyCounts,
+}));
+vi.mock('./shared-reads', () => ({
+  getPageViewStatsShared: q.getPageViewStats,
 }));
 vi.mock('./deploy-markers', () => ({ loadDeployMarkers: async () => [] }));
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
@@ -34,16 +34,23 @@ const WEEK: DateRange = { from: day('2026-09-20'), to: day('2026-09-27') };
 
 function stubTelemetry() {
   for (const fn of Object.values(q)) fn.mockReset();
-  q.getSearchVsDirect.mockImplementation(async (range: DateRange) =>
-    range.from.getTime() === WEEK.from.getTime() ? { referred: 60, direct: 40 } : { referred: 30, direct: 20 },
-  );
-  q.getReturningVsNew.mockResolvedValue({ newUsers: 3, returning: 4 });
-  q.getDailyCounts.mockResolvedValue([]);
+  q.getPageViewStats.mockImplementation(async (_range: DateRange, previous: DateRange | null) => ({
+    current: [],
+    previous: previous === null ? null : [],
+  }));
+  q.getReturningVsNew.mockImplementation(async (_range: DateRange, previous: DateRange | null) => ({
+    current: { newUsers: 3, returning: 4 },
+    previous: previous === null ? null : { newUsers: 1, returning: 1 },
+  }));
 }
 
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
 const ranges = (fn: typeof q.getSearchTotals) =>
   fn.mock.calls.map(([range]) => [isoDay((range as DateRange).from), isoDay((range as DateRange).to)]);
+const periods = (fn: typeof q.getPageViewStats) =>
+  fn.mock.calls.map(([range, previous]) =>
+    [range, previous].map((period) => period && [isoDay((period as DateRange).from), isoDay((period as DateRange).to)]),
+  );
 
 async function render(rangeKey: '7d' | 'all', range: DateRange): Promise<string> {
   return renderToStaticMarkup(await AudienceCard({ rangeKey, range }));
@@ -66,11 +73,12 @@ test('compares a week of traffic and search against the week before, on Googleâ€
     ['2026-09-19', '2026-09-25'],
     ['2026-09-12', '2026-09-18'],
   ]);
-  expect(ranges(q.getSearchVsDirect)).toEqual([
+  const weekAndBefore = [
     ['2026-09-20', '2026-09-27'],
     ['2026-09-13', '2026-09-20'],
-  ]);
-  expect(q.getDailyCounts).toHaveBeenCalledTimes(2);
+  ];
+  expect(periods(q.getPageViewStats)).toEqual([weekAndBefore]);
+  expect(periods(q.getReturningVsNew)).toEqual([weekAndBefore]);
   expect(html).toContain('data-admin-audience');
   expect(html).toContain('1,400');
   expect(html).toContain('200 / day');
@@ -83,9 +91,8 @@ test('skips search and prior-period queries it cannot answer', async () => {
   const allTime = await render('all', WEEK);
   expect(q.getLatestReportDate).not.toHaveBeenCalled();
   expect(q.getSearchTotals).not.toHaveBeenCalled();
-  expect(q.getSearchVsDirect).toHaveBeenCalledTimes(1);
-  expect(q.getReturningVsNew).toHaveBeenCalledTimes(1);
-  expect(q.getDailyCounts).toHaveBeenCalledTimes(1);
+  expect(periods(q.getPageViewStats)).toEqual([[['2026-09-20', '2026-09-27'], null]]);
+  expect(periods(q.getReturningVsNew)).toEqual([[['2026-09-20', '2026-09-27'], null]]);
   expect(allTime).toContain('â€”');
   expect(allTime).toContain('No page views in this range.');
 
@@ -97,7 +104,7 @@ test('skips search and prior-period queries it cannot answer', async () => {
   await render('7d', WEEK);
   expect(q.getLatestReportDate).toHaveBeenCalledTimes(1);
   expect(q.getSearchTotals).not.toHaveBeenCalled();
-  expect(q.getSearchVsDirect).toHaveBeenCalledTimes(2);
+  expect(q.getPageViewStats).toHaveBeenCalledTimes(1);
 });
 
 test('shows the section as unavailable when a query fails', async () => {

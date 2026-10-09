@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lastNDaysRange, topByMetadataKeyToSQL } from './queries';
+import { lastNDaysRange } from './queries';
 
 process.env.LOCAL_DB_DRIVER = 'postgres-js';
 process.env.DATABASE_URL ||= 'postgres://lgi:lgi@localhost:5433/lgi_tools';
@@ -12,20 +12,5 @@ describe('lastNDaysRange', () => {
     expect(range.from.toISOString()).toBe('2026-05-18T12:00:00.000Z');
     expect(lastNDaysRange(1, now).from.toISOString()).toBe('2026-05-24T12:00:00.000Z');
     expect(lastNDaysRange(30, now).from.toISOString()).toBe('2026-04-25T12:00:00.000Z');
-  });
-});
-
-describe('topByMetadataKey GROUP BY shape', () => {
-  const range = {
-    from: new Date('2026-05-01T00:00:00Z'),
-    to: new Date('2026-05-08T00:00:00Z'),
-  };
-
-  it('groups by the SELECT ordinal, with the metadata key bound only in SELECT + WHERE', () => {
-    const { sql, params } = topByMetadataKeyToSQL('referrer', 'page_view', range, 10);
-
-    expect(sql.toLowerCase()).toMatch(/group by 1\b/);
-    expect(sql.toLowerCase()).not.toMatch(/group by[^,]*->>/);
-    expect(params.filter((p) => p === 'referrer')).toHaveLength(2);
   });
 });
