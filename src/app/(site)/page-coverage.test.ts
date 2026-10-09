@@ -74,8 +74,7 @@ import { loadAdminSignals } from '@/app/(site)/admin/load-signals';
 import AppSiteAdminPage from '@/app/(site)/admin/page';
 import { RetryJobForm } from '@/app/(site)/admin/queue/RetryJobForm';
 import AppSiteAdminQueuePage from '@/app/(site)/admin/queue/page';
-import { IndexCoverageCard } from '@/app/(site)/admin/search/IndexCoverageCard';
-import { PerformanceCard, SearchNotConnected, SitemapsCard, TermCards } from '@/app/(site)/admin/search/SearchCards';
+import { SearchNotConnected } from '@/app/(site)/admin/search/SearchCards';
 import AppSiteAdminSearchPage from '@/app/(site)/admin/search/page';
 import AppSiteAdminStaticsPage from '@/app/(site)/admin/statics/page';
 import {
@@ -157,11 +156,7 @@ describe('coverage-gaps', () => {
       RetryJobForm,
       AppSiteAdminQueuePage,
       getEsiRefreshQueueStatsShared,
-      IndexCoverageCard,
-      PerformanceCard,
       SearchNotConnected,
-      SitemapsCard,
-      TermCards,
       AppSiteAdminSearchPage,
       AppSiteAdminStaticsPage,
       getStaticsReviewShared,

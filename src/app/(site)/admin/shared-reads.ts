@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { getWhStaticsOperatorReview, getWhStaticsOperatorSummary } from '@/composition/wh-statics-refresh';
 import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
-import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
+import { getLastSyncedAt, getLatestReportDate, getSearchTrend } from '@/data/gsc/queries';
 import {
   getCronOutcomes,
   getLastCronRuns,
@@ -70,3 +70,5 @@ export const getPageViewStatsShared = sharedPeriodRead(getPageViewStats);
 
 /** The top pages, entry pages and referrers, read once for the three cards that rank them. */
 export const getPageViewRankingsShared = sharedRangeRead((range) => getPageViewRankings(range, 10));
+/** The newest finalised Google reporting day, which every dated search card counts back from. */
+export const getLatestReportDateShared = cache(getLatestReportDate);

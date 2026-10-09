@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveGscPerformanceView, searchSpan, splitSearchPeriods } from './search-view';
+import { deriveGscPerformanceView, gscTermBars, searchSpan, sitemapNote, splitSearchPeriods } from './search-view';
 import { searchPeriods } from './search-period';
 
 const point = (day: string, clicks: number, impressions: number, position: number) => ({
@@ -71,5 +71,36 @@ describe('deriveGscPerformanceView', () => {
 
   it('reports no trend for an empty range', () => {
     expect(deriveGscPerformanceView([]).hasTrend).toBe(false);
+  });
+});
+
+describe('gscTermBars', () => {
+  it('ranks by clicks and keeps impressions, CTR and position for the line under the bar', () => {
+    expect(gscTermBars([{ key: 'wormhole statics', clicks: 12, impressions: 3456, ctr: 0.0347, position: 4.26 }])).toEqual([
+      {
+        key: 'wormhole statics',
+        label: 'wormhole statics',
+        count: 12,
+        sub: '3,456 impr · 3.5% CTR · pos 4.3',
+      },
+    ]);
+  });
+});
+
+describe('sitemapNote', () => {
+  it('pluralises its counts and adds the download day and pending state when known', () => {
+    expect(
+      sitemapNote({
+        path: '/sitemap.xml',
+        submitted: 120,
+        errors: 1,
+        warnings: 2,
+        lastDownloaded: new Date('2026-10-08T05:00:00Z'),
+        isPending: true,
+      }),
+    ).toBe('1 error · 2 warnings · downloaded 2026-10-08 · pending');
+    expect(
+      sitemapNote({ path: '/sitemap.xml', submitted: 0, errors: 0, warnings: 1, lastDownloaded: null, isPending: false }),
+    ).toBe('0 errors · 1 warning');
   });
 });
