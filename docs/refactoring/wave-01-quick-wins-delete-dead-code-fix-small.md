@@ -28,7 +28,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P278](#p278) | Name the settle spring once in motion-contract (SETTLE_SPRING) instead of three springFamily(0) calls | efficiency | S | low | low | — |
 | ☑ | [P113](#p113) | Reuse tween-model's pruneBy for motion-host-model's pruneToLive | generic-utility | S | low | low | — |
 | ☑ | [P114](#p114) | Share one djb2 string hash between wormhole seeding and fog brush rotation | generic-utility | S | low | low | — |
-| ☐ | [P290](#p290) | Count active sessions with count() and read the two pending-deletion queues concurrently | efficiency | S | low | low | — |
+| ☑ | [P290](#p290) | Count active sessions with count() and read the two pending-deletion queues concurrently | efficiency | S | low | low | — |
 | ☐ | [P135](#p135) | Route isGscConfigured through readEnv instead of a process.env parameter | generic-utility | S | low | low | — |
 | ☐ | [P136](#p136) | Derive problem-type URIs, the outbound UA contact and same-origin's fallback from PRODUCTION_SITE_URL | generic-utility | S | low | low | — |
 | ☐ | [P268](#p268) | Resolve the Better Auth secret once with empty-string fallback (readAuthSecret in lib/env) | contracts-validation | S | low | medium | — |
@@ -822,7 +822,7 @@ function stampAngle(hash: number, index: number): number; // (((hash + index * 9
 
 ## P290: Count active sessions with count() and read the two pending-deletion queues concurrently
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -4 / +5
 - **Depends on:** —
