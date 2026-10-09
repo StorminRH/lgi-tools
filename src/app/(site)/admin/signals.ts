@@ -31,6 +31,7 @@ import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
 import { SECTION_LOAD_FAILED } from './load-section';
+import { formatCount } from '@/lib/format/number';
 
 export interface CronSignals {
   lastRuns: CronLastRun[];
@@ -325,7 +326,7 @@ function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
   return {
     id: 'held-for-budget',
     label: 'Held for budget',
-    value: `${held.toLocaleString()} job${held === 1 ? '' : 's'}`,
+    value: formatCount(held, 'job'),
     note: '',
     level: held > 0 ? 'amber' : 'green',
     quiet: true,
@@ -435,7 +436,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
     items.push({
       id: 'dead-letters',
       level: 'red',
-      title: `${queue.deadLettered.toLocaleString()} refresh job${queue.deadLettered === 1 ? '' : 's'} dead-lettered`,
+      title: `${formatCount(queue.deadLettered, 'refresh job')} dead-lettered`,
       detail: 'Refresh stopped',
       action: { label: 'Open queue', href: '/admin/queue' },
     });

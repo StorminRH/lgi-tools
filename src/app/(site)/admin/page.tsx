@@ -1,9 +1,12 @@
 import { parseRange, rangeFor } from '@/composition/admin-period';
-import { AccountsCard } from './AccountsCard';
+import { getAccountTotals } from '@/platform/auth/admin-users';
+import { AccountTotals } from './AccountsCard';
 import { ActionsCard } from './ActionsCard';
 import { AdminPageFrame, AdminSlot } from './AdminFrame';
 import { AudienceCard } from './AudienceCard';
 import { AttentionCard, StatusCards } from './AdminOverviewCards';
+import { AdminSection } from './AdminSection';
+import { CardLink } from './CardLink';
 import type { RangeSearchParams } from './RangeControl';
 
 async function OverviewContent({ searchParams }: { searchParams: RangeSearchParams }) {
@@ -14,9 +17,16 @@ async function OverviewContent({ searchParams }: { searchParams: RangeSearchPara
       <AdminSlot label="Needs attention" reveal={1}>
         <AttentionCard rangeKey={rangeKey} />
       </AdminSlot>
-      <AdminSlot label="Registered users" rows={2} reveal={2}>
-        <AccountsCard />
-      </AdminSlot>
+      <AdminSection
+        title="Registered users"
+        name="accounts"
+        rows={2}
+        reveal={2}
+        hint={<CardLink href="/admin/users">Users &amp; roles</CardLink>}
+        load={getAccountTotals}
+      >
+        {(totals) => <AccountTotals totals={totals} />}
+      </AdminSection>
       <AdminSlot label="Actions" rows={2} reveal={3}>
         <ActionsCard />
       </AdminSlot>

@@ -51,7 +51,8 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { AccountsCard } from '@/app/(site)/admin/AccountsCard';
+import { AccountTotals } from '@/app/(site)/admin/AccountsCard';
+import { AdminCard, AdminSection } from '@/app/(site)/admin/AdminSection';
 import { ActionsCard } from '@/app/(site)/admin/ActionsCard';
 import { ActivityChart } from '@/app/(site)/admin/ActivityChart';
 import { AdminPageFrame, AdminSlot } from '@/app/(site)/admin/AdminFrame';
@@ -133,7 +134,9 @@ import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(s
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
-      AccountsCard,
+      AccountTotals,
+      AdminCard,
+      AdminSection,
       ActionsCard,
       ActivityChart,
       AdminPageFrame,
