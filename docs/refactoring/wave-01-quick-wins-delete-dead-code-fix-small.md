@@ -15,7 +15,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P296](#p296) | Retire the per-deploy auth backfill: it re-creates users and accounts for deleted characters | efficiency | S | low | high | — |
+| ☑ | [P296](#p296) | Retire the per-deploy auth backfill: it re-creates users and accounts for deleted characters | efficiency | S | low | high | — |
 | ☐ | [P303](#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
 | ☐ | [P304](#p304) | Delete the test-only price-confidence aggregation code | simplification | S | low | medium | — |
 | ☐ | [P324](#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
@@ -52,7 +52,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 
 ## P296: Retire the per-deploy auth backfill: it re-creates users and accounts for deleted characters
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** high · **Size:** -80 lines (script) and one package.json line
 - **Depends on:** —
