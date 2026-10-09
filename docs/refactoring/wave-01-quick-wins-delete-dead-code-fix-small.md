@@ -23,7 +23,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P042](#p042) | Move wormhole-site domain constants out of the Drizzle schema so client bundles stop pulling in pg-core | efficiency | S | low | medium | — |
 | ☑ | [P277](#p277) | Delete the dead motion-variable write on the map shell; ChainSurface's scope is the only writer | efficiency | S | low | low | — |
 | ☑ | [P312](#p312) | Delete test-only signature-model exports and move signatureIdentityKey next to SignatureWindowRow | simplification | S | low | low | — |
-| ☐ | [P313](#p313) | Use atlasMapHref in handoffCreatedMap | simplification | S | low | low | — |
+| ☑ | [P313](#p313) | Use atlasMapHref in handoffCreatedMap | simplification | S | low | low | — |
 | ☐ | [P234](#p234) | Fold getAdjustedPrices and getAveragePrices into one column-parameterized reader | persistence | S | low | low | — |
 | ☐ | [P278](#p278) | Name the settle spring once in motion-contract (SETTLE_SPRING) instead of three springFamily(0) calls | efficiency | S | low | low | — |
 | ☐ | [P113](#p113) | Reuse tween-model's pruneBy for motion-host-model's pruneToLive | generic-utility | S | low | low | — |
@@ -544,7 +544,7 @@ export function signatureIdentityKey(row: Pick<SignatureWindowRow, 'systemId' | 
 
 ## P313: Use atlasMapHref in handoffCreatedMap
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -2/+2
 - **Depends on:** —
