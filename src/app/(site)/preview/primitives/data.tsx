@@ -23,7 +23,7 @@ import {
   sampleTrend,
   sampleWeekend,
 } from './sample-series';
-import { ReferenceGroup, Specimen } from './specimen';
+import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 type Material = { material: string; quantity: number };
 
@@ -86,7 +86,14 @@ function ChartSlot({ children }: { children: (width: number) => ReactNode }) {
 }
 
 const formatIsk = (value: number) => `${value.toLocaleString('en-US')}M`;
+const formatClicks = (value: number) => `${value.toLocaleString('en-US')} clk`;
 const shortDay = (label: string) => label.slice(5);
+
+const TOP_QUERIES = [
+  { key: 'wormhole statics', label: 'wormhole statics', count: 64, sub: '2,310 impr · 2.8% CTR · pos 3.4' },
+  { key: 'c5 wormhole sites', label: 'c5 wormhole sites', count: 22, sub: '1,104 impr · 2.0% CTR · pos 6.1' },
+  { key: 'eve industry planner', label: 'eve industry planner', count: 9, sub: '880 impr · 1.0% CTR · pos 11.8' },
+];
 
 export function DataGroup() {
   return (
@@ -126,14 +133,21 @@ export function DataGroup() {
       <Specimen
         name="DistributionBars"
         source="distribution-bars"
-        note="Ranked counts with share percentages over thin progress tracks."
+        note="Ranked counts with share percentages over thin progress tracks. A row's sub adds a second line of detail under its bar."
       >
-        <Card className="overflow-hidden">
-          <DistributionBars
-            ariaLabel="Sites by type"
-            rows={sampleBars.map((bar) => ({ key: bar.label, label: bar.label, count: bar.value }))}
-          />
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card className="overflow-hidden">
+            <DistributionBars
+              ariaLabel="Sites by type"
+              rows={sampleBars.map((bar) => ({ key: bar.label, label: bar.label, count: bar.value }))}
+            />
+          </Card>
+          <Variant label="sub · share of all 412 clicks">
+            <Card className="overflow-hidden">
+              <DistributionBars ariaLabel="Top search queries" total={412} formatCount={formatClicks} rows={TOP_QUERIES} />
+            </Card>
+          </Variant>
+        </div>
       </Specimen>
 
       <Specimen
