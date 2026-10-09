@@ -5,6 +5,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 import {
+  PROFILE_DIR_NAME,
   PROFILE_THRESHOLDS,
   buildCatalogueModeEvidence,
   countDetailSentinels,
@@ -26,11 +27,12 @@ import {
   selectPreflightRefusal,
   shapeProfileResult,
   summarisePhaseSamples,
+  timestampSlug,
 } from './profile-parse.mjs';
 
 const ROOT = process.cwd();
 const BASE_URL = 'http://localhost:3000';
-const PROFILE_DIR = path.join(ROOT, '.local/site-profiles');
+const PROFILE_DIR = path.join(ROOT, PROFILE_DIR_NAME);
 const SAMPLE_INTERVAL_MS = 500;
 const SWAP_INTERVAL_MS = 5000;
 const READY_TIMEOUT_MS = 180_000;
@@ -85,10 +87,6 @@ function runSync(command, args) {
   });
 }
 
-function timestampSlug(iso) {
-  return iso.replace(/[-:.]/g, '');
-}
-
 function outputPathFor(label, finishedAt) {
   const safeLabel = isValidProfileLabel(label) ? label : 'refused';
   return path.join(PROFILE_DIR, `${safeLabel}-${timestampSlug(finishedAt)}.json`);
@@ -107,7 +105,8 @@ function commandFailure(result, fallback) {
 
 function tcpReachable(host, port, timeoutMs = 2000) {
   return new Promise((resolve) => {
-    const socket = net.createConnection({ host, port });
+    // URL.hostname brackets IPv6 literals ('[::1]'); net wants the bare address.
+    const socket = net.createConnection({ host: host.replace(/^\[(.*)\]$/, '$1'), port });
     const finish = (reachable) => {
       socket.removeAllListeners();
       socket.destroy();

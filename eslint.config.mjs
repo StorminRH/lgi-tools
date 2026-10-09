@@ -86,6 +86,16 @@ const legacyTypeRoleSelectors = [
     message:
       "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
   },
+  {
+    selector: "Literal[value=/(?:^|[\\s:])tracking-\\[0?\\.(?:01|04|08|12|18)em\\]/]",
+    message:
+      "No arbitrary tracking that equals a registered step — use tracking-optical (0.01em), tracking-copy (0.04em), tracking-label (0.08em), tracking-wide (0.12em) or tracking-eyebrow (0.18em).",
+  },
+  {
+    selector: "TemplateElement[value.raw=/(?:^|[\\s:])tracking-\\[0?\\.(?:01|04|08|12|18)em\\]/]",
+    message:
+      "No arbitrary tracking that equals a registered step (template literal) — use tracking-optical/copy/label/wide/eyebrow.",
+  },
 ];
 
 const roundedSizeSelectors = [

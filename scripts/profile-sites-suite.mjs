@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { summariseProfileSuite } from './profile-parse.mjs';
+import { PROFILE_DIR_NAME, summariseProfileSuite, timestampSlug } from './profile-parse.mjs';
 
 const ROOT = process.cwd();
-const PROFILE_DIR = path.join(ROOT, '.local/site-profiles');
+const PROFILE_DIR = path.join(ROOT, PROFILE_DIR_NAME);
 const PROFILER = path.join(ROOT, 'scripts/profile-sites-dev.mjs');
 const RUN_ORDER = Object.freeze([
   { label: 'after-1', sampleEnv: false },
@@ -19,10 +19,6 @@ let activeChild = null;
 let interruptedBy = null;
 
 const diagnostic = (message) => process.stderr.write(`${message}\n`);
-
-function timestampSlug(iso) {
-  return iso.replace(/[-:.]/g, '');
-}
 
 function runProfiler({ label, sampleEnv }) {
   return new Promise((resolve, reject) => {

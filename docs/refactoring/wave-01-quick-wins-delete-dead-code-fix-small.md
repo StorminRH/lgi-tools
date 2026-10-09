@@ -40,7 +40,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P155](#p155) | Render LoadFailed with useLiveDataset's retry in LiveBoard and delete BOARD_LOAD_FAILED | error-handling | S | low | medium | — |
 | ☑ | [P097](#p097) | Render slot pools with one poolFigure encoding in the industry workspace | formatting | S | low | low | — |
 | ☑ | [P171](#p171) | Count board used slots with countUsedSlots instead of a local filter | server-pipeline | S | low | low | — |
-| ☐ | [P330](#p330) | Retire the stale tracking codemod, tokenize its three leftovers, and fix the IPv6 loopback checks in scripts/ | simplification | S | low | low | — |
+| ☑ | [P330](#p330) | Retire the stale tracking codemod, tokenize its three leftovers, and fix the IPv6 loopback checks in scripts/ | simplification | S | low | low | — |
 | ☐ | [P197](#p197) | Collapse the three purge drain loops in httpMapAccess into one private helper | convex | S | low | low | — |
 | ☐ | [P323](#p323) | Delete the always-true locationChanged guard and fold the repeated no-location, jump-evidence and scan-routing literals | simplification | S | low | low | — |
 | ☐ | [P154](#p154) | Remove dead try/catch and .catch wrappers around apiFetch and convert the impossible-rejection test mocks to network outcomes | error-handling | S | low | low | — |
@@ -1556,7 +1556,7 @@ function mapIndustry(data: CharacterJobsData, levels: Record<string, number> | n
 
 ## P330: Retire the stale tracking codemod, tokenize its three leftovers, and fix the IPv6 loopback checks in scripts/
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -45 for the deleted .py, -8 for the duplicate helpers and FlatMap, +6 for loopback.mjs, three one-token class edits, and about +10 test lines
 - **Depends on:** —
