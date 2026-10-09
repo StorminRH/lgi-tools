@@ -95,14 +95,15 @@ def verify_page_metadata(path: str, parser: MetadataParser, expected_title: str 
 def schemas_of_type(parser: MetadataParser, schema_type: str) -> list[dict[str, object]]:
     return [value for value in parser.json_ld if value.get("@type") == schema_type]
 
-def verify_breadcrumb(path: str, parser: MetadataParser) -> None:
+def verify_breadcrumb(path: str, parser: MetadataParser, depth: int) -> None:
     breadcrumbs = schemas_of_type(parser, "BreadcrumbList")
     if len(breadcrumbs) != 1:
         raise ValueError(f"{path}: expected one BreadcrumbList, got {len(breadcrumbs)}")
     items = breadcrumbs[0].get("itemListElement")
-    if not isinstance(items, list) or [item.get("position") for item in items] != [1, 2, 3]:
-        raise ValueError(f"{path}: breadcrumb positions are not [1, 2, 3]")
-    print(f"schema {path}: BreadcrumbList with three ordered items")
+    expected = list(range(1, depth + 1))
+    if not isinstance(items, list) or [item.get("position") for item in items] != expected:
+        raise ValueError(f"{path}: breadcrumb positions are not {expected}")
+    print(f"schema {path}: BreadcrumbList with {depth} ordered items")
 
 def print_head(path: str, body: str) -> None:
     match = re.search(r"<head>(.*?)</head>", body, flags=re.DOTALL)
@@ -125,9 +126,9 @@ def main() -> None:
     verify_page_metadata("/changelog/v3.7", parser, None)
     print_head("/changelog/v3.7", body)
 
-    for path in ("/sites/100", "/industry/691"):
+    for path, depth in (("/codex/sites/3", 4), ("/industry/691", 3)):
         _body, parser = parse_page(base_url, path)
-        verify_breadcrumb(path, parser)
+        verify_breadcrumb(path, parser, depth)
 
 if __name__ == "__main__":
     main()

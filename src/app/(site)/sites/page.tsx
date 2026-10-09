@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Banner } from '@/components/ui/banner';
 import { PageShell } from '@/components/ui/page-shell';
 import { UrlSync } from '@/components/ui/url-sync';
+import { codexSiteHref } from '@/features/codex/subjects';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
   SitesFilterLayout,
@@ -62,7 +63,7 @@ async function SitesCatalogue({
     meta: { id: site.id, type: site.siteType, clsSet: siteClassSet(site) },
     node: (
       <UrlSync key={site.id} basePath="/sites" entityId={site.id}>
-        <SiteCard site={site} />
+        <SiteCard site={site} detailHref={codexSiteHref(site.id)} />
       </UrlSync>
     ),
   }));

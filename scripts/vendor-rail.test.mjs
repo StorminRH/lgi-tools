@@ -26,6 +26,12 @@ const rejectBetterAuthPlugins = ['better-auth/plugins', 'Better Auth is consumed
 const rejectBetterAuthDrizzle = ['better-auth/adapters/drizzle', 'Better Auth is consumed through @/platform/auth'];
 const rejectConvexReact = ['convex/react', 'The Convex browser client is owned by @/data/convex/client'];
 const rejectGoogleAuth = ['google-auth-library', 'Google auth clients are constructed only in @/data/gsc'];
+const rejectTiptapReact = ['@tiptap/react', 'TipTap is confined to the Codex editor island'];
+const rejectTiptapCore = ['@tiptap/core', 'TipTap is confined to the Codex editor island'];
+const rejectDiff = ['diff', 'owned by src/features/codex/diff.ts'];
+const rejectVercelBlob = ['@vercel/blob', '@/lib/codex-blob,'];
+const rejectVercelBlobClient = ['@vercel/blob/client', '@/lib/codex-blob-client'];
+const rejectSharp = ['sharp', '@/lib/codex-image-process'];
 
 const allowUpstashRedis = ['src/lib/upstash.ts', '@upstash/redis'];
 const allowRateLimit = ['src/lib/rate-limit.ts', '@upstash/ratelimit'];
@@ -39,10 +45,18 @@ const allowBetterAuthReact = ['src/platform/auth/auth-client.ts', 'better-auth/r
 const allowBetterAuthNext = ['src/app/api/auth/[...all]/route.ts', 'better-auth/next-js'];
 const allowBetterAuthIndustry = ['src/app/(site)/industry/industry-characters.ts', 'better-auth'];
 const allowBetterAuthIndustryTest = ['src/app/(site)/industry/industry-characters.test.ts', 'better-auth'];
+const allowBetterAuthProxy = ['src/proxy.ts', 'better-auth/cookies'];
 const allowConvexClient = ['src/data/convex/client.ts', 'convex/react'];
 const allowConvexProvider = ['src/platform/auth/components/ConvexClientProvider.tsx', 'convex/react'];
 const allowConvexSync = ['src/data/convex/use-sync-subject.ts', 'convex/react'];
 const allowGoogleGsc = ['src/data/gsc/source.ts', 'google-auth-library'];
+const allowTiptapEditor = ['src/features/codex/editor/CodexEditor.tsx', '@tiptap/react'];
+const allowTiptapExtensions = ['src/features/codex/editor/extensions.ts', '@tiptap/starter-kit'];
+const allowTiptapHeading = ['src/features/codex/editor/extensions.ts', '@tiptap/extension-heading'];
+const allowDiff = ['src/features/codex/diff.ts', 'diff'];
+const allowVercelBlob = ['src/lib/codex-blob.ts', '@vercel/blob'];
+const allowVercelBlobClient = ['src/lib/codex-blob-client.ts', '@vercel/blob/client'];
+const allowSharp = ['src/lib/codex-image-process.ts', 'sharp'];
 
 const crossUpstashRatelimit = ['src/lib/upstash.ts', '@upstash/ratelimit'];
 const crossRateLimitRedis = ['src/lib/rate-limit.ts', '@upstash/redis'];
@@ -52,6 +66,13 @@ const crossAuthConvex = ['src/platform/auth/auth.ts', 'convex/react'];
 const crossSyncBetterAuth = ['src/data/convex/use-sync-subject.ts', 'better-auth'];
 const crossAuthClientConvex = ['src/platform/auth/auth-client.ts', 'convex/react'];
 const crossAuthProviderConvex = ['src/platform/auth/components/AuthProvider.tsx', 'convex/react'];
+const crossCodexReaderTiptap = ['src/features/codex/render.tsx', '@tiptap/react'];
+const crossCodexAdminTiptap = ['src/features/codex/components/CodexAdminArticle.tsx', '@tiptap/react'];
+const crossEditorDb = ['src/features/codex/editor/CodexEditor.tsx', '@/db'];
+const crossBlobClient = ['src/lib/codex-blob.ts', '@vercel/blob/client'];
+const crossClientBlob = ['src/lib/codex-blob-client.ts', '@vercel/blob'];
+const crossImageBlob = ['src/lib/codex-image-process.ts', '@vercel/blob'];
+const crossBlobSharp = ['src/lib/codex-blob.ts', 'sharp'];
 
 const fetchOwnerTimeout = 'src/lib/fetch-with-timeout.ts';
 const fetchOwnerApiClient = 'src/transport/api-client.ts';
@@ -92,6 +113,12 @@ describe('vendor rail', () => {
       rejectBetterAuthDrizzle,
       rejectConvexReact,
       rejectGoogleAuth,
+      rejectTiptapReact,
+      rejectTiptapCore,
+      rejectDiff,
+      rejectVercelBlob,
+      rejectVercelBlobClient,
+      rejectSharp,
     ])('rejects a feature module importing %s', async (packageName, fragment) => {
       await expectImportHas(PROBE, packageName, fragment);
     });
@@ -113,10 +140,18 @@ describe('vendor rail', () => {
       allowBetterAuthNext,
       allowBetterAuthIndustry,
       allowBetterAuthIndustryTest,
+      allowBetterAuthProxy,
       allowConvexClient,
       allowConvexProvider,
       allowConvexSync,
       allowGoogleGsc,
+      allowTiptapEditor,
+      allowTiptapExtensions,
+      allowTiptapHeading,
+      allowDiff,
+      allowVercelBlob,
+      allowVercelBlobClient,
+      allowSharp,
     ])('allows %s importing its own vendor %s', async (filePath, packageName) => {
       await expectImportEmpty(filePath, packageName);
     });
@@ -130,6 +165,13 @@ describe('vendor rail', () => {
       crossSyncBetterAuth,
       crossAuthClientConvex,
       crossAuthProviderConvex,
+      crossCodexReaderTiptap,
+      crossCodexAdminTiptap,
+      crossEditorDb,
+      crossBlobClient,
+      crossClientBlob,
+      crossImageBlob,
+      crossBlobSharp,
     ])('still rejects %s importing another vendor (%s)', async (filePath, packageName) => {
       await expectImportNonEmpty(filePath, packageName);
     });

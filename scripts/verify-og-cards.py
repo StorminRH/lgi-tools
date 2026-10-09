@@ -19,7 +19,9 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 
 EXPECTED_SIZE = (1200, 630)
-SITE_IDS = (100, 121, 130)
+SITE_IDS = (3, 20, 69)
+# Next suffixes a metadata image under the (site) route group with a hash of its parent path.
+CODEX_SITE_IMAGE = "opengraph-image-1pfelc"
 
 class OpenGraphParser(HTMLParser):
     def __init__(self) -> None:
@@ -104,11 +106,12 @@ def main() -> None:
     verify_page(base_url, "/", "/opengraph-image")
     verify_image(base_url, "/opengraph-image")
     for site_id in SITE_IDS:
-        page_path = f"/sites/{site_id}"
-        image_path = f"{page_path}/opengraph-image"
+        page_path = f"/codex/sites/{site_id}"
+        image_path = f"{page_path}/{CODEX_SITE_IMAGE}"
         verify_page(base_url, page_path, image_path)
         verify_image(base_url, image_path)
-    verify_not_found(base_url, "/sites/999999/opengraph-image")
+    verify_not_found(base_url, f"/codex/sites/999999/{CODEX_SITE_IMAGE}")
+    verify_not_found(base_url, f"/codex/sites/70/{CODEX_SITE_IMAGE}")
 
 if __name__ == "__main__":
     main()

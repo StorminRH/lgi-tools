@@ -1,0 +1,561 @@
+'use client';
+
+import {
+  EditorContent,
+  useEditor,
+  useEditorState,
+  type ChainedCommands,
+  type Editor,
+  type JSONContent,
+} from '@tiptap/react';
+import { useCallback, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/components/ui/cn';
+import {
+  BoldIcon,
+  BulletIcon,
+  CalloutIcon,
+  DataIcon,
+  ImageIcon,
+  ItalicIcon,
+  LinkIcon,
+  NumberedIcon,
+  VideoIcon,
+} from '../components/icons';
+import { Input } from '@/components/ui/input';
+import type { CodexSourceCatalogue } from '../components/CodexDataView';
+import { CODEX_EDIT_MODES, CODEX_LICENSE_LABEL, type CodexEditMode } from '../edit-modes';
+import { isSafeHref } from '../nodes';
+import type { CodexEditorNotice, CodexSubject } from '../subjects';
+import { DataBlockPicker } from './DataBlockPicker';
+import type { DataNode } from './data-block-picker-state';
+import { EditorNotice } from './EditorNotice';
+import { codexDraftKey, formSummary, initialEditorBlocks, keepCodexDraft, takeConflictDraft } from './draft';
+import { codexEditorExtensions, dataInsertion, editorBlocks } from './extensions';
+import { blockedBy, firstBlockMissingText, MISSING_TEXT, selectBlock } from './block-select';
+import { ImageRow, UploadLine, useImageDrops, useImageUpload } from './ImageControls';
+import { NO_FOCUS, type RequiredFocus } from './RequiredField';
+import { VideoInsertRow, VideoRow } from './VideoRow';
+
+export interface CodexEditorProps {
+  readonly mode: CodexEditMode;
+  readonly viewerName: string;
+  readonly subject: CodexSubject;
+  readonly newTitle: string | null;
+  readonly baseRevisionId: string | null;
+  readonly sectionId: string | null;
+  readonly goneSectionId?: string | null;
+  readonly initialBlocks: readonly unknown[];
+  readonly notice: CodexEditorNotice | null;
+  readonly tools: CodexEditorTools;
+  readonly onCancel: () => void;
+}
+
+export interface CodexEditorTools {
+  readonly catalogue: CodexSourceCatalogue;
+  readonly uploadPrefix: string;
+}
+
+function toolButtonClass(active: boolean | undefined, wide: boolean | undefined) {
+  return cn(
+    'h-8 justify-center gap-1.5 rounded-ctl border font-ui text-ui font-semibold',
+    wide ? 'px-2.5' : 'w-8',
+    active
+      ? 'border-border-active bg-row-on text-isk shadow-card-edge'
+      : 'border-transparent text-muted hover:bg-row-related hover:text-name',
+  );
+}
+
+function ToolButton({
+  label,
+  active,
+  onClick,
+  children,
+  wide,
+}: {
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <Button variant="bare" aria-label={label} aria-pressed={active} onClick={onClick} className={toolButtonClass(active, wide)}>
+      {children}
+    </Button>
+  );
+}
+
+const editorSurfaceClass = cn(
+  'px-5 py-4',
+  '[&_.ProseMirror]:min-h-32 [&_.ProseMirror]:outline-none!',
+  '[&_table]:w-full [&_table]:border-collapse [&_table]:text-ui',
+  '[&_td]:border [&_td]:border-border-soft [&_td]:px-2.5 [&_td]:py-1.5 [&_td]:text-left [&_td]:align-top',
+  '[&_th]:border [&_th]:border-border-soft [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_th]:align-top',
+  '[&_th]:bg-bg-deep [&_th]:text-muted',
+  '[&_.codex-data-chip]:flex [&_.codex-data-chip]:cursor-grab [&_.codex-data-chip]:items-center [&_.codex-data-chip]:gap-2',
+  '[&_.codex-data-chip]:rounded-ctl [&_.codex-data-chip]:border [&_.codex-data-chip]:border-dashed [&_.codex-data-chip]:border-border-active',
+  '[&_.codex-data-chip]:bg-bg-deep [&_.codex-data-chip]:px-3 [&_.codex-data-chip]:py-2',
+  '[&_.codex-data-chip]:font-data [&_.codex-data-chip]:text-ui [&_.codex-data-chip]:text-isk',
+  '[&_span.codex-data-chip]:inline-flex [&_span.codex-data-chip]:px-1.5 [&_span.codex-data-chip]:py-0 [&_span.codex-data-chip]:align-baseline',
+  '[&_.codex-data-chip.ProseMirror-selectednode]:border-solid [&_.codex-data-chip.ProseMirror-selectednode]:border-isk',
+  '[&_.codex-image-node]:my-3 [&_.codex-image-node]:cursor-grab [&_.codex-image-node]:rounded-card [&_.codex-image-node]:border',
+  '[&_.codex-image-node]:border-border [&_.codex-image-node]:p-1.5 [&_.codex-image-node_img]:block [&_.codex-image-node_img]:w-full',
+  '[&_.codex-image-node_img]:rounded-ctl [&_.codex-image-node_figcaption]:mt-1.5 [&_.codex-image-node_figcaption]:text-ui',
+  '[&_.codex-image-node_figcaption]:text-muted [&_.codex-image-missing]:py-8 [&_.codex-image-missing]:text-center [&_.codex-image-missing]:text-muted',
+  '[&_.codex-image-node.ProseMirror-selectednode]:border-isk',
+);
+
+const Divider = () => <span aria-hidden className="mx-1 h-5 w-px bg-border" />;
+
+const IDLE_TOOLBAR = {
+  h2: false,
+  h3: false,
+  bold: false,
+  italic: false,
+  link: false,
+  bullets: false,
+  numbers: false,
+  callout: false,
+  image: false,
+  video: false,
+};
+
+function useToolbarState(editor: Editor | null) {
+  return useEditorState({
+    editor,
+    selector: ({ editor: current }) => ({
+      h2: current?.isActive('heading', { level: 2 }) ?? false,
+      h3: current?.isActive('heading', { level: 3 }) ?? false,
+      bold: current?.isActive('bold') ?? false,
+      italic: current?.isActive('italic') ?? false,
+      link: current?.isActive('link') ?? false,
+      bullets: current?.isActive('bulletList') ?? false,
+      numbers: current?.isActive('orderedList') ?? false,
+      callout: current?.isActive('callout') ?? false,
+      image: current?.isActive('image') ?? false,
+      video: current?.isActive('video') ?? false,
+    }),
+  });
+}
+
+function LinkRow({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+  const [href, setHref] = useState(() => String(editor.getAttributes('link').href ?? ''));
+  const [problem, setProblem] = useState<string | null>(null);
+  const apply = () => {
+    const value = href.trim();
+    if (value === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      onClose();
+      return;
+    }
+    if (!isSafeHref(value)) {
+      setProblem('Use an https:// address or a site path such as /sites.');
+      return;
+    }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: value }).run();
+    onClose();
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      apply();
+    }
+    if (event.key === 'Escape') onClose();
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border-soft bg-row-hover px-3 py-2">
+      <Input
+        size="sm"
+        aria-label="Link address"
+        placeholder="https://… or /sites"
+        value={href}
+        onChange={(event) => setHref(event.target.value)}
+        onKeyDown={onKeyDown}
+        autoFocus
+        className="min-w-0 flex-1"
+      />
+      <Button size="sm" variant="secondary" onClick={apply}>
+        Apply
+      </Button>
+      <Button size="sm" variant="ghost" onClick={onClose}>
+        Close
+      </Button>
+      {problem ? <p className="w-full font-ui text-ui text-dps-mid">{problem}</p> : null}
+    </div>
+  );
+}
+
+function Toolbar({
+  editor,
+  state,
+  onLink,
+  onImage,
+  onVideo,
+  data,
+  bar,
+}: {
+  editor: Editor | null;
+  state: typeof IDLE_TOOLBAR;
+  onLink: () => void;
+  onImage: (() => void) | null;
+  onVideo: () => void;
+  data: ReactNode;
+  bar: RefObject<HTMLDivElement | null>;
+}) {
+  const run = (command: (chain: ChainedCommands) => ChainedCommands) => () => {
+    if (editor) command(editor.chain().focus()).run();
+  };
+  return (
+    <div
+      ref={bar}
+      role="toolbar"
+      aria-label="Formatting"
+      className="flex flex-wrap items-center gap-0.5 rounded-t-card border-b border-border-soft bg-row-hover px-2 py-1.5"
+    >
+      <ToolButton label="Heading 2" wide active={state.h2} onClick={run((chain) => chain.toggleHeading({ level: 2 }))}>
+        H2
+      </ToolButton>
+      <ToolButton label="Heading 3" wide active={state.h3} onClick={run((chain) => chain.toggleHeading({ level: 3 }))}>
+        H3
+      </ToolButton>
+      <Divider />
+      <ToolButton label="Bold" active={state.bold} onClick={run((chain) => chain.toggleBold())}>
+        <BoldIcon size={15} />
+      </ToolButton>
+      <ToolButton label="Italic" active={state.italic} onClick={run((chain) => chain.toggleItalic())}>
+        <ItalicIcon size={15} />
+      </ToolButton>
+      <ToolButton label="Link" active={state.link} onClick={onLink}>
+        <LinkIcon size={15} />
+      </ToolButton>
+      <Divider />
+      <ToolButton label="Bulleted list" active={state.bullets} onClick={run((chain) => chain.toggleBulletList())}>
+        <BulletIcon size={15} />
+      </ToolButton>
+      <ToolButton label="Numbered list" active={state.numbers} onClick={run((chain) => chain.toggleOrderedList())}>
+        <NumberedIcon size={15} />
+      </ToolButton>
+      <ToolButton label="Callout" active={state.callout} onClick={run((chain) => chain.toggleWrap('callout'))}>
+        <CalloutIcon size={15} />
+      </ToolButton>
+      <Divider />
+      {onImage ? (
+        <ToolButton label="Image" wide active={state.image} onClick={onImage}>
+          <ImageIcon size={15} />
+          Image
+        </ToolButton>
+      ) : null}
+      <ToolButton label="Video" wide active={state.video} onClick={onVideo}>
+        <VideoIcon size={15} />
+        Video
+      </ToolButton>
+      {data}
+    </div>
+  );
+}
+
+function insertDataNode(editor: Editor, node: DataNode) {
+  const { at, content } = dataInsertion(editor.state.selection, node);
+  editor.chain().focus().insertContentAt(at, content).run();
+}
+
+type ToolbarPanel = 'link' | 'video' | null;
+
+function SelectedBlockRow({ editor, state, focus }: { editor: Editor; state: typeof IDLE_TOOLBAR; focus: RequiredFocus }) {
+  if (state.image) return <ImageRow editor={editor} focus={focus} />;
+  if (state.video) return <VideoRow editor={editor} focus={focus} />;
+  return null;
+}
+
+function EditorRows({
+  editor,
+  state,
+  panel,
+  focus,
+  onClose,
+}: {
+  editor: Editor;
+  state: typeof IDLE_TOOLBAR;
+  panel: ToolbarPanel;
+  focus: RequiredFocus;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      {panel === 'link' ? <LinkRow editor={editor} onClose={onClose} /> : null}
+      {panel === 'video' ? <VideoInsertRow editor={editor} onClose={onClose} /> : null}
+      <SelectedBlockRow editor={editor} state={state} focus={focus} />
+    </>
+  );
+}
+
+function EditorToolbar({
+  editor,
+  catalogue,
+  upload,
+  focus = NO_FOCUS,
+}: {
+  editor: Editor | null;
+  catalogue: CodexSourceCatalogue;
+  upload?: ReturnType<typeof useImageUpload>;
+  focus?: RequiredFocus;
+}) {
+  const [panel, setPanel] = useState<ToolbarPanel>(null);
+  const toggle = (next: ToolbarPanel) => () => setPanel((open) => (open === next ? null : next));
+  const [picking, setPicking] = useState(false);
+  const bar = useRef<HTMLDivElement>(null);
+  const state = useToolbarState(editor) ?? IDLE_TOOLBAR;
+  return (
+    <div className="sticky top-24 z-[1] rounded-t-card bg-bg-deep">
+      <Toolbar
+        bar={bar}
+        editor={editor}
+        state={state}
+        onLink={toggle('link')}
+        onImage={upload ? upload.pick : null}
+        onVideo={toggle('video')}
+        data={
+          <DataBlockPicker
+            catalogue={catalogue}
+            open={picking}
+            onOpenChange={setPicking}
+            onInsert={(node) => editor && insertDataNode(editor, node)}
+            trigger={
+              <>
+                <DataIcon size={15} />
+                Data
+              </>
+            }
+            triggerClassName={cn('inline-flex items-center', toolButtonClass(picking, true))}
+            anchor={bar}
+          />
+        }
+      />
+      {editor ? (
+        <EditorRows editor={editor} state={state} panel={panel} focus={focus} onClose={() => setPanel(null)} />
+      ) : null}
+      {upload ? <UploadLine state={upload.state} onDismiss={upload.dismiss} /> : null}
+    </div>
+  );
+}
+
+function TargetFields({
+  mode,
+  subject,
+  baseRevisionId,
+  sectionId,
+  newTitle,
+}: Pick<CodexEditorProps, 'mode' | 'subject' | 'baseRevisionId' | 'sectionId' | 'newTitle'>) {
+  const [proposalId] = useState(() => crypto.randomUUID());
+  return (
+    <>
+      <input type="hidden" name="action" value={mode === 'publish' ? 'publish' : 'submit'} />
+      {mode === 'suggest' ? <input type="hidden" name="proposalId" value={proposalId} /> : null}
+      <input type="hidden" name="kind" value={subject.kind} />
+      <input type="hidden" name="key" value={subject.key} />
+      <input type="hidden" name="baseRevisionId" value={baseRevisionId ?? ''} />
+      {sectionId === null ? null : <input type="hidden" name="sectionId" value={sectionId} />}
+      {newTitle === null ? null : <input type="hidden" name="title" value={newTitle} />}
+    </>
+  );
+}
+
+function LicenseField() {
+  const [accepted, setAccepted] = useState(false);
+  return (
+    <label className="flex items-start gap-2.5 font-ui text-ui text-text">
+      <Checkbox checked={accepted} onCheckedChange={setAccepted} label={CODEX_LICENSE_LABEL} className="mt-px" />
+      <input type="hidden" name="license" value={accepted ? 'accepted' : ''} />
+      <span>
+        I license my contribution under{' '}
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" className="text-isk hover:underline">
+          CC BY-SA 4.0
+        </a>
+        . <span className="text-muted">An admin reviews every suggestion before it goes live.</span>
+      </span>
+    </label>
+  );
+}
+
+function EditorFooter({
+  mode,
+  viewerName,
+  summary,
+  saveLabel,
+  canSave,
+  problem,
+  onCancel,
+}: {
+  mode: CodexEditMode;
+  viewerName: string;
+  summary: string | undefined;
+  saveLabel: string;
+  canSave: boolean;
+  problem: string | null;
+  onCancel: () => void;
+}) {
+  const { summaryRequired, license } = CODEX_EDIT_MODES[mode];
+  return (
+    <div className="flex flex-col gap-3 rounded-b-card border-t border-border-soft bg-row-hover px-4 py-3">
+      <label className="flex flex-col gap-1.5">
+        <span className="font-ui text-label font-semibold uppercase tracking-eyebrow text-muted">
+          Edit summary{summaryRequired ? <span className="text-dps-mid"> · Required</span> : null}
+        </span>
+        <Input
+          size="sm"
+          name="summary"
+          maxLength={200}
+          required={summaryRequired}
+          placeholder={summaryRequired ? 'What did you change, and why?' : 'Briefly describe the change'}
+          defaultValue={summary ?? ''}
+        />
+      </label>
+      {license ? <LicenseField /> : null}
+      {problem ? (
+        <p className="font-ui text-ui text-dps-mid">
+          {problem}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span className="mr-auto font-ui text-ui text-faint">
+          {mode === 'publish' ? 'Publishes immediately · saved to history' : `Signed in as ${viewerName}`}
+        </span>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" size="sm" disabled={!canSave}>
+          {saveLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+const EDITOR_TEXT_LABELS = { page: 'Page text', section: 'Section text' } as const;
+
+function useDraftForm(storageKey: string, editor: Editor | null) {
+  const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const blocksField = useRef<HTMLInputElement>(null);
+
+  const save = (event: FormEvent<HTMLFormElement>) => {
+    if (!editor || !blocksField.current) {
+      event.preventDefault();
+      return;
+    }
+    const blocks = editorBlocks(editor.getJSON());
+    const missing = firstBlockMissingText(blocks);
+    if (missing !== null) {
+      event.preventDefault();
+      selectBlock(editor, missing.type, (_attrs, index) => index === missing.index, false);
+      setFocusRequest((count) => count + 1);
+      setProblem(MISSING_TEXT[missing.type]);
+      return;
+    }
+    setProblem(null);
+    blocksField.current.value = JSON.stringify(blocks);
+    keepCodexDraft(storageKey, { blocks, summary: formSummary(new FormData(event.currentTarget)) });
+    setSaving(true);
+  };
+
+  const onHandled = useCallback(() => setFocusRequest(0), []);
+  const focus: RequiredFocus = { request: focusRequest, blocked: blockedBy(problem), onHandled };
+
+  return { blocksField, saving, problem, focus, save };
+}
+
+export function CodexBlockEditor({
+  initialBlocks,
+  catalogue,
+  onChange,
+}: {
+  initialBlocks: readonly unknown[];
+  catalogue: CodexSourceCatalogue;
+  onChange: (blocks: unknown[]) => void;
+}) {
+  const editor = useEditor({
+    extensions: codexEditorExtensions,
+    content: { type: 'doc', content: initialBlocks as JSONContent[] },
+    immediatelyRender: false,
+    editorProps: { attributes: { class: 'codex-prose', 'aria-label': 'Block text' } },
+    onUpdate: ({ editor: current }) => onChange(editorBlocks(current.getJSON())),
+  });
+  return (
+    <div className="rounded-card border border-isk/30 bg-bg-deep/50 shadow-card-edge">
+      <EditorToolbar editor={editor} catalogue={catalogue} />
+      <div className={editorSurfaceClass}>
+        <EditorContent editor={editor} />
+      </div>
+    </div>
+  );
+}
+
+export function CodexEditor({
+  mode,
+  viewerName,
+  subject,
+  newTitle,
+  baseRevisionId,
+  sectionId,
+  goneSectionId = null,
+  initialBlocks,
+  notice,
+  tools,
+  onCancel,
+}: CodexEditorProps) {
+  const storageKey = codexDraftKey(subject, sectionId);
+  const [draft] = useState(() => takeConflictDraft(subject, sectionId, goneSectionId, notice !== null));
+  const scope = sectionId === null ? 'page' : 'section';
+
+  const drops = useImageDrops();
+  const editor = useEditor({
+    extensions: codexEditorExtensions,
+    content: { type: 'doc', content: initialEditorBlocks(draft, initialBlocks, goneSectionId !== null) as JSONContent[] },
+    immediatelyRender: false,
+    autofocus: 'start',
+    editorProps: {
+      attributes: { class: 'codex-prose', 'aria-label': EDITOR_TEXT_LABELS[scope] },
+      handlePaste: drops.handlePaste,
+      handleDrop: drops.handleDrop,
+    },
+    onCreate: () => performance.mark('codex-editor-ready'),
+  });
+
+  const upload = useImageUpload(editor, tools.uploadPrefix, drops.start);
+  const { blocksField, saving, problem, focus, save } = useDraftForm(storageKey, editor);
+
+  return (
+    <form
+      action={CODEX_EDIT_MODES[mode].action}
+      method="post"
+      onSubmit={save}
+      data-codex-editor
+      className="rounded-card border border-isk/30 bg-bg-deep/50 shadow-card-edge"
+    >
+      <TargetFields mode={mode} subject={subject} baseRevisionId={baseRevisionId} sectionId={sectionId} newTitle={newTitle} />
+      <input ref={blocksField} type="hidden" name="blocks" />
+      {notice ? <EditorNotice notice={notice} subject={subject} sectionId={sectionId} goneSectionId={goneSectionId} /> : null}
+      <EditorToolbar
+        editor={editor}
+        catalogue={tools.catalogue}
+        upload={upload}
+        focus={focus}
+      />
+      <div className={editorSurfaceClass}>
+        <EditorContent editor={editor} />
+      </div>
+      <EditorFooter
+        mode={mode}
+        viewerName={viewerName}
+        summary={draft?.summary}
+        saveLabel={CODEX_EDIT_MODES[mode].save[scope]}
+        canSave={editor !== null && !saving && !upload.busy}
+        problem={problem}
+        onCancel={onCancel}
+      />
+    </form>
+  );
+}

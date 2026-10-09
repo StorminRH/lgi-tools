@@ -15,6 +15,8 @@ import { pruneUsageLogs } from '@/data/telemetry/queries';
 import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 import { pruneWhStaticsSnapshots } from '@/data/wh-statics/queries';
 import { db } from '@/db';
+import { pruneExpiredCodexAssets, sweepOrphanPendingBlobs } from '@/features/codex/asset-storage';
+import { CODEX_PENDING_ASSET_RETENTION_DAYS } from '@/features/codex/constants';
 import type { BatchedDeleteResult } from '@/lib/batched-delete';
 import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
 import {
@@ -107,6 +109,14 @@ const DELETE_TASKS: readonly DeleteTask[] = [
   {
     task: 'market_history',
     run: (now, deadline) => pruneStaleMarketHistory(db, now, deadline),
+  },
+  {
+    task: 'codex_pending_assets',
+    run: async (now, deadline) => {
+      const result = await pruneExpiredCodexAssets(db, CODEX_PENDING_ASSET_RETENTION_DAYS, now, deadline);
+      await sweepOrphanPendingBlobs(now);
+      return result;
+    },
   },
 ];
 

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 type IconProps = { size?: number; className?: string };
 
-function strokeIcon(paths: ReactNode) {
+export function strokeIcon(paths: ReactNode) {
   return function StrokeIcon({ size = 16, className }: IconProps) {
     return (
       <svg

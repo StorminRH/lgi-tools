@@ -10,17 +10,16 @@ import { SiteCardLightbox } from './SiteCardLightbox';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteLiveProvider } from './SiteResourcesLive';
 
-function CatalogueCardExtras({ site }: { site: SiteDetail }) {
+function CatalogueCardExtras({ site, detailHref }: { site: SiteDetail; detailHref: string | undefined }) {
   return (
     <>
-      <div className="border-t border-border-idle px-3 py-2 text-right">
-        <Link
-          href={`/sites/${site.id}`}
-          className="text-label tracking-label uppercase text-muted hover:text-name"
-        >
-          View full page →
-        </Link>
-      </div>
+      {detailHref !== undefined && (
+        <div className="border-t border-border-idle px-3 py-2 text-right">
+          <Link href={detailHref} className="text-label tracking-label uppercase text-muted hover:text-name">
+            Open in Codex →
+          </Link>
+        </div>
+      )}
       <SiteCardLightbox site={site} />
     </>
   );
@@ -31,11 +30,13 @@ export function SiteCard({
   className,
   contentAlign = 'start',
   presentation = 'catalogue',
+  detailHref,
 }: {
   site: SiteDetail;
   className?: string;
   contentAlign?: 'start' | 'center';
   presentation?: 'catalogue' | 'standalone';
+  detailHref?: string;
 }) {
   const liveResources = displayableResources(site.resources);
   const centered = contentAlign === 'center';
@@ -68,7 +69,7 @@ export function SiteCard({
             >
               <LazySiteDetails site={site} zoom />
             </Collapsible>
-            <CatalogueCardExtras site={site} />
+            <CatalogueCardExtras site={site} detailHref={detailHref} />
           </>
         )}
       </SiteLiveProvider>

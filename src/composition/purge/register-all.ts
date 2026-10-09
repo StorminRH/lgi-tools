@@ -1,6 +1,7 @@
 import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { deliverCapturedMapAccessChanges } from '@/composition/map-affiliation-access';
 import { purgeMapChain } from '@/composition/map-purge';
+import { codexPurgeContributor } from '@/features/codex/purge';
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import {
   industryProfilesPurgeContributor,
@@ -50,4 +51,5 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   savedPlansPurgeContributor,
   industryProfilesPurgeContributor,
   netWorthPurgeContributor,
+  codexPurgeContributor,
 ];

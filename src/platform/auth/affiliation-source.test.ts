@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { fetchAffiliations } from './affiliation-source';
-import { SYNTHETIC_PILOT } from './synthetic-pilot';
+import { SYNTHETIC_CONTRIBUTOR, SYNTHETIC_PILOT } from './synthetic-pilot';
 
 const permissiveScoreboard = {
   async preDispatch() {
@@ -198,10 +198,10 @@ test('marks budget, 5xx, empty-200, and unparseable bodies as transient, but une
   await expect(fetchAffiliations([101])).rejects.toThrow('programmer bug');
 });
 
-test('in development, omits the local synthetic E2E character before calling ESI; production still sends every id and treats ESI 400 as transient', async () => {
+test('in development, omits the local synthetic E2E characters before calling ESI; production still sends every id and treats ESI 400 as transient', async () => {
   vi.stubEnv('NODE_ENV', 'development');
 
-  await expect(fetchAffiliations([SYNTHETIC_PILOT.characterId])).resolves.toEqual({
+  await expect(fetchAffiliations([SYNTHETIC_PILOT.characterId, SYNTHETIC_CONTRIBUTOR.characterId])).resolves.toEqual({
     rows: [],
     transientFailure: false,
   });

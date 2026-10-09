@@ -18,6 +18,7 @@ export type SliceId =
   | 'data/wh-observations'
   | 'data/wh-statics'
   | 'features/character-sheet'
+  | 'features/codex'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
@@ -156,6 +157,16 @@ const WH_STATICS_PROMOTE_BATCH = {
   kind: 'transactional-batch',
   note: 'Operator-only promotion deletes the prior serving copy, inserts every normalized assignment bound to the selected snapshot, and marks that snapshot promoted in one postgres-js transaction.',
 } as const satisfies TransactionBoundary;
+
+const CODEX_PUBLISH = {
+  kind: 'transactional-batch',
+  note: 'A publish appends one revision and moves the page head to it in one transaction; revisions are never updated except when account purge clears their author columns.',
+} as const satisfies TransactionBoundary;
+
+const CODEX_SEED_WRITER = {
+  by: 'scripts',
+  reason: 'The dev-only guide seeder (src/scripts/codex-seed-guide.ts) writes one sample guide into a local database so a verifier can open a page with every node type.',
+} as const satisfies CrossOwnerWrite;
 
 export const DATA_OWNERSHIP = [
   {
@@ -1011,5 +1022,71 @@ export const DATA_OWNERSHIP = [
       note: 'Append-only: one insert per emitted event, plus the retention prune. Emission is deliberately outside the emitting write\'s failure path, so an event is only emitted once that write has stood.',
     },
     dataClass: 'operational',
+  },
+  {
+    table: schema.codexPages,
+    owner: 'features/codex',
+    reads: [],
+    writers: [CODEX_SEED_WRITER],
+    invariants: [
+      'fk(current_revision_id→codex_revisions.id)',
+      'pk(id)',
+      'unique(subject_kind,subject_key)',
+    ],
+    boundary: CODEX_PUBLISH,
+    dataClass: 'global-reference',
+  },
+  {
+    table: schema.codexRevisions,
+    owner: 'features/codex',
+    reads: [],
+    writers: [CODEX_SEED_WRITER],
+    invariants: [
+      'fk(character_id→characters.character_id)',
+      'fk(page_id→codex_pages.id)',
+      'fk(parent_revision_id→codex_revisions.id)',
+      'fk(user_id→user.id)',
+      "partial-unique(origin_ref) where(\"origin\" = 'proposal')",
+      'pk(id)',
+    ],
+    boundary: CODEX_PUBLISH,
+    dataClass: 'global-reference',
+  },
+  {
+    table: schema.codexProposals,
+    owner: 'features/codex',
+    reads: [],
+    invariants: [
+      'check(codex_proposals_approved_has_result)',
+      'check(codex_proposals_denied_has_note)',
+      'check(codex_proposals_pending_undecided)',
+      'fk(base_revision_id→codex_revisions.id)',
+      'fk(character_id→characters.character_id)',
+      'fk(result_revision_id→codex_revisions.id)',
+      'fk(user_id→user.id)',
+      'pk(id)',
+    ],
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'Submit locks the submitter user row on the direct client, counts daily and per-page quota, then inserts by the client-minted id in one transaction; deny and withdraw remain one UPDATE guarded by status = pending; approve still flips the proposal inside the publish compare-and-set statement, so the head move, the revision, and the status change commit together.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.codexAssets,
+    owner: 'features/codex',
+    reads: [],
+    invariants: [
+      'check(codex_assets_published_has_time)',
+      'fk(character_id→characters.character_id)',
+      'fk(user_id→user.id)',
+      "partial-unique(user_id,sha256) where(\"status\" <> 'removed')",
+      'pk(id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'Finalize inserts one pending row ON CONFLICT DO NOTHING; publish flips referenced pending rows inside the page compare-and-set statement; housekeeping retires unreferenced pending rows in one guarded UPDATE and deletes a removed row only after its blobs are gone.',
+    },
+    dataClass: 'personal',
   },
 ] as const satisfies readonly DataOwnershipEntry[];

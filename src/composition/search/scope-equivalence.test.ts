@@ -14,10 +14,11 @@ const { BP_FIXTURE, SYSTEMS_FIXTURE } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/transport/api-client', () => ({
-  apiFetch: vi.fn(async (endpoint: { path: string }) =>
-    endpoint.path === '/api/industry/systems'
-      ? { ok: true, status: 200, data: { systems: SYSTEMS_FIXTURE } }
-      : { ok: true, status: 200, data: { blueprints: BP_FIXTURE } }),
+  apiFetch: vi.fn(async (endpoint: { path: string }) => {
+    if (endpoint.path === '/api/industry/systems') return { ok: true, status: 200, data: { systems: SYSTEMS_FIXTURE } };
+    if (endpoint.path === '/api/codex/index') return { ok: true, status: 200, data: { entries: [] } };
+    return { ok: true, status: 200, data: { blueprints: BP_FIXTURE } };
+  }),
 }));
 
 import '@/composition/search/register-all';
@@ -124,7 +125,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
           "name": "Sites",
           "results": [
             {
-              "href": "/sites/102",
+              "href": "/codex/sites/102",
               "iconText": "C1",
               "iconTone": "green",
               "id": "site:102",
@@ -144,7 +145,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
               "sub": "Combat · 9M",
             },
             {
-              "href": "/sites/101",
+              "href": "/codex/sites/101",
               "iconText": "C1",
               "iconTone": "green",
               "id": "site:101",
@@ -164,7 +165,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
               "sub": "Combat · 12M",
             },
             {
-              "href": "/sites/104",
+              "href": "/codex/sites/104",
               "iconText": "C3",
               "iconTone": "orange",
               "id": "site:104",
@@ -184,7 +185,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
               "sub": "Ore · 5M",
             },
             {
-              "href": "/sites/103",
+              "href": "/codex/sites/103",
               "iconText": "C2",
               "iconTone": "green-strong",
               "id": "site:103",
@@ -374,13 +375,14 @@ describe('full-scope search over the real manifest (characterization anchor)', (
   });
 });
 
-const DEFAULT_SOURCE_IDS = ['recents', 'sites', 'blueprints', 'tools', 'commands'] as const;
+const DEFAULT_SOURCE_IDS = ['recents', 'sites', 'codex', 'blueprints', 'tools', 'commands'] as const;
 
 const REGISTERED_SOURCE_IDS = [...DEFAULT_SOURCE_IDS, 'systems'] as const;
 
 const SECTION_NAME_BY_ID: Record<(typeof DEFAULT_SOURCE_IDS)[number], string> = {
   recents: 'Recent',
   sites: 'Sites',
+  codex: 'Codex',
   blueprints: 'Blueprints',
   tools: 'Tools',
   commands: 'Commands',

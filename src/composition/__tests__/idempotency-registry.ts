@@ -445,6 +445,36 @@ const adminRoleRoute = mutationRoute({
   verdict: 'inherently-idempotent',
   evidence: 'Sets a user’s role to a named value; a repeat sets the same role.',
 });
+const adminCodexRevisionsRoute = mutationRoute({
+  route: 'src/app/api/admin/codex/revisions/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'Every publish and restore names the base revision it was made against, and one atomic compare-and-set statement moves the page head and appends the revision only while the head still equals that base; a replayed form finds the head already moved and lands as a conflict without writing a second revision. A first publish creates the page row behind the unique (subject_kind, subject_key) index.',
+});
+const adminCodexProposalsRoute = mutationRoute({
+  route: 'src/app/api/admin/codex/proposals/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'Approve merges the suggestion against the head the review was rendered on and publishes through the page compare-and-set statement, whose claimed CTE flips the proposal from pending to approved only while it is still pending and the head still equals that reviewed head, behind a unique (origin_ref) index on proposal revisions; deny is an UPDATE guarded by status = pending. A replayed review finds the proposal no longer pending, and a moved head fails the compare-and-set, so neither writes anything.',
+});
+const codexProposalsRoute = mutationRoute({
+  route: 'src/app/api/codex/proposals/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'The editor mints the proposal id once per open, and submit inserts it with ON CONFLICT (id) DO NOTHING against the unique primary key, so a replayed form lands as a duplicate without a second row; withdraw is an UPDATE guarded by status = pending and the submitter, so a replay changes nothing.',
+});
+const codexUploadsRoute = mutationRoute({
+  route: 'src/app/api/codex/uploads/route.ts',
+  verdict: 'inherently-idempotent',
+  evidence:
+    'Signs a short-lived upload token for a pathname under the caller\'s own pending folder and writes nothing; a replay signs another token for the same folder.',
+});
+const codexUploadsFinalizeRoute = mutationRoute({
+  route: 'src/app/api/codex/uploads/finalize/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'Variant keys are the content hash plus width, written with overwrite, and the asset insert is ON CONFLICT DO NOTHING on the partial unique (user_id, sha256) index; a replay of the same upload returns the existing asset as reused, and the raw upload is deleted after either outcome.',
+});
 const adminWhStaticsRoute = mutationRoute({
   route: 'src/app/api/admin/wh-statics/route.ts',
   verdict: 'key-protected',
@@ -661,6 +691,11 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   savedPlansRenameRoute,
   savedPlansFavoriteRoute,
   adminRoleRoute,
+  adminCodexRevisionsRoute,
+  adminCodexProposalsRoute,
+  codexProposalsRoute,
+  codexUploadsRoute,
+  codexUploadsFinalizeRoute,
   adminWhStaticsRoute,
   mapsSignatureEliminationRoute,
   mapsJumpRoute,

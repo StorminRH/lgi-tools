@@ -1,17 +1,25 @@
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SITE_URL } from "@/config/site-url";
-import { isPublishedWormholeSiteId } from "@/features/wormhole-sites/catalogue-boundary";
-import { parseNumericRouteId } from "@/transport/route-id";
+import { classifyProxyPath, type ProxyRoute } from "./proxy-routes";
 
 const CANONICAL_HOST = new URL(SITE_URL).host;
 
-function isUnpublishedDirectSitePath(pathname: string): boolean {
-  const rawId = /^\/sites\/([^/]+)$/.exec(pathname)?.[1];
-  if (rawId === undefined) return false;
-
-  const id = parseNumericRouteId(rawId);
-  return id === null || !isPublishedWormholeSiteId(id);
+function routeResponse(request: NextRequest, route: ProxyRoute): NextResponse {
+  switch (route.kind) {
+    case "not-found":
+      return NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
+    case "redirect":
+      return NextResponse.redirect(new URL(route.location, request.url), 308);
+    case "rewrite": {
+      const url = request.nextUrl.clone();
+      url.pathname = route.pathname;
+      return NextResponse.rewrite(url);
+    }
+    case "next":
+      return NextResponse.next();
+  }
 }
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -29,10 +37,10 @@ export function proxy(request: NextRequest): NextResponse {
     default-src 'self';
     script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https://images.evetech.net;
+    img-src 'self' blob: data: https://images.evetech.net https://*.public.blob.vercel-storage.com https://i.ytimg.com;
     font-src 'self';
-    connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com${CONVEX_CONNECT_SRC};
-    frame-src 'none';
+    connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com https://vercel.com${CONVEX_CONNECT_SRC};
+    frame-src https://www.youtube-nocookie.com https://player.twitch.tv https://clips.twitch.tv;
     frame-ancestors 'none';
     form-action 'self';
     base-uri 'self';
@@ -42,14 +50,12 @@ export function proxy(request: NextRequest): NextResponse {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const isUnpublishedSite = isUnpublishedDirectSitePath(request.nextUrl.pathname);
-  const response = isUnpublishedSite
-    ? NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 })
-    : NextResponse.next();
+  const route = classifyProxyPath(request.nextUrl.pathname, Boolean(getSessionCookie(request)));
+  const response = routeResponse(request, route);
   response.headers.set("Content-Security-Policy", cspHeader);
 
   const host = request.headers.get("host");
-  if (isUnpublishedSite || !host || host !== CANONICAL_HOST) {
+  if (route.kind === "not-found" || !host || host !== CANONICAL_HOST) {
     response.headers.set("X-Robots-Tag", "noindex");
   }
   return response;
@@ -64,5 +70,8 @@ export const config = {
         { type: "header", key: "purpose", value: "prefetch" },
       ],
     },
+    { source: "/codex" },
+    { source: "/sites/:id" },
+    { source: "/codex/:kind/:key" },
   ],
 };

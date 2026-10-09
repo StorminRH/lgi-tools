@@ -33,13 +33,32 @@ const OUT_DIR = path.resolve(process.cwd(), 'test-results');
 const rel = (file) => path.relative(process.cwd(), file);
 
 const CASES = [
-  { path: '/sites/100', expectedStatus: 404, invalid: true },
-  { path: '/sites/3', expectedStatus: 200, invalid: false },
+  { path: '/sites/3', expect: { kind: 'redirect', location: '/codex/sites/3' } },
+  { path: '/sites/007', expect: { kind: 'redirect', location: '/codex/sites/7' } },
+  { path: '/sites/3?type=relic', expect: { kind: 'redirect', location: '/codex/sites/3' } },
+  { path: '/sites/100', expect: { kind: 'not-found' } },
+  { path: '/sites/abc', expect: { kind: 'not-found' } },
+  { path: '/codex/sites/3', expect: { kind: 'page' } },
+  { path: '/codex/sites/100', expect: { kind: 'not-found' } },
+  { path: '/codex/sites/abc', expect: { kind: 'not-found' } },
+  { path: '/codex/nope/x', expect: { kind: 'not-found' } },
+  { path: '/codex', expect: { kind: 'page' } },
 ];
 
 function isExpectedDocument404(entry, targetUrl, invalid) {
   if (!invalid || !entry.text.includes('404')) return false;
   return entry.location === '' || entry.location === targetUrl;
+}
+
+async function checkRedirect(route, targetUrl) {
+  const response = await context.request.get(targetUrl, { maxRedirects: 0 });
+  const location = response.headers().location ?? '';
+  const target = new URL(location, baseUrl);
+  const checks = {
+    status: response.status() === 308,
+    location: location !== '' && `${target.pathname}${target.search}` === route.expect.location,
+  };
+  return { route: route.path, status: response.status(), location, checks, passed: Object.values(checks).every(Boolean) };
 }
 
 const auth = await loadRemoteAuthOptions({
@@ -58,11 +77,17 @@ const reports = [];
 
 try {
   for (const route of CASES) {
+    const targetUrl = new URL(route.path, baseUrl).toString();
+    if (route.expect.kind === 'redirect') {
+      reports.push(await checkRedirect(route, targetUrl));
+      continue;
+    }
+    const invalid = route.expect.kind === 'not-found';
+    const expectedStatus = invalid ? 404 : 200;
     const page = await context.newPage();
     const consoleErrors = [];
     const pageErrors = [];
     const failureArtifacts = [];
-    const targetUrl = new URL(route.path, baseUrl).toString();
 
     page.on('console', (message) => {
       if (message.type() !== 'error') return;
@@ -89,14 +114,14 @@ try {
     const hasNoindex =
       robotsValue.includes('noindex') || robotsHeader.includes('noindex');
     const unexpectedConsoleErrors = consoleErrors.filter(
-      (entry) => !isExpectedDocument404(entry, targetUrl, route.invalid),
+      (entry) => !isExpectedDocument404(entry, targetUrl, invalid),
     );
     const checks = {
-      status: status === route.expectedStatus,
-      title: route.invalid
+      status: status === expectedStatus,
+      title: invalid
         ? title === 'Not found | LGI.tools'
         : title.length > 0 && title !== 'Not found | LGI.tools',
-      robots: route.invalid ? hasNoindex : !hasNoindex,
+      robots: invalid ? hasNoindex : !hasNoindex,
       pageErrors: pageErrors.length === 0,
       consoleErrors: unexpectedConsoleErrors.length === 0,
     };

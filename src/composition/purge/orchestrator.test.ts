@@ -27,6 +27,11 @@ const { chain, recorded, executions } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
+vi.mock('next/cache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/cache')>()),
+  revalidateTag: vi.fn(),
+}));
+
 vi.mock('@/data/maps/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/maps/queries')>();
   return {

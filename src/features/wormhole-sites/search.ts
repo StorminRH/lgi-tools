@@ -28,34 +28,36 @@ const CLASS_ORDER: Record<string, number> = {
   C1: 0, C2: 1, C3: 2, C4: 3, C5: 4, C6: 5,
 };
 
-export const sitesSearchSource: SearchSource = {
-  id: 'sites',
-  name: 'Sites',
-  limit: 6,
-  async search(query) {
-    const matches: { entry: SiteSearchEntry; match: FuzzyMatch }[] = [];
-    for (const entry of SITE_INDEX) {
-      const match = fuzzyMatch(query, entry.name);
-      if (match) matches.push({ entry, match });
-    }
+export function createSitesSearchSource(detailHref: (id: number) => string): SearchSource {
+  return {
+    id: 'sites',
+    name: 'Sites',
+    limit: 6,
+    async search(query) {
+      const matches: { entry: SiteSearchEntry; match: FuzzyMatch }[] = [];
+      for (const entry of SITE_INDEX) {
+        const match = fuzzyMatch(query, entry.name);
+        if (match) matches.push({ entry, match });
+      }
 
-    matches.sort((a, b) => {
-      if (a.match.score !== b.match.score) return b.match.score - a.match.score;
-      const ca = a.entry.wormholeClass ? CLASS_ORDER[a.entry.wormholeClass] ?? 9 : 9;
-      const cb = b.entry.wormholeClass ? CLASS_ORDER[b.entry.wormholeClass] ?? 9 : 9;
-      if (ca !== cb) return ca - cb;
-      return (primarySiteIsk(b.entry) ?? 0) - (primarySiteIsk(a.entry) ?? 0);
-    });
+      matches.sort((a, b) => {
+        if (a.match.score !== b.match.score) return b.match.score - a.match.score;
+        const ca = a.entry.wormholeClass ? CLASS_ORDER[a.entry.wormholeClass] ?? 9 : 9;
+        const cb = b.entry.wormholeClass ? CLASS_ORDER[b.entry.wormholeClass] ?? 9 : 9;
+        if (ca !== cb) return ca - cb;
+        return (primarySiteIsk(b.entry) ?? 0) - (primarySiteIsk(a.entry) ?? 0);
+      });
 
-    return matches.map<SearchResult>(({ entry, match }) => ({
-      kind: 'site',
-      id: `site:${entry.id}`,
-      label: entry.name,
-      sub: `${SITE_TYPE_LABEL[entry.siteType]} · ${formatIskCompact(primarySiteIsk(entry))}`,
-      href: `/sites/${entry.id}`,
-      iconText: entry.wormholeClass ?? '—',
-      iconTone: iconTone(entry),
-      matchIndices: match.matchIndices,
-    }));
-  },
-};
+      return matches.map<SearchResult>(({ entry, match }) => ({
+        kind: 'site',
+        id: `site:${entry.id}`,
+        label: entry.name,
+        sub: `${SITE_TYPE_LABEL[entry.siteType]} · ${formatIskCompact(primarySiteIsk(entry))}`,
+        href: detailHref(entry.id),
+        iconText: entry.wormholeClass ?? '—',
+        iconTone: iconTone(entry),
+        matchIndices: match.matchIndices,
+      }));
+    },
+  };
+}

@@ -22,16 +22,18 @@ export function UrlSync({
     const details = root.querySelector<HTMLDetailsElement>('details');
     if (!details) return;
 
+    const openHash = `${new URL(basePath, window.location.origin).hash || '#'}/${entityId}`;
     const onToggle = () => {
       const url = new URL(basePath, window.location.origin);
-      if (details.open) {
-        if (basePath.includes('#')) url.hash += `/${entityId}`;
-        else url.pathname += `/${entityId}`;
-      }
+      if (details.open) url.hash = openHash;
       url.search = window.location.search;
       window.history.replaceState(null, '', url);
     };
 
+    if (window.location.hash === openHash && !details.open) {
+      details.open = true;
+      details.scrollIntoView({ block: 'start' });
+    }
     details.addEventListener('toggle', onToggle);
     return () => details.removeEventListener('toggle', onToggle);
   }, [basePath, entityId]);

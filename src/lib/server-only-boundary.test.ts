@@ -137,6 +137,7 @@ const VENDOR_OWNER_RULES: readonly VendorOwnerRule[] = [
       'src/composition/account-lifecycle/',
       'src/app/api/auth/[...all]/route.ts',
       'src/app/(site)/industry/industry-characters.ts',
+      'src/proxy.ts',
     ],
   },
 ];

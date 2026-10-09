@@ -2,7 +2,7 @@
 
 import { Popover as Base } from '@base-ui/react/popover';
 import { cva } from 'class-variance-authority';
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
 import { scrollArea } from './scroll-area';
@@ -39,7 +39,10 @@ export function Popover({
   align = 'center',
   openOnHover = true,
   keepSide = false,
+  anchor,
+  open,
   onOpenChange,
+  finalFocus,
   triggerClassName,
   className,
 }: {
@@ -55,12 +58,16 @@ export function Popover({
    * past the viewport, so it never flips away from the pointer and closes.
    */
   keepSide?: boolean;
+  /** Positions the popup against this element instead of the trigger. */
+  anchor?: ComponentProps<typeof Base.Positioner>['anchor'];
+  open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  finalFocus?: ComponentProps<typeof Base.Popup>['finalFocus'];
   triggerClassName?: string;
   className?: string;
 }) {
   return (
-    <Base.Root modal={false} onOpenChange={onOpenChange}>
+    <Base.Root modal={false} open={open} onOpenChange={onOpenChange}>
       <Base.Trigger
         type="button"
         aria-label={label}
@@ -73,6 +80,7 @@ export function Popover({
       </Base.Trigger>
       <Base.Portal>
         <Base.Positioner
+          anchor={anchor}
           side={side}
           align={align}
           sideOffset={8}
@@ -81,6 +89,7 @@ export function Popover({
         >
           <Base.Popup
             aria-label={label}
+            finalFocus={finalFocus}
             className={cn(
               popup({ tone }),
               keepSide && [scrollArea, 'max-h-[calc(100dvh-1rem)] overflow-y-auto'],

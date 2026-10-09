@@ -19,6 +19,13 @@ export const TOOLS: Tool[] = [
     description: 'Live · /sites',
   },
   {
+    label: 'Codex',
+    abbr: 'CX',
+    href: '/codex',
+    matchPrefix: '/codex',
+    description: 'Live · /codex',
+  },
+  {
     label: 'Industry Planner',
     abbr: 'IP',
     href: '/industry',

@@ -1,0 +1,155 @@
+import { expect, test } from 'vitest';
+import type { CodexBlockNode } from './doc';
+import { diffCodexBlocks, wordStats } from './diff';
+
+const p = (id: string, text: string, marks: { type: 'bold'; attrs: object }[] = []): CodexBlockNode =>
+  ({ type: 'paragraph', attrs: { id }, content: [{ type: 'text', text, marks }] }) as CodexBlockNode;
+
+const dataBlock = (fields: string[], layout: 'infobox' | 'table'): CodexBlockNode =>
+  ({
+    type: 'dataBlock',
+    attrs: { id: 'd', source: 'wormholeType', key: 'c247', fields, layout },
+    content: [],
+  }) as CodexBlockNode;
+
+test('an added block and a removed block carry their text', () => {
+  expect(diffCodexBlocks([p('a', 'One')], [p('a', 'One'), p('b', 'Two')])).toEqual([
+    { kind: 'added', id: 'b', text: 'Two' },
+  ]);
+  expect(diffCodexBlocks([p('a', 'One'), p('b', 'Two')], [p('a', 'One')])).toEqual([
+    { kind: 'removed', id: 'b', text: 'Two' },
+  ]);
+  expect(wordStats(diffCodexBlocks([p('a', 'One two')], [p('b', 'Three')]))).toEqual({ added: 1, removed: 2 });
+});
+
+test('reordered blocks report where each one moved', () => {
+  expect(diffCodexBlocks([p('a', 'A'), p('b', 'B'), p('c', 'C')], [p('b', 'B'), p('a', 'A'), p('c', 'C')])).toEqual([
+    { kind: 'moved', id: 'a', from: 0, to: 1 },
+    { kind: 'moved', id: 'b', from: 1, to: 0 },
+  ]);
+});
+
+test('an edited paragraph diffs word by word', () => {
+  const diff = diffCodexBlocks([p('a', 'Warp in at 30 km')], [p('a', 'Warp in at 50 km')]);
+  expect(diff).toEqual([
+    {
+      kind: 'changed',
+      id: 'a',
+      words: [
+        { op: 'same', text: 'Warp in at ' },
+        { op: 'removed', text: '30' },
+        { op: 'added', text: '50' },
+        { op: 'same', text: ' km' },
+      ],
+    },
+  ]);
+  expect(wordStats(diff)).toEqual({ added: 1, removed: 1 });
+});
+
+test('a formatting-only edit and a data block edit are named as such', () => {
+  expect(diffCodexBlocks([p('a', 'Warp')], [p('a', 'Warp', [{ type: 'bold', attrs: {} }])])).toEqual([
+    { kind: 'changed', id: 'a', change: 'format' },
+  ]);
+  expect(diffCodexBlocks([dataBlock(['mass', 'lifetime'], 'infobox')], [dataBlock(['mass'], 'table')])).toEqual([
+    {
+      kind: 'changed',
+      id: 'd',
+      attrs: [
+        { name: 'fields', before: 'mass, lifetime', after: 'mass' },
+        { name: 'layout', before: 'infobox', after: 'table' },
+      ],
+    },
+  ]);
+});
+
+test('identical blocks have no differences', () => {
+  expect(diffCodexBlocks([p('a', 'Same'), p('b', 'Too')], [p('a', 'Same'), p('b', 'Too')])).toEqual([]);
+});
+
+test('ids the editor adds to nested paragraphs are not a change', () => {
+  const list = (ids: boolean): CodexBlockNode =>
+    ({
+      type: 'bulletList',
+      attrs: { id: 'steps' },
+      content: ['Higgs anchor', 'Prop mod'].map((text, index) => ({
+        type: 'listItem',
+        attrs: {},
+        content: [{ type: 'paragraph', attrs: ids ? { id: `n${index}` } : {}, content: [{ type: 'text', text, marks: [] }] }],
+      })),
+    }) as CodexBlockNode;
+  expect(diffCodexBlocks([list(false)], [list(true)])).toEqual([]);
+});
+
+test('a whitespace-only edit shows the whitespace that changed', () => {
+  expect(diffCodexBlocks([p('a', 'Warp in')], [p('a', 'Warp  in')])).toEqual([
+    {
+      kind: 'changed',
+      id: 'a',
+      words: [
+        { op: 'same', text: 'Warp' },
+        { op: 'removed', text: ' ' },
+        { op: 'added', text: '  ' },
+        { op: 'same', text: 'in' },
+      ],
+    },
+  ]);
+});
+
+test('a 200-block page reports each edited block once', () => {
+  const words = (seed: number) => Array.from({ length: 40 }, (_, index) => `word${(index * seed) % 97}`).join(' ');
+  const before = Array.from({ length: 200 }, (_, index) => p(`b${index}`, words(index + 1)));
+  const after = before.map((block, index) => (index % 3 === 0 ? p(`b${index}`, words(index + 7)) : block));
+  const diff = diffCodexBlocks(before, after);
+  expect(diff.map(({ id }) => id)).toEqual(Array.from({ length: 67 }, (_, index) => `b${index * 3}`));
+  expect(diff.every((entry) => entry.kind === 'changed' && 'words' in entry)).toBe(true);
+});
+
+const ASSET = '0b9a3c1e-6f0d-4b55-9e0e-2f8c1d7a9b10';
+const image = (alt: string): CodexBlockNode =>
+  ({ type: 'image', attrs: { id: 'i1', assetId: ASSET, alt, caption: '' }, content: [] }) as CodexBlockNode;
+
+test('an added image carries its asset and alt text', () => {
+  expect(diffCodexBlocks([p('a', 'One')], [p('a', 'One'), image('Gila holding')])).toEqual([
+    { kind: 'added', id: 'i1', text: 'Image: Gila holding', image: { assetId: ASSET, alt: 'Gila holding', caption: '' } },
+  ]);
+});
+
+test('a changed alt text is an attribute change', () => {
+  expect(diffCodexBlocks([image('a')], [image('b')])).toEqual([
+    { kind: 'changed', id: 'i1', attrs: [{ name: 'alt', before: 'a', after: 'b' }] },
+  ]);
+});
+
+const video = (attrs: { provider?: string; videoId?: string; title?: string } = {}): CodexBlockNode =>
+  ({
+    type: 'video',
+    attrs: { id: 'v1', provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear', ...attrs },
+    content: [],
+  }) as CodexBlockNode;
+
+test('an added video names its title, provider, and id', () => {
+  expect(diffCodexBlocks([], [video()])).toEqual([
+    {
+      kind: 'added',
+      id: 'v1',
+      text: 'Video: Full clear (youtube dQw4w9WgXcQ)',
+      video: { provider: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Full clear' },
+    },
+  ]);
+});
+
+test('a swapped video and a retitled video are attribute changes', () => {
+  expect(diffCodexBlocks([video()], [video({ provider: 'twitch-clip', videoId: 'Slug' })])).toEqual([
+    {
+      kind: 'changed',
+      id: 'v1',
+      attrs: [
+        { name: 'provider', before: 'youtube', after: 'twitch-clip' },
+        { name: 'videoId', before: 'dQw4w9WgXcQ', after: 'Slug' },
+      ],
+    },
+  ]);
+  const retitled = diffCodexBlocks([video({ title: 'a' })], [video({ title: 'b' })]);
+  expect(retitled).toEqual([{ kind: 'changed', id: 'v1', attrs: [{ name: 'title', before: 'a', after: 'b' }] }]);
+  expect(wordStats(retitled)).toEqual({ added: 0, removed: 0 });
+});

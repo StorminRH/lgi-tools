@@ -453,9 +453,27 @@ const reactFlowImportPatterns = [
   },
 ];
 
+const tiptapImportPatterns = [
+  {
+    group: ["@tiptap/*"],
+    message:
+      "TipTap is confined to the Codex editor island in src/features/codex/editor, which readers load only after an admin opens an editor.",
+  },
+];
+
+const diffImportPatterns = [
+  {
+    regex: "^diff(?:/|$)",
+    message:
+      "The text-diff package is owned by src/features/codex/diff.ts. Import diffCodexBlocks from there.",
+  },
+];
+
 const crossCuttingImportPatterns = [
   ...stalenessImportPatterns,
   ...reactFlowImportPatterns,
+  ...tiptapImportPatterns,
+  ...diffImportPatterns,
 ];
 
 const upstashRedisImportPatterns = [
@@ -506,6 +524,30 @@ const googleAuthImportPatterns = [
   },
 ];
 
+const vercelBlobImportPatterns = [
+  {
+    regex: "^@vercel/blob$",
+    message:
+      "Vercel Blob storage calls are owned by @/lib/codex-blob, which holds the token, the environment key prefix, and the timeouts; import that module instead of the package.",
+  },
+];
+
+const vercelBlobClientImportPatterns = [
+  {
+    group: ["@vercel/blob/*"],
+    message:
+      "The Vercel Blob client entry is owned by @/lib/codex-blob-client (browser upload and the token handshake); import that module instead of the package.",
+  },
+];
+
+const sharpImportPatterns = [
+  {
+    group: ["sharp"],
+    message:
+      "Image decoding is owned by @/lib/codex-image-process, which holds the pixel limit and metadata stripping; import processCodexImage instead of the package.",
+  },
+];
+
 const vendorImportPatterns = [
   ...upstashRedisImportPatterns,
   ...upstashRatelimitImportPatterns,
@@ -513,6 +555,9 @@ const vendorImportPatterns = [
   ...betterAuthImportPatterns,
   ...convexReactImportPatterns,
   ...googleAuthImportPatterns,
+  ...vercelBlobImportPatterns,
+  ...vercelBlobClientImportPatterns,
+  ...sharpImportPatterns,
 ];
 
 const serverRootImportPatterns = [
@@ -828,10 +873,57 @@ const eslintConfig = defineConfig([
           patterns: [
             ...vendorImportPatterns,
             ...stalenessImportPatterns,
+            ...tiptapImportPatterns,
+            ...diffImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
             ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/codex/editor/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...nextImageImportPaths,
+          ],
+          patterns: [
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
+            ...reactFlowImportPatterns,
+            ...diffImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/codex/diff.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...nextImageImportPaths,
+          ],
+          patterns: [
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
+            ...reactFlowImportPatterns,
+            ...tiptapImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
           ],
         },
       ],
@@ -978,6 +1070,84 @@ const eslintConfig = defineConfig([
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
+            ...crossCuttingImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/lib/codex-blob.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
+            ...crossCuttingImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/lib/codex-blob-client.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...sharpImportPatterns,
+            ...crossCuttingImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/lib/codex-image-process.ts", "src/lib/codex-image-process.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
@@ -1000,6 +1170,9 @@ const eslintConfig = defineConfig([
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
@@ -1027,6 +1200,9 @@ const eslintConfig = defineConfig([
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
@@ -1042,6 +1218,7 @@ const eslintConfig = defineConfig([
       "src/app/api/auth/**/route.{ts,tsx}",
       "src/app/(site)/industry/industry-characters.ts",
       "src/app/(site)/industry/industry-characters.test.ts",
+      "src/proxy.ts",
     ],
     rules: {
       "no-restricted-imports": [
@@ -1054,6 +1231,9 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
@@ -1076,6 +1256,9 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...betterAuthImportPatterns,
             ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
@@ -1099,6 +1282,9 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
@@ -1124,6 +1310,9 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
@@ -1146,6 +1335,9 @@ const eslintConfig = defineConfig([
             ...upstashRatelimitImportPatterns,
             ...databaseDriverImportPatterns,
             ...googleAuthImportPatterns,
+            ...vercelBlobImportPatterns,
+            ...vercelBlobClientImportPatterns,
+            ...sharpImportPatterns,
             ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,

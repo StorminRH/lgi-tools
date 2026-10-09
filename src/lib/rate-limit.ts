@@ -16,10 +16,9 @@ export interface RateLimitDenied {
 
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
-export interface RateLimitOptions {
-  perMinute: number;
-  name: string;
-}
+export type RateLimitOptions =
+  | { perMinute: number; name: string }
+  | { perDay: number; name: string };
 
 const limiters = new Map<string, Ratelimit>();
 let warnedAboutMissingEnv = false;
@@ -31,7 +30,8 @@ function getLimiter(
   options: RateLimitOptions,
   upstash: NonNullable<ReturnType<typeof resolveUpstashRest>>,
 ): Ratelimit {
-  const cacheKey = `${options.name}:${options.perMinute}`;
+  const [tokens, window] = 'perDay' in options ? [options.perDay, '1 d' as const] : [options.perMinute, '60 s' as const];
+  const cacheKey = `${options.name}:${tokens}:${window}`;
   const cached = limiters.get(cacheKey);
   if (cached) return cached;
 
@@ -41,7 +41,7 @@ function getLimiter(
       timeoutMs: RATE_LIMIT_REDIS_TIMEOUT_MS,
       retries: RATE_LIMIT_REDIS_RETRIES,
     }),
-    limiter: Ratelimit.slidingWindow(options.perMinute, "60 s"),
+    limiter: Ratelimit.slidingWindow(tokens, window),
     analytics: false,
     prefix: `lgi:ratelimit:${options.name}`,
   });

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SiteSearchEntry } from './queries';
-import { setSiteSearchIndex, sitesSearchSource } from './search';
+import { createSitesSearchSource, setSiteSearchIndex } from './search';
 
 const entry = (over: Partial<SiteSearchEntry> & { id: number; name: string }): SiteSearchEntry => ({
   siteType: 'combat',
@@ -11,8 +11,9 @@ const entry = (over: Partial<SiteSearchEntry> & { id: number; name: string }): S
 });
 
 const ctx = { session: null, isAdmin: false, recents: [] };
+const sitesSearchSource = createSitesSearchSource((id) => `/codex/sites/${id}`);
 
-describe('sitesSearchSource', () => {
+describe('createSitesSearchSource', () => {
   beforeEach(() => setSiteSearchIndex([]));
 
   it('returns only fuzzy-matching entries, mapped to site results', async () => {
@@ -25,7 +26,7 @@ describe('sitesSearchSource', () => {
     expect(results[0]).toMatchObject({
       kind: 'site',
       id: 'site:1',
-      href: '/sites/1',
+      href: '/codex/sites/1',
       label: 'Forgotten Frontier Recesses',
     });
   });

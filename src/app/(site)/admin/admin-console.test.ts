@@ -29,6 +29,10 @@ vi.mock('./statics-review-shared', () => ({
   getStaticsReviewShared: async () => null,
 }));
 
+vi.mock('./codex-pending-shared', () => ({
+  getCodexPendingShared: async () => 0,
+}));
+
 function staticsFrame() {
   return AdminPageFrame({
     title: 'Wormhole statics',

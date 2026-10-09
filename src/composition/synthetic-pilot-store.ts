@@ -12,15 +12,15 @@ import { mapAccess, maps } from '@/data/maps/schema';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv, isHostedVercel } from '@/lib/env';
-import { isLocalUrl } from '@/lib/url-safety';
+import { assertLocalDatabaseUrl, isLocalUrl } from '@/lib/url-safety';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
 import { createLocalSession, type LocalSession } from '@/platform/auth/local-session';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
-import { SYNTHETIC_PILOT } from '@/platform/auth/synthetic-pilot';
+import { SYNTHETIC_PILOT, type SyntheticPilot } from '@/platform/auth/synthetic-pilot';
 
-function assertLocalSyntheticEnvironment(): string {
+function assertLocalSyntheticEnvironment(pilot: SyntheticPilot): string {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('Synthetic pilot reset is disabled in production');
   }
@@ -34,9 +34,7 @@ function assertLocalSyntheticEnvironment(): string {
   const ciDatabase =
     readEnv('CI') === 'true' &&
     isLocalUrl(databaseUrl, ['postgres:', 'postgresql:'], ['postgres']);
-  if (!isLocalUrl(databaseUrl, ['postgres:', 'postgresql:']) && !ciDatabase) {
-    throw new Error('Synthetic pilot reset requires a local Postgres DATABASE_URL');
-  }
+  if (!ciDatabase) assertLocalDatabaseUrl(databaseUrl, 'Synthetic pilot reset');
   if (!isLocalUrl(readEnv('BETTER_AUTH_URL'), ['http:'], ['localhost'])) {
     throw new Error('Synthetic pilot reset requires BETTER_AUTH_URL on http://localhost');
   }
@@ -50,14 +48,17 @@ function assertLocalSyntheticEnvironment(): string {
       'BETTER_AUTH_SECRET or SESSION_SECRET is required to mint the synthetic pilot session',
     );
   }
-  if (Number(readEnv('SUPERADMIN_CHARACTER_ID')) === SYNTHETIC_PILOT.characterId) {
+  if (Number(readEnv('SUPERADMIN_CHARACTER_ID')) === pilot.characterId) {
     throw new Error('The synthetic pilot cannot be the configured superadmin');
   }
   return secret;
 }
 
-export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<LocalSession> {
-  const secret = assertLocalSyntheticEnvironment();
+export async function becomeSyntheticPilot(
+  requestHeaders?: Headers,
+  pilot: SyntheticPilot = SYNTHETIC_PILOT,
+): Promise<LocalSession> {
+  const secret = assertLocalSyntheticEnvironment(pilot);
   const ctx = await auth.$context;
   if (ctx.secret !== secret) {
     throw new Error('Load auth environment before importing the synthetic pilot store');
@@ -68,8 +69,8 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
     .where(
       and(
         eq(account.providerId, EVE_PROVIDER_ID),
-        eq(account.accountId, String(SYNTHETIC_PILOT.characterId)),
-        ne(account.userId, SYNTHETIC_PILOT.userId),
+        eq(account.accountId, String(pilot.characterId)),
+        ne(account.userId, pilot.userId),
       ),
     );
   if (foreignOwner) {
@@ -79,18 +80,18 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
   // Reset must atomically replace the fixture below and also work without Convex.
   // nukeAccount commits deletion first and requires owned-map Convex teardown,
   // so it cannot preserve either reset guarantee.
-  await revokeUserSessions(SYNTHETIC_PILOT.userId);
+  await revokeUserSessions(pilot.userId);
   if (process.env.NEXT_PUBLIC_CONVEX_URL) {
     const ownedMaps = await db
       .select({ id: maps.id })
       .from(maps)
-      .where(eq(maps.userId, SYNTHETIC_PILOT.userId));
+      .where(eq(maps.userId, pilot.userId));
     for (const map of ownedMaps) {
       await purgeMapChain(map.id);
       await teardownMapAccessProjection(map.id);
     }
-    await purgeUserMapAccessProjection(SYNTHETIC_PILOT.userId);
-    await purgeLocationTracking(SYNTHETIC_PILOT.userId, null);
+    await purgeUserMapAccessProjection(pilot.userId);
+    await purgeLocationTracking(pilot.userId, null);
   }
   await db.transaction(async (tx) => {
     await tx
@@ -98,29 +99,29 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
       .where(
         and(
           eq(mapAccess.ownerType, 'character'),
-          eq(mapAccess.ownerId, SYNTHETIC_PILOT.characterId),
+          eq(mapAccess.ownerId, pilot.characterId),
         ),
       );
-    await tx.delete(user).where(eq(user.id, SYNTHETIC_PILOT.userId));
-    await createSyntheticPilotRows(tx);
+    await tx.delete(user).where(eq(user.id, pilot.userId));
+    await createSyntheticPilotRows(tx, pilot);
   });
-  return createLocalSession(ctx, SYNTHETIC_PILOT.userId, requestHeaders);
+  return createLocalSession(ctx, pilot.userId, requestHeaders);
 }
 
-async function createSyntheticPilotRows(tx: Pick<typeof db, 'insert'>): Promise<void> {
+async function createSyntheticPilotRows(tx: Pick<typeof db, 'insert'>, pilot: SyntheticPilot): Promise<void> {
   const now = new Date();
-  const portraitUrl = characterPortraitUrl(SYNTHETIC_PILOT.characterId, 128);
+  const portraitUrl = characterPortraitUrl(pilot.characterId, 128);
   await tx.insert(user).values({
-    id: SYNTHETIC_PILOT.userId,
-    name: SYNTHETIC_PILOT.name,
-    email: syntheticEmail(SYNTHETIC_PILOT.characterId),
+    id: pilot.userId,
+    name: pilot.name,
+    email: syntheticEmail(pilot.characterId),
     emailVerified: true,
     image: portraitUrl,
-    role: SYNTHETIC_PILOT.role,
-    activeCharacterId: SYNTHETIC_PILOT.characterId,
+    role: pilot.role,
+    activeCharacterId: pilot.characterId,
   });
   const identity = {
-    name: SYNTHETIC_PILOT.name,
+    name: pilot.name,
     portraitUrl,
     corporationId: null,
     allianceId: null,
@@ -132,15 +133,15 @@ async function createSyntheticPilotRows(tx: Pick<typeof db, 'insert'>): Promise<
   await tx
     .insert(characters)
     .values({
-      characterId: SYNTHETIC_PILOT.characterId,
+      characterId: pilot.characterId,
       ...identity,
     })
     .onConflictDoUpdate({ target: characters.characterId, set: identity });
   await tx.insert(account).values({
-    id: `e2e-eve-${SYNTHETIC_PILOT.characterId}`,
-    accountId: String(SYNTHETIC_PILOT.characterId),
+    id: `e2e-eve-${pilot.characterId}`,
+    accountId: String(pilot.characterId),
     providerId: EVE_PROVIDER_ID,
-    userId: SYNTHETIC_PILOT.userId,
+    userId: pilot.userId,
     createdAt: now,
     updatedAt: now,
   });

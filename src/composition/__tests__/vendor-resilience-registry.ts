@@ -13,7 +13,8 @@ export type VendorIntegrationId =
   | 'fuzzwork'
   | 'ccp-static-data'
   | 'ccp-image-cdn'
-  | 'anoik-statics';
+  | 'anoik-statics'
+  | 'vercel-blob';
 
 export interface VendorResiliencePolicy {
   wrapper: { module: string; symbol: string };
@@ -247,6 +248,22 @@ const anoikStatics = policy({
     "'cron_wh_statics' outcomes (unchanged, feed-unavailable, stale-observation, snapshot-pending).",
 });
 
+const vercelBlob = policy({
+  wrapper: { module: 'src/lib/codex-blob.ts', symbol: 'defaultBlobPort' },
+  timeout: '30s per SDK call (BLOB_TIMEOUT_MS as the abortSignal) and per raw-upload download via fetchWithTimeout.',
+  retryableErrors:
+    'Only what the SDK retries internally on its own network errors; the app adds none. A failed finalize is retried by the editor user, a failed cleanup by the next daily run.',
+  backoff: 'The SDK backoff for its internal retries; none in the app.',
+  rateLimit:
+    'Uploads are capped at 20 per pilot per day in Postgres and 20 token or finalize requests a minute per client; the health card lists the store at most once a day.',
+  idempotency:
+    'Variant keys are content-addressed and written with overwrite, deletes are idempotent, and list is read-only.',
+  degradation:
+    'An unset token answers 503 blob_unconfigured; a failed finalize leaves no row and the daily sweep deletes the raw upload; a failed cleanup keeps the row removed for the next run; readers of a missing image see Image unavailable.',
+  telemetryFields:
+    "'codex.upload-image' and 'codex.finalize-image' capability outcomes; housekeeping 'codex_pending_assets' results.",
+});
+
 export const vendorResilienceRegistry: Record<
   VendorIntegrationId,
   VendorResilienceEntry
@@ -266,4 +283,5 @@ export const vendorResilienceRegistry: Record<
   'ccp-static-data': ccpStaticData,
   'ccp-image-cdn': ccpImageCdn,
   'anoik-statics': anoikStatics,
+  'vercel-blob': vercelBlob,
 };

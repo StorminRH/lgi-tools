@@ -14,6 +14,7 @@
 /coverage
 /test-results/
 e2e/auth-storage.json
+e2e/auth-storage-plain.json
 
 # next.js
 /.next/

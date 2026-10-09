@@ -68,6 +68,10 @@ const harness = await createDbTestHarness({
     'esi_refresh_jobs',
     'pending_tracking_merges',
     'pending_deletions',
+    'codex_pages',
+    'codex_revisions',
+    'codex_proposals',
+    'codex_assets',
   ],
   foreignKeys: [
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },

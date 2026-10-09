@@ -5,6 +5,7 @@ import {
   EVE_IMAGE_SIZES,
   type EveImageFamily,
   type EveImageSize,
+  snapCodexImageWidth,
   snapEveImageSize,
 } from './eve-image';
 
@@ -55,5 +56,11 @@ describe('EVE image size policy', () => {
     expect(EVE_IMAGE_SIZES.map((size) => snapEveImageSize(family, size))).toEqual(
       EVE_IMAGE_SIZES,
     );
+  });
+});
+
+describe('Codex image widths', () => {
+  it('snaps a requested width up to the next stored variant and caps at 1920', () => {
+    expect([900, 2000, 640, 1, 1281].map(snapCodexImageWidth)).toEqual([1280, 1920, 640, 640, 1920]);
   });
 });

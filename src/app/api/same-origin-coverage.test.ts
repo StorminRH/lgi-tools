@@ -25,6 +25,9 @@ const PIPELINE_MUTATIONS = [
   'account/sessions/revoke/route.ts',
   'admin/characters/unlink/route.ts',
   'admin/sessions/revoke/route.ts',
+  'codex/proposals/route.ts',
+  'codex/uploads/finalize/route.ts',
+  'codex/uploads/route.ts',
   'maps/access/route.ts',
   'maps/create/route.ts',
   'maps/delete/route.ts',
@@ -46,6 +49,8 @@ const LOCAL_SYNTHETIC_MUTATIONS = ['dev/synthetic-pilot/route.ts'] as const;
 
 const ADMIN_MUTATIONS = [
   'admin/characters/reassign/route.ts',
+  'admin/codex/proposals/route.ts',
+  'admin/codex/revisions/route.ts',
   'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/wh-statics/route.ts',

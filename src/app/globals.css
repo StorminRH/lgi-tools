@@ -31,6 +31,7 @@
 @import "../components/composition/board/HomeBoardView.css";
 @import "../components/composition/industry-workspace/IndustryShell.css";
 @import "../components/type-icon.css";
+@import "../features/codex/render.css";
 @import "../features/wormhole-sites/components/LazySiteDetails.css";
 @import "../features/wormhole-sites/components/SiteCardLightbox.css";
 @import "../features/wormhole-sites/components/SitesTable.css";
@@ -76,6 +77,11 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
+}
+
+/* Twitch refuses autoplay when anything covers its player, the grain and the Feedback button included. */
+body:has([data-video-player]) :is(.page-grain, [data-site-feedback]) {
+  display: none;
 }
 
 @media (hover: none) and (pointer: coarse) {

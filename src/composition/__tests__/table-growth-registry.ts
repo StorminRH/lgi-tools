@@ -4,6 +4,7 @@ import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
+import { CODEX_PENDING_ASSET_RETENTION_DAYS } from '@/features/codex/constants';
 import { NET_WORTH_HISTORY_DAYS } from '@/features/net-worth/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
@@ -184,6 +185,31 @@ export const TABLE_GROWTH_STORIES = [
     kind: 'purge-managed',
     table: schema.industryProfiles,
     purgeContributor: 'industry-profiles',
+  },
+  {
+    kind: 'bounded',
+    table: schema.codexPages,
+    reason: 'one row per Codex subject, unique on (subject_kind, subject_key); subjects are written guides and the finite set of wormhole-space entities',
+  },
+  {
+    kind: 'retained',
+    table: schema.codexRevisions,
+    reason: 'append-only page history; every revision is CC BY-SA licensed text that attribution and reverts depend on, and account purge clears only its author columns',
+    authority: 'content/changelog/v4.3.md (v4.3.0: every guide keeps its full edit history)',
+  },
+  {
+    kind: 'purge-managed',
+    table: schema.codexProposals,
+    purgeContributor: 'codex',
+  },
+  {
+    kind: 'pruned',
+    table: schema.codexAssets,
+    retentionDays: CODEX_PENDING_ASSET_RETENTION_DAYS,
+    retentionConstant: 'CODEX_PENDING_ASSET_RETENTION_DAYS',
+    prunedBy:
+      'daily /api/cron/daily-batch housekeeping, for pending images no pending suggestion references; published images stay with the revisions that show them',
+    alsoPurgeManagedBy: 'codex',
   },
 
   { kind: 'bounded', table: schema.sites, reason: 'replaced from the finite sites catalogue' },

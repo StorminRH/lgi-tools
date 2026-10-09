@@ -11,7 +11,7 @@ import { SortableTable, type SortableColumn } from '@/components/ui/sortable-tab
 import { SplitAxisChart } from '@/components/ui/split-axis-chart';
 import { StackedAreaChart } from '@/components/ui/stacked-area-chart';
 import { SlimShareBar, StackedShareBar } from '@/components/ui/stacked-share-bar';
-import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
+import { DocTable, StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { TrendChart } from '@/components/ui/trend-chart';
 import {
   sampleAverage,
@@ -121,6 +121,28 @@ export function DataGroup() {
             getRowKey={(row) => row.material}
           />
         </Card>
+      </Specimen>
+
+      <Specimen
+        name="DocTable"
+        source="static-table"
+        note="A written table from a document. Cells may span; it scrolls inside its own frame on narrow screens."
+      >
+        <DocTable>
+          <tr>
+            <th>Ship</th>
+            <th>Cold</th>
+            <th>Hot</th>
+          </tr>
+          <tr>
+            <td>Megathron</td>
+            <td>200,000 t</td>
+            <td>300,000 t</td>
+          </tr>
+          <tr>
+            <td colSpan={3}>A Higgs anchor doubles both.</td>
+          </tr>
+        </DocTable>
       </Specimen>
 
       <Specimen

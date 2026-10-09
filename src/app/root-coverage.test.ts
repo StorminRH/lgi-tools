@@ -55,6 +55,11 @@ import { socialCardFonts } from '@/app/_social-card/fonts';
 import AppLayout, { metadata, viewport } from '@/app/layout';
 import { metadata as AppNotFoundMetadata } from '@/app/not-found';
 import AppOpengraphImage, { alt, contentType, size } from '@/app/opengraph-image';
+import {
+  alt as codexSiteOpengraphAlt,
+  contentType as codexSiteOpengraphContentType,
+  size as codexSiteOpengraphSize,
+} from '@/app/(site)/codex/[kind]/[key]/opengraph-image';
 import AppRobots from '@/app/robots';
 import AppSitemap from '@/app/sitemap';
 
@@ -70,6 +75,9 @@ describe('coverage-gaps', () => {
       contentType,
       size,
       AppOpengraphImage,
+      codexSiteOpengraphAlt,
+      codexSiteOpengraphContentType,
+      codexSiteOpengraphSize,
       AppRobots,
       AppSitemap,
     ];

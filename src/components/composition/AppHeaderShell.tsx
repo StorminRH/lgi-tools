@@ -28,7 +28,7 @@ export function AppHeaderShell({
       <NavTools />
       <div
         data-server-status-slot
-        className="flex h-10 shrink-0 items-center max-lg:ml-auto"
+        className="flex h-10 shrink-0 items-center max-xl:ml-auto"
       >
         {serverStatusSlot}
       </div>

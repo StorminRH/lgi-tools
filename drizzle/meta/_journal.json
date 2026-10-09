@@ -561,6 +561,27 @@
       "when": 1790993417616,
       "tag": "0079_industry_rules_runtime_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1791114545358,
+      "tag": "0080_codex_pages",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1791140809264,
+      "tag": "0081_codex_proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1791149177867,
+      "tag": "0082_codex_assets",
+      "breakpoints": true
     }
   ]
 }

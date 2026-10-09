@@ -1,5 +1,5 @@
 import type { ChipTone, PillTone } from '@/components/ui/tones';
-import { formatClassRange, gasClassRange } from '../gas-classes';
+import { siteClass } from '../gas-classes';
 import { formatIsk } from '../format';
 import type { SiteDetail, SiteResource } from '../types';
 import {
@@ -34,14 +34,8 @@ function activeSiteEwar(site: SiteDetail): EwarKey[] {
 }
 
 function deriveClassPill(site: SiteDetail): { tone: PillTone; label: string } | null {
-  if (site.wormholeClass) {
-    return { tone: CLASS_TONE[site.wormholeClass], label: site.wormholeClass };
-  }
-  if (site.siteType === 'gas') {
-    const range = gasClassRange(site.name);
-    return range ? { tone: CLASS_TONE[range.min], label: formatClassRange(range) } : null;
-  }
-  return null;
+  const found = siteClass(site);
+  return found ? { tone: CLASS_TONE[found.min], label: found.label } : null;
 }
 
 export type SiteCardHeaderView = {

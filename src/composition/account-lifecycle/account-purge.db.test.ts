@@ -29,6 +29,10 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
 vi.mock('@/composition/map-purge', () => ({
   purgeMapChain: mapPurge.purgeMapChain,
 }));
+vi.mock('next/cache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/cache')>()),
+  revalidateTag: vi.fn(),
+}));
 
 import { finishPendingDeletion, nukeAccount, purgeOwnCharacter, retryRequestedDeletions } from './account-purge';
 import { enqueueDeletion, requestDeletion, readDeletionJobs, type DeletionJob } from '@/platform/auth/deletion-jobs';
@@ -78,6 +82,10 @@ const TABLE_NAMES = [
   'net_worth_days',
   'pending_tracking_merges',
   'pending_deletions',
+  'codex_pages',
+  'codex_revisions',
+  'codex_proposals',
+  'codex_assets',
   'verification',
   'jwks',
 ] as const;
