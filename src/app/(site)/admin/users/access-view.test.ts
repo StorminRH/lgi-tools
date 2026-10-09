@@ -4,6 +4,7 @@ import {
   deriveAccessView,
   deriveAuditRowView,
   mergeAdminRows,
+  sanitiseQuery,
 } from './access-view';
 import type { AdminUser } from '@/platform/auth/admin-users';
 
@@ -83,31 +84,27 @@ test('deriveAuditRowView labels actor/target with id fallbacks and tones the rol
   expect(missing.fromLabel).toBe('?');
 });
 
-test('deriveAccessView filters admins from search, truncates past the cap, and formats the empty query', () => {
+test('deriveAccessView filters admins from search, and says when the list stops at the cap', () => {
   const adminRows = [{ user: { userId: 'a' } }, { user: { userId: 'b' } }];
   const searched = deriveAccessView({
     adminRows,
     searchResults: [admin({ userId: 'a' }), admin({ userId: 'c' })],
-    query: 'pil',
   });
   expect(searched.nonAdminMatches.map((u) => u.userId)).toEqual(['c']);
-  expect(searched.hasQuery).toBe(true);
-  expect(searched.querySuffix).toBe(' · search "pil"');
   expect(searched.resultsHint).toBe('1 match');
 
   const many = Array.from({ length: 51 }, (_, i) => admin({ userId: `x${i}` }));
-  const truncated = deriveAccessView({ adminRows: [], searchResults: many, query: 'x' });
-  expect(truncated.searchTruncated).toBe(true);
+  const truncated = deriveAccessView({ adminRows: [], searchResults: many });
   expect(truncated.nonAdminMatches).toHaveLength(50);
-  expect(truncated.resultsHint).toContain('showing first 50');
+  expect(truncated.resultsHint).toBe('50 matches · showing first 50, narrow your search');
 
-  const empty = deriveAccessView({
-    adminRows: [{ user: { userId: 'a' } }],
-    searchResults: [],
-    query: undefined,
-  });
-  expect(empty.adminCount).toBe(1);
-  expect(empty.adminPlural).toBe('');
-  expect(empty.querySuffix).toBe('');
-  expect(empty.hasQuery).toBe(false);
+  expect(deriveAccessView({ adminRows, searchResults: [] }).resultsHint).toBe('0 matches');
+});
+
+test('sanitiseQuery drops control characters, trims, caps the length and treats blank as no query', () => {
+  expect(sanitiseQuery('  Pilot\u0007 ')).toBe('Pilot');
+  expect(sanitiseQuery('x'.repeat(250))).toHaveLength(200);
+  expect(sanitiseQuery('   ')).toBeUndefined();
+  expect(sanitiseQuery(['a', 'b'])).toBeUndefined();
+  expect(sanitiseQuery(undefined)).toBeUndefined();
 });

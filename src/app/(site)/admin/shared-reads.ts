@@ -12,6 +12,7 @@ import {
 } from '@/data/telemetry/queries';
 import { getCapabilityLatency, getCapabilityOutcomeStats } from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
+import { getUserOwningCharacter, listAdminUsers } from '@/platform/auth/admin-users';
 
 // Reads that several cards, the rail, or the layout ask for in one request.
 // Each runs once per request however many callers it has.
@@ -72,3 +73,7 @@ export const getPageViewStatsShared = sharedPeriodRead(getPageViewStats);
 export const getPageViewRankingsShared = sharedRangeRead((range) => getPageViewRankings(range, 10));
 /** The newest finalised Google reporting day, which every dated search card counts back from. */
 export const getLatestReportDateShared = cache(getLatestReportDate);
+/** The admin accounts, read once for the Admins card and to keep admins out of search results. */
+export const listAdminUsersShared = cache(listAdminUsers);
+/** The account holding the env superadmin's character, read alongside the admin list. */
+export const getUserOwningCharacterShared = cache(getUserOwningCharacter);
