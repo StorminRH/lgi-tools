@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { setMemberCategories } from '@/features/industry-planner/profiles/assignments';
+import { settle } from '@/lib/__tests__/hook-runtime';
 
 // Show dialog contents inline; the real popups only mount in a browser.
 vi.mock('@/components/ui/dialog', () => ({
@@ -57,8 +58,6 @@ function open(dialog: DialogState, ctx: DialogContext, current: IndustryProfileR
   const outer = WorkspaceDialogs({ dialog, profile: current, ctx }) as Rendered;
   return (outer.type as (props: unknown) => Rendered)(outer.props);
 }
-
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 test('creating suggests a free name, starts with the picked characters, and opens the new profile', async () => {
   const ctx = context({ created: 'new-id' });

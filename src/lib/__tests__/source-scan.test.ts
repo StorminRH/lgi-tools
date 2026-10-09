@@ -144,6 +144,19 @@ test('valueImportSpecifiers keeps runtime edges and skips type-only clauses', ()
   ]);
 });
 
+test('valueImportSpecifiers reads each clause from its own statement only', () => {
+  expect(valueImportSpecifiers("export type { A };\nimport { B } from './b';")).toEqual(['./b']);
+  expect(
+    valueImportSpecifiers(
+      "export type A = { x: number };\nexport function f() {}\nexport { B } from './b';",
+    ),
+  ).toEqual(['./b']);
+  expect(
+    valueImportSpecifiers("export function noop() {}\nexport type { C } from './c';"),
+  ).toEqual([]);
+  expect(valueImportSpecifiers("export type { D }\nimport { E } from './e';")).toEqual(['./e']);
+});
+
 test('resolveLocalImport resolves alias and relative specifiers to the first existing candidate', () => {
   const files = new Set([
     'src/lib/format.ts',
