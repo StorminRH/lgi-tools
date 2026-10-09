@@ -21,6 +21,7 @@ import {
 import { deriveSliSignals, mapLoaded, summarizeQueue, type Loaded } from '../signals';
 import { deriveServiceLevels } from './health-view';
 import { DEAD_LETTER_PREVIEW, type ServiceLevelDetails } from './ServiceLevelRows';
+import { formatUtcMinute } from '@/lib/format/time';
 
 /**
  * The headline service levels and the detail behind each. Each detail read
@@ -70,7 +71,7 @@ export function EventLog({ events }: { events: DomainEventRow[] }) {
           className="flex flex-col gap-0.5 border-b border-border-soft px-3.5 py-2 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-4"
         >
           <span className="shrink-0 font-data text-micro tabular-nums text-muted sm:w-[140px]">
-            {event.occurredAt.toISOString().replace('T', ' ').slice(0, 16)} UTC
+            {formatUtcMinute(event.occurredAt)} UTC
           </span>
           <span className="min-w-0 text-ui text-text">{summarizeDomainEvent(event)}</span>
         </li>

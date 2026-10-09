@@ -1,5 +1,6 @@
 import { sectionMatches } from '@/lib/section-path';
 import { parseRange, type RangeKey } from '@/composition/admin-period';
+import { formatQuantity } from '@/lib/format/number';
 
 export type AdminSectionId =
   | 'overview'
@@ -119,7 +120,7 @@ export function deriveNavBadges(input: {
 }): AdminNavBadges {
   const badges: AdminNavBadges = {};
   if (input.deadLettered > 0) {
-    badges.queue = { label: input.deadLettered.toLocaleString(), tone: 'red' };
+    badges.queue = { label: formatQuantity(input.deadLettered), tone: 'red' };
   }
   if (input.staticsPending) {
     badges.statics = { label: '1', tone: 'orange' };

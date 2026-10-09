@@ -13,6 +13,7 @@ import { TitledBlock } from '../TitledBlock';
 import { formatDurationMs, toneOutcomes, type TonedOutcome } from './cron-outcomes';
 import { DetailBody, DetailCaption } from './DetailBlocks';
 import { StatusRow } from './StatusRow';
+import { formatUtcMinute } from '@/lib/format/time';
 
 function OutcomeBars({ outcomes, ariaLabel }: { outcomes: TonedOutcome[]; ariaLabel: string }) {
   return (
@@ -113,7 +114,7 @@ function GscSyncDetail({
           <DetailCaption>
             Google data lags ~2–3 days · last synced{' '}
             {lastSyncedAt
-              ? `${lastSyncedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`
+              ? `${formatUtcMinute(lastSyncedAt)} UTC`
               : 'never'}
           </DetailCaption>
           {gscOutcomes.length > 0 && (

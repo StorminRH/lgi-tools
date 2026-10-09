@@ -7,6 +7,7 @@ import type {
 } from '@/data/telemetry/queries';
 import type { DomainEventRow } from '@/data/domain-events/types';
 import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatUtcMinute } from '@/lib/format/time';
 
 export interface OpsMetricRow {
   label: string;
@@ -20,7 +21,7 @@ export function deriveDeadLetterView(rows: DeadLetterRow[]) {
     title: `${row.dataset.replaceAll('_', ' ')} · ${row.ownerType} ${row.ownerId}`,
     endpointClass: row.resource,
     failureClass: row.lastErrorCode ?? row.budgetReason ?? 'unclassified',
-    timing: `${(row.finishedAt ?? row.createdAt).toISOString().replace('T', ' ').slice(0, 16)} UTC`,
+    timing: `${formatUtcMinute(row.finishedAt ?? row.createdAt)} UTC`,
     attempts: row.attemptCount,
   }));
 }

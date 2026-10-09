@@ -54,7 +54,7 @@ vi.mock('convex/react', () => ({
 import { AccountTotals } from '@/app/(site)/admin/AccountsCard';
 import { AdminCard, AdminSection } from '@/app/(site)/admin/AdminSection';
 import { ActivityChart } from '@/app/(site)/admin/ActivityChart';
-import { AdminPageFrame, AdminSlot } from '@/app/(site)/admin/AdminFrame';
+import { AdminPageFrame } from '@/app/(site)/admin/AdminFrame';
 import { AdminGate } from '@/app/(site)/admin/AdminGate';
 import { AdminRail, AdminRailFallback } from '@/app/(site)/admin/AdminRail';
 import { CardFallback } from '@/app/(site)/admin/CardFallback';
@@ -63,7 +63,6 @@ import { DeltaBadge } from '@/app/(site)/admin/DeltaBadge';
 import { KpiGrid } from '@/app/(site)/admin/KpiGrid';
 import { RangeControl } from '@/app/(site)/admin/RangeControl';
 import { RangeSelector, RangeSelectorFallback } from '@/app/(site)/admin/RangeSelector';
-import { SectionUnavailable } from '@/app/(site)/admin/SectionUnavailable';
 import { AdminNav, AdminNavFallback } from '@/app/(site)/admin/admin-nav';
 import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/admin/charts';
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
@@ -127,7 +126,6 @@ describe('coverage-gaps', () => {
       AdminSection,
       ActivityChart,
       AdminPageFrame,
-      AdminSlot,
       AdminGate,
       AdminRail,
       AdminRailFallback,
@@ -138,7 +136,6 @@ describe('coverage-gaps', () => {
       RangeControl,
       RangeSelector,
       RangeSelectorFallback,
-      SectionUnavailable,
       AdminNav,
       AdminNavFallback,
       AdminBarChart,
