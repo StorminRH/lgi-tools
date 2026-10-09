@@ -29,7 +29,7 @@ export function AdminCharacterRow({
 }) {
   return (
     <li className="flex flex-col gap-2 border-b border-border-soft px-3.5 py-2.5 last:border-b-0 hover:bg-row-hover sm:flex-row sm:items-center sm:gap-4">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3 sm:flex-1">
         <CharacterPortrait characterId={characterId ?? undefined} name={name} size={28} src={portraitUrl} />
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
           <span className="min-w-0 truncate font-ui text-ui text-name">
