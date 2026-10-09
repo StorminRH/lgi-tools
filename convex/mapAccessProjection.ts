@@ -3,6 +3,7 @@ import {
   canonicalizeMapRoles,
   type MapRole,
 } from '@/data/maps/access-contract';
+import { groupBy } from '@/lib/array';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
@@ -97,18 +98,6 @@ function charactersEqual(
     character.characterId === right[index]?.characterId && character.name === right[index]?.name);
 }
 
-function indexClaimsByUser(
-  existing: Doc<'mapAccess'>[],
-): Map<string, Doc<'mapAccess'>[]> {
-  const byUser = new Map<string, Doc<'mapAccess'>[]>();
-  for (const row of existing) {
-    const rows = byUser.get(row.userId) ?? [];
-    rows.push(row);
-    byUser.set(row.userId, rows);
-  }
-  return byUser;
-}
-
 async function applyDesiredUserClaim(
   ctx: MutationCtx,
   mapId: string,
@@ -177,7 +166,7 @@ async function applyClaimSet(
     .query('mapAccess')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
     .collect();
-  const byUser = indexClaimsByUser(existing);
+  const byUser = groupBy(existing, (row) => row.userId);
   const counts = { ...NO_COUNTS };
 
   for (const [userId, claim] of desired) {

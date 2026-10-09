@@ -1,3 +1,4 @@
+import { getOrInsertComputed } from '@/lib/array';
 import type { LayoutEdge, LayoutFacts } from './layout-contract';
 
 export interface ChainTree {
@@ -39,9 +40,7 @@ function attach(state: Derivation, child: number, parent: number): void {
   state.attached.add(child);
   state.parents.set(child, parent);
   state.attachmentOrder.push(child);
-  const siblings = state.childrenInOrder.get(parent);
-  if (siblings === undefined) state.childrenInOrder.set(parent, [child]);
-  else siblings.push(child);
+  getOrInsertComputed(state.childrenInOrder, parent, () => []).push(child);
 }
 
 function examineEdge(state: Derivation, index: number, edge: LayoutEdge): boolean {

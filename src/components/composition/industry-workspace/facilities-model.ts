@@ -16,6 +16,7 @@ import {
 } from '@/features/industry-planner/structure-bonus';
 import { hostsReactions, structureCategoryBonus } from '@/features/industry-planner/structure-factors';
 import type { AvailableStructure } from '@/features/industry-planner/types';
+import { getOrInsertComputed } from '@/lib/array';
 
 // ---------------------------------------------------------------------------
 // A profile's facilities as the page shows them: saved structures resolve to
@@ -180,9 +181,9 @@ export function rigBonuses(
   const baseline = new Map<IndustryActivityId, StructureBonus | null>();
   const out = new Map<CategoryKey, StructureBonus>();
   for (const { key, activity, filterIds } of categoryScopes()) {
-    if (!baseline.has(activity)) baseline.set(activity, structureCategoryBonus(structure, activity, security, []));
+    const base = getOrInsertComputed(baseline, activity, () => structureCategoryBonus(structure, activity, security, []));
     const bonus = structureCategoryBonus(structure, activity, security, filterIds);
-    if (bonus !== null && beats(bonus, baseline.get(activity) ?? null)) out.set(key, bonus);
+    if (bonus !== null && beats(bonus, base)) out.set(key, bonus);
   }
   return out;
 }

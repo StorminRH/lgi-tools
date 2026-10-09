@@ -4,6 +4,7 @@ import { LivePrice } from '@/components/ui/live-price';
 import { EntityRow } from '@/components/ui/row';
 import { TypeIcon } from '@/components/type-icon';
 import { itemImage } from '@/data/eve-data/type-images';
+import { groupBy } from '@/lib/array';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import type { BlueprintPricing, BlueprintStructure, MaterialCostRow } from '../types';
@@ -18,13 +19,7 @@ function groupByCategory(
   pricing: BlueprintPricing,
   structure: BlueprintStructure,
 ): CategoryGroup[] {
-  const byCategory = new Map<string, MaterialCostRow[]>();
-  for (const row of pricing.rows) {
-    const label = structure.materialCategory[row.typeId] ?? 'Other';
-    const list = byCategory.get(label) ?? [];
-    list.push(row);
-    byCategory.set(label, list);
-  }
+  const byCategory = groupBy(pricing.rows, (row) => structure.materialCategory[row.typeId] ?? 'Other');
   const orderedLabels = [
     ...structure.materialCategories.map((c) => c.label),
     ...[...byCategory.keys()].filter(

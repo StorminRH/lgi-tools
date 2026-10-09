@@ -300,7 +300,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P105](wave-03-src-lib-primitives-collections-math-async.md#p105) | Add src/lib/math.ts (clamp with min-wins, clamp01, clampPct, roundTo, roundIsk) and delete the private copies | generic-utility | S | low | low | — |
 | ☑ | [P096](wave-03-src-lib-primitives-collections-math-async.md#p096) | Export roundIsk from lib/format/isk and drop the three private copies and the inline pair | formatting | S | low | low | [P105](wave-03-src-lib-primitives-collections-math-async.md#p105) |
-| ☐ | [P101](wave-03-src-lib-primitives-collections-math-async.md#p101) | Add groupBy and getOrInsertComputed to src/lib/array.ts and replace the hand-rolled bucket and get-or-create loops | generic-utility | M | low | medium | — |
+| ☑ | [P101](wave-03-src-lib-primitives-collections-math-async.md#p101) | Add groupBy and getOrInsertComputed to src/lib/array.ts and replace the hand-rolled bucket and get-or-create loops | generic-utility | M | low | medium | — |
 | ☐ | [P102](wave-03-src-lib-primitives-collections-math-async.md#p102) | Promote eligibleIdsKey to sortedUniqueIds / idsKey / parseIdsKey in src/lib/array.ts and delete the local copies | generic-utility | S | low | low | — |
 | ☐ | [P112](wave-03-src-lib-primitives-collections-math-async.md#p112) | Add sameItems and sameFields shallow-equality helpers to src/lib | generic-utility | S | low | low | — |
 | ☐ | [P100](wave-03-src-lib-primitives-collections-math-async.md#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |

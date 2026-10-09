@@ -7,6 +7,7 @@ import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
+import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { classRangeIncludes, gasClassRange } from './gas-classes';
 import { overlayLivePrices } from './live-prices';
@@ -242,33 +243,24 @@ export async function listSiteDetails(filters: {
     const distinctTypeIds = [...new Set(npcRows.map((n) => n.typeId))];
     const statsByType = await getCombatStatsBatch(distinctTypeIds);
 
-    const npcsByWaveId = new Map<number, NpcRow[]>();
-    for (const n of npcRows) {
-      const bucket = npcsByWaveId.get(n.waveId) ?? [];
-      bucket.push(n);
-      npcsByWaveId.set(n.waveId, bucket);
-    }
+    const npcsByWaveId = groupBy(npcRows, (n) => n.waveId);
 
-    const wavesBySiteId = new Map<number, Wave[]>();
-    for (const w of waveRows) {
-      const wave = aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType);
-      const bucket = wavesBySiteId.get(w.siteId) ?? [];
-      bucket.push(wave);
-      wavesBySiteId.set(w.siteId, bucket);
-    }
+    const wavesBySiteId = groupBy(
+      waveRows,
+      (w) => w.siteId,
+      (w) => aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType),
+    );
 
-    const resourcesBySiteId = new Map<number, SiteResource[]>();
-    for (const { siteId, ...resource } of resourceRows) {
-      const hydrated: SiteResource = {
+    const resourcesBySiteId = groupBy(
+      resourceRows,
+      (r) => r.siteId,
+      ({ siteId: _siteId, ...resource }): SiteResource => ({
         ...resource,
         liveIsk: null,
         effectiveIsk: resource.totalIsk,
         liveEligible: false,
-      };
-      const bucket = resourcesBySiteId.get(siteId) ?? [];
-      bucket.push(hydrated);
-      resourcesBySiteId.set(siteId, bucket);
-    }
+      }),
+    );
 
     return siteRows.map((site) => ({
       ...site,
@@ -372,12 +364,7 @@ async function getSiteDetail(id: number): Promise<SiteDetail | null> {
     const distinctTypeIds = [...new Set(allNpcs.map((n) => n.typeId))];
     const statsByType = await getCombatStatsBatch(distinctTypeIds);
 
-    const npcsByWaveId = new Map<number, NpcRow[]>();
-    for (const n of allNpcs) {
-      const bucket = npcsByWaveId.get(n.waveId) ?? [];
-      bucket.push(n);
-      npcsByWaveId.set(n.waveId, bucket);
-    }
+    const npcsByWaveId = groupBy(allNpcs, (n) => n.waveId);
 
     const assembledWaves: Wave[] = siteWaves.map((w) =>
       aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType),

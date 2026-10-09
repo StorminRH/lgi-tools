@@ -15,6 +15,7 @@ import {
   industryTargetFilters,
   typeDogma,
 } from './schema';
+import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
   SDE_CACHE_TAG,
@@ -434,17 +435,15 @@ export async function getIndustryTargetFilterSets(): Promise<number[][]> {
 
 const MODIFIER_KINDS: readonly string[] = ['material', 'time', 'cost'] satisfies ProductionModifier['kind'][];
 
-function isProductionModifier(row: {
-  activity: string;
-  kind: string;
-}): row is { activity: ProductionModifier['activity']; kind: ProductionModifier['kind'] } {
+function isProductionModifier<Row extends { activity: string; kind: string }>(
+  row: Row,
+): row is Row & { activity: ProductionModifier['activity']; kind: ProductionModifier['kind'] } {
   return (PRODUCTION_ACTIVITIES as readonly string[]).includes(row.activity) && MODIFIER_KINDS.includes(row.kind);
 }
 
 /** The manufacturing and reaction bonuses each hull or rig type carries. */
 export async function getProductionModifiers(typeIds: number[]): Promise<Map<number, ProductionModifier[]>> {
-  const out = new Map<number, ProductionModifier[]>();
-  if (typeIds.length === 0) return out;
+  if (typeIds.length === 0) return new Map();
   const rows = await withColdStartRetry(() =>
     db
       .select()
@@ -456,18 +455,16 @@ export async function getProductionModifiers(typeIds: number[]): Promise<Map<num
         ),
       ),
   );
-  for (const row of rows) {
-    if (!isProductionModifier(row)) continue;
-    const list = out.get(row.sourceTypeId) ?? [];
-    list.push({
+  return groupBy(
+    rows.filter(isProductionModifier),
+    (row) => row.sourceTypeId,
+    (row): ProductionModifier => ({
       activity: row.activity,
       kind: row.kind,
       filterId: row.filterId,
       factor: { high: row.factorHigh, low: row.factorLow, null: row.factorNull },
-    });
-    out.set(row.sourceTypeId, list);
-  }
-  return out;
+    }),
+  );
 }
 
 export async function getStructureRigs(): Promise<StructureRigOption[]> {

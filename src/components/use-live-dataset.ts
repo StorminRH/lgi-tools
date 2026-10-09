@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
 import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
+import { getOrInsertComputed } from '@/lib/array';
 import { loadFailureStep, RECONCILE_ONCE, reconcileDelay } from '@/lib/live-dataset';
 import { currentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 import { createRememberedRead, type RememberedRead, useRememberedRead } from './remembered-read';
@@ -24,12 +25,7 @@ export interface LiveDatasetState {
 const memories = new Map<string, RememberedRead<unknown>>();
 
 function memoryFor<TResponse>(path: string): RememberedRead<TResponse> {
-  let memory = memories.get(path);
-  if (memory === undefined) {
-    memory = createRememberedRead<unknown>();
-    memories.set(path, memory);
-  }
-  return memory as RememberedRead<TResponse>;
+  return getOrInsertComputed(memories, path, () => createRememberedRead<unknown>()) as RememberedRead<TResponse>;
 }
 
 export function useLiveDataset<TResponse, TKey extends string | boolean>(

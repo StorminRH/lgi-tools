@@ -1,3 +1,4 @@
+import { getOrInsertComputed } from '@/lib/array';
 import type { DependencyKind } from '@/lib/dependency-timing';
 import { operationsOfKind, type CapabilityKind } from './capability';
 import { ESI_FAILURE_OUTCOMES } from './sql';
@@ -141,11 +142,9 @@ function topFailureGroups(
   const groups = new Map<string, FailureKey & { count: number; lastSeen: Date | null }>();
   for (const row of rows) {
     const key = keyOf(row);
-    const id = JSON.stringify(key);
-    const group = groups.get(id) ?? { ...key, count: 0, lastSeen: null };
+    const group = getOrInsertComputed(groups, JSON.stringify(key), () => ({ ...key, count: 0, lastSeen: null }));
     group.count += row.count;
     group.lastSeen = latest(group.lastSeen, row.lastSeen);
-    groups.set(id, group);
   }
   return [...groups.values()]
     .map((group) => ({ ...group, lastSeen: group.lastSeen ?? range.to }))

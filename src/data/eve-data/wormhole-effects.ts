@@ -1,3 +1,4 @@
+import { getOrInsertComputed } from '@/lib/array';
 import { roundTo } from '@/lib/math';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from './wormhole-contract';
 
@@ -153,8 +154,7 @@ function foldResistances(modifiers: WormholeEffectModifier[]): WormholeEffectMod
   for (const modifier of modifiers) {
     const layer = RESISTANCE_LAYER.exec(modifier.label)?.[1];
     if (layer === undefined) continue;
-    const key = layer.toLowerCase();
-    byLayer.set(key, [...(byLayer.get(key) ?? []), modifier]);
+    getOrInsertComputed(byLayer, layer.toLowerCase(), () => []).push(modifier);
   }
   const folded = new Set<WormholeEffectModifier>();
   const merged: WormholeEffectModifier[] = [];

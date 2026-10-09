@@ -1,3 +1,5 @@
+import { getOrInsertComputed } from '@/lib/array';
+
 export type PilotsPresent = 'present' | 'absent' | 'unknown';
 
 export interface CollapseSystem {
@@ -50,11 +52,7 @@ export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
   }
 
   const adjacency = new Map<number, number[]>();
-  const append = (from: number, to: number) => {
-    const neighbours = adjacency.get(from) ?? [];
-    neighbours.push(to);
-    adjacency.set(from, neighbours);
-  };
+  const append = (from: number, to: number) => getOrInsertComputed(adjacency, from, () => []).push(to);
   for (const connection of input.connections) {
     if (connection.id === input.cutConnectionId) continue;
     append(connection.fromSystemId, connection.toSystemId);

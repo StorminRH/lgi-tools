@@ -14,6 +14,7 @@ import {
   getMapAccessCandidateUserIds,
   reserveMapAccessProjectionRevision,
 } from '@/data/maps/queries';
+import { groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
 
@@ -102,18 +103,6 @@ export function eligibleCharacterIds(
   return orderEligibleCharacters(grants, sharedAccessRows(rows));
 }
 
-function groupByUser(
-  rows: readonly (CachedAffiliation & { userId: string })[],
-): Map<string, CachedAffiliation[]> {
-  const byUser = new Map<string, CachedAffiliation[]>();
-  for (const row of rows) {
-    const held = byUser.get(row.userId) ?? [];
-    held.push(row);
-    byUser.set(row.userId, held);
-  }
-  return byUser;
-}
-
 function grantOwnerIds(grants: readonly DatedMapGrant[], ownerType: DatedMapGrant['ownerType']) {
   return [...new Set(grants.filter((grant) => grant.ownerType === ownerType).map((g) => g.ownerId))];
 }
@@ -159,9 +148,10 @@ async function computeMapAccessClaimsForState(
     await getBlockedMapUserIds(mapId),
     map.userId,
   );
-  const byUser = groupByUser(await getUsersAffiliations(
-    scoped ? [...candidateUserIds, map.userId] : candidateUserIds,
-  ));
+  const byUser = groupBy(
+    await getUsersAffiliations(scoped ? [...candidateUserIds, map.userId] : candidateUserIds),
+    (row) => row.userId,
+  );
 
   const claims = [{ userId: map.userId, roles: ['admin'] as MapRole[], characterIds: [] as number[] }];
   for (const userId of candidateUserIds) {

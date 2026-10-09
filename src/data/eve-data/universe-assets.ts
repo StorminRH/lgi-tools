@@ -1,6 +1,7 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { getOrInsertComputed } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
@@ -123,9 +124,7 @@ export function buildAdjacencyGraph(
 ): AdjacencyEntry[] {
   const neighboursBySystem = new Map<number, Set<number>>();
   for (const row of rows) {
-    const neighbours = neighboursBySystem.get(row.fromSystemId) ?? new Set();
-    neighbours.add(row.toSystemId);
-    neighboursBySystem.set(row.fromSystemId, neighbours);
+    getOrInsertComputed(neighboursBySystem, row.fromSystemId, () => new Set()).add(row.toSystemId);
   }
   return [...neighboursBySystem]
     .sort(([left], [right]) => left - right)

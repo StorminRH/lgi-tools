@@ -1,3 +1,4 @@
+import { getOrInsertComputed } from '@/lib/array';
 import type { WhStaticsDiff } from './schema';
 
 export interface WhStaticAssignment {
@@ -9,10 +10,8 @@ function codesBySystem(
   assignments: readonly WhStaticAssignment[],
 ): Map<number, Set<string>> {
   const result = new Map<number, Set<string>>();
-  for (const assignment of assignments) {
-    const codes = result.get(assignment.systemId) ?? new Set<string>();
-    codes.add(assignment.code);
-    result.set(assignment.systemId, codes);
+  for (const { systemId, code } of assignments) {
+    getOrInsertComputed(result, systemId, () => new Set()).add(code);
   }
   return result;
 }

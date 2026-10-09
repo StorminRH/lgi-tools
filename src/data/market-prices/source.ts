@@ -15,7 +15,7 @@ import {
   esiFetch,
   esiUrl,
 } from '@/platform/esi';
-import { dedupe } from '@/lib/array';
+import { dedupe, getOrInsertComputed } from '@/lib/array';
 import {
   computeDepth,
   computeSide,
@@ -98,11 +98,7 @@ function absorbOrders(
     if (!wanted.has(o.type_id)) continue;
     const atHub = o.location_id === JITA_44_STATION_ID;
     if (o.is_buy_order && !atHub) continue;
-    let bucket = buckets.get(o.type_id);
-    if (!bucket) {
-      bucket = { hubBuy: [], hubSell: [], remoteSell: new Map() };
-      buckets.set(o.type_id, bucket);
-    }
+    const bucket = getOrInsertComputed(buckets, o.type_id, () => ({ hubBuy: [], hubSell: [], remoteSell: new Map() }));
     const entry: OrderEntry = {
       price: o.price,
       volume: BigInt(o.volume_remain),
@@ -119,11 +115,7 @@ function absorbRemoteSell(
   entry: OrderEntry,
 ): void {
   if (!isDiscountEligibleLocation(o.location_id)) return;
-  let book = bucket.remoteSell.get(o.location_id);
-  if (!book) {
-    book = { systemId: o.system_id, orders: [] };
-    bucket.remoteSell.set(o.location_id, book);
-  }
+  const book = getOrInsertComputed(bucket.remoteSell, o.location_id, () => ({ systemId: o.system_id, orders: [] }));
   book.orders.push(entry);
 }
 
