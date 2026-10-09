@@ -58,7 +58,7 @@ The Part 07 verification is done and saved in `review/07-sealed-channel.md`. The
 5. Timing and cost (B: deadlines, latency table, status row, Convex cost) — **agreed 2026-10-08: all four** (owner asked for the Convex cost breakdown first; recorded in the outcome)
 6. Channel key across restarts (C1) — **agreed 2026-10-08: kept across restarts**
 7. User ID on request rows (C2) — **agreed 2026-10-09: dropped** (owner asked why the rows exist; answer recorded in the outcome)
-8. Character search and non-wormhole identify (C3, C4)
+8. Character search and non-wormhole identify (C3, C4) — **non-wormhole identify agreed 2026-10-09: skips the sealed service**; character search: owner asked for more detail and does not want it less functional than today
 9. The draft's remaining defaults: JSON messages, login through the Vercel pass-through with today's IP limit, no per-minute limits (draft questions 2, 6, 8)
 
 Resume at the first step not marked agreed. The detail behind each step:
