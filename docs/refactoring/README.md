@@ -236,7 +236,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P114](wave-01-quick-wins-delete-dead-code-fix-small.md#p114) | Share one djb2 string hash between wormhole seeding and fog brush rotation | generic-utility | S | low | low | — |
 | ☑ | [P290](wave-01-quick-wins-delete-dead-code-fix-small.md#p290) | Count active sessions with count() and read the two pending-deletion queues concurrently | efficiency | S | low | low | — |
 | ☑ | [P135](wave-01-quick-wins-delete-dead-code-fix-small.md#p135) | Route isGscConfigured through readEnv instead of a process.env parameter | generic-utility | S | low | low | — |
-| ☐ | [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) | Derive problem-type URIs, the outbound UA contact and same-origin's fallback from PRODUCTION_SITE_URL | generic-utility | S | low | low | — |
+| ☑ | [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) | Derive problem-type URIs, the outbound UA contact and same-origin's fallback from PRODUCTION_SITE_URL | generic-utility | S | low | low | — |
 | ☐ | [P268](wave-01-quick-wins-delete-dead-code-fix-small.md#p268) | Resolve the Better Auth secret once with empty-string fallback (readAuthSecret in lib/env) | contracts-validation | S | low | medium | — |
 | ☐ | [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185) | Tag the wormhole-site detail caches with the SDE tag and rename it SDE_CACHE_TAG (no sdeCache helper) | server-pipeline | S | low | medium | — |
 | ☐ | [P079](wave-01-quick-wins-delete-dead-code-fix-small.md#p079) | Rebuild useClientCommitted on createClientStore | client-data | S | low | low | — |

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PRODUCTION_SITE_URL } from '@/config/site-url';
 import type { AppFailure, FailureCategory } from './failure';
 
 /** RFC 9457-compatible problem body served by every mapped application failure. */
@@ -63,7 +64,7 @@ function assertValidRetryAfterSeconds(retryAfterSeconds: number | undefined): vo
 export function problemBody(failure: AppFailure, correlationId: string): ProblemBody {
   assertValidRetryAfterSeconds(failure.retryAfterSeconds);
   return {
-    type: `https://lgi.tools/problems/${failure.category}`,
+    type: `${PRODUCTION_SITE_URL}/problems/${failure.category}`,
     title: CATEGORY_TITLE[failure.category],
     status: statusFor(failure),
     code: failure.code,
