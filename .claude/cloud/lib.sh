@@ -10,8 +10,13 @@ LGI_PGDATA="${LGI_PGDATA:-/var/lib/lgi-pgdata}"
 LGI_PG_LOG="$LGI_PGDATA/server.log"
 LGI_ENV_LOCAL_STATE="$LGI_STATE_DIR/env.local"
 LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
+# setup.sh's last run: its log and a one-line result the SessionStart hook reports.
+LGI_SETUP_LOG="$LGI_STATE_DIR/setup.log"
+LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
 LGI_LOG_DIR="${LGI_LOG_DIR:-/tmp/lgi}"
 LGI_STACK_STATUS="${LGI_STACK_STATUS:-$LGI_LOG_DIR/stack.status}"
+LGI_BOOTSTRAP_STATUS="${LGI_BOOTSTRAP_STATUS:-$LGI_LOG_DIR/bootstrap.status}"
+LGI_LOCK_HASH="$LGI_STATE_DIR/pnpm-lock.sha256"
 LGI_PLACEHOLDER_JWKS='data:text/plain;charset=utf-8;base64,e30='
 LGI_AUTH_STATUS="${LGI_AUTH_STATUS:-/tmp/lgi-convex-auth.status}"
 LGI_ANONYMOUS_DEPLOYMENT="anonymous:anonymous-agent"
@@ -22,6 +27,10 @@ LGI_SDE_COUNT_TABLES=(
   eve_system_jumps
   eve_types
   industry_blueprints
+  industry_target_filters
+  industry_modifiers
+  industry_assembly_lines
+  industry_installation_types
   blueprint_trees
   market_prices
   sites
@@ -39,8 +48,13 @@ lgi_ensure_pg16() {
   if [ -x "${LGI_PG16_BIN}/pg_ctl" ]; then
     return 0
   fi
-  sudo apt-get update -q
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q postgresql-16 postgresql-client-16
+  # The setup script runs as root, where sudo may not exist.
+  local sudo=()
+  [ "$(id -u)" = 0 ] || sudo=(sudo)
+  # A capped setup run can interrupt dpkg; finish any half-done install.
+  "${sudo[@]}" env DEBIAN_FRONTEND=noninteractive dpkg --configure -a || true
+  "${sudo[@]}" apt-get update -q
+  "${sudo[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y -q postgresql-16 postgresql-client-16
   lgi_pg16_bin >/dev/null
 }
 
@@ -232,6 +246,17 @@ lgi_sde_ready() {
   [ "$ready" = 1 ]
 }
 
+lgi_ensure_sde_ready() {
+  if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
+    lgi_run_local_db pnpm db:refresh-sde --force || return 1
+  fi
+  if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
+    echo "ERROR: SDE census failed after refresh. Report:" >&2
+    lgi_sde_report "$LGI_LOCAL_DB_URL" >&2 || true
+    return 1
+  fi
+}
+
 lgi_jwks_has_signing_keys() {
   printf '%s' "${1-}" | python3 -c '
 import json, sys
@@ -328,6 +353,63 @@ lgi_save_env_local() {
   local file="${1:-.env.local}"
   mkdir -p "$LGI_STATE_DIR"
   install -m 600 "$file" "$LGI_ENV_LOCAL_STATE"
+}
+
+lgi_write_bootstrap_status() {
+  mkdir -p "$(dirname "$LGI_BOOTSTRAP_STATUS")"
+  printf '%s\n' "$1" >"$LGI_BOOTSTRAP_STATUS"
+}
+
+# pnpm install is slow even when nothing changed, so skip it while the
+# lockfile matches the last install and node_modules is present.
+lgi_install_deps() {
+  local hash
+  hash="$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)"
+  if [ -f node_modules/.modules.yaml ] && [ "$(cat "$LGI_LOCK_HASH" 2>/dev/null)" = "$hash" ]; then
+    echo "pnpm install skipped: lockfile unchanged"
+    return 0
+  fi
+  pnpm install --frozen-lockfile --prefer-offline || return 1
+  mkdir -p "$LGI_STATE_DIR"
+  printf '%s\n' "$hash" >"$LGI_LOCK_HASH"
+}
+
+# Record how setup.sh ended: exit code, the phase it reached, and its runtime.
+lgi_write_setup_status() {
+  local rc="$1" phase="$2" seconds="$3" result=ok
+  [ "$rc" = 0 ] || result=failed
+  mkdir -p "$LGI_STATE_DIR"
+  printf 'result=%s exit=%s phase=%s seconds=%s finished=%s\n' \
+    "$result" "$rc" "$phase" "$seconds" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LGI_SETUP_STATUS"
+}
+
+# One line for session context. Snapshots are only kept when setup finishes
+# within about five minutes, so the runtime is part of the report.
+lgi_setup_summary() {
+  local snapshot=no
+  [ -f "$LGI_PROVISIONED_MARKER" ] && snapshot=yes
+  if [ -f "$LGI_SETUP_STATUS" ]; then
+    printf 'provisioned=%s last setup: %s\n' "$snapshot" "$(head -1 "$LGI_SETUP_STATUS")"
+  else
+    printf 'provisioned=%s last setup: none recorded\n' "$snapshot"
+  fi
+}
+
+# Hosted CLIs, by variable name only. Network secrets read as the
+# placeholder `proxyinjected`; the agent proxy adds the real header.
+lgi_hosted_credential_summary() {
+  local name val out=""
+  for name in VERCEL_TOKEN NEON_API_KEY VERCEL_AUTOMATION_BYPASS_SECRET LGI_CONVEX_STAGING_DEPLOY_KEY EVE_CLIENT_SECRET; do
+    val="${!name-}"
+    if [ -z "$val" ]; then
+      out="$out $name=missing"
+    elif [ "$val" = proxyinjected ]; then
+      out="$out $name=proxy"
+    else
+      out="$out $name=set"
+    fi
+  done
+  printf 'credentials:%s\n' "$out"
 }
 
 # A crashed `convex dev` leaves its local backend reparented to init, still

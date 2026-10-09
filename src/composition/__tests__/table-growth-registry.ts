@@ -195,7 +195,7 @@ export const TABLE_GROWTH_STORIES = [
     kind: 'retained',
     table: schema.codexRevisions,
     reason: 'append-only page history; every revision is CC BY-SA licensed text that attribution and reverts depend on, and account purge clears only its author columns',
-    authority: 'content/changelog/v4.2.md (v4.2.0: every guide keeps its full edit history)',
+    authority: 'content/changelog/v4.3.md (v4.3.0: every guide keeps its full edit history)',
   },
   {
     kind: 'purge-managed',

@@ -5,25 +5,41 @@ An EVE Online multi-tool focused on simplifying complex tasks.
 ## Work Flow
 
 Work targets `development`. Promote is `development` → `staging`;
-release is `staging` → `main`. There are no per-PR preview
-deployments: test with local dev servers, and `staging` is the
-long-lived test environment.
-
-Sub-agent usage is encouraged, especially for context isolation.
-For noisy work such as testing, documentation lookup, and exploring
-the repository, isolate those tasks to a sub-agent.
+release is `staging` → `main`. Merge with merge commits, never squash. Fixes
+made on `staging` or `main` come back to `development` by merging. There
+are no per-PR preview deployments: test with local dev servers, and
+`staging` is the long-lived test environment.
 
 Production builds run in CI and on Vercel; do not run them locally.
 Cloud sessions read [the cloud guide](.claude/cloud/GUIDE.md).
 
+## Agents
+
+Use sub-agents freely, especially to keep noisy work (tests, documentation
+lookups, repository exploration) out of the main context. These three have
+fixed jobs; call them for those jobs instead of doing the work inline:
+
+- `docs-researcher` before writing or editing production or test code that
+  touches React, Next.js, Convex, Base UI, React Flow, Vitest, or peers.
+  Code waits on its Documentation brief.
+- `repo-mapper` for relationship, caller, dependency, or blast-radius
+  questions. It uses Codegraph and returns a Repository map.
+- `test-runner` for every local check: `pnpm check` before each push,
+  `pnpm verify` when a full run is needed, and focused tests for the diff.
+
+Split independent questions across parallel agents of the same type: one
+`docs-researcher` per technology, one `repo-mapper` per area. Keep questions
+in one agent when the answer depends on how they interact.
+
 ## Verification
 
-Before every commit, run `pnpm check` through the test-runner agent:
-typecheck, lint, tests related to the change, and static Fallow over
-the whole tree. `pnpm verify` is the full gate, with the full suite
-under coverage and CRAP. The Coverage health workflow runs its coverage
-half on every pull request push. Run `pnpm verify` before promote or
-release and whenever Coverage health fails.
+Commit as work progresses. Before every push, run `pnpm check` through
+the test-runner agent: typecheck, lint, tests for everything that differs
+from `origin/development`, and static Fallow over the whole tree. Fetch
+first so that base is current. `pnpm verify` is the full gate, with the
+full suite under coverage and CRAP. The Coverage health workflow runs its
+coverage half on pull request pushes that touch code. Run `pnpm verify`
+before promote or release and whenever Coverage health fails.
 
 Fix every Fallow finding when it appears, whoever introduced it. Do not
 land past a red check by calling findings pre-existing or out of scope.

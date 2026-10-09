@@ -63,7 +63,6 @@ vi.mock('../read-with-retries', async (load) => {
   const { readWithRetries } = await load<typeof import('../read-with-retries')>();
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
-vi.mock('../use-available-structures', () => ({ readAvailableStructures: vi.fn() }));
 vi.mock('../profiles/use-industry-profiles', () => ({ useIndustryProfiles: () => ({ profiles: h.profiles, listFailed: h.profilesFailed, refresh: h.refreshProfiles }) }));
 vi.mock('../use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>) => {
@@ -135,14 +134,13 @@ const AVAILABLE = [SOTIYO];
 let pricedLocation: SelectedLocation | null = null;
 const publishLocation = (next: SelectedLocation | null) => { pricedLocation = next; };
 const ignoreReactionLocation = vi.fn();
-const ignoreStructures = vi.fn();
 const selectStructure = vi.fn();
 const selectReactionSystem = vi.fn();
 const selectReactionStructure = vi.fn();
 
 function FeeHarness(structure: BlueprintStructure) {
   const writes = usePlannerLocationWrites(
-    structure, publishLocation, null, ignoreReactionLocation, ignoreStructures, null,
+    structure, publishLocation, null, ignoreReactionLocation, null,
   );
   const factors = useProfileFactors(structure, {
     ...writes,

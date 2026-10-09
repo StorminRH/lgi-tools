@@ -4,6 +4,10 @@
 # everything outside the checkout (Postgres cluster with SDE, Convex local
 # backend, CLIs, Playwright Chromium, generated .env.local). Idempotent: the
 # SessionStart hook reruns it when a session starts without that state.
+#
+# Runs from any working directory. The snapshot is only kept when this
+# finishes within about five minutes, so independent installs run in
+# parallel and every phase is timed in $LGI_SETUP_LOG.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -13,24 +17,63 @@ source "$REPO_ROOT/.claude/cloud/lib.sh"
 # shellcheck source=clis.sh
 source "$REPO_ROOT/.claude/cloud/clis.sh"
 
-lgi_ensure_pg16
-PGBIN="$(lgi_pg16_bin)"
+mkdir -p "$LGI_STATE_DIR"
+exec > >(tee "$LGI_SETUP_LOG") 2>&1
+setup_phase=start
+phase() {
+  setup_phase="$1"
+  echo "[setup +${SECONDS}s] $1"
+}
+
+PGBIN=""
 PGDATA="$LGI_PGDATA"
 export PGDATA
+started_pg=0
+bg_pids=()
+on_exit() {
+  local rc=$?
+  local pid
+  for pid in "${bg_pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+  [ -z "$PGBIN" ] || lgi_stop_owned_postgres "$PGBIN" "$PGDATA" "$started_pg"
+  lgi_stop_orphan_convex_backend
+  lgi_write_setup_status "$rc" "$setup_phase" "$SECONDS"
+  echo "[setup +${SECONDS}s] exit $rc at phase $setup_phase"
+}
+trap on_exit EXIT
+trap 'exit 143' TERM INT
+
+# Wait for a background step and replay its log if it failed.
+wait_step() {
+  local pid="$1" name="$2"
+  if ! wait "$pid"; then
+    echo "ERROR: $name failed:" >&2
+    tail -n 40 "$LGI_STATE_DIR/$name.log" >&2
+    return 1
+  fi
+}
+
+phase "install: postgres 16, pinned CLIs, pnpm dependencies"
+lgi_ensure_pg16 >"$LGI_STATE_DIR/apt.log" 2>&1 &
+apt_pid=$!
+lgi_install_clis >"$LGI_STATE_DIR/clis.log" 2>&1 &
+clis_pid=$!
+bg_pids=("$apt_pid" "$clis_pid")
 lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
-
-started_pg=0
-trap 'lgi_stop_owned_postgres "$PGBIN" "$PGDATA" "$started_pg"; lgi_stop_orphan_convex_backend' EXIT
-
-pnpm install --frozen-lockfile
+lgi_install_deps
 
 # The image ships an older Playwright Chromium and skips browser downloads by
-# default; install the revision this repo's Playwright pins.
-PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 pnpm exec playwright install chromium
+# default; install the revision this repo's Playwright pins while the
+# database provisions.
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 pnpm exec playwright install chromium \
+  >"$LGI_STATE_DIR/playwright.log" 2>&1 &
+playwright_pid=$!
+bg_pids+=("$playwright_pid")
 
-lgi_install_clis
+wait_step "$apt_pid" apt
+PGBIN="$(lgi_pg16_bin)"
 
+phase "postgres: cluster and database"
 mkdir -p "$PGDATA"
 [ "$(id -u)" != 0 ] || chown postgres:postgres "$PGDATA"
 chmod 700 "$PGDATA"
@@ -59,6 +102,7 @@ fi
   "SELECT 1 FROM pg_database WHERE datname='lgi_tools'" | grep -q 1 \
   || "$PGBIN/createdb" -h localhost -p 5433 -U lgi lgi_tools
 
+phase "env: .env.local"
 lgi_restore_env_local .env.local
 [ -f .env.local ] || cp .env.example .env.local
 lgi_strip_empty_env_local_key .env.local CONVEX_DEPLOYMENT
@@ -92,17 +136,13 @@ set_var CONVEX_AGENT_MODE anonymous
 
 lgi_require_anonymous_convex_file .env.local
 
+phase "postgres: migrations"
 lgi_run_local_db pnpm db:migrate
 
-if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
-  lgi_run_local_db pnpm db:refresh-sde --force
-fi
-if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
-  echo "ERROR: SDE census failed after refresh. Report:" >&2
-  lgi_sde_report "$LGI_LOCAL_DB_URL" >&2 || true
-  exit 1
-fi
+phase "postgres: SDE"
+lgi_ensure_sde_ready || exit 1
 
+phase "convex: anonymous local backend"
 # The first `--once` creates the deployment and may fail until AUTH_* exist on it.
 export AUTH_ISSUER_URL=http://localhost:3000
 export SITE_URL=http://localhost:3000
@@ -125,9 +165,15 @@ printf '%s' "$AUTH_JWKS" | pnpm exec convex env set AUTH_JWKS
 printf '%s' "$CONVEX_SERVICE_SECRET" | pnpm exec convex env set CONVEX_SERVICE_SECRET
 pnpm exec convex dev --once
 
+phase "finish: CLIs and Playwright"
+wait_step "$clis_pid" clis
+wait_step "$playwright_pid" playwright
+bg_pids=()
+
 lgi_require_anonymous_convex_file .env.local
 lgi_save_env_local .env.local
 touch "$LGI_PROVISIONED_MARKER"
+phase done
 
 echo "setup.sh complete: postgres 16 :5433 provisioned; SDE census ready."
 lgi_sde_report "$LGI_LOCAL_DB_URL"

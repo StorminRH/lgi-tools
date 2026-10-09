@@ -478,7 +478,9 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(ASSET_VALUE).toBe(424_545_641.51);
     expect(SELL_ORDERS + BUY_ESCROW + IMPLANTS).toBe(628_001_750);
     expect(NET_WORTH).toBe(4_256_663_273.66);
+    mocks.resolveEntityNames.mockClear();
     await recordNetWorthSnapshot(USER_ID, new Date(STAMP));
+    expect(mocks.resolveEntityNames).not.toHaveBeenCalled();
 
     const rows = await harness.db.select().from(netWorthDays).orderBy(netWorthDays.day);
     expect(rows.map((row) => row.day)).toEqual(['2026-09-20', '2026-09-25', '2026-09-27']);

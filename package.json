@@ -58,7 +58,7 @@
     "fallow": "pnpm fallow:static && pnpm fallow:coverage",
     "fallow:static": "fallow dead-code --fail-on-issues && fallow dupes --fail-on-issues && fallow health --fail-on-issues --complexity --coverage-gaps --max-crap 0",
     "fallow:coverage": "fallow dead-code --production --fail-on-issues && fallow health --fail-on-issues --complexity --coverage-gaps --coverage coverage/coverage-final.json",
-    "check": "pnpm typecheck && pnpm lint && vitest run --changed --passWithNoTests && pnpm fallow:static",
+    "check": "pnpm typecheck && pnpm lint && vitest run --changed origin/development --passWithNoTests && pnpm fallow:static",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm fallow"
   },
   "dependencies": {
