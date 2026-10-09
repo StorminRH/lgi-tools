@@ -27,9 +27,9 @@ export function OutboundArrowProvider({
   neighboursOf,
   children,
 }: OutboundArrowProviderProps) {
-  const presence = useContext(MapPresenceContext)?.presence;
+  const presence = useContext(MapPresenceContext);
   const pilotKey = useMemo(() => {
-    if (presence === undefined || presence.size === 0) return '';
+    if (presence === null || presence.size === 0) return '';
     return arrowPilotKey(
       [...presence.entries()]
         .map(([systemId]) => ({

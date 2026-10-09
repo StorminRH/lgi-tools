@@ -70,10 +70,7 @@ vi.mock('@/data/convex/use-sync-subject', () => ({
 
 vi.mock('./AfkGate', () => ({
   AfkDialog: () => null,
-}));
-
-vi.mock('./presence-context', () => ({
-  useMapPresenceAfk: () => mocks.afk,
+  useAfkState: () => mocks.afk,
 }));
 
 vi.mock('@/components/character-portrait', () => ({
