@@ -156,4 +156,109 @@ eve_line="$(unset EVE_CLIENT_ID EVE_CLIENT_SECRET; lgi_eve_runtime_secret_presen
 [ "$eve_line" = "EVE runtime secrets: absent" ] || fail "eve absence"
 pass "EVE secret presence is names-only"
 
+cred_line="$(
+  VERCEL_TOKEN=proxyinjected NEON_API_KEY=dummy-neon-value \
+    LGI_CONVEX_STAGING_DEPLOY_KEY=dummy-convex-value EVE_CLIENT_SECRET=dummy-eve-value \
+    bash -c 'unset VERCEL_AUTOMATION_BYPASS_SECRET; source "$1"; lgi_hosted_credential_summary' _ "$ROOT/.claude/cloud/lib.sh"
+)"
+printf '%s' "$cred_line" | grep -q 'VERCEL_TOKEN=proxy' || fail "proxyinjected placeholder"
+printf '%s' "$cred_line" | grep -q 'NEON_API_KEY=set' || fail "set credential"
+printf '%s' "$cred_line" | grep -q 'VERCEL_AUTOMATION_BYPASS_SECRET=missing' || fail "missing credential"
+printf '%s' "$cred_line" | grep -q dummy && fail "credential summary leaked a value"
+pass "hosted credential summary is names-only"
+
+prev_state="$LGI_STATE_DIR"
+LGI_STATE_DIR="$(mktemp -d)"
+LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
+LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
+lgi_setup_summary | grep -q '^provisioned=no last setup: none recorded$' || fail "summary before setup"
+lgi_write_setup_status 1 "postgres: SDE" 412
+grep -q '^result=failed exit=1 phase=postgres: SDE seconds=412 finished=' "$LGI_SETUP_STATUS" || fail "failed status"
+lgi_write_setup_status 0 done 251
+touch "$LGI_PROVISIONED_MARKER"
+lgi_setup_summary | grep -q '^provisioned=yes last setup: result=ok exit=0 phase=done seconds=251 ' || fail "summary after setup"
+rm -rf "$LGI_STATE_DIR"
+LGI_STATE_DIR="$prev_state"
+LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
+LGI_SETUP_STATUS="$LGI_STATE_DIR/setup.status"
+pass "setup status and summary"
+
+deps_dir="$(mktemp -d)"
+(
+  cd "$deps_dir"
+  LGI_STATE_DIR="$deps_dir/state"
+  LGI_LOCK_HASH="$LGI_STATE_DIR/pnpm-lock.sha256"
+  mkdir -p bin node_modules "$LGI_STATE_DIR"
+  printf '#!/bin/sh\necho fake-pnpm "$@"\n' > bin/pnpm && chmod +x bin/pnpm
+  PATH="$deps_dir/bin:$PATH"
+  echo 'lockfileVersion: 9' > pnpm-lock.yaml
+  lgi_install_deps | grep -q '^fake-pnpm install' || fail "install runs without a recorded hash"
+  touch node_modules/.modules.yaml
+  lgi_install_deps | grep -q 'skipped: lockfile unchanged' || fail "install skips on an unchanged lockfile"
+  rm node_modules/.modules.yaml
+  lgi_install_deps | grep -q '^fake-pnpm install' || fail "install runs when node_modules is missing"
+  touch node_modules/.modules.yaml
+  echo 'lockfileVersion: 9 # changed' > pnpm-lock.yaml
+  lgi_install_deps | grep -q '^fake-pnpm install' || fail "install reruns after a lockfile change"
+) || exit 1
+rm -rf "$deps_dir"
+pass "dependency install skips an unchanged lockfile"
+
+# A killed orphan stays a zombie until PID 1 reaps it, and `kill -0` still
+# succeeds on a zombie, so check the process state instead.
+child_running() {
+  case "$(ps -o stat= -p "$1" 2>/dev/null)" in
+    '' | Z*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+# A setup.sh that overruns the cap, with a child that would outlive it.
+cap_root="$(mktemp -d)"
+mkdir -p "$cap_root/.claude/cloud"
+cp "$ROOT/.claude/cloud/environment-setup.sh" "$ROOT/.claude/cloud/lib.sh" "$cap_root/.claude/cloud/"
+cat >"$cap_root/.claude/cloud/setup.sh" <<'EOF2'
+#!/usr/bin/env bash
+sleep 300 &
+echo $! >"$LGI_STATE_DIR/child.pid"
+sleep 300
+EOF2
+chmod +x "$cap_root/.claude/cloud/setup.sh"
+cap_start=$SECONDS
+LGI_STATE_DIR="$cap_root/state" LGI_SETUP_CAP_SECONDS=2 bash "$cap_root/.claude/cloud/environment-setup.sh"
+cap_rc=$?
+[ "$cap_rc" = 0 ] || fail "environment-setup exits 0 when setup.sh overruns"
+[ $((SECONDS - cap_start)) -lt 25 ] || fail "environment-setup stops at the cap"
+grep -q 'hit the 2s cap' "$cap_root/state/environment-setup.log" || fail "cap is logged"
+cap_child="$(cat "$cap_root/state/child.pid")"
+sleep 0.5
+child_running "$cap_child" && fail "setup.sh children are stopped at the cap"
+rm -rf "$cap_root"
+pass "environment setup caps setup.sh and stops its children"
+
+# A setup.sh that ignores TERM must still be stopped once the grace period
+# ends; the force kill has to come before the wait, or the wait never ends.
+cap_root="$(mktemp -d)"
+mkdir -p "$cap_root/.claude/cloud"
+cp "$ROOT/.claude/cloud/environment-setup.sh" "$ROOT/.claude/cloud/lib.sh" "$cap_root/.claude/cloud/"
+cat >"$cap_root/.claude/cloud/setup.sh" <<'EOF2'
+#!/usr/bin/env bash
+trap '' TERM
+bash -c 'trap "" TERM; sleep 300' &
+echo $! >"$LGI_STATE_DIR/child.pid"
+sleep 300
+EOF2
+chmod +x "$cap_root/.claude/cloud/setup.sh"
+cap_start=$SECONDS
+LGI_STATE_DIR="$cap_root/state" LGI_SETUP_CAP_SECONDS=2 bash "$cap_root/.claude/cloud/environment-setup.sh"
+cap_rc=$?
+[ "$cap_rc" = 0 ] || fail "environment-setup exits 0 when setup.sh ignores TERM"
+[ $((SECONDS - cap_start)) -lt 40 ] || fail "environment-setup force-stops a setup.sh that ignores TERM"
+grep -q 'hit the 2s cap' "$cap_root/state/environment-setup.log" || fail "cap is logged when TERM is ignored"
+cap_child="$(cat "$cap_root/state/child.pid")"
+sleep 0.5
+child_running "$cap_child" && fail "TERM-ignoring children are stopped at the cap"
+rm -rf "$cap_root"
+pass "environment setup force-stops a setup.sh that ignores TERM"
+
 echo "lib.test.sh: all assertions passed"

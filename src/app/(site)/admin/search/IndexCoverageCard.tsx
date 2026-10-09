@@ -1,4 +1,3 @@
-import { Card } from '@/components/ui/card';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
@@ -9,11 +8,11 @@ import { StaticTable, type StaticTableColumn } from '@/components/ui/static-tabl
 import { getSitemapEntries } from '@/composition/sitemap';
 import { getCoverageTrend, getLatestUrlCoverage } from '@/data/gsc/queries';
 import type { GscRange } from '@/data/gsc/types';
+import { formatCount, formatQuantity } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
+import { CardFootnote } from '../CardFootnote';
 import { AdminTrendChart } from '../charts';
 import { deriveGscCoverageView, type GscCoverageRow } from '../gsc-coverage-view';
-import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
-import { SectionUnavailable } from '../SectionUnavailable';
 
 function coverageTone(verdict: string | null): PillTone {
   if (verdict === 'PASS') return 'green';
@@ -61,66 +60,52 @@ function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
   );
 }
 
-export async function IndexCoverageCard({ range }: { range: GscRange }) {
-  const fetched = await loadSection('gsc-coverage', async () => {
-    const sitemapUrls = (await getSitemapEntries()).map(({ url }) => url);
-    return Promise.all([
-      getLatestUrlCoverage(sitemapUrls),
-      getCoverageTrend(range),
-    ]);
-  });
-  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Index coverage" />;
+/** The newest inspection of every sitemap URL, and the indexed counts by day. */
+export async function loadIndexCoverage(range: GscRange) {
+  const sitemapUrls = (await getSitemapEntries()).map(({ url }) => url);
+  const [latest, trend] = await Promise.all([getLatestUrlCoverage(sitemapUrls), getCoverageTrend(range)]);
+  return deriveGscCoverageView({ latest, trend });
+}
 
-  const [latest, trend] = fetched;
-  const view = deriveGscCoverageView({ latest, trend });
+export function IndexCoverageBody({ view }: { view: ReturnType<typeof deriveGscCoverageView> }) {
+  if (view.total === 0) return <EmptyState>No URL inspection history synced yet.</EmptyState>;
   return (
-    <Card>
-      <SectionHeader size="md" label="Index coverage" />
-      {view.total === 0 ? (
-        <EmptyState>No URL inspection history synced yet.</EmptyState>
-      ) : (
-        <>
-          <MultiplesGrid columns={2}>
-            <MultiplesCell
-              title="Indexed"
-              value={view.indexed.toLocaleString()}
-              note={shareLabel(view.indexed, view.total)}
-            >
-              <AdminTrendChart
-                points={view.indexedTrend.points}
-                labels={view.indexedTrend.labels}
-                unit="count"
-                tone="green"
-                height={128}
-                ariaLabel="Indexed sitemap URLs by inspection day"
-              />
-            </MultiplesCell>
-            <MultiplesCell
-              title="Not indexed"
-              value={view.notIndexed.toLocaleString()}
-              note={shareLabel(view.notIndexed, view.total)}
-            >
-              <AdminTrendChart
-                points={view.notIndexedTrend.points}
-                labels={view.notIndexedTrend.labels}
-                unit="count"
-                tone="orange"
-                height={128}
-                ariaLabel="Not-indexed sitemap URLs by inspection day"
-              />
-            </MultiplesCell>
-          </MultiplesGrid>
-          {view.unknown > 0 && (
-            <p className="px-3.5 py-2 font-data text-micro text-muted">
-              {view.unknown.toLocaleString()} URLs unclassified
-            </p>
-          )}
-          <SectionHeader variant="sub" label="Latest coverage reasons" className="border-y border-border-soft px-3.5 py-2" />
-          <DistributionBars rows={view.reasons} ariaLabel="Latest URL coverage reasons" />
-          <SectionHeader variant="sub" label="Latest URL status · non-indexed first" className="border-t border-border-soft px-3.5 py-2" />
-          <CoverageTable rows={view.rows} />
-        </>
-      )}
-    </Card>
+    <>
+      <MultiplesGrid columns={2}>
+        <MultiplesCell
+          title="Indexed"
+          value={formatQuantity(view.indexed)}
+          note={shareLabel(view.indexed, view.total)}
+        >
+          <AdminTrendChart
+            points={view.indexedTrend.points}
+            labels={view.indexedTrend.labels}
+            unit="count"
+            tone="green"
+            height={128}
+            ariaLabel="Indexed sitemap URLs by inspection day"
+          />
+        </MultiplesCell>
+        <MultiplesCell
+          title="Not indexed"
+          value={formatQuantity(view.notIndexed)}
+          note={shareLabel(view.notIndexed, view.total)}
+        >
+          <AdminTrendChart
+            points={view.notIndexedTrend.points}
+            labels={view.notIndexedTrend.labels}
+            unit="count"
+            tone="orange"
+            height={128}
+            ariaLabel="Not-indexed sitemap URLs by inspection day"
+          />
+        </MultiplesCell>
+      </MultiplesGrid>
+      {view.unknown > 0 && <CardFootnote>{formatCount(view.unknown, 'URL')} unclassified</CardFootnote>}
+      <SectionHeader variant="sub" label="Latest coverage reasons" className="border-y border-border-soft px-3.5 py-2" />
+      <DistributionBars rows={view.reasons} ariaLabel="Latest URL coverage reasons" />
+      <SectionHeader variant="sub" label="Latest URL status · non-indexed first" className="border-t border-border-soft px-3.5 py-2" />
+      <CoverageTable rows={view.rows} />
+    </>
   );
 }

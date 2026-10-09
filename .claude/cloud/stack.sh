@@ -7,6 +7,7 @@
 #   stack.sh stop      stop Next, Convex, and Postgres
 #   stack.sh restart   stop, then start
 #   stack.sh status    one line per service; exit 1 unless all are ready
+#   stack.sh wait [s]  block until ready (default 300s); exit 1 on failure or timeout
 #   stack.sh logs [postgres|convex|next|convex-auth]
 set -euo pipefail
 
@@ -42,6 +43,14 @@ start_postgres() {
     return 1
   fi
   if ! lgi_pg_server "$PGBIN/pg_ctl" -D "$LGI_PGDATA" status >/dev/null 2>&1; then
+    # The snapshot can carry a lock file from the setup run that nothing
+    # holds. Remove it only when its postmaster is gone, so a start that
+    # raced this one (bootstrap and a manual start) keeps its lock file.
+    local lock_pid
+    lock_pid="$(head -n 1 "$LGI_PGDATA/postmaster.pid" 2>/dev/null || true)"
+    if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
+      rm -f "$LGI_PGDATA/postmaster.pid"
+    fi
     lgi_pg_server "$PGBIN/pg_ctl" -D "$LGI_PGDATA" -l "$LGI_PG_LOG" -w start >/dev/null
   fi
   lgi_wait_for_postgres
@@ -58,7 +67,7 @@ start_convex() {
     SITE_URL="${SITE_URL:-http://localhost:3000}" \
     CONVEX_SERVICE_SECRET="$secret" \
     AUTH_JWKS="$jwks" \
-    spawn convex pnpm exec convex dev
+    spawn convex pnpm exec convex dev --typecheck=disable
 }
 
 start_next() {
@@ -105,6 +114,11 @@ cmd_stop() {
 cmd_status() {
   local ok=0 auth
   report() { printf '%-12s %s\n' "$1" "$2"; }
+  # Reported for context only. Readiness is decided by the services: none of
+  # them can be up without dependencies installed, and a bootstrap that died
+  # or never ran must not veto a stack a manual `stack.sh start` brought up.
+  # `wait` still stops early on a failed bootstrap.
+  report bootstrap "$(cat "$LGI_BOOTSTRAP_STATUS" 2>/dev/null || echo 'not started')"
   if "$PGBIN/pg_isready" -h localhost -p 5433 -U lgi -d lgi_tools >/dev/null 2>&1; then
     report postgres "ready :5433"
   else
@@ -126,6 +140,16 @@ case "${1:-status}" in
   stop) cmd_stop ;;
   restart) cmd_stop; cmd_start ;;
   status) cmd_status ;;
+  wait)
+    # Block until the stack is ready, up to $2 seconds (default 300).
+    deadline=$((SECONDS + ${2:-300}))
+    until cmd_status >/dev/null 2>&1; do
+      case "$(cat "$LGI_BOOTSTRAP_STATUS" 2>/dev/null)" in failed*) cmd_status; exit 1 ;; esac
+      [ "$SECONDS" -lt "$deadline" ] || { cmd_status; exit 1; }
+      sleep 2
+    done
+    cmd_status
+    ;;
   logs)
     if [ "${2:-next}" = postgres ]; then
       tail -n 80 "$LGI_PG_LOG"
@@ -133,5 +157,5 @@ case "${1:-status}" in
       tail -n 80 "$LGI_LOG_DIR/${2:-next}.log"
     fi
     ;;
-  *) echo "usage: stack.sh start|stop|restart|status|logs [service]" >&2; exit 2 ;;
+  *) echo "usage: stack.sh start|stop|restart|status|wait [seconds]|logs [service]" >&2; exit 2 ;;
 esac

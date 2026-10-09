@@ -1,11 +1,13 @@
 import type { EsiRefreshJobStatus, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
+import { formatCount, formatQuantity } from '@/lib/format/number';
 
 export interface QueueCell {
   id: 'waiting' | 'deferred' | 'retrying' | 'dead';
   title: string;
   value: string;
-  note: string;
+  /** The oldest job's age; absent when the group is empty. */
+  note?: string;
 }
 
 const CELLS: readonly { id: QueueCell['id']; title: string; statuses: readonly EsiRefreshJobStatus[] }[] = [
@@ -39,8 +41,8 @@ export function deriveQueueCells(stats: EsiRefreshQueueStat[], now: Date): Queue
     return {
       id: cell.id,
       title: cell.title,
-      value: count.toLocaleString(),
-      note: oldest === null ? 'none' : `oldest job ${ageLabel(oldest, now)}`,
+      value: formatQuantity(count),
+      note: oldest === null ? undefined : `oldest job ${ageLabel(oldest, now)}`,
     };
   });
 }
@@ -48,5 +50,12 @@ export function deriveQueueCells(stats: EsiRefreshQueueStat[], now: Date): Queue
 export function retainedSummary(stats: EsiRefreshQueueStat[]): string {
   const succeeded = countOf(stats, ['succeeded']).count;
   const permanent = countOf(stats, ['failed_permanent']).count;
-  return `${succeeded.toLocaleString()} succeeded · ${permanent.toLocaleString()} failed permanently in the last ${ESI_REFRESH_JOB_RETENTION_DAYS} days`;
+  return `${formatQuantity(succeeded)} succeeded · ${formatQuantity(permanent)} failed permanently in the last ${ESI_REFRESH_JOB_RETENTION_DAYS} days`;
+}
+
+/** The dead-letter list stops at `shown` rows; the hint carries the real total. */
+export function deadLetterHint(stats: EsiRefreshQueueStat[], shown: number): string {
+  const total = Math.max(countOf(stats, ['dead_lettered']).count, shown);
+  const jobs = formatCount(total, 'job');
+  return total > shown ? `${jobs} · newest ${formatQuantity(shown)} shown` : jobs;
 }

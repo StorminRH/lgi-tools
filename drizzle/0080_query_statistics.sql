@@ -1,0 +1,20 @@
+-- Expose the per-statement timings Postgres already records.
+--
+-- Neon computes preload pg_stat_statements, so the server gathers call
+-- counts and execution times for every statement. Neon's console reads them
+-- from its own system database (Monitoring, Query performance); creating the
+-- extension here adds the pg_stat_statements view to this database, so the
+-- timings can also be read with SQL from psql or a script:
+--
+--   SELECT calls, round(mean_exec_time::numeric, 1) AS mean_ms,
+--          round(total_exec_time::numeric, 1) AS total_ms, query
+--   FROM pg_stat_statements
+--   WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+--   ORDER BY total_exec_time DESC
+--   LIMIT 20;
+--
+-- Neon clears the counters whenever the compute suspends or restarts, so the
+-- view covers activity since the database last woke. Local and CI Postgres
+-- ship the extension but do not preload it: it installs there, and only
+-- reading the view needs the preload.
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;

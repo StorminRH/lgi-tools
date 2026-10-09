@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ProgressBar, type ProgressTone } from './progress-bar';
 
 export interface DistributionInput {
@@ -7,6 +8,8 @@ export interface DistributionInput {
   tone?: ProgressTone;
   /** Extra text after the count and share, such as an average duration. */
   detail?: string;
+  /** A second line of detail under the bar, such as impressions and position. */
+  sub?: ReactNode;
 }
 
 export interface DistributionBar extends DistributionInput {
@@ -67,6 +70,9 @@ export function DistributionBars({
             </span>
           </div>
           <ProgressBar pct={bar.fillPct} tone={bar.tone} />
+          {bar.sub === undefined ? null : (
+            <div className="mt-1 font-data text-micro tabular-nums text-muted wrap-break-word">{bar.sub}</div>
+          )}
         </li>
       ))}
     </ul>

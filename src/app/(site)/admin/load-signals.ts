@@ -1,71 +1,59 @@
 import { cache } from 'react';
 import { rangeFor, type RangeKey } from '@/composition/admin-period';
 import { isGscConfigured } from '@/data/gsc/constants';
-import {
-  getCriticalLatencyP95,
-  getEsiSuccessRate,
-  getGscCronOutcomes,
-  getHousekeepingCronOutcomes,
-  getLastCronRuns,
-  getMutationSuccessRate,
-  getPriceCronOutcomes,
-  getReadSuccessRate,
-  getSdeCronOutcomes,
-} from '@/data/telemetry/queries';
+import { fallbackRate } from '@/data/telemetry/cron-stats';
+import type { DateRange } from '@/data/telemetry/types';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { loadDeployMarkers } from './deploy-markers';
-import { getBudgetExhaustionCountShared, getFallbackRateShared } from './esi-source-shared';
-import { getLastSyncedAtShared } from './last-synced';
+import { getEsiRefreshQueueStatsShared, getLastSyncedAtShared, getStaticsSummaryShared } from './shared-reads';
+import {
+  getCapabilityLatencyShared,
+  getCapabilityOutcomeStatsShared,
+  getCronOutcomesShared,
+  getLastCronRunsShared,
+  getPriceRefreshDaysShared,
+  getPriceSourceDegradationShared,
+} from './shared-reads';
 import { loadSection } from './load-section';
-import { getEsiRefreshQueueStatsShared } from './queue-stats-shared';
-import type { AdminSignals, SliSignals } from './signals';
-import { getStaticsReviewShared } from './statics-review-shared';
+import { deriveSliSignals, type AdminSignals, type CronSignals, type SliSignals } from './signals';
+
+/** Every tracked cron's latest run and outcomes, for the overview and the health page. */
+export async function loadCronSignals(range: DateRange): Promise<CronSignals> {
+  const gscConfigured = isGscConfigured();
+  const [lastRuns, outcomes, gscLastSyncedAt] = await Promise.all([
+    getLastCronRunsShared(),
+    getCronOutcomesShared(range),
+    gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
+  ]);
+  return {
+    lastRuns,
+    priceOutcomes: outcomes.cron_prices,
+    sdeOutcomes: outcomes.cron_sde,
+    gscOutcomes: outcomes.cron_gsc,
+    housekeepingOutcomes: outcomes.cron_housekeeping,
+    gscConfigured,
+    gscLastSyncedAt,
+  };
+}
 
 // One read per request feeds both the attention list and the status cards.
 // Each source is its own section, so one failed read leaves the rest intact.
 export const loadAdminSignals = cache(async (rangeKey: RangeKey): Promise<AdminSignals> => {
   const range = rangeFor(rangeKey);
-  const gscConfigured = isGscConfigured();
   const [crons, budget, fallback, budgetExhaustions, sli, queue, statics, releases] = await Promise.all([
-    loadSection('admin-signals.crons', async () => {
-      const [lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, housekeepingOutcomes, gscLastSyncedAt] =
-        await Promise.all([
-          getLastCronRuns(),
-          getPriceCronOutcomes(range),
-          getSdeCronOutcomes(range),
-          getGscCronOutcomes(range),
-          getHousekeepingCronOutcomes(range),
-          gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
-        ]);
-      return {
-        lastRuns,
-        priceOutcomes,
-        sdeOutcomes,
-        gscOutcomes,
-        housekeepingOutcomes,
-        gscConfigured,
-        gscLastSyncedAt,
-      };
-    }),
+    loadSection('admin-signals.crons', () => loadCronSignals(range)),
     loadSection('admin-signals.budget', readEsiBudgetSnapshot),
-    loadSection('admin-signals.fallback', () => getFallbackRateShared(range)),
-    loadSection('admin-signals.budget-exhaustions', () => getBudgetExhaustionCountShared(range)),
+    loadSection('admin-signals.fallback', async () => fallbackRate(await getPriceRefreshDaysShared(range))),
+    loadSection('admin-signals.budget-exhaustions', async () => (await getPriceSourceDegradationShared(range)).budgetExhaustions),
     loadSection<SliSignals>('admin-signals.sli', async () => {
-      const [readSuccess, mutationSuccess, latencyP95, esiSuccess] = await Promise.all([
-        loadSection('getReadSuccessRate', () => getReadSuccessRate(range)),
-        loadSection('getMutationSuccessRate', () => getMutationSuccessRate(range)),
-        loadSection('getCriticalLatencyP95', () => getCriticalLatencyP95(range)),
-        loadSection('getEsiSuccessRate', () => getEsiSuccessRate(range)),
+      const [outcomes, latency] = await Promise.all([
+        loadSection('capability-outcomes', () => getCapabilityOutcomeStatsShared(range)),
+        loadSection('capability-latency', () => getCapabilityLatencyShared(range)),
       ]);
-      return { readSuccess, mutationSuccess, latencyP95, esiSuccess };
+      return deriveSliSignals(outcomes, latency);
     }),
     loadSection('admin-signals.queue', getEsiRefreshQueueStatsShared),
-    loadSection('admin-signals.statics', async () => {
-      const review = await getStaticsReviewShared();
-      return review
-        ? { feedVersion: review.feedVersion, totalDifferences: review.difference.totalDifferences }
-        : null;
-    }),
+    loadSection('admin-signals.statics', getStaticsSummaryShared),
     loadSection('admin-signals.releases', loadDeployMarkers),
   ]);
   return { now: range.to, crons, budget, fallback, budgetExhaustions, sli, queue, statics, releases };

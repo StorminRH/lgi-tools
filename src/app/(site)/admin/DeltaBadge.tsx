@@ -1,21 +1,19 @@
-import { deriveDeltaBadge } from './delta-badge-view';
+import { deriveDeltaBadge, type DeltaBadgeView } from './delta-badge-view';
 import { cn } from '@/components/ui/cn';
 import type { Delta } from '@/composition/admin-period';
 
+const TONE_CLASS = {
+  green: 'text-isk',
+  red: 'text-tone-red',
+  neutral: 'text-muted',
+} satisfies Record<DeltaBadgeView['tone'], string>;
+
 export function DeltaBadge({ delta, invert = false }: { delta: Delta; invert?: boolean }) {
   const view = deriveDeltaBadge(delta, invert);
-  if (view.kind === 'new') {
-    return <span className="font-data text-ui text-isk">new</span>;
-  }
-  if (view.kind === 'none') {
-    return <span className="font-data text-ui text-muted">—</span>;
-  }
-  if (view.kind === 'flat') {
-    return <span className="font-data text-ui text-muted tabular-nums">±0%</span>;
-  }
   return (
-    <span className={cn('font-data text-ui tabular-nums', view.cls)}>
-      {view.arrow} {view.pct}%
+    <span className={cn('font-data text-ui tabular-nums', TONE_CLASS[view.tone])}>
+      <span aria-hidden="true">{view.text}</span>
+      <span className="sr-only">{view.spoken}</span>
     </span>
   );
 }

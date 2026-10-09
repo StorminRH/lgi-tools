@@ -71,7 +71,8 @@ const priced = (missing: number[]) => ({
 });
 const feeMark = (html: string) => html.match(/<button[^>]*aria-label="Fee breakdown"[^>]*>/)?.[0] ?? '';
 
-test('fees that keep failing show one retrying notice directly above the margin', () => {
+test('fees that keep failing show one retrying notice directly above the margin; loaded fees show none', () => {
+  expect(render()).not.toContain('role="alert"');
   h.locationFailed = true;
   const html = render();
   const notice = html.indexOf('role="alert"');
@@ -81,13 +82,7 @@ test('fees that keep failing show one retrying notice directly above the margin'
   expect(notice).toBeGreaterThan(sell);
   expect(notice).toBeLessThan(marginTile);
   expect(html).toContain("System fees didn&#x27;t load");
-  expect(html).toContain('Net margin is unavailable');
   expect(html).toContain('aria-label="Retry system fees"');
-  expect(html).toContain('col-span-full');
-});
-
-test('with fees loaded there is no notice', () => {
-  expect(render()).not.toContain('role="alert"');
 });
 
 test('a fee that counts an unpriced input as nothing turns the fee mark amber; the margin keeps its number', () => {

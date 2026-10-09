@@ -154,11 +154,26 @@ export function FeedbackGroup() {
       <Specimen
         name="EmptyState"
         source="empty-state"
-        note="The quiet row shown when a list section has nothing in it."
+        note="The quiet row shown when a list section has nothing in it. kind says why, with its own glyph, so a failed read never looks like no data. inset drops the row padding and divider inside a body that already pads its content."
       >
-        <Card className="overflow-hidden">
-          <EmptyState>No active jobs on this character.</EmptyState>
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card className="overflow-hidden">
+            <EmptyState>No active jobs on this character.</EmptyState>
+            <EmptyState kind="clear">No failures in this period.</EmptyState>
+            <EmptyState kind="unavailable">Unable to load this section.</EmptyState>
+            <EmptyState kind="disconnected">Search Console not connected.</EmptyState>
+          </Card>
+          <Variant label="inset · inside a padded body">
+            <Card className="overflow-hidden">
+              <div className="flex flex-col gap-4 px-3.5 py-3">
+                <span className="font-data text-ui text-muted">Target ≤ 1,500 ms · investigate the slowest operations</span>
+                <EmptyState kind="clear" inset>
+                  No operations in this period.
+                </EmptyState>
+              </div>
+            </Card>
+          </Variant>
+        </div>
       </Specimen>
 
       <Specimen

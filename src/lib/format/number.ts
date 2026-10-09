@@ -13,3 +13,9 @@ export function formatPct(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '—';
   return `${value.toFixed(1)}%`;
 }
+
+/** A count with its noun, pluralised: `1 job`, `12 jobs`, `3 matches`. */
+export function formatCount(count: number, one: string, many = `${one}s`): string {
+  const rounded = Math.round(count);
+  return `${formatQuantity(rounded)} ${rounded === 1 ? one : many}`;
+}

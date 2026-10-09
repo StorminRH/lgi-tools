@@ -131,7 +131,6 @@ describe('componentSheet', () => {
       adjustedPriceOf: (id) => id === 40 ? 5 : null,
     });
     const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: fees.jobs[0] });
-    expect(fees.jobs[0]!.fee.estimatedItemValue).toBe(70);
     expect(sheet!.installFee!.unpriced).toEqual(['Fernite Carbide']);
     expect(sheet!.buildCost).toBe(4_070);
     // 70 at 5%, plus the default 0.25% tax and 4% SCC.

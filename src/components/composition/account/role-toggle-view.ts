@@ -15,6 +15,6 @@ export function deriveRoleToggle(
   return {
     nextRole: isAdmin ? 'USER' : 'ADMIN',
     isSelf: targetUserId === viewerUserId,
-    label: isAdmin ? 'Revoke ADMIN' : 'Grant ADMIN',
+    label: isAdmin ? 'Revoke admin' : 'Grant admin',
   };
 }

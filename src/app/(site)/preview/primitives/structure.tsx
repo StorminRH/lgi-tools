@@ -1,11 +1,13 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Collapsible } from '@/components/ui/collapsible';
 import { Measured } from '@/components/ui/measured';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { PageFooter } from '@/components/ui/page-footer';
 import { Pill } from '@/components/ui/pill';
+import { ReadoutLine, ReadoutList, ReadoutRow, type ReadoutLineProps } from '@/components/ui/readout';
 import { EntityRow, LabeledChipRow, ResourceRow, Stat } from '@/components/ui/row';
 import { SectionFooter } from '@/components/ui/section-footer';
 import { QuietSectionHead, SectionHead } from '@/components/ui/section-head';
@@ -21,6 +23,50 @@ const MULTIPLES = [
   { title: 'Margin today', value: '+41.2M', note: 'ISK across 3 plans' },
   { title: 'Sites cleared', value: '7', note: 'this week' },
 ] as const;
+
+type SampleReadout = ReadoutLineProps & { id: string };
+
+const READOUTS: SampleReadout[] = [
+  { id: 'budget', tone: 'green', status: 'Healthy', label: 'Error budget', note: 'floor 20 · live', value: '100 left' },
+  { id: 'source', tone: 'orange', status: 'Warning', label: 'Price source', note: 'no price refreshes this period', value: 'idle', valueTone: 'orange' },
+  { id: 'cron', tone: 'red', status: 'Failing', label: 'Price cron', value: 'never ran', valueTone: 'red' },
+  { id: 'esi', tone: 'neutral', status: 'No data', label: 'ESI availability', note: 'target ≥ 95%', value: 'no data', valueTone: 'muted' },
+  { id: 'scoreboard', label: 'Scoreboard source', note: 'development fallback', value: 'process-local' },
+];
+
+const OVERFLOW_READOUTS: SampleReadout[] = [
+  {
+    id: 'long-value',
+    tone: 'red',
+    status: 'Failing',
+    label: 'GSC sync',
+    note: 'last success 2026-09-30 04:12 UTC',
+    value: 'last attempt failed: upstream returned 503 Service Unavailable',
+    valueTone: 'red',
+  },
+  {
+    id: 'long-label',
+    tone: 'orange',
+    status: 'Warning',
+    label: 'Dead-lettered owned-data refreshes for characters without a valid token',
+    note: 'retry_exhausted · esi_5xx · token_revoked · scope_missing · rate_limited',
+    value: '3 dead · 12 queued',
+    valueTone: 'orange',
+    trailing: <Button variant="secondary" size="sm">Open</Button>,
+  },
+];
+
+function SampleReadouts({ rows }: { rows: SampleReadout[] }) {
+  return (
+    <Card className="overflow-hidden">
+      <ReadoutList>
+        {rows.map(({ id, ...line }) => (
+          <ReadoutRow key={id} {...line} />
+        ))}
+      </ReadoutList>
+    </Card>
+  );
+}
 
 export function StructureGroup() {
   return (
@@ -54,14 +100,15 @@ export function StructureGroup() {
       <Specimen
         name="SectionHeader + SectionLabel + SectionFooter"
         source="section-header · section-label · section-footer"
-        note="Card chrome: a header bar or sub-label, the // section label, and a totals footer."
+        note="Card chrome: a header bar or a sentence-case sub-heading for a block inside the card body, the // section label, and a totals footer. as renders the label as an h2 or h3 so cards join the page outline."
       >
         <div className="flex flex-col gap-4">
           <Card className="overflow-hidden">
             <SectionHeader label="Materials" hint="12 items" />
             <SectionHeader label="Medium bar" hint="size=md" size="md" />
             <div className="px-3.5 py-3">
-              <SectionHeader label="Sub variant" variant="sub" />
+              <SectionHeader label="Sub variant · as h3" variant="sub" as="h3" className="mb-2" />
+              <p className="font-ui text-ui text-muted">The block this sub-heading titles.</p>
             </div>
             <SectionFooter label="Total" value="128.4M ISK" />
           </Card>
@@ -69,6 +116,20 @@ export function StructureGroup() {
             <SectionLabel meta={<Stat>3 items</Stat>}>Section label</SectionLabel>
             <SectionLabel prefix={false}>Without prefix</SectionLabel>
           </div>
+        </div>
+      </Specimen>
+
+      <Specimen
+        name="ReadoutList + ReadoutRow"
+        source="readout"
+        note="The key/value status row: an optional dot with a screen-reader verdict, a label with a note beneath, a right-aligned value, and a trailing slot. The dot centres on the label's first line. The value is capped at half the row and wraps, so a long value never overprints its label."
+        wide
+      >
+        <div className="flex flex-col gap-4">
+          <SampleReadouts rows={READOUTS} />
+          <Variant label="overflow · 60-character value, long label, trailing button">
+            <SampleReadouts rows={OVERFLOW_READOUTS} />
+          </Variant>
         </div>
       </Specimen>
 
@@ -91,10 +152,26 @@ export function StructureGroup() {
 
       <Specimen
         name="Collapsible + UrlSync"
-        source="collapsible · url-sync"
-        note="Native disclosure rows. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
+        source="collapsible · url-sync · readout"
+        note="Native disclosure rows. chevron adds the turning ▾, hidden from screen readers. A ReadoutLine makes a status row the summary. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
       >
         <Card className="overflow-hidden">
+          <Collapsible
+            chevron
+            headerClassName="py-2.5"
+            header={
+              <ReadoutLine
+                tone="orange"
+                status="Warning"
+                label="Tracked operation p95"
+                note="target ≤ 1,500 ms"
+                value="1,840 ms"
+                valueTone="orange"
+              />
+            }
+          >
+            <p className="px-3.5 pb-3 font-ui text-ui text-muted">The detail behind the status line.</p>
+          </Collapsible>
           <Collapsible header={<span className="text-name">Material breakdown</span>} defaultOpen>
             <p className="px-3.5 pb-3 font-ui text-ui text-muted">Opens by default; the header row is the summary.</p>
           </Collapsible>
@@ -109,7 +186,7 @@ export function StructureGroup() {
       <Specimen
         name="MultiplesGrid + Measured"
         source="multiples-grid · measured"
-        note="Small-multiple stat tiles on a hairline grid; Measured hands its width to children such as charts."
+        note="Small-multiple stat tiles on a hairline grid, marked up as a description list. The chart slot is optional. Measured hands its width to children such as charts."
       >
         <div className="flex flex-col gap-4">
           <Card className="overflow-hidden">
@@ -121,6 +198,19 @@ export function StructureGroup() {
               ))}
             </MultiplesGrid>
           </Card>
+          <Variant label="figures only · composed value with a delta">
+            <Card className="overflow-hidden">
+              <MultiplesGrid columns={2}>
+                <MultiplesCell title="User accounts" value="1,204" />
+                <MultiplesCell
+                  title="Page views"
+                  value={<>12.4<span className="text-muted">k</span></>}
+                  delta={<Pill tone="green">+6%</Pill>}
+                  note="412 / day"
+                />
+              </MultiplesGrid>
+            </Card>
+          </Variant>
           <Variant label="measured">
             <Measured>
               {(width) => <span className="font-data text-ui text-isk">This slot is {width}px wide</span>}

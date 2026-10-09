@@ -99,11 +99,8 @@ beforeEach(() => {
   h.locationFailed = false;
 });
 
-test('nothing shows until a job is opened', () => {
-  expect(render([])).toBe('');
-});
-
 test('a component job: its runs, build against buy, and its inputs, built ones opening deeper', () => {
+  expect(render([])).toBe('');
   h.owned = new Map([[10, { ownedQty: 5 }]]);
   const html = render([10]);
   expect(html).toContain('data-title="Capital Armor Plates"');
@@ -124,11 +121,8 @@ test('a component job: its runs, build against buy, and its inputs, built ones o
   expect(html).not.toContain('‹');
 });
 
-test('without a profile no install fee is charged or shown', () => {
+test('under a profile the job’s install fee shows and is part of a built unit; without one none is charged', () => {
   expect(render([10])).not.toContain('Install fee');
-});
-
-test('under a profile the job’s install fee shows and is part of a built unit', () => {
   h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 930, missingAdjustedPriceTypeIds: [] } }] } };
   const html = render([10]);
   expect(html).toMatch(/Install fee<\/span><span[^>]*>930.00</);

@@ -35,6 +35,11 @@ export function stackedShareLayout(segments: ShareSegment[], width: number): Sha
   });
 }
 
+/**
+ * One bar split into labelled shares. The accessible name is `ariaLabel`
+ * followed by each segment's value, since the visible labels are SVG text
+ * inside a role="img" that screen readers do not read.
+ */
 export function StackedShareBar({
   segments,
   width = 360,
@@ -44,12 +49,14 @@ export function StackedShareBar({
   segments: ShareSegment[];
   width?: number;
   height?: number;
-  ariaLabel?: string;
+  /** What the bar splits, such as "Referred versus unattributed page views". */
+  ariaLabel: string;
 }) {
   const parts = stackedShareLayout(segments, width);
   if (parts.length === 0) return null;
   const barH = 20;
   const last = parts.length - 1;
+  const values = parts.map((part) => `${part.label} ${part.value.toLocaleString()}`).join(', ');
 
   return (
     <svg
@@ -57,7 +64,7 @@ export function StackedShareBar({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={ariaLabel}
+      aria-label={`${ariaLabel}: ${values}`}
       className="block max-w-full"
     >
       {parts.map((part, i) => (

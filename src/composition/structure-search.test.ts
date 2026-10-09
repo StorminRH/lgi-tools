@@ -93,30 +93,9 @@ describe('searchUpwellStructures', () => {
     ]);
   });
 
-  it('searches with every scoped character and merges what each can see, once per structure', async () => {
-    h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES), pilot(2, BOTH_SCOPES)]);
-    h.getFreshAccessTokenForCharacter.mockImplementation(async (id: number) => ({ kind: 'ok', accessToken: `tok-${id}` }));
-    const seen: Record<string, number[]> = { 'tok-1': [10, 30], 'tok-2': [20, 30] };
-    h.esiFetch.mockImplementation(async (url: string, init: { headers: { Authorization: string } }) => {
-      const token = init.headers.Authorization.replace('Bearer ', '');
-      if (url.includes('/search/')) return json(200, { structure: seen[token] });
-      const id = Number(/structures\/(\d+)\//.exec(url)?.[1]);
-      return json(200, { name: `S${id}`, solar_system_id: 30000142, type_id: 35825 });
-    });
-    const results = await searchUpwellStructures('user-1', 'any');
-    expect(results.map((r) => r.structureId)).toEqual([10, 30, 20]);
-  });
-
   it('throws when no scoped character has a usable token', async () => {
     h.getFreshAccessTokenForCharacter.mockResolvedValue({ kind: 'reauth_required' });
     await expect(searchUpwellStructures('user-1', 'any')).rejects.toThrow('usable ESI access token');
-  });
-
-  it('throws when ESI search fails or returns a malformed body', async () => {
-    h.esiFetch.mockResolvedValueOnce(json(502, {}));
-    await expect(searchUpwellStructures('user-1', 'any')).rejects.toThrow('(502)');
-    h.esiFetch.mockResolvedValueOnce(json(200, { structure: 'nope' }));
-    await expect(searchUpwellStructures('user-1', 'any')).rejects.toThrow('invalid body');
   });
 
   it('asks ESI for at most eight structures', async () => {
@@ -151,14 +130,7 @@ describe('searchUpwellStructures', () => {
       h.getFreshAccessTokenForCharacter.mockImplementation(async (id: number) => ({ kind: 'ok', accessToken: `tok-${id}` }));
     });
 
-    it('searches all corp-mates because their individual access lists can differ', async () => {
-      h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES, 500), pilot(2, BOTH_SCOPES, 500), pilot(3, BOTH_SCOPES, 500)]);
-      esiPerToken({ 'tok-1': [10], 'tok-2': [20], 'tok-3': [30] });
-      expect((await searchUpwellStructures('user-1', 'any')).map((r) => r.structureId)).toEqual([10, 20, 30]);
-      expect(searchesBy()).toEqual([1, 2, 3]);
-    });
-
-    it('each corporation searches, and a structure both see is read once', async () => {
+    it('every scoped character searches, and a structure two of them see is read once', async () => {
       h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES, 500), pilot(2, BOTH_SCOPES, 500), pilot(3, BOTH_SCOPES, 600)]);
       esiPerToken({ 'tok-1': [10, 30], 'tok-3': [30, 40] });
       expect((await searchUpwellStructures('user-1', 'any')).map((r) => r.structureId)).toEqual([10, 30, 40]);

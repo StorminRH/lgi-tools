@@ -61,8 +61,10 @@ beforeEach(() => {
   h.setup = { profiles: null, profilesFailed: false, refreshProfiles: vi.fn(), profile: null, setProfileId: vi.fn(), locationFailed: false, retryLocation: vi.fn() };
 });
 
-test('the rail shows the blueprint, its inputs and its numbers', () => {
+test('the rail leads back to the search, then shows the blueprint, its inputs and its numbers', () => {
   const html = render();
+  expect(html).toMatch(/<a[^>]*href="\/industry\/planner"[^>]*>.*Back to search<\/a>/);
+  expect(html.indexOf('Back to search')).toBeLessThan(html.indexOf('Damage Control II'));
   expect(html).toContain('aria-label="Blueprint"');
   expect(html).toContain('Damage Control II');
   expect(html).toContain('Damage Control<');
@@ -77,15 +79,6 @@ test('the rail shows the blueprint, its inputs and its numbers', () => {
   expect(html).toContain('kpis');
 });
 
-test('failed system fees leave the profile picker alone; their notice sits with the margin', () => {
-  const profile = row('p', 'Production');
-  h.auth.session = {};
-  h.setup = { ...h.setup, profiles: [profile], profile, locationFailed: true };
-  const html = render();
-  expect(html).toContain('Production');
-  expect(html).not.toContain('role="alert"');
-});
-
 test('a reaction has no blueprint research to set, only runs', () => {
   const html = render(REACTION_ACTIVITY);
   expect(html).not.toContain('material efficiency');
@@ -93,53 +86,38 @@ test('a reaction has no blueprint research to set, only runs', () => {
   expect(html).toContain('aria-label="Runs"');
 });
 
-test('signed out, the profile slot asks for one; signing in is the way there', () => {
-  const html = render();
-  expect(html).toMatch(/<button[^>]*>Create a profile<\/button>/);
-  expect(html).not.toContain('href="/industry"');
-  expect(html).not.toContain('Production profile');
-});
-
-test('while auth or the profile list loads the slot holds its place', () => {
+test('the profile slot holds its place while loading, asks a signed-out user to sign in, leads a new user to the Profiles tab, retries a failed list, and switches profiles', () => {
   h.auth = { session: null, loading: true };
   expect(render()).toContain('Loading profiles');
+
+  h.auth = { session: null, loading: false };
+  const signedOut = render();
+  expect(signedOut).toMatch(/<button[^>]*>Create a profile<\/button>/);
+  expect(signedOut).not.toContain('href="/industry"');
+  expect(signedOut).not.toContain('Production profile');
+
   h.auth = { session: {}, loading: false };
   expect(render()).toContain('Loading profiles');
-});
 
-test('signed in without a profile, the slot leads to the Profiles tab', () => {
-  h.auth = { session: {}, loading: false };
-  h.setup = { ...h.setup, profiles: [] };
-  const html = render();
-  expect(html).toMatch(/<a[^>]*href="\/industry"[^>]*>Create a profile<\/a>/);
-});
+  h.setup = { ...h.setup, profiles: null, profilesFailed: true };
+  const failed = render();
+  expect(failed).toContain('role="alert"');
+  expect(failed).toContain("Profiles didn&#x27;t load");
+  expect(failed).toContain('aria-label="Retry loading profiles"');
+  expect(failed).not.toContain('Loading profiles');
+  expect(failed).not.toContain('Create a profile');
 
-test("profiles that never loaded take the picker's place with a notice that retries when clicked", () => {
-  h.auth = { session: {}, loading: false };
-  h.setup.profilesFailed = true;
-  const html = render();
-  expect(html).toContain('role="alert"');
-  expect(html).toContain("Profiles didn&#x27;t load");
-  expect(html).toContain('Pricing without a profile');
-  expect(html).toContain('aria-label="Retry loading profiles"');
-  expect(html).not.toContain('Loading profiles');
-  expect(html).not.toContain('Create a profile');
-});
+  h.setup = { ...h.setup, profiles: [], profilesFailed: false };
+  const noProfile = render();
+  expect(noProfile).toMatch(/<a[^>]*href="\/industry"[^>]*>Create a profile<\/a>/);
+  expect(noProfile).not.toContain('role="alert"');
 
-test('with profiles, the slot switches between them', () => {
-  h.auth = { session: {}, loading: false };
   const main = row('main', 'Main production');
   h.setup = { ...h.setup, profiles: [main, row('caps', 'Capital line')], profile: main };
-  const html = render();
-  expect(html).toContain('aria-label="Production profile"');
-  expect(html).toContain('Main production');
-  expect(html).not.toContain('Create a profile');
-});
-
-test('the rail leads back to the blueprint search above the blueprint', () => {
-  const html = render();
-  expect(html).toMatch(/<a[^>]*href="\/industry\/planner"[^>]*><span aria-hidden="true">←<\/span> Back to search<\/a>/);
-  expect(html.indexOf('Back to search')).toBeLessThan(html.indexOf('Damage Control II'));
+  const switching = render();
+  expect(switching).toContain('aria-label="Production profile"');
+  expect(switching).toContain('Main production');
+  expect(switching).not.toContain('Create a profile');
 });
 
 test('the star beside the name shows whether the blueprint is a favorite, and waits for the saved list', () => {

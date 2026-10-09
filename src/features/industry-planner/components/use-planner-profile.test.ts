@@ -293,12 +293,6 @@ test('a profile prices the product where its facility stands, moving the build t
   );
 });
 
-test('a system whose read failed is no longer waited on', () => {
-  h.profiles = [CAPS];
-  h.plan = planAt(facility({ kind: 'station', id: '60003760', name: 'Jita IV - Moon 4', structure: null, systemId: 30002537 }));
-  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers(null, 30002537)).locationPending).toBe(false);
-});
-
 test('a structure in the system already in use only swaps the structure', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({}));

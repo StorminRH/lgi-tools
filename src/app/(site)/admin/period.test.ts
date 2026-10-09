@@ -30,6 +30,10 @@ describe('admin period', () => {
       );
     }
     expect(rangeFor('all', NOW).from).toEqual(ALL_TIME_FROM);
+
+    const midMinute = new Date('2026-06-09T12:00:30.250Z');
+    expect(rangeFor('30d', midMinute)).toEqual(rangeFor('30d', new Date('2026-06-09T12:00:59.999Z')));
+    expect(rangeFor('30d', midMinute).to).toEqual(new Date('2026-06-09T12:01:00Z'));
     expect(previousRange('all', rangeFor('all', NOW))).toBeNull();
 
     expect(computeDelta(100, null)).toBeNull();

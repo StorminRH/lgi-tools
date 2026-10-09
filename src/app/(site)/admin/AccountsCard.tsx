@@ -1,32 +1,12 @@
-import { Card } from '@/components/ui/card';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
-import { SectionHeader } from '@/components/ui/section-header';
-import { getAccountTotals } from '@/platform/auth/admin-users';
-import { CardLink } from './CardLink';
-import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { SectionUnavailable } from './SectionUnavailable';
+import { formatQuantity } from '@/lib/format/number';
+import type { AccountTotals as Totals } from '@/platform/auth/admin-users';
 
-export async function AccountsCard() {
-  const totals = await loadSection('accounts', getAccountTotals);
-  if (totals === SECTION_LOAD_FAILED) return <SectionUnavailable label="Registered users" />;
+export function AccountTotals({ totals }: { totals: Totals }) {
   return (
-    <Card data-admin-accounts>
-      <SectionHeader
-        size="md"
-        label="Registered users"
-        hint={<CardLink href="/admin/users">Users &amp; roles</CardLink>}
-      />
-      <MultiplesGrid columns={2}>
-        <MultiplesCell title="User accounts" value={totals.users.toLocaleString()}>
-          {null}
-        </MultiplesCell>
-        <MultiplesCell
-          title="Unique characters"
-          value={totals.characters.toLocaleString()}
-        >
-          {null}
-        </MultiplesCell>
-      </MultiplesGrid>
-    </Card>
+    <MultiplesGrid columns={2}>
+      <MultiplesCell title="User accounts" value={formatQuantity(totals.users)} />
+      <MultiplesCell title="Unique characters" value={formatQuantity(totals.characters)} />
+    </MultiplesGrid>
   );
 }
