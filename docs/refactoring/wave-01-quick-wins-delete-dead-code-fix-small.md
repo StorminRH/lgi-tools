@@ -17,7 +17,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P296](#p296) | Retire the per-deploy auth backfill: it re-creates users and accounts for deleted characters | efficiency | S | low | high | — |
 | ☑ | [P303](#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
-| ☐ | [P304](#p304) | Delete the test-only price-confidence aggregation code | simplification | S | low | medium | — |
+| ☑ | [P304](#p304) | Delete the test-only price-confidence aggregation code | simplification | S | low | medium | — |
 | ☐ | [P324](#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
 | ☐ | [P335](#p335) | Delete the dead refreshPricesOnDemand and drop the cache tags nothing invalidates | simplification | S | low | low | — |
 | ☐ | [P042](#p042) | Move wormhole-site domain constants out of the Drizzle schema so client bundles stop pulling in pg-core | efficiency | S | low | medium | — |
@@ -171,7 +171,7 @@ No new API. Removed: fetchEnumeratedCharacters(env, userId), eveCharactersEndpoi
 
 ## P304: Delete the test-only price-confidence aggregation code
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -115 production lines (industry-styles ~95, build-pricing ~21) and about -150 test lines
 - **Depends on:** —
