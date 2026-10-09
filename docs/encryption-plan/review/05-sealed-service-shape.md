@@ -28,6 +28,8 @@ This section overrides the rest of the part where they disagree.
   9. CloudWatch log groups get an explicit retention matching today's log retention.
 - **Code facts corrected:** normal ESI syncs run inline in `after()` on page view; `esi_refresh_jobs` is a daily retry lane for budget-deferred work (at most 5 per drain). The authorization re-check is activity-triggered (each character at most daily while its user is on the site). Only 4 of 7 daily-batch steps take an advisory lock; the others use idempotency guards.
 
+**Amended by the Part 07 review (2026-10-09):** map character search no longer just fails with today's error when the sealed service misses its deadline: if the sealed search fails or has not answered within 5 s, the browser falls back to Vercel's tokenless exact-name lookup (Part 07 step 8a). Other interactive searches are unchanged.
+
 **Review notes (2026-10-08):** the owner has created a new AWS account. Service regions, confirmed by the owner: Vercel `iad1` (AWS us-east-1); Neon `aws-us-east-1` (project LGI-Tools-DB); Convex `aws-us-east-1` (prod `doting-zebra-317`, staging `proper-squid-200`); Upstash `iad1` (primary, no read replicas). Everything is in us-east-1, so the enclave goes there too. Nitro Enclaves carry no extra charge; only the EC2 instance and services used (such as KMS) are billed.
 
 **Verification findings (2026-10-08, to apply as questions are settled):**
