@@ -28,8 +28,10 @@ describe('targetLevel', () => {
 });
 
 describe('refreshVolumeSummary', () => {
-  it('empty', () => {
-    expect(refreshVolumeSummary([])).toBe('No price refreshes recorded this period.');
+  it('counts a single day in the singular', () => {
+    expect(refreshVolumeSummary([{ day: '2026-06-01', fetched: 1_000, written: 900 }])).toBe(
+      'Refreshed on 1 day, writing 900 of 1,000 fetched rows.',
+    );
   });
   it('totals across days', () => {
     expect(

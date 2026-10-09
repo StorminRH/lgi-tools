@@ -5,6 +5,7 @@ import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs
 import type { CapabilityFailureDetail, FailureGroup, SlowOperation } from '@/data/telemetry/capability-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
+import { formatQuantity } from '@/lib/format/number';
 import { zeroFillDaily } from '../aggregate';
 import { CardLink } from '../CardLink';
 import { AdminTrendChart } from '../charts';
@@ -12,7 +13,8 @@ import { SECTION_LOAD_FAILED } from '../load-section';
 import { deriveDeadLetterView } from '../ops-view';
 import { deriveQueueCells } from '../queue/queue-view';
 import type { Loaded } from '../signals';
-import { ChartBlock, DetailBody, DetailCaption } from './DetailBlocks';
+import { TitledBlock } from '../TitledBlock';
+import { DetailBody, DetailCaption } from './DetailBlocks';
 import { StatusRow } from './StatusRow';
 import {
   dayLabel,
@@ -55,7 +57,7 @@ const FAILURE_COLUMNS = [
     key: 'count',
     label: 'Count',
     align: 'right',
-    render: (row) => row.count.toLocaleString(),
+    render: (row) => formatQuantity(row.count),
     className: 'tabular-nums',
   },
   {
@@ -83,26 +85,26 @@ const SLOW_COLUMNS = [
     key: 'p95',
     label: 'p95',
     align: 'right',
-    render: (row) => `${row.p95Ms.toLocaleString()} ms`,
+    render: (row) => `${formatQuantity(row.p95Ms)} ms`,
     className: 'whitespace-nowrap tabular-nums',
   },
 ] satisfies readonly StaticTableColumn<SlowOperation>[];
 
 function Unavailable() {
-  return <DetailCaption>Details unavailable.</DetailCaption>;
+  return <EmptyState inset kind="unavailable">Details unavailable.</EmptyState>;
 }
 
 function FailureTable({ groups, label }: { groups: FailureGroup[]; label: string }) {
-  if (groups.length === 0) return <EmptyState>No failures in this period.</EmptyState>;
+  if (groups.length === 0) return <EmptyState inset kind="clear">No failures in this period.</EmptyState>;
   return (
-    <ChartBlock label={label}>
+    <TitledBlock title={label}>
       <StaticTable
         ariaLabel={label}
         columns={FAILURE_COLUMNS}
         rows={groups}
         getRowKey={(row) => `${operationLabel(row)}:${failureResultLabel(row)}`}
       />
-    </ChartBlock>
+    </TitledBlock>
   );
 }
 
@@ -118,7 +120,7 @@ function FailureDetailBody({ detail }: { detail: Loaded<FailureDetail> }) {
     <>
       <FailureTable groups={detail.groups} label="Top failure groups" />
       {detail.daily.some((point) => point.failures > 0) && (
-        <ChartBlock label="Failures by day">
+        <TitledBlock title="Failures by day">
           <AdminTrendChart
             points={trend.points}
             labels={trend.labels}
@@ -126,11 +128,11 @@ function FailureDetailBody({ detail }: { detail: Loaded<FailureDetail> }) {
             tone="red"
             ariaLabel="Failures by day"
           />
-        </ChartBlock>
+        </TitledBlock>
       )}
       {detail.validationRejected !== undefined && detail.validationRejected > 0 && (
         <DetailCaption>
-          {detail.validationRejected.toLocaleString()} rejected as invalid input, not counted.
+          {formatQuantity(detail.validationRejected)} rejected as invalid input, not counted.
         </DetailCaption>
       )}
     </>
@@ -139,16 +141,16 @@ function FailureDetailBody({ detail }: { detail: Loaded<FailureDetail> }) {
 
 function SlowestBody({ slowest }: { slowest: Loaded<SlowOperation[]> }) {
   if (slowest === SECTION_LOAD_FAILED) return <Unavailable />;
-  if (slowest.length === 0) return <EmptyState>No operations in this period.</EmptyState>;
+  if (slowest.length === 0) return <EmptyState inset>No operations in this period.</EmptyState>;
   return (
-    <ChartBlock label="Slowest operations">
+    <TitledBlock title="Slowest operations">
       <StaticTable
         ariaLabel="Slowest operations"
         columns={SLOW_COLUMNS}
         rows={slowest}
         getRowKey={operationLabel}
       />
-    </ChartBlock>
+    </TitledBlock>
   );
 }
 
@@ -173,9 +175,9 @@ function BacklogBody({ details }: { details: ServiceLevelDetails }) {
       {deadLetters === SECTION_LOAD_FAILED ? (
         <Unavailable />
       ) : deadLetters.length === 0 ? (
-        <EmptyState>No dead-lettered jobs.</EmptyState>
+        <EmptyState inset kind="clear">No dead-lettered jobs.</EmptyState>
       ) : (
-        <ChartBlock label="Latest dead letters">
+        <TitledBlock title="Latest dead letters">
           <ul>
             {deriveDeadLetterView(deadLetters).map((row) => (
               <li key={row.id} className="border-b border-border-soft py-2 last:border-b-0">
@@ -186,7 +188,7 @@ function BacklogBody({ details }: { details: ServiceLevelDetails }) {
               </li>
             ))}
           </ul>
-        </ChartBlock>
+        </TitledBlock>
       )}
       <div className="font-data text-ui">
         <CardLink href="/admin/queue">Open queue</CardLink>

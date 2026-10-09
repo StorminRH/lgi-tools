@@ -69,9 +69,6 @@ import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/ad
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
 import { BudgetCard, CostCards, PressureCard, PriceSourceCard } from '@/app/(site)/admin/esi/EsiCards';
 import AppSiteAdminEsiPage from '@/app/(site)/admin/esi/page';
-import { EventLogCard, ServiceLevelsCard } from '@/app/(site)/admin/health/HealthCards';
-import { ScheduledTasks } from '@/app/(site)/admin/health/ScheduledTasks';
-import { StatusRow } from '@/app/(site)/admin/health/StatusRow';
 import AppSiteAdminHealthPage from '@/app/(site)/admin/health/page';
 import AppSiteAdminLayout from '@/app/(site)/admin/layout';
 import { loadAdminSignals } from '@/app/(site)/admin/load-signals';
@@ -159,10 +156,6 @@ describe('coverage-gaps', () => {
       AppSiteAdminEsiPage,
       getPriceRefreshDaysShared,
       getPriceSourceDegradationShared,
-      EventLogCard,
-      ServiceLevelsCard,
-      ScheduledTasks,
-      StatusRow,
       AppSiteAdminHealthPage,
       getLastSyncedAtShared,
       AppSiteAdminLayout,

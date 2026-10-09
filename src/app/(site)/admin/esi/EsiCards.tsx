@@ -29,6 +29,7 @@ import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { LevelRows } from '../LevelRows';
 import { deriveCostLensView, type OpsMetricRow } from '../ops-view';
 import { SectionUnavailable } from '../SectionUnavailable';
+import { TitledBlock } from '../TitledBlock';
 import { deriveBudgetCard, derivePressureLines } from './esi-view';
 
 // Plain figures carry no verdict: no dot, and every value in the default colour.
@@ -106,10 +107,9 @@ export async function PriceSourceCard({ range }: { range: DateRange }) {
     <Card>
       <SectionHeader size="md" label="Scheduled price sources" />
       <div className="grid grid-cols-1 divide-y divide-border-soft md:grid-cols-2 md:divide-x md:divide-y-0">
-        <div className="px-3.5 py-3">
-          <SectionHeader variant="sub" label="Scheduled Fuzzwork share by day" className="mb-2" />
+        <TitledBlock title="Scheduled Fuzzwork share by day" padded>
           {fallback.perDay.length === 0 ? (
-            <EmptyState>No price refreshes in this range.</EmptyState>
+            <EmptyState inset>No price refreshes in this range.</EmptyState>
           ) : (
             <AdminTrendChart
               points={fallbackTrend.points}
@@ -118,18 +118,17 @@ export async function PriceSourceCard({ range }: { range: DateRange }) {
               ariaLabel="Fallback rate by day"
             />
           )}
-        </div>
-        <div className="px-3.5 py-3">
-          <SectionHeader variant="sub" label="Fallback refreshes by caller" className="mb-2" />
+        </TitledBlock>
+        <TitledBlock title="Fallback refreshes by caller" padded>
           {degradation.length === 0 ? (
-            <EmptyState>No degraded price reads in this range.</EmptyState>
+            <EmptyState inset kind="clear">No degraded price reads in this range.</EmptyState>
           ) : (
             <AdminBarChart
               data={degradation.map((row) => ({ label: row.caller, value: row.count }))}
               ariaLabel="Degradation events by caller"
             />
           )}
-        </div>
+        </TitledBlock>
       </div>
     </Card>
   );

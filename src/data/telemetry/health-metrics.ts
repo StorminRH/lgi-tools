@@ -30,8 +30,8 @@ export function loginFrequencyBuckets(counts: number[]): LoginFrequencyBucket[] 
   }));
 }
 
+/** One line on the period's price refreshes; an empty period shows an empty state instead. */
 export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {
-  if (points.length === 0) return 'No price refreshes recorded this period.';
   const fetched = points.reduce((s, p) => s + p.fetched, 0);
   const written = points.reduce((s, p) => s + p.written, 0);
   return `Refreshed on ${formatCount(points.length, 'day')}, writing ${formatQuantity(written)} of ${formatQuantity(fetched)} fetched rows.`;
