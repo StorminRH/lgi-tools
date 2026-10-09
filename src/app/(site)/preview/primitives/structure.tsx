@@ -100,14 +100,15 @@ export function StructureGroup() {
       <Specimen
         name="SectionHeader + SectionLabel + SectionFooter"
         source="section-header · section-label · section-footer"
-        note="Card chrome: a header bar or sub-label, the // section label, and a totals footer."
+        note="Card chrome: a header bar or a sentence-case sub-heading for a block inside the card body, the // section label, and a totals footer. as renders the label as an h2 or h3 so cards join the page outline."
       >
         <div className="flex flex-col gap-4">
           <Card className="overflow-hidden">
             <SectionHeader label="Materials" hint="12 items" />
             <SectionHeader label="Medium bar" hint="size=md" size="md" />
             <div className="px-3.5 py-3">
-              <SectionHeader label="Sub variant" variant="sub" />
+              <SectionHeader label="Sub variant · as h3" variant="sub" as="h3" className="mb-2" />
+              <p className="font-ui text-ui text-muted">The block this sub-heading titles.</p>
             </div>
             <SectionFooter label="Total" value="128.4M ISK" />
           </Card>
