@@ -296,7 +296,6 @@ describe('characterLocationSync.syncUser', () => {
     });
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(true);
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(true);
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/eve-characters'))).toBe(false);
     const lease = await readLease(t);
     expect(lease).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
     expect(await readSyncState(t)).toMatchObject({
@@ -670,7 +669,6 @@ describe('characterLocationSync.syncUser', () => {
     const heldFetch = stubFetch(locationShip);
     await run(held);
     expect(heldFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
-    expect(heldFetch.mock.calls.some(([u]) => String(u).includes('/eve-characters'))).toBe(false);
     expect((await readDoc(held))?.solarSystemId).toBe(SYSTEM_A);
     expect((await readLease(held))?.accessToken).toBe('leased-tok');
 

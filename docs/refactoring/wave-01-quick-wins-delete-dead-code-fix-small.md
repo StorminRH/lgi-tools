@@ -16,7 +16,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P296](#p296) | Retire the per-deploy auth backfill: it re-creates users and accounts for deleted characters | efficiency | S | low | high | — |
-| ☐ | [P303](#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
+| ☑ | [P303](#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
 | ☐ | [P304](#p304) | Delete the test-only price-confidence aggregation code | simplification | S | low | medium | — |
 | ☐ | [P324](#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
 | ☐ | [P335](#p335) | Delete the dead refreshPricesOnDemand and drop the cache tags nothing invalidates | simplification | S | low | low | — |
@@ -110,7 +110,7 @@ None (removal). If a manual tool must survive for pre-migration databases, it mu
 
 ## P303: Delete the dead Convex character-enumeration client and its internal route
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -100 production lines (route 50, contract 28, client 16, plus registry entries) and about -110 test lines
 - **Depends on:** —

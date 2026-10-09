@@ -34,34 +34,6 @@ export const eveTokenEndpoint = defineEndpoint({
   },
 });
 
-export const eveCharactersRequestSchema = z.object({
-  userId: userIdField,
-});
-
-const eveCharacterEntrySchema = z.object({
-  characterId: z.number().int().positive(),
-  name: z.string(),
-  hasRefreshToken: z.boolean(),
-  missingScopes: z.array(z.string()),
-  corporationId: z.number().int().positive().nullable(),
-});
-const eveCharactersResponseSchema = z.object({
-  characters: z.array(eveCharacterEntrySchema),
-});
-export type EveCharactersResponse = z.infer<typeof eveCharactersResponseSchema>;
-
-export const eveCharactersEndpoint = defineEndpoint({
-  method: 'POST',
-  path: '/api/internal/eve-characters',
-  request: eveCharactersRequestSchema,
-  responses: {
-    200: jsonBody(eveCharactersResponseSchema),
-    400: problem('invalid_json', 'invalid_body'),
-    401: problem('unauthenticated'),
-    500: problem('not_configured'),
-  },
-});
-
 export const switchCharacterFormSchema = z.object({
   characterId: z.coerce.number().int().positive(),
 });

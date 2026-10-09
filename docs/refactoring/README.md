@@ -222,7 +222,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) | Retire the per-deploy auth backfill: it re-creates users and accounts for deleted characters | efficiency | S | low | high | — |
-| ☐ | [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
+| ☑ | [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) | Delete the dead Convex character-enumeration client and its internal route | simplification | S | low | medium | — |
 | ☐ | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) | Delete the test-only price-confidence aggregation code | simplification | S | low | medium | — |
 | ☐ | [P324](wave-01-quick-wins-delete-dead-code-fix-small.md#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
 | ☐ | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335) | Delete the dead refreshPricesOnDemand and drop the cache tags nothing invalidates | simplification | S | low | low | — |

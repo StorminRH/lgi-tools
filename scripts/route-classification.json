@@ -158,7 +158,6 @@
     "/api/industry/owned-assets": "dynamic",
     "/api/industry/owned-blueprints": "dynamic",
     "/api/industry/skill-levels": "dynamic",
-    "/api/internal/eve-characters": "dynamic",
     "/api/internal/eve-token": "dynamic",
     "/api/market-prices/refresh": "dynamic",
     "/api/market-history/refresh": "dynamic",

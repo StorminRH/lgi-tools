@@ -1,9 +1,5 @@
-import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import { v } from 'convex/values';
-import {
-  eveCharactersEndpoint,
-  eveTokenEndpoint,
-} from '@/platform/auth/api-contract';
+import { eveTokenEndpoint } from '@/platform/auth/api-contract';
 import { serviceFetch } from '@/platform/auth/service-client';
 
 export const characterSyncResultFields = {
@@ -24,23 +20,6 @@ export function requireSyncEnv(): SyncEnv {
     throw new Error('SITE_URL and CONVEX_SERVICE_SECRET must be set on this Convex deployment');
   }
   return { siteUrl, secret };
-}
-
-export async function fetchEnumeratedCharacters(
-  env: SyncEnv,
-  userId: string,
-): Promise<EveCharactersResponse['characters']> {
-  const outcome = await serviceFetch(eveCharactersEndpoint, {
-    baseUrl: env.siteUrl,
-    secret: env.secret,
-    body: { userId },
-  });
-  if (outcome.ok) return outcome.data.characters;
-  if (outcome.kind === 'network') throw outcome.cause;
-  if (outcome.kind === 'protocol') {
-    throw new Error(`eve-characters response failed its contract: ${outcome.detail}`);
-  }
-  throw new Error(`eve-characters returned ${outcome.status}`);
 }
 
 export type TokenVend =
