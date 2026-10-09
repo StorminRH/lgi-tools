@@ -260,7 +260,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P334](wave-02-tooling-and-test-harness-foundations.md#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
+| ☑ | [P334](wave-02-tooling-and-test-harness-foundations.md#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
 | ☐ | [P340](wave-02-tooling-and-test-harness-foundations.md#p340) | Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body | testing | M | low | high | — |
 | ☐ | [P216](wave-02-tooling-and-test-harness-foundations.md#p216) | Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup | testing | M | low | medium | — |
 | ☐ | [P341](wave-02-tooling-and-test-harness-foundations.md#p341) | Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders | testing | M | low | medium | — |

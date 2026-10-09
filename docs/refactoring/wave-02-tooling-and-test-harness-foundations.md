@@ -8,7 +8,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P334](#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
+| ☑ | [P334](#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
 | ☐ | [P340](#p340) | Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body | testing | M | low | high | — |
 | ☐ | [P216](#p216) | Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup | testing | M | low | medium | — |
 | ☐ | [P341](#p341) | Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders | testing | M | low | medium | — |
@@ -27,7 +27,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 
 ## P334: Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -250/+40. That covers 10 inline syntax lists of about 16 lines down to one line each, the 20-line duplicate builder, the 10-line no-op block, about 10 import lists, and 12 pairs of about 10 lines down to about 3 each.
 - **Depends on:** —
