@@ -1,68 +1,64 @@
-import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
-import { SectionHeader } from '@/components/ui/section-header';
 import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
+import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
+import { formatCount } from '@/lib/format/number';
+import { CardFootnote } from '../CardFootnote';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { deriveDeadLetterView } from '../ops-view';
 import { getEsiRefreshQueueStatsShared } from '../shared-reads';
-import { SectionUnavailable } from '../SectionUnavailable';
-import { deriveQueueCells, retainedSummary } from './queue-view';
+import { deadLetterHint, deriveQueueCells, retainedSummary } from './queue-view';
 import { RetryJobForm } from './RetryJobForm';
 
 const DEAD_LETTER_LIMIT = 50;
 
-export async function QueueSummaryCard() {
-  const fetched = await loadSection('esi-refresh-queue', getEsiRefreshQueueStatsShared);
-  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Queue" />;
+export function QueueSummary({ stats, now }: { stats: EsiRefreshQueueStat[]; now: Date }) {
   return (
-    <Card>
-      <SectionHeader size="md" label="Queue" />
+    <>
       <MultiplesGrid columns={4}>
-        {deriveQueueCells(fetched, new Date()).map((cell) => (
-          <MultiplesCell key={cell.id} title={cell.title} value={cell.value} note={cell.note}>
-            {null}
-          </MultiplesCell>
+        {deriveQueueCells(stats, now).map((cell) => (
+          <MultiplesCell key={cell.id} title={cell.title} value={cell.value} note={cell.note} />
         ))}
       </MultiplesGrid>
-      <div className="border-t border-border-soft px-3.5 py-2 font-data text-micro text-muted">
-        {retainedSummary(fetched)}
-      </div>
-    </Card>
+      <CardFootnote>{retainedSummary(stats)}</CardFootnote>
+    </>
   );
 }
 
-export async function DeadLettersCard() {
-  const fetched = await loadSection('dead-letters', () => listDeadLetteredJobs(DEAD_LETTER_LIMIT));
-  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Dead letters" />;
-  const rows = deriveDeadLetterView(fetched);
+/**
+ * The newest dead letters, and the real total from the shared queue counts.
+ * The list stands on its own if the counts fail; only the total goes.
+ */
+export async function loadDeadLetters() {
+  const [jobs, stats] = await Promise.all([
+    listDeadLetteredJobs(DEAD_LETTER_LIMIT),
+    loadSection('dead-letter-total', getEsiRefreshQueueStatsShared),
+  ]);
+  return {
+    rows: deriveDeadLetterView(jobs),
+    hint: stats === SECTION_LOAD_FAILED ? undefined : deadLetterHint(stats, jobs.length),
+  };
+}
+
+export function DeadLetterList({ rows }: { rows: ReturnType<typeof deriveDeadLetterView> }) {
+  if (rows.length === 0) return <EmptyState kind="clear">No dead-lettered jobs.</EmptyState>;
   return (
-    <Card id="dead-letters" className="scroll-mt-24">
-      <SectionHeader
-        size="md"
-        label={`Dead letters · ${rows.length}`}
-      />
-      {rows.length === 0 ? (
-        <EmptyState>No dead-lettered jobs.</EmptyState>
-      ) : (
-        <ul>
-          {rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex flex-col gap-2 border-b border-border-soft px-3.5 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="text-ui text-text">{row.title}</div>
-                <div className="break-all font-data text-micro text-muted">
-                  <span className="text-tone-red">{row.failureClass}</span> · {row.endpointClass} ·{' '}
-                  {row.attempts} attempts · {row.timing}
-                </div>
-              </div>
-              <RetryJobForm jobId={row.id} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
+    <ul>
+      {rows.map((row) => (
+        <li
+          key={row.id}
+          className="flex flex-col gap-2 border-b border-border-soft px-3.5 py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="font-ui text-ui text-text wrap-break-word">{row.title}</div>
+            <div className="font-data text-micro text-muted wrap-break-word">
+              <span className="text-tone-red">{row.failureClass}</span> · {row.endpointClass} ·{' '}
+              {formatCount(row.attempts, 'attempt')} · {row.timing}
+            </div>
+          </div>
+          <RetryJobForm jobId={row.id} jobLabel={row.title} />
+        </li>
+      ))}
+    </ul>
   );
 }

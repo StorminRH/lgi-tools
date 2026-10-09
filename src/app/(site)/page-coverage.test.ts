@@ -72,7 +72,6 @@ import AppSiteAdminHealthPage from '@/app/(site)/admin/health/page';
 import AppSiteAdminLayout from '@/app/(site)/admin/layout';
 import { loadAdminSignals } from '@/app/(site)/admin/load-signals';
 import AppSiteAdminPage from '@/app/(site)/admin/page';
-import { DeadLettersCard, QueueSummaryCard } from '@/app/(site)/admin/queue/QueueCards';
 import { RetryJobForm } from '@/app/(site)/admin/queue/RetryJobForm';
 import AppSiteAdminQueuePage from '@/app/(site)/admin/queue/page';
 import { IndexCoverageCard } from '@/app/(site)/admin/search/IndexCoverageCard';
@@ -155,8 +154,6 @@ describe('coverage-gaps', () => {
       AppSiteAdminLayout,
       loadAdminSignals,
       AppSiteAdminPage,
-      DeadLettersCard,
-      QueueSummaryCard,
       RetryJobForm,
       AppSiteAdminQueuePage,
       getEsiRefreshQueueStatsShared,
