@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import {
   SDE_CITADEL_GROUP_ID,
   SDE_ENGINEERING_COMPLEX_GROUP_ID,
@@ -9,7 +9,6 @@ import type { AvailableStructure } from './types';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
 import {
   composeFeeInputs,
-  hostsReactions,
   structureFactorsFor,
   structureBonusesAt,
   structureReadouts,
@@ -181,34 +180,20 @@ describe('structureFactorsFor — activity mapping of the one selected structure
   });
 });
 
-describe('structureFactorsFor — security from the build system scales rigs', () => {
+test('the build system security scales rigs, and high-sec bans a reaction rig', () => {
   const withMeRig = ec({ modifiers: [hull('material', 0.99), ...ME_RIG] });
+  // Null-sec applies the strongest rig multiplier (2.1), high-sec the weakest (1.0).
+  expect(structureFactorsFor({ selectedStructure: withMeRig, locationSecurity: 0.0, ...BUILD }).structureMeFactorOf(100))
+    .toBeCloseTo(0.94842, 6);
+  expect(structureFactorsFor({ selectedStructure: withMeRig, locationSecurity: 0.5, ...BUILD }).structureMeFactorOf(100))
+    .toBeCloseTo(0.9702, 6);
 
-  it('null-sec applies the strongest rig multiplier (2.1)', () => {
-    const f = structureFactorsFor({
-      selectedStructure: withMeRig,
-      locationSecurity: 0.0,
-      ...BUILD,
-    });
-    expect(f.structureMeFactorOf(100)).toBeCloseTo(0.94842, 6);
-  });
-
-  it('high-sec applies the weakest rig multiplier (1.0) — same structure, different system', () => {
-    const f = structureFactorsFor({
-      selectedStructure: withMeRig,
-      locationSecurity: 0.5,
-      ...BUILD,
-    });
-    expect(f.structureMeFactorOf(100)).toBeCloseTo(0.9702, 6);
-  });
-
-  it('bans a reaction rig in high-sec (its high-sec band is zero) — only the hull bonus applies', () => {
-    const sel = refinery({ modifiers: [...TATARA_HULL, ...REACTOR_RIG] });
-    const hi = structureFactorsFor({ selectedStructure: sel, locationSecurity: 0.5, ...BUILD });
-    const nul = structureFactorsFor({ selectedStructure: sel, locationSecurity: 0.0, ...BUILD });
-    expect(hi.structureTeFactorOf(200)).toBeCloseTo(0.75, 6);
-    expect(nul.structureTeFactorOf(200)).toBeCloseTo(0.585, 6);
-  });
+  // A reaction rig's high-sec band is zero, so only the hull bonus applies there.
+  const sel = refinery({ modifiers: [...TATARA_HULL, ...REACTOR_RIG] });
+  const hi = structureFactorsFor({ selectedStructure: sel, locationSecurity: 0.5, ...BUILD });
+  const nul = structureFactorsFor({ selectedStructure: sel, locationSecurity: 0.0, ...BUILD });
+  expect(hi.structureTeFactorOf(200)).toBeCloseTo(0.75, 6);
+  expect(nul.structureTeFactorOf(200)).toBeCloseTo(0.585, 6);
 });
 
 describe('structureFactorsFor — rigs reach only the jobs in their category', () => {
@@ -295,7 +280,7 @@ describe('structureFactorsFor — rigs reach only the jobs in their category', (
   });
 });
 
-describe('structureFactorsFor — reactor rigs cut reaction materials in their category', () => {
+test('a reactor rig cuts only reactions in its category, and nothing in high-sec', () => {
   // −2.4% material and −24% time on composite reactions.
   const compositeReactor = [
     rig('material', -2.4, COMPOSITE, REACTOR_BANDS, 'reaction'),
@@ -309,34 +294,19 @@ describe('structureFactorsFor — reactor rigs cut reaction materials in their c
   };
   const tatara = refinery({ modifiers: [...TATARA_HULL, ...compositeReactor] });
 
-  it('stacks the rig on the hull for a reaction in its category; other reactions get the hull alone', () => {
-    const f = structureFactorsFor({ selectedStructure: tatara, locationSecurity: 0.0, ...build });
-    expect(f.structureMeFactorOf(200)).toBeCloseTo(1 - 0.024 * 1.1, 6);
-    expect(f.structureTeFactorOf(200)).toBeCloseTo(0.75 * (1 - 0.24 * 1.1), 6);
-    expect(f.structureMeFactorOf(210)).toBe(1);
-    expect(f.structureTeFactorOf(210)).toBeCloseTo(0.75, 6);
-    expect(f.reactionBonus?.me).toBeCloseTo(2.64, 6);
-  });
+  const f = structureFactorsFor({ selectedStructure: tatara, locationSecurity: 0.0, ...build });
+  expect(f.structureMeFactorOf(200)).toBeCloseTo(1 - 0.024 * 1.1, 6);
+  expect(f.structureTeFactorOf(200)).toBeCloseTo(0.75 * (1 - 0.24 * 1.1), 6);
+  expect(f.structureMeFactorOf(210)).toBe(1);
+  expect(f.structureTeFactorOf(210)).toBeCloseTo(0.75, 6);
+  expect(f.reactionBonus?.me).toBeCloseTo(2.64, 6);
+  // It never reaches a manufacturing job.
+  expect(f.structureMeFactorOf(100)).toBe(1);
+  expect(f.structureTeFactorOf(100)).toBe(1);
 
-  it('never reaches a manufacturing job', () => {
-    const f = structureFactorsFor({ selectedStructure: tatara, locationSecurity: 0.0, ...build });
-    expect(f.structureMeFactorOf(100)).toBe(1);
-    expect(f.structureTeFactorOf(100)).toBe(1);
-  });
-
-  it('cuts nothing in high-sec, where the rig has no band', () => {
-    const f = structureFactorsFor({ selectedStructure: tatara, locationSecurity: 0.5, ...build });
-    expect(f.structureMeFactorOf(200)).toBe(1);
-    expect(f.reactionBonus?.me).toBe(0);
-  });
-});
-
-describe('coverage — hostsReactions', () => {
-  it('only a Refinery (1406) hosts reactions', () => {
-    expect(hostsReactions(SDE_REFINERY_GROUP_ID)).toBe(true);
-    expect(hostsReactions(SDE_ENGINEERING_COMPLEX_GROUP_ID)).toBe(false);
-    expect(hostsReactions(SDE_CITADEL_GROUP_ID)).toBe(false);
-  });
+  const highSec = structureFactorsFor({ selectedStructure: tatara, locationSecurity: 0.5, ...build });
+  expect(highSec.structureMeFactorOf(200)).toBe(1);
+  expect(highSec.reactionBonus?.me).toBe(0);
 });
 
 describe('structureFactorsFor — smart two-structure routing', () => {
@@ -399,15 +369,6 @@ describe('structureFactorsFor — smart two-structure routing', () => {
       ...BUILD,
     });
     expect(f.structureTeFactorOf(200)).toBeCloseTo(0.585, 6);
-  });
-
-  it('a refinery build structure hosts reactions itself when no reaction refinery is set', () => {
-    const f = structureFactorsFor({
-      selectedStructure: refinery({ modifiers: TATARA_HULL }),
-      locationSecurity: 0.0,
-      ...BUILD,
-    });
-    expect(f.structureTeFactorOf(200)).toBeCloseTo(0.75, 6);
   });
 });
 
@@ -542,36 +503,27 @@ describe('composeFeeInputs', () => {
   });
 });
 
-describe('structureFactorsFor — typed-in bonuses', () => {
+test('typed-in bonuses apply as-is: no hull, no rigs, and no security scaling, even without a system', () => {
   const ENTERED = {
     manufacturing: { me: 3.38, te: 39.2, cost: 4 },
     reactions: { me: 2.64, te: 44.8 },
   };
-
-  it('applies typed-in values as-is: no hull, no rigs, no security, even without a system', () => {
-    const f = structureFactorsFor({
-      selectedStructure: refinery({ modifiers: [...TATARA_HULL, ...REACTOR_RIG], enteredBonuses: ENTERED }),
-      locationSecurity: null,
-      ...BUILD,
-    });
-    expect(f.active).toBe(true);
-    expect(f.structureMeFactorOf(100)).toBeCloseTo(1 - 0.0338, 9);
-    expect(f.structureTeFactorOf(100)).toBeCloseTo(1 - 0.392, 9);
-    expect(f.structureCostBonusPct).toBe(4);
-    expect(f.structureMeFactorOf(200)).toBeCloseTo(1 - 0.0264, 9);
-    expect(f.structureTeFactorOf(200)).toBeCloseTo(1 - 0.448, 9);
+  const f = structureFactorsFor({
+    selectedStructure: refinery({ modifiers: [...TATARA_HULL, ...REACTOR_RIG], enteredBonuses: ENTERED }),
+    locationSecurity: null,
+    ...BUILD,
   });
+  expect(f.active).toBe(true);
+  expect(f.structureMeFactorOf(100)).toBeCloseTo(1 - 0.0338, 9);
+  expect(f.structureTeFactorOf(100)).toBeCloseTo(1 - 0.392, 9);
+  expect(f.structureCostBonusPct).toBe(4);
+  expect(f.structureMeFactorOf(200)).toBeCloseTo(1 - 0.0264, 9);
+  expect(f.structureTeFactorOf(200)).toBeCloseTo(1 - 0.448, 9);
 
-  it('gives the same numbers in high, low and null security', () => {
-    const factorsAt = (locationSecurity: number) =>
-      structureFactorsFor({
-        selectedStructure: ec({ enteredBonuses: ENTERED }),
-        locationSecurity,
-        ...BUILD,
-      });
-    const meFactors = [0.9, 0.3, -0.5].map((sec) => factorsAt(sec).structureMeFactorOf(100));
-    expect(new Set(meFactors).size).toBe(1);
-  });
+  for (const locationSecurity of [0.9, 0.3, -0.5]) {
+    const at = structureFactorsFor({ selectedStructure: ec({ enteredBonuses: ENTERED }), locationSecurity, ...BUILD });
+    expect(at.structureMeFactorOf(100)).toBeCloseTo(1 - 0.0338, 9);
+  }
 });
 
 describe('structureBonusesAt', () => {

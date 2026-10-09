@@ -15,12 +15,14 @@ source, fix failures, change a gate or threshold, or write to Git. Report
 the rejection instead.
 
 Run each command as its own execution in this order, followed by any
-supplied focused tests. Together they are `pnpm check`.
+supplied focused tests. Together they are `pnpm check`. The vitest step
+covers everything that differs from `origin/development`, committed or not,
+so it checks all unpushed work.
 
 ```bash
 pnpm typecheck
 pnpm lint
-pnpm exec vitest run --changed --passWithNoTests
+pnpm exec vitest run --changed origin/development --passWithNoTests
 pnpm fallow:static
 ```
 

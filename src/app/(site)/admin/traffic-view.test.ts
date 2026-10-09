@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveGscPerformanceView, deriveTrafficView } from './traffic-view';
+import { deriveTrafficView } from './traffic-view';
 
 describe('deriveTrafficView', () => {
   it('reshapes each list into keyed distribution rows', () => {
@@ -16,33 +16,5 @@ describe('deriveTrafficView', () => {
       { key: '/b', label: '/b', count: 4 },
     ]);
     expect(view.topReferrers[0]).toEqual({ key: 'g.com', label: 'g.com', count: 5 });
-  });
-});
-
-describe('deriveGscPerformanceView', () => {
-  it('builds the three trends, the top-pages max, and the sync stamp', () => {
-    const view = deriveGscPerformanceView({
-      lastSyncedAt: new Date('2026-07-11T08:42:19.000Z'),
-      trend: [
-        { day: '2026-07-10', clicks: 5, impressions: 100, position: 4.27 },
-        { day: '2026-07-11', clicks: 8, impressions: 120, position: 3.81 },
-      ],
-    });
-    expect(view.hasTrend).toBe(true);
-    expect(view.clicksTrend.points).toEqual([
-      { x: 0, y: 5 },
-      { x: 1, y: 8 },
-    ]);
-    expect(view.positionTrend.points).toEqual([
-      { x: 0, y: 4.3 },
-      { x: 1, y: 3.8 },
-    ]);
-    expect(view.asOf).toBe('2026-07-11 08:42 UTC');
-  });
-
-  it('reports no trend and a "never" sync stamp for an empty range', () => {
-    const view = deriveGscPerformanceView({ lastSyncedAt: null, trend: [] });
-    expect(view.hasTrend).toBe(false);
-    expect(view.asOf).toBe('never');
   });
 });

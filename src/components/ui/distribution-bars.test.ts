@@ -66,4 +66,22 @@ describe('DistributionBars', () => {
     expect(html).toContain('data-tone="orange"');
     expect(html).toContain('6 · 100% · avg 4.2 s');
   });
+
+  it('draws a second line of detail under the bar when a row has one', () => {
+    const html = renderToStaticMarkup(
+      createElement(DistributionBars, {
+        total: 400,
+        formatCount: (n: number) => `${n} clk`,
+        rows: [
+          { key: 'q', label: 'wormhole statics', count: 16, sub: '1,204 impr · 1.3% CTR · pos 4.2' },
+          { key: 'r', label: 'c5 sites', count: 8 },
+        ],
+      }),
+    );
+    expect(html).toContain('16 clk · 4.0%');
+    expect(html).toContain(
+      '<div class="progress-soft-fill" aria-hidden="true"></div></div><div class="mt-1 font-data text-micro tabular-nums text-muted wrap-break-word">1,204 impr · 1.3% CTR · pos 4.2</div></li>',
+    );
+    expect(html.match(/mt-1 font-data/g)).toHaveLength(1);
+  });
 });

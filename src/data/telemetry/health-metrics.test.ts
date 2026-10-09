@@ -28,8 +28,10 @@ describe('targetLevel', () => {
 });
 
 describe('refreshVolumeSummary', () => {
-  it('empty', () => {
-    expect(refreshVolumeSummary([])).toBe('No price refreshes recorded this period.');
+  it('counts a single day in the singular', () => {
+    expect(refreshVolumeSummary([{ day: '2026-06-01', fetched: 1_000, written: 900 }])).toBe(
+      'Refreshed on 1 day, writing 900 of 1,000 fetched rows.',
+    );
   });
   it('totals across days', () => {
     expect(
@@ -85,7 +87,7 @@ describe('deriveCronStatus', () => {
   it('red when the cron never ran', () => {
     expect(deriveCronStatus({ ...daily, lastRun: null })).toEqual({
       level: 'red',
-      headline: 'never ran',
+      value: 'never ran',
     });
   });
 
@@ -94,7 +96,7 @@ describe('deriveCronStatus', () => {
       ...daily,
       lastRun: { timestamp: hoursAgo(2), outcome: 'refreshed' },
     });
-    expect(s).toEqual({ level: 'green', headline: 'healthy · last run 2h ago' });
+    expect(s).toEqual({ level: 'green', value: 'healthy', note: 'last run 2h ago' });
   });
 
   it('red when the latest outcome is unhealthy, even if fresh', () => {
@@ -104,7 +106,7 @@ describe('deriveCronStatus', () => {
       neutral: SDE_NEUTRAL_OUTCOMES,
       lastRun: { timestamp: hoursAgo(5), outcome: 'remote-unreachable' },
     });
-    expect(s).toEqual({ level: 'red', headline: 'failing · remote-unreachable 5h ago' });
+    expect(s).toEqual({ level: 'red', value: 'failing', note: 'remote-unreachable 5h ago' });
   });
 
   it('red when the run never recorded an outcome', () => {
@@ -113,7 +115,7 @@ describe('deriveCronStatus', () => {
       lastRun: { timestamp: hoursAgo(1), outcome: null },
     });
     expect(s.level).toBe('red');
-    expect(s.headline).toContain('unknown outcome');
+    expect(s).toMatchObject({ value: 'failing', note: 'unknown outcome 1h ago' });
   });
 
   it('amber when late (between 1.25× and 2× the interval)', () => {
@@ -121,7 +123,7 @@ describe('deriveCronStatus', () => {
       ...daily,
       lastRun: { timestamp: hoursAgo(36), outcome: 'refreshed' },
     });
-    expect(s).toEqual({ level: 'amber', headline: 'late · last run 1d ago' });
+    expect(s).toEqual({ level: 'amber', value: 'late', note: 'last run 1d ago' });
   });
 
   it('red when stale (past 2× the interval)', () => {
@@ -129,7 +131,7 @@ describe('deriveCronStatus', () => {
       ...daily,
       lastRun: { timestamp: hoursAgo(72), outcome: 'refreshed' },
     });
-    expect(s).toEqual({ level: 'red', headline: 'stale · last run 3d ago' });
+    expect(s).toEqual({ level: 'red', value: 'stale', note: 'last run 3d ago' });
   });
 
   it('daily interval keeps a fresh SDE run green', () => {
@@ -139,7 +141,7 @@ describe('deriveCronStatus', () => {
       neutral: SDE_NEUTRAL_OUTCOMES,
       lastRun: { timestamp: hoursAgo(20), outcome: 'up-to-date' },
     });
-    expect(s).toEqual({ level: 'green', headline: 'healthy · last run 20h ago' });
+    expect(s).toEqual({ level: 'green', value: 'healthy', note: 'last run 20h ago' });
   });
 
   it('neutral latest outcome (lock-skip) does not read as failing', () => {
@@ -165,8 +167,19 @@ describe('deriveCronStatus', () => {
     });
     expect(s).toEqual({
       level: 'amber',
-      headline: 'recovered · 2 failed runs this period, latest healthy 1d ago',
+      value: 'recovered',
+      note: '2 failed runs this period, latest healthy 1d ago',
+      quiet: true,
     });
+  });
+
+  it('counts a single recovered failure in the singular', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      lastRun: { timestamp: hoursAgo(2), outcome: 'refreshed' },
+      outcomes: [{ outcome: 'failed', count: 1, avgDurationMs: 30 }],
+    });
+    expect(s.note).toBe('1 failed run this period, latest healthy 2h ago');
   });
 });
 
@@ -177,8 +190,7 @@ describe('deriveGscStatus', () => {
 
   it('neutral when not configured', () => {
     const s = deriveGscStatus({ ...base, configured: false, lastRun: null });
-    expect(s.level).toBe('neutral');
-    expect(s.headline).toContain('not connected');
+    expect(s).toEqual({ level: 'neutral', value: 'not connected' });
   });
 
   it('green with a data-through date when synced', () => {
@@ -189,7 +201,8 @@ describe('deriveGscStatus', () => {
     });
     expect(s).toEqual({
       level: 'green',
-      headline: 'healthy · last run 3h ago · last synced 2026-06-09',
+      value: 'healthy',
+      note: 'last run 3h ago · last synced 2026-06-09',
     });
   });
 
@@ -198,7 +211,7 @@ describe('deriveGscStatus', () => {
       ...base,
       lastRun: { timestamp: hoursAgo(3), outcome: 'partial' },
     });
-    expect(s).toEqual({ level: 'amber', headline: 'degraded · partial 3h ago' });
+    expect(s).toEqual({ level: 'amber', value: 'degraded', note: 'partial 3h ago' });
   });
 
   it('red when the latest sync failed', () => {
@@ -206,7 +219,7 @@ describe('deriveGscStatus', () => {
       ...base,
       lastRun: { timestamp: hoursAgo(3), outcome: 'failed' },
     });
-    expect(s).toEqual({ level: 'red', headline: 'failing · failed 3h ago' });
+    expect(s).toEqual({ level: 'red', value: 'failing', note: 'failed 3h ago' });
   });
 });
 
@@ -216,7 +229,7 @@ describe('deriveEsiSourceStatus', () => {
       fallback: { esi: 0, fallback: 0, perDay: [] },
       budgetExhaustions: 0,
     });
-    expect(s).toEqual({ level: 'neutral', headline: 'no price refreshes this period' });
+    expect(s).toEqual({ level: 'neutral', value: 'idle', note: 'no price refreshes this period' });
   });
 
   it('green when ESI served everything', () => {
@@ -224,7 +237,7 @@ describe('deriveEsiSourceStatus', () => {
       fallback: { esi: 500, fallback: 0, perDay: [] },
       budgetExhaustions: 0,
     });
-    expect(s).toEqual({ level: 'green', headline: 'ESI served every priced item this period' });
+    expect(s).toEqual({ level: 'green', value: 'healthy', note: 'ESI served every priced item this period' });
   });
 
   it('amber on a minority fallback share', () => {
@@ -232,7 +245,7 @@ describe('deriveEsiSourceStatus', () => {
       fallback: { esi: 75, fallback: 25, perDay: [] },
       budgetExhaustions: 0,
     });
-    expect(s).toEqual({ level: 'amber', headline: 'partial · 25% fallback' });
+    expect(s).toEqual({ level: 'amber', value: 'partial', note: '25% fallback' });
   });
 
   it('amber on budget exhaustion even with zero fallback rows', () => {
@@ -240,7 +253,7 @@ describe('deriveEsiSourceStatus', () => {
       fallback: { esi: 100, fallback: 0, perDay: [] },
       budgetExhaustions: 2,
     });
-    expect(s).toEqual({ level: 'amber', headline: 'partial · 2 budget exhaustions' });
+    expect(s).toEqual({ level: 'amber', value: 'partial', note: '2 budget exhaustions' });
   });
 
   it('a tiny non-zero rate reads as <1%, not 0%', () => {
@@ -248,7 +261,7 @@ describe('deriveEsiSourceStatus', () => {
       fallback: { esi: 10_000, fallback: 3, perDay: [] },
       budgetExhaustions: 0,
     });
-    expect(s.headline).toBe('partial · <1% fallback');
+    expect(s).toMatchObject({ value: 'partial', note: '<1% fallback' });
   });
 
   it('red when fallback covers the majority', () => {
@@ -258,7 +271,8 @@ describe('deriveEsiSourceStatus', () => {
     });
     expect(s).toEqual({
       level: 'red',
-      headline: 'degraded · Fuzzwork covered 80% of priced items',
+      value: 'degraded',
+      note: 'Fuzzwork covered 80% of priced items',
     });
   });
 });

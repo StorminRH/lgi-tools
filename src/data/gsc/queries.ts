@@ -1,4 +1,4 @@
-import { and, between, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, between, desc, eq, lt, max, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { deleteInBatches, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -95,6 +95,23 @@ export async function getSearchTrend(range: GscRange): Promise<GscDailyPoint[]> 
   }));
 }
 
+/**
+ * The totals `getSearchTotals` computes in SQL, summed from daily total rows
+ * that are already loaded: impression-weighted position, zero without
+ * impressions.
+ */
+export function searchTotalsFromTrend(points: readonly GscDailyPoint[]): GscTotals {
+  let clicks = 0;
+  let impressions = 0;
+  let weightedSum = 0;
+  for (const point of points) {
+    clicks += point.clicks;
+    impressions += point.impressions;
+    weightedSum += point.position * point.impressions;
+  }
+  return toSearchTotals({ clicks, impressions, position: impressions === 0 ? 0 : weightedSum / impressions });
+}
+
 export async function getSearchTotals(range: GscRange): Promise<GscTotals> {
   const [row] = await db
     .select({ clicks: sumClicks, impressions: sumImpressions, position: weightedPosition })
@@ -175,14 +192,15 @@ export function mergeCurrentUrlCoverage(
 }
 
 /**
- * Latest stored row for every current sitemap URL. DISTINCT ON follows
- * PostgreSQL's required key-first ordering, then takes the newest inspection
- * date. The merge keeps never-inspected and repeatedly-failing URLs visible.
+ * Latest stored row for every current sitemap URL. Each URL takes its newest
+ * inspection straight from the (url, inspection_date) index instead of
+ * reading its whole retained history. The merge keeps never-inspected and
+ * repeatedly-failing URLs visible.
  */
 export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUrlStatus[]> {
   if (sitemapUrls.length === 0) return [];
-  const rows = await db
-    .selectDistinctOn([gscUrlInspection.url], {
+  const latest = db
+    .select({
       inspectionDate: gscUrlInspection.inspectionDate,
       url: gscUrlInspection.url,
       verdict: gscUrlInspection.verdict,
@@ -190,18 +208,21 @@ export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUr
       lastCrawlTime: gscUrlInspection.lastCrawlTime,
     })
     .from(gscUrlInspection)
-    .where(inArray(gscUrlInspection.url, sitemapUrls))
-    .orderBy(gscUrlInspection.url, desc(gscUrlInspection.inspectionDate));
-  return mergeCurrentUrlCoverage(
-    sitemapUrls,
-    rows.map((r) => ({
-      inspectionDate: r.inspectionDate,
-      url: r.url,
-      verdict: r.verdict,
-      coverageState: r.coverageState,
-      lastCrawlTime: r.lastCrawlTime,
-    })),
-  );
+    .where(eq(gscUrlInspection.url, sql`u.val`))
+    .orderBy(desc(gscUrlInspection.inspectionDate))
+    .limit(1)
+    .as('latest');
+  const rows = await db
+    .select({
+      inspectionDate: latest.inspectionDate,
+      url: latest.url,
+      verdict: latest.verdict,
+      coverageState: latest.coverageState,
+      lastCrawlTime: latest.lastCrawlTime,
+    })
+    .from(sql`unnest(${sql.param(sitemapUrls)}::text[]) as u(val)`)
+    .crossJoinLateral(latest);
+  return mergeCurrentUrlCoverage(sitemapUrls, rows);
 }
 
 export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDailyPoint[]> {
@@ -228,12 +249,17 @@ export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDail
   }));
 }
 
+/**
+ * A sync stamps every row it writes with one time and upserts its whole
+ * window, date-only total rows first, so the newest total row carries the
+ * newest sync. Reading only those rows stays on the (dimension, date) index.
+ */
 export async function getLastSyncedAt(): Promise<Date | null> {
   const [row] = await db
-    .select({ lastSyncedAt: sql<Date | null>`max(${gscSearchAnalytics.syncedAt})` })
-    .from(gscSearchAnalytics);
-  const raw = row?.lastSyncedAt ?? null;
-  return raw === null ? null : new Date(raw as unknown as string);
+    .select({ lastSyncedAt: max(gscSearchAnalytics.syncedAt) })
+    .from(gscSearchAnalytics)
+    .where(eq(gscSearchAnalytics.dimension, 'total'));
+  return row?.lastSyncedAt ?? null;
 }
 
 /** Most recent finalized Google reporting day, distinct from ingestion time. */

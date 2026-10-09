@@ -1,21 +1,17 @@
 'use client';
 
-import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 
+/** Offered only for characters on another account: the page leaves it out for the viewing admin's own. */
 export function AdminReassignCharacterForm({
   characterId,
   characterName,
   fromUserId,
-  disabled,
 }: {
   characterId: number;
   characterName: string;
   fromUserId: string;
-  disabled?: boolean;
 }) {
-  const disabledReasonId = useId();
-
   return (
     <form
       method="POST"
@@ -32,20 +28,9 @@ export function AdminReassignCharacterForm({
     >
       <input type="hidden" name="characterId" value={characterId} />
       <input type="hidden" name="fromUserId" value={fromUserId} />
-      <Button
-        type="submit"
-        variant="secondary"
-        size="sm"
-        disabled={disabled}
-        aria-describedby={disabled ? disabledReasonId : undefined}
-        title={disabled ? 'This character is already on your account' : undefined}
-        className="text-isk whitespace-nowrap"
-      >
+      <Button type="submit" variant="secondary" size="sm" className="text-isk whitespace-nowrap">
         Reassign to me
       </Button>
-      <span id={disabledReasonId} className="sr-only">
-        This character is already on your account.
-      </span>
     </form>
   );
 }

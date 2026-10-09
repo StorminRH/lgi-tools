@@ -30,6 +30,11 @@ export function formatIsoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** `YYYY-MM-DD HH:mm` in UTC, for audit rows and job timestamps. */
+export function formatUtcMinute(date: Date): string {
+  return date.toISOString().replace('T', ' ').slice(0, 16);
+}
+
 export function formatRelativeTime(date: Date | null, now?: number): string {
   if (!date) return '—';
   const diffMs = (now ?? Date.now()) - date.getTime();

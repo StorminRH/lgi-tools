@@ -24,7 +24,7 @@ fixed jobs; call them for those jobs instead of doing the work inline:
   Code waits on its Documentation brief.
 - `repo-mapper` for relationship, caller, dependency, or blast-radius
   questions. It uses Codegraph and returns a Repository map.
-- `test-runner` for every local check: `pnpm check` before each commit,
+- `test-runner` for every local check: `pnpm check` before each push,
   `pnpm verify` when a full run is needed, and focused tests for the diff.
 
 Split independent questions across parallel agents of the same type: one
@@ -33,12 +33,13 @@ in one agent when the answer depends on how they interact.
 
 ## Verification
 
-Before every commit, run `pnpm check` through the test-runner agent:
-typecheck, lint, tests related to the change, and static Fallow over
-the whole tree. `pnpm verify` is the full gate, with the full suite
-under coverage and CRAP. The Coverage health workflow runs its coverage
-half on pull request pushes that touch code. Run `pnpm verify` before promote or
-release and whenever Coverage health fails.
+Commit as work progresses. Before every push, run `pnpm check` through
+the test-runner agent: typecheck, lint, tests for everything that differs
+from `origin/development`, and static Fallow over the whole tree. Fetch
+first so that base is current. `pnpm verify` is the full gate, with the
+full suite under coverage and CRAP. The Coverage health workflow runs its
+coverage half on pull request pushes that touch code. Run `pnpm verify`
+before promote or release and whenever Coverage health fails.
 
 Fix every Fallow finding when it appears, whoever introduced it. Do not
 land past a red check by calling findings pre-existing or out of scope.

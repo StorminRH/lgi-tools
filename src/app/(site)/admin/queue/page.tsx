@@ -1,5 +1,7 @@
-import { AdminPageFrame, AdminSlot } from '../AdminFrame';
-import { DeadLettersCard, QueueSummaryCard } from './QueueCards';
+import { AdminPageFrame } from '../AdminFrame';
+import { AdminSection } from '../AdminSection';
+import { getEsiRefreshQueueStatsShared } from '../shared-reads';
+import { DeadLetterList, loadDeadLetters, QueueSummary } from './QueueCards';
 
 export default function AdminQueuePage() {
   return (
@@ -7,12 +9,20 @@ export default function AdminQueuePage() {
       title="Refresh queue"
       fallbackLabel="Queue"
     >
-      <AdminSlot label="Queue" rows={2} reveal={1}>
-        <QueueSummaryCard />
-      </AdminSlot>
-      <AdminSlot label="Dead letters" rows={4} reveal={2}>
-        <DeadLettersCard />
-      </AdminSlot>
+      <AdminSection title="Queue" name="queue" rows={2} reveal={1} load={getEsiRefreshQueueStatsShared}>
+        {(stats) => <QueueSummary stats={stats} now={new Date()} />}
+      </AdminSection>
+      <AdminSection
+        title="Dead letters"
+        name="dead-letters"
+        anchor="dead-letters"
+        rows={4}
+        reveal={2}
+        hint={(deadLetters) => deadLetters.hint}
+        load={loadDeadLetters}
+      >
+        {(deadLetters) => <DeadLetterList rows={deadLetters.rows} />}
+      </AdminSection>
     </AdminPageFrame>
   );
 }

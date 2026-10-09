@@ -204,6 +204,15 @@ deps_dir="$(mktemp -d)"
 rm -rf "$deps_dir"
 pass "dependency install skips an unchanged lockfile"
 
+# A killed orphan stays a zombie until PID 1 reaps it, and `kill -0` still
+# succeeds on a zombie, so check the process state instead.
+child_running() {
+  case "$(ps -o stat= -p "$1" 2>/dev/null)" in
+    '' | Z*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 # A setup.sh that overruns the cap, with a child that would outlive it.
 cap_root="$(mktemp -d)"
 mkdir -p "$cap_root/.claude/cloud"
@@ -223,8 +232,33 @@ cap_rc=$?
 grep -q 'hit the 2s cap' "$cap_root/state/environment-setup.log" || fail "cap is logged"
 cap_child="$(cat "$cap_root/state/child.pid")"
 sleep 0.5
-kill -0 "$cap_child" 2>/dev/null && fail "setup.sh children are stopped at the cap"
+child_running "$cap_child" && fail "setup.sh children are stopped at the cap"
 rm -rf "$cap_root"
 pass "environment setup caps setup.sh and stops its children"
+
+# A setup.sh that ignores TERM must still be stopped once the grace period
+# ends; the force kill has to come before the wait, or the wait never ends.
+cap_root="$(mktemp -d)"
+mkdir -p "$cap_root/.claude/cloud"
+cp "$ROOT/.claude/cloud/environment-setup.sh" "$ROOT/.claude/cloud/lib.sh" "$cap_root/.claude/cloud/"
+cat >"$cap_root/.claude/cloud/setup.sh" <<'EOF2'
+#!/usr/bin/env bash
+trap '' TERM
+bash -c 'trap "" TERM; sleep 300' &
+echo $! >"$LGI_STATE_DIR/child.pid"
+sleep 300
+EOF2
+chmod +x "$cap_root/.claude/cloud/setup.sh"
+cap_start=$SECONDS
+LGI_STATE_DIR="$cap_root/state" LGI_SETUP_CAP_SECONDS=2 bash "$cap_root/.claude/cloud/environment-setup.sh"
+cap_rc=$?
+[ "$cap_rc" = 0 ] || fail "environment-setup exits 0 when setup.sh ignores TERM"
+[ $((SECONDS - cap_start)) -lt 40 ] || fail "environment-setup force-stops a setup.sh that ignores TERM"
+grep -q 'hit the 2s cap' "$cap_root/state/environment-setup.log" || fail "cap is logged when TERM is ignored"
+cap_child="$(cat "$cap_root/state/child.pid")"
+sleep 0.5
+child_running "$cap_child" && fail "TERM-ignoring children are stopped at the cap"
+rm -rf "$cap_root"
+pass "environment setup force-stops a setup.sh that ignores TERM"
 
 echo "lib.test.sh: all assertions passed"

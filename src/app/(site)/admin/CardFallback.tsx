@@ -1,10 +1,19 @@
 import { Card } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export function CardFallback({ label, rows = 3 }: { label: string; rows?: number }) {
+export function CardFallback({
+  label,
+  rows = 3,
+  className,
+}: {
+  label: string;
+  rows?: number;
+  className?: string;
+}) {
   return (
-    <Card>
+    <Card className={cn('overflow-hidden', className)}>
       <SectionHeader size="md" label={label} />
       {Array.from({ length: rows }, (_, row) => (
         <div

@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { SlimShareBar, stackedShareLayout } from './stacked-share-bar';
+import { SlimShareBar, StackedShareBar, stackedShareLayout } from './stacked-share-bar';
 
 describe('stackedShareLayout', () => {
   it('lays segments end-to-end across the width with cumulative x and share %', () => {
@@ -18,6 +18,30 @@ describe('stackedShareLayout', () => {
 
   it('returns nothing when the total is zero', () => {
     expect(stackedShareLayout([{ label: 'a', value: 0, tone: 'blue' }], 200)).toEqual([]);
+  });
+});
+
+describe('StackedShareBar', () => {
+  it('names the bar with each segment value, which its SVG labels do not give screen readers', () => {
+    const html = renderToStaticMarkup(
+      createElement(StackedShareBar, {
+        ariaLabel: 'Referred versus unattributed page views',
+        segments: [
+          { label: 'Referred', value: 3, tone: 'blue' },
+          { label: 'Unattributed', value: 1209, tone: 'neutral' },
+        ],
+      }),
+    );
+    expect(html).toContain(
+      'role="img" aria-label="Referred versus unattributed page views: Referred 3, Unattributed 1,209"',
+    );
+  });
+
+  it('renders nothing when every share is zero', () => {
+    const html = renderToStaticMarkup(
+      createElement(StackedShareBar, { ariaLabel: 'Empty', segments: [{ label: 'a', value: 0, tone: 'blue' }] }),
+    );
+    expect(html).toBe('');
   });
 });
 

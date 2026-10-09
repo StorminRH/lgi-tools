@@ -22,13 +22,17 @@ while kill -0 "$pid" 2>/dev/null && [ $((SECONDS - start)) -lt "$cap" ]; do
 done
 if kill -0 "$pid" 2>/dev/null; then
   # Ask setup.sh to stop so its exit trap records the phase and stops
-  # Postgres, then force anything left in its process group.
+  # Postgres. If it is still running after the grace period, force its
+  # whole process group before waiting, or a TERM it ignores or delays
+  # would hold this script past the platform's own limit.
   kill -TERM -- "-$pid" 2>/dev/null
   for _ in $(seq 1 15); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+  kill -0 "$pid" 2>/dev/null && kill -KILL -- "-$pid" 2>/dev/null
   echo "setup.sh hit the ${cap}s cap; bootstrap finishes it after the session starts" >>"$log"
 fi
 wait "$pid" 2>/dev/null
 rc=$?
+# Children that left the group leader behind.
 kill -KILL -- "-$pid" 2>/dev/null
 lgi_stop_orphan_convex_backend
 [ "$rc" = 0 ] || echo "setup.sh exit $rc after $((SECONDS - start))s: $(head -1 "$LGI_SETUP_STATUS" 2>/dev/null)" >>"$log"

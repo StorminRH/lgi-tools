@@ -1,10 +1,10 @@
-import { and, asc, count, countDistinct, eq, exists, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, exists, gt, ilike, inArray, lt, notExists, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { withLockedUsers } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
 import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
-import { accountMatch, characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
+import { characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
 import { reconcileAfterCharacterRemoval } from './account-purge';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
@@ -80,28 +80,35 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   return rows.map(toAdminUser);
 }
 
-export async function getUserById(userId: string): Promise<AdminUser | null> {
+async function findAdminUser(where: SQL): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
     .from(user)
     .leftJoin(account, oldestEveAccountJoin())
     .leftJoin(characters, characterProfileJoin)
-    .where(eq(user.id, userId))
+    .where(where)
     .limit(1);
 
   return row ? toAdminUser(row) : null;
 }
 
-export async function getUserByCharacterId(characterId: number): Promise<AdminUser | null> {
-  const [row] = await db
-    .select(adminUserColumns)
-    .from(account)
-    .innerJoin(user, eq(user.id, account.userId))
-    .leftJoin(characters, characterProfileJoin)
-    .where(accountMatch(characterId))
-    .limit(1);
+export function getUserById(userId: string): Promise<AdminUser | null> {
+  return findAdminUser(eq(user.id, userId));
+}
 
-  return row ? toAdminUser(row) : null;
+/**
+ * The account that owns an EVE character, shown the way `getUserById` shows
+ * it (through its oldest linked character), in one query.
+ */
+export function getUserOwningCharacter(characterId: number): Promise<AdminUser | null> {
+  const owner = alias(account, 'owner_eve_account');
+  return findAdminUser(inArray(
+    user.id,
+    db
+      .select({ userId: owner.userId })
+      .from(owner)
+      .where(and(eq(owner.providerId, EVE_PROVIDER_ID), eq(owner.accountId, String(characterId)))),
+  ));
 }
 
 export interface AccountTotals {
@@ -112,8 +119,10 @@ export interface AccountTotals {
 export async function getAccountTotals(): Promise<AccountTotals> {
   const [[users], [characters]] = await Promise.all([
     db.select({ n: count() }).from(user),
+    // (provider_id, account_id) is unique and account_id is not null, so each
+    // EVE row is a distinct character.
     db
-      .select({ n: countDistinct(account.accountId) })
+      .select({ n: count() })
       .from(account)
       .where(eq(account.providerId, EVE_PROVIDER_ID)),
   ]);
@@ -122,9 +131,19 @@ export async function getAccountTotals(): Promise<AccountTotals> {
 
 export const CHARACTER_SEARCH_LIMIT = 50;
 
+/**
+ * An ILIKE pattern that matches `text` anywhere, literally. Backslash is
+ * Postgres's default LIKE escape, so `%`, `_` and `\` in the admin's input
+ * stop acting as wildcards.
+ */
+export function containsPattern(text: string): string {
+  return `%${text.replace(/[\\%_]/g, '\\$&')}%`;
+}
+
 export async function searchUsersByLinkedCharacterName(query: string): Promise<AdminUser[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
+  const pattern = containsPattern(trimmed);
 
   const linkedAccount = alias(account, 'searched_eve_account');
   const linkedCharacter = alias(characters, 'searched_character');
@@ -134,13 +153,13 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
     .leftJoin(account, oldestEveAccountJoin())
     .leftJoin(characters, characterProfileJoin)
     .where(or(
-      ilike(user.name, `%${trimmed}%`),
+      ilike(user.name, pattern),
       exists(db.select({ one: sql`1` }).from(linkedAccount)
         .innerJoin(linkedCharacter, eq(sql`${linkedCharacter.characterId}::text`, linkedAccount.accountId))
         .where(and(
           eq(linkedAccount.userId, user.id),
           eq(linkedAccount.providerId, EVE_PROVIDER_ID),
-          ilike(linkedCharacter.name, `%${trimmed}%`),
+          ilike(linkedCharacter.name, pattern),
         ))),
     ))
     .orderBy(asc(user.name))
@@ -213,11 +232,11 @@ export async function revokeUserSessions(userId: string): Promise<number> {
 }
 
 export async function getActiveSessionCount(userId: string): Promise<number> {
-  const rows = await db
-    .select({ id: session.id })
+  const [row] = await db
+    .select({ n: count() })
     .from(session)
     .where(and(eq(session.userId, userId), gt(session.expiresAt, new Date())));
-  return rows.length;
+  return row?.n ?? 0;
 }
 
 export async function reassignCharacter({

@@ -46,8 +46,8 @@ function dedupeMarkersByDay(
 
 export function deriveActivityView(input: {
   range: DateRange;
-  dailyCounts: { day: string; totalEvents: number }[];
-  prevDailyCounts: { day: string; totalEvents: number }[] | null;
+  dailyCounts: { day: string; views: number }[];
+  prevDailyCounts: { day: string; views: number }[] | null;
   markers: { date: string; label: string }[];
 }): ActivityChartData {
   const { range, dailyCounts, prevDailyCounts, markers } = input;
@@ -56,9 +56,11 @@ export function deriveActivityView(input: {
   const rangeStart = isoDay(range.from);
   const firstDay = dailyCounts[0]!.day;
   const start = firstDay > rangeStart ? firstDay : rangeStart;
-  const end = isoDay(range.to);
+  // The range is half-open, so its last day is the one holding `to - 1ms`;
+  // a range ending at midnight must not add an empty day for tomorrow.
+  const end = isoDay(new Date(range.to.getTime() - 1));
   const series = zeroFillDaily(
-    dailyCounts.map((d) => ({ day: d.day, value: d.totalEvents })),
+    dailyCounts.map((d) => ({ day: d.day, value: d.views })),
     start,
     end,
   );
@@ -66,7 +68,7 @@ export function deriveActivityView(input: {
   const points = series.values.map((y, x) => ({ x, y }));
 
   const prevTotal = prevDailyCounts
-    ? prevDailyCounts.reduce((sum, d) => sum + d.totalEvents, 0)
+    ? prevDailyCounts.reduce((sum, d) => sum + d.views, 0)
     : 0;
   const referenceLine =
     prevDailyCounts && prevTotal > 0
@@ -91,9 +93,9 @@ export function deriveActivityView(input: {
     weekend: series.weekend,
     referenceLine,
     eventMarkers,
-    totalValue: dailyCounts.reduce((sum, day) => sum + day.totalEvents, 0),
+    totalValue: dailyCounts.reduce((sum, day) => sum + day.views, 0),
     endValue: series.values[series.values.length - 1]!,
-    endDelta: computeDelta(dailyCounts.reduce((sum, day) => sum + day.totalEvents, 0), prevDailyCounts === null ? null : prevTotal),
+    endDelta: computeDelta(dailyCounts.reduce((sum, day) => sum + day.views, 0), prevDailyCounts === null ? null : prevTotal),
     hasData: true,
   };
 }

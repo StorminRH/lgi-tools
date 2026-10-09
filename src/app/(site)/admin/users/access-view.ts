@@ -1,11 +1,10 @@
 import { getRoleChangeAudit } from '@/data/telemetry/queries';
+import { formatCount } from '@/lib/format/number';
+import { formatUtcMinute } from '@/lib/format/time';
+import { sanitiseUserText } from '@/lib/sanitise';
 import { CHARACTER_SEARCH_LIMIT, type AdminUser } from '@/platform/auth/admin-users';
 
 export type AuditRow = Awaited<ReturnType<typeof getRoleChangeAudit>>[number];
-
-export function formatDateTime(d: Date): string {
-  return d.toISOString().replace('T', ' ').slice(0, 16);
-}
 
 export function mergeAdminRows(
   dbAdmins: AdminUser[],
@@ -38,7 +37,7 @@ export function deriveAuditRowView(row: AuditRow): {
   toLabel: string;
 } {
   return {
-    timestamp: formatDateTime(row.timestamp),
+    timestamp: formatUtcMinute(row.timestamp),
     actorLabel: row.actorName ?? (row.actorCharacterId == null ? 'Unknown actor' : `Character ${row.actorCharacterId}`),
     targetLabel: row.targetName ?? (row.targetCharacterId == null ? 'Unknown target' : `Character ${row.targetCharacterId}`),
     fromTone: row.from === 'ADMIN' ? 'purple' : 'blue',
@@ -48,17 +47,12 @@ export function deriveAuditRowView(row: AuditRow): {
   };
 }
 
+/** Search matches without the admins already listed above them, and how many there are. */
 export function deriveAccessView(opts: {
   adminRows: ReadonlyArray<{ user: { userId: string } }>;
   searchResults: AdminUser[];
-  query: string | undefined;
 }): {
-  adminCount: number;
-  adminPlural: string;
-  querySuffix: string;
-  hasQuery: boolean;
   nonAdminMatches: AdminUser[];
-  searchTruncated: boolean;
   resultsHint: string;
 } {
   const adminUserIds = new Set(opts.adminRows.map((r) => r.user.userId));
@@ -66,16 +60,18 @@ export function deriveAccessView(opts: {
   const nonAdminMatches = opts.searchResults
     .slice(0, CHARACTER_SEARCH_LIMIT)
     .filter((u) => !adminUserIds.has(u.userId));
-  const adminCount = opts.adminRows.length;
+  const matches = formatCount(nonAdminMatches.length, 'match', 'matches');
   return {
-    adminCount,
-    adminPlural: adminCount === 1 ? '' : 's',
-    querySuffix: opts.query ? ` · search "${opts.query}"` : '',
-    hasQuery: opts.query !== undefined,
     nonAdminMatches,
-    searchTruncated,
-    resultsHint:
-      `${nonAdminMatches.length} match${nonAdminMatches.length === 1 ? '' : 'es'}` +
-      (searchTruncated ? ` · showing first ${CHARACTER_SEARCH_LIMIT}, narrow your search` : ''),
+    resultsHint: searchTruncated ? `${matches} · showing first ${CHARACTER_SEARCH_LIMIT}, narrow your search` : matches,
   };
+}
+
+export const MAX_QUERY_LENGTH = 200;
+
+/** The search box's text, cleaned, or undefined when there is nothing to search for. */
+export function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
+  return cleaned.length === 0 ? undefined : cleaned;
 }

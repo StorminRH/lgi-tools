@@ -75,7 +75,7 @@ export function TagsGroup() {
       <Specimen
         name="Dot + StatusDot"
         source="dot · status-dot"
-        note="Dot marks a category inline; StatusDot is the presence light for characters and services."
+        note="Dot marks a category inline; StatusDot is the presence light for characters and services. Dot is hidden from screen readers: when its colour is a verdict, give it a label, read as text beside it, and keep a visible word next to it."
       >
         <div className="grid grid-cols-2 gap-6">
           <Variant label="dot · sm md lg">
@@ -99,6 +99,12 @@ export function TagsGroup() {
                 </span>
               ))}
             </div>
+          </Variant>
+          <Variant label="dot · label for screen readers">
+            <span className="flex items-center gap-2 font-ui text-ui text-muted">
+              <Dot tone="red" size="lg" label="Failing:" />
+              Price cron never ran
+            </span>
           </Variant>
         </div>
       </Specimen>

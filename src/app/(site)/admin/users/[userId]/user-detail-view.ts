@@ -1,37 +1,22 @@
 import type { ChipTone } from '@/components/ui/tones';
-import type { AdminUser } from '@/platform/auth/admin-users';
+import type { CharacterRole } from '@/platform/auth/types';
 import { adminRoleBadge } from '../access-view';
 
-export type UserDetailView = {
-  characterIdLabel: string;
-  identityChips: { tone: ChipTone; label: string }[];
-  isViewerSelf: boolean;
-  isOnlyCharacter: boolean;
-  forceLogoutDisabled: boolean;
-};
-
-export function deriveUserDetailView({
-  targetUser,
-  charactersCount,
-  sessionCount,
-  viewerUserId,
-  userId,
-  isSuperadmin = false,
+/** The account's effective role, and "You" when the viewing admin is looking at their own account. */
+export function deriveIdentityChips({
+  role,
+  isSuperadmin,
+  isViewerSelf,
 }: {
-  targetUser: AdminUser;
-  charactersCount: number;
-  sessionCount: number;
-  viewerUserId: string;
-  userId: string;
-  isSuperadmin?: boolean;
-}): UserDetailView {
-  const isViewerSelf = userId === viewerUserId;
-  const roleChip = adminRoleBadge({ isSuperadmin, role: targetUser.role });
-  return {
-    characterIdLabel: targetUser.characterId != null ? String(targetUser.characterId) : '—',
-    identityChips: isViewerSelf ? [roleChip, { tone: 'green', label: 'You' }] : [roleChip],
-    isViewerSelf,
-    isOnlyCharacter: charactersCount <= 1,
-    forceLogoutDisabled: isViewerSelf || sessionCount === 0,
-  };
+  role: CharacterRole;
+  isSuperadmin: boolean;
+  isViewerSelf: boolean;
+}): { tone: ChipTone; label: string }[] {
+  const roleChip = adminRoleBadge({ isSuperadmin, role });
+  return isViewerSelf ? [roleChip, { tone: 'green', label: 'You' }] : [roleChip];
+}
+
+/** Force logout is for other people's live sessions; an admin signs themself out normally. */
+export function forceLogoutDisabled(isViewerSelf: boolean, sessionCount: number): boolean {
+  return isViewerSelf || sessionCount === 0;
 }
