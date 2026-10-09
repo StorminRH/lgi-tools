@@ -28,6 +28,7 @@ import type {
   EsiRefreshJob,
 } from '@/data/esi-refresh-jobs/types';
 import { alertEsiRefreshDeadLetter } from '@/lib/alerts';
+import { isTimeoutError } from '@/lib/error-chain';
 import { swallow } from '@/transport/cron';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { runCorpContextRefreshJob } from './corp-context-sync';
@@ -74,7 +75,7 @@ function targetOf(job: EsiRefreshJob): OwnerSyncTarget {
 }
 
 function retryCode(error: unknown): string {
-  if (error instanceof DOMException && error.name === 'TimeoutError') return 'timeout';
+  if (isTimeoutError(error)) return 'timeout';
   if (error instanceof TypeError) return 'connection';
   if (error instanceof Error) return error.name || 'unexpected';
   return 'unexpected';

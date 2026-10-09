@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import type { EsiRefreshJob } from '@/data/esi-refresh-jobs/types';
@@ -101,6 +102,16 @@ function job(
     updatedAt: NOW,
     finishedAt: null,
   };
+}
+
+// How a Neon HTTP query timeout reaches a runner's caller: Drizzle wraps the
+// NeonDbError, which carries fetchWithTimeout's abort on sourceError.
+function neonQueryTimeout(): DrizzleQueryError {
+  const neon = Object.assign(
+    new Error('Error connecting to database: TimeoutError: signal timed out'),
+    { name: 'NeonDbError', sourceError: new DOMException('signal timed out', 'TimeoutError') },
+  );
+  return new DrizzleQueryError('select 1', [], neon);
 }
 
 afterEach(() => {
@@ -305,6 +316,48 @@ describe('drainEsiRefreshJobs', () => {
         failureCode: 'worker_interrupted',
       },
     });
+  });
+
+  it('records a wrapped database timeout as timeout on the job row, the dead-letter alert and the job log', async () => {
+    mocks.claim.mockResolvedValue([
+      job(21, 'skills'),
+      job(22, 'owned_assets', 4),
+      job(23, 'owned_blueprints'),
+    ]);
+    mocks.runSkills.mockRejectedValue(neonQueryTimeout());
+    mocks.runAssets.mockRejectedValue(neonQueryTimeout());
+    mocks.runBlueprints.mockResolvedValue({
+      kind: 'succeeded',
+      target: { ownerType: 'character', ownerId: 1001 },
+    });
+    mocks.markSucceeded.mockRejectedValueOnce(neonQueryTimeout());
+
+    const result = await drainEsiRefreshJobs(NOW);
+
+    expect(result).toMatchObject({ claimed: 3, succeeded: 0, failedRetryable: 1, deadLettered: 1 });
+    expect(mocks.markRetryable).toHaveBeenCalledWith(
+      21,
+      1,
+      'timeout',
+      new Date('2026-07-14T12:15:00Z'),
+      NOW,
+    );
+    expect(mocks.markDeadLettered).toHaveBeenCalledWith(22, 5, 'timeout', NOW);
+    expect(mocks.alertDeadLetter).toHaveBeenCalledWith({
+      jobId: 22,
+      dataset: 'owned_assets',
+      resource: '/esi/owned_assets',
+      attemptCount: 5,
+      failureCode: 'timeout',
+    });
+    expect(console.error).toHaveBeenCalledWith(
+      JSON.stringify({
+        scope: 'esi-refresh-worker:job',
+        jobId: 23,
+        dataset: 'owned_blueprints',
+        failure: 'timeout',
+      }),
+    );
   });
 
   it('dispatches sheet jobs through the existing queue lifecycle', async () => {

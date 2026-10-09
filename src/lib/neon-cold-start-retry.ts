@@ -1,3 +1,5 @@
+import { isTimeoutError } from '@/lib/error-chain';
+
 const MAX_ATTEMPTS = 4;
 const BASE_DELAY_MS = 500;
 const MAX_CHAIN_DEPTH = 10;
@@ -40,21 +42,6 @@ async function retryDelayFor(
   return BASE_DELAY_MS * 2 ** (attempt - 1);
 }
 
-const MAX_TIMEOUT_SEARCH_NODES = 16;
-
-export function hasTimeoutAbort(err: unknown): boolean {
-  const pending: unknown[] = [err];
-  for (let visited = 0; visited < MAX_TIMEOUT_SEARCH_NODES && visited < pending.length; visited++) {
-    const node = pending[visited];
-    if (node == null) continue;
-    if ((node as { name?: unknown }).name === 'TimeoutError') return true;
-    const { cause, sourceError } = node as { cause?: unknown; sourceError?: unknown };
-    if (cause != null) pending.push(cause);
-    if (sourceError != null) pending.push(sourceError);
-  }
-  return false;
-}
-
 export async function pauseBeforeRetry(
   label: string,
   attempt: number,
@@ -70,7 +57,7 @@ export async function pauseBeforeRetry(
 }
 
 export function isNeonColdStartError(err: unknown): boolean {
-  if (hasTimeoutAbort(err)) return false;
+  if (isTimeoutError(err)) return false;
   let node: unknown = err;
   for (let depth = 0; depth < MAX_CHAIN_DEPTH && node instanceof Error; depth++) {
     if (node.name === 'NeonDbError') {

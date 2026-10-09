@@ -1,14 +1,11 @@
-import {
-  hasTimeoutAbort,
-  isNeonColdStartError,
-  pauseBeforeRetry,
-} from '@/lib/neon-cold-start-retry';
+import { isTimeoutError } from '@/lib/error-chain';
+import { isNeonColdStartError, pauseBeforeRetry } from '@/lib/neon-cold-start-retry';
 
 const MAX_ATTEMPTS = 4;
 const BASE_DELAY_MS = 500;
 
 function isWarmRetryable(err: unknown): boolean {
-  return isNeonColdStartError(err) || hasTimeoutAbort(err);
+  return isNeonColdStartError(err) || isTimeoutError(err);
 }
 
 export async function warmNeon(read: () => Promise<unknown>): Promise<void> {

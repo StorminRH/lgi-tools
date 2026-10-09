@@ -3,6 +3,7 @@ import 'server-only';
 import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { isTimeoutError } from '@/lib/error-chain';
 import { characterPortraitUrl, type EveImageSize } from '@/lib/eve-image';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
@@ -120,15 +121,6 @@ export type RefreshResult =
   | { kind: 'ok'; access_token: string; refresh_token: string; expires_in: number }
   | { kind: 'dead'; failureClass: 'invalid_grant' }
   | { kind: 'retryable'; failureClass: Exclude<RefreshFailureClass, 'invalid_grant'>; retryAfterMs?: number };
-
-function isTimeoutError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    error.name === 'TimeoutError'
-  );
-}
 
 function readRetryAfter(value: string | null): number {
   if (value === null) return 0;
