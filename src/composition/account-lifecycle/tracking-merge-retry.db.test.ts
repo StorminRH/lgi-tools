@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { restoreMergeTracking } from '@/data/location-tracking/merge';
 import * as mergeStore from '@/data/location-tracking/merge-store';
 import { cancelPendingTracking, enqueueTrackingMerge } from '@/data/location-tracking/merge-store';
@@ -56,7 +57,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
     await enqueueTrackingMerge(harness.db, SOURCE, SURVIVOR, [selection]);
     const [job] = await queued();
     vi.mocked(restoreMergeTracking).mockRejectedValueOnce(new Error('response lost'));
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = silenceConsolePrefixes('error', ['[account-merge] tracking transfer retained for retry']);
     try {
       expect(await reconcile()).toEqual({ processed: 0, failed: 1 });
       expect(await queued()).toEqual([expect.objectContaining({ id: job!.id, selections: [selection] })]);
@@ -94,7 +95,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
     await seedOwner();
     await enqueueTrackingMerge(harness.db, SOURCE, SURVIVOR, [selection]);
     vi.mocked(purgeLocationTracking).mockRejectedValueOnce(new Error('purge unavailable'));
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = silenceConsolePrefixes('error', ['[account-merge] tracking transfer retained for retry']);
     try {
       expect(await reconcile()).toEqual({ processed: 0, failed: 1 });
       expect(restoreMergeTracking).not.toHaveBeenCalled();

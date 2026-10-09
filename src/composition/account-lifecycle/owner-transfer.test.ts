@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
 const hooks = vi.hoisted(() => ({
@@ -266,7 +267,7 @@ describe('proveCharacter on a cross-user link', () => {
   it('derives a null column from the stored token: a match backfills then merges, a mismatch purges', async () => {
     state.results = [row({ ownerHash: null, accessToken: tokenWithOwner(H1) }), [{ id: 'acc-1' }]];
     merge.mergeUsers.mockResolvedValue({ kind: 'noop', reason: 'same-user' });
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    silenceConsolePrefixes('warn', ['[auth] account merge converged without changes']);
     await proveCharacter(linkProof);
     expect(state.calls.update).toBe(1);
     expect(merge.mergeUsers).toHaveBeenCalledWith(expect.objectContaining({ otherUserId: USER }));

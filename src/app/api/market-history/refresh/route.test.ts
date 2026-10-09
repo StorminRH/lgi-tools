@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const getLiveHistoryMock = vi.fn();
 const checkRateLimitMock = vi.fn();
@@ -28,7 +29,11 @@ describe('POST /api/market-history/refresh telemetry', () => {
       degraded: { fetched: 0, budgetExhausted: true },
       metrics: { requested: 1, freshEsi: 0, warmStored: 0, staleStored: 1, missing: 0 },
     });
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    silenceConsolePrefixes('warn', ['{"scope":"market-history/refresh",']);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('records stale-stored history without inventing a fallback source', async () => {

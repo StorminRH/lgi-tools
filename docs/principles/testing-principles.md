@@ -112,7 +112,8 @@ Do not spin a live Convex deployment for the Vitest gate.
 - Keep test output free of stray logging. When a log is part of the tested
   contract, assert on the calls (prefer a stable first-argument tag plus
   `expect.any(Error)`; do not pin long prose). When the log is incidental,
-  silence only the expected tags — a blanket `.mockImplementation(() => {})`
+  silence only the expected tags with `silenceConsolePrefixes` from
+  `src/lib/__tests__/console-tags.ts` — a blanket `.mockImplementation(() => {})`
   can hide a real regression.
 
 ## Examples

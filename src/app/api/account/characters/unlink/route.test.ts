@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 
@@ -183,7 +184,10 @@ describe('POST /api/account/characters/unlink', () => {
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     enqueueAffectedMapAccessChangesMock.mockResolvedValueOnce([{ mapId: 'map-1', version: 'v1' }]);
     revokeUserMapClaimsMock.mockRejectedValue(new Error('Convex unavailable'));
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errorSpy = silenceConsolePrefixes('error', [
+      '[account/unlink] map access revocation failed',
+      '[cost-metrics] telemetry scheduling failed',
+    ]);
 
     const response = await POST(postForm(ROUTE, { characterId: '100' }));
 

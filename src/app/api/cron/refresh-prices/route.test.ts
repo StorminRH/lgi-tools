@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const refreshStalePricesMock = vi.fn();
@@ -57,7 +58,7 @@ describe('GET /api/cron/refresh-prices', () => {
     logUsageEventMock.mockResolvedValue(undefined);
     alertMock.mockResolvedValue(undefined);
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {

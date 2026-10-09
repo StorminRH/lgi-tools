@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
 import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
@@ -73,7 +74,7 @@ describe('GET /api/cron/refresh-sde', () => {
     setSdeMetaValueMock.mockResolvedValue(undefined);
     summarizeMarketPricesRowCountMock.mockResolvedValue({ total: 5595, priced: 4898 });
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {

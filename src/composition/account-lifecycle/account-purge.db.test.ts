@@ -1,5 +1,6 @@
 import { eq, isNull } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { usageLogs } from '@/data/telemetry/schema';
 import { userPreferences } from '@/data/preferences/schema';
 import { mapAccess, maps } from '@/data/maps/schema';
@@ -672,7 +673,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     const first = await queueCharacter(FIRST_CHAR);
     await harness.db.update(pendingDeletions).set({ queuedAt: old }).where(eq(pendingDeletions.id, first!.id));
     revokeMock.mockRejectedValueOnce(new Error('fixture failure'));
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const error = silenceConsolePrefixes('error', ['[account-purge] requested deletion retry failed']);
     expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 1 });
     error.mockRestore();
     const [retained] = await harness.db.select().from(pendingDeletions);

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const mocks = vi.hoisted(() => ({
   alert: vi.fn(),
@@ -54,8 +55,8 @@ describe('GET /api/cron/drain-esi-refresh-jobs', () => {
     mocks.alert.mockResolvedValue({ status: 'below-threshold', count: 0 });
     mocks.drain.mockResolvedValue(COUNTS);
     mocks.logUsageEvent.mockResolvedValue(undefined);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
+    silenceConsolePrefixes('error', ['[cost-metrics] telemetry scheduling failed']);
   });
 
   afterEach(() => {

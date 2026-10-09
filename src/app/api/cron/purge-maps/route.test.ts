@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const h = vi.hoisted(() => ({
@@ -39,7 +40,7 @@ beforeEach(() => {
     return Object.assign(reserved, { release: vi.fn() });
   });
   h.logUsageEvent.mockReset().mockResolvedValue(undefined);
-  vi.spyOn(console, 'log').mockImplementation(() => {});
+  silenceConsolePrefixes('log', ['{"scope":"cron:']);
 });
 
 afterEach(() => {

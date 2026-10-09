@@ -2,6 +2,7 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { getFunctionName, type FunctionReference } from 'convex/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { problemBodySchema } from '@/lib/problem';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { internal } from './_generated/api';
@@ -248,7 +249,7 @@ async function replaceRunLease(t: TestConvex<typeof schema>) {
 describe('characterLocationSync.syncUser', () => {
   it('completes as failed when the deployment env is unset', async () => {
     vi.unstubAllEnvs();
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
     const t = await testConvex();
     await seedSyncState(t);
     await seedTracking(t);

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
@@ -383,8 +384,7 @@ describe('defineCronRoute capability recording', () => {
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     connectionMock.mockReset().mockResolvedValue(undefined);
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron']);
   });
 
   afterEach(() => {
@@ -498,8 +498,8 @@ describe('defineCronBatchRoute', () => {
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     connectionMock.mockReset().mockResolvedValue(undefined);
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
+    silenceConsolePrefixes('error', [/^\[cron:\w+\] batch step failed$/]);
   });
 
   afterEach(() => {

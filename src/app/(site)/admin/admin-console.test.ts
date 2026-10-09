@@ -1,6 +1,7 @@
 import { createElement, type ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 import { AdminPageFrame } from './AdminFrame';
@@ -50,7 +51,7 @@ function renderConsole(): Promise<string> {
 describe('admin console gate', () => {
   beforeEach(() => {
     mocks.requireAdminPage.mockReset();
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] admin-nav-badges section unavailable']);
   });
 
   afterEach(() => {

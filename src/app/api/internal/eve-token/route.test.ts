@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 
@@ -39,7 +40,7 @@ afterEach(() => {
 
 describe('POST /api/internal/eve-token', () => {
   it('returns 500 when the service secret is not configured', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[service-auth] missing required environment variable']);
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
     const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
     expect(res.status).toBe(500);

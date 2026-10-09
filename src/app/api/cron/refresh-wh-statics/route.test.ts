@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { readSystemStatics } from '@/data/wh-statics/queries';
 import {
@@ -79,7 +80,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     reservedTag.mockClear();
     releaseMock.mockClear();
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {

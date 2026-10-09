@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const h = vi.hoisted(() => {
   const order: string[] = [];
@@ -52,7 +53,7 @@ describe('GET /api/cron/daily-batch', () => {
     h.order.length = 0;
     h.workByName.clear();
     h.logUsageEvent.mockReset().mockResolvedValue(undefined);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {
@@ -77,7 +78,7 @@ describe('GET /api/cron/daily-batch', () => {
 
   it('skips the net-worth revalue when the price sweep fails', async () => {
     vi.setSystemTime(new Date('2026-09-29T12:20:00Z'));
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[cron:prices] batch step failed', '[cost-metrics] telemetry write failed']);
     h.workByName.set('cron:prices', async () => { throw new Error('prices down'); });
 
     const response = await GET(cronRequest(ROUTE));

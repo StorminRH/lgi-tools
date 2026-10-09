@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import {
   HIDDEN_PRESENCE_MAX_MS,
   isColdFromPresence,
@@ -151,13 +152,17 @@ async function terminalJob(t: Chain, kind: 'canceled' | 'success' | 'failed'): P
   }
   vi.stubEnv('SITE_URL', 'https://app.test');
   vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
-  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const args = kind === 'success' ? { userId: USER, generation: -1, schedulerVersion: 2 as const } : ({ userId: USER } as never);
   const id = await t.run((ctx) =>
     ctx.scheduler.runAt(now, internal.characterLocationSync.syncUser, args),
   );
   vi.advanceTimersByTime(0);
-  await t.finishInProgressScheduledFunctions();
+  const error = silenceConsolePrefixes('error', ['Error when running scheduled function characterLocationSync:syncUser']);
+  try {
+    await t.finishInProgressScheduledFunctions();
+  } finally {
+    error.mockRestore();
+  }
   expect((await jobById(t, id))?.state.kind).toBe(kind);
   return id;
 }
@@ -959,7 +964,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
 
   it('re-arms a zero-yield run with jitter: all offline, nothing read, or a run-level error', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    silenceConsolePrefixes('warn', ['{"scope":"location:sync",']);
     const now = Date.now();
     const cases = [
       { outcome: success([CHAR], [offlineResult(CHAR, now + 60_000)]), minExpiresAt: now + 60_000 },
@@ -1019,7 +1024,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
   });
 
   it('stops when the watcher has gone cold: no next run, jobId null, coverage cleared', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
     const now = Date.now();
     for (const presence of [coldPresence(), null]) {
       for (const outcome of [
@@ -1065,7 +1070,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
 
   it('carries a heartbeat-scheduled run through syncUser into the next run', async () => {
     vi.stubEnv('SITE_URL', undefined);
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
     const t = convexTest(schema, modules);
     await seedTracking(t);
     await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
