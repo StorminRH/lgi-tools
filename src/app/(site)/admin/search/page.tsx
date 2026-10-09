@@ -21,7 +21,7 @@ async function SearchContent({ searchParams }: { searchParams: RangeSearchParams
         <PerformanceCard range={range} previous={previous} />
       </AdminSlot>
       <AdminSlot label="Top queries" rows={8} reveal={2}>
-        <TermCards range={range} />
+        <TermCards range={range} previous={previous} />
       </AdminSlot>
       <AdminSlot label="Index coverage" rows={6} reveal={3}>
         <IndexCoverageCard range={rangeFor(rangeKey)} />

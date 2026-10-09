@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { getWhStaticsOperatorReview } from '@/composition/wh-statics-refresh';
 import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
-import { getLastSyncedAt } from '@/data/gsc/queries';
+import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
 import { getBudgetExhaustionCount, getFallbackRate } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 
@@ -23,3 +23,8 @@ export const getLastSyncedAtShared = cache(getLastSyncedAt);
 
 export const getFallbackRateShared = sharedRangeRead(getFallbackRate);
 export const getBudgetExhaustionCountShared = sharedRangeRead(getBudgetExhaustionCount);
+
+// Search, statics and accounts
+
+/** Daily search totals, read once for every card that covers the same window. */
+export const getSearchTrendShared = sharedRangeRead(getSearchTrend);
