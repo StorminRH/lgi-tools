@@ -26,7 +26,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P313](#p313) | Use atlasMapHref in handoffCreatedMap | simplification | S | low | low | — |
 | ☑ | [P234](#p234) | Fold getAdjustedPrices and getAveragePrices into one column-parameterized reader | persistence | S | low | low | — |
 | ☑ | [P278](#p278) | Name the settle spring once in motion-contract (SETTLE_SPRING) instead of three springFamily(0) calls | efficiency | S | low | low | — |
-| ☐ | [P113](#p113) | Reuse tween-model's pruneBy for motion-host-model's pruneToLive | generic-utility | S | low | low | — |
+| ☑ | [P113](#p113) | Reuse tween-model's pruneBy for motion-host-model's pruneToLive | generic-utility | S | low | low | — |
 | ☐ | [P114](#p114) | Share one djb2 string hash between wormhole seeding and fog brush rotation | generic-utility | S | low | low | — |
 | ☐ | [P290](#p290) | Count active sessions with count() and read the two pending-deletion queues concurrently | efficiency | S | low | low | — |
 | ☐ | [P135](#p135) | Route isGscConfigured through readEnv instead of a process.env parameter | generic-utility | S | low | low | — |
@@ -713,7 +713,7 @@ export const SETTLE_SPRING: SpringFamily = springFamily(0);
 
 ## P113: Reuse tween-model's pruneBy for motion-host-model's pruneToLive
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -17 +2 production; about +15 test
 - **Depends on:** —
