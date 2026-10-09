@@ -10,11 +10,7 @@ import {
 import { signatureKind } from '@/data/maps/signature-lifecycle';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
-import {
-  isCodexSizeLocked,
-  lifetimeRowDisplay,
-  lifetimeUpperBoundLabel,
-} from '../authoring/connection-intelligence';
+import { lifetimeUpperBoundLabel } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
 
@@ -30,6 +26,12 @@ export interface SignatureWindowRow {
   readonly connection: ConnectionEditorDetail | null;
   readonly endpoint?: 'from' | 'to';
   readonly className: string | null;
+}
+
+export function signatureIdentityKey(
+  row: Pick<SignatureWindowRow, 'systemId' | 'signatureId'>,
+): string {
+  return `${row.systemId}:${row.signatureId}`;
 }
 
 export type ConnectionSignatureInput = ConnectionEditorDetail;
@@ -113,11 +115,11 @@ export function buildSignatureRows(
   const byIdentity = new Map<string, SignatureWindowRow>();
   for (const row of signatures) {
     const projected = signatureDocumentRow(row);
-    byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
+    byIdentity.set(signatureIdentityKey(projected), projected);
   }
   for (const row of connections) {
     for (const projected of connectionRowsForScanner(row, classLabelOf)) {
-      byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
+      byIdentity.set(signatureIdentityKey(projected), projected);
     }
   }
   return [...byIdentity.values()].toSorted(
@@ -237,15 +239,6 @@ export function sameGlanceMarkIndex(
   return true;
 }
 
-export function filterSignatureRows(
-  rows: readonly SignatureWindowRow[],
-  systemId: number | null,
-  kind: ScannedKind,
-): readonly SignatureWindowRow[] {
-  if (systemId === null) return [];
-  return rows.filter((row) => row.systemId === systemId && row.kind === kind);
-}
-
 export function groupSignatureSections(
   rows: readonly SignatureWindowRow[],
   systemId: number | null,
@@ -269,26 +262,6 @@ export function groupSignatureSections(
     });
   }
   return sections;
-}
-
-export function scannerWormholeSize(
-  connection: Pick<ConnectionEditorDetail, 'shipSize'> | null,
-  entry: WormholeCodexEntry | null,
-): string {
-  if (isCodexSizeLocked(entry) && entry !== null && entry.farSide === false) {
-    return entry.sizeClass;
-  }
-  return connection?.shipSize ?? '—';
-}
-
-export function scannerWormholeLifetime(
-  connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
-  entry: WormholeCodexEntry | null,
-  now: number,
-): string {
-  if (connection === null) return '—';
-  const display = lifetimeRowDisplay(connection, entry, now);
-  return display.kind === 'unset' ? '—' : display.label;
 }
 
 export function scannerLifeUpperBound(
