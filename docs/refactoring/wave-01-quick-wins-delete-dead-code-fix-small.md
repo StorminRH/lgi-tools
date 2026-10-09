@@ -33,7 +33,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P136](#p136) | Derive problem-type URIs, the outbound UA contact and same-origin's fallback from PRODUCTION_SITE_URL | generic-utility | S | low | low | — |
 | ☑ | [P268](#p268) | Resolve the Better Auth secret once with empty-string fallback (readAuthSecret in lib/env) | contracts-validation | S | low | medium | — |
 | ☑ | [P185](#p185) | Tag the wormhole-site detail caches with the SDE tag and rename it SDE_CACHE_TAG (no sdeCache helper) | server-pipeline | S | low | medium | — |
-| ☐ | [P079](#p079) | Rebuild useClientCommitted on createClientStore | client-data | S | low | low | — |
+| ☑ | [P079](#p079) | Rebuild useClientCommitted on createClientStore | client-data | S | low | low | — |
 | ☐ | [P061](#p061) | Read the user in PreferencesProvider from ReadIdentity, not a second useSession | react-hook | S | low | low | — |
 | ☐ | [P279](#p279) | Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds | efficiency | S | low | medium | — |
 | ☐ | [P080](#p080) | Read the board in the industry workspace only when a member sheet is open | client-data | S | low | medium | — |
@@ -1126,7 +1126,7 @@ cacheTag(SDE_CACHE_TAG);
 
 ## P079: Rebuild useClientCommitted on createClientStore
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -22 / +8 in src/lib/use-client-committed.ts
 - **Depends on:** —
