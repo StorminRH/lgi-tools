@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { enqueueAffectedMapAccessChanges } from '@/data/maps/queries';
+import { mapConcurrent } from '@/lib/fan-out';
 import {
   acknowledgeAuthorizationAccessChange,
   claimAuthorization,
@@ -10,6 +11,8 @@ import {
 } from '@/platform/auth/authorization-store';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { reconcileAffiliationAccess } from './map-affiliation-access';
+
+const AUTHORIZATION_CONCURRENCY = 4;
 
 async function publishAccessChanges(userId: string): Promise<void> {
   await suspendOverdueAuthorizations(userId);
@@ -35,19 +38,17 @@ export async function checkCharacterAuthorizations(userId: string): Promise<void
   // Revoke already-known invalid/overdue access before any slow network requests.
   await publishAccessChanges(userId);
   const due = await listDueAuthorizations(userId);
-  let next = 0;
-  await Promise.all(Array.from({ length: 4 }, async () => {
-    while (next < due.length && Date.now() < deadline) {
-      const candidate = due[next++]!;
-      if (!await claimAuthorization(candidate.id)) continue;
-      try {
-        await getFreshAccessTokenForCharacter(Number(candidate.characterId), { forceRefresh: true });
-      } catch (error) {
-        // The claim expires, so a process/network failure cannot strand the character.
-        console.error('[character-authorization] check failed', candidate.characterId, error);
-      }
+  // A failed claim (store outage) rejects the run and stops further claims.
+  await mapConcurrent(due, AUTHORIZATION_CONCURRENCY, async (candidate) => {
+    if (Date.now() >= deadline) return;
+    if (!await claimAuthorization(candidate.id)) return;
+    try {
+      await getFreshAccessTokenForCharacter(Number(candidate.characterId), { forceRefresh: true });
+    } catch (error) {
+      // The claim expires, so a process/network failure cannot strand the character.
+      console.error('[character-authorization] check failed', candidate.characterId, error);
     }
-  }));
+  });
   await publishAccessChanges(userId);
 }
 

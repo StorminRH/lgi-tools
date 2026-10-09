@@ -30,7 +30,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P101](#p101) | Add groupBy and getOrInsertComputed to src/lib/array.ts and replace the hand-rolled bucket and get-or-create loops | generic-utility | M | low | medium | — |
 | ☑ | [P102](#p102) | Promote eligibleIdsKey to sortedUniqueIds / idsKey / parseIdsKey in src/lib/array.ts and delete the local copies | generic-utility | S | low | low | — |
 | ☑ | [P112](#p112) | Add sameItems and sameFields shallow-equality helpers to src/lib | generic-utility | S | low | low | — |
-| ☐ | [P100](#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |
+| ☑ | [P100](#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |
 | ☐ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
 | ☐ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
 | ☐ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
@@ -539,7 +539,7 @@ export function sameFields<T extends object>(a: T, b: T): boolean; // same own-k
 
 ## P100: Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -75 production lines across five modules; about +20 in fan-out.ts; about +50 test lines
 - **Depends on:** —

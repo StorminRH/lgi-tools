@@ -1,4 +1,5 @@
 import { cacheLife } from 'next/cache';
+import { mapConcurrent } from '@/lib/fan-out';
 import { postUniverseNames } from './universe-names';
 
 const NAME_CACHE_LIFE = 'days';
@@ -22,19 +23,15 @@ async function resolveEntityNamesBounded(
   resolveOne: (id: number) => Promise<string | null>,
 ): Promise<Record<string, string>> {
   const unique = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0);
-  const names: Record<string, string> = {};
-  let cursor = 0;
-  const runners = Array.from(
-    { length: Math.min(RESOLVE_CONCURRENCY, unique.length) },
-    async () => {
-      while (cursor < unique.length) {
-        const id = unique[cursor++]!;
-        const name = await resolveOne(id);
-        if (name !== null) names[String(id)] = name;
-      }
-    },
+  const resolved = await mapConcurrent(
+    unique,
+    RESOLVE_CONCURRENCY,
+    async (id) => [id, await resolveOne(id)] as const,
   );
-  await Promise.all(runners);
+  const names: Record<string, string> = {};
+  for (const [id, name] of resolved) {
+    if (name !== null) names[String(id)] = name;
+  }
   return names;
 }
 

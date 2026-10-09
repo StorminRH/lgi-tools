@@ -16,6 +16,7 @@ import {
   esiUrl,
 } from '@/platform/esi';
 import { dedupe, getOrInsertComputed } from '@/lib/array';
+import { mapConcurrent } from '@/lib/fan-out';
 import {
   computeDepth,
   computeSide,
@@ -60,33 +61,6 @@ interface OrderBucket {
   hubBuy: OrderEntry[];
   hubSell: OrderEntry[];
   remoteSell: Map<number, RemoteStationBook>;
-}
-
-async function runConcurrent<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  if (items.length === 0) return;
-  let cursor = 0;
-  let cancelled = false;
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      while (true) {
-        if (cancelled) return;
-        const i = cursor++;
-        if (i >= items.length) return;
-        try {
-          await worker(items[i]!);
-        } catch (err) {
-          cancelled = true;
-          throw err;
-        }
-      }
-    },
-  );
-  await Promise.all(workers);
 }
 
 function absorbOrders(
@@ -181,7 +155,7 @@ async function fetchViaEsiRegionDump(
   if (totalPages > 1) {
     const pages: number[] = [];
     for (let p = 2; p <= totalPages; p++) pages.push(p);
-    await runConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
+    await mapConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
       const res = await esiFetch(regionDumpPageUrl(page));
       if (!res.ok) throw new EsiServerError(res.status);
       const orders = parseEsiOrders(filterRawByWantedType(await res.json(), wanted));
@@ -199,7 +173,7 @@ async function fetchViaEsiPerType(
   const fallbackNeeded: number[] = [];
   let budgetExhausted = false;
 
-  await runConcurrent(typeIds, PER_TYPE_CONCURRENCY, async (typeId) => {
+  await mapConcurrent(typeIds, PER_TYPE_CONCURRENCY, async (typeId) => {
     if (budgetExhausted) {
       fallbackNeeded.push(typeId);
       return;

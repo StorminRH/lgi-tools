@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { settle } from '@/lib/__tests__/hook-runtime';
 
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
   reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
@@ -97,6 +98,27 @@ it('publishes newly confirmed invalid authorization in the same worker run', asy
   expect(mocks.enqueueAffectedMapAccessChanges.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.readPendingMapAccessChanges.mock.invocationCallOrder[1]!,
   );
+});
+
+it('stops claiming due characters once a claim fails and leaves the run failed', async () => {
+  const due = Array.from({ length: 8 }, (_, i) => ({ id: `account-${i}`, characterId: String(100 + i) }));
+  mocks.listDueAuthorizations.mockResolvedValue(due);
+  mocks.claimAuthorization.mockImplementation(async (id: string) => {
+    if (id === 'account-0') throw new Error('authorization store unavailable');
+    return true;
+  });
+
+  await expect(checkCharacterAuthorizations('alice')).rejects.toThrow('authorization store unavailable');
+  await settle();
+
+  expect(mocks.claimAuthorization.mock.calls.map(([id]) => id)).toEqual([
+    'account-0',
+    'account-1',
+    'account-2',
+    'account-3',
+  ]);
+  expect(mocks.getFreshAccessTokenForCharacter.mock.calls.map(([characterId]) => characterId)).toEqual([101, 102, 103]);
+  expect(mocks.suspendOverdueAuthorizations).toHaveBeenCalledOnce();
 });
 
 it('checks queued access changes on a healthy visit without refreshing authorization', async () => {
