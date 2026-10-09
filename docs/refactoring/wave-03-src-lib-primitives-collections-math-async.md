@@ -31,7 +31,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P102](#p102) | Promote eligibleIdsKey to sortedUniqueIds / idsKey / parseIdsKey in src/lib/array.ts and delete the local copies | generic-utility | S | low | low | — |
 | ☑ | [P112](#p112) | Add sameItems and sameFields shallow-equality helpers to src/lib | generic-utility | S | low | low | — |
 | ☑ | [P100](#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |
-| ☐ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
+| ☑ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
 | ☐ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
 | ☐ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
 | ☐ | [P249](#p249) | Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions | contracts-validation | S | low | low | — |
@@ -661,7 +661,7 @@ No stopOnError or shouldStop options: no current caller needs them.
 
 ## P104: Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -18 / +3.
 - **Depends on:** —

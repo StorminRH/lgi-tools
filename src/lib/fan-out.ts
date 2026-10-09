@@ -1,5 +1,5 @@
 export async function mapByIdDroppingNulls<T>(
-  ids: number[],
+  ids: readonly number[],
   getter: (id: number) => Promise<T | null>,
 ): Promise<Map<number, T>> {
   const entries = await Promise.all(ids.map(async (id) => [id, await getter(id)] as const));

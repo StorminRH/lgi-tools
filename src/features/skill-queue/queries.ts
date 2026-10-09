@@ -59,11 +59,8 @@ export async function readCharacterSkillLevels(characterId: number): Promise<Rec
 
 export async function getSkillLevelsForCharacters(
   characterIds: number[],
-): Promise<Map<number, Record<string, number> | null>> {
-  const entries = await Promise.all(
-    characterIds.map(async (id) => [id, await getCharacterSkillLevels(id)] as const),
-  );
-  return new Map(entries);
+): Promise<Map<number, Record<string, number>>> {
+  return mapByIdDroppingNulls(characterIds, getCharacterSkillLevels);
 }
 
 export async function readCharacterSyncState(

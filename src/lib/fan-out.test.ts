@@ -31,6 +31,15 @@ describe('mapByIdDroppingNulls', () => {
     expect(map.get(2)).toBe(5);
   });
 
+  it('keeps every entry of a non-nullable getter, an empty list included, over readonly ids', async () => {
+    const ids: readonly number[] = [7, 8];
+    const map = await mapByIdDroppingNulls(ids, async (id) => (id === 7 ? [] : ['row']));
+    expect([...map.entries()]).toEqual([
+      [7, []],
+      [8, ['row']],
+    ]);
+  });
+
   it('runs the getters concurrently (Promise.all), not sequentially', async () => {
     let active = 0;
     let maxActive = 0;
