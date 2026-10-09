@@ -1,3 +1,4 @@
+import { sameItems } from '@/lib/array';
 import { clamp } from '@/lib/math';
 import type { FogConfig } from '../fog/fog-model';
 import type { HaloLimits } from '../halo/halo-model';
@@ -177,12 +178,7 @@ export function directionPresetOf(
     DirectionPresetId,
     readonly number[],
   ][]) {
-    if (
-      sequence.length === config.directionSequence.length &&
-      sequence.every((heading, index) => heading === config.directionSequence[index])
-    ) {
-      return id;
-    }
+    if (sameItems(sequence, config.directionSequence)) return id;
   }
   return null;
 }

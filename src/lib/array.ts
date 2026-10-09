@@ -8,6 +8,19 @@ export function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Ordered element-wise equality: same length, and `eq` holds at every index.
+ * The default `eq` is `===`, not `Object.is`, so -0 matches +0 and NaN never
+ * matches itself.
+ */
+export function sameItems<T>(
+  a: readonly T[],
+  b: readonly T[],
+  eq: (x: T, y: T) => boolean = (x, y) => x === y,
+): boolean {
+  return a.length === b.length && a.every((item, index) => eq(item, b[index] as T));
+}
+
 /** The distinct ids in ascending numeric order (never the default lexical sort). */
 export function sortedUniqueIds(ids: Iterable<number>): number[] {
   return [...new Set(ids)].sort((a, b) => a - b);

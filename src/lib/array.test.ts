@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { chunk, dedupe, getOrInsertComputed, groupBy, idsKey, parseIdsKey, sortedUniqueIds } from './array';
+import {
+  chunk,
+  dedupe,
+  getOrInsertComputed,
+  groupBy,
+  idsKey,
+  parseIdsKey,
+  sameItems,
+  sortedUniqueIds,
+} from './array';
 
 describe('array helpers', () => {
   it('chunks with a remainder group and dedupes preserving first-seen order', () => {
@@ -86,5 +95,33 @@ describe('sorted id sets', () => {
     expect(parseIdsKey('')).toEqual([]);
     expect(parseIdsKey('7,3')).toEqual([7, 3]);
     expect(parseIdsKey(idsKey([100, 20, 100, 3]))).toEqual([3, 20, 100]);
+  });
+});
+
+describe('sameItems', () => {
+  it('compares element by element in order with ===, so -0 matches 0 and NaN never matches', () => {
+    const stack: readonly string[] = ['intel', 'summary'];
+    expect(sameItems(stack, ['intel', 'summary'])).toBe(true);
+    expect(sameItems(stack, ['summary', 'intel'])).toBe(false);
+    expect(sameItems(stack, ['intel'])).toBe(false);
+    expect(sameItems(stack, ['intel', 'summary', 'intel'])).toBe(false);
+    expect(sameItems([], [])).toBe(true);
+
+    expect(sameItems([0, 1], [-0, 1])).toBe(true);
+    expect(sameItems([NaN], [NaN])).toBe(false);
+    expect(sameItems([undefined], [])).toBe(false);
+  });
+
+  it('applies a custom comparator at each index and skips it when the lengths differ', () => {
+    const byId = vi.fn((a: { id: number; name: string }, b: { id: number; name: string }) => a.id === b.id);
+    const left = [{ id: 1, name: 'Ava' }, { id: 2, name: 'Bo' }];
+
+    expect(sameItems(left, [{ id: 1, name: 'renamed' }, { id: 2, name: 'Bo' }], byId)).toBe(true);
+    expect(byId).toHaveBeenCalledTimes(2);
+    expect(sameItems(left, [{ id: 2, name: 'Bo' }, { id: 1, name: 'Ava' }], byId)).toBe(false);
+
+    byId.mockClear();
+    expect(sameItems(left, [{ id: 1, name: 'Ava' }], byId)).toBe(false);
+    expect(byId).not.toHaveBeenCalled();
   });
 });

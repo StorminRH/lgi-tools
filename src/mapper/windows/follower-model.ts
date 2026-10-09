@@ -1,3 +1,4 @@
+import { sameFields } from '@/lib/equality';
 import { clamp } from '@/lib/math';
 import { SYSTEM_DISC_SIZE } from '../canvas/disc-chrome';
 import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
@@ -83,31 +84,6 @@ export type CardAnchorLift = 'up' | 'down';
 export const NODE_CARD_FALLBACK: ScreenSize = { width: 288, height: 208 };
 
 const LAYER_SIZE_FALLBACK: ScreenSize = { width: 1440, height: 900 };
-
-interface SharedFollowerFrame {
-  readonly tx: number;
-  readonly ty: number;
-  readonly zoom: number;
-  readonly cardWidth: number;
-  readonly cardHeight: number;
-  readonly layerWidth: number;
-  readonly layerHeight: number;
-}
-
-function sameSharedFollowerFrame(
-  a: SharedFollowerFrame,
-  b: SharedFollowerFrame,
-): boolean {
-  return (
-    a.tx === b.tx &&
-    a.ty === b.ty &&
-    a.zoom === b.zoom &&
-    a.cardWidth === b.cardWidth &&
-    a.cardHeight === b.cardHeight &&
-    a.layerWidth === b.layerWidth &&
-    a.layerHeight === b.layerHeight
-  );
-}
 
 function anchoredFollowerWrite(
   screenAnchor: ScreenPoint,
@@ -340,19 +316,7 @@ export function computeFollowerTransform(
     side: placed.side,
     lift: placed.lift,
   };
-  if (
-    baseline !== null &&
-    baseline.anchorId === next.anchorId &&
-    baseline.x === next.x &&
-    baseline.y === next.y &&
-    baseline.width === next.width &&
-    baseline.height === next.height &&
-    baseline.side === next.side &&
-    baseline.lift === next.lift &&
-    sameSharedFollowerFrame(baseline, next)
-  ) {
-    return null;
-  }
+  if (baseline !== null && sameFields(baseline, next)) return null;
 
   return {
     write: placed.write,

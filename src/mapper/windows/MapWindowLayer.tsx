@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { sameItems } from '@/lib/array';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import type { ChainNode } from '../canvas/SystemNode';
 import { createNodeFollower, type NodeFollowerStore } from './follower-model';
@@ -31,21 +32,13 @@ import {
 } from './SystemIntelligenceBody';
 import { useSystemLabel } from './use-system-label';
 
-function sameStack(a: readonly MapWindowId[], b: readonly MapWindowId[]): boolean {
-  return a.length === b.length && a.every((id, index) => id === b[index]);
-}
-
-function sameSelectedIds(a: readonly number[], b: readonly number[]): boolean {
-  return a.length === b.length && a.every((id, index) => id === b[index]);
-}
-
 function useSelectedSystemIds(): readonly number[] {
   return useStore(
     (state) =>
       state.nodes
         .filter((node) => node.selected)
         .map((node) => Number(node.id)),
-    sameSelectedIds,
+    sameItems,
   );
 }
 
@@ -69,7 +62,7 @@ function useSurfacePresence(input: {
 function useWindowStack(liveIds: readonly MapWindowId[]) {
   const [stack, setStack] = useState<readonly MapWindowId[]>([]);
   const renderedStack = reconcileStack(stack, liveIds);
-  if (!sameStack(stack, renderedStack)) setStack(renderedStack);
+  if (!sameItems(stack, renderedStack)) setStack(renderedStack);
 
   const activate = useCallback(
     (id: MapWindowId) => {
