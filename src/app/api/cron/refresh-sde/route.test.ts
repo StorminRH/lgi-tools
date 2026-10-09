@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
 import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const getSdeMetaValueMock = vi.fn();
 const setSdeMetaValueMock = vi.fn();
@@ -46,11 +47,7 @@ vi.mock('next/cache', () => ({
 
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
-function authedRequest(): Request {
-  return new Request('http://localhost:3000/api/cron/refresh-sde', {
-    headers: { authorization: 'Bearer test-secret' },
-  });
-}
+const ROUTE = '/api/cron/refresh-sde';
 
 const PIPELINE_SUMMARY = {
   ingest: { typesWritten: 5500, durationMs: 30000 },
@@ -75,7 +72,7 @@ describe('GET /api/cron/refresh-sde', () => {
     logUsageEventMock.mockResolvedValue(undefined);
     setSdeMetaValueMock.mockResolvedValue(undefined);
     summarizeMarketPricesRowCountMock.mockResolvedValue({ total: 5595, priced: 4898 });
-    vi.stubEnv('CRON_SECRET', 'test-secret');
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
@@ -88,7 +85,7 @@ describe('GET /api/cron/refresh-sde', () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-01');
     const { GET } = await import('./route');
-    const res = await GET(authedRequest());
+    const res = await GET(cronRequest(ROUTE));
     expect((await res.json()).status).toBe('up-to-date');
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_sde',
@@ -102,7 +99,7 @@ describe('GET /api/cron/refresh-sde', () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue(null);
     const { GET } = await import('./route');
-    const res = await GET(authedRequest());
+    const res = await GET(cronRequest(ROUTE));
     expect((await res.json()).status).toBe('remote-unreachable');
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_sde',
@@ -116,7 +113,7 @@ describe('GET /api/cron/refresh-sde', () => {
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-08');
     lockGot = false;
     const { GET } = await import('./route');
-    const res = await GET(authedRequest());
+    const res = await GET(cronRequest(ROUTE));
     expect((await res.json()).status).toBe('busy');
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_sde',
@@ -131,7 +128,7 @@ describe('GET /api/cron/refresh-sde', () => {
     lockGot = true;
     runSdePipelineMock.mockResolvedValue(PIPELINE_SUMMARY);
     const { GET } = await import('./route');
-    const res = await GET(authedRequest());
+    const res = await GET(cronRequest(ROUTE));
     expect((await res.json()).status).toBe('reingested');
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_sde',

@@ -1,5 +1,6 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { postForm } from '@/lib/__tests__/route-requests';
 import { forbiddenFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 
@@ -33,13 +34,7 @@ vi.mock('@/platform/auth/same-origin', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/esi-jobs/retry', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/admin/esi-jobs/retry';
 
 describe('POST /api/admin/esi-jobs/retry', () => {
   beforeEach(() => {
@@ -54,7 +49,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
   it('returns 403 when there is no session', async () => {
     getSessionMock.mockResolvedValue(null);
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(403);
     expect(requeueMock).not.toHaveBeenCalled();
     expect(sameOriginMock).not.toHaveBeenCalled();
@@ -63,7 +58,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
   it('returns 403 when the caller is not an admin', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN, isAdmin: false });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(403);
     expect(requeueMock).not.toHaveBeenCalled();
   });
@@ -71,7 +66,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
   it('returns 400 for an invalid job id', async () => {
     getSessionMock.mockResolvedValue(ADMIN);
     const { POST } = await import('./route');
-    const request = buildRequest({ jobId: 'not-a-number' });
+    const request = postForm(ROUTE, { jobId: 'not-a-number' });
     const response = await POST(request);
     expect(response.status).toBe(400);
     expect(sameOriginMock).toHaveBeenCalledWith(request);
@@ -88,7 +83,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
       ),
     });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
 
     expect(response.status).toBe(403);
     expect(response.headers.get('Content-Type')).toBe(
@@ -105,7 +100,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'not_found' });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(404);
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
@@ -114,7 +109,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'requeued' });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
     expect(requeueMock).toHaveBeenCalledWith(7);
@@ -129,7 +124,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'superseded' });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
     expect(logUsageEventMock).toHaveBeenCalledOnce();

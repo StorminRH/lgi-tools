@@ -1,5 +1,5 @@
-import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 
 const CHARACTER_ID = 1000000000;
@@ -20,13 +20,7 @@ vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
 
-function buildRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost:3000/api/telemetry', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/telemetry';
 
 describe('POST /api/telemetry', () => {
   beforeEach(() => {
@@ -46,7 +40,7 @@ describe('POST /api/telemetry', () => {
   it('returns 204 and records the event for a logged-in caller', async () => {
     getSessionCharacterIdMock.mockResolvedValue(CHARACTER_ID);
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/sites' } }));
+    const res = await POST(postJson(ROUTE, { action: 'page_view', metadata: { path: '/sites' } }));
     expect(res.status).toBe(204);
     await vi.waitFor(() =>
       expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -60,7 +54,7 @@ describe('POST /api/telemetry', () => {
   it('records anonymous events with a null characterId', async () => {
     getSessionCharacterIdMock.mockResolvedValue(null);
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
+    const res = await POST(postJson(ROUTE, { action: 'page_view', metadata: { path: '/' } }));
     expect(res.status).toBe(204);
     await vi.waitFor(() =>
       expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -76,7 +70,7 @@ describe('POST /api/telemetry', () => {
     logUsageEventMock.mockRejectedValue(new Error('Failed query: connection error'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
+    const res = await POST(postJson(ROUTE, { action: 'page_view', metadata: { path: '/' } }));
     expect(res.status).toBe(204);
     await vi.waitFor(() => expect(errorSpy).toHaveBeenCalled());
     errorSpy.mockRestore();
@@ -92,7 +86,7 @@ describe('POST /api/telemetry', () => {
       },
     });
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
+    const res = await POST(postJson(ROUTE, { action: 'page_view', metadata: { path: '/' } }));
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('42');
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
@@ -105,21 +99,21 @@ describe('POST /api/telemetry', () => {
 
   it('rejects unknown actions with 400', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ action: 'malicious_action' }));
+    const res = await POST(postJson(ROUTE, { action: 'malicious_action' }));
     expect(res.status).toBe(400);
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('rejects server-only actions a client must not forge with 400', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ action: 'cron_prices' }));
+    const res = await POST(postJson(ROUTE, { action: 'cron_prices' }));
     expect(res.status).toBe(400);
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('rejects non-object metadata with 400', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ action: 'page_view', metadata: 'not-an-object' }));
+    const res = await POST(postJson(ROUTE, { action: 'page_view', metadata: 'not-an-object' }));
     expect(res.status).toBe(400);
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
@@ -127,7 +121,7 @@ describe('POST /api/telemetry', () => {
   it('rejects oversized metadata with 400', async () => {
     const { POST } = await import('./route');
     const big = { blob: 'x'.repeat(3000) };
-    const res = await POST(buildRequest({ action: 'page_view', metadata: big }));
+    const res = await POST(postJson(ROUTE, { action: 'page_view', metadata: big }));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'metadata_too_large',
@@ -138,12 +132,7 @@ describe('POST /api/telemetry', () => {
 
   it('returns 400 on malformed JSON body', async () => {
     const { POST } = await import('./route');
-    const req = new NextRequest('http://localhost:3000/api/telemetry', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: 'not json',
-    });
-    const res = await POST(req);
+    const res = await POST(postJson(ROUTE, 'not json'));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_json',

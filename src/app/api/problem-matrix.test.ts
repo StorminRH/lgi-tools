@@ -87,7 +87,6 @@ vi.mock('@/features/wormhole-sites/queries', () => ({
   getPricedSiteDetail: (...args: unknown[]) => h.getPricedSiteDetail(...args),
 }));
 
-import { NextRequest } from 'next/server';
 import { eveTokenEndpoint } from '@/platform/auth/api-contract';
 import {
   MAX_CUSTOM_STRUCTURES_PER_USER,
@@ -95,6 +94,7 @@ import {
 import {
   MAX_SAVED_PLANS_PER_USER,
 } from '@/features/industry-planner/api-contract';
+import { postForm, postJson } from '@/lib/__tests__/route-requests';
 import { dependencyUnavailableFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 import { apiResponse } from '@/transport/api-response';
@@ -134,25 +134,6 @@ const CORP_RIGS_BODY = {
   rigTypeIds: [37170],
   taxPct: 1.5,
 };
-
-function jsonRequest(path: string, body: unknown, authorization?: string): NextRequest {
-  return new NextRequest(`http://localhost:3000${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authorization ? { Authorization: authorization } : {}),
-    },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
-
-function formRequest(path: string, fields: Record<string, string>): NextRequest {
-  return new NextRequest(`http://localhost:3000${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(fields),
-  });
-}
 
 async function expectProblem(
   response: Response,
@@ -208,13 +189,13 @@ afterEach(() => {
 describe('route-level problem status matrix', () => {
   it('covers 400 parse and domain failures', async () => {
     await expectProblem(
-      await postFeedback(jsonRequest('/api/feedback', '{not json')),
+      await postFeedback(postJson('/api/feedback', '{not json')),
       400,
       'invalid_json',
     );
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', {
+        postJson('/api/feedback', {
           title: 'hello',
           message: 'hello',
           path: 'not-a-path',
@@ -232,12 +213,12 @@ describe('route-level problem status matrix', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     await expectProblem(
-      await postSavedPlan(jsonRequest('/api/account/saved-plans', SAVED_PLAN_BODY)),
+      await postSavedPlan(postJson('/api/account/saved-plans', SAVED_PLAN_BODY)),
       401,
       'unauthenticated',
     );
     await expectProblem(
-      await postEveToken(jsonRequest('/api/internal/eve-token', EVE_BODY)),
+      await postEveToken(postJson('/api/internal/eve-token', EVE_BODY)),
       401,
       'unauthenticated',
     );
@@ -250,7 +231,7 @@ describe('route-level problem status matrix', () => {
     });
     await expectProblem(
       await postAdminRole(
-        formRequest('/api/admin/role', { userId: 'target-user', nextRole: 'ADMIN' }),
+        postForm('/api/admin/role', { userId: 'target-user', nextRole: 'ADMIN' }),
       ),
       403,
       'forbidden',
@@ -266,7 +247,7 @@ describe('route-level problem status matrix', () => {
     });
     await expectProblem(
       await postCorpRigs(
-        jsonRequest('/api/account/corp-structures/rigs', CORP_RIGS_BODY),
+        postJson('/api/account/corp-structures/rigs', CORP_RIGS_BODY),
       ),
       403,
       'not_station_manager',
@@ -277,7 +258,7 @@ describe('route-level problem status matrix', () => {
     h.accountBelongsToUser.mockResolvedValue(false);
     await expectProblem(
       await postEveToken(
-        jsonRequest('/api/internal/eve-token', EVE_BODY, `Bearer ${SECRET}`),
+        postJson('/api/internal/eve-token', EVE_BODY, { authorization: `Bearer ${SECRET}` }),
       ),
       404,
       'not_found',
@@ -291,7 +272,7 @@ describe('route-level problem status matrix', () => {
     );
     await expectProblem(
       await postAdminRole(
-        formRequest('/api/admin/role', { userId: 'missing-user', nextRole: 'ADMIN' }),
+        postForm('/api/admin/role', { userId: 'missing-user', nextRole: 'ADMIN' }),
       ),
       404,
       'user_not_found',
@@ -302,21 +283,21 @@ describe('route-level problem status matrix', () => {
     h.tokenService.mockResolvedValue({ kind: 'reauth_required' });
     await expectProblem(
       await postEveToken(
-        jsonRequest('/api/internal/eve-token', EVE_BODY, `Bearer ${SECRET}`),
+        postJson('/api/internal/eve-token', EVE_BODY, { authorization: `Bearer ${SECRET}` }),
       ),
       409,
       'reauth_required',
     );
     h.countSavedPlans.mockResolvedValue(MAX_SAVED_PLANS_PER_USER);
     await expectProblem(
-      await postSavedPlan(jsonRequest('/api/account/saved-plans', SAVED_PLAN_BODY)),
+      await postSavedPlan(postJson('/api/account/saved-plans', SAVED_PLAN_BODY)),
       409,
       'template_limit',
     );
     h.countCustomStructures.mockResolvedValue(MAX_CUSTOM_STRUCTURES_PER_USER);
     await expectProblem(
       await postCustomStructure(
-        jsonRequest('/api/account/custom-structures', CUSTOM_STRUCTURE_BODY),
+        postJson('/api/account/custom-structures', CUSTOM_STRUCTURE_BODY),
       ),
       409,
       'structure_limit',
@@ -333,7 +314,7 @@ describe('route-level problem status matrix', () => {
       },
     });
     const response = await postFeedback(
-      jsonRequest('/api/feedback', {
+      postJson('/api/feedback', {
         title: 'hello',
         message: 'hello',
         path: '/sites',
@@ -348,7 +329,7 @@ describe('route-level problem status matrix', () => {
     h.tokenService.mockResolvedValue({ kind: 'upstream_error' });
     await expectProblem(
       await postEveToken(
-        jsonRequest('/api/internal/eve-token', EVE_BODY, `Bearer ${SECRET}`),
+        postJson('/api/internal/eve-token', EVE_BODY, { authorization: `Bearer ${SECRET}` }),
       ),
       502,
       'upstream_error',
@@ -356,7 +337,7 @@ describe('route-level problem status matrix', () => {
     h.fetchWithTimeout.mockResolvedValue(new Response('denied', { status: 429 }));
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', {
+        postJson('/api/feedback', {
           title: 'hello',
           message: 'hello',
           path: '/sites',
@@ -372,7 +353,7 @@ describe('route-level problem status matrix', () => {
     vi.stubEnv('LINEAR_API_KEY', '');
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', {
+        postJson('/api/feedback', {
           title: 'hello',
           message: 'hello',
           path: '/sites',
@@ -404,7 +385,7 @@ describe('route-level problem status matrix', () => {
     h.fetchWithTimeout.mockRejectedValueOnce(new Error(seededSecret));
 
     const response = await postFeedback(
-      jsonRequest('/api/feedback', {
+      postJson('/api/feedback', {
         title: 'hello',
         message: 'hello',
         path: '/sites',

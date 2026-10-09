@@ -1,6 +1,6 @@
-import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MarketPrice } from '@/data/market-prices/types';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 
 const getLivePricesMock = vi.fn();
@@ -19,16 +19,7 @@ vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
 
-function buildRequest(body: unknown, ip = '1.2.3.4'): NextRequest {
-  return new NextRequest('http://localhost:3000/api/market-prices/refresh', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-forwarded-for': ip,
-    },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/market-prices/refresh';
 
 function price(typeId: number, source: MarketPrice['source']): MarketPrice {
   return {
@@ -83,7 +74,7 @@ describe('POST /api/market-prices/refresh', () => {
 
   it('reads the requested typeIds live and returns the fresh rows', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ typeIds: [34] }));
+    const res = await POST(postJson(ROUTE, { typeIds: [34] }));
     expect(res.status).toBe(200);
     expect(getLivePricesMock).toHaveBeenCalledWith([34], expect.any(Function));
     const body = await res.json();
@@ -96,7 +87,7 @@ describe('POST /api/market-prices/refresh', () => {
   it('omits types the engine returned no price for', async () => {
     getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ typeIds: [34, 99] }));
+    const res = await POST(postJson(ROUTE, { typeIds: [34, 99] }));
     const body = await res.json();
     expect(body.prices).toHaveLength(1);
     expect(body.prices[0].typeId).toBe(34);
@@ -124,7 +115,7 @@ describe('POST /api/market-prices/refresh', () => {
       },
     });
     const { POST } = await import('./route');
-    await POST(buildRequest({ typeIds: [34, 35, 36] }));
+    await POST(postJson(ROUTE, { typeIds: [34, 35, 36] }));
     expect(emitCostMetricMock).toHaveBeenCalledWith(
       'price_source_degraded',
       {
@@ -150,7 +141,7 @@ describe('POST /api/market-prices/refresh', () => {
       },
     });
     const { POST } = await import('./route');
-    await POST(buildRequest({ typeIds: [34] }));
+    await POST(postJson(ROUTE, { typeIds: [34] }));
     expect(emitCostMetricMock).toHaveBeenCalledWith(
       'price_source_degraded',
       expect.any(Object),
@@ -159,7 +150,7 @@ describe('POST /api/market-prices/refresh', () => {
 
   it('emits no degradation metric on a clean all-ESI read', async () => {
     const { POST } = await import('./route');
-    await POST(buildRequest({ typeIds: [34] }));
+    await POST(postJson(ROUTE, { typeIds: [34] }));
     expect(emitCostMetricMock).toHaveBeenCalledTimes(2);
     expect(emitCostMetricMock).not.toHaveBeenCalledWith(
       'price_source_degraded',
@@ -180,14 +171,14 @@ describe('POST /api/market-prices/refresh', () => {
 
   it('deduplicates typeIds before passing to the engine', async () => {
     const { POST } = await import('./route');
-    await POST(buildRequest({ typeIds: [34, 34, 35] }));
+    await POST(postJson(ROUTE, { typeIds: [34, 34, 35] }));
     const passed = getLivePricesMock.mock.calls[0]![0] as number[];
     expect(passed.sort()).toEqual([34, 35]);
   });
 
   it('rejects an empty typeIds array', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ typeIds: [] }));
+    const res = await POST(postJson(ROUTE, { typeIds: [] }));
     expect(res.status).toBe(400);
     const body = problemBodySchema.parse(await res.json());
     expect(body.code).toBe('invalid_body');
@@ -197,27 +188,27 @@ describe('POST /api/market-prices/refresh', () => {
   it('rejects more than 50 typeIds', async () => {
     const { POST } = await import('./route');
     const tooMany = Array.from({ length: 51 }, (_, i) => i + 1);
-    const res = await POST(buildRequest({ typeIds: tooMany }));
+    const res = await POST(postJson(ROUTE, { typeIds: tooMany }));
     expect(res.status).toBe(400);
     expect(getLivePricesMock).not.toHaveBeenCalled();
   });
 
   it('rejects non-integer typeIds', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ typeIds: [34.5] }));
+    const res = await POST(postJson(ROUTE, { typeIds: [34.5] }));
     expect(res.status).toBe(400);
     expect(getLivePricesMock).not.toHaveBeenCalled();
   });
 
   it('rejects negative typeIds', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ typeIds: [-1] }));
+    const res = await POST(postJson(ROUTE, { typeIds: [-1] }));
     expect(res.status).toBe(400);
   });
 
   it('returns 400 on malformed JSON', async () => {
     const { POST } = await import('./route');
-    const res = await POST(buildRequest('{ not json'));
+    const res = await POST(postJson(ROUTE, '{ not json'));
     expect(res.status).toBe(400);
     const body = problemBodySchema.parse(await res.json());
     expect(body.code).toBe('invalid_json');
@@ -233,7 +224,7 @@ describe('POST /api/market-prices/refresh', () => {
       },
     });
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ typeIds: [34] }));
+    const res = await POST(postJson(ROUTE, { typeIds: [34] }));
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('42');
     const body = problemBodySchema.parse(await res.json());
@@ -247,7 +238,8 @@ describe('POST /api/market-prices/refresh', () => {
 
   it('hands the request and the slice limit policy to the guard', async () => {
     const { POST } = await import('./route');
-    await POST(buildRequest({ typeIds: [34] }, '203.0.113.99'));
+    const headers = { 'x-forwarded-for': '203.0.113.99' };
+    await POST(postJson(ROUTE, { typeIds: [34] }, { headers }));
     expect(checkRateLimitMock).toHaveBeenCalledTimes(1);
     const [guardedRequest, options] = checkRateLimitMock.mock.calls[0] ?? [];
     expect(guardedRequest.headers.get('x-forwarded-for')).toBe('203.0.113.99');

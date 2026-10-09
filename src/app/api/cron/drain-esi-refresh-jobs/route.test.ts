@@ -29,6 +29,7 @@ vi.mock('next/server', () => ({
   connection: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 import { GET, maxDuration } from './route';
 
 const COUNTS = {
@@ -41,21 +42,14 @@ const COUNTS = {
   recovered: 2,
 };
 
-function authedRequest(): Request {
-  return new Request(
-    'http://localhost:3000/api/cron/drain-esi-refresh-jobs',
-    {
-      headers: { authorization: 'Bearer test-secret' },
-    },
-  );
-}
+const ROUTE = '/api/cron/drain-esi-refresh-jobs';
 
 describe('GET /api/cron/drain-esi-refresh-jobs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-17T13:00:00.000Z'));
-    vi.stubEnv('CRON_SECRET', 'test-secret');
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     lockGot = true;
     mocks.alert.mockResolvedValue({ status: 'below-threshold', count: 0 });
     mocks.drain.mockResolvedValue(COUNTS);
@@ -83,7 +77,7 @@ describe('GET /api/cron/drain-esi-refresh-jobs', () => {
   });
 
   it('always drains, including stale-job recovery', async () => {
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(maxDuration).toBe(300);
     expect(await response.json()).toEqual({
@@ -107,7 +101,7 @@ describe('GET /api/cron/drain-esi-refresh-jobs', () => {
   it('returns a durable-silent busy summary when the lock is held', async () => {
     lockGot = false;
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toMatchObject({
       status: 'skipped',

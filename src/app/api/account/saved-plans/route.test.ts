@@ -30,8 +30,8 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEventMock(...args),
 }));
 
-import { NextRequest } from 'next/server';
 import { MAX_SAVED_PLANS_PER_USER } from '@/features/industry-planner/api-contract';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { GET, POST } from './route';
 
@@ -48,16 +48,7 @@ const planRow = {
 
 const VALID_BODY = { name: 'Hulk batch', snapshot: { v: 1, blueprintTypeId: 22548 } };
 
-function makeRequest(body: unknown, origin?: string): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/saved-plans', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(origin ? { Origin: origin } : {}),
-    },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/account/saved-plans';
 
 beforeEach(() => {
   h.getCurrentUserIdMock.mockReset();
@@ -92,13 +83,13 @@ describe('GET /api/account/saved-plans', () => {
 
 describe('POST /api/account/saved-plans', () => {
   it('returns 400 for an invalid body', async () => {
-    const res = await POST(makeRequest({ name: 'no snapshot' }));
+    const res = await POST(postJson(ROUTE, { name: 'no snapshot' }));
     expect(res.status).toBe(400);
     expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for malformed JSON', async () => {
-    const res = await POST(makeRequest('{not valid json'));
+    const res = await POST(postJson(ROUTE, '{not valid json'));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_json',
@@ -109,7 +100,7 @@ describe('POST /api/account/saved-plans', () => {
 
   it('returns 400 when the blueprint does not resolve', async () => {
     h.getBlueprintStructureMock.mockResolvedValue(null);
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'unknown_blueprint',
@@ -121,7 +112,7 @@ describe('POST /api/account/saved-plans', () => {
     h.countSavedPlansMock
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER + 1);
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(409);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'template_limit',
@@ -137,7 +128,7 @@ describe('POST /api/account/saved-plans', () => {
     h.countSavedPlansMock
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER);
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ plans: [planRow] });
     expect(h.createSavedPlanMock).toHaveBeenCalledWith(

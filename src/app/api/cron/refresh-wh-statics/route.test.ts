@@ -5,6 +5,7 @@ import {
   whStaticsSnapshots,
   whSystemStatics,
 } from '@/data/wh-statics/schema';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const probeMock = vi.fn();
 const recordChangedMock = vi.fn();
@@ -59,12 +60,7 @@ const harness = await createDbTestHarness({
   resetBetweenTests: 'truncate',
 });
 
-function authedRequest(): Request {
-  return new Request(
-    'http://localhost:3000/api/cron/refresh-wh-statics',
-    { headers: { authorization: 'Bearer test-secret' } },
-  );
-}
+const ROUTE = '/api/cron/refresh-wh-statics';
 
 const BASELINE = { etag: '"feed-10"', latestSnapshotId: 11 } as const;
 
@@ -82,7 +78,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     reserveMock.mockClear();
     reservedTag.mockClear();
     releaseMock.mockClear();
-    vi.stubEnv('CRON_SECRET', 'test-secret');
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
@@ -94,7 +90,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
   it('finishes an unchanged conditional probe before reserving the lock', async () => {
     probeResolves({ status: 'unchanged' });
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
     expect(reserveMock).not.toHaveBeenCalled();
@@ -111,7 +107,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       reason: 'anoik.is request failed: offline',
     });
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({
       status: 'feed-unavailable',
@@ -177,7 +173,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       });
 
       const { GET } = await import('./route');
-      const response = await GET(authedRequest());
+      const response = await GET(cronRequest(ROUTE));
 
       expect((await response.json()).status).toBe('feed-unavailable');
       await expect(readSystemStatics(harness.db)).resolves.toEqual(before);
@@ -207,7 +203,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     probeResolves(feed);
     recordChangedMock.mockResolvedValue(result);
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual(result);
     expect(recordChangedMock).toHaveBeenCalledWith(
@@ -237,7 +233,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     probeResolves(feed);
     recordChangedMock.mockResolvedValue({ status: 'unchanged' });
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
     expect(recordChangedMock).toHaveBeenCalledWith(
@@ -262,7 +258,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     probeResolves(feed);
     recordChangedMock.mockResolvedValue({ status: 'stale-observation' });
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'stale-observation' });
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -280,7 +276,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       lastModified: null,
     });
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'busy' });
     expect(recordChangedMock).not.toHaveBeenCalled();

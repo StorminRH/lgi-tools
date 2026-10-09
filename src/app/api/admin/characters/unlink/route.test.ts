@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ADMIN_SESSION = {
@@ -32,15 +31,10 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
+import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/characters/unlink', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/admin/characters/unlink';
 
 function locationOf(res: Response): string {
   return res.headers.get('location') ?? '';
@@ -61,20 +55,20 @@ describe('POST /api/admin/characters/unlink', () => {
   it('refuses non-admins, a malformed form, an unowned character, and the last character', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_SESSION, isAdmin: false });
     expect(
-      (await POST(buildRequest({ userId: 'eve-user-2', characterId: '200' }))).status,
+      (await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '200' }))).status,
     ).toBe(403);
 
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    expect((await POST(buildRequest({ userId: 'eve-user-2' }))).status).toBe(400);
+    expect((await POST(postForm(ROUTE, { userId: 'eve-user-2' }))).status).toBe(400);
 
     accountBelongsToUserMock.mockResolvedValue(false);
     expect(
-      (await POST(buildRequest({ userId: 'eve-user-2', characterId: '999' }))).status,
+      (await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '999' }))).status,
     ).toBe(404);
 
     accountBelongsToUserMock.mockResolvedValue(true);
     listLinkedCharactersMock.mockResolvedValue([{ characterId: 100 }]);
-    const last = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
+    const last = await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '100' }));
     expect(last.status).toBe(303);
     expect(locationOf(last)).toContain('error=last_character');
     expect(deleteLinkedCharacterMock).not.toHaveBeenCalled();
@@ -86,7 +80,7 @@ describe('POST /api/admin/characters/unlink', () => {
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     deleteLinkedCharacterMock.mockResolvedValue(true);
 
-    const active = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
+    const active = await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '100' }));
     expect(active.status).toBe(303);
     expect(locationOf(active)).toBe('http://localhost:3000/admin/users/eve-user-2');
     expect(deleteLinkedCharacterMock).toHaveBeenCalledWith(

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const refreshIndustryIndicesMock = vi.fn();
 const logUsageEventMock = vi.fn();
@@ -31,11 +32,7 @@ vi.mock('@/db', () => ({
 vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => dbMock }));
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
-function authedRequest(): Request {
-  return new Request('http://localhost:3000/api/cron/refresh-industry-indices', {
-    headers: { authorization: 'Bearer test-secret' },
-  });
-}
+const ROUTE = '/api/cron/refresh-industry-indices';
 
 const SUMMARY = {
   costIndices: { ok: true, written: 7, durationMs: 12 },
@@ -51,7 +48,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
     reserveMock.mockClear();
     reservedTag.mockClear();
     lockGot = true;
-    vi.stubEnv('CRON_SECRET', 'test-secret');
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
@@ -74,7 +71,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
   it('returns busy and records the contention metadata', async () => {
     lockGot = false;
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'busy' });
     expect(refreshIndustryIndicesMock).not.toHaveBeenCalled();
@@ -90,7 +87,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
   it('returns the dataset summary and records each dataset outcome', async () => {
     refreshIndustryIndicesMock.mockResolvedValue(SUMMARY);
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(refreshIndustryIndicesMock).toHaveBeenCalledWith(dbMock);
     expect(await response.json()).toEqual({

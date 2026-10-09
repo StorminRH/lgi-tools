@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ADMIN_SESSION = {
@@ -27,15 +26,10 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
+import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/sessions/revoke', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/admin/sessions/revoke';
 
 function locationOf(res: Response): string {
   return res.headers.get('location') ?? '';
@@ -52,14 +46,14 @@ describe('POST /api/admin/sessions/revoke', () => {
 
   it('refuses non-admins, a malformed form, self-logout, and a missing user', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_SESSION, isAdmin: false });
-    expect((await POST(buildRequest({ userId: 'eve-user-2' }))).status).toBe(403);
+    expect((await POST(postForm(ROUTE, { userId: 'eve-user-2' }))).status).toBe(403);
 
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    expect((await POST(buildRequest({}))).status).toBe(400);
-    expect((await POST(buildRequest({ userId: 'admin-1' }))).status).toBe(400);
+    expect((await POST(postForm(ROUTE, {}))).status).toBe(400);
+    expect((await POST(postForm(ROUTE, { userId: 'admin-1' }))).status).toBe(400);
 
     getUserByIdMock.mockResolvedValue(null);
-    expect((await POST(buildRequest({ userId: 'eve-user-2' }))).status).toBe(404);
+    expect((await POST(postForm(ROUTE, { userId: 'eve-user-2' }))).status).toBe(404);
     expect(revokeUserSessionsMock).not.toHaveBeenCalled();
   });
 
@@ -67,7 +61,7 @@ describe('POST /api/admin/sessions/revoke', () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
     getUserByIdMock.mockResolvedValue({ userId: 'eve-user-2', characterId: 200 });
     revokeUserSessionsMock.mockResolvedValue(3);
-    const res = await POST(buildRequest({ userId: 'eve-user-2' }));
+    const res = await POST(postForm(ROUTE, { userId: 'eve-user-2' }));
     expect(res.status).toBe(303);
     expect(locationOf(res)).toBe('http://localhost:3000/admin/users/eve-user-2');
     expect(revokeUserSessionsMock).toHaveBeenCalledWith('eve-user-2');

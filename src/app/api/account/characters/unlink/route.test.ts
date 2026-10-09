@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const SESSION = {
@@ -68,15 +67,10 @@ vi.mock('@/data/location-tracking/purge', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
+import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/characters/unlink', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/account/characters/unlink';
 
 const TWO_CHARS = [{ characterId: 100 }, { characterId: 200 }];
 
@@ -114,16 +108,16 @@ describe('POST /api/account/characters/unlink', () => {
 
   it('refuses anonymous callers, the last character, and a character not linked to the caller', async () => {
     getSessionMock.mockResolvedValue(null);
-    expect((await POST(buildRequest({ characterId: '200' }))).status).toBe(401);
+    expect((await POST(postForm(ROUTE, { characterId: '200' }))).status).toBe(401);
 
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue([{ characterId: 100 }]);
-    const last = await POST(buildRequest({ characterId: '100' }));
+    const last = await POST(postForm(ROUTE, { characterId: '100' }));
     expect(last.status).toBe(303);
     expect(locationOf(last)).toContain('error=last_character');
 
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    const notLinked = await POST(buildRequest({ characterId: '999' }));
+    const notLinked = await POST(postForm(ROUTE, { characterId: '999' }));
     expect(locationOf(notLinked)).toContain('error=not_linked');
     expect(unlinkAccountMock).not.toHaveBeenCalled();
   });
@@ -134,7 +128,7 @@ describe('POST /api/account/characters/unlink', () => {
     getStoredActiveCharacterIdMock.mockResolvedValue(100);
     unlinkAccountMock.mockResolvedValue({ status: true });
 
-    const active = await POST(buildRequest({ characterId: '100' }));
+    const active = await POST(postForm(ROUTE, { characterId: '100' }));
     expect(active.status).toBe(303);
     expect(eraseNetWorthHistoryMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(locationOf(active)).toBe('http://localhost:3000/settings/characters');
@@ -159,7 +153,7 @@ describe('POST /api/account/characters/unlink', () => {
     enqueueAffectedMapAccessChangesMock.mockClear();
     teardownLocationTrackingMock.mockClear();
     logUsageEventMock.mockClear();
-    const inactive = await POST(buildRequest({ characterId: '200' }));
+    const inactive = await POST(postForm(ROUTE, { characterId: '200' }));
     expect(inactive.status).toBe(303);
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
   });
@@ -171,7 +165,7 @@ describe('POST /api/account/characters/unlink', () => {
     unlinkAccountMock.mockResolvedValue({ status: true });
     const failure = new Error('history deletion failed');
     eraseNetWorthHistoryMock.mockRejectedValueOnce(failure);
-    await expect(POST(buildRequest({ characterId: '100' }))).rejects.toBe(failure);
+    await expect(POST(postForm(ROUTE, { characterId: '100' }))).rejects.toBe(failure);
     expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
   });
@@ -180,7 +174,7 @@ describe('POST /api/account/characters/unlink', () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     unlinkAccountMock.mockRejectedValue(new Error('boom'));
-    const res = await POST(buildRequest({ characterId: '200' }));
+    const res = await POST(postForm(ROUTE, { characterId: '200' }));
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
@@ -197,7 +191,7 @@ describe('POST /api/account/characters/unlink', () => {
     revokeUserMapClaimsMock.mockRejectedValue(new Error('Convex unavailable'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const response = await POST(buildRequest({ characterId: '100' }));
+    const response = await POST(postForm(ROUTE, { characterId: '100' }));
 
     expect(locationOf(response)).toContain('error=unlink_failed');
     expect(revokeUserMapClaimsMock).toHaveBeenCalledWith('eve-user-1', ['map-1']);
@@ -214,7 +208,7 @@ describe('POST /api/account/characters/unlink', () => {
     enqueueAffectedMapAccessChangesMock.mockRejectedValue(new Error('neon enqueue failed'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const res = await POST(buildRequest({ characterId: '100' }));
+    const res = await POST(postForm(ROUTE, { characterId: '100' }));
 
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');

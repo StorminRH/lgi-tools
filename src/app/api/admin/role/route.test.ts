@@ -1,5 +1,5 @@
-import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { postForm } from '@/lib/__tests__/route-requests';
 import type { AdminUser } from '@/platform/auth/admin-users';
 
 const ADMIN_VIEWER = {
@@ -40,14 +40,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  const body = new URLSearchParams(form).toString();
-  return new NextRequest('http://localhost:3000/api/admin/role', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-}
+const ROUTE = '/api/admin/role';
 
 describe('POST /api/admin/role', () => {
   beforeEach(() => {
@@ -66,11 +59,11 @@ describe('POST /api/admin/role', () => {
   it('returns 403 for a non-admin and for no session at all', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_VIEWER, isAdmin: false });
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
+    const res = await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'ADMIN' }));
     expect(res.status).toBe(403);
 
     getSessionMock.mockResolvedValue(null);
-    const anonymous = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
+    const anonymous = await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'ADMIN' }));
     expect(anonymous.status).toBe(403);
     expect(setUserRoleMock).not.toHaveBeenCalled();
   });
@@ -80,15 +73,15 @@ describe('POST /api/admin/role', () => {
     const { POST } = await import('./route');
 
     expect(
-      (await POST(buildRequest({ userId: ADMIN_VIEWER.user.id, nextRole: 'USER' }))).status,
+      (await POST(postForm(ROUTE, { userId: ADMIN_VIEWER.user.id, nextRole: 'USER' }))).status,
     ).toBe(400);
     expect(
-      (await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'SUPERADMIN' }))).status,
+      (await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'SUPERADMIN' }))).status,
     ).toBe(400);
 
     getUserByIdMock.mockResolvedValue(null);
     expect(
-      (await POST(buildRequest({ userId: 'eve-user-99999', nextRole: 'ADMIN' }))).status,
+      (await POST(postForm(ROUTE, { userId: 'eve-user-99999', nextRole: 'ADMIN' }))).status,
     ).toBe(404);
     expect(setUserRoleMock).not.toHaveBeenCalled();
   });
@@ -98,7 +91,7 @@ describe('POST /api/admin/role', () => {
     getUserByIdMock.mockResolvedValue(TARGET_USER);
     setUserRoleMock.mockResolvedValue({ ...TARGET_USER, role: 'ADMIN' });
     const { POST } = await import('./route');
-    const res = await POST(buildRequest({ userId: TARGET_USER.userId, nextRole: 'ADMIN' }));
+    const res = await POST(postForm(ROUTE, { userId: TARGET_USER.userId, nextRole: 'ADMIN' }));
     expect(res.status).toBe(303);
     expect(setUserRoleMock).toHaveBeenCalledWith(TARGET_USER.userId, 'ADMIN');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);

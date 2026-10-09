@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const h = vi.hoisted(() => ({
   purgeEligibleMaps: vi.fn(),
@@ -20,15 +21,11 @@ vi.mock('next/server', () => ({
   connection: vi.fn().mockResolvedValue(undefined),
 }));
 
-function authedRequest(): Request {
-  return new Request('http://localhost:3000/api/cron/purge-maps', {
-    headers: { authorization: 'Bearer cron-secret' },
-  });
-}
+const ROUTE = '/api/cron/purge-maps';
 
 beforeEach(() => {
   vi.resetModules();
-  vi.stubEnv('CRON_SECRET', 'cron-secret');
+  vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
   h.purgeEligibleMaps.mockReset().mockResolvedValue({
     selected: 2,
     tombstoned: 1,
@@ -59,7 +56,7 @@ describe('GET /api/cron/purge-maps', () => {
 
   it('runs the bounded sweep under the shared cron shell', async () => {
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       status: 'purged',

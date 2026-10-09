@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 
 const h = vi.hoisted(() => ({
@@ -6,7 +7,10 @@ const h = vi.hoisted(() => ({
   accountBelongsToUserMock: vi.fn(),
 }));
 
-vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  connection: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: h.serviceMock,
 }));
@@ -19,16 +23,8 @@ import { POST } from './route';
 const SECRET = 'svc-secret';
 const VALID_BODY = { userId: 'user-1', characterId: 1 };
 
-function makeRequest(body: unknown, authorization?: string): Request {
-  return new Request('http://localhost/api/internal/eve-token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authorization ? { Authorization: authorization } : {}),
-    },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/internal/eve-token';
+const AUTHORIZED = { authorization: `Bearer ${SECRET}` };
 
 beforeEach(() => {
   vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
@@ -45,7 +41,7 @@ describe('POST /api/internal/eve-token', () => {
   it('returns 500 when the service secret is not configured', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
     expect(res.status).toBe(500);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'not_configured',
@@ -55,7 +51,7 @@ describe('POST /api/internal/eve-token', () => {
   });
 
   it('returns 401 for a missing bearer token', async () => {
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(401);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'unauthenticated',
@@ -63,7 +59,7 @@ describe('POST /api/internal/eve-token', () => {
   });
 
   it('returns 401 for a wrong bearer token', async () => {
-    const res = await POST(makeRequest(VALID_BODY, 'Bearer nope'));
+    const res = await POST(postJson(ROUTE, VALID_BODY, { authorization: 'Bearer nope' }));
     expect(res.status).toBe(401);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'unauthenticated',
@@ -72,7 +68,7 @@ describe('POST /api/internal/eve-token', () => {
   });
 
   it('returns 400 for invalid JSON', async () => {
-    const res = await POST(makeRequest('not json{', `Bearer ${SECRET}`));
+    const res = await POST(postJson(ROUTE, 'not json{', AUTHORIZED));
     expect(res.status).toBe(400);
   });
 
@@ -88,7 +84,7 @@ describe('POST /api/internal/eve-token', () => {
   ])(
     'returns 400 for invalid body %j',
     async (body) => {
-      const res = await POST(makeRequest(body, `Bearer ${SECRET}`));
+      const res = await POST(postJson(ROUTE, body, AUTHORIZED));
       expect(res.status).toBe(400);
     },
   );
@@ -100,10 +96,9 @@ describe('POST /api/internal/eve-token', () => {
       expiresAt: 1_700_000_000_000,
     });
 
-    const res = await POST(makeRequest(
-      { userId: 'user-1', characterId: 90000001 },
-      `Bearer ${SECRET}`,
-    ));
+    const res = await POST(
+      postJson(ROUTE, { userId: 'user-1', characterId: 90000001 }, AUTHORIZED),
+    );
     expect(res.status).toBe(200);
 
     const text = await res.text();
@@ -121,7 +116,7 @@ describe('POST /api/internal/eve-token', () => {
   it('returns a not-found problem without vending when ownership fails', async () => {
     h.accountBelongsToUserMock.mockResolvedValue(false);
 
-    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
 
     expect(res.status).toBe(404);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
@@ -133,7 +128,7 @@ describe('POST /api/internal/eve-token', () => {
 
   it('maps not_found → 404', async () => {
     h.serviceMock.mockResolvedValue({ kind: 'not_found' });
-    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
     expect(res.status).toBe(404);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'not_found',
@@ -142,7 +137,7 @@ describe('POST /api/internal/eve-token', () => {
 
   it('maps reauth_required → 409', async () => {
     h.serviceMock.mockResolvedValue({ kind: 'reauth_required' });
-    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
     expect(res.status).toBe(409);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'reauth_required',
@@ -151,7 +146,7 @@ describe('POST /api/internal/eve-token', () => {
 
   it('maps upstream_error → 502', async () => {
     h.serviceMock.mockResolvedValue({ kind: 'upstream_error' });
-    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
     expect(res.status).toBe(502);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'upstream_error',

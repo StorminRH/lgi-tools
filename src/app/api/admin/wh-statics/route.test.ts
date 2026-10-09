@@ -1,5 +1,6 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { postForm } from '@/lib/__tests__/route-requests';
 import { forbiddenFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 
@@ -57,13 +58,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/wh-statics', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/admin/wh-statics';
 
 describe('POST /api/admin/wh-statics', () => {
   beforeEach(() => {
@@ -79,7 +74,7 @@ describe('POST /api/admin/wh-statics', () => {
   it('refuses a caller without admin authority before the origin check', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN, isAdmin: false });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ action: 'refresh' }));
+    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
 
     expect(response.status).toBe(403);
     expect(sameOriginMock).not.toHaveBeenCalled();
@@ -95,7 +90,7 @@ describe('POST /api/admin/wh-statics', () => {
       ),
     });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ action: 'refresh' }));
+    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
 
     expect(response.status).toBe(403);
     expect(problemBodySchema.parse(await response.json())).toMatchObject({
@@ -106,8 +101,8 @@ describe('POST /api/admin/wh-statics', () => {
 
   it('rejects an invalid action and missing snapshot id through the slice schema', async () => {
     const { POST } = await import('./route');
-    const invalidAction = await POST(buildRequest({ action: 'apply' }));
-    const missingSnapshot = await POST(buildRequest({ action: 'promote' }));
+    const invalidAction = await POST(postForm(ROUTE, { action: 'apply' }));
+    const missingSnapshot = await POST(postForm(ROUTE, { action: 'promote' }));
 
     expect(invalidAction.status).toBe(400);
     expect(missingSnapshot.status).toBe(400);
@@ -118,7 +113,7 @@ describe('POST /api/admin/wh-statics', () => {
   it('runs the shared on-demand refresh and redirects with its outcome', async () => {
     refreshMock.mockResolvedValue({ status: 'snapshot-pending' });
     const { POST } = await import('./route');
-    const response = await POST(buildRequest({ action: 'refresh' }));
+    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
 
     expect(refreshMock).toHaveBeenCalledOnce();
     expect(response.status).toBe(303);
@@ -135,7 +130,7 @@ describe('POST /api/admin/wh-statics', () => {
     });
     const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'promote', snapshotId: '7' }),
+      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
     );
 
     expect(promoteMock).toHaveBeenCalledWith(7);
@@ -149,7 +144,7 @@ describe('POST /api/admin/wh-statics', () => {
     rejectMock.mockResolvedValue(undefined);
     const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'reject', snapshotId: '8' }),
+      postForm(ROUTE, { action: 'reject', snapshotId: '8' }),
     );
 
     expect(rejectMock).toHaveBeenCalledWith(8);
@@ -163,7 +158,7 @@ describe('POST /api/admin/wh-statics', () => {
     promoteMock.mockRejectedValue(new SnapshotStateError(7, 'promoted'));
     const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'promote', snapshotId: '7' }),
+      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
     );
 
     expect(response.status).toBe(409);
@@ -176,7 +171,7 @@ describe('POST /api/admin/wh-statics', () => {
     promoteMock.mockRejectedValue(new EmptySnapshotError(7));
     const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'promote', snapshotId: '7' }),
+      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
     );
 
     expect(response.status).toBe(409);
