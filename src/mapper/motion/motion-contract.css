@@ -1,4 +1,3 @@
-[data-map-shell],
 [data-map-motion-scope] {
   /* React Flow's own edge greys (#b1b1b7, selected #555) read darker when
    * selected on a dark canvas. Route them through the palette instead. */

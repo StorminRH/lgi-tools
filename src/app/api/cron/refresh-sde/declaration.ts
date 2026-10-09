@@ -3,7 +3,7 @@ import { revalidateTag } from 'next/cache';
 import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
 import {
   ADVISORY_LOCK_SDE_INGEST,
-  BLUEPRINT_STRUCTURE_TAG,
+  SDE_CACHE_TAG,
   SDE_META_KEY_VERSION,
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
@@ -79,7 +79,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     if (remoteVersion) {
       await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
     }
-    revalidateTag(BLUEPRINT_STRUCTURE_TAG, 'max');
+    revalidateTag(SDE_CACHE_TAG, 'max');
     const marketPrices = await summarizeMarketPricesRowCount(db);
 
     return {

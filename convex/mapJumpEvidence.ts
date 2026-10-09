@@ -22,6 +22,9 @@ function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
   });
 }
 
+/** What every early return reports in place of origin evidence it never read. */
+const NO_ORIGIN = { originLive: false, scannedTypeCodes: [], candidates: [] };
+
 export const jumpEvidence = internalQuery({
   args: {
     userId: v.string(),
@@ -36,9 +39,7 @@ export const jumpEvidence = internalQuery({
         tracked: false as const,
         transition: null,
         lastProcessedTransitionAt: null,
-        originLive: false,
-        scannedTypeCodes: [],
-        candidates: [],
+        ...NO_ORIGIN,
       };
     }
 
@@ -49,9 +50,7 @@ export const jumpEvidence = internalQuery({
         tracked: false as const,
         transition: null,
         lastProcessedTransitionAt: null,
-        originLive: false,
-        scannedTypeCodes: [],
-        candidates: [],
+        ...NO_ORIGIN,
       };
     }
     const { location } = tracked;
@@ -61,9 +60,7 @@ export const jumpEvidence = internalQuery({
         tracked: true as const,
         transition: null,
         lastProcessedTransitionAt: null,
-        originLive: false,
-        scannedTypeCodes: [],
-        candidates: [],
+        ...NO_ORIGIN,
       };
     }
     const stamp = await ctx.db
@@ -89,9 +86,7 @@ export const jumpEvidence = internalQuery({
         tracked: true as const,
         transition,
         lastProcessedTransitionAt,
-        originLive: false,
-        scannedTypeCodes: [],
-        candidates: [],
+        ...NO_ORIGIN,
       };
     }
     const fromSolarSystemId = location.prevSolarSystemId;

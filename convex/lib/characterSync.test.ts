@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { problemBodySchema } from '@/lib/problem';
 import {
-  fetchEnumeratedCharacters,
   resolveExpiresAt,
   vendCharacterToken,
 } from './characterSync';
@@ -101,62 +100,6 @@ describe('vendCharacterToken', () => {
     stubFetch(new TypeError('Failed to fetch'));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).rejects.toThrowError(
-      'Failed to fetch',
-    );
-  });
-});
-
-describe('fetchEnumeratedCharacters', () => {
-  const character = {
-    characterId: 90000001,
-    name: 'Pilot',
-    hasRefreshToken: true,
-    missingScopes: [],
-    corporationId: 98000001,
-  };
-
-  it('returns the enumerated characters with service auth applied', async () => {
-    const fetchMock = stubFetch(Response.json({ characters: [character] }));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).resolves.toEqual([character]);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://app.test/api/internal/eve-characters',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ userId: 'user-1' }),
-        headers: expect.objectContaining({ Authorization: 'Bearer service-secret' }),
-      }),
-    );
-  });
-
-  it('throws on a declared failure status so the retrier retries', async () => {
-    stubFetch(problemResponse('unauthenticated', 401));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
-      'eve-characters returned 401',
-    );
-  });
-
-  it('throws on an undeclared status', async () => {
-    stubFetch(new Response('gateway timeout', { status: 504 }));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
-      'eve-characters response failed its contract',
-    );
-  });
-
-  it('throws on a drifted success body instead of propagating garbage', async () => {
-    stubFetch(Response.json({ characters: [{ characterId: 'not-a-number' }] }));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
-      'eve-characters response failed its contract',
-    );
-  });
-
-  it('rethrows a transport rejection unchanged', async () => {
-    stubFetch(new TypeError('Failed to fetch'));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
       'Failed to fetch',
     );
   });

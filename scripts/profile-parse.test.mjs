@@ -21,6 +21,7 @@ import {
   shapeProfileResult,
   summariseProfileSuite,
   summarisePhaseSamples,
+  timestampSlug,
 } from './profile-parse.mjs';
 
 describe('parseDevRequestLine durations', () => {
@@ -153,6 +154,10 @@ describe('profile labels', () => {
   it.each(['', 'UPPER', 'has space', '../escape', 'a'.repeat(33)])('rejects %s', (label) => {
     expect(isValidProfileLabel(label)).toBe(false);
   });
+
+  it('slugs an ISO timestamp into a filename-safe stamp', () => {
+    expect(timestampSlug('2026-10-09T12:34:56.789Z')).toBe('20261009T123456789Z');
+  });
 });
 
 describe('parseProfileArgs', () => {
@@ -182,6 +187,7 @@ describe('database preflight', () => {
 
   it('accepts only the postgres-js loopback target', () => {
     expect(isLocalDatabaseTarget(parseDatabaseTarget('postgres://x@127.0.0.1:5433/db', 'postgres-js'))).toBe(true);
+    expect(isLocalDatabaseTarget(parseDatabaseTarget('postgres://x@[::1]:5433/db', 'postgres-js'))).toBe(true);
     expect(isLocalDatabaseTarget(parseDatabaseTarget('postgres://x@db.example.com/db', 'postgres-js'))).toBe(false);
     expect(isLocalDatabaseTarget(parseDatabaseTarget('postgres://x@localhost/db', 'neon-http'))).toBe(false);
   });

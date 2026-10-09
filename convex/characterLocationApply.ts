@@ -274,9 +274,7 @@ async function applyLocationResult(
       etagLocation: result.etagLocation,
       etagShip: result.etagShip,
     };
-    if (locationChanged(existing, next)) {
-      await ctx.db.patch(existing._id, next);
-    }
+    await ctx.db.patch(existing._id, next);
     return result.expiresAt;
   }
 
@@ -304,31 +302,4 @@ function isPrevFresh(
   if (freshness.lastFinishedAt === null) return false;
   if (now - freshness.lastFinishedAt > JUMP_CONTINUITY_MS) return false;
   return freshness.coveredCharacterIds.includes(characterId);
-}
-
-function locationChanged(
-  existing: Doc<'characterLocation'>,
-  next: {
-    solarSystemId: number;
-    stationId: number | null;
-    structureId: number | null;
-    shipTypeId: number | null;
-    prevSolarSystemId: number | null;
-    prevFresh: boolean;
-    transitionObservedAt: number;
-    etagLocation: string | null;
-    etagShip: string | null;
-  },
-): boolean {
-  return (
-    existing.solarSystemId !== next.solarSystemId
-    || existing.stationId !== next.stationId
-    || existing.structureId !== next.structureId
-    || existing.shipTypeId !== next.shipTypeId
-    || existing.prevSolarSystemId !== next.prevSolarSystemId
-    || existing.prevFresh !== next.prevFresh
-    || existing.transitionObservedAt !== next.transitionObservedAt
-    || existing.etagLocation !== next.etagLocation
-    || existing.etagShip !== next.etagShip
-  );
 }

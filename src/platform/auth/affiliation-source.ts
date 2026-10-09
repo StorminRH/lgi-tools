@@ -68,6 +68,7 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchR
       return { rows: [absentAffiliation(batch[0]!)], transientFailure: false };
     }
     const mid = Math.ceil(batch.length / 2);
+    // Halves run in sequence so concurrent 404s cannot overshoot the ESI error floor.
     const left = await fetchAffiliationBatch(batch.slice(0, mid));
     const right = await fetchAffiliationBatch(batch.slice(mid));
     return {

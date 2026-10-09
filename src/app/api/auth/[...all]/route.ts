@@ -10,12 +10,21 @@ import { problemResponse } from '@/transport/api-response';
 // authz: public
 const { GET: betterAuthGet, POST: betterAuthPost } = toNextJsHandler(auth);
 
+/** The signed-in user's id from a get-session body, which is `null` when signed out. */
+function sessionUserId(body: unknown): string | null {
+  const user: unknown = typeof body === 'object' && body !== null && 'user' in body ? body.user : null;
+  const id: unknown = typeof user === 'object' && user !== null && 'id' in user ? user.id : null;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
+
 export async function GET(request: Request): Promise<Response> {
   const { result: response, merged } = await runWithMergeTracking(() => betterAuthGet(request));
-  if (new URL(request.url).pathname === '/api/auth/get-session') {
+  if (new URL(request.url).pathname === '/api/auth/get-session' && response.ok) {
+    // Clone before the body streams to the client or is rewrapped below; after() runs once it is sent.
+    const session = response.clone();
     after(async () => {
-      const session = await auth.api.getSession({ headers: request.headers });
-      if (session) await checkUserCharacterAuthorizations(session.user.id);
+      const userId = sessionUserId(await session.json().catch(() => null));
+      if (userId) await checkUserCharacterAuthorizations(userId);
     });
   }
   if (!merged) return response;

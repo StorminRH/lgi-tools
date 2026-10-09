@@ -80,7 +80,7 @@ const COLUMNS: readonly StaticTableColumn<TeamRow>[] = [
 
 /**
  * Each member's general job-time skills and slots side by side. Slots read
- * used over total when jobs are known, total alone otherwise.
+ * used over total, as the capacity panel does, with "?" for what is unknown.
  */
 function TeamSkillsPanel({
   members,

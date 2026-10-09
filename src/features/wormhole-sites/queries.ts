@@ -2,6 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from './schema';
+import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
@@ -182,6 +183,7 @@ export async function listSiteDetails(filters: {
 }): Promise<SiteDetail[]> {
   'use cache';
   cacheLife('max');
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const conditions = [
       filters.type ? eq(sites.siteType, filters.type) : undefined,
@@ -323,6 +325,7 @@ export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
 async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   'use cache';
   cacheLife('max');
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
     if (!site) return null;

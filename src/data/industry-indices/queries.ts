@@ -34,36 +34,29 @@ export async function getSystemCostIndices(systemId: number): Promise<SystemCost
   return batch.get(systemId) ?? new Map();
 }
 
-export async function getAdjustedPrices(typeIds: number[]): Promise<Map<number, number>> {
+/** One IN read of a nullable price column; NULL rows are dropped, 0 is kept as a real price. */
+async function readPriceColumn(
+  typeIds: number[],
+  column: 'adjustedPrice' | 'averagePrice',
+): Promise<Map<number, number>> {
   if (typeIds.length === 0) return new Map();
   const rows = await defaultDb
-    .select({ typeId: adjustedPrices.typeId, adjustedPrice: adjustedPrices.adjustedPrice })
+    .select({ typeId: adjustedPrices.typeId, price: adjustedPrices[column] })
     .from(adjustedPrices)
     .where(inArray(adjustedPrices.typeId, typeIds));
 
   const out = new Map<number, number>();
   for (const r of rows) {
-    if (r.adjustedPrice !== null) out.set(r.typeId, r.adjustedPrice);
+    if (r.price !== null) out.set(r.typeId, r.price);
   }
   return out;
+}
+
+export function getAdjustedPrices(typeIds: number[]): Promise<Map<number, number>> {
+  return readPriceColumn(typeIds, 'adjustedPrice');
 }
 
 /** CCP's rolling average per type; types without one are absent. */
-export async function getAveragePrices(typeIds: number[]): Promise<Map<number, number>> {
-  if (typeIds.length === 0) return new Map();
-  const rows = await defaultDb
-    .select({ typeId: adjustedPrices.typeId, averagePrice: adjustedPrices.averagePrice })
-    .from(adjustedPrices)
-    .where(inArray(adjustedPrices.typeId, typeIds));
-
-  const out = new Map<number, number>();
-  for (const r of rows) {
-    if (r.averagePrice !== null) out.set(r.typeId, r.averagePrice);
-  }
-  return out;
-}
-
-export async function getAdjustedPrice(typeId: number): Promise<number | null> {
-  const prices = await getAdjustedPrices([typeId]);
-  return prices.get(typeId) ?? null;
+export function getAveragePrices(typeIds: number[]): Promise<Map<number, number>> {
+  return readPriceColumn(typeIds, 'averagePrice');
 }

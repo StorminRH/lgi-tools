@@ -1,5 +1,5 @@
 import { gasClassRange } from './gas-classes';
-import { WORMHOLE_CLASSES } from './schema';
+import { WORMHOLE_CLASSES } from './site-taxonomy';
 import type { SiteListItem, SiteType, WormholeClass } from './types';
 
 export function siteClassSet(

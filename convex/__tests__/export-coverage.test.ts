@@ -110,10 +110,6 @@ import {
   reassociateJumpDestination,
 } from '../mapJumpIdentity';
 import { deleteForMapCharacter, purgeForMap } from '../mapJumpBookkeeping';
-import {
-  HALLWAY_BACKFILL_BATCH,
-  backfillHallwayConnections,
-} from '../mapHallwayBackfill';
 import { purgeMapBatch } from '../mapPurge';
 import {
   STATIC_BACKFILL_BATCH,
@@ -245,8 +241,6 @@ describe('convex runtime exports', () => {
       supersedeDyingPairsForEndpoints,
       deleteForMapCharacter,
       purgeForMap,
-      HALLWAY_BACKFILL_BATCH,
-      backfillHallwayConnections,
       purgeMapBatch,
       STATIC_BACKFILL_BATCH,
       applyStaticPlaceholders,

@@ -13,7 +13,6 @@ vi.mock('@/db', () => ({
 }));
 
 import {
-  getAdjustedPrice,
   getAdjustedPrices,
   getAveragePrices,
   getSystemCostIndices,
@@ -56,9 +55,9 @@ describe('getSystemCostIndices', () => {
 describe('getAdjustedPrices', () => {
   it('builds Map<typeId, price>, skipping NULL-priced rows', async () => {
     cannedRows = [
-      { typeId: 34, adjustedPrice: 2.9 },
-      { typeId: 41, adjustedPrice: 0 },
-      { typeId: 99, adjustedPrice: null },
+      { typeId: 34, price: 2.9 },
+      { typeId: 41, price: 0 },
+      { typeId: 99, price: null },
     ];
     const out = await getAdjustedPrices([34, 41, 99]);
     expect(out.get(34)).toBe(2.9);
@@ -70,22 +69,12 @@ describe('getAdjustedPrices', () => {
 describe('getAveragePrices', () => {
   it('builds Map<typeId, average>, skipping rows without one', async () => {
     cannedRows = [
-      { typeId: 44992, averagePrice: 4_690_000 },
-      { typeId: 34, averagePrice: 3.1 },
-      { typeId: 99, averagePrice: null },
+      { typeId: 44992, price: 4_690_000 },
+      { typeId: 34, price: 3.1 },
+      { typeId: 99, price: null },
     ];
     const out = await getAveragePrices([44992, 34, 99]);
     expect(out).toEqual(new Map([[44992, 4_690_000], [34, 3.1]]));
     expect((await getAveragePrices([])).size).toBe(0);
-  });
-});
-
-describe('getAdjustedPrice', () => {
-  it('returns the price or null', async () => {
-    cannedRows = [{ typeId: 34, adjustedPrice: 2.9 }];
-    expect(await getAdjustedPrice(34)).toBe(2.9);
-
-    cannedRows = [];
-    expect(await getAdjustedPrice(99)).toBeNull();
   });
 });

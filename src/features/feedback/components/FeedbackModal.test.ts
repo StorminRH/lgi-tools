@@ -101,14 +101,14 @@ test('a valid submission sends the page path and reports success, server refusal
   expect(sent.setState().mock.calls).toEqual([[{ kind: 'submitting' }], [{ kind: 'success' }]]);
   vi.unstubAllGlobals();
 
-  api.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'http', status: 429, error: {} });
+  api.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'api', status: 429, error: {} });
   const limited = render({ 0: 'Map crash', 1: 'It broke' });
   await limited.submit();
   expect(limited.setState()).toHaveBeenLastCalledWith({
     kind: 'error', message: 'Too much feedback too fast — please wait a minute and try again.',
   });
 
-  api.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  api.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'network', aborted: false, cause: new Error('offline') });
   const offline = render({ 0: 'Map crash', 1: 'It broke' });
   await offline.submit();
   expect(offline.setState()).toHaveBeenLastCalledWith({

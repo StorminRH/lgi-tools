@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from 'next/cache';
 import {
-  BLUEPRINT_STRUCTURE_TAG,
   DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL,
+  SDE_CACHE_TAG,
 } from '@/data/eve-data/constants';
 import {
   getActivityByBlueprint,
@@ -115,7 +115,7 @@ export async function getBlueprintStructure(
 ): Promise<BlueprintStructure | null> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const chosen = await getBlueprintOutput(blueprintId);
     if (!chosen) return null;
@@ -202,7 +202,7 @@ export async function getBlueprintPricing(
 ): Promise<BlueprintPricing | null> {
   'use cache';
   cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG, BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(PRICES_FRESHNESS_TAG, SDE_CACHE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId);
   if (!structure) return null;
@@ -232,7 +232,7 @@ export async function getBlueprintPricing(
 export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
 
   const rows = await withColdStartRetry(() => getBlueprintSearchRows());
 

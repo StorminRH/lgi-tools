@@ -1,9 +1,5 @@
-import { cacheLife, cacheTag } from 'next/cache';
+import { cacheLife } from 'next/cache';
 import { postUniverseNames } from './universe-names';
-
-function entityNameTag(id: number): string {
-  return `eve-entity-name-${id}`;
-}
 
 const NAME_CACHE_LIFE = 'days';
 
@@ -11,7 +7,6 @@ const RESOLVE_CONCURRENCY = 8;
 
 async function fetchEntityName(id: number): Promise<string> {
   'use cache: remote';
-  cacheTag(entityNameTag(id));
   cacheLife(NAME_CACHE_LIFE);
   const posted = await postUniverseNames([id]);
   if (!posted.ok) throw new Error(`EVE entity name request failed (${posted.status})`);

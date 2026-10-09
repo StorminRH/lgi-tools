@@ -52,7 +52,7 @@ export function SiteCardHeader({
           <SiteCardValue view={view} resources={liveResources} />
         </span>
       </div>
-      {view.subLine && <div className="text-micro tracking-[0.04em] text-muted">{view.subLine}</div>}
+      {view.subLine && <div className="text-micro tracking-copy text-muted">{view.subLine}</div>}
       <div
         className={
           centered

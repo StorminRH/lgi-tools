@@ -1,8 +1,8 @@
 import { runMutationRoute } from '@/app/api/mutation-route';
+import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { leaveSyncEndpoint, leaveSyncRequestSchema } from '@/data/convex/api-contract';
 import { LeaveSyncDoorError, postLeaveSync } from '@/data/convex/leave-door';
 import { dependencyUnavailableFailure } from '@/lib/failure';
-import { checkRateLimit } from '@/lib/rate-limit';
 import { checkUserId } from '@/composition/route-guards';
 import { apiResponse, problemResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
@@ -11,13 +11,11 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'sync.leave-location',
-    preflight: async () => {
-      const limit = await checkRateLimit(request, {
-        name: 'sync-leave',
-        perMinute: 30,
-      });
-      return limit.ok ? null : problemResponse(limit.failure);
-    },
+    preflight: rateLimitPreflight(
+      request,
+      { name: 'sync-leave', perMinute: 30 },
+      problemResponse,
+    ),
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, leaveSyncRequestSchema),
     handle: async ({ userId }, body) => {

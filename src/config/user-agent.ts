@@ -1,6 +1,7 @@
 import { APP_VERSION } from './app-version';
+import { PRODUCTION_SITE_URL } from './site-url';
 
-const OUTBOUND_CONTACT = 'https://lgi.tools/contact';
+const OUTBOUND_CONTACT = `${PRODUCTION_SITE_URL}/contact`;
 
 /**
  * Sent on every outbound third-party call (ESI, Fuzzwork). Conventional ESI

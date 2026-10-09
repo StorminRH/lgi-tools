@@ -86,6 +86,16 @@ const legacyTypeRoleSelectors = [
     message:
       "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
   },
+  {
+    selector: "Literal[value=/(?:^|[\\s:])tracking-\\[0?\\.(?:01|04|08|12|18)em\\]/]",
+    message:
+      "No arbitrary tracking that equals a registered step — use tracking-optical (0.01em), tracking-copy (0.04em), tracking-label (0.08em), tracking-wide (0.12em) or tracking-eyebrow (0.18em).",
+  },
+  {
+    selector: "TemplateElement[value.raw=/(?:^|[\\s:])tracking-\\[0?\\.(?:01|04|08|12|18)em\\]/]",
+    message:
+      "No arbitrary tracking that equals a registered step (template literal) — use tracking-optical/copy/label/wide/eyebrow.",
+  },
 ];
 
 const roundedSizeSelectors = [
@@ -538,6 +548,21 @@ const serverRootImportPatterns = [
   },
 ];
 
+const wormholeSiteSchemaImportPatterns = [
+  {
+    group: [
+      "./schema",
+      "../schema",
+      "@/features/wormhole-sites/schema",
+      "drizzle-orm",
+      "drizzle-orm/*",
+    ],
+    allowTypeImports: true,
+    message:
+      "Wormhole-site modules reach client bundles, and the Drizzle schema's module-scope pgTable/pgEnum calls would ship pg-core with them. Import site constants from ./site-taxonomy or ./sleeper-classes; only schema.ts and queries.ts load Drizzle at runtime.",
+  },
+];
+
 function selectorsWithout(selectors, exemptions) {
   return selectors.filter((selector) => !exemptions.includes(selector));
 }
@@ -832,6 +857,56 @@ const eslintConfig = defineConfig([
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
             ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/wormhole-sites/**/*.{ts,tsx,mts}"],
+    ignores: [
+      "src/features/wormhole-sites/schema.ts",
+      "src/features/wormhole-sites/queries.ts",
+      "src/features/wormhole-sites/**/*.test.{ts,tsx}",
+      "src/features/wormhole-sites/components/**",
+      "src/features/wormhole-sites/**/use-*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...vendorImportPatterns,
+            ...crossCuttingImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...wormholeSiteSchemaImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/features/wormhole-sites/components/**/*.{ts,tsx,mts}",
+      "src/features/wormhole-sites/**/use-*.{ts,tsx}",
+    ],
+    ignores: ["src/features/wormhole-sites/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...vendorImportPatterns,
+            ...crossCuttingImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+            ...wormholeSiteSchemaImportPatterns,
           ],
         },
       ],

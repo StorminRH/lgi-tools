@@ -617,12 +617,6 @@ const syntheticPilotRoute = mutationRoute({
   evidence:
     'Same-origin localhost development POST resets the fixed test pilot and replaces all prior sessions. Repeating the request intentionally erases new fixture data and rotates the cookie again. Concurrent resets are not serialized.',
 });
-const internalEveCharactersRoute = mutationRoute({
-  route: 'src/app/api/internal/eve-characters/route.ts',
-  verdict: 'inherently-idempotent',
-  evidence:
-    'Machine-to-machine read of linked characters for the Convex isolate; writes nothing.',
-});
 const internalEveTokenRoute = mutationRoute({
   route: 'src/app/api/internal/eve-token/route.ts',
   verdict: 'key-protected',
@@ -690,7 +684,6 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   marketHistoryRefreshRoute,
   authCatchAllRoute,
   syntheticPilotRoute,
-  internalEveCharactersRoute,
   internalEveTokenRoute,
   telemetryRoute,
   syncLeaveRoute,

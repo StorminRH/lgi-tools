@@ -2,7 +2,6 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useState, ViewTransition } from 'react';
-import type { BoardCharacter } from '@/composition/board/api-contract';
 import { useBoardLive } from '../board/use-board-live';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Banner } from '@/components/ui/banner';
@@ -58,7 +57,7 @@ export interface WorkspaceCorpJobs {
 
 /**
  * Slot capacity and usage for every linked character, from one skills read
- * and the page's one jobs read. Selecting a portrait reads nothing new.
+ * and the page's one jobs read. Selecting a portrait reads no new skills or jobs.
  */
 function useCapacities(
   roster: readonly RosterCharacter[] | null,
@@ -120,8 +119,6 @@ function characterNamer(
 }
 
 interface BoardData {
-  characters: readonly BoardCharacter[];
-  now: number;
   roster: readonly RosterCharacter[];
   capacities: ReadonlyMap<number, MemberCapacity>;
   levels: ReadonlyMap<number, Record<string, number> | null>;
@@ -162,8 +159,6 @@ function ProfileBoard({
           controls={controls}
           doc={doc}
           member={member}
-          character={data.characters.find((character) => character.characterId === member.characterId) ?? null}
-          now={data.now}
           levels={levels}
           capacities={capacities}
           onBack={toOverview}
@@ -223,7 +218,6 @@ function ProfileWorkspaceBody({
 }) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const structures = useAvailableStructures();
-  const board = useBoardLive();
   const { capacities, levels } = useCapacities(roster, jobs, corp, corpEligible);
   const { selection, selectProfile } = useProfileNavigation(state.profiles);
   const profile = selection.profile;
@@ -269,7 +263,7 @@ function ProfileWorkspaceBody({
             onAction={(action: ProfileAction) => setDialog({ kind: action })}
           />
         }
-        data={{ roster, capacities, levels, structures, hulls, characters: board.response?.characters ?? [], now: board.now }}
+        data={{ roster, capacities, levels, structures, hulls }}
         onEdit={(next) => state.save(profile.id, { name: profile.name, document: next })}
         onRemove={(characterId) => setDialog({ kind: 'remove-member', characterId })}
       />
@@ -278,9 +272,11 @@ function ProfileWorkspaceBody({
   );
 }
 
+/**
+ * One member's sheet. Only an open member reads the account board, for its
+ * identity header; the overview never shows it, so the landing skips that read.
+ */
 function OpenMember({
-  character,
-  now,
   controls,
   doc,
   member,
@@ -293,8 +289,6 @@ function OpenMember({
 }: {
   controls: ReactNode;
   doc: ProfileDocument;
-  character: BoardCharacter | null;
-  now: number;
   member: RailMember;
   levels: ReadonlyMap<number, Record<string, number> | null>;
   capacities: ReadonlyMap<number, MemberCapacity>;
@@ -304,12 +298,14 @@ function OpenMember({
   onRemove: (characterId: number) => void;
 }) {
   const { characterId } = member;
+  const board = useBoardLive();
+  const character = board.response?.characters.find((c) => c.characterId === characterId) ?? null;
   return (
     <MemberSheet
       controls={controls}
       member={member}
       character={character}
-      now={now}
+      now={board.now}
       levels={levels.get(characterId) ?? null}
       capacities={capacities}
       onBack={onBack}

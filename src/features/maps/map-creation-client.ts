@@ -4,6 +4,7 @@ import {
 } from '@/data/maps/api-contract';
 import { apiFetch } from '@/transport/api-client';
 import type { PreparedMapCreation } from './access-editor-model';
+import { atlasMapHref } from './map-navigation';
 
 export const MAP_CREATION_INTERSTITIAL_MIN_MS = 5_000;
 
@@ -46,8 +47,7 @@ export function handoffCreatedMap(
   actions.reset();
   actions.close();
   actions.onCreated(mapId);
-  const query = new URLSearchParams({ map: mapId });
-  actions.navigate(`/atlas?${query.toString()}`);
+  actions.navigate(atlasMapHref(mapId));
 }
 
 export type MapCreationSubmitStart =

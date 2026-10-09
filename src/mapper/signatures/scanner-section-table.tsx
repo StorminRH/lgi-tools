@@ -19,11 +19,11 @@ import {
   type WormholeCellContext,
 } from './scanner-wormhole-cells';
 import {
+  signatureIdentityKey,
   type ScannerSection,
   type ScannerSectionId,
   type SignatureWindowRow,
 } from './signature-model';
-import { signatureIdentityKey } from './signature-update-flash';
 import { scannerRowShowsOpenAffordance } from './scanner-row-open';
 
 const SECTION_COLUMNS: Readonly<Record<ScannerSectionId, string>> = {

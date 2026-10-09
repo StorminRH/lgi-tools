@@ -11,7 +11,7 @@ import { purgeLocationTracking } from '@/data/location-tracking/purge';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
-import { readEnv, isHostedVercel } from '@/lib/env';
+import { readAuthSecret, readEnv, isHostedVercel } from '@/lib/env';
 import { isLocalUrl } from '@/lib/url-safety';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
@@ -44,7 +44,7 @@ function assertLocalSyntheticEnvironment(): string {
   if (convexUrl && !isLocalUrl(convexUrl, ['http:'])) {
     throw new Error('Synthetic pilot reset requires a local HTTP NEXT_PUBLIC_CONVEX_URL');
   }
-  const secret = readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET');
+  const secret = readAuthSecret();
   if (!secret) {
     throw new Error(
       'BETTER_AUTH_SECRET or SESSION_SECRET is required to mint the synthetic pilot session',

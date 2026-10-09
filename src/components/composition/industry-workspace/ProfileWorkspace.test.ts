@@ -21,6 +21,12 @@ const live = vi.hoisted(() => ({
   boardCharacters: null as BoardCharacter[] | null,
   now: Date.parse('2026-10-01T12:00:00Z'),
 }));
+const useBoardLive = vi.hoisted(() =>
+  vi.fn(() => ({
+    response: live.boardCharacters === null ? null : { characters: live.boardCharacters },
+    now: live.now,
+  })),
+);
 
 // Next serves the app its canary React, which has <ViewTransition>; the stable
 // React that vitest resolves does not, so stand in a pass-through.
@@ -53,12 +59,7 @@ vi.mock('@/components/PreferencesProvider', () => ({
 vi.mock('@/features/industry-jobs/use-slots-live', () => ({
   useSlotsLive: () => ({ characters: live.slots, loading: false }),
 }));
-vi.mock('../board/use-board-live', () => ({
-  useBoardLive: () => ({
-    response: live.boardCharacters === null ? null : { characters: live.boardCharacters },
-    now: live.now,
-  }),
-}));
+vi.mock('../board/use-board-live', () => ({ useBoardLive }));
 vi.mock('@/features/industry-planner/use-available-structures', () => ({
   useAvailableStructures: () => live.structures,
 }));
@@ -105,6 +106,14 @@ function capacityReadout(html: string): string {
   const capacity = html.match(/<dl aria-label="Production capacity"[^>]*>([\s\S]*?)<\/dl>/);
   expect(capacity).not.toBeNull();
   return capacity?.[1] ?? '';
+}
+
+/** A member's slot cells in the team table, in manufacturing, reactions, science order. */
+function slotCells(html: string, name: string): string[] {
+  const table = html.match(/<table aria-label="Production skills by member"[^>]*>([\s\S]*?)<\/table>/);
+  expect(table).not.toBeNull();
+  const row = (table?.[1] ?? '').split('</tr>').find((tr) => tr.includes(name)) ?? '';
+  return [...row.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((cell) => cell[1] ?? '');
 }
 
 function jobsFor(characterId: number, activities: readonly number[]): ViewerJobs {
@@ -172,9 +181,12 @@ test('the workspace walks from signed out, to a first profile, to a team and one
     { characterId: REACTOR.characterId, levels: null },
   ];
   live.structures = [TATARA];
-  // With no member open, the rail sits beside the whole profile.
+  // With no member open, the rail sits beside the whole profile, and the
+  // account board, which only a member's identity needs, stays unread.
   live.params = new URLSearchParams('profile=caps');
+  useBoardLive.mockClear();
   const team = render();
+  expect(useBoardLive).not.toHaveBeenCalled();
   expect(team).toContain('Capital line');
   expect(team).toContain(`data-member-id="${BUILDER.characterId}"`);
   expect(team).toContain(`${BUILDER.name}: Capital ships · All components`);
@@ -191,15 +203,21 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(team).toContain('aria-label="Add a facility"');
   expect(team).toContain('Production Capacity');
   expect(capacityReadout(team)).toContain('?/8+');
+  // Each member's row reads its slots the way the panel does: known totals
+  // beside unknown usage, and "?" for skills that have not synced.
+  expect(slotCells(team, BUILDER.name)).toEqual(['?/8', '?/1', '?/1']);
+  expect(slotCells(team, REACTOR.name)).toEqual(['?/?', '?/?', '?/?']);
   expect(team).toContain('1 unlinked character is excluded.');
   // Skills that have not synced stay unknown rather than showing a zero bonus.
   expect(team).toContain('Syncing');
   expect(team).not.toContain('All members');
   expect(team).not.toContain('The profile in this link no longer exists');
 
-  // A member in the link opens on its own sheet in place of the rail.
+  // A member in the link opens on its own sheet in place of the rail, which
+  // reads the account board once for its identity.
   live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
   const reactor = render();
+  expect(useBoardLive).toHaveBeenCalledTimes(1);
   expect(reactor).toContain(`aria-label="${REACTOR.name} in Capital line"`);
   expect(reactor).toContain('All members');
   expect(reactor).not.toContain('data-member-id');

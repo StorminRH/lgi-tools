@@ -4,7 +4,7 @@ import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
-  BLUEPRINT_STRUCTURE_TAG,
+  SDE_CACHE_TAG,
   SDE_META_KEY_VERSION,
 } from './constants';
 import { getSdeMetaValue } from './meta';
@@ -342,20 +342,20 @@ export async function readWormholeCodex(
 export async function getSystemDirectory(): Promise<SystemDirectoryAsset> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => readSystemDirectory(db));
 }
 
 export async function getAdjacencyGraph(): Promise<AdjacencyAsset> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => readAdjacencyGraph(db));
 }
 
 export async function getWormholeCodex(): Promise<WormholeCodexAsset> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => readWormholeCodex(db));
 }

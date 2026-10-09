@@ -9,7 +9,7 @@ import { type PanelCharacter, toPanelCharacter } from '@/platform/auth/panel-cha
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';
 import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
-import { readEnv } from '@/lib/env';
+import { readAuthSecret } from '@/lib/env';
 
 export interface IndustryCharacters {
   /** Every linked character, as the job boards list them. */
@@ -21,10 +21,6 @@ export interface IndustryCharacters {
 }
 
 type SyncEligibility = (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) => boolean;
-
-function authEnvConfigured(): boolean {
-  return Boolean(readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET'));
-}
 
 function eligibleIds(linked: readonly LinkedCharacter[], canSync: SyncEligibility): number[] {
   return linked
@@ -64,7 +60,7 @@ export const industryCharacters = cache(async (): Promise<IndustryCharacters | n
     return await readIndustryCharacters();
   } catch (err) {
     unstable_rethrow(err);
-    if (err instanceof BetterAuthError && !authEnvConfigured()) return null;
+    if (err instanceof BetterAuthError && !readAuthSecret()) return null;
     throw err;
   }
 });

@@ -1,3 +1,5 @@
+import { readEnv } from '@/lib/env';
+
 /**
  * Advisory-lock id for the daily GSC sync cron — skips an overlapping run of
  * itself under Vercel's at-least-once cron delivery, so a duplicate dispatch
@@ -24,6 +26,6 @@ export const UPSERT_CHUNK_ROWS = 500;
 export const GSC_INSPECTION_URL_LIMIT = 500;
 export const GSC_INSPECTION_BATCH_SIZE = 5;
 
-export function isGscConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env.GSC_SERVICE_ACCOUNT_JSON && env.GSC_SITE_URL);
+export function isGscConfigured(): boolean {
+  return Boolean(readEnv('GSC_SERVICE_ACCOUNT_JSON') && readEnv('GSC_SITE_URL'));
 }

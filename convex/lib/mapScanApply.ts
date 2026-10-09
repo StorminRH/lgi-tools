@@ -125,11 +125,10 @@ export async function applyScannedRow(
   systemId: number,
   now: number,
 ): Promise<ApplyOutcome> {
-  const connection = findPasteConnection(state.connections, systemId, row.signatureId);
-  if (connection !== undefined) {
-    return (await applyWormholeRow(ctx, state, row, mapId, systemId, now)).outcome;
-  }
-  if (row.group === 'Wormhole') {
+  if (
+    row.group === 'Wormhole'
+    || findPasteConnection(state.connections, systemId, row.signatureId) !== undefined
+  ) {
     return (await applyWormholeRow(ctx, state, row, mapId, systemId, now)).outcome;
   }
   return await applyListRow(ctx, state, row, mapId, systemId, now);

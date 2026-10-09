@@ -16,8 +16,6 @@ import { formatUtcDate, formatRemaining } from '@/lib/format/time';
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-export const BOARD_LOAD_FAILED = 'Couldn’t load your characters — reload the page to try again.';
-
 function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
 }

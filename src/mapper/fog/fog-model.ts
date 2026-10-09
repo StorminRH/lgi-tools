@@ -2,7 +2,7 @@ import type { ChainNode } from '../canvas/SystemNode';
 import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import { frameCenter } from '../canvas/edge-geometry';
 import type { ChainEdge } from '../chain/nodes';
-import { springFamily, type MotionConfig } from '../motion/motion-contract';
+import { SETTLE_SPRING, type MotionConfig } from '../motion/motion-contract';
 
 const FOG_REVEAL_RADIUS = 280;
 
@@ -140,7 +140,7 @@ export function fogTimingOf(config: MotionConfig, reducedMotion: boolean): FogTi
     closeMs: config.tempo.mid,
     heavyCloseMs: config.tempo.slow,
     wakeMs: config.tempo.fast * 2,
-    ease: reducedMotion ? (t: number) => t : springFamily(0).ease,
+    ease: reducedMotion ? (t: number) => t : SETTLE_SPRING.ease,
     reducedMotion,
   };
 }

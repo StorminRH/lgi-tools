@@ -136,3 +136,21 @@ test('rejects foreign Origin/Referer, null, and malformed headers and swallows t
     expect(consoleError).toHaveBeenCalledWith('[same-origin] telemetry write failed', error);
   });
 });
+
+test('falls back to the production origin when the auth and site URLs are unusable', async () => {
+  vi.stubEnv('BETTER_AUTH_URL', undefined);
+  vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'not a URL');
+  vi.resetModules();
+  const { requireSameOrigin: requireSameOriginWithBadSiteUrl } = await import('./same-origin');
+  const internalUrl = 'http://internal.example/api/preferences';
+
+  expect(
+    requireSameOriginWithBadSiteUrl(mutationRequest({ origin: 'https://lgi.tools' }, internalUrl)),
+  ).toEqual({ ok: true });
+  expect(
+    requireSameOriginWithBadSiteUrl(mutationRequest({ origin: 'https://foreign.example' }, internalUrl)),
+  ).toMatchObject({
+    ok: false,
+    failure: { category: 'forbidden', code: 'cross_origin' },
+  });
+});

@@ -188,13 +188,14 @@ export function stepMotion(
   return { state: next, displacements, active: !isIdle(next), changed };
 }
 
-function pruneBy<Key, Value>(
+/** Filters a Map, returning `entries` itself when every entry is kept. */
+export function pruneBy<Key, Value>(
   entries: ReadonlyMap<Key, Value>,
-  keep: (value: Value) => boolean,
+  keep: (value: Value, key: Key) => boolean,
 ): ReadonlyMap<Key, Value> {
   let expired = false;
-  for (const value of entries.values()) {
-    if (!keep(value)) {
+  for (const [key, value] of entries) {
+    if (!keep(value, key)) {
       expired = true;
       break;
     }
@@ -202,7 +203,7 @@ function pruneBy<Key, Value>(
   if (!expired) return entries;
   const kept = new Map<Key, Value>();
   for (const [key, value] of entries) {
-    if (keep(value)) kept.set(key, value);
+    if (keep(value, key)) kept.set(key, value);
   }
   return kept;
 }
