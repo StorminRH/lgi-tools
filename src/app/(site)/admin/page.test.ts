@@ -68,6 +68,7 @@ function page(): Promise<string> {
 
 describe('admin overview', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.stubEnv('GSC_SITE_URL', '');
     m.loadAdminSignals.mockResolvedValue(SIGNALS);
     m.getAccountTotals.mockResolvedValue({ users: 12, characters: 30 });
@@ -105,8 +106,9 @@ describe('admin overview', () => {
     expect(html).toContain('>87 left</span>');
     expect(html).toContain('>Price cron</span>');
     expect(html).toContain('<span class="sr-only">Healthy</span>');
-    // One read of the signals per card that needs them; React cache makes it one per request.
-    expect(m.loadAdminSignals.mock.calls.every(([key]) => key === '7d')).toBe(true);
+    // Attention and the three status cards each ask for the signals by range
+    // key; in the app React cache turns those four asks into one read.
+    expect(m.loadAdminSignals.mock.calls).toEqual([['7d'], ['7d'], ['7d'], ['7d']]);
   });
 
   it('blanks only the card whose read failed', async () => {
