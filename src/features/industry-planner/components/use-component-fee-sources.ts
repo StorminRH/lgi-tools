@@ -93,7 +93,6 @@ export function useComponentFeeSources(
   );
   useResourceRead(read, { enabled: key !== '', onData: setIndices, refreshKey });
   const readPrices = useCallback(async (signal: AbortSignal): Promise<ReadPrices | null> => {
-    if (priceSystemId === null) return null;
     const data = await readWithRetries(async () => {
       const res = await apiFetch(buildLocationEndpoint, {
         body: { systemId: priceSystemId, blueprintId: structure.blueprintTypeId },
@@ -109,7 +108,7 @@ export function useComponentFeeSources(
       prices: data ? new Map(data.adjustedPrices.map((p) => [p.typeId, p.adjustedPrice])) : null,
     };
   }, [priceSystemId, priceKey, structure.blueprintTypeId, refreshKey]);
-  const readPricesEnabled = needAdjustedPrices && priceSystemId !== null;
+  const readPricesEnabled = needAdjustedPrices && siteOf !== null;
   useResourceRead(readPrices, { enabled: readPricesEnabled, onData: setPrices, refreshKey });
   const sources = useMemo(() => {
     if (!siteOf) return null;

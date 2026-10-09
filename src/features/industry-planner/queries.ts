@@ -260,7 +260,7 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
 }
 
 export async function getBuildLocation(
-  systemId: number,
+  systemId: number | null,
   blueprintId: number,
 ): Promise<BuildLocationData> {
   const structure = await getBlueprintStructure(blueprintId);
@@ -268,8 +268,8 @@ export async function getBuildLocation(
   const baseTypeIds = dedupe(collectTreeTypeIds(structure?.tree ?? []));
 
   const [stations, costIndices, adjustedMap] = await Promise.all([
-    getIndustryStationsForSystem(systemId),
-    getSystemCostIndices(systemId),
+    systemId === null ? [] : getIndustryStationsForSystem(systemId),
+    systemId === null ? new Map<string, number>() : getSystemCostIndices(systemId),
     getAdjustedPrices(baseTypeIds),
   ]);
 

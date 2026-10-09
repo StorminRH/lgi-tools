@@ -175,6 +175,14 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
 
 /** The job's install fee where the profile runs it; amber where it counts an unpriced input as nothing. */
 function InstallFee({ fee, refreshing }: { fee: NonNullable<ComponentSheet['installFee']>; refreshing: boolean }) {
+  const { feesPending, locationFailed } = useBuildSetup();
+  const status = fee.systemId === null
+    ? 'Choose an installation system to calculate fees.'
+    : feesPending
+      ? 'Loading installation fees…'
+      : locationFailed
+        ? 'Installation fees could not be loaded. Retry in build setup.'
+        : null;
   return (
     <div className="flex flex-col gap-0.5 px-2">
       <div className="flex items-baseline justify-between">
@@ -182,10 +190,12 @@ function InstallFee({ fee, refreshing }: { fee: NonNullable<ComponentSheet['inst
         <LivePrice
           value={formatIsk(fee.value)}
           pending={refreshing}
-          className={cn('font-data text-ui', fee.unpriced.length > 0 ? 'text-dps-mid' : 'text-isk')}
+          className={cn('font-data text-ui', status === null && fee.unpriced.length > 0 ? 'text-dps-mid' : 'text-isk')}
         />
       </div>
-      <UnpricedInputs names={fee.unpriced} className="self-end" />
+      {status === null
+        ? <UnpricedInputs names={fee.unpriced} className="self-end" />
+        : <p className="self-end text-right font-data text-micro text-muted">{status}</p>}
     </div>
   );
 }
