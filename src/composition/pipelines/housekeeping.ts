@@ -16,6 +16,7 @@ import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants'
 import { pruneWhStaticsSnapshots } from '@/data/wh-statics/queries';
 import { db } from '@/db';
 import type { BatchedDeleteResult } from '@/lib/batched-delete';
+import { errorMessage } from '@/lib/failure';
 import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
@@ -109,10 +110,6 @@ const DELETE_TASKS: readonly DeleteTask[] = [
     run: (now, deadline) => pruneStaleMarketHistory(db, now, deadline),
   },
 ];
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 async function runDelete(
   task: DeleteTask,

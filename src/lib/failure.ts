@@ -99,3 +99,8 @@ export function isAppFailure(value: unknown): value is AppFailure {
     typeof value.code === 'string'
   );
 }
+
+/** The message of an Error, or the string form of anything else thrown, for logs and stored outcomes. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

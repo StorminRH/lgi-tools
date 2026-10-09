@@ -33,7 +33,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P100](#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |
 | ☑ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
 | ☑ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
-| ☐ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
+| ☑ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
 | ☐ | [P249](#p249) | Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions | contracts-validation | S | low | low | — |
 | ☐ | [P145](#p145) | Promote hasTimeoutAbort to a chain-aware isTimeoutError in lib and use it in every timeout classifier | error-handling | S | low | medium | — |
 | ☐ | [P140](#p140) | Move readWithRetries and a shared sleep into src/lib/retry.ts, let withColdStartRetry absorb warmNeon, and share the planner build-location read | error-handling | M | low | medium | [P145](#p145) |
@@ -830,7 +830,7 @@ Do not route halo through the helper. Its per-exit and total budgets, and a reje
 
 ## P151: Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -12 in callers (two 3-line helpers plus blanks deleted, three inline ternaries shortened), +4 helper, +10 test
 - **Depends on:** —

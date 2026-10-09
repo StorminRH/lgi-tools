@@ -9,6 +9,7 @@ import {
   decideOnlineProbe,
   type HeldOnlineState,
 } from '@/data/location-tracking/online-probe';
+import { errorMessage } from '@/lib/failure';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
 import { internal } from './_generated/api';
@@ -94,10 +95,7 @@ export const syncUser = internalAction({
     try {
       outcome = await runLocationSync(ctx, userId, leases);
     } catch (error) {
-      outcome = {
-        kind: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      };
+      outcome = { kind: 'failed', error: errorMessage(error) };
     }
     await ctx.runMutation(internal.characterLocationApply.finishSync, {
       userId,
