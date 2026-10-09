@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#652](https://github.com/StorminRH/lgi-tools/pull/652).
+
 [Index](README.md#roadmap) · [Wave 2: Tooling and test-harness foundations](wave-02-tooling-and-test-harness-foundations.md) →
 
 Shrink the surface every later wave would otherwise migrate, and land the cheap but real fixes first:
