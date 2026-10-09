@@ -1,4 +1,4 @@
-import type { SiteType, WormholeClass } from './schema';
+import type { SiteType, WormholeClass } from './site-taxonomy';
 
 export type { SiteType, WormholeClass };
 export type { Npc, SiteDetail, SiteResource, Wave } from './api-contract';

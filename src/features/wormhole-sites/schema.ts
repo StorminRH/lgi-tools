@@ -1,36 +1,5 @@
 import { bigint, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
-
-export const SITE_TYPES = ['combat', 'gas', 'ore', 'relic', 'data'] as const;
-export type SiteType = typeof SITE_TYPES[number];
-
-export const WORMHOLE_CLASSES = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'] as const;
-export type WormholeClass = typeof WORMHOLE_CLASSES[number];
-
-export const SIGNATURE_LABELS = [
-  'Anomaly',
-  'Relic Signature',
-  'Data Signature',
-  'Gas Signature',
-  'Ore Signature',
-] as const;
-export type SignatureLabel = typeof SIGNATURE_LABELS[number];
-
-export const TRIGGER_LABELS = [
-  'Trigger',
-  'Opt',
-  'DTA',
-  '1st Death Trigger',
-  'Opt?',
-  'Trigger on Attack',
-] as const;
-export type TriggerLabel = typeof TRIGGER_LABELS[number];
-
-export const SLEEPER_CLASS_CODES = ['F', 'C', 'B', 'T'] as const;
-export type SleeperClassCode = typeof SLEEPER_CLASS_CODES[number];
-
-export function isSleeperClassCode(code: string): code is SleeperClassCode {
-  return (SLEEPER_CLASS_CODES as readonly string[]).includes(code);
-}
+import { SITE_TYPES, WORMHOLE_CLASSES } from './site-taxonomy';
 
 export const siteTypeEnum = pgEnum('site_type', SITE_TYPES);
 export const wormholeClassEnum = pgEnum('wormhole_class', WORMHOLE_CLASSES);

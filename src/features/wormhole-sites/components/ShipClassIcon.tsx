@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import { isSleeperClassCode, type SleeperClassCode } from '../schema';
+import { isSleeperClassCode, type SleeperClassCode } from '../sleeper-classes';
 
 const CLASS_GLYPH: Record<SleeperClassCode, ReactNode> = {
   F: <polyline points="3,6 8,10.5 13,6" />,

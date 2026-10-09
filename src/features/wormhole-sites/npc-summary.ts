@@ -1,5 +1,4 @@
-import { isSleeperClassCode, type SleeperClassCode } from './schema';
-import { SLEEPER_CLASS_ORDER } from './sleeper-classes';
+import { isSleeperClassCode, SLEEPER_CLASS_CODES, type SleeperClassCode } from './sleeper-classes';
 import type { SiteDetail } from './types';
 
 export interface ShipClassSummary {
@@ -19,7 +18,7 @@ export function summariseSiteShipClasses(site: SiteDetail): ShipClassSummary[] {
   }
 
   const summary: ShipClassSummary[] = [];
-  for (const code of SLEEPER_CLASS_ORDER) {
+  for (const code of SLEEPER_CLASS_CODES) {
     const count = counts.get(code);
     if (count) summary.push({ code, count });
   }
