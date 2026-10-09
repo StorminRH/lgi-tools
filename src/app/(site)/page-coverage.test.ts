@@ -86,7 +86,6 @@ import {
   getPriceSourceDegradationShared,
   getStaticsReviewShared,
 } from '@/app/(site)/admin/shared-reads';
-import { ActivityCard, PilotsCard, TrafficLists } from '@/app/(site)/admin/traffic/TrafficCards';
 import AppSiteAdminTrafficPage from '@/app/(site)/admin/traffic/page';
 import AppSiteAtlasError from '@/app/(site)/atlas/error';
 import { metadata } from '@/app/(site)/atlas/page';
@@ -169,9 +168,6 @@ describe('coverage-gaps', () => {
       AppSiteAdminSearchPage,
       AppSiteAdminStaticsPage,
       getStaticsReviewShared,
-      ActivityCard,
-      PilotsCard,
-      TrafficLists,
       AppSiteAdminTrafficPage,
       AppSiteAtlasError,
       metadata,

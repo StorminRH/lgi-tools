@@ -5,6 +5,7 @@ import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
 import {
   getCronOutcomes,
   getLastCronRuns,
+  getPageViewRankings,
   getPageViewStats,
   getPriceRefreshDays,
   getPriceSourceDegradation,
@@ -64,3 +65,8 @@ function sharedPeriodRead<T>(
 }
 
 export const getPageViewStatsShared = sharedPeriodRead(getPageViewStats);
+
+// Traffic, search, queue, statics and users
+
+/** The top pages, entry pages and referrers, read once for the three cards that rank them. */
+export const getPageViewRankingsShared = sharedRangeRead((range) => getPageViewRankings(range, 10));
