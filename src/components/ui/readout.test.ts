@@ -21,7 +21,21 @@ describe('ReadoutLine', () => {
     expect(value).toEqual(expect.arrayContaining(['max-w-1/2', 'wrap-anywhere', 'text-right']));
     expect(value).not.toContain('shrink-0');
     expect(value).not.toContain('whitespace-nowrap');
-    expect(html).toContain('<span class="min-w-0 flex-1"><span class="block font-ui text-ui text-text wrap-break-word">Price cron');
+    expect(html).toContain('<span class="min-w-0 grow basis-1/2"><span class="block font-ui text-ui text-text wrap-break-word">Price cron');
+  });
+
+  it('starts the label at half the row so a long value and a trailing control cannot squeeze it to a sliver', () => {
+    const html = renderToStaticMarkup(
+      createElement(ReadoutLine, {
+        label: 'Dead-lettered owned-data refreshes for characters without a valid token',
+        value: '3 dead · 12 queued',
+        trailing: createElement('button', { type: 'button' }, 'Open'),
+      }),
+    );
+    const label = /<span class="([^"]*)"><span class="block font-ui/.exec(html)![1]!.split(' ');
+    expect(label).toEqual(expect.arrayContaining(['min-w-0', 'grow', 'basis-1/2']));
+    expect(label).not.toContain('shrink-0');
+    expect(html).toContain('<span class="flex h-lh shrink-0 items-center text-ui"><button type="button">Open</button></span>');
   });
 
   it('wraps the note instead of truncating it', () => {
