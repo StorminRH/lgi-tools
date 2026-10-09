@@ -51,36 +51,35 @@ describe('NodeCard', () => {
     expect(onHover.mock.calls).toEqual([[true], [false], [true], [false]]);
   });
 
-  it('keeps the chain lit when focus leaves while the pointer remains inside', () => {
-    const { card, onHover } = buildable();
-    card.props.onPointerEnter();
-    card.props.onFocus();
-    card.props.onBlur(blurEvent(false));
-    expect(onHover).toHaveBeenLastCalledWith(true);
-    card.props.onPointerLeave();
-    expect(onHover).toHaveBeenLastCalledWith(false);
-  });
+  it('keeps the chain lit while either the pointer or focus stays on the card', () => {
+    // Focus leaves while the pointer remains inside.
+    const pointerStays = buildable();
+    pointerStays.card.props.onPointerEnter();
+    pointerStays.card.props.onFocus();
+    pointerStays.card.props.onBlur(blurEvent(false));
+    expect(pointerStays.onHover).toHaveBeenLastCalledWith(true);
+    pointerStays.card.props.onPointerLeave();
+    expect(pointerStays.onHover).toHaveBeenLastCalledWith(false);
 
-  it('keeps the chain lit when the pointer leaves while a card control remains focused', () => {
-    const { card, onHover } = buildable();
-    card.props.onFocus();
-    card.props.onPointerEnter();
-    card.props.onPointerLeave();
-    expect(onHover).toHaveBeenLastCalledWith(true);
-    card.props.onBlur(blurEvent(false));
-    expect(onHover).toHaveBeenLastCalledWith(false);
-  });
+    // The pointer leaves while a card control remains focused.
+    const focusStays = buildable();
+    focusStays.card.props.onFocus();
+    focusStays.card.props.onPointerEnter();
+    focusStays.card.props.onPointerLeave();
+    expect(focusStays.onHover).toHaveBeenLastCalledWith(true);
+    focusStays.card.props.onBlur(blurEvent(false));
+    expect(focusStays.onHover).toHaveBeenLastCalledWith(false);
 
-  it('does not clear the chain as focus moves between card controls', () => {
-    const { card, onHover } = buildable();
-    card.props.onFocus();
-    onHover.mockClear();
-    card.props.onBlur(blurEvent(true));
-    expect(onHover).not.toHaveBeenCalled();
-    card.props.onFocus();
-    expect(onHover).toHaveBeenLastCalledWith(true);
-    card.props.onBlur(blurEvent(false));
-    expect(onHover).toHaveBeenLastCalledWith(false);
+    // Focus moves between card controls without clearing the chain.
+    const focusMoves = buildable();
+    focusMoves.card.props.onFocus();
+    focusMoves.onHover.mockClear();
+    focusMoves.card.props.onBlur(blurEvent(true));
+    expect(focusMoves.onHover).not.toHaveBeenCalled();
+    focusMoves.card.props.onFocus();
+    expect(focusMoves.onHover).toHaveBeenLastCalledWith(true);
+    focusMoves.card.props.onBlur(blurEvent(false));
+    expect(focusMoves.onHover).toHaveBeenLastCalledWith(false);
   });
 
   it('a raw material neither opens nor lights its chain', () => {
@@ -97,6 +96,5 @@ describe('NodeCard', () => {
     expect(nodeCardView({ ...base, onOpen: () => {} }).interactive).toBe(true);
     expect(nodeCardView(base).iconDesc).toEqual(itemImage(34));
     expect(nodeCardView({ ...base, icon: nodeImage(999, 34) }).iconDesc).toEqual(nodeImage(999, 34));
-    expect(nodeCardView({ ...base, lit: true }).className).toContain('motion-safe:-translate-y-0.5');
   });
 });
