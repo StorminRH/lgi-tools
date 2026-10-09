@@ -2,8 +2,8 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
+import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse } from '@/transport/api-response';
-import { checkRateLimit } from '@/lib/rate-limit';
 import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
 import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
 import { checkSession } from '@/composition/route-guards';
@@ -13,10 +13,11 @@ import { parseFormBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.switch-active-character',
-    preflight: async () => {
-      const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
-      return limit.ok ? null : problemResponse(limit.failure);
-    },
+    preflight: rateLimitPreflight(
+      request,
+      { name: 'account-switch', perMinute: 30 },
+      problemResponse,
+    ),
     authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,
