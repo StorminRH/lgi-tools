@@ -17,12 +17,21 @@ import type { AuthoringMenus } from './use-authoring-menus';
 
 export function useChainFocusMenus(
   canEdit: boolean | undefined,
-  menus: AuthoringMenus,
+  menus: Pick<
+    AuthoringMenus,
+    'openNodeMenu' | 'openEdgeMenu' | 'setEditingConnectionId' | 'closeEdgeMenu'
+  >,
   mapId: string,
   authoring: ChainAuthoringMutations,
   focusTokenRef: RefObject<number>,
   setFocusRequest: (request: CameraFocusRequest | null) => void,
 ) {
+  // Depend on the stable callbacks, not the menus object: useAuthoringMenus
+  // returns a fresh object every render, and a new handler identity
+  // re-renders every memoised React Flow node and edge wrapper.
+  const { openNodeMenu, openEdgeMenu, setEditingConnectionId, closeEdgeMenu } =
+    menus;
+
   const onNodeClick = useCallback<NodeMouseHandler<ChainNode>>(
     (_event, clicked) => {
       if (isStubNodeId(clicked.id)) return;
@@ -37,13 +46,13 @@ export function useChainFocusMenus(
       if (canEdit !== true) return;
       if (node.data.halo !== undefined || isStubNodeId(node.id)) return;
       event.preventDefault();
-      menus.openNodeMenu({
+      openNodeMenu({
         systemId: Number(node.id),
         clientX: event.clientX,
         clientY: event.clientY,
       });
     },
-    [canEdit, menus],
+    [canEdit, openNodeMenu],
   );
 
   const onEdgeContextMenu = useCallback<EdgeMouseHandler>(
@@ -55,13 +64,13 @@ export function useChainFocusMenus(
       });
       if (connectionId === null) return;
       event.preventDefault();
-      menus.openEdgeMenu({
+      openEdgeMenu({
         connectionId,
         clientX: event.clientX,
         clientY: event.clientY,
       });
     },
-    [canEdit, menus],
+    [canEdit, openEdgeMenu],
   );
 
   const edgeActions = useMemo(
@@ -69,11 +78,11 @@ export function useChainFocusMenus(
       edgeMenuActions({
         mapId,
         authoring,
-        openEditor: menus.setEditingConnectionId,
-        closeEditor: () => menus.setEditingConnectionId(null),
-        closeMenu: menus.closeEdgeMenu,
+        openEditor: setEditingConnectionId,
+        closeEditor: () => setEditingConnectionId(null),
+        closeMenu: closeEdgeMenu,
       }),
-    [mapId, authoring, menus],
+    [mapId, authoring, setEditingConnectionId, closeEdgeMenu],
   );
 
   return {

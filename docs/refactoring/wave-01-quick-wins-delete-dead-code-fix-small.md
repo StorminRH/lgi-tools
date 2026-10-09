@@ -35,7 +35,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P185](#p185) | Tag the wormhole-site detail caches with the SDE tag and rename it SDE_CACHE_TAG (no sdeCache helper) | server-pipeline | S | low | medium | — |
 | ☑ | [P079](#p079) | Rebuild useClientCommitted on createClientStore | client-data | S | low | low | — |
 | ☑ | [P061](#p061) | Read the user in PreferencesProvider from ReadIdentity, not a second useSession | react-hook | S | low | low | — |
-| ☐ | [P279](#p279) | Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds | efficiency | S | low | medium | — |
+| ☑ | [P279](#p279) | Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds | efficiency | S | low | medium | — |
 | ☐ | [P080](#p080) | Read the board in the industry workspace only when a member sheet is open | client-data | S | low | medium | — |
 | ☐ | [P155](#p155) | Render LoadFailed with useLiveDataset's retry in LiveBoard and delete BOARD_LOAD_FAILED | error-handling | S | low | medium | — |
 | ☐ | [P097](#p097) | Render slot pools with one poolFigure encoding in the industry workspace | formatting | S | low | low | — |
@@ -1241,7 +1241,7 @@ const set = useCallback(function set<T>(def: PreferenceDef<T>, value: T) { ...; 
 
 ## P279: Make useChainFocusMenus depend on the stable menu callbacks so React Flow's memo chain holds
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about +3/−3 in use-chain-focus-menus.ts
 - **Depends on:** —
