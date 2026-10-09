@@ -15,44 +15,14 @@ const h = vi.hoisted(() => ({
   plan: null as ProfilePlan | null,
   readLevels: null as ((signal: AbortSignal) => Promise<unknown>) | null,
   apiFetch: vi.fn(),
-  states: [] as unknown[],
-  stateCursor: 0,
-  memos: [] as { deps: unknown[]; value: unknown }[],
-  memoCursor: 0,
-  effects: [] as { deps: unknown[]; cleanup?: (() => void) | void }[],
-  effectCursor: 0,
   systems: [
     { id: 30002537, name: 'Amamake', security: 0.4 },
     { id: 30004759, name: '1DQ1-A', security: -0.4 },
   ],
 }));
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
-vi.mock('react', () => ({
-  useState: <T>(init: T) => {
-    const index = h.stateCursor++;
-    if (h.states.length <= index) h.states[index] = init;
-    return [h.states[index], (next: T | ((previous: T) => T)) => {
-      h.states[index] = typeof next === 'function' ? (next as (previous: T) => T)(h.states[index] as T) : next;
-    }];
-  },
-  useEffect: (effect: () => (() => void) | void, deps: unknown[]) => {
-    const index = h.effectCursor++;
-    const previous = h.effects[index];
-    if (previous && deps.every((value, i) => Object.is(value, previous.deps[i]))) return;
-    previous?.cleanup?.();
-    h.effects[index] = { deps, cleanup: effect() };
-  },
-  useMemo: <T>(make: () => T, deps: unknown[]) => {
-    const index = h.memoCursor++;
-    const previous = h.memos[index];
-    if (previous && deps.every((value, i) => Object.is(value, previous.deps[i]))) return previous.value;
-    const value = make();
-    h.memos[index] = { deps, value };
-    return value;
-  },
-  useCallback: <T>(fn: T) => fn,
-  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
-}));
+vi.mock('react', () => rt.react);
 vi.mock('@/components/PreferencesProvider', () => ({ usePreference: () => [h.profileId, vi.fn()] }));
 vi.mock('@/components/use-system-search', () => ({
   useSystemSearch: () => ({ systems: h.systems }),
@@ -157,10 +127,7 @@ function FeeHarness(structure: BlueprintStructure) {
 }
 
 function renderFees(structure: BlueprintStructure) {
-  h.stateCursor = 0;
-  h.memoCursor = 0;
-  h.effectCursor = 0;
-  return FeeHarness(structure);
+  return rt.render(FeeHarness, structure);
 }
 
 beforeEach(() => {
@@ -168,12 +135,7 @@ beforeEach(() => {
   h.profiles = null;
   h.profilesFailed = false;
   h.plan = null;
-  h.states = [];
-  h.memos = [];
-  h.effects = [];
-  h.stateCursor = 0;
-  h.memoCursor = 0;
-  h.effectCursor = 0;
+  rt.unmount();
   h.apiFetch.mockReset();
   pricedLocation = null;
 });
@@ -185,7 +147,7 @@ test('failed profile fees clear the previous system after three attempts and wai
   const structure = built(MANUFACTURING_ACTIVITY);
   h.apiFetch.mockResolvedValue({ ok: false });
   expect(renderFees(structure).locationPending).toBe(true);
-  await vi.waitFor(() => expect(h.states[0]).toBe(30002537));
+  await vi.waitFor(() => expect(rt.states[0]).toBe(30002537));
   expect(pricedLocation).toBeNull();
   const failed = renderFees(structure);
   expect(failed.locationPending).toBe(false);
@@ -213,7 +175,7 @@ test.each(['profile', 'facility', 'blueprint', 'activity', 'system'] as const)(
     h.apiFetch.mockResolvedValue({ ok: false });
     renderFees(structure);
     await vi.waitFor(() => expect(h.apiFetch).toHaveBeenCalledTimes(3));
-    await vi.waitFor(() => expect(h.states[0]).toBe(30002537));
+    await vi.waitFor(() => expect(rt.states[0]).toBe(30002537));
     renderFees(structure);
     if (change === 'profile') h.profiles = [{ ...CAPS, id: 'other' }];
     if (change === 'facility') h.plan = planAt(facility({ id: 'another-station', structure: null, systemId: 30002537 }));
@@ -222,7 +184,7 @@ test.each(['profile', 'facility', 'blueprint', 'activity', 'system'] as const)(
     if (change === 'system') h.plan = planAt(facility({ systemId: 30004759 }));
     renderFees(structure);
     await vi.waitFor(() => expect(h.apiFetch).toHaveBeenCalledTimes(6));
-    await vi.waitFor(() => expect(h.states[0]).toBe(change === 'system' ? 30004759 : 30002537));
+    await vi.waitFor(() => expect(rt.states[0]).toBe(change === 'system' ? 30004759 : 30002537));
   },
 );
 
@@ -237,8 +199,7 @@ test('a hidden planner aborts its fee read and re-showing its preserved state re
   expect(h.apiFetch).toHaveBeenCalledOnce();
   const firstSignal = h.apiFetch.mock.calls[0]![1].signal as AbortSignal;
   // Activity cleans up effects while retaining hook state and memoized values.
-  for (const effect of h.effects) effect.cleanup?.();
-  h.effects = [];
+  rt.hide();
   expect(firstSignal.aborted).toBe(true);
   renderFees(structure);
   release({ ok: true, data: FEE_DATA });

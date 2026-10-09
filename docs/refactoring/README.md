@@ -272,7 +272,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 | ☑ | [P244](wave-02-tooling-and-test-harness-foundations.md#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
 | ☑ | [P347](wave-02-tooling-and-test-harness-foundations.md#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
 | ☑ | [P348](wave-02-tooling-and-test-harness-foundations.md#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
-| ☐ | [P338](wave-02-tooling-and-test-harness-foundations.md#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
+| ☑ | [P338](wave-02-tooling-and-test-harness-foundations.md#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
 | ☐ | [P339](wave-02-tooling-and-test-harness-foundations.md#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
 
 ### [Wave 3: src/lib primitives: collections, math, async, errors, browser](wave-03-src-lib-primitives-collections-math-async.md)

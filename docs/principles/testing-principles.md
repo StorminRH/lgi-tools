@@ -29,9 +29,14 @@ Shared test helpers live under `src/db/__tests__/support/` and
 `convex/__tests__/*.setup.ts`. Import factories explicitly inside each test (or
 a per-test factory). A unit test that mocks `@/db` stands in the database with
 `createFakeQueryChain` from `src/db/__tests__/support/fake-query-chain.ts`, not
-a hand-built thenable chain. Domain objects come from the owner's `__tests__/`
-fixture (`siteDetail`, `siteResource` and `siteWave` for wormhole sites,
-`industryJob`, `layoutFacts`, `chainSnapshot`), not a local literal builder;
+a hand-built thenable chain. A test that mocks `react` to call hooks or
+components as plain functions and needs state, memos or effects that persist
+across renders runs on `createHookRuntime` from
+`src/lib/__tests__/hook-runtime.ts`, not a hand-rolled slot runtime; a scripted
+single-purpose fake (a fixed ref, spy setters, a hydration switch) stays local,
+as does any copy in `components/ui`, which may not import `lib`. Domain
+objects come from the owner's `__tests__/` fixture (`siteDetail`,
+`siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`), not a local literal builder;
 pass every field the test reads. Harness-owned `beforeAll` / `beforeEach` for disposable
 schema lifecycle is the exception — do not introduce extra hooks that hide
 arrange steps. That conflicts with the principles below.
