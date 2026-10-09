@@ -120,6 +120,10 @@ const h = vi.hoisted(() => {
     async get(key: string): Promise<string | null> {
       return getVal(key);
     }
+
+    async mget(...keys: string[]): Promise<(string | null)[]> {
+      return keys.map(getVal);
+    }
   }
 
   return { store, ctorSpy, FakeRedis };
@@ -129,7 +133,9 @@ vi.mock('@upstash/redis', () => ({ Redis: h.FakeRedis }));
 
 import {
   __resetScoreboardForTests,
+  NO_RESPONSE_STATUS,
   normalizeEsiPath,
+  readEsiAvailabilitySnapshot,
   readEsiBudgetSnapshot,
   resolveScoreboard,
   type EsiReport,
@@ -295,6 +301,37 @@ describe('RedisScoreboard', () => {
       }),
     );
     expect(h.store.get(`lgi:esi:err:count:${currentMinute()}`)?.value).toBe('1');
+  });
+
+  it('counts every dispatched call per minute, and the ones ESI failed, for just over an hour', async () => {
+    const sb = redisScoreboard();
+    await sb.report(makeReport({ status: 200 }));
+    await sb.report(makeReport({ status: 304 }));
+    await sb.report(makeReport({ status: 404 }));
+    await sb.report(makeReport({ status: 420 }));
+    await sb.report(makeReport({ status: 429 }));
+    await sb.report(makeReport({ status: 503 }));
+    await sb.report(makeReport({ status: NO_RESPONSE_STATUS }));
+
+    const minute = currentMinute();
+    expect(h.store.get(`lgi:esi:call:count:${minute}`)?.value).toBe('7');
+    expect(h.store.get(`lgi:esi:fail:count:${minute}`)?.value).toBe('4');
+    expect(h.store.get(`lgi:esi:call:count:${minute}`)?.expiresAt).toBe(Date.now() + 65 * 60_000);
+  });
+
+  it('sums the last sixty minute buckets into the availability snapshot', async () => {
+    const minute = currentMinute();
+    seed(`lgi:esi:call:count:${minute}`, '3');
+    seed(`lgi:esi:fail:count:${minute}`, '1');
+    seed(`lgi:esi:call:count:${minute - 59}`, '5');
+    seed(`lgi:esi:call:count:${minute - 60}`, '100');
+    seed(`lgi:esi:fail:count:${minute - 60}`, '100');
+    redisScoreboard();
+    await expect(readEsiAvailabilitySnapshot()).resolves.toEqual({
+      calls: 8,
+      failures: 1,
+      source: 'shared',
+    });
   });
 
   it('does not count 2xx/3xx responses as errors', async () => {
@@ -474,6 +511,33 @@ describe('resolveScoreboard fallback selection', () => {
       effectiveRemaining: 0,
       selfCount: 2,
       echo: 0,
+      source: 'process-local',
+    });
+    await expect(readEsiAvailabilitySnapshot()).resolves.toEqual({
+      calls: 3,
+      failures: 2,
+      source: 'process-local',
+    });
+  });
+
+  it('keeps an hour of in-process call buckets and drops the rest', async () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-09T12:00:30Z'));
+    const sb = resolveScoreboard()!;
+    await sb.report(makeReport({ status: 503 }));
+    vi.setSystemTime(new Date('2026-10-09T12:59:30Z'));
+    await sb.report(makeReport({ status: 200 }));
+    await expect(sb.availabilitySnapshot()).resolves.toEqual({
+      calls: 2,
+      failures: 1,
+      source: 'process-local',
+    });
+    vi.setSystemTime(new Date('2026-10-09T13:00:30Z'));
+    await sb.report(makeReport({ status: NO_RESPONSE_STATUS }));
+    await expect(sb.availabilitySnapshot()).resolves.toEqual({
+      calls: 2,
+      failures: 1,
       source: 'process-local',
     });
   });

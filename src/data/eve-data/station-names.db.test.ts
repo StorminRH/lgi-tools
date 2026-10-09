@@ -22,6 +22,9 @@ const permissiveScoreboard = {
       source: 'process-local' as const,
     };
   },
+  async availabilitySnapshot() {
+    return { calls: 0, failures: 0, source: 'process-local' as const };
+  },
   async report() {},
   async getCachedBody() {
     return null;

@@ -59,6 +59,21 @@ describe('esiFetch', () => {
     vi.useRealTimers();
   });
 
+  it('reports a dispatch that got no answer to the scoreboard before rethrowing', async () => {
+    const report = vi.fn().mockResolvedValue(undefined);
+    __setScoreboardForTests({
+      preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, etag: null }),
+      budgetSnapshot: vi.fn(),
+      availabilitySnapshot: vi.fn(),
+      report,
+      getCachedBody: vi.fn().mockResolvedValue(null),
+    });
+    fetchSpy.mockRejectedValueOnce(new Error('socket hang up'));
+
+    await expect(esiFetch(TEST_URL)).rejects.toThrow('socket hang up');
+    expect(report).toHaveBeenCalledWith(expect.objectContaining({ url: TEST_URL, status: 0 }));
+  });
+
   it('dispatches the request and returns the response', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(200, { 'X-ESI-Error-Limit-Remain': '95' }),
@@ -334,6 +349,7 @@ describe('esiFetch', () => {
           echo: null,
           source: 'process-local',
         }),
+        availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
         report: vi.fn().mockResolvedValue(undefined),
         getCachedBody: vi.fn().mockResolvedValue(null),
       };
@@ -438,6 +454,7 @@ describe('esiFetch', () => {
           echo: null,
           source: 'process-local',
         }),
+        availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
         report: vi.fn().mockResolvedValue(undefined),
         getCachedBody,
       };
@@ -502,6 +519,7 @@ describe('esiFetch', () => {
           echo: null,
           source: 'process-local',
         }),
+        availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
         report: vi.fn().mockResolvedValue(undefined),
         getCachedBody: vi.fn().mockResolvedValue(null),
       };

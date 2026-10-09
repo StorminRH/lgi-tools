@@ -32,10 +32,6 @@ import {
 import { priceSourceDegradation, type PriceSourceDegradation } from './price-source-stats';
 import { usageLogs } from './schema';
 import {
-  CAPABILITY_ACTION,
-  capabilityOutcome,
-  ESI_FAILURE_OUTCOMES,
-  esiDependent,
   inRange,
   jsonInt,
   jsonNumber,
@@ -356,30 +352,6 @@ export function lastNDaysRange(days: number, now: Date = new Date()): DateRange 
   const to = now;
   const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
   return { from, to };
-}
-
-export async function getEsiAvailability(range: DateRange) {
-  const [row] = await db
-    .select({
-      total: count(),
-      healthy: sql<number>`
-        count(*) filter (
-          where not ${inArray(capabilityOutcome, [...ESI_FAILURE_OUTCOMES])}
-        )
-      `.mapWith(Number),
-    })
-    .from(usageLogs)
-    .where(
-      and(
-        inRange(range),
-        eq(usageLogs.action, CAPABILITY_ACTION),
-        esiDependent,
-      ),
-    );
-
-  const total = Number(row?.total ?? 0);
-  const healthy = Number(row?.healthy ?? 0);
-  return { total, healthy, rate: total > 0 ? healthy / total : null };
 }
 
 export interface PriceSourceSplit {

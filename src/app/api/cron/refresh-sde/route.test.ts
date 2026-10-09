@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
+import {
+  SDE_CACHE_TAG,
+  SDE_META_KEY_LATEST_PUBLISHED,
+  SDE_META_KEY_VERSION,
+  SDE_VERSION_CACHE_TAG,
+} from '@/data/eve-data/constants';
 import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 
 const getSdeMetaValueMock = vi.fn();
@@ -100,6 +105,7 @@ describe('GET /api/cron/refresh-sde', () => {
     });
     expect(reserveMock).not.toHaveBeenCalled();
     expect(revalidateTagMock).not.toHaveBeenCalled();
+    expect(setSdeMetaValueMock).not.toHaveBeenCalled();
   });
 
   it('records a remote-unreachable run as cron_sde/remote-unreachable (O-3)', async () => {
@@ -122,6 +128,8 @@ describe('GET /api/cron/refresh-sde', () => {
     const { GET } = await importRoute();
     const res = await GET(authedRequest());
     expect((await res.json()).status).toBe('busy');
+    expect(setSdeMetaValueMock.mock.calls).toEqual([[{}, SDE_META_KEY_LATEST_PUBLISHED, '2026-05-08']]);
+    expect(revalidateTagMock.mock.calls).toEqual([[SDE_VERSION_CACHE_TAG, 'max']]);
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_sde',
       metadata: expect.objectContaining({ outcome: 'busy' }),
@@ -146,7 +154,14 @@ describe('GET /api/cron/refresh-sde', () => {
         summary: PIPELINE_SUMMARY,
       }),
     });
-    expect(revalidateTagMock.mock.calls).toEqual([[SDE_CACHE_TAG, 'max']]);
+    expect(setSdeMetaValueMock.mock.calls).toEqual([
+      [{}, SDE_META_KEY_LATEST_PUBLISHED, '2026-05-08'],
+      [{}, SDE_META_KEY_VERSION, '2026-05-08'],
+    ]);
+    expect(revalidateTagMock.mock.calls).toEqual([
+      [SDE_VERSION_CACHE_TAG, 'max'],
+      [SDE_CACHE_TAG, 'max'],
+    ]);
   });
 
   it('rejects a request without the cron bearer token', async () => {

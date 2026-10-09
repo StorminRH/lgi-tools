@@ -27,6 +27,9 @@ const permissiveScoreboard = {
   async budgetSnapshot() {
     return { effectiveRemaining: 1000, selfCount: 0, echo: null, source: 'process-local' as const };
   },
+  async availabilitySnapshot() {
+    return { calls: 0, failures: 0, source: 'process-local' as const };
+  },
   async report() {},
   async getCachedBody() {
     return null;
