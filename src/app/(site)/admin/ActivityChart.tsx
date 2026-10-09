@@ -1,4 +1,6 @@
 import { EmptyState } from '@/components/ui/empty-state';
+import { eyebrow } from '@/components/ui/type-roles';
+import { formatQuantity } from '@/lib/format/number';
 import type { ActivityChartData } from './activity-view';
 import { AdminDailyChart } from './charts';
 import { DeltaBadge } from './DeltaBadge';
@@ -9,9 +11,10 @@ export function ActivityChart({ activity }: { activity: ActivityChartData }) {
     <>
       <div className="flex items-baseline gap-2 px-3.5 pt-3">
         <span className="font-data text-lead text-name tabular-nums">
-          {activity.totalValue.toLocaleString()}
+          {formatQuantity(activity.totalValue)}
         </span>
-        <span className="text-micro uppercase tracking-wide text-muted">page views</span>
+        {/* Labelled like the tiles above it. */}
+        <span className={eyebrow({ emphasis: 'strong' })}>page views</span>
         {activity.endDelta && <DeltaBadge delta={activity.endDelta} />}
       </div>
       <div className="overflow-x-auto px-3.5 py-3">

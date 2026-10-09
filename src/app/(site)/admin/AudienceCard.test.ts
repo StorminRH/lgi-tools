@@ -161,3 +161,16 @@ test('renders the tiles without empty chart slots, and links to the detail pages
   expect(links).toContain('href="/admin/traffic"');
   expect(links).toContain('href="/admin/search"');
 });
+
+test('labels the activity total like the tiles above it', async () => {
+  stubTelemetry();
+  q.getPageViewStats.mockResolvedValue({
+    current: [{ day: '2026-09-21', views: 1_250, entries: 0, referrals: 0 }],
+    previous: [{ day: '2026-09-14', views: 1_000, entries: 0, referrals: 0 }],
+  });
+
+  const html = await render('7d', WEEK);
+
+  expect(html).toContain('tabular-nums">1,250</span><span class="font-ui uppercase text-label text-muted font-medium tracking-eyebrow">page views</span>');
+  expect(html).toContain('<span class="sr-only">up 25%</span>');
+});
