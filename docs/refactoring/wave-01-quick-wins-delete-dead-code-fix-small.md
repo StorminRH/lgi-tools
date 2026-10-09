@@ -29,7 +29,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P113](#p113) | Reuse tween-model's pruneBy for motion-host-model's pruneToLive | generic-utility | S | low | low | — |
 | ☑ | [P114](#p114) | Share one djb2 string hash between wormhole seeding and fog brush rotation | generic-utility | S | low | low | — |
 | ☑ | [P290](#p290) | Count active sessions with count() and read the two pending-deletion queues concurrently | efficiency | S | low | low | — |
-| ☐ | [P135](#p135) | Route isGscConfigured through readEnv instead of a process.env parameter | generic-utility | S | low | low | — |
+| ☑ | [P135](#p135) | Route isGscConfigured through readEnv instead of a process.env parameter | generic-utility | S | low | low | — |
 | ☐ | [P136](#p136) | Derive problem-type URIs, the outbound UA contact and same-origin's fallback from PRODUCTION_SITE_URL | generic-utility | S | low | low | — |
 | ☐ | [P268](#p268) | Resolve the Better Auth secret once with empty-string fallback (readAuthSecret in lib/env) | contracts-validation | S | low | medium | — |
 | ☐ | [P185](#p185) | Tag the wormhole-site detail caches with the SDE tag and rename it SDE_CACHE_TAG (no sdeCache helper) | server-pipeline | S | low | medium | — |
@@ -877,7 +877,7 @@ export async function getActiveSessionCount(userId: string): Promise<number> {
 
 ## P135: Route isGscConfigured through readEnv instead of a process.env parameter
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** +1 / -1
 - **Depends on:** —
