@@ -25,6 +25,11 @@ export type EndpointCallArgs<TEndpoint extends EndpointContract> =
       : [init?: EndpointCallInit<TEndpoint>]
     : [init: EndpointCallInit<TEndpoint>];
 
+/**
+ * Calls a declared endpoint. Never rejects: transport and decode failures
+ * resolve as `{ ok: false, kind: 'network' }`, so callers branch on `ok`
+ * instead of wrapping the call in try/catch.
+ */
 export async function apiFetch<const TEndpoint extends EndpointContract>(
   endpoint: TEndpoint,
   ...args: EndpointCallArgs<TEndpoint>

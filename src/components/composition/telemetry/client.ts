@@ -14,5 +14,5 @@ export function postTelemetry(input: TelemetryInput): void {
     if (ok) return;
   }
 
-  void apiFetch(telemetryEndpoint, { body: payload, keepalive: true }).catch(() => {});
+  void apiFetch(telemetryEndpoint, { body: payload, keepalive: true });
 }

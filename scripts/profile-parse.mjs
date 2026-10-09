@@ -1,9 +1,10 @@
+import { isLoopbackHostname } from './loopback.mjs';
+
 const KIB = 1024;
 const MIB = KIB ** 2;
 const GIB = KIB ** 3;
 const ANSI_PATTERN = /\u001b\[[0-?]*[ -/]*[@-~]/g;
 const LABEL_PATTERN = /^[a-z0-9-]{1,32}$/;
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 
 export const PROFILE_THRESHOLDS = Object.freeze({
   maxSwapGrowthBytes: GIB,
@@ -16,8 +17,14 @@ export const PROFILE_THRESHOLDS = Object.freeze({
 
 const EXPECTED_FULL_SITE_COUNT = 69;
 
+export const PROFILE_DIR_NAME = '.local/site-profiles';
+
 export function profileReason(code, message, details = {}) {
   return { code, message, ...details };
+}
+
+export function timestampSlug(iso) {
+  return iso.replace(/[-:.]/g, '');
 }
 
 function parseFinite(value) {
@@ -178,7 +185,7 @@ export function parseDatabaseTarget(databaseUrl, driver) {
 export function isLocalDatabaseTarget(database) {
   return database !== null
     && database.driver === 'postgres-js'
-    && LOOPBACK_HOSTS.has(database.host);
+    && isLoopbackHostname(database.host);
 }
 
 export function selectPreflightRefusal({ listeners, database, databaseReachable, memory }) {

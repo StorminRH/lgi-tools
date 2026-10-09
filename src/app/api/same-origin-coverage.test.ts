@@ -52,10 +52,6 @@ const ADMIN_MUTATIONS = [
 ] as const;
 
 const EXEMPT_MUTATIONS = {
-  'internal/eve-characters/route.ts': {
-    authz: 'service',
-    reason: 'service-authenticated internal character enumeration',
-  },
   'internal/eve-token/route.ts': {
     authz: 'service',
     reason: 'service-authenticated internal token vending',

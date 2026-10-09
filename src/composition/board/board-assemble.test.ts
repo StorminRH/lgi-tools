@@ -362,6 +362,25 @@ describe('assembleBoardCharacter ready data', () => {
       data: { active: 1, ready: 1, slots: { used: 2, max: 7 } },
     });
   });
+
+  it('counts used slots by the shared slot rule: a repeated job_id or an activity outside the slot categories holds no slot', () => {
+    const job = (jobId: number, activityId: number) => ({
+      job_id: jobId,
+      activity_id: activityId,
+      blueprint_type_id: 1002,
+      runs: 1,
+      status: 'active' as const,
+      start_date: '2026-09-27T00:00:00Z',
+      end_date: new Date(NOW + HOUR).toISOString(),
+    });
+    const jobs = [job(1, 1), job(1, 1), job(4, 7), job(5, 9)];
+    const { industry } = assembleBoardCharacter(
+      raw({ jobs: { data: { jobs }, refreshedAt: REFRESHED_MS } }),
+      NAMES,
+      NOW,
+    );
+    expect(industry).toMatchObject({ state: 'ready', data: { slots: { used: 2, max: 7 } } });
+  });
 });
 
 describe('net worth valuation', () => {

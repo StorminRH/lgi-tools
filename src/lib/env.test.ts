@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isHostedVercel, readEnv, requireEnv, vercelProtectionBypassHeaders } from './env';
+import {
+  isHostedVercel,
+  readAuthSecret,
+  readEnv,
+  requireEnv,
+  vercelProtectionBypassHeaders,
+} from './env';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -41,9 +47,28 @@ describe('readEnv', () => {
 
   it("passes '' through on a verbatim (nullish/comparison) variable", () => {
     vi.stubEnv('BETTER_AUTH_SECRET', '');
-    vi.stubEnv('SESSION_SECRET', 'fallback');
     expect(readEnv('BETTER_AUTH_SECRET')).toBe('');
-    expect(readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET')).toBe('');
+  });
+});
+
+describe('readAuthSecret', () => {
+  it('prefers BETTER_AUTH_SECRET and falls back to SESSION_SECRET when it is unset or empty', () => {
+    vi.stubEnv('BETTER_AUTH_SECRET', 'primary');
+    vi.stubEnv('SESSION_SECRET', 'fallback');
+    expect(readAuthSecret()).toBe('primary');
+
+    vi.stubEnv('BETTER_AUTH_SECRET', '');
+    expect(readAuthSecret()).toBe('fallback');
+
+    vi.stubEnv('BETTER_AUTH_SECRET', undefined);
+    expect(readAuthSecret()).toBe('fallback');
+
+    vi.stubEnv('SESSION_SECRET', '');
+    expect(readAuthSecret()).toBeUndefined();
+
+    vi.stubEnv('BETTER_AUTH_SECRET', '');
+    vi.stubEnv('SESSION_SECRET', undefined);
+    expect(readAuthSecret()).toBeUndefined();
   });
 });
 

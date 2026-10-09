@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
-import { SITE_TYPES, WORMHOLE_CLASSES } from './schema';
+import { SITE_TYPES, WORMHOLE_CLASSES } from './site-taxonomy';
 
 export const sitesQuerySchema = z.object({
   type: z.enum(SITE_TYPES).optional(),

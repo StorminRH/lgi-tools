@@ -28,12 +28,12 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     async function load(): Promise<void> {
-      const result = await apiFetch(industrySlotsEndpoint).catch(() => null);
+      const result = await apiFetch(industrySlotsEndpoint);
       if (!cancelled && identity === currentReadIdentity()) onResult(result);
     }
 
-    function onResult(result: OutcomeOf<typeof industrySlotsEndpoint> | null): void {
-      if (result !== null && result.ok) {
+    function onResult(result: OutcomeOf<typeof industrySlotsEndpoint>): void {
+      if (result.ok) {
         slotsMemory.set(result.data, identity);
         if (anyUnsynced(result.data.characters)) retry();
         return;

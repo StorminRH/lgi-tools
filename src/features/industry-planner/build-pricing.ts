@@ -23,7 +23,6 @@ import {
   type MeOptions,
 } from './build-batch';
 import { computeComponentJobFees, type ComponentFeeSources } from './component-job-fees';
-import type { ConfidenceInput } from './industry-styles';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
 import type {
   BlueprintPricing,
@@ -96,27 +95,6 @@ export function collectIntermediateTypeIds(
   };
   for (const root of buildTree) walk(root);
   return [...out];
-}
-
-export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, ConfidenceInput> {
-  const map = new Map<number, ConfidenceInput>();
-  for (const r of pricing.rows) {
-    map.set(r.typeId, {
-      source: r.source,
-      buyVolume: r.buyVolume,
-      unitBuy: r.unitBuy,
-      staleAfterMs: r.staleAfterMs,
-    });
-  }
-  for (const ip of pricing.intermediatePrices) {
-    map.set(ip.typeId, {
-      source: ip.source,
-      buyVolume: ip.buyVolume,
-      unitBuy: ip.bestBuy,
-      staleAfterMs: ip.staleAfterMs,
-    });
-  }
-  return map;
 }
 
 export interface AssembleOptions {

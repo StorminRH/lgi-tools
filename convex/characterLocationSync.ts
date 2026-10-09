@@ -228,16 +228,7 @@ async function readProbeThenLocation(
 
   if (!probe.online) {
     return {
-      characterId,
-      solarSystemId: null,
-      stationId: null,
-      structureId: null,
-      shipTypeId: null,
-      systemChanged: false,
-      etagLocation: held.etagLocation,
-      etagShip: held.etagShip,
-      expiresAt: probe.windowExpiresAt,
-      error: null,
+      ...noLocationRead(characterId, held, probe.windowExpiresAt, null),
       online: false,
       etagOnline: probe.etagOnline,
       onlineExpiresAt: probe.onlineExpiresAt,
@@ -306,18 +297,7 @@ async function readLocationCharacter(
 
   if (locationRead.kind === 'unchanged') {
     const expiresAt = resolveExpiresAt([locationRead.expiresAt], FALLBACK_TTL_MS, Date.now());
-    return {
-      characterId,
-      solarSystemId: null,
-      stationId: null,
-      structureId: null,
-      shipTypeId: null,
-      systemChanged: false,
-      etagLocation: held.etagLocation,
-      etagShip: held.etagShip,
-      expiresAt,
-      error: null,
-    };
+    return noLocationRead(characterId, held, expiresAt, null);
   }
 
   const location = parseLocationBody(locationRead.body);
@@ -404,7 +384,16 @@ async function finishWithOptionalShip(
   };
 }
 
-function errorResult(characterId: number, code: string, held: HeldState): CharacterResult {
+/**
+ * A read that yields no new location fix: the location fields stay null and
+ * the held etags carry over, so finishSync leaves the stored location alone.
+ */
+function noLocationRead(
+  characterId: number,
+  held: HeldState,
+  expiresAt: number | null,
+  error: string | null,
+): LocationReadResult {
   return {
     characterId,
     solarSystemId: null,
@@ -414,8 +403,14 @@ function errorResult(characterId: number, code: string, held: HeldState): Charac
     systemChanged: false,
     etagLocation: held.etagLocation,
     etagShip: held.etagShip,
-    expiresAt: null,
-    error: code,
+    expiresAt,
+    error,
+  };
+}
+
+function errorResult(characterId: number, code: string, held: HeldState): CharacterResult {
+  return {
+    ...noLocationRead(characterId, held, null, code),
     online: null,
     etagOnline: null,
     onlineExpiresAt: null,

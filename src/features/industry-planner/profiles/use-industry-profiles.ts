@@ -39,11 +39,10 @@ async function listProfiles(): Promise<ProfilesResult> {
   return res ?? { ok: false };
 }
 
-async function updateProfile(
+function updateProfile(
   body: { id: string; expectedRevision: number } & PendingEdit,
 ): Promise<ProfilesResult> {
-  const res = await apiFetch(updateIndustryProfileEndpoint, { body }).catch(() => null);
-  return res ?? { ok: false };
+  return apiFetch(updateIndustryProfileEndpoint, { body });
 }
 
 // The last list outlives the pages that show it: Profiles and the planner

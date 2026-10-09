@@ -51,7 +51,6 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { PreferencesProvider } from '@/components/PreferencesProvider';
 import { RigSupply } from '@/components/RigSupply';
 import { CharacterStripSection } from '@/components/character-strip-section';
 import { CharacterStrip } from '@/components/character-strip';
@@ -61,7 +60,6 @@ import { useLiveDataset } from '@/components/use-live-dataset';
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
-      PreferencesProvider,
       RigSupply,
       CharacterStripSection,
       CharacterStrip,

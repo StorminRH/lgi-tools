@@ -27,17 +27,13 @@ export function useAccountCharacters(): BuildCharacter[] | null {
     if (characterId === null || identity === null) return;
     let ignore = false;
     const controller = new AbortController();
-    apiFetch(accountCharactersEndpoint, { cache: 'no-store', signal: controller.signal })
+    void apiFetch(accountCharactersEndpoint, { cache: 'no-store', signal: controller.signal })
       .then((res) => {
         if (ignore) return;
         // A failed refresh keeps the roster already drawn.
         if (res.ok || rosterMemory.get()?.characterId !== characterId) {
           rosterMemory.set({ characterId, list: res.ok ? res.data.characters : [] }, identity);
         }
-      })
-      .catch(() => {
-        if (ignore || rosterMemory.get()?.characterId === characterId) return;
-        rosterMemory.set({ characterId, list: [] }, identity);
       });
     return () => {
       ignore = true;

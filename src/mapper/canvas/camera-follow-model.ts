@@ -1,6 +1,6 @@
 import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
-import { springFamily, type MotionConfig } from '../motion/motion-contract';
+import { SETTLE_SPRING, type MotionConfig } from '../motion/motion-contract';
 import { endpointFrame, frameCenter } from './edge-geometry';
 
 export function systemsNeedingFit(
@@ -84,7 +84,7 @@ export function cameraEaseOf(
 ): CameraEase {
   return {
     duration: reducedMotion ? 0 : config.tempo.slow,
-    ease: springFamily(0).ease,
+    ease: SETTLE_SPRING.ease,
   };
 }
 

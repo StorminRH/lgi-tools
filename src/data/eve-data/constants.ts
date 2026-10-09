@@ -100,4 +100,5 @@ export const DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL = 1982;
  */
 export const SDE_CAPITAL_SHIPYARD_TYPE_ID = 35881;
 
-export const BLUEPRINT_STRUCTURE_TAG = 'blueprint-structure';
+/** Every cache derived from SDE tables; the refresh-sde cron revalidates it after a re-ingest. */
+export const SDE_CACHE_TAG = 'sde';

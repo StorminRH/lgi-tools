@@ -4,7 +4,6 @@ import { computeBatchLedger } from './build-batch';
 import { deriveMarginFigures } from './industry-styles';
 import {
   assemblePricing,
-  buildConfidenceInputs,
   collectIntermediateTypeIds,
   type PriceLite,
 } from './build-pricing';
@@ -518,38 +517,6 @@ test('assemblePricing carries product depth ladders and pct5Sell onto the produc
   expect(withDepth.intermediatePrices).toEqual(base.intermediatePrices);
   expect(withDepth.net).toEqual(base.net);
   expect({ ...withDepth.product, buyDepth: null, sellDepth: null, pct5Sell: null }).toEqual(base.product);
-});
-
-describe('buildConfidenceInputs', () => {
-  it('maps both priced raw rows and intermediates by typeId', () => {
-    const structure: BlueprintStructure = {
-      ...STRUCTURE,
-      product: { typeId: 999, name: 'Widget', quantityPerRun: 1, renderable: false },
-      buildTree: BUILD_TREE,
-      buildNodeDisplay: DISPLAY,
-    };
-    const intermediatePrice: PriceLite = {
-      bestBuy: 1_000,
-      bestSell: null,
-      pct5Buy: null,
-      pct5Sell: null,
-      buyVolume: 30,
-      sellVolume: null,
-      source: 'fuzzwork-fallback',
-      staleAfterMs: 1_699_000_000_000,
-    };
-    const pricing = assemblePricing(structure, (typeId) =>
-      typeId === 500 ? intermediatePrice : PRICES[typeId],
-    );
-    const inputs = buildConfidenceInputs(pricing);
-
-    expect(inputs.get(34)).toMatchObject({ source: 'esi', buyVolume: 8_200, unitBuy: 5 });
-    expect(inputs.get(500)).toMatchObject({
-      source: 'fuzzwork-fallback',
-      buyVolume: 30,
-      unitBuy: 1_000,
-    });
-  });
 });
 
 describe('assemblePricing component job fees', () => {

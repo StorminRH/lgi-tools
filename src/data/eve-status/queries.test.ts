@@ -2,17 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   cacheLife: vi.fn(),
-  cacheTag: vi.fn(),
   esiFetch: vi.fn(),
   sdeVersion: vi.fn(),
 }));
 
 vi.mock('@/data/eve-data/meta', () => ({ getCachedSdeVersion: h.sdeVersion }));
 
-vi.mock('next/cache', () => ({
-  cacheLife: h.cacheLife,
-  cacheTag: h.cacheTag,
-}));
+vi.mock('next/cache', () => ({ cacheLife: h.cacheLife }));
 
 vi.mock('@/platform/esi', () => ({
   EsiContractError: class EsiContractError extends Error {},
@@ -26,12 +22,10 @@ vi.mock('@/platform/esi', () => ({
 }));
 
 import { EsiServerError } from '@/platform/esi';
-import { EVE_STATUS_TAG } from './constants';
 import { getIngestedSdeBuild, getNavServerStatus } from './queries';
 
 beforeEach(() => {
   h.cacheLife.mockReset();
-  h.cacheTag.mockReset();
   h.esiFetch.mockReset();
   h.sdeVersion.mockReset();
 });
@@ -62,7 +56,6 @@ describe('getNavServerStatus', () => {
       build: '3430261',
       startedAt: null,
     });
-    expect(h.cacheTag).toHaveBeenCalledWith(EVE_STATUS_TAG);
     expect(h.cacheLife).toHaveBeenCalledWith({
       stale: 30,
       revalidate: 60,

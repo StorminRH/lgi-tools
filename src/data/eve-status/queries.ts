@@ -1,7 +1,7 @@
-import { cacheLife, cacheTag } from 'next/cache';
+import { cacheLife } from 'next/cache';
 import { getCachedSdeVersion } from '@/data/eve-data/meta';
 import { EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
-import { ESI_STATUS_PATH, EVE_STATUS_TAG } from './constants';
+import { ESI_STATUS_PATH } from './constants';
 import { parseServerStatus } from './parse';
 import type { SdeBuild, ServerStatus } from './types';
 
@@ -34,7 +34,6 @@ async function readServerStatus(): Promise<ServerStatus | null> {
  */
 export async function getNavServerStatus(): Promise<ServerStatus> {
   'use cache: remote';
-  cacheTag(EVE_STATUS_TAG);
   let status = await readServerStatus();
   for (const delay of STATUS_RETRY_DELAYS_MS) {
     if (status !== null) break;

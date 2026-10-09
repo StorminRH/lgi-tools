@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
-import { BLUEPRINT_STRUCTURE_TAG, SDE_META_KEY_VERSION } from './constants';
+import { SDE_CACHE_TAG, SDE_META_KEY_VERSION } from './constants';
 import { eveDataMeta } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
 
@@ -21,7 +21,7 @@ export async function getCachedSdeVersion(): Promise<{
 }> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const [row] = await db
       .select({ value: eveDataMeta.value, updatedAt: eveDataMeta.updatedAt })

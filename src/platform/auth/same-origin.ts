@@ -1,4 +1,4 @@
-import { SITE_URL } from '@/config/site-url';
+import { PRODUCTION_SITE_URL, SITE_URL } from '@/config/site-url';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { readEnv } from '@/lib/env';
 import { forbiddenFailure, type AppFailure } from '@/lib/failure';
@@ -26,7 +26,7 @@ function canonicalOrigin(): string {
   const authOrigin = readEnv('BETTER_AUTH_URL');
   return (authOrigin ? normalizeOrigin(authOrigin) : null)
     ?? normalizeOrigin(SITE_URL)
-    ?? 'https://lgi.tools';
+    ?? PRODUCTION_SITE_URL;
 }
 
 export function requireSameOrigin(request: Request): SameOriginResult {

@@ -50,7 +50,6 @@ export function useRefreshHistoryOnView(
           setInputs(map);
           onResultRef.current?.(map);
         }
-      } catch {
       } finally {
         if (!controller.signal.aborted) setRefreshing(false);
       }

@@ -12,8 +12,7 @@ import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
 import { atlasScannerCharacter } from '@/lib/preferences';
-import { AfkDialog } from './AfkGate';
-import { useMapPresenceAfk } from './presence-context';
+import { AfkDialog, useAfkState } from './AfkGate';
 import {
   SCANNER_ASK_VALUE,
   scannerSelectValue,
@@ -42,7 +41,7 @@ interface TrackingControlsViewProps {
 export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
-  const afk = useMapPresenceAfk();
+  const afk = useAfkState();
 
   useSyncSubject('characterLocation', afk.paused ? [] : trackedIds);
   return <AfkDialog afk={afk} />;

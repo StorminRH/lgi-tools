@@ -2,7 +2,7 @@ import type { z } from 'zod';
 import { validationFailure, type AppFailure } from '@/lib/failure';
 import { parseQueryInput } from '@/transport/endpoint';
 import { sitesEndpoint, sitesQuerySchema } from './api-contract';
-import { SITE_TYPES, WORMHOLE_CLASSES } from './schema';
+import { SITE_TYPES, WORMHOLE_CLASSES } from './site-taxonomy';
 
 export type SitesQueryParse =
   | { ok: true; data: z.infer<typeof sitesQuerySchema> }

@@ -17,7 +17,7 @@ import {
 } from './schema';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
-  BLUEPRINT_STRUCTURE_TAG,
+  SDE_CACHE_TAG,
   SDE_CAPITAL_SHIPYARD_TYPE_ID,
   SDE_INDUSTRY_STRUCTURE_GROUP_IDS,
   SDE_STRUCTURE_MODULE_CATEGORY_ID,
@@ -259,7 +259,7 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
 export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
 
   const systems = await withColdStartRetry(() =>
     db
@@ -280,7 +280,7 @@ export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
 export async function getManufacturingStationIndex(): Promise<StationSearchEntry[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
 
   const rows = await withColdStartRetry(() =>
     db
@@ -343,7 +343,7 @@ export async function getIndustryStationsForSystem(
 export async function getStructureTypes(): Promise<StructureTypeOption[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const rows = await db
       .select({
@@ -386,7 +386,7 @@ async function attributeIdsNamed(prefix: string): Promise<number[]> {
 export async function getCapitalShipyardHullIds(): Promise<number[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   const [hulls, types, groups, shipyard] = await withColdStartRetry(() =>
     Promise.all([
       getStructureTypes(),
@@ -415,14 +415,14 @@ function productionModifierSources() {
 export async function getIndustryTargetFilters(): Promise<TargetFilter[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => db.select().from(industryTargetFilters).orderBy(industryTargetFilters.id));
 }
 
 export async function getIndustryTargetFilterSets(): Promise<number[][]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   const [filters, groups] = await Promise.all([
     getIndustryTargetFilters(),
     withColdStartRetry(() =>
@@ -473,7 +473,7 @@ export async function getProductionModifiers(typeIds: number[]): Promise<Map<num
 export async function getStructureRigs(): Promise<StructureRigOption[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const rows = await db
       .select({
