@@ -14,10 +14,6 @@ vi.mock('@/platform/esi', async () => {
 
 import { esiFetch } from '@/platform/esi';
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status });
-}
-
 beforeEach(() => {
   vi.mocked(esiFetch).mockReset();
 });
@@ -105,13 +101,13 @@ describe('parseAdjustedPrices', () => {
 
 describe('fetch* — gate failure handling', () => {
   it('turns a non-ok ESI response into EsiServerError', async () => {
-    vi.mocked(esiFetch).mockResolvedValue(jsonResponse({ error: 'bad' }, 400));
+    vi.mocked(esiFetch).mockResolvedValue(Response.json({ error: 'bad' }, { status: 400 }));
     await expect(fetchCostIndices()).rejects.toBeInstanceOf(EsiServerError);
   });
 
   it('parses a successful adjusted-prices response', async () => {
     vi.mocked(esiFetch).mockResolvedValue(
-      jsonResponse([{ type_id: 34, adjusted_price: 2.9 }]),
+      Response.json([{ type_id: 34, adjusted_price: 2.9 }]),
     );
     await expect(fetchAdjustedPrices()).resolves.toEqual([
       { typeId: 34, adjustedPrice: 2.9, averagePrice: null },
