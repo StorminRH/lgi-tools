@@ -61,14 +61,31 @@ describe('deriveActivityView', () => {
     const view = deriveActivityView({
       range: { from: new Date('2026-07-06T00:00:00Z'), to: new Date('2026-07-13T00:00:00Z') },
       dailyCounts: [
-        { day: '2026-07-10', views: 20 },
-        { day: '2026-07-13', views: 5 },
+        { day: '2026-07-09', views: 20 },
+        { day: '2026-07-12', views: 5 },
       ],
       prevDailyCounts: [{ day: '2026-06-30', views: 70 }],
       markers: [],
     });
     expect(view.labels.length).toBe(4);
     expect(view.referenceLine).toEqual({ value: 10, label: 'prior avg' });
+  });
+
+  it('ends the series on the last day inside the half-open range, not the day `to` lands on', () => {
+    // rangeFor rounds `to` up to the next minute, so late on 2026-07-12 the
+    // range ends at 2026-07-13T00:00:00Z. No row can carry that day.
+    const view = deriveActivityView({
+      range: { from: new Date('2026-07-06T00:00:00Z'), to: new Date('2026-07-13T00:00:00Z') },
+      dailyCounts: [
+        { day: '2026-07-06', views: 10 },
+        { day: '2026-07-12', views: 5 },
+      ],
+      prevDailyCounts: null,
+      markers: [],
+    });
+    expect(view.labels.at(-1)).toBe('2026-07-12');
+    expect(view.labels.length).toBe(7);
+    expect(view.endValue).toBe(5);
   });
 
   it('maps in-range markers to their day index and drops out-of-range ones', () => {

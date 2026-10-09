@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveServiceLevels } from './health-view';
+import { deriveServiceLevels, failureResultLabel } from './health-view';
 
 const healthy = { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 };
 const idleQueue = { due: 0, deadLettered: 0, oldestDueHours: null };
@@ -29,5 +29,25 @@ describe('deriveServiceLevels', () => {
     expect(dead).toMatchObject({ value: '4 active · 2 dead', level: 'red' });
     const stale = deriveServiceLevels(healthy, { due: 4, deadLettered: 0, oldestDueHours: 30 }).at(-1);
     expect(stale).toMatchObject({ level: 'amber' });
+  });
+});
+
+describe('failureResultLabel', () => {
+  const group = { feature: 'planner', operation: 'read', count: 1, lastSeen: new Date('2026-07-01T00:00:00Z') };
+
+  it('adds the code and error class only where they say something new', () => {
+    expect(failureResultLabel({ ...group, outcome: 'failed', code: 'ETIMEDOUT', errorClass: 'FetchError' })).toBe(
+      'failed · ETIMEDOUT · FetchError',
+    );
+    expect(failureResultLabel({ ...group, outcome: 'rate_limited', code: 'rate_limited', errorClass: null })).toBe(
+      'rate_limited',
+    );
+  });
+
+  it('leaves no dangling separator when a failure recorded no code', () => {
+    expect(failureResultLabel({ ...group, outcome: 'timeout', code: null, errorClass: null })).toBe('timeout');
+    expect(failureResultLabel({ ...group, outcome: 'timeout', code: null, errorClass: 'AbortError' })).toBe(
+      'timeout · AbortError',
+    );
   });
 });

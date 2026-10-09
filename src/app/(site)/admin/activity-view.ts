@@ -56,7 +56,9 @@ export function deriveActivityView(input: {
   const rangeStart = isoDay(range.from);
   const firstDay = dailyCounts[0]!.day;
   const start = firstDay > rangeStart ? firstDay : rangeStart;
-  const end = isoDay(range.to);
+  // The range is half-open, so its last day is the one holding `to - 1ms`;
+  // a range ending at midnight must not add an empty day for tomorrow.
+  const end = isoDay(new Date(range.to.getTime() - 1));
   const series = zeroFillDaily(
     dailyCounts.map((d) => ({ day: d.day, value: d.views })),
     start,

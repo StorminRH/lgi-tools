@@ -59,8 +59,8 @@ export function operationLabel(row: { feature: string | null; operation: string 
 
 /** The result, then its code and error class where they add something. */
 export function failureResultLabel(row: FailureGroup): string {
-  const parts: (string | null)[] = [row.outcome];
-  if (row.code !== row.outcome) parts.push(row.code);
+  const parts: string[] = [row.outcome];
+  if (row.code !== null && row.code !== row.outcome) parts.push(row.code);
   if (row.errorClass !== null) parts.push(row.errorClass);
   return parts.join(' · ');
 }
