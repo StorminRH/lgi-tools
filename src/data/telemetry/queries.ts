@@ -149,7 +149,8 @@ export async function getRoleChangeAudit(
     })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, 'role_change')))
-    .orderBy(desc(usageLogs.timestamp))
+    // Matches the index's `desc nulls last`, so the limit reads only the newest rows.
+    .orderBy(sql`${usageLogs.timestamp} desc nulls last`)
     .limit(limit);
 
   return rows.map((r) => ({

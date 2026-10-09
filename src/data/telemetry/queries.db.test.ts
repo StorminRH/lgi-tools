@@ -363,3 +363,24 @@ describe.skipIf(!harness.reachable)('SSO bounce attribution', () => {
     expect(pageViewTotals(current)).toEqual({ views: 3, referrals: 1, entries: 0 });
   });
 });
+
+describe.skipIf(!harness.reachable)('role change audit', () => {
+  it('lists the newest changes first, up to the limit', async () => {
+    const range = { from: new Date('2024-03-01T00:00:00Z'), to: new Date('2024-03-08T00:00:00Z') };
+    const days = ['2024-03-02', '2024-03-06', '2024-03-04', '2024-03-08', '2024-02-29'];
+    await harness.db.insert(usageLogs).values(
+      days.map((day, i) => ({
+        action: 'role_change',
+        characterId: CHAR_OLD,
+        timestamp: new Date(`${day}T12:00:00Z`),
+        metadata: { actorCharacterId: CHAR_OLD, targetCharacterId: CHAR_NEW, from: 'USER', to: i % 2 === 0 ? 'ADMIN' : 'USER' },
+      })),
+    );
+    const audit = await getRoleChangeAudit(range, 2);
+    expect(audit.map((row) => row.timestamp.toISOString())).toEqual([
+      '2024-03-06T12:00:00.000Z',
+      '2024-03-04T12:00:00.000Z',
+    ]);
+    expect(audit[0]).toMatchObject({ actorName: 'Old Pilot', targetName: 'New Pilot', from: 'USER', to: 'USER' });
+  });
+});
