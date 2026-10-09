@@ -203,16 +203,15 @@ test.each([true, false])('cancelled independent adjusted-price success=%s cannot
   expect(rt.states[0]).toBeNull();
 });
 
-
 test('global adjusted prices load even when the profile has no installation system', async () => {
   const nowhere = { top: route(null), routeOf: () => route(null) } as unknown as ProfilePlan;
-  const initial = useComponentFeeSources(structure, nowhere, 0, true);
+  const initial = feeSources(structure, nowhere, 0, true);
   expect(initial.pending).toBe(true);
   expect(h.reads[0]!.enabled).toBe(false);
   expect(h.reads[1]!.enabled).toBe(true);
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { adjustedPrices: [{ typeId: 34, adjustedPrice: 5 }] } });
   h.reads[1]!.onData(await h.reads[1]!.read(new AbortController().signal));
-  const result = useComponentFeeSources(structure, nowhere, 0, true);
+  const result = feeSources(structure, nowhere, 0, true);
   expect(h.apiFetch.mock.calls[0]![1].body).toEqual({ systemId: null, blueprintId: 100 });
   expect(result.pending).toBe(false);
   expect(result.failed).toBe(false);
