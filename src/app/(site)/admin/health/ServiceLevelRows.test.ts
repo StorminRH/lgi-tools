@@ -54,6 +54,18 @@ function render(id: ServiceLevelRow['id'], details: ServiceLevelDetails): string
 
 beforeEach(() => vi.clearAllMocks());
 
+describe('service level rows', () => {
+  it('reads like the overview: verdict spoken, value in the value column, target under the title', () => {
+    const html = render('job_backlog', emptyDetails());
+
+    expect(html).toContain('<span class="sr-only">Critical</span>');
+    expect(html).toMatch(/<span class="block font-ui[^"]*">Active jobs and exhausted retries<\/span><span class="block font-data[^"]*">target 0 dead<\/span>/);
+    expect(html).toMatch(/<span class="max-w-1\/2[^"]*text-tone-red">4 active · 1 dead<\/span>/);
+    expect(html).toContain('Review the refresh queue.');
+    expect(html).toContain('data-chevron="true" aria-hidden="true"');
+  });
+});
+
 describe('service level details', () => {
   it.each([
     ['read_success_rate', 'read'],
@@ -143,7 +155,7 @@ describe('service level details', () => {
       deadLetters: SECTION_LOAD_FAILED,
     });
 
-    expect(html).toContain('Target ');
+    expect(html).toContain('>target ');
     expect(html).toContain('Details unavailable.');
     expect(AdminTrendChart).not.toHaveBeenCalled();
   });

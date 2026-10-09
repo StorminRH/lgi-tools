@@ -155,7 +155,7 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
     <Card id="scheduled" className="scroll-mt-24">
       <SectionHeader size="md" label="Scheduled tasks" />
 
-      <StatusRow name="Price cron" status={statuses.price} share={shareOf(toned.price)}>
+      <StatusRow label="Price cron" status={statuses.price} share={shareOf(toned.price)}>
         <PriceCronDetail
           refreshVolume={refreshVolume}
           priceOutcomes={toned.price}
@@ -163,11 +163,11 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
         />
       </StatusRow>
 
-      <StatusRow name="SDE cron" status={statuses.sde} share={shareOf(toned.sde)}>
+      <StatusRow label="SDE cron" status={statuses.sde} share={shareOf(toned.sde)}>
         <CronOutcomeDetail outcomes={toned.sde} ariaLabel="SDE-cron runs by outcome" />
       </StatusRow>
 
-      <StatusRow name="GSC sync" status={statuses.gsc} share={shareOf(toned.gsc)}>
+      <StatusRow label="GSC sync" status={statuses.gsc} share={shareOf(toned.gsc)}>
         <GscSyncDetail
           gscConfigured={gscConfigured}
           lastSyncedAt={lastSyncedAt}
@@ -176,7 +176,7 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
       </StatusRow>
 
       <StatusRow
-        name="Housekeeping"
+        label="Housekeeping"
         status={statuses.housekeeping}
         share={shareOf(toned.housekeeping)}
       >

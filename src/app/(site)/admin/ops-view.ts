@@ -7,52 +7,11 @@ import type {
 } from '@/data/telemetry/queries';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import type { DomainEventRow } from '@/data/domain-events/types';
-import { ESI_BUDGET_FLOOR } from '@/platform/esi';
-import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 
 export interface OpsMetricRow {
   label: string;
   value: string;
   note: string;
-}
-
-export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
-  if (snapshot === null) {
-    return {
-      level: 'red' as const,
-      headline: 'Scoreboard unavailable · dispatch paused',
-      metrics: [] as OpsMetricRow[],
-    };
-  }
-  const belowFloor = snapshot.effectiveRemaining < ESI_BUDGET_FLOOR;
-  return {
-    level: belowFloor ? ('red' as const) : ('green' as const),
-    headline: belowFloor
-      ? `floor ${ESI_BUDGET_FLOOR} · dispatch paused`
-      : `floor ${ESI_BUDGET_FLOOR}`,
-    metrics: [
-      {
-        label: 'Effective remaining',
-        value: snapshot.effectiveRemaining.toLocaleString(),
-        note: '',
-      },
-      {
-        label: 'Observed HTTP errors',
-        value: snapshot.selfCount.toLocaleString(),
-        note: '4xx/5xx · last 2 min',
-      },
-      {
-        label: 'Lowest recent CCP allowance',
-        value: snapshot.echo?.toLocaleString() ?? '—',
-        note: snapshot.echo === null ? 'not observed' : 'CCP response header',
-      },
-      {
-        label: 'Scoreboard source',
-        value: snapshot.source === 'shared' ? 'shared' : 'process-local',
-        note: snapshot.source === 'shared' ? 'Upstash Redis' : 'development fallback',
-      },
-    ],
-  };
 }
 
 export function deriveDeadLetterView(rows: DeadLetterRow[]) {

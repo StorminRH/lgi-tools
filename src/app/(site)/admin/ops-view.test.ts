@@ -1,33 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  deriveBudgetView,
   deriveCostLensView,
   deriveDeadLetterView,
   summarizeDomainEvent,
 } from './ops-view';
 
 const NOW = new Date('2026-07-14T12:00:00Z');
-
-describe('deriveBudgetView', () => {
-  it('surfaces a missing scoreboard as the fail-closed state', () => {
-    expect(deriveBudgetView(null)).toMatchObject({
-      level: 'red',
-      headline: expect.stringContaining('dispatch paused'),
-      metrics: [],
-    });
-  });
-
-  it('uses the gate floor and labels a local snapshot honestly', () => {
-    const view = deriveBudgetView({
-      effectiveRemaining: 19,
-      selfCount: 12,
-      echo: 19,
-      source: 'process-local',
-    });
-    expect(view.level).toBe('red');
-    expect(view.metrics.at(-1)).toMatchObject({ value: 'process-local' });
-  });
-});
 
 describe('deriveDeadLetterView', () => {
   it('exposes only classified context needed by the admin control', () => {

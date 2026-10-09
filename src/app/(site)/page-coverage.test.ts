@@ -67,7 +67,6 @@ import { AttentionCard, StatusCards } from '@/app/(site)/admin/AdminOverviewCard
 import { RangeControl } from '@/app/(site)/admin/RangeControl';
 import { RangeSelector, RangeSelectorFallback } from '@/app/(site)/admin/RangeSelector';
 import { SectionUnavailable } from '@/app/(site)/admin/SectionUnavailable';
-import { StatusLines } from '@/app/(site)/admin/StatusLines';
 import { AdminNav, AdminNavFallback } from '@/app/(site)/admin/admin-nav';
 import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/admin/charts';
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
@@ -94,7 +93,6 @@ import {
   getPriceSourceDegradationShared,
   getStaticsReviewShared,
 } from '@/app/(site)/admin/shared-reads';
-import { LEVEL_DOT_TONE, LEVEL_VALUE_CLASS } from '@/app/(site)/admin/status-tone';
 import { ActivityCard, PilotsCard, TrafficLists } from '@/app/(site)/admin/traffic/TrafficCards';
 import AppSiteAdminTrafficPage from '@/app/(site)/admin/traffic/page';
 import AppSiteAtlasError from '@/app/(site)/atlas/error';
@@ -155,7 +153,6 @@ describe('coverage-gaps', () => {
       RangeSelector,
       RangeSelectorFallback,
       SectionUnavailable,
-      StatusLines,
       AdminNav,
       AdminNavFallback,
       AdminBarChart,
@@ -191,8 +188,6 @@ describe('coverage-gaps', () => {
       AppSiteAdminSearchPage,
       AppSiteAdminStaticsPage,
       getStaticsReviewShared,
-      LEVEL_DOT_TONE,
-      LEVEL_VALUE_CLASS,
       ActivityCard,
       PilotsCard,
       TrafficLists,

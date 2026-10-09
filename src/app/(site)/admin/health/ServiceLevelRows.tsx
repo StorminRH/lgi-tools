@@ -1,6 +1,4 @@
 import type { ReactNode } from 'react';
-import { Collapsible } from '@/components/ui/collapsible';
-import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
@@ -14,8 +12,8 @@ import { SECTION_LOAD_FAILED } from '../load-section';
 import { deriveDeadLetterView } from '../ops-view';
 import { deriveQueueCells } from '../queue/queue-view';
 import type { Loaded } from '../signals';
-import { LEVEL_DOT_TONE, LEVEL_VALUE_CLASS } from '../status-tone';
 import { ChartBlock, DetailBody, DetailCaption } from './DetailBlocks';
+import { StatusRow } from './StatusRow';
 import {
   dayLabel,
   failureResultLabel,
@@ -222,31 +220,12 @@ export function ServiceLevelRows({
   return (
     <div>
       {rows.map((row) => (
-        <Collapsible
-          key={row.id}
-          header={
-            <span className="flex min-w-0 flex-1 items-center gap-3 py-1">
-              <Dot tone={LEVEL_DOT_TONE[row.level]} size="lg" />
-              <span className="min-w-0 flex-1 text-text">{row.title}</span>
-              <span className={`shrink-0 whitespace-nowrap tabular-nums ${LEVEL_VALUE_CLASS[row.level]}`}>
-                {row.value}
-              </span>
-              <span
-                data-chevron
-                className="inline-block shrink-0 text-micro text-muted transition-transform"
-              >
-                ▾
-              </span>
-            </span>
-          }
-        >
+        <StatusRow key={row.id} label={row.label} status={row}>
           <DetailBody>
-            <DetailCaption>
-              Target {row.target} · {row.responseAction}
-            </DetailCaption>
+            <DetailCaption>{row.responseAction}</DetailCaption>
             {detailFor(row, details)}
           </DetailBody>
-        </Collapsible>
+        </StatusRow>
       ))}
     </div>
   );

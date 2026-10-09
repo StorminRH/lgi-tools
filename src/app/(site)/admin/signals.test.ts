@@ -113,17 +113,23 @@ describe('sliLevel', () => {
 
 describe('deriveBudgetStatus', () => {
   it('fails closed when the scoreboard is unavailable', () => {
-    expect(deriveBudgetStatus(null)).toMatchObject({ level: 'red', value: 'unavailable' });
+    expect(deriveBudgetStatus(null)).toEqual({
+      level: 'red',
+      value: 'unavailable',
+      note: 'scoreboard unavailable · dispatch paused',
+    });
   });
 
   it('flags a budget below the dispatch floor', () => {
     expect(deriveBudgetStatus({ effectiveRemaining: 5, selfCount: 0, echo: 5, source: 'shared' }))
-      .toMatchObject({ level: 'red', value: '5 left' });
+      .toEqual({ level: 'red', value: '5 left', note: 'floor 20 · dispatch paused' });
   });
 
-  it('is green above the floor', () => {
-    expect(deriveBudgetStatus({ effectiveRemaining: 87, selfCount: 0, echo: null, source: 'shared' }))
-      .toMatchObject({ level: 'green', value: '87 left' });
+  it('is green from the floor up', () => {
+    expect(deriveBudgetStatus({ effectiveRemaining: 20, selfCount: 0, echo: null, source: 'shared' }))
+      .toEqual({ level: 'green', value: '20 left', note: 'floor 20 · live' });
+    expect(deriveBudgetStatus({ effectiveRemaining: 1_087, selfCount: 0, echo: null, source: 'shared' }).value)
+      .toBe('1,087 left');
   });
 });
 
@@ -178,10 +184,9 @@ describe('deriveCronStatuses', () => {
   it('marks a cron that never ran as red', () => {
     const crons = { ...healthyCrons, lastRuns: [] };
     expect(deriveCronStatuses(crons, NOW).price.level).toBe('red');
-    expect(deriveStatusGroups(signals({ crons }))[2]!.lines[0]).toMatchObject({
-      value: 'never ran',
-      note: '',
-    });
+    const line = deriveStatusGroups(signals({ crons }))[2]!.lines[0]!;
+    expect(line).toMatchObject({ value: 'never ran', level: 'red' });
+    expect(line).not.toHaveProperty('note');
   });
 });
 
@@ -264,6 +269,12 @@ describe('deriveAttention', () => {
       'held-for-budget',
       'cron-prices',
     ]);
+    // The recovered cron stays quiet because its status says so, not because of its wording.
+    expect(lines.find((line) => line.id === 'cron-prices')).toMatchObject({
+      value: 'recovered',
+      note: '1 failed run this period, latest healthy 3h ago',
+      quiet: true,
+    });
     expect(attention(recovered)).toEqual([]);
   });
 
@@ -289,7 +300,12 @@ describe('release and budget-hold lines', () => {
   });
 
   it('handles an empty changelog', () => {
-    expect(line(signals({ releases: [] }), 'release')).toMatchObject({ value: 'none' });
+    expect(line(signals({ releases: [] }), 'release')).toEqual({
+      id: 'release',
+      label: 'Latest release',
+      value: 'none',
+      level: 'neutral',
+    });
   });
 
   it('counts refresh jobs held for budget', () => {
@@ -320,7 +336,7 @@ describe('a source that failed to load', () => {
 
   it('marks only its own lines unavailable', () => {
     for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'cron-housekeeping', 'queue', 'held-for-budget']) {
-      expect(byId.get(id)).toMatchObject({ value: 'unavailable', note: '', level: 'neutral' });
+      expect(byId.get(id)).toEqual({ id, label: expect.any(String), value: 'unavailable', level: 'neutral' });
     }
     expect(byId.get('readSuccess')).toMatchObject({ value: '99.9%', level: 'green' });
     expect(byId.get('budget')).toMatchObject({ value: '87 left', level: 'green' });

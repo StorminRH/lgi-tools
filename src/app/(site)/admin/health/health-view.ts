@@ -1,21 +1,20 @@
-import type { StatusLevel } from '@/data/telemetry/health-metrics';
 import type { FailureGroup, SlowOperation } from '@/data/telemetry/capability-stats';
 import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli';
+import { formatCount } from '@/lib/format/number';
 import {
   formatSliValue,
+  queueCounts,
   queueLevel,
   sliLevel,
   sliTargetLabel,
   type QueueSummary,
   type SliSignals,
+  type StatusLine,
 } from '../signals';
 
-export interface ServiceLevelRow {
+/** A service level as a status line: its title, reading and target, plus what to do when it slips. */
+export interface ServiceLevelRow extends StatusLine {
   id: SliId;
-  title: string;
-  value: string;
-  target: string;
-  level: StatusLevel;
   owner: string;
   responseAction: string;
 }
@@ -34,16 +33,12 @@ const OWNER_LABEL: Record<SliOwner, string> = {
 
 function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
   if (id === 'job_backlog') {
-    return {
-      value: `${queue.due.toLocaleString()} active · ${queue.deadLettered.toLocaleString()} dead`,
-      target: '0 dead',
-      level: queueLevel(queue),
-    };
+    return { value: queueCounts(queue), note: 'target 0 dead', level: queueLevel(queue) };
   }
   const key = SIGNAL_FOR[id];
   return {
     value: formatSliValue(key, sli[key]),
-    target: sliTargetLabel(key),
+    note: `target ${sliTargetLabel(key)}`,
     level: sliLevel(key, sli[key]),
   };
 }
@@ -51,7 +46,7 @@ function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
 export function deriveServiceLevels(sli: SliSignals, queue: QueueSummary): ServiceLevelRow[] {
   return SLI_DEFINITIONS.map((definition) => ({
     id: definition.id,
-    title: definition.title,
+    label: definition.title,
     owner: OWNER_LABEL[definition.owner],
     responseAction: definition.responseAction,
     ...measure(definition.id, sli, queue),
@@ -75,6 +70,6 @@ export function dayLabel(date: Date): string {
 }
 
 export function slowOperationNote(row: SlowOperation): string {
-  const runs = `${row.count.toLocaleString()} ${row.count === 1 ? 'run' : 'runs'}`;
+  const runs = formatCount(row.count, 'run');
   return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency} on average`;
 }

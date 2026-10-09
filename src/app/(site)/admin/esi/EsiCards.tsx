@@ -3,6 +3,7 @@ import { cn } from '@/components/ui/cn';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
 import { SectionHeader } from '@/components/ui/section-header';
 import { trendSeries } from '@/composition/admin-period';
 import { esiAvailability } from '@/data/telemetry/capability-stats';
@@ -25,42 +26,42 @@ import {
   getPriceSourceDegradationShared,
 } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
-import { deriveBudgetView, deriveCostLensView, type OpsMetricRow } from '../ops-view';
+import { LevelRow } from '../LevelRow';
+import { deriveCostLensView, type OpsMetricRow } from '../ops-view';
 import { SectionUnavailable } from '../SectionUnavailable';
-import { LEVEL_VALUE_CLASS } from '../status-tone';
-import { StatusLines } from '../StatusLines';
-import { deriveBudgetGauge, derivePressureLines } from './esi-view';
+import { deriveBudgetCard, derivePressureLines } from './esi-view';
 
+// Plain figures carry no verdict: no dot, and every value in the default colour.
 function MetricList({ rows }: { rows: OpsMetricRow[] }) {
   return (
-    <StatusLines
-      plain
-      lines={rows.map((row) => ({ id: row.label, label: row.label, value: row.value, note: row.note, level: 'neutral' }))}
-    />
+    <ReadoutList>
+      {rows.map((row) => (
+        <ReadoutRow key={row.label} label={row.label} value={row.value} note={row.note} />
+      ))}
+    </ReadoutList>
   );
 }
 
 export async function BudgetCard() {
   const fetched = await loadSection('esi-budget', readEsiBudgetSnapshot);
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Error budget" />;
-  const gauge = deriveBudgetGauge(fetched);
-  const view = deriveBudgetView(fetched);
+  const budget = deriveBudgetCard(fetched);
   return (
     <Card data-admin-budget className="h-full">
       <SectionHeader size="md" label="Error budget" />
       <div className="flex flex-col gap-2 px-3.5 py-3">
         <div className="flex items-baseline gap-2">
-          <span className={cn('font-data text-stat tabular-nums', LEVEL_VALUE_CLASS[gauge.level])}>
-            {gauge.remaining}
+          <span className={cn('font-data text-stat tabular-nums', budget.level === 'red' ? 'text-tone-red' : 'text-name')}>
+            {budget.remaining}
           </span>
-          <span className="font-ui text-ui text-muted">of {gauge.ceiling} estimated errors remaining</span>
+          <span className="font-ui text-ui text-muted">of {budget.ceiling} estimated errors remaining</span>
         </div>
-        <ProgressBar pct={gauge.pct} />
-        <span className="font-ui text-label text-muted">{view.headline}</span>
+        <ProgressBar pct={budget.pct} />
+        <span className="font-ui text-label text-muted">{budget.note}</span>
       </div>
-      {view.metrics.length > 0 && (
+      {budget.figures.length > 0 && (
         <div className="border-t border-border-soft">
-          <MetricList rows={view.metrics.slice(1)} />
+          <MetricList rows={budget.figures} />
         </div>
       )}
     </Card>
@@ -86,7 +87,11 @@ export async function PressureCard({ range }: { range: DateRange }) {
         label="Rate-limit pressure"
         hint={<CardLink href="/admin/queue">Queue</CardLink>}
       />
-      <StatusLines lines={derivePressureLines({ esiSuccess: esiSuccess.rate, esiSamples: esiSuccess.total, budgetExhaustions, fallback, degradation, queue })} />
+      <ReadoutList>
+        {derivePressureLines({ esiSuccess: esiSuccess.rate, esiSamples: esiSuccess.total, budgetExhaustions, fallback, degradation, queue }).map((line) => (
+          <LevelRow key={line.id} line={line} />
+        ))}
+      </ReadoutList>
     </Card>
   );
 }
