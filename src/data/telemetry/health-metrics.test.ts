@@ -216,7 +216,7 @@ describe('deriveEsiSourceStatus', () => {
       fallback: { esi: 0, fallback: 0, perDay: [] },
       budgetExhaustions: 0,
     });
-    expect(s).toEqual({ level: 'neutral', headline: 'no price refreshes this period' });
+    expect(s).toEqual({ level: 'neutral', headline: 'idle · no price refreshes this period' });
   });
 
   it('green when ESI served everything', () => {
@@ -224,7 +224,7 @@ describe('deriveEsiSourceStatus', () => {
       fallback: { esi: 500, fallback: 0, perDay: [] },
       budgetExhaustions: 0,
     });
-    expect(s).toEqual({ level: 'green', headline: 'ESI served every priced item this period' });
+    expect(s).toEqual({ level: 'green', headline: 'healthy · ESI served every priced item this period' });
   });
 
   it('amber on a minority fallback share', () => {
