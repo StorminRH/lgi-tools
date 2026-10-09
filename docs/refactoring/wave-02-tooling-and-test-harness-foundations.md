@@ -18,7 +18,7 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 | ☑ | [P343](#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
 | ☑ | [P349](#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
 | ☑ | [P244](#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
-| ☐ | [P347](#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
+| ☑ | [P347](#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
 | ☐ | [P348](#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
 | ☐ | [P338](#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
 | ☐ | [P339](#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
@@ -806,7 +806,7 @@ vi.mock('@/db', () => ({ db: chain }));
 
 ## P347: Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -55 (two identical helpers with their self-tests, two hand-rolled diffs, two Object.values reflections) and +30 (helper and its test): net about -25
 - **Depends on:** —

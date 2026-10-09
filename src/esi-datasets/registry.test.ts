@@ -1,19 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { is } from 'drizzle-orm';
 import {
   getTableConfig,
-  PgTable,
   pgTable,
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import * as schema from '@/composition/drizzle-schema';
 import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
+import {
+  reflectedSchemaTables,
+  registryCoverageDiff,
+} from '@/db/__tests__/support/schema-reflection';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   effectiveTtlMs,
@@ -24,23 +25,18 @@ import {
   checkEntries,
   CONVEX_ESI_HOMES,
   ESI_INFRASTRUCTURE_TABLES,
-  findUnregisteredMirrors,
   isEsiMirrorTable,
 } from './__tests__/checks';
 
-const tables = (Object.values(schema) as unknown[]).filter((value): value is PgTable =>
-  is(value, PgTable),
-);
-const tableNames = new Set(tables.map((table) => getTableConfig(table).name));
+const tables = await reflectedSchemaTables();
+const tableNames = tables.map((table) => getTableConfig(table).name);
 const flagged = tables
   .filter(isEsiMirrorTable)
   .map((table) => getTableConfig(table).name);
-const claimed = new Set(
-  ESI_DATASET_ENTRIES.flatMap((entry) => [...entry.mirrorTables]),
-);
-const infrastructure = new Set(
-  ESI_INFRASTRUCTURE_TABLES.map((entry) => entry.table),
-);
+const declaredTables = [
+  ...ESI_DATASET_ENTRIES.flatMap((entry) => [...entry.mirrorTables]),
+  ...ESI_INFRASTRUCTURE_TABLES.map((entry) => entry.table),
+];
 
 const vercelConfig = JSON.parse(
   readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8'),
@@ -95,26 +91,6 @@ describe('ESI dataset registry pure checks', () => {
     expect(isEsiMirrorTable(expires)).toBe(true);
     expect(isEsiMirrorTable(fetched)).toBe(true);
     expect(isEsiMirrorTable(ordinary)).toBe(false);
-  });
-
-  it('surfaces an unregistered mirror and clears claimed or infrastructure tables', () => {
-    expect(
-      findUnregisteredMirrors(
-        ['synthetic_unregistered'],
-        new Set(),
-        new Set(),
-      ),
-    ).toEqual(['synthetic_unregistered']);
-    expect(
-      findUnregisteredMirrors(['claimed'], new Set(['claimed']), new Set()),
-    ).toEqual([]);
-    expect(
-      findUnregisteredMirrors(
-        ['transport'],
-        new Set(),
-        new Set(['transport']),
-      ),
-    ).toEqual([]);
   });
 
   it('derives default, override, and non-static effective TTLs', () => {
@@ -290,11 +266,7 @@ describe('ESI dataset registry live gate', () => {
   });
 
   it('claims every reflected mirror or declares it as infrastructure', () => {
-    const unregistered = findUnregisteredMirrors(
-      flagged,
-      claimed,
-      infrastructure,
-    );
+    const unregistered = registryCoverageDiff(flagged, declaredTables).missing;
     expect(
       unregistered,
       `Unregistered ESI mirror table(s): ${unregistered.join(', ')}`,
@@ -302,9 +274,7 @@ describe('ESI dataset registry live gate', () => {
   });
 
   it('keeps every table claim and infrastructure exemption live', () => {
-    const stale = [...claimed, ...infrastructure]
-      .filter((name) => !tableNames.has(name))
-      .sort();
+    const stale = registryCoverageDiff(tableNames, declaredTables).stale;
     expect(stale, `Stale ESI table claim(s): ${stale.join(', ')}`).toEqual([]);
     for (const entry of ESI_INFRASTRUCTURE_TABLES) {
       expect(entry.reason.trim(), entry.table).not.toBe('');
