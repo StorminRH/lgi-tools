@@ -56,6 +56,10 @@ describe('industryCharacters', () => {
 
     vi.stubEnv('BETTER_AUTH_SECRET', 'a-real-prod-secret');
     await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
+
+    vi.stubEnv('BETTER_AUTH_SECRET', '');
+    vi.stubEnv('SESSION_SECRET', 'a-real-session-secret');
+    await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
   });
 
   it('lists every pilot and which of them can sync personal and corporation jobs', async () => {

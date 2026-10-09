@@ -36,6 +36,7 @@ const harness = await createDbTestHarness({
   steerDbProxy: true,
   env: {
     BETTER_AUTH_SECRET: 'synthetic-pilot-db-test-secret-32ch',
+    SESSION_SECRET: '',
     BETTER_AUTH_URL: 'http://localhost:3000',
     NEXT_PUBLIC_CONVEX_URL: '',
     CONVEX_SERVICE_SECRET: '',

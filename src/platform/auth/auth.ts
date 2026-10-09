@@ -6,7 +6,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
-import { readEnv, requireEnv } from '@/lib/env';
+import { readAuthSecret, readEnv, requireEnv } from '@/lib/env';
 import {
   EVE_AUTHORIZE_URL,
   EVE_PROVIDER_ID,
@@ -57,7 +57,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
       provider: 'pg',
       schema: { user, session, account, verification, jwks },
     }),
-    secret: readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET'),
+    secret: readAuthSecret(),
     baseURL: readEnv('BETTER_AUTH_URL'),
     databaseHooks: {
       account: {
