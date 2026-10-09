@@ -230,7 +230,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277) | Delete the dead motion-variable write on the map shell; ChainSurface's scope is the only writer | efficiency | S | low | low | — |
 | ☑ | [P312](wave-01-quick-wins-delete-dead-code-fix-small.md#p312) | Delete test-only signature-model exports and move signatureIdentityKey next to SignatureWindowRow | simplification | S | low | low | — |
 | ☑ | [P313](wave-01-quick-wins-delete-dead-code-fix-small.md#p313) | Use atlasMapHref in handoffCreatedMap | simplification | S | low | low | — |
-| ☐ | [P234](wave-01-quick-wins-delete-dead-code-fix-small.md#p234) | Fold getAdjustedPrices and getAveragePrices into one column-parameterized reader | persistence | S | low | low | — |
+| ☑ | [P234](wave-01-quick-wins-delete-dead-code-fix-small.md#p234) | Fold getAdjustedPrices and getAveragePrices into one column-parameterized reader | persistence | S | low | low | — |
 | ☐ | [P278](wave-01-quick-wins-delete-dead-code-fix-small.md#p278) | Name the settle spring once in motion-contract (SETTLE_SPRING) instead of three springFamily(0) calls | efficiency | S | low | low | — |
 | ☐ | [P113](wave-01-quick-wins-delete-dead-code-fix-small.md#p113) | Reuse tween-model's pruneBy for motion-host-model's pruneToLive | generic-utility | S | low | low | — |
 | ☐ | [P114](wave-01-quick-wins-delete-dead-code-fix-small.md#p114) | Share one djb2 string hash between wormhole seeding and fog brush rotation | generic-utility | S | low | low | — |
