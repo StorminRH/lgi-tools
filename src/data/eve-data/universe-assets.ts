@@ -1,7 +1,7 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
-import { getOrInsertComputed } from '@/lib/array';
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
@@ -128,10 +128,7 @@ export function buildAdjacencyGraph(
   }
   return [...neighboursBySystem]
     .sort(([left], [right]) => left - right)
-    .map(([systemId, neighbours]) => [
-      systemId,
-      [...neighbours].sort((left, right) => left - right),
-    ]);
+    .map(([systemId, neighbours]) => [systemId, sortedUniqueIds(neighbours)]);
 }
 
 export function resolveWormholeAttributeIds(

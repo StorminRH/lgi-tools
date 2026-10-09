@@ -1,3 +1,4 @@
+import { sortedUniqueIds } from '@/lib/array';
 import { pairKey } from '../lib/pair-key';
 
 export const PILOT_PATH_MAX_JUMPS = 15;
@@ -19,7 +20,7 @@ function scanTowardTargets(
   targets: ReadonlySet<number>,
 ): PathScan {
   const remaining = new Set(targets);
-  let frontier: readonly number[] = [...drawnSystemIds].sort((a, b) => a - b);
+  let frontier: readonly number[] = sortedUniqueIds(drawnSystemIds);
   const scan: PathScan = { seen: new Set(frontier), cameFrom: new Map() };
   for (let jumps = 1; jumps <= PILOT_PATH_MAX_JUMPS && remaining.size > 0; jumps += 1) {
     const next: number[] = [];
@@ -121,7 +122,7 @@ export function deriveOutboundArrows(
     input.neighbours,
     new Set(offMapLive.keys()),
   );
-  const pilotSystems = [...offMapLive.keys()].sort((a, b) => a - b);
+  const pilotSystems = sortedUniqueIds(offMapLive.keys());
   for (const pilotSystemId of pilotSystems) {
     if (!scan.cameFrom.has(pilotSystemId)) continue;
     const path = reconstructPath(scan, input.drawnSystemIds, pilotSystemId);

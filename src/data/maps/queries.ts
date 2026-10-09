@@ -16,7 +16,7 @@ import {
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { db, directClient } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
-import { groupBy } from '@/lib/array';
+import { groupBy, sortedUniqueIds } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import {
@@ -200,15 +200,13 @@ function matchedPrincipalIds(
   ownerType: MapAccessOwnerType,
   principalIds: readonly number[],
 ): number[] {
-  return [
-    ...new Set(
-      grants
-        .filter((grant) =>
-          grant.ownerType === ownerType && principalIds.includes(grant.ownerId),
-        )
-        .map((grant) => grant.ownerId),
-    ),
-  ].sort((left, right) => left - right);
+  return sortedUniqueIds(
+    grants
+      .filter((grant) =>
+        grant.ownerType === ownerType && principalIds.includes(grant.ownerId),
+      )
+      .map((grant) => grant.ownerId),
+  );
 }
 
 function resolveProvenance(

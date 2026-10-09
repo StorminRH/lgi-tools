@@ -1,4 +1,4 @@
-import { groupBy } from '@/lib/array';
+import { groupBy, sortedUniqueIds } from '@/lib/array';
 
 export type PresenceStatusWord = 'Docked' | 'In space';
 
@@ -89,8 +89,7 @@ export function coverageQueryArgs(
   if (tracking === undefined) return 'skip';
   return {
     mapId,
-    characterIds: [...new Set(tracking.tracked.map((row) => row.characterId))]
-      .sort((left, right) => left - right),
+    characterIds: sortedUniqueIds(tracking.tracked.map((row) => row.characterId)),
   };
 }
 

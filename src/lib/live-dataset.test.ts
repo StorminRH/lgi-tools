@@ -1,10 +1,5 @@
 import { expect, test } from 'vitest';
-import { anyEligibleCold, eligibleIdsKey, loadFailureStep, RECONCILE_ONCE, reconcileDelay } from './live-dataset';
-
-test('eligible ids sort and dedupe into a stable key', () => {
-  expect(eligibleIdsKey([3, 1, 2, 1])).toBe('1,2,3');
-  expect(eligibleIdsKey([])).toBe('');
-});
+import { anyEligibleCold, loadFailureStep, RECONCILE_ONCE, reconcileDelay } from './live-dataset';
 
 test('a dataset stays cold only while an eligible character has no data', () => {
   const chars = (spec: Array<[number, boolean]>) =>

@@ -1,4 +1,4 @@
-import { getOrInsertComputed } from '@/lib/array';
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import { roundTo } from '@/lib/math';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from './wormhole-contract';
 
@@ -246,5 +246,5 @@ export function beaconAttributeIds(beacons: readonly EffectBeaconRow[]): number[
       if (Number.isInteger(id)) ids.add(id);
     }
   }
-  return [...ids].sort((left, right) => left - right);
+  return sortedUniqueIds(ids);
 }

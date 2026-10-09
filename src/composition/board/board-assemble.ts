@@ -28,6 +28,7 @@ import {
   valueCharacter,
 } from '@/features/net-worth/valuation';
 import type { CharacterSkillData } from '@/features/skill-queue/types';
+import { sortedUniqueIds } from '@/lib/array';
 import { roundIsk } from '@/lib/math';
 import {
   BOARD_GAPS,
@@ -121,10 +122,6 @@ const SECTION_GAP: Record<SheetSectionKey, BoardGap | null> = {
   structures: 'structures',
 };
 
-function sorted(ids: Iterable<number>): number[] {
-  return [...new Set(ids)].sort((a, b) => a - b);
-}
-
 function cloneStationIds(clones: ClonesPart | undefined): number[] {
   const locations = [clones?.home ?? null, ...(clones?.jumpClones.map((clone) => clone.location) ?? [])];
   return locations.flatMap((location) =>
@@ -177,11 +174,11 @@ export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
     stationIds.push(...cloneStationIds(clones));
   }
   return {
-    typeIds: sorted(typeIds),
-    systemIds: sorted(systemIds),
-    stationIds: sorted(stationIds),
-    entityIds: sorted(entityIds),
-    valuationTypeIds: sorted(valuationTypeIds),
+    typeIds: sortedUniqueIds(typeIds),
+    systemIds: sortedUniqueIds(systemIds),
+    stationIds: sortedUniqueIds(stationIds),
+    entityIds: sortedUniqueIds(entityIds),
+    valuationTypeIds: sortedUniqueIds(valuationTypeIds),
   };
 }
 

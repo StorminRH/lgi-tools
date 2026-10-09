@@ -8,6 +8,24 @@ export function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+/** The distinct ids in ascending numeric order (never the default lexical sort). */
+export function sortedUniqueIds(ids: Iterable<number>): number[] {
+  return [...new Set(ids)].sort((a, b) => a - b);
+}
+
+/**
+ * A stable string identity for an id set, for memo, effect and refresh keys:
+ * the same ids in any order or multiplicity give the same key, and none give ''.
+ */
+export function idsKey(ids: Iterable<number>): string {
+  return sortedUniqueIds(ids).join(',');
+}
+
+/** Reads a comma-joined id key back into numbers; '' is no ids, not [0]. */
+export function parseIdsKey(key: string): number[] {
+  return key === '' ? [] : key.split(',').map(Number);
+}
+
 /**
  * Groups items into a Map keyed by `keyOf`, in one ordered pass: keys keep
  * first-seen order and each group keeps input order. Hand-written because

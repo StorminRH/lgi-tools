@@ -1,5 +1,5 @@
 import type { WormholeCodexAsset } from '@/data/eve-data/universe-assets';
-import { getOrInsertComputed } from '@/lib/array';
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import type { PathfinderStaticRow } from './lineage';
 import type {
   WhStaticEntry,
@@ -56,11 +56,7 @@ export function crossCheckStatics(
   const disagreements: WhStaticsDisagreement[] = [];
   const lineageOnlySystems: number[] = [];
   const feedOnlySystems: number[] = [];
-  const systemIds = new Set([
-    ...feedBySystem.keys(),
-    ...lineageBySystem.keys(),
-  ]);
-  for (const systemId of [...systemIds].sort((left, right) => left - right)) {
+  for (const systemId of sortedUniqueIds([...feedBySystem.keys(), ...lineageBySystem.keys()])) {
     const feed = feedBySystem.get(systemId);
     const lineage = lineageBySystem.get(systemId);
     if (feed === undefined) {

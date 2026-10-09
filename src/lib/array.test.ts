@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { chunk, dedupe, getOrInsertComputed, groupBy } from './array';
+import { chunk, dedupe, getOrInsertComputed, groupBy, idsKey, parseIdsKey, sortedUniqueIds } from './array';
 
 describe('array helpers', () => {
   it('chunks with a remainder group and dedupes preserving first-seen order', () => {
@@ -70,5 +70,21 @@ describe('getOrInsertComputed', () => {
     getOrInsertComputed(buckets, 'a', () => []).push(1);
     getOrInsertComputed(buckets, 'a', () => []).push(2);
     expect(buckets.get('a')).toEqual([1, 2]);
+  });
+});
+
+describe('sorted id sets', () => {
+  it('sorts distinct ids numerically, keys any iterable stably, and reads a key back without the [0] trap', () => {
+    expect(sortedUniqueIds([10, 9, 10])).toEqual([9, 10]);
+    expect(sortedUniqueIds(new Set([100, 20, 3]))).toEqual([3, 20, 100]);
+    expect(sortedUniqueIds([])).toEqual([]);
+
+    expect(idsKey([3, 1, 2, 1])).toBe('1,2,3');
+    expect(idsKey(new Map([[100, 'a'], [20, 'b']]).keys())).toBe('20,100');
+    expect(idsKey([])).toBe('');
+
+    expect(parseIdsKey('')).toEqual([]);
+    expect(parseIdsKey('7,3')).toEqual([7, 3]);
+    expect(parseIdsKey(idsKey([100, 20, 100, 3]))).toEqual([3, 20, 100]);
   });
 });

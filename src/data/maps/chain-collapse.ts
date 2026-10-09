@@ -1,4 +1,4 @@
-import { getOrInsertComputed } from '@/lib/array';
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 
 export type PilotsPresent = 'present' | 'absent' | 'unknown';
 
@@ -79,7 +79,7 @@ export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
   }
 
   if (removeSystemIds.size === 0) return { kind: 'retain' };
-  const systemIds = [...removeSystemIds].sort((left, right) => left - right);
+  const systemIds = sortedUniqueIds(removeSystemIds);
   const connectionIds = input.connections
     .filter(
       (connection) =>

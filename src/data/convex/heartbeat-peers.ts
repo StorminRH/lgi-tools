@@ -1,3 +1,4 @@
+import { sortedUniqueIds } from '@/lib/array';
 import { HEARTBEAT_MS } from '@/lib/sync-engine';
 
 export const HEARTBEAT_PEER_TIMEOUT_MS = 3 * HEARTBEAT_MS;
@@ -61,7 +62,7 @@ export function createHeartbeatPeers(local: { tabId: string; characterIdsHint: n
       }
       return {
         isLeader: leader.tabId === local.tabId,
-        characterIdsHint: [...hints].sort((a, b) => a - b),
+        characterIdsHint: sortedUniqueIds(hints),
       };
     },
   };

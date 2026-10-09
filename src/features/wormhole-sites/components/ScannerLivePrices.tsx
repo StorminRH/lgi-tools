@@ -12,11 +12,11 @@ import {
   useRefreshOnView,
   type RefreshedPrice,
 } from '@/data/market-prices/use-refresh-on-view';
+import { idsKey } from '@/lib/array';
 import { formatIskShort } from '@/lib/format/isk';
 import {
   scannerLiveEstIsk,
   scannerEstIskSum,
-  scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
 } from '../scanner-live-isk';
 import { useSiteCatalogue } from '../site-catalogue';
@@ -53,7 +53,7 @@ export function ScannerLivePricesProvider({
   // prices in place; keying a wrapper instead remounted the whole scanner dock.
   const { prices, isPending } = useRefreshOnView([...typeIds], {
     enabled: typeIds.length > 0,
-    refreshKey: scannerLiveTypeIdKey(typeIds),
+    refreshKey: idsKey(typeIds),
   });
   const value = useMemo<ScannerLiveValue>(
     () => ({
