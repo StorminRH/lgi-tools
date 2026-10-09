@@ -21,7 +21,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P324](#p324) | Retire the completed mapHallwayBackfill migration | simplification | S | low | low | — |
 | ☑ | [P335](#p335) | Delete the dead refreshPricesOnDemand and drop the cache tags nothing invalidates | simplification | S | low | low | — |
 | ☑ | [P042](#p042) | Move wormhole-site domain constants out of the Drizzle schema so client bundles stop pulling in pg-core | efficiency | S | low | medium | — |
-| ☐ | [P277](#p277) | Delete the dead motion-variable write on the map shell; ChainSurface's scope is the only writer | efficiency | S | low | low | — |
+| ☑ | [P277](#p277) | Delete the dead motion-variable write on the map shell; ChainSurface's scope is the only writer | efficiency | S | low | low | — |
 | ☐ | [P312](#p312) | Delete test-only signature-model exports and move signatureIdentityKey next to SignatureWindowRow | simplification | S | low | low | — |
 | ☐ | [P313](#p313) | Use atlasMapHref in handoffCreatedMap | simplification | S | low | low | — |
 | ☐ | [P234](#p234) | Fold getAdjustedPrices and getAveragePrices into one column-parameterized reader | persistence | S | low | low | — |
@@ -430,7 +430,7 @@ SLEEPER_CLASS_ORDER and SLEEPER_CLASS_CODES currently agree, so merging them cha
 
 ## P277: Delete the dead motion-variable write on the map shell; ChainSurface's scope is the only writer
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about −15 lines (an 11-line effect plus ref plumbing, 1 CSS selector, 1 attribute)
 - **Depends on:** —
