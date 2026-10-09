@@ -3,11 +3,11 @@ import { getWhStaticsOperatorReview, getWhStaticsOperatorSummary } from '@/compo
 import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
 import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
 import {
-  getBudgetExhaustionCount,
   getCronOutcomes,
   getLastCronRuns,
   getPageViewStats,
   getPriceRefreshDays,
+  getPriceSourceDegradation,
 } from '@/data/telemetry/queries';
 import { getCapabilityLatency, getCapabilityOutcomeStats } from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
@@ -28,7 +28,6 @@ export const getEsiRefreshQueueStatsShared = cache(getEsiRefreshQueueStats);
 export const getStaticsReviewShared = cache(getWhStaticsOperatorReview);
 export const getLastSyncedAtShared = cache(getLastSyncedAt);
 
-export const getBudgetExhaustionCountShared = sharedRangeRead(getBudgetExhaustionCount);
 
 // Search, statics and accounts
 
@@ -43,6 +42,7 @@ export const getCapabilityLatencyShared = sharedRangeRead(getCapabilityLatency);
 export const getCronOutcomesShared = sharedRangeRead(getCronOutcomes);
 export const getLastCronRunsShared = cache(getLastCronRuns);
 export const getPriceRefreshDaysShared = sharedRangeRead(getPriceRefreshDays);
+export const getPriceSourceDegradationShared = sharedRangeRead(getPriceSourceDegradation);
 
 /** As `sharedRangeRead`, for reads over a range and the period before it. */
 function sharedPeriodRead<T>(

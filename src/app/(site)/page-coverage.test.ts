@@ -87,10 +87,10 @@ import { PerformanceCard, SearchNotConnected, SitemapsCard, TermCards } from '@/
 import AppSiteAdminSearchPage from '@/app/(site)/admin/search/page';
 import AppSiteAdminStaticsPage from '@/app/(site)/admin/statics/page';
 import {
-  getBudgetExhaustionCountShared,
   getEsiRefreshQueueStatsShared,
-  getPriceRefreshDaysShared,
   getLastSyncedAtShared,
+  getPriceRefreshDaysShared,
+  getPriceSourceDegradationShared,
   getStaticsReviewShared,
 } from '@/app/(site)/admin/shared-reads';
 import { LEVEL_DOT_TONE, LEVEL_VALUE_CLASS } from '@/app/(site)/admin/status-tone';
@@ -164,8 +164,8 @@ describe('coverage-gaps', () => {
       PressureCard,
       PriceSourceCard,
       AppSiteAdminEsiPage,
-      getBudgetExhaustionCountShared,
       getPriceRefreshDaysShared,
+      getPriceSourceDegradationShared,
       EventLogCard,
       ServiceLevelsCard,
       ScheduledTasks,

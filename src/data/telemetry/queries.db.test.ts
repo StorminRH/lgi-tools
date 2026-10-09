@@ -5,14 +5,13 @@ import {
   claimPublicEsiBudgetAlert,
   completePublicEsiBudgetAlertClaim,
   countPublicEsiBudgetExhaustionsInWindow,
-  getBudgetExhaustionCount,
   getCronOutcomes,
-  getDegradationByCaller,
   getLastCronRuns,
   getLoginCountsPerUser,
   getPageViewRankings,
   getPageViewStats,
   getPriceRefreshDays,
+  getPriceSourceDegradation,
   getReturningVsNew,
   getRoleChangeAudit,
   getHistorySourceSplit,
@@ -69,14 +68,13 @@ const cases: QueryCase[] = [
   { name: 'getRoleChangeAudit', run: () => getRoleChangeAudit(RANGE), check: expectNonEmptyArray },
   { name: 'getPriceRefreshDays', run: () => getPriceRefreshDays(RANGE), check: expectNonEmptyArray },
   {
-    name: 'getBudgetExhaustionCount',
-    run: () => getBudgetExhaustionCount(RANGE),
-    check: expectPositiveNumber,
-  },
-  {
-    name: 'getDegradationByCaller',
-    run: () => getDegradationByCaller(RANGE),
-    check: expectNonEmptyArray,
+    name: 'getPriceSourceDegradation',
+    run: () => getPriceSourceDegradation(RANGE),
+    check: (r) => {
+      const d = r as { byCaller: unknown[]; budgetExhaustions: number };
+      expectNonEmptyArray(d.byCaller);
+      expectPositiveNumber(d.budgetExhaustions);
+    },
   },
   {
     name: 'getCronOutcomes',
@@ -262,7 +260,7 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
 
   it('uses the cron outcome for fallback volume and one degradation row per budget incident', async () => {
     expect(fallbackRate(await getPriceRefreshDays(RANGE))).toMatchObject({ esi: 100, fallback: 5 });
-    await expect(getBudgetExhaustionCount(RANGE)).resolves.toBe(2);
+    await expect(getPriceSourceDegradation(RANGE)).resolves.toMatchObject({ budgetExhaustions: 2 });
   });
 
   it('counts only public on-demand exhaustion events and finds the alert marker', async () => {

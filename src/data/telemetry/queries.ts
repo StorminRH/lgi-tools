@@ -29,6 +29,7 @@ import {
   type RankedList,
   type RankedRow,
 } from './page-view-stats';
+import { priceSourceDegradation, type PriceSourceDegradation } from './price-source-stats';
 import { usageLogs } from './schema';
 import {
   CAPABILITY_ACTION,
@@ -42,7 +43,6 @@ import {
 import type {
   CronLastRun,
   DateRange,
-  DegradationCallerCount,
   ReturningVsNew,
   RoleChangeAuditEntry,
   UsageAction,
@@ -198,20 +198,6 @@ export async function getPriceRefreshDays(range: DateRange): Promise<PriceRefres
   }));
 }
 
-export async function getBudgetExhaustionCount(range: DateRange): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(usageLogs)
-    .where(
-      and(
-        inRange(range),
-        eq(usageLogs.action, 'price_source_degraded'),
-        eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true'),
-      ),
-    );
-  return Number(row?.n ?? 0);
-}
-
 export async function countPublicEsiBudgetExhaustionsInWindow(
   from: Date,
   to: Date,
@@ -255,21 +241,23 @@ export async function hasPublicEsiBudgetAlertForWindow(
   return Number(row?.n ?? 0) > 0;
 }
 
-export async function getDegradationByCaller(
-  range: DateRange,
-): Promise<DegradationCallerCount[]> {
-  const caller = sql<string>`${usageLogs.metadata} ->> 'caller'`;
+/**
+ * Degraded price reads by caller, with how many hit an exhausted ESI
+ * budget, in one scan.
+ */
+export async function getPriceSourceDegradation(range: DateRange): Promise<PriceSourceDegradation> {
+  const caller = sql<string | null>`${usageLogs.metadata} ->> 'caller'`;
+  const budgetExhausted = eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true');
   const rows = await db
-    .select({ caller, count: count() })
+    .select({
+      caller,
+      count: count(),
+      budgetExhausted: sql<number>`count(*) filter (where ${budgetExhausted})`.mapWith(Number),
+    })
     .from(usageLogs)
-    .where(
-      and(inRange(range), eq(usageLogs.action, 'price_source_degraded'), isNotNull(caller)),
-    )
-    .groupBy(caller)
-    .orderBy(desc(count()));
-  return rows
-    .filter((r) => r.caller !== null)
-    .map((r) => ({ caller: r.caller as string, count: Number(r.count) }));
+    .where(and(inRange(range), eq(usageLogs.action, 'price_source_degraded')))
+    .groupBy(caller);
+  return priceSourceDegradation(rows);
 }
 
 /** Runs of every tracked cron by outcome, most frequent first within each. */

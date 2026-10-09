@@ -5,13 +5,14 @@ import { fallbackRate } from '@/data/telemetry/cron-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { loadDeployMarkers } from './deploy-markers';
-import { getBudgetExhaustionCountShared, getEsiRefreshQueueStatsShared, getLastSyncedAtShared, getStaticsSummaryShared } from './shared-reads';
+import { getEsiRefreshQueueStatsShared, getLastSyncedAtShared, getStaticsSummaryShared } from './shared-reads';
 import {
   getCapabilityLatencyShared,
   getCapabilityOutcomeStatsShared,
   getCronOutcomesShared,
   getLastCronRunsShared,
   getPriceRefreshDaysShared,
+  getPriceSourceDegradationShared,
 } from './shared-reads';
 import { loadSection } from './load-section';
 import { deriveSliSignals, type AdminSignals, type CronSignals, type SliSignals } from './signals';
@@ -43,7 +44,7 @@ export const loadAdminSignals = cache(async (rangeKey: RangeKey): Promise<AdminS
     loadSection('admin-signals.crons', () => loadCronSignals(range)),
     loadSection('admin-signals.budget', readEsiBudgetSnapshot),
     loadSection('admin-signals.fallback', async () => fallbackRate(await getPriceRefreshDaysShared(range))),
-    loadSection('admin-signals.budget-exhaustions', () => getBudgetExhaustionCountShared(range)),
+    loadSection('admin-signals.budget-exhaustions', async () => (await getPriceSourceDegradationShared(range)).budgetExhaustions),
     loadSection<SliSignals>('admin-signals.sli', async () => {
       const [outcomes, latency] = await Promise.all([
         loadSection('capability-outcomes', () => getCapabilityOutcomeStatsShared(range)),

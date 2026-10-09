@@ -9,7 +9,6 @@ import { esiAvailability } from '@/data/telemetry/capability-stats';
 import { fallbackRate } from '@/data/telemetry/cron-stats';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
 import {
-  getDegradationByCaller,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
@@ -20,10 +19,10 @@ import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { AdminBarChart, AdminTrendChart } from '../charts';
 import { CardLink } from '../CardLink';
 import {
-  getBudgetExhaustionCountShared,
   getCapabilityOutcomeStatsShared,
   getEsiRefreshQueueStatsShared,
   getPriceRefreshDaysShared,
+  getPriceSourceDegradationShared,
 } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { deriveBudgetView, deriveCostLensView, type OpsMetricRow } from '../ops-view';
@@ -72,14 +71,13 @@ export async function PressureCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('esi-pressure', () =>
     Promise.all([
       getCapabilityOutcomeStatsShared(range),
-      getBudgetExhaustionCountShared(range),
       getPriceRefreshDaysShared(range).then(fallbackRate),
-      getDegradationByCaller(range),
+      getPriceSourceDegradationShared(range),
       getEsiRefreshQueueStatsShared(),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Rate-limit pressure" />;
-  const [outcomes, budgetExhaustions, fallback, degradation, queue] = fetched;
+  const [outcomes, fallback, { byCaller: degradation, budgetExhaustions }, queue] = fetched;
   const esiSuccess = esiAvailability(outcomes);
   return (
     <Card data-admin-pressure className="h-full">
@@ -95,10 +93,10 @@ export async function PressureCard({ range }: { range: DateRange }) {
 
 export async function PriceSourceCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('price-source', () =>
-    Promise.all([getPriceRefreshDaysShared(range).then(fallbackRate), getDegradationByCaller(range)]),
+    Promise.all([getPriceRefreshDaysShared(range).then(fallbackRate), getPriceSourceDegradationShared(range)]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Price-source health" />;
-  const [fallback, degradation] = fetched;
+  const [fallback, { byCaller: degradation }] = fetched;
   const fallbackTrend = trendSeries(
     fallback.perDay.map((point) => point.day),
     fallbackRatePoints(fallback.perDay),
@@ -138,15 +136,14 @@ export async function PriceSourceCard({ range }: { range: DateRange }) {
 
 async function loadCost(range: DateRange) {
   return loadSection('esi-cost', async () => {
-    const [prices, history, writeBehind, endpoints, fallback, budgetExhaustions, degradation] =
+    const [prices, history, writeBehind, endpoints, fallback, { byCaller: degradation, budgetExhaustions }] =
       await Promise.all([
         getPriceSourceSplit(range),
         getHistorySourceSplit(range),
         getWriteBehindOutcomes(range),
         getTopCostlyEndpoints(range, 8),
         getPriceRefreshDaysShared(range).then(fallbackRate),
-        getBudgetExhaustionCountShared(range),
-        getDegradationByCaller(range),
+        getPriceSourceDegradationShared(range),
       ]);
     return deriveCostLensView({
       prices,
