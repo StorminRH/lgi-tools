@@ -89,7 +89,7 @@ import AppSiteAdminStaticsPage from '@/app/(site)/admin/statics/page';
 import {
   getBudgetExhaustionCountShared,
   getEsiRefreshQueueStatsShared,
-  getFallbackRateShared,
+  getPriceRefreshDaysShared,
   getLastSyncedAtShared,
   getStaticsReviewShared,
 } from '@/app/(site)/admin/shared-reads';
@@ -165,7 +165,7 @@ describe('coverage-gaps', () => {
       PriceSourceCard,
       AppSiteAdminEsiPage,
       getBudgetExhaustionCountShared,
-      getFallbackRateShared,
+      getPriceRefreshDaysShared,
       EventLogCard,
       ServiceLevelsCard,
       ScheduledTasks,

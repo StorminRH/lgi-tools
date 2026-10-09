@@ -2,7 +2,13 @@ import { cache } from 'react';
 import { getWhStaticsOperatorReview, getWhStaticsOperatorSummary } from '@/composition/wh-statics-refresh';
 import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
 import { getLastSyncedAt, getSearchTrend } from '@/data/gsc/queries';
-import { getBudgetExhaustionCount, getFallbackRate, getPageViewStats } from '@/data/telemetry/queries';
+import {
+  getBudgetExhaustionCount,
+  getCronOutcomes,
+  getLastCronRuns,
+  getPageViewStats,
+  getPriceRefreshDays,
+} from '@/data/telemetry/queries';
 import { getCapabilityLatency, getCapabilityOutcomeStats } from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
 
@@ -22,7 +28,6 @@ export const getEsiRefreshQueueStatsShared = cache(getEsiRefreshQueueStats);
 export const getStaticsReviewShared = cache(getWhStaticsOperatorReview);
 export const getLastSyncedAtShared = cache(getLastSyncedAt);
 
-export const getFallbackRateShared = sharedRangeRead(getFallbackRate);
 export const getBudgetExhaustionCountShared = sharedRangeRead(getBudgetExhaustionCount);
 
 // Search, statics and accounts
@@ -35,6 +40,9 @@ export const getStaticsSummaryShared = cache(getWhStaticsOperatorSummary);
 // Telemetry
 export const getCapabilityOutcomeStatsShared = sharedRangeRead(getCapabilityOutcomeStats);
 export const getCapabilityLatencyShared = sharedRangeRead(getCapabilityLatency);
+export const getCronOutcomesShared = sharedRangeRead(getCronOutcomes);
+export const getLastCronRunsShared = cache(getLastCronRuns);
+export const getPriceRefreshDaysShared = sharedRangeRead(getPriceRefreshDays);
 
 /** As `sharedRangeRead`, for reads over a range and the period before it. */
 function sharedPeriodRead<T>(

@@ -17,6 +17,7 @@ import {
 import { EVE_SSO_HOST } from '@/lib/eve-provider';
 import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
+import { CRON_ACTIONS, splitCronOutcomes, type CronOutcomes, type PriceRefreshDay } from './cron-stats';
 import {
   readWindow,
   splitAudience,
@@ -40,11 +41,8 @@ import {
 } from './sql';
 import type {
   CronLastRun,
-  CronOutcomeCount,
   DateRange,
   DegradationCallerCount,
-  FallbackRateData,
-  RefreshVolumePoint,
   ReturningVsNew,
   RoleChangeAuditEntry,
   UsageAction,
@@ -165,37 +163,39 @@ export async function getRoleChangeAudit(
   }));
 }
 
-export async function getFallbackRate(range: DateRange): Promise<FallbackRateData> {
-  const esi = sql<number>`coalesce(sum(${jsonInt('esiCount')}), 0)`.mapWith(Number);
-  const fallback = sql<number>`coalesce(sum(${jsonInt('fuzzworkFallbackCount')}), 0)`.mapWith(
-    Number,
-  );
-  const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
-  const where = and(
-    inRange(range),
-    eq(usageLogs.action, 'cron_prices'),
-    eq(sql`${usageLogs.metadata} ->> 'outcome'`, 'refreshed'),
-  );
-
-  const [totals, perDay] = await Promise.all([
-    db.select({ esi, fallback }).from(usageLogs).where(where),
-    db
-      .select({ day, esi, fallback })
-      .from(usageLogs)
-      .where(where)
-      .groupBy(day)
-      .orderBy(day),
-  ]);
-
-  return {
-    esi: Number(totals[0]?.esi ?? 0),
-    fallback: Number(totals[0]?.fallback ?? 0),
-    perDay: perDay.map((r) => ({
-      day: r.day,
-      esi: Number(r.esi),
-      fallback: Number(r.fallback),
-    })),
-  };
+/**
+ * What each successful price refresh fetched, wrote, and took from ESI or
+ * the Fuzzwork fallback, per UTC day. The fallback rate and the refresh
+ * volume both derive from it.
+ */
+export async function getPriceRefreshDays(range: DateRange): Promise<PriceRefreshDay[]> {
+  const day = sql<string>`(${usageLogs.timestamp} at time zone 'UTC')::date`;
+  const total = (key: string) => sql<number>`coalesce(sum(${jsonInt(key)}), 0)`.mapWith(Number);
+  const rows = await db
+    .select({
+      day,
+      esi: total('esiCount'),
+      fallback: total('fuzzworkFallbackCount'),
+      fetched: total('fetched'),
+      written: total('written'),
+    })
+    .from(usageLogs)
+    .where(
+      and(
+        inRange(range),
+        eq(usageLogs.action, 'cron_prices'),
+        eq(sql`${usageLogs.metadata} ->> 'outcome'`, 'refreshed'),
+      ),
+    )
+    .groupBy(day)
+    .orderBy(day);
+  return rows.map((r) => ({
+    day: r.day,
+    esi: Number(r.esi),
+    fallback: Number(r.fallback),
+    fetched: Number(r.fetched),
+    written: Number(r.written),
+  }));
 }
 
 export async function getBudgetExhaustionCount(range: DateRange): Promise<number> {
@@ -272,83 +272,41 @@ export async function getDegradationByCaller(
     .map((r) => ({ caller: r.caller as string, count: Number(r.count) }));
 }
 
-async function getCronOutcomes(
-  range: DateRange,
-  action: UsageAction,
-): Promise<CronOutcomeCount[]> {
+/** Runs of every tracked cron by outcome, most frequent first within each. */
+export async function getCronOutcomes(range: DateRange): Promise<CronOutcomes> {
   const outcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
   const avgDurationMs = sql<number>`coalesce(avg(${jsonNumber('durationMs')}), 0)`.mapWith(Number);
   const rows = await db
-    .select({ outcome, count: count(), avgDurationMs })
+    .select({ action: usageLogs.action, outcome, count: count(), avgDurationMs })
     .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(outcome)))
-    .groupBy(outcome)
-    .orderBy(desc(count()));
-  return rows
-    .filter((r) => r.outcome !== null)
-    .map((r) => ({
-      outcome: r.outcome as string,
-      count: Number(r.count),
-      avgDurationMs: Math.round(Number(r.avgDurationMs)),
-    }));
+    .where(and(inRange(range), inArray(usageLogs.action, [...CRON_ACTIONS]), isNotNull(outcome)))
+    .groupBy(usageLogs.action, outcome)
+    .orderBy(usageLogs.action, desc(count()), outcome);
+  return splitCronOutcomes(rows);
 }
 
-export function getPriceCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_prices');
-}
-
-export function getSdeCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_sde');
-}
-
-export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_gsc');
-}
-
-export function getHousekeepingCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_housekeeping');
-}
-
+/**
+ * The latest run of each tracked cron, at any time. Each is one step down
+ * the action and timestamp index, so the read stays a few rows however
+ * long the log grows.
+ */
 export async function getLastCronRuns(): Promise<CronLastRun[]> {
-  const outcome = sql<string | null>`${usageLogs.metadata} ->> 'outcome'`;
-  const rows = await db
-    .selectDistinctOn([usageLogs.action], {
-      action: usageLogs.action,
+  const lastRun = db
+    .select({
       timestamp: usageLogs.timestamp,
-      outcome,
+      outcome: sql<string | null>`${usageLogs.metadata} ->> 'outcome'`.as('outcome'),
     })
     .from(usageLogs)
-    .where(inArray(usageLogs.action, ['cron_prices', 'cron_sde', 'cron_gsc', 'cron_housekeeping']))
-    .orderBy(usageLogs.action, desc(usageLogs.timestamp));
-
-  return rows.map((r) => ({
-    action: r.action as UsageAction,
-    timestamp: r.timestamp,
-    outcome: r.outcome,
-  }));
-}
-
-export async function getRefreshVolume(range: DateRange): Promise<RefreshVolumePoint[]> {
-  const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
-  const fetched = sql<number>`coalesce(sum(${jsonInt('fetched')}), 0)`.mapWith(Number);
-  const written = sql<number>`coalesce(sum(${jsonInt('written')}), 0)`.mapWith(Number);
+    .where(eq(usageLogs.action, sql`cron.action`))
+    // Matches the index's `desc nulls last`, so the limit stops at one row.
+    .orderBy(sql`${usageLogs.timestamp} desc nulls last`)
+    .limit(1)
+    .as('last_run');
   const rows = await db
-    .select({ day, fetched, written })
-    .from(usageLogs)
-    .where(
-      and(
-        inRange(range),
-        eq(usageLogs.action, 'cron_prices'),
-        eq(sql`${usageLogs.metadata} ->> 'outcome'`, 'refreshed'),
-      ),
-    )
-    .groupBy(day)
-    .orderBy(day);
-  return rows.map((r) => ({
-    day: r.day,
-    fetched: Number(r.fetched),
-    written: Number(r.written),
-  }));
+    .select({ action: sql<UsageAction>`cron.action`, timestamp: lastRun.timestamp, outcome: lastRun.outcome })
+    .from(sql`unnest(${sql.param([...CRON_ACTIONS])}::text[]) as cron(action)`)
+    .innerJoinLateral(lastRun, sql`true`);
+  return rows.map((r) => ({ action: r.action, timestamp: r.timestamp, outcome: r.outcome }));
 }
 
 // Resolve recorded characters to their current human account, once per EVE account.

@@ -6,24 +6,22 @@ import {
   completePublicEsiBudgetAlertClaim,
   countPublicEsiBudgetExhaustionsInWindow,
   getBudgetExhaustionCount,
+  getCronOutcomes,
   getDegradationByCaller,
-  getFallbackRate,
-  getGscCronOutcomes,
   getLastCronRuns,
   getLoginCountsPerUser,
   getPageViewRankings,
   getPageViewStats,
-  getPriceCronOutcomes,
-  getRefreshVolume,
+  getPriceRefreshDays,
   getReturningVsNew,
   getRoleChangeAudit,
-  getSdeCronOutcomes,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
   getWriteBehindOutcomes,
   hasPublicEsiBudgetAlertForWindow,
 } from './queries';
+import { fallbackRate } from './cron-stats';
 import { pageViewSources, pageViewTotals } from './page-view-stats';
 import { usageLogs } from './schema';
 
@@ -69,16 +67,7 @@ const cases: QueryCase[] = [
     },
   },
   { name: 'getRoleChangeAudit', run: () => getRoleChangeAudit(RANGE), check: expectNonEmptyArray },
-  {
-    name: 'getFallbackRate',
-    run: () => getFallbackRate(RANGE),
-    check: (r) => {
-      const d = r as { esi: number; fallback: number; perDay: unknown[] };
-      expect(typeof d.esi).toBe('number');
-      expect(typeof d.fallback).toBe('number');
-      expect(Array.isArray(d.perDay)).toBe(true);
-    },
-  },
+  { name: 'getPriceRefreshDays', run: () => getPriceRefreshDays(RANGE), check: expectNonEmptyArray },
   {
     name: 'getBudgetExhaustionCount',
     run: () => getBudgetExhaustionCount(RANGE),
@@ -89,11 +78,15 @@ const cases: QueryCase[] = [
     run: () => getDegradationByCaller(RANGE),
     check: expectNonEmptyArray,
   },
-  { name: 'getPriceCronOutcomes', run: () => getPriceCronOutcomes(RANGE), check: expectNonEmptyArray },
-  { name: 'getSdeCronOutcomes', run: () => getSdeCronOutcomes(RANGE), check: expectNonEmptyArray },
-  { name: 'getGscCronOutcomes', run: () => getGscCronOutcomes(RANGE), check: expectNonEmptyArray },
+  {
+    name: 'getCronOutcomes',
+    run: () => getCronOutcomes(RANGE),
+    check: (r) => {
+      const d = r as Record<string, unknown[]>;
+      for (const action of ['cron_prices', 'cron_sde', 'cron_gsc']) expectNonEmptyArray(d[action]);
+    },
+  },
   { name: 'getLastCronRuns', run: () => getLastCronRuns(), check: expectNonEmptyArray },
-  { name: 'getRefreshVolume', run: () => getRefreshVolume(RANGE), check: expectNonEmptyArray },
   {
     name: 'getReturningVsNew',
     run: async () => (await getReturningVsNew(RANGE, null)).current,
@@ -268,7 +261,7 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
   });
 
   it('uses the cron outcome for fallback volume and one degradation row per budget incident', async () => {
-    await expect(getFallbackRate(RANGE)).resolves.toMatchObject({ esi: 100, fallback: 5 });
+    expect(fallbackRate(await getPriceRefreshDays(RANGE))).toMatchObject({ esi: 100, fallback: 5 });
     await expect(getBudgetExhaustionCount(RANGE)).resolves.toBe(2);
   });
 

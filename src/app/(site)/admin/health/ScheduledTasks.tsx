@@ -2,20 +2,13 @@ import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import type { ShareSegment } from '@/components/ui/stacked-share-bar';
-import { isGscConfigured } from '@/data/gsc/constants';
+import { refreshVolume as refreshVolumeOf } from '@/data/telemetry/cron-stats';
 import { refreshVolumeSummary } from '@/data/telemetry/health-metrics';
-import {
-  getGscCronOutcomes,
-  getHousekeepingCronOutcomes,
-  getLastCronRuns,
-  getPriceCronOutcomes,
-  getRefreshVolume,
-  getSdeCronOutcomes,
-} from '@/data/telemetry/queries';
-import type { DateRange } from '@/data/telemetry/types';
+import type { DateRange, RefreshVolumePoint } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
 import { AdminTrendChart } from '../charts';
-import { getLastSyncedAtShared } from '../shared-reads';
+import { loadCronSignals } from '../load-signals';
+import { getPriceRefreshDaysShared } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { CRON_OUTCOME_RULES, deriveCronStatuses } from '../signals';
@@ -24,7 +17,7 @@ import { ChartBlock, DetailBody, DetailCaption } from './DetailBlocks';
 import { StatusRow } from './StatusRow';
 
 type Trend = ReturnType<typeof trendSeries>;
-type RefreshVolume = Awaited<ReturnType<typeof getRefreshVolume>>;
+type RefreshVolume = RefreshVolumePoint[];
 
 function OutcomeBars({ outcomes, ariaLabel }: { outcomes: TonedOutcome[]; ariaLabel: string }) {
   return (
@@ -138,39 +131,20 @@ function GscSyncDetail({
 }
 
 export async function ScheduledTasks({ range }: { range: DateRange }) {
-  const gscConfigured = isGscConfigured();
   const fetched = await loadSection('scheduled-tasks', () =>
-    Promise.all([
-      getLastCronRuns(),
-      getPriceCronOutcomes(range),
-      getSdeCronOutcomes(range),
-      getGscCronOutcomes(range),
-      getHousekeepingCronOutcomes(range),
-      getRefreshVolume(range),
-      gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
-    ]),
+    Promise.all([loadCronSignals(range), getPriceRefreshDaysShared(range)]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Scheduled tasks" />;
 
-  const [lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, housekeepingOutcomes, refreshVolume, lastSyncedAt] =
-    fetched;
-  const statuses = deriveCronStatuses(
-    {
-      lastRuns,
-      priceOutcomes,
-      sdeOutcomes,
-      gscOutcomes,
-      housekeepingOutcomes,
-      gscConfigured,
-      gscLastSyncedAt: lastSyncedAt,
-    },
-    range.to,
-  );
+  const [crons, refreshDays] = fetched;
+  const { gscConfigured, gscLastSyncedAt: lastSyncedAt } = crons;
+  const refreshVolume = refreshVolumeOf(refreshDays);
+  const statuses = deriveCronStatuses(crons, range.to);
   const toned = {
-    price: toneOutcomes(priceOutcomes, CRON_OUTCOME_RULES.price),
-    sde: toneOutcomes(sdeOutcomes, CRON_OUTCOME_RULES.sde),
-    gsc: toneOutcomes(gscOutcomes, CRON_OUTCOME_RULES.gsc),
-    housekeeping: toneOutcomes(housekeepingOutcomes, CRON_OUTCOME_RULES.housekeeping),
+    price: toneOutcomes(crons.priceOutcomes, CRON_OUTCOME_RULES.price),
+    sde: toneOutcomes(crons.sdeOutcomes, CRON_OUTCOME_RULES.sde),
+    gsc: toneOutcomes(crons.gscOutcomes, CRON_OUTCOME_RULES.gsc),
+    housekeeping: toneOutcomes(crons.housekeepingOutcomes, CRON_OUTCOME_RULES.housekeeping),
   };
   const volumeTrend = trendSeries(
     refreshVolume.map((p) => p.day),

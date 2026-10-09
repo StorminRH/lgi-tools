@@ -6,6 +6,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { trendSeries } from '@/composition/admin-period';
 import { esiAvailability } from '@/data/telemetry/capability-stats';
+import { fallbackRate } from '@/data/telemetry/cron-stats';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
 import {
   getDegradationByCaller,
@@ -22,7 +23,7 @@ import {
   getBudgetExhaustionCountShared,
   getCapabilityOutcomeStatsShared,
   getEsiRefreshQueueStatsShared,
-  getFallbackRateShared,
+  getPriceRefreshDaysShared,
 } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { deriveBudgetView, deriveCostLensView, type OpsMetricRow } from '../ops-view';
@@ -72,7 +73,7 @@ export async function PressureCard({ range }: { range: DateRange }) {
     Promise.all([
       getCapabilityOutcomeStatsShared(range),
       getBudgetExhaustionCountShared(range),
-      getFallbackRateShared(range),
+      getPriceRefreshDaysShared(range).then(fallbackRate),
       getDegradationByCaller(range),
       getEsiRefreshQueueStatsShared(),
     ]),
@@ -94,7 +95,7 @@ export async function PressureCard({ range }: { range: DateRange }) {
 
 export async function PriceSourceCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('price-source', () =>
-    Promise.all([getFallbackRateShared(range), getDegradationByCaller(range)]),
+    Promise.all([getPriceRefreshDaysShared(range).then(fallbackRate), getDegradationByCaller(range)]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Price-source health" />;
   const [fallback, degradation] = fetched;
@@ -143,7 +144,7 @@ async function loadCost(range: DateRange) {
         getHistorySourceSplit(range),
         getWriteBehindOutcomes(range),
         getTopCostlyEndpoints(range, 8),
-        getFallbackRateShared(range),
+        getPriceRefreshDaysShared(range).then(fallbackRate),
         getBudgetExhaustionCountShared(range),
         getDegradationByCaller(range),
       ]);
