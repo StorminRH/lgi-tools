@@ -67,7 +67,6 @@ import { SectionUnavailable } from '@/app/(site)/admin/SectionUnavailable';
 import { AdminNav, AdminNavFallback } from '@/app/(site)/admin/admin-nav';
 import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/admin/charts';
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
-import { BudgetCard, CostCards, PressureCard, PriceSourceCard } from '@/app/(site)/admin/esi/EsiCards';
 import AppSiteAdminEsiPage from '@/app/(site)/admin/esi/page';
 import AppSiteAdminHealthPage from '@/app/(site)/admin/health/page';
 import AppSiteAdminLayout from '@/app/(site)/admin/layout';
@@ -149,10 +148,6 @@ describe('coverage-gaps', () => {
       AdminDailyChart,
       AdminTrendChart,
       loadDeployMarkers,
-      BudgetCard,
-      CostCards,
-      PressureCard,
-      PriceSourceCard,
       AppSiteAdminEsiPage,
       getPriceRefreshDaysShared,
       getPriceSourceDegradationShared,

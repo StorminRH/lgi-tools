@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  deriveCostLensView,
   deriveDeadLetterView,
+  deriveEndpointBars,
+  deriveOnDemandMetrics,
   summarizeDomainEvent,
 } from './ops-view';
 
@@ -31,23 +32,33 @@ describe('deriveDeadLetterView', () => {
   });
 });
 
-describe('deriveCostLensView', () => {
-  it('combines source, stale-return, write-behind, and endpoint reads', () => {
-    const view = deriveCostLensView({
-      prices: { requested: 10, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 },
+describe('deriveOnDemandMetrics', () => {
+  it('combines source, stale-return and write-behind reads', () => {
+    const rows = deriveOnDemandMetrics({
+      prices: { requested: 1_000, returned: 9, cacheHits: 1, esiCount: 6, fuzzworkFallbackCount: 1 },
       history: { freshEsi: 2, warmStored: 5, staleStored: 1, missing: 1 },
       writeBehind: [
         { action: 'market_price_write_behind', outcome: 'succeeded', count: 3 },
         { action: 'market_history_write_behind', outcome: 'failed', count: 2 },
       ],
-      endpoints: [{ endpoint: '/api/account/skills', count: 4, avgDurationMs: 13 }],
-      fallback: { esi: 90, fallback: 10, perDay: [] },
       budgetExhaustions: 2,
-      degradationByCaller: [{ caller: 'cron', count: 1 }],
     });
-    expect(view.metrics.find((row) => row.label === 'Stale item histories')?.value).toBe('1');
-    expect(view.metrics.find((row) => row.label === 'Background save failures')?.value).toBe('2');
-    expect(view.endpoints[0]).toMatchObject({ count: 4 });
+    expect(rows.map((row) => [row.label, row.value, row.note])).toEqual([
+      ['Item prices requested', '1,000', '9 returned · 1 cache hit'],
+      ['Freshly fetched item prices', '7', '6 ESI · 1 Fuzzwork'],
+      ['Item histories returned', '8', '2 fetched · 5 stored'],
+      ['Stale item histories', '1', '1 missing'],
+      ['Budget-blocked refreshes', '2', 'scheduled + on-demand'],
+      ['Background save failures', '2', '5 save attempts'],
+    ]);
+  });
+});
+
+describe('deriveEndpointBars', () => {
+  it('labels each endpoint with its average time', () => {
+    expect(deriveEndpointBars([{ endpoint: '/api/account/skills', count: 4, avgDurationMs: 1_312.6 }])).toEqual([
+      { key: '/api/account/skills', label: '/api/account/skills · 1,313 ms avg', count: 4 },
+    ]);
   });
 });
 

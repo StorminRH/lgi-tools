@@ -5,8 +5,8 @@ import type {
   PriceSourceSplit,
   WriteBehindOutcome,
 } from '@/data/telemetry/queries';
-import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import type { DomainEventRow } from '@/data/domain-events/types';
+import { formatCount, formatQuantity } from '@/lib/format/number';
 
 export interface OpsMetricRow {
   label: string;
@@ -25,63 +25,60 @@ export function deriveDeadLetterView(rows: DeadLetterRow[]) {
   }));
 }
 
-export function deriveCostLensView(input: {
+/** The on-demand price and history figures: what was asked for, served, and saved behind it. */
+export function deriveOnDemandMetrics(input: {
   prices: PriceSourceSplit;
   history: HistorySourceSplit;
   writeBehind: WriteBehindOutcome[];
-  endpoints: CostlyEndpoint[];
-  fallback: FallbackRateData;
   budgetExhaustions: number;
-  degradationByCaller: DegradationCallerCount[];
-}) {
+}): OpsMetricRow[] {
   const historyServed =
     input.history.freshEsi + input.history.warmStored + input.history.staleStored;
   const writeBehindFailures = input.writeBehind
     .filter((row) => row.outcome !== 'succeeded')
     .reduce((total, row) => total + row.count, 0);
-  return {
-    metrics: [
-      {
-        label: 'Item prices requested',
-        value: input.prices.requested.toLocaleString(),
-        note: `${input.prices.returned.toLocaleString()} returned · ${input.prices.cacheHits.toLocaleString()} cache hits`,
-      },
-      {
-        label: 'Freshly fetched item prices',
-        value: (input.prices.esiCount + input.prices.fuzzworkFallbackCount).toLocaleString(),
-        note: `${input.prices.esiCount.toLocaleString()} ESI · ${input.prices.fuzzworkFallbackCount.toLocaleString()} Fuzzwork`,
-      },
-      {
-        label: 'Item histories returned',
-        value: historyServed.toLocaleString(),
-        note: `${input.history.freshEsi.toLocaleString()} fetched · ${input.history.warmStored.toLocaleString()} stored`,
-      },
-      {
-        label: 'Stale item histories',
-        value: input.history.staleStored.toLocaleString(),
-        note: `${input.history.missing.toLocaleString()} missing`,
-      },
-      {
-        label: 'Budget-blocked refreshes',
-        value: input.budgetExhaustions.toLocaleString(),
-        note: 'scheduled + on-demand',
-      },
-      {
-        label: 'Background save failures',
-        value: writeBehindFailures.toLocaleString(),
-        note: `${input.writeBehind.reduce((total, row) => total + row.count, 0).toLocaleString()} save attempts`,
-      },
-    ] satisfies OpsMetricRow[],
-    endpoints: input.endpoints.map((row) => ({
-      key: row.endpoint,
-      label: `${row.endpoint} · ${row.avgDurationMs.toLocaleString()} ms avg`,
-      count: row.count,
-    })),
-    fallback: {
-      esi: input.fallback.esi,
-      fuzzwork: input.fallback.fallback,
+  const saveAttempts = input.writeBehind.reduce((total, row) => total + row.count, 0);
+  return [
+    {
+      label: 'Item prices requested',
+      value: formatQuantity(input.prices.requested),
+      note: `${formatQuantity(input.prices.returned)} returned · ${formatCount(input.prices.cacheHits, 'cache hit')}`,
     },
-  };
+    {
+      label: 'Freshly fetched item prices',
+      value: formatQuantity(input.prices.esiCount + input.prices.fuzzworkFallbackCount),
+      note: `${formatQuantity(input.prices.esiCount)} ESI · ${formatQuantity(input.prices.fuzzworkFallbackCount)} Fuzzwork`,
+    },
+    {
+      label: 'Item histories returned',
+      value: formatQuantity(historyServed),
+      note: `${formatQuantity(input.history.freshEsi)} fetched · ${formatQuantity(input.history.warmStored)} stored`,
+    },
+    {
+      label: 'Stale item histories',
+      value: formatQuantity(input.history.staleStored),
+      note: `${formatQuantity(input.history.missing)} missing`,
+    },
+    {
+      label: 'Budget-blocked refreshes',
+      value: formatQuantity(input.budgetExhaustions),
+      note: 'scheduled + on-demand',
+    },
+    {
+      label: 'Background save failures',
+      value: formatQuantity(writeBehindFailures),
+      note: formatCount(saveAttempts, 'save attempt'),
+    },
+  ];
+}
+
+/** The busiest owned-data endpoints as bar rows, each labelled with its average time. */
+export function deriveEndpointBars(endpoints: CostlyEndpoint[]) {
+  return endpoints.map((row) => ({
+    key: row.endpoint,
+    label: `${row.endpoint} · ${formatQuantity(row.avgDurationMs)} ms avg`,
+    count: row.count,
+  }));
 }
 
 export function summarizeDomainEvent(event: DomainEventRow): string {
