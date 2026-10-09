@@ -1,6 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
-import { ConvexError } from 'convex/values';
+import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { tryMapAccessForUser } from './lib/mapAccess';
@@ -15,6 +14,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { claimReconciler, expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -22,23 +22,20 @@ const OWNER = 'user-owner';
 const EDITOR = 'user-editor';
 const VIEWER = 'user-viewer';
 
-type Chain = TestConvex<typeof schema>;
-let nextRevision = 1;
-
 function asUser(t: Chain, userId: string) {
   return t.withIdentity({ subject: userId });
 }
 
-async function reconcile(
-  t: Chain,
-  mapId: string,
-  claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
-) {
-  const result = await reconcileAt(t, mapId, claims, nextRevision);
-  nextRevision += 1;
-  const { outcome, ...counts } = result;
-  expect(outcome).toBe('applied');
-  return counts;
+function appliedReconciler(t: Chain) {
+  const reconcile = claimReconciler(t);
+  return async (
+    mapId: string,
+    claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
+  ) => {
+    const { outcome, ...counts } = await reconcile(mapId, claims);
+    expect(outcome).toBe('applied');
+    return counts;
+  };
 }
 
 function reconcileAt(
@@ -94,7 +91,8 @@ describe('reconcileMapClaims', () => {
 
   it('writes, no-ops an identical re-run, updates a role, and deletes by absence or empty roles', async () => {
     const t = convexTest(schema, modules);
-    const counts = await reconcile(t, MAP_A, [
+    const reconcile = appliedReconciler(t);
+    const counts = await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -107,7 +105,7 @@ describe('reconcileMapClaims', () => {
 
     const before = await readClaims(t, MAP_A);
     expect(
-      await reconcile(t, MAP_A, [
+      await reconcile(MAP_A, [
         { userId: OWNER, roles: ['admin'] },
         { userId: EDITOR, roles: ['editor'] },
       ]),
@@ -115,7 +113,7 @@ describe('reconcileMapClaims', () => {
     expect(await readClaims(t, MAP_A)).toEqual(before);
 
     expect(
-      await reconcile(t, MAP_A, [
+      await reconcile(MAP_A, [
         { userId: OWNER, roles: ['admin'] },
         { userId: EDITOR, roles: ['viewer'] },
       ]),
@@ -126,16 +124,16 @@ describe('reconcileMapClaims', () => {
     ]);
 
     expect(
-      await reconcile(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]),
+      await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]),
     ).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
     expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
 
-    await reconcile(t, MAP_A, [
+    await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
     expect(
-      await reconcile(t, MAP_A, [
+      await reconcile(MAP_A, [
         { userId: OWNER, roles: ['admin'] },
         { userId: EDITOR, roles: [] },
       ]),
@@ -175,14 +173,15 @@ describe('reconcileMapClaims', () => {
 
   it('tears down one map, leaves the other, and restores the full set on resync', async () => {
     const t = convexTest(schema, modules);
+    const reconcile = appliedReconciler(t);
     const claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }> = [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor', 'viewer'] },
     ];
-    await reconcile(t, MAP_A, claims);
-    await reconcile(t, MAP_B, [{ userId: VIEWER, roles: ['viewer'] }]);
+    await reconcile(MAP_A, claims);
+    await reconcile(MAP_B, [{ userId: VIEWER, roles: ['viewer'] }]);
 
-    expect(await reconcile(t, MAP_A, [])).toEqual({
+    expect(await reconcile(MAP_A, [])).toEqual({
       inserted: 0,
       updated: 0,
       deleted: 2,
@@ -191,7 +190,7 @@ describe('reconcileMapClaims', () => {
     expect(await readClaims(t, MAP_A)).toEqual([]);
     expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
 
-    expect(await reconcile(t, MAP_A, claims)).toEqual({
+    expect(await reconcile(MAP_A, claims)).toEqual({
       inserted: 2,
       updated: 0,
       deleted: 0,
@@ -201,7 +200,7 @@ describe('reconcileMapClaims', () => {
       { userId: EDITOR, roles: ['editor', 'viewer'] },
       { userId: OWNER, roles: ['admin'] },
     ]);
-    expect(await reconcile(t, MAP_A, claims)).toEqual({
+    expect(await reconcile(MAP_A, claims)).toEqual({
       inserted: 0,
       updated: 0,
       deleted: 0,
@@ -212,12 +211,13 @@ describe('reconcileMapClaims', () => {
 
   it('repairs a seeded duplicate (mapId, userId) pair to exactly one row', async () => {
     const t = convexTest(schema, modules);
+    const reconcile = appliedReconciler(t);
     await t.run(async (ctx) => {
       await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });
       await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['editor'] });
     });
 
-    const counts = await reconcile(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
+    const counts = await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
     const rows = await readClaims(t, MAP_A);
 
     expect(counts.deleted).toBeGreaterThanOrEqual(1);
@@ -235,7 +235,8 @@ describe('reconcileMapClaims', () => {
 
   it('last-entry-wins when a desired payload repeats one userId', async () => {
     const t = convexTest(schema, modules);
-    const counts = await reconcile(t, MAP_A, [
+    const reconcile = appliedReconciler(t);
+    const counts = await reconcile(MAP_A, [
       { userId: EDITOR, roles: ['viewer'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -246,7 +247,8 @@ describe('reconcileMapClaims', () => {
 
   it('stores unordered and duplicated roles in canonical precedence order', async () => {
     const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [
+    const reconcile = appliedReconciler(t);
+    await reconcile(MAP_A, [
       { userId: EDITOR, roles: ['viewer', 'admin', 'viewer', 'editor'] },
     ]);
 
@@ -254,7 +256,7 @@ describe('reconcileMapClaims', () => {
       { userId: EDITOR, roles: ['admin', 'editor', 'viewer'] },
     ]);
 
-    const counts = await reconcile(t, MAP_A, [
+    const counts = await reconcile(MAP_A, [
       { userId: EDITOR, roles: ['viewer', 'editor', 'admin'] },
     ]);
     expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 1 });
@@ -417,7 +419,8 @@ describe('gate returns projected roles', () => {
 describe('revocation', () => {
   it('flips a previously succeeding gated read to FORBIDDEN after claim removal', async () => {
     const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
+    const reconcile = appliedReconciler(t);
+    await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
     await expect(
       asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
         mapId: MAP_A,
@@ -426,34 +429,25 @@ describe('revocation', () => {
       }),
     ).resolves.toMatchObject({ isDone: true });
 
-    await reconcile(t, MAP_A, []);
+    await reconcile(MAP_A, []);
 
-    await expect(
+    const forbidden = await expectConvexErrorCode(
       asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
         mapId: MAP_A,
         collection: 'systems',
         cursor: null,
       }),
-    ).rejects.toBeInstanceOf(ConvexError);
-
-    try {
-      await asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-        mapId: MAP_A,
-        collection: 'systems',
-        cursor: null,
-      });
-      expect.unreachable('expected FORBIDDEN');
-    } catch (error) {
-      expect(error).toBeInstanceOf(ConvexError);
-      expect((error as ConvexError<{ code: string }>).data).toEqual({ code: 'FORBIDDEN' });
-    }
+      'FORBIDDEN',
+    );
+    expect(forbidden.data).toEqual({ code: 'FORBIDDEN' });
   });
 });
 
 describe('read-set cost', () => {
   it('drains pinned collection sizes in exact pages of at most 25 rows', async () => {
     const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
+    const reconcile = appliedReconciler(t);
+    await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
 
     await t.run(async (ctx) => {
       for (let index = 0; index < 50; index += 1) {

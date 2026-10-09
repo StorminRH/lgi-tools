@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   HIDDEN_PRESENCE_MAX_MS,
@@ -13,27 +13,20 @@ import { api, internal } from './_generated/api';
 import { MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import type { Doc, Id } from './_generated/dataModel';
 import schema from './schema';
+import { scheduledFunctionsNamed, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 
-type T = TestConvex<typeof schema>;
 type JobId = Id<'_scheduled_functions'>;
 
-async function scheduledFunctionsNamed(t: T, name: string) {
-  return t.run(async (ctx) => {
-    const rows = await ctx.db.system.query('_scheduled_functions').collect();
-    return rows.filter((row) => row.name.includes(name));
-  });
-}
-
-async function scheduledSyncUsers(t: T) {
+async function scheduledSyncUsers(t: Chain) {
   return scheduledFunctionsNamed(t, 'syncUser');
 }
 
-async function pendingSyncUsers(t: T) {
+async function pendingSyncUsers(t: Chain) {
   return (await scheduledSyncUsers(t)).filter((job) => job.state.kind === 'pending');
 }
 
-function jobById(t: T, id: JobId) {
+function jobById(t: Chain, id: JobId) {
   return t.run((ctx) => ctx.db.system.get('_scheduled_functions', id));
 }
 
@@ -56,7 +49,7 @@ function beat(args: {
   };
 }
 
-function heartbeat(t: T, args: Parameters<typeof beat>[0]) {
+function heartbeat(t: Chain, args: Parameters<typeof beat>[0]) {
   return t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat(args));
 }
 
@@ -73,13 +66,13 @@ function stateRow(overrides: Partial<Doc<'locationSync'>> = {}) {
   };
 }
 
-async function seedState(t: T, overrides: Partial<Doc<'locationSync'>> = {}) {
+async function seedState(t: Chain, overrides: Partial<Doc<'locationSync'>> = {}) {
   await t.run(async (ctx) => {
     await ctx.db.insert('locationSync', stateRow(overrides));
   });
 }
 
-function readState(t: T, userId = USER) {
+function readState(t: Chain, userId = USER) {
   return t.run((ctx) =>
     ctx.db
       .query('locationSync')
@@ -88,7 +81,7 @@ function readState(t: T, userId = USER) {
   );
 }
 
-async function seedPresence(t: T, overrides: Partial<Doc<'syncPresence'>> = {}) {
+async function seedPresence(t: Chain, overrides: Partial<Doc<'syncPresence'>> = {}) {
   const now = Date.now();
   await t.run(async (ctx) => {
     await ctx.db.insert('syncPresence', {
@@ -103,7 +96,7 @@ async function seedPresence(t: T, overrides: Partial<Doc<'syncPresence'>> = {}) 
   });
 }
 
-async function readVisiblePresence(t: T) {
+async function readVisiblePresence(t: Chain) {
   const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
   if (presence === null || typeof presence.lastVisibleAt !== 'number') {
     throw new Error('presence did not stamp visibility');
@@ -122,14 +115,14 @@ function coldPresence() {
   return { lastSeenAt: at, lastVisibleAt: at };
 }
 
-async function seedTracking(t: T, characterId = CHAR) {
+async function seedTracking(t: Chain, characterId = CHAR) {
   await t.run(async (ctx) => {
     await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: USER, characterId });
   });
 }
 
 /** A pending syncUser job carrying `generation`, as the scheduler would leave it. */
-function schedulePending(t: T, at: number, generation: number) {
+function schedulePending(t: Chain, at: number, generation: number) {
   return t.run((ctx) =>
     ctx.scheduler.runAt(at, internal.characterLocationSync.syncUser, { userId: USER, generation, schedulerVersion: 2 }),
   );
@@ -143,7 +136,7 @@ function schedulePending(t: T, at: number, generation: number) {
  * running one whose args fail validation (convex-test only validates at run
  * time).
  */
-async function terminalJob(t: T, kind: 'canceled' | 'success' | 'failed'): Promise<JobId> {
+async function terminalJob(t: Chain, kind: 'canceled' | 'success' | 'failed'): Promise<JobId> {
   const now = Date.now();
   if (kind === 'canceled') {
     return t.run(async (ctx) => {
@@ -230,7 +223,7 @@ function success(
 }
 
 function finish(
-  t: T,
+  t: Chain,
   generation: number,
   outcome: ReturnType<typeof success> | { kind: 'failed'; error: string },
   leases: Array<{ characterId: number; accessToken: string; expiresAt: number }> = [],
@@ -803,12 +796,12 @@ describe('engineComplete deploy shims', () => {
   });
 
   const shims = {
-    chainDispatch: (t: T) =>
+    chainDispatch: (t: Chain) =>
       t.mutation(internal.engineComplete.chainDispatch, {
         dataset: 'characterLocation',
         userId: USER,
       }),
-    onSyncComplete: (t: T) =>
+    onSyncComplete: (t: Chain) =>
       t.mutation(internal.engineComplete.onSyncComplete, {
         workId: 'w-previous-deploy',
         context: { dataset: 'characterLocation', userId: USER },
@@ -876,7 +869,7 @@ describe('engineComplete deploy shims', () => {
 });
 
 describe('characterLocationApply.finishSync scheduling', () => {
-  async function seedRunning(t: T, overrides: Partial<Doc<'locationSync'>> = {}) {
+  async function seedRunning(t: Chain, overrides: Partial<Doc<'locationSync'>> = {}) {
     const runId = Date.now() - 10_000;
     await seedState(t, { runId, syncedCharacterIds: [CHAR], ...overrides });
     return runId;

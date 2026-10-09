@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAP_CHAIN_UNDO_WINDOW_MS, tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
@@ -13,6 +13,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 
 const MAP = 'map-a';
 const EDITOR = 'user-editor';
@@ -24,9 +25,8 @@ const AMARR = 30_002_187;
 const DODIXIE = 30_002_659;
 const WH_FAR = 31_000_005;
 
-type ScanDb = TestConvex<typeof schema>;
 
-function asEditor(t: ScanDb) {
+function asEditor(t: Chain) {
   return t.withIdentity({ subject: EDITOR, name: 'Editor Pilot' });
 }
 
@@ -53,7 +53,7 @@ function anomaly(signatureId: string): ScannedRow {
   });
 }
 
-async function seed(t: ScanDb): Promise<void> {
+async function seed(t: Chain): Promise<void> {
   await t.run(async (ctx) => {
     await ctx.db.insert('mapAccess', { mapId: MAP, userId: EDITOR, roles: ['editor'] });
     await ctx.db.insert('mapAccess', { mapId: MAP, userId: VIEWER, roles: ['viewer'] });
@@ -84,7 +84,7 @@ async function seed(t: ScanDb): Promise<void> {
   });
 }
 
-function apply(t: ScanDb, rows: ScannedRow[]) {
+function apply(t: Chain, rows: ScannedRow[]) {
   return asEditor(t).mutation(api.mapScan.applyScan, {
     mapId: MAP,
     systemId: JITA,
@@ -92,7 +92,7 @@ function apply(t: ScanDb, rows: ScannedRow[]) {
   });
 }
 
-function readState(t: ScanDb) {
+function readState(t: Chain) {
   return t.run(async (ctx) => ({
     signatures: await ctx.db
       .query('mapSignatures')
@@ -109,7 +109,7 @@ function readState(t: ScanDb) {
   }));
 }
 
-async function readSignature(t: ScanDb, signatureId: string) {
+async function readSignature(t: Chain, signatureId: string) {
   return await t.run(async (ctx) => await ctx.db
     .query('mapSignatures')
     .withIndex('by_map_signature', (q) =>
@@ -132,11 +132,11 @@ describe('mapScan paste application and lifecycle', () => {
     const t = convexTest(schema, modules);
     await seed(t);
 
-    await expect(t.withIdentity({ subject: VIEWER }).mutation(api.mapScan.applyScan, {
+    await expectConvexErrorCode(t.withIdentity({ subject: VIEWER }).mutation(api.mapScan.applyScan, {
       mapId: MAP,
       systemId: JITA,
       rows: [signature('ABC-001')],
-    })).rejects.toThrow('FORBIDDEN');
+    }), 'FORBIDDEN');
 
     await t.run(async (ctx) => {
       const tracking = await ctx.db
@@ -145,7 +145,7 @@ describe('mapScan paste application and lifecycle', () => {
         .unique();
       await ctx.db.delete(tracking!._id);
     });
-    await expect(apply(t, [signature('ABC-001')])).rejects.toThrow('UNTRACKED_SCAN_SYSTEM');
+    await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'UNTRACKED_SCAN_SYSTEM');
     expect(await readState(t)).toMatchObject({ signatures: [], connections: [], activities: [] });
   });
 
@@ -198,14 +198,15 @@ describe('mapScan paste application and lifecycle', () => {
     await seed(t);
     await apply(t, [signature('SIG-001'), signature('WHL-001')]);
 
-    await expect(
+    await expectConvexErrorCode(
       t.withIdentity({ subject: VIEWER }).mutation(api.mapScan.identifySignature, {
         mapId: MAP,
         systemId: JITA,
         signatureId: 'SIG-001',
         group: 'Gas Site',
       }),
-    ).rejects.toThrow('FORBIDDEN');
+      'FORBIDDEN',
+    );
 
     expect(
       await asEditor(t).mutation(api.mapScan.identifySignature, {
@@ -606,7 +607,7 @@ describe('mapScan paste application and lifecycle', () => {
         purgeAfter: null,
       }));
     });
-    await expect(
+    await expectConvexErrorCode(
       t.withIdentity({ subject: VIEWER, name: 'Viewer' }).mutation(
         api.mapScan.linkStubToResolvedConnection,
         {
@@ -615,7 +616,8 @@ describe('mapScan paste application and lifecycle', () => {
           resolvedConnectionId: inboundId,
         },
       ),
-    ).rejects.toThrow('FORBIDDEN');
+      'FORBIDDEN',
+    );
     await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
       mapId: MAP,
       stubConnectionId: stubId,
@@ -1449,7 +1451,7 @@ describe('mapScan paste application and lifecycle', () => {
       targetLife:
         | { lifeStage: 'expired' | null; lifeStageObservedAt: number }
         | Record<string, never>,
-    ): Promise<{ t: ScanDb; targetId: Id<'mapConnections'> }> {
+    ): Promise<{ t: Chain; targetId: Id<'mapConnections'> }> {
       const t = convexTest(schema, modules);
       await seed(t);
       await apply(t, [signature(signatureId, { group: 'Wormhole', name: 'K162' })]);
@@ -1691,11 +1693,11 @@ describe('mapScan paste application and lifecycle', () => {
     });
     const removedAgain = await readSignature(t, 'SIG-002');
     vi.setSystemTime(removedAgain!.purgeAfter!);
-    await expect(asEditor(t).mutation(api.mapScan.restoreSignatures, {
+    await expectConvexErrorCode(asEditor(t).mutation(api.mapScan.restoreSignatures, {
       mapId: MAP,
       systemId: JITA,
       signatureIds: ['SIG-002'],
-    })).rejects.toThrow('UNDO_WINDOW_EXPIRED');
+    }), 'UNDO_WINDOW_EXPIRED');
   });
 
   it('solo paste then remove-missing leaves the pasted row; full re-paste restores all', async () => {
@@ -2084,7 +2086,7 @@ describe('mapScan paste application and lifecycle', () => {
       }
     });
 
-    await expect(apply(t, [signature('SIG-001')])).rejects.toThrow('MAP_SIGNATURE_SCAN_LIMIT');
+    await expectConvexErrorCode(apply(t, [signature('SIG-001')]), 'MAP_SIGNATURE_SCAN_LIMIT');
     expect(await asEditor(t).mutation(api.mapScan.removeSignatures, {
       mapId: MAP,
       systemId: JITA,

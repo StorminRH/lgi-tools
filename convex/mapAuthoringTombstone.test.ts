@@ -6,13 +6,13 @@ import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { expectConvexErrorCode } from './__tests__/convexTest.setup';
 import {
   AMARR,
   JITA,
   MAP_A,
   NOW,
   asUser,
-  expectConvexError,
   readConnection,
   readSystem,
   seedHome,
@@ -101,14 +101,14 @@ describe('map authoring', () => {
     it('refuses to tombstone a system while a live connection references it', async () => {
       const t = convexTest(schema, modules);
       await seedJump(t);
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
           mapId: MAP_A,
           systemId: JITA,
         }),
         'SYSTEM_IN_USE',
       );
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
           mapId: MAP_A,
           systemId: AMARR,
@@ -144,7 +144,7 @@ describe('map authoring', () => {
         mapId: MAP_A,
         systemId: AMARR,
       });
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringTombstone.restoreConnection, {
           mapId: MAP_A,
           connectionId,

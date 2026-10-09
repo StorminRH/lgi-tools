@@ -19,6 +19,7 @@ import schema from './schema';
 
 import { connectionInsert } from './__tests__/connection-doc.setup';
 import { modules } from './__tests__/modules.setup';
+import { type Chain } from './__tests__/convexTest.setup';
 import {
   AMARR,
   EDITOR,
@@ -28,7 +29,6 @@ import {
   WH_A,
   WH_B,
   WH_C,
-  type Chain,
   readConnection,
   readEvents,
   readSystem,

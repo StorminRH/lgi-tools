@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import { api, internal } from './_generated/api';
@@ -7,6 +7,7 @@ import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
 import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
 
+import { expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 import { accessLease, CHAR_A, CHAR_B, locationDoc } from './__tests__/characterLocation.setup';
 
@@ -15,7 +16,7 @@ const SURVIVOR = 'user-survivor';
 const BYSTANDER = 'user-bystander';
 const CHAR_C = 90_000_103;
 
-async function readTracking(t: TestConvex<typeof schema>) {
+async function readTracking(t: Chain) {
   return t.run(async (ctx) => {
     const rows = await ctx.db.query('mapTracking').collect();
     return rows
@@ -217,8 +218,7 @@ describe('durable merge tracking recovery', () => {
     });
     const args = { operationId: 'full-map', survivorUserId: SURVIVOR,
       selections: [{ mapId: 'full', characterId: CHAR_A }] };
-    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
-      .rejects.toThrow('TRACKING_MAP_CAP_EXCEEDED');
+    await expectConvexErrorCode(t.mutation(internal.accountMerge.restoreMergeTracking, args), 'TRACKING_MAP_CAP_EXCEEDED');
     expect(await t.run((ctx) => ctx.db.query('accountMergeTrackingReceipts').collect())).toEqual([]);
     await t.run(async (ctx) => {
       const row = await ctx.db.query('mapTracking').first();
@@ -354,8 +354,7 @@ describe('merge restoration during character scoping', () => {
       operationId: 'cutover-merge', survivorUserId: SURVIVOR,
       selections: [{ mapId: 'cutover', characterId: CHAR_A, lastProcessedTransitionAt: 20 }],
     };
-    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
-      .rejects.toThrow('TRACKING_SCOPING_PENDING');
+    await expectConvexErrorCode(t.mutation(internal.accountMerge.restoreMergeTracking, args), 'TRACKING_SCOPING_PENDING');
     await expect(t.run(async (ctx) => ({
       receipts: await ctx.db.query('accountMergeTrackingReceipts').collect(),
       tracking: await ctx.db.query('mapTracking').collect(),
