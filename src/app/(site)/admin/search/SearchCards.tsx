@@ -3,25 +3,24 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
-import {
-  getSearchTotals,
-  getSearchTrend,
-  getSitemapStatus,
-  getTopGscPages,
-  getTopQueries,
-} from '@/data/gsc/queries';
+import { getSitemapStatus, getTopGscPages, getTopQueries } from '@/data/gsc/queries';
 import type { GscSitemapStatus, GscTermStat } from '@/data/gsc/types';
 import type { DateRange } from '@/data/telemetry/types';
 import { formatIsoDay } from '@/lib/format/time';
 import { AdminTrendChart } from '../charts';
 import { DeltaBadge } from '../DeltaBadge';
 import { deriveGscMultiples } from '../gsc-multiples-view';
-import { getLastSyncedAtShared } from '../last-synced';
+import { getSearchTrendShared } from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { SectionUnavailable } from '../SectionUnavailable';
-import { deriveGscPerformanceView } from '../traffic-view';
+import { deriveGscPerformanceView, searchSpan, splitSearchPeriods } from './search-view';
 
 const TREND_UNITS = ['count', 'count', 'position'] as const;
+
+// Performance and the term cards share one daily read covering both periods.
+async function readSearchPeriods(range: DateRange, previous: DateRange | null) {
+  return splitSearchPeriods(await getSearchTrendShared(searchSpan(range, previous)), range, previous);
+}
 
 function GscTermRow({ term, max, total }: { term: GscTermStat; max: number; total: number }) {
   const pct = max === 0 ? 0 : Math.max(2, Math.round((term.clicks / max) * 100));
@@ -67,17 +66,10 @@ export function SearchNotConnected() {
 }
 
 export async function PerformanceCard({ range, previous }: { range: DateRange; previous: DateRange | null }) {
-  const fetched = await loadSection('search-performance', () =>
-    Promise.all([
-      getLastSyncedAtShared(),
-      getSearchTrend(range),
-      getSearchTotals(range),
-      previous ? getSearchTotals(previous) : Promise.resolve(null),
-    ]),
-  );
+  const fetched = await loadSection('search-performance', () => readSearchPeriods(range, previous));
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Search performance" />;
-  const [lastSyncedAt, trend, totals, prevTotals] = fetched;
-  const view = deriveGscPerformanceView({ lastSyncedAt, trend });
+  const { trend, totals, prevTotals } = fetched;
+  const view = deriveGscPerformanceView(trend);
   const trends = [view.clicksTrend, view.impressionsTrend, view.positionTrend] as const;
   return (
     <Card>
@@ -109,12 +101,12 @@ export async function PerformanceCard({ range, previous }: { range: DateRange; p
   );
 }
 
-export async function TermCards({ range }: { range: DateRange }) {
+export async function TermCards({ range, previous }: { range: DateRange; previous: DateRange | null }) {
   const fetched = await loadSection('search-terms', () =>
-    Promise.all([getTopQueries(range, 10), getTopGscPages(range, 10), getSearchTotals(range)]),
+    Promise.all([getTopQueries(range, 10), getTopGscPages(range, 10), readSearchPeriods(range, previous)]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Top queries" />;
-  const [queries, pages, totals] = fetched;
+  const [queries, pages, { totals }] = fetched;
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card className="h-full">

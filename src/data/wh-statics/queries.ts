@@ -263,6 +263,24 @@ export async function getPendingWhStaticsReview(
   return snapshot ?? null;
 }
 
+/**
+ * The pending snapshot's version and diff size without its jsonb payloads:
+ * all the rail, the actions card and the overview show.
+ */
+export async function getPendingWhStaticsSummary(
+  database: AnyPgDb,
+): Promise<{ feedVersion: string; totalDifferences: number } | null> {
+  const [snapshot] = await database
+    .select({
+      feedVersion: whStaticsSnapshots.feedVersion,
+      totalDifferences: sql<number>`${whStaticsSnapshots.difference} ->> 'totalDifferences'`.mapWith(Number),
+    })
+    .from(whStaticsSnapshots)
+    .where(eq(whStaticsSnapshots.status, 'pending'))
+    .limit(1);
+  return snapshot ?? null;
+}
+
 export function readPromotedWhStaticsAssignments(
   database: AnyPgDb,
 ): Promise<Array<{ systemId: number; code: string }>> {

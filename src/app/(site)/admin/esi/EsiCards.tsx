@@ -5,10 +5,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { trendSeries } from '@/composition/admin-period';
+import { esiAvailability } from '@/data/telemetry/capability-stats';
+import { fallbackRate } from '@/data/telemetry/cron-stats';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
 import {
-  getDegradationByCaller,
-  getEsiAvailability,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
@@ -18,10 +18,14 @@ import type { DateRange } from '@/data/telemetry/types';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { AdminBarChart, AdminTrendChart } from '../charts';
 import { CardLink } from '../CardLink';
-import { getBudgetExhaustionCountShared, getFallbackRateShared } from '../esi-source-shared';
+import {
+  getCapabilityOutcomeStatsShared,
+  getEsiRefreshQueueStatsShared,
+  getPriceRefreshDaysShared,
+  getPriceSourceDegradationShared,
+} from '../shared-reads';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { deriveBudgetView, deriveCostLensView, type OpsMetricRow } from '../ops-view';
-import { getEsiRefreshQueueStatsShared } from '../queue-stats-shared';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { LEVEL_VALUE_CLASS } from '../status-tone';
 import { StatusLines } from '../StatusLines';
@@ -66,15 +70,15 @@ export async function BudgetCard() {
 export async function PressureCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('esi-pressure', () =>
     Promise.all([
-      getEsiAvailability(range),
-      getBudgetExhaustionCountShared(range),
-      getFallbackRateShared(range),
-      getDegradationByCaller(range),
+      getCapabilityOutcomeStatsShared(range),
+      getPriceRefreshDaysShared(range).then(fallbackRate),
+      getPriceSourceDegradationShared(range),
       getEsiRefreshQueueStatsShared(),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Rate-limit pressure" />;
-  const [esiSuccess, budgetExhaustions, fallback, degradation, queue] = fetched;
+  const [outcomes, fallback, { byCaller: degradation, budgetExhaustions }, queue] = fetched;
+  const esiSuccess = esiAvailability(outcomes);
   return (
     <Card data-admin-pressure className="h-full">
       <SectionHeader
@@ -89,10 +93,10 @@ export async function PressureCard({ range }: { range: DateRange }) {
 
 export async function PriceSourceCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('price-source', () =>
-    Promise.all([getFallbackRateShared(range), getDegradationByCaller(range)]),
+    Promise.all([getPriceRefreshDaysShared(range).then(fallbackRate), getPriceSourceDegradationShared(range)]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Price-source health" />;
-  const [fallback, degradation] = fetched;
+  const [fallback, { byCaller: degradation }] = fetched;
   const fallbackTrend = trendSeries(
     fallback.perDay.map((point) => point.day),
     fallbackRatePoints(fallback.perDay),
@@ -132,15 +136,14 @@ export async function PriceSourceCard({ range }: { range: DateRange }) {
 
 async function loadCost(range: DateRange) {
   return loadSection('esi-cost', async () => {
-    const [prices, history, writeBehind, endpoints, fallback, budgetExhaustions, degradation] =
+    const [prices, history, writeBehind, endpoints, fallback, { byCaller: degradation, budgetExhaustions }] =
       await Promise.all([
         getPriceSourceSplit(range),
         getHistorySourceSplit(range),
         getWriteBehindOutcomes(range),
         getTopCostlyEndpoints(range, 8),
-        getFallbackRateShared(range),
-        getBudgetExhaustionCountShared(range),
-        getDegradationByCaller(range),
+        getPriceRefreshDaysShared(range).then(fallbackRate),
+        getPriceSourceDegradationShared(range),
       ]);
     return deriveCostLensView({
       prices,

@@ -126,16 +126,16 @@ async function UserDetailContent({
 
   const [{ userId }, { error: rawError }] = await Promise.all([params, searchParams]);
 
-  const targetUser = await getUserById(userId);
-  if (!targetUser) {
-    return <NotFound />;
-  }
-
-  const [characters, activeId, sessionCount] = await Promise.all([
+  // Every read needs only the id, so none waits on the user lookup.
+  const [targetUser, characters, activeId, sessionCount] = await Promise.all([
+    getUserById(userId),
     listLinkedCharacters(userId),
     getStoredActiveCharacterId(userId),
     getActiveSessionCount(userId),
   ]);
+  if (!targetUser) {
+    return <NotFound />;
+  }
 
   const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'That action could not be completed.');
   const view = deriveUserDetailView({

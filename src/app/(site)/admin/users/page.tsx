@@ -15,8 +15,7 @@ import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
 import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
 import { requireAdminPage } from '@/composition/route-guards';
 import {
-  getUserByCharacterId,
-  getUserById,
+  getUserOwningCharacter,
   listAdminUsers,
   searchUsersByLinkedCharacterName,
   type AdminUser,
@@ -42,11 +41,12 @@ function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
 }
 
 async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
-  const dbAdmins = await listAdminUsers();
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  const superUser =
-    Number.isFinite(superId) && superId > 0 ? await getUserByCharacterId(superId) : null;
-  return mergeAdminRows(dbAdmins, superUser ? await getUserById(superUser.userId) : null);
+  const [dbAdmins, superUser] = await Promise.all([
+    listAdminUsers(),
+    Number.isFinite(superId) && superId > 0 ? getUserOwningCharacter(superId) : Promise.resolve(null),
+  ]);
+  return mergeAdminRows(dbAdmins, superUser);
 }
 
 function AdminUserRow({

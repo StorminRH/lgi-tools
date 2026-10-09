@@ -5,7 +5,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { deriveDeadLetterView } from '../ops-view';
-import { getEsiRefreshQueueStatsShared } from '../queue-stats-shared';
+import { getEsiRefreshQueueStatsShared } from '../shared-reads';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { deriveQueueCells, retainedSummary } from './queue-view';
 import { RetryJobForm } from './RetryJobForm';

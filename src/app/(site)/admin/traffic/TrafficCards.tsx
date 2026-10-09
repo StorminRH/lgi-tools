@@ -7,16 +7,8 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { previousRange, type RangeKey } from '@/composition/admin-period';
 import { loginFrequencyBuckets } from '@/data/telemetry/health-metrics';
-import {
-  getDailyCounts,
-  getTrafficTotals,
-  getLoginCountsPerUser,
-  getReturningVsNew,
-  getSearchVsDirect,
-  getTopEntryPages,
-  getTopPages,
-  getTopReferrers,
-} from '@/data/telemetry/queries';
+import { pageViewSources, pageViewTotals } from '@/data/telemetry/page-view-stats';
+import { getLoginCountsPerUser, getPageViewRankings, getReturningVsNew } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { ActivityChart } from '../ActivityChart';
 import { deriveActivityView } from '../activity-view';
@@ -24,6 +16,7 @@ import { CardLink } from '../CardLink';
 import { loadDeployMarkers } from '../deploy-markers';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { SectionUnavailable } from '../SectionUnavailable';
+import { getPageViewStatsShared } from '../shared-reads';
 import { deriveTrafficView, type BarRows } from '../traffic-view';
 
 function BarList({ data, empty, ariaLabel, total }: { data: BarRows; empty: string; ariaLabel: string; total: number }) {
@@ -55,40 +48,33 @@ function pluralUsers(n: number): string {
 }
 
 export async function ActivityCard({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
-  const prev = previousRange(rangeKey, range);
   const fetched = await loadSection('traffic-activity', () =>
-    Promise.all([
-      getDailyCounts(range),
-      prev ? getDailyCounts(prev) : Promise.resolve(null),
-      loadDeployMarkers(),
-    ]),
+    Promise.all([getPageViewStatsShared(range, previousRange(rangeKey, range)), loadDeployMarkers()]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Activity" />;
-  const [dailyCounts, prevDailyCounts, markers] = fetched;
+  const [views, markers] = fetched;
   return (
     <Card>
       <SectionHeader size="md" label="Activity" />
-      <ActivityChart activity={deriveActivityView({ range, dailyCounts, prevDailyCounts, markers })} />
+      <ActivityChart
+        activity={deriveActivityView({ range, dailyCounts: views.current, prevDailyCounts: views.previous, markers })}
+      />
     </Card>
   );
 }
 
-export async function TrafficLists({ range }: { range: DateRange }) {
+export async function TrafficLists({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
   const fetched = await loadSection('traffic-lists', () =>
-    Promise.all([
-      getTopPages(range, 10),
-      getTopReferrers(range, 10),
-      getTopEntryPages(range, 10),
-      getTrafficTotals(range),
-    ]),
+    Promise.all([getPageViewRankings(range, 10), getPageViewStatsShared(range, previousRange(rangeKey, range))]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Traffic" />;
-  const [topPages, topReferrers, topEntryPages, totals] = fetched;
-  const view = deriveTrafficView({ topPages, topReferrers, topEntryPages });
+  const [rankings, views] = fetched;
+  const view = deriveTrafficView(rankings);
+  const totals = pageViewTotals(views.current);
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ListCard label="Top pages" className="lg:col-span-2">
-        <BarList total={totals.pageViews} data={view.topPages} empty="No page-view events in this range." ariaLabel="Top pages by views" />
+        <BarList total={totals.views} data={view.topPages} empty="No page-view events in this range." ariaLabel="Top pages by views" />
       </ListCard>
       <ListCard label="Entry pages">
         <BarList
@@ -110,12 +96,18 @@ export async function TrafficLists({ range }: { range: DateRange }) {
   );
 }
 
-export async function PilotsCard({ range }: { range: DateRange }) {
+export async function PilotsCard({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
   const fetched = await loadSection('pilots', () =>
-    Promise.all([getLoginCountsPerUser(range), getReturningVsNew(range), getSearchVsDirect(range)]),
+    Promise.all([
+      getLoginCountsPerUser(range),
+      getReturningVsNew(range, null),
+      getPageViewStatsShared(range, previousRange(rangeKey, range)),
+    ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Visitors & users" />;
-  const [loginCounts, returningVsNew, searchVsDirect] = fetched;
+  const [loginCounts, audience, views] = fetched;
+  const returningVsNew = audience.current;
+  const searchVsDirect = pageViewSources(views.current);
   const buckets = loginFrequencyBuckets(loginCounts);
   return (
     <Card>

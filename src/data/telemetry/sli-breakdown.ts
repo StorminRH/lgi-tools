@@ -1,7 +1,13 @@
-import { and, count, desc, eq, inArray, max, not, sql } from 'drizzle-orm';
+import { and, count, eq, max, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/db';
 import type { DependencyKind } from '@/lib/dependency-timing';
-import { operationsOfKind, USER_FACING_CAPABILITY_KINDS, type CapabilityKind } from './capability';
+import { operationsOfKind, USER_FACING_CAPABILITY_KINDS } from './capability';
+import {
+  roundedP95,
+  slowestOperations,
+  type CapabilityLatency,
+  type CapabilityOutcomeStat,
+} from './capability-stats';
 import { usageLogs } from './schema';
 import {
   CAPABILITY_ACTION,
@@ -9,170 +15,88 @@ import {
   capabilityOperation,
   capabilityOutcome,
   capabilityRows,
-  ESI_FAILURE_OUTCOMES,
   esiDependent,
   inRange,
   jsonNumber,
 } from './sql';
 import type { DateRange } from './types';
 
-const BREAKDOWN_LIMIT = 8;
-const SLOWEST_LIMIT = 5;
-const DEPENDENCY_KINDS = ['neon', 'esi', 'redis'] as const satisfies readonly DependencyKind[];
-
-const capabilityCode = sql<string>`${usageLogs.metadata} ->> 'code'`;
-const capabilityErrorClass = sql<string | null>`${usageLogs.metadata} ->> 'errorClass'`;
-const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
-
-export interface FailureGroup {
-  feature: string;
-  operation: string;
-  outcome: string;
-  code: string;
-  errorClass: string | null;
-  count: number;
-  lastSeen: Date;
+// Failure detail is only kept for outcomes other than `succeeded`, so the
+// grouping stays one row per operation for the common case.
+function failureOnly(value: SQL): SQL<string | null> {
+  return sql<string | null>`case when ${capabilityOutcome} <> 'succeeded' then ${value} end`;
 }
 
-export interface DailyFailures {
-  day: string;
-  failures: number;
+const outcomeGroup = {
+  operation: sql<string | null>`${capabilityOperation}`,
+  outcome: sql<string | null>`${capabilityOutcome}`,
+  esi: sql<boolean | null>`${esiDependent}`,
+  feature: failureOnly(capabilityFeature),
+  code: failureOnly(sql`${usageLogs.metadata} ->> 'code'`),
+  errorClass: failureOnly(sql`${usageLogs.metadata} ->> 'errorClass'`),
+  day: failureOnly(sql`(${usageLogs.timestamp} at time zone 'UTC')::date`),
+};
+
+/**
+ * Every capability outcome in the range, grouped once. The success rates,
+ * ESI availability and failure breakdowns all derive from these rows.
+ */
+export async function getCapabilityOutcomeStats(range: DateRange): Promise<CapabilityOutcomeStat[]> {
+  const rows = await db
+    .select({ ...outcomeGroup, count: count(), lastSeen: max(usageLogs.timestamp) })
+    .from(usageLogs)
+    .where(and(inRange(range), eq(usageLogs.action, CAPABILITY_ACTION)))
+    .groupBy(...Object.values(outcomeGroup));
+  return rows.map((row) => ({ ...row, esi: row.esi === true, count: Number(row.count) }));
 }
 
-export interface SlowOperation {
-  feature: string;
-  operation: string;
-  p95Ms: number;
-  count: number;
-  /** The dependency with the most average time per run, or null when none was timed. */
-  slowestDependency: DependencyKind | null;
+function dependencyMs(kind: DependencyKind) {
+  return sql<number>`coalesce(nullif(${usageLogs.metadata} -> 'dependencies' -> ${kind} ->> 'ms', 'null')::double precision, 0)`;
 }
 
 /**
- * Failed operations of one kind, grouped by what failed and how. Outcomes in
- * `excluded` are left out, matching the headline rate they explain.
+ * p95 latency across user-facing operations, and per operation. The
+ * subquery projects the timings first, so the percentile sort carries
+ * numbers rather than whole metadata rows.
  */
-export async function listCapabilityFailures(
-  range: DateRange,
-  kind: CapabilityKind,
-  excluded: readonly string[] = [],
-): Promise<FailureGroup[]> {
-  const rows = await db
+export async function getCapabilityLatency(range: DateRange): Promise<CapabilityLatency> {
+  const runs = db
     .select({
-      feature: capabilityFeature,
-      operation: capabilityOperation,
-      outcome: capabilityOutcome,
-      code: capabilityCode,
-      errorClass: capabilityErrorClass,
-      count: count(),
-      lastSeen: max(usageLogs.timestamp),
-    })
-    .from(usageLogs)
-    .where(and(capabilityRows(range, operationsOfKind(kind)), not(inArray(capabilityOutcome, ['succeeded', ...excluded]))))
-    .groupBy(capabilityFeature, capabilityOperation, capabilityOutcome, capabilityCode, capabilityErrorClass)
-    .orderBy(desc(count()), desc(max(usageLogs.timestamp)))
-    .limit(BREAKDOWN_LIMIT);
-  return rows.map((row) => ({ ...row, count: Number(row.count), lastSeen: row.lastSeen ?? range.to }));
-}
-
-/** Failures per day, so a headline drop reads as current or as old failures still in the window. */
-export async function listDailyCapabilityFailures(
-  range: DateRange,
-  kind: CapabilityKind,
-  excluded: readonly string[] = [],
-): Promise<DailyFailures[]> {
-  const rows = await db
-    .select({
-      day,
-      failures: sql<number>`count(*) filter (where not ${inArray(capabilityOutcome, ['succeeded', ...excluded])})`.mapWith(Number),
-    })
-    .from(usageLogs)
-    .where(capabilityRows(range, operationsOfKind(kind)))
-    .groupBy(day)
-    .orderBy(day);
-  return rows.map((row) => ({ day: row.day, failures: Number(row.failures) }));
-}
-
-export async function countCapabilityOutcome(
-  range: DateRange,
-  kind: CapabilityKind,
-  outcome: string,
-): Promise<number> {
-  const [row] = await db
-    .select({ count: count() })
-    .from(usageLogs)
-    .where(and(capabilityRows(range, operationsOfKind(kind)), eq(capabilityOutcome, outcome)));
-  return Number(row?.count ?? 0);
-}
-
-function dependencyAverage(kind: DependencyKind) {
-  return sql<number | null>`avg(coalesce(nullif(${usageLogs.metadata} -> 'dependencies' -> ${kind} ->> 'ms', 'null')::double precision, 0))`.mapWith(
-    Number,
-  );
-}
-
-function slowestDependency(averages: Record<DependencyKind, number | null>): DependencyKind | null {
-  let slowest: DependencyKind | null = null;
-  for (const kind of DEPENDENCY_KINDS) {
-    const ms = averages[kind];
-    if (ms === null || Number.isNaN(ms) || ms <= 0) continue;
-    if (slowest === null || ms > (averages[slowest] ?? 0)) slowest = kind;
-  }
-  return slowest;
-}
-
-/** The slowest user-facing operations by p95, with where their time went. */
-export async function listSlowestOperations(range: DateRange): Promise<SlowOperation[]> {
-  const p95 = sql<number>`percentile_cont(0.95) within group (order by ${jsonNumber('durationMs')})`.mapWith(Number);
-  const rows = await db
-    .select({
-      feature: capabilityFeature,
-      operation: capabilityOperation,
-      p95,
-      count: count(),
-      neon: dependencyAverage('neon'),
-      esi: dependencyAverage('esi'),
-      redis: dependencyAverage('redis'),
+      feature: sql<string>`${capabilityFeature}`.as('feature'),
+      operation: sql<string>`${capabilityOperation}`.as('operation'),
+      durationMs: jsonNumber('durationMs').as('duration_ms'),
+      neonMs: dependencyMs('neon').as('neon_ms'),
+      esiMs: dependencyMs('esi').as('esi_ms'),
+      redisMs: dependencyMs('redis').as('redis_ms'),
     })
     .from(usageLogs)
     .where(capabilityRows(range, operationsOfKind(...USER_FACING_CAPABILITY_KINDS)))
-    .groupBy(capabilityFeature, capabilityOperation)
-    .orderBy(desc(p95))
-    .limit(SLOWEST_LIMIT);
-  return rows.map((row) => ({
-    feature: row.feature,
-    operation: row.operation,
-    p95Ms: Math.round(row.p95),
-    count: Number(row.count),
-    slowestDependency: slowestDependency({ neon: row.neon, esi: row.esi, redis: row.redis }),
-  }));
-}
-
-/** ESI-dependent operations that CCP rate limited or failed, by operation. */
-export async function listEsiFailures(range: DateRange): Promise<FailureGroup[]> {
+    .as('runs');
+  const average = (column: SQL.Aliased<number>) =>
+    sql<number | null>`avg(${column})`.mapWith(Number);
   const rows = await db
     .select({
-      feature: capabilityFeature,
-      operation: capabilityOperation,
-      outcome: capabilityOutcome,
-      code: capabilityCode,
+      feature: runs.feature,
+      operation: runs.operation,
+      overall: sql<number>`grouping(${runs.feature}, ${runs.operation})`.mapWith(Number),
+      p95: sql<number | null>`percentile_cont(0.95) within group (order by ${runs.durationMs})`.mapWith(Number),
       count: count(),
-      lastSeen: max(usageLogs.timestamp),
+      neon: average(runs.neonMs),
+      esi: average(runs.esiMs),
+      redis: average(runs.redisMs),
     })
-    .from(usageLogs)
-    .where(and(
-      inRange(range),
-      eq(usageLogs.action, CAPABILITY_ACTION),
-      esiDependent,
-      inArray(capabilityOutcome, [...ESI_FAILURE_OUTCOMES]),
-    ))
-    .groupBy(capabilityFeature, capabilityOperation, capabilityOutcome, capabilityCode)
-    .orderBy(desc(count()), desc(max(usageLogs.timestamp)))
-    .limit(BREAKDOWN_LIMIT);
-  return rows.map((row) => ({
-    ...row,
-    errorClass: null,
-    count: Number(row.count),
-    lastSeen: row.lastSeen ?? range.to,
-  }));
+    .from(runs)
+    .groupBy(sql`grouping sets ((${runs.feature}, ${runs.operation}), ())`);
+
+  const operations = rows
+    .filter((row) => Number(row.overall) === 0)
+    .map((row) => ({
+      feature: row.feature,
+      operation: row.operation,
+      p95: row.p95,
+      count: Number(row.count),
+      dependencyMs: { neon: row.neon, esi: row.esi, redis: row.redis },
+    }));
+  const overall = rows.find((row) => Number(row.overall) !== 0);
+  return { p95: roundedP95(overall?.p95), slowest: slowestOperations(operations) };
 }

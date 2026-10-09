@@ -7,9 +7,9 @@ const range = {
 };
 
 const dailyCounts = [
-  { day: '2026-07-06', totalEvents: 10 },
-  { day: '2026-07-08', totalEvents: 20 },
-  { day: '2026-07-12', totalEvents: 5 },
+  { day: '2026-07-06', views: 10 },
+  { day: '2026-07-08', views: 20 },
+  { day: '2026-07-12', views: 5 },
 ];
 
 describe('deriveActivityView', () => {
@@ -43,7 +43,7 @@ describe('deriveActivityView', () => {
     const withPrior = deriveActivityView({
       range,
       dailyCounts,
-      prevDailyCounts: [{ day: '2026-06-29', totalEvents: 70 }],
+      prevDailyCounts: [{ day: '2026-06-29', views: 70 }],
       markers: [],
     });
     expect(withPrior.referenceLine).toEqual({ value: 10, label: 'prior avg' });
@@ -61,10 +61,10 @@ describe('deriveActivityView', () => {
     const view = deriveActivityView({
       range: { from: new Date('2026-07-06T00:00:00Z'), to: new Date('2026-07-13T00:00:00Z') },
       dailyCounts: [
-        { day: '2026-07-10', totalEvents: 20 },
-        { day: '2026-07-13', totalEvents: 5 },
+        { day: '2026-07-10', views: 20 },
+        { day: '2026-07-13', views: 5 },
       ],
-      prevDailyCounts: [{ day: '2026-06-30', totalEvents: 70 }],
+      prevDailyCounts: [{ day: '2026-06-30', views: 70 }],
       markers: [],
     });
     expect(view.labels.length).toBe(4);

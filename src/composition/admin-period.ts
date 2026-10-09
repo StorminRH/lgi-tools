@@ -10,10 +10,15 @@ export function parseRange(raw: string | string[] | undefined): RangeKey {
   return (RANGES as readonly string[]).includes(raw) ? (raw as RangeKey) : '30d';
 }
 
+const MINUTE_MS = 60_000;
+
+// Ranges end on the next whole minute, so every card built in one request
+// asks for the same window and shared reads dedupe across them.
 export function rangeFor(key: RangeKey, now: Date = new Date()): DateRange {
-  if (key === 'all') return { from: ALL_TIME_FROM, to: now };
+  const to = new Date(Math.ceil(now.getTime() / MINUTE_MS) * MINUTE_MS);
+  if (key === 'all') return { from: ALL_TIME_FROM, to };
   const days = key === '7d' ? 7 : key === '30d' ? 30 : 90;
-  return { from: new Date(now.getTime() - days * 24 * 60 * 60 * 1000), to: now };
+  return { from: new Date(to.getTime() - days * 24 * 60 * 60 * 1000), to };
 }
 
 export function previousRange(key: RangeKey, range: DateRange): DateRange | null {

@@ -4,7 +4,7 @@ import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
-import type { DailyFailures, FailureGroup, SlowOperation } from '@/data/telemetry/sli-breakdown';
+import type { CapabilityFailureDetail, FailureGroup, SlowOperation } from '@/data/telemetry/capability-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
 import { zeroFillDaily } from '../aggregate';
@@ -24,14 +24,13 @@ import {
   type ServiceLevelRow,
 } from './health-view';
 
-export interface FailureDetail {
+export interface FailureDetail extends CapabilityFailureDetail {
   range: DateRange;
-  groups: FailureGroup[];
-  daily: DailyFailures[];
-  validationRejected?: number;
 }
 
 export interface ServiceLevelDetails {
+  /** The card's clock, so queue ages match the headline. */
+  now: Date;
   read: Loaded<FailureDetail>;
   mutation: Loaded<FailureDetail>;
   slowest: Loaded<SlowOperation[]>;
@@ -161,14 +160,14 @@ function EsiBody({ esi }: { esi: Loaded<FailureGroup[]> }) {
 }
 
 function BacklogBody({ details }: { details: ServiceLevelDetails }) {
-  const { queue, deadLetters } = details;
+  const { now, queue, deadLetters } = details;
   return (
     <>
       {queue === SECTION_LOAD_FAILED ? (
         <Unavailable />
       ) : (
         <DetailCaption>
-          {deriveQueueCells(queue, new Date())
+          {deriveQueueCells(queue, now)
             .map((cell) => `${cell.title} ${cell.value}`)
             .join(' · ')}
         </DetailCaption>

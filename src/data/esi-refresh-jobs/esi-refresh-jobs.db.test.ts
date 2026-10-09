@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc, count, eq, gte, inArray, min, or } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import {
   enqueueEsiRefreshJob,
@@ -8,6 +8,10 @@ import {
   recoverStaleRunningJobs,
   requeueDeadLetteredJob,
 } from '@/data/esi-refresh-jobs/queries';
+import {
+  ESI_REFRESH_JOB_STATUSES,
+  LIVE_ESI_REFRESH_JOB_STATUSES,
+} from '@/data/esi-refresh-jobs/constants';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
@@ -135,6 +139,45 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
     const stats = await getEsiRefreshQueueStats(NOW);
     expect(stats.map(({ status, count }) => ({ status, count }))).toEqual([
       { status: 'succeeded', count: 1 }, { status: 'dead_lettered', count: 1 },
+    ]);
+  });
+
+  it('counts exactly the rows the single OR-predicate counted, for every status', async () => {
+    await harness.db.delete(esiRefreshJobs);
+    const finishedAts = [
+      null,
+      new Date('2026-06-01T00:00:00Z'),
+      new Date(BOUNDARY.getTime() - 1),
+      BOUNDARY,
+      new Date('2026-07-10T08:00:00Z'),
+      NOW,
+    ];
+    await harness.db.insert(esiRefreshJobs).values(
+      ESI_REFRESH_JOB_STATUSES.flatMap((status, s) =>
+        finishedAts.map((finishedAt, f) => ({
+          ...terminalJob(`${status}-${f}`, 'succeeded', NOW),
+          status,
+          finishedAt,
+          createdAt: new Date(Date.UTC(2026, 5, 1 + s + f)),
+        })),
+      ),
+    );
+    const reference = await harness.db
+      .select({ status: esiRefreshJobs.status, count: count(), oldestCreatedAt: min(esiRefreshJobs.createdAt) })
+      .from(esiRefreshJobs)
+      .where(or(
+        inArray(esiRefreshJobs.status, [...LIVE_ESI_REFRESH_JOB_STATUSES, 'dead_lettered']),
+        gte(esiRefreshJobs.finishedAt, BOUNDARY),
+      ))
+      .groupBy(esiRefreshJobs.status)
+      .orderBy(asc(esiRefreshJobs.status));
+
+    const stats = await getEsiRefreshQueueStats(NOW);
+
+    expect(stats).toEqual(reference);
+    expect(stats.map(({ status, count }) => [status, count])).toEqual([
+      ['queued', 6], ['running', 6], ['deferred_for_budget', 6], ['succeeded', 3],
+      ['failed_retryable', 6], ['failed_permanent', 3], ['dead_lettered', 6],
     ]);
   });
 

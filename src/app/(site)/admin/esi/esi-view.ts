@@ -6,6 +6,7 @@ import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import {
   deriveBudgetStatus,
   formatSliValue,
+  heldForBudget,
   sliLevel,
   sliTargetLabel,
   type StatusLine,
@@ -63,9 +64,7 @@ export function derivePressureLines(input: {
   });
   const priced = input.fallback.esi + input.fallback.fallback;
   const degradationTotal = input.degradation.reduce((total, row) => total + row.count, 0);
-  const deferred = input.queue
-    .filter((stat) => stat.status === 'deferred_for_budget')
-    .reduce((total, stat) => total + stat.count, 0);
+  const deferred = heldForBudget(input.queue);
   return [
     {
       id: 'esi-success',

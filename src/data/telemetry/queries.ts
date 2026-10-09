@@ -2,26 +2,38 @@ import {
   and,
   avg,
   count,
-  countDistinct,
   desc,
   eq,
   gte,
   inArray,
   isNotNull,
   lt,
+  lte,
   or,
   sql,
   sum,
+  type SQL,
 } from 'drizzle-orm';
 import { EVE_SSO_HOST } from '@/lib/eve-provider';
 import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
-import { operationsOfKind, USER_FACING_CAPABILITY_KINDS } from './capability';
+import { CRON_ACTIONS, splitCronOutcomes, type CronOutcomes, type PriceRefreshDay } from './cron-stats';
+import {
+  readWindow,
+  splitAudience,
+  splitPageViewPeriods,
+  splitRankings,
+  type PageViewRankings,
+  type PageViewStats,
+  type PeriodPair,
+  type RankedList,
+  type RankedRow,
+} from './page-view-stats';
+import { priceSourceDegradation, type PriceSourceDegradation } from './price-source-stats';
 import { usageLogs } from './schema';
 import {
   CAPABILITY_ACTION,
   capabilityOutcome,
-  capabilityRows,
   ESI_FAILURE_OUTCOMES,
   esiDependent,
   inRange,
@@ -30,18 +42,9 @@ import {
 } from './sql';
 import type {
   CronLastRun,
-  CronOutcomeCount,
-  DailyCount,
   DateRange,
-  DegradationCallerCount,
-  EntryPageCount,
-  FallbackRateData,
-  PathCount,
-  ReferrerCount,
-  RefreshVolumePoint,
   ReturningVsNew,
   RoleChangeAuditEntry,
-  SearchVsDirect,
   UsageAction,
 } from './types';
 
@@ -52,83 +55,73 @@ export {
   pruneUsageLogs,
 } from './log';
 
-export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
-  const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
+const pagePath = sql<string | null>`${usageLogs.metadata} ->> 'path'`;
+const pageReferrer = sql<string | null>`${usageLogs.metadata} ->> 'referrer'`;
+const isEntry = sql`${usageLogs.metadata} ->> 'is_entry' = 'true'`;
+// An EVE SSO bounce is the login round trip, not a referral.
+const externalReferrer = sql`${pageReferrer} is not null and lower(${pageReferrer}) <> ${EVE_SSO_HOST}`;
+
+/**
+ * Page views per UTC day for the range and, when given, the period just
+ * before it, in one scan. The previous period must end where the range
+ * starts.
+ */
+export async function getPageViewStats(range: DateRange, previous: DateRange | null): Promise<PageViewStats> {
   const rows = await db
     .select({
-      day,
-      totalEvents: count(),
-      uniqueCharacters: countDistinct(usageLogs.characterId),
-      anonymousEvents:
-        sql<number>`count(*) filter (where ${usageLogs.characterId} is null)`.mapWith(Number),
+      current: sql<boolean>`${gte(usageLogs.timestamp, range.from)}`,
+      day: sql<string>`(${usageLogs.timestamp} at time zone 'UTC')::date`,
+      views: count(),
+      entries: sql<number>`count(*) filter (where ${isEntry})`.mapWith(Number),
+      referrals: sql<number>`count(*) filter (where ${externalReferrer})`.mapWith(Number),
+    })
+    .from(usageLogs)
+    .where(and(inRange(readWindow(range, previous)), eq(usageLogs.action, 'page_view')))
+    // The period test binds the range start, so group by position rather
+    // than repeat it as a second, different parameter.
+    .groupBy(sql`1`, sql`2`);
+  return splitPageViewPeriods(rows, previous !== null);
+}
+
+/**
+ * The top pages, entry pages and external referrers in one scan: one
+ * grouping set per list, ranked within its set.
+ */
+export async function getPageViewRankings(range: DateRange, limit = 10): Promise<PageViewRankings> {
+  // Project first, so the grouping sets reference plain columns rather than
+  // expressions carrying the bound SSO host.
+  const views = db
+    .select({
+      path: sql<string | null>`${pagePath}`.as('path'),
+      entryPath: sql<string | null>`case when ${isEntry} then ${pagePath} end`.as('entry_path'),
+      referrer: sql<string | null>`case when ${externalReferrer} then ${pageReferrer} end`.as('referrer'),
     })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, 'page_view')))
-    .groupBy(day)
-    .orderBy(day);
-
-  return rows.map((r) => ({
-    day: r.day,
-    totalEvents: Number(r.totalEvents),
-    uniqueCharacters: Number(r.uniqueCharacters),
-    anonymousEvents: Number(r.anonymousEvents),
-  }));
-}
-
-function topByMetadataKeyQuery(
-  metaKey: string,
-  action: UsageAction,
-  range: DateRange,
-  limit: number,
-  extraWhere?: ReturnType<typeof eq>,
-) {
-  const col = sql<string>`${usageLogs.metadata} ->> ${metaKey}`;
-  return db
-    .select({ value: col, count: count() })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
-    .groupBy(sql`1`)
-    .orderBy(desc(count()))
-    .limit(limit);
-}
-
-async function topByMetadataKey(
-  metaKey: string,
-  action: UsageAction,
-  range: DateRange,
-  limit: number,
-  extraWhere?: ReturnType<typeof eq>,
-): Promise<{ value: string; count: number }[]> {
-  const rows = await topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere);
-  return rows
-    .filter((r) => r.value !== null)
-    .map((r) => ({ value: r.value as string, count: Number(r.count) }));
-}
-
-export function topByMetadataKeyToSQL(
-  metaKey: string,
-  action: UsageAction,
-  range: DateRange,
-  limit: number,
-  extraWhere?: ReturnType<typeof eq>,
-) {
-  return topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere).toSQL();
-}
-
-export async function getTopPages(range: DateRange, limit = 10): Promise<PathCount[]> {
-  const rows = await topByMetadataKey('path', 'page_view', range, limit);
-  return rows.map((r) => ({ path: r.value, count: r.count }));
-}
-
-export async function getTopReferrers(range: DateRange, limit = 10): Promise<ReferrerCount[]> {
-  const rows = await topByMetadataKey('referrer', 'page_view', range, limit, sql`lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST}`);
-  return rows.map((r) => ({ host: r.value, count: r.count }));
-}
-
-export async function getTopEntryPages(range: DateRange, limit = 10): Promise<EntryPageCount[]> {
-  const isEntry = sql<string>`${usageLogs.metadata} ->> 'is_entry'`;
-  const rows = await topByMetadataKey('path', 'page_view', range, limit, eq(isEntry, 'true'));
-  return rows.map((r) => ({ path: r.value, count: r.count }));
+    .as('views');
+  const list = sql<RankedList>`case
+    when grouping(${views.path}) = 0 then 'pages'
+    when grouping(${views.entryPath}) = 0 then 'entries'
+    else 'referrers' end`;
+  // Within a set the other two columns are null, so this is the set's value.
+  const value = sql<string | null>`coalesce(${views.path}, ${views.entryPath}, ${views.referrer})`;
+  const ranked = db
+    .select({
+      list: list.as('list'),
+      value: value.as('value'),
+      count: count().as('count'),
+      rn: sql<number>`row_number() over (partition by ${list} order by count(*) desc, ${value})`.as('rn'),
+    })
+    .from(views)
+    .groupBy(sql`grouping sets ((${views.path}), (${views.entryPath}), (${views.referrer}))`)
+    .having(sql`${value} is not null`)
+    .as('ranked');
+  const rows = await db
+    .select({ list: ranked.list, value: ranked.value, count: ranked.count })
+    .from(ranked)
+    .where(lte(ranked.rn, limit))
+    .orderBy(ranked.list, ranked.rn);
+  return splitRankings(rows as RankedRow[]);
 }
 
 export async function getRoleChangeAudit(
@@ -156,7 +149,8 @@ export async function getRoleChangeAudit(
     })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, 'role_change')))
-    .orderBy(desc(usageLogs.timestamp))
+    // Matches the index's `desc nulls last`, so the limit reads only the newest rows.
+    .orderBy(sql`${usageLogs.timestamp} desc nulls last`)
     .limit(limit);
 
   return rows.map((r) => ({
@@ -170,51 +164,39 @@ export async function getRoleChangeAudit(
   }));
 }
 
-export async function getFallbackRate(range: DateRange): Promise<FallbackRateData> {
-  const esi = sql<number>`coalesce(sum(${jsonInt('esiCount')}), 0)`.mapWith(Number);
-  const fallback = sql<number>`coalesce(sum(${jsonInt('fuzzworkFallbackCount')}), 0)`.mapWith(
-    Number,
-  );
-  const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
-  const where = and(
-    inRange(range),
-    eq(usageLogs.action, 'cron_prices'),
-    eq(sql`${usageLogs.metadata} ->> 'outcome'`, 'refreshed'),
-  );
-
-  const [totals, perDay] = await Promise.all([
-    db.select({ esi, fallback }).from(usageLogs).where(where),
-    db
-      .select({ day, esi, fallback })
-      .from(usageLogs)
-      .where(where)
-      .groupBy(day)
-      .orderBy(day),
-  ]);
-
-  return {
-    esi: Number(totals[0]?.esi ?? 0),
-    fallback: Number(totals[0]?.fallback ?? 0),
-    perDay: perDay.map((r) => ({
-      day: r.day,
-      esi: Number(r.esi),
-      fallback: Number(r.fallback),
-    })),
-  };
-}
-
-export async function getBudgetExhaustionCount(range: DateRange): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
+/**
+ * What each successful price refresh fetched, wrote, and took from ESI or
+ * the Fuzzwork fallback, per UTC day. The fallback rate and the refresh
+ * volume both derive from it.
+ */
+export async function getPriceRefreshDays(range: DateRange): Promise<PriceRefreshDay[]> {
+  const day = sql<string>`(${usageLogs.timestamp} at time zone 'UTC')::date`;
+  const total = (key: string) => sql<number>`coalesce(sum(${jsonInt(key)}), 0)`.mapWith(Number);
+  const rows = await db
+    .select({
+      day,
+      esi: total('esiCount'),
+      fallback: total('fuzzworkFallbackCount'),
+      fetched: total('fetched'),
+      written: total('written'),
+    })
     .from(usageLogs)
     .where(
       and(
         inRange(range),
-        eq(usageLogs.action, 'price_source_degraded'),
-        eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true'),
+        eq(usageLogs.action, 'cron_prices'),
+        eq(sql`${usageLogs.metadata} ->> 'outcome'`, 'refreshed'),
       ),
-    );
-  return Number(row?.n ?? 0);
+    )
+    .groupBy(day)
+    .orderBy(day);
+  return rows.map((r) => ({
+    day: r.day,
+    esi: Number(r.esi),
+    fallback: Number(r.fallback),
+    fetched: Number(r.fetched),
+    written: Number(r.written),
+  }));
 }
 
 export async function countPublicEsiBudgetExhaustionsInWindow(
@@ -260,100 +242,60 @@ export async function hasPublicEsiBudgetAlertForWindow(
   return Number(row?.n ?? 0) > 0;
 }
 
-export async function getDegradationByCaller(
-  range: DateRange,
-): Promise<DegradationCallerCount[]> {
-  const caller = sql<string>`${usageLogs.metadata} ->> 'caller'`;
+/**
+ * Degraded price reads by caller, with how many hit an exhausted ESI
+ * budget, in one scan.
+ */
+export async function getPriceSourceDegradation(range: DateRange): Promise<PriceSourceDegradation> {
+  const caller = sql<string | null>`${usageLogs.metadata} ->> 'caller'`;
+  const budgetExhausted = eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true');
   const rows = await db
-    .select({ caller, count: count() })
+    .select({
+      caller,
+      count: count(),
+      budgetExhausted: sql<number>`count(*) filter (where ${budgetExhausted})`.mapWith(Number),
+    })
     .from(usageLogs)
-    .where(
-      and(inRange(range), eq(usageLogs.action, 'price_source_degraded'), isNotNull(caller)),
-    )
-    .groupBy(caller)
-    .orderBy(desc(count()));
-  return rows
-    .filter((r) => r.caller !== null)
-    .map((r) => ({ caller: r.caller as string, count: Number(r.count) }));
+    .where(and(inRange(range), eq(usageLogs.action, 'price_source_degraded')))
+    .groupBy(caller);
+  return priceSourceDegradation(rows);
 }
 
-async function getCronOutcomes(
-  range: DateRange,
-  action: UsageAction,
-): Promise<CronOutcomeCount[]> {
+/** Runs of every tracked cron by outcome, most frequent first within each. */
+export async function getCronOutcomes(range: DateRange): Promise<CronOutcomes> {
   const outcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
   const avgDurationMs = sql<number>`coalesce(avg(${jsonNumber('durationMs')}), 0)`.mapWith(Number);
   const rows = await db
-    .select({ outcome, count: count(), avgDurationMs })
+    .select({ action: usageLogs.action, outcome, count: count(), avgDurationMs })
     .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(outcome)))
-    .groupBy(outcome)
-    .orderBy(desc(count()));
-  return rows
-    .filter((r) => r.outcome !== null)
-    .map((r) => ({
-      outcome: r.outcome as string,
-      count: Number(r.count),
-      avgDurationMs: Math.round(Number(r.avgDurationMs)),
-    }));
+    .where(and(inRange(range), inArray(usageLogs.action, [...CRON_ACTIONS]), isNotNull(outcome)))
+    .groupBy(usageLogs.action, outcome)
+    .orderBy(usageLogs.action, desc(count()), outcome);
+  return splitCronOutcomes(rows);
 }
 
-export function getPriceCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_prices');
-}
-
-export function getSdeCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_sde');
-}
-
-export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_gsc');
-}
-
-export function getHousekeepingCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
-  return getCronOutcomes(range, 'cron_housekeeping');
-}
-
+/**
+ * The latest run of each tracked cron, at any time. Each is one step down
+ * the action and timestamp index, so the read stays a few rows however
+ * long the log grows.
+ */
 export async function getLastCronRuns(): Promise<CronLastRun[]> {
-  const outcome = sql<string | null>`${usageLogs.metadata} ->> 'outcome'`;
-  const rows = await db
-    .selectDistinctOn([usageLogs.action], {
-      action: usageLogs.action,
+  const lastRun = db
+    .select({
       timestamp: usageLogs.timestamp,
-      outcome,
+      outcome: sql<string | null>`${usageLogs.metadata} ->> 'outcome'`.as('outcome'),
     })
     .from(usageLogs)
-    .where(inArray(usageLogs.action, ['cron_prices', 'cron_sde', 'cron_gsc', 'cron_housekeeping']))
-    .orderBy(usageLogs.action, desc(usageLogs.timestamp));
-
-  return rows.map((r) => ({
-    action: r.action as UsageAction,
-    timestamp: r.timestamp,
-    outcome: r.outcome,
-  }));
-}
-
-export async function getRefreshVolume(range: DateRange): Promise<RefreshVolumePoint[]> {
-  const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
-  const fetched = sql<number>`coalesce(sum(${jsonInt('fetched')}), 0)`.mapWith(Number);
-  const written = sql<number>`coalesce(sum(${jsonInt('written')}), 0)`.mapWith(Number);
+    .where(eq(usageLogs.action, sql`cron.action`))
+    // Matches the index's `desc nulls last`, so the limit stops at one row.
+    .orderBy(sql`${usageLogs.timestamp} desc nulls last`)
+    .limit(1)
+    .as('last_run');
   const rows = await db
-    .select({ day, fetched, written })
-    .from(usageLogs)
-    .where(
-      and(
-        inRange(range),
-        eq(usageLogs.action, 'cron_prices'),
-        eq(sql`${usageLogs.metadata} ->> 'outcome'`, 'refreshed'),
-      ),
-    )
-    .groupBy(day)
-    .orderBy(day);
-  return rows.map((r) => ({
-    day: r.day,
-    fetched: Number(r.fetched),
-    written: Number(r.written),
-  }));
+    .select({ action: sql<UsageAction>`cron.action`, timestamp: lastRun.timestamp, outcome: lastRun.outcome })
+    .from(sql`unnest(${sql.param([...CRON_ACTIONS])}::text[]) as cron(action)`)
+    .innerJoinLateral(lastRun, sql`true`);
+  return rows.map((r) => ({ action: r.action, timestamp: r.timestamp, outcome: r.outcome }));
 }
 
 // Resolve recorded characters to their current human account, once per EVE account.
@@ -363,13 +305,43 @@ const activityAccount = and(
 );
 const audienceActions = ['page_view', 'auth_login'] as const;
 
-export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNew> {
-  const [row] = await db.select({
-    newUsers: sql<number>`count(distinct ${user.id}) filter (where ${gte(user.createdAt, range.from)})`.mapWith(Number),
-    returning: sql<number>`count(distinct ${user.id}) filter (where ${lt(user.createdAt, range.from)})`.mapWith(Number),
-  }).from(usageLogs).innerJoin(account, activityAccount).innerJoin(user, eq(user.id, account.userId))
-    .where(and(inRange(range), inArray(usageLogs.action, [...audienceActions])));
-  return { newUsers: Number(row?.newUsers ?? 0), returning: Number(row?.returning ?? 0) };
+/**
+ * Active users new to the range or returning to it, for the range and,
+ * when given, the contiguous period before it. Characters are deduplicated
+ * before they are resolved to users.
+ */
+export async function getReturningVsNew(
+  range: DateRange,
+  previous: DateRange | null,
+): Promise<PeriodPair<ReturningVsNew>> {
+  const active = db
+    .select({
+      characterId: usageLogs.characterId,
+      inCurrent: sql<boolean>`bool_or(${gte(usageLogs.timestamp, range.from)})`.as('in_current'),
+      inPrevious: sql<boolean>`bool_or(${lt(usageLogs.timestamp, range.from)})`.as('in_previous'),
+    })
+    .from(usageLogs)
+    .where(and(
+      inRange(readWindow(range, previous)),
+      inArray(usageLogs.action, [...audienceActions]),
+      isNotNull(usageLogs.characterId),
+    ))
+    .groupBy(usageLogs.characterId)
+    .as('active');
+  const users = (period: SQL, joined: SQL) =>
+    sql<number>`count(distinct ${user.id}) filter (where ${period} and ${joined})`.mapWith(Number);
+  const previousFrom = previous?.from ?? range.from;
+  const [row] = await db
+    .select({
+      newUsers: users(sql`${active.inCurrent}`, gte(user.createdAt, range.from)),
+      returning: users(sql`${active.inCurrent}`, lt(user.createdAt, range.from)),
+      previousNew: users(sql`${active.inPrevious}`, gte(user.createdAt, previousFrom)),
+      previousReturning: users(sql`${active.inPrevious}`, lt(user.createdAt, previousFrom)),
+    })
+    .from(active)
+    .innerJoin(account, and(eq(account.providerId, 'eve'), eq(account.accountId, sql<string>`${active.characterId}::text`)))
+    .innerJoin(user, eq(user.id, account.userId));
+  return splitAudience(row, previous !== null);
 }
 
 export async function getLoginCountsPerUser(range: DateRange): Promise<number[]> {
@@ -380,83 +352,10 @@ export async function getLoginCountsPerUser(range: DateRange): Promise<number[]>
   return rows.map((r) => Number(r.c));
 }
 
-export async function getTrafficTotals(range: DateRange) {
-  const [row] = await db.select({
-    pageViews: count(),
-    entries: sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'is_entry' = 'true')`.mapWith(Number),
-    referrals: sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null and lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST})`.mapWith(Number),
-  }).from(usageLogs).where(and(inRange(range), eq(usageLogs.action, 'page_view')));
-  return { pageViews: Number(row?.pageViews ?? 0), entries: Number(row?.entries ?? 0), referrals: Number(row?.referrals ?? 0) };
-}
-
-export async function getSearchVsDirect(range: DateRange): Promise<SearchVsDirect> {
-  const referred = sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null and lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST})`.mapWith(
-    Number,
-  );
-  const direct = sql<number>`count(*) filter (where (${usageLogs.metadata} ->> 'referrer' is null or lower(${usageLogs.metadata} ->> 'referrer') = ${EVE_SSO_HOST}))`.mapWith(
-    Number,
-  );
-  const [row] = await db
-    .select({ referred, direct })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, 'page_view')));
-  return { referred: Number(row?.referred ?? 0), direct: Number(row?.direct ?? 0) };
-}
-
 export function lastNDaysRange(days: number, now: Date = new Date()): DateRange {
   const to = now;
   const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
   return { from, to };
-}
-
-async function successRatio(
-  range: DateRange,
-  operations: readonly string[],
-  excludedOutcomes: readonly string[] = [],
-): Promise<number | null> {
-  const excluded =
-    excludedOutcomes.length === 0
-      ? sql<number>`0`
-      : sql<number>`count(*) filter (where ${inArray(capabilityOutcome, [...excludedOutcomes])})`;
-
-  const [row] = await db
-    .select({
-      total: count(),
-      succeeded: sql<number>`count(*) filter (where ${capabilityOutcome} = 'succeeded')`.mapWith(Number),
-      excluded: excluded.mapWith(Number),
-    })
-    .from(usageLogs)
-    .where(capabilityRows(range, operations));
-
-  const total = Number(row?.total ?? 0) - Number(row?.excluded ?? 0);
-  if (total <= 0) return null;
-  return Number(row?.succeeded ?? 0) / total;
-}
-
-export function getReadSuccessRate(range: DateRange): Promise<number | null> {
-  return successRatio(range, operationsOfKind('read'));
-}
-
-/** A rejected bad request is the system working, so it is left out of save/action success. */
-export const MUTATION_EXCLUDED_OUTCOMES = ['validation'] as const;
-
-export function getMutationSuccessRate(range: DateRange): Promise<number | null> {
-  return successRatio(range, operationsOfKind('mutation'), MUTATION_EXCLUDED_OUTCOMES);
-}
-
-export async function getCriticalLatencyP95(range: DateRange): Promise<number | null> {
-  const [row] = await db
-    .select({
-      p95: sql<number | null>`
-        percentile_cont(0.95) within group (order by ${jsonNumber('durationMs')})
-      `.mapWith(Number),
-    })
-    .from(usageLogs)
-    .where(capabilityRows(range, operationsOfKind(...USER_FACING_CAPABILITY_KINDS)));
-
-  const p95 = row?.p95;
-  if (p95 === null || p95 === undefined || Number.isNaN(p95)) return null;
-  return Math.round(p95);
 }
 
 export async function getEsiAvailability(range: DateRange) {
@@ -481,10 +380,6 @@ export async function getEsiAvailability(range: DateRange) {
   const total = Number(row?.total ?? 0);
   const healthy = Number(row?.healthy ?? 0);
   return { total, healthy, rate: total > 0 ? healthy / total : null };
-}
-
-export async function getEsiSuccessRate(range: DateRange): Promise<number | null> {
-  return (await getEsiAvailability(range)).rate;
 }
 
 export interface PriceSourceSplit {
