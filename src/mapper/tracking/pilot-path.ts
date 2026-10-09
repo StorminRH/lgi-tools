@@ -1,71 +1,8 @@
 import { sortedUniqueIds } from '@/lib/array';
+import { breadthFirst, pathTo, type Neighbours } from '@/lib/graph';
 import { pairKey } from '../lib/pair-key';
 
-export const PILOT_PATH_MAX_JUMPS = 15;
-
-export interface PilotPathInput {
-  readonly drawnSystemIds: ReadonlySet<number>;
-  readonly pilotSystemId: number;
-  readonly neighbours: (id: number) => readonly number[];
-}
-
-interface PathScan {
-  readonly seen: Set<number>;
-  readonly cameFrom: Map<number, number>;
-}
-
-function scanTowardTargets(
-  drawnSystemIds: ReadonlySet<number>,
-  neighbours: (id: number) => readonly number[],
-  targets: ReadonlySet<number>,
-): PathScan {
-  const remaining = new Set(targets);
-  let frontier: readonly number[] = sortedUniqueIds(drawnSystemIds);
-  const scan: PathScan = { seen: new Set(frontier), cameFrom: new Map() };
-  for (let jumps = 1; jumps <= PILOT_PATH_MAX_JUMPS && remaining.size > 0; jumps += 1) {
-    const next: number[] = [];
-    for (const systemId of frontier) {
-      for (const neighbour of neighbours(systemId)) {
-        if (scan.seen.has(neighbour)) continue;
-        scan.seen.add(neighbour);
-        scan.cameFrom.set(neighbour, systemId);
-        remaining.delete(neighbour);
-        next.push(neighbour);
-      }
-    }
-    if (next.length === 0) break;
-    frontier = next;
-  }
-  return scan;
-}
-
-function reconstructPath(
-  scan: PathScan,
-  drawnSystemIds: ReadonlySet<number>,
-  pilotSystemId: number,
-): readonly number[] {
-  const path = [pilotSystemId];
-  let cursor = scan.cameFrom.get(pilotSystemId)!;
-  while (!drawnSystemIds.has(cursor)) {
-    path.push(cursor);
-    cursor = scan.cameFrom.get(cursor)!;
-  }
-  path.push(cursor);
-  return path.reverse();
-}
-
-export function derivePilotPath(input: PilotPathInput): readonly number[] | null {
-  if (input.drawnSystemIds.has(input.pilotSystemId)) return [input.pilotSystemId];
-  if (input.drawnSystemIds.size === 0) return null;
-
-  const scan = scanTowardTargets(
-    input.drawnSystemIds,
-    input.neighbours,
-    new Set([input.pilotSystemId]),
-  );
-  if (!scan.cameFrom.has(input.pilotSystemId)) return null;
-  return reconstructPath(scan, input.drawnSystemIds, input.pilotSystemId);
-}
+const PILOT_PATH_MAX_JUMPS = 15;
 
 export interface OutboundArrow {
   readonly towardSystemId: number;
@@ -80,7 +17,7 @@ export interface ArrowPilotSystem {
 export interface OutboundArrowInput {
   readonly pilotSystems: readonly ArrowPilotSystem[];
   readonly drawnSystemIds: ReadonlySet<number>;
-  readonly neighbours: (id: number) => readonly number[];
+  readonly neighbours: Neighbours;
   readonly edgeIdOfPair: (a: number, b: number) => string | null;
 }
 
@@ -117,15 +54,14 @@ export function deriveOutboundArrows(
   const arrows = new Map<string, OutboundArrow>();
   if (offMapLive.size === 0 || input.drawnSystemIds.size === 0) return arrows;
 
-  const scan = scanTowardTargets(
-    input.drawnSystemIds,
-    input.neighbours,
-    new Set(offMapLive.keys()),
-  );
+  const reached = breadthFirst(sortedUniqueIds(input.drawnSystemIds), input.neighbours, {
+    maxDepth: PILOT_PATH_MAX_JUMPS,
+    targets: new Set(offMapLive.keys()),
+  });
   const pilotSystems = sortedUniqueIds(offMapLive.keys());
   for (const pilotSystemId of pilotSystems) {
-    if (!scan.cameFrom.has(pilotSystemId)) continue;
-    const path = reconstructPath(scan, input.drawnSystemIds, pilotSystemId);
+    const path = pathTo(reached, pilotSystemId);
+    if (path === null) continue;
     const mount = mountFor(path, input.edgeIdOfPair);
     if (mount === null) continue;
     const live = offMapLive.get(pilotSystemId)!;

@@ -1,4 +1,5 @@
 import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
+import { breadthFirst, type Neighbours } from '@/lib/graph';
 
 export type PilotsPresent = 'present' | 'absent' | 'unknown';
 
@@ -28,21 +29,6 @@ export type CollapseDecision =
       readonly connectionIds: readonly string[];
     };
 
-function componentFrom(
-  start: number,
-  adjacency: ReadonlyMap<number, readonly number[]>,
-): Set<number> {
-  const component = new Set<number>();
-  const pending = [start];
-  while (pending.length > 0) {
-    const systemId = pending.pop();
-    if (systemId === undefined || component.has(systemId)) continue;
-    component.add(systemId);
-    pending.push(...(adjacency.get(systemId) ?? []));
-  }
-  return component;
-}
-
 export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
   const cut = input.connections.find(
     (connection) => connection.id === input.cutConnectionId,
@@ -59,9 +45,10 @@ export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
     append(connection.toSystemId, connection.fromSystemId);
   }
 
+  const neighbours: Neighbours = (systemId) => adjacency.get(systemId) ?? [];
   const components = [
-    componentFrom(cut.fromSystemId, adjacency),
-    componentFrom(cut.toSystemId, adjacency),
+    new Set(breadthFirst([cut.fromSystemId], neighbours).keys()),
+    new Set(breadthFirst([cut.toSystemId], neighbours).keys()),
   ];
   if (components[0]?.has(cut.toSystemId)) return { kind: 'retain' };
 

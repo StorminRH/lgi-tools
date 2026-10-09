@@ -32,7 +32,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P112](#p112) | Add sameItems and sameFields shallow-equality helpers to src/lib | generic-utility | S | low | low | — |
 | ☑ | [P100](#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |
 | ☑ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
-| ☐ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
+| ☑ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
 | ☐ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
 | ☐ | [P249](#p249) | Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions | contracts-validation | S | low | low | — |
 | ☐ | [P145](#p145) | Promote hasTimeoutAbort to a chain-aware isTimeoutError in lib and use it in every timeout classifier | error-handling | S | low | medium | — |
@@ -744,7 +744,7 @@ If a site ever needs to tell 'read returned null' from 'not read', that would be
 
 ## P137: Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -85 production lines (distancesFrom 19, scanTowardTargets/reconstructPath/PathScan 42, derivePilotPath/PilotPathInput 17, componentFrom 14), +45 for lib/graph.ts and about +10 at call sites; net about -30 production, with tests moved rather than added
 - **Depends on:** —
