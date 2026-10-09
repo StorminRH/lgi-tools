@@ -280,6 +280,10 @@ test.skipIf(!harness.reachable)(
       { typeId: 2200, adjustedPrice: 80 },
       { typeId: 16634, adjustedPrice: 20 },
     ]);
+    const unplaced = await getBuildLocation(null, 1000);
+    expect(unplaced.stations).toEqual([]);
+    expect(unplaced.costIndices).toEqual({ manufacturing: null, reaction: null });
+    expect(unplaced.adjustedPrices.sort((a, b) => a.typeId - b.typeId)).toEqual(location.adjustedPrices);
     await expect(getBuildLocation(30004759, 1300)).resolves.toEqual({
       stations: [],
       costIndices: { manufacturing: null, reaction: null },
