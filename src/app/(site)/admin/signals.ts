@@ -31,6 +31,7 @@ import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
 import { SECTION_LOAD_FAILED } from './load-section';
+import { formatCount, formatQuantity } from '@/lib/format/number';
 
 export interface CronSignals {
   lastRuns: CronLastRun[];
@@ -97,7 +98,7 @@ const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page:
 };
 
 function unavailableLine(id: string, label: string): StatusLine {
-  return { id, label, value: 'unavailable', note: '', level: 'neutral' };
+  return { id, label, value: 'unavailable', level: 'neutral' };
 }
 
 export interface CronStatuses {
@@ -166,40 +167,31 @@ export function sliLevel(key: keyof SliSignals, value: Loaded<number | null>): S
 export function formatSliValue(key: keyof SliSignals, value: Loaded<number | null>): string {
   if (value === SECTION_LOAD_FAILED) return 'unavailable';
   if (value === null || Number.isNaN(value)) return 'no data';
-  if (key === 'latencyP95') return `${Math.round(value).toLocaleString()} ms`;
+  if (key === 'latencyP95') return `${formatQuantity(value)} ms`;
   return `${(value * 100).toFixed(1)}%`;
 }
 
 export function sliTargetLabel(key: keyof SliSignals): string {
   const target = SLI_TARGETS[key];
-  if (target.direction === 'max') return `≤ ${target.warn.toLocaleString()} ms`;
+  if (target.direction === 'max') return `≤ ${formatQuantity(target.warn)} ms`;
   return `≥ ${Math.round(target.warn * 100)}%`;
 }
 
-export interface StatusLine {
+/**
+ * One row of a status card: a subsystem's verdict under its label. `quiet`
+ * keeps it off the attention list: amber that informs rather than asks for
+ * action, or a line whose attention item is built elsewhere.
+ */
+export interface StatusLine extends SubsystemStatus {
   id: string;
   label: string;
-  value: string;
-  note: string;
-  level: StatusLevel;
-  // Stays off the attention list: amber that informs rather than asks for
-  // action, or a line whose attention item is built elsewhere.
-  quiet?: boolean;
 }
+
+export type StatusGroupId = 'app' | 'esi' | 'jobs';
 
 export interface StatusGroup {
-  id: 'app' | 'esi' | 'jobs';
-  title: string;
-  href: string;
-  linkLabel: string;
+  id: StatusGroupId;
   lines: StatusLine[];
-}
-
-// deriveCronStatus headlines read "<state> · <detail>"; the overview shows
-// the state as the value and the detail beneath it.
-function splitHeadline(status: SubsystemStatus): { value: string; note: string } {
-  const [value = '', ...rest] = status.headline.split(' · ');
-  return { value, note: rest.join(' · ') };
 }
 
 function sliLine(id: keyof SliSignals, label: string, sli: Loaded<SliSignals>): StatusLine {
@@ -213,23 +205,19 @@ function sliLine(id: keyof SliSignals, label: string, sli: Loaded<SliSignals>): 
   };
 }
 
-export interface BudgetStatus {
-  level: StatusLevel;
-  value: string;
-  note: string;
-}
-
-export function deriveBudgetStatus(budget: EsiBudgetSnapshot | null): BudgetStatus {
+/**
+ * The one reading of the ESI error budget against the dispatch floor, for
+ * the overview's line and the ESI page's budget card alike.
+ */
+export function deriveBudgetStatus(budget: EsiBudgetSnapshot | null): SubsystemStatus & { level: 'red' | 'green' } {
   if (budget === null) {
-    return { level: 'red', value: 'unavailable', note: 'dispatch paused' };
+    return { level: 'red', value: 'unavailable', note: 'scoreboard unavailable · dispatch paused' };
   }
   const below = budget.effectiveRemaining < ESI_BUDGET_FLOOR;
   return {
     level: below ? 'red' : 'green',
-    value: `${budget.effectiveRemaining.toLocaleString()} left`,
-    note: below
-      ? `floor ${ESI_BUDGET_FLOOR} · dispatch paused`
-      : `floor ${ESI_BUDGET_FLOOR} · live`,
+    value: `${formatQuantity(budget.effectiveRemaining)} left`,
+    note: `floor ${ESI_BUDGET_FLOOR} · ${below ? 'dispatch paused' : 'live'}`,
   };
 }
 
@@ -272,23 +260,20 @@ export function queueLevel(queue: QueueSummary): StatusLevel {
   return 'green';
 }
 
+/** The queue's live and dead-lettered counts, as the overview and health pages show them. */
+export function queueCounts(queue: QueueSummary): string {
+  return `${formatQuantity(queue.due)} active · ${formatQuantity(queue.deadLettered)} dead`;
+}
+
 function queueLine(queue: QueueSummary): StatusLine {
   return {
     id: 'queue',
     label: 'Refresh queue',
-    value: `${queue.due.toLocaleString()} active · ${queue.deadLettered.toLocaleString()} dead`,
-    note:
-      queue.oldestDueHours === null
-        ? ''
-        : `oldest job ${formatHours(queue.oldestDueHours)}`,
+    value: queueCounts(queue),
+    note: queue.oldestDueHours === null ? undefined : `oldest job ${formatHours(queue.oldestDueHours)}`,
     level: queueLevel(queue),
     quiet: true,
   };
-}
-
-function cronLine(id: string, label: string, status: SubsystemStatus): StatusLine {
-  const headline = splitHeadline(status);
-  return { id, label, ...headline, level: status.level, quiet: headline.value === 'recovered' };
 }
 
 type Release = { date: string; label: string };
@@ -300,7 +285,7 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
     null,
   );
   if (latest === null) {
-    return { id: 'release', label: 'Latest release', value: 'none', note: '', level: 'neutral' };
+    return { id: 'release', label: 'Latest release', value: 'none', level: 'neutral' };
   }
   const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / 86_400_000));
   return {
@@ -325,8 +310,7 @@ function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
   return {
     id: 'held-for-budget',
     label: 'Held for budget',
-    value: `${held.toLocaleString()} job${held === 1 ? '' : 's'}`,
-    note: '',
+    value: formatCount(held, 'job'),
     level: held > 0 ? 'amber' : 'green',
     quiet: true,
   };
@@ -338,9 +322,8 @@ function priceSourceLine(signals: AdminSignals): StatusLine {
     return unavailableLine('price-source', 'Price source');
   }
   const status = deriveEsiSourceStatus({ fallback, budgetExhaustions });
-  const { value, note } = splitHeadline(status);
   // Some Fuzzwork fallback is the design working; only a majority fallback needs you.
-  return { id: 'price-source', label: 'Price source', value, note, level: status.level, quiet: status.level !== 'red' };
+  return { id: 'price-source', label: 'Price source', ...status, quiet: status.level !== 'red' };
 }
 
 function budgetLine(budget: Loaded<EsiBudgetSnapshot | null>): StatusLine {
@@ -357,7 +340,7 @@ function cronLines(signals: AdminSignals): StatusLine[] {
   ] as const;
   if (signals.crons === SECTION_LOAD_FAILED) return rows.map(([id, label]) => unavailableLine(id, label));
   const crons = deriveCronStatuses(signals.crons, signals.now);
-  return rows.map(([id, label, key]) => cronLine(id, label, crons[key]));
+  return rows.map(([id, label, key]) => ({ id, label, ...crons[key] }));
 }
 
 function queueStatusLine(signals: AdminSignals): StatusLine {
@@ -365,50 +348,36 @@ function queueStatusLine(signals: AdminSignals): StatusLine {
   return queueLine(summarizeQueue(signals.queue, signals.now));
 }
 
+const STATUS_GROUP_LINES: Record<StatusGroupId, (signals: AdminSignals) => StatusLine[]> = {
+  app: (signals) => [
+    sliLine('readSuccess', 'Page & tool reads', signals.sli),
+    sliLine('mutationSuccess', 'Mutations', signals.sli),
+    sliLine('latencyP95', 'p95 latency', signals.sli),
+    releaseLine(signals.releases, signals.now),
+  ],
+  esi: (signals) => [
+    budgetLine(signals.budget),
+    sliLine('esiSuccess', 'ESI availability', signals.sli),
+    priceSourceLine(signals),
+    heldForBudgetLine(signals.queue),
+  ],
+  jobs: (signals) => [...cronLines(signals), queueStatusLine(signals)],
+};
+
+/** One status card's lines; each card reads the same request-cached signals. */
+export function deriveStatusLines(signals: AdminSignals, id: StatusGroupId): StatusLine[] {
+  return STATUS_GROUP_LINES[id](signals);
+}
+
 export function deriveStatusGroups(signals: AdminSignals): StatusGroup[] {
-  return [
-    {
-      id: 'app',
-      title: 'App',
-      href: '/admin/health',
-      linkLabel: 'Health',
-      lines: [
-        sliLine('readSuccess', 'Page & tool reads', signals.sli),
-        sliLine('mutationSuccess', 'Mutations', signals.sli),
-        sliLine('latencyP95', 'p95 latency', signals.sli),
-        releaseLine(signals.releases, signals.now),
-      ],
-    },
-    {
-      id: 'esi',
-      title: 'ESI',
-      href: '/admin/esi',
-      linkLabel: 'ESI',
-      lines: [
-        budgetLine(signals.budget),
-        sliLine('esiSuccess', 'ESI availability', signals.sli),
-        priceSourceLine(signals),
-        heldForBudgetLine(signals.queue),
-      ],
-    },
-    {
-      id: 'jobs',
-      title: 'Jobs',
-      href: '/admin/health#scheduled',
-      linkLabel: 'Jobs',
-      lines: [
-        ...cronLines(signals),
-        queueStatusLine(signals),
-      ],
-    },
-  ];
+  return (['app', 'esi', 'jobs'] as const).map((id) => ({ id, lines: deriveStatusLines(signals, id) }));
 }
 
 export interface AttentionItem {
   id: string;
   level: 'red' | 'amber';
   title: string;
-  detail: string;
+  detail?: string;
   action: { label: string; href: string };
 }
 
@@ -423,7 +392,7 @@ function staticsAttention(statics: AdminSignals['statics']): AttentionItem[] {
       id: 'statics',
       level: 'amber',
       title: `Wormhole statics feed v${statics.feedVersion} is waiting for review`,
-      detail: `${statics.totalDifferences.toLocaleString()} assignment differences`,
+      detail: formatCount(statics.totalDifferences, 'assignment difference'),
       action: { label: 'Review snapshot', href: '/admin/statics' },
     },
   ];
@@ -435,7 +404,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
     items.push({
       id: 'dead-letters',
       level: 'red',
-      title: `${queue.deadLettered.toLocaleString()} refresh job${queue.deadLettered === 1 ? '' : 's'} dead-lettered`,
+      title: `${formatCount(queue.deadLettered, 'refresh job')} dead-lettered`,
       detail: 'Refresh stopped',
       action: { label: 'Open queue', href: '/admin/queue' },
     });
@@ -444,7 +413,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
     items.push({
       id: 'queue-backlog',
       level: 'amber',
-      title: `Refresh backlog of ${queue.due.toLocaleString()} jobs, oldest ${formatHours(queue.oldestDueHours)}`,
+      title: `Refresh backlog of ${formatCount(queue.due, 'job')}, oldest ${formatHours(queue.oldestDueHours)}`,
       detail: `target ≤ ${QUEUE_STALE_HOURS}h`,
       action: { label: 'Open queue', href: '/admin/queue' },
     });

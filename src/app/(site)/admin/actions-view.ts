@@ -1,4 +1,5 @@
 import type { PillTone } from '@/components/ui/pill';
+import { formatQuantity } from '@/lib/format/number';
 import type { QueueSummary } from './signals';
 
 export interface AdminActionRow {
@@ -28,12 +29,12 @@ export function deriveActionRows(input: {
       status:
         queue === null
           ? 'queue unavailable'
-          : `${queue.deadLettered.toLocaleString()} dead-lettered · ${queue.due.toLocaleString()} active`,
+          : `${formatQuantity(queue.deadLettered)} dead-lettered · ${formatQuantity(queue.due)} active`,
       href: '/admin/queue',
       cta: queue !== null && queue.deadLettered > 0 ? 'Retry jobs' : 'Open',
       badge:
         queue !== null && queue.deadLettered > 0
-          ? { label: queue.deadLettered.toLocaleString(), tone: 'red' }
+          ? { label: formatQuantity(queue.deadLettered), tone: 'red' }
           : null,
     },
     {

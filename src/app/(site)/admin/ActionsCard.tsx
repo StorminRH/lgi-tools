@@ -1,11 +1,9 @@
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
-import { SectionHeader } from '@/components/ui/section-header';
 import { getSystemStatics } from '@/data/wh-statics/queries';
-import { deriveActionRows, type AdminActionRow } from './actions-view';
+import { deriveActionRows, type AdminActionRow, type StaticsVersions } from './actions-view';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { getEsiRefreshQueueStatsShared, getStaticsSummaryShared } from './shared-reads';
 import { summarizeQueue } from './signals';
@@ -51,31 +49,33 @@ function ReferenceTile() {
   );
 }
 
-async function loadActionRows(): Promise<AdminActionRow[]> {
-  const fetched = await loadSection('admin-actions', () =>
-    Promise.all([getStaticsSummaryShared(), getSystemStatics(), getEsiRefreshQueueStatsShared()]),
-  );
-  if (fetched === SECTION_LOAD_FAILED) {
-    return deriveActionRows({ statics: null, queue: null });
-  }
-  const [pending, promoted, queueStats] = fetched;
+async function loadStaticsVersions(): Promise<StaticsVersions> {
+  const [pending, promoted] = await Promise.all([getStaticsSummaryShared(), getSystemStatics()]);
+  return { pendingVersion: pending?.feedVersion ?? null, servingVersion: promoted.version };
+}
+
+/**
+ * The tiles never fail as a whole: each source loads on its own, and a tile
+ * whose source failed says so and still links to its page.
+ */
+export async function loadActionRows(): Promise<AdminActionRow[]> {
+  const [statics, queue] = await Promise.all([
+    loadSection('admin-actions.statics', loadStaticsVersions),
+    loadSection('admin-actions.queue', async () => summarizeQueue(await getEsiRefreshQueueStatsShared(), new Date())),
+  ]);
   return deriveActionRows({
-    statics: { pendingVersion: pending?.feedVersion ?? null, servingVersion: promoted.version },
-    queue: summarizeQueue(queueStats, new Date()),
+    statics: statics === SECTION_LOAD_FAILED ? null : statics,
+    queue: queue === SECTION_LOAD_FAILED ? null : queue,
   });
 }
 
-export async function ActionsCard() {
-  const rows = await loadActionRows();
+export function ActionTiles({ rows }: { rows: AdminActionRow[] }) {
   return (
-    <Card data-admin-actions className="overflow-hidden">
-      <SectionHeader size="md" label="Actions" />
-      <ul className="grid grid-cols-1 gap-px bg-border-soft sm:grid-cols-2 lg:grid-cols-4">
-        {rows.map((row) => (
-          <ActionTile key={row.id} row={row} />
-        ))}
-        <ReferenceTile />
-      </ul>
-    </Card>
+    <ul className="grid grid-cols-1 gap-px bg-border-soft sm:grid-cols-2 lg:grid-cols-4">
+      {rows.map((row) => (
+        <ActionTile key={row.id} row={row} />
+      ))}
+      <ReferenceTile />
+    </ul>
   );
 }

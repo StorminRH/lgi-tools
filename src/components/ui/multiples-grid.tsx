@@ -7,6 +7,7 @@ const columnClasses = {
   4: 'sm:grid-cols-2 lg:grid-cols-4',
 } as const;
 
+/** Stat tiles on a hairline grid, marked up as a description list. */
 export function MultiplesGrid({
   children,
   columns = 3,
@@ -15,12 +16,16 @@ export function MultiplesGrid({
   columns?: keyof typeof columnClasses;
 }) {
   return (
-    <div className={`grid grid-cols-1 ${columnClasses[columns]} gap-px bg-border-soft`}>
+    <dl className={`grid grid-cols-1 ${columnClasses[columns]} gap-px bg-border-soft`}>
       {children}
-    </div>
+    </dl>
   );
 }
 
+/**
+ * One tile: the title is the term, the value, note and optional chart its
+ * description. The inset matches card headers and rows.
+ */
 export function MultiplesCell({
   title,
   value,
@@ -29,20 +34,21 @@ export function MultiplesCell({
   children,
 }: {
   title: string;
-  value: string;
+  value: ReactNode;
   delta?: ReactNode;
   note?: string;
-  children: ReactNode;
+  /** A chart or other figure under the value. */
+  children?: ReactNode;
 }) {
   return (
-    <div className="bg-bg px-3 py-3 flex flex-col gap-1.5">
-      <div className={eyebrow({ emphasis: 'strong' })}>{title}</div>
-      <div className="flex items-baseline gap-2">
+    <div className="bg-bg px-3.5 py-3 flex flex-col gap-1.5">
+      <dt className={eyebrow({ emphasis: 'strong' })}>{title}</dt>
+      <dd className="flex items-baseline gap-2">
         <span className="font-data text-lead text-name tabular-nums">{value}</span>
         {delta}
-      </div>
-      {note && <div className="font-data text-micro text-muted">{note}</div>}
-      <div className="mt-1">{children}</div>
+      </dd>
+      {note && <dd className="font-data text-micro text-muted">{note}</dd>}
+      {children === undefined || children === null ? null : <dd className="mt-1">{children}</dd>}
     </div>
   );
 }

@@ -265,12 +265,13 @@ export function AnnotatedDailyChart({
     average,
     labels,
     referenceLine,
-    plotWidth: plotRight - plotLeft,
+    plotLeft,
+    plotRight,
   });
 
   const xScale = scaleLinear<number>({
     domain: [0, Math.max(1, points.length - 1)],
-    range: [plotLeft, plotRight],
+    range: model.xRange,
   });
   const yScale = scaleLinear<number>({
     domain: [0, model.yMax],
@@ -324,7 +325,7 @@ export function AnnotatedDailyChart({
       <DeployMarkers markers={eventMarkers} xScale={xScale} y1={MARGIN.top} y2={innerBottom} />
       <ReferenceLine reference={referenceLine} yScale={yScale} left={plotLeft} right={plotRight} />
       <MovingAverageLine average={average} xScale={xScale} yScale={yScale} />
-      <ChartEndLabel endLabel={endLabel} x={plotRight + 5} y={endY} />
+      <ChartEndLabel endLabel={endLabel} x={model.endX} y={endY} />
       <DailyXAxis idx={xTickIdx} labels={labels} xScale={xScale} y={height - 6} formatTick={formatTick} />
       <HoverCrosshair
         open={hover.tooltipOpen}

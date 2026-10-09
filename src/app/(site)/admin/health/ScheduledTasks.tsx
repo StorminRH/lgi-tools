@@ -1,6 +1,5 @@
-import { Card } from '@/components/ui/card';
-import { SectionHeader } from '@/components/ui/section-header';
 import { DistributionBars } from '@/components/ui/distribution-bars';
+import { EmptyState } from '@/components/ui/empty-state';
 import type { ShareSegment } from '@/components/ui/stacked-share-bar';
 import { refreshVolume as refreshVolumeOf } from '@/data/telemetry/cron-stats';
 import { refreshVolumeSummary } from '@/data/telemetry/health-metrics';
@@ -9,15 +8,12 @@ import { trendSeries } from '@/composition/admin-period';
 import { AdminTrendChart } from '../charts';
 import { loadCronSignals } from '../load-signals';
 import { getPriceRefreshDaysShared } from '../shared-reads';
-import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
-import { SectionUnavailable } from '../SectionUnavailable';
 import { CRON_OUTCOME_RULES, deriveCronStatuses } from '../signals';
+import { TitledBlock } from '../TitledBlock';
 import { formatDurationMs, toneOutcomes, type TonedOutcome } from './cron-outcomes';
-import { ChartBlock, DetailBody, DetailCaption } from './DetailBlocks';
+import { DetailBody, DetailCaption } from './DetailBlocks';
 import { StatusRow } from './StatusRow';
-
-type Trend = ReturnType<typeof trendSeries>;
-type RefreshVolume = RefreshVolumePoint[];
+import { formatUtcMinute } from '@/lib/format/time';
 
 function OutcomeBars({ outcomes, ariaLabel }: { outcomes: TonedOutcome[]; ariaLabel: string }) {
   return (
@@ -46,29 +42,35 @@ function shareOf(outcomes: TonedOutcome[]): ShareSegment[] | undefined {
 function PriceCronDetail({
   refreshVolume,
   priceOutcomes,
-  volumeTrend,
 }: {
-  refreshVolume: RefreshVolume;
+  refreshVolume: RefreshVolumePoint[];
   priceOutcomes: TonedOutcome[];
-  volumeTrend: Trend;
 }) {
+  const volumeTrend = trendSeries(
+    refreshVolume.map((p) => p.day),
+    refreshVolume.map((p) => p.fetched),
+  );
   return (
     <DetailBody>
-      <DetailCaption>{refreshVolumeSummary(refreshVolume)}</DetailCaption>
-      {refreshVolume.length > 0 && (
-        <ChartBlock label="Rows fetched by day">
-          <AdminTrendChart
-            points={volumeTrend.points}
-            labels={volumeTrend.labels}
-            unit="count"
-            ariaLabel="Rows fetched by day"
-          />
-        </ChartBlock>
+      {refreshVolume.length === 0 ? (
+        <EmptyState inset>No price refreshes recorded this period.</EmptyState>
+      ) : (
+        <>
+          <DetailCaption>{refreshVolumeSummary(refreshVolume)}</DetailCaption>
+          <TitledBlock title="Rows fetched by day">
+            <AdminTrendChart
+              points={volumeTrend.points}
+              labels={volumeTrend.labels}
+              unit="count"
+              ariaLabel="Rows fetched by day"
+            />
+          </TitledBlock>
+        </>
       )}
       {priceOutcomes.length > 0 && (
-        <ChartBlock label="Runs by outcome">
+        <TitledBlock title="Runs by outcome">
           <OutcomeBars outcomes={priceOutcomes} ariaLabel="Price-cron runs by outcome" />
-        </ChartBlock>
+        </TitledBlock>
       )}
     </DetailBody>
   );
@@ -84,13 +86,11 @@ function CronOutcomeDetail({
   return (
     <DetailBody>
       {outcomes.length === 0 ? (
-        <DetailCaption>
-          No runs in this period.
-        </DetailCaption>
+        <EmptyState inset>No runs in this period.</EmptyState>
       ) : (
-        <ChartBlock label="Runs by outcome">
+        <TitledBlock title="Runs by outcome">
           <OutcomeBars outcomes={outcomes} ariaLabel={ariaLabel} />
-        </ChartBlock>
+        </TitledBlock>
       )}
     </DetailBody>
   );
@@ -108,21 +108,19 @@ function GscSyncDetail({
   return (
     <DetailBody>
       {!gscConfigured ? (
-        <DetailCaption>
-          Search Console not connected.
-        </DetailCaption>
+        <EmptyState inset kind="disconnected">Search Console not connected.</EmptyState>
       ) : (
         <>
           <DetailCaption>
             Google data lags ~2–3 days · last synced{' '}
             {lastSyncedAt
-              ? `${lastSyncedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`
+              ? `${formatUtcMinute(lastSyncedAt)} UTC`
               : 'never'}
           </DetailCaption>
           {gscOutcomes.length > 0 && (
-            <ChartBlock label="Sync runs by outcome">
+            <TitledBlock title="Sync runs by outcome">
               <OutcomeBars outcomes={gscOutcomes} ariaLabel="GSC sync runs by outcome" />
-            </ChartBlock>
+            </TitledBlock>
           )}
         </>
       )}
@@ -130,58 +128,46 @@ function GscSyncDetail({
   );
 }
 
-export async function ScheduledTasks({ range }: { range: DateRange }) {
-  const fetched = await loadSection('scheduled-tasks', () =>
-    Promise.all([loadCronSignals(range), getPriceRefreshDaysShared(range)]),
-  );
-  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Scheduled tasks" />;
-
-  const [crons, refreshDays] = fetched;
-  const { gscConfigured, gscLastSyncedAt: lastSyncedAt } = crons;
-  const refreshVolume = refreshVolumeOf(refreshDays);
-  const statuses = deriveCronStatuses(crons, range.to);
-  const toned = {
-    price: toneOutcomes(crons.priceOutcomes, CRON_OUTCOME_RULES.price),
-    sde: toneOutcomes(crons.sdeOutcomes, CRON_OUTCOME_RULES.sde),
-    gsc: toneOutcomes(crons.gscOutcomes, CRON_OUTCOME_RULES.gsc),
-    housekeeping: toneOutcomes(crons.housekeepingOutcomes, CRON_OUTCOME_RULES.housekeeping),
+/** Every tracked cron's status and the outcomes behind it, as of the range end. */
+export async function loadScheduledTasks(range: DateRange) {
+  const [crons, refreshDays] = await Promise.all([loadCronSignals(range), getPriceRefreshDaysShared(range)]);
+  return {
+    statuses: deriveCronStatuses(crons, range.to),
+    toned: {
+      price: toneOutcomes(crons.priceOutcomes, CRON_OUTCOME_RULES.price),
+      sde: toneOutcomes(crons.sdeOutcomes, CRON_OUTCOME_RULES.sde),
+      gsc: toneOutcomes(crons.gscOutcomes, CRON_OUTCOME_RULES.gsc),
+      housekeeping: toneOutcomes(crons.housekeepingOutcomes, CRON_OUTCOME_RULES.housekeeping),
+    },
+    refreshVolume: refreshVolumeOf(refreshDays),
+    gscConfigured: crons.gscConfigured,
+    lastSyncedAt: crons.gscLastSyncedAt,
   };
-  const volumeTrend = trendSeries(
-    refreshVolume.map((p) => p.day),
-    refreshVolume.map((p) => p.fetched),
-  );
+}
 
+export function ScheduledTaskRows({ tasks }: { tasks: Awaited<ReturnType<typeof loadScheduledTasks>> }) {
+  const { statuses, toned } = tasks;
   return (
-    <Card id="scheduled" className="scroll-mt-24">
-      <SectionHeader size="md" label="Scheduled tasks" />
-
-      <StatusRow name="Price cron" status={statuses.price} share={shareOf(toned.price)}>
-        <PriceCronDetail
-          refreshVolume={refreshVolume}
-          priceOutcomes={toned.price}
-          volumeTrend={volumeTrend}
-        />
+    <>
+      <StatusRow label="Price cron" status={statuses.price} share={shareOf(toned.price)}>
+        <PriceCronDetail refreshVolume={tasks.refreshVolume} priceOutcomes={toned.price} />
       </StatusRow>
 
-      <StatusRow name="SDE cron" status={statuses.sde} share={shareOf(toned.sde)}>
+      <StatusRow label="SDE cron" status={statuses.sde} share={shareOf(toned.sde)}>
         <CronOutcomeDetail outcomes={toned.sde} ariaLabel="SDE-cron runs by outcome" />
       </StatusRow>
 
-      <StatusRow name="GSC sync" status={statuses.gsc} share={shareOf(toned.gsc)}>
+      <StatusRow label="GSC sync" status={statuses.gsc} share={shareOf(toned.gsc)}>
         <GscSyncDetail
-          gscConfigured={gscConfigured}
-          lastSyncedAt={lastSyncedAt}
+          gscConfigured={tasks.gscConfigured}
+          lastSyncedAt={tasks.lastSyncedAt}
           gscOutcomes={toned.gsc}
         />
       </StatusRow>
 
-      <StatusRow
-        name="Housekeeping"
-        status={statuses.housekeeping}
-        share={shareOf(toned.housekeeping)}
-      >
+      <StatusRow label="Housekeeping" status={statuses.housekeeping} share={shareOf(toned.housekeeping)}>
         <CronOutcomeDetail outcomes={toned.housekeeping} ariaLabel="Housekeeping runs by outcome" />
       </StatusRow>
-    </Card>
+    </>
   );
 }

@@ -14,7 +14,8 @@ describe('dailyChartModel', () => {
       average: [10, 5, 13],
       labels: ['2026-07-06', '2026-07-07', '2026-07-08'],
       referenceLine: { value: 12, label: 'prior avg' },
-      plotWidth: 200,
+      plotLeft: 44,
+      plotRight: 244,
     });
     expect(model.yMax).toBe(30);
     expect(model.refValue).toBe(12);
@@ -30,7 +31,8 @@ describe('dailyChartModel', () => {
       average: [10, 5, 13],
       labels: ['a', 'b', 'c'],
       referenceLine: null,
-      plotWidth: 200,
+      plotLeft: 44,
+      plotRight: 244,
     });
     expect(model.refValue).toBeNull();
   });
@@ -41,8 +43,37 @@ describe('dailyChartModel', () => {
       average: [],
       labels: [],
       referenceLine: null,
-      plotWidth: 200,
+      plotLeft: 44,
+      plotRight: 244,
     });
     expect(model).toMatchObject({ xs: [], values: [], hover: [], barW: 1, yMax: 1 });
+  });
+});
+
+describe('dailyChartModel x geometry', () => {
+  const series = (n: number) => ({
+    points: Array.from({ length: n }, (_, x) => ({ x, y: 12 })),
+    average: Array.from({ length: n }, () => 12),
+    labels: Array.from({ length: n }, (_, x) => `day ${x}`),
+    referenceLine: null,
+  });
+
+  it('insets the first and last bars so neither crosses the plot edges', () => {
+    const model = dailyChartModel({ ...series(30), plotLeft: 44, plotRight: 454 });
+    const [first, last] = model.xRange;
+    expect(first - model.barW / 2).toBeCloseTo(44);
+    expect(last + model.barW / 2).toBeCloseTo(454);
+    expect(model.endX).toBeCloseTo(459);
+  });
+
+  it('keeps a single day clear of the value-axis labels with its end label beside it', () => {
+    // One day of data on a wide 30-day card: the bar used to straddle the
+    // plot's left edge, over the tick labels, and the end label sat ~800px away.
+    const model = dailyChartModel({ ...series(1), plotLeft: 44, plotRight: 854 });
+    expect(model.barW).toBe(26);
+    const barLeft = model.xRange[0] - model.barW / 2;
+    expect(barLeft).toBe(44);
+    expect(model.endX).toBe(barLeft + model.barW + 5);
+    expect(model.endX).toBeLessThan(100);
   });
 });

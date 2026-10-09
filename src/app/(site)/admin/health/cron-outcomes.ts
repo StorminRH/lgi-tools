@@ -5,6 +5,7 @@ import {
   type OutcomeRules,
 } from '@/data/telemetry/health-metrics';
 import type { CronOutcomeCount } from '@/data/telemetry/types';
+import { formatQuantity } from '@/lib/format/number';
 
 export interface TonedOutcome extends CronOutcomeCount {
   tone: Extract<Tone, 'green' | 'blue' | 'neutral' | 'orange' | 'red'>;
@@ -44,7 +45,7 @@ export function toneOutcomes(rows: CronOutcomeCount[], rules: OutcomeRules): Ton
 }
 
 export function formatDurationMs(ms: number): string {
-  if (ms < 1000) return `${Math.round(ms).toLocaleString()} ms`;
+  if (ms < 1000) return `${formatQuantity(ms)} ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
   return `${(ms / 60_000).toFixed(1)} min`;
 }

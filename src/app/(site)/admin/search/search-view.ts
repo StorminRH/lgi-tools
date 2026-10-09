@@ -1,6 +1,9 @@
+import type { DistributionInput } from '@/components/ui/distribution-bars';
 import { trendSeries } from '@/composition/admin-period';
 import { searchTotalsFromTrend, toDateStr } from '@/data/gsc/queries';
-import type { GscDailyPoint, GscRange, GscTotals } from '@/data/gsc/types';
+import type { GscDailyPoint, GscRange, GscSitemapStatus, GscTermStat, GscTotals } from '@/data/gsc/types';
+import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatIsoDay } from '@/lib/format/time';
 
 /**
  * The one window the search cards read: the previous period ends the day
@@ -46,4 +49,23 @@ export function deriveGscPerformanceView(trend: readonly GscDailyPoint[]) {
       trend.map((d) => Math.round(d.position * 10) / 10),
     ),
   };
+}
+
+/** A ranked query or page: clicks on the bar, the rest of its figures under it. */
+export function gscTermBars(terms: readonly GscTermStat[]): DistributionInput[] {
+  return terms.map((term) => ({
+    key: term.key,
+    label: term.key,
+    count: term.clicks,
+    sub: `${formatQuantity(term.impressions)} impr · ${(term.ctr * 100).toFixed(1)}% CTR · pos ${term.position.toFixed(1)}`,
+  }));
+}
+
+export function sitemapNote(sitemap: GscSitemapStatus): string {
+  return [
+    formatCount(sitemap.errors, 'error'),
+    formatCount(sitemap.warnings, 'warning'),
+    ...(sitemap.lastDownloaded ? [`downloaded ${formatIsoDay(sitemap.lastDownloaded)}`] : []),
+    ...(sitemap.isPending ? ['pending'] : []),
+  ].join(' · ');
 }

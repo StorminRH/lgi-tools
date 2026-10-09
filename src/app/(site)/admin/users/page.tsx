@@ -1,267 +1,45 @@
-import { USERS_HREF } from '../admin-sections';
-import { AdminPageFrame } from '../AdminFrame';
-import Link from 'next/link';
-import { CharacterPortrait } from '@/components/character-portrait';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Input } from '@/components/ui/input';
-import { Pill } from '@/components/ui/pill';
-import { EntityRow } from '@/components/ui/row';
-import { SectionHeader } from '@/components/ui/section-header';
-import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
-import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
-import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
 import { requireAdminPage } from '@/composition/route-guards';
+import { AdminPageFrame } from '../AdminFrame';
+import { AdminSection } from '../AdminSection';
 import {
-  getUserOwningCharacter,
-  listAdminUsers,
-  searchUsersByLinkedCharacterName,
-  type AdminUser,
-} from '@/platform/auth/admin-users';
-import { readEnv } from '@/lib/env';
-import { sanitiseUserText } from '@/lib/sanitise';
-import {
-  adminRoleBadge,
-  deriveAccessView,
-  deriveAuditRowView,
-  mergeAdminRows,
-} from './access-view';
+  AccessSearchForm,
+  AdminList,
+  loadAdminRows,
+  loadRoleAudit,
+  loadSearchMatches,
+  RoleAuditTable,
+  SearchMatches,
+} from './AccessCards';
+import { sanitiseQuery } from './access-view';
 
-const MAX_QUERY_LENGTH = 200;
-
-const AUDIT_WINDOW_DAYS = 90;
-
-
-function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
-  if (typeof raw !== 'string') return undefined;
-  const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
-  return cleaned.length === 0 ? undefined : cleaned;
-}
-
-async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
-  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  const [dbAdmins, superUser] = await Promise.all([
-    listAdminUsers(),
-    Number.isFinite(superId) && superId > 0 ? getUserOwningCharacter(superId) : Promise.resolve(null),
-  ]);
-  return mergeAdminRows(dbAdmins, superUser);
-}
-
-function AdminUserRow({
-  user,
-  isSuperadmin,
-  viewerUserId,
-  currentQuery,
-  showToggle,
-}: {
-  user: AdminUser;
-  isSuperadmin: boolean;
-  viewerUserId: string;
-  currentQuery: string | undefined;
-  showToggle: boolean;
-}) {
-  const badge = adminRoleBadge({ isSuperadmin, role: user.role });
-
-  return (
-    <EntityRow
-      colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto_auto]"
-      leading={
-        <CharacterPortrait
-          characterId={user.characterId ?? undefined}
-          name={user.name}
-          size={28}
-          src={user.portraitUrl}
-        />
-      }
-      name={
-        <Link
-          href={`${USERS_HREF}/${user.userId}`}
-          className="transition-colors hover:text-text hover:underline underline-offset-2"
-        >
-          {user.name}
-        </Link>
-      }
-      chips={
-        <span className="flex items-center gap-[6px]">
-          <Pill tone="neutral">Character ID {user.characterId ?? '—'}</Pill>
-          <Chip tone={badge.tone}>{badge.label}</Chip>
-        </span>
-      }
-      trailing={
-        showToggle ? (
-          <RoleToggleForm
-            targetUserId={user.userId}
-            currentRole={user.role}
-            viewerUserId={viewerUserId}
-            currentQuery={currentQuery}
-          />
-        ) : (
-          <span className="whitespace-nowrap text-micro italic text-muted">managed via env</span>
-        )
-      }
-    />
-  );
-}
-
-function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleChangeAudit>> }) {
-  const rows = audit.map(deriveAuditRowView);
-  const columns = [
-    { key: 'timestamp', label: 'Timestamp (UTC)', render: (row) => row.timestamp, className: 'text-text' },
-    { key: 'actor', label: 'Actor', render: (row) => row.actorLabel, className: 'text-text' },
-    { key: 'target', label: 'Target', render: (row) => row.targetLabel, className: 'text-text' },
-    {
-      key: 'change',
-      label: 'Change',
-      render: (row) => (
-        <span className="flex items-center gap-1.5">
-          <Pill tone={row.fromTone}>{row.fromLabel}</Pill>
-          <span className="text-muted">→</span>
-          <Pill tone={row.toTone}>{row.toLabel}</Pill>
-        </span>
-      ),
-    },
-  ] satisfies readonly StaticTableColumn<ReturnType<typeof deriveAuditRowView>>[];
-  return (
-    <Card>
-      <SectionHeader
-        size="md"
-        label="Role change audit"
-      />
-      {audit.length === 0 ? (
-        <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
-      ) : (
-        <div className="px-3.5 py-2">
-          <StaticTable
-            ariaLabel="Role change audit"
-            columns={columns}
-            rows={rows}
-            getRowKey={(row, index) => `${row.timestamp}-${index}`}
-          />
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function AccessSearchForm({ query }: { query: string | undefined }) {
-  return (
-    <form method="GET" action={USERS_HREF} className="flex items-center gap-2">
-      <Input
-        type="text"
-        name="q"
-        defaultValue={query ?? ''}
-        placeholder="Search by character name"
-        maxLength={MAX_QUERY_LENGTH}
-        className="flex-1"
-      />
-      <Button type="submit" variant="secondary" className="text-isk">
-        Search
-      </Button>
-      {query ? (
-        <Link href={USERS_HREF} className="px-2 py-1 text-ui uppercase tracking-wide text-muted">
-          Clear
-        </Link>
-      ) : null}
-    </form>
-  );
-}
-
-function AdminsCard({
-  adminRows,
-  viewerUserId,
-  query,
-}: {
-  adminRows: Array<{ user: AdminUser; isSuperadmin: boolean }>;
-  viewerUserId: string;
-  query: string | undefined;
-}) {
-  return (
-    <Card>
-      <SectionHeader size="md" label="Admins" />
-      {adminRows.length === 0 ? (
-        <EmptyState>No admins currently configured.</EmptyState>
-      ) : (
-        adminRows.map(({ user, isSuperadmin }) => (
-          <AdminUserRow
-            key={user.userId}
-            user={user}
-            isSuperadmin={isSuperadmin}
-            viewerUserId={viewerUserId}
-            currentQuery={query}
-            showToggle={!isSuperadmin}
-          />
-        ))
-      )}
-    </Card>
-  );
-}
-
-function SearchResultsCard({
-  nonAdminMatches,
-  query,
-  viewerUserId,
-}: {
-  nonAdminMatches: AdminUser[];
-  query: string;
-  viewerUserId: string;
-}) {
-  return (
-    <Card>
-      <SectionHeader size="md" label="Search results" />
-      {nonAdminMatches.length === 0 ? (
-        <EmptyState>
-          No non-admin accounts match &ldquo;{query}&rdquo;. Any matching admins are listed above.
-        </EmptyState>
-      ) : (
-        nonAdminMatches.map((user) => (
-          <AdminUserRow
-            key={user.userId}
-            user={user}
-            isSuperadmin={false}
-            viewerUserId={viewerUserId}
-            currentQuery={query}
-            showToggle={true}
-          />
-        ))
-      )}
-    </Card>
-  );
-}
-
+// The search form needs only the query, so it renders at once; each card
+// then loads on its own, and a failed audit read leaves access management.
 async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
-  const session = await requireAdminPage();
-  const viewerUserId = session.user.id;
-
-  const raw = await searchParams;
+  const [raw, session] = await Promise.all([searchParams, requireAdminPage()]);
   const query = sanitiseQuery(raw.q);
-
-  const [adminRows, searchResults, audit] = await Promise.all([
-    buildAdminList(),
-    query ? searchUsersByLinkedCharacterName(query) : Promise.resolve([] as AdminUser[]),
-    getRoleChangeAudit(lastNDaysRange(AUDIT_WINDOW_DAYS), 50),
-  ]);
-
-  const view = deriveAccessView({ adminRows, searchResults, query });
+  const viewerUserId = session.user.id;
 
   return (
     <>
-      <div className="reveal reveal-1 flex flex-col gap-6">
-        <AccessSearchForm query={query} />
-
-        <AdminsCard adminRows={adminRows} viewerUserId={viewerUserId} query={query} />
-
-        {query ? (
-          <SearchResultsCard
-            nonAdminMatches={view.nonAdminMatches}
-            query={query}
-            viewerUserId={viewerUserId}
-          />
-        ) : null}
-
-        <RoleChangeAudit audit={audit} />
-      </div>
+      <AccessSearchForm query={query} />
+      <AdminSection title="Admins" name="admins" rows={2} reveal={1} load={loadAdminRows}>
+        {(rows) => <AdminList rows={rows} viewerUserId={viewerUserId} query={query} />}
+      </AdminSection>
+      {query ? (
+        <AdminSection
+          title="Search results"
+          name="search-results"
+          rows={3}
+          reveal={2}
+          hint={(results) => results.resultsHint}
+          load={() => loadSearchMatches(query)}
+        >
+          {(results) => <SearchMatches matches={results.nonAdminMatches} query={query} viewerUserId={viewerUserId} />}
+        </AdminSection>
+      ) : null}
+      <AdminSection title="Role change audit" name="role-audit" rows={3} reveal={3} load={loadRoleAudit}>
+        {(audit) => <RoleAuditTable audit={audit} />}
+      </AdminSection>
     </>
   );
 }

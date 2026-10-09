@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, expect, test, vi } from 'vitest';
 import type { DateRange } from '@/data/telemetry/types';
@@ -9,6 +10,7 @@ const q = vi.hoisted(() => ({
   getReturningVsNew: vi.fn(),
 }));
 
+vi.mock('next/navigation', () => ({ unstable_rethrow: () => undefined }));
 vi.mock('@/data/gsc/queries', () => ({
   getLatestReportDate: q.getLatestReportDate,
   getSearchTotals: q.getSearchTotals,
@@ -22,7 +24,7 @@ vi.mock('./shared-reads', () => ({
 vi.mock('./deploy-markers', () => ({ loadDeployMarkers: async () => [] }));
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
 
-import { AudienceCard } from './AudienceCard';
+import { AudienceBody, AudienceLinks, loadAudience } from './AudienceCard';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -44,6 +46,11 @@ function stubTelemetry() {
   }));
 }
 
+function connectSearchConsole() {
+  vi.stubEnv('GSC_SERVICE_ACCOUNT_JSON', '{}');
+  vi.stubEnv('GSC_SITE_URL', 'sc-domain:lgi.tools');
+}
+
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
 const ranges = (fn: typeof q.getSearchTotals) =>
   fn.mock.calls.map(([range]) => [isoDay((range as DateRange).from), isoDay((range as DateRange).to)]);
@@ -53,12 +60,11 @@ const periods = (fn: typeof q.getPageViewStats) =>
   );
 
 async function render(rangeKey: '7d' | 'all', range: DateRange): Promise<string> {
-  return renderToStaticMarkup(await AudienceCard({ rangeKey, range }));
+  return renderToStaticMarkup(createElement(AudienceBody, { audience: await loadAudience(rangeKey, range) }));
 }
 
 test('compares a week of traffic and search against the week before, on Google’s own report days', async () => {
-  vi.stubEnv('GSC_SERVICE_ACCOUNT_JSON', '{}');
-  vi.stubEnv('GSC_SITE_URL', 'sc-domain:lgi.tools');
+  connectSearchConsole();
   stubTelemetry();
   q.getLatestReportDate.mockResolvedValue('2026-09-25');
   q.getSearchTotals.mockImplementation(async (range: DateRange) =>
@@ -79,10 +85,26 @@ test('compares a week of traffic and search against the week before, on Google�
   ];
   expect(periods(q.getPageViewStats)).toEqual([weekAndBefore]);
   expect(periods(q.getReturningVsNew)).toEqual([weekAndBefore]);
-  expect(html).toContain('data-admin-audience');
   expect(html).toContain('1,400');
   expect(html).toContain('200 / day');
   expect(html).toContain('70,000');
+});
+
+test('starts the usage reads without waiting for Google’s latest report day', async () => {
+  connectSearchConsole();
+  stubTelemetry();
+  let reportDay: (day: string | null) => void = () => undefined;
+  q.getLatestReportDate.mockReturnValue(new Promise((resolve) => { reportDay = resolve; }));
+
+  const loading = loadAudience('7d', WEEK);
+  await Promise.resolve();
+
+  expect(q.getPageViewStats).toHaveBeenCalledTimes(1);
+  expect(q.getReturningVsNew).toHaveBeenCalledTimes(1);
+  expect(q.getSearchTotals).not.toHaveBeenCalled();
+  reportDay(null);
+  await loading;
+  expect(q.getSearchTotals).not.toHaveBeenCalled();
 });
 
 test('skips search and prior-period queries it cannot answer', async () => {
@@ -97,8 +119,7 @@ test('skips search and prior-period queries it cannot answer', async () => {
   expect(allTime).toContain('No page views in this range.');
 
   // Configured but Google has not reported a day yet.
-  vi.stubEnv('GSC_SERVICE_ACCOUNT_JSON', '{}');
-  vi.stubEnv('GSC_SITE_URL', 'sc-domain:lgi.tools');
+  connectSearchConsole();
   stubTelemetry();
   q.getLatestReportDate.mockResolvedValue(null);
   await render('7d', WEEK);
@@ -107,12 +128,49 @@ test('skips search and prior-period queries it cannot answer', async () => {
   expect(q.getPageViewStats).toHaveBeenCalledTimes(1);
 });
 
-test('shows the section as unavailable when a query fails', async () => {
+test('marks only the search figures when Search Console cannot be read', async () => {
+  connectSearchConsole();
+  stubTelemetry();
+  q.getLatestReportDate.mockRejectedValue(new Error('gsc down'));
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+  const audience = await loadAudience('7d', WEEK);
+
+  expect(audience.rows.map((row) => [row.label, row.value, row.note])).toEqual([
+    ['Page views', '0', '0.0 / day'],
+    ['Active users', '7', undefined],
+    ['Search clicks', '—', 'unavailable'],
+    ['Search impressions', '—', 'unavailable'],
+  ]);
+  expect(error).toHaveBeenCalledWith('[admin] audience.search section unavailable', expect.any(Error));
+});
+
+test('fails as a whole when a usage read fails, for its section to catch', async () => {
   stubTelemetry();
   q.getReturningVsNew.mockRejectedValue(new Error('db down'));
-  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  await expect(loadAudience('7d', WEEK)).rejects.toThrow('db down');
+});
+
+test('renders the tiles without empty chart slots, and links to the detail pages', async () => {
+  stubTelemetry();
   const html = await render('7d', WEEK);
-  expect(html).toContain('Unable to load this section.');
-  expect(html).not.toContain('data-admin-audience');
-  expect(error).toHaveBeenCalledWith('[admin] audience section unavailable', expect.any(Error));
+  expect(html).not.toContain('<dd class="mt-1"></dd>');
+  expect(html.match(/<dt /g)).toHaveLength(4);
+
+  const links = renderToStaticMarkup(createElement(AudienceLinks));
+  expect(links).toContain('href="/admin/traffic"');
+  expect(links).toContain('href="/admin/search"');
+});
+
+test('labels the activity total like the tiles above it', async () => {
+  stubTelemetry();
+  q.getPageViewStats.mockResolvedValue({
+    current: [{ day: '2026-09-21', views: 1_250, entries: 0, referrals: 0 }],
+    previous: [{ day: '2026-09-14', views: 1_000, entries: 0, referrals: 0 }],
+  });
+
+  const html = await render('7d', WEEK);
+
+  expect(html).toContain('tabular-nums">1,250</span><span class="font-ui uppercase text-label text-muted font-medium tracking-eyebrow">page views</span>');
+  expect(html).toContain('<span class="sr-only">up 25%</span>');
 });

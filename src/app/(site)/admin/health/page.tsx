@@ -1,22 +1,47 @@
 import { parseRange, rangeFor } from '@/composition/admin-period';
-import { AdminPageFrame, AdminSlot } from '../AdminFrame';
+import { listRecentDomainEvents } from '@/data/domain-events/queries';
+import { AdminPageFrame } from '../AdminFrame';
+import { AdminSection } from '../AdminSection';
 import type { RangeSearchParams } from '../RangeControl';
-import { EventLogCard, ServiceLevelsCard } from './HealthCards';
-import { ScheduledTasks } from './ScheduledTasks';
+import { EventLog, loadServiceLevels } from './HealthCards';
+import { loadScheduledTasks, ScheduledTaskRows } from './ScheduledTasks';
+import { ServiceLevelRows } from './ServiceLevelRows';
+
+const EVENT_LOG_LENGTH = 30;
 
 async function HealthContent({ searchParams }: { searchParams: RangeSearchParams }) {
   const range = rangeFor(parseRange((await searchParams).range));
   return (
     <>
-      <AdminSlot label="Service levels" rows={5} reveal={1}>
-        <ServiceLevelsCard range={range} />
-      </AdminSlot>
-      <AdminSlot label="Scheduled tasks" reveal={2}>
-        <ScheduledTasks range={range} />
-      </AdminSlot>
-      <AdminSlot label="Event log" rows={6} reveal={3}>
-        <EventLogCard />
-      </AdminSlot>
+      <AdminSection
+        title="Service levels"
+        name="service-levels"
+        rows={5}
+        reveal={1}
+        load={() => loadServiceLevels(range)}
+      >
+        {(levels) => <ServiceLevelRows rows={levels.rows} details={levels.details} />}
+      </AdminSection>
+      {/* The overview's Jobs card and attention items link here as #scheduled. */}
+      <AdminSection
+        title="Scheduled tasks"
+        name="scheduled-tasks"
+        anchor="scheduled"
+        rows={4}
+        reveal={2}
+        load={() => loadScheduledTasks(range)}
+      >
+        {(tasks) => <ScheduledTaskRows tasks={tasks} />}
+      </AdminSection>
+      <AdminSection
+        title="Event log"
+        name="event-log"
+        rows={6}
+        reveal={3}
+        load={() => listRecentDomainEvents(EVENT_LOG_LENGTH)}
+      >
+        {(events) => <EventLog events={events} />}
+      </AdminSection>
     </>
   );
 }

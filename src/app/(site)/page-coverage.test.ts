@@ -51,39 +51,29 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { AccountsCard } from '@/app/(site)/admin/AccountsCard';
-import { ActionsCard } from '@/app/(site)/admin/ActionsCard';
+import { AccountTotals } from '@/app/(site)/admin/AccountsCard';
+import { AdminCard, AdminSection } from '@/app/(site)/admin/AdminSection';
 import { ActivityChart } from '@/app/(site)/admin/ActivityChart';
-import { AdminPageFrame, AdminSlot } from '@/app/(site)/admin/AdminFrame';
+import { AdminPageFrame } from '@/app/(site)/admin/AdminFrame';
 import { AdminGate } from '@/app/(site)/admin/AdminGate';
 import { AdminRail, AdminRailFallback } from '@/app/(site)/admin/AdminRail';
-import { AudienceCard } from '@/app/(site)/admin/AudienceCard';
 import { CardFallback } from '@/app/(site)/admin/CardFallback';
 import { CardLink } from '@/app/(site)/admin/CardLink';
 import { DeltaBadge } from '@/app/(site)/admin/DeltaBadge';
 import { KpiGrid } from '@/app/(site)/admin/KpiGrid';
-import { AttentionCard, StatusCards } from '@/app/(site)/admin/AdminOverviewCards';
 import { RangeControl } from '@/app/(site)/admin/RangeControl';
 import { RangeSelector, RangeSelectorFallback } from '@/app/(site)/admin/RangeSelector';
-import { SectionUnavailable } from '@/app/(site)/admin/SectionUnavailable';
-import { StatusLines } from '@/app/(site)/admin/StatusLines';
 import { AdminNav, AdminNavFallback } from '@/app/(site)/admin/admin-nav';
 import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/admin/charts';
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
-import { BudgetCard, CostCards, PressureCard, PriceSourceCard } from '@/app/(site)/admin/esi/EsiCards';
 import AppSiteAdminEsiPage from '@/app/(site)/admin/esi/page';
-import { EventLogCard, ServiceLevelsCard } from '@/app/(site)/admin/health/HealthCards';
-import { ScheduledTasks } from '@/app/(site)/admin/health/ScheduledTasks';
-import { StatusRow } from '@/app/(site)/admin/health/StatusRow';
 import AppSiteAdminHealthPage from '@/app/(site)/admin/health/page';
 import AppSiteAdminLayout from '@/app/(site)/admin/layout';
 import { loadAdminSignals } from '@/app/(site)/admin/load-signals';
 import AppSiteAdminPage from '@/app/(site)/admin/page';
-import { DeadLettersCard, QueueSummaryCard } from '@/app/(site)/admin/queue/QueueCards';
 import { RetryJobForm } from '@/app/(site)/admin/queue/RetryJobForm';
 import AppSiteAdminQueuePage from '@/app/(site)/admin/queue/page';
-import { IndexCoverageCard } from '@/app/(site)/admin/search/IndexCoverageCard';
-import { PerformanceCard, SearchNotConnected, SitemapsCard, TermCards } from '@/app/(site)/admin/search/SearchCards';
+import { SearchNotConnected } from '@/app/(site)/admin/search/SearchCards';
 import AppSiteAdminSearchPage from '@/app/(site)/admin/search/page';
 import AppSiteAdminStaticsPage from '@/app/(site)/admin/statics/page';
 import {
@@ -93,8 +83,6 @@ import {
   getPriceSourceDegradationShared,
   getStaticsReviewShared,
 } from '@/app/(site)/admin/shared-reads';
-import { LEVEL_DOT_TONE, LEVEL_VALUE_CLASS } from '@/app/(site)/admin/status-tone';
-import { ActivityCard, PilotsCard, TrafficLists } from '@/app/(site)/admin/traffic/TrafficCards';
 import AppSiteAdminTrafficPage from '@/app/(site)/admin/traffic/page';
 import AppSiteAtlasError from '@/app/(site)/atlas/error';
 import { metadata } from '@/app/(site)/atlas/page';
@@ -133,66 +121,42 @@ import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(s
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
-      AccountsCard,
-      ActionsCard,
+      AccountTotals,
+      AdminCard,
+      AdminSection,
       ActivityChart,
       AdminPageFrame,
-      AdminSlot,
       AdminGate,
       AdminRail,
       AdminRailFallback,
-      AudienceCard,
       CardFallback,
       CardLink,
       DeltaBadge,
       KpiGrid,
-      AttentionCard,
-      StatusCards,
       RangeControl,
       RangeSelector,
       RangeSelectorFallback,
-      SectionUnavailable,
-      StatusLines,
       AdminNav,
       AdminNavFallback,
       AdminBarChart,
       AdminDailyChart,
       AdminTrendChart,
       loadDeployMarkers,
-      BudgetCard,
-      CostCards,
-      PressureCard,
-      PriceSourceCard,
       AppSiteAdminEsiPage,
       getPriceRefreshDaysShared,
       getPriceSourceDegradationShared,
-      EventLogCard,
-      ServiceLevelsCard,
-      ScheduledTasks,
-      StatusRow,
       AppSiteAdminHealthPage,
       getLastSyncedAtShared,
       AppSiteAdminLayout,
       loadAdminSignals,
       AppSiteAdminPage,
-      DeadLettersCard,
-      QueueSummaryCard,
       RetryJobForm,
       AppSiteAdminQueuePage,
       getEsiRefreshQueueStatsShared,
-      IndexCoverageCard,
-      PerformanceCard,
       SearchNotConnected,
-      SitemapsCard,
-      TermCards,
       AppSiteAdminSearchPage,
       AppSiteAdminStaticsPage,
       getStaticsReviewShared,
-      LEVEL_DOT_TONE,
-      LEVEL_VALUE_CLASS,
-      ActivityCard,
-      PilotsCard,
-      TrafficLists,
       AppSiteAdminTrafficPage,
       AppSiteAtlasError,
       metadata,

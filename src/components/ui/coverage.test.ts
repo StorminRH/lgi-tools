@@ -51,20 +51,17 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { AnnotatedDailyChart } from '@/components/ui/annotated-daily-chart';
 import { BarChart } from '@/components/ui/bar-chart';
 import { ContentBrowser, landingContentSlug } from '@/components/ui/content-browser';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { LoadingToastProvider } from '@/components/ui/loading-toast';
 import { MenuRadioGroup, MenuRadioItem, MenuRadioItemIndicator } from '@/components/ui/menu';
-import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { PageTitle } from '@/components/ui/page-head';
 import { Pagination } from '@/components/ui/pagination';
 import { PopoverRow } from '@/components/ui/popover';
 import { PriceConfidence } from '@/components/ui/price-confidence';
 import { SectionHead } from '@/components/ui/section-head';
-import { StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { Tabs } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/toast';
 import { SplitAxisChart } from '@/components/ui/split-axis-chart';
@@ -74,7 +71,6 @@ import { TrendChart } from '@/components/ui/trend-chart';
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
-      AnnotatedDailyChart,
       BarChart,
       ContentBrowser,
       landingContentSlug,
@@ -84,14 +80,11 @@ describe('coverage-gaps', () => {
       MenuRadioGroup,
       MenuRadioItem,
       MenuRadioItemIndicator,
-      MultiplesCell,
-      MultiplesGrid,
       PageTitle,
       Pagination,
       PopoverRow,
       PriceConfidence,
       SectionHead,
-      StackedShareBar,
       Tabs,
       Toaster,
       SplitAxisChart,

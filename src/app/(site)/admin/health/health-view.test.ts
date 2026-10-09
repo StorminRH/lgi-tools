@@ -15,12 +15,12 @@ describe('deriveServiceLevels', () => {
       { readSuccess: 0.9876, mutationSuccess: null, latencyP95: 3200.4, esiSuccess: 0.9 },
       idleQueue,
     );
-    expect(rows.map((row) => [row.value, row.target, row.level, row.owner])).toEqual([
-      ['98.8%', '≥ 99%', 'amber', 'you'],
-      ['no data', '≥ 99%', 'neutral', 'you'],
-      ['3,200 ms', '≤ 1,500 ms', 'red', 'you'],
-      ['90.0%', '≥ 95%', 'amber', 'upstream'],
-      ['0 active · 0 dead', '0 dead', 'green', 'you'],
+    expect(rows.map((row) => [row.value, row.note, row.level, row.owner])).toEqual([
+      ['98.8%', 'target ≥ 99%', 'amber', 'you'],
+      ['no data', 'target ≥ 99%', 'neutral', 'you'],
+      ['3,200 ms', 'target ≤ 1,500 ms', 'red', 'you'],
+      ['90.0%', 'target ≥ 95%', 'amber', 'upstream'],
+      ['0 active · 0 dead', 'target 0 dead', 'green', 'you'],
     ]);
   });
 

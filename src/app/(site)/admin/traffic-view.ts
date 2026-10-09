@@ -1,4 +1,4 @@
-export type BarRows = { key: string; label: string; count: number }[];
+type BarRows = { key: string; label: string; count: number }[];
 
 function barRows<T extends { count: number }>(items: T[], keyOf: (t: T) => string): BarRows {
   return items.map((it) => ({ key: keyOf(it), label: keyOf(it), count: it.count }));
