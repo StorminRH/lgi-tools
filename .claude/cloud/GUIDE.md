@@ -46,6 +46,7 @@ because the Vercel CLI rejects a `VERCEL_TOKEN` containing one.
 | `VERCEL_TOKEN` (personal Full Account scope; the CLI cannot load the user with a team- or project-scoped token) | `api.vercel.com` | `Authorization: Bearer` |
 | `NEON_API_KEY` | `console.neon.tech` | `Authorization: Bearer` |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | `staging.lgi.tools` | `x-vercel-protection-bypass` (no prefix) |
+| `CONTEXT7_API_KEY` (a personal key from context7.com/dashboard, so lookups draw on the account's quota) | `context7.com` | `Authorization: Bearer` |
 
 Environment variables: `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
 `NEON_PROJECT_ID`, `PLAYWRIGHT_BASE_URL`, `EVE_CLIENT_ID`, plus two secrets
@@ -56,7 +57,7 @@ and `LGI_CONVEX_STAGING_DEPLOY_KEY` (a deploy key scoped to
 Allowed domains beyond the defaults: `console.neon.tech`, `api.neon.tech`,
 `api.vercel.com`, `vercel.com`, `staging.lgi.tools`,
 `proper-squid-200.convex.cloud`, `proper-squid-200.convex.site`,
-`api.convex.dev`.
+`api.convex.dev`, `context7.com`.
 
 ## Dev stack
 
@@ -120,6 +121,12 @@ stack at a Neon URL.
 reads `LGI_CONVEX_STAGING_DEPLOY_KEY`, accepts only the staging deployment,
 refuses `dev`, and needs `LGI_ALLOW_STAGING_PUSH=1` for `deploy` or
 `import`. Plain `convex` commands stay on the local anonymous backend.
+- **Context7:** `npx ctx7@latest` (the docs-researcher agent's documentation
+source) sends `CONTEXT7_API_KEY` as its bearer token, so the proxy
+authenticates every `library` and `docs` query against the account's
+quota. `ctx7 login`, `setup`, and `whoami` need a browser and a real key;
+never run them here. A quota error with `CONTEXT7_API_KEY=missing` in the
+session context means the network secret is not configured.
 - **Remote checks:** the agent proxy adds the bypass header to every
 request for `staging.lgi.tools`, so `curl "$PLAYWRIGHT_BASE_URL"` returns
 200 without one. `vercel` commands can sit silent for a minute; give them a

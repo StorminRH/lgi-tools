@@ -399,7 +399,7 @@ lgi_setup_summary() {
 # placeholder `proxyinjected`; the agent proxy adds the real header.
 lgi_hosted_credential_summary() {
   local name val out=""
-  for name in VERCEL_TOKEN NEON_API_KEY VERCEL_AUTOMATION_BYPASS_SECRET LGI_CONVEX_STAGING_DEPLOY_KEY EVE_CLIENT_SECRET; do
+  for name in VERCEL_TOKEN NEON_API_KEY VERCEL_AUTOMATION_BYPASS_SECRET CONTEXT7_API_KEY LGI_CONVEX_STAGING_DEPLOY_KEY EVE_CLIENT_SECRET; do
     val="${!name-}"
     if [ -z "$val" ]; then
       out="$out $name=missing"

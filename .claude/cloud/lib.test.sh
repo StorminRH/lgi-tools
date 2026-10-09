@@ -157,13 +157,14 @@ eve_line="$(unset EVE_CLIENT_ID EVE_CLIENT_SECRET; lgi_eve_runtime_secret_presen
 pass "EVE secret presence is names-only"
 
 cred_line="$(
-  VERCEL_TOKEN=proxyinjected NEON_API_KEY=dummy-neon-value \
+  VERCEL_TOKEN=proxyinjected NEON_API_KEY=dummy-neon-value CONTEXT7_API_KEY=proxyinjected \
     LGI_CONVEX_STAGING_DEPLOY_KEY=dummy-convex-value EVE_CLIENT_SECRET=dummy-eve-value \
     bash -c 'unset VERCEL_AUTOMATION_BYPASS_SECRET; source "$1"; lgi_hosted_credential_summary' _ "$ROOT/.claude/cloud/lib.sh"
 )"
 printf '%s' "$cred_line" | grep -q 'VERCEL_TOKEN=proxy' || fail "proxyinjected placeholder"
 printf '%s' "$cred_line" | grep -q 'NEON_API_KEY=set' || fail "set credential"
 printf '%s' "$cred_line" | grep -q 'VERCEL_AUTOMATION_BYPASS_SECRET=missing' || fail "missing credential"
+printf '%s' "$cred_line" | grep -q 'CONTEXT7_API_KEY=proxy' || fail "context7 placeholder"
 printf '%s' "$cred_line" | grep -q dummy && fail "credential summary leaked a value"
 pass "hosted credential summary is names-only"
 

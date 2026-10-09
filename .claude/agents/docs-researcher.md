@@ -20,7 +20,11 @@ version:
 
 - Context7 CLI: `npx ctx7@latest library <name> "<query>"` resolves a library
   ID; `npx ctx7@latest docs <libraryId> "<query>"` fetches docs. Prefer a
-  version-specific ID when one exists.
+  version-specific ID when one exists. The CLI authenticates with
+  `CONTEXT7_API_KEY` from the environment (in cloud sessions it holds a
+  placeholder and the agent proxy adds the real key). Never run `ctx7
+  login`, `setup`, or `whoami`; on a quota or authorization error, report
+  it under `Gaps` and use the other sources.
 - Docs installed with the repository when they match the exact build, such
   as Next.js guides under `node_modules/next/dist/docs/`.
 - The technology's official docs site or API reference (for EVE, the ESI
