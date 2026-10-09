@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { problemBodySchema } from '@/lib/problem';
 
-const { betterAuthGetMock, betterAuthPostMock, checkRateLimitMock, mergeTracking, afterMock, getSessionMock, checkAuthorizationsMock } = vi.hoisted(() => ({
+const { betterAuthGetMock, betterAuthPostMock, checkRateLimitMock, mergeTracking, afterMock, checkAuthorizationsMock } = vi.hoisted(() => ({
   afterMock: vi.fn(),
-  getSessionMock: vi.fn(),
   checkAuthorizationsMock: vi.fn(),
   betterAuthGetMock: vi.fn(),
   betterAuthPostMock: vi.fn(),
@@ -25,7 +24,6 @@ vi.mock('better-auth/next-js', () => ({
 
 vi.mock('@/composition/auth', () => ({
   auth: {
-    api: { getSession: getSessionMock },
     $context: Promise.resolve({
       authCookies: {
         sessionData: { name: 'better-auth.session_data', attributes: {} },
@@ -85,26 +83,49 @@ describe('GET /api/auth/[...all]', () => {
   beforeEach(() => {
     betterAuthGetMock.mockReset();
     afterMock.mockReset();
-    getSessionMock.mockReset();
     checkAuthorizationsMock.mockReset();
     mergeTracking.merged = false;
   });
 
-  it.each([null, { user: { id: 'returning-user' } }])('checks returning client sessions after responding: %j', async (session) => {
-    const request = new Request('http://localhost:3000/api/auth/get-session', {
-      headers: { cookie: 'better-auth.session_token=returning' },
-    });
+  it.each([null, { user: { id: 'returning-user' } }])('checks the session it served once the client has read it: %j', async (session) => {
     const response = Response.json(session);
     betterAuthGetMock.mockResolvedValue(response);
-    getSessionMock.mockResolvedValue(session);
-    await expect(GET(request)).resolves.toBe(response);
+    await expect(GET(new Request('http://localhost:3000/api/auth/get-session'))).resolves.toBe(response);
     expect(afterMock).toHaveBeenCalledOnce();
-    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(checkAuthorizationsMock).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual(session);
     await afterMock.mock.calls[0]![0]();
-    expect(getSessionMock).toHaveBeenCalledExactlyOnceWith({ headers: request.headers });
     if (session) expect(checkAuthorizationsMock).toHaveBeenCalledExactlyOnceWith('returning-user');
     else expect(checkAuthorizationsMock).not.toHaveBeenCalled();
   });
+
+  it('checks a merged get-session after the rewrapped body reaches the client', async () => {
+    mergeTracking.merged = true;
+    betterAuthGetMock.mockResolvedValue(Response.json({ user: { id: 'merged-user' } }));
+    const response = await GET(new Request('http://localhost:3000/api/auth/get-session'));
+    await expect(response.json()).resolves.toEqual({ user: { id: 'merged-user' } });
+    await afterMock.mock.calls[0]![0]();
+    expect(checkAuthorizationsMock).toHaveBeenCalledExactlyOnceWith('merged-user');
+  });
+
+  it('schedules no check when get-session fails', async () => {
+    const response = Response.json({ code: 'INTERNAL_SERVER_ERROR' }, { status: 500 });
+    betterAuthGetMock.mockResolvedValue(response);
+    await expect(GET(new Request('http://localhost:3000/api/auth/get-session'))).resolves.toBe(response);
+    expect(afterMock).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({ code: 'INTERNAL_SERVER_ERROR' });
+  });
+
+  it.each(['not json', '{}', '{"user":null}', '{"user":{"id":42}}', '{"user":{"id":""}}'])(
+    'skips the check without throwing when the get-session body names no user: %s',
+    async (body) => {
+      betterAuthGetMock.mockResolvedValue(new Response(body, { status: 200 }));
+      await GET(new Request('http://localhost:3000/api/auth/get-session'));
+      expect(afterMock).toHaveBeenCalledOnce();
+      await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
+      expect(checkAuthorizationsMock).not.toHaveBeenCalled();
+    },
+  );
 
   it('returns the Better Auth response untouched when the callback merged nothing', async () => {
     const response = new Response(null, { status: 302, headers: { location: '/settings/characters' } });

@@ -45,7 +45,7 @@ Every item is S/low and local. Deletions go first so later items (P186, P250, P2
 | ☑ | [P323](#p323) | Delete the always-true locationChanged guard and fold the repeated no-location, jump-evidence and scan-routing literals | simplification | S | low | low | — |
 | ☑ | [P154](#p154) | Remove dead try/catch and .catch wrappers around apiFetch and convert the impossible-rejection test mocks to network outcomes | error-handling | S | low | low | — |
 | ☑ | [P142](#p142) | Use rateLimitPreflight in account/active-character and sync-leave instead of inline copies | api-route | S | low | low | — |
-| ☐ | [P287](#p287) | Reuse Better Auth's get-session result for the background authorization check | efficiency | S | low | low | — |
+| ☑ | [P287](#p287) | Reuse Better Auth's get-session result for the background authorization check | efficiency | S | low | low | — |
 | ☐ | [P059](#p059) | Move AFK state into TrackingHeartbeat and narrow MapPresenceContext to the presence map | react-hook | S | low | low | — |
 
 <a id="p296"></a>
@@ -1879,7 +1879,7 @@ preflight: rateLimitPreflight(request, { name: 'sync-leave', perMinute: 30 }, pr
 
 ## P287: Reuse Better Auth's get-session result for the background authorization check
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about +8 / -2 in route.ts; about +10 test lines
 - **Depends on:** —
