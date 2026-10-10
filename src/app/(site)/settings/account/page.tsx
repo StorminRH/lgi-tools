@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
+import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getFullSession } from '@/composition/session';
@@ -46,7 +46,7 @@ async function AccountContent() {
             src={session.portraitUrl}
           />
           <span className="truncate text-name">{session.name}</span>
-          {session.isAdmin ? <Chip tone="purple">Admin</Chip> : null}
+          {session.isAdmin ? <Pill tone="purple">Admin</Pill> : null}
         </OverviewRow>
         <OverviewRow label="Linked characters">
           <span className="font-data">{characters.length}</span>

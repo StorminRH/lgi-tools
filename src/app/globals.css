@@ -238,23 +238,10 @@
    * hue as --color-tone-purple, named for its meaning. */
   --color-reaction-purple:   #aa55ff;
 
-  /* Chip — saturated EWAR/status chips. Text differs from toneHex (brighter);
-   * orange text reuses --color-dps-mid. bg/border are translucent. */
-  --color-chip-blue:          #6688ff;
+  /* Bright error red — the ink for field errors, the red checkbox mark and
+   * failed copies; lighter than --color-alert-red. Tinted labels use the Pill
+   * tones above. */
   --color-chip-red:           #ff6666;
-  --color-chip-purple:        #cc77ff;
-  --color-chip-green:         #33dd88;
-  --color-chip-blue-bg:       rgba(40,90,255,0.16);
-  --color-chip-blue-border:   rgba(40,90,255,0.32);
-  --color-chip-red-bg:        rgba(255,50,50,0.14);
-  --color-chip-red-border:    rgba(255,50,50,0.30);
-  --color-chip-purple-bg:     rgba(170,70,255,0.14);
-  --color-chip-purple-border: rgba(170,70,255,0.30);
-  --color-chip-green-bg:      rgba(0,200,120,0.13);
-  --color-chip-green-border:  rgba(0,200,120,0.28);
-  --color-chip-orange-bg:     rgba(255,140,0,0.13);
-  --color-chip-orange-border: rgba(255,140,0,0.32);
-  --color-chip-pressed-bg:    #0f1a14;
 
   /* Dot indicator glows (translucent box-shadow color). */
   --color-dot-orange-glow: rgba(204,119,51,0.4);

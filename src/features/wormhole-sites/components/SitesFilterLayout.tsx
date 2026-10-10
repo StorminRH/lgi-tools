@@ -20,7 +20,7 @@ import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
 import {
-  CLASS_CHIP_TONE,
+  CLASS_TONE,
   SITE_TYPE_DOT_TONE,
   SITE_TYPE_LABEL,
 } from './wormhole-styles';
@@ -112,7 +112,7 @@ export function SitesFilterLayout({
                     <ChipToggle
                       key={c}
                       value={c}
-                      tone={CLASS_CHIP_TONE[c]}
+                      tone={CLASS_TONE[c]}
                       className="w-full justify-center px-2 py-1.5 text-ui"
                     >
                       {c}

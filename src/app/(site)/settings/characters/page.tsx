@@ -4,7 +4,6 @@ import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { Callout } from '@/components/ui/callout';
-import { Chip } from '@/components/ui/chip';
 import { Collapsible } from '@/components/ui/collapsible';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -80,11 +79,11 @@ function CharacterRow({
         chips={
           <span className="flex flex-wrap items-center gap-[6px]">
             <Pill tone="neutral">ID {character.characterId}</Pill>
-            {isActive ? <Chip tone="green">Active</Chip> : null}
+            {isActive ? <Pill tone="green">Active</Pill> : null}
             {view.healthLabel ? (
-              <Chip tone="orange" className="normal-case">
+              <Pill tone="orange" className="shrink-0 normal-case">
                 {view.healthLabel}
-              </Chip>
+              </Pill>
             ) : null}
           </span>
         }

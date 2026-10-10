@@ -14,8 +14,6 @@ export type Tone =
 
 export type PillTone = Tone;
 
-export type ChipTone = Extract<Tone, 'blue' | 'red' | 'purple' | 'green' | 'orange'>;
-
 export type DotTone = Extract<Tone, 'orange' | 'blue' | 'green' | 'red' | 'neutral'>;
 
 export const toneHex: Record<Tone, string> = {

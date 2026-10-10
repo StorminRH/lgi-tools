@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
@@ -85,7 +84,7 @@ function UserRow({
       characterId={user.characterId}
       portraitUrl={user.portraitUrl}
       href={`${USERS_HREF}/${user.userId}`}
-      chips={<Chip tone={badge.tone}>{badge.label}</Chip>}
+      chips={<Pill tone={badge.tone}>{badge.label}</Pill>}
       actions={
         isSuperadmin ? (
           <span className="whitespace-nowrap text-micro italic text-muted">managed via env</span>

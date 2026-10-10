@@ -1,4 +1,4 @@
-import { Chip } from '@/components/ui/chip';
+import { Pill } from '@/components/ui/pill';
 import { LabeledChipRow } from '@/components/ui/row';
 import { EWAR_LABEL, EWAR_ORDER, EWAR_TONE } from './wormhole-styles';
 
@@ -19,9 +19,9 @@ export function EwarRow({
   return (
     <LabeledChipRow label="EWAR">
       {active.map((k) => (
-        <Chip key={k} tone={EWAR_TONE[k]}>
+        <Pill key={k} tone={EWAR_TONE[k]} className="shrink-0">
           {EWAR_LABEL[k]}
-        </Chip>
+        </Pill>
       ))}
     </LabeledChipRow>
   );

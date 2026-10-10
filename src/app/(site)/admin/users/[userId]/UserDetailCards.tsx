@@ -1,4 +1,3 @@
-import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { AdminForceLogoutForm } from '@/components/composition/account/AdminForceLogoutForm';
@@ -73,9 +72,9 @@ export function AccountIdentity({
         characterId={user.characterId}
         portraitUrl={user.portraitUrl}
         chips={deriveIdentityChips({ role: user.role, isSuperadmin, isViewerSelf }).map((chip) => (
-          <Chip key={chip.label} tone={chip.tone}>
+          <Pill key={chip.label} tone={chip.tone}>
             {chip.label}
-          </Chip>
+          </Pill>
         ))}
       />
     </ul>
@@ -89,11 +88,11 @@ function CharacterChips({ character, isActive }: { character: LinkedCharacter; i
       <Pill tone="neutral" className="whitespace-nowrap">
         linked {formatIsoDay(character.linkedAt)}
       </Pill>
-      {isActive ? <Chip tone="green">Selected</Chip> : null}
+      {isActive ? <Pill tone="green">Selected</Pill> : null}
       {health.needsReconnect ? (
-        <Chip tone="orange" className="normal-case">
+        <Pill tone="orange" className="shrink-0 normal-case">
           {character.hasRefreshToken ? 'Missing scopes' : 'Disconnected'}
-        </Chip>
+        </Pill>
       ) : null}
     </>
   );

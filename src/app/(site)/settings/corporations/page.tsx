@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -32,9 +31,9 @@ function MembershipRow({ membership }: { membership: CorporationMembershipView }
           {membership.roleLabel === 'Member' ? (
             <Pill tone="neutral">Member</Pill>
           ) : (
-            <Chip tone="green" className="normal-case">
+            <Pill tone="green" className="shrink-0 normal-case">
               {membership.roleLabel}
-            </Chip>
+            </Pill>
           )}
           <Pill tone="neutral">{membership.sharingLabel}</Pill>
           {membership.structureCount !== null ? (

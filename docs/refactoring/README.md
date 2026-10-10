@@ -407,7 +407,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P319](wave-07-ui-kit-primitives-src-components-ui.md#p319) | Remove the single-value tone variants from Menu, PointerMenu, NavigationMenu, Dialog and SegmentedControl, and split ChipToggle into ChipToggle and ToggleRow | simplification | S | low | low | — |
-| ☐ | [P022](wave-07-ui-kit-primitives-src-components-ui.md#p022) | Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants | ui-component | M | low | medium | [P319](wave-07-ui-kit-primitives-src-components-ui.md#p319) |
+| ☑ | [P022](wave-07-ui-kit-primitives-src-components-ui.md#p022) | Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants | ui-component | M | low | medium | [P319](wave-07-ui-kit-primitives-src-components-ui.md#p319) |
 | ☐ | [P041](wave-07-ui-kit-primitives-src-components-ui.md#p041) | Draw every check and close mark with ui/icons CheckIcon and CloseIcon | ui-component | S | low | low | — |
 | ☐ | [P053](wave-07-ui-kit-primitives-src-components-ui.md#p053) | Route the ui chip glass through a globals.css glass-chip utility and the --glass-* knobs | css-styling | S | low | low | — |
 | ☐ | [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001) | Complete the ui/dialog kit (DialogBody, DialogFooter, DialogCloseButton, closeDisabled, displayTitle) and route hand-built dialog chrome through it | ui-component | M | low | high | [P319](wave-07-ui-kit-primitives-src-components-ui.md#p319), [P041](wave-07-ui-kit-primitives-src-components-ui.md#p041) |

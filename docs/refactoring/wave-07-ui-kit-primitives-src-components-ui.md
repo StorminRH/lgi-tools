@@ -9,7 +9,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P319](#p319) | Remove the single-value tone variants from Menu, PointerMenu, NavigationMenu, Dialog and SegmentedControl, and split ChipToggle into ChipToggle and ToggleRow | simplification | S | low | low | — |
-| ☐ | [P022](#p022) | Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants | ui-component | M | low | medium | [P319](#p319) |
+| ☑ | [P022](#p022) | Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants | ui-component | M | low | medium | [P319](#p319) |
 | ☐ | [P041](#p041) | Draw every check and close mark with ui/icons CheckIcon and CloseIcon | ui-component | S | low | low | — |
 | ☐ | [P053](#p053) | Route the ui chip glass through a globals.css glass-chip utility and the --glass-* knobs | css-styling | S | low | low | — |
 | ☐ | [P001](#p001) | Complete the ui/dialog kit (DialogBody, DialogFooter, DialogCloseButton, closeDisabled, displayTitle) and route hand-built dialog chrome through it | ui-component | M | low | high | [P319](#p319), [P041](#p041) |
@@ -109,7 +109,7 @@ export function ToggleRow(props: { value: string; children: ReactNode; className
 
 ## P022: Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +15: chip.tsx (-34), two dead tone maps (-16), about 15 dead or retired CSS token lines, and Chip/ChipTone imports across 10 files
 - **Depends on:** [P319](#p319)

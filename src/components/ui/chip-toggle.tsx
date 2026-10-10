@@ -3,9 +3,8 @@
 import { Toggle } from '@base-ui/react/toggle';
 import { ToggleGroup } from '@base-ui/react/toggle-group';
 import type { ReactNode } from 'react';
-import { chipVariants } from './chip';
 import { cn } from './cn';
-import type { ChipTone } from './tones';
+import { pillVariants, type PillTone } from './pill';
 
 export function ChipToggleGroup({
   value,
@@ -39,7 +38,7 @@ export function ChipToggle({
   children,
   className,
 }: {
-  tone: ChipTone;
+  tone: PillTone;
   value: string;
   children: ReactNode;
   className?: string;
@@ -49,7 +48,7 @@ export function ChipToggle({
       value={value}
       className={(state) =>
         cn(
-          chipVariants({ tone }),
+          pillVariants({ tone }),
           'chip-toggle cursor-pointer',
           !state.pressed && '[--pill-tone:var(--color-faint)] text-muted hover:text-name',
           className,

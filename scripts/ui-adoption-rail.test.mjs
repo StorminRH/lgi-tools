@@ -70,7 +70,6 @@ const tokenExemptionHomes = [
     'src/components/ui/button.tsx',
     'src/components/ui/checkbox.tsx',
     'src/components/ui/chip-toggle.tsx',
-    'src/components/ui/chip.tsx',
     'src/components/ui/confirm-dialog.tsx',
     'src/components/ui/copy-button.tsx',
     'src/components/ui/dropdown-panel.ts',

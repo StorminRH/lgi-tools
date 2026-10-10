@@ -1226,7 +1226,6 @@ const eslintConfig = defineConfig([
       "src/components/ui/access-gate.tsx",
       "src/components/ui/checkbox.tsx",
       "src/components/ui/chip-toggle.tsx",
-      "src/components/ui/chip.tsx",
       "src/components/ui/dropdown-panel.ts",
       "src/components/ui/field.tsx",
       "src/components/ui/pill.tsx",

@@ -28,36 +28,56 @@ it('groups chips as a named multiple-value control', () => {
   expect(el.props.onValueChange).toBe(onValueChange);
 });
 
-it('tints a pressed chip in its tone and fades an unpressed one', () => {
+it('tints a pressed chip in its Pill tone and fades an unpressed one', () => {
   const html = renderToStaticMarkup(
     ChipToggleGroup({
-      value: ['c1'],
+      value: ['c2'],
       onValueChange: vi.fn(),
       label: 'Wormhole classes',
       children: createElement(
         Fragment,
         null,
-        ChipToggle({ value: 'c1', tone: 'green', className: 'w-full', children: 'C1' }),
+        ChipToggle({ value: 'c2', tone: 'green-strong', className: 'w-full px-2 py-1.5', children: 'C2' }),
         ChipToggle({ value: 'c5', tone: 'red', children: 'C5' }),
       ),
     }),
   );
 
-  const pressed = buttonClasses(html, 'C1');
+  const pressed = buttonClasses(html, 'C2');
   expect(pressed.pressed).toBe('true');
   expect(pressed.classes).toEqual(
-    expect.arrayContaining(['[--pill-tone:var(--color-chip-green)]', 'text-chip-green', 'chip-toggle', 'w-full']),
+    expect.arrayContaining([
+      'pill-soft',
+      '[--pill-tone:var(--color-tone-green-strong)]',
+      'text-tone-green-strong',
+      'rounded-full',
+      'text-ui',
+      'chip-toggle',
+      'w-full',
+      'px-2',
+      'py-1.5',
+    ]),
   );
+  expect(pressed.classes).not.toContain('px-[9px]');
+  expect(pressed.classes).not.toContain('py-[2px]');
   expect(pressed.classes).not.toContain('[--pill-tone:var(--color-faint)]');
   expect(pressed.classes).not.toContain('text-muted');
 
   const unpressed = buttonClasses(html, 'C5');
   expect(unpressed.pressed).toBe('false');
   expect(unpressed.classes).toEqual(
-    expect.arrayContaining(['[--pill-tone:var(--color-faint)]', 'text-muted', 'hover:text-name', 'chip-toggle']),
+    expect.arrayContaining([
+      'pill-soft',
+      'px-[9px]',
+      'py-[2px]',
+      '[--pill-tone:var(--color-faint)]',
+      'text-muted',
+      'hover:text-name',
+      'chip-toggle',
+    ]),
   );
-  expect(unpressed.classes).not.toContain('[--pill-tone:var(--color-chip-red)]');
-  expect(unpressed.classes).not.toContain('text-chip-red');
+  expect(unpressed.classes).not.toContain('[--pill-tone:var(--color-alert-red)]');
+  expect(unpressed.classes).not.toContain('text-pill-red-text');
 });
 
 it('fills a pressed row toggle and leaves an unpressed one untinted', () => {
