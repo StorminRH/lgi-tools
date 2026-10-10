@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 /** Postgres `integer` (int4) and `serial` upper bound. */
 const PG_INT4_MAX = 2_147_483_647;
+const OWNED_ROW_ID_MAX = 100;
 
 /**
  * A positive safe integer id: character, corporation, alliance, structure and
@@ -23,6 +24,13 @@ export const pathIdParamSchema = z
   .regex(/^[1-9]\d*$/)
   .transform(Number)
   .pipe(int4IdSchema);
+
+/**
+ * A user-owned row's text id (custom structures, saved plans, industry
+ * profiles). New rows get `randomUUID()`, but the column is text, so the bound
+ * stays loose and older ids stay addressable.
+ */
+export const ownedRowIdSchema = z.string().min(1).max(OWNED_ROW_ID_MAX);
 
 /** The runtime check behind `positiveIdSchema`, for values that are not ids too (timestamps, revisions). */
 export function isPositiveSafeInteger(value: number): boolean {

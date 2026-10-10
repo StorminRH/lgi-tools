@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ownedRowIdSchema } from '@/lib/id-schemas';
 import { readStoredJson, safeStorage, writeStoredJson } from '@/lib/web-storage';
 
 const LS_PREFIX = 'lgi:pref:';
@@ -34,7 +35,7 @@ export const industryCostBasis = define<'batched' | 'marginal'>(
 /** The production profile the industry workspace opens on; checked against the live list. */
 export const industryProfile = define<string | null>(
   'industry.profileId',
-  z.string().min(1).max(100).nullable(),
+  ownedRowIdSchema.nullable(),
   null,
 );
 

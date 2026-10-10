@@ -27,6 +27,7 @@ import {
   MAX_MAP_NAME_LENGTH,
 } from '@/data/maps/api-contract';
 
+const MAP_ID = '11111111-1111-4111-8111-111111111111';
 const ROUTE = '/api/maps/create';
 
 const VALID_BODY = {
@@ -37,7 +38,7 @@ const VALID_BODY = {
 
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
-  h.createProjectedMap.mockReset().mockResolvedValue({ ok: true, mapId: 'map-1' });
+  h.createProjectedMap.mockReset().mockResolvedValue({ ok: true, mapId: MAP_ID });
   h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   h.rateLimit.mockReset().mockResolvedValue({ ok: true, remaining: 4 });
 });
@@ -58,7 +59,7 @@ describe('POST /api/maps/create', () => {
     const response = await POST(postJson(ROUTE, VALID_BODY));
 
     expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ mapId: 'map-1' });
+    expect(await response.json()).toEqual({ mapId: MAP_ID });
     expect(h.checkUserId).toHaveBeenCalledOnce();
     expect(h.rateLimit).toHaveBeenCalledWith('user-1', {
       name: 'map-create',

@@ -3,7 +3,8 @@ import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import { defineEndpoint, emptyBody, jsonBody, problem } from '@/transport/endpoint';
 import { MAP_ACCESS_OWNER_TYPES, MAP_ROLES } from './access-contract';
 
-const mapIdSchema = z.string().trim().min(1).max(200);
+/** maps.id is a Postgres uuid; a malformed id must fail here, not at the SQL cast. */
+const mapIdSchema = z.uuid();
 const connectionIdSchema = z.string().trim().min(1).max(200);
 
 export const MAX_MAP_NAME_LENGTH = 120;
@@ -215,7 +216,7 @@ export const updateMapAccessEndpoint = defineEndpoint({
   },
 });
 
-export const mapLifecycleRequestSchema = z.strictObject({ mapId: z.uuid() });
+export const mapLifecycleRequestSchema = z.strictObject({ mapId: mapIdSchema });
 
 export type MapLifecycleRequest = z.infer<typeof mapLifecycleRequestSchema>;
 

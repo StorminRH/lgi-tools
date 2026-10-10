@@ -14,7 +14,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P211](#p211) | Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads | convex | S | low | low | [P210](#p210), [P134](#p134) |
 | ☑ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
 | ☑ | [P247](#p247) | Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500 | contracts-validation | M | low | medium | — |
-| ☐ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
+| ☑ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
 | ☐ | [P187](#p187) | Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope | esi-sync | S | low | medium | — |
 | ☐ | [P350](#p350) | Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins | testing | S | low | low | [P187](#p187) |
 | ☐ | [P186](#p186) | Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth | esi-sync | S | low | medium | [P187](#p187) |
@@ -494,7 +494,7 @@ The idListSchema and formIdSchema from the original proposal are dropped: the ma
 
 ## P248: Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -2 / +2 in source; about 15 test fixture string changes. The optional ownedRowIdSchema adds about -5 / +3.
 - **Depends on:** —

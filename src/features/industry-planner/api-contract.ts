@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { PRODUCTION_ACTIVITIES, type ProductionModifier } from '@/data/eve-data/structures';
-import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
+import { int4IdSchema, ownedRowIdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
   defineEndpoint,
   jsonBody,
@@ -238,7 +238,6 @@ const MAX_SAVED_PLAN_NAME_LEN = 80;
 export const MAX_SAVED_PLANS_PER_USER = 50;
 const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
 
-const savedPlanId = z.string().min(1).max(100);
 const savedPlanName = z.string().trim().min(1).max(MAX_SAVED_PLAN_NAME_LEN);
 
 const savedPlanRowSchema = z.object({
@@ -286,7 +285,7 @@ export const createSavedPlanEndpoint = defineEndpoint({
 });
 
 export const renameSavedPlanRequestSchema = z.object({
-  id: savedPlanId,
+  id: ownedRowIdSchema,
   name: savedPlanName,
 });
 export const renameSavedPlanEndpoint = defineEndpoint({
@@ -302,7 +301,7 @@ export const renameSavedPlanEndpoint = defineEndpoint({
 });
 
 export const favoriteSavedPlanRequestSchema = z.object({
-  id: savedPlanId,
+  id: ownedRowIdSchema,
   favorite: z.boolean(),
 });
 export const favoriteSavedPlanEndpoint = defineEndpoint({
@@ -318,7 +317,7 @@ export const favoriteSavedPlanEndpoint = defineEndpoint({
 });
 
 export const deleteSavedPlanRequestSchema = z.object({
-  id: savedPlanId,
+  id: ownedRowIdSchema,
 });
 export const deleteSavedPlanEndpoint = defineEndpoint({
   method: 'POST',

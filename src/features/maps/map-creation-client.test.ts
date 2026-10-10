@@ -10,6 +10,7 @@ import {
   runMapCreationSubmit,
 } from './map-creation-client';
 
+const MAP_ID = '11111111-1111-4111-8111-111111111111';
 const INPUT = { name: 'Home chain', creatorCharacterIds: [7], grants: [] };
 
 afterEach(() => {
@@ -22,7 +23,7 @@ describe('createMapWithMinimumInterstitial', () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(Response.json({ mapId: 'map-1' }, { status: 201 })),
+      vi.fn().mockResolvedValue(Response.json({ mapId: MAP_ID }, { status: 201 })),
     );
 
     let settled = false;
@@ -37,7 +38,7 @@ describe('createMapWithMinimumInterstitial', () => {
     await expect(pending).resolves.toEqual({
       ok: true,
       status: 201,
-      data: { mapId: 'map-1' },
+      data: { mapId: MAP_ID },
     });
   });
 
@@ -55,11 +56,11 @@ describe('createMapWithMinimumInterstitial', () => {
 
     const pending = createMapWithMinimumInterstitial(INPUT);
     await vi.advanceTimersByTimeAsync(12_000);
-    deliver?.(Response.json({ mapId: 'map-2' }, { status: 201 }));
+    deliver?.(Response.json({ mapId: MAP_ID }, { status: 201 }));
 
     await expect(pending).resolves.toMatchObject({
       ok: true,
-      data: { mapId: 'map-2' },
+      data: { mapId: MAP_ID },
     });
   });
 

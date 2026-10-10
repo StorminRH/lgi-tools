@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import {
   int4IdSchema,
   isPositiveSafeInteger,
+  ownedRowIdSchema,
   pathIdParamSchema,
   positiveIdSchema,
 } from './id-schemas';
@@ -35,6 +36,15 @@ test('path ids parse only canonical int4 digit strings', () => {
   const oversized = pathIdParamSchema.safeParse('2147483648');
   expect(oversized.success).toBe(false);
   expect(oversized.error?.issues[0]?.code).toBe('too_big');
+});
+
+test('owned-row ids keep legacy non-UUID text ids addressable within the length bound', () => {
+  for (const id of ['38534fe4-6d47-4007-8d99-0890bc6c9770', 'legacy-plan-1', 'x'.repeat(100)]) {
+    expect(ownedRowIdSchema.parse(id)).toBe(id);
+  }
+  for (const bad of ['', 'x'.repeat(101), 7, null]) {
+    expect(accepts(ownedRowIdSchema, bad), JSON.stringify(bad)).toBe(false);
+  }
 });
 
 test('isPositiveSafeInteger accepts only positive safe integers, whether or not they are ids', () => {

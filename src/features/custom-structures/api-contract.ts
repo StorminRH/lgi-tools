@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
-import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
+import { int4IdSchema, ownedRowIdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
   defineEndpoint,
   jsonBody,
@@ -57,7 +57,7 @@ export const createCustomStructureEndpoint = defineEndpoint({
   path: '/api/account/custom-structures',
   request: createCustomStructureRequestSchema,
   responses: {
-    201: jsonBody(customStructuresResponseSchema.extend({ createdId: z.string().uuid() })),
+    201: jsonBody(customStructuresResponseSchema.extend({ createdId: z.uuid() })),
     400: problem('invalid_json', 'invalid_body', 'invalid_structure', 'unknown_system'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
@@ -66,7 +66,7 @@ export const createCustomStructureEndpoint = defineEndpoint({
 });
 
 export const deleteCustomStructureRequestSchema = z.object({
-  id: z.string().min(1).max(100),
+  id: ownedRowIdSchema,
 });
 export const deleteCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
@@ -81,7 +81,7 @@ export const deleteCustomStructureEndpoint = defineEndpoint({
 });
 
 export const updateCustomStructureRequestSchema = z
-  .object({ id: z.string().min(1).max(100), ...customStructureFields })
+  .object({ id: ownedRowIdSchema, ...customStructureFields })
   .superRefine(enteredBonusesExcludeRigs);
 export const updateCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
