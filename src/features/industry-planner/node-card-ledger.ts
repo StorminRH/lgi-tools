@@ -47,7 +47,7 @@ export function assetLedgerView(
   const row = ownedQty !== undefined ? ownedLedgerRow(qty, ownedQty, value) : null;
   return {
     neededQty: formatQuantity(qty),
-    neededIsk: value !== null ? formatIsk(value) : '—',
+    neededIsk: formatIsk(value),
     owned: row ? row.owned : null,
     remaining: row ? row.remaining : null,
   };
@@ -60,7 +60,7 @@ export function ownedLedgerRow(
 ): { owned: LedgerCell; remaining: LedgerCell } {
   const remaining = Math.max(0, qty - ownedQty);
   const unitPrice = value !== null && qty > 0 ? value / qty : null;
-  const iskOf = (units: number): string => (unitPrice !== null ? formatIsk(units * unitPrice) : '—');
+  const iskOf = (units: number): string => formatIsk(unitPrice === null ? null : units * unitPrice);
   return {
     owned: { qty: formatQuantity(ownedQty), isk: iskOf(ownedQty) },
     remaining: { qty: formatQuantity(remaining), isk: iskOf(remaining) },

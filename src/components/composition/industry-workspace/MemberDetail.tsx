@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { Pill } from '@/components/ui/pill';
 import type { CategoryKey } from '@/features/industry-planner/profiles/production-categories';
-import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
+import { formatPct } from '@/lib/format/number';
 import { PANELS_MOTION, SHEET_MOTION } from '../board/board-motion';
 import { SectionPanel } from '../board/SectionBody';
 import { CategoryChecklist } from './CategoryChecklist';
@@ -52,7 +52,7 @@ function TimeSkillRow({
     <div className="flex flex-col gap-2">
       <dt className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-ui text-name">
         <span>{label}</span>
-        <span className="font-data text-isk">{group.totalPct > 0 ? `−${formatBonusPct(group.totalPct)}` : '—'}</span>
+        <span className="font-data text-isk">{group.totalPct > 0 ? `−${formatPct(group.totalPct)}` : '—'}</span>
       </dt>
       <dd className="text-ui text-muted">
         {group.skills.length === 0 ? (

@@ -82,8 +82,8 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
   return (
     <KpiHelp label="How input cost is computed">
       <PopoverHeading>Input cost</PopoverHeading>
-      <PopoverRow label="Raw">{bases ? formatIsk(bases.batched) : '—'}</PopoverRow>
-      <PopoverRow label="Item">{bases ? formatIsk(bases.marginal) : '—'}</PopoverRow>
+      <PopoverRow label="Raw">{formatIsk(bases?.batched ?? null)}</PopoverRow>
+      <PopoverRow label="Item">{formatIsk(bases?.marginal ?? null)}</PopoverRow>
       <p className="max-w-[240px] text-ui leading-snug text-muted">
         Raw is the full production line, including the excess that whole batches produce.
         Item is only what this build consumes.

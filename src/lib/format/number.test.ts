@@ -16,6 +16,15 @@ describe('number formatters', () => {
     expect(formatPct(-5)).toBe('-5.0%');
     expect(formatPct(null)).toBe('—');
     expect(formatPct(Number.NaN)).toBe('—');
+    expect(formatPct(Number.POSITIVE_INFINITY)).toBe('—');
+  });
+
+  it('shows a percentage with one decimal at every size, as the game shows industry bonuses', () => {
+    expect(formatPct(2.4)).toBe('2.4%');
+    expect(formatPct(3.38)).toBe('3.4%');
+    expect(formatPct(9.99)).toBe('10.0%');
+    expect(formatPct(21.5)).toBe('21.5%');
+    expect(formatPct(24)).toBe('24.0%');
   });
 
   it('pairs a count with its pluralised noun', () => {

@@ -2,7 +2,7 @@ import type { DistributionInput } from '@/components/ui/distribution-bars';
 import { trendSeries } from '@/composition/admin-period';
 import { searchTotalsFromTrend } from '@/data/gsc/queries';
 import type { GscDailyPoint, GscRange, GscSitemapStatus, GscTermStat, GscTotals } from '@/data/gsc/types';
-import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
 import { isoDay } from '@/lib/iso-date';
 import { roundTo } from '@/lib/math';
@@ -59,7 +59,7 @@ export function gscTermBars(terms: readonly GscTermStat[]): DistributionInput[] 
     key: term.key,
     label: term.key,
     count: term.clicks,
-    sub: `${formatQuantity(term.impressions)} impr · ${(term.ctr * 100).toFixed(1)}% CTR · pos ${term.position.toFixed(1)}`,
+    sub: `${formatQuantity(term.impressions)} impr · ${formatPct(term.ctr * 100)} CTR · pos ${term.position.toFixed(1)}`,
   }));
 }
 

@@ -156,7 +156,7 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5 font-data tabular-nums">
         <span className="text-ui text-name">{formatQuantity(row.quantity)}</span>
-        <LivePrice value={row.value === null ? '—' : formatIsk(row.value)} pending={refreshing} className="text-micro text-isk" />
+        <LivePrice value={formatIsk(row.value)} pending={refreshing} className="text-micro text-isk" />
       </span>
       {row.buildable && <span aria-hidden className="text-muted">›</span>}
     </>

@@ -1,5 +1,5 @@
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
-import { deriveEsiSourceStatus } from '@/data/telemetry/health-metrics';
+import { deriveEsiSourceStatus, formatFallbackShare } from '@/data/telemetry/health-metrics';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import { ESI_ERROR_CEILING } from '@/platform/esi/scoreboard/types';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
@@ -52,14 +52,6 @@ export function deriveBudgetCard(budget: EsiBudgetSnapshot | null) {
   };
 }
 
-export function fallbackShare(fallback: FallbackRateData): string {
-  const priced = fallback.esi + fallback.fallback;
-  if (priced === 0) return 'no data';
-  const pct = (fallback.fallback / priced) * 100;
-  if (pct > 0 && pct < 1) return '<1%';
-  return `${Math.round(pct)}%`;
-}
-
 function countLine(id: string, label: string, count: number, note?: string): StatusLine {
   return {
     id,
@@ -98,7 +90,7 @@ export function derivePressureLines(input: {
     {
       id: 'fallback',
       label: 'Scheduled Fuzzwork share',
-      value: fallbackShare(input.fallback),
+      value: formatFallbackShare(input.fallback),
       note: `${formatQuantity(input.fallback.fallback)} of ${formatQuantity(priced)} priced items`,
       level: source.level,
     },

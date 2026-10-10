@@ -235,7 +235,7 @@ function BuildTools({
       >
         <span>Raw ledger</span>
         <LivePrice
-          value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
+          value={formatIsk(grandTotal)}
           pending={refreshing}
           className="font-data text-ui text-isk"
         />

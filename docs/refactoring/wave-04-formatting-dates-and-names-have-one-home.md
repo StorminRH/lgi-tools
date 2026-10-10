@@ -14,7 +14,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P177](#p177) | Fix retention-pruner drift with existing retentionCutoff and formatIsoDay; keep per-owner pruners | server-pipeline | S | low | low | [P107](#p107), [P089](#p089) |
 | ☑ | [P085](#p085) | Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local | formatting | S | low | medium | — |
 | ☑ | [P090](#p090) | Move pluralCount to lib/format/number as formatCount and replace the count-and-noun ternaries | formatting | M | low | low | [P085](#p085) |
-| ☐ | [P091](#p091) | Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards | formatting | S | low | low | — |
+| ☑ | [P091](#p091) | Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards | formatting | S | low | low | — |
 | ☐ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
 | ☐ | [P084](#p084) | Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL | formatting | S | low | medium | — |
 | ☐ | [P094](#p094) | Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper | formatting | M | low | low | — |
@@ -567,7 +567,7 @@ export function formatCount(n: number, singular: string, plural = `${singular}s`
 
 ## P091: Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +8
 - **Depends on:** —

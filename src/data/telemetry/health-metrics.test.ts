@@ -5,6 +5,7 @@ import {
   deriveGscStatus,
   ESI_AVAILABILITY_TARGET,
   fallbackRatePoints,
+  formatFallbackShare,
   loginFrequencyBuckets,
   PRICES_HEALTHY_OUTCOMES,
   refreshVolumeSummary,
@@ -258,6 +259,15 @@ describe('deriveEsiSourceStatus', () => {
       value: 'degraded',
       note: 'Fuzzwork covered 80% of priced items',
     });
+  });
+});
+
+describe('formatFallbackShare', () => {
+  it('never rounds a real fallback down to zero', () => {
+    expect(formatFallbackShare({ esi: 999, fallback: 1 })).toBe('<1%');
+    expect(formatFallbackShare({ esi: 100, fallback: 0 })).toBe('0%');
+    expect(formatFallbackShare({ esi: 50, fallback: 50 })).toBe('50%');
+    expect(formatFallbackShare({ esi: 0, fallback: 0 })).toBe('no data');
   });
 });
 

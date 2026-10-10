@@ -32,7 +32,7 @@ import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
 import { SECTION_LOAD_FAILED } from './load-section';
 import { getOrInsertComputed } from '@/lib/array';
-import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
 import { formatElapsed } from '@/lib/format/time';
 
 export interface CronSignals {
@@ -170,7 +170,7 @@ export function formatSliValue(key: keyof SliSignals, value: Loaded<number | nul
   if (value === SECTION_LOAD_FAILED) return 'unavailable';
   if (value === null || Number.isNaN(value)) return 'no data';
   if (key === 'latencyP95') return `${formatQuantity(value)} ms`;
-  return `${(value * 100).toFixed(1)}%`;
+  return formatPct(value * 100);
 }
 
 export function sliTargetLabel(key: keyof SliSignals): string {

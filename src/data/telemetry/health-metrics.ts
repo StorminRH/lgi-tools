@@ -176,6 +176,15 @@ export interface EsiSourceStatusInput {
 
 const FALLBACK_RED_RATE = 0.5;
 
+/** Fuzzwork's share of priced items as a whole percent; a real fallback never rounds down to `0%`. */
+export function formatFallbackShare(fallback: Pick<FallbackRateData, 'esi' | 'fallback'>): string {
+  const priced = fallback.esi + fallback.fallback;
+  if (priced === 0) return 'no data';
+  const pct = (fallback.fallback / priced) * 100;
+  if (pct > 0 && pct < 1) return '<1%';
+  return `${Math.round(pct)}%`;
+}
+
 export function deriveEsiSourceStatus({
   fallback,
   budgetExhaustions,
@@ -184,13 +193,13 @@ export function deriveEsiSourceStatus({
   if (denom === 0) return { level: 'neutral', value: 'idle', note: 'no price refreshes this period' };
 
   const rate = fallback.fallback / denom;
-  const ratePct = rate * 100 < 1 && rate > 0 ? '<1%' : `${Math.round(rate * 100)}%`;
+  const share = formatFallbackShare(fallback);
   if (rate > FALLBACK_RED_RATE) {
-    return { level: 'red', value: 'degraded', note: `Fuzzwork covered ${ratePct} of priced items` };
+    return { level: 'red', value: 'degraded', note: `Fuzzwork covered ${share} of priced items` };
   }
   if (fallback.fallback > 0 || budgetExhaustions > 0) {
     const parts: string[] = [];
-    if (fallback.fallback > 0) parts.push(`${ratePct} fallback`);
+    if (fallback.fallback > 0) parts.push(`${share} fallback`);
     if (budgetExhaustions > 0) parts.push(formatCount(budgetExhaustions, 'budget exhaustion'));
     return { level: 'amber', value: 'partial', note: parts.join(' · ') };
   }

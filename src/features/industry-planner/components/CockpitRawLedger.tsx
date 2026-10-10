@@ -69,7 +69,7 @@ function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshin
                 × {formatQuantity(row.quantity)}
               </span>
               <LivePrice
-                value={row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
+                value={formatIsk(row.extendedCost)}
                 pending={refreshing}
                 className="whitespace-nowrap text-ui text-text"
               />

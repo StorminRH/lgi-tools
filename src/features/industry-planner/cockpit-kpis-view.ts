@@ -62,7 +62,7 @@ export function sellTileView(pricing: BlueprintPricing | null): SellTileView {
     thinAnchor,
     discount,
     hasBadge: thinAnchor !== null || discount !== null,
-    revenue: pricing?.summary ? formatIsk(pricing.summary.revenue) : '—',
+    revenue: formatIsk(pricing?.summary.revenue ?? null),
   };
 }
 
@@ -75,7 +75,7 @@ export function inputCostView(pricing: BlueprintPricing | null): InputCostView {
   const summary = pricing?.summary ?? null;
   return {
     bases: summary?.bases ?? null,
-    inputCost: summary ? formatIsk(summary.inputCost) : '—',
+    inputCost: formatIsk(summary?.inputCost ?? null),
   };
 }
 
