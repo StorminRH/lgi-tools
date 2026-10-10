@@ -1,0 +1,90 @@
+{
+ "wave": 9,
+ "heading": "Wave 9: Auth, routes and the mutation/transport pipeline",
+ "briefs": [
+  {
+   "tech": "Next.js 16.3.4 (with React 19.2.8 server semantics)",
+   "focus": "Read the installed docs, not memory: node_modules/next/dist/docs/01-app/03-api-reference/04-functions/{after,redirect,unstable_rethrow,headers,connection}.md, 03-file-conventions/route.md (handler signature with `{ params: Promise<...> }`, Response.redirect(url, 303), whether `export const GET = factory(...)` is accepted), 01-directives/use-cache.md ('use cache: private' and the ban on after()/headers inside it), and 02-guides/redirecting.md plus authentication-with-cache-components.md. Confirm where after() may be called (route handlers, Server Components, not in 'use cache'), and that redirect() throws NEXT_REDIRECT, which tests see as 'NEXT_REDIRECT <url>'. In node_modules/react, confirm that React 19.2.8 cache() memoizes only inside a Server Component render and not in route handlers (P176 note 4). Also confirm that Flight rejects a function child passed to a 'use client' component (the P255 prototype-key crash). Read these repo files first: src/app/api/mutation-route.ts, src/app/api/capability-route.ts, src/composition/session.ts, src/composition/route-guards.ts, src/app/api/auth/[...all]/route.ts, src/app/(site)/admin/load-section.ts, src/app/(site)/atlas/AtlasBound.tsx, src/app/api/market-refresh-route.ts."
+  },
+  {
+   "tech": "Better Auth 1.6.30",
+   "focus": "Read node_modules/better-auth/dist at 1.6.30 for these:\n- auth.api.getSession with the customSession plugin: the return shape, and whether customSession re-runs on a cookie-cache hit.\n- auth.api.unlinkAccount: its arguments, and FAILED_TO_UNLINK_LAST_ACCOUNT in dist/api/routes/account.mjs (~243).\n- The P161 security premise, to re-confirm: findOAuthUser's fallback lookup by email (dist/db/internal-adapter.mjs ~429-475), handleOAuthUserInfo's implicit linking, and overrideUserInfo (dist/oauth2/link-account.mjs 9-76). Note the exact accountLinking option names, for example disableImplicitLinking and allowDifferentEmails.\n- The genericOAuth config: clientId/clientSecret are read at load time.\n- The client authClient.signIn.oauth2 and authClient.oauth2.link: their return types, and whether a network failure rejects (better-fetch 1.3.1 without catchAllError).\nRead these repo files first: src/platform/auth/auth.ts, src/composition/auth.ts, src/platform/auth/auth-client.ts, src/platform/auth/link-character.ts, src/platform/auth/session-identity.ts, src/platform/auth/account-purge.ts, src/app/api/account/characters/unlink/route.ts."
+  },
+  {
+   "tech": "Zod 4.5.4",
+   "focus": "Read the type definitions of zod 4.5.4 as installed (node_modules/zod, v4 classic) and check these:\n- z.ZodTypeAny compared with z.ZodType in v4.\n- Whether `keyof z.input<S> & string` gives usable field names for P251's `fields` parameter when S is a union schema with no .shape (the wh-statics action union).\n- What z.coerce.number().int().positive() does with null (coerces to 0) and with undefined (NaN).\n- The element type of issue.path in v4 (PropertyKey, symbols included) and the result of path.join.\n- z.enum over a readonly tuple.\n- safeParse typing on an endpoint's `params` schema (the P153 sketch).\nRead these repo files first: src/transport/route-body.ts, src/transport/endpoint.ts (parseQueryInput ~188-197, EndpointContract and params typing), src/platform/auth/api-contract.ts, src/data/wh-statics/api-contract.ts, src/data/eve-data/api-contract.ts, src/data/maps/api-contract.ts."
+  },
+  {
+   "tech": "Drizzle ORM 0.45 (neon-http and postgres-js)",
+   "focus": "Check drizzle-orm 0.45.x as installed, against both drivers in src/db/index.ts (the neon-http `db` and the postgres-js direct client):\n- and(), eq() and ne() return SQL | undefined.\n- sql template interpolation of columns from alias() tables (admin-users' linkedAccount/linkedCharacter), and the AnyPgColumn import path (drizzle-orm/pg-core).\n- exists() with a subquery inside update().set().where(), and .returning() on an update under neon-http. This backs P256's ownership-checked setActiveCharacter, which returns a boolean.\n- new PgDialect().sqlToQuery for asserting predicate SQL and params in unit tests (P222).\nRead these repo files first: src/db/index.ts, src/db/auth-schema.ts, src/platform/auth/eve-account-shared.ts and eve-account-shared.test.ts, src/platform/auth/admin-users.ts, src/platform/auth/linked-characters.ts, src/platform/auth/account-purge.ts, src/db/locked-user.ts."
+  },
+  {
+   "tech": "Vitest 4.1",
+   "focus": "Check these APIs in vitest 4.1.11 as installed:\n- vi.stubEnv and vi.unstubAllEnvs. vitest.config.ts sets no unstubEnvs, so tests must restore env themselves.\n- vi.mock factories with importOriginal partial mocks, and vi.hoisted.\n- Mocking next/server `after` and next/navigation redirect and unstable_rethrow.\n- vi.useFakeTimers toFake options, including performance and Date, and vi.spyOn(performance, 'now'), for P160 and P176's interval.\n- vi.mocked.\nTests are *.test.ts only.\nRead and reuse the wave-2 helpers:\n- src/lib/__tests__/route-requests.ts (postForm, postJson, postEmpty)\n- src/composition/__tests__/session-fixture.ts (sessionFixture, adminSessionFixture)\n- src/lib/__tests__/source-scan.ts (listRouteFiles, filesMatching, valueImportSpecifiers), for P143's OnView guard\n- src/lib/__tests__/console-tags.ts (silenceConsolePrefixes)\n- src/db/__tests__/support/db-test-harness.ts\nAlso read the inventory tests this wave must update: src/app/api/guard-emissions.test.ts, src/app/api/same-origin-coverage.test.ts and src/app/api/api-contracts.test.ts."
+  }
+ ],
+ "waveCautions": "No Convex changes and no codegen. The admin and account form routes are one hotspot chain: land P251, P141, P146, P255, P256, P250 and P161 in that order, each changing only its own layer. The README conflict resolutions override the item write-ups:\n- P251's parseFormBody(request, schema, fields), with 'invalid_form' and `Invalid <field>`, replaces P146's formData guard, formFields and per-route detail strings.\n- Only P146 defines seeOther(request, path, {query, failure}).\n- The auth_error tuple lives in platform/auth/api-contract.ts.\n- P222 drops signInWithEve. P067 (wave 8, not started) owns startEveSignIn and the sign-in call sites, but P222 still adds the catch to startCharacterLink.\n\nMerge the switch and unlink form schemas once, in P146 or P306, not both. P167 rewrites the preview page before P254 does. P256 already performs P161's single roster read for admin unlink. Add seeOther and apiFailure to PROTECTED_RESPONSE_EXPORTS. After P141, P250 must also pass `endpoint` for account/delete and feedback. Some sites drifted: the superadmin parses moved to AccessCards.tsx and UserDetailCards.tsx, and the statics copy to statics-view.ts. P251, P141 and P255 change status codes. P176 and P161 are medium risk: land P176's throttle before the guard switch, and P161, a security fix, needs DB regressions. Notes left by earlier waves: P138 sees AccountDangerZone importing HelpPopover from ui/help-popover (P007), not Popover, and using the shared useConfirmGate from ui/use-confirm-gate (P056). For items that add, remove or rename routes or pages, run `node scripts/assert-routes-present.mjs` before committing: GitHub's Verify job (which also checks routes) runs only on manual dispatch, not on PRs.",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P250 step 6 / P306 step 7 (move active-character and sync-leave onto rateLimitPreflight)",
+   "evidence": "Done by P142: src/app/api/account/active-character/route.ts:5,16-20 and src/app/api/sync-leave/route.ts:2,14-18 already call rateLimitPreflight(..., problemResponse)."
+  },
+  {
+   "item": "P306 step 5 (same-origin fallback via PRODUCTION_SITE_URL)",
+   "evidence": "Done by P136: src/platform/auth/same-origin.ts:1 imports PRODUCTION_SITE_URL, and line 28 uses it as the final fallback."
+  },
+  {
+   "item": "P176 step 3 (reuse the get-session response body for the background check)",
+   "evidence": "Done by P287: src/app/api/auth/[...all]/route.ts:14 defines sessionUserId, and :24-26 clone the response and parse it inside after() instead of calling auth.api.getSession."
+  },
+  {
+   "item": "P250 step 5 (internal route status ternaries)",
+   "evidence": "src/app/api/internal/ now holds only eve-token (P303 deleted eve-characters). Only src/app/api/internal/eve-token/route.ts:20 keeps the `not_configured' ? 500 : 401` ternary."
+  },
+  {
+   "item": "P167 steps 6-7 (Promise.all for the admin list; parse superadmin once on the user page)",
+   "evidence": "Already restructured: src/app/(site)/admin/users/AccessCards.tsx:28-31 runs the superadmin lookup in Promise.all with the isFinite && > 0 guard, and src/app/(site)/admin/users/[userId]/UserDetailCards.tsx:29,36 parses once. Only the swap to superadminCharacterId() remains, and the sites listed in the write-up (page.tsx) are stale."
+  },
+  {
+   "item": "P306 step 3 (drop isDeleteAcknowledged from the platform/auth coverage pin)",
+   "evidence": "src/platform/auth/coverage.test.ts no longer exists (the only coverage.test.ts left is src/db/coverage.test.ts). isDeleteAcknowledged is referenced only at AccountDangerZone.tsx:20,242,250 and account-actions.ts:63, so there is no pin to remove. The function itself still needs deleting."
+  },
+  {
+   "item": "P222 step 6 (backfill script literals) and part of step 1 (EVE_PROVIDER_ID imports)",
+   "evidence": "src/scripts/backfill-users-if-empty.ts is already deleted (P296, per the README conflict entry). src/composition/synthetic-pilot-store.ts:19, src/data/maps/*.ts and src/features/net-worth/queries.ts:4 already import from @/lib/eve-provider. Remaining: the platform/auth files that import via ./eve-sso, owner-hash-claim.ts:1 and characters/unlink/route.ts:11 via eve-sso-constants, and the 'eve' literals at data/telemetry/queries.ts:297,336."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P250",
+   "dependsOn": "P142",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P306",
+   "dependsOn": "P142",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P306",
+   "dependsOn": "P136",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P222",
+   "dependsOn": "P067",
+   "dependencyWave": 8,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P176",
+   "dependsOn": "P287",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

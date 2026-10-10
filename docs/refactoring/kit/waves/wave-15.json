@@ -1,0 +1,120 @@
+{
+ "wave": 15,
+ "heading": "Wave 15: Mapper client: canvas, tracking, scanner and authoring",
+ "briefs": [
+  {
+   "tech": "React 19.2 (react 19.2.8, @types/react 19.2.18, eslint-plugin-react-hooks 7.1.1)",
+   "focus": "React 19.2.8 as installed, with no React Compiler (next.config.ts has no reactCompiler). Cover callback refs: when React re-invokes a ref callback whose identity changed (detach with null, then attach), when that happens relative to layout effects and paint, what a ref callback that returns a cleanup function changes (React then does not call it with null, which matters for forwarding to a ForwardedRef), and dev StrictMode double-invoking ref callbacks and effects. Also cover useCallback/useMemo dependency identity, a useState lazy initializer as a stable holder for a closure that reads refs, and what the eslint-plugin-react-hooks 7.1.1 rules shipped by eslint-config-next 16.3.4 (refs, immutability, set-state-in-render, exhaustive-deps) say about mutating node.style inside a ref callback and reading ref.current inside a deferred closure. Read these first: src/AGENTS.md (the runtime CSS rule), the inline-style rule in eslint.config.mjs, src/mapper/windows/MapWindow.tsx (useWindowRootRef, assignForwardedRef), src/mapper/fog/FogLayer.tsx (useFogScheduler), src/mapper/canvas/ChainLinkEdge.tsx, src/components/ui/progress-bar.tsx and its .css (CSS @starting-style for the grow-in decision)."
+  },
+  {
+   "tech": "React Flow (@xyflow/react 12.11.6, @xyflow/system 0.0.82)",
+   "focus": "@xyflow/react 12.11.6 with @xyflow/system 0.0.82 as installed. Read the InternalNode/InternalNodeBase types in node_modules/@xyflow/system/dist/esm/types/nodes.d.ts (internals.positionAbsolute, z, userNode, measured, width/height) to confirm that a minimal structural MeasuredNode accepts what useInternalNode() and useReactFlow().getInternalNode() return. Also read the setViewport and setCenter signatures, their Promise return, and ViewportHelperFunctionOptions (duration, ease, interpolate) in types/general.d.ts; useStore and useStoreApi with an equality function; and when EdgeLabelRenderer renders null before its portal node exists. Read these repo files first: src/mapper/canvas/use-camera-follow.ts, camera-follow-model.ts, edge-geometry.ts, ChainLinkEdge.tsx, ChainSurface.tsx, src/mapper/windows/follower-model.ts and MapWindowLayer.tsx."
+  },
+  {
+   "tech": "Base UI (@base-ui/react 1.7.0)",
+   "focus": "@base-ui/react 1.7.0 as installed. Read node_modules/@base-ui/react/docs/react and the package type definitions; do not rely on memory. Note that src/components/ui/combobox.tsx wraps Autocomplete, not Combobox. Cover: Autocomplete Root value/onValueChange and its details.reason values including 'item-press', items with groups, filter={null}, openOnInputClick, and Enter on the Input with a highlighted item. Select Root's items label map and triggerLabel (see labelMapOf in ui/select.tsx). Toggle and ToggleGroup: multiple, value/onValueChange, aria-pressed, data-pressed and roving focus. The Dialog and Drawer popup attributes (role=dialog, data-open, hidden while exiting), and Escape handling in floating-ui-react/hooks/useDismiss.js (document listener, preventDefault, escapeKeyBubbles). Collapsible, and Menu CheckboxItem. Read these repo files first: src/components/ui/combobox.tsx, combobox-pick.ts (P039's pickOrType), terminal-search.tsx, select.tsx, portrait-toggle.tsx, drawer.tsx, dialog.tsx, stepper.tsx, src/mapper/signatures/scanner-combo-panel.tsx, scanner-scroll-dismiss.tsx, and ADOPTED_POPUP_SELECTOR in src/mapper/windows/MapWindow.tsx."
+  },
+  {
+   "tech": "Convex (convex 1.45.0)",
+   "focus": "convex 1.45.0 as installed. Cover ConvexError: its data payload, why its message is the JSON of the data, and what a client useMutation promise rejects with, so a structural readConvexError (duck-typed on data.code and data.detail) matches real errors and the plain-object test mocks alike. Cover optimistic updates: OptimisticLocalStore getAllQueries/getQuery/setQuery, withOptimisticUpdate, optimisticallyUpdateValueInPaginatedQuery, insertAtTop and insertAtBottomIfLoaded, and the FunctionReference/FunctionArgs/FunctionReturnType typing that a generic loadedPages(localStore, query, mapId) over paginated queries needs. Confirm that src/lib and src/data modules imported from convex/lib bundle in the default (non-Node) runtime. Read these first: src/data/convex/use-mutation.ts, use-live-value.ts, src/mapper/chain/optimistic-authoring.ts and its test's mockStore, convex/lib/errorCode.ts, convex/lib/mapScanApply.ts, convex/mapTrackingOptIn.ts, convex/mapChainConnections.ts, convex/mapAuthoringCollapse.ts (runBranchRestore), and .claude/cloud/GUIDE.md for codegen."
+  },
+  {
+   "tech": "Vitest (vitest 4.1.11)",
+   "focus": "Vitest 4.1.11 as installed. Tests are *.test.ts only and run in the node environment, with no jsdom (vitest.config.ts); markup comes from react-dom/server renderToStaticMarkup. Cover: vi.mock hoisting with factory and importOriginal partial mocks of 'react'; await vi.hoisted(async () => ...) for createHookRuntime; vi.stubGlobal and vi.unstubAllGlobals for requestAnimationFrame, cancelAnimationFrame, ResizeObserver, document and window; expect(promise).rejects.toBeInstanceOf; and toEqual vs toStrictEqual. Read these first: src/lib/__tests__/hook-runtime.ts (per-kind slot cursors) and source-scan.ts, src/mapper/chain/surface.test.ts (manifest and contracts), src/mapper/windows/MapWindow.input.test.ts, MapWindowLayer.card.test.ts, src/components/composition/board/HomeBoardView.focus.test.ts (useRef by slot, useEffect no-op), src/mapper/canvas/SystemIntelMarks.test.ts, the selectHandlers pattern in src/mapper/authoring/connection-fields.test.ts, and convex/__tests__/convexTest.setup.ts for P216's strict ConvexError-code assertions."
+  }
+ ],
+ "waveCautions": "Mapper is one zone, but new ui homes (P044 use-style-ref.ts, P051 popup-open.ts, P028's portrait-toggle prop) may import only react, and src/lib/convex-error.ts (P217) only config: decode structurally, no convex/values. src/mapper/chain/surface.test.ts holds a sorted manifest of every non-test mapper file; update it on each add, delete or rename (P308, P109, P111, P027, P029, P030, P032, P033, P092, P139, P298) and keep its contracts: no 'convex/' imports in mapper, useMutation only in its four named files (keep useMapTrackingToggle in TrackingControls.tsx), no restoreSystem or tombstone* names outside optimistic-authoring. Conflict resolutions: P028 and P038 land as one PR; P030's connection-labels.ts is the only labels module, P092 owns scanner-optional-select.tsx, P031 drops its select step. P298 needs P072 and P032 needs P075, both not started in this tree: confirm on the base or defer. P310 must keep layout floats bit-identical. Chains: HomePrompt (P217, P028, P029, P269), follower-model and edge-geometry (P307, P055, P109, P111), connection-fields and scanner selects (P029, P030, P092, P031); P218 last. Behaviour changes needing red-to-green tests and PR notes: P028, P029, P032, P033, P044 ProgressBar grow-in, P051, P139, P217, P218. No Convex function changes, so no codegen unless a convex/ file is added. Notes left by earlier waves: P028's AFK plumbing step is already done (P059). P218's deathWindowFrom dependency is done: every death window is built through deathWindowFrom (P329). Connection door sides use ConnectionDoorSide and CONNECTION_DOOR_SIDES (P262); the wormhole codex has one code index, indexWormholeCodex, lowest typeId wins (P124).",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P044 step 8 (use-chain-dials motion loop and the ChainLive late-mounted shell bug)",
+   "evidence": "Already removed by P277 (commit 8bbf94a9). src/mapper/chain/use-chain-dials.ts:18-44 now only returns state, with no setProperty and no shellRef. src/mapper/chain/ChainLive.tsx has no shellRef. The only remaining motion writer is src/mapper/canvas/ChainSurface.tsx:61, so P044 migrates ChainSurface only and its note that 'both loops must stay' is obsolete."
+  },
+  {
+   "item": "P307 step 5 (replace sameStack and sameSelectedIds with one sameIds)",
+   "evidence": "Done by P112 (commit b450ef78). src/mapper/windows/MapWindowLayer.tsx:13 imports sameItems from '@/lib/array' and uses it at :42 and :65. sameStack and sameSelectedIds no longer exist, so do not add a local sameIds. Still pending: useSurfacePresence (:45-60) and the no-op useCallback([liveIds]) (:67-72)."
+  },
+  {
+   "item": "P310 steps 2 and 4 (the get-or-create Set write in take and tryTake)",
+   "evidence": "Partly done by P101 (commit ee9160fa). src/mapper/layout/compass.ts:1 imports getOrInsertComputed, and take() at :141-143 and tryTake at :151 already use it. Still pending: the ring-slot hoist (:124-127 vs :146-150), the non-async kernel at :222, and the try/catch in layout.worker.ts:40-45. Note that tryTake now inserts an empty Set before the has() check, which the write-up's 'no map write when taken' note should be weighed against."
+  },
+  {
+   "item": "P092 step 7, second half (remove the test-only scannerWormholeSize and scannerWormholeLifetime)",
+   "evidence": "Deleted by P312 (commit bb181e7d). grep for both names under src/ returns nothing."
+  },
+  {
+   "item": "P044 step 2 (keep SignalFill's 0..100 clamp)",
+   "evidence": "The clamp is already the shared clampPct from @/lib/math (P105): src/mapper/signatures/scanner-row-cells.tsx:29-32. Keep using clampPct inside useStyleProperty."
+  },
+  {
+   "item": "P109 note (leader-path's private round() becomes roundTo)",
+   "evidence": "Done by P105. src/mapper/windows/leader-path.ts:1 and :10 use roundTo from '@/lib/math'. LeaderPoint and toward (:3-22) remain for P109."
+  },
+  {
+   "item": "P032 ('Character N' fallback)",
+   "evidence": "useCharacterIdentities already falls back through nameOrUnresolved (P094) at src/mapper/tracking/use-character-identities.ts:5 and :24. Only friendlyRows still uses String(id) (src/mapper/tracking/presence-model.ts:131). The test fallback in step 1 should use unresolvedName('character', id) from '@/lib/format/names', not a hand-written template."
+  },
+  {
+   "item": "P031 (item-press vs typing split in the three scanner combos)",
+   "evidence": "P039 (commit 7c76bda8) added pickOrType in src/components/ui/combobox-pick.ts. All three scanner combos already route through it: scanner-type-combo.tsx:108, scanner-identify-combo.tsx:125 and scanner-leads-control.tsx:262. The ScannerCombo shell should wrap pickOrType rather than re-check details.reason."
+  },
+  {
+   "item": "P217 step 5 (rebuild convex/lib/errorCode.ts)",
+   "evidence": "convex/lib/errorCode.ts:2 and :10 already fall back through errorMessage from '@/lib/failure' (P151). The rebuilt version should be readConvexError(error)?.code ?? errorMessage(error), not the sketch's inline instanceof expression."
+  },
+  {
+   "item": "P028 (reconnect styling)",
+   "evidence": "Partly done. src/components/ui/portrait-toggle.tsx:9 already styles data-[pressed] and data-[tracking-reconnect], and CharacterPortraitMenuItems already emits data-tracking-reconnect (src/components/character-portrait-picker.tsx:126) and takes itemLabel (:108). Still needed: the PortraitToggle reconnect prop, CharacterPortraitPicker's itemLabel (:58-95), and the HomePrompt rewrite. HomePrompt.tsx:21, :38, :93 and :101 are unchanged."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P044",
+   "dependsOn": "P277",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P028",
+   "dependsOn": "P059",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P031",
+   "dependsOn": "P039",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P032",
+   "dependsOn": "P075",
+   "dependencyWave": 12,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P298",
+   "dependsOn": "P072",
+   "dependencyWave": 13,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P218",
+   "dependsOn": "P082",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P218",
+   "dependsOn": "P329",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P218",
+   "dependsOn": "P262",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

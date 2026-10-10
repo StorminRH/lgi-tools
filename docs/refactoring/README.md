@@ -35,6 +35,7 @@ This is a living document. Update it in the same PR that lands, revises, or reje
 
 ## How to use this guide
 
+- Carrying on from wave 8? Start with [HANDOFF.md](HANDOFF.md): where things stand, how the waves are run with the kit in [`kit/`](kit/), and what waves 1 to 7 learned.
 - Each item has a stable ID (`P###`; gaps are candidates merged into another item or rejected). Its full write-up is in the wave file: problem, verified sites, home, boundary check, API sketch, migration steps, tests, and notes.
 - Work in wave order and respect **Depends on**. Take one item, or one tightly coupled cluster named under [Conflicts](#conflicts-to-reconcile), per PR against `development`.
 - Line ranges were correct at the audit commit and will drift. Re-open every listed site before editing, and grep for sites added since.
