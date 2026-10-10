@@ -5,7 +5,6 @@ import { eveStatusSections, serverStatusPresentation } from './server-status-pre
 const ONLINE = {
   state: 'online',
   players: 13_459,
-  build: '3569502',
   startedAt: '2026-10-03T11:03:02Z',
 } as const;
 
@@ -14,7 +13,7 @@ const HEALTHY: EsiHealth = {
   budget: { state: 'live', remaining: 84, ceiling: 100 },
 };
 
-const SDE = { build: '3569502', ingestedAt: new Date('2026-10-02T16:50:42Z') };
+const SDE = { build: '3569502', ingestedAt: new Date('2026-10-02T16:50:42Z'), latestPublished: '3569502' };
 
 const values = (sections: ReturnType<typeof eveStatusSections>) =>
   Object.fromEntries(
@@ -53,16 +52,25 @@ test('eveStatusSections reads Tranquility, ESI and the ingested SDE', () => {
 });
 
 test('eveStatusSections flags what needs attention and admits what it cannot read', () => {
-  const newerServer = { ...ONLINE, state: 'vip', build: '3570100', startedAt: null } as const;
+  const vipServer = { ...ONLINE, state: 'vip', startedAt: null } as const;
+  const newerPublished = { ...SDE, latestPublished: '3570100' };
   const quiet: EsiHealth = { availability: { state: 'idle' }, budget: { state: 'paused', remaining: 3, ceiling: 100 } };
-  expect(values(eveStatusSections({ status: newerServer, sde: SDE, esi: quiet }))).toEqual({
+  expect(values(eveStatusSections({ status: vipServer, sde: newerPublished, esi: quiet }))).toEqual({
     Tranquility: ['Status: VIP only (amber)', 'Players: 13,459 (green)'],
     ESI: ['Success, last hour: No calls (neutral)', 'Error budget: Paused (red)'],
     'Static data': ['Build: 3569502 · behind (amber)', 'Ingested: 2 Oct 2026 (green)'],
   });
 
+  // A manual ingest can load a build newer than the one the cron last recorded: not behind.
+  const olderRecorded = { ...SDE, latestPublished: '3569400' };
+  expect(values(eveStatusSections({ status: ONLINE, sde: olderRecorded, esi: HEALTHY }))['Static data']).toEqual([
+    'Build: 3569502 (green)',
+    'Ingested: 2 Oct 2026 (green)',
+  ]);
+
   const unknown: EsiHealth = { availability: { state: 'unknown' }, budget: { state: 'unknown' } };
-  expect(values(eveStatusSections({ status: { state: 'offline' }, sde: SDE, esi: unknown }))).toMatchObject({
+  const unchecked = { ...SDE, latestPublished: null };
+  expect(values(eveStatusSections({ status: { state: 'offline' }, sde: unchecked, esi: unknown }))).toMatchObject({
     Tranquility: ['Status: Offline (red)'],
     'Static data': ['Build: 3569502 (green)', 'Ingested: 2 Oct 2026 (green)'],
   });

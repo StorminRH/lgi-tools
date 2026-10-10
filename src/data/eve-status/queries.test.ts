@@ -53,7 +53,6 @@ describe('getNavServerStatus', () => {
     await expect(getNavServerStatus()).resolves.toEqual({
       state: 'online',
       players: 13_459,
-      build: '3430261',
       startedAt: null,
     });
     expect(h.cacheLife).toHaveBeenCalledWith({
@@ -104,10 +103,14 @@ describe('getNavServerStatus', () => {
 describe('getIngestedSdeBuild', () => {
   it('gives the recorded build, or none when nothing is recorded or the read fails', async () => {
     const ingestedAt = new Date('2026-10-02T16:50:42Z');
-    h.sdeVersion.mockResolvedValueOnce({ version: '3569502', ingestedAt });
-    await expect(getIngestedSdeBuild()).resolves.toEqual({ build: '3569502', ingestedAt });
+    h.sdeVersion.mockResolvedValueOnce({ version: '3569502', ingestedAt, latestPublished: '3586130' });
+    await expect(getIngestedSdeBuild()).resolves.toEqual({
+      build: '3569502',
+      ingestedAt,
+      latestPublished: '3586130',
+    });
 
-    h.sdeVersion.mockResolvedValueOnce({ version: null, ingestedAt: null });
+    h.sdeVersion.mockResolvedValueOnce({ version: null, ingestedAt: null, latestPublished: null });
     await expect(getIngestedSdeBuild()).resolves.toBeNull();
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

@@ -35,7 +35,7 @@ async function EsiContent({ searchParams }: { searchParams: RangeSearchParams })
         <AdminSection
           title="Rate-limit pressure"
           name="pressure"
-          rows={5}
+          rows={6}
           reveal={2}
           slotClassName="h-full"
           className="h-full"

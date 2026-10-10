@@ -45,6 +45,9 @@ test('a figure that rounds up to 1000 moves to the next tier', () => {
   expect(formatIskCompact(999_600_000)).toBe('1.0B');
   expect(formatIsk(999_960)).toBe('1.00M');
   expect(formatIsk(999_996_000)).toBe('1.00B');
+  expect(formatIsk(999.996)).toBe('1.0K');
+  expect(formatIsk(-999.996)).toBe('-1.0K');
+  expect(formatIsk(999.994)).toBe('999.99');
 });
 
 test('the unit option appends ISK to a figure but never to the em-dash', () => {

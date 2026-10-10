@@ -1,11 +1,16 @@
 import { revalidateTag } from 'next/cache';
 import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
-import { SDE_CACHE_TAG, SDE_META_KEY_VERSION } from '@/data/eve-data/constants';
+import {
+  SDE_CACHE_TAG,
+  SDE_META_KEY_LATEST_PUBLISHED,
+  SDE_META_KEY_VERSION,
+  SDE_VERSION_CACHE_TAG,
+} from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { ADVISORY_LOCKS } from '@/db/advisory-lock';
-import type { PostgresJsDb } from '@/lib/db-types';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import {
   runSdePipeline,
   summarizeMarketPricesRowCount,
@@ -16,6 +21,17 @@ export type SdePreLock = {
   storedVersion: string | null;
   remoteVersion: string | null;
 };
+
+/**
+ * CCP can withdraw a build after a run recorded it as the newest. Once its
+ * manifest matches what LGI has loaded again, the recorded build follows, so
+ * the status readout stops saying LGI is behind.
+ */
+async function settleLatestPublished(db: AnyPgDb, remoteVersion: string): Promise<void> {
+  if ((await getSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED)) === remoteVersion) return;
+  await setSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED, remoteVersion);
+  revalidateTag(SDE_VERSION_CACHE_TAG, 'max');
+}
 
 export const refreshSdeDeclaration: CronRouteDeclaration<
   CronRefreshSdeResponse,
@@ -41,6 +57,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     const remoteVersion = await getRemoteSdeVersion();
 
     if (remoteVersion !== null && storedVersion === remoteVersion) {
+      await settleLatestPublished(db, remoteVersion);
       return {
         done: {
           outcome: 'up-to-date',
@@ -66,6 +83,13 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
           },
         },
       };
+    }
+
+    // Record the newer build before the ingest so the status readout can
+    // say LGI is behind until the ingest lands, however that goes.
+    if (remoteVersion !== null) {
+      await setSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED, remoteVersion);
+      revalidateTag(SDE_VERSION_CACHE_TAG, 'max');
     }
 
     return { proceed: { db, storedVersion, remoteVersion } };

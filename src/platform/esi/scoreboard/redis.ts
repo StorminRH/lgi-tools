@@ -1,9 +1,12 @@
 import { createUpstashClient, type UpstashRedis } from '@/lib/upstash';
+import { isFailedCall, sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
   epochMinute,
   keyBlock,
+  keyCallCount,
   keyErrorCount,
+  keyFailureCount,
   KEY_ERROR_ECHO,
   keyEtagBody,
   keyEtagMeta,
@@ -15,8 +18,10 @@ import {
 } from './keys';
 import { effectiveRemaining } from './budget';
 import {
+  CALL_COUNT_TTL_SECONDS,
   ERROR_COUNT_TTL_SECONDS,
   ETAG_TTL_SECONDS,
+  type EsiAvailabilitySnapshot,
   type EsiReport,
   type EsiBudgetSnapshot,
   type EsiScoreboard,
@@ -89,15 +94,41 @@ class RedisScoreboard implements EsiScoreboard {
     };
   }
 
+  async availabilitySnapshot(): Promise<EsiAvailabilitySnapshot> {
+    const minutes = windowMinutes(epochMinute());
+    const rows = await this.redis.mget<(string | null)[]>(
+      ...minutes.map(keyCallCount),
+      ...minutes.map(keyFailureCount),
+    );
+    const counts = rows.map((row) => parseStoredInt(row ?? null));
+    return {
+      calls: sumCounts(counts.slice(0, minutes.length)),
+      failures: sumCounts(counts.slice(minutes.length)),
+      source: 'shared',
+    };
+  }
+
   async report(report: EsiReport): Promise<void> {
     const pipeline = this.redis.pipeline();
     const queued = [
+      this.queueCallCount(pipeline, report),
       this.queueErrorCount(pipeline, report),
       this.queueErrorEcho(pipeline, report),
       this.queueRetryBlock(pipeline, report),
       this.queueEtag(pipeline, report),
     ];
     if (queued.some(Boolean)) await pipeline.exec();
+  }
+
+  private queueCallCount(pipeline: Pipeline, report: EsiReport): boolean {
+    const minute = epochMinute();
+    const keys = [keyCallCount(minute)];
+    if (isFailedCall(report.status)) keys.push(keyFailureCount(minute));
+    for (const key of keys) {
+      pipeline.incr(key);
+      pipeline.expire(key, CALL_COUNT_TTL_SECONDS);
+    }
+    return true;
   }
 
   private queueErrorCount(pipeline: Pipeline, report: EsiReport): boolean {

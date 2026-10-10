@@ -9,7 +9,7 @@ import { gscSearchAnalytics, gscUrlInspection } from '@/data/gsc/schema';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { pruneUsageLogs } from '@/data/telemetry/queries';
 import { usageLogs } from '@/data/telemetry/schema';
-import { retentionCutoff, retentionCutoffDay } from '@/lib/batched-delete';
+import { retentionCutoff } from '@/lib/batched-delete';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
@@ -45,11 +45,10 @@ function aroundCutoff(retentionDays: number) {
 describe.skipIf(!harness.reachable)('table retention prunes execute against Postgres', () => {
   it('deletes rows beyond each retention horizon and preserves the boundary', async () => {
     const database = harness.db;
-    const gscDays = {
-      old: retentionCutoffDay(GSC_RETENTION_DAYS + 1, NOW),
-      boundary: retentionCutoffDay(GSC_RETENTION_DAYS, NOW),
-      new: retentionCutoffDay(GSC_RETENTION_DAYS - 1, NOW),
-    };
+    // Written out, not derived from retentionCutoffDay, so a cutoff that drifts
+    // a day later fails here instead of moving the fixture with it.
+    expect(GSC_RETENTION_DAYS).toBe(400);
+    const gscDays = { old: '2025-06-08', boundary: '2025-06-09', new: '2025-06-10' };
     const audit = aroundCutoff(CORP_ACCESS_AUDIT_RETENTION_DAYS);
     const events = aroundCutoff(DOMAIN_EVENT_RETENTION_DAYS);
     const usage = aroundCutoff(USAGE_LOG_RETENTION_DAYS);

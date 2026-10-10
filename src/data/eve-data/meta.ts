@@ -1,8 +1,13 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
-import { SDE_CACHE_TAG, SDE_META_KEY_VERSION } from './constants';
+import {
+  SDE_CACHE_TAG,
+  SDE_META_KEY_LATEST_PUBLISHED,
+  SDE_META_KEY_VERSION,
+  SDE_VERSION_CACHE_TAG,
+} from './constants';
 import { eveDataMeta } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
 
@@ -15,21 +20,30 @@ export async function getSdeMetaValue(db: AnyPgDb, key: string): Promise<string 
   return row?.value ?? null;
 }
 
+/**
+ * The SDE build LGI has ingested and when, plus the newest build CCP had
+ * published when the cron last checked, so a reader can tell the two apart.
+ */
 export async function getCachedSdeVersion(): Promise<{
   version: string | null;
   ingestedAt: Date | null;
+  latestPublished: string | null;
 }> {
   'use cache';
   cacheLife('max');
-  cacheTag(SDE_CACHE_TAG);
+  cacheTag(SDE_CACHE_TAG, SDE_VERSION_CACHE_TAG);
   return withColdStartRetry(async () => {
-    const [row] = await db
-      .select({ value: eveDataMeta.value, updatedAt: eveDataMeta.updatedAt })
+    const rows = await db
+      .select({ key: eveDataMeta.key, value: eveDataMeta.value, updatedAt: eveDataMeta.updatedAt })
       .from(eveDataMeta)
-      .where(eq(eveDataMeta.key, SDE_META_KEY_VERSION))
-      .limit(1);
-    if (!row) return { version: null, ingestedAt: null };
-    return { version: row.value, ingestedAt: row.updatedAt };
+      .where(inArray(eveDataMeta.key, [SDE_META_KEY_VERSION, SDE_META_KEY_LATEST_PUBLISHED]));
+    const ingested = rows.find((row) => row.key === SDE_META_KEY_VERSION);
+    const latest = rows.find((row) => row.key === SDE_META_KEY_LATEST_PUBLISHED);
+    return {
+      version: ingested?.value ?? null,
+      ingestedAt: ingested?.updatedAt ?? null,
+      latestPublished: latest?.value ?? null,
+    };
   });
 }
 

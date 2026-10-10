@@ -1,17 +1,16 @@
 import { cacheLife } from 'next/cache';
 import { ESI_AVAILABILITY_TARGET, targetLevel } from '@/data/telemetry/health-metrics';
-import { getEsiAvailability } from '@/data/telemetry/queries';
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
-import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
+import { readEsiAvailabilitySnapshot, readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { ESI_ERROR_CEILING } from '@/platform/esi/scoreboard/types';
 
-const WINDOW_MS = 3_600_000;
 const ESI_HEALTH_CACHE = { stale: 60, revalidate: 60, expire: 600 };
 
 /**
- * How ESI is treating LGI, read from the numbers the admin ESI page shows:
- * the share of ESI-dependent operations that succeeded over the last hour,
- * and the error budget left before LGI pauses its calls.
+ * How ESI is treating LGI, read from the gate's scoreboard: the share of
+ * calls dispatched over the last hour that ESI answered well, and the error
+ * budget left before LGI pauses its calls. Every call counts, wherever in the
+ * app it was made, and a cache hit that made no call does not.
  */
 export interface EsiHealth {
   availability:
@@ -23,10 +22,13 @@ export interface EsiHealth {
     | { state: 'unknown' };
 }
 
-async function readAvailability(now: number): Promise<EsiHealth['availability']> {
+async function readAvailability(): Promise<EsiHealth['availability']> {
   try {
-    const { rate } = await getEsiAvailability({ from: new Date(now - WINDOW_MS), to: new Date(now) });
-    if (rate === null) return { state: 'idle' };
+    const snapshot = await readEsiAvailabilitySnapshot();
+    // With no scoreboard, the gate dispatches nothing, so there is nothing to measure.
+    if (snapshot === null) return { state: 'unknown' };
+    if (snapshot.calls === 0) return { state: 'idle' };
+    const rate = (snapshot.calls - snapshot.failures) / snapshot.calls;
     return { state: 'measured', rate, level: targetLevel(rate, ESI_AVAILABILITY_TARGET) };
   } catch (error) {
     console.error('[esi-health] availability read failed', error);
@@ -54,6 +56,6 @@ async function readBudget(): Promise<EsiHealth['budget']> {
 export async function getEsiHealth(): Promise<EsiHealth> {
   'use cache: remote';
   cacheLife(ESI_HEALTH_CACHE);
-  const [availability, budget] = await Promise.all([readAvailability(Date.now()), readBudget()]);
+  const [availability, budget] = await Promise.all([readAvailability(), readBudget()]);
   return { availability, budget };
 }

@@ -219,7 +219,8 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   // Skills that have not synced are said to be syncing, not shown as zero.
   expect(reactor).toContain('Skills are still syncing from EVE.');
   expect(capacityReadout(reactor)).toContain('?/?');
-  expect(reactor).not.toContain('Manage structures');
+  // The team sheet offers adding a facility; a member's sheet does not.
+  expect(reactor).not.toContain('aria-label="Add a facility"');
   expect(reactor).toContain(`What ${REACTOR.name} builds</legend>`);
   const categories = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
   expect(categories).toHaveLength(22);

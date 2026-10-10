@@ -71,3 +71,16 @@ it('registers each advisory-lock key once, as a safe integer outside the retired
     expect(key).not.toBe(concurrencyTestKey);
   }
 });
+
+it('keeps every advisory-lock key at its deployed value', () => {
+  // A changed key lets a run on the old deploy and one on the new deploy hold
+  // "the same" lock at once, so each value is pinned to what production uses.
+  expect(ADVISORY_LOCKS).toEqual({
+    sdeIngest: 8_273_619_013,
+    industryIndices: 8_273_619_014,
+    gscSync: 8_273_619_015,
+    esiRefreshQueue: 8_273_619_017,
+    whStaticsRefresh: 8_273_619_018,
+    mapPurge: 8_273_619_019,
+  });
+});
