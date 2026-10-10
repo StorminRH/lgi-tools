@@ -1,7 +1,4 @@
-import {
-  FAR_SIDE_WORMHOLE_CODE,
-  type ConnectionProvenance,
-} from '@/data/eve-data/wormhole-contract';
+import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { WhObservationInput } from './queries';
 
@@ -19,7 +16,6 @@ export function observationFor(
 ): Omit<WhObservationInput, 'observedAt'> | null {
   if (
     facts.whTypeCode === null
-    || facts.whTypeCode === FAR_SIDE_WORMHOLE_CODE
     || facts.provenance === null
     || facts.dedupeKey === null
   ) {

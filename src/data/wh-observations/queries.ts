@@ -1,7 +1,6 @@
 import { eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
-  FAR_SIDE_WORMHOLE_CODE,
-  isWormholeTypeCode,
+  isAttributableWormholeTypeCode,
   type ConnectionProvenance,
 } from '@/data/eve-data/wormhole-contract';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -48,15 +47,11 @@ function observationConflict(): {
   };
 }
 
-function attributableTypeCode(value: string): boolean {
-  return isWormholeTypeCode(value) && value !== FAR_SIDE_WORMHOLE_CODE;
-}
-
 function assertObservationInput(input: WhObservationInput): void {
   if (!isPositiveSafeInteger(input.solarSystemId)) {
     throw new Error('Wormhole observation requires a valid solar-system id.');
   }
-  if (!attributableTypeCode(input.whTypeCode)) {
+  if (!isAttributableWormholeTypeCode(input.whTypeCode)) {
     throw new Error('Wormhole observation requires an attributable type code.');
   }
   if (input.dedupeKey.trim() === '') {

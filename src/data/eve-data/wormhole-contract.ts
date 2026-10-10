@@ -226,3 +226,8 @@ export const WORMHOLE_TYPE_CODE = /^[A-Z]\d{3}$/;
 export function isWormholeTypeCode(value: string): boolean {
   return WORMHOLE_TYPE_CODE.test(value);
 }
+
+/** A well-formed type code other than the K162 exit, so it names the hole's type. */
+export function isAttributableWormholeTypeCode(code: string | null | undefined): boolean {
+  return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);
+}

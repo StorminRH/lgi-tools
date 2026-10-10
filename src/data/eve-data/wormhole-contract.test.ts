@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   destinationHintSoleClassId,
   hintAdmitsClass,
+  isAttributableWormholeTypeCode,
   isKnownSpaceSystemId,
   remainingMassAfterTravel,
   remainingMassBounds,
@@ -100,4 +101,15 @@ describe('wormhole-contract mass and destination math', () => {
     expect(destinationHintSoleClassId('unknown')).toBeNull();
     expect(destinationHintSoleClassId('dangerous')).toBeNull();
   });
+});
+
+it('attributes named wormhole type codes but not the K162 exit or malformed codes', () => {
+  expect(isAttributableWormholeTypeCode('C247')).toBe(true);
+  expect(isAttributableWormholeTypeCode('P060')).toBe(true);
+  expect(isAttributableWormholeTypeCode('K162')).toBe(false);
+  expect(isAttributableWormholeTypeCode(null)).toBe(false);
+  expect(isAttributableWormholeTypeCode(undefined)).toBe(false);
+  expect(isAttributableWormholeTypeCode('c247')).toBe(false);
+  expect(isAttributableWormholeTypeCode('K16')).toBe(false);
+  expect(isAttributableWormholeTypeCode('C2470')).toBe(false);
 });
