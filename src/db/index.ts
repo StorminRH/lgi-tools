@@ -4,7 +4,7 @@ import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { addDependencyTiming } from '@/lib/dependency-timing';
+import { timeDependency } from '@/lib/dependency-timing';
 import { readEnv, requireEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { withQueryTiming } from './timed-postgres';
@@ -33,14 +33,8 @@ let _deletionClient: Sql | undefined;
 function getClient(): HttpClient {
   if (_client) return _client;
   const url = requireEnv('DATABASE_URL');
-  neonConfig.fetchFunction = async (input: string | URL, init?: RequestInit) => {
-    const startedAt = performance.now();
-    try {
-      return await fetchWithTimeout(input, init, NEON_HTTP_TIMEOUT_MS);
-    } finally {
-      addDependencyTiming('neon', performance.now() - startedAt);
-    }
-  };
+  neonConfig.fetchFunction = (input: string | URL, init?: RequestInit) =>
+    timeDependency('neon', () => fetchWithTimeout(input, init, NEON_HTTP_TIMEOUT_MS));
   _client = neon(url);
   return _client;
 }

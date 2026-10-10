@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   addDependencyTiming,
+  isThenable,
   setDependencyTimingSink,
+  startDependencyTimer,
+  timeDependency,
 } from './dependency-timing';
 
 describe('dependency timing', () => {
@@ -33,5 +36,69 @@ describe('dependency timing', () => {
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledWith('esi', 40);
+  });
+
+  it('records the elapsed monotonic time when a started timer is stopped', () => {
+    const sink = vi.fn();
+    setDependencyTimingSink(sink);
+    vi.useFakeTimers();
+    try {
+      const stop = startDependencyTimer('redis');
+      vi.advanceTimersByTime(7);
+      expect(sink).not.toHaveBeenCalled();
+
+      stop();
+      expect(sink.mock.calls).toEqual([['redis', 7]]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('times work that resolves, returning its value and recording it once', async () => {
+    const sink = vi.fn();
+    setDependencyTimingSink(sink);
+    vi.useFakeTimers();
+    try {
+      const pending = timeDependency(
+        'neon',
+        () => new Promise<string>((resolve) => setTimeout(() => resolve('rows'), 25)),
+      );
+      await vi.advanceTimersByTimeAsync(25);
+
+      await expect(pending).resolves.toBe('rows');
+      expect(sink.mock.calls).toEqual([['neon', 25]]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('times work that rejects, rethrowing its error and recording it once', async () => {
+    const sink = vi.fn();
+    setDependencyTimingSink(sink);
+    vi.useFakeTimers();
+    try {
+      const pending = timeDependency(
+        'esi',
+        () => new Promise<never>((_, reject) => setTimeout(() => reject(new Error('esi down')), 40)),
+      );
+      const settled = expect(pending).rejects.toThrow('esi down');
+      await vi.advanceTimersByTimeAsync(40);
+
+      await settled;
+      expect(sink.mock.calls).toEqual([['esi', 40]]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('recognises promises and hand-made thenables, and nothing else', () => {
+    expect(isThenable(Promise.resolve(1))).toBe(true);
+    expect(isThenable({ then: () => undefined })).toBe(true);
+
+    expect(isThenable(null)).toBe(false);
+    expect(isThenable(undefined)).toBe(false);
+    expect(isThenable('then')).toBe(false);
+    expect(isThenable(42)).toBe(false);
+    expect(isThenable({ then: 'later' })).toBe(false);
   });
 });

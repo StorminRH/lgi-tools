@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import {
+  setDependencyTimingSink,
+  type DependencyKind,
+} from '@/lib/dependency-timing';
 
 const mocks = vi.hoisted(() => ({
   markRecentBudgetExhaustion: vi.fn(),
@@ -19,7 +23,11 @@ import {
   esiFetch,
   esiUrl,
 } from './index';
-import { BODY_CACHE_MAX_BYTES, type EsiScoreboard } from './scoreboard';
+import {
+  BODY_CACHE_MAX_BYTES,
+  type CachedEtagMeta,
+  type EsiScoreboard,
+} from './scoreboard';
 
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 
@@ -528,6 +536,80 @@ describe('esiFetch', () => {
       const res = await esiFetch(TEST_URL);
       expect(res.status).toBe(200);
       expect(preDispatch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('dependency timing', () => {
+    function recordTimings(): Array<[DependencyKind, number]> {
+      const recorded: Array<[DependencyKind, number]> = [];
+      setDependencyTimingSink((kind, ms) => {
+        recorded.push([kind, ms]);
+      });
+      return recorded;
+    }
+
+    function scoreboardWith(
+      etag: CachedEtagMeta | null,
+      report: EsiScoreboard['report'],
+    ): EsiScoreboard {
+      return {
+        preDispatch: vi.fn().mockResolvedValue({
+          effectiveRemaining: 100,
+          blockedRetryAfter: null,
+          etag,
+        }),
+        budgetSnapshot: vi.fn().mockResolvedValue({
+          effectiveRemaining: 100,
+          selfCount: 0,
+          echo: null,
+          source: 'process-local',
+        }),
+        report,
+        getCachedBody: vi.fn().mockResolvedValue(null),
+      };
+    }
+
+    it('records one esi timing per HTTP attempt, failed or refetched', async () => {
+      const recorded = recordTimings();
+      __setScoreboardForTests(
+        scoreboardWith(
+          { etag: '"abc"', expires: null, contentType: null },
+          vi.fn().mockResolvedValue(undefined),
+        ),
+      );
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }))
+        .mockResolvedValueOnce(mockResponse(200, {}, { a: 2 }));
+
+      const res = await esiFetch(TEST_URL);
+
+      expect(res.status).toBe(200);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(recorded.map(([kind]) => kind)).toEqual(['esi', 'esi']);
+
+      fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'));
+      await expect(esiFetch(TEST_URL)).rejects.toThrow('fetch failed');
+
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(recorded.map(([kind]) => kind)).toEqual(['esi', 'esi', 'esi']);
+    });
+
+    it('leaves a slow scoreboard report out of the esi time', async () => {
+      vi.useFakeTimers();
+      const recorded = recordTimings();
+      const report = vi.fn(
+        () => new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
+      );
+      __setScoreboardForTests(scoreboardWith(null, report));
+      fetchSpy.mockResolvedValueOnce(mockResponse(200));
+
+      const pending = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(1_000);
+      const res = await pending;
+
+      expect(res.status).toBe(200);
+      expect(report).toHaveBeenCalledOnce();
+      expect(recorded).toEqual([['esi', 0]]);
     });
   });
 

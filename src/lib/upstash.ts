@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis';
-import { addDependencyTiming } from '@/lib/dependency-timing';
+import { isThenable, startDependencyTimer } from '@/lib/dependency-timing';
 import { isHostedVercel, readEnv } from '@/lib/env';
 
 function completeRestPair(
@@ -41,21 +41,6 @@ function timeoutSignal(timeoutMs: number): AbortSignal {
   return controller.signal;
 }
 
-function timeRedisSettlement<T>(result: T, startedAt: number): T {
-  if (
-    typeof result !== 'object'
-    || result === null
-    || typeof (result as { then?: unknown }).then !== 'function'
-  ) {
-    return result;
-  }
-  const record = (): void => {
-    addDependencyTiming('redis', Date.now() - startedAt);
-  };
-  void (result as unknown as PromiseLike<unknown>).then(record, record);
-  return result;
-}
-
 function withCommandTiming<T extends object>(client: T): T {
   return new Proxy(client, {
     get(target, prop, receiver) {
@@ -63,13 +48,14 @@ function withCommandTiming<T extends object>(client: T): T {
       if (typeof value !== 'function') return value;
       const method = value.bind(target) as (...args: unknown[]) => unknown;
       return (...args: unknown[]): unknown => {
-        const startedAt = Date.now();
+        const stop = startDependencyTimer('redis');
         const result = method(...args);
         if (result === target) return receiver;
         if (prop === 'pipeline' || prop === 'multi') {
           return withCommandTiming(result as object);
         }
-        return timeRedisSettlement(result, startedAt);
+        if (isThenable(result)) void result.then(stop, stop);
+        return result;
       };
     },
   });

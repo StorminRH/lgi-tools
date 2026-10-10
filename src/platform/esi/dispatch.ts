@@ -1,5 +1,6 @@
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { timeDependency } from '@/lib/dependency-timing';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
   EsiBudgetExhaustedError,
@@ -320,7 +321,9 @@ export async function dispatch(
 ): Promise<Response> {
   for (;;) {
     const headers = buildHeaders(init, etagMeta?.etag ?? null);
-    const res = await fetchWithTimeout(url, { ...init, headers });
+    const res = await timeDependency('esi', () =>
+      fetchWithTimeout(url, { ...init, headers }),
+    );
 
     if (res.status === 304 && etagMeta !== null) {
       const served = await reuseOrRevalidate(url, res, etagMeta, liveSb);
