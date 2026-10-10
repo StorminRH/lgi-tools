@@ -5,8 +5,8 @@ import {
   type ChangedWhStaticsFeed,
 } from '@/composition/wh-statics-refresh';
 import type { CronRefreshWhStaticsResponse } from '@/data/wh-statics/api-contract';
-import { ADVISORY_LOCK_WH_STATICS_REFRESH } from '@/data/wh-statics/constants';
 import type { WhStaticsProbeBaseline } from '@/data/wh-statics/queries';
+import { ADVISORY_LOCKS } from '@/db/advisory-lock';
 
 export interface WhStaticsPreLock {
   readonly feed: ChangedWhStaticsFeed;
@@ -27,7 +27,7 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
       'weekly batch preserves every unchanged, feed-unavailable, stale-observation, and snapshot-pending outcome for operator review',
   },
   lock: {
-    key: ADVISORY_LOCK_WH_STATICS_REFRESH,
+    key: ADVISORY_LOCKS.whStaticsRefresh,
     busyBody: () => ({ status: 'busy' }),
   },
   preLock: async ({ database }) => {

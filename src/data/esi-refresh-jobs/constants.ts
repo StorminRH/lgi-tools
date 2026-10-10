@@ -39,5 +39,3 @@ export const ESI_REFRESH_RETRY_DELAYS_MS = [
   6 * 60 * 60 * 1000,
   24 * 60 * 60 * 1000,
 ] as const;
-
-export const ADVISORY_LOCK_ESI_REFRESH_QUEUE = BigInt(8273619017);

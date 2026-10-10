@@ -1,14 +1,11 @@
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { db, directClient } from '@/db';
-import { withAdvisoryLock } from '@/db/advisory-lock';
+import { ADVISORY_LOCKS, withAdvisoryLock } from '@/db/advisory-lock';
 import { directDatabase } from '@/db/direct-database';
 import { readWormholeCodex } from '@/data/eve-data/universe-assets';
 import type {
   WhStaticsRefreshResult,
 } from '@/data/wh-statics/api-contract';
-import {
-  ADVISORY_LOCK_WH_STATICS_REFRESH,
-} from '@/data/wh-statics/constants';
 import { crossCheckStatics } from '@/data/wh-statics/cross-check';
 import { diffStatics } from '@/data/wh-statics/diff';
 import { readPathfinderLineage } from '@/data/wh-statics/lineage';
@@ -95,7 +92,7 @@ export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult
 
   const outcome = await withAdvisoryLock(
     directClient,
-    ADVISORY_LOCK_WH_STATICS_REFRESH,
+    ADVISORY_LOCKS.whStaticsRefresh,
     () => recordChangedWhStaticsFeed(directDatabase(), feed, baseline),
   );
   return outcome.busy ? { status: 'busy' } : outcome.result;

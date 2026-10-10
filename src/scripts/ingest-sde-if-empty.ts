@@ -4,14 +4,11 @@ config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import {
-  ADVISORY_LOCK_SDE_INGEST,
-  SDE_META_KEY_VERSION,
-} from '../data/eve-data/constants';
+import { SDE_META_KEY_VERSION } from '../data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { resolveAllTrees } from '../data/eve-data/tree-resolver';
-import { withAdvisoryLock } from '@/db/advisory-lock';
+import { ADVISORY_LOCKS, withAdvisoryLock } from '@/db/advisory-lock';
 import { requireSoftFailLockClient, runScript } from './script-runtime';
 import { describeSdeStandDown, hasCompleteSdeData } from './sde-bootstrap';
 import { readSdeSentinelCounts } from './sde-ingest-io';
@@ -21,7 +18,6 @@ const client = requireSoftFailLockClient(
   'Skipping SDE auto-ingest (DATABASE_URL is not set).',
   'Skipping SDE auto-ingest (build continues):',
 );
-const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 async function ingestUnderLock(db: ReturnType<typeof drizzle>): Promise<void> {
   const counts = await readSdeSentinelCounts(db);
@@ -66,7 +62,7 @@ async function main() {
     return;
   }
 
-  const outcome = await withAdvisoryLock(client, LOCK_KEY_NUM, () => ingestUnderLock(db));
+  const outcome = await withAdvisoryLock(client, ADVISORY_LOCKS.sdeIngest, () => ingestUnderLock(db));
   if (outcome.busy) {
     console.log('Skipping SDE auto-ingest (advisory lock held — another ingest in flight).');
   }

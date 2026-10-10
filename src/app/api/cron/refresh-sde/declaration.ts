@@ -1,13 +1,10 @@
 import { revalidateTag } from 'next/cache';
 import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
-import {
-  ADVISORY_LOCK_SDE_INGEST,
-  SDE_CACHE_TAG,
-  SDE_META_KEY_VERSION,
-} from '@/data/eve-data/constants';
+import { SDE_CACHE_TAG, SDE_META_KEY_VERSION } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import { ADVISORY_LOCKS } from '@/db/advisory-lock';
 import type { PostgresJsDb } from '@/lib/db-types';
 import {
   runSdePipeline,
@@ -33,7 +30,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     justification: 'daily batch wakes Neon by design and preserves version-gate history',
   },
   lock: {
-    key: Number(ADVISORY_LOCK_SDE_INGEST),
+    key: ADVISORY_LOCKS.sdeIngest,
     busyBody: () => ({
       status: 'busy',
       message: 'Another SDE ingest in flight',

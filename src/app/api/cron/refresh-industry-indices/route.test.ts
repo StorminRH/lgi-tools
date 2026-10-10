@@ -12,10 +12,6 @@ const { reserved: reservedTag, reserve: reserveMock } = createReservedConnection
   () => Promise.resolve([{ got: lockGot }]),
 );
 
-vi.mock('@/data/industry-indices/constants', () => ({
-  ADVISORY_LOCK_INDUSTRY_INDICES: 41,
-}));
-
 vi.mock('@/data/industry-indices/ingest', () => ({
   refreshIndustryIndices: (...args: unknown[]) =>
     refreshIndustryIndicesMock(...args),

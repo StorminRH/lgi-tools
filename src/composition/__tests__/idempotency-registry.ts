@@ -45,7 +45,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'key-protected',
     evidence:
-      'defineCronRoute serializes the run under the ADVISORY_LOCK_ESI_REFRESH_QUEUE session advisory lock; a concurrent run short-circuits to the declared busy body without claiming a job.',
+      'defineCronRoute serializes the run under the ADVISORY_LOCKS.esiRefreshQueue session advisory lock; a concurrent run short-circuits to the declared busy body without claiming a job.',
   },
   {
     id: 'cron/daily-batch',
@@ -82,7 +82,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'key-protected',
     evidence:
-      'defineCronRoute serializes the daily sweep under ADVISORY_LOCK_MAP_PURGE. Neon claims each due row before the first Convex delete, which blocks publish and restore; each Convex batch deletes only remaining indexed rows, and Neon tombstones only after a clean terminal response.',
+      'defineCronRoute serializes the daily sweep under ADVISORY_LOCKS.mapPurge. Neon claims each due row before the first Convex delete, which blocks publish and restore; each Convex batch deletes only remaining indexed rows, and Neon tombstones only after a clean terminal response.',
   },
   {
     id: 'cron/refresh-prices',
@@ -100,7 +100,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'key-protected',
     evidence:
-      'Guarded by the ADVISORY_LOCK_INDUSTRY_INDICES session advisory lock; the index upserts are replace-shaped besides.',
+      'Guarded by the ADVISORY_LOCKS.industryIndices session advisory lock; the index upserts are replace-shaped besides.',
   },
   {
     id: 'cron/refresh-sde',
@@ -110,7 +110,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: VERCEL_CRON_REDELIVERY,
     verdict: 'key-protected',
     evidence:
-      'Guarded by the ADVISORY_LOCK_SDE_INGEST session advisory lock; the ingest is a full replace keyed on the published SDE checksum, so a repeat of the same build is a no-op.',
+      'Guarded by the ADVISORY_LOCKS.sdeIngest session advisory lock; the ingest is a full replace keyed on the published SDE checksum, so a repeat of the same build is a no-op.',
   },
   {
     id: 'cron/refresh-wh-statics',
@@ -120,7 +120,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     verdict: 'key-protected',
     vendor: 'anoik-statics',
     evidence:
-      'The conditional probe runs before the shared ADVISORY_LOCK_WH_STATICS_REFRESH lock; a changed body is serialized, and recordSnapshot atomically supersedes any prior pending snapshot only when the probe baseline still matches, so a redelivered or delayed run cannot replace a newer observation.',
+      'The conditional probe runs before the shared ADVISORY_LOCKS.whStaticsRefresh lock; a changed body is serialized, and recordSnapshot atomically supersedes any prior pending snapshot only when the probe baseline still matches, so a redelivered or delayed run cannot replace a newer observation.',
   },
   {
     id: 'cron/refresh-gsc',
@@ -131,7 +131,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     verdict: 'key-protected',
     vendor: 'google-search-console',
     evidence:
-      'Guarded by the ADVISORY_LOCK_GSC_SYNC session advisory lock; rows are upserted per (date, dimension) so a repeat pull overwrites rather than accumulates.',
+      'Guarded by the ADVISORY_LOCKS.gscSync session advisory lock; rows are upserted per (date, dimension) so a repeat pull overwrites rather than accumulates.',
   },
 ];
 

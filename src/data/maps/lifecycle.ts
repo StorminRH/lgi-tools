@@ -31,8 +31,6 @@ const MAP_PURGE_MAPS_PER_RUN = 25;
 
 export const MAP_STAGED_PURGE_HOLD_MS = 30_000;
 
-export const ADVISORY_LOCK_MAP_PURGE = 8_273_619_019;
-
 export interface PurgeableMap {
   readonly id: string;
 }
