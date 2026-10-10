@@ -38,7 +38,7 @@ afterEach(() => {
   observed.disconnect.mockReset();
 });
 
-test('the thumb sits under the pressed item, and the track says it is placed', () => {
+test('the thumb sits under the pressed item and the track says it is placed; a resize places it again, and unmounting stops watching', () => {
   const { host, marker, track, thumb } = elements(box);
   useSlidingThumb(track, thumb, 'net');
   expect(host.querySelector).toHaveBeenCalledWith('[aria-pressed="true"]');
@@ -49,11 +49,7 @@ test('the thumb sits under the pressed item, and the track says it is placed', (
     ['--thumb-height', '26px'],
   ]);
   expect(host.hasAttribute('data-thumb')).toBe(true);
-});
 
-test('a resized track places the thumb again, and it stops watching when unmounted', () => {
-  const { marker, track, thumb } = elements(box);
-  useSlidingThumb(track, thumb, 'net');
   observed.callback?.();
   expect(marker.style.setProperty).toHaveBeenCalledTimes(8);
   h.cleanup?.();

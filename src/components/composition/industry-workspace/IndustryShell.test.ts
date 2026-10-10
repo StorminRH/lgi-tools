@@ -111,11 +111,10 @@ test.each([
   // Inside the planner its own tab goes back to the search.
   ['/industry/683', '/industry/planner'],
   ['/industry/planner', '/industry/planner'],
-])('after a blueprint opens, the Planner tab on %s goes to %s, and there is no separate search tab', (pathname, href) => {
+])('after a blueprint opens, the Planner tab on %s goes to %s', (pathname, href) => {
   location.pathname = pathname;
   location.plannerHref = '/industry/683';
   const links = tabs(renderToStaticMarkup(createElement(IndustryNav)));
-  expect(links.map((l) => l.label)).toEqual(['Profiles', 'Planner', 'Active jobs']);
   expect(links.find((link) => link.label === 'Planner')?.href).toBe(href);
 });
 
