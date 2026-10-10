@@ -2,7 +2,7 @@
 
 import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { EveImage } from '@/components/eve-image';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RadioGroup, type RadioOption } from '@/components/ui/radio-group';
 import { displayTitle } from '@/components/ui/type-roles';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { CorporationAccessOption, MapRole } from '@/data/maps/access-contract';
 import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import {
@@ -74,7 +75,7 @@ export function AccessListEditor({
   characterSearch,
   disabled = false,
 }: AccessListEditorProps) {
-  const [revokeTarget, setRevokeTarget] = useState<AccessGrantDraft | null>(null);
+  const revoke = useConfirmGate<AccessGrantDraft>();
   const selectedKeys = useMemo(
     () => new Set(currentGrants.map(accessPrincipalKey)),
     [currentGrants],
@@ -83,7 +84,7 @@ export function AccessListEditor({
 
   function requestRemove(grant: AccessGrantDraft) {
     if (mode === 'manage') {
-      setRevokeTarget(grant);
+      revoke.request(grant);
       return;
     }
     onPrincipalRemove(grant);
@@ -187,22 +188,21 @@ export function AccessListEditor({
       </section>
 
       <ConfirmDialog
-        open={revokeTarget !== null}
+        open={revoke.open}
         onOpenChange={(open) => {
-          if (!open) setRevokeTarget(null);
+          if (!open) revoke.cancel();
         }}
         title="Revoke map access?"
         consequence={
-          revokeTarget === null
+          revoke.target === null
             ? ''
-            : `${revokeTarget.name} will lose this delegated map role after the access projection updates.`
+            : `${revoke.target.name} will lose this delegated map role after the access projection updates.`
         }
         busy={false}
         confirmLabel="Revoke access"
         onConfirm={() => {
-          if (revokeTarget === null) return;
-          onPrincipalRemove(revokeTarget);
-          setRevokeTarget(null);
+          if (revoke.target !== null) onPrincipalRemove(revoke.target);
+          revoke.reset();
         }}
       />
     </div>

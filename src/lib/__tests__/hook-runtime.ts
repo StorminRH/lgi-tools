@@ -28,7 +28,9 @@ function rewound() {
  * A hook called outside `render` takes the next slots, like a fresh mount.
  *
  * useState takes a lazy initializer and functional updates, and its setter is
- * stable per slot. useMemo and the effects re-run when their deps change by
+ * stable per slot. useReducer keeps its state in the next useState slot, as
+ * React keeps both in one hook list, and its dispatch reduces the slot's
+ * latest state. useMemo and the effects re-run when their deps change by
  * count or `Object.is`, or on every render without deps. An effect runs
  * synchronously when called, after the previous run's cleanup, not after a
  * commit. useCallback hands back the callback it is given, unmemoized, so a
@@ -51,6 +53,11 @@ export function createHookRuntime() {
       states[index] = typeof next === 'function' ? (next as (previous: unknown) => unknown)(states[index]) : next;
     });
     return [states[index] as T, set];
+  }
+
+  function useReducer<S, A>(reducer: (state: S, action: A) => S, initial: S): [S, (action: A) => void] {
+    const [state, set] = useState(() => initial);
+    return [state, (action) => set((previous) => reducer(previous, action))];
   }
 
   function useRef<T>(initial: T): { current: T } {
@@ -82,6 +89,7 @@ export function createHookRuntime() {
   return {
     react: {
       useState,
+      useReducer,
       useRef,
       useMemo,
       useCallback: <T>(callback: T, _deps?: readonly unknown[]): T => callback,

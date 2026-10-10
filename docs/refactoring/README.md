@@ -431,7 +431,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P013](wave-07-ui-kit-primitives-src-components-ui.md#p013) | Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu | ui-component | S | low | medium | [P128](wave-03-src-lib-primitives-collections-math-async.md#p128) |
 | ☑ | [P015](wave-07-ui-kit-primitives-src-components-ui.md#p015) | Extract a StatusPanel for the error and 404 route states, and use LoadFailed for the map catalogue failure | ui-component | S | low | low | — |
 | ☑ | [P043](wave-07-ui-kit-primitives-src-components-ui.md#p043) | Share one static Base Dialog stub for markup tests and drop redundant Button stubs | testing | S | low | low | [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001) |
-| ☐ | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056) | Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction) | react-hook | M | low | low | [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001) |
+| ☑ | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056) | Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction) | react-hook | M | low | low | [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001) |
 
 ### [Wave 8: Charts, images and board/workspace adoption](wave-08-charts-images-and-board-workspace-adoption.md)
 

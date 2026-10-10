@@ -11,6 +11,7 @@ import { LoadFailed } from '@/components/ui/load-failed';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { displayTitle } from '@/components/ui/type-roles';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { formatUtcDate } from '@/lib/format/time';
@@ -32,6 +33,7 @@ import {
   mapDialogAuthorityKey,
   reconcileAuthorityScopedMapDialogs,
 } from './map-dialog-state';
+import { mapLifecycleFailureMessage } from './map-lifecycle-client';
 import { mapSelectionHref } from './map-navigation';
 import { useMapDeletion } from './use-map-deletion';
 
@@ -334,11 +336,8 @@ function useMapCatalogueDialogs(data: MapCatalogueData) {
   const editOpenerRef = useRef<HTMLElement | null>(null);
   const deleteOpenerRef = useRef<HTMLElement | null>(null);
   const catalogueRef = useRef<HTMLDivElement | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const deletion = useMapDeletion();
+  const deleteGate = useConfirmGate<{ id: string; name: string }>();
+  const removeMap = useMapDeletion();
   const corporationById = useMemo(
     () => new Map(corporations.map((corporation) => [corporation.corporationId, corporation])),
     [corporations],
@@ -348,14 +347,13 @@ function useMapCatalogueDialogs(data: MapCatalogueData) {
     corporationById,
     creationOpenerRef,
     currentEditingMap,
+    deleteGate,
     deleteOpenerRef,
-    deletion,
     dialogs,
     editOpenerRef,
     pathname,
-    pendingDelete,
+    removeMap,
     searchParams,
-    setPendingDelete,
     setStoredDialogs,
     trashOpenerRef,
   };
@@ -376,14 +374,13 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
     corporationById,
     creationOpenerRef,
     currentEditingMap,
+    deleteGate,
     deleteOpenerRef,
-    deletion,
     dialogs,
     editOpenerRef,
     pathname,
-    pendingDelete,
+    removeMap,
     searchParams,
-    setPendingDelete,
     setStoredDialogs,
     trashOpenerRef,
   } = useMapCatalogueDialogs(data);
@@ -402,7 +399,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
       }}
       onDelete={(map, opener) => {
         deleteOpenerRef.current = opener;
-        setPendingDelete({ id: map.id, name: map.name });
+        deleteGate.request({ id: map.id, name: map.name });
       }}
       onManage={(map, opener) => {
         editOpenerRef.current = opener;
@@ -456,22 +453,23 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
         />
       ) : null}
       <ConfirmDialog
-        open={pendingDelete !== null}
+        open={deleteGate.open}
         onOpenChange={(open) => {
-          if (!open && !deletion.deleting) setPendingDelete(null);
+          if (!open) deleteGate.cancel();
         }}
         title="Delete map?"
         consequence={
-          pendingDelete === null
+          deleteGate.target === null
             ? ''
-            : `${pendingDelete.name} leaves the catalogue. Restore it from Trash within 30 days.`
+            : `${deleteGate.target.name} leaves the catalogue. Restore it from Trash within 30 days.`
         }
-        busy={deletion.deleting}
-        error={deletion.error}
+        busy={deleteGate.busy}
+        error={deleteGate.errored ? mapLifecycleFailureMessage('delete') : null}
         confirmLabel="Delete map"
         onConfirm={() => {
-          if (pendingDelete === null) return;
-          void deletion.removeMap(pendingDelete.id, () => setPendingDelete(null));
+          const map = deleteGate.target;
+          if (map === null) return;
+          void deleteGate.run(() => removeMap(map.id, deleteGate.reset), (deleted) => !deleted);
         }}
         finalFocus={deleteOpenerRef}
       />

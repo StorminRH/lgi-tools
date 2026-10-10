@@ -33,7 +33,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P013](#p013) | Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu | ui-component | S | low | medium | [P128](wave-03-src-lib-primitives-collections-math-async.md#p128) |
 | ☑ | [P015](#p015) | Extract a StatusPanel for the error and 404 route states, and use LoadFailed for the map catalogue failure | ui-component | S | low | low | — |
 | ☑ | [P043](#p043) | Share one static Base Dialog stub for markup tests and drop redundant Button stubs | testing | S | low | low | [P001](#p001) |
-| ☐ | [P056](#p056) | Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction) | react-hook | M | low | low | [P001](#p001) |
+| ☑ | [P056](#p056) | Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction) | react-hook | M | low | low | [P001](#p001) |
 
 <a id="p319"></a>
 
@@ -1959,7 +1959,7 @@ vi.mock('@base-ui/react/dialog', () => import('@/components/ui/__tests__/static-
 
 ## P056: Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -45 / +35 (AccountDangerZone local hook and four hand-rolled target states removed; reducer gains target, hook moves to ui)
 - **Depends on:** [P001](#p001)

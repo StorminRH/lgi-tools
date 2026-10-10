@@ -9,6 +9,7 @@ import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { displayTitle } from '@/components/ui/type-roles';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { MapBlockOption } from '@/data/maps/access-contract';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import type { AccessPrincipalOption } from './access-editor-model';
@@ -69,7 +70,7 @@ export function MapBlockList({
   readonly editor: MapBlockEditor;
   readonly disabled: boolean;
 }) {
-  const [pending, setPending] = useState<AccessPrincipalOption | null>(null);
+  const blockConfirm = useConfirmGate<AccessPrincipalOption>();
 
   return (
     <section className="flex flex-col gap-2" aria-labelledby="map-blocked-pilots" data-map-block-list>
@@ -83,7 +84,7 @@ export function MapBlockList({
         label="Block character"
         disabled={disabled}
         selectedPrincipals={blockedPrincipals(editor.blocks)}
-        onSelect={setPending}
+        onSelect={blockConfirm.request}
       />
       {editor.blocks.length === 0 ? (
         <p className="font-ui text-ui text-muted">Nobody is blocked.</p>
@@ -116,22 +117,22 @@ export function MapBlockList({
       )}
       {editor.error !== null ? <Banner tone="warn">{editor.error}</Banner> : null}
       <ConfirmDialog
-        open={pending !== null}
+        open={blockConfirm.open}
         onOpenChange={(open) => {
-          if (!open) setPending(null);
+          if (!open) blockConfirm.cancel();
         }}
         title="Block pilot?"
         consequence={
-          pending === null
+          blockConfirm.target === null
             ? ''
-            : `Blocking removes ${pending.name} and every other character on their LGI.tools account from this map.`
+            : `Blocking removes ${blockConfirm.target.name} and every other character on their LGI.tools account from this map.`
         }
         busy={false}
         confirmLabel="Block"
         onConfirm={() => {
-          if (pending === null) return;
-          void editor.block({ characterId: pending.ownerId, name: pending.name });
-          setPending(null);
+          const pilot = blockConfirm.target;
+          if (pilot !== null) void editor.block({ characterId: pilot.ownerId, name: pilot.name });
+          blockConfirm.reset();
         }}
       />
     </section>

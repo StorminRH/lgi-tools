@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/components/ui/cn';
-import { type RefObject, useReducer, useRef, useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { inlineLink } from '@/components/ui/text-link';
 import { toast } from '@/components/ui/toast';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import { apiFetch } from '@/transport/api-client';
 import {
   isDeleteAcknowledged,
@@ -23,7 +24,6 @@ import {
   runPurgeCharacter,
 } from '@/platform/auth/account-actions';
 import { authClient } from '@/platform/auth/auth-client';
-import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '@/platform/auth/confirm-gate';
 import { forgetSignedInBrowser } from '@/platform/auth/reload-document-home';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
@@ -92,39 +92,9 @@ export function AccountDangerZone({
   );
 }
 
-function useConfirmGate() {
-  const [phase, dispatch] = useReducer(confirmGateReducer, INITIAL_CONFIRM_PHASE);
-  const [errored, setErrored] = useState(false);
-
-  function request() {
-    setErrored(false);
-    dispatch({ type: 'request' });
-  }
-
-  async function run<T extends { kind: string }>(
-    action: () => Promise<T>,
-    errorToast: string,
-  ): Promise<T> {
-    setErrored(false);
-    dispatch({ type: 'confirm' });
-    const outcome = await action();
-    if (outcome.kind === 'error') {
-      dispatch({ type: 'fail' });
-      setErrored(true);
-      toast.error(errorToast);
-    }
-    return outcome;
-  }
-
-  return {
-    errored,
-    open: phase !== 'idle',
-    busy: phase === 'running',
-    request,
-    cancel: () => dispatch({ type: 'cancel' }),
-    reset: () => dispatch({ type: 'reset' }),
-    run,
-  };
+/** An account action that failed; its dialog stays open for a retry. */
+function isError(outcome: { kind: string }): boolean {
+  return outcome.kind === 'error';
 }
 
 function DangerButton({
@@ -167,11 +137,10 @@ function PurgeCharacterControl({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   async function onConfirm() {
-    const outcome = await gate.run(
-      () => runPurgeCharacter(characterId, apiFetch),
-      'Purge failed',
-    );
-    if (outcome.kind === 'emptied') {
+    const outcome = await gate.run(() => runPurgeCharacter(characterId, apiFetch), isError);
+    if (outcome.kind === 'error') {
+      toast.error('Purge failed');
+    } else if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();
     } else if (outcome.kind === 'stayed') {
@@ -184,7 +153,7 @@ function PurgeCharacterControl({
   return (
     <div className={cn(insetSurface, 'flex items-center justify-between gap-2 px-3 py-2')}>
       <span className="min-w-0 truncate font-data text-ui text-text">{characterName}</span>
-      <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
+      <DangerButton triggerRef={triggerRef} onClick={() => gate.request()} label="Purge" />
       <ConfirmDialog
         open={gate.open}
         onOpenChange={(next) => {
@@ -219,11 +188,10 @@ function LogoutEverywhereControl() {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   async function onConfirm() {
-    const outcome = await gate.run(
-      () => runLogoutEverywhere(apiFetch),
-      'Sign-out failed',
-    );
-    if (outcome.kind === 'done') {
+    const outcome = await gate.run(() => runLogoutEverywhere(apiFetch), isError);
+    if (outcome.kind === 'error') {
+      toast.error('Sign-out failed');
+    } else if (outcome.kind === 'done') {
       const target = redirectTargetFor(outcome) ?? '/';
       void authClient.signOut().finally(() => {
         forgetSignedInBrowser();
@@ -242,7 +210,7 @@ function LogoutEverywhereControl() {
         ref={triggerRef}
         variant="secondary"
         size="sm"
-        onClick={gate.request}
+        onClick={() => gate.request()}
         className="shrink-0"
       >
         Log out everywhere
@@ -280,8 +248,10 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
 
   async function onConfirm() {
     if (!isDeleteAcknowledged(acknowledged)) return;
-    const outcome = await gate.run(() => runDeleteAccount(apiFetch), 'Account deletion failed');
-    if (outcome.kind === 'emptied') {
+    const outcome = await gate.run(() => runDeleteAccount(apiFetch), isError);
+    if (outcome.kind === 'error') {
+      toast.error('Account deletion failed');
+    } else if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();
     }
