@@ -19,7 +19,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P350](#p350) | Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins | testing | S | low | low | [P187](#p187) |
 | ☑ | [P186](#p186) | Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth | esi-sync | S | low | medium | [P187](#p187) |
 | ☑ | [P252](#p252) | Export a syncEligibility projection from scope-health and use it wherever the canSync input is built | contracts-validation | S | low | low | [P186](#p186), [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) |
-| ☐ | [P258](#p258) | Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync | contracts-validation | M | low | low | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
+| ☑ | [P258](#p258) | Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync | contracts-validation | M | low | low | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
 | ☐ | [P260](#p260) | Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them | contracts-validation | S | low | low | — |
 | ☐ | [P266](#p266) | Name the 'attributable (non-K162) wormhole type code' predicate once in wormhole-contract | contracts-validation | S | low | low | — |
 | ☐ | [P265](#p265) | Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound | contracts-validation | S | low | low | — |
@@ -997,7 +997,7 @@ export function syncEligibility(character: { scope: string | null | undefined; h
 
 ## P258: Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -25 / +15 across ~18 files
 - **Depends on:** [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094)

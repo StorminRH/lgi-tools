@@ -1,11 +1,8 @@
 import { bigint, bigserial, index, jsonb, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { ESI_SNAPSHOT_OWNER_TYPES } from './constants';
+import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 import type { EsiSnapshotResponseHeaders } from './types';
 
-export const esiSnapshotOwnerTypeEnum = pgEnum(
-  'esi_snapshot_owner_type',
-  ESI_SNAPSHOT_OWNER_TYPES,
-);
+export const esiSnapshotOwnerTypeEnum = pgEnum('esi_snapshot_owner_type', ESI_OWNER_TYPES);
 
 export const esiSnapshots = pgTable(
   'esi_snapshots',

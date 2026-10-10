@@ -1,3 +1,5 @@
+import type { EsiOwnerType } from './owner-type';
+
 export interface EnumeratedOwner {
   characterId: number;
   corporationId: number | null;
@@ -8,7 +10,7 @@ export interface EnumeratedOwner {
 export type CharacterOwner = Omit<EnumeratedOwner, 'corporationId'>;
 
 export interface OwnerKey {
-  ownerType: 'character' | 'corporation';
+  ownerType: EsiOwnerType;
   ownerId: number;
 }
 
@@ -23,10 +25,7 @@ export type PersistVerdict<TSave> =
   | { kind: 'needs_role' }
   | { kind: 'skip'; code?: string };
 
-export interface OwnerSyncTarget {
-  ownerType: 'character' | 'corporation';
-  ownerId: number;
-}
+export type OwnerSyncTarget = OwnerKey;
 
 export type OwnerSyncResult =
   | { kind: 'succeeded'; target: OwnerSyncTarget }

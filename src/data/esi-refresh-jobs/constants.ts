@@ -18,8 +18,6 @@ export const ESI_REFRESH_JOB_STATUSES = [
   'dead_lettered',
 ] as const;
 
-export const ESI_REFRESH_OWNER_TYPES = ['character', 'corporation'] as const;
-
 /**
  * Statuses that hold a job's idempotency key. The partial unique index
  * predicate renders this list in this order, and drizzle-kit compares that

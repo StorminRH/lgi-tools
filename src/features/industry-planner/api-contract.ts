@@ -3,6 +3,7 @@ import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { PRODUCTION_ACTIVITIES, type ProductionModifier } from '@/data/eve-data/structures';
 import { int4IdSchema, ownedRowIdSchema, positiveIdSchema } from '@/lib/id-schemas';
+import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 import {
   defineEndpoint,
   jsonBody,
@@ -107,7 +108,7 @@ const ownedBlueprintMeEntrySchema = z.object({
   blueprintTypeId: z.number(),
   me: z.number(),
   te: z.number(),
-  ownerType: z.enum(['character', 'corporation']),
+  ownerType: z.enum(ESI_OWNER_TYPES),
   ownerName: z.string(),
   locationName: z.string(),
   locationFlag: z.string(),
@@ -133,7 +134,7 @@ export const ownedAssetsRequestSchema = z.object({
 });
 
 const assetHoldingSchema = z.object({
-  ownerType: z.enum(['character', 'corporation']),
+  ownerType: z.enum(ESI_OWNER_TYPES),
   ownerName: z.string(),
   locationName: z.string(),
   locationFlag: z.string(),

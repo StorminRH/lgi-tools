@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { withLockedUsers } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
+import { unresolvedName } from '@/lib/format/names';
 import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
 import { characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
 import { reconcileAfterCharacterRemoval } from './account-purge';
@@ -22,7 +23,8 @@ export interface AdminUser {
 
 const adminUserColumns = {
   userId: user.id,
-  name: sql<string>`coalesce(${characters.name}, case when ${account.accountId} is not null then 'Character ' || ${account.accountId} else ${user.name} end)`,
+  userName: user.name,
+  characterName: characters.name,
   portraitUrl: sql<string | null>`case when ${account.accountId} is null then ${user.image} else ${characters.portraitUrl} end`,
   role: user.role,
   characterId: account.accountId,
@@ -30,7 +32,8 @@ const adminUserColumns = {
 
 export function toAdminUser(row: {
   userId: string;
-  name: string;
+  userName: string;
+  characterName: string | null;
   portraitUrl: string | null;
   role: CharacterRole;
   characterId: string | null;
@@ -38,7 +41,7 @@ export function toAdminUser(row: {
   const parsed = row.characterId != null ? Number(row.characterId) : null;
   return {
     userId: row.userId,
-    name: row.name,
+    name: row.characterName ?? (row.characterId != null ? unresolvedName('character', row.characterId) : row.userName),
     portraitUrl: row.portraitUrl ?? '',
     role: row.role,
     characterId: parsed !== null && Number.isFinite(parsed) ? parsed : null,

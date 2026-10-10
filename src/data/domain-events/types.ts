@@ -1,3 +1,5 @@
+import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
+
 export const DOMAIN_EVENT_TYPES = [
   'price_refresh_finished',
   'esi_snapshot_pulled',
@@ -34,7 +36,7 @@ export interface DomainEventMetadataByType {
   esi_refresh_job_status_changed: {
     jobId: number;
     dataset: string;
-    ownerType: 'character' | 'corporation';
+    ownerType: EsiOwnerType;
     ownerId: number;
     status: 'succeeded' | 'failed_retryable' | 'failed_permanent' | 'dead_lettered';
     attemptCount: number;

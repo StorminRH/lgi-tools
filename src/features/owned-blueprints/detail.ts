@@ -8,14 +8,14 @@ import {
   publicLocationName,
 } from '@/data/corp-holdings/labels';
 import { nameOrUnresolved } from '@/lib/format/names';
+import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
 import type { OwnedBlueprintMap, OwnedBlueprintSummary } from './blueprint-map';
-import type { OwnedBlueprintOwnerType } from './schema';
 
 export interface OwnedBlueprintDetailEntry {
   blueprintTypeId: number;
   me: number;
   te: number;
-  ownerType: OwnedBlueprintOwnerType;
+  ownerType: EsiOwnerType;
   ownerName: string;
   locationName: string;
   locationFlag: string;

@@ -13,19 +13,16 @@ import {
 import {
   ESI_REFRESH_DATASETS,
   ESI_REFRESH_JOB_STATUSES,
-  ESI_REFRESH_OWNER_TYPES,
   LIVE_ESI_REFRESH_JOB_STATUSES,
 } from './constants';
+import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 
 export const esiRefreshDatasetEnum = pgEnum('esi_refresh_dataset', ESI_REFRESH_DATASETS);
 export const esiRefreshJobStatusEnum = pgEnum(
   'esi_refresh_job_status',
   ESI_REFRESH_JOB_STATUSES,
 );
-export const esiRefreshOwnerTypeEnum = pgEnum(
-  'esi_refresh_owner_type',
-  ESI_REFRESH_OWNER_TYPES,
-);
+export const esiRefreshOwnerTypeEnum = pgEnum('esi_refresh_owner_type', ESI_OWNER_TYPES);
 
 export const esiRefreshJobs = pgTable(
   'esi_refresh_jobs',
