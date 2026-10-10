@@ -9,7 +9,7 @@ import { SkillQueueRows } from '@/features/skill-queue/components/SkillQueueRows
 import { formatUtcDate, formatUtcTime } from '@/lib/format/time';
 import { queueHealth, queueTimeline, queueWindow, remainingQueue, type TimelineSegment } from '../board-view-model';
 import { HealthLine } from '../board-bits';
-import { SectionBody } from '../SectionBody';
+import { SectionBody, SectionNote } from '../SectionBody';
 
 /**
  * The next few skills to train, with the whole queue a click away in a
@@ -55,7 +55,7 @@ function QueueBody({
 }) {
   const window = queueWindow(queue, now);
   if (window.total === 0) {
-    return <p className="px-3.5 py-3 text-ui text-dps-high">Nothing is training. Queue a skill in game.</p>;
+    return <SectionNote tone="alert">Nothing is training. Queue a skill in game.</SectionNote>;
   }
   return (
     <>

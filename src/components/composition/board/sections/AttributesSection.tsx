@@ -9,7 +9,7 @@ import type { BoardCharacter } from '@/composition/board/api-contract';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
-import { SectionBody } from '../SectionBody';
+import { SectionBody, SectionNote } from '../SectionBody';
 
 const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   intelligence: 'Intelligence',
@@ -63,7 +63,7 @@ function AttributeGrid({ attributes }: { attributes: Attributes }) {
 
 function ImplantList({ implants }: { implants: Implants }) {
   if (implants.implants.length === 0) {
-    return <p className="px-3.5 py-2.5 text-ui text-faint">No implants plugged in.</p>;
+    return <SectionNote>No implants plugged in.</SectionNote>;
   }
   return (
     <div className="pb-1">

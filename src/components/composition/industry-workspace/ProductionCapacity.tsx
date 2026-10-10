@@ -3,6 +3,7 @@
 import { EveImage } from '@/components/eve-image';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
+import { SectionNote } from '../board/SectionBody';
 import {
   type MemberCapacity,
   poolFigure,
@@ -27,7 +28,7 @@ export function ProductionCapacity({
   return (
     <SectionPanel title="Production Capacity">
       {linked.length === 0 && unlinked > 0 ? (
-        <p className="px-3.5 py-3 text-ui text-faint">Link a character in this selection to see its production capacity.</p>
+        <SectionNote>Link a character in this selection to see its production capacity.</SectionNote>
       ) : (
         <dl aria-label="Production capacity" className="grid gap-x-8 gap-y-3 px-3.5 py-3 sm:grid-cols-3">
           {SLOT_POOLS.map((pool) => (

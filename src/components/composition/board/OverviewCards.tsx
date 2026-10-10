@@ -7,6 +7,7 @@ import { StatFigure } from '@/components/ui/stat-figure';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { FlowLine } from './board-bits';
+import { SectionNote } from './SectionBody';
 import {
   accountWorthSeries,
   combinedFlow,
@@ -58,7 +59,7 @@ function WealthCard({
   return (
     <SectionPanel title="Wealth">
       {lead === null ? (
-        <p className="px-3.5 py-3 text-ui text-faint">No wallet has synced yet. Reconnect a pilot to add it.</p>
+        <SectionNote>No wallet has synced yet. Reconnect a pilot to add it.</SectionNote>
       ) : (
         <>
           <div className="flex flex-col gap-1 px-3.5 pt-3 pb-2">
@@ -100,7 +101,7 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
       }
     >
       {totals === null ? (
-        <p className="px-3.5 py-3 text-ui text-faint">No industry jobs have synced yet.</p>
+        <SectionNote>No industry jobs have synced yet.</SectionNote>
       ) : (
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 px-3.5 py-3">
           <dl className="grid grid-cols-3 gap-x-8">

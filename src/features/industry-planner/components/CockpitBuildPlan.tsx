@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { EmptyState } from '@/components/ui/empty-state';
 import { LivePrice } from '@/components/ui/live-price';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
@@ -230,9 +231,7 @@ export function CockpitBuildPlan({
     return (
       <div className="reveal reveal-3">
         <Card>
-          <p className="px-3.5 py-3 text-ui text-muted">
-            No build breakdown — this blueprint has no resolved inputs yet.
-          </p>
+          <EmptyState>No build breakdown — this blueprint has no resolved inputs yet.</EmptyState>
         </Card>
       </div>
     );

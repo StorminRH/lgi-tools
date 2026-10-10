@@ -9,7 +9,7 @@ import { formatUtcDate, stripUtcYear } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
 import { FlowLine } from '../board-bits';
 import { pilotWorthSeries, recentJournal } from '../board-view-model';
-import { SectionBody } from '../SectionBody';
+import { SectionBody, SectionNote } from '../SectionBody';
 import { WorthChart, WorthHeadline } from '../WorthChart';
 
 type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
@@ -91,7 +91,7 @@ function JournalBody({ journal, chart }: { journal: Journal; chart: boolean }) {
         </div>
       )}
       {rows.length === 0 ? (
-        <p className="border-t border-border-soft px-3.5 py-3 text-ui text-faint">No journal entries yet.</p>
+        <SectionNote divided>No journal entries yet.</SectionNote>
       ) : (
         <div className="border-t border-border-soft">
           <StaticTable
