@@ -1,7 +1,7 @@
 import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { chunk } from '@/lib/array';
-import type { BatchedDeleteResult } from '@/lib/batched-delete';
-import { daysBefore, isoDay } from '@/lib/iso-date';
+import { retentionCutoffDay, type BatchedDeleteResult } from '@/lib/batched-delete';
+import { daysBefore } from '@/lib/iso-date';
 import { HISTORY_RETENTION_DAYS } from './constants';
 import { marketHistory, marketHistoryMeta } from './schema';
 import type { HistoryDailyRow, HistorySource } from './types';
@@ -14,10 +14,6 @@ function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
 
-function retentionCutoff(now: Date): string {
-  return isoDay(daysBefore(now, HISTORY_RETENTION_DAYS));
-}
-
 /**
  * A refresh trims its own type; this trims the types that have not refreshed in
  * the last day, a chunk of types at a time through the (type_id, date) key.
@@ -27,7 +23,7 @@ export async function pruneStaleMarketHistory(
   now: Date = new Date(),
   deadline = Number.POSITIVE_INFINITY,
 ): Promise<BatchedDeleteResult> {
-  const cutoff = retentionCutoff(now);
+  const cutoff = retentionCutoffDay(HISTORY_RETENTION_DAYS, now);
   const stale = await db
     .select({ typeId: marketHistoryMeta.typeId })
     .from(marketHistoryMeta)
@@ -87,7 +83,7 @@ export async function persistHistory(
     .where(
       and(
         eq(marketHistory.typeId, typeId),
-        lt(marketHistory.date, retentionCutoff(updatedAt)),
+        lt(marketHistory.date, retentionCutoffDay(HISTORY_RETENTION_DAYS, updatedAt)),
       ),
     );
 

@@ -1,8 +1,8 @@
 import { and, between, desc, eq, lt, max, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { deleteInBatches, type BatchedDeleteResult } from '@/lib/batched-delete';
+import { deleteInBatches, retentionCutoffDay, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
-import { daysBefore, isoDay } from '@/lib/iso-date';
+import { isoDay } from '@/lib/iso-date';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
   GscDailyPoint,
@@ -14,10 +14,6 @@ import type {
   GscUrlStatus,
 } from './types';
 
-function retentionCutoff(retentionDays: number, now: Date): string {
-  return isoDay(daysBefore(now, retentionDays));
-}
-
 export function pruneGscSearchAnalytics(
   database: AnyPgDb,
   retentionDays: number,
@@ -27,7 +23,7 @@ export function pruneGscSearchAnalytics(
   return deleteInBatches(
     database,
     gscSearchAnalytics,
-    lt(gscSearchAnalytics.date, retentionCutoff(retentionDays, now)),
+    lt(gscSearchAnalytics.date, retentionCutoffDay(retentionDays, now)),
     deadline,
   );
 }
@@ -41,7 +37,7 @@ export function pruneGscUrlInspections(
   return deleteInBatches(
     database,
     gscUrlInspection,
-    lt(gscUrlInspection.inspectionDate, retentionCutoff(retentionDays, now)),
+    lt(gscUrlInspection.inspectionDate, retentionCutoffDay(retentionDays, now)),
     deadline,
   );
 }
