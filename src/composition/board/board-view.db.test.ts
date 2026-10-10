@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -22,7 +23,6 @@ import type { SheetSections } from '@/features/character-sheet/types';
 import { netWorthDays } from '@/features/net-worth/schema';
 import { ownedAssets, ownedAssetSyncs } from '@/features/owned-assets/schema';
 import { characterSkills, characterSkillSyncs } from '@/features/skill-queue/schema';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 import { BOARD_GAPS, boardResponseSchema } from './api-contract';
 
 const mocks = vi.hoisted(() => ({

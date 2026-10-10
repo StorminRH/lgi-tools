@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { EVE_SCOPES } from './eve-sso';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { deriveCharacterHealth, deriveScopeHealth, listGrantedScopes } from './scope-health';
 
 const ALL_COMMA = [...EVE_SCOPES].join(',');
@@ -59,10 +59,11 @@ test('deriveCharacterHealth flags missing required scopes, a gone refresh token,
   ]);
 });
 
-test('listGrantedScopes orders active then legacy, glosses known ids, and treats space like comma', () => {
+test('listGrantedScopes orders active then legacy, glosses every requested and legacy id, and treats space like comma', () => {
   const active = listGrantedScopes([...EVE_SCOPES].join(','));
   expect(active.map((s) => s.id)).toEqual([...EVE_SCOPES]);
   expect(active.every((s) => s.status === 'active')).toBe(true);
+  expect(active.filter((s) => !s.gloss).map((s) => s.id)).toEqual([]);
   expect(listGrantedScopes([...EVE_SCOPES].reverse().join(' ')).map((s) => s.id)).toEqual([
     ...EVE_SCOPES,
   ]);
@@ -87,7 +88,8 @@ test('listGrantedScopes orders active then legacy, glosses known ids, and treats
   expect(listGrantedScopes('publicData,publicData').map((s) => s.id)).toEqual(['publicData']);
 
   expect(listGrantedScopes('esi-made.up.v1')).toEqual([{ id: 'esi-made.up.v1', status: 'legacy' }]);
-  expect(listGrantedScopes('esi-planets.manage_planets.v1')).toEqual([
+  expect(listGrantedScopes('esi-planets.manage_planets.v1,esi-skills.read_skills.v1')).toEqual([
+    { id: 'esi-skills.read_skills.v1', gloss: 'Read your trained skills', status: 'active' },
     { id: 'esi-planets.manage_planets.v1', gloss: 'Manage your planetary colonies', status: 'legacy' },
   ]);
   expect(listGrantedScopes('esi-wallet.read_character_wallet.v1')).toEqual([

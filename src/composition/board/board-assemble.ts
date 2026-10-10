@@ -1,3 +1,4 @@
+import type { EveScope } from '@/config/eve-scopes';
 import { ATTRIBUTE_KEYS, type AttributeKey } from '@/data/eve-data/character-attributes';
 import type { SystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
@@ -99,7 +100,7 @@ export interface NameIdRequest {
   valuationTypeIds: number[];
 }
 
-const GAP_SCOPES: Record<BoardGap, readonly string[]> = {
+const GAP_SCOPES: Record<BoardGap, readonly EveScope[]> = {
   skills: SKILL_SYNC_SCOPES,
   location: LOCATION_SYNC_SCOPES,
   wallet: SHEET_SECTION_SCOPES.wallet,

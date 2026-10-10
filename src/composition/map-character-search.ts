@@ -1,10 +1,10 @@
 import { z } from 'zod';
+import { EVE_CHARACTER_SEARCH_SCOPE } from '@/config/eve-scopes';
 import type { SearchCharactersResponse } from '@/data/maps/api-contract';
 import { resolveEntityNamesStrict } from '@/data/eve-data/entity-names';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { positiveIdSchema } from '@/lib/id-schemas';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { EVE_CHARACTER_SEARCH_SCOPE } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveScopeHealth } from '@/platform/auth/scope-health';
 import { esiFetch, esiUrl } from '@/platform/esi';

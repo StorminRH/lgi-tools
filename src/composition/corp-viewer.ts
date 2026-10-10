@@ -1,4 +1,5 @@
 import { after } from 'next/server';
+import type { EveScope } from '@/config/eve-scopes';
 import { getCorpHoldingContext, readCorpMemberContext } from '@/data/corp-holdings/queries';
 import type { Knowable } from '@/data/corp-holdings/placement';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
@@ -31,7 +32,7 @@ export interface CorpViewer {
 }
 
 const ROLES_FRESHNESS = freshnessGate('character_corp_roles');
-const ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
+const ROLES_SCOPE: EveScope = 'esi-characters.read_corporation_roles.v1';
 const UNKNOWN: MemberRoles = { kind: 'unknown' };
 const CONTEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const NO_KNOWN_BASES: ReadonlyMap<number, number | null> = new Map();

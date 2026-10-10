@@ -1,3 +1,4 @@
+import type { EveScope } from '@/config/eve-scopes';
 import { chunk } from '@/lib/array';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { HOUR_MS } from '@/lib/iso-date';
@@ -28,7 +29,7 @@ export const CORP_CONTEXT_SYNC_SCOPES = [
   'esi-corporations.track_members.v1',
   'esi-assets.read_corporation_assets.v1',
   'esi-universe.read_structures.v1',
-] as const;
+] as const satisfies readonly EveScope[];
 
 const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 

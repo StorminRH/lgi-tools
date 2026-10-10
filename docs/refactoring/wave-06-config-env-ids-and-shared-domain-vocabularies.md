@@ -15,7 +15,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
 | ☑ | [P247](#p247) | Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500 | contracts-validation | M | low | medium | — |
 | ☑ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
-| ☐ | [P187](#p187) | Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope | esi-sync | S | low | medium | — |
+| ☑ | [P187](#p187) | Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope | esi-sync | S | low | medium | — |
 | ☐ | [P350](#p350) | Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins | testing | S | low | low | [P187](#p187) |
 | ☐ | [P186](#p186) | Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth | esi-sync | S | low | medium | [P187](#p187) |
 | ☐ | [P252](#p252) | Export a syncEligibility projection from scope-health and use it wherever the canSync input is built | contracts-validation | S | low | low | [P186](#p186), [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) |
@@ -579,7 +579,7 @@ The ownedRowIdSchema part depends on P247's module existing; the map-id fix is i
 
 ## P187: Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About +15/-30. The new config file is mostly a move (about 30 lines). The 6 glosses and the legacy split add about 12, and the satisfies annotations add about 15. The four stale comments remove about 25.
 - **Depends on:** —

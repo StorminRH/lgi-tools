@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { CORP_CONTEXT_SYNC_SCOPES } from '@/data/corp-holdings/context-sync';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 
 describe('corp context sync scopes', () => {
   it('requests only scopes sign-in asks for', () => {

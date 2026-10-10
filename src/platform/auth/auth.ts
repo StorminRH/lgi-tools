@@ -6,11 +6,11 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { readAuthSecret, readEnv, requireEnv } from '@/lib/env';
 import {
   EVE_AUTHORIZE_URL,
   EVE_PROVIDER_ID,
-  EVE_SCOPES,
   EVE_TOKEN_URL,
   claimsToCharacter,
   exchangeCodeForToken,

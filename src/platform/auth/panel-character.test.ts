@@ -9,7 +9,7 @@ const LOCATION = [
   'esi-location.read_ship_type.v1',
   'esi-location.read_online.v1',
 ] as const;
-const scopes = { skillQueue: [SKILLS, QUEUE], location: LOCATION };
+const scopes = { skillQueue: [SKILLS, QUEUE] as const, location: LOCATION };
 
 test('projects client-safe fields, never the granted scope, and wires needsReconnect from the tracker', () => {
   const panel = toPanelCharacter(

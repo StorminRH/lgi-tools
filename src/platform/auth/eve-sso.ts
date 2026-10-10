@@ -20,7 +20,6 @@ export {
   EVE_AUTHORIZED_APPS_URL,
   EVE_PROVIDER_ID,
   EVE_REVOKE_URL,
-  EVE_SCOPES,
   EVE_TOKEN_URL,
 } from './eve-sso-constants';
 

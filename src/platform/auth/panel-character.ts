@@ -1,3 +1,4 @@
+import type { EveScope } from '@/config/eve-scopes';
 import type { AccountCharactersResponse } from './api-contract';
 import { deriveCharacterHealth, deriveScopeHealth } from './scope-health';
 
@@ -42,8 +43,8 @@ export function toAccountCharacter(
     hasRefreshToken: boolean;
   },
   scopes: {
-    skillQueue: readonly string[];
-    location: readonly string[];
+    skillQueue: readonly EveScope[];
+    location: readonly EveScope[];
   },
 ): AccountCharactersResponse['characters'][number] {
   return {
