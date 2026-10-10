@@ -9,7 +9,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P088](#p088) | Fix formatRelativeTime's 28-29 day '0mo ago' bug and route the compact elapsed-age ladders through one lib formatter | formatting | S | low | medium | — |
-| ☐ | [P107](#p107) | Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies | generic-utility | M | low | medium | — |
+| ☑ | [P107](#p107) | Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies | generic-utility | M | low | medium | — |
 | ☐ | [P089](#p089) | Make lib/format/time the single UTC date home: one input type, adopt formatIsoDay everywhere, add formatUtcMinute and stripUtcYear | formatting | M | low | medium | [P088](#p088), [P107](#p107) |
 | ☐ | [P177](#p177) | Fix retention-pruner drift with existing retentionCutoff and formatIsoDay; keep per-owner pruners | server-pipeline | S | low | low | [P107](#p107), [P089](#p089) |
 | ☐ | [P085](#p085) | Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local | formatting | S | low | medium | — |
@@ -88,7 +88,7 @@ export function formatRelativeTime(date: Date | null, now?: number, largest: 'd'
 
 ## P107: Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -70 production lines (13 slice helpers or inlines, 2 toDayNumber, 2 shadow cutoffs, dayString/isWeekend, about 11 unit constants), +30 in iso-date.ts, +60 test lines; about -20 net test lines after moving the scattered helper tests
 - **Depends on:** —

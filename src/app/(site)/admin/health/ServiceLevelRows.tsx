@@ -6,6 +6,7 @@ import type { CapabilityFailureDetail, FailureGroup, SlowOperation } from '@/dat
 import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
 import { formatQuantity } from '@/lib/format/number';
+import { isoDay } from '@/lib/iso-date';
 import { zeroFillDaily } from '../aggregate';
 import { CardLink } from '../CardLink';
 import { AdminTrendChart } from '../charts';
@@ -17,7 +18,6 @@ import { TitledBlock } from '../TitledBlock';
 import { DetailBody, DetailCaption } from './DetailBlocks';
 import { StatusRow } from './StatusRow';
 import {
-  dayLabel,
   failureResultLabel,
   operationLabel,
   slowOperationNote,
@@ -64,7 +64,7 @@ const FAILURE_COLUMNS = [
     key: 'last',
     label: 'Last seen',
     align: 'right',
-    render: (row) => dayLabel(row.lastSeen),
+    render: (row) => isoDay(row.lastSeen),
     className: 'whitespace-nowrap text-muted tabular-nums',
   },
 ] satisfies readonly StaticTableColumn<FailureGroup>[];
@@ -112,8 +112,8 @@ function FailureDetailBody({ detail }: { detail: Loaded<FailureDetail> }) {
   if (detail === SECTION_LOAD_FAILED) return <Unavailable />;
   const series = zeroFillDaily(
     detail.daily.map((point) => ({ day: point.day, value: point.failures })),
-    dayLabel(detail.range.from),
-    dayLabel(new Date(detail.range.to.getTime() - 1)),
+    isoDay(detail.range.from),
+    isoDay(detail.range.to.getTime() - 1),
   );
   const trend = trendSeries(series.days, series.values);
   return (

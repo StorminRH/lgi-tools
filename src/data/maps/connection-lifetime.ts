@@ -1,6 +1,5 @@
 import type { WormholeLifeStage } from '@/data/eve-data/wormhole-contract';
-
-const HOUR_MS = 60 * 60 * 1000;
+import { HOUR_MS } from '@/lib/iso-date';
 
 export interface ConnectionDeathWindow {
   readonly earliestAt: number;

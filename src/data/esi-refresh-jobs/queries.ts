@@ -210,7 +210,7 @@ export async function getEsiRefreshQueueStats(now = new Date()): Promise<EsiRefr
       inArray(esiRefreshJobs.status, ALWAYS_COUNTED_STATUSES),
       and(
         inArray(esiRefreshJobs.status, RECENTLY_FINISHED_STATUSES),
-        gte(esiRefreshJobs.finishedAt, new Date(now.getTime() - ESI_REFRESH_JOB_RETENTION_DAYS * 86_400_000)),
+        gte(esiRefreshJobs.finishedAt, retentionCutoff(ESI_REFRESH_JOB_RETENTION_DAYS, now)),
       ),
     ))
     .groupBy(esiRefreshJobs.status)

@@ -65,10 +65,6 @@ export function failureResultLabel(row: FailureGroup): string {
   return parts.join(' · ');
 }
 
-export function dayLabel(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 export function slowOperationNote(row: SlowOperation): string {
   const runs = formatCount(row.count, 'run');
   return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency} on average`;

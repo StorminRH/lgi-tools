@@ -12,10 +12,8 @@ import {
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { type CurrentTraining, currentTraining, summarizeQueue } from '@/features/skill-queue/progress';
 import { formatUtcDate, formatRemaining } from '@/lib/format/time';
+import { DAY_MS, HOUR_MS, isoDayStartMs } from '@/lib/iso-date';
 import { withSearchParams } from '@/lib/search-params';
-
-const HOUR = 60 * 60 * 1000;
-const DAY = 24 * HOUR;
 
 function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
@@ -44,7 +42,7 @@ export interface QueueHealth {
   label: string;
 }
 
-const QUEUE_WARN_MS = DAY;
+const QUEUE_WARN_MS = DAY_MS;
 
 export function queueHealth(skills: BoardSection<BoardSkillsData>, now: number): QueueHealth {
   if (skills.state === 'pending') return { tone: 'quiet', label: 'Syncing from EVE…' };
@@ -289,11 +287,11 @@ export function groupSkills(
   return groups.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const FLOW_WINDOW_MS = 30 * DAY;
+const FLOW_WINDOW_MS = 30 * DAY_MS;
 
 export function flowWindowLabel(windowStart: string, now: number): string {
   const start = Date.parse(windowStart);
-  if (!Number.isFinite(start) || now - start >= FLOW_WINDOW_MS - HOUR) return 'last 30 days';
+  if (!Number.isFinite(start) || now - start >= FLOW_WINDOW_MS - HOUR_MS) return 'last 30 days';
   return `since ${formatUtcDate(windowStart)}`;
 }
 
@@ -418,7 +416,7 @@ export function combinedFlow(characters: readonly BoardCharacter[], now: number)
   if (present.length === 0) return null;
   const starts = present.map((journal) => Date.parse(journal.windowStart));
   const latest = Math.max(...starts);
-  const aligned = Math.max(...starts) - Math.min(...starts) < DAY;
+  const aligned = Math.max(...starts) - Math.min(...starts) < DAY_MS;
   const window = flowWindowLabel(new Date(latest).toISOString(), now);
   return {
     inflow: present.reduce((sum, journal) => sum + journal.inflow, 0),
@@ -502,8 +500,6 @@ export interface WorthPoint {
   assets: number | null;
 }
 
-const dayStart = (day: string) => Date.parse(`${day}T00:00:00Z`);
-
 // Recorded days, with the journal's wallet series filling in before the first
 // one so a new account still sees its ISK; assets begin at the first snapshot.
 function stackWorth(
@@ -538,7 +534,7 @@ export function accountWorthSeries(
       netWorth += pilot.netWorth;
       liquid += pilot.liquidIsk;
     }
-    return [{ t: dayStart(day.day), netWorth, liquid }];
+    return [{ t: isoDayStartMs(day.day), netWorth, liquid }];
   });
   return stackWorth(recorded, netWorthSeries(characters, now).points);
 }
@@ -551,7 +547,7 @@ export function pilotWorthSeries(
 ): WorthPoint[] {
   const recorded = history.flatMap((day) => {
     const pilot = day.pilots[String(character.characterId)];
-    return pilot === undefined ? [] : [{ t: dayStart(day.day), netWorth: pilot.netWorth, liquid: pilot.liquidIsk }];
+    return pilot === undefined ? [] : [{ t: isoDayStartMs(day.day), netWorth: pilot.netWorth, liquid: pilot.liquidIsk }];
   });
   return stackWorth(recorded, netWorthSeries([character], now).points);
 }
@@ -563,7 +559,7 @@ export interface NetWorthSeries {
   of: number;
 }
 
-const startOfUtcDay = (t: number) => t - (((t % DAY) + DAY) % DAY);
+const startOfUtcDay = (t: number) => t - (((t % DAY_MS) + DAY_MS) % DAY_MS);
 
 // The balance a pilot held at the end of a day: its last point by then, or,
 // before its first point, that first point (its window opens no later).
@@ -597,10 +593,10 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
   const from = Math.max(...pilots.map((pilot) => Date.parse(pilot.journal.windowStart)));
   const firstDay = startOfUtcDay(from);
   const today = startOfUtcDay(now);
-  if (today - firstDay < DAY) return { ...empty, from };
+  if (today - firstDay < DAY_MS) return { ...empty, from };
   const points: { t: number; balance: number }[] = [];
-  for (let day = firstDay; day < today; day += DAY) {
-    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.series, day + DAY - 1), 0);
+  for (let day = firstDay; day < today; day += DAY_MS) {
+    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.series, day + DAY_MS - 1), 0);
     points.push({ t: day, balance });
   }
   points.push({ t: today, balance: pilots.reduce((sum, pilot) => sum + pilot.wallet.balance, 0) });

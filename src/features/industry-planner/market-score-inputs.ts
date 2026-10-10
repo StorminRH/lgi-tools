@@ -4,6 +4,7 @@ import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { DEPTH_BANDS_PCT } from '@/data/market-prices/constants';
 import type { DepthBand } from '@/data/market-prices/types';
 import { formatElapsed } from '@/lib/format/time';
+import { DAY_MS, isoDayNumber } from '@/lib/iso-date';
 
 const SCORE_ADV_WINDOW_DAYS = 30 satisfies (typeof HISTORY_ADV_WINDOWS)[number];
 
@@ -15,11 +16,9 @@ export const STALENESS_FLAG_DAYS = 14;
 
 export function daysSinceHistoryDate(latestDate: string | null, nowMs: number): number | null {
   if (latestDate === null) return null;
-  const parsed = Date.parse(`${latestDate}T00:00:00Z`);
-  if (Number.isNaN(parsed)) return null;
-  const day = Math.floor(parsed / 86_400_000);
-  const today = Math.floor(nowMs / 86_400_000);
-  return today - day;
+  const day = isoDayNumber(latestDate);
+  if (Number.isNaN(day)) return null;
+  return Math.floor(nowMs / DAY_MS) - day;
 }
 
 function daysPhrase(n: number): string {
@@ -62,7 +61,7 @@ export function marketScoreView(
   const staleDays = nowMs === null ? null : daysSinceHistoryDate(latestDate, nowMs);
   const staleAge =
     staleDays !== null && staleDays >= STALENESS_FLAG_DAYS
-      ? formatElapsed(staleDays * 86_400_000, { largest: 'mo' })
+      ? formatElapsed(staleDays * DAY_MS, { largest: 'mo' })
       : null;
   const scoreText = score.score === null ? '—' : String(score.score);
   return {

@@ -1,8 +1,10 @@
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import type { Sql } from '@/db';
+import { chunk } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { errorMessage } from '@/lib/failure';
+import { daysBefore, isoDay } from '@/lib/iso-date';
 import {
   GSC_INSPECTION_BATCH_SIZE,
   GSC_INSPECTION_URL_LIMIT,
@@ -86,7 +88,7 @@ export function indexStatusToRecord(
   status: IndexStatusApiResult | null,
   syncedAt: Date,
   sitemapUrlCount: number,
-  inspectionDate = dateStr(syncedAt),
+  inspectionDate = isoDay(syncedAt),
 ): UrlInspectionRecord {
   return {
     inspectionDate,
@@ -103,16 +105,6 @@ export function indexStatusToRecord(
     crawledAs: status?.crawledAs ?? null,
     syncedAt,
   };
-}
-
-function dateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
 }
 
 function matchesProperty(url: URL, property: string): boolean {
@@ -302,7 +294,7 @@ async function syncUrlInspections(
 ): Promise<{ count: number; errors: string[] }> {
   try {
     const urls = prepareInspectionUrls(sitemapUrls, siteUrl());
-    const inspectionDate = dateStr(syncedAt);
+    const inspectionDate = isoDay(syncedAt);
     const stored = await db
       .select({ url: gscUrlInspection.url })
       .from(gscUrlInspection)
@@ -336,8 +328,8 @@ export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSy
 
   const db = drizzle(client);
   const syncedAt = new Date();
-  const endDate = dateStr(syncedAt);
-  const startDate = dateStr(new Date(syncedAt.getTime() - GSC_WINDOW_DAYS * 24 * 60 * 60 * 1000));
+  const endDate = isoDay(syncedAt);
+  const startDate = isoDay(daysBefore(syncedAt, GSC_WINDOW_DAYS));
 
   const search = await syncSearchAnalytics(db, startDate, endDate, syncedAt);
   const sitemap = await syncSitemaps(db, syncedAt);

@@ -1,3 +1,5 @@
+import { isoDay } from '@/lib/iso-date';
+
 const UTC_DAY = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',
@@ -27,7 +29,7 @@ export function formatUtcTime(value: Date | number | null): string {
 }
 
 export function formatIsoDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return isoDay(date);
 }
 
 /** `YYYY-MM-DD HH:mm` in UTC, for audit rows and job timestamps. */

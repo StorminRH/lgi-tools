@@ -1,6 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import type { AnyPgDb } from '@/lib/db-types';
+import { daysBefore } from '@/lib/iso-date';
 
 const DELETE_BATCH_SIZE = 5000;
 
@@ -11,7 +12,7 @@ export interface BatchedDeleteResult {
 }
 
 export function retentionCutoff(retentionDays: number, now: Date): Date {
-  return new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  return daysBefore(now, retentionDays);
 }
 
 /**

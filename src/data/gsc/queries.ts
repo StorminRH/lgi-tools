@@ -2,6 +2,7 @@ import { and, between, desc, eq, lt, max, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { deleteInBatches, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
+import { daysBefore, isoDay } from '@/lib/iso-date';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
   GscDailyPoint,
@@ -13,12 +14,8 @@ import type {
   GscUrlStatus,
 } from './types';
 
-export function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 function retentionCutoff(retentionDays: number, now: Date): string {
-  return toDateStr(new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000));
+  return isoDay(daysBefore(now, retentionDays));
 }
 
 export function pruneGscSearchAnalytics(
@@ -50,7 +47,7 @@ export function pruneGscUrlInspections(
 }
 
 function inRange(range: GscRange) {
-  return between(gscSearchAnalytics.date, toDateStr(range.from), toDateStr(range.to));
+  return between(gscSearchAnalytics.date, isoDay(range.from), isoDay(range.to));
 }
 
 const weightedPosition = sql<number>`coalesce(
@@ -235,7 +232,7 @@ export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDail
   const rows = await db
     .select({ day: gscUrlInspection.inspectionDate, indexed, notIndexed })
     .from(gscUrlInspection)
-    .where(between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)))
+    .where(between(gscUrlInspection.inspectionDate, isoDay(range.from), isoDay(range.to)))
     .groupBy(gscUrlInspection.inspectionDate)
     .having(
       sql`bool_and(${gscUrlInspection.sitemapUrlCount} is not null)

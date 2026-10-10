@@ -10,6 +10,7 @@ import {
   lifetimeDisplay,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
+import { HOUR_MS } from '@/lib/iso-date';
 import type { ConnectionDetail } from '../chain/connection-detail';
 
 export interface CodexPanelFacts {
@@ -44,8 +45,6 @@ export type LifetimeRowDisplay =
       readonly title: string;
     }
   | { readonly kind: 'expired'; readonly label: string };
-
-const HOUR_MS = 60 * 60 * 1000;
 
 export function isCodexSizeLocked(entry: WormholeCodexEntry | null): boolean {
   return entry !== null && entry.farSide === false;
