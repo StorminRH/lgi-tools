@@ -10,7 +10,7 @@ import {
   getPriceRefreshDays,
   getPriceSourceDegradation,
 } from '@/data/telemetry/queries';
-import { getCapabilityLatency, getCapabilityOutcomeStats } from '@/data/telemetry/sli-breakdown';
+import { getCapabilityLatency, getCapabilityOutcomeStats, getEsiClientErrors } from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
 import { getUserOwningCharacter, listAdminUsers } from '@/platform/auth/admin-users';
 
@@ -41,6 +41,7 @@ export const getStaticsSummaryShared = cache(getWhStaticsOperatorSummary);
 // Telemetry
 export const getCapabilityOutcomeStatsShared = sharedRangeRead(getCapabilityOutcomeStats);
 export const getCapabilityLatencyShared = sharedRangeRead(getCapabilityLatency);
+export const getEsiClientErrorsShared = sharedRangeRead(getEsiClientErrors);
 export const getCronOutcomesShared = sharedRangeRead(getCronOutcomes);
 export const getLastCronRunsShared = cache(getLastCronRuns);
 export const getPriceRefreshDaysShared = sharedRangeRead(getPriceRefreshDays);
