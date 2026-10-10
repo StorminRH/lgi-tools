@@ -17,6 +17,13 @@ describe('deriveSiteCardHeaderView', () => {
     );
     expect(view.subLine).toBe('DPS 500 · EHP 100k');
     expect(view.isWaveDriven).toBe(true);
+    expect(view.waveValue).toBe('12.0M');
+    expect(view.showIskUnit).toBe(true);
+  });
+
+  it('shows a sub-million blue-loot value in thousands, as the sites table does', () => {
+    const view = deriveSiteCardHeaderView(siteDetail({ siteType: 'relic', blueLootIsk: 950_000 }), []);
+    expect(view.waveValue).toBe('950K');
     expect(view.showIskUnit).toBe(true);
   });
 

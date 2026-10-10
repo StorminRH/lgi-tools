@@ -1,21 +1,48 @@
-export function formatIsk(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—';
+/**
+ * Decimal places per tier, tiered on the magnitude so negatives scale like
+ * positives. Without `unscaled`, the K tier also takes every value below 1K.
+ */
+interface IskTiers {
+  readonly b: number;
+  readonly m: number;
+  readonly k: number;
+  readonly unscaled?: number;
+}
+
+const FULL: IskTiers = { b: 2, m: 2, k: 1, unscaled: 2 };
+const SHORT: IskTiers = { b: 1, m: 1, k: 0 };
+const COMPACT: IskTiers = { b: 1, m: 0, k: 0 };
+
+function scaledIsk(value: number, { b, m, k, unscaled }: IskTiers): string {
   const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-  if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toFixed(2);
+  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(b)}B`;
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(m)}M`;
+  if (abs >= 1_000 || unscaled === undefined) return `${(value / 1_000).toFixed(k)}K`;
+  return value.toFixed(unscaled);
 }
 
-export function formatIskShort(value: number | null): string {
+/** `—` for null or non-finite; `unit` appends ` ISK` to a number, never to `—`. */
+function formatScaledIsk(
+  value: number | null,
+  tiers: IskTiers,
+  { unit = false }: { unit?: boolean } = {},
+): string {
   if (value === null || !Number.isFinite(value)) return '—';
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  return `${(value / 1_000).toFixed(0)}K`;
+  const text = scaledIsk(value, tiers);
+  return unit ? `${text} ISK` : text;
 }
 
-export function formatIskCompact(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—';
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  return `${(value / 1_000_000).toFixed(0)}M`;
+/** Ledger precision: `2.35B`, `2.35M`, `2.3K`, `42.00`. */
+export function formatIsk(value: number | null): string {
+  return formatScaledIsk(value, FULL);
+}
+
+/** Table and card precision: `2.3B`, `2.3M`, `950K`. */
+export function formatIskShort(value: number | null, options?: { unit?: boolean }): string {
+  return formatScaledIsk(value, SHORT, options);
+}
+
+/** Whole millions and thousands for one-line summaries: `2.3B`, `45M`, `100K`. */
+export function formatIskCompact(value: number | null, options?: { unit?: boolean }): string {
+  return formatScaledIsk(value, COMPACT, options);
 }

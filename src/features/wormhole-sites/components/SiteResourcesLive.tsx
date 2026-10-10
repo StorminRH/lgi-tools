@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRefreshOnView } from '@/data/market-prices/use-refresh-on-view';
 import { LivePrice } from '@/components/ui/live-price';
 import { SectionFooter } from '@/components/ui/section-footer';
+import { formatIskShort } from '@/lib/format/isk';
 import type { SiteResource, SiteType } from '../types';
-import { formatIskHeader } from '../format';
 import { SiteResourceRow } from './ResourceRow';
 import {
   resourceLiveIsk,
@@ -50,7 +50,7 @@ function LiveSiteTotal({ resources }: { resources: SiteResource[] }) {
   const pending = resources.some((resource) =>
     resource.typeId === null ? false : live.isPending(resource.typeId),
   );
-  return <LivePrice value={formatIskHeader(total)} pending={pending} />;
+  return <LivePrice value={formatIskShort(total, { unit: true })} pending={pending} />;
 }
 
 function ViewSentinel() {

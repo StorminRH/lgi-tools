@@ -16,7 +16,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P090](#p090) | Move pluralCount to lib/format/number as formatCount and replace the count-and-noun ternaries | formatting | M | low | low | [P085](#p085) |
 | ☑ | [P091](#p091) | Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards | formatting | S | low | low | — |
 | ☑ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
-| ☐ | [P084](#p084) | Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL | formatting | S | low | medium | — |
+| ☑ | [P084](#p084) | Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL | formatting | S | low | medium | — |
 | ☐ | [P094](#p094) | Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper | formatting | M | low | low | — |
 | ☐ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
 | ☐ | [P272](#p272) | Move formatStationName to lib/format and parseStructureFit to features/custom-structures | feature-skeleton | S | low | low | — |
@@ -707,7 +707,7 @@ export function formatSigned(value: number | null, format: (magnitude: number) =
 
 ## P084: Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -27 (format.ts 13, site-meta 14) / +12 in isk.ts
 - **Depends on:** —

@@ -1,7 +1,7 @@
 import type { ChipTone, PillTone } from '@/components/ui/tones';
+import { formatIskShort } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import { formatClassRange, gasClassRange } from '../gas-classes';
-import { formatIsk } from '../format';
 import type { SiteDetail, SiteResource } from '../types';
 import {
   CLASS_TONE,
@@ -62,7 +62,7 @@ export function deriveSiteCardHeaderView(
   const isCombat = site.siteType === 'combat';
   return {
     subLine: isCombat ? combatSubLine(site) : resourceSubLine(liveResources),
-    waveValue: formatIsk(site.blueLootIsk),
+    waveValue: formatIskShort(site.blueLootIsk),
     showIskUnit: site.blueLootIsk != null,
     isWaveDriven: isCombat || site.siteType === 'relic' || site.siteType === 'data',
     classPill: deriveClassPill(site),
