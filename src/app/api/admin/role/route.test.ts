@@ -92,7 +92,22 @@ describe('POST /api/admin/role', () => {
     const { POST } = await import('./route');
     const res = await POST(postForm(ROUTE, { userId: TARGET_USER.userId, nextRole: 'ADMIN' }));
     expect(res.status).toBe(303);
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/admin/users');
     expect(setUserRoleMock).toHaveBeenCalledWith(TARGET_USER.userId, 'ADMIN');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries the sanitised search back to the users page, and drops a blank one', async () => {
+    getSessionMock.mockResolvedValue(ADMIN_VIEWER);
+    getUserByIdMock.mockResolvedValue(TARGET_USER);
+    setUserRoleMock.mockResolvedValue({ ...TARGET_USER, role: 'ADMIN' });
+    const { POST } = await import('./route');
+    const location = async (q: string) => {
+      const res = await POST(postForm(ROUTE, { userId: TARGET_USER.userId, nextRole: 'ADMIN', q }));
+      return new URL(res.headers.get('location')!);
+    };
+
+    expect((await location('  Pilot\u0007 ')).searchParams.get('q')).toBe('Pilot');
+    expect((await location('   ')).searchParams.has('q')).toBe(false);
   });
 });

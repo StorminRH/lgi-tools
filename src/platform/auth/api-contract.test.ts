@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   eveTokenEndpoint,
   eveTokenRequestSchema,
+  sanitiseAdminAccessQuery,
   type EveTokenOkResponse,
 } from './api-contract';
 
@@ -33,5 +34,19 @@ describe('eve-token contract', () => {
     expect(eveTokenRequestSchema.safeParse({ userId: 'user-1', characterId: 1.5 }).success).toBe(false);
     expect(eveTokenRequestSchema.safeParse({ userId: 'user-1', characterId: 0 }).success).toBe(false);
     expect(eveTokenRequestSchema.safeParse({ userId: 'user-1', characterId: '123' }).success).toBe(false);
+  });
+});
+
+describe('sanitiseAdminAccessQuery', () => {
+  it('drops control characters, trims, and caps the text at 200 characters', () => {
+    expect(sanitiseAdminAccessQuery('  Pilot\u0007 ')).toBe('Pilot');
+    expect(sanitiseAdminAccessQuery('x'.repeat(250))).toBe('x'.repeat(200));
+  });
+
+  it('reads blank, absent, and repeated (?q=a&q=b) queries as no query', () => {
+    expect(sanitiseAdminAccessQuery('   ')).toBeUndefined();
+    expect(sanitiseAdminAccessQuery('\u0007')).toBeUndefined();
+    expect(sanitiseAdminAccessQuery(undefined)).toBeUndefined();
+    expect(sanitiseAdminAccessQuery(['a', 'b'])).toBeUndefined();
   });
 });

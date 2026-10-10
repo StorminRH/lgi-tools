@@ -11,10 +11,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { ownerSyncStateColumns } from '@/lib/db-columns';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
+import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 
-export const OWNED_ASSET_OWNER_TYPES = ['character', 'corporation'] as const;
-export type OwnedAssetOwnerType = (typeof OWNED_ASSET_OWNER_TYPES)[number];
-export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', OWNED_ASSET_OWNER_TYPES);
+export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', ESI_OWNER_TYPES);
 
 /**
  * The owned-asset rows. Columns are the OwnedAsset projection (esi-projection.ts)

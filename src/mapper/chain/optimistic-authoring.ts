@@ -16,12 +16,15 @@ import {
 } from '@/data/maps/chain-contract';
 import {
   deathWindowForReport,
+  deathWindowFrom,
   intersectOrReset,
+  typedLifetimeWindow,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
-import type {
-  WormholeDestinationHint,
-  WormholeLifeStage,
+import {
+  isTypedCodexEntry,
+  type WormholeDestinationHint,
+  type WormholeLifeStage,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
@@ -43,6 +46,7 @@ import {
   replaceDoor,
 } from '@/data/maps/connection-hallway';
 import type {
+  ConnectionDoorSide,
   ConnectionDoorValue,
   ConnectionHallway,
   ConnectionLifetime,
@@ -294,7 +298,7 @@ export function optimisticSetConnectionLifeStage(
       lifetime: connectionLifetimeFrom({
         lifeStage: args.value,
         observedAt: now,
-        death: deathWindowFromArgs(args),
+        death: deathWindowFrom(args.deathEarliestAt, args.deathLatestAt),
       }),
     },
   });
@@ -306,7 +310,7 @@ export function optimisticSetConnectionWormholeType(
     mapId: string;
     connectionId: string;
     value: string | null;
-    side?: 'from' | 'to';
+    side?: ConnectionDoorSide;
     deathEarliestAt?: number | null;
     deathLatestAt?: number | null;
   },
@@ -325,7 +329,7 @@ export function optimisticSetConnectionWormholeType(
       lifetime: connectionLifetimeFrom({
         lifeStage: lifetimeStage(row.lifetime),
         observedAt: lifetimeObservedAt(row.lifetime),
-        death: deathWindowFromArgs(args),
+        death: deathWindowFrom(args.deathEarliestAt, args.deathLatestAt),
       }),
       resolution: clearPendingResolution(row.resolution),
     };
@@ -422,16 +426,6 @@ function storedWindow(
   return lifetimeDeathWindow(connection.lifetime);
 }
 
-function deathWindowFromArgs(args: {
-  readonly deathEarliestAt?: number | null;
-  readonly deathLatestAt?: number | null;
-}): ConnectionDeathWindow | null {
-  const earliestAt = args.deathEarliestAt ?? null;
-  const latestAt = args.deathLatestAt ?? null;
-  if (earliestAt === null || latestAt === null) return null;
-  return { earliestAt, latestAt };
-}
-
 function namedTypeCode(connection: {
   readonly from: ConnectionDoorValue;
   readonly to: ConnectionDoorValue;
@@ -443,18 +437,9 @@ export function wormholeTypeWindowProposal(
   connection: ConnectionWindowSource,
   lifetimeMinutes: number | null,
 ): ConnectionDeathWindow | null {
-  if (
-    lifetimeMinutes === null ||
-    !Number.isFinite(lifetimeMinutes) ||
-    lifetimeMinutes < 0
-  ) {
-    return storedWindow(connection);
-  }
-  const firstSeenAt = connection.firstSeenAt ?? connection._creationTime;
-  return intersectOrReset(storedWindow(connection), {
-    earliestAt: firstSeenAt,
-    latestAt: firstSeenAt + lifetimeMinutes * 60_000,
-  });
+  const stored = storedWindow(connection);
+  const typed = typedLifetimeWindow(connection, lifetimeMinutes);
+  return typed === null ? stored : intersectOrReset(stored, typed);
 }
 
 export function lifeStageWindowProposal(
@@ -489,9 +474,7 @@ async function nullOnRejection<Value>(
 export function lifetimeMinutesFromEntry(
   entry: WormholeCodexEntry | null,
 ): number | null {
-  if (entry === null) return null;
-  if (entry.farSide) return null;
-  return entry.lifetimeMinutes;
+  return isTypedCodexEntry(entry) ? entry.lifetimeMinutes : null;
 }
 
 async function lifetimeMinutesFor(code: string | null): Promise<number | null> {
@@ -524,7 +507,7 @@ function optimisticPatchDoorLeadsTo(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     leadsTo: DoorLeadsTo;
   },
 ): void {
@@ -557,7 +540,7 @@ export function optimisticSetConnectionDestination(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: number | null;
   },
 ): void {
@@ -574,7 +557,7 @@ function optimisticSetConnectionDestinationHint(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: WormholeDestinationHint | null;
   },
 ): void {
@@ -671,7 +654,7 @@ export function useChainAuthoringMutations() {
       mapId: string;
       connection: ConnectionEditorDetail;
       value: string | null;
-      side?: 'from' | 'to';
+      side?: ConnectionDoorSide;
     }) => {
       const proposal = wormholeTypeWindowProposal(
         args.connection,

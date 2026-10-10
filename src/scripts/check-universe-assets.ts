@@ -19,6 +19,7 @@ import {
   type WormholeCodexEntry,
   type WormholeCodexAsset,
 } from '@/data/eve-data/universe-assets';
+import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
 import { runScript } from './script-runtime';
 
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
@@ -49,10 +50,10 @@ function sizeOf(value: unknown): { rawBytes: number; gzipBytes: number } {
 }
 
 function typedEntry(
-  entry: WormholeCodexEntry | undefined,
+  entry: WormholeCodexEntry | null,
   code: string,
 ): Exclude<WormholeCodexEntry, { farSide: true }> {
-  if (entry === undefined || entry.farSide) {
+  if (entry === null || entry.farSide) {
     throw new Error(`Expected typed wormhole codex entry ${code}.`);
   }
   return entry;
@@ -117,20 +118,20 @@ function requireRegenerationBearing(
 }
 
 function requireFarSide(
-  entry: WormholeCodexEntry | undefined,
+  entry: WormholeCodexEntry | null,
   code: string,
 ): Extract<WormholeCodexEntry, { farSide: true }> {
-  if (entry === undefined || !entry.farSide) {
+  if (entry === null || !entry.farSide) {
     throw new Error(`${code} is missing or is not marked as the far-side entry.`);
   }
   return entry;
 }
 
 function requireCodexProof(codex: WormholeCodexAsset) {
-  const typeByCode = new Map(codex.types.map((entry) => [entry.code, entry]));
-  const b274 = typedEntry(typeByCode.get('B274'), 'B274');
+  const index = indexWormholeCodex(codex.types);
+  const b274 = typedEntry(index.byCode('B274'), 'B274');
   const regenerating = requireRegenerationBearing(codex.types);
-  const k162 = requireFarSide(typeByCode.get('K162'), 'K162');
+  const k162 = requireFarSide(index.byCode('K162'), 'K162');
   return { b274, regenerating, k162 };
 }
 

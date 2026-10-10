@@ -10,8 +10,8 @@ import {
   UNKNOWN_LOCATION_LABEL,
 } from '@/data/corp-holdings/labels';
 import { nameOrUnresolved } from '@/lib/format/names';
+import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
 import type { AssetHolding, OwnedAssetMap } from './asset-map';
-import type { OwnedAssetOwnerType } from './schema';
 
 const SHIP_LABEL = 'In a ship';
 const CONTAINER_LABEL = 'In a container';
@@ -26,7 +26,7 @@ function isShipFlag(flag: string): boolean {
 }
 
 export interface ResolvedHolding {
-  ownerType: OwnedAssetOwnerType;
+  ownerType: EsiOwnerType;
   ownerName: string;
   locationName: string;
   locationFlag: string;

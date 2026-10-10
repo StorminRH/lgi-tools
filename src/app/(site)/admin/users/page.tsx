@@ -1,4 +1,5 @@
 import { requireAdminPage } from '@/composition/route-guards';
+import { sanitiseAdminAccessQuery } from '@/platform/auth/api-contract';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import {
@@ -10,13 +11,12 @@ import {
   RoleAuditTable,
   SearchMatches,
 } from './AccessCards';
-import { sanitiseQuery } from './access-view';
 
 // The search form needs only the query, so it renders at once; each card
 // then loads on its own, and a failed audit read leaves access management.
 async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
   const [raw, session] = await Promise.all([searchParams, requireAdminPage()]);
-  const query = sanitiseQuery(raw.q);
+  const query = sanitiseAdminAccessQuery(raw.q);
   const viewerUserId = session.user.id;
 
   return (

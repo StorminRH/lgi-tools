@@ -1,9 +1,8 @@
-export const INDUSTRY_JOBS_SYNC_SCOPES = ['esi-industry.read_character_jobs.v1'] as const;
+import type { EveScope } from '@/config/eve-scopes';
+import { scopeEligibility } from '@/lib/scope-eligibility';
 
-export function canSyncIndustryJobs(character: {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}): boolean {
-  if (!character.hasRefreshToken) return false;
-  return !INDUSTRY_JOBS_SYNC_SCOPES.some((scope) => character.missingScopes.includes(scope));
-}
+export const INDUSTRY_JOBS_SYNC_SCOPES = [
+  'esi-industry.read_character_jobs.v1',
+] as const satisfies readonly EveScope[];
+
+export const canSyncIndustryJobs = scopeEligibility(INDUSTRY_JOBS_SYNC_SCOPES);

@@ -9,7 +9,7 @@ import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { StructureRigOption } from '@/data/eve-data/structures';
-import { parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
+import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
 import { MAX_CORP_STRUCTURE_RIGS, setCorpStructureRigsEndpoint } from '../api-contract';
 import type { CorpStructurePageStructure } from '../types';
@@ -38,7 +38,7 @@ export function CorpRigEditor({
 
   async function save() {
     const tax = parseFacilityTaxDraft(taxDraft);
-    if (!tax.ok) return setError('Tax must be 0–10%.');
+    if (!tax.ok) return setError(`Tax must be 0–${MAX_FACILITY_TAX_PCT}%.`);
     setBusy(true);
     const rigTypeIds = slots.filter((x): x is number => x !== null);
     const res = await apiFetch(setCorpStructureRigsEndpoint, {

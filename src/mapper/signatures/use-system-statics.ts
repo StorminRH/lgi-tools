@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSystemStaticCodes } from '@/data/wh-statics/use-system-static-codes';
 import { systemClassText } from '@/data/eve-data/system-identity';
+import { isTypedCodexEntry } from '@/data/eve-data/wormhole-contract';
 import {
   loadWormholeCodex,
   type WormholeCodex,
@@ -12,8 +13,8 @@ export function destinationClassIdForCode(
   code: string,
   codex: WormholeCodex | null,
 ): number | null {
-  const entry = codex?.byCode(code) ?? null;
-  return entry === null || entry.farSide ? null : entry.targetClass;
+  const entry = codex?.byCode(code);
+  return isTypedCodexEntry(entry) ? entry.targetClass : null;
 }
 
 export function staticClassForCode(

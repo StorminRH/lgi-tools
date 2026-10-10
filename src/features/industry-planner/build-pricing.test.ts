@@ -7,6 +7,7 @@ import {
   collectIntermediateTypeIds,
   type PriceLite,
 } from './build-pricing';
+import type { CostBasis } from './cost-basis-view';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from './types';
 
 const STRUCTURE: BlueprintStructure = {
@@ -546,7 +547,7 @@ describe('assemblePricing component job fees', () => {
     siteOf: () => ({ systemId: 7, facilityTaxPct: 1, costBonusPct: 4 }),
     costIndexOf: (systemId: number) => (systemId === 7 ? 0.1 : null),
   };
-  const price = (basis: 'batched' | 'marginal', withComponents = true) =>
+  const price = (basis: CostBasis, withComponents = true) =>
     assemblePricing(CHAIN, (t) => NET_PRICES[t], {
       basis,
       fee: { adjustedPriceOf: adjusted, systemCostIndex: 0.04, ...(withComponents ? { components } : {}) },

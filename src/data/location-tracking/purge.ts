@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isConvexConfigured } from '@/config/public-env';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { cancelPendingTracking } from './merge-store';
 import { pendingTrackingMerges } from './schema';
@@ -22,7 +23,7 @@ export async function teardownLocationTracking(
   characterId: number | null,
 ): Promise<void> {
   await cancelPendingTracking(userId, characterId);
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) return;
+  if (!isConvexConfigured()) return;
   // A failure throws so the deletion stays requested and the daily run retries it.
   await purgeLocationTracking(userId, characterId);
 }

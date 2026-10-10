@@ -6,6 +6,7 @@ import type { MarketScore } from '@/data/industry-math/market-score';
 import type { BatchLedger, MeOptions } from '../build-batch';
 import type { BuildTimes } from '../build-time';
 import type { MarginMode } from '../cockpit-margin';
+import type { CostBasis } from '../cost-basis-view';
 import type { NetMode } from '../multibuy';
 import type { IndustryProfileRow } from '../profiles/api-contract';
 import type { ProfilePlan } from '../profiles/profile-plan';
@@ -44,8 +45,8 @@ export interface MarketDataValue {
 export interface PlannerConfigValue {
   runs: number;
   setRuns: (runs: number) => void;
-  costBasis: 'batched' | 'marginal';
-  setCostBasis: (basis: 'batched' | 'marginal') => void;
+  costBasis: CostBasis;
+  setCostBasis: (basis: CostBasis) => void;
   marginMode: MarginMode;
   setMarginMode: (mode: MarginMode) => void;
   multibuyMode: NetMode;

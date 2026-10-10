@@ -33,6 +33,7 @@ import {
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
 import type { MarginMode } from '../cockpit-margin';
+import type { CostBasis } from '../cost-basis-view';
 import type { NetMode } from '../multibuy';
 
 import { computeBuildTimes, type BuildTimes } from '../build-time';
@@ -280,7 +281,7 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
 
 interface PriceAssembleMirrors {
   readonly components: ComponentFeeInputs | null;
-  readonly costBasis: 'batched' | 'marginal';
+  readonly costBasis: CostBasis;
   readonly ledger: BatchLedger;
   readonly ledgerMeOpts: MeOptions;
   readonly location: SelectedLocation | null;

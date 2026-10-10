@@ -4,6 +4,7 @@ import {
   WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_SIZE_CLASSES,
 } from '@/data/eve-data/wormhole-contract';
+import { CONNECTION_DOOR_SIDES } from '@/data/maps/connection-hallway';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 
 const emissionFactsSchema = z.strictObject({
@@ -11,7 +12,7 @@ const emissionFactsSchema = z.strictObject({
   fromSystemId: z.number().int().positive(),
   toSystemId: z.number().int().positive().nullable(),
   wormholeTypeCode: z.string().nullable(),
-  typedSide: z.enum(['from', 'to']).nullable(),
+  typedSide: z.enum(CONNECTION_DOOR_SIDES).nullable(),
   destinationProvenance: z.enum(CONNECTION_PROVENANCES).nullable(),
   observationKey: z.string().nullable(),
 });

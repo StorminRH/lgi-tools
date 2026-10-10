@@ -298,7 +298,7 @@ const processEnvSelectors = [
     selector:
       "MemberExpression[object.object.name='process'][object.property.name='env'][property.name!='NODE_ENV']:not([property.name=/^NEXT_PUBLIC_/])",
     message:
-      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. NODE_ENV and NEXT_PUBLIC_* stay direct reads.",
+      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. Convex reads its SITE_URL through readAppOrigin() (convex/lib/deploymentEnv.ts). NODE_ENV and NEXT_PUBLIC_* stay direct reads.",
   },
 ];
 
@@ -498,6 +498,13 @@ const testSyntaxSelectors = [
   ...baseSyntaxSelectors,
   ...datasetTtlSelectors,
   ...imageVariantSelectors,
+];
+
+const convexSyntaxSelectors = [
+  ...bareFetchSelectors,
+  ...ssoHostSelectors,
+  ...baseSyntaxSelectors,
+  ...processEnvSelectors,
 ];
 
 const productionSyntaxSelectors = [
@@ -1102,13 +1109,21 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["convex/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.{ts,tsx}"],
+    ignores: [
+      "**/*.test.{ts,tsx}",
+      "convex/lib/deploymentEnv.ts",
+      "convex/auth.config.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", ...convexSyntaxSelectors],
+    },
+  },
+  {
+    files: ["convex/lib/deploymentEnv.ts", "convex/auth.config.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...baseSyntaxSelectors,
+        ...except(convexSyntaxSelectors, ...processEnvSelectors),
       ],
     },
   },

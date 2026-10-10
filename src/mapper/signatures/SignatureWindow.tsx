@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { toast } from '@/components/ui/toast';
+import type { ConnectionDoorSide } from '@/data/maps/connection-hallway';
 import type { SigGroup } from '@/data/maps/scan-parse';
 import {
   ScannerLivePricesProvider,
@@ -53,7 +54,7 @@ export interface SignatureWindowProps {
   readonly onOpenSite: (siteId: number, signatureId: string) => void;
   readonly bindConnectionSetters?: (
     connection: ConnectionEditorDetail,
-    side?: 'from' | 'to',
+    side?: ConnectionDoorSide,
   ) => ConnectionFieldSetters;
   readonly originLeadConnections?: readonly OriginLeadConnection[];
 }

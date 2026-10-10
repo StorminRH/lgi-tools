@@ -17,6 +17,7 @@ import { account, characters, user } from '@/db/auth-schema';
 import { directDatabase } from '@/db/direct-database';
 import { groupBy, sortedUniqueIds } from '@/lib/array';
 import { executeRows } from '@/lib/db-execute';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import {
@@ -59,7 +60,7 @@ export async function reserveMapAccessProjectionRevision(
   `);
   const raw = row?.revision;
   const revision = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isSafeInteger(revision) || revision <= 0) {
+  if (!isPositiveSafeInteger(revision)) {
     throw new Error('Map access projection sequence returned an invalid revision.');
   }
   return revision;

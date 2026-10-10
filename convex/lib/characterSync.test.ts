@@ -9,6 +9,7 @@ import {
 } from '@/lib/failure';
 import { problemBody, serializeProblem } from '@/lib/problem';
 import {
+  requireSyncEnv,
   resolveExpiresAt,
   vendCharacterToken,
 } from './characterSync';
@@ -28,7 +29,40 @@ const stubFetch = (response: Response | Error) => {
 };
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+});
+
+describe('requireSyncEnv', () => {
+  it('reads SITE_URL as an origin so a trailing slash still vends at a single-slash path', async () => {
+    vi.stubEnv('SITE_URL', 'https://app.test/');
+    vi.stubEnv('CONVEX_SERVICE_SECRET', 'service-secret');
+    const fetchMock = stubFetch(Response.json({ accessToken: 'fresh-token', expiresAt: NOW }));
+
+    const env = requireSyncEnv();
+
+    expect(env).toEqual({ siteUrl: 'https://app.test', secret: 'service-secret' });
+    await expect(vendCharacterToken(env, 'user-1', 90000001)).resolves.toMatchObject({
+      kind: 'token',
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://app.test/api/internal/eve-token',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it.each([
+    ['an empty SITE_URL', '', 'service-secret'],
+    ['a plain-HTTP SITE_URL off loopback', 'http://app.test', 'service-secret'],
+    ['an empty service secret', 'https://app.test', ''],
+  ])('refuses %s instead of vending to it', (_case, siteUrl, secret) => {
+    vi.stubEnv('SITE_URL', siteUrl);
+    vi.stubEnv('CONVEX_SERVICE_SECRET', secret);
+
+    expect(() => requireSyncEnv()).toThrowError(
+      'SITE_URL and CONVEX_SERVICE_SECRET must be set on this Convex deployment',
+    );
+  });
 });
 
 describe('vendCharacterToken', () => {

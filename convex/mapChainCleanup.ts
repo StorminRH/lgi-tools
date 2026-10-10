@@ -279,13 +279,11 @@ export const purgeExpiredChainTombstones = internalMutation({
 
 const CHAIN_RETENTION_BACKFILL_BATCH = 128;
 
-const backfillPhaseValidator = v.union(
-  v.literal('kept-connections'),
-  v.literal('mapSignatures'),
-  v.literal('mapSignatureActivity'),
-);
+const BACKFILL_PHASES = ['kept-connections', 'mapSignatures', 'mapSignatureActivity'] as const;
 
-type BackfillPhase = 'kept-connections' | 'mapSignatures' | 'mapSignatureActivity';
+type BackfillPhase = (typeof BACKFILL_PHASES)[number];
+
+const backfillPhaseValidator = v.union(...BACKFILL_PHASES.map((phase) => v.literal(phase)));
 
 const NEXT_PHASE: Record<BackfillPhase, BackfillPhase | null> = {
   'kept-connections': 'mapSignatures',

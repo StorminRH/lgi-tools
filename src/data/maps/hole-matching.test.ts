@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import type {
+  TypedWormholeCodexEntry,
+  WormholeCodexEntry,
+} from '@/data/eve-data/universe-assets';
 import {
   matchJump,
   type HoleMatchCandidate,
@@ -7,18 +10,20 @@ import {
   type JumpMatchOutcome,
 } from './hole-matching';
 
+const C247_ENTRY: TypedWormholeCodexEntry = {
+  code: 'C247',
+  typeId: 1,
+  farSide: false,
+  totalMass: 2_000_000_000,
+  maxJumpMass: 300_000_000,
+  massRegen: 0,
+  lifetimeMinutes: 960,
+  sizeClass: 'L',
+  targetClass: 3,
+};
+
 const CODEX: readonly WormholeCodexEntry[] = [
-  {
-    code: 'C247',
-    typeId: 1,
-    farSide: false,
-    totalMass: 2_000_000_000,
-    maxJumpMass: 300_000_000,
-    massRegen: 0,
-    lifetimeMinutes: 960,
-    sizeClass: 'L',
-    targetClass: 3,
-  },
+  C247_ENTRY,
   {
     code: 'Z647',
     typeId: 2,
@@ -215,6 +220,28 @@ describe('matchJump', () => {
       provenance: 'jump-verified',
       survivors: ['typed'],
     });
+  });
+
+  it('reads a conflicting clone cluster through its lowest typeId in either order', () => {
+    const clone: TypedWormholeCodexEntry = { ...C247_ENTRY, typeId: 40, targetClass: 4 };
+    const typed = candidate('typed', { wormholeTypeCode: 'C247', sizeClass: 'L' });
+    for (const codex of [[C247_ENTRY, clone], [clone, C247_ENTRY]]) {
+      expect(matchJump(evidence({ candidates: [typed], codex }))).toEqual({
+        kind: 'resolve',
+        candidateId: 'typed',
+        provenance: 'jump-verified',
+        survivors: ['typed'],
+      });
+      expect(
+        matchJump(
+          evidence({
+            destination: { wormholeClassId: 4, securityStatus: -1 },
+            candidates: [typed],
+            codex,
+          }),
+        ),
+      ).toEqual({ kind: 'insert', survivors: [] });
+    }
   });
 
   it('orders ambiguity by typed, hinted, untyped, then bare K162 evidence', () => {

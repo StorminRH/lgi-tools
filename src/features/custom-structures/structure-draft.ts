@@ -1,5 +1,6 @@
-import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
+import { MAX_ENTERED_BONUS_PCT, type EnteredBonuses } from '@/data/industry-math/entered-bonuses';
 import { parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
+import { parsePercentDraft } from '@/data/industry-math/percent-draft';
 import { MAX_CUSTOM_STRUCTURE_NAME_LEN, MAX_CUSTOM_STRUCTURE_RIGS } from './api-contract';
 import type { CustomStructureRow } from './types';
 
@@ -19,7 +20,6 @@ export interface StructureDraft {
   bonus: BonusDraft;
 }
 
-const MAX_BONUS_PCT = 99;
 const emptySlots = (): (number | null)[] => Array.from({ length: MAX_CUSTOM_STRUCTURE_RIGS }, () => null);
 const draftPct = (n: number): string => (n === 0 ? '' : String(n));
 
@@ -79,11 +79,10 @@ export function draftFromRow(row: CustomStructureRow): StructureDraft {
   };
 }
 
-function parsePct(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (trimmed === '') return 0;
-  const n = Number(trimmed);
-  return Number.isFinite(n) && n >= 0 && n <= MAX_BONUS_PCT ? n : null;
+/** One bonus cell, or null when it is not a valid percent. A blank cell reads as 0. */
+function parseBonusCell(raw: string): number | null {
+  const pct = parsePercentDraft(raw, MAX_ENTERED_BONUS_PCT);
+  return pct.ok ? (pct.value ?? 0) : null;
 }
 
 type ParsedBonuses = { ok: true; bonuses: EnteredBonuses | null } | { ok: false };
@@ -92,7 +91,7 @@ type ParsedBonuses = { ok: true; bonuses: EnteredBonuses | null } | { ok: false 
 function parseBonusDraft(draft: BonusDraft): ParsedBonuses {
   const cells = [draft.me, draft.te, draft.cost, draft.rxnMe, draft.rxnTe];
   if (cells.every((c) => c.trim() === '')) return { ok: true, bonuses: null };
-  const [me, te, cost, rxnMe, rxnTe] = cells.map(parsePct);
+  const [me, te, cost, rxnMe, rxnTe] = cells.map(parseBonusCell);
   if ([me, te, cost, rxnMe, rxnTe].some((n) => n === null)) return { ok: false };
   return {
     ok: true,

@@ -28,6 +28,7 @@ import {
   attainableFilterSets,
   moduleFitsHull,
   PRODUCTION_ACTIVITIES,
+  PRODUCTION_MODIFIER_KINDS,
   shapeStructureRigs,
   type ProductionModifier,
   type StructureRigOption,
@@ -401,7 +402,7 @@ function productionModifierSources() {
     .where(
       and(
         inArray(industryModifiers.activity, [...PRODUCTION_ACTIVITIES]),
-        inArray(industryModifiers.kind, [...MODIFIER_KINDS]),
+        inArray(industryModifiers.kind, [...PRODUCTION_MODIFIER_KINDS]),
       ),
     );
 }
@@ -427,12 +428,13 @@ export async function getIndustryTargetFilterSets(): Promise<number[][]> {
   return attainableFilterSets(filters, groups);
 }
 
-const MODIFIER_KINDS: readonly string[] = ['material', 'time', 'cost'] satisfies ProductionModifier['kind'][];
-
 function isProductionModifier<Row extends { activity: string; kind: string }>(
   row: Row,
 ): row is Row & { activity: ProductionModifier['activity']; kind: ProductionModifier['kind'] } {
-  return (PRODUCTION_ACTIVITIES as readonly string[]).includes(row.activity) && MODIFIER_KINDS.includes(row.kind);
+  return (
+    (PRODUCTION_ACTIVITIES as readonly string[]).includes(row.activity) &&
+    (PRODUCTION_MODIFIER_KINDS as readonly string[]).includes(row.kind)
+  );
 }
 
 /** The manufacturing and reaction bonuses each hull or rig type carries. */

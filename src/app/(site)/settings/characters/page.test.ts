@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 
 const m = vi.hoisted(() => ({

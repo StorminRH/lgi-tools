@@ -4,11 +4,9 @@ import type {
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import {
-  returnDoorTypePatch,
-  type ConnectionDoor,
-} from '@/data/maps/connection-door-types';
+import { returnDoorTypePatch } from '@/data/maps/connection-door-types';
 import type {
+  ConnectionDoorSide,
   ConnectionDoorValue,
   ConnectionIdentity,
   ConnectionLifetime,
@@ -26,7 +24,7 @@ import {
 export function doorDestination(
   fromSystemId: number,
   toSystemId: number | null,
-  side: ConnectionDoor,
+  side: ConnectionDoorSide,
 ): number | null {
   if (toSystemId === null) return null;
   return side === 'from' ? toSystemId : fromSystemId;
@@ -44,7 +42,7 @@ export function keepTypedLeadsTo(
 export function doorLeadsTo(
   fromSystemId: number,
   toSystemId: number | null,
-  side: ConnectionDoor,
+  side: ConnectionDoorSide,
   door: ConnectionDoorValue,
 ): number | null {
   return keepTypedLeadsTo(
@@ -125,7 +123,7 @@ export function uniqueCounterpartStub<
 export function absorbDoorKnowledge(
   surviving: DoorKnowledgeHallway,
   stub: DoorKnowledgeHallway,
-  attachedSide: ConnectionDoor,
+  attachedSide: ConnectionDoorSide,
 ): DoorKnowledgePatch {
   const typePatch = returnDoorTypePatch(
     surviving,

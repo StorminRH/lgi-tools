@@ -32,15 +32,16 @@ describe('containsPattern', () => {
 });
 
 describe('toAdminUser', () => {
-  it('maps portrait, role, and characterId arms for the admin view', () => {
-    const base = {
-      userId: 'u1',
-      name: 'Pilot',
-      portraitUrl: 'https://img/1',
-      role: 'ADMIN' as const,
-      characterId: '90000001',
-    };
+  const base = {
+    userId: 'u1',
+    userName: 'Account label',
+    characterName: 'Pilot',
+    portraitUrl: 'https://img/1',
+    role: 'ADMIN' as const,
+    characterId: '90000001',
+  };
 
+  it('maps portrait, role, and characterId arms for the admin view', () => {
     expect(toAdminUser(base)).toEqual({
       userId: 'u1',
       name: 'Pilot',
@@ -51,5 +52,11 @@ describe('toAdminUser', () => {
     expect(toAdminUser({ ...base, characterId: null }).characterId).toBeNull();
     expect(toAdminUser({ ...base, characterId: 'not-a-number' }).characterId).toBeNull();
     expect(toAdminUser({ ...base, portraitUrl: null }).portraitUrl).toBe('');
+  });
+
+  it('names the user by character, then the unresolved character id, then the account', () => {
+    expect(toAdminUser(base).name).toBe('Pilot');
+    expect(toAdminUser({ ...base, characterName: null }).name).toBe('Character 90000001');
+    expect(toAdminUser({ ...base, characterName: null, characterId: null }).name).toBe('Account label');
   });
 });

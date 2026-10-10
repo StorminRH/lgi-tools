@@ -14,7 +14,7 @@ interface StructuresSave {
 function makeDescriptor(port: CorpStructuresPort) {
   return makeCorpDescriptor<CorpOwner, CorpStructuresSyncState, StructuresSave>(port, {
     ownerOf: (_userId, corporationId) => ({ corporationId }),
-    eligible: (owner) => canSyncCorpStructures(owner),
+    eligible: canSyncCorpStructures,
     requiredRoles: CORP_STRUCTURES_REQUIRED_ROLES,
     isStale: STRUCTURES_FRESHNESS.isStale,
     readState: (owner) => port.readSyncState(owner.corporationId),

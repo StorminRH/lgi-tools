@@ -10,6 +10,7 @@ import type {
   WormholeCodexEntry,
 } from './universe-assets';
 import { buildHubJumpIndex, type HubJumpTuple } from './trade-hubs';
+import { indexWormholeCodex } from './wormhole-codex-index';
 import type { WormholeEffect } from './wormhole-contract';
 import type { WormholeEffectEntry } from './wormhole-effects';
 
@@ -97,24 +98,17 @@ async function fetchWormholeCodex(
     if ('status' in result && result.status === 404) return null;
     throw new Error(`wormhole codex ${failureLabel(result)}`);
   }
-  const typeByCode = new Map<string, (typeof result.data.types)[number]>();
-  for (const entry of result.data.types) {
-    const existing = typeByCode.get(entry.code);
-    if (existing === undefined || entry.typeId < existing.typeId) {
-      typeByCode.set(entry.code, entry);
-    }
-  }
-  const codes = [...typeByCode.keys()].toSorted();
+  const codex = indexWormholeCodex(result.data.types);
   const effectByKey = new Map(
     (result.data.effects ?? []).map((entry) => [`${entry.effect}:${entry.wormholeClass}`, entry]),
   );
   return {
     version,
     byCode(code) {
-      return typeByCode.get(code) ?? null;
+      return codex.byCode(code);
     },
     codes() {
-      return codes;
+      return codex.codes;
     },
     effect(effect, wormholeClass) {
       return effectByKey.get(`${effect}:${wormholeClass}`) ?? null;

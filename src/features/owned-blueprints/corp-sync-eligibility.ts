@@ -1,21 +1,15 @@
+import type { EveScope } from '@/config/eve-scopes';
+import { scopeEligibility } from '@/lib/scope-eligibility';
+
 /**
- * Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
- * never demand a scope sign-in doesn't request). The roles read is shared with
- * corp industry jobs; the corp-blueprints read lives under `esi-corporations`
- * (NOT `esi-characters` — unlike the roles read). A direct EVE_SCOPES import
- * here would be a feature → feature edge the boundary lint bans.
+ * The roles read is shared with corp industry jobs; the corp-blueprints read
+ * lives under `esi-corporations` (NOT `esi-characters` — unlike the roles read).
  */
-export const CORP_BLUEPRINTS_SYNC_SCOPES = [
+const CORP_BLUEPRINTS_SYNC_SCOPES = [
   'esi-characters.read_corporation_roles.v1',
   'esi-corporations.read_blueprints.v1',
-] as const;
+] as const satisfies readonly EveScope[];
 
 export const CORP_BLUEPRINTS_REQUIRED_ROLES = ['Director'] as const;
 
-export function canSyncCorpBlueprints(character: {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}): boolean {
-  if (!character.hasRefreshToken) return false;
-  return !CORP_BLUEPRINTS_SYNC_SCOPES.some((scope) => character.missingScopes.includes(scope));
-}
+export const canSyncCorpBlueprints = scopeEligibility(CORP_BLUEPRINTS_SYNC_SCOPES);

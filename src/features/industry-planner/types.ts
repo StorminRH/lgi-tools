@@ -1,6 +1,8 @@
 import type { Tone } from '@/components/ui/tones';
 import type { TreeNode } from '@/data/eve-data/types';
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
+import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
+import type { CostBasis } from './cost-basis-view';
 
 export type {
   AvailableStructure,
@@ -164,7 +166,7 @@ export interface BlueprintPricing {
     regionalDiscount: RegionalDiscount | null;
   };
   summary: {
-    basis: 'batched' | 'marginal';
+    basis: CostBasis;
     bases: { batched: number; marginal: number };
     inputCost: number;
     revenue: number | null;
@@ -179,7 +181,7 @@ export interface OwnedBlueprintMeEntry {
   blueprintTypeId: number;
   me: number;
   te: number;
-  ownerType: 'character' | 'corporation';
+  ownerType: EsiOwnerType;
   ownerName: string;
   locationName: string;
   locationFlag: string;
@@ -193,7 +195,7 @@ export interface OwnedBlueprintsResponse {
 export type OwnedComponentDetail = Omit<OwnedBlueprintMeEntry, 'blueprintTypeId' | 'me'>;
 
 export interface AssetHolding {
-  ownerType: 'character' | 'corporation';
+  ownerType: EsiOwnerType;
   ownerName: string;
   locationName: string;
   locationFlag: string;

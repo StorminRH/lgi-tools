@@ -13,6 +13,7 @@ import {
   type WormholeDestinationHint,
 } from '@/data/eve-data/wormhole-contract';
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { UNSET_FIELD } from '../authoring/connection-field-group';
 import {
   parseDestinationSystem,
@@ -151,8 +152,7 @@ export function commitScannerLeadsValue(
   if (value.startsWith(SYSTEM_PREFIX)) {
     const systemId = Number(value.slice(SYSTEM_PREFIX.length));
     if (
-      Number.isSafeInteger(systemId)
-      && systemId > 0
+      isPositiveSafeInteger(systemId)
       && systemId !== commit.originSystemId
     ) {
       const leadId = originLeadForSystem(systemId, originLeads);

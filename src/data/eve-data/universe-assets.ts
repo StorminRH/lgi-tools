@@ -205,7 +205,10 @@ export function buildWormholeCodex(
         ),
       };
     })
-    .sort((left, right) => left.code.localeCompare(right.code));
+    .sort(
+      (left, right) =>
+        left.code.localeCompare(right.code) || left.typeId - right.typeId,
+    );
 }
 
 function isKnownQaWormholeType(row: WormholeTypeRow): boolean {

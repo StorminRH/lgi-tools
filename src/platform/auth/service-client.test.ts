@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { notFoundFailure } from '@/lib/failure';
 import { problemBody, serializeProblem } from '@/lib/problem';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
-import { serviceFetch } from './service-client';
+import { appFetch, serviceFetch } from './service-client';
 
 const fetchWithTimeout = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/fetch-with-timeout', () => ({ fetchWithTimeout }));
@@ -24,6 +24,16 @@ const bodylessEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/internal/test-status',
   request: null,
+  responses: {
+    200: jsonBody(tokenSchema),
+  },
+});
+
+const pathParamEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/internal/test-status/[characterId]',
+  request: null,
+  params: z.object({ characterId: z.coerce.number() }),
   responses: {
     200: jsonBody(tokenSchema),
   },
@@ -81,6 +91,46 @@ test('omits the body for a request-less endpoint and attaches the Vercel bypass 
       'x-vercel-protection-bypass': 'bypass-secret',
     },
   }, undefined);
+});
+
+test('substitutes path params into the URL instead of sending the [segment] template', async () => {
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 'fresh' }));
+
+  await expect(
+    serviceFetch(pathParamEndpoint, { ...init, params: { characterId: 42 } }),
+  ).resolves.toEqual({ ok: true, status: 200, data: { accessToken: 'fresh' } });
+  expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-status/42', {
+    method: 'GET',
+    headers: { Authorization: 'Bearer service-secret' },
+  }, undefined);
+});
+
+test('appFetch sends no Authorization header but keeps the Vercel bypass header when set', async () => {
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 'fresh' }));
+
+  await expect(
+    appFetch(pathParamEndpoint, { baseUrl: 'https://app.test', params: { characterId: 42 } }),
+  ).resolves.toEqual({ ok: true, status: 200, data: { accessToken: 'fresh' } });
+  expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-status/42', {
+    method: 'GET',
+    headers: { 'x-vercel-protection-bypass': 'bypass-secret' },
+  }, undefined);
+
+  fetchWithTimeout.mockClear();
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', '');
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 'fresh' }));
+
+  await appFetch(bodyEndpoint, {
+    baseUrl: 'https://app.test',
+    timeoutMs: 5_000,
+    body: { userId: 'user-1' },
+  });
+  expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: 'user-1' }),
+  }, 5_000);
 });
 
 test('classifies API, protocol, and network failures without throwing', async () => {

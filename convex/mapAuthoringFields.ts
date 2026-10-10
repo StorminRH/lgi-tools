@@ -17,8 +17,10 @@ import {
   lifetimeObservedAt,
   lifetimeStage,
   replaceDoor,
+  type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import {
+  deathWindowFrom,
   intersectOrReset,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
@@ -63,7 +65,7 @@ async function requireLiveConnection(
 async function writeDoorLeadsTo(
   ctx: MutationCtx,
   connection: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
   leadsTo: Doc<'mapConnections'>['from']['leadsTo'],
 ): Promise<{ changed: boolean }> {
   const door = hallwayDoor(connection, side);
@@ -102,21 +104,10 @@ function resolveDeathWindow(
   }
 
   validateDeathWindowInput(proposal);
-  const earliestAt = proposal.deathEarliestAt;
-  const latestAt = proposal.deathLatestAt;
-  if (earliestAt === null || latestAt === null) {
-    return null;
-  }
-  if (earliestAt === undefined || latestAt === undefined) {
-    throw new ConvexError({
-      code: 'INVALID_DEATH_WINDOW',
-      detail: 'Death-window timestamps must both be supplied.',
-    });
-  }
-  return intersectOrReset(storedDeathWindow(connection), {
-    earliestAt,
-    latestAt,
-  });
+  const proposed = deathWindowFrom(proposal.deathEarliestAt, proposal.deathLatestAt);
+  return proposed === null
+    ? null
+    : intersectOrReset(storedDeathWindow(connection), proposed);
 }
 
 function sameDeathWindow(
@@ -136,7 +127,7 @@ async function applyConnectionWormholeType(
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
     readonly value: string | null;
-    readonly side?: 'from' | 'to';
+    readonly side?: ConnectionDoorSide;
     readonly deathEarliestAt?: number | null;
     readonly deathLatestAt?: number | null;
   },
@@ -200,7 +191,7 @@ async function applyConnectionDestinationHint(
   input: {
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
-    readonly side: 'from' | 'to';
+    readonly side: ConnectionDoorSide;
     readonly value: WormholeDestinationHint | null;
   },
 ): Promise<{ changed: boolean }> {
@@ -222,7 +213,7 @@ async function applyConnectionDestination(
   input: {
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
-    readonly side: 'from' | 'to';
+    readonly side: ConnectionDoorSide;
     readonly value: number | null;
   },
 ): Promise<{ changed: boolean }> {

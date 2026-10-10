@@ -27,7 +27,9 @@ export async function postConvexHttpDoor<T>({
 }): Promise<T> {
   const door = resolveConvexServiceDoor();
   if (!door.ok) {
-    throw new DoorError(`${label}: Convex URL or service secret is unset or unsafe`);
+    throw new DoorError(
+      `${label}: Convex URL or service secret is unset or unsafe (${door.reason})`,
+    );
   }
   const { siteUrl, secret } = door;
 

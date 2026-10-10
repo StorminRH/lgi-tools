@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
+import { int4IdSchema, ownedRowIdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
   defineEndpoint,
   jsonBody,
@@ -9,14 +10,10 @@ import {
 import type { ParsedStructureFit } from './structure-fit-parse';
 import type { CustomStructureRow } from './types';
 
-const PG_INT4_MAX = 2_147_483_647;
-
 export const MAX_CUSTOM_STRUCTURE_NAME_LEN = 80;
 export const MAX_CUSTOM_STRUCTURE_RIGS = 3;
 export const MAX_CUSTOM_STRUCTURES_PER_USER = 50;
 const MAX_STRUCTURE_FIT_LEN = 8000;
-
-const typeId = z.number().int().positive().max(PG_INT4_MAX);
 
 const facilityTaxPct = z.number().min(0).max(MAX_FACILITY_TAX_PCT);
 
@@ -35,9 +32,9 @@ const customStructuresResponseSchema = z.object({
 });
 const customStructureFields = {
   name: z.string().trim().min(1).max(MAX_CUSTOM_STRUCTURE_NAME_LEN),
-  structureTypeId: typeId,
-  rigTypeIds: z.array(typeId).max(MAX_CUSTOM_STRUCTURE_RIGS),
-  systemId: typeId.nullable().default(null),
+  structureTypeId: int4IdSchema,
+  rigTypeIds: z.array(int4IdSchema).max(MAX_CUSTOM_STRUCTURE_RIGS),
+  systemId: int4IdSchema.nullable().default(null),
   taxPct: facilityTaxPct.nullable().default(null),
   bonuses: enteredBonusesSchema.nullable().default(null),
 };
@@ -60,7 +57,7 @@ export const createCustomStructureEndpoint = defineEndpoint({
   path: '/api/account/custom-structures',
   request: createCustomStructureRequestSchema,
   responses: {
-    201: jsonBody(customStructuresResponseSchema.extend({ createdId: z.string().uuid() })),
+    201: jsonBody(customStructuresResponseSchema.extend({ createdId: z.uuid() })),
     400: problem('invalid_json', 'invalid_body', 'invalid_structure', 'unknown_system'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
@@ -69,7 +66,7 @@ export const createCustomStructureEndpoint = defineEndpoint({
 });
 
 export const deleteCustomStructureRequestSchema = z.object({
-  id: z.string().min(1).max(100),
+  id: ownedRowIdSchema,
 });
 export const deleteCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
@@ -84,7 +81,7 @@ export const deleteCustomStructureEndpoint = defineEndpoint({
 });
 
 export const updateCustomStructureRequestSchema = z
-  .object({ id: z.string().min(1).max(100), ...customStructureFields })
+  .object({ id: ownedRowIdSchema, ...customStructureFields })
   .superRefine(enteredBonusesExcludeRigs);
 export const updateCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
@@ -124,10 +121,10 @@ export const searchStructuresRequestSchema = z.strictObject({
 });
 
 const structureSearchResultSchema = z.strictObject({
-  structureId: z.number().int().positive().safe(),
+  structureId: positiveIdSchema,
   name: z.string().min(1),
-  systemId: typeId,
-  structureTypeId: typeId.nullable(),
+  systemId: int4IdSchema,
+  structureTypeId: int4IdSchema.nullable(),
 });
 
 const searchStructuresResponseSchema = z.strictObject({

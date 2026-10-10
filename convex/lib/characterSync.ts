@@ -1,6 +1,8 @@
 import { v } from 'convex/values';
+import { readEnv } from '@/lib/env';
 import { eveTokenEndpoint } from '@/platform/auth/api-contract';
 import { serviceFetch } from '@/platform/auth/service-client';
+import { readAppOrigin } from './deploymentEnv';
 
 export const characterSyncResultFields = {
   characterId: v.number(),
@@ -14,8 +16,8 @@ export interface SyncEnv {
 }
 
 export function requireSyncEnv(): SyncEnv {
-  const siteUrl = process.env.SITE_URL;
-  const secret = process.env.CONVEX_SERVICE_SECRET;
+  const siteUrl = readAppOrigin();
+  const secret = readEnv('CONVEX_SERVICE_SECRET');
   if (siteUrl === undefined || secret === undefined) {
     throw new Error('SITE_URL and CONVEX_SERVICE_SECRET must be set on this Convex deployment');
   }

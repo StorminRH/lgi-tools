@@ -3,6 +3,7 @@ async function sha256(text: string): Promise<Uint8Array> {
   return new Uint8Array(digest);
 }
 
+/** Runtime-portable (Next and Convex): compares fixed-length SHA-256 digests with no early exit. */
 export async function bearerMatches(
   authorization: string | null,
   secret: string,

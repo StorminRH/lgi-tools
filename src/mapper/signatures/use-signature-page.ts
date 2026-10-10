@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
-import { systemClassText } from '@/data/eve-data/system-identity';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
 import type {
   ConnectionDetail,
@@ -14,6 +13,7 @@ import {
   buildSignatureRows,
   type ConnectionSignatureInput,
 } from './signature-model';
+import { staticClassForCode } from './use-system-statics';
 
 const SIGNATURE_PAGE_SIZE = 100;
 
@@ -42,12 +42,11 @@ export function useSignaturePage(
   const { codex } = useWormholeCodexData(null);
   const rows = useMemo(
     () =>
-      buildSignatureRows(signatures.rows, connections, (code) => {
-        const entry = codex?.byCode(code) ?? null;
-        return entry === null || entry.farSide
-          ? null
-          : systemClassText(entry.targetClass);
-      }),
+      buildSignatureRows(
+        signatures.rows,
+        connections,
+        (code) => staticClassForCode(code, codex)?.className ?? null,
+      ),
     [signatures.rows, connections, codex],
   );
   return { rows, complete: systemId === null || signatures.complete };

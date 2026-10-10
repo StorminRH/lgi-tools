@@ -367,10 +367,14 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     const now = createdAt + 2 * 60 * 60_000;
     const base = connection({
       _creationTime: createdAt,
+      firstSeenAt: null,
       lifetime: { kind: 'unknown' },
     });
 
     expect(scannerLifeUpperBound(base, typed, now)).toBe('14h');
+    expect(
+      scannerLifeUpperBound({ ...base, firstSeenAt: createdAt - 4 * 60 * 60_000 }, typed, now),
+    ).toBe('10h');
     expect(scannerLifeUpperBound(null, typed, now)).toBe('—');
     expect(
       scannerLifeUpperBound(

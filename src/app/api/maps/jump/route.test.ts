@@ -20,6 +20,7 @@ import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
+const MAP_ID = '11111111-1111-4111-8111-111111111111';
 const ROUTE = '/api/maps/jump';
 
 beforeEach(() => {
@@ -37,7 +38,7 @@ describe('POST /api/maps/jump', () => {
     const forged = await POST(
       postJson(ROUTE, {
         kind: 'doorbell',
-        mapId: 'map-1',
+        mapId: MAP_ID,
         characterId: 90_000_001,
         fromSolarSystemId: 31_000_001,
         toSolarSystemId: 31_000_002,
@@ -54,14 +55,14 @@ describe('POST /api/maps/jump', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     const anonymous = await POST(
-      postJson(ROUTE, { kind: 'doorbell', mapId: 'map-1', characterId: 90_000_001 }),
+      postJson(ROUTE, { kind: 'doorbell', mapId: MAP_ID, characterId: 90_000_001 }),
     );
     expect(anonymous.status).toBe(401);
     expect(h.resolveJumpRequest).not.toHaveBeenCalled();
 
     const body = {
       kind: 'typed-hole' as const,
-      mapId: 'map-1',
+      mapId: MAP_ID,
       connectionId: 'connection-1',
     };
     const ok = await POST(postJson(ROUTE, body));

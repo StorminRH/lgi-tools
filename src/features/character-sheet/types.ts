@@ -1,3 +1,4 @@
+import type { EveScope } from '@/config/eve-scopes';
 import type { CharacterOwner } from '@/platform/owner-sync';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import type { LocationBody } from '@/data/location-tracking/esi-projection';
@@ -157,14 +158,14 @@ export interface PartSpec<K extends DirectSectionKey, P extends SheetPart<K>> {
 export interface DirectSectionSpec<K extends DirectSectionKey> {
   key: K;
   tier: SheetTier;
-  scopes: readonly string[];
+  scopes: readonly EveScope[];
   parts: { [P in SheetPart<K>]: PartSpec<K, P> };
 }
 
 export interface StructuresSectionSpec {
   key: 'structures';
   tier: SheetTier;
-  scopes: readonly string[];
+  scopes: readonly EveScope[];
   parts: 'structures';
 }
 

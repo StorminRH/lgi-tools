@@ -10,3 +10,12 @@ export function isLocalUrl(
     return false;
   }
 }
+
+/** Whether a service secret may be sent to this URL: HTTPS anywhere, or plain HTTP on loopback only. */
+export function isSafeServiceUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:' || isLocalUrl(value, ['http:']);
+  } catch {
+    return false;
+  }
+}
