@@ -1,8 +1,8 @@
-import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { directDatabase } from '@/db/direct-database';
 import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
+import { ownerKeyWhere } from '@/lib/db-columns';
 import type { PostgresJsDb } from '@/lib/db-types';
 import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
 import {
@@ -36,7 +36,7 @@ async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintRow[]> {
       locationFlag: ownedBlueprints.locationFlag,
     })
     .from(ownedBlueprints)
-    .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
+    .where(ownerKeyWhere(ownedBlueprints, owner));
 }
 
 async function characterInputs(characterId: number): Promise<BlueprintMapInput[]> {
@@ -72,7 +72,7 @@ export async function readBlueprintSyncState(owner: OwnerKey): Promise<PagedOwne
       pageEtags: ownedBlueprintSyncs.pageEtags,
     })
     .from(ownedBlueprintSyncs)
-    .where(and(eq(ownedBlueprintSyncs.ownerType, owner.ownerType), eq(ownedBlueprintSyncs.ownerId, owner.ownerId)))
+    .where(ownerKeyWhere(ownedBlueprintSyncs, owner))
     .limit(1);
   const row = rows[0];
   return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
@@ -95,7 +95,7 @@ export async function saveOwnedBlueprints(
       });
     await tx
       .delete(ownedBlueprints)
-      .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
+      .where(ownerKeyWhere(ownedBlueprints, owner));
     if (rows.length > 0) {
       await tx.insert(ownedBlueprints).values(
         rows.map((r) => ({
@@ -120,5 +120,5 @@ export async function stampBlueprintFresh(owner: OwnerKey): Promise<void> {
   await db
     .update(ownedBlueprintSyncs)
     .set({ lastRefreshedAt: new Date() })
-    .where(and(eq(ownedBlueprintSyncs.ownerType, owner.ownerType), eq(ownedBlueprintSyncs.ownerId, owner.ownerId)));
+    .where(ownerKeyWhere(ownedBlueprintSyncs, owner));
 }

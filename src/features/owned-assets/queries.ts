@@ -1,7 +1,7 @@
-import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { directDatabase } from '@/db/direct-database';
+import { ownerKeyWhere } from '@/lib/db-columns';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { buildHoldingIndex, type CorpAssetEvidence, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
@@ -43,7 +43,7 @@ export async function readOwnerAssetRows(owner: OwnerKey): Promise<AssetRow[]> {
       locationType: ownedAssets.locationType,
     })
     .from(ownedAssets)
-    .where(and(eq(ownedAssets.ownerType, owner.ownerType), eq(ownedAssets.ownerId, owner.ownerId)));
+    .where(ownerKeyWhere(ownedAssets, owner));
 }
 
 async function characterInputs(characterId: number): Promise<AssetMapInput[]> {
@@ -54,9 +54,8 @@ async function getCorpAssetSnapshot(corporationId: number) {
   'use cache';
   cacheLife('hours');
   cacheTag(ownedAssetsTag({ ownerType: 'corporation', ownerId: corporationId }));
-  const rows = await db.select().from(ownedAssets).where(and(
-    eq(ownedAssets.ownerType, 'corporation'), eq(ownedAssets.ownerId, corporationId),
-  ));
+  const rows = await db.select().from(ownedAssets)
+    .where(ownerKeyWhere(ownedAssets, { ownerType: 'corporation', ownerId: corporationId }));
   const ids = [...new Set(rows.flatMap((row) => row.snapshotId === null ? [] : [row.snapshotId]))];
   const snapshots = await readCorpAssetSnapshots(corporationId, ids);
   return snapshots.flatMap((snapshot) => {
@@ -105,7 +104,7 @@ export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyn
       pageEtags: ownedAssetSyncs.pageEtags,
     })
     .from(ownedAssetSyncs)
-    .where(and(eq(ownedAssetSyncs.ownerType, owner.ownerType), eq(ownedAssetSyncs.ownerId, owner.ownerId)))
+    .where(ownerKeyWhere(ownedAssetSyncs, owner))
     .limit(1);
   const row = rows[0];
   return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
@@ -121,7 +120,7 @@ export async function saveOwnedAssets(
   const now = new Date();
   await database
     .delete(ownedAssets)
-    .where(and(eq(ownedAssets.ownerType, owner.ownerType), eq(ownedAssets.ownerId, owner.ownerId)));
+    .where(ownerKeyWhere(ownedAssets, owner));
   if (rows.length > 0) {
     try {
       await database.insert(ownedAssets).values(
@@ -156,7 +155,7 @@ export async function stampOwnerFresh(owner: OwnerKey): Promise<void> {
   await db
     .update(ownedAssetSyncs)
     .set({ lastRefreshedAt: new Date() })
-    .where(and(eq(ownedAssetSyncs.ownerType, owner.ownerType), eq(ownedAssetSyncs.ownerId, owner.ownerId)));
+    .where(ownerKeyWhere(ownedAssetSyncs, owner));
 }
 
 /** Publish corporation contents and placement nodes under one serialized commit. */

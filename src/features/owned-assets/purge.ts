@@ -1,5 +1,5 @@
-import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
+import { ownerKeyWhere } from '@/lib/db-columns';
 import type { PurgeContributor } from '@/platform/purge/types';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
@@ -12,13 +12,8 @@ export const ownedAssetsPurgeContributor: PurgeContributor = {
     { table: ownedAssetSyncs, rule: 'follows-character' },
   ],
   async purgeCharacter({ characterId }) {
-    await db
-      .delete(ownedAssets)
-      .where(and(eq(ownedAssets.ownerType, 'character'), eq(ownedAssets.ownerId, characterId)));
-    await db
-      .delete(ownedAssetSyncs)
-      .where(
-        and(eq(ownedAssetSyncs.ownerType, 'character'), eq(ownedAssetSyncs.ownerId, characterId)),
-      );
+    const owner = { ownerType: 'character', ownerId: characterId } as const;
+    await db.delete(ownedAssets).where(ownerKeyWhere(ownedAssets, owner));
+    await db.delete(ownedAssetSyncs).where(ownerKeyWhere(ownedAssetSyncs, owner));
   },
 };

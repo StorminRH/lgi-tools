@@ -1,3 +1,4 @@
+import { eq, sql, type SQL } from 'drizzle-orm';
 import {
   bigint,
   jsonb,
@@ -18,6 +19,18 @@ export function ownerSyncStateColumns<T extends [string, ...string[]]>(ownerType
     lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
     pageEtags: jsonb('page_etags').$type<string[]>().default([]).notNull(),
   };
+}
+
+/**
+ * The query-side twin of ownerSyncStateColumns: `(owner_type = $1 and owner_id = $2)`.
+ * The owner type is checked against the table's own enum, and the result is always
+ * SQL (and() may return undefined), so it stands alone in a where or nests in and().
+ */
+export function ownerKeyWhere<TOwnerType extends AnyPgColumn>(
+  table: { ownerType: TOwnerType; ownerId: AnyPgColumn },
+  owner: { ownerType: TOwnerType['_']['data']; ownerId: number },
+): SQL {
+  return sql`(${eq(table.ownerType, owner.ownerType)} and ${eq(table.ownerId, owner.ownerId)})`;
 }
 
 export function ownedRowIdentityColumns(userIdReferences: () => AnyPgColumn) {
