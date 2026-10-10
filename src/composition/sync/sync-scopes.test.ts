@@ -22,3 +22,13 @@ test.each(Object.entries(SYNC_SCOPE_SETS))(
     for (const scope of scopes) expect(EVE_SCOPES, `${name}: ${scope}`).toContain(scope);
   },
 );
+
+// Location has no per-feature eligibility test to pin its set, so it is pinned
+// here: dropping a scope would pass the membership check above.
+test('LOCATION_SYNC_SCOPES pins the three location ESI scopes', () => {
+  expect([...LOCATION_SYNC_SCOPES]).toEqual([
+    'esi-location.read_location.v1',
+    'esi-location.read_ship_type.v1',
+    'esi-location.read_online.v1',
+  ]);
+});
