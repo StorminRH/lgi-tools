@@ -86,7 +86,11 @@ export function ConfirmDialog({
           variant={appearance.button}
           size="sm"
           disabled={busy || confirmDisabled}
-          onClick={onConfirm}
+          // A closing dialog stays clickable through its exit transition; a
+          // second click there must not run the action again.
+          onClick={() => {
+            if (open) onConfirm();
+          }}
         >
           {busy ? busyLabel : confirmLabel}
         </Button>
