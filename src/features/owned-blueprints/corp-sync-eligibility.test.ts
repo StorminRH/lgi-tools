@@ -1,17 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  canSyncCorpBlueprints,
-  CORP_BLUEPRINTS_REQUIRED_ROLES,
-  CORP_BLUEPRINTS_SYNC_SCOPES,
-} from './corp-sync-eligibility';
+import { canSyncCorpBlueprints, CORP_BLUEPRINTS_REQUIRED_ROLES } from './corp-sync-eligibility';
 
-describe('CORP_BLUEPRINTS_SYNC_SCOPES', () => {
-  it('pins the verified corp blueprints scopes and Director as the sole admitting role', () => {
-
-    expect([...CORP_BLUEPRINTS_SYNC_SCOPES]).toEqual([
-      'esi-characters.read_corporation_roles.v1',
-      'esi-corporations.read_blueprints.v1',
-    ]);
+describe('CORP_BLUEPRINTS_REQUIRED_ROLES', () => {
+  it('pins Director as the sole admitting role', () => {
     expect([...CORP_BLUEPRINTS_REQUIRED_ROLES]).toEqual(['Director']);
   });
 });

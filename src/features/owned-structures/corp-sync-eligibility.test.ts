@@ -1,27 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import {
-  canSyncCorpStructures,
-  CORP_STRUCTURES_REQUIRED_ROLES,
-  CORP_STRUCTURES_SYNC_SCOPES,
-} from './corp-sync-eligibility';
+import { canSyncCorpStructures, CORP_STRUCTURES_REQUIRED_ROLES } from './corp-sync-eligibility';
+
+describe('CORP_STRUCTURES_REQUIRED_ROLES', () => {
+  it('pins Station_Manager and Director as the admitting roles on the refresh layer', () => {
+    expect([...CORP_STRUCTURES_REQUIRED_ROLES]).toEqual(['Station_Manager', 'Director']);
+  });
+});
 
 describe('canSyncCorpStructures', () => {
   it.each([
     [{ hasRefreshToken: true, missingScopes: [] }, true],
+    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
+    [
+      { hasRefreshToken: true, missingScopes: ['esi-characters.read_corporation_roles.v1'] },
+      false,
+    ],
+    [{ hasRefreshToken: true, missingScopes: ['esi-corporations.read_structures.v1'] }, false],
     [{ hasRefreshToken: false, missingScopes: [] }, false],
-  ])('token required: %j → %s', (input, expected) => {
+  ])('token + both corp scopes: %j → %s', (input, expected) => {
     expect(canSyncCorpStructures(input)).toBe(expected);
-  });
-
-  it('rejects a missing roles or structures scope, and pins Station_Manager or Director on the refresh layer', () => {
-    for (const scope of CORP_STRUCTURES_SYNC_SCOPES) {
-      expect(canSyncCorpStructures({ hasRefreshToken: true, missingScopes: [scope] })).toBe(false);
-    }
-
-    expect([...CORP_STRUCTURES_SYNC_SCOPES]).toEqual([
-      'esi-characters.read_corporation_roles.v1',
-      'esi-corporations.read_structures.v1',
-    ]);
-    expect([...CORP_STRUCTURES_REQUIRED_ROLES]).toEqual(['Station_Manager', 'Director']);
   });
 });

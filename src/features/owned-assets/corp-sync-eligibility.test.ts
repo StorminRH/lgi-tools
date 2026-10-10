@@ -1,17 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  canSyncCorpAssets,
-  CORP_ASSETS_REQUIRED_ROLES,
-  CORP_ASSETS_SYNC_SCOPES,
-} from './corp-sync-eligibility';
+import { canSyncCorpAssets, CORP_ASSETS_REQUIRED_ROLES } from './corp-sync-eligibility';
 
-describe('CORP_ASSETS_SYNC_SCOPES', () => {
-  it('pins the verified corp assets scopes and Director as the sole admitting role', () => {
-
-    expect([...CORP_ASSETS_SYNC_SCOPES]).toEqual([
-      'esi-characters.read_corporation_roles.v1',
-      'esi-assets.read_corporation_assets.v1',
-    ]);
+describe('CORP_ASSETS_REQUIRED_ROLES', () => {
+  it('pins Director as the sole admitting role', () => {
     expect([...CORP_ASSETS_REQUIRED_ROLES]).toEqual(['Director']);
   });
 });

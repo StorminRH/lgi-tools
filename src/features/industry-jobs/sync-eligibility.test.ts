@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canSyncIndustryJobs, INDUSTRY_JOBS_SYNC_SCOPES } from './sync-eligibility';
-
-describe('INDUSTRY_JOBS_SYNC_SCOPES', () => {
-  it('pins the verified industry-jobs scope string', () => {
-
-    expect([...INDUSTRY_JOBS_SYNC_SCOPES]).toEqual(['esi-industry.read_character_jobs.v1']);
-  });
-});
+import { canSyncIndustryJobs } from './sync-eligibility';
 
 describe('canSyncIndustryJobs', () => {
   it.each([

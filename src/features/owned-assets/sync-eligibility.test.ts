@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ASSETS_SYNC_SCOPES, canSyncAssets } from './sync-eligibility';
-
-describe('ASSETS_SYNC_SCOPES', () => {
-  it('pins the verified character assets scope string', () => {
-
-    expect([...ASSETS_SYNC_SCOPES]).toEqual(['esi-assets.read_assets.v1']);
-  });
-});
+import { canSyncAssets } from './sync-eligibility';
 
 describe('canSyncAssets', () => {
   it.each([

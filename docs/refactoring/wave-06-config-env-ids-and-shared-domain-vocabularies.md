@@ -16,7 +16,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P247](#p247) | Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500 | contracts-validation | M | low | medium | — |
 | ☑ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
 | ☑ | [P187](#p187) | Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope | esi-sync | S | low | medium | — |
-| ☐ | [P350](#p350) | Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins | testing | S | low | low | [P187](#p187) |
+| ☑ | [P350](#p350) | Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins | testing | S | low | low | [P187](#p187) |
 | ☐ | [P186](#p186) | Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth | esi-sync | S | low | medium | [P187](#p187) |
 | ☐ | [P252](#p252) | Export a syncEligibility projection from scope-health and use it wherever the canSync input is built | contracts-validation | S | low | low | [P186](#p186), [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) |
 | ☐ | [P258](#p258) | Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync | contracts-validation | M | low | low | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
@@ -715,7 +715,7 @@ This pairs with P186: typing the lib predicate's parameter makes every canSyncX 
 
 ## P350: Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -50 lines (9 pin blocks and one file) and +15 lines (table)
 - **Depends on:** [P187](#p187)

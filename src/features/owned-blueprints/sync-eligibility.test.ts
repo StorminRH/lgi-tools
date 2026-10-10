@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLUEPRINTS_SYNC_SCOPES, canSyncBlueprints } from './sync-eligibility';
-
-describe('BLUEPRINTS_SYNC_SCOPES', () => {
-  it('pins the verified character blueprints scope string', () => {
-
-    expect([...BLUEPRINTS_SYNC_SCOPES]).toEqual(['esi-characters.read_blueprints.v1']);
-  });
-});
+import { canSyncBlueprints } from './sync-eligibility';
 
 describe('canSyncBlueprints', () => {
   it.each([

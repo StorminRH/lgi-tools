@@ -2,16 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   canSyncCorpIndustryJobs,
   CORP_INDUSTRY_JOBS_REQUIRED_ROLES,
-  CORP_INDUSTRY_JOBS_SYNC_SCOPES,
 } from './corp-sync-eligibility';
 
-describe('CORP_INDUSTRY_JOBS_SYNC_SCOPES', () => {
-  it('pins the verified corp industry-jobs scopes and Factory_Manager / Director roles', () => {
-
-    expect([...CORP_INDUSTRY_JOBS_SYNC_SCOPES]).toEqual([
-      'esi-characters.read_corporation_roles.v1',
-      'esi-industry.read_corporation_jobs.v1',
-    ]);
+describe('CORP_INDUSTRY_JOBS_REQUIRED_ROLES', () => {
+  it('pins Factory_Manager and Director as the admitting roles', () => {
     expect([...CORP_INDUSTRY_JOBS_REQUIRED_ROLES]).toEqual(['Factory_Manager', 'Director']);
   });
 });
