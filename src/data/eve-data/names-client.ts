@@ -1,5 +1,4 @@
 import { chunk, sortedUniqueIds } from '@/lib/array';
-import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { apiFetch } from '@/transport/api-client';
 import type { entityNamesEndpoint, typeNamesEndpoint } from './api-contract';
 
@@ -14,8 +13,10 @@ export function createNamesClient(
   policy: { maxIds: number; cache: boolean; retryMs?: number },
 ) {
   const namesById = new Map<number, Promise<string | undefined>>();
+  // The endpoint's own id schema, so an id its server would refuse never sinks the rest of a batch.
+  const idSchema = endpoint.request.shape.ids.element;
   const normalize = (ids: readonly number[]) => {
-    const unique = sortedUniqueIds(ids).filter(isPositiveSafeInteger);
+    const unique = sortedUniqueIds(ids).filter((id) => idSchema.safeParse(id).success);
     return policy.cache ? unique : unique.slice(0, policy.maxIds);
   };
   async function requestOutcome(ids: number[]): Promise<NamesOutcome> {
