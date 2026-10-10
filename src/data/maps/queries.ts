@@ -4,7 +4,6 @@ import {
   asc,
   desc,
   eq,
-  gt,
   inArray,
   isNotNull,
   isNull,
@@ -26,7 +25,8 @@ import {
   type MapPrincipals,
 } from './access';
 import type { MapAccessOwnerType, MapRole } from './access-contract';
-import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
+import { activeMapLifecycle } from './lifecycle-contract';
+import { activeMapCondition, restorableMapCondition } from './lifecycle-sql';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
@@ -35,7 +35,7 @@ import {
   maps,
 } from './schema';
 import {
-  authorizedAdminMapsSelection,
+  activeAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   recordBlockedCharacterHolders,
   userBlockedFromMap,
@@ -361,7 +361,7 @@ export async function listAuthorizedMapsForPrincipals(
   const rows = await readAuthorizedMapRows(
     userId,
     principals,
-    and(isNull(maps.archivedAt), isNull(maps.tombstonedAt)),
+    activeMapCondition(),
     database,
   );
   return materializeAuthorizedMaps(rows, userId, principals).map(
@@ -378,13 +378,7 @@ export async function listDeletedRestorableMapsForPrincipals(
   const rows = await readAuthorizedMapRows(
     userId,
     principals,
-    and(
-      isNotNull(maps.archivedAt),
-      isNull(maps.tombstonedAt),
-      isNull(maps.purgeRequestedAt),
-      isNull(maps.purgeClaimedAt),
-      gt(maps.archivedAt, new Date(now.getTime() - MAP_DELETE_GRACE_MS)),
-    ),
+    restorableMapCondition(now),
     database,
   );
   return materializeAuthorizedMaps(rows, userId, principals).flatMap((row) =>
@@ -458,7 +452,7 @@ export async function getAuthorizedMapGrantsForMaps(
     role: MapRole;
   }>(database, sql`
     WITH authorized_map AS (
-      ${activeMapsAdminSelection(userId, principals, uniqueMapIds)}
+      ${activeAdminMapsSelection(userId, principals, uniqueMapIds)}
     )
     SELECT
       delegated_grant.map_id AS "mapId",
@@ -470,27 +464,6 @@ export async function getAuthorizedMapGrantsForMaps(
     ORDER BY delegated_grant.map_id, delegated_grant.owner_type, delegated_grant.owner_id
   `);
   return rows.map((row) => ({ ...row, ownerId: Number(row.ownerId) }));
-}
-
-function activeMapsAdminSelection(
-  userId: string,
-  principals: MapPrincipals,
-  mapIds: readonly string[],
-) {
-  return authorizedAdminMapsSelection(
-    userId,
-    principals,
-    mapIds,
-    sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
-  );
-}
-
-function activeMapAdminSelection(
-  userId: string,
-  principals: MapPrincipals,
-  mapId: string,
-) {
-  return activeMapsAdminSelection(userId, principals, [mapId]);
 }
 
 export type MapGrantChangeResult =
@@ -545,7 +518,7 @@ async function writeAuthorizedGrantChange(
   `;
   const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
-      ${activeMapAdminSelection(userId, principals, mapId)}
+      ${activeAdminMapsSelection(userId, principals, [mapId])}
     ), changed AS (${mutation})
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM authorized_map`)}
   `);
@@ -592,7 +565,7 @@ export async function isCreatorsLastCharacterGrant(
 ): Promise<boolean> {
   const rows = await executeRows<{ ownerId: number | string }>(database, sql`
     WITH authorized_map AS (
-      ${activeMapAdminSelection(userId, principals, mapId)}
+      ${activeAdminMapsSelection(userId, principals, [mapId])}
     )
     SELECT held.owner_id AS "ownerId"
     FROM (${creatorCharacterGrantIds(mapId)}) AS held

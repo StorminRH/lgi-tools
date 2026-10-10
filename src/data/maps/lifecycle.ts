@@ -2,29 +2,33 @@ import {
   and,
   asc,
   eq,
-  gte,
   inArray,
   isNotNull,
   isNull,
   lte,
   or,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 import { db } from '@/db';
 import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import {
+  activeAdminMapsSelection,
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   type PendingMapAccessChange,
 } from './authorization-sql';
 import {
+  activeMapLifecycle,
+  archivedMapLifecycle,
+  MAP_DELETE_GRACE_MS,
   purgeClaimedMapLifecycle,
   purgeQueuedMapLifecycle,
   tombstonedMapLifecycle,
 } from './lifecycle-contract';
-import { MAP_DELETE_GRACE_MS } from './lifecycle-contract';
+import { restorableMapCondition } from './lifecycle-sql';
 import { maps } from './schema';
 
 const MAP_PURGE_MAPS_PER_RUN = 25;
@@ -35,6 +39,29 @@ export interface PurgeableMap {
   readonly id: string;
 }
 
+/**
+ * Moves the authorized map into `lifecycle`, then queues its reprojection, in
+ * one statement. `.getSQL()` keeps the UPDATE bare: an interpolated builder
+ * would be parenthesised, and a CTE body cannot be.
+ */
+async function transitionAuthorizedMap(
+  authorizedMap: SQL,
+  lifecycle: ReturnType<typeof activeMapLifecycle> | ReturnType<typeof archivedMapLifecycle>,
+  now: Date,
+  database: AnyPgDb,
+): Promise<PendingMapAccessChange | null> {
+  const update = database
+    .update(maps)
+    .set({ ...lifecycle, updatedAt: now })
+    .where(sql`${maps.id} IN (SELECT id FROM authorized_map)`)
+    .returning({ id: maps.id });
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
+    WITH authorized_map AS (${authorizedMap}), updated AS (${update.getSQL()})
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
+  `);
+  return row ?? null;
+}
+
 export async function archiveAuthorizedMap(
   userId: string,
   principals: MapPrincipals,
@@ -42,30 +69,12 @@ export async function archiveAuthorizedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const nowIso = now.toISOString();
-  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
-    WITH authorized_map AS (
-      ${authorizedAdminMapsSelection(
-        userId,
-        principals,
-        [mapId],
-        sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
-      )}
-    ), updated AS (
-      UPDATE ${maps}
-      SET archived_at = ${nowIso}::timestamptz,
-          purge_requested_at = NULL,
-          purge_claimed_at = NULL,
-          tombstoned_at = NULL,
-          lifecycle_status = 'archived',
-          lifecycle_entered_at = ${nowIso}::timestamptz,
-          updated_at = ${nowIso}::timestamptz
-      WHERE ${maps.id} IN (SELECT id FROM authorized_map)
-      RETURNING ${maps.id}
-    )
-    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
-  `);
-  return row ?? null;
+  return transitionAuthorizedMap(
+    activeAdminMapsSelection(userId, principals, [mapId]),
+    archivedMapLifecycle(now),
+    now,
+    database,
+  );
 }
 
 export async function restoreAuthorizedMap(
@@ -75,36 +84,12 @@ export async function restoreAuthorizedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
-  const cutoffIso = cutoff.toISOString();
-  const nowIso = now.toISOString();
-  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
-    WITH authorized_map AS (
-      ${authorizedAdminMapsSelection(
-        userId,
-        principals,
-        [mapId],
-        sql`${maps.archivedAt} IS NOT NULL
-          AND ${maps.archivedAt} > ${cutoffIso}::timestamptz
-          AND ${maps.purgeRequestedAt} IS NULL
-          AND ${maps.purgeClaimedAt} IS NULL
-          AND ${maps.tombstonedAt} IS NULL`,
-      )}
-    ), updated AS (
-      UPDATE ${maps}
-      SET archived_at = NULL,
-          purge_requested_at = NULL,
-          purge_claimed_at = NULL,
-          tombstoned_at = NULL,
-          lifecycle_status = 'active',
-          lifecycle_entered_at = ${nowIso}::timestamptz,
-          updated_at = ${nowIso}::timestamptz
-      WHERE ${maps.id} IN (SELECT id FROM authorized_map)
-      RETURNING ${maps.id}
-    )
-    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
-  `);
-  return row ?? null;
+  return transitionAuthorizedMap(
+    authorizedAdminMapsSelection(userId, principals, [mapId], restorableMapCondition(now)),
+    activeMapLifecycle(now),
+    now,
+    database,
+  );
 }
 
 export async function requestAuthorizedMapPurge(
@@ -113,25 +98,15 @@ export async function requestAuthorizedMapPurge(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<boolean> {
-  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const updated = await database
     .update(maps)
     .set({ ...purgeQueuedMapLifecycle(now), updatedAt: now })
-    .where(
-      and(
-        eq(maps.id, mapId),
-        eq(maps.userId, userId),
-        isNotNull(maps.archivedAt),
-        gte(maps.archivedAt, cutoff),
-        isNull(maps.tombstonedAt),
-        isNull(maps.purgeRequestedAt),
-        isNull(maps.purgeClaimedAt),
-      ),
-    )
+    .where(and(eq(maps.id, mapId), eq(maps.userId, userId), restorableMapCondition(now)))
     .returning({ id: maps.id });
   return updated.length === 1;
 }
 
+/** Sweepable maps. The grace arm is the complement of restorableMapCondition. */
 function purgeEligibility(now: Date) {
   const graceCutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const stagedHoldCutoff = new Date(now.getTime() - MAP_STAGED_PURGE_HOLD_MS);

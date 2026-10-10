@@ -4,8 +4,7 @@ import {
   createDbTestHarness,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
-import { activeMapLifecycle } from './lifecycle-contract';
-import { MAP_DELETE_GRACE_MS } from './lifecycle-contract';
+import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import {
   archiveAuthorizedMap,
   claimPurgeableMaps,
@@ -97,6 +96,16 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(
       archiveAuthorizedMap(ADMIN, ADMIN_PRINCIPALS, MAP_ID, NOW, harness.db),
     ).resolves.toEqual({ mapId: MAP_ID, version: expect.any(String) });
+    const [archived] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
+    expect(archived).toMatchObject({
+      lifecycleStatus: 'archived',
+      lifecycleEnteredAt: NOW,
+      archivedAt: NOW,
+      purgeRequestedAt: null,
+      purgeClaimedAt: null,
+      tombstonedAt: null,
+      updatedAt: NOW,
+    });
     await expect(
       listAuthorizedMapsForPrincipals(ADMIN, ADMIN_PRINCIPALS, harness.db),
     ).resolves.toEqual([]);
@@ -122,13 +131,21 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
       ),
     ).resolves.toEqual({ mapId: MAP_ID, version: expect.any(String) });
     const [restored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
-    expect(restored).toMatchObject(activeMapLifecycle(restoreAt));
+    expect(restored).toMatchObject({
+      lifecycleStatus: 'active',
+      lifecycleEnteredAt: restoreAt,
+      archivedAt: null,
+      purgeRequestedAt: null,
+      purgeClaimedAt: null,
+      tombstonedAt: null,
+      updatedAt: restoreAt,
+    });
     await expect(
       listAuthorizedMapsForPrincipals(ADMIN, ADMIN_PRINCIPALS, harness.db),
     ).resolves.toEqual([expect.objectContaining({ id: MAP_ID, role: 'admin' })]);
   });
 
-  it('refuses non-admin delete and restore at the exact grace boundary', async () => {
+  it('refuses non-admin delete, and restore and purge-now at the exact grace boundary', async () => {
     await seedManagedMap();
     await expect(
       archiveAuthorizedMap(
@@ -152,9 +169,18 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
         harness.db,
       ),
     ).resolves.toBeNull();
+    await expect(
+      requestAuthorizedMapPurge(
+        CREATOR,
+        MAP_ID,
+        new Date(NOW.getTime() + MAP_DELETE_GRACE_MS),
+        harness.db,
+      ),
+    ).resolves.toBe(false);
     const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
     expect(stored).toMatchObject({
       archivedAt: NOW,
+      purgeRequestedAt: null,
       lifecycleStatus: 'archived',
       lifecycleEnteredAt: NOW,
     });

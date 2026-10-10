@@ -11,6 +11,7 @@ import {
   userBlockedFromMap,
   type PendingMapAccessChange,
 } from './authorization-sql';
+import { activeMapCondition } from './lifecycle-sql';
 import { mapAccess, maps } from './schema';
 
 export interface GrandfatherGrant {
@@ -29,7 +30,7 @@ export async function listUnscopedMapIds(limit: number, database: AnyPgDb = db):
   const rows = await database
     .select({ id: maps.id })
     .from(maps)
-    .where(and(isNull(maps.characterScopedAt), isNull(maps.archivedAt), isNull(maps.tombstonedAt)))
+    .where(and(isNull(maps.characterScopedAt), activeMapCondition()))
     .orderBy(asc(maps.id))
     .limit(limit);
   return rows.map((row) => row.id);

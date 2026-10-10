@@ -6,7 +6,7 @@ import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapPrincipals } from './access';
 import {
-  authorizedAdminMapsSelection,
+  activeAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   type PendingMapAccessChange,
 } from './authorization-sql';
@@ -21,15 +21,6 @@ export interface MapBlockAttempt {
   readonly creatorUserId: string;
   readonly holderUserId: string | null;
   readonly pending: PendingMapAccessChange | null;
-}
-
-function activeAdminMaps(userId: string, principals: MapPrincipals, mapIds: readonly string[]) {
-  return authorizedAdminMapsSelection(
-    userId,
-    principals,
-    mapIds,
-    sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
-  );
 }
 
 function currentHolder(characterId: number) {
@@ -64,7 +55,7 @@ export async function blockAuthorizedMapCharacter(
       SELECT target_map.id, target_map.user_id AS creator_user_id,
         (${currentHolder(characterId)}) AS holder_user_id
       FROM ${maps} AS target_map
-      WHERE target_map.id IN (${activeAdminMaps(userId, principals, [mapId])})
+      WHERE target_map.id IN (${activeAdminMapsSelection(userId, principals, [mapId])})
     ), allowed AS (
       SELECT id, holder_user_id
       FROM target
@@ -111,7 +102,7 @@ export async function unblockAuthorizedMapCharacter(
 ): Promise<PendingMapAccessChange | null> {
   const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
-      ${activeAdminMaps(userId, principals, [mapId])}
+      ${activeAdminMapsSelection(userId, principals, [mapId])}
     ), removed AS (
       DELETE FROM ${mapBlocks}
       WHERE ${mapBlocks.mapId} IN (SELECT id FROM authorized_map)
@@ -134,7 +125,7 @@ export async function getAuthorizedMapBlocksForMaps(
   const rows = await executeRows<{ mapId: string; characterId: number | string }>(database, sql`
     SELECT block.map_id AS "mapId", block.character_id AS "characterId"
     FROM ${mapBlocks} AS block
-    WHERE block.map_id IN (${activeAdminMaps(userId, principals, uniqueMapIds)})
+    WHERE block.map_id IN (${activeAdminMapsSelection(userId, principals, uniqueMapIds)})
     ORDER BY block.map_id, block.blocked_at, block.character_id
   `);
   return rows.map((row) => ({ mapId: row.mapId, characterId: Number(row.characterId) }));

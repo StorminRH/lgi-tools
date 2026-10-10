@@ -2,6 +2,7 @@ import { sql, type SQL, type SQLWrapper } from 'drizzle-orm';
 import { account } from '@/db/auth-schema';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapPrincipals } from './access';
+import { activeMapCondition } from './lifecycle-sql';
 import { mapAccess, mapBlockAccounts, mapBlocks, maps, pendingMapAccessChanges } from './schema';
 
 export type PendingMapAccessChange = {
@@ -81,6 +82,15 @@ export function authorizedAdminMapsSelection(
         )
       )
   `;
+}
+
+/** The active maps among `mapIds` that the caller created or administers. */
+export function activeAdminMapsSelection(
+  userId: string,
+  principals: MapPrincipals,
+  mapIds: readonly string[],
+): SQL {
+  return authorizedAdminMapsSelection(userId, principals, mapIds, activeMapCondition());
 }
 
 /** Records the current holder of a blocked character on each map that blocks it, unless they created that map. */
