@@ -106,7 +106,7 @@ export function ChoicesGroup() {
       <Specimen
         name="SegmentedControl"
         source="segmented"
-        note="A raised selection inside an inset track. Compact density for toolbars; link mode when the choice lives in the URL."
+        note="A raised selection inside an inset track. Compact density for toolbars; link mode when the choice lives in the URL, as soft navigations that keep the scroll position."
         wide
       >
         <div className="flex flex-wrap items-end gap-8">

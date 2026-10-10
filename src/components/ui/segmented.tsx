@@ -3,6 +3,7 @@
 import { Toggle } from '@base-ui/react/toggle';
 import { ToggleGroup } from '@base-ui/react/toggle-group';
 import { cva } from 'class-variance-authority';
+import Link from 'next/link';
 import { useRef } from 'react';
 import { cn } from './cn';
 import { useSlidingThumb } from './use-sliding-thumb';
@@ -74,20 +75,46 @@ export function SegmentedControl({
     return (
       <div role="group" aria-label={label} className={cn(track({ density }), className)}>
         {options.map((option) => (
-          <a
-            key={option.value}
-            href={option.href}
-            aria-current={value === option.value ? 'page' : undefined}
-            className={segment({ active: value === option.value, density })}
-          >
-            {option.label}
-          </a>
+          <SegmentLink key={option.value} option={option} active={value === option.value} density={density} />
         ))}
       </div>
     );
   }
 
   return <ToggleSegments options={options} value={value} onChange={onChange} label={label} density={density} className={className} />;
+}
+
+/**
+ * One link-mode segment: a soft navigation that keeps the scroll position,
+ * since the choice changes in place. An option with no href, or a disabled
+ * one, stays in the row as an unavailable link that goes nowhere.
+ */
+function SegmentLink({
+  option,
+  active,
+  density,
+}: {
+  option: SegmentedOption;
+  active: boolean;
+  density: 'default' | 'compact';
+}) {
+  if (option.href === undefined || option.disabled) {
+    return (
+      <a role="link" aria-disabled className={cn(segment({ density }), 'cursor-not-allowed opacity-40 hover:text-muted')}>
+        {option.label}
+      </a>
+    );
+  }
+  return (
+    <Link
+      href={option.href}
+      scroll={false}
+      aria-current={active ? 'page' : undefined}
+      className={segment({ active, density })}
+    >
+      {option.label}
+    </Link>
+  );
 }
 
 function ToggleSegments({

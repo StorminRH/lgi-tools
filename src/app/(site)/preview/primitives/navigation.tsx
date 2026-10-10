@@ -57,7 +57,7 @@ export function NavigationGroup() {
       <Specimen
         name="Pagination"
         source="pagination"
-        note="Compact page controls beside an honest row count. Link mode via hrefForPage, callback mode via onPageChange."
+        note="Compact page controls beside an honest row count. Each control hands its page to onPageChange."
       >
         <Pagination page={page} pageCount={12} total={284} pageSize={25} onPageChange={setPage} />
       </Specimen>

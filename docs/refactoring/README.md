@@ -415,7 +415,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P021](wave-07-ui-kit-primitives-src-components-ui.md#p021) | Give Checkbox and Switch a visible-label row, and let the existing Field label Select and PercentInput | ui-component | M | medium | low | — |
 | ☑ | [P006](wave-07-ui-kit-primitives-src-components-ui.md#p006) | Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden) | ui-component | S | low | medium | — |
 | ☑ | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
-| ☐ | [P020](wave-07-ui-kit-primitives-src-components-ui.md#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
+| ☑ | [P020](wave-07-ui-kit-primitives-src-components-ui.md#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
 | ☐ | [P007](wave-07-ui-kit-primitives-src-components-ui.md#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
 | ☐ | [P016](wave-07-ui-kit-primitives-src-components-ui.md#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
 | ☐ | [P002](wave-07-ui-kit-primitives-src-components-ui.md#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
