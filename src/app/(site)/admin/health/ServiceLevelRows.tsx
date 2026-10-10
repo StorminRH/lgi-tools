@@ -11,7 +11,7 @@ import type {
 } from '@/data/telemetry/capability-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
-import { formatQuantity } from '@/lib/format/number';
+import { formatPct, formatQuantity } from '@/lib/format/number';
 import { isoDay } from '@/lib/iso-date';
 import { zeroFillDaily } from '../aggregate';
 import { CardLink } from '../CardLink';
@@ -115,7 +115,7 @@ const CLIENT_ERROR_COLUMNS = [
     key: 'share',
     label: 'Of calls',
     align: 'right',
-    render: (row) => (row.calls > 0 ? `${((row.errors / row.calls) * 100).toFixed(1)}%` : '—'),
+    render: (row) => formatPct(row.calls > 0 ? (row.errors / row.calls) * 100 : null),
     className: 'tabular-nums',
   },
   {
