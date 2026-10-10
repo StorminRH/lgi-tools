@@ -75,10 +75,7 @@ export async function readCharacterSyncState(
     .from(characterSkillSyncs)
     .where(eq(characterSkillSyncs.characterId, characterId))
     .limit(1);
-  const row = rows[0];
-  return row
-    ? { lastRefreshedAt: row.lastRefreshedAt, queueEtag: row.queueEtag, skillsEtag: row.skillsEtag }
-    : null;
+  return rows[0] ?? null;
 }
 
 export async function saveCharacterSkills(

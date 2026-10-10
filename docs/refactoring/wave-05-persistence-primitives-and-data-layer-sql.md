@@ -22,7 +22,7 @@ Run db suites with Postgres up.
 | ☑ | [P237](#p237) | Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts | persistence | S | low | low | [P220](#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) |
 | ☑ | [P242](#p242) | Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it | persistence | S | low | low | [P220](#p220) |
 | ☑ | [P228](#p228) | Add ownerKeyWhere beside ownerSyncStateColumns and return sync-state rows directly | persistence | S | low | low | — |
-| ☐ | [P327](#p327) | Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL | simplification | S | low | low | [P228](#p228) |
+| ☑ | [P327](#p327) | Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL | simplification | S | low | low | [P228](#p228) |
 | ☐ | [P103](#p103) | Seed placeholder prices through one chunked function, route the hand-rolled batch loops through lib chunk, and build eve-data streamInsert on sde-io primitives | generic-utility | M | low | medium | — |
 | ☐ | [P172](#p172) | Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib | server-pipeline | M | low | medium | [P103](#p103), [P230](#p230) |
 | ☐ | [P264](#p264) | Give data/eve-data/coerce.ts asRecord, mapRecords and dogmaAttributePairs, and route every SDE parser through them | contracts-validation | S | low | low | [P172](#p172) |
@@ -461,7 +461,7 @@ export function ownerKeyWhere(
 
 ## P327: Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -35 / +8
 - **Depends on:** [P228](#p228)

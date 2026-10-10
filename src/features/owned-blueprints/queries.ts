@@ -74,8 +74,7 @@ export async function readBlueprintSyncState(owner: OwnerKey): Promise<PagedOwne
     .from(ownedBlueprintSyncs)
     .where(ownerKeyWhere(ownedBlueprintSyncs, owner))
     .limit(1);
-  const row = rows[0];
-  return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
+  return rows[0] ?? null;
 }
 
 export async function saveOwnedBlueprints(

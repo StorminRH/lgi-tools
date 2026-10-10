@@ -4,7 +4,7 @@ import { customStructures } from './schema';
 import type { CustomStructureRow } from './types';
 
 export async function listCustomStructures(userId: string): Promise<CustomStructureRow[]> {
-  const rows = await db
+  return db
     .select({
       id: customStructures.id,
       name: customStructures.name,
@@ -17,15 +17,6 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
     .from(customStructures)
     .where(eq(customStructures.userId, userId))
     .orderBy(customStructures.createdAt);
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    structureTypeId: r.structureTypeId,
-    rigTypeIds: r.rigTypeIds ?? [],
-    systemId: r.systemId,
-    taxPct: r.taxPct,
-    bonuses: r.bonuses ?? null,
-  }));
 }
 
 export async function countCustomStructures(userId: string): Promise<number> {

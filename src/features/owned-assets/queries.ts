@@ -106,8 +106,7 @@ export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyn
     .from(ownedAssetSyncs)
     .where(ownerKeyWhere(ownedAssetSyncs, owner))
     .limit(1);
-  const row = rows[0];
-  return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
+  return rows[0] ?? null;
 }
 
 export async function saveOwnedAssets(
