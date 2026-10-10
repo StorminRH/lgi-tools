@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import flatMaterialsFixture from '@/data/eve-data/__fixtures__/blueprint-flat-materials.json';
 import treesFixture from '@/data/eve-data/__fixtures__/blueprint-trees.json';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import {
   componentJob,
   collectBlueprintTypeIds,

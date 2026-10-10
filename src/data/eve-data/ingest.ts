@@ -15,6 +15,7 @@ import {
   cleanupSdeJsonl,
   type SdeJsonlPaths,
 } from './source';
+import { isBlueprintActivitiesDocument } from './activities';
 import { boolOf, dogmaAttributePairs, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
 import { emitIndustryRules, parseIndustryRules } from './industry-rules';
 import { makeBatchInserter, streamJsonl } from './sde-io';
@@ -212,7 +213,7 @@ export async function runIngest(
           const id = intOrNull(r.blueprintTypeID) ?? intOrNull(r._key);
           const max = intOrNull(r.maxProductionLimit);
           const activities = r.activities;
-          if (id === null || max === null || activities === undefined) return null;
+          if (id === null || max === null || !isBlueprintActivitiesDocument(activities)) return null;
           return { blueprintTypeId: id, maxProductionLimit: max, activities };
         },
         async (batch) => {

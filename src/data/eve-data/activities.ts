@@ -4,6 +4,7 @@ import {
   ALL_ACTIVITY_NAMES,
   type ActivityName,
 } from './constants';
+import type { BlueprintActivities } from './types';
 
 export type ActivitySkill = { typeId: number; level: number };
 export type ActivityMaterial = { typeId: number; quantity: number };
@@ -67,4 +68,49 @@ export function parseBlueprintActivities(raw: unknown): BlueprintActivitySet {
     });
   }
   return out;
+}
+
+type EntryCheck = (entry: Record<string, unknown>) => boolean;
+
+const hasIntegers =
+  (...keys: string[]): EntryCheck =>
+  (entry) =>
+    keys.every((key) => Number.isInteger(entry[key]));
+
+const isMaterial = hasIntegers('typeID', 'quantity');
+const isSkill = hasIntegers('typeID', 'level');
+const isProduct: EntryCheck = (entry) =>
+  isMaterial(entry) && (entry.probability === undefined || typeof entry.probability === 'number');
+
+/** Whether an optional activity field is absent or an array whose every entry is a record that passes `check`. */
+function isEntryList(list: unknown, check: EntryCheck): boolean {
+  if (list === undefined) return true;
+  return Array.isArray(list) && list.every((raw) => {
+    const entry = asRecord(raw);
+    return entry !== null && check(entry);
+  });
+}
+
+function isActivityIO(raw: unknown): boolean {
+  const act = asRecord(raw);
+  return (
+    act !== null &&
+    isEntryList(act.materials, isMaterial) &&
+    isEntryList(act.products, isProduct) &&
+    isEntryList(act.skills, isSkill) &&
+    (act.time === undefined || typeof act.time === 'number')
+  );
+}
+
+/**
+ * Whether `raw` is a CCP blueprint `activities` document the stored
+ * `BlueprintActivities` type describes: an object of activity objects whose
+ * materials and products carry integer `typeID` and `quantity`, whose skills
+ * carry integer `typeID` and `level`, and whose `time` and product
+ * `probability`, when present, are numbers. Ingest stores only documents that
+ * pass, so readers of the column need no cast.
+ */
+export function isBlueprintActivitiesDocument(raw: unknown): raw is BlueprintActivities {
+  const activities = asRecord(raw);
+  return activities !== null && Object.values(activities).every(isActivityIO);
 }

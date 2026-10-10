@@ -168,7 +168,7 @@ export async function getSkillCatalog(): Promise<CatalogGroup[]> {
       name: row.groupName,
       skills: [],
     }));
-    const rank = attributeValue((row.attributes ?? {}) as AttrMap, ids, SKILL_RANK_DOGMA);
+    const rank = attributeValue(row.attributes ?? {}, ids, SKILL_RANK_DOGMA);
     group.skills.push({ typeId: row.typeId, name: row.name, rank: rank ?? FALLBACK_SKILL_RANK });
   }
   const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);

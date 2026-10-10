@@ -18,8 +18,9 @@ import {
   type TypeLabel,
 } from '@/data/eve-data/queries';
 import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures';
-import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
+import { computeHeights } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
+import type { TreeNode } from '@/data/eve-data/types';
 import {
   getAdjustedPrices,
   getSystemCostIndices,

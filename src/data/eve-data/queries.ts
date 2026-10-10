@@ -46,16 +46,12 @@ import {
 export type { BlueprintOutput, BlueprintSearchRow };
 import type { StationSearchEntry } from './stations-search';
 import type { SystemSearchEntry } from './systems-search';
-import {
-  pickBuildTimeSeconds,
-  type BlueprintActivities,
-  type TreeNode,
-} from './tree-resolver';
+import { pickBuildTimeSeconds } from './tree-resolver';
 import {
   parseBlueprintActivities,
   type BlueprintActivitySet,
 } from './activities';
-import type { AttrMap, EveType } from './types';
+import type { AttrMap, BlueprintActivities, EveType, TreeNode } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 
 const TYPE_COLUMNS = {
@@ -150,7 +146,7 @@ export async function getTypeAttributesBatch(
     .from(typeDogma)
     .where(inArray(typeDogma.typeId, typeIds));
   for (const r of rows) {
-    result.set(r.typeId, r.attributes as AttrMap);
+    result.set(r.typeId, r.attributes);
   }
   return result;
 }
@@ -166,13 +162,12 @@ export async function getBlueprintTree(
     .from(blueprintTrees)
     .where(eq(blueprintTrees.blueprintTypeId, blueprintId))
     .limit(1);
-  if (!row) return null;
-  return { treeJson: row.treeJson as TreeNode[], computedAt: row.computedAt };
+  return row ?? null;
 }
 
 async function mapBlueprintActivities<T>(
   blueprintTypeIds: number[],
-  derive: (rawActivities: unknown) => T | null,
+  derive: (activities: BlueprintActivities) => T | null,
 ): Promise<Map<number, T>> {
   const out = new Map<number, T>();
   if (blueprintTypeIds.length === 0) return out;
@@ -193,25 +188,19 @@ async function mapBlueprintActivities<T>(
 export async function getActivityByBlueprint(
   blueprintTypeIds: number[],
 ): Promise<Map<number, number>> {
-  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
-    pickProducingActivityId((raw ?? {}) as BlueprintActivities),
-  );
+  return mapBlueprintActivities(blueprintTypeIds, pickProducingActivityId);
 }
 
 export async function getBlueprintActivityTimes(
   blueprintTypeIds: number[],
 ): Promise<Map<number, number>> {
-  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
-    pickBuildTimeSeconds((raw ?? {}) as BlueprintActivities),
-  );
+  return mapBlueprintActivities(blueprintTypeIds, pickBuildTimeSeconds);
 }
 
 export async function getBlueprintActivities(
   blueprintTypeIds: number[],
 ): Promise<Map<number, BlueprintActivitySet>> {
-  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
-    parseBlueprintActivities(raw),
-  );
+  return mapBlueprintActivities(blueprintTypeIds, parseBlueprintActivities);
 }
 
 export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
@@ -239,7 +228,7 @@ export async function getBlueprintOutput(
     )
     .limit(1);
   if (!row) return null;
-  return pickBlueprintOutput((row.activities ?? {}) as BlueprintActivities);
+  return pickBlueprintOutput(row.activities);
 }
 
 export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
@@ -368,7 +357,7 @@ export async function getStructureTypes(): Promise<StructureTypeOption[]> {
       );
     return rows
       .map((r) => {
-        const attrs = (r.attributes ?? {}) as AttrMap;
+        const attrs = r.attributes ?? {};
         return {
           typeId: r.id,
           name: r.name,
@@ -401,7 +390,7 @@ export async function getCapitalShipyardHullIds(): Promise<number[]> {
       db.select({ attributes: typeDogma.attributes }).from(typeDogma).where(eq(typeDogma.typeId, SDE_CAPITAL_SHIPYARD_TYPE_ID)),
     ]),
   );
-  const attrs = (shipyard[0]?.attributes ?? {}) as AttrMap;
+  const attrs = shipyard[0]?.attributes ?? {};
   return hulls.filter((hull) => moduleFitsHull(attrs, { types, groups }, hull)).map((hull) => hull.typeId);
 }
 

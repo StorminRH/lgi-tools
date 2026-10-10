@@ -9,7 +9,7 @@ import {
   typeDogma,
 } from '@/data/eve-data/schema';
 import { adjustedPrices, industryCostIndices } from '@/data/industry-indices/schema';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 
 vi.mock('next/cache', () => ({

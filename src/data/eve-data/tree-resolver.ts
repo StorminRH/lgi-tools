@@ -16,13 +16,7 @@ import {
   industryBlueprints,
 } from './schema';
 import { makeBatchInserter } from './sde-io';
-
-export type TreeNode = {
-  typeId: number;
-  quantity: number;
-  inputs: TreeNode[];
-  producedBy?: { blueprintTypeId: number; quantityPerRun: number; runsNeeded: number };
-};
+import type { BlueprintActivities, TreeNode } from './types';
 
 export function computeHeights(nodes: TreeNode[]): Map<number, number> {
   const heights = new Map<number, number>();
@@ -70,13 +64,6 @@ export type ProductRow = {
   productTypeId: number;
   quantity: number;
 };
-
-export type ActivityIO = {
-  materials?: { typeID: number; quantity: number }[];
-  products?: { typeID: number; quantity: number }[];
-  time?: number;
-};
-export type BlueprintActivities = Record<string, ActivityIO | undefined>;
 
 export function activitiesToRows(
   blueprintTypeId: number,
@@ -175,13 +162,7 @@ async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
     })
     .from(industryBlueprints)
     .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
-  return buildIndexesFromActivities(
-    rows as {
-      blueprintTypeId: number;
-      activities: BlueprintActivities;
-      published: boolean | null;
-    }[],
-  );
+  return buildIndexesFromActivities(rows);
 }
 
 function runsFor(quantity: number, quantityPerRun: number): number {
@@ -287,7 +268,7 @@ export class TreeResolver {
 export function hashResolverInputs(
   rows: ReadonlyArray<{
     blueprintTypeId: number;
-    activities: unknown;
+    activities: BlueprintActivities;
     published: boolean | null;
   }>,
 ): string {
@@ -301,14 +282,12 @@ export function hashResolverInputs(
   for (const r of rows) {
     blueprintCount++;
     publishedSamples.push(`${r.blueprintTypeId}:${r.published === false ? 0 : 1}`);
-    const activities = (r.activities ?? {}) as BlueprintActivities;
-    for (const key of Object.keys(activities)) {
-      const act = activities[key];
+    for (const act of Object.values(r.activities)) {
       matEdges += act?.materials?.length ?? 0;
       prodEdges += act?.products?.length ?? 0;
     }
     if (!refSet.has(r.blueprintTypeId)) continue;
-    const { mats, prods } = activitiesToRows(r.blueprintTypeId, activities);
+    const { mats, prods } = activitiesToRows(r.blueprintTypeId, r.activities);
     for (const m of mats) {
       refSamples.push(`${m.blueprintTypeId}:m:${m.materialTypeId}:${m.quantity}`);
     }

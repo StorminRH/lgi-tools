@@ -1,5 +1,5 @@
 import type { Tone } from '@/components/ui/tones';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 
 export type {

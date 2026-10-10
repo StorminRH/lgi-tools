@@ -43,7 +43,7 @@ import { join } from 'node:path';
 import { inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { blueprintFlatMaterials, blueprintTrees } from '@/data/eve-data/schema';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import type { CombatStats } from '@/data/npc-stats/types';
 import {
@@ -94,7 +94,7 @@ async function readTrees(): Promise<Record<string, TreeNode[]>> {
     .where(inArray(blueprintTrees.blueprintTypeId, ids));
 
   const byBlueprint = new Map<number, TreeNode[]>();
-  for (const r of rows) byBlueprint.set(r.blueprintTypeId, r.treeJson as TreeNode[]);
+  for (const r of rows) byBlueprint.set(r.blueprintTypeId, r.treeJson);
   const out: Record<string, TreeNode[]> = {};
   for (const [name, bpId] of Object.entries(REFERENCE_BLUEPRINTS)) {
     out[name] = sortTree(byBlueprint.get(bpId) ?? []);

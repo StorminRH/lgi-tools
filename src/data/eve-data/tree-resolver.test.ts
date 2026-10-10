@@ -9,8 +9,8 @@ import {
   pickBuildTimeSeconds,
   roundedFlatRows,
   type Indexes,
-  type TreeNode,
 } from './tree-resolver';
+import type { BlueprintActivities, TreeNode } from './types';
 import flatMaterialsFixture from './__fixtures__/blueprint-flat-materials.json';
 
 function buildSyntheticIndexes(): Indexes {
@@ -481,7 +481,7 @@ describe('pickBuildTimeSeconds', () => {
 describe('hashResolverInputs', () => {
   const row = (
     blueprintTypeId: number,
-    activities: unknown,
+    activities: BlueprintActivities,
     published: boolean | null = true,
   ) => ({ blueprintTypeId, activities, published });
 
