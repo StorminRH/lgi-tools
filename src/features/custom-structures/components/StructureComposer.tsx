@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { PercentInput } from '@/components/PercentInput';
 import { RigSupply } from '@/components/RigSupply';
+import { SecurityStatus, SystemWithSecurity } from '@/components/security-status';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
@@ -11,18 +12,18 @@ import { cn } from '@/components/ui/cn';
 import { Field } from '@/components/ui/field';
 import { CloseIcon } from '@/components/ui/icons';
 import { Textarea } from '@/components/ui/input';
-import { Pill } from '@/components/ui/pill';
+import { Pill, type PillTone } from '@/components/ui/pill';
 import { Select, type SelectItems } from '@/components/ui/select';
 import { Tabs } from '@/components/ui/tabs';
-import { useSystemSearch } from '@/components/use-system-search';
+import { useSystemSearch, useSystemsById } from '@/components/use-system-search';
 import {
   SDE_CITADEL_GROUP_ID,
   SDE_ENGINEERING_COMPLEX_GROUP_ID,
   SDE_REFINERY_GROUP_ID,
 } from '@/data/eve-data/constants';
-import { securityStatusTextClass } from '@/data/eve-data/security';
+import { formatSecurityStatus, type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
-import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { MAX_ENTERED_BONUS_PCT } from '@/data/industry-math/entered-bonuses';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
@@ -77,13 +78,18 @@ function hullItems(types: StructureTypeOption[]): SelectItems {
   ];
 }
 
+const SEC_PILL_TONE: Record<SecurityClass, PillTone> = { high: 'green', low: 'orange', null: 'red', wormhole: 'red' };
+
+/** The pinned system's security, toned by its band; an unknown security reads neutral rather than as null-sec. */
 function SecPill({ security }: { security: number | null }) {
-  return <Pill tone={security !== null && security >= 0.45 ? 'green' : security !== null && security > 0 ? 'orange' : 'red'}>{formatSec(security)}</Pill>;
+  const tone = security === null ? 'neutral' : SEC_PILL_TONE[systemSecurityClass(security, null)];
+  return <Pill tone={tone}>{formatSecurityStatus(security)}</Pill>;
 }
 
 function useSystemField(systemId: number | null) {
   const { systems, suggest } = useSystemSearch();
-  const system = useMemo(() => systems.find((s) => s.id === systemId) ?? null, [systems, systemId]);
+  const systemsById = useSystemsById();
+  const system = lookupSystem(systemsById, systemId);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SystemSearchEntry[]>([]);
   const shown = query || system?.name || '';
@@ -98,34 +104,41 @@ function useSystemField(systemId: number | null) {
     };
   }, [query, system, suggest, systems]);
   const exact = (text: string) => systems.find((s) => s.name.toLowerCase() === text.trim().toLowerCase()) ?? null;
-  return { systems, system, shown, suggestions: query === system?.name ? [] : suggestions, setQuery, exact };
+  return { systemsById, system, shown, suggestions: query === system?.name ? [] : suggestions, setQuery, exact };
+}
+
+/** A found structure's hull, then its system with that system's coloured security. */
+function hitMeta(hull: string | undefined, system: SystemSearchEntry | null): ReactNode {
+  if (!system) return hull;
+  return (
+    <>
+      {hull ? `${hull} · ` : null}
+      <SystemWithSecurity system={system} />
+    </>
+  );
 }
 
 function NameField({
   draft,
   types,
-  systems,
+  systemsById,
   onName,
   onPick,
 }: {
   draft: StructureDraft;
   types: StructureTypeOption[];
-  systems: SystemSearchEntry[];
+  systemsById: ReadonlyMap<number, SystemSearchEntry> | null;
   onName: (name: string) => void;
   onPick: (hit: StructureSearchResult) => void;
 }) {
   const [typed, setTyped] = useState('');
   const hits = useStructureSearch(typed);
-  const options: PickOption<StructureSearchResult>[] = hits.map((hit) => {
-    const hull = types.find((t) => t.typeId === hit.structureTypeId)?.name;
-    const system = systems.find((s) => s.id === hit.systemId);
-    return {
-      key: String(hit.structureId),
-      label: hit.name,
-      meta: [hull, system ? `${system.name} ${formatSec(system.security)}` : null].filter(Boolean).join(' · '),
-      item: hit,
-    };
-  });
+  const options: PickOption<StructureSearchResult>[] = hits.map((hit) => ({
+    key: String(hit.structureId),
+    label: hit.name,
+    meta: hitMeta(types.find((t) => t.typeId === hit.structureTypeId)?.name, lookupSystem(systemsById, hit.systemId)),
+    item: hit,
+  }));
   return (
     <Field label="Structure" labelStyle="eyebrow">
       <PickField
@@ -353,7 +366,7 @@ export function StructureComposer({
         <NameField
           draft={draft}
           types={structureTypes}
-          systems={sys.systems}
+          systemsById={sys.systemsById}
           onName={(name) => update({ name: name.slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN) })}
           onPick={pickStructure}
         />
@@ -409,7 +422,7 @@ function SystemField({
   const options: PickOption<SystemSearchEntry>[] = sys.suggestions.map((s) => ({
     key: String(s.id),
     label: s.name,
-    meta: <span className={securityStatusTextClass(s.security)}>{formatSec(s.security)}</span>,
+    meta: <SecurityStatus security={s.security} />,
     item: s,
   }));
   return (

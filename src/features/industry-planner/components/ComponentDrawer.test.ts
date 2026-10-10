@@ -52,7 +52,7 @@ vi.mock('@/components/ui/side-panel', () => ({
     open ? createElement('section', { 'data-title': title }, children) : null,
 }));
 vi.mock('@/components/use-system-search', () => ({
-  useSystemSearch: () => ({ systems: [{ id: 30004759, name: '1DQ1-A', security: -0.4 }] }),
+  useSystemsById: () => new Map([[30004759, { id: 30004759, name: '1DQ1-A', security: -0.4 }]]),
 }));
 vi.mock('./planner-contexts', () => ({
   useMarketData: () => ({
@@ -156,7 +156,7 @@ test('under a profile the job shows where it runs and who runs it', () => {
   } as unknown as ProfilePlan;
   const html = render([20]);
   expect(html).toContain('1DQ1-A Tatara');
-  expect(html).toContain('1DQ1-A <span');
+  expect(html).toContain('1DQ1-A <span class="text-sec-null">-0.4</span>');
   expect(html).toContain('Builder');
 });
 

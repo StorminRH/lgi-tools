@@ -15,7 +15,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | ☑ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
 | ☑ | [P009](#p009) | Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30 | ui-component | S | low | low | [P008](#p008) |
 | ☑ | [P012](#p012) | Derive the linked-character health label once in platform/auth and render admin character portraits with CharacterPortrait | ui-component | S | low | medium | [P008](#p008) |
-| ☐ | [P010](#p010) | Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook | ui-component | M | low | medium | — |
+| ☑ | [P010](#p010) | Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook | ui-component | M | low | medium | — |
 | ☐ | [P011](#p011) | Reuse FacilitySubline in StructureRow, share the placeholder tile, export the structure source groups, and build facility keys with facilityKey | ui-component | S | low | low | [P010](#p010) |
 | ☐ | [P183](#p183) | Derive owned-structure security classes through getSystemFacts | server-pipeline | S | low | low | [P010](#p010) |
 | ☐ | [P003](#p003) | Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace | ui-component | M | low | medium | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) |
@@ -567,7 +567,7 @@ export type PortraitSize = 20 | 28 | 32 | 36 | 38 | 40 | 64 | 112 | 160; // 40: 
 
 ## P010: Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -45/+40: formatter moved (0), 5 inline fragments collapse (-12), new component file (+15), new hook replaces useSystemName's loader (net 0), id finds and 5 dead useSystemSearch mounts removed (-15), SecPill map (+4)
 - **Depends on:** —

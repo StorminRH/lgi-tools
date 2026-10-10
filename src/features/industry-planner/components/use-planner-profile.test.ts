@@ -15,18 +15,16 @@ const h = vi.hoisted(() => ({
   plan: null as ProfilePlan | null,
   readLevels: null as ((signal: AbortSignal) => Promise<unknown>) | null,
   apiFetch: vi.fn(),
-  systems: [
-    { id: 30002537, name: 'Amamake', security: 0.4 },
-    { id: 30004759, name: '1DQ1-A', security: -0.4 },
-  ],
+  systemsById: new Map([
+    [30002537, { id: 30002537, name: 'Amamake', security: 0.4 }],
+    [30004759, { id: 30004759, name: '1DQ1-A', security: -0.4 }],
+  ]),
 }));
 const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
 vi.mock('react', () => rt.react);
 vi.mock('@/components/PreferencesProvider', () => ({ usePreference: () => [h.profileId, vi.fn()] }));
-vi.mock('@/components/use-system-search', () => ({
-  useSystemSearch: () => ({ systems: h.systems }),
-}));
+vi.mock('@/components/use-system-search', () => ({ useSystemsById: () => h.systemsById }));
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => ({ session: {} }) }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
 vi.mock('@/lib/retry', async (load) => {

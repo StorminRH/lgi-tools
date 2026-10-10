@@ -1,15 +1,15 @@
 'use client';
 
 import { useLayoutEffect, useRef, useState } from 'react';
+import { SystemWithSecurity } from '@/components/security-status';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { SectionPanel } from '@/components/ui/section-panel';
-import { useSystemSearch } from '@/components/use-system-search';
-import { securityStatusTextClass } from '@/data/eve-data/security';
-import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { useSystemsById } from '@/components/use-system-search';
+import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import {
   addFacility,
   removeFacility,
@@ -71,7 +71,7 @@ function FacilitySubline({ kind, system }: { kind: string; system: SystemSearchE
       {system ? (
         <>
           {' · '}
-          {system.name} <span className={securityStatusTextClass(system.security)}>{formatSec(system.security)}</span>
+          <SystemWithSecurity system={system} />
         </>
       ) : null}
     </span>
@@ -177,10 +177,10 @@ export function FacilitiesPanel({
   hulls: readonly HullName[];
   onEdit: (next: ProfileDocument) => void;
 }) {
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const views = facilityViews(doc, structures);
-  const systemOf = (systemId: number | null) => systems.find((s) => s.id === systemId) ?? null;
+  const systemOf = (systemId: number | null) => lookupSystem(systemsById, systemId);
   const describe = (pick: FacilityPick) =>
     pick.kind === 'station' ? (
       <FacilitySubline kind="NPC station" system={systemOf(pick.station.systemId)} />
