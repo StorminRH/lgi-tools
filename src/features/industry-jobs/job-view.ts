@@ -1,4 +1,5 @@
 import type { Tone } from '@/components/ui/tones';
+import { activityLabel } from '@/data/eve-data/constants';
 import {
   jobImage,
   type EveImageDescriptor,
@@ -8,7 +9,7 @@ import { nameOrUnresolved } from '@/lib/format/names';
 import { formatCount } from '@/lib/format/number';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from './esi-projection';
-import { JOB_STATUS_META, jobActivityLabel } from './industry-jobs-styles';
+import { JOB_STATUS_META } from './industry-jobs-styles';
 import { type JobsSummary, jobProgress, summarizeJobs } from './job-state';
 import type { CharacterJobsData } from './types';
 
@@ -50,7 +51,7 @@ export function jobRowFrameData(
     headlineName: nameOrUnresolved(names, headlineId, 'type'),
     icon,
     runs: job.runs,
-    activityLabel: jobActivityLabel(job.activity_id),
+    activityLabel: activityLabel(job.activity_id),
     remainingLabel: remainingMs !== null ? `done in ${formatRemaining(remainingMs)}` : '',
     meta: JOB_STATUS_META[job.status],
     showBar,

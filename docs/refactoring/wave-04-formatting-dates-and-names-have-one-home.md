@@ -20,7 +20,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P094](#p094) | Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper | formatting | M | low | low | — |
 | ☑ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
 | ☑ | [P272](#p272) | Move formatStationName to lib/format and parseStructureFit to features/custom-structures | feature-skeleton | S | low | low | — |
-| ☐ | [P098](#p098) | Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard | formatting | S | low | medium | — |
+| ☑ | [P098](#p098) | Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard | formatting | S | low | medium | — |
 | ☐ | [P118](#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
 
 <a id="p088"></a>
@@ -1047,7 +1047,7 @@ export function parseStructureFit(clipboard: string, resolveTypeId: ResolveTypeI
 
 ## P098: Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -15 production lines (two label functions, a duplicate constant, productionActivity, the cast); about +12 production (activityLabel, the named id, the guard); +20 test lines
 - **Depends on:** —

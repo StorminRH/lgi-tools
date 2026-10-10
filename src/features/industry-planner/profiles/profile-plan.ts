@@ -1,6 +1,7 @@
 import { jobSkillTimeFactor, type NodeTimeSkill, type SkillTimeFactors } from '../skill-time';
 import {
   type IndustryActivityId,
+  isProductionActivity,
   MANUFACTURING_ACTIVITY,
   REACTION_ACTIVITY,
   type StructureBonus,
@@ -52,10 +53,6 @@ export interface ProfilePlan {
 }
 
 const NO_BONUS: StructureBonus = { me: 0, te: 0, costBonus: 0 };
-
-function productionActivity(activity: number | undefined): IndustryActivityId | null {
-  return activity === MANUFACTURING_ACTIVITY || activity === REACTION_ACTIVITY ? activity : null;
-}
 
 /** Reactions need a refinery and capital ships a capital shipyard; NPC stations offer neither. */
 function canHost(facility: PlanFacility, activity: IndustryActivityId, filterIds: readonly number[]): boolean {
@@ -122,7 +119,8 @@ export function profilePlan(args: {
   const routeAndFactor = (bp: number) => {
     const known = routes.get(bp);
     if (known) return known;
-    const activity = productionActivity(nodeActivityByBlueprint[bp]);
+    const raw = nodeActivityByBlueprint[bp];
+    const activity = isProductionActivity(raw) ? raw : null;
     const filterIds = nodeFilterIds[bp] ?? [];
     const place = activity === null ? { facility: null, bonus: null } : bestFacility(facilities, activity, filterIds);
     const member =

@@ -39,9 +39,14 @@ describe('jobRowFrameData', () => {
     expect(data.headlineName).toBe('Ishkur');
     expect(data.icon).toEqual(jobImage(1, 587, 691));
     expect(data.runs).toBe(10);
+    expect(data.activityLabel).toBe('Manufacturing');
     expect(data.remainingLabel).toMatch(/^done in /);
     expect(data.meta.label).toBe('Active');
     expect(data.showBar).toBe(true);
+  });
+
+  it('labels a live-ESI activity 9 job as a reaction', () => {
+    expect(jobRowFrameData(industryJob({ activity_id: 9 }), {}, NOW).activityLabel).toBe('Reaction');
   });
 
   it('leaves an empty countdown label off an active job with no finite end', () => {
