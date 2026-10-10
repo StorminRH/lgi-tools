@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   addDependencyTiming,
   setDependencyTimingSink,
+  timeDependency,
 } from './dependency-timing';
 
 describe('dependency timing', () => {
@@ -33,5 +34,29 @@ describe('dependency timing', () => {
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledWith('esi', 40);
+  });
+
+  it('passes a call status through to the sink', () => {
+    const sink = vi.fn();
+    setDependencyTimingSink(sink);
+
+    addDependencyTiming('esi', 9, { status: 404 });
+
+    expect(sink).toHaveBeenCalledWith('esi', 9, { status: 404 });
+  });
+
+  it('times wrapped work as one call whether it resolves or throws', async () => {
+    const sink = vi.fn();
+    setDependencyTimingSink(sink);
+
+    await expect(timeDependency('convex', async () => 'ok')).resolves.toBe('ok');
+    await expect(
+      timeDependency('sso', async () => {
+        throw new Error('down');
+      }),
+    ).rejects.toThrow('down');
+
+    expect(sink.mock.calls.map(([kind]) => kind)).toEqual(['convex', 'sso']);
+    for (const [, ms] of sink.mock.calls) expect(ms).toBeGreaterThanOrEqual(0);
   });
 });

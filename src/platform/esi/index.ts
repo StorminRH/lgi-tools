@@ -1,4 +1,3 @@
-import { addDependencyTiming } from '@/lib/dependency-timing';
 import {
   consultPreDispatch,
   dispatch,
@@ -43,10 +42,5 @@ export async function esiFetch(
     if (cached !== null) return cached;
   }
 
-  const startedAt = Date.now();
-  try {
-    return await dispatch(url, init, wantEtag, liveSb, etagMeta);
-  } finally {
-    addDependencyTiming('esi', Date.now() - startedAt);
-  }
+  return dispatch(url, init, wantEtag, liveSb, etagMeta);
 }

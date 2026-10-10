@@ -1,5 +1,6 @@
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { addDependencyTiming } from '@/lib/dependency-timing';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
   EsiBudgetExhaustedError,
@@ -311,6 +312,19 @@ function throwIfErrorStatus(url: string, res: Response): void {
   }
 }
 
+/** One HTTP request to ESI, timed alone so scoreboard round trips stay out of ESI time. */
+async function fetchFromEsi(url: string, init: RequestInit): Promise<Response> {
+  const startedAt = performance.now();
+  let status: number | undefined;
+  try {
+    const res = await fetchWithTimeout(url, init);
+    status = res.status;
+    return res;
+  } finally {
+    addDependencyTiming('esi', performance.now() - startedAt, status === undefined ? undefined : { status });
+  }
+}
+
 export async function dispatch(
   url: string,
   init: RequestInit | undefined,
@@ -320,7 +334,7 @@ export async function dispatch(
 ): Promise<Response> {
   for (;;) {
     const headers = buildHeaders(init, etagMeta?.etag ?? null);
-    const res = await fetchWithTimeout(url, { ...init, headers });
+    const res = await fetchFromEsi(url, { ...init, headers });
 
     if (res.status === 304 && etagMeta !== null) {
       const served = await reuseOrRevalidate(url, res, etagMeta, liveSb);

@@ -5,6 +5,7 @@ import { CATEGORY_STATUS } from '@/lib/problem';
 import {
   currentCorrelationId,
   currentDependencyTimings,
+  currentDependencyWallMs,
   currentStashedFailure,
 } from '@/transport/correlation';
 import { emitCostMetric } from './cost-metrics';
@@ -95,6 +96,8 @@ export interface CapabilityOutcomeRecord {
   code: string;
   durationMs: number;
   dependencies: Partial<Record<DependencyKind, DependencyTiming>>;
+  /** Elapsed time with any dependency call in flight; absent when nothing was timed. */
+  dependencyWallMs?: number;
   retry: CapabilityRetry | null;
   correlationId: string;
   appVersion: string;
@@ -112,13 +115,15 @@ function buildCapabilityRecord(
   outcome: CapabilityOutcomeInput,
 ): CapabilityOutcomeRecord {
   const capability = CAPABILITIES[id];
+  const dependencyWallMs = currentDependencyWallMs();
   return {
     feature: capability.feature,
     operation: capability.operation,
     outcome: outcome.outcome,
     code: outcome.code,
     durationMs: outcome.durationMs,
-    dependencies: { ...currentDependencyTimings() },
+    dependencies: currentDependencyTimings(),
+    ...(dependencyWallMs === null ? {} : { dependencyWallMs }),
     retry: outcome.retry,
     correlationId: currentCorrelationId(),
     appVersion: APP_VERSION,
