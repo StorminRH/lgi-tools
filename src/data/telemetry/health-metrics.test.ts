@@ -5,7 +5,6 @@ import {
   deriveGscStatus,
   ESI_AVAILABILITY_TARGET,
   fallbackRatePoints,
-  formatAgo,
   loginFrequencyBuckets,
   PRICES_HEALTHY_OUTCOMES,
   refreshVolumeSummary,
@@ -56,21 +55,6 @@ describe('loginFrequencyBuckets', () => {
 
   it('empty input gives all-zero buckets', () => {
     expect(loginFrequencyBuckets([]).every((b) => b.users === 0)).toBe(true);
-  });
-});
-
-describe('formatAgo', () => {
-  const now = new Date('2026-06-09T12:00:00Z');
-  const ago = (ms: number) => new Date(now.getTime() - ms);
-
-  it('boundaries between units', () => {
-    expect(formatAgo(ago(30_000), now)).toBe('just now');
-    expect(formatAgo(ago(60_000), now)).toBe('1m ago');
-    expect(formatAgo(ago(59 * 60_000), now)).toBe('59m ago');
-    expect(formatAgo(ago(60 * 60_000), now)).toBe('1h ago');
-    expect(formatAgo(ago(23 * 3_600_000), now)).toBe('23h ago');
-    expect(formatAgo(ago(24 * 3_600_000), now)).toBe('1d ago');
-    expect(formatAgo(ago(15 * 24 * 3_600_000), now)).toBe('15d ago');
   });
 });
 

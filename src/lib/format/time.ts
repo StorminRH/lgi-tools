@@ -35,21 +35,36 @@ export function formatUtcMinute(date: Date): string {
   return date.toISOString().replace('T', ' ').slice(0, 16);
 }
 
-export function formatRelativeTime(date: Date | null, now?: number): string {
+/**
+ * Compact floored age of an elapsed duration: `<1m` under a minute (negative
+ * durations included), then `Nm`, `Nh` below `dayAfterHours`, then `Nd`. With
+ * `largest: 'mo'` days roll into `Nw` below 30 days and `Nmo` (30-day months)
+ * after.
+ */
+export function formatElapsed(
+  ms: number,
+  { dayAfterHours = 24, largest = 'd' }: { dayAfterHours?: number; largest?: 'd' | 'mo' } = {},
+): string {
+  const minutes = Math.floor(Math.max(0, ms) / 60_000);
+  if (minutes < 1) return '<1m';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < dayAfterHours) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (largest === 'd' || days < 7) return `${days}d`;
+  if (days < 30) return `${Math.floor(days / 7)}w`;
+  return `${Math.floor(days / 30)}mo`;
+}
+
+export function formatRelativeTime(
+  date: Date | null,
+  now?: number,
+  largest: 'd' | 'mo' = 'mo',
+): string {
   if (!date) return '—';
   const diffMs = (now ?? Date.now()) - date.getTime();
-  if (diffMs < 0) return 'just now';
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `${weeks}w ago`;
-  const months = Math.floor(days / 30);
-  return `${months}mo ago`;
+  if (diffMs < 60_000) return 'just now';
+  return `${formatElapsed(diffMs, { largest })} ago`;
 }
 
 export function formatRemaining(ms: number): string {

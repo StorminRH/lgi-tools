@@ -3,6 +3,7 @@ import { HISTORY_ADV_WINDOWS } from '@/data/market-history/constants';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { DEPTH_BANDS_PCT } from '@/data/market-prices/constants';
 import type { DepthBand } from '@/data/market-prices/types';
+import { formatElapsed } from '@/lib/format/time';
 
 const SCORE_ADV_WINDOW_DAYS = 30 satisfies (typeof HISTORY_ADV_WINDOWS)[number];
 
@@ -25,12 +26,6 @@ function daysPhrase(n: number): string {
   if (n < 1) return '<1 day';
   const r = Math.round(n);
   return `${r} day${r === 1 ? '' : 's'}`;
-}
-
-function ageLabel(days: number): string {
-  if (days < 7) return `${days}d`;
-  if (days < 30) return `${Math.floor(days / 7)}w`;
-  return `${Math.floor(days / 30)}mo`;
 }
 
 const BAND_WORD = { steady: 'steady', moderate: 'moderate', spiky: 'spiky' } as const;
@@ -65,7 +60,10 @@ export function marketScoreView(
 } {
   const latestDate = history?.latestDate ?? null;
   const staleDays = nowMs === null ? null : daysSinceHistoryDate(latestDate, nowMs);
-  const staleAge = staleDays !== null && staleDays >= STALENESS_FLAG_DAYS ? ageLabel(staleDays) : null;
+  const staleAge =
+    staleDays !== null && staleDays >= STALENESS_FLAG_DAYS
+      ? formatElapsed(staleDays * 86_400_000, { largest: 'mo' })
+      : null;
   const scoreText = score.score === null ? '—' : String(score.score);
   return {
     scoreDisplay: seeded || score.score !== null ? scoreText : '…',

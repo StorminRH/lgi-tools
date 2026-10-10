@@ -1,5 +1,5 @@
 import { formatCount, formatQuantity } from '@/lib/format/number';
-import { formatIsoDay } from '@/lib/format/time';
+import { formatIsoDay, formatRelativeTime } from '@/lib/format/time';
 import type {
   CronOutcomeCount,
   FallbackRateData,
@@ -83,16 +83,6 @@ export const GSC_OUTCOME_RULES = {
 const STALE_AMBER_FACTOR = 1.25;
 const STALE_RED_FACTOR = 2;
 
-export function formatAgo(then: Date, now: Date): string {
-  const ms = now.getTime() - then.getTime();
-  if (ms < 60_000) return 'just now';
-  const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 export interface OutcomeRules {
   healthy: readonly string[];
   neutral?: readonly string[];
@@ -123,7 +113,7 @@ export function deriveCronStatus(input: CronStatusInput): SubsystemStatus {
   const { lastRun, outcomes, expectedEveryHours, now } = input;
   if (!lastRun) return { level: 'red', value: 'never ran' };
 
-  const ago = formatAgo(lastRun.timestamp, now);
+  const ago = formatRelativeTime(lastRun.timestamp, now.getTime(), 'd');
   const ageHours = (now.getTime() - lastRun.timestamp.getTime()) / 3_600_000;
   const lastKind = classifyOutcome(lastRun.outcome, input);
 

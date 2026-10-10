@@ -1,6 +1,7 @@
 import type { EsiRefreshJobStatus, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatElapsed } from '@/lib/format/time';
 
 export interface QueueCell {
   id: 'waiting' | 'deferred' | 'retrying' | 'dead';
@@ -16,14 +17,6 @@ const CELLS: readonly { id: QueueCell['id']; title: string; statuses: readonly E
   { id: 'retrying', title: 'Awaiting retry', statuses: ['failed_retryable'] },
   { id: 'dead', title: 'Dead-lettered', statuses: ['dead_lettered'] },
 ];
-
-function ageLabel(from: Date, now: Date): string {
-  const minutes = Math.max(0, Math.floor((now.getTime() - from.getTime()) / 60_000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
 
 function countOf(stats: EsiRefreshQueueStat[], statuses: readonly EsiRefreshJobStatus[]) {
   const matching = stats.filter((stat) => statuses.includes(stat.status));
@@ -42,7 +35,10 @@ export function deriveQueueCells(stats: EsiRefreshQueueStat[], now: Date): Queue
       id: cell.id,
       title: cell.title,
       value: formatQuantity(count),
-      note: oldest === null ? undefined : `oldest job ${ageLabel(oldest, now)}`,
+      note:
+        oldest === null
+          ? undefined
+          : `oldest job ${formatElapsed(now.getTime() - oldest.getTime(), { dayAfterHours: 48 })}`,
     };
   });
 }

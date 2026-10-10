@@ -8,7 +8,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P088](#p088) | Fix formatRelativeTime's 28-29 day '0mo ago' bug and route the compact elapsed-age ladders through one lib formatter | formatting | S | low | medium | — |
+| ☑ | [P088](#p088) | Fix formatRelativeTime's 28-29 day '0mo ago' bug and route the compact elapsed-age ladders through one lib formatter | formatting | S | low | medium | — |
 | ☐ | [P107](#p107) | Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies | generic-utility | M | low | medium | — |
 | ☐ | [P089](#p089) | Make lib/format/time the single UTC date home: one input type, adopt formatIsoDay everywhere, add formatUtcMinute and stripUtcYear | formatting | M | low | medium | [P088](#p088), [P107](#p107) |
 | ☐ | [P177](#p177) | Fix retention-pruner drift with existing retentionCutoff and formatIsoDay; keep per-owner pruners | server-pipeline | S | low | low | [P107](#p107), [P089](#p089) |
@@ -27,7 +27,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 
 ## P088: Fix formatRelativeTime's 28-29 day '0mo ago' bug and route the compact elapsed-age ladders through one lib formatter
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -35 / +22
 - **Depends on:** —
