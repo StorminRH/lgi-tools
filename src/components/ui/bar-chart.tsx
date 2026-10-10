@@ -4,8 +4,7 @@ import type { MouseEvent } from 'react';
 import { Bar } from '@visx/shape';
 import { scaleBand, scaleLinear } from '@visx/scale';
 import { localPoint } from '@visx/event';
-import { type SparklineTone } from './sparkline';
-import { toneHex } from './tones';
+import { toneHex, type ChartTone } from './tones';
 import { formatPlainValue, identityLabel } from './chart/chart-geometry';
 import { useChartHover } from './chart/use-chart-hover';
 import { ChartCanvas } from './chart/chart-canvas';
@@ -16,7 +15,7 @@ export type BarDatum = { label: string; value: number };
 
 export type BarChartProps = {
   data: BarDatum[];
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
   className?: string;

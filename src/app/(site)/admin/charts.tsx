@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Measured } from '@/components/ui/measured';
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
-import type { SparklineTone } from '@/components/ui/sparkline';
+import type { ChartTone } from '@/components/ui/tones';
 import type { BarDatum } from '@/components/ui/bar-chart';
 import { formatQuantity } from '@/lib/format/number';
 import { endLabelFor } from './end-label';
@@ -51,7 +51,7 @@ export function AdminDailyChart({
   endDelta?: Delta | null;
   unit: 'percent' | 'count' | 'position';
   invert?: boolean;
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
   ariaLabel?: string;
@@ -96,7 +96,7 @@ export function AdminTrendChart({
   points: { x: number; y: number }[];
   labels: string[];
   unit: 'percent' | 'count' | 'position';
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
   ariaLabel?: string;
@@ -127,7 +127,7 @@ export function AdminBarChart({
   ariaLabel,
 }: {
   data: BarDatum[];
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
   ariaLabel?: string;

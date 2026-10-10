@@ -2,8 +2,7 @@
 
 import { LinePath } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
-import { type SparklineTone } from './sparkline';
-import { toneHex } from './tones';
+import { toneHex, type ChartTone } from './tones';
 import { dailyChartModel, type DailyHoverPoint } from './chart/daily-chart-geometry';
 import { formatPlainValue, identityLabel } from './chart/chart-geometry';
 import { TimeSeriesFrame } from './chart/chart-frame';
@@ -25,7 +24,7 @@ export type AnnotatedDailyChartProps = {
   referenceLine: { value: number; label: string } | null;
   eventMarkers?: { x: number; label: string }[];
   endLabel?: EndLabel;
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
   yTicks?: number;

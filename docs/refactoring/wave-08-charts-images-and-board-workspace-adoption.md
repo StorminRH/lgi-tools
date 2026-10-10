@@ -10,7 +10,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P004](#p004) | Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx | ui-component | M | low | high | — |
 | ☑ | [P037](#p037) | Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart | ui-component | S | low | medium | [P004](#p004) |
-| ☐ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
+| ☑ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
 | ☐ | [P318](#p318) | Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types | simplification | S | low | low | [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089) |
 | ☐ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
 | ☐ | [P009](#p009) | Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30 | ui-component | S | low | low | [P008](#p008) |
@@ -195,7 +195,7 @@ export function BandSeries<P extends { x: number }>(props: {
 
 ## P317: Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +5 (two test files merged, one module deleted)
 - **Depends on:** [P004](#p004), [P037](#p037)

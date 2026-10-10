@@ -6,14 +6,13 @@ import { BAND_CHART_MARGIN, BandSeries } from './chart/band-series';
 import { TimeSeriesFrame } from './chart/chart-frame';
 import { extent, identityLabel } from './chart/chart-geometry';
 import { ValueAxisGrid } from './chart/value-axis';
-import type { SparklineTone } from './sparkline';
-import { toneHex } from './tones';
+import { toneHex, type ChartTone } from './tones';
 
 const FILL_OPACITY = [0.34, 0.22];
 
 export interface StackedBand {
   key: string;
-  tone: SparklineTone;
+  tone: ChartTone;
 }
 
 /** One point in time; `values[i]` is band i's own height, null where band i has no data. */

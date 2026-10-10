@@ -6,8 +6,7 @@ import { BAND_CHART_MARGIN, BandSeries } from './chart/band-series';
 import { TimeSeriesFrame } from './chart/chart-frame';
 import { extent, identityLabel } from './chart/chart-geometry';
 import { ValueAxisGrid } from './chart/value-axis';
-import type { SparklineTone } from './sparkline';
-import { toneHex } from './tones';
+import { toneHex, type ChartTone } from './tones';
 
 // The upper series gets the larger share; the break sits in a small gap.
 const UPPER_SHARE = 0.6;
@@ -25,7 +24,7 @@ type Point = SplitDatum & { y: number };
 
 interface Segment {
   key: 'upper' | 'lower';
-  tone: SparklineTone;
+  tone: ChartTone;
   scale: ReturnType<typeof scaleLinear<number>>;
   floor: number;
   value: (point: SplitDatum) => number | null;
@@ -50,8 +49,8 @@ export function SplitAxisChart({
   renderTooltip,
 }: {
   data: readonly SplitDatum[];
-  upperTone: SparklineTone;
-  lowerTone: SparklineTone;
+  upperTone: ChartTone;
+  lowerTone: ChartTone;
   upperDomain: [number, number];
   lowerDomain: [number, number];
   width: number;

@@ -1,5 +1,17 @@
 import { expect, test } from 'vitest';
-import { continuousHoverTarget, tickAnchor, tickIndices } from './chart-geometry';
+import { continuousHoverTarget, extent, paddedDomain, tickAnchor, tickIndices } from './chart-geometry';
+
+test('extent spans a series in any order, a single value and negatives', () => {
+  expect(extent([3, 1, 4, 1, 5, 9, 2])).toEqual([1, 9]);
+  expect(extent([7])).toEqual([7, 7]);
+  expect(extent([-5, -1, -10])).toEqual([-10, -1]);
+});
+
+test('a padded domain adds 10% headroom, pads a flat series by 10% of its value and an all-zero one by 1', () => {
+  expect(paddedDomain([0, 50, 100])).toEqual([-10, 110]);
+  expect(paddedDomain([50, 50, 50])).toEqual([45, 55]);
+  expect(paddedDomain([0, 0])).toEqual([-1, 1]);
+});
 
 const data = [
   { x: 0, y: 5 },
@@ -8,9 +20,11 @@ const data = [
 ];
 const xs = data.map((d) => d.x);
 
-test('hover snaps to the nearest datum, clamps to the ends, and is empty for no series', () => {
+test('hover snaps to the nearest datum, takes the earlier one on a tie, clamps to the ends, and is empty for no series', () => {
   expect(continuousHoverTarget(xs, 9, data)).toEqual({ datum: data[1], index: 1 });
   expect(continuousHoverTarget(xs, 18, data)).toEqual({ datum: data[2], index: 2 });
+  expect(continuousHoverTarget(xs, 5, data)).toEqual({ datum: data[0], index: 0 });
+  expect(continuousHoverTarget(xs, 15, data)).toEqual({ datum: data[1], index: 1 });
   expect(continuousHoverTarget(xs, -100, data)).toEqual({ datum: data[0], index: 0 });
   expect(continuousHoverTarget(xs, 999, data)).toEqual({ datum: data[2], index: 2 });
   expect(continuousHoverTarget([], 5, [])).toBeNull();

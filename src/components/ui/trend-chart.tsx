@@ -2,8 +2,7 @@
 
 import { AreaClosed, LinePath } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
-import { type SparklineTone } from './sparkline';
-import { toneHex } from './tones';
+import { toneHex, type ChartTone } from './tones';
 import { extent, formatPlainValue, identityLabel } from './chart/chart-geometry';
 import { TimeSeriesFrame } from './chart/chart-frame';
 import { ChartBaseline, ValueAxisGrid } from './chart/value-axis';
@@ -15,7 +14,7 @@ const zeroBasedDomain = (ys: number[]): [number, number] => [0, Math.max(...ys, 
 export type TrendChartProps = {
   data: { x: number; y: number }[];
   labels: string[];
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
   yTicks?: number;

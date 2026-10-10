@@ -4,7 +4,7 @@ export const formatPlainValue = (value: number): string => String(value);
 /** The charts' default label format: the label unchanged. */
 export const identityLabel = (label: string): string => label;
 
-export function extent(values: number[]): [number, number] {
+export function extent(values: readonly number[]): [number, number] {
   let min = values[0]!;
   let max = values[0]!;
   for (const v of values) {
@@ -14,13 +14,13 @@ export function extent(values: number[]): [number, number] {
   return [min, max];
 }
 
-export function paddedDomain(values: number[]): [number, number] {
+export function paddedDomain(values: readonly number[]): [number, number] {
   const [min, max] = extent(values);
   const pad = (max - min) * 0.1 || Math.abs(max) * 0.1 || 1;
   return [min - pad, max + pad];
 }
 
-export function nearestIndex(xs: number[], x: number): number {
+function nearestIndex(xs: number[], x: number): number {
   let best = -1;
   let bestDist = Infinity;
   for (const [i, xi] of xs.entries()) {

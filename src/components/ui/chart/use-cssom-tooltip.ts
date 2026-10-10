@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { placeTooltip } from './chart/tooltip-placement';
+import { placeTooltip } from './tooltip-placement';
 
 // Positions the tooltip layer from the hovered point, measured against the
 // chart's own box so the tooltip never spills outside the chart.
