@@ -18,6 +18,7 @@ import {
   DialogTitle,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
+import { CloseIcon } from '@/components/ui/icons';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
@@ -188,7 +189,7 @@ export function MapAccessDialog({
           aria-label="Close map access"
           disabled={disabled}
         >
-          ×
+          <CloseIcon size={14} />
         </DialogClose>
       </header>
 

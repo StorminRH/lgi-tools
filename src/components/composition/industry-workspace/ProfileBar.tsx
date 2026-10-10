@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { floatSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { CheckIcon } from '@/components/ui/icons';
 import { Menu, MenuItem, menuRow } from '@/components/ui/menu';
 import { scrollArea } from '@/components/ui/scroll-area';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
@@ -58,8 +59,8 @@ export function ProfileBar({
               onClick={() => onSelect(profile.id)}
             >
               <span className="flex min-w-0 items-center gap-2">
-                <span aria-hidden className={cn('w-3 font-data text-isk', !current && 'invisible')}>
-                  ✓
+                <span aria-hidden className={cn('flex w-3 text-isk', !current && 'invisible')}>
+                  <CheckIcon size={12} />
                 </span>
                 <span className="truncate">{profile.name}</span>
               </span>

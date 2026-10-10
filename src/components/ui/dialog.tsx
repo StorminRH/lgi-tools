@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { Button } from './button';
 import { cn } from './cn';
+import { CloseIcon } from './icons';
 import { OverlayPortalContainerProvider } from './overlay-portal-container';
 
 export type DialogFocusTarget = ComponentProps<typeof Base.Popup>['finalFocus'];
@@ -92,7 +93,7 @@ export function DialogHeader({
         ) : null}
       </div>
       <DialogClose render={<Button variant="ghost" size="sm" />} aria-label={closeLabel}>
-        ×
+        <CloseIcon size={14} />
       </DialogClose>
     </header>
   );

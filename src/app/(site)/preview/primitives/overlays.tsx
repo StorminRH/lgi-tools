@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Drawer, DrawerClose } from '@/components/ui/drawer';
+import { CheckIcon } from '@/components/ui/icons';
 import {
   Menu,
   MenuCheckboxItem,
@@ -67,7 +68,9 @@ function ReferenceMenu({ surface }: { surface: 'solid' | 'frosted' }) {
           {['margin', 'volume', 'name'].map((option) => (
             <MenuRadioItem key={option} value={option} closeOnClick={false} className={menuRow}>
               {option}
-              <MenuRadioItemIndicator className="ml-auto text-isk">✓</MenuRadioItemIndicator>
+              <MenuRadioItemIndicator className="ml-auto flex text-isk">
+                <CheckIcon size={12} />
+              </MenuRadioItemIndicator>
             </MenuRadioItem>
           ))}
         </MenuRadioGroup>
@@ -80,7 +83,7 @@ function ReferenceMenu({ surface }: { surface: 'solid' | 'frosted' }) {
           className={menuControlRow}
         >
           Show cleared sites
-          <span aria-hidden className="text-isk">{showCleared ? '✓' : ''}</span>
+          <span aria-hidden className="flex text-isk">{showCleared ? <CheckIcon size={12} /> : null}</span>
         </MenuCheckboxItem>
         <MenuSeparator className={menuSeparator} />
         <MenuItem className={menuRow} onClick={() => setSort('margin')}>Reset sorting</MenuItem>

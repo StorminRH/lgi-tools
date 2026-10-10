@@ -36,13 +36,14 @@ vi.mock('@base-ui/react/dialog', () => ({
       base.popup = props;
       return createElement('div', null, props.children);
     },
-    Close: ({ children }: { children: ReactNode }) => createElement('button', null, children),
-    Title: ({ children }: { children: ReactNode }) => createElement('h2', null, children),
+    Close: ({ children, 'aria-label': label }: { children: ReactNode; 'aria-label'?: string }) =>
+      createElement('button', { 'aria-label': label }, children),
+    Title: ({ children, id }: { children: ReactNode; id?: string }) => createElement('h2', { id }, children),
     Description: ({ children }: { children: ReactNode }) => createElement('p', null, children),
   },
 }));
 
-import { Dialog } from './dialog';
+import { Dialog, DialogHeader } from './dialog';
 
 test('dialog keeps the portal mounted only when requested and preserves modal focus controls', () => {
   const onOpenChange = vi.fn();
@@ -70,4 +71,21 @@ test('dialog keeps the portal mounted only when requested and preserves modal fo
   expect(base.root).toMatchObject({ open: true, modal: true });
   expect(base.popup).not.toHaveProperty('aria-labelledby');
   expect(() => base.root?.onOpenChange(false)).not.toThrow();
+});
+
+test('dialog header names its close button and draws the close mark as a decorative icon', () => {
+  const header = {
+    titleId: 'map-access-title',
+    title: 'Manage Alpha',
+    closeLabel: 'Close map access',
+  };
+  const html = renderToStaticMarkup(
+    createElement(DialogHeader, { ...header, description: 'Grant or revoke access.' }),
+  );
+  expect(html).toContain('<h2 id="map-access-title">Manage Alpha</h2><p>Grant or revoke access.</p>');
+  expect(html).toMatch(/<button aria-label="Close map access"><svg aria-hidden="true"[^>]*><path [^>]*><\/path><\/svg><\/button>/);
+
+  const bare = renderToStaticMarkup(createElement(DialogHeader, header));
+  expect(bare).toContain('<h2 id="map-access-title">Manage Alpha</h2></div>');
+  expect(bare).toMatch(/<button aria-label="Close map access"><svg aria-hidden="true"/);
 });

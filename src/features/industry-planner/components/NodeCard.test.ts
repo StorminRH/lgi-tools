@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Button } from '@/components/ui/button';
 import { itemImage, nodeImage } from '@/data/eve-data/type-images';
@@ -88,6 +90,19 @@ describe('NodeCard', () => {
     expect(card.props.children[0]).toBe(false);
     expect(card.props.onPointerEnter).toBeUndefined();
     expect(card.props.onFocus).toBeUndefined();
+  });
+
+  it('swaps the remaining count for a check once every unit is owned', () => {
+    const props = { typeId: 34, name: 'Tritanium', label: 'Mineral', qty: 40, value: null, lit: false, dimmed: false };
+    const short = renderToStaticMarkup(createElement(NodeCard, { ...props, ownedQty: 25 }));
+    expect(short).toContain('aria-label="Tritanium: 15 still needed"');
+    expect(short).toContain('>15</span>');
+    expect(short).not.toContain('stroke-width="3"');
+
+    const owned = renderToStaticMarkup(createElement(NodeCard, { ...props, ownedQty: 40 }));
+    expect(owned).toContain('aria-label="Tritanium: all 40 owned"');
+    expect(owned).not.toContain('>15</span>');
+    expect(owned).toMatch(/<svg aria-hidden="true"[^>]*stroke-width="3"[^>]*class="size-icon-md text-isk"/);
   });
 
   it('is interactive only when it opens, and defaults the icon to the item', () => {

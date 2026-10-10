@@ -3,6 +3,7 @@
 import { Checkbox as Base } from '@base-ui/react/checkbox';
 import { cva } from 'class-variance-authority';
 import { cn } from './cn';
+import { CheckIcon } from './icons';
 import type { Tone } from './tones';
 
 export type CheckboxTone = Extract<Tone, 'green' | 'neutral' | 'red'>;
@@ -46,9 +47,7 @@ export function Checkbox({
       className={cn(box({ tone }), className)}
     >
       <Base.Indicator className="check-soft-mark">
-        <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none">
-          <path d="M5 12.5l4.5 4.5L19 7.5" />
-        </svg>
+        <CheckIcon size={13} />
       </Base.Indicator>
     </Base.Root>
   );

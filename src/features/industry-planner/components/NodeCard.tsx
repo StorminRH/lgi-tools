@@ -4,6 +4,7 @@ import { useRef, type FocusEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CheckIcon } from '@/components/ui/icons';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
 import { TypeIcon } from '@/components/type-icon';
@@ -71,22 +72,6 @@ function HoldingLine({ holding }: { holding: AssetHolding }) {
   );
 }
 
-function RingCheck() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-icon-md stroke-isk"
-      fill="none"
-      strokeWidth={3}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
 function HeldByList({ heldBy }: { heldBy?: AssetHolding[] }) {
   if (heldBy && heldBy.length > 0) {
     return (
@@ -127,7 +112,7 @@ function QtyRingCell({
         trigger={
           <QtyRing progress={view.progress} tone={view.tone} className="h-10 w-10" label={view.ringLabel}>
             {view.complete ? (
-              <RingCheck />
+              <CheckIcon strokeWidth={3} className="size-icon-md text-isk" />
             ) : (
               <span className="font-data text-ui tabular-nums text-name">{ringQty(view.remaining)}</span>
             )}

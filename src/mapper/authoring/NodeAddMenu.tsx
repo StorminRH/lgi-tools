@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from 'react';
 import { Dialog, DialogClose, DialogTitle } from '@/components/ui/dialog';
+import { CloseIcon } from '@/components/ui/icons';
 import {
   PointerMenu,
   MenuItem,
@@ -79,8 +80,8 @@ export function NodeAddMenu({
             >
               Add connection
             </DialogTitle>
-            <DialogClose className="font-ui text-nav text-muted hover:text-name">
-              ×
+            <DialogClose aria-label="Close" className="flex items-center text-muted hover:text-name">
+              <CloseIcon size={14} />
             </DialogClose>
           </div>
           <p className="font-ui text-ui leading-relaxed text-muted">

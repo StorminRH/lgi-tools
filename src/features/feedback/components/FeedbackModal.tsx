@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, fieldLabel } from '@/components/ui/field';
+import { CloseIcon } from '@/components/ui/icons';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import type { Session } from '@/platform/auth/types';
@@ -266,9 +267,9 @@ export function FeedbackModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-muted hover:text-text text-ui leading-none px-2 py-1"
+            className="px-2 py-1 text-muted hover:text-text"
           >
-            ×
+            <CloseIcon size={14} />
           </Button>
         </header>
 

@@ -32,7 +32,7 @@ test('side panel stays mounted, forwards open, and labels itself from its title'
   dialog.props?.onOpenChange?.(false);
   expect(onOpenChange).toHaveBeenCalledWith(false);
   expect(html).toContain('value="Unsaved fitting"');
-  expect(html).toContain('aria-label="Close side panel"');
+  expect(html).toMatch(/<button aria-label="Close side panel"><svg aria-hidden="true"/);
   const label = html.match(/aria-labelledby="([^"]+)"/)?.[1];
   expect(label).toBeTruthy();
   expect(html.match(/<h2 id="([^"]+)"/)?.[1]).toBe(label);

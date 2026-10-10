@@ -10,7 +10,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P319](#p319) | Remove the single-value tone variants from Menu, PointerMenu, NavigationMenu, Dialog and SegmentedControl, and split ChipToggle into ChipToggle and ToggleRow | simplification | S | low | low | — |
 | ☑ | [P022](#p022) | Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants | ui-component | M | low | medium | [P319](#p319) |
-| ☐ | [P041](#p041) | Draw every check and close mark with ui/icons CheckIcon and CloseIcon | ui-component | S | low | low | — |
+| ☑ | [P041](#p041) | Draw every check and close mark with ui/icons CheckIcon and CloseIcon | ui-component | S | low | low | — |
 | ☐ | [P053](#p053) | Route the ui chip glass through a globals.css glass-chip utility and the --glass-* knobs | css-styling | S | low | low | — |
 | ☐ | [P001](#p001) | Complete the ui/dialog kit (DialogBody, DialogFooter, DialogCloseButton, closeDisabled, displayTitle) and route hand-built dialog chrome through it | ui-component | M | low | high | [P319](#p319), [P041](#p041) |
 | ☐ | [P019](#p019) | Portal every Base UI popup into the enclosing dialog, and share the pop-in transition | ui-component | S | medium | medium | — |
@@ -186,7 +186,7 @@ type ChipToggleProps = { value: string; children: ReactNode; className?: string 
 
 ## P041: Draw every check and close mark with ui/icons CheckIcon and CloseIcon
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About +3 in icons, +3 in DialogHeader, -2 in checkbox, -14 in NodeCard, -18 in MapAccessDialog's header; glyph swaps net 0; net about -28
 - **Depends on:** —
