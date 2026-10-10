@@ -1,3 +1,4 @@
+import { bestEffort } from '@/lib/best-effort';
 import { isTimeoutError } from '@/lib/error-chain';
 import { sleep } from '@/lib/retry';
 
@@ -23,11 +24,8 @@ export function configureNeonColdStartMetricSink(
 
 async function emitMetric(metric: NeonColdStartMetric): Promise<void> {
   if (!metricSink) return;
-  try {
-    await metricSink(metric);
-  } catch (error) {
-    console.error('[neon-cold-start-retry] telemetry write failed', error);
-  }
+  const sink = metricSink;
+  await bestEffort('neon-cold-start-retry', 'telemetry write', null, async () => sink(metric));
 }
 
 function isRetryable(error: unknown, retryTimeouts: boolean): boolean {

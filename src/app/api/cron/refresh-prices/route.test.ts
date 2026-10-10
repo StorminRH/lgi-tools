@@ -172,6 +172,23 @@ describe('GET /api/cron/refresh-prices', () => {
     });
   });
 
+  it('logs a failed degradation alert and still answers 200', async () => {
+    const errors = silenceConsolePrefixes('error', ['[cron:prices] degradation alert failed']);
+    const down = new Error('discord down');
+    alertMock.mockRejectedValue(down);
+    refreshStalePricesMock.mockResolvedValue({
+      status: 'refreshed',
+      lastUpdatedAt: new Date('2026-05-30T13:30:00Z'),
+      summary: { ...REFRESHED_SUMMARY, esiCount: 6, fuzzworkFallbackCount: 4 },
+    });
+    const { GET } = await import('./route');
+    const res = await GET(cronRequest(ROUTE));
+    expect(res.status).toBe(200);
+    expect((await res.json()).written).toBe(10);
+    expect(alertMock).toHaveBeenCalledOnce();
+    expect(errors).toHaveBeenCalledWith('[cron:prices] degradation alert failed', down);
+  });
+
   it('does not let a telemetry failure break the cron response', async () => {
     logUsageEventMock.mockRejectedValue(new Error('db down'));
     refreshStalePricesMock.mockResolvedValue({

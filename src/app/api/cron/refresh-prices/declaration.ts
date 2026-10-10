@@ -7,7 +7,7 @@ import {
 } from '@/data/market-prices/cache';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
-import { swallow } from '@/transport/cron';
+import { bestEffort } from '@/lib/best-effort';
 
 export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesResponse> = {
   name: 'cron:prices',
@@ -63,8 +63,7 @@ export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesRes
         fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
         budgetExhausted: summary.budgetExhausted,
       });
-      await swallow(
-        '[cron:prices] degradation alert failed',
+      await bestEffort('cron:prices', 'degradation alert', null, () =>
         alertPriceSourceDegradation({
           fetched: summary.fetched,
           esiCount: summary.esiCount,

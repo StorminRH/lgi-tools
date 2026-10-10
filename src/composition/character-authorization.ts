@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { enqueueAffectedMapAccessChanges } from '@/data/maps/queries';
+import { bestEffort } from '@/lib/best-effort';
 import { mapConcurrent } from '@/lib/fan-out';
 import {
   acknowledgeAuthorizationAccessChange,
@@ -42,20 +43,16 @@ export async function checkCharacterAuthorizations(userId: string): Promise<void
   await mapConcurrent(due, AUTHORIZATION_CONCURRENCY, async (candidate) => {
     if (Date.now() >= deadline) return;
     if (!await claimAuthorization(candidate.id)) return;
-    try {
-      await getFreshAccessTokenForCharacter(Number(candidate.characterId), { forceRefresh: true });
-    } catch (error) {
-      // The claim expires, so a process/network failure cannot strand the character.
-      console.error('[character-authorization] check failed', candidate.characterId, error);
-    }
+    // The claim expires, so a process/network failure cannot strand the character.
+    await bestEffort('character-authorization', 'check', candidate.characterId, () =>
+      getFreshAccessTokenForCharacter(Number(candidate.characterId), { forceRefresh: true }),
+    );
   });
   await publishAccessChanges(userId);
 }
 
-export const checkUserCharacterAuthorizations = cache(async (userId: string): Promise<void> => {
-  try {
-    await checkCharacterAuthorizations(userId);
-  } catch (error) {
-    console.error('[character-authorization] background check failed', error);
-  }
-});
+export const checkUserCharacterAuthorizations = cache((userId: string): Promise<void> =>
+  bestEffort('character-authorization', 'background check', userId, () =>
+    checkCharacterAuthorizations(userId),
+  ),
+);

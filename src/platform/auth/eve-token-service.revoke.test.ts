@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const { chain } = await vi.hoisted(async () => {
   const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
@@ -60,8 +61,12 @@ describe('revokeStoredCharacterToken', () => {
   });
 
   it('never throws when the revoke itself fails (best-effort — the purge must complete)', async () => {
+    const errors = silenceConsolePrefixes('error', ['[eve-token] revoke failed']);
+    const down = new Error('CCP down');
     decryptTokenMock.mockReturnValue('plain-refresh');
-    revokeEveRefreshTokenMock.mockRejectedValue(new Error('CCP down'));
+    revokeEveRefreshTokenMock.mockRejectedValue(down);
     await expect(revokeStoredCharacterToken('cipher')).resolves.toBeUndefined();
+    expect(errors).toHaveBeenCalledExactlyOnceWith('[eve-token] revoke failed', down);
+    errors.mockRestore();
   });
 });

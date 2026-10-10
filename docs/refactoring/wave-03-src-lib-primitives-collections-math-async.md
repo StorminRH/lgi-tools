@@ -38,7 +38,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P145](#p145) | Promote hasTimeoutAbort to a chain-aware isTimeoutError in lib and use it in every timeout classifier | error-handling | S | low | medium | — |
 | ☑ | [P140](#p140) | Move readWithRetries and a shared sleep into src/lib/retry.ts, let withColdStartRetry absorb warmNeon, and share the planner build-location read | error-handling | M | low | medium | [P145](#p145) |
 | ☑ | [P126](#p126) | Time dependencies through one performance.now helper and stop ESI double-counting Redis | generic-utility | S | low | medium | — |
-| ☐ | [P130](#p130) | Retire transport/cron swallow and route log-and-continue side effects through lib bestEffort | generic-utility | S | low | low | — |
+| ☑ | [P130](#p130) | Retire transport/cron swallow and route log-and-continue side effects through lib bestEffort | generic-utility | S | low | low | — |
 | ☐ | [P173](#p173) | Route every ops alert through one private sendOpsAlert in lib/alerts that rejects non-2xx webhooks | server-pipeline | S | low | medium | [P130](#p130) |
 | ☐ | [P128](#p128) | Add one sentence-case identifier humaniser in lib/format and use it for label fallbacks | generic-utility | S | low | low | — |
 | ☐ | [P129](#p129) | Patch search params through one lib helper, and build the post-create link with atlasMapHref | generic-utility | S | low | low | — |
@@ -1220,7 +1220,7 @@ Vitest 4 fake timers in esi/index.test.ts do not assert timing values, so the cl
 
 ## P130: Retire transport/cron swallow and route log-and-continue side effects through lib bestEffort
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -35 / +30: swallow and its tests removed, ~15 lines of inline try/catch collapsed, a ~25-line best-effort.test.ts added.
 - **Depends on:** —

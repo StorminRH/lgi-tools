@@ -47,7 +47,7 @@ vi.mock('./map-access-projection', async (importOriginal) => ({
   projectMapAccess: mocks.projectMapAccess,
 }));
 
-import { checkCharacterAuthorizations } from './character-authorization';
+import { checkCharacterAuthorizations, checkUserCharacterAuthorizations } from './character-authorization';
 
 const change = { id: 'alice-account', characterId: '42', changedAt: new Date('2026-09-28T12:00:00Z') };
 
@@ -119,6 +119,33 @@ it('stops claiming due characters once a claim fails and leaves the run failed',
   ]);
   expect(mocks.getFreshAccessTokenForCharacter.mock.calls.map(([characterId]) => characterId)).toEqual([101, 102, 103]);
   expect(mocks.suspendOverdueAuthorizations).toHaveBeenCalledOnce();
+});
+
+it('logs a failed token check and still checks the other characters before publishing', async () => {
+  const errors = silenceConsolePrefixes('error', ['[character-authorization] check failed']);
+  const down = new Error('SSO unavailable');
+  mocks.listDueAuthorizations.mockResolvedValue([
+    { id: 'account-1', characterId: '101' },
+    { id: 'account-2', characterId: '102' },
+  ]);
+  mocks.getFreshAccessTokenForCharacter.mockRejectedValueOnce(down);
+
+  await checkCharacterAuthorizations('alice');
+
+  expect(mocks.getFreshAccessTokenForCharacter.mock.calls.map(([characterId]) => characterId)).toEqual([101, 102]);
+  expect(errors).toHaveBeenCalledExactlyOnceWith('[character-authorization] check failed for 101', down);
+  expect(mocks.suspendOverdueAuthorizations).toHaveBeenCalledTimes(2);
+});
+
+it('logs and absorbs a failed background run so the request that started it is unaffected', async () => {
+  const errors = silenceConsolePrefixes('error', ['[character-authorization] background check failed']);
+  const down = new Error('database unavailable');
+  mocks.hasAuthorizationWork.mockRejectedValueOnce(down);
+
+  await expect(checkUserCharacterAuthorizations('alice')).resolves.toBeUndefined();
+
+  expect(errors).toHaveBeenCalledExactlyOnceWith('[character-authorization] background check failed for alice', down);
+  expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
 });
 
 it('checks queued access changes on a healthy visit without refreshing authorization', async () => {
