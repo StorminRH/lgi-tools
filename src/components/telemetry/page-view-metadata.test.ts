@@ -7,12 +7,16 @@ import {
 } from './page-view-metadata';
 
 describe('shouldSkip', () => {
-  it('skips admin and api paths (exact or prefixed)', () => {
+  it('skips the admin and api sections, not siblings that share their prefix', () => {
     expect(shouldSkip('/admin')).toBe(true);
+    expect(shouldSkip('/admin/')).toBe(true);
     expect(shouldSkip('/admin/users')).toBe(true);
     expect(shouldSkip('/admin/users/user-1')).toBe(true);
+    expect(shouldSkip('/administrator')).toBe(false);
     expect(shouldSkip('/settings/characters')).toBe(false);
+    expect(shouldSkip('/api')).toBe(true);
     expect(shouldSkip('/api/sites')).toBe(true);
+    expect(shouldSkip('/apidocs')).toBe(false);
     expect(shouldSkip('/sites')).toBe(false);
   });
 });
