@@ -9,6 +9,7 @@ import type {
   FailureGroup,
   SlowOperation,
 } from '@/data/telemetry/capability-stats';
+import { formatClientErrorShare } from '@/data/telemetry/health-metrics';
 import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
 import { formatQuantity } from '@/lib/format/number';
@@ -115,7 +116,7 @@ const CLIENT_ERROR_COLUMNS = [
     key: 'share',
     label: 'Of calls',
     align: 'right',
-    render: (row) => (row.calls > 0 ? `${((row.errors / row.calls) * 100).toFixed(1)}%` : '—'),
+    render: (row) => (row.calls > 0 ? formatClientErrorShare(row.errors / row.calls) : '—'),
     className: 'tabular-nums',
   },
   {
