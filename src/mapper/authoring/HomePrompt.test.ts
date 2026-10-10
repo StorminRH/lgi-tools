@@ -72,12 +72,10 @@ vi.mock('@/components/use-system-search', () => ({
   useSystemName: () => mocks.systemName,
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children }: { children: React.ReactNode }) =>
-    createElement('div', { role: 'dialog' }, children),
-  DialogTitle: ({ children, id }: { children: React.ReactNode; id?: string }) =>
-    createElement('h2', { id }, children),
-}));
+vi.mock('@base-ui/react/dialog', async () => {
+  const { StaticBaseDialog } = await import('@/components/ui/__tests__/static-base-dialog');
+  return { Dialog: StaticBaseDialog };
+});
 
 vi.mock('@/components/ui/terminal-search', () => ({
   TerminalSearch: (props: { placeholder?: string }) =>
@@ -85,15 +83,6 @@ vi.mock('@/components/ui/terminal-search', () => ({
       'data-terminal-search': '',
       'data-placeholder': props.placeholder ?? '',
     }),
-}));
-
-vi.mock('@/components/ui/button', () => ({
-  Button: ({
-    children,
-    variant: _variant,
-    ...props
-  }: Record<string, unknown> & { children?: unknown }) =>
-    createElement('button', props, children as never),
 }));
 
 function renderPrompt(): string {

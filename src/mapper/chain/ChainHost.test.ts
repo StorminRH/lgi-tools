@@ -41,18 +41,10 @@ vi.mock('@/components/use-account-characters', () => ({
   useAccountCharacters: () => null,
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children }: { children: React.ReactNode }) =>
-    createElement('div', { role: 'dialog' }, children),
-  DialogTitle: ({ children, id }: { children: React.ReactNode; id?: string }) =>
-    createElement('h2', { id }, children),
-  DialogClose: ({ children }: { children: React.ReactNode }) =>
-    createElement('button', null, children),
-  DialogCloseButton: ({ label }: { label: string }) =>
-    createElement('button', { 'aria-label': label }),
-  DialogDescription: ({ children }: { children: React.ReactNode }) =>
-    createElement('p', null, children),
-}));
+vi.mock('@base-ui/react/dialog', async () => {
+  const { StaticBaseDialog } = await import('@/components/ui/__tests__/static-base-dialog');
+  return { Dialog: StaticBaseDialog };
+});
 
 vi.mock('./use-map-chain', () => ({
   useMapChain: mocks.useMapChain,

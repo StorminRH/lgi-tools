@@ -5,30 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
-vi.mock('@/components/ui/dialog', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/components/ui/dialog')>()),
-  Dialog: ({ children }: { children: React.ReactNode }) =>
-    createElement('div', { role: 'dialog' }, children),
-  DialogClose: ({ children }: { children: React.ReactNode }) =>
-    createElement('button', null, children),
-  DialogDescription: ({ children }: { children: React.ReactNode }) =>
-    createElement('p', null, children),
-  DialogTitle: ({ children }: { children: React.ReactNode }) =>
-    createElement('h2', null, children),
-  DialogHeader: ({
-    title,
-    description,
-  }: {
-    title: React.ReactNode;
-    description: React.ReactNode;
-  }) =>
-    createElement(
-      'header',
-      null,
-      createElement('h2', null, title),
-      createElement('p', null, description),
-    ),
-}));
+vi.mock('@base-ui/react/dialog', async () => {
+  const { StaticBaseDialog } = await import('@/components/ui/__tests__/static-base-dialog');
+  return { Dialog: StaticBaseDialog };
+});
 vi.mock('@/components/ui/confirm-dialog', () => ({
   ConfirmDialog: ({ title }: { title: React.ReactNode }) =>
     createElement('div', { 'data-confirm-dialog': '' }, title),
@@ -71,6 +51,9 @@ describe('TrashWindow', () => {
         maps: MAPS,
       }),
     );
+    const label = markup.match(/<div role="dialog" aria-labelledby="([^"]+)"/)?.[1];
+    expect(label).toBeTruthy();
+    expect(markup.match(/<h2 id="([^"]+)"[^>]*>Deleted maps<\/h2>/)?.[1]).toBe(label);
     // Each row's checkbox is named by its map, without the provenance beside it.
     const names = [...markup.matchAll(/role="checkbox"[^>]* aria-labelledby="([^"]+)"/g)].map(
       ([, id]) => new RegExp(`<span id="${id}" hidden="">([^<]*)</span>`).exec(markup)?.[1],
