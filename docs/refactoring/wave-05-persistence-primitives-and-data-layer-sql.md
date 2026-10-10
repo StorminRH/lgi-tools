@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#663](https://github.com/StorminRH/lgi-tools/pull/663).
+
 ← [Wave 4: Formatting, dates and names have one home](wave-04-formatting-dates-and-names-have-one-home.md) · [Index](README.md#roadmap) · [Wave 6: Config, env, ids and shared domain vocabularies](wave-06-config-env-ids-and-shared-domain-vocabularies.md) →
 
 Give src/db and the data layer one owner per SQL concern, in this order:
