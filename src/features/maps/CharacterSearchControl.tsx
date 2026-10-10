@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import {
   MAX_CHARACTER_SEARCH_LENGTH,
   MIN_CHARACTER_SEARCH_LENGTH,
@@ -165,6 +166,8 @@ export function CharacterSearchControl({
   } = useCharacterSearch(selectedKeys);
   const inputId = useId();
   const hintId = useId();
+  // Items are character ids. A pick goes to onSelect and clears the field, so neither the id nor the name lands there.
+  const byId = new Map(available.map((result) => [String(result.characterId), result]));
 
   return (
     <div className="flex flex-col gap-1.5" data-map-character-search>
@@ -172,12 +175,19 @@ export function CharacterSearchControl({
         {label}
       </label>
       <Combobox.Root
-        items={available}
+        items={[...byId.keys()]}
         value={query}
-        onValueChange={changeQuery}
-        itemToStringValue={(result: CharacterSearchResult) => result.name}
+        onValueChange={(next, details) =>
+          pickOrType(next, details, {
+            lookup: (id) => byId.get(id),
+            onType: changeQuery,
+            onPick: (result) => {
+              onSelect(principalFromCharacter(result));
+              changeQuery('');
+            },
+          })
+        }
         filter={null}
-        mode="list"
         open={open}
         onOpenChange={(next) => setPopupOpen(next)}
       >
@@ -185,8 +195,6 @@ export function CharacterSearchControl({
           id={inputId}
           aria-describedby={hintId}
           placeholder="Character name"
-          autoComplete="off"
-          spellCheck={false}
           disabled={disabled}
           trailing={
             busy ? (
@@ -200,12 +208,8 @@ export function CharacterSearchControl({
               {available.map((result) => (
                 <Combobox.Item
                   key={result.characterId}
-                  value={result}
+                  value={String(result.characterId)}
                   className="flex w-full items-center gap-2 px-2.5 py-2"
-                  onClick={() => {
-                    onSelect(principalFromCharacter(result));
-                    changeQuery('');
-                  }}
                 >
                   <CharacterPortrait
                     characterId={result.characterId}

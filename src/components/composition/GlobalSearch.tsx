@@ -10,10 +10,11 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { Kbd } from '@/components/ui/kbd';
 import { SearchIcon } from '@/components/ui/icons';
 import { formatCount } from '@/lib/format/number';
-import { flattenSections, searchIconClass, searchRowImage, splitMatchRuns } from './global-search-view';
+import { searchIconClass, searchRowImage, searchRowKey, searchRowsByKey, splitMatchRuns } from './global-search-view';
 
 export type Props = {
   active: boolean;
@@ -68,7 +69,8 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const items = useMemo(() => flattenSections(sections), [sections]);
+  const rows = useMemo(() => searchRowsByKey(sections), [sections]);
+  const items = useMemo(() => [...rows.keys()], [rows]);
   const hasResults = sections.length > 0;
   const open = active && hasResults;
 
@@ -96,10 +98,10 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
       <Combobox.Root
         items={items}
         value={value}
-        onValueChange={(next: string) => setValue(next)}
-        itemToStringValue={(row: SearchResult) => row.label}
+        onValueChange={(next, details) =>
+          pickOrType(next, details, { lookup: (key) => rows.get(key), onType: setValue, onPick: fireResult })
+        }
         filter={null}
-        mode="list"
         open={open}
         onOpenChange={(nextOpen: boolean) => {
           if (!nextOpen) dismiss();
@@ -113,10 +115,6 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           prompt={<SearchIcon size={15} />}
           trailing={<SearchHints active={active} />}
           type="text"
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          autoComplete="off"
           placeholder="Search tools, sites, resources…"
           onFocus={() => onActiveChange(true)}
         />
@@ -136,7 +134,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                   </Combobox.GroupLabel>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-1">
                     {section.results.map((row) => (
-                      <SearchRow key={row.id} row={row} fireResult={fireResult} />
+                      <SearchRow key={row.id} row={row} value={searchRowKey(section, row)} />
                     ))}
                   </div>
                 </Combobox.Group>
@@ -177,18 +175,11 @@ function SearchRowIcon({ row }: { row: SearchResult }) {
   );
 }
 
-function SearchRow({
-  row,
-  fireResult,
-}: {
-  row: SearchResult;
-  fireResult: (result: SearchResult) => void;
-}) {
+function SearchRow({ row, value }: { row: SearchResult; value: string }) {
   return (
     <Combobox.Item
-      value={row}
+      value={value}
       disabled={row.disabled}
-      onClick={() => fireResult(row)}
       className={cn(
         'group flex items-center gap-2.5 border border-border-soft bg-section px-2.5 py-2',
         'data-[highlighted]:border-border-active',

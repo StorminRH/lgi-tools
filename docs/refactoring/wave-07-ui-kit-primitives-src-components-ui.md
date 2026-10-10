@@ -26,7 +26,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P036](#p036) | Render the admin GSC top-term lists with DistributionBars plus a new subline field | ui-component | S | low | low | — |
 | ☑ | [P023](#p023) | Extract SwitcherMenu and a shared float icon trigger for the profile and map switchers | ui-component | S | low | low | — |
 | ☑ | [P057](#p057) | Move the document-wide view-transition reduced-motion rule to globals.css and share the board/industry view-transition fade keyframes | css-styling | S | low | low | — |
-| ☐ | [P039](#p039) | Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes | ui-component | M | medium | medium | — |
+| ☑ | [P039](#p039) | Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes | ui-component | M | medium | medium | — |
 | ☐ | [P123](#p123) | Route tool-nav activation and page-settings resolution through sectionMatches | generic-utility | S | low | low | — |
 | ☐ | [P320](#p320) | Use lib/section-path for every route-segment match, add a longest-match helper, and merge the telemetry payload helper into the client | simplification | S | low | medium | [P123](#p123), [P066](wave-03-src-lib-primitives-collections-math-async.md#p066) |
 | ☐ | [P024](#p024) | Add NavRailLayout beside NavRailFrame and one longest-prefix matchSection in lib/section-path | ui-component | S | low | low | [P123](#p123) |
@@ -1425,7 +1425,7 @@ export function SwitcherMenu(props: {
 
 ## P039: Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** +15 helper and +30 test; about -4 per site across 8 sites, -4 in the NameField workaround, and about -20 redundant attribute lines; net about -25 production lines
 - **Depends on:** —

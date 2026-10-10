@@ -2,11 +2,11 @@
 
 import type { ReactNode } from 'react';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { SearchIcon } from '@/components/ui/icons';
 
 export interface PickOption<T> {
   key: string;
-  value: string;
   label: ReactNode;
   meta?: ReactNode;
   item: T;
@@ -31,21 +31,24 @@ export function PickField<T>({
   onPick: (item: T) => void;
   trailing?: ReactNode;
 }) {
+  // Items are the option keys, since names can collide. A pick goes to onPick, so a key never reaches the field.
+  const byKey = new Map(options.map((o) => [o.key, o]));
   return (
     <Combobox.Root
-      items={options.map((o) => o.value)}
+      items={[...byKey.keys()]}
       value={value}
-      onValueChange={(next: string) => onValueChange(next)}
+      onValueChange={(next, details) =>
+        pickOrType(next, details, {
+          lookup: (key) => byKey.get(key),
+          onType: onValueChange,
+          onPick: (option) => onPick(option.item),
+        })
+      }
       filter={null}
-      mode="list"
     >
       <Combobox.Field
         id={id}
         type="text"
-        spellCheck={false}
-        autoCorrect="off"
-        autoCapitalize="off"
-        autoComplete="off"
         prompt={<SearchIcon size={15} />}
         trailing={trailing}
       />
@@ -55,8 +58,7 @@ export function PickField<T>({
             {options.map((o) => (
               <Combobox.Item
                 key={o.key}
-                value={o.value}
-                onClick={() => onPick(o.item)}
+                value={o.key}
                 className="flex w-full flex-col items-start gap-0.5 px-3 py-2"
               >
                 <span className="font-ui text-ui text-name">{o.label}</span>

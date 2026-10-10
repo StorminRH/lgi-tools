@@ -156,6 +156,9 @@ test('picking a found structure fills its name, system and hull, clearing rigs w
   c.call(named, 'onPick', { structureId: 2, name: 'Odd Keepstar', systemId: 30002537, structureTypeId: 35834 });
   expect(c.draft()).toMatchObject({ name: 'Odd Keepstar', systemId: 30002537, structureTypeId: null });
   expect(c.draft().rigSlots).toEqual([null, null, null]);
+  // A found name is held to the length a typed one is.
+  c.call(named, 'onPick', { structureId: 5, name: 'y'.repeat(85), systemId: 30002537, structureTypeId: null });
+  expect(c.draft().name).toBe('y'.repeat(80));
   c.field('Hull', 'onValueChange', '35825');
   c.field('Hull', 'onValueChange', '');
   expect(c.draft().structureTypeId).toBeNull();

@@ -23,7 +23,6 @@ export function SystemCombobox() {
       value={query}
       onValueChange={(next: string) => setQuery(next)}
       filter={null}
-      mode="list"
     >
       <Combobox.Field
         aria-label="System"

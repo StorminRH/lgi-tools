@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PercentInput } from '@/components/PercentInput';
 import { RigSupply } from '@/components/RigSupply';
 import { StructureHullTile } from '@/components/StructureHullTile';
@@ -115,14 +115,12 @@ function NameField({
   onPick: (hit: StructureSearchResult) => void;
 }) {
   const [typed, setTyped] = useState('');
-  const picked = useRef<string | null>(null);
   const hits = useStructureSearch(typed);
   const options: PickOption<StructureSearchResult>[] = hits.map((hit) => {
     const hull = types.find((t) => t.typeId === hit.structureTypeId)?.name;
     const system = systems.find((s) => s.id === hit.systemId);
     return {
       key: String(hit.structureId),
-      value: hit.name,
       label: hit.name,
       meta: [hull, system ? `${system.name} ${formatSec(system.security)}` : null].filter(Boolean).join(' · '),
       item: hit,
@@ -134,11 +132,10 @@ function NameField({
         value={draft.name}
         onValueChange={(name) => {
           onName(name);
-          setTyped(name === picked.current ? '' : name);
+          setTyped(name);
         }}
         options={options}
         onPick={(hit) => {
-          picked.current = hit.name;
           setTyped('');
           onPick(hit);
         }}
@@ -296,7 +293,7 @@ export function StructureComposer({
     const known = structureTypes.some((t) => t.typeId === hit.structureTypeId);
     const structureTypeId = hit.structureTypeId === null ? draft.structureTypeId : known ? hit.structureTypeId : null;
     update({
-      name: hit.name,
+      name: hit.name.slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
       systemId: hit.systemId,
       structureTypeId,
       ...(structureTypeId === draft.structureTypeId ? {} : { rigSlots: slotsFromRigs([]) }),
@@ -411,7 +408,6 @@ function SystemField({
 }) {
   const options: PickOption<SystemSearchEntry>[] = sys.suggestions.map((s) => ({
     key: String(s.id),
-    value: s.name,
     label: s.name,
     meta: <span className={securityStatusTextClass(s.security)}>{formatSec(s.security)}</span>,
     item: s,
