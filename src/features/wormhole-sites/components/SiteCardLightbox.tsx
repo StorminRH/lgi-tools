@@ -2,8 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
-import { Dialog, DialogClose } from '@/components/ui/dialog';
-import { CloseIcon } from '@/components/ui/icons';
+import { Dialog, DialogCloseButton } from '@/components/ui/dialog';
 import { sitesDetailMode } from '@/lib/preferences';
 import type { SiteDetail } from '../types';
 import { SiteCardHeader } from './SiteCardHeader';
@@ -72,12 +71,7 @@ function LightboxDialog({
     >
       <div className="sites-lightbox-panel rounded-panel max-sm:rounded-none">
         <div className="sticky top-0 z-sticky flex justify-end border-b border-border-soft glass-dense px-2 py-1.5">
-          <DialogClose
-            aria-label="Close"
-            className="flex items-center px-1.5 py-0.5 text-muted hover:text-name"
-          >
-            <CloseIcon size={14} />
-          </DialogClose>
+          <DialogCloseButton label="Close" className="px-1.5 py-0.5" />
         </div>
         <div className="sites-lightbox-zoom pb-3">
           <div className="flex flex-col gap-2 px-[17px] pb-[13px] pt-[15px]">

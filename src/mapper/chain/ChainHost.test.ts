@@ -48,6 +48,8 @@ vi.mock('@/components/ui/dialog', () => ({
     createElement('h2', { id }, children),
   DialogClose: ({ children }: { children: React.ReactNode }) =>
     createElement('button', null, children),
+  DialogCloseButton: ({ label }: { label: string }) =>
+    createElement('button', { 'aria-label': label }),
   DialogDescription: ({ children }: { children: React.ReactNode }) =>
     createElement('p', null, children),
 }));

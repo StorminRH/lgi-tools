@@ -5,9 +5,8 @@ import { cn } from '@/components/ui/cn';
 import { useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
-import { Dialog } from '@/components/ui/dialog';
+import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/components/ui/dialog';
 import { Field, fieldLabel } from '@/components/ui/field';
-import { CloseIcon } from '@/components/ui/icons';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import type { Session } from '@/platform/auth/types';
@@ -255,25 +254,15 @@ export function FeedbackModal({
       className="flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(560px,calc(100vw-2rem))] flex-col"
     >
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border-soft px-4 py-3">
-          <h2
-            id={titleId}
-            className="font-display font-bold text-h3 tracking-copy uppercase text-name"
-          >
-            Send feedback
-          </h2>
-          <Button
-            variant="bare"
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="px-2 py-1 text-muted hover:text-text"
-          >
-            <CloseIcon size={14} />
-          </Button>
-        </header>
+        <DialogHeader
+          titleId={titleId}
+          title="Send feedback"
+          size="h3"
+          closeLabel="Close feedback"
+          className="items-center"
+        />
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-3">
+        <DialogBody className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
           <FeedbackMeta loading={loading} session={session} path={path} />
           {state.kind !== 'success' && (
             <>
@@ -301,16 +290,16 @@ export function FeedbackModal({
             textareaRef={textareaRef}
             onMessageChange={(e) => setMessage(e.target.value)}
           />
-        </div>
+        </DialogBody>
 
-        <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-border-soft px-4 py-3">
+        <DialogFooter>
           <FeedbackFooter
             state={state}
             disabled={disabled}
             canSend={canSend}
             onClose={onClose}
           />
-        </footer>
+        </DialogFooter>
       </form>
     </Dialog>
   );

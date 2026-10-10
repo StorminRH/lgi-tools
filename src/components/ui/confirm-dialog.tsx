@@ -1,17 +1,19 @@
 'use client';
 
-import type { ReactNode, RefObject } from 'react';
+import { useId, type ReactNode, type RefObject } from 'react';
 import { Button } from './button';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogDescription,
-  DialogTitle,
+  DialogFooter,
+  DialogHeader,
 } from './dialog';
 
 const TONE = {
-  danger: { title: 'text-pill-red-text', button: 'danger' },
-  neutral: { title: 'text-name', button: 'secondary' },
+  danger: { title: 'danger', button: 'danger' },
+  neutral: { title: 'name', button: 'secondary' },
 } as const;
 
 function DialogError({ children }: { children?: ReactNode }) {
@@ -32,6 +34,7 @@ export function ConfirmDialog({
   busy,
   error,
   confirmLabel,
+  cancelLabel = 'Cancel',
   busyLabel = 'Working…',
   confirmDisabled,
   onConfirm,
@@ -47,6 +50,7 @@ export function ConfirmDialog({
   busy: boolean;
   error?: ReactNode;
   confirmLabel: string;
+  cancelLabel?: string;
   busyLabel?: string;
   confirmDisabled?: boolean;
   onConfirm: () => void;
@@ -54,6 +58,7 @@ export function ConfirmDialog({
   tone?: 'danger' | 'neutral';
   className?: string;
 }) {
+  const titleId = useId();
   const appearance = TONE[tone];
   return (
     <Dialog
@@ -61,37 +66,31 @@ export function ConfirmDialog({
       onOpenChange={(next) => {
         if (!busy) onOpenChange(next);
       }}
+      labelledBy={titleId}
       finalFocus={finalFocus}
       className={className}
     >
-      <DialogTitle
-        className={
-          'border-b border-border-soft px-4 py-3 font-display text-h3 font-semibold tracking-copy uppercase ' +
-          appearance.title
-        }
-      >
-        {title}
-      </DialogTitle>
-      <div className="flex flex-col gap-3 px-4 py-4">
+      <DialogHeader titleId={titleId} title={title} size="h3" tone={appearance.title} />
+      <DialogBody>
         <DialogDescription className="font-ui text-ui leading-relaxed text-text">
           {consequence}
         </DialogDescription>
         {children}
         <DialogError>{error}</DialogError>
-      </div>
-      <footer className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
+      </DialogBody>
+      <DialogFooter>
         <DialogClose render={<Button variant="secondary" size="sm" />} disabled={busy}>
-          Cancel
+          {cancelLabel}
         </DialogClose>
         <Button
           variant={appearance.button}
           size="sm"
-          disabled={confirmDisabled ?? busy}
+          disabled={busy || confirmDisabled}
           onClick={onConfirm}
         >
           {busy ? busyLabel : confirmLabel}
         </Button>
-      </footer>
+      </DialogFooter>
     </Dialog>
   );
 }

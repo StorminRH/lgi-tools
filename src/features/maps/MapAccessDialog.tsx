@@ -13,12 +13,12 @@ import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
-  DialogDescription,
-  DialogTitle,
+  DialogFooter,
+  DialogHeader,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
-import { CloseIcon } from '@/components/ui/icons';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
@@ -172,28 +172,15 @@ export function MapAccessDialog({
       finalFocus={finalFocus}
       className="max-h-[calc(100dvh-2rem)] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto"
     >
-      <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <DialogTitle
-            id={titleId}
-            className="min-w-0 break-words font-display text-h2 font-semibold tracking-copy uppercase text-name"
-          >
-            Manage {mapName}
-          </DialogTitle>
-          <DialogDescription className="font-ui text-ui text-muted">
-            Grant, change, or revoke access. Only characters on this list can be tracked here.
-          </DialogDescription>
-        </div>
-        <DialogClose
-          render={<Button variant="ghost" size="sm" />}
-          aria-label="Close map access"
-          disabled={disabled}
-        >
-          <CloseIcon size={14} />
-        </DialogClose>
-      </header>
+      <DialogHeader
+        titleId={titleId}
+        title={`Manage ${mapName}`}
+        description="Grant, change, or revoke access. Only characters on this list can be tracked here."
+        closeLabel="Close map access"
+        closeDisabled={disabled}
+      />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <DialogBody className="gap-4">
         <OwnCharacterPicker
           characters={ownCharacters}
           selectedIds={grantedCharacterIds(access.grants)}
@@ -219,16 +206,16 @@ export function MapAccessDialog({
         />
         {error !== null ? <Banner tone="warn">{error}</Banner> : null}
         <MapBlockList editor={blocks} disabled={disabled} />
-      </div>
+      </DialogBody>
 
-      <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
+      <DialogFooter>
         <DialogClose
           render={<Button variant="secondary" size="sm" />}
           disabled={disabled}
         >
           Done
         </DialogClose>
-      </footer>
+      </DialogFooter>
     </Dialog>
   );
 }

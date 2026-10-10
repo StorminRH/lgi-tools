@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
+import { displayTitle } from '@/components/ui/type-roles';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { formatUtcDate } from '@/lib/format/time';
@@ -137,7 +138,7 @@ function CatalogueMapCard({
         className="flex flex-1 flex-col gap-4 p-5 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub"
       >
         <div className="flex min-w-0 flex-col gap-1">
-          <h2 className="min-w-0 break-words font-display text-h2 font-semibold tracking-copy uppercase text-name">
+          <h2 className={displayTitle({ wrap: true })}>
             {map.name}
           </h2>
           {map.provenance.kind === 'created' ? null : (
@@ -256,7 +257,7 @@ function MapCatalogueSurface({
           <h1 className="sr-only">Atlas</h1>
           <Card className="flex max-w-lg flex-col items-center gap-4 p-6 text-center">
             <div className="flex flex-col gap-1.5">
-              <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
+              <h2 className={displayTitle()}>
                 Map catalogue unavailable
               </h2>
               <p className="font-ui text-ui leading-relaxed text-muted">

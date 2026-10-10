@@ -6,7 +6,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
+vi.mock('@/components/ui/dialog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/dialog')>()),
   Dialog: ({
     children,
     labelledBy,

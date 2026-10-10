@@ -31,25 +31,38 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('map=map-a'),
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({
-    children,
-    finalFocus,
-  }: {
-    children: React.ReactNode;
-    finalFocus?: React.RefObject<HTMLElement | null>;
-  }) =>
-    createElement(
-      'div',
-      { role: 'dialog', 'data-has-final-focus': String(finalFocus !== undefined) },
+// Stub the Base layer so the real ui/dialog chrome renders as static markup.
+vi.mock('@base-ui/react/dialog', () => ({
+  Dialog: {
+    Root: ({ children }: { children: React.ReactNode }) => children,
+    Portal: ({ children }: { children: React.ReactNode }) => children,
+    Backdrop: () => null,
+    Popup: ({
       children,
-    ),
-  DialogClose: ({ children }: { children: React.ReactNode }) =>
-    createElement('button', null, children),
-  DialogDescription: ({ children }: { children: React.ReactNode }) =>
-    createElement('p', null, children),
-  DialogTitle: ({ children, ...props }: { children: React.ReactNode }) =>
-    createElement('h2', props, children),
+      finalFocus,
+    }: {
+      children: React.ReactNode;
+      finalFocus?: React.RefObject<HTMLElement | null>;
+    }) =>
+      createElement(
+        'div',
+        { role: 'dialog', 'data-has-final-focus': String(finalFocus !== undefined) },
+        children,
+      ),
+    Close: ({
+      children,
+      disabled,
+      'aria-label': label,
+    }: {
+      children: React.ReactNode;
+      disabled?: boolean;
+      'aria-label'?: string;
+    }) => createElement('button', { 'aria-label': label, disabled }, children),
+    Description: ({ children }: { children: React.ReactNode }) =>
+      createElement('p', null, children),
+    Title: ({ children, id, className }: { children: React.ReactNode; id?: string; className?: string }) =>
+      createElement('h2', { id, className }, children),
+  },
 }));
 
 vi.mock('@/components/use-account-characters', () => ({

@@ -20,5 +20,5 @@ test('the add-connection dialog names its close button and draws the close mark 
   const html = renderToStaticMarkup(
     createElement(NodeAddMenu, { mapId: 'map-a', menu: null, onMenuOpenChange: vi.fn(), onAdd: vi.fn() }),
   );
-  expect(html).toMatch(/<h2 id="[^"]+">Add connection<\/h2><button aria-label="Close"><svg aria-hidden="true"/);
+  expect(html).toMatch(/<h2 id="[^"]+">Add connection<\/h2><button aria-label="Close add connection"><svg aria-hidden="true"/);
 });

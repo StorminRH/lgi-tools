@@ -7,7 +7,8 @@ import { setMemberCategories } from '@/features/industry-planner/profiles/assign
 import { settle } from '@/lib/__tests__/hook-runtime';
 
 // Show dialog contents inline; the real popups only mount in a browser.
-vi.mock('@/components/ui/dialog', () => ({
+vi.mock('@/components/ui/dialog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/dialog')>()),
   Dialog: ({ children }: { children: ReactNode }) => createElement('div', { role: 'dialog' }, children),
   DialogHeader: ({ title, description }: { title: ReactNode; description?: ReactNode }) =>
     createElement('header', null, title, description),

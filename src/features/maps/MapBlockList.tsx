@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { displayTitle } from '@/components/ui/type-roles';
 import type { MapBlockOption } from '@/data/maps/access-contract';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import type { AccessPrincipalOption } from './access-editor-model';
@@ -72,10 +73,7 @@ export function MapBlockList({
 
   return (
     <section className="flex flex-col gap-2" aria-labelledby="map-blocked-pilots" data-map-block-list>
-      <h3
-        id="map-blocked-pilots"
-        className="font-display text-nav font-semibold tracking-copy uppercase text-name"
-      >
+      <h3 id="map-blocked-pilots" className={displayTitle({ size: 'nav' })}>
         Blocked pilots
       </h3>
       <p className="font-ui text-label text-faint">

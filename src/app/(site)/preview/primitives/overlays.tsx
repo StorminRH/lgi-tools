@@ -5,8 +5,11 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
+  DialogCloseButton,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -136,12 +139,12 @@ function DialogSample() {
       <Button ref={trigger} size="sm" onClick={() => setOpen(true)}>Open dialog</Button>
       <Dialog open={open} onOpenChange={setOpen} labelledBy={titleId} finalFocus={trigger} className="w-[min(480px,calc(100vw-2rem))]">
         <DialogHeader titleId={titleId} title="Build location" description="Where this plan's jobs install." closeLabel="Close dialog" />
-        <div className="flex flex-col gap-3 px-4 py-4 font-ui text-ui text-text">
-          <p>DialogHeader composes DialogTitle, DialogDescription, and DialogClose for the common header.</p>
-        </div>
-        <footer className="flex justify-end gap-2.5 border-t border-border-soft px-4 py-3">
+        <DialogBody className="font-ui text-ui text-text">
+          <p>DialogHeader composes DialogTitle, DialogDescription, and DialogCloseButton for the common header.</p>
+        </DialogBody>
+        <DialogFooter>
           <DialogClose render={<Button variant="secondary" size="sm" />}>Done</DialogClose>
-        </footer>
+        </DialogFooter>
       </Dialog>
     </>
   );
@@ -153,7 +156,10 @@ function BareDialogSample() {
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>Open bare parts</Button>
       <Dialog open={open} onOpenChange={setOpen} className="w-[min(420px,calc(100vw-2rem))] p-5">
-        <DialogTitle className="font-ui text-h3 font-semibold text-name">Hand-composed</DialogTitle>
+        <div className="flex items-start justify-between gap-3">
+          <DialogTitle className="font-ui text-h3 font-semibold text-name">Hand-composed</DialogTitle>
+          <DialogCloseButton label="Close hand-composed dialog" />
+        </div>
         <DialogDescription className="mt-2 font-ui text-ui text-muted">
           Use the parts directly when a dialog needs a custom header.
         </DialogDescription>
@@ -268,7 +274,7 @@ export function OverlaysGroup() {
       <Specimen
         name="Dialog"
         source="dialog"
-        note="The modal glass sheet. DialogHeader is the standard header; the parts compose a custom one."
+        note="The modal glass sheet. DialogHeader, DialogBody and DialogFooter are the standard chrome; closeDisabled greys the header's DialogCloseButton while work runs, and the parts compose a custom one."
       >
         <div className="flex flex-wrap gap-3">
           <DialogSample />

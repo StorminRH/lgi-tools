@@ -10,7 +10,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
+  DialogFooter,
   DialogHeader,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
@@ -167,9 +169,10 @@ export function TrashWindow({
           title="Deleted maps"
           description="Restore maps during their 30-day undo window."
           closeLabel="Close trash"
+          closeDisabled={busy !== null || confirmOpen}
         />
 
-        <div className="flex flex-col gap-2 px-4 py-4">
+        <DialogBody className="gap-2">
           <TrashMapRows
             maps={maps}
             selected={visibleSelected}
@@ -177,9 +180,9 @@ export function TrashWindow({
             onCheckedChange={setChecked}
           />
           {error !== null ? <Banner tone="warn">{error}</Banner> : null}
-        </div>
+        </DialogBody>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-border-soft px-4 py-3">
+        <DialogFooter align="between">
           <Button
             variant="danger"
             size="sm"
@@ -201,7 +204,7 @@ export function TrashWindow({
               {busy === 'restore' ? 'Restoring…' : 'Restore'}
             </Button>
           </div>
-        </footer>
+        </DialogFooter>
       </Dialog>
 
       <ConfirmDialog

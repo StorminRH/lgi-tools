@@ -16,14 +16,17 @@ import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { displayTitle } from '@/components/ui/type-roles';
 import { MAX_MAP_NAME_LENGTH } from '@/data/maps/api-contract';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
@@ -85,10 +88,7 @@ function CreationInterstitial({
     >
       <Compass failed={failed} />
       <div className="flex max-w-sm flex-col gap-1.5">
-        <DialogTitle
-          id={titleId}
-          className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
-        >
+        <DialogTitle id={titleId} className={displayTitle()}>
           {failed ? 'Map creation paused' : 'Creating your map'}
         </DialogTitle>
         <DialogDescription className="font-ui text-ui leading-relaxed text-muted">
@@ -249,7 +249,7 @@ function CreationForm({
         closeLabel="Close map creation"
       />
 
-      <div className="flex flex-col gap-5 px-4 py-4">
+      <DialogBody className="gap-5">
         <Field label="Map name">
           <Input
             ref={nameInputRef}
@@ -297,16 +297,16 @@ function CreationForm({
           }
         />
         {formError !== null ? <Banner tone="warn">{formError}</Banner> : null}
-      </div>
+      </DialogBody>
 
-      <footer className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
+      <DialogFooter>
         <DialogClose render={<Button variant="secondary" size="sm" />}>
           Cancel
         </DialogClose>
         <Button type="submit" variant="primary" size="sm" disabled={!canSubmit}>
           Create map
         </Button>
-      </footer>
+      </DialogFooter>
     </form>
   );
 }

@@ -8,7 +8,7 @@ import {
 } from '@/components/character-portrait-picker';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogClose, DialogHeader } from '@/components/ui/dialog';
+import { Dialog, DialogBody, DialogClose, DialogFooter, DialogHeader } from '@/components/ui/dialog';
 import { Field, fieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { MAX_PROFILE_NAME_LEN } from '@/features/industry-planner/profiles/profile-document';
@@ -110,7 +110,7 @@ export function ProfileNameDialog({
         }}
       >
         <DialogHeader titleId={titleId} title={copy.title} description={copy.description} closeLabel="Close" />
-        <div className="flex flex-col gap-4 px-4 py-4">
+        <DialogBody className="gap-4">
           <Field label="Profile name">
             <Input
               ref={inputRef}
@@ -122,13 +122,13 @@ export function ProfileNameDialog({
             />
           </Field>
           {picking ? <TeamPicker roster={roster} selected={team} onChange={setTeam} /> : null}
-        </div>
-        <footer className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
+        </DialogBody>
+        <DialogFooter>
           <DialogClose render={<Button variant="secondary" size="sm" />}>Cancel</DialogClose>
           <Button type="submit" variant="primary" size="sm" disabled={!ready || busy}>
             {copy.action}
           </Button>
-        </footer>
+        </DialogFooter>
       </form>
     </Dialog>
   );

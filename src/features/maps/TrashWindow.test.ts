@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
-vi.mock('@/components/ui/dialog', () => ({
+vi.mock('@/components/ui/dialog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/dialog')>()),
   Dialog: ({ children }: { children: React.ReactNode }) =>
     createElement('div', { role: 'dialog' }, children),
   DialogClose: ({ children }: { children: React.ReactNode }) =>

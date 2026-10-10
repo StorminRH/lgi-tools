@@ -36,14 +36,22 @@ vi.mock('@base-ui/react/dialog', () => ({
       base.popup = props;
       return createElement('div', null, props.children);
     },
-    Close: ({ children, 'aria-label': label }: { children: ReactNode; 'aria-label'?: string }) =>
-      createElement('button', { 'aria-label': label }, children),
-    Title: ({ children, id }: { children: ReactNode; id?: string }) => createElement('h2', { id }, children),
+    Close: ({
+      children,
+      'aria-label': label,
+      disabled,
+    }: {
+      children: ReactNode;
+      'aria-label'?: string;
+      disabled?: boolean;
+    }) => createElement('button', { 'aria-label': label, disabled }, children),
+    Title: ({ children, id, className }: { children: ReactNode; id?: string; className?: string }) =>
+      createElement('h2', { id, className }, children),
     Description: ({ children }: { children: ReactNode }) => createElement('p', null, children),
   },
 }));
 
-import { Dialog, DialogHeader } from './dialog';
+import { Dialog, DialogBody, DialogFooter, DialogHeader } from './dialog';
 
 test('dialog keeps the portal mounted only when requested and preserves modal focus controls', () => {
   const onOpenChange = vi.fn();
@@ -73,7 +81,7 @@ test('dialog keeps the portal mounted only when requested and preserves modal fo
   expect(() => base.root?.onOpenChange(false)).not.toThrow();
 });
 
-test('dialog header names its close button and draws the close mark as a decorative icon', () => {
+test('dialog header names its close button, greys it while work runs, and leaves it out unnamed', () => {
   const header = {
     titleId: 'map-access-title',
     title: 'Manage Alpha',
@@ -82,10 +90,27 @@ test('dialog header names its close button and draws the close mark as a decorat
   const html = renderToStaticMarkup(
     createElement(DialogHeader, { ...header, description: 'Grant or revoke access.' }),
   );
-  expect(html).toContain('<h2 id="map-access-title">Manage Alpha</h2><p>Grant or revoke access.</p>');
+  expect(html).toMatch(/<h2 id="map-access-title" class="[^"]*\bmin-w-0 break-words\b[^"]*">Manage Alpha<\/h2><p>Grant or revoke access.<\/p>/);
   expect(html).toMatch(/<button aria-label="Close map access"><svg aria-hidden="true"[^>]*><path [^>]*><\/path><\/svg><\/button>/);
 
-  const bare = renderToStaticMarkup(createElement(DialogHeader, header));
-  expect(bare).toContain('<h2 id="map-access-title">Manage Alpha</h2></div>');
-  expect(bare).toMatch(/<button aria-label="Close map access"><svg aria-hidden="true"/);
+  const busy = renderToStaticMarkup(createElement(DialogHeader, { ...header, closeDisabled: true }));
+  expect(busy).toMatch(/Manage Alpha<\/h2><\/div><button aria-label="Close map access" disabled=""><svg aria-hidden="true"/);
+
+  const confirm = renderToStaticMarkup(
+    createElement(DialogHeader, { titleId: 'confirm-title', title: 'Delete map?', size: 'h3', tone: 'danger' }),
+  );
+  expect(confirm).toMatch(/<h2 id="confirm-title" class="[^"]*\btext-h3\b[^"]*\btext-pill-red-text\b[^"]*">Delete map\?<\/h2><\/div><\/header>$/);
+  expect(confirm).not.toContain('<button');
+});
+
+test('dialog body takes a gap override and the footer aligns its actions to the end or splits them', () => {
+  const bodyProps = { className: 'gap-5', 'data-afk-dialog': '' };
+  const body = renderToStaticMarkup(createElement(DialogBody, bodyProps, 'Fields'));
+  expect(body).toMatch(/^<div class="flex flex-col px-4 py-4 gap-5" data-afk-dialog="">Fields<\/div>$/);
+
+  const end = renderToStaticMarkup(createElement(DialogFooter, null, 'Done'));
+  expect(end).toMatch(/^<footer class="[^"]*\bborder-t\b[^"]*\bjustify-end">Done<\/footer>$/);
+  const between = renderToStaticMarkup(createElement(DialogFooter, { align: 'between' }, 'Restore'));
+  expect(between).toMatch(/\bjustify-between">Restore<\/footer>$/);
+  expect(between).not.toContain('justify-end');
 });

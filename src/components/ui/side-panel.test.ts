@@ -10,8 +10,7 @@ vi.mock('./dialog', () => ({
     return createElement('div', { role: 'dialog', 'aria-labelledby': props.labelledBy }, props.children);
   },
   DialogTitle: (props: { id: string; children: ReactNode }) => createElement('h2', props),
-  DialogClose: (props: { children: ReactNode; 'aria-label': string }) =>
-    createElement('button', { 'aria-label': props['aria-label'] }, props.children),
+  DialogCloseButton: (props: { label: string }) => createElement('button', { 'aria-label': props.label }),
 }));
 
 import { SidePanel } from './side-panel';
@@ -32,7 +31,7 @@ test('side panel stays mounted, forwards open, and labels itself from its title'
   dialog.props?.onOpenChange?.(false);
   expect(onOpenChange).toHaveBeenCalledWith(false);
   expect(html).toContain('value="Unsaved fitting"');
-  expect(html).toMatch(/<button aria-label="Close side panel"><svg aria-hidden="true"/);
+  expect(html).toContain('<button aria-label="Close side panel"></button>');
   const label = html.match(/aria-labelledby="([^"]+)"/)?.[1];
   expect(label).toBeTruthy();
   expect(html.match(/<h2 id="([^"]+)"/)?.[1]).toBe(label);

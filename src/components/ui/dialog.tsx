@@ -11,6 +11,7 @@ import { Button } from './button';
 import { cn } from './cn';
 import { CloseIcon } from './icons';
 import { OverlayPortalContainerProvider } from './overlay-portal-container';
+import { displayTitle } from './type-roles';
 
 export type DialogFocusTarget = ComponentProps<typeof Base.Popup>['finalFocus'];
 
@@ -66,24 +67,59 @@ export const DialogClose = Base.Close;
 export const DialogTitle = Base.Title;
 export const DialogDescription = Base.Description;
 
+/** The dialog's × button, a ghost Button that closes through Base UI. */
+export function DialogCloseButton({
+  label,
+  disabled,
+  className,
+}: {
+  label: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <DialogClose
+      render={<Button variant="ghost" size="sm" className={className} />}
+      aria-label={label}
+      disabled={disabled}
+    >
+      <CloseIcon size={14} />
+    </DialogClose>
+  );
+}
+
+/**
+ * The standard title bar: a display title, an optional description, and a ×
+ * when `closeLabel` names it. ConfirmDialog leaves the × out.
+ */
 export function DialogHeader({
   titleId,
   title,
   description,
   closeLabel,
+  closeDisabled,
+  size = 'h2',
+  tone = 'name',
+  className,
 }: {
   titleId: string;
   title: ReactNode;
   description?: ReactNode;
-  closeLabel: string;
+  closeLabel?: string;
+  closeDisabled?: boolean;
+  size?: 'h2' | 'h3';
+  tone?: 'name' | 'danger';
+  className?: string;
 }) {
   return (
-    <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
-      <div className="flex flex-col gap-1">
-        <DialogTitle
-          id={titleId}
-          className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
-        >
+    <header
+      className={cn(
+        'flex shrink-0 items-start justify-between gap-3 border-b border-border-soft px-4 py-3',
+        className,
+      )}
+    >
+      <div className="flex min-w-0 flex-col gap-1">
+        <DialogTitle id={titleId} className={displayTitle({ size, tone, wrap: true })}>
           {title}
         </DialogTitle>
         {description ? (
@@ -92,9 +128,33 @@ export function DialogHeader({
           </DialogDescription>
         ) : null}
       </div>
-      <DialogClose render={<Button variant="ghost" size="sm" />} aria-label={closeLabel}>
-        <CloseIcon size={14} />
-      </DialogClose>
+      {closeLabel === undefined ? null : (
+        <DialogCloseButton label={closeLabel} disabled={closeDisabled} />
+      )}
     </header>
+  );
+}
+
+/** The padded column between the header and the footer; pass a gap to override. */
+export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
+  return <div className={cn('flex flex-col gap-3 px-4 py-4', className)} {...props} />;
+}
+
+const FOOTER_ALIGN = { end: 'justify-end', between: 'justify-between' } as const;
+
+/** The bordered action row; `between` splits a leading action from the rest. */
+export function DialogFooter({
+  align = 'end',
+  children,
+}: {
+  align?: keyof typeof FOOTER_ALIGN;
+  children?: ReactNode;
+}) {
+  return (
+    <footer
+      className={`flex shrink-0 items-center gap-2.5 border-t border-border-soft px-4 py-3 ${FOOTER_ALIGN[align]}`}
+    >
+      {children}
+    </footer>
   );
 }

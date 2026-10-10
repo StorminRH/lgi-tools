@@ -1,8 +1,7 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import { Dialog, DialogClose, DialogTitle } from '@/components/ui/dialog';
-import { CloseIcon } from '@/components/ui/icons';
+import { Dialog, DialogCloseButton, DialogTitle } from '@/components/ui/dialog';
 import {
   PointerMenu,
   MenuItem,
@@ -11,6 +10,7 @@ import {
 } from '@/components/ui/pointer-menu';
 import { pointerAnchor } from '@/components/ui/overlay-positioning';
 import { TerminalSearch } from '@/components/ui/terminal-search';
+import { displayTitle } from '@/components/ui/type-roles';
 import {
   useSystemSearch,
   type SystemErr,
@@ -74,15 +74,10 @@ export function NodeAddMenu({
       >
         <div className="flex flex-col gap-3" data-map-node-add-search>
           <div className="flex items-start justify-between gap-2">
-            <DialogTitle
-              id={titleId}
-              className="font-display text-h3 font-semibold tracking-copy uppercase text-name"
-            >
+            <DialogTitle id={titleId} className={displayTitle({ size: 'h3' })}>
               Add connection
             </DialogTitle>
-            <DialogClose aria-label="Close" className="flex items-center text-muted hover:text-name">
-              <CloseIcon size={14} />
-            </DialogClose>
+            <DialogCloseButton label="Close add connection" />
           </div>
           <p className="font-ui text-ui leading-relaxed text-muted">
             Existing systems supported.

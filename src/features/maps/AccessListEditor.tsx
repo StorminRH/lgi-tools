@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RadioGroup, type RadioOption } from '@/components/ui/radio-group';
+import { displayTitle } from '@/components/ui/type-roles';
 import type { CorporationAccessOption, MapRole } from '@/data/maps/access-contract';
 import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import {
@@ -92,10 +93,7 @@ export function AccessListEditor({
     <div className="flex flex-col gap-4" data-map-access-editor={mode}>
       <section className="flex flex-col gap-2" aria-labelledby="map-access-corporations">
         <div>
-          <h3
-            id="map-access-corporations"
-            className="font-display text-nav font-semibold tracking-copy uppercase text-name"
-          >
+          <h3 id="map-access-corporations" className={displayTitle({ size: 'nav' })}>
             Corporations
           </h3>
           <p className="font-ui text-label text-faint">
@@ -144,10 +142,7 @@ export function AccessListEditor({
       {characterSearch}
 
       <section className="flex flex-col gap-2" aria-labelledby="map-access-selected">
-        <h3
-          id="map-access-selected"
-          className="font-display text-nav font-semibold tracking-copy uppercase text-name"
-        >
+        <h3 id="map-access-selected" className={displayTitle({ size: 'nav' })}>
           Access list
         </h3>
         {currentGrants.length === 0 ? (
