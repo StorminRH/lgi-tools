@@ -62,6 +62,10 @@ describe('UI adoption exception census', () => {
       ),
     ).toEqual([]);
   });
+
+  it('leaves skeleton bars decorative by default instead of hidden one by one', () => {
+    expect(codeMatching(/<Skeleton\b[^>]*aria-hidden/)).toEqual([]);
+  });
 });
 
 function allStylesheets(): string {

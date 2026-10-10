@@ -16,7 +16,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P019](#p019) | Portal every Base UI popup into the enclosing dialog, and share the pop-in transition | ui-component | S | medium | medium | — |
 | ☑ | [P021](#p021) | Give Checkbox and Switch a visible-label row, and let the existing Field label Select and PercentInput | ui-component | M | medium | low | — |
 | ☑ | [P006](#p006) | Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden) | ui-component | S | low | medium | — |
-| ☐ | [P018](#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
+| ☑ | [P018](#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
 | ☐ | [P020](#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
 | ☐ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
 | ☐ | [P016](#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
@@ -696,7 +696,7 @@ export function CollapsibleChevron({ className, children = '▾' }: { className?
 
 ## P018: Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -35 (per-bar labels and aria-hidden props removed), +20 (SkeletonGroup and test)
 - **Depends on:** —

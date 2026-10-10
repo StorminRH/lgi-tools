@@ -1,4 +1,5 @@
 import { createElement, type ReactElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdminSection } from './AdminSection';
@@ -35,6 +36,15 @@ describe('AdminSection', () => {
     expect(html).toContain('7 total');
     expect(html).toContain('count 7');
     expect(html).toContain('reveal-2');
+  });
+
+  it('stands in with one loading status named after the card while its read is in flight', () => {
+    const html = renderToStaticMarkup(section(() => new Promise<number>(() => undefined)));
+
+    expect(html).toContain('>Registered users<');
+    expect(html).toContain('role="status" aria-label="Loading Registered users"');
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+    expect(html).not.toContain('count');
   });
 
   it('keeps the same title when its read fails, and says so', async () => {

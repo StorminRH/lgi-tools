@@ -156,7 +156,9 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   live.session = { characterId: BUILDER.characterId };
   live.roster = [BUILDER, REACTOR];
   live.profiles = null;
-  expect(render()).toContain('Loading production profiles');
+  const loading = render();
+  expect(loading).toContain('role="status" aria-label="Loading production profiles"');
+  expect(loading.match(/role="status"/g)).toHaveLength(1);
 
   live.listFailed = true;
   const failed = render();

@@ -3,15 +3,18 @@
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { EveSignInButton } from '../account/LoginButton';
 import { readoutSurface } from '../board/SectionBody';
 
 export function WorkspaceSkeleton() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10" aria-busy>
+    <SkeletonGroup
+      label="Loading production profiles"
+      className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10"
+    >
       <div className="flex min-w-0 flex-col gap-6">
-        <Skeleton label="Loading production profiles" className="h-10 w-64 rounded-full" />
+        <Skeleton className="h-10 w-64 rounded-full" />
         <div className="flex gap-4 lg:flex-col lg:gap-5">
           {Array.from({ length: 3 }, (_, i) => (
             <div key={i} className="flex items-center gap-3">
@@ -29,7 +32,7 @@ export function WorkspaceSkeleton() {
         <Skeleton className="h-48 w-full rounded-card" />
         <Skeleton className="h-28 w-full rounded-card" />
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }
 
