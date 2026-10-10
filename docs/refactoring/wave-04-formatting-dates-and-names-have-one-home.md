@@ -18,7 +18,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
 | ☑ | [P084](#p084) | Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL | formatting | S | low | medium | — |
 | ☑ | [P094](#p094) | Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper | formatting | M | low | low | — |
-| ☐ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
+| ☑ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
 | ☐ | [P272](#p272) | Move formatStationName to lib/format and parseStructureFit to features/custom-structures | feature-skeleton | S | low | low | — |
 | ☐ | [P098](#p098) | Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard | formatting | S | low | medium | — |
 | ☐ | [P118](#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
@@ -864,7 +864,7 @@ export function typeNamer(structure: Pick<BlueprintStructure, 'materialNames'>):
 
 ## P108: Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -35 production lines (3 floor constants, 2 predicates, 4 label constants, 2 CorpContexts, 2 ownerFallback, 2 station branches, about 9 inline fallbacks), +15 in labels/context/names, +20 test lines
 - **Depends on:** [P094](#p094)

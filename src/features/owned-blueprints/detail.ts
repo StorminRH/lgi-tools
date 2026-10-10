@@ -1,6 +1,12 @@
-import { corpContextOf } from '@/data/corp-holdings/context';
-import { corpHoldingNameIds, type EntityNames, type FormatStation, labelCorpHolding } from '@/data/corp-holdings/labels';
-import type { CorpHoldingContext } from '@/data/corp-holdings/placement';
+import { type CorpContexts, corpContextOf } from '@/data/corp-holdings/context';
+import {
+  corpHoldingNameIds,
+  type EntityNames,
+  type FormatStation,
+  isPlayerStructureId,
+  labelCorpHolding,
+  publicLocationName,
+} from '@/data/corp-holdings/labels';
 import { nameOrUnresolved } from '@/lib/format/names';
 import type { OwnedBlueprintMap, OwnedBlueprintSummary } from './blueprint-map';
 import type { OwnedBlueprintOwnerType } from './schema';
@@ -16,22 +22,11 @@ export interface OwnedBlueprintDetailEntry {
   containerName: string | null;
 }
 
-const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
-
-function isPlayerStructure(locationId: number): boolean {
-  return locationId >= STRUCTURE_ID_FLOOR;
-}
-
-const STRUCTURE_LABEL = 'Upwell structure';
-const UNKNOWN_LOCATION_LABEL = 'Unknown location';
-
-export type CorpContexts = ReadonlyMap<number, CorpHoldingContext>;
-
 function summaryNameIds(summary: OwnedBlueprintSummary, contexts: CorpContexts): number[] {
   if (summary.ownerType === 'corporation') {
     return corpHoldingNameIds(summary.placement, corpContextOf(contexts, summary.ownerId));
   }
-  return isPlayerStructure(summary.locationId) ? [] : [summary.locationId];
+  return isPlayerStructureId(summary.locationId) ? [] : [summary.locationId];
 }
 
 export function collectDetailNameIds(map: OwnedBlueprintMap, requestedTypeIds: number[], contexts: CorpContexts): number[] {
@@ -45,12 +40,6 @@ export function collectDetailNameIds(map: OwnedBlueprintMap, requestedTypeIds: n
   return [...ids];
 }
 
-function resolveLocationName(locationId: number, names: EntityNames, formatStation: FormatStation): string {
-  if (isPlayerStructure(locationId)) return STRUCTURE_LABEL;
-  const resolved = names[String(locationId)];
-  return resolved ? formatStation(resolved) : UNKNOWN_LOCATION_LABEL;
-}
-
 function resolveWhere(
   summary: OwnedBlueprintSummary,
   names: EntityNames,
@@ -61,7 +50,7 @@ function resolveWhere(
     return labelCorpHolding(summary.placement, corpContextOf(contexts, summary.ownerId), names, formatStation);
   }
   return {
-    locationName: resolveLocationName(summary.locationId, names, formatStation),
+    locationName: publicLocationName(summary.locationId, names, formatStation),
     locationFlag: summary.locationFlag,
     containerName: null,
   };

@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import type { MemberBase } from './context';
+import { isPlayerStructureId } from './labels';
 import type { HangarDivision, HoldingIndex, Interior } from './placement';
-
-const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
 
 const id = z.number().int().positive();
 
@@ -75,7 +74,7 @@ export function unnamedStructureIds(index: HoldingIndex, named: ReadonlyMap<numb
   const ids = new Set<number>();
   for (const interior of index.interiors.values()) {
     const rootId = rootOf(interior);
-    if (rootId !== null && rootId >= STRUCTURE_ID_FLOOR && !named.has(rootId)) ids.add(rootId);
+    if (rootId !== null && isPlayerStructureId(rootId) && !named.has(rootId)) ids.add(rootId);
   }
   return [...ids];
 }

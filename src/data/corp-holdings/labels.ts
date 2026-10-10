@@ -11,8 +11,8 @@ const DEFAULT_DIVISION_NAMES: Record<HangarDivision, string> = {
 };
 
 const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
-const STRUCTURE_LABEL = 'Upwell structure';
-const UNKNOWN_LOCATION_LABEL = 'Unknown location';
+export const STRUCTURE_LABEL = 'Upwell structure';
+export const UNKNOWN_LOCATION_LABEL = 'Unknown location';
 
 export type EntityNames = Readonly<Record<string, string>>;
 
@@ -32,14 +32,16 @@ function innermostContainer(placement: Placement): ContainerRef | undefined {
   return placement.kind === 'unplaced' ? undefined : placement.containers.at(-1);
 }
 
-function isNpcStation(rootId: number): boolean {
-  return rootId < STRUCTURE_ID_FLOOR;
+/** Upwell structures take location ids from 1e12 up; NPC station ids sit far below. */
+export function isPlayerStructureId(locationId: number): boolean {
+  return locationId >= STRUCTURE_ID_FLOOR;
 }
 
-function publicRootName(rootId: number, names: EntityNames, formatStation: FormatStation): string {
-  if (!isNpcStation(rootId)) return STRUCTURE_LABEL;
-  const name = names[String(rootId)];
-  return name === undefined ? UNKNOWN_LOCATION_LABEL : formatStation(name);
+/** The Upwell structure label, else the formatted NPC station name, else Unknown location (an empty name counts as unknown). */
+export function publicLocationName(locationId: number, names: EntityNames, formatStation: FormatStation): string {
+  if (isPlayerStructureId(locationId)) return STRUCTURE_LABEL;
+  const name = names[String(locationId)];
+  return name ? formatStation(name) : UNKNOWN_LOCATION_LABEL;
 }
 
 function rootName(
@@ -49,7 +51,7 @@ function rootName(
   formatStation: FormatStation,
 ): string {
   if (rootId === null) return UNKNOWN_LOCATION_LABEL;
-  return context.structureNames.get(rootId) ?? publicRootName(rootId, names, formatStation);
+  return context.structureNames.get(rootId) ?? publicLocationName(rootId, names, formatStation);
 }
 
 function hangarName(placement: Placement, context: CorpHoldingContext): string {
@@ -65,7 +67,7 @@ function containerName(placement: Placement, context: CorpHoldingContext, names:
 
 export function corpHoldingNameIds(placement: Placement, context: CorpHoldingContext): number[] {
   const ids: number[] = [];
-  if (placement.rootId !== null && isNpcStation(placement.rootId)) ids.push(placement.rootId);
+  if (placement.rootId !== null && !isPlayerStructureId(placement.rootId)) ids.push(placement.rootId);
   const container = innermostContainer(placement);
   if (container !== undefined && !context.containerNames.has(container.itemId)) ids.push(container.typeId);
   return ids;

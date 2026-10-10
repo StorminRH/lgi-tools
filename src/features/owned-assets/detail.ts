@@ -1,23 +1,22 @@
-import { corpContextOf } from '@/data/corp-holdings/context';
-import { corpHoldingNameIds, type EntityNames, type FormatStation, labelCorpHolding } from '@/data/corp-holdings/labels';
-import type { CorpHoldingContext } from '@/data/corp-holdings/placement';
+import { type CorpContexts, corpContextOf } from '@/data/corp-holdings/context';
+import {
+  corpHoldingNameIds,
+  type EntityNames,
+  type FormatStation,
+  isPlayerStructureId,
+  labelCorpHolding,
+  publicLocationName,
+  STRUCTURE_LABEL,
+  UNKNOWN_LOCATION_LABEL,
+} from '@/data/corp-holdings/labels';
 import { nameOrUnresolved } from '@/lib/format/names';
 import type { AssetHolding, OwnedAssetMap } from './asset-map';
 import type { OwnedAssetOwnerType } from './schema';
 
-const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
-
-function isPlayerStructure(locationId: number): boolean {
-  return locationId >= STRUCTURE_ID_FLOOR;
-}
-
-const STRUCTURE_LABEL = 'Upwell structure';
 const SHIP_LABEL = 'In a ship';
 const CONTAINER_LABEL = 'In a container';
-const UNKNOWN_LOCATION_LABEL = 'Unknown location';
 
 type CharacterHolding = Extract<AssetHolding, { ownerType: 'character' }>;
-export type CorpContexts = ReadonlyMap<number, CorpHoldingContext>;
 
 function isStructureFlag(flag: string): boolean {
   return flag === 'Hangar' || flag === 'Deliveries' || flag.startsWith('Corp');
@@ -43,7 +42,7 @@ export interface OwnedAssetDetailEntry {
 
 function isResolvableLocation(holding: CharacterHolding): boolean {
   if (holding.locationType === 'solar_system') return true;
-  if (holding.locationType === 'station') return !isPlayerStructure(holding.locationId);
+  if (holding.locationType === 'station') return !isPlayerStructureId(holding.locationId);
   return false;
 }
 
@@ -67,11 +66,7 @@ export function collectAssetNameIds(map: OwnedAssetMap, contexts: CorpContexts):
 
 function resolveLocationName(holding: CharacterHolding, names: EntityNames, formatStation: FormatStation): string {
   const { locationId, locationType, locationFlag } = holding;
-  if (locationType === 'station') {
-    if (isPlayerStructure(locationId)) return STRUCTURE_LABEL;
-    const resolved = names[String(locationId)];
-    return resolved ? formatStation(resolved) : UNKNOWN_LOCATION_LABEL;
-  }
+  if (locationType === 'station') return publicLocationName(locationId, names, formatStation);
   if (locationType === 'solar_system') {
     return names[String(locationId)] ?? UNKNOWN_LOCATION_LABEL;
   }
