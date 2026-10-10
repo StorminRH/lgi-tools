@@ -12,6 +12,7 @@ import {
 import { markRecentBudgetExhaustion } from './exhaustion-marker';
 import {
   BODY_CACHE_MAX_BYTES,
+  NO_RESPONSE_STATUS,
   resolveScoreboard,
   __resetScoreboardForTests,
   type CachedEtagMeta,
@@ -128,6 +129,32 @@ function buildReport(
     retryAfter: parseIntHeader(res.headers, 'Retry-After'),
     ...extras,
   };
+}
+
+/** What the scoreboard hears about a dispatch that got no answer from ESI. */
+function noResponseReport(url: string): EsiReport {
+  return {
+    url,
+    status: NO_RESPONSE_STATUS,
+    errorLimitRemain: null,
+    errorLimitReset: null,
+    retryAfter: null,
+    etagToStore: null,
+    refreshEtag: null,
+  };
+}
+
+async function fetchOrReportNoResponse(
+  url: string,
+  init: RequestInit,
+  liveSb: EsiScoreboard | null,
+): Promise<Response> {
+  try {
+    return await fetchFromEsi(url, init);
+  } catch (error) {
+    if (liveSb !== null) await reportAnswer(liveSb, noResponseReport(url));
+    throw error;
+  }
 }
 
 async function safeReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
@@ -473,7 +500,7 @@ export async function dispatch(
 ): Promise<Response> {
   for (;;) {
     const headers = buildHeaders(init, etagMeta?.etag ?? null);
-    const res = await fetchFromEsi(url, { ...init, headers });
+    const res = await fetchOrReportNoResponse(url, { ...init, headers }, liveSb);
     noteLocalAnswer(url, res);
 
     if (res.status === 304 && etagMeta !== null) {

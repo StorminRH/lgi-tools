@@ -66,6 +66,8 @@ export const REFERENCE_BLUEPRINT_TYPE_IDS = [691, 24699, 23758] as const;
 export const ADVISORY_LOCK_SDE_INGEST = BigInt(8273619013);
 
 export const SDE_META_KEY_VERSION = 'sde_version';
+/** The newest SDE build CCP had published when the refresh-sde cron last looked. */
+export const SDE_META_KEY_LATEST_PUBLISHED = 'sde_latest_published';
 export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 
 export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
@@ -102,3 +104,5 @@ export const SDE_CAPITAL_SHIPYARD_TYPE_ID = 35881;
 
 /** Every cache derived from SDE tables; the refresh-sde cron revalidates it after a re-ingest. */
 export const SDE_CACHE_TAG = 'sde';
+/** The cached SDE version read alone; the cron revalidates it when it sees a newer build. */
+export const SDE_VERSION_CACHE_TAG = 'sde-version';
