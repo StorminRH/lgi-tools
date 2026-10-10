@@ -174,7 +174,7 @@ Do not put roundIsk in lib/format/isk.ts. It feeds persisted values (net_worth_d
 
 ## P096: Export roundIsk from lib/format/isk and drop the three private copies and the inline pair
 
-- **Status:** [x] already done on development
+- **Status:** [x] done by P105 (6871c6f9) under the P105/P096 conflict resolution
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -11 / +4, plus tests.
 - **Depends on:** [P105](#p105)
