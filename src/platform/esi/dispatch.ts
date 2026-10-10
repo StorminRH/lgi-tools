@@ -1,6 +1,7 @@
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { addDependencyTiming } from '@/lib/dependency-timing';
+import { deferWork } from '@/lib/deferred-work';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
   EsiBudgetExhaustedError,
@@ -18,6 +19,7 @@ import {
   type EsiScoreboard,
   type PreDispatchState,
   normalizeEsiPath,
+  resolveRetryAfter,
 } from './scoreboard';
 
 export interface EsiFetchOptions {
@@ -29,6 +31,23 @@ const REDIS_RETRY_AFTER_MS = 5_000;
 let redisDownUntil = 0;
 let trickleWindowStart = 0;
 let trickleCount = 0;
+
+/**
+ * How long this process trusts its last shared budget reading for calls that
+ * need no per-URL ETag read. Errors seen locally since the reading count
+ * against it, so the only blind spot is other instances' errors in this window.
+ */
+const LOCAL_BUDGET_REUSE_MS = 1_000;
+
+interface LocalBudget {
+  remaining: number;
+  readAt: number;
+  errorsSince: number;
+}
+
+let localBudget: LocalBudget | null = null;
+/** Per normalized path: when the shared block was last read, and until when it holds. */
+const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null }>();
 
 let scoreboardOverride: EsiScoreboard | 'unavailable' | null = null;
 
@@ -46,6 +65,8 @@ export function __resetEsiGateForTests(): void {
   redisDownUntil = 0;
   trickleWindowStart = 0;
   trickleCount = 0;
+  localBudget = null;
+  localBlocks.clear();
   scoreboardOverride = null;
   __resetScoreboardForTests();
 }
@@ -90,10 +111,6 @@ function buildReport(
     status: res.status,
     errorLimitRemain: parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain'),
     errorLimitReset: parseIntHeader(res.headers, 'X-ESI-Error-Limit-Reset'),
-    rateLimitGroup: res.headers.get('X-Ratelimit-Group'),
-    rateLimitLimit: parseIntHeader(res.headers, 'X-Ratelimit-Limit'),
-    rateLimitRemaining: parseIntHeader(res.headers, 'X-Ratelimit-Remaining'),
-    rateLimitUsed: parseIntHeader(res.headers, 'X-Ratelimit-Used'),
     retryAfter: parseIntHeader(res.headers, 'Retry-After'),
     ...extras,
   };
@@ -106,6 +123,18 @@ async function safeReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
     redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
     console.warn('[esi] scoreboard report failed', err);
   }
+}
+
+/**
+ * Error answers are counted before the call returns, so the shared budget
+ * stays current; bookkeeping for successes and 304s runs after the response.
+ */
+async function reportAnswer(sb: EsiScoreboard, report: EsiReport): Promise<void> {
+  if (report.status >= 400) {
+    await safeReport(sb, report);
+    return;
+  }
+  await deferWork(() => safeReport(sb, report));
 }
 
 async function captureBodyForCache(res: Response): Promise<string | null> {
@@ -171,14 +200,57 @@ export async function serveFromExpiresWindow(
   return synthesizeFromCache(body, etagMeta);
 }
 
+/** The shared state from this process's recent reading, when both budget and block are fresh. */
+function localPreDispatch(url: string, now: number): PreDispatchState | null {
+  if (localBudget === null || now - localBudget.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
+  const block = localBlocks.get(normalizeEsiPath(url));
+  if (block === undefined || now - block.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
+  return {
+    effectiveRemaining: localBudget.remaining - localBudget.errorsSince,
+    blockedRetryAfter:
+      block.blockedUntil !== null && block.blockedUntil > now
+        ? Math.ceil((block.blockedUntil - now) / 1000)
+        : null,
+    etag: null,
+  };
+}
+
+function rememberPreDispatch(url: string, pre: PreDispatchState, now: number): void {
+  localBudget = { remaining: pre.effectiveRemaining, readAt: now, errorsSince: 0 };
+  localBlocks.set(normalizeEsiPath(url), {
+    readAt: now,
+    blockedUntil: pre.blockedRetryAfter === null ? null : now + pre.blockedRetryAfter * 1000,
+  });
+}
+
+/** Folds an answer this process just saw into its local reading until the next shared one; the 429 block matches the shared one's clamp. */
+function noteLocalAnswer(url: string, res: Response): void {
+  const now = Date.now();
+  if (res.status === 420) {
+    localBudget = { remaining: 0, readAt: now, errorsSince: 0 };
+  } else if (res.status >= 400 && localBudget !== null) {
+    localBudget.errorsSince += 1;
+  }
+  if (res.status === 429) {
+    const retryAfter = resolveRetryAfter(parseIntHeader(res.headers, 'Retry-After'));
+    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000 });
+  }
+}
+
 export async function consultPreDispatch(
   sb: EsiScoreboard | null,
   url: string,
   wantEtag: boolean,
 ): Promise<PreDispatchState | null> {
   if (sb === null || Date.now() < redisDownUntil) return null;
+  if (!wantEtag) {
+    const local = localPreDispatch(url, Date.now());
+    if (local !== null) return local;
+  }
   try {
-    return await sb.preDispatch(url, wantEtag);
+    const pre = await sb.preDispatch(url, wantEtag);
+    rememberPreDispatch(url, pre, Date.now());
+    return pre;
   } catch (err) {
     redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
     console.warn('[esi] scoreboard pre-dispatch failed', err);
@@ -261,7 +333,7 @@ async function reuseOrRevalidate(
   }
   if (body !== null) {
     if (liveSb !== null) {
-      await safeReport(
+      await reportAnswer(
         liveSb,
         buildReport(url, res304, { etagToStore: null, refreshEtag: freshMeta }),
       );
@@ -269,7 +341,7 @@ async function reuseOrRevalidate(
     return synthesizeRevalidated(res304, body, freshMeta);
   }
   if (liveSb !== null) {
-    await safeReport(
+    await reportAnswer(
       liveSb,
       buildReport(url, res304, { etagToStore: null, refreshEtag: null }),
     );
@@ -335,6 +407,7 @@ export async function dispatch(
   for (;;) {
     const headers = buildHeaders(init, etagMeta?.etag ?? null);
     const res = await fetchFromEsi(url, { ...init, headers });
+    noteLocalAnswer(url, res);
 
     if (res.status === 304 && etagMeta !== null) {
       const served = await reuseOrRevalidate(url, res, etagMeta, liveSb);
@@ -345,7 +418,7 @@ export async function dispatch(
 
     const etagToStore = await captureEtagToStore(res, liveSb, wantEtag);
     if (liveSb !== null) {
-      await safeReport(
+      await reportAnswer(
         liveSb,
         buildReport(url, res, { etagToStore, refreshEtag: null }),
       );
