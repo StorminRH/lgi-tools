@@ -1,19 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { IndustryJob } from './esi-projection';
+import { industryJob } from './__tests__/job-fixture';
 import { flattenJobs } from './flatten-jobs';
-
-function job(
-  overrides: Partial<IndustryJob> & { job_id: number; end_date: string },
-): IndustryJob {
-  return {
-    activity_id: 1,
-    blueprint_type_id: 999,
-    runs: 1,
-    status: 'active',
-    start_date: '2026-07-01T00:00:00Z',
-    ...overrides,
-  };
-}
 
 describe('flattenJobs', () => {
   it('flattens boards soonest-done first with job_id tie-break', () => {
@@ -21,8 +8,8 @@ describe('flattenJobs', () => {
       {
         data: {
           jobs: [
-            job({ job_id: 30, end_date: '2026-07-03T00:00:00Z' }),
-            job({ job_id: 12, end_date: '2026-07-02T00:00:00Z' }),
+            industryJob({ job_id: 30, end_date: '2026-07-03T00:00:00Z' }),
+            industryJob({ job_id: 12, end_date: '2026-07-02T00:00:00Z' }),
           ],
         },
       },
@@ -30,8 +17,8 @@ describe('flattenJobs', () => {
       {
         data: {
           jobs: [
-            job({ job_id: 11, end_date: '2026-07-02T00:00:00Z' }),
-            job({ job_id: 5, end_date: '2026-07-01T06:00:00Z' }),
+            industryJob({ job_id: 11, end_date: '2026-07-02T00:00:00Z' }),
+            industryJob({ job_id: 5, end_date: '2026-07-01T06:00:00Z' }),
           ],
         },
       },

@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { settle } from '@/lib/__tests__/hook-runtime';
 import type { MarketHistoryInputs } from './types';
 
 const h = vi.hoisted(() => ({
@@ -42,8 +43,6 @@ function mounted() {
   const [setInputs, setRefreshing] = h.setters;
   return { setInputs: setInputs!, setRefreshing: setRefreshing!, unmount: () => h.cleanups.forEach((c) => c()) };
 }
-
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 test('refreshes unique type ids once enabled and publishes the fetched inputs', async () => {
   freshMount();

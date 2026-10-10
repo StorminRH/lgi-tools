@@ -1,44 +1,23 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   deadAllowlistEntries,
   unexpectedFamilies,
 } from '@/composition/__tests__/ui-adoption-census';
 import { uiAdoptionRegistry } from '@/composition/__tests__/ui-adoption-registry';
+import { filesMatching, listSourceFiles, stripComments } from '@/lib/__tests__/source-scan';
 
-const SKIPPED_DIRECTORIES = new Set(['node_modules', '__fixtures__', '_generated', 'ui']);
-const SKIPPED_SUFFIXES = ['.test.ts', '.test.tsx', '.d.ts'];
+const PRODUCTION_SOURCES = listSourceFiles({
+  roots: ['src'],
+  extensions: ['.ts', '.tsx'],
+  skipDirectories: ['node_modules', '__fixtures__', '_generated', 'ui'],
+  skipSuffixes: ['.test.ts', '.test.tsx', '.d.ts'],
+});
 
-function collectProductionSources(directory: string): string[] {
-  const found: string[] = [];
-  const walk = (current: string): void => {
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const path = `${current}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (!SKIPPED_DIRECTORIES.has(entry.name)) walk(path);
-      } else if (
-        (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) &&
-        !SKIPPED_SUFFIXES.some((suffix) => entry.name.endsWith(suffix))
-      ) {
-        found.push(path);
-      }
-    }
-  };
-  walk(directory);
-  return found.sort();
-}
-
-const productionSources = collectProductionSources('src');
-
-function filesMatching(pattern: RegExp): string[] {
-  return productionSources
-    .filter((file) => {
-      const source = readFileSync(file, 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/\/\/.*$/gm, '');
-      return pattern.test(source);
-    })
-    .sort();
+function codeMatching(pattern: RegExp): string[] {
+  return filesMatching(PRODUCTION_SOURCES, pattern, (file) =>
+    stripComments(readFileSync(file, 'utf8')),
+  );
 }
 
 function exceptionFiles(entries: readonly { file: string }[]): string[] {
@@ -47,38 +26,38 @@ function exceptionFiles(entries: readonly { file: string }[]): string[] {
 
 describe('UI adoption exception census', () => {
   it('pins every raw button outside the primitive layer', () => {
-    expect(filesMatching(/<button\b/)).toEqual(exceptionFiles(uiAdoptionRegistry.rawButtons));
+    expect(codeMatching(/<button\b/)).toEqual(exceptionFiles(uiAdoptionRegistry.rawButtons));
   });
 
   it('pins every native details surface outside the primitive layer', () => {
-    expect(filesMatching(/<details\b/)).toEqual(exceptionFiles(uiAdoptionRegistry.rawDetails));
+    expect(codeMatching(/<details\b/)).toEqual(exceptionFiles(uiAdoptionRegistry.rawDetails));
   });
 
   it('keeps visible raw fields and raw tables at zero', () => {
-    expect(filesMatching(/<(?:textarea|table)\b/)).toEqual([]);
-    expect(filesMatching(/<input\b(?![^>]*\btype=["']hidden["'])/)).toEqual([]);
+    expect(codeMatching(/<(?:textarea|table)\b/)).toEqual([]);
+    expect(codeMatching(/<input\b(?![^>]*\btype=["']hidden["'])/)).toEqual([]);
   });
 
   it('pins every hidden server-action field owner', () => {
-    expect(filesMatching(/<input\b[^>]*\btype=["']hidden["']/)).toEqual(
+    expect(codeMatching(/<input\b[^>]*\btype=["']hidden["']/)).toEqual(
       [...uiAdoptionRegistry.hiddenInputs].sort(),
     );
   });
 
   it('pins native and disabled-control title exceptions separately', () => {
-    expect(filesMatching(/<[a-z][^>]*\btitle=/)).toEqual(
+    expect(codeMatching(/<[a-z][^>]*\btitle=/)).toEqual(
       exceptionFiles(uiAdoptionRegistry.nativeTitles),
     );
-    expect(filesMatching(/\btitle=\{(?:disabled|view\.isSelf)\s*\?/)).toEqual(
+    expect(codeMatching(/\btitle=\{(?:disabled|view\.isSelf)\s*\?/)).toEqual(
       [...uiAdoptionRegistry.disabledControlTitles].sort(),
     );
   });
 
   it('keeps hand-built action semantics and primitive-owned tokens at zero', () => {
-    expect(filesMatching(/\brole=["']button["']|role:\s*["']button["']/)).toEqual([]);
-    expect(filesMatching(/<[a-z][^>]*\baria-pressed=/)).toEqual([]);
+    expect(codeMatching(/\brole=["']button["']|role:\s*["']button["']/)).toEqual([]);
+    expect(codeMatching(/<[a-z][^>]*\baria-pressed=/)).toEqual([]);
     expect(
-      filesMatching(
+      codeMatching(
         /text-empty|(?:bg|text|border)-(?:pill|chip)-|skeleton-shimmer|--pct|toast\.loading/,
       ),
     ).toEqual([]);
@@ -86,16 +65,9 @@ describe('UI adoption exception census', () => {
 });
 
 function allStylesheets(): string {
-  const files: string[] = [];
-  const walk = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const file = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) walk(file);
-      else if (entry.name.endsWith('.css')) files.push(file);
-    }
-  };
-  walk('src');
-  return files.sort().map((file) => readFileSync(file, 'utf8')).join('\n');
+  return listSourceFiles({ roots: ['src'], extensions: ['.css'] })
+    .map((file) => readFileSync(file, 'utf8'))
+    .join('\n');
 }
 
 describe('UI adoption CSS-family census', () => {

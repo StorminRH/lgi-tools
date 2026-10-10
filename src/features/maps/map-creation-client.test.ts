@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { dependencyUnavailableFailure } from '@/lib/failure';
+import { problemBody, serializeProblem, type ProblemBody } from '@/lib/problem';
 import {
   createMapWithMinimumInterstitial,
   handoffCreatedMap,
@@ -10,13 +12,6 @@ import {
 
 const INPUT = { name: 'Home chain', creatorCharacterIds: [7], grants: [] };
 
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  });
-}
-
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -27,7 +22,7 @@ describe('createMapWithMinimumInterstitial', () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ mapId: 'map-1' }, 201)),
+      vi.fn().mockResolvedValue(Response.json({ mapId: 'map-1' }, { status: 201 })),
     );
 
     let settled = false;
@@ -60,7 +55,7 @@ describe('createMapWithMinimumInterstitial', () => {
 
     const pending = createMapWithMinimumInterstitial(INPUT);
     await vi.advanceTimersByTimeAsync(12_000);
-    deliver?.(jsonResponse({ mapId: 'map-2' }, 201));
+    deliver?.(Response.json({ mapId: 'map-2' }, { status: 201 }));
 
     await expect(pending).resolves.toMatchObject({
       ok: true,
@@ -73,15 +68,11 @@ describe('createMapWithMinimumInterstitial', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        jsonResponse(
-          {
-            type: 'https://lgi.tools/problems/dependency-unavailable',
-            title: 'Dependency unavailable',
-            status: 503,
-            code: 'map_projection_unavailable',
-            correlationId: 'correlation-id',
-          },
-          503,
+        serializeProblem(
+          problemBody(
+            dependencyUnavailableFailure('map_projection_unavailable'),
+            'correlation-id',
+          ),
         ),
       ),
     );
@@ -161,13 +152,10 @@ describe('runMapCreationSubmit', () => {
         ok: false,
         kind: 'api' as const,
         status: 503 as const,
-        error: {
-          type: 'https://lgi.tools/problems/dependency-unavailable',
-          title: 'Dependency unavailable',
-          status: 503,
-          code: 'map_projection_unavailable',
-          correlationId: 'correlation-id',
-        },
+        error: problemBody(
+          dependencyUnavailableFailure('map_projection_unavailable'),
+          'correlation-id',
+        ) as ProblemBody & { code: 'map_projection_unavailable' },
       };
     }, actions);
     expect(events).toEqual([

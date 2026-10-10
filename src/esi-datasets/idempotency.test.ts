@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -6,6 +6,7 @@ import {
   type IdempotencyEntry,
 } from '@/composition/__tests__/idempotency-registry';
 import { vendorResilienceRegistry } from '@/composition/__tests__/vendor-resilience-registry';
+import { filesMatching, listRouteFiles } from '@/lib/__tests__/source-scan';
 
 const ROOT = process.cwd();
 
@@ -26,21 +27,7 @@ const convexCronNames = [
 ].map((match) => match[1] ?? '');
 
 function postRouteFiles(): string[] {
-  const found: string[] = [];
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.name === 'route.ts') {
-        const source = readFileSync(full, 'utf8');
-        if (/export (async function |function |const )POST\b/.test(source)) {
-          found.push(path.relative(ROOT, full));
-        }
-      }
-    }
-  };
-  walk(path.join(ROOT, 'src/app/api'));
-  return found.sort();
+  return filesMatching(listRouteFiles(), /export (async function |function |const )POST\b/);
 }
 
 const routeEntries = IDEMPOTENCY_REGISTRY.filter((entry) => entry.route !== undefined);

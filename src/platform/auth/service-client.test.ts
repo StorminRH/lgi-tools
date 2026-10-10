@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { z } from 'zod';
-import { problemBodySchema } from '@/lib/problem';
+import { notFoundFailure } from '@/lib/failure';
+import { problemBody, serializeProblem } from '@/lib/problem';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
 import { serviceFetch } from './service-client';
 
@@ -28,12 +29,6 @@ const bodylessEndpoint = defineEndpoint({
   },
 });
 
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-
 const init = { baseUrl: 'https://app.test', secret: 'service-secret' };
 
 beforeEach(() => {
@@ -46,7 +41,7 @@ afterEach(() => {
 });
 
 test('sends a JSON body request with bearer auth and returns the declared success arm', async () => {
-  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 'fresh' }));
 
   const outcome = await serviceFetch(bodyEndpoint, {
     ...init,
@@ -66,7 +61,7 @@ test('sends a JSON body request with bearer auth and returns the declared succes
 });
 
 test('omits the body for a request-less endpoint and attaches the Vercel bypass header when set', async () => {
-  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 'fresh' }));
 
   await serviceFetch(bodylessEndpoint, init);
   expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-status', {
@@ -76,7 +71,7 @@ test('omits the body for a request-less endpoint and attaches the Vercel bypass 
 
   fetchWithTimeout.mockClear();
   vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
-  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 'fresh' }));
 
   await serviceFetch(bodylessEndpoint, init);
   expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-status', {
@@ -90,27 +85,18 @@ test('omits the body for a request-less endpoint and attaches the Vercel bypass 
 
 test('classifies API, protocol, and network failures without throwing', async () => {
   fetchWithTimeout.mockResolvedValue(
-    jsonResponse(
-      problemBodySchema.parse({
-        type: 'https://lgi.tools/problems/not-found',
-        title: 'Not found',
-        status: 404,
-        code: 'not_found',
-        correlationId: 'correlation-id',
-      }),
-      404,
-    ),
+    serializeProblem(problemBody(notFoundFailure(), 'correlation-id')),
   );
   await expect(
     serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } }),
   ).resolves.toMatchObject({ ok: false, kind: 'api', status: 404 });
 
-  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 42 }));
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 42 }));
   await expect(
     serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } }),
   ).resolves.toMatchObject({ ok: false, kind: 'protocol', status: 200 });
 
-  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }, 502));
+  fetchWithTimeout.mockResolvedValue(Response.json({ accessToken: 'fresh' }, { status: 502 }));
   await expect(
     serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } }),
   ).resolves.toMatchObject({ ok: false, kind: 'protocol', status: 502 });
@@ -131,7 +117,7 @@ test('classifies API, protocol, and network failures without throwing', async ()
     aborted: true,
   });
 
-  const response = jsonResponse({ accessToken: 'fresh' });
+  const response = Response.json({ accessToken: 'fresh' });
   vi.spyOn(response, 'json').mockRejectedValue(new TypeError('stream failed'));
   fetchWithTimeout.mockResolvedValue(response);
   await expect(serviceFetch(bodylessEndpoint, init)).resolves.toMatchObject({

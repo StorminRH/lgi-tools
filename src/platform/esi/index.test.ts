@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 
@@ -49,7 +50,7 @@ describe('esiFetch', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    silenceConsolePrefixes('warn', ['[esi] scoreboard pre-dispatch failed']);
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 

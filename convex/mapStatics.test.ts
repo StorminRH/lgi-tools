@@ -6,6 +6,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { grantMapAccess, scheduledFunctionsNamed, type Chain } from './__tests__/convexTest.setup';
 import {
   AMARR,
   JITA,
@@ -18,7 +19,6 @@ import {
   seedEmpty,
   seedHome,
   seedJump,
-  type Chain,
 } from './__tests__/mapAuthoring.setup';
 
 const SITE = 'https://app.test';
@@ -39,13 +39,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
-async function scheduledStaticFetches(t: Chain) {
-  return t.run(async (ctx) => {
-    const rows = await ctx.db.system.query('_scheduled_functions').collect();
-    return rows.filter((row) => row.name.includes('fetchSystemStatics'));
-  });
-}
 
 function scheduledFetchSystemIds(rows: readonly { readonly args?: unknown }[]): number[] {
   return rows.flatMap((row) => {
@@ -170,7 +163,7 @@ describe('map static placeholders', () => {
       mapId: MAP_A,
       systemId: WH_ROOT,
     });
-    const scheduled = await scheduledStaticFetches(t);
+    const scheduled = await scheduledFunctionsNamed(t, 'fetchSystemStatics');
     expect(scheduled).toHaveLength(1);
     expect(scheduledFetchSystemIds(scheduled)).toEqual([WH_ROOT]);
   });
@@ -183,14 +176,12 @@ describe('map static placeholders', () => {
       fromSystemId: JITA,
       toSystemId: AMARR,
     });
-    expect(scheduledFetchSystemIds(await scheduledStaticFetches(t))).toEqual([JITA, AMARR]);
+    expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([JITA, AMARR]);
   });
 
   it('schedules on insert for jump authoring', async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapAccess', { mapId: JUMP_MAP, userId: EDITOR, roles: ['editor'] });
-    });
+    await grantMapAccess(t, JUMP_MAP, EDITOR, ['editor']);
     await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
       mapId: JUMP_MAP,
       systemId: ORIGIN,
@@ -227,7 +218,7 @@ describe('map static placeholders', () => {
       observationKey: 'observation-key',
       decision: { kind: 'insert', candidateIds: [], survivors: [] },
     });
-    expect(scheduledFetchSystemIds(await scheduledStaticFetches(t))).toEqual([DESTINATION]);
+    expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([DESTINATION]);
   });
 
   it('schedules on insert for restoreSystem', async () => {
@@ -237,13 +228,13 @@ describe('map static placeholders', () => {
       mapId: MAP_A,
       systemId: WH_ROOT,
     });
-    const afterTombstone = scheduledFetchSystemIds(await scheduledStaticFetches(t));
+    const afterTombstone = scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'));
     expect(afterTombstone).toEqual([WH_ROOT]);
     await asUser(t).mutation(internal.mapAuthoringTombstone.restoreSystem, {
       mapId: MAP_A,
       systemId: WH_ROOT,
     });
-    expect(scheduledFetchSystemIds(await scheduledStaticFetches(t))).toEqual([
+    expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([
       WH_ROOT,
       WH_ROOT,
     ]);
@@ -252,13 +243,13 @@ describe('map static placeholders', () => {
   it('does not schedule when the destination is already live', async () => {
     const t = convexTest(schema, modules);
     await seedJump(t);
-    const before = await scheduledStaticFetches(t);
+    const before = await scheduledFunctionsNamed(t, 'fetchSystemStatics');
     await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
       mapId: MAP_A,
       fromSystemId: AMARR,
       toSystemId: JITA,
     });
-    expect(await scheduledStaticFetches(t)).toHaveLength(before.length);
+    expect(await scheduledFunctionsNamed(t, 'fetchSystemStatics')).toHaveLength(before.length);
   });
 
   it('skips apply when fetch fails', async () => {

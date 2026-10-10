@@ -7,21 +7,16 @@ import { MapMenu } from './MapMenu';
 const mocks = vi.hoisted(() => ({
   isAdmin: false,
   search: '',
-  states: [] as unknown[],
-  cursor: 0,
   actions: new Map<string, (event: unknown) => void>(),
   creation: { open: false, onOpenChange: (_open: boolean) => {} },
 }));
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
 // Preserve state between static renders so real menu callbacks can drive the
 // next render, without replacing the clipboard hook or its async write.
 vi.mock('react', async (importOriginal) => ({
   ...await importOriginal<typeof import('react')>(),
-  useState: (initial: unknown) => {
-    const slot = mocks.cursor++;
-    if (!(slot in mocks.states)) mocks.states[slot] = initial;
-    return [mocks.states[slot], (next: unknown) => { mocks.states[slot] = next; }];
-  },
+  useState: rt.react.useState,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -70,9 +65,8 @@ vi.mock('@/features/maps/MapCreationDialog', () => ({
 const session = { characterId: 7, name: 'Mapper', portraitUrl: '/portrait.png', role: 'USER' as const };
 
 function renderMenu(props: Partial<React.ComponentProps<typeof MapMenu>> = {}) {
-  mocks.cursor = 0;
   mocks.actions.clear();
-  return renderToStaticMarkup(createElement(MapMenu, { session, ...props }));
+  return rt.render(renderToStaticMarkup, createElement(MapMenu, { session, ...props }));
 }
 
 function click(label: string) {
@@ -82,7 +76,7 @@ function click(label: string) {
 }
 
 beforeEach(() => {
-  mocks.states = [];
+  rt.unmount();
   mocks.isAdmin = false;
   mocks.search = '';
   vi.clearAllMocks();

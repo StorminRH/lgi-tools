@@ -2,7 +2,9 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { getFunctionName, type FunctionReference } from 'convex/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { problemBodySchema } from '@/lib/problem';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { conflictFailure } from '@/lib/failure';
+import { problemBody, serializeProblem } from '@/lib/problem';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { internal } from './_generated/api';
 import type { ActionCtx } from './_generated/server';
@@ -35,23 +37,6 @@ const permissiveScoreboard = {
 
 const TOKEN_EXP = Date.now() + 1_200_000;
 
-function jsonResponse(body: unknown, headers: Record<string, string> = {}, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers });
-}
-
-function problemResponse(code: string, status: number) {
-  return Response.json(
-    problemBodySchema.parse({
-      type: `https://lgi.tools/problems/${code}`,
-      title: 'Request failed',
-      status,
-      code,
-      correlationId: 'correlation-id',
-    }),
-    { status },
-  );
-}
-
 const RL = {
   ETag: 'loc1',
   Expires: EXP,
@@ -68,7 +53,7 @@ function stubFetch(opts: {
   const fn = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
     if (url.endsWith('/api/internal/eve-token')) {
-      return (opts.token ?? (() => jsonResponse({ accessToken: 'tok', expiresAt: TOKEN_EXP })))();
+      return (opts.token ?? (() => Response.json({ accessToken: 'tok', expiresAt: TOKEN_EXP })))();
     }
     if (opts.esi) return opts.esi(url);
     throw new Error(`unexpected url ${url}`);
@@ -248,7 +233,7 @@ async function replaceRunLease(t: TestConvex<typeof schema>) {
 describe('characterLocationSync.syncUser', () => {
   it('completes as failed when the deployment env is unset', async () => {
     vi.unstubAllEnvs();
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
     const t = await testConvex();
     await seedSyncState(t);
     await seedTracking(t);
@@ -272,10 +257,10 @@ describe('characterLocationSync.syncUser', () => {
     const fetchFn = stubFetch({
       esi: (url) => {
         if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
         }
         if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
         }
         throw new Error(`unexpected esi ${url}`);
       },
@@ -372,10 +357,10 @@ describe('characterLocationSync.syncUser', () => {
     const fetchFn = stubFetch({
       esi: (url) => {
         if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_B }, { ...RL, ETag: 'loc2' });
+          return Response.json({ solar_system_id: SYSTEM_B }, { headers: { ...RL, ETag: 'loc2' } });
         }
         if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_B }, { ...RL, ETag: 'ship2' });
+          return Response.json({ ship_type_id: SHIP_B }, { headers: { ...RL, ETag: 'ship2' } });
         }
         throw new Error(`unexpected esi ${url}`);
       },
@@ -418,9 +403,9 @@ describe('characterLocationSync.syncUser', () => {
     const fetchFn = stubFetch({
       esi: (url) => {
         if (url.includes('/location')) {
-          return jsonResponse(
+          return Response.json(
             { solar_system_id: SYSTEM_A, station_id: 60_003_760 },
-            { ...RL, ETag: 'loc3' },
+            { headers: { ...RL, ETag: 'loc3' } },
           );
         }
         throw new Error(`unexpected ship fetch ${url}`);
@@ -464,7 +449,8 @@ describe('characterLocationSync.syncUser', () => {
     await seedSyncState(t);
     await seedTracking(t);
     const fetchFn = stubFetch({
-      token: () => problemResponse('reauth_required', 409),
+      token: () =>
+        serializeProblem(problemBody(conflictFailure('reauth_required'), 'correlation-id')),
     });
 
     await run(t);
@@ -575,10 +561,10 @@ describe('characterLocationSync.syncUser', () => {
           return new Response(null, { status: 304, headers: { Expires: onlineExpires } });
         }
         if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
         }
         if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
         }
         throw new Error(`unexpected esi ${url}`);
       },
@@ -602,7 +588,7 @@ describe('characterLocationSync.syncUser', () => {
     const fetchFn = stubFetch({
       esi: (url) => {
         if (url.includes('/online')) {
-          return jsonResponse({ online: false }, { ETag: 'on1', Expires: onlineExpires });
+          return Response.json({ online: false }, { headers: { ETag: 'on1', Expires: onlineExpires } });
         }
         throw new Error(`unexpected esi ${url}`);
       },
@@ -629,13 +615,13 @@ describe('characterLocationSync.syncUser', () => {
     const fetchFn = stubFetch({
       esi: (url) => {
         if (url.includes('/online')) {
-          return jsonResponse({ online: true }, { ETag: 'on2', Expires: EXP });
+          return Response.json({ online: true }, { headers: { ETag: 'on2', Expires: EXP } });
         }
         if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
         }
         if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
         }
         throw new Error(`unexpected esi ${url}`);
       },
@@ -652,10 +638,10 @@ describe('characterLocationSync.syncUser', () => {
     const locationShip = {
       esi: (url: string) => {
         if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
         }
         if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
         }
         throw new Error(`unexpected esi ${url}`);
       },
@@ -696,10 +682,10 @@ describe('characterLocationSync.syncUser', () => {
       esi: (url) => {
         if (url.includes('/characters/102/')) throw new Error('esi_down');
         if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
         }
         if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
         }
         throw new Error(`unexpected esi ${url}`);
       },
@@ -777,11 +763,11 @@ describe('characterLocationSync.syncUser', () => {
     stubFetch({
       token: () => {
         tokenRequests += 1;
-        return jsonResponse({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+        return Response.json({ accessToken: 'tok', expiresAt: TOKEN_EXP });
       },
       esi: (url) => {
-        if (url.includes('/location')) return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
-        if (url.includes('/ship')) return jsonResponse({ ship_type_id: SHIP_A }, RL);
+        if (url.includes('/location')) return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
+        if (url.includes('/ship')) return Response.json({ ship_type_id: SHIP_A }, { headers: RL });
         throw new Error(`unexpected esi ${url}`);
       },
     });
@@ -864,10 +850,10 @@ describe('characterLocationSync.syncUser', () => {
     stubFetch({
       esi: (url) => {
         if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
         }
         if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
         }
         throw new Error(`unexpected esi ${url}`);
       },

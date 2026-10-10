@@ -1,12 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-
-const API_DIR = dirname(fileURLToPath(import.meta.url));
-const SRC_DIR = join(API_DIR, '..', '..');
-const REPO_ROOT = join(SRC_DIR, '..');
-const CONVEX_DIR = join(REPO_ROOT, 'convex');
+import { filesMatching, listSourceFiles } from '@/lib/__tests__/source-scan';
 
 const TEMPLATE_FETCH_RE = /\b(?:fetch|fetchWithTimeout)\s*\(\s*`[^`]*\/api\//g;
 
@@ -16,46 +9,29 @@ const RESPONSE_ASSERTION_ALLOWLIST = [
   'src/data/gsc/source.ts',
 ];
 
-function productionSources(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === '_generated' || entry.name === 'node_modules') continue;
-      out.push(...productionSources(full));
-      continue;
-    }
-    if (!/\.(ts|tsx)$/.test(entry.name)) continue;
-    if (/\.(test|spike\.test)\.(ts|tsx)$/.test(entry.name)) continue;
-    out.push(full);
-  }
-  return out;
-}
-
-const PRODUCTION_SOURCES = [...productionSources(SRC_DIR), ...productionSources(CONVEX_DIR)];
-
-function filesMatching(pattern: RegExp): string[] {
-  return PRODUCTION_SOURCES.filter((file) => {
-    pattern.lastIndex = 0;
-    return pattern.test(readFileSync(file, 'utf8'));
-  }).map((file) => relative(REPO_ROOT, file).split('\\').join('/'));
-}
+// Unlike the vendor sweep, this one keeps declaration files and __fixtures__ in scope.
+const PRODUCTION_SOURCES = listSourceFiles({
+  roots: ['src', 'convex'],
+  extensions: ['.ts', '.tsx'],
+  skipDirectories: ['_generated', 'node_modules'],
+  skipSuffixes: ['.test.ts', '.test.tsx'],
+});
 
 describe('first-party transport sweeps', () => {
   it('scans a non-trivial production surface in both trees', () => {
     expect(PRODUCTION_SOURCES.length).toBeGreaterThan(500);
     expect(
-      PRODUCTION_SOURCES.some((file) => file.startsWith(CONVEX_DIR)),
+      PRODUCTION_SOURCES.some((file) => file.startsWith('convex/')),
       'the sweep must cover the Convex tree',
     ).toBe(true);
   });
 
   it('finds no first-party URL assembled in a template literal', () => {
-    expect(filesMatching(TEMPLATE_FETCH_RE)).toEqual([]);
+    expect(filesMatching(PRODUCTION_SOURCES, TEMPLATE_FETCH_RE)).toEqual([]);
   });
 
   it('confines response-type assertions to the pinned external boundaries', () => {
-    const found = filesMatching(RESPONSE_ASSERTION_RE);
+    const found = filesMatching(PRODUCTION_SOURCES, RESPONSE_ASSERTION_RE);
     expect([...found].sort()).toEqual([...RESPONSE_ASSERTION_ALLOWLIST].sort());
     expect(found).toHaveLength(RESPONSE_ASSERTION_ALLOWLIST.length);
   });

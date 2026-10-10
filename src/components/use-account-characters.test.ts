@@ -1,22 +1,14 @@
 import { beforeEach, expect, test, vi } from 'vitest';
+import { settle } from '@/lib/__tests__/hook-runtime';
 import type { BuildCharacter } from './run-as-state';
 
 const h = vi.hoisted(() => ({
   auth: { session: { characterId: 7 } as { characterId: number } | null, loading: false },
   apiFetch: vi.fn(),
-  cleanup: undefined as (() => void) | undefined,
-  deps: undefined as unknown[] | undefined,
 }));
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
-vi.mock('react', () => ({
-  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
-  useEffect: (effect: () => void | (() => void), deps: unknown[]) => {
-    if (h.deps && deps.every((value, i) => Object.is(value, h.deps![i]))) return;
-    h.cleanup?.();
-    h.deps = deps;
-    h.cleanup = effect() || undefined;
-  },
-}));
+vi.mock('react', () => rt.react);
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => h.auth }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: (...args: unknown[]) => h.apiFetch(...args) }));
 
@@ -29,14 +21,10 @@ const roster: BuildCharacter[] = [{
 const failed = { ok: false, kind: 'protocol', status: 500, detail: 'Endpoint returned an undeclared status' };
 const offline = { ok: false, kind: 'network', aborted: false, cause: new Error('offline') };
 
-function remount() {
-  h.cleanup?.();
-  h.cleanup = undefined;
-  h.deps = undefined;
-}
+const characters = () => rt.render(hooks.useAccountCharacters);
 
 beforeEach(async () => {
-  remount();
+  rt.unmount();
   vi.resetModules();
   h.auth = { session: { characterId: 7 }, loading: false };
   h.apiFetch.mockReset();
@@ -45,57 +33,53 @@ beforeEach(async () => {
   hooks = await import('./use-account-characters');
 });
 
-async function settle() {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 test('a return draws the remembered roster while refreshing and retains it on a refused refresh', async () => {
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
-  expect(hooks.useAccountCharacters()).toBeNull();
+  expect(characters()).toBeNull();
   await settle();
-  expect(hooks.useAccountCharacters()).toEqual(roster);
+  expect(characters()).toEqual(roster);
 
-  remount();
+  rt.unmount();
   h.apiFetch.mockResolvedValueOnce(failed);
-  expect(hooks.useAccountCharacters()).toEqual(roster);
+  expect(characters()).toEqual(roster);
   await settle();
-  expect(hooks.useAccountCharacters()).toEqual(roster);
+  expect(characters()).toEqual(roster);
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
 test('a first failed read settles empty, and a later successful refresh replaces it', async () => {
   h.apiFetch.mockResolvedValueOnce(failed);
-  expect(hooks.useAccountCharacters()).toBeNull();
+  expect(characters()).toBeNull();
   await settle();
-  expect(hooks.useAccountCharacters()).toEqual([]);
+  expect(characters()).toEqual([]);
 
-  remount();
+  rt.unmount();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
-  hooks.useAccountCharacters();
+  characters();
   await settle();
-  expect(hooks.useAccountCharacters()).toEqual(roster);
+  expect(characters()).toEqual(roster);
 });
 
 test('an unreachable refresh keeps the remembered pilots, but a different pilot never receives that roster', async () => {
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
-  hooks.useAccountCharacters();
+  characters();
   await settle();
-  remount();
+  rt.unmount();
   h.apiFetch.mockResolvedValueOnce(offline);
-  hooks.useAccountCharacters();
+  characters();
   await settle();
-  expect(hooks.useAccountCharacters()).toEqual(roster);
+  expect(characters()).toEqual(roster);
 
   h.auth.session = { characterId: 8 };
   identities.publishReadIdentity({ userId: 'account-a', characterId: 8 });
   h.apiFetch.mockResolvedValueOnce(offline);
-  expect(hooks.useAccountCharacters()).toBeNull();
+  expect(characters()).toBeNull();
   await settle();
-  expect(hooks.useAccountCharacters()).toEqual([]);
+  expect(characters()).toEqual([]);
 
   h.auth.session = null;
   identities.publishReadIdentity(null);
-  expect(hooks.useAccountCharacters()).toEqual([]);
+  expect(characters()).toEqual([]);
   expect(hooks.useActiveCharacterId()).toBeNull();
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
 });
@@ -103,21 +87,21 @@ test('an unreachable refresh keeps the remembered pilots, but a different pilot 
 test.each(['success', 'abort'] as const)('unmount aborts the request and ignores a late %s', async (completion) => {
   let resolve!: (value: unknown) => void;
   h.apiFetch.mockReturnValueOnce(new Promise((yes) => { resolve = yes; }));
-  hooks.useAccountCharacters();
+  characters();
   const signal = h.apiFetch.mock.calls[0]![1].signal as AbortSignal;
-  remount();
+  rt.unmount();
   expect(signal.aborted).toBe(true);
   if (completion === 'success') resolve({ ok: true, data: { characters: roster } });
   else resolve({ ok: false, kind: 'network', aborted: true, cause: new DOMException('aborted', 'AbortError') });
   await settle();
   h.apiFetch.mockReturnValueOnce(new Promise(() => {}));
-  expect(hooks.useAccountCharacters()).toBeNull();
+  expect(characters()).toBeNull();
 });
 
 test('authentication loading hides the roster and reports no active character', () => {
   h.auth = { session: null, loading: true };
   identities.publishReadIdentity(null);
-  expect(hooks.useAccountCharacters()).toBeNull();
+  expect(characters()).toBeNull();
   expect(hooks.useActiveCharacterId()).toBeNull();
   expect(h.apiFetch).not.toHaveBeenCalled();
   h.auth = { session: { characterId: 7 }, loading: false };
@@ -127,11 +111,11 @@ test('authentication loading hides the roster and reports no active character', 
 
 test('a different account with the same active character never receives the earlier roster', async () => {
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
-  hooks.useAccountCharacters();
+  characters();
   await settle();
-  expect(hooks.useAccountCharacters()).toEqual(roster);
+  expect(characters()).toEqual(roster);
   identities.publishReadIdentity({ userId: 'account-b', characterId: 7 });
   h.apiFetch.mockReturnValueOnce(new Promise(() => {}));
-  expect(hooks.useAccountCharacters()).toBeNull();
+  expect(characters()).toBeNull();
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });

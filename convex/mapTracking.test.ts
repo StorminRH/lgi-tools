@@ -1,6 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
-import { ConvexError } from 'convex/values';
+import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
@@ -8,6 +7,7 @@ import schema from './schema';
 import { readTrackedPilotSystemIds } from './mapTrackingLive';
 import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
 
+import { claimReconciler, expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 
 const tracking = {
@@ -23,25 +23,9 @@ const EDITOR = 'user-editor';
 const CHAR = 90_000_001;
 const CHAR_B = 90_000_002;
 
-type Chain = TestConvex<typeof schema>;
-let nextRevision = 1;
 
 function asUser(t: Chain, userId: string) {
   return t.withIdentity({ subject: userId });
-}
-
-async function grant(
-  t: Chain,
-  mapId: string,
-  claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
-) {
-  const revision = nextRevision;
-  nextRevision += 1;
-  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
-    mapId,
-    revision,
-    claims,
-  });
 }
 
 async function readBookkeeping(t: Chain) {
@@ -87,8 +71,9 @@ async function readTracking(t: Chain, mapId?: string) {
 describe('mapTracking.setTracking', () => {
   it('opts one character into tracking per map and tears it down independently', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    await grant(t, MAP_B, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await reconcile(MAP_B, [{ userId: OWNER, roles: ['admin'] }]);
 
     await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
@@ -119,7 +104,8 @@ describe('mapTracking.setTracking', () => {
 
   it('is idempotent on repeated opt-in and opt-out', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
 
     await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
@@ -150,8 +136,9 @@ describe('mapTracking.setTracking', () => {
 
   it('deletes that map+character bookkeeping stamp on untrack and leaves the rest', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    await grant(t, MAP_B, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await reconcile(MAP_B, [{ userId: OWNER, roles: ['admin'] }]);
     await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
@@ -203,7 +190,8 @@ describe('mapTracking.setTracking', () => {
 
   it('preserves a foreign tracker stamp when the caller has no matching row', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -224,14 +212,15 @@ describe('mapTracking.setTracking', () => {
     expect(await readBookkeeping(t)).toEqual([
       { mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100 },
     ]);
-    await expect(asUser(t, 'no-access').mutation(tracking.setTracking, {
+    await expectConvexErrorCode(asUser(t, 'no-access').mutation(tracking.setTracking, {
       mapId: MAP_A, characterId: CHAR, tracked: false,
-    })).rejects.toThrow(ConvexError);
+    }), 'FORBIDDEN');
   });
 
   it('retains shared bookkeeping until the last user stops tracking', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -258,7 +247,8 @@ describe('mapTracking.setTracking', () => {
 
   it('refuses opt-in beyond the per-(map, user) cap but keeps toggle-off/re-add working', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     const caller = asUser(t, OWNER);
     await t.run(async (ctx) => {
       for (let index = 0; index < TRACKED_CHARACTERS_PER_MAP_USER_CAP; index += 1) {
@@ -270,13 +260,14 @@ describe('mapTracking.setTracking', () => {
       }
     });
 
-    await expect(
+    await expectConvexErrorCode(
       caller.mutation(tracking.setTracking, {
         mapId: MAP_A,
         characterId: 92_000_000,
         tracked: true,
       }),
-    ).rejects.toThrow(ConvexError);
+      'TRACKING_CAP_EXCEEDED',
+    );
 
     await caller.mutation(tracking.setTracking, {
       mapId: MAP_A,
@@ -297,7 +288,8 @@ describe('mapTracking.setTracking', () => {
 
   it('shows all pilots beyond 256 and enforces map capacity without blocking opt-out', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
       for (let index = 0; index < TRACKED_CHARACTERS_PER_MAP_CAP - 1; index += 1) {
         await ctx.db.insert('mapTracking', {
@@ -317,9 +309,9 @@ describe('mapTracking.setTracking', () => {
       characterIds: result.tracked.map(({ characterId }) => characterId),
     });
     expect(coverage.coverage).toHaveLength(TRACKED_CHARACTERS_PER_MAP_CAP);
-    await expect(caller.mutation(tracking.setTracking, {
+    await expectConvexErrorCode(caller.mutation(tracking.setTracking, {
       ...selection, characterId: CHAR_B,
-    })).rejects.toThrow('TRACKING_MAP_CAP_EXCEEDED');
+    }), 'TRACKING_MAP_CAP_EXCEEDED');
     await caller.mutation(tracking.setTracking, { ...selection, tracked: false });
     await caller.mutation(tracking.setTracking, { ...selection, characterId: CHAR_B });
 
@@ -327,28 +319,28 @@ describe('mapTracking.setTracking', () => {
     await t.run((ctx) => ctx.db.insert('mapTracking', {
       mapId: MAP_A, userId: 'legacy-overflow', characterId: CHAR,
     }));
-    await expect(caller.query(tracking.forMap, { mapId: MAP_A }))
-      .rejects.toThrow('TRACKING_SCAN_LIMIT');
-    await expect(t.run((ctx) => readTrackedPilotSystemIds(ctx, MAP_A)))
-      .rejects.toThrow('TRACKING_SCAN_LIMIT');
+    await expectConvexErrorCode(caller.query(tracking.forMap, { mapId: MAP_A }), 'TRACKING_SCAN_LIMIT');
+    await expectConvexErrorCode(t.run((ctx) => readTrackedPilotSystemIds(ctx, MAP_A)), 'TRACKING_SCAN_LIMIT');
   });
 
   it('refuses setTracking without a map-access claim', async () => {
     const t = convexTest(schema, modules);
-    await expect(
+    await expectConvexErrorCode(
       asUser(t, OWNER).mutation(tracking.setTracking, {
         mapId: MAP_A,
         characterId: CHAR,
         tracked: true,
       }),
-    ).rejects.toThrow(ConvexError);
+      'FORBIDDEN',
+    );
   });
 });
 
 describe('mapTrackingLive.forMap', () => {
   it('keys tracked rows by character, never naming the tracking account, and discloses nothing for a forged row', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -409,7 +401,8 @@ describe('mapTrackingLive.forMap', () => {
 
   it('answers coverage per character: covered when any tracking account holds flip-only coverage', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -455,7 +448,8 @@ describe('mapTrackingLive.forMap', () => {
 
   it('finds coverage held only by the thirty-third account tracking a shared character', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
       for (let index = 0; index < 33; index += 1) {
         const userId = `tracker-${index}`;
@@ -481,7 +475,8 @@ describe('mapTrackingLive.forMap', () => {
 
   it('reduces parallel locations by movement time and preserves the first location on ties', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
       for (const [index, transitionObservedAt, observedAt] of [
         [0, 100, 500], [1, 200, 300], [2, 200, 900],
@@ -513,7 +508,8 @@ describe('mapTrackingLive.forMap', () => {
 
   it('rejects map-wide coverage overflow for both client formats while disclosing nothing without access', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
       for (let index = 0; index <= TRACKED_CHARACTERS_PER_MAP_CAP; index += 1) {
         await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: `tracker-${index}`, characterId: CHAR });
@@ -523,14 +519,15 @@ describe('mapTrackingLive.forMap', () => {
       { mapId: MAP_A, characterIds: [CHAR] },
       { mapId: MAP_A, identities: [{ userId: OWNER, characterId: CHAR }] },
     ]) {
-      await expect(asUser(t, OWNER).query(tracking.coverage, args)).rejects.toThrow('TRACKING_SCAN_LIMIT');
+      await expectConvexErrorCode(asUser(t, OWNER).query(tracking.coverage, args), 'TRACKING_SCAN_LIMIT');
       expect(await asUser(t, EDITOR).query(tracking.coverage, args)).toEqual({ coverage: [] });
     }
   });
 
   it('accepts older client identities while ignoring account identifiers and deduplicating characters', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: CHAR });
       await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: CHAR_B });
@@ -563,7 +560,8 @@ describe('mapTrackingLive.forMap', () => {
 
   it.each(['characterIds', 'identities'] as const)('answers %s coverage as an empty list without access (subscription doctrine)', async (input) => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     const args = input === 'characterIds'
       ? { mapId: MAP_A, characterIds: [CHAR] }
       : { mapId: MAP_A, identities: [{ userId: OWNER, characterId: CHAR }] };
@@ -573,12 +571,13 @@ describe('mapTrackingLive.forMap', () => {
 
   it.each(['characterIds', 'identities'] as const)('rejects oversized %s coverage requests before deduplication', async (input) => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     const characterIds = Array.from({ length: TRACKED_CHARACTERS_PER_MAP_CAP + 1 }, () => CHAR);
     const args = input === 'characterIds'
       ? { mapId: MAP_A, characterIds }
       : { mapId: MAP_A, identities: characterIds.map((characterId) => ({ userId: OWNER, characterId })) };
-    await expect(asUser(t, OWNER).query(tracking.coverage, args)).rejects.toThrow('TRACKING_SCAN_LIMIT');
+    await expectConvexErrorCode(asUser(t, OWNER).query(tracking.coverage, args), 'TRACKING_SCAN_LIMIT');
   });
 
   it.each([
@@ -586,13 +585,15 @@ describe('mapTrackingLive.forMap', () => {
     { mapId: MAP_A, characterIds: [], identities: [] },
   ])('rejects coverage requests without exactly one input shape (%j)', async (args) => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    await expect(asUser(t, OWNER).query(tracking.coverage, args)).rejects.toThrow('INVALID_COVERAGE_ARGS');
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await expectConvexErrorCode(asUser(t, OWNER).query(tracking.coverage, args), 'INVALID_COVERAGE_ARGS');
   });
 
   it('answers coverage only for characters tracked on the map', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
       await ctx.db.insert('characterLocationCovered', {
         userId: OWNER,
@@ -627,14 +628,15 @@ describe('mapTrackingLive.forMap', () => {
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
     });
 
-    await grant(t, MAP_A, []);
+    await reconcile(MAP_A, []);
 
     const result = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
     expect(result).toEqual({ tracked: [], ownTrackedCharacterIds: [] });
@@ -644,7 +646,8 @@ describe('mapTrackingLive.forMap', () => {
 describe('mapTracking revocation cascade', () => {
   it('deletes the revoked user\'s mapTracking rows in the same reconcile apply', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -672,7 +675,7 @@ describe('mapTracking revocation cascade', () => {
       });
     });
 
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
 
     expect(await readTracking(t, MAP_A)).toEqual([
       { mapId: MAP_A, userId: OWNER, characterId: CHAR },
@@ -684,7 +687,8 @@ describe('mapTracking revocation cascade', () => {
 
   it('retains shared bookkeeping through one user revocation and clears it on map teardown', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
@@ -697,14 +701,14 @@ describe('mapTracking revocation cascade', () => {
       mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100,
     }));
 
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     expect(await readTracking(t)).toEqual([
       { mapId: MAP_A, userId: OWNER, characterId: CHAR },
     ]);
     expect(await readBookkeeping(t)).toEqual([
       { mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100 },
     ]);
-    await grant(t, MAP_A, []);
+    await reconcile(MAP_A, []);
     expect(await readTracking(t)).toEqual([]);
     expect(await readBookkeeping(t)).toEqual([]);
   });
@@ -736,7 +740,8 @@ describe('mapTracking revocation cascade', () => {
 
   it('sweeps every mapTracking row on full map teardown (claims: [])', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
@@ -765,7 +770,7 @@ describe('mapTracking revocation cascade', () => {
       });
     });
 
-    await grant(t, MAP_A, []);
+    await reconcile(MAP_A, []);
 
     expect(await readTracking(t, MAP_A)).toEqual([]);
     expect(await readBookkeeping(t)).toEqual([

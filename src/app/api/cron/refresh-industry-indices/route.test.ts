@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const refreshIndustryIndicesMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const dbMock = {};
 
 let lockGot = true;
-const reservedTag = Object.assign(
-  vi.fn(() => Promise.resolve([{ got: lockGot }])),
-  { release: vi.fn() },
+const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
+  () => Promise.resolve([{ got: lockGot }]),
 );
-const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
 
 vi.mock('@/data/industry-indices/constants', () => ({
   ADVISORY_LOCK_INDUSTRY_INDICES: 41,
@@ -31,15 +32,7 @@ vi.mock('@/db', () => ({
 vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => dbMock }));
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
-function authedRequest(): Request {
-  return new Request('http://localhost:3000/api/cron/refresh-industry-indices', {
-    headers: { authorization: 'Bearer test-secret' },
-  });
-}
+const ROUTE = '/api/cron/refresh-industry-indices';
 
 const SUMMARY = {
   costIndices: { ok: true, written: 7, durationMs: 12 },
@@ -55,8 +48,8 @@ describe('GET /api/cron/refresh-industry-indices', () => {
     reserveMock.mockClear();
     reservedTag.mockClear();
     lockGot = true;
-    vi.stubEnv('CRON_SECRET', 'test-secret');
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {
@@ -65,7 +58,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
   });
 
   it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(
       new Request('http://localhost:3000/api/cron/refresh-industry-indices'),
     );
@@ -77,8 +70,8 @@ describe('GET /api/cron/refresh-industry-indices', () => {
 
   it('returns busy and records the contention metadata', async () => {
     lockGot = false;
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'busy' });
     expect(refreshIndustryIndicesMock).not.toHaveBeenCalled();
@@ -93,8 +86,8 @@ describe('GET /api/cron/refresh-industry-indices', () => {
 
   it('returns the dataset summary and records each dataset outcome', async () => {
     refreshIndustryIndicesMock.mockResolvedValue(SUMMARY);
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(refreshIndustryIndicesMock).toHaveBeenCalledWith(dbMock);
     expect(await response.json()).toEqual({

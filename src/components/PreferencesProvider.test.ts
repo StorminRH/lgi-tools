@@ -1,27 +1,20 @@
 import type { ReactElement } from 'react';
 import { expect, test, vi } from 'vitest';
+import { settle } from '@/lib/__tests__/hook-runtime';
 import type { PreferenceDef } from '@/lib/preferences';
 
-// Effects re-run only when their deps change, as React does across renders.
 const h = vi.hoisted(() => ({
   identity: null as { userId: string; characterId: number } | null,
   apiFetch: vi.fn(),
   toastError: vi.fn(),
-  deps: undefined as unknown[] | undefined,
-  cleanup: undefined as (() => void) | undefined,
 }));
+// Effects re-run only when their deps change, as React does across renders.
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react')>()),
-  useCallback: <T>(callback: T) => callback,
+  ...rt.react,
   useContext: () => null,
-  useEffect: (effect: () => void | (() => void), deps: unknown[]) => {
-    if (h.deps && deps.every((value, i) => Object.is(value, h.deps![i]))) return;
-    h.cleanup?.();
-    h.deps = deps;
-    h.cleanup = effect() || undefined;
-  },
-  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('@/platform/auth/components/AuthProvider', () => ({
   useAuth: () => ({ session: null, isAdmin: false, loading: false }),
@@ -41,12 +34,11 @@ type SetPreference = <T>(def: PreferenceDef<T>, value: T) => void;
 
 /** A fresh module graph (the store is module state) over an empty browser storage. */
 async function loadPreferences(identity: typeof h.identity) {
+  rt.unmount();
   vi.resetModules();
   h.identity = identity;
   h.apiFetch.mockReset();
   h.toastError.mockReset();
-  h.deps = undefined;
-  h.cleanup = undefined;
   const storage = new Map<string, string>();
   vi.stubGlobal('window', {
     localStorage: {
@@ -59,13 +51,9 @@ async function loadPreferences(identity: typeof h.identity) {
   const { sitesView } = await import('@/lib/preferences');
   const endpoints = await import('@/data/preferences/api-contract');
   const render = (): SetPreference =>
-    (preferences.PreferencesProvider({ children: null }) as ReactElement<{ value: SetPreference }>)
+    (rt.render(preferences.PreferencesProvider, { children: null }) as ReactElement<{ value: SetPreference }>)
       .props.value;
   return { ...preferences, ...endpoints, render, sitesView, storage };
-}
-
-async function settle() {
-  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 test('set saves locally while signed out and also to the server once ReadIdentity names a user', async () => {

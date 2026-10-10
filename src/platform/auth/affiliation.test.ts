@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const mocks = vi.hoisted(() => ({
   fetchAffiliations: vi.fn(),
@@ -45,6 +46,6 @@ test('does no work for empty input and fails closed when persistence fails', asy
   expect(mocks.updateAffiliations).not.toHaveBeenCalled();
   mocks.fetchAffiliations.mockResolvedValue({ rows: [{ characterId: 101 }], transientFailure: false });
   mocks.updateAffiliations.mockRejectedValue(new Error('database unavailable'));
-  vi.spyOn(console, 'error').mockImplementation(() => {});
+  silenceConsolePrefixes('error', ['[auth/affiliation] refresh failed']);
   await expect(refreshAffiliationsWithOutcome([101])).resolves.toEqual({ refreshed: 0, accessChanged: false, transientFailure: true });
 });

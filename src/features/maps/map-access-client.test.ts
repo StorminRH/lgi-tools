@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { conflictFailure, dependencyUnavailableFailure } from '@/lib/failure';
+import { problemBody, type ProblemBody } from '@/lib/problem';
 
 const mocks = vi.hoisted(() => ({ apiFetch: vi.fn() }));
 
@@ -27,13 +29,10 @@ describe('map access client', () => {
         ok: false,
         kind: 'api',
         status: 503,
-        error: {
-          type: 'about:blank',
-          title: 'Unavailable',
-          status: 503,
-          code: 'map_projection_unavailable',
-          correlationId: 'test-correlation',
-        },
+        error: problemBody(
+          dependencyUnavailableFailure('map_projection_unavailable'),
+          'test-correlation',
+        ) as ProblemBody & { code: 'map_projection_unavailable' },
       }),
     ).toContain('Retry the same change');
   });
@@ -44,7 +43,7 @@ describe('map access client', () => {
         ok: false,
         kind: 'api',
         status: 409,
-        error: { type: 'about:blank', title: 'Conflict', status: 409, code, correlationId: 'c' },
+        error: problemBody(conflictFailure(code), 'c') as ProblemBody & { code: typeof code },
       });
     expect(conflict('map_block_owner')).toBe('This character belongs to the map owner.');
     expect(conflict('map_block_self')).toBe("You can't block your own character.");

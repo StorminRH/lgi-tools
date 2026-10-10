@@ -1,7 +1,8 @@
 import { beforeEach, expect, test, vi } from 'vitest';
+import { adminSessionFixture, sessionFixture } from '@/composition/__tests__/session-fixture';
 
 const h = vi.hoisted(() => ({
-  getSessionMock: vi.fn(),
+  getSessionMock: vi.fn<() => Promise<BetterAuthSession | null>>(),
   redirectMock: vi.fn(),
   requireSameOriginMock: vi.fn(),
 }));
@@ -27,10 +28,11 @@ import {
   checkSession,
   checkUserId,
   requireAdminPage,
+  type BetterAuthSession,
 } from './route-guards';
 
-const MEMBER = { user: { id: 'user-1' }, characterId: 90000001, isAdmin: false };
-const ADMIN = { user: { id: 'admin-1' }, characterId: 90000002, isAdmin: true };
+const MEMBER = sessionFixture({ user: { id: 'user-1' }, characterId: 90000001 });
+const ADMIN = adminSessionFixture({ user: { id: 'admin-1' }, characterId: 90000002 });
 const REQUEST = new Request('https://lgi.tools/api/admin/role', { method: 'POST' });
 
 beforeEach(() => {

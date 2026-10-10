@@ -2,6 +2,7 @@ import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { PanelCharacter } from '@/platform/auth/panel-character';
+import { industryJob } from '../__tests__/job-fixture';
 import type { ViewerJobs } from '../live-derive';
 
 const h = vi.hoisted(() => ({
@@ -93,17 +94,14 @@ test('live jobs and empty boards use the right pilot, names, progress and sync t
       [1, {
         characterId: 1,
         lastRefreshedAt: NOW - 60_000,
-        data: { jobs: [{
-          job_id: 1,
+        data: { jobs: [industryJob({
           installer_id: 1,
-          activity_id: 1,
           blueprint_type_id: 688,
           product_type_id: 638,
           runs: 2,
-          status: 'active',
           start_date: new Date(NOW - 3_600_000).toISOString(),
           end_date: new Date(NOW + 3_600_000).toISOString(),
-        }] },
+        })] },
       }],
       [2, { characterId: 2, lastRefreshedAt: NOW - 60_000, data: { jobs: [] } }],
     ]),

@@ -1,17 +1,10 @@
-import { NextRequest } from 'next/server';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const SESSION = {
-  user: { id: 'eve-user-1' },
-  session: {},
-  characterId: 100,
-  name: 'Alice',
-  portraitUrl: 'a',
-  role: 'USER' as const,
-  isAdmin: false,
-};
+const SESSION = sessionFixture();
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const accountBelongsToUserMock = vi.fn();
 const setActiveCharacterMock = vi.fn();
 const logUsageEventMock = vi.fn();
@@ -31,15 +24,10 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
+import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/active-character', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/account/active-character';
 
 beforeEach(() => {
   getSessionMock.mockReset();
@@ -51,13 +39,13 @@ beforeEach(() => {
 
 test('refuses anonymous, invalid, and unowned character switches', async () => {
   getSessionMock.mockResolvedValue(null);
-  expect((await POST(buildRequest({ characterId: '200' }))).status).toBe(401);
+  expect((await POST(postForm(ROUTE, { characterId: '200' }))).status).toBe(401);
 
   getSessionMock.mockResolvedValue(SESSION);
-  expect((await POST(buildRequest({ characterId: 'not-a-number' }))).status).toBe(400);
+  expect((await POST(postForm(ROUTE, { characterId: 'not-a-number' }))).status).toBe(400);
 
   accountBelongsToUserMock.mockResolvedValue(false);
-  expect((await POST(buildRequest({ characterId: '999' }))).status).toBe(400);
+  expect((await POST(postForm(ROUTE, { characterId: '999' }))).status).toBe(400);
   expect(setActiveCharacterMock).not.toHaveBeenCalled();
 });
 
@@ -65,7 +53,7 @@ test('sets the active character and redirects on a valid switch', async () => {
   getSessionMock.mockResolvedValue(SESSION);
   accountBelongsToUserMock.mockResolvedValue(true);
   setActiveCharacterMock.mockResolvedValue(undefined);
-  const res = await POST(buildRequest({ characterId: '200' }));
+  const res = await POST(postForm(ROUTE, { characterId: '200' }));
   expect(res.status).toBe(303);
   expect(res.headers.get('location')).toBe('http://localhost:3000/settings/characters');
   expect(setActiveCharacterMock).toHaveBeenCalledWith('eve-user-1', 200);

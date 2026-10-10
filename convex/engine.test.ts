@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import {
   HIDDEN_PRESENCE_MAX_MS,
   isColdFromPresence,
@@ -13,27 +14,20 @@ import { api, internal } from './_generated/api';
 import { MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import type { Doc, Id } from './_generated/dataModel';
 import schema from './schema';
+import { scheduledFunctionsNamed, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 
-type T = TestConvex<typeof schema>;
 type JobId = Id<'_scheduled_functions'>;
 
-async function scheduledFunctionsNamed(t: T, name: string) {
-  return t.run(async (ctx) => {
-    const rows = await ctx.db.system.query('_scheduled_functions').collect();
-    return rows.filter((row) => row.name.includes(name));
-  });
-}
-
-async function scheduledSyncUsers(t: T) {
+async function scheduledSyncUsers(t: Chain) {
   return scheduledFunctionsNamed(t, 'syncUser');
 }
 
-async function pendingSyncUsers(t: T) {
+async function pendingSyncUsers(t: Chain) {
   return (await scheduledSyncUsers(t)).filter((job) => job.state.kind === 'pending');
 }
 
-function jobById(t: T, id: JobId) {
+function jobById(t: Chain, id: JobId) {
   return t.run((ctx) => ctx.db.system.get('_scheduled_functions', id));
 }
 
@@ -56,7 +50,7 @@ function beat(args: {
   };
 }
 
-function heartbeat(t: T, args: Parameters<typeof beat>[0]) {
+function heartbeat(t: Chain, args: Parameters<typeof beat>[0]) {
   return t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat(args));
 }
 
@@ -73,13 +67,13 @@ function stateRow(overrides: Partial<Doc<'locationSync'>> = {}) {
   };
 }
 
-async function seedState(t: T, overrides: Partial<Doc<'locationSync'>> = {}) {
+async function seedState(t: Chain, overrides: Partial<Doc<'locationSync'>> = {}) {
   await t.run(async (ctx) => {
     await ctx.db.insert('locationSync', stateRow(overrides));
   });
 }
 
-function readState(t: T, userId = USER) {
+function readState(t: Chain, userId = USER) {
   return t.run((ctx) =>
     ctx.db
       .query('locationSync')
@@ -88,7 +82,7 @@ function readState(t: T, userId = USER) {
   );
 }
 
-async function seedPresence(t: T, overrides: Partial<Doc<'syncPresence'>> = {}) {
+async function seedPresence(t: Chain, overrides: Partial<Doc<'syncPresence'>> = {}) {
   const now = Date.now();
   await t.run(async (ctx) => {
     await ctx.db.insert('syncPresence', {
@@ -103,7 +97,7 @@ async function seedPresence(t: T, overrides: Partial<Doc<'syncPresence'>> = {}) 
   });
 }
 
-async function readVisiblePresence(t: T) {
+async function readVisiblePresence(t: Chain) {
   const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
   if (presence === null || typeof presence.lastVisibleAt !== 'number') {
     throw new Error('presence did not stamp visibility');
@@ -122,14 +116,14 @@ function coldPresence() {
   return { lastSeenAt: at, lastVisibleAt: at };
 }
 
-async function seedTracking(t: T, characterId = CHAR) {
+async function seedTracking(t: Chain, characterId = CHAR) {
   await t.run(async (ctx) => {
     await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: USER, characterId });
   });
 }
 
 /** A pending syncUser job carrying `generation`, as the scheduler would leave it. */
-function schedulePending(t: T, at: number, generation: number) {
+function schedulePending(t: Chain, at: number, generation: number) {
   return t.run((ctx) =>
     ctx.scheduler.runAt(at, internal.characterLocationSync.syncUser, { userId: USER, generation, schedulerVersion: 2 }),
   );
@@ -143,7 +137,7 @@ function schedulePending(t: T, at: number, generation: number) {
  * running one whose args fail validation (convex-test only validates at run
  * time).
  */
-async function terminalJob(t: T, kind: 'canceled' | 'success' | 'failed'): Promise<JobId> {
+async function terminalJob(t: Chain, kind: 'canceled' | 'success' | 'failed'): Promise<JobId> {
   const now = Date.now();
   if (kind === 'canceled') {
     return t.run(async (ctx) => {
@@ -158,13 +152,17 @@ async function terminalJob(t: T, kind: 'canceled' | 'success' | 'failed'): Promi
   }
   vi.stubEnv('SITE_URL', 'https://app.test');
   vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
-  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const args = kind === 'success' ? { userId: USER, generation: -1, schedulerVersion: 2 as const } : ({ userId: USER } as never);
   const id = await t.run((ctx) =>
     ctx.scheduler.runAt(now, internal.characterLocationSync.syncUser, args),
   );
   vi.advanceTimersByTime(0);
-  await t.finishInProgressScheduledFunctions();
+  const error = silenceConsolePrefixes('error', ['Error when running scheduled function characterLocationSync:syncUser']);
+  try {
+    await t.finishInProgressScheduledFunctions();
+  } finally {
+    error.mockRestore();
+  }
   expect((await jobById(t, id))?.state.kind).toBe(kind);
   return id;
 }
@@ -230,7 +228,7 @@ function success(
 }
 
 function finish(
-  t: T,
+  t: Chain,
   generation: number,
   outcome: ReturnType<typeof success> | { kind: 'failed'; error: string },
   leases: Array<{ characterId: number; accessToken: string; expiresAt: number }> = [],
@@ -803,12 +801,12 @@ describe('engineComplete deploy shims', () => {
   });
 
   const shims = {
-    chainDispatch: (t: T) =>
+    chainDispatch: (t: Chain) =>
       t.mutation(internal.engineComplete.chainDispatch, {
         dataset: 'characterLocation',
         userId: USER,
       }),
-    onSyncComplete: (t: T) =>
+    onSyncComplete: (t: Chain) =>
       t.mutation(internal.engineComplete.onSyncComplete, {
         workId: 'w-previous-deploy',
         context: { dataset: 'characterLocation', userId: USER },
@@ -876,7 +874,7 @@ describe('engineComplete deploy shims', () => {
 });
 
 describe('characterLocationApply.finishSync scheduling', () => {
-  async function seedRunning(t: T, overrides: Partial<Doc<'locationSync'>> = {}) {
+  async function seedRunning(t: Chain, overrides: Partial<Doc<'locationSync'>> = {}) {
     const runId = Date.now() - 10_000;
     await seedState(t, { runId, syncedCharacterIds: [CHAR], ...overrides });
     return runId;
@@ -966,7 +964,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
 
   it('re-arms a zero-yield run with jitter: all offline, nothing read, or a run-level error', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    silenceConsolePrefixes('warn', ['{"scope":"location:sync",']);
     const now = Date.now();
     const cases = [
       { outcome: success([CHAR], [offlineResult(CHAR, now + 60_000)]), minExpiresAt: now + 60_000 },
@@ -1026,7 +1024,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
   });
 
   it('stops when the watcher has gone cold: no next run, jobId null, coverage cleared', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
     const now = Date.now();
     for (const presence of [coldPresence(), null]) {
       for (const outcome of [
@@ -1072,7 +1070,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
 
   it('carries a heartbeat-scheduled run through syncUser into the next run', async () => {
     vi.stubEnv('SITE_URL', undefined);
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
     const t = convexTest(schema, modules);
     await seedTracking(t);
     await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });

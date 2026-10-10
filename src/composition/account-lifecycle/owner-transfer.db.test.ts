@@ -6,7 +6,7 @@ import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
 import { netWorthDays } from '@/features/net-worth/schema';
 import {
   createDbTestHarness,
-  seedCharacter as insertCharacter,
+  seedCharacter,
   seedEveAccount as insertEveAccount,
   seedUser as insertUser,
 } from '@/db/__tests__/support/db-test-harness';
@@ -115,12 +115,6 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     });
   }
 
-  async function seedCharacter(characterId: number) {
-    await insertCharacter(harness.db, characterId, {
-      portraitUrl: `https://images.example/${characterId}`,
-    });
-  }
-
   async function seedEveAccount(
     id: string,
     characterId: number,
@@ -128,12 +122,10 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     ownerHash: string | null,
     extra: { createdAt?: Date; accessToken?: string | null } = {},
   ) {
-    const createdAt = extra.createdAt ?? new Date();
     await insertEveAccount(harness.db, { id, characterId, userId }, {
       ownerHash,
       accessToken: extra.accessToken ?? null,
-      createdAt,
-      updatedAt: createdAt,
+      createdAt: extra.createdAt,
     });
   }
 
@@ -165,7 +157,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   });
 
   it('uses the credential tier on owner mismatch, deleting custody but retaining cache rows', async () => {
-    await seedCharacter(MOVED_CHAR);
+    await seedCharacter(harness.db, MOVED_CHAR);
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, H1);
     await harness.db.insert(session).values({
       id: 'source-session',
@@ -229,7 +221,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   });
 
   it('keeps a prior owner with siblings, rebinding identity email and active character', async () => {
-    await seedCharacter(MOVED_CHAR);
+    await seedCharacter(harness.db, MOVED_CHAR);
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, H1, { createdAt: new Date('2026-07-01T00:00:00Z') });
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, H1, { createdAt: new Date('2026-07-02T00:00:00Z') });
 
@@ -339,7 +331,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   });
 
   it('derives a null owner hash from the stored token: a mismatch purges the sold character', async () => {
-    await seedCharacter(MOVED_CHAR);
+    await seedCharacter(harness.db, MOVED_CHAR);
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, null, { accessToken: encryptToken(eveToken(H2)) });
 
     await expect(

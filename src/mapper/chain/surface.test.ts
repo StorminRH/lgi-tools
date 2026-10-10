@@ -1,24 +1,21 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { listSourceFiles, stripComments } from '@/lib/__tests__/source-scan';
 
 describe('mapper source contract', () => {
   const ROOT = 'src/mapper';
 
   function mapperFiles(): string[] {
-    return readdirSync(ROOT, { recursive: true, encoding: 'utf8' })
-      .filter(
-        (name) =>
-          /\.tsx?$/.test(name) &&
-          !name.includes('.test.') &&
-          !name.includes('__tests__/'),
-      )
-      .map((name) => name.replaceAll('\\', '/'));
+    return listSourceFiles({
+      roots: [ROOT],
+      extensions: ['.ts', '.tsx'],
+      skipDirectories: ['__tests__'],
+      skipSuffixes: ['.test.ts', '.test.tsx'],
+    }).map((file) => file.slice(`${ROOT}/`.length));
   }
 
   function sourceOf(relative: string): string {
-    return readFileSync(`${ROOT}/${relative}`, 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
+    return stripComments(readFileSync(`${ROOT}/${relative}`, 'utf8'));
   }
 
   it('walks the whole mapper zone', () => {

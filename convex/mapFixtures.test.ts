@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
 import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from './lib/mapConnectionLookup';
@@ -9,6 +9,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { expectConvexErrorCode, grantMapAccess, type Chain } from './__tests__/convexTest.setup';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -21,26 +22,13 @@ const NOW = 1_800_000_000_000;
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
 
-type Chain = TestConvex<typeof schema>;
-
 function asEditor(t: Chain, userId = EDITOR) {
   return t.withIdentity({ subject: userId });
 }
 
-async function grant(
-  t: Chain,
-  mapId: string,
-  userId: string,
-  roles: ('viewer' | 'editor' | 'admin')[],
-): Promise<void> {
-  await t.run(async (ctx) => {
-    await ctx.db.insert('mapAccess', { mapId, userId, roles });
-  });
-}
-
 async function seedMap(t: Chain, mapId = MAP_A, systemId = JITA): Promise<void> {
-  await grant(t, mapId, EDITOR, ['editor']);
-  await grant(t, mapId, VIEWER, ['viewer']);
+  await grantMapAccess(t, mapId, EDITOR, ['editor']);
+  await grantMapAccess(t, mapId, VIEWER, ['viewer']);
   await t.mutation(internal.mapFixturePlace.placeSystemFixture, { mapId, systemId });
 }
 
@@ -123,10 +111,6 @@ async function drain(
     cursor = page.continueCursor;
   }
   return { rows, pages, sawNonTerminalCursor };
-}
-
-async function expectConvexError(call: Promise<unknown>, code: string): Promise<void> {
-  await expect(call).rejects.toThrow(code);
 }
 
 beforeEach(() => {
@@ -263,7 +247,7 @@ describe('map chain fixtures', () => {
       });
       expect(second).toBe(first);
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixturePlace.placeSystemFixture, {
           mapId: MAP_A,
           systemId: 0,
@@ -306,9 +290,9 @@ describe('map chain fixtures', () => {
 
     it('refuses a jump with no endpoint on the map — a connection cannot come from nowhere', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixturePlace.placeJumpFixture, {
           mapId: MAP_A,
           fromSystemId: JITA,
@@ -351,7 +335,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixturePlace.placeJumpFixture, {
           mapId: MAP_A,
           fromSystemId: JITA,
@@ -407,7 +391,7 @@ describe('map chain fixtures', () => {
         transitionObservedAt: NOW,
       });
 
-      await expect(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureTracking.advanceTrackedLocationFixture, {
           mapId: MAP_A,
           userId: EDITOR,
@@ -417,7 +401,8 @@ describe('map chain fixtures', () => {
           prevFresh: true,
           transitionObservedAt: NOW + 1,
         }),
-      ).rejects.toThrow('FIXTURE_LOCATION_STALE');
+        'FIXTURE_LOCATION_STALE',
+      );
 
       const advanced = await t.mutation(
         internal.mapFixtureTracking.advanceTrackedLocationFixture,
@@ -466,7 +451,7 @@ describe('map chain fixtures', () => {
         t.mutation(internal.mapFixtureTracking.seedTrackedLocationFixture, {
           mapId: MAP_A, userId: EDITOR, characterId, solarSystemId: JITA, shipTypeId: null, transitionObservedAt: NOW,
         });
-      await expect(seed(90_404_222)).rejects.toThrow(/CHARACTER_NOT_ELIGIBLE/);
+      await expectConvexErrorCode(seed(90_404_222), 'CHARACTER_NOT_ELIGIBLE');
       await expect(seed(90_404_111)).resolves.toMatchObject({ toSolarSystemId: JITA });
     });
 
@@ -577,7 +562,7 @@ describe('map chain fixtures', () => {
         shipSize: null,
       });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
           mapId: MAP_A,
           connectionId,
@@ -598,13 +583,13 @@ describe('map chain fixtures', () => {
     it('refuses to collapse a connection belonging to another map', async () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);
-      await grant(t, MAP_B, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_B, EDITOR, ['editor']);
       await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
           mapId: MAP_B,
           connectionId,
@@ -638,7 +623,7 @@ describe('map chain fixtures', () => {
         systemId: bystander,
       });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
           mapId: MAP_A,
           connectionId,
@@ -796,11 +781,11 @@ describe('map chain fixtures', () => {
         }
       });
 
-      await expect(t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
+      await expectConvexErrorCode(t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
         fromSystemId: JITA,
         fromSignatureId: 'NEW-001',
-      })).rejects.toThrow('FIXTURE_MAP_TOO_LARGE');
+      }), 'FIXTURE_MAP_TOO_LARGE');
     });
 
     it('enriches a null field, no-ops on equality, and preserves a conflict', async () => {
@@ -915,7 +900,7 @@ describe('map chain fixtures', () => {
         systemId: AMARR,
       });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixturePlace.insertConnectionFixture, {
           mapId: MAP_A,
           massState: 'stable',
@@ -932,7 +917,7 @@ describe('map chain fixtures', () => {
     it('rejects a wormhole code without the wormhole group', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await expectConvexError(
+      await expectConvexErrorCode(
         observe(t, { group: 'combat', wormholeTypeCode: 'C247' }),
         'INCOHERENT_SIGNATURE',
       );
@@ -942,13 +927,13 @@ describe('map chain fixtures', () => {
     it('rejects a note whose target belongs to another map', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await grant(t, MAP_B, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_B, EDITOR, ['editor']);
       const foreign = await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureNotes.insertNoteFixture, {
           mapId: MAP_A,
           targetKind: 'system',
@@ -957,7 +942,7 @@ describe('map chain fixtures', () => {
         }),
         'INVALID_NOTE_TARGET',
       );
-      await expectConvexError(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureNotes.insertNoteFixture, {
           mapId: MAP_A,
           targetKind: 'map',
@@ -972,7 +957,7 @@ describe('map chain fixtures', () => {
     it('rejects an observation for a system that is not on the map', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await expectConvexError(observe(t, { systemId: 30_009_999 }), 'UNKNOWN_SYSTEM');
+      await expectConvexErrorCode(observe(t, { systemId: 30_009_999 }), 'UNKNOWN_SYSTEM');
     });
 
     it('rejects an unpaired or misordered tombstone', async () => {
@@ -984,7 +969,7 @@ describe('map chain fixtures', () => {
         { deletedAt: NOW, purgeAfter: null },
         { deletedAt: NOW, purgeAfter: NOW - 1 },
       ]) {
-        await expectConvexError(
+        await expectConvexErrorCode(
           t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, {
             mapId: MAP_A,
             systemId: JITA,
@@ -1004,7 +989,7 @@ describe('map chain fixtures', () => {
       async (collection) => {
         const t = convexTest(schema, modules);
         await seedMap(t);
-        await expectConvexError(
+        await expectConvexErrorCode(
           t.query(api.mapFixtures.readMapCollection, {
             mapId: MAP_A,
             collection,
@@ -1018,7 +1003,7 @@ describe('map chain fixtures', () => {
     it('rejects a signed-in caller holding no claim on the map', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await expectConvexError(
+      await expectConvexErrorCode(
         asEditor(t, STRANGER).query(api.mapFixtures.readMapCollection, {
           mapId: MAP_A,
           collection: 'systems',
@@ -1042,7 +1027,7 @@ describe('map chain fixtures', () => {
 
     it('unions capabilities across a multi-role claim', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, OWNER, ['admin', 'viewer']);
+      await grantMapAccess(t, MAP_A, OWNER, ['admin', 'viewer']);
       await expect(
         asEditor(t, OWNER).mutation(api.mapAuthoringHome.setHomeSystem, {
           mapId: MAP_A,
@@ -1054,7 +1039,7 @@ describe('map chain fixtures', () => {
     it('never returns another map’s rows', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await grant(t, MAP_B, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_B, EDITOR, ['editor']);
       await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,

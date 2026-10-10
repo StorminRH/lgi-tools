@@ -68,15 +68,6 @@ async function committedNodeIds(): Promise<number[]> {
   return rows.map((row) => row.itemId).sort((a, b) => a - b);
 }
 
-async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 3000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (await predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-  throw new Error('waitFor: condition not met before timeout');
-}
-
 describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () => {
   it('stores the tree and rebuilds placements from it, with the HQ unknown before a context pass', async () => {
     expect(await saveHoldingNodes(CORP, tree, NOW)).toBe('saved');
@@ -129,7 +120,7 @@ describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () =>
     await winnerHasInserted;
 
     const loser = saveHoldingNodes(CORP, tree, NOW);
-    await waitFor(async () => (await committedNodeIds()).length === 0);
+    await expect.poll(async () => (await committedNodeIds()).length, { timeout: 3_000, interval: 5 }).toBe(0);
     releaseWinner();
     await winner;
 

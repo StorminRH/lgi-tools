@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SectionEnvelope, SheetSections } from '@/features/character-sheet/types';
+import { industryJob } from '@/features/industry-jobs/__tests__/job-fixture';
 import { BOARD_GAPS, type BoardCharacter, type BoardHistoryDay } from './api-contract';
 import {
   assembleBoard,
@@ -364,13 +365,10 @@ describe('assembleBoardCharacter ready data', () => {
   });
 
   it('counts used slots by the shared slot rule: a repeated job_id or an activity outside the slot categories holds no slot', () => {
-    const job = (jobId: number, activityId: number) => ({
+    const job = (jobId: number, activityId: number) => industryJob({
       job_id: jobId,
       activity_id: activityId,
-      blueprint_type_id: 1002,
-      runs: 1,
-      status: 'active' as const,
-      start_date: '2026-09-27T00:00:00Z',
+      status: 'active',
       end_date: new Date(NOW + HOUR).toISOString(),
     });
     const jobs = [job(1, 1), job(1, 1), job(4, 7), job(5, 9)];

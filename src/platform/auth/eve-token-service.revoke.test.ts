@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { chain, state } = vi.hoisted(() => {
-  const state = { results: [] as unknown[] };
-  const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
-  };
-  for (const m of ['select', 'from', 'where', 'limit']) chain[m] = () => chain;
-  return { chain, state };
+const { chain } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
 });
 vi.mock('@/db', () => ({ db: chain }));
 
@@ -33,9 +29,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 import { revokeStoredCharacterToken } from './eve-token-service';
 
-
 beforeEach(() => {
-  state.results = [];
   decryptTokenMock.mockReset();
   revokeEveRefreshTokenMock.mockReset();
   revokeEveRefreshTokenMock.mockResolvedValue({ ok: true });
@@ -43,7 +37,6 @@ beforeEach(() => {
 
 describe('revokeStoredCharacterToken', () => {
   it('revokes the decrypted refresh token at EVE with the confidential-client creds', async () => {
-    state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
     decryptTokenMock.mockReturnValue('plain-refresh');
 
     await revokeStoredCharacterToken('cipher');
@@ -67,7 +60,6 @@ describe('revokeStoredCharacterToken', () => {
   });
 
   it('never throws when the revoke itself fails (best-effort — the purge must complete)', async () => {
-    state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
     decryptTokenMock.mockReturnValue('plain-refresh');
     revokeEveRefreshTokenMock.mockRejectedValue(new Error('CCP down'));
     await expect(revokeStoredCharacterToken('cipher')).resolves.toBeUndefined();

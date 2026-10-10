@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import type { BoardCharacter } from '@/composition/board/api-contract';
+import { industryJob } from '@/features/industry-jobs/__tests__/job-fixture';
 import type { ViewerJobs } from '@/features/industry-jobs/live-derive';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { addFacility, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
@@ -121,15 +122,8 @@ function jobsFor(characterId: number, activities: readonly number[]): ViewerJobs
     characterId,
     lastRefreshedAt: 1,
     data: {
-      jobs: activities.map((activity_id, index) => ({
-        job_id: characterId * 10 + index,
-        activity_id,
-        blueprint_type_id: 1,
-        runs: 1,
-        status: 'active',
-        start_date: '2026-09-29T00:00:00Z',
-        end_date: '2026-09-30T00:00:00Z',
-      })),
+      jobs: activities.map((activity_id, index) =>
+        industryJob({ job_id: characterId * 10 + index, activity_id, status: 'active' })),
     },
   };
 }

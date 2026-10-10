@@ -1,49 +1,27 @@
-import { getTableConfig, integer, pgTable, type PgTable } from 'drizzle-orm/pg-core';
+import { getTableConfig, integer, pgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
-import { reflectedSchemaTables } from '@/db/__tests__/support/schema-reflection';
+import {
+  reflectedSchemaTables,
+  registryCoverageDiff,
+} from '@/db/__tests__/support/schema-reflection';
 import { tableGrowthKey } from './__tests__/table-growth-census';
 import {
   DRIZZLE_MIGRATIONS_TABLE,
   TABLE_GROWTH_STORIES,
 } from './__tests__/table-growth-registry';
 
-function duplicates(keys: readonly string[]): string[] {
-  const seen = new Set<string>();
-  const repeated = new Set<string>();
-  for (const key of keys) {
-    if (seen.has(key)) repeated.add(key);
-    seen.add(key);
-  }
-  return [...repeated].sort();
-}
-
-function coverageDiff(
-  reflected: readonly PgTable[],
-  declaredKeys: readonly string[],
-): { missing: string[]; stale: string[]; duplicate: string[] } {
-  const expected = new Set([
-    ...reflected.map((table) => getTableConfig(table).name),
-    tableGrowthKey(DRIZZLE_MIGRATIONS_TABLE),
-  ]);
-  const declared = new Set(declaredKeys);
-  return {
-    missing: [...expected].filter((key) => !declared.has(key)).sort(),
-    stale: [...declared].filter((key) => !expected.has(key)).sort(),
-    duplicate: duplicates(declaredKeys),
-  };
-}
-
 function missingMessage(missing: readonly string[]): string {
   return `Undeclared table(s): ${missing.join(', ')}. Add a pruned, bounded, purge-managed, or retained growth story.`;
 }
 
 const tables = await reflectedSchemaTables();
+const expectedKeys = [...tables.map(tableGrowthKey), tableGrowthKey(DRIZZLE_MIGRATIONS_TABLE)];
 const declarationKeys = TABLE_GROWTH_STORIES.map((story) => tableGrowthKey(story.table));
 
 describe('table growth-story gate', () => {
   it('declares every schema table and Drizzle bookkeeping exactly once', () => {
-    const diff = coverageDiff(tables, declarationKeys);
+    const diff = registryCoverageDiff(expectedKeys, declarationKeys);
     expect(diff.missing, missingMessage(diff.missing)).toEqual([]);
     expect(diff.stale, `Stale declaration(s): ${diff.stale.join(', ')}`).toEqual([]);
     expect(diff.duplicate, `Duplicate declaration(s): ${diff.duplicate.join(', ')}`).toEqual([]);
@@ -89,7 +67,10 @@ describe('table growth-story gate', () => {
     const syntheticUndeclared = pgTable('synthetic_undeclared', {
       id: integer('id').primaryKey(),
     });
-    const diff = coverageDiff([...tables, syntheticUndeclared], declarationKeys);
+    const diff = registryCoverageDiff(
+      [...expectedKeys, tableGrowthKey(syntheticUndeclared)],
+      declarationKeys,
+    );
     expect(diff.missing).toEqual(['synthetic_undeclared']);
     expect(missingMessage(diff.missing)).toContain('synthetic_undeclared');
   });

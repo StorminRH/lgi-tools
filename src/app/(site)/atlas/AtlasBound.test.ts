@@ -1,10 +1,13 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { SessionCheckResult } from '@/composition/route-guards';
+import { unauthenticatedFailure } from '@/lib/failure';
 import { AtlasBound } from './AtlasBound';
 
 const mocks = vi.hoisted(() => ({
-  checkSession: vi.fn(),
+  checkSession: vi.fn<() => Promise<SessionCheckResult>>(),
   connection: vi.fn(),
   rethrow: vi.fn(),
   getScannerSiteIndex: vi.fn(),
@@ -98,13 +101,12 @@ vi.mock('./AtlasReturnRefresh', () => ({
   AtlasReturnRefresh: () => createElement('div', { 'data-atlas-return-refresh': '' }),
 }));
 
-const session = {
+const session = sessionFixture({
   user: { id: 'user-1' },
   characterId: 1,
   name: 'Mapper',
   portraitUrl: '/portrait.png',
-  role: 'USER',
-};
+});
 
 describe('AtlasBound', () => {
   beforeEach(() => {
@@ -134,7 +136,7 @@ describe('AtlasBound', () => {
   });
 
   it('lands guests on the sign-in page, admits signed-in members, fails closed on auth errors, and rethrows framework signals', async () => {
-    mocks.checkSession.mockResolvedValue({ ok: false, failure: { code: 'unauthenticated' } });
+    mocks.checkSession.mockResolvedValue({ ok: false, failure: unauthenticatedFailure() });
     const signedOut = renderToStaticMarkup(
       await AtlasBound({ mapSelected: false, returnHref: '/atlas' }),
     );

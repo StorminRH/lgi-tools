@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const h = vi.hoisted(() => {
   const done = { deleted: 0, finished: true };
@@ -133,14 +134,18 @@ describe('runHousekeeping', () => {
     });
     expect(summary.status).toBe('cleaned');
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
     h.pruneTrackingMergeReceipts.mockRejectedValueOnce(new Error('pending lookup unavailable'));
     await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'partial' });
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith(
+      '[housekeeping] account_merge_tracking_receipts failed',
+      expect.any(Error),
+    );
     errorSpy.mockRestore();
   });
 
   it('keeps going past a failed delete and marks the run partial', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
     prunes.pruneUsageLogs.mockRejectedValueOnce(new Error('usage_logs locked'));
 
     const summary = await runHousekeeping(NOW);
@@ -154,6 +159,7 @@ describe('runHousekeeping', () => {
     });
     expect(h.order).toContain('market_history');
     expect(h.reconcileTrackingMerges).toHaveBeenCalledOnce();
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith('[housekeeping] usage_logs failed', expect.any(Error));
     errorSpy.mockRestore();
   });
 
@@ -163,7 +169,7 @@ describe('runHousekeeping', () => {
   });
 
   it('marks the run partial when a retry fails or throws', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
     h.retryRequestedDeletions.mockResolvedValueOnce({ retried: 0, failed: 1 });
     await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'partial' });
 
@@ -176,6 +182,7 @@ describe('runHousekeeping', () => {
       failed: 0,
       error: 'direct endpoint unavailable',
     });
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith('[housekeeping] tracking_merges failed', expect.any(Error));
     errorSpy.mockRestore();
   });
 });

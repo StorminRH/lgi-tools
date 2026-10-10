@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import type { EsiRefreshJob } from '@/data/esi-refresh-jobs/types';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 
@@ -101,6 +102,10 @@ function job(
     finishedAt: null,
   };
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('drainEsiRefreshJobs', () => {
   beforeEach(() => {
@@ -325,8 +330,8 @@ describe('queued-job capability recording', () => {
     vi.clearAllMocks();
     mocks.recover.mockResolvedValue({ recovered: 0, retryable: [], deadLettered: [] });
     mocks.residual.mockResolvedValue({ dueCount: 0, earliestNextAttemptAt: null });
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['{"scope":"esi-refresh-worker:job",']);
+    silenceConsolePrefixes('log', ['{"scope":"esi-refresh-worker:residual",']);
   });
 
   function capabilityRows() {

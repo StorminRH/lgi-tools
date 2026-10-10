@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { internal } from './_generated/api';
 import { clearAccessLeases, writeAccessLeases } from './characterLocationAccess';
 import schema from './schema';
@@ -117,7 +118,7 @@ describe('characterLocationAccess.clearAccessLeases', () => {
 
 describe('finishSync lease generation guard', () => {
   it('persists vended leases and clears rejected ones for the owning generation', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
     const t = convexTest(schema, modules);
     await seedSyncState(t);
     await seedTracking(t);

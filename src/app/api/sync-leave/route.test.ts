@@ -27,16 +27,11 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 import { LeaveSyncDoorError } from '@/data/convex/leave-door';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-function request(body: unknown): Request {
-  return new Request('http://localhost:3000/api/sync-leave', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/sync-leave';
 
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
@@ -52,13 +47,13 @@ describe('POST /api/sync-leave', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     const anonymous = await POST(
-      request({ dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
+      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
     );
     expect(anonymous.status).toBe(401);
     expect(h.postLeaveSync).not.toHaveBeenCalled();
 
     const ok = await POST(
-      request({ dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
+      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
     );
     expect(ok.status).toBe(204);
     expect(h.postLeaveSync).toHaveBeenCalledWith({
@@ -70,7 +65,7 @@ describe('POST /api/sync-leave', () => {
 
   it('rejects a forged userId in the body', async () => {
     const forged = await POST(
-      request({
+      postJson(ROUTE, {
         dataset: 'characterLocation',
         tabId: 'tab-aaaa-bbbb',
         userId: 'someone-else',
@@ -86,7 +81,7 @@ describe('POST /api/sync-leave', () => {
   it('surfaces a Convex door failure as 503', async () => {
     h.postLeaveSync.mockRejectedValueOnce(new LeaveSyncDoorError('down'));
     const failed = await POST(
-      request({ dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
+      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
     );
     expect(failed.status).toBe(503);
   });

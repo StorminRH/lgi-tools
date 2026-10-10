@@ -1,16 +1,14 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
+import { postForm } from '@/lib/__tests__/route-requests';
 import { forbiddenFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 
-const ADMIN = {
-  user: { id: 'user-admin' },
-  session: {},
-  characterId: 90_000_001,
-  isAdmin: true,
-};
+const ADMIN = adminSessionFixture({ user: { id: 'user-admin' }, characterId: 90_000_001 });
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const requeueMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const sameOriginMock = vi.fn();
@@ -33,17 +31,7 @@ vi.mock('@/platform/auth/same-origin', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/esi-jobs/retry', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
-
-async function importRoute() {
-  return await import('./route');
-}
+const ROUTE = '/api/admin/esi-jobs/retry';
 
 describe('POST /api/admin/esi-jobs/retry', () => {
   beforeEach(() => {
@@ -57,8 +45,8 @@ describe('POST /api/admin/esi-jobs/retry', () => {
 
   it('returns 403 when there is no session', async () => {
     getSessionMock.mockResolvedValue(null);
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(403);
     expect(requeueMock).not.toHaveBeenCalled();
     expect(sameOriginMock).not.toHaveBeenCalled();
@@ -66,16 +54,16 @@ describe('POST /api/admin/esi-jobs/retry', () => {
 
   it('returns 403 when the caller is not an admin', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN, isAdmin: false });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(403);
     expect(requeueMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for an invalid job id', async () => {
     getSessionMock.mockResolvedValue(ADMIN);
-    const { POST } = await importRoute();
-    const request = buildRequest({ jobId: 'not-a-number' });
+    const { POST } = await import('./route');
+    const request = postForm(ROUTE, { jobId: 'not-a-number' });
     const response = await POST(request);
     expect(response.status).toBe(400);
     expect(sameOriginMock).toHaveBeenCalledWith(request);
@@ -91,8 +79,8 @@ describe('POST /api/admin/esi-jobs/retry', () => {
         'Cross-origin requests are not allowed',
       ),
     });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
 
     expect(response.status).toBe(403);
     expect(response.headers.get('Content-Type')).toBe(
@@ -108,8 +96,8 @@ describe('POST /api/admin/esi-jobs/retry', () => {
   it('returns 404 when the job is no longer dead-lettered', async () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'not_found' });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(404);
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
@@ -117,8 +105,8 @@ describe('POST /api/admin/esi-jobs/retry', () => {
   it('requeues, records one admin audit event, and redirects to the queue', async () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'requeued' });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
     expect(requeueMock).toHaveBeenCalledWith(7);
@@ -132,8 +120,8 @@ describe('POST /api/admin/esi-jobs/retry', () => {
   it('treats a live replacement as an idempotent success', async () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'superseded' });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
     expect(logUsageEventMock).toHaveBeenCalledOnce();

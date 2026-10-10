@@ -31,10 +31,6 @@ vi.mock('@/composition/sitemap', () => ({
   getSitemapEntries: (...args: unknown[]) => getSitemapEntriesMock(...args),
 }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
 describe('GET /api/cron/refresh-gsc', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -55,7 +51,7 @@ describe('GET /api/cron/refresh-gsc', () => {
   });
 
   it('syncs the sitemap URLs and returns the sync summary', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
 
     const response = await GET(new Request('http://localhost:3000/api/cron/refresh-gsc'));
 
@@ -66,7 +62,7 @@ describe('GET /api/cron/refresh-gsc', () => {
 
   it('lets an upstream sitemap failure escape before syncing', async () => {
     getSitemapEntriesMock.mockRejectedValue(new Error('sitemap failed'));
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
 
     await expect(
       GET(new Request('http://localhost:3000/api/cron/refresh-gsc')),

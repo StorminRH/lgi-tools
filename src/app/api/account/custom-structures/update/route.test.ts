@@ -18,7 +18,7 @@ vi.mock('@/features/custom-structures/queries', () => ({
   listCustomStructures: (...args: unknown[]) => h.listCustomStructuresMock(...args),
 }));
 
-import { NextRequest } from 'next/server';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
@@ -32,13 +32,7 @@ const BODY = {
   bonuses: { manufacturing: { me: 3.38, te: 39.2, cost: 4 }, reactions: { me: 0, te: 0 } },
 };
 
-function makeRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/custom-structures/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/account/custom-structures/update';
 
 beforeEach(() => {
   h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
@@ -53,7 +47,7 @@ describe('POST /api/account/custom-structures/update', () => {
       ok: false,
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
-    expect((await POST(makeRequest(BODY))).status).toBe(401);
+    expect((await POST(postJson(ROUTE, BODY))).status).toBe(401);
     expect(h.updateCustomStructureMock).not.toHaveBeenCalled();
   });
 
@@ -62,20 +56,20 @@ describe('POST /api/account/custom-structures/update', () => {
       ok: false,
       failure: { category: 'validation', code: 'unknown_system', detail: 'unknown system' },
     });
-    const res = await POST(makeRequest(BODY));
+    const res = await POST(postJson(ROUTE, BODY));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({ code: 'unknown_system' });
     expect(h.updateCustomStructureMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for entered bonuses alongside rigs', async () => {
-    const res = await POST(makeRequest({ ...BODY, rigTypeIds: [37170] }));
+    const res = await POST(postJson(ROUTE, { ...BODY, rigTypeIds: [37170] }));
     expect(res.status).toBe(400);
     expect(h.updateCustomStructureMock).not.toHaveBeenCalled();
   });
 
   it('overwrites the owned row and returns the list', async () => {
-    const res = await POST(makeRequest(BODY));
+    const res = await POST(postJson(ROUTE, BODY));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ structures: [BODY] });
     const { id, ...fields } = BODY;

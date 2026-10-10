@@ -29,8 +29,12 @@ vi.mock('@/data/eve-data/entity-names', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
-vi.mock('next/server', () => ({ after: (work: () => unknown) => work() }));
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: (work: () => unknown) => work(),
+}));
 
+import { postJson } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 import {
   MAX_CHARACTER_SEARCH_LENGTH,
@@ -48,20 +52,7 @@ const SCOPED_CHARACTER = {
   affiliationRefreshedAt: null,
 };
 
-function request(body: unknown): Request {
-  return new Request('http://localhost:3000/api/maps/search-characters', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  });
-}
+const ROUTE = '/api/maps/search-characters';
 
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
@@ -80,10 +71,10 @@ beforeEach(() => {
 describe('POST /api/maps/search-characters', () => {
   it('uses one owned scoped token for typeahead and resolves result names', async () => {
     h.esiFetch.mockResolvedValueOnce(
-      jsonResponse({ character: [196379789, 2112625428] }),
+      Response.json({ character: [196379789, 2112625428] }),
     );
 
-    const response = await POST(request({ search: '  Chribba  ' }));
+    const response = await POST(postJson(ROUTE, { search: '  Chribba  ' }));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -120,10 +111,10 @@ describe('POST /api/maps/search-characters', () => {
       { ...SCOPED_CHARACTER, scope: 'publicData' },
     ]);
     h.esiFetch.mockResolvedValueOnce(
-      jsonResponse({ characters: [{ id: 196379789, name: 'Chribba' }] }),
+      Response.json({ characters: [{ id: 196379789, name: 'Chribba' }] }),
     );
 
-    const response = await POST(request({ search: 'Chribba' }));
+    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -149,13 +140,13 @@ describe('POST /api/maps/search-characters', () => {
   it('preserves submitted casing and accepts the exact resolver canonical character name', async () => {
     h.listLinkedCharacters.mockResolvedValueOnce([]);
     h.esiFetch.mockResolvedValueOnce(
-      jsonResponse({
+      Response.json({
         characters: [{ id: 196379789, name: 'Chribba' }],
         corporations: [{ id: 1, name: 'chribba' }],
       }),
     );
 
-    const response = await POST(request({ search: 'chribba' }));
+    const response = await POST(postJson(ROUTE, { search: 'chribba' }));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -180,16 +171,16 @@ describe('POST /api/maps/search-characters', () => {
       { search: 'x'.repeat(MAX_CHARACTER_SEARCH_LENGTH + 1) },
       { search: 'Chribba', extra: true },
     ]) {
-      expect((await POST(request(body))).status).toBe(400);
+      expect((await POST(postJson(ROUTE, body))).status).toBe(400);
     }
     expect(h.listLinkedCharacters).not.toHaveBeenCalled();
     expect(h.esiFetch).not.toHaveBeenCalled();
   });
 
   it('returns the declared unavailable problem instead of silently falling back on scoped failure', async () => {
-    h.esiFetch.mockResolvedValueOnce(jsonResponse({ error: 'down' }, 503));
+    h.esiFetch.mockResolvedValueOnce(Response.json({ error: 'down' }, { status: 503 }));
 
-    const response = await POST(request({ search: 'Chribba' }));
+    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
 
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
@@ -199,10 +190,10 @@ describe('POST /api/maps/search-characters', () => {
   });
 
   it('returns unavailable when scoped result names cannot be resolved completely', async () => {
-    h.esiFetch.mockResolvedValueOnce(jsonResponse({ character: [196379789] }));
+    h.esiFetch.mockResolvedValueOnce(Response.json({ character: [196379789] }));
     h.resolveEntityNamesStrict.mockRejectedValueOnce(new Error('names unavailable'));
 
-    const response = await POST(request({ search: 'Chribba' }));
+    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
 
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
@@ -216,7 +207,7 @@ describe('POST /api/maps/search-characters', () => {
       kind: 'upstream_error',
     });
 
-    const response = await POST(request({ search: 'Chribba' }));
+    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
 
     expect(response.status).toBe(503);
     expect(h.esiFetch).not.toHaveBeenCalled();
@@ -228,7 +219,7 @@ describe('POST /api/maps/search-characters', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
 
-    expect((await POST(request({ search: 'Chribba' }))).status).toBe(401);
+    expect((await POST(postJson(ROUTE, { search: 'Chribba' }))).status).toBe(401);
     expect(h.listLinkedCharacters).not.toHaveBeenCalled();
     expect(h.esiFetch).not.toHaveBeenCalled();
   });
