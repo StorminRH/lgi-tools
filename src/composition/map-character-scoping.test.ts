@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const door = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/lib/convex-http-door', () => ({ postConvexHttpDoor: door.post }));
@@ -181,7 +182,7 @@ describe('scopeLegacyMap', () => {
 
 describe('scopeLegacyMaps', () => {
   it('counts each map, keeps going past a failure, and stops at the deadline', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[map-character-scoping] map kept for retry']);
     const listMapIds = vi.fn().mockResolvedValue(['a', 'b', 'c']);
     const d = deps({
       freezeTracking: vi.fn(async (mapId: string) => {

@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
+import { settle } from '@/lib/__tests__/hook-runtime';
 
 const h = vi.hoisted(() => ({
   apiFetch: vi.fn(),
@@ -35,8 +36,6 @@ function render(siteId: number, state?: unknown) {
   const html = renderToStaticMarkup(createElement(SiteCardWidget, { siteId }));
   return { html, load: () => h.effects[0]!() };
 }
-
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 test('the widget loads its site, settles a network failure on the error notice, and ignores a read it abandoned', async () => {
   const loading = render(7);

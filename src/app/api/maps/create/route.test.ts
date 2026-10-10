@@ -20,19 +20,14 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
+import { postJson } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 import {
   MAX_MAP_CREATE_GRANTS,
   MAX_MAP_NAME_LENGTH,
 } from '@/data/maps/api-contract';
 
-function request(body: unknown): Request {
-  return new Request('http://localhost:3000/api/maps/create', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/maps/create';
 
 const VALID_BODY = {
   name: 'Home chain',
@@ -49,18 +44,18 @@ beforeEach(() => {
 
 describe('POST /api/maps/create', () => {
   it('requires at least one linked creator character', async () => {
-    expect((await POST(request({ ...VALID_BODY, creatorCharacterIds: [] }))).status).toBe(400);
+    expect((await POST(postJson(ROUTE, { ...VALID_BODY, creatorCharacterIds: [] }))).status).toBe(400);
     expect(
-      (await POST(request({ ...VALID_BODY, creatorCharacterIds: [42] }))).status,
+      (await POST(postJson(ROUTE, { ...VALID_BODY, creatorCharacterIds: [42] }))).status,
     ).toBe(400);
     h.createProjectedMap.mockResolvedValueOnce({ ok: false, reason: 'unlinked-creator-character' });
-    const response = await POST(request({ ...VALID_BODY, creatorCharacterIds: [9] }));
+    const response = await POST(postJson(ROUTE, { ...VALID_BODY, creatorCharacterIds: [9] }));
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ code: 'invalid_body' });
   });
 
   it('reuses one authenticated identity for preflight and authorization', async () => {
-    const response = await POST(request(VALID_BODY));
+    const response = await POST(postJson(ROUTE, VALID_BODY));
 
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({ mapId: 'map-1' });
@@ -77,18 +72,18 @@ describe('POST /api/maps/create', () => {
       ok: false,
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
-    expect((await POST(request(VALID_BODY))).status).toBe(401);
+    expect((await POST(postJson(ROUTE, VALID_BODY))).status).toBe(401);
     expect(h.rateLimit).not.toHaveBeenCalled();
 
     h.checkUserId.mockResolvedValueOnce({ ok: true, userId: 'user-1' });
-    expect((await POST(request({ ...VALID_BODY, name: '   ' }))).status).toBe(400);
+    expect((await POST(postJson(ROUTE, { ...VALID_BODY, name: '   ' }))).status).toBe(400);
     expect(
-      (await POST(request({ ...VALID_BODY, name: 'x'.repeat(MAX_MAP_NAME_LENGTH + 1) }))).status,
+      (await POST(postJson(ROUTE, { ...VALID_BODY, name: 'x'.repeat(MAX_MAP_NAME_LENGTH + 1) }))).status,
     ).toBe(400);
     expect(
       (
         await POST(
-          request({
+          postJson(ROUTE, {
             name: 'Too many grants',
             grants: Array.from({ length: MAX_MAP_CREATE_GRANTS + 1 }, (_, index) => ({
               ownerType: 'character',
@@ -114,7 +109,7 @@ describe('POST /api/maps/create', () => {
 
     const statuses = [];
     for (let index = 0; index < 6; index += 1) {
-      statuses.push((await POST(request(VALID_BODY))).status);
+      statuses.push((await POST(postJson(ROUTE, VALID_BODY))).status);
     }
     expect(statuses).toEqual([201, 201, 201, 201, 201, 429]);
     expect(h.createProjectedMap).toHaveBeenCalledTimes(5);
@@ -124,8 +119,8 @@ describe('POST /api/maps/create', () => {
       .mockResolvedValueOnce({ ok: true, userId: 'user-1' })
       .mockResolvedValueOnce({ ok: true, userId: 'user-2' });
     counts.clear();
-    expect((await POST(request(VALID_BODY))).status).toBe(201);
-    expect((await POST(request(VALID_BODY))).status).toBe(201);
+    expect((await POST(postJson(ROUTE, VALID_BODY))).status).toBe(201);
+    expect((await POST(postJson(ROUTE, VALID_BODY))).status).toBe(201);
     expect(h.createProjectedMap).toHaveBeenCalledTimes(2);
   });
 
@@ -137,7 +132,7 @@ describe('POST /api/maps/create', () => {
       cause,
     });
 
-    expect((await POST(request(VALID_BODY))).status).toBe(503);
+    expect((await POST(postJson(ROUTE, VALID_BODY))).status).toBe(503);
     expect(consoleError).toHaveBeenCalledWith('[map] create projection failed', cause);
     consoleError.mockRestore();
   });

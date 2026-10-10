@@ -17,16 +17,11 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-function request(body: unknown): Request {
-  return new Request('http://localhost:3000/api/maps/signature-elimination', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/maps/signature-elimination';
 
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
@@ -38,25 +33,25 @@ beforeEach(() => {
 
 describe('POST /api/maps/signature-elimination', () => {
   it('rejects the retired single-system body', async () => {
-    expect((await POST(request({ mapId: 'map-1', systemId: 31_000_001 }))).status).toBe(400);
+    expect((await POST(postJson(ROUTE, { mapId: 'map-1', systemId: 31_000_001 }))).status).toBe(400);
     expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
   });
 
   it('rejects malformed and anonymous requests before dispatching', async () => {
-    const malformed = await POST(request({ mapId: 'map-1', systemIds: [-1] }));
+    const malformed = await POST(postJson(ROUTE, { mapId: 'map-1', systemIds: [-1] }));
     expect(malformed.status).toBe(400);
     expect(problemBodySchema.parse(await malformed.json())).toMatchObject({
       code: 'invalid_body',
     });
     expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
 
-    const tooMany = await POST(request({
+    const tooMany = await POST(postJson(ROUTE, {
       mapId: 'map-1',
       systemIds: [31_000_001, 31_000_002, 31_000_003],
     }));
     expect(tooMany.status).toBe(400);
 
-    const duplicated = await POST(request({
+    const duplicated = await POST(postJson(ROUTE, {
       mapId: 'map-1',
       systemIds: [31_000_001, 31_000_001],
     }));
@@ -67,7 +62,7 @@ describe('POST /api/maps/signature-elimination', () => {
       ok: false,
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
-    const anonymous = await POST(request({ mapId: 'map-1', systemIds: [31_000_001] }));
+    const anonymous = await POST(postJson(ROUTE, { mapId: 'map-1', systemIds: [31_000_001] }));
     expect(anonymous.status).toBe(401);
     expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
   });
@@ -78,7 +73,7 @@ describe('POST /api/maps/signature-elimination', () => {
         results: [{ systemId: 31_000_001, status }],
       });
       const body = { mapId: 'map-1', systemIds: [31_000_001] };
-      const response = await POST(request(body));
+      const response = await POST(postJson(ROUTE, body));
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         results: [{ systemId: 31_000_001, status }],

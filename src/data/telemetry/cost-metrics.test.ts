@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const logUsageEventMock = vi.fn();
 const afterMock = vi.fn();
@@ -21,6 +22,10 @@ describe('cost metrics', () => {
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
     afterMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('keeps the invocation alive while the usage event is written', async () => {
@@ -66,7 +71,7 @@ describe('cost metrics', () => {
     afterMock.mockImplementationOnce(() => {
       throw new Error('outside request scope');
     });
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[cost-metrics] telemetry scheduling failed']);
 
     expect(() => emitCostMetric('market_price_refresh', { requested: 1 })).not.toThrow();
     expect(logUsageEventMock).not.toHaveBeenCalled();

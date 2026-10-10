@@ -1,17 +1,39 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
-import { registerNeonColdStartTelemetry } from '@/instrumentation.node';
+const afterMock = vi.hoisted(() => vi.fn());
+vi.mock('next/server', () => ({ after: afterMock }));
+
+import { registerAfterResponseWork, registerNeonColdStartTelemetry } from '@/instrumentation.node';
 import { register } from '@/instrumentation';
+import { deferWork, setWorkDeferrer } from '@/lib/deferred-work';
 
-describe('coverage-gaps', () => {
-  it('pins leftover runtime exports on the test graph', () => {
-    const pinned = [
-      registerNeonColdStartTelemetry,
-      register,
-    ];
-    expect(pinned.length).toBeGreaterThan(0);
-    for (const value of pinned) {
-      expect(value).toBeDefined();
-    }
+afterEach(() => {
+  setWorkDeferrer(null);
+  afterMock.mockReset();
+});
+
+test('pins leftover runtime exports on the test graph', () => {
+  expect([registerNeonColdStartTelemetry, registerAfterResponseWork, register]).not.toContain(undefined);
+});
+
+test('defers work through after() inside a request scope', async () => {
+  registerAfterResponseWork();
+  const task = vi.fn(async () => {});
+
+  await deferWork(task);
+
+  expect(afterMock).toHaveBeenCalledWith(task);
+  expect(task).not.toHaveBeenCalled();
+});
+
+test('runs work now when after() refuses because there is no request scope', async () => {
+  afterMock.mockImplementation(() => {
+    throw new Error('`after` was called outside a request scope.');
   });
+  registerAfterResponseWork();
+  const task = vi.fn(async () => {});
+
+  await deferWork(task);
+
+  expect(task).toHaveBeenCalledOnce();
 });

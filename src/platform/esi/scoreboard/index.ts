@@ -12,7 +12,7 @@ export {
   type EsiScoreboard,
   type PreDispatchState,
 } from './types';
-export { normalizeEsiPath } from './keys';
+export { normalizeEsiPath, resolveRetryAfter } from './keys';
 
 type ResolvedScoreboard =
   | { backend: 'redis'; scoreboard: ReturnType<typeof createRedisScoreboard> }

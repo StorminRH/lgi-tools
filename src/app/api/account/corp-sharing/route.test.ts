@@ -31,19 +31,13 @@ vi.mock('@/platform/auth/corp-sharing-store', () => ({
   },
 }));
 
-import { NextRequest } from 'next/server';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
 const CORP = 98000001;
 
-function request(body: unknown): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/corp-sharing', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/account/corp-sharing';
 
 function pilotIn(corporationId: number) {
   return [{ characterId: 90001, sharedAccessEligible: true, corporationId, allianceId: null, factionId: null, refreshedAt: new Date() }];
@@ -59,7 +53,7 @@ beforeEach(() => {
 describe('POST /api/account/corp-sharing', () => {
   it('refuses a pilot who is not in the corporation', async () => {
     h.getUserAffiliations.mockResolvedValue(pilotIn(98000002));
-    const res = await POST(request({ corporationId: CORP, enabled: true }));
+    const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
     expect(res.status).toBe(403);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({ code: 'not_corp_member' });
     expect(h.switches.size).toBe(0);
@@ -67,7 +61,7 @@ describe('POST /api/account/corp-sharing', () => {
 
   it('refuses a member who is not a Director', async () => {
     h.probeAndStoreRoles.mockResolvedValue(['Station_Manager', 'Factory_Manager']);
-    const res = await POST(request({ corporationId: CORP, enabled: true }));
+    const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
     expect(res.status).toBe(403);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'not_director',
@@ -77,15 +71,15 @@ describe('POST /api/account/corp-sharing', () => {
   });
 
   it('lets a Director turn sharing on', async () => {
-    const res = await POST(request({ corporationId: CORP, enabled: true }));
+    const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ corporationId: CORP, enabled: true });
     expect(h.switches.get(CORP)).toEqual({ enabled: true, setBy: 90001 });
   });
 
   it('lands on the same value when the same request repeats', async () => {
-    const first = await POST(request({ corporationId: CORP, enabled: false }));
-    const second = await POST(request({ corporationId: CORP, enabled: false }));
+    const first = await POST(postJson(ROUTE, { corporationId: CORP, enabled: false }));
+    const second = await POST(postJson(ROUTE, { corporationId: CORP, enabled: false }));
     expect([first.status, second.status]).toEqual([200, 200]);
     expect(await second.json()).toEqual({ corporationId: CORP, enabled: false });
     expect([...h.switches]).toEqual([[CORP, { enabled: false, setBy: 90001 }]]);

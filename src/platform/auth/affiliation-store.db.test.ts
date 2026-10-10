@@ -52,12 +52,9 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
 
   async function seedCharacter(
     characterId: number,
-    overrides: Partial<typeof characters.$inferInsert> = {},
+    overrides?: Partial<typeof characters.$inferInsert>,
   ) {
-    await insertCharacter(harness.db, characterId, {
-      portraitUrl: `https://images.example/${characterId}`,
-      ...overrides,
-    });
+    await insertCharacter(harness.db, characterId, overrides);
   }
 
   async function seedEveAccount(id: string, characterId: number) {

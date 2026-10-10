@@ -20,6 +20,7 @@ const harness = await createDbTestHarness({
   schema: 'test_esi_refresh_jobs',
   tables: ['esi_refresh_jobs'],
   steerDbProxy: true,
+  resetBetweenTests: 'delete',
 });
 const NOW = new Date('2026-07-14T12:00:00Z');
 const OLD = new Date('2026-07-01T12:00:00Z');
@@ -41,7 +42,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
       resource: '/characters/2001/wallet/', status: 'deferred_for_budget',
       nextAttemptAt: new Date('2026-07-14T12:15:00Z'),
     });
-    await harness.db.delete(esiRefreshJobs).where(eq(esiRefreshJobs.id, first));
   });
 
   it('coalesces concurrent budget deferrals for the same dataset and owner', async () => {
@@ -78,7 +78,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
 
   it('prunes expired terminal rows and month-old dead letters, preserving the boundaries', async () => {
     const database = harness.db;
-    await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
       terminalJob('old-success', 'succeeded', OLD),
       terminalJob('boundary-success', 'succeeded', BOUNDARY),
@@ -101,7 +100,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
 
   it('keeps a dead letter superseded when its idempotency key already has a live job', async () => {
     const database = harness.db;
-    await database.delete(esiRefreshJobs);
     const [deadLetter] = await database
       .insert(esiRefreshJobs)
       .values([
@@ -129,7 +127,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
   });
 
   it('counts recent results while retaining older active and exhausted jobs', async () => {
-    await harness.db.delete(esiRefreshJobs);
     await harness.db.insert(esiRefreshJobs).values([
       terminalJob('old-success', 'succeeded', OLD),
       terminalJob('recent-success', 'succeeded', NOW),
@@ -143,7 +140,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
   });
 
   it('counts exactly the rows the single OR-predicate counted, for every status', async () => {
-    await harness.db.delete(esiRefreshJobs);
     const finishedAts = [
       null,
       new Date('2026-06-01T00:00:00Z'),
@@ -183,7 +179,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
 
   it('decodes the grouped oldest-created aggregate as a Date', async () => {
     const database = harness.db;
-    await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
       {
         ...terminalJob('older-queued', 'succeeded', OLD),
@@ -207,7 +202,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
     const database = harness.db;
     const earlier = new Date('2026-07-14T11:45:00Z');
     const later = new Date('2026-07-14T13:00:00Z');
-    await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
       {
         ...terminalJob('due-live', 'succeeded', earlier),
@@ -241,7 +235,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
 
   it('requeues a dead letter with every retry field reset', async () => {
     const database = harness.db;
-    await database.delete(esiRefreshJobs);
     const [deadLetter] = await database
       .insert(esiRefreshJobs)
       .values({
@@ -274,7 +267,6 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
 
   it('counts interrupted runs and dead-letters the fifth interruption', async () => {
     const database = harness.db;
-    await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
       runningJob('retry-interrupted', 2, new Date('2026-07-14T11:00:00Z')),
       runningJob('dead-interrupted', 4, new Date('2026-07-14T11:00:00Z')),

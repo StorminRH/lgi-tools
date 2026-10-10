@@ -62,6 +62,27 @@ describe('classifyFeatureUiImports', () => {
     ]);
   });
 
+  it('flags a feature component re-export that follows a type alias', () => {
+    const hits = classifyFeatureUiImports({
+      host: MAPPER_HOST,
+      source: [
+        'export type HostProps = { mapId: string };',
+        "export { SitesTable } from '@/features/wormhole-sites/components/SitesTable';",
+      ].join('\n'),
+      resolve: resolveMap({
+        [`${MAPPER_HOST}::@/features/wormhole-sites/components/SitesTable`]:
+          'src/features/wormhole-sites/components/SitesTable.tsx',
+      }),
+    });
+    expect(hits).toEqual([
+      {
+        kind: 'illegal',
+        host: MAPPER_HOST,
+        module: 'src/features/wormhole-sites/components/SitesTable.tsx',
+      },
+    ]);
+  });
+
   it('flags a hosted feature component that is not the slice widget', () => {
     const hits = classifyFeatureUiImports({
       host: MAPPER_HOST,

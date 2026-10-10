@@ -7,6 +7,7 @@ import schema from './schema';
 
 import { tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { modules } from './__tests__/modules.setup';
+import { expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import {
   AMARR,
   DODIXIE,
@@ -14,7 +15,6 @@ import {
   MAP_A,
   VIEWER,
   asUser,
-  expectConvexError,
   readConnection,
   readSystem,
   seedEmpty,
@@ -22,7 +22,6 @@ import {
   seedJump,
   installAuthoringTimers,
   restoreAuthoringTimers,
-  type Chain,
 } from './__tests__/mapAuthoring.setup';
 
 beforeEach(() => {
@@ -92,7 +91,7 @@ describe('map authoring', () => {
       async ({ name, fn }) => {
         const t = convexTest(schema, modules);
         const args = await argsFor(t, name);
-        await expectConvexError(
+        await expectConvexErrorCode(
           t.mutation(fn, args as never),
           'UNAUTHENTICATED',
         );
@@ -104,7 +103,7 @@ describe('map authoring', () => {
       async ({ name, fn }) => {
         const t = convexTest(schema, modules);
         const args = await argsFor(t, name);
-        await expectConvexError(
+        await expectConvexErrorCode(
           asUser(t, VIEWER).mutation(fn, args as never),
           'FORBIDDEN',
         );
@@ -114,7 +113,7 @@ describe('map authoring', () => {
     it('rejects an invalid wormhole code only after the edit gate', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t, VIEWER).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
           mapId: MAP_A,
           connectionId,
@@ -122,7 +121,7 @@ describe('map authoring', () => {
         }),
         'FORBIDDEN',
       );
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
           mapId: MAP_A,
           connectionId,
@@ -170,7 +169,7 @@ describe('map authoring', () => {
     it('refuses when a live system already exists (MAP_NOT_EMPTY)', async () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringHome.setHomeSystem, {
           mapId: MAP_A,
           systemId: AMARR,
@@ -204,7 +203,7 @@ describe('map authoring', () => {
     it('refuses an origin absent from the map (UNKNOWN_ORIGIN)', async () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
           mapId: MAP_A,
           fromSystemId: AMARR,
@@ -217,7 +216,7 @@ describe('map authoring', () => {
     it('refuses a self-loop', async () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
           mapId: MAP_A,
           fromSystemId: JITA,

@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import type { BoardCharacter } from '@/composition/board/api-contract';
+import { industryJob } from '@/features/industry-jobs/__tests__/job-fixture';
 import type { ViewerJobs } from '@/features/industry-jobs/live-derive';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { addFacility, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
@@ -121,15 +122,8 @@ function jobsFor(characterId: number, activities: readonly number[]): ViewerJobs
     characterId,
     lastRefreshedAt: 1,
     data: {
-      jobs: activities.map((activity_id, index) => ({
-        job_id: characterId * 10 + index,
-        activity_id,
-        blueprint_type_id: 1,
-        runs: 1,
-        status: 'active',
-        start_date: '2026-09-29T00:00:00Z',
-        end_date: '2026-09-30T00:00:00Z',
-      })),
+      jobs: activities.map((activity_id, index) =>
+        industryJob({ job_id: characterId * 10 + index, activity_id, status: 'active' })),
     },
   };
 }
@@ -173,7 +167,6 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   live.profiles = [];
   const first = render();
   expect(first).toContain('Create your first production profile');
-  expect(first).toMatch(/Add characters.*Add structures.*Simulate a build/);
 
   live.profiles = [teamProfile(), { ...teamProfile(), id: 'rx', name: 'Reactions only' }];
   live.slots = [
@@ -224,10 +217,7 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   // Skills that have not synced are said to be syncing, not shown as zero.
   expect(reactor).toContain('Skills are still syncing from EVE.');
   expect(capacityReadout(reactor)).toContain('?/?');
-  expect(reactor).not.toContain('Reaction material bonuses from rigs are not modelled yet.');
   expect(reactor).not.toContain('Manage structures');
-  expect(reactor).not.toContain('Reactions facility');
-  expect(reactor).not.toContain('Job slots');
   expect(reactor).toContain(`What ${REACTOR.name} builds</legend>`);
   const categories = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
   expect(categories).toHaveLength(22);

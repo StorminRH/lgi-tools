@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  problemBodySchema,
-  type ProblemBody,
-} from '@/lib/problem';
+  dependencyUnavailableFailure,
+  rateLimitedFailure,
+  validationFailure,
+} from '@/lib/failure';
+import { problemBody, type ProblemBody } from '@/lib/problem';
 import {
   FEEDBACK_NETWORK_ERROR_MESSAGE,
   feedbackErrorMessage,
@@ -35,38 +37,26 @@ describe('feedbackErrorMessage', () => {
     ok: false as const,
     kind: 'api' as const,
     status: 400 as const,
-    error: problemBodySchema.parse({
-      type: 'https://lgi.tools/problems/test',
-      title: 'Test',
-      status: 400,
-      code,
-      correlationId: 'correlation-id',
-      ...(detail === undefined ? {} : { detail }),
-    }) as ProblemBody & { code: typeof code },
+    error: problemBody(validationFailure(code, detail), 'correlation-id') as ProblemBody & {
+      code: typeof code;
+    },
   });
   const problem429 = {
     ok: false as const,
     kind: 'api' as const,
     status: 429 as const,
-    error: problemBodySchema.parse({
-      type: 'https://lgi.tools/problems/test',
-      title: 'Test',
-      status: 429,
-      code: 'rate_limited' as const,
-      correlationId: 'correlation-id',
-    }) as ProblemBody & { code: 'rate_limited' },
+    error: problemBody(rateLimitedFailure(60), 'correlation-id') as ProblemBody & {
+      code: 'rate_limited';
+    },
   };
   const problem502 = {
     ok: false as const,
     kind: 'api' as const,
     status: 502 as const,
-    error: problemBodySchema.parse({
-      type: 'https://lgi.tools/problems/test',
-      title: 'Test',
-      status: 502,
-      code: 'linear_failed' as const,
-      correlationId: 'correlation-id',
-    }) as ProblemBody & { code: 'linear_failed' },
+    error: problemBody(
+      dependencyUnavailableFailure('linear_failed', 502),
+      'correlation-id',
+    ) as ProblemBody & { code: 'linear_failed' },
   };
 
   it('maps validation, rate-limit, dependency, network, and protocol failures to user copy', () => {

@@ -5,6 +5,15 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import tsdoc from "eslint-plugin-tsdoc";
 
+// Builds the Literal + TemplateElement selector pair for one regex. The
+// template side may carry its own "(template literal)" message.
+function literalAndTemplate(pattern, message, templateMessage = message) {
+  return [
+    { selector: `Literal[value=/${pattern}/]`, message },
+    { selector: `TemplateElement[value.raw=/${pattern}/]`, message: templateMessage },
+  ];
+}
+
 const inlineStyleSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
@@ -30,16 +39,11 @@ const rawHtmlSelectors = [
 const cspSelectors = [...inlineStyleSelectors, ...rawHtmlSelectors];
 
 const hexColorSelectors = [
-  {
-    selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
-    message:
-      "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
-    message:
-      "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts.",
-  },
+  ...literalAndTemplate(
+    String.raw`\[[^\]]*#[0-9a-fA-F]{3,8}`,
+    "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts.",
+    "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts.",
+  ),
   {
     selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
     message:
@@ -47,69 +51,35 @@ const hexColorSelectors = [
   },
 ];
 
-const rgbaColorSelectors = [
-  {
-    selector: "Literal[value=/rgba\\s*\\(/]",
-    message:
-      "No raw rgba() colors at call sites — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/rgba\\s*\\(/]",
-    message:
-      "No raw rgba() colors at call sites (template literal) — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
-  },
-];
+const rgbaColorSelectors = literalAndTemplate(
+  String.raw`rgba\s*\(`,
+  "No raw rgba() colors at call sites — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
+  "No raw rgba() colors at call sites (template literal) — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
+);
 
-const textSizeSelectors = [
-  {
-    selector: "Literal[value=/text-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/text-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`).",
-  },
-];
+const textSizeSelectors = literalAndTemplate(
+  String.raw`text-\[[0-9.]+(px|rem|em)\]`,
+  "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`.",
+  "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`).",
+);
 
 const legacyTypeRoleSelectors = [
-  {
-    selector:
-      "Literal[value=/(?:^|\\s)(?:\\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
-    message:
-      "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
-  },
-  {
-    selector:
-      "TemplateElement[value.raw=/(?:^|\\s)(?:\\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
-    message:
-      "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
-  },
-  {
-    selector: "Literal[value=/(?:^|[\\s:])tracking-\\[0?\\.(?:01|04|08|12|18)em\\]/]",
-    message:
-      "No arbitrary tracking that equals a registered step — use tracking-optical (0.01em), tracking-copy (0.04em), tracking-label (0.08em), tracking-wide (0.12em) or tracking-eyebrow (0.18em).",
-  },
-  {
-    selector: "TemplateElement[value.raw=/(?:^|[\\s:])tracking-\\[0?\\.(?:01|04|08|12|18)em\\]/]",
-    message:
-      "No arbitrary tracking that equals a registered step (template literal) — use tracking-optical/copy/label/wide/eyebrow.",
-  },
+  ...literalAndTemplate(
+    String.raw`(?:^|\s)(?:\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\s|$)`,
+    "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
+  ),
+  ...literalAndTemplate(
+    String.raw`(?:^|[\s:])tracking-\[0?\.(?:01|04|08|12|18)em\]`,
+    "No arbitrary tracking that equals a registered step — use tracking-optical (0.01em), tracking-copy (0.04em), tracking-label (0.08em), tracking-wide (0.12em) or tracking-eyebrow (0.18em).",
+    "No arbitrary tracking that equals a registered step (template literal) — use tracking-optical/copy/label/wide/eyebrow.",
+  ),
 ];
 
-const roundedSizeSelectors = [
-  {
-    selector: "Literal[value=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary radii — use the named radius tokens (rounded-ctl / rounded-card), backed by `--radius-ctl` / `--radius-card` in globals.css `@theme`.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary radii (template literal) — use the named radius tokens (rounded-ctl / rounded-card).",
-  },
-];
+const roundedSizeSelectors = literalAndTemplate(
+  String.raw`rounded-\[[0-9.]+(px|rem|em)\]`,
+  "No raw arbitrary radii — use the named radius tokens (rounded-ctl / rounded-card), backed by `--radius-ctl` / `--radius-card` in globals.css `@theme`.",
+  "No raw arbitrary radii (template literal) — use the named radius tokens (rounded-ctl / rounded-card).",
+);
 
 const selectElementSelectors = [
   {
@@ -213,57 +183,25 @@ const uiSemanticSelectors = [
   actionClassSelector,
 ];
 
-const emptyStateTokenSelectors = [
-  {
-    selector: "Literal[value=/text-empty/]",
-    message:
-      "No empty-state token at a call site — consume the EmptyState primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/text-empty/]",
-    message:
-      "No empty-state token at a call site — consume the EmptyState primitive.",
-  },
-];
+const emptyStateTokenSelectors = literalAndTemplate(
+  "text-empty",
+  "No empty-state token at a call site — consume the EmptyState primitive.",
+);
 
-const toneTokenSelectors = [
-  {
-    selector: "Literal[value=/(?:bg|text|border)-(?:pill|chip)-/]",
-    message:
-      "No pill/chip tone token at a call site — consume the owning tone primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/(?:bg|text|border)-(?:pill|chip)-/]",
-    message:
-      "No pill/chip tone token at a call site — consume the owning tone primitive.",
-  },
-];
+const toneTokenSelectors = literalAndTemplate(
+  "(?:bg|text|border)-(?:pill|chip)-",
+  "No pill/chip tone token at a call site — consume the owning tone primitive.",
+);
 
-const skeletonTokenSelectors = [
-  {
-    selector: "Literal[value=/skeleton-shimmer/]",
-    message:
-      "No skeleton token at a call site — consume the Skeleton primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/skeleton-shimmer/]",
-    message:
-      "No skeleton token at a call site — consume the Skeleton primitive.",
-  },
-];
+const skeletonTokenSelectors = literalAndTemplate(
+  "skeleton-shimmer",
+  "No skeleton token at a call site — consume the Skeleton primitive.",
+);
 
-const progressTokenSelectors = [
-  {
-    selector: "Literal[value=/--pct/]",
-    message:
-      "No progress custom property at a call site — consume the ProgressBar primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/--pct/]",
-    message:
-      "No progress custom property at a call site — consume the ProgressBar primitive.",
-  },
-];
+const progressTokenSelectors = literalAndTemplate(
+  "--pct",
+  "No progress custom property at a call site — consume the ProgressBar primitive.",
+);
 
 const loadingToastSelector = {
   selector:
@@ -317,31 +255,16 @@ const directPostgresSelectors = [
   },
 ];
 
-const postgresConnectionStringSelectors = [
-  {
-    selector: "Literal[value=/^postgres(?:ql)?:\\/\\//]",
-    message:
-      "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/^postgres(?:ql)?:\\/\\//]",
-    message:
-      "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
-  },
-];
+const postgresConnectionStringSelectors = literalAndTemplate(
+  String.raw`^postgres(?:ql)?:\/\/`,
+  "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
+);
 
-const esiHostSelectors = [
-  {
-    selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
-    message:
-      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
-  },
-  {
-    selector: String.raw`TemplateElement[value.raw=/esi\.evetech\.net/]`,
-    message:
-      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
-  },
-];
+const esiHostSelectors = literalAndTemplate(
+  String.raw`esi\.evetech\.net`,
+  "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
+  "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
+);
 
 const bareFetchSelectors = [
   {
@@ -351,18 +274,11 @@ const bareFetchSelectors = [
   },
 ];
 
-const ssoHostSelectors = [
-  {
-    selector: String.raw`Literal[value=/login\.eveonline\.com/]`,
-    message:
-      "Don't hand-write EVE SSO URLs — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
-  },
-  {
-    selector: String.raw`TemplateElement[value.raw=/login\.eveonline\.com/]`,
-    message:
-      "Don't hand-write EVE SSO URLs (template literal) — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
-  },
-];
+const ssoHostSelectors = literalAndTemplate(
+  String.raw`login\.eveonline\.com`,
+  "Don't hand-write EVE SSO URLs — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
+  "Don't hand-write EVE SSO URLs (template literal) — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
+);
 
 const imageVariantSelectors = [
   {
@@ -563,51 +479,52 @@ const wormholeSiteSchemaImportPatterns = [
   },
 ];
 
-function selectorsWithout(selectors, exemptions) {
-  return selectors.filter((selector) => !exemptions.includes(selector));
+// A later matching block replaces a rule's options outright, so every owner
+// block restates its canonical list minus its own exemptions. Exemptions
+// match by identity: pass the group arrays (or single selector objects)
+// declared above, never copies.
+function except(list, ...exemptions) {
+  return list.filter((entry) => !exemptions.includes(entry));
 }
 
-function productionSyntaxSelectorsExcept(...exemptions) {
-  return [
-    ...bareFetchSelectors,
-    ...ssoHostSelectors,
-    ...cspSelectors,
-    ...hexColorSelectors,
-    ...rgbaColorSelectors,
-    ...apiFetchSelectors,
-    ...processEnvSelectors,
-    ...esiHostSelectors,
-    ...textSizeSelectors,
-    ...legacyTypeRoleSelectors,
-    ...roundedSizeSelectors,
-    ...selectElementSelectors,
-    ...inputClassSelectors,
-    ...selectorsWithout(uiAdoptionSelectors, exemptions),
-    ...datasetTtlSelectors,
-    ...imageVariantSelectors,
-  ];
-}
+const baseSyntaxSelectors = [
+  ...cspSelectors,
+  ...hexColorSelectors,
+  ...rgbaColorSelectors,
+  ...apiFetchSelectors,
+];
 
-function primitiveSyntaxSelectorsExcept(...exemptions) {
-  return [
-    ...bareFetchSelectors,
-    ...ssoHostSelectors,
-    ...cspSelectors,
-    ...hexColorSelectors,
-    ...rgbaColorSelectors,
-    ...apiFetchSelectors,
-    ...processEnvSelectors,
-    ...esiHostSelectors,
-    ...textSizeSelectors,
-    ...legacyTypeRoleSelectors,
-    ...roundedSizeSelectors,
-    ...selectElementSelectors,
-    ...inputClassSelectors,
-    ...selectorsWithout(uiAdoptionSelectors, exemptions),
-    ...datasetTtlSelectors,
-    ...imageVariantSelectors,
-  ];
-}
+const testSyntaxSelectors = [
+  ...baseSyntaxSelectors,
+  ...datasetTtlSelectors,
+  ...imageVariantSelectors,
+];
+
+const productionSyntaxSelectors = [
+  ...bareFetchSelectors,
+  ...ssoHostSelectors,
+  ...baseSyntaxSelectors,
+  ...processEnvSelectors,
+  ...esiHostSelectors,
+  ...textSizeSelectors,
+  ...legacyTypeRoleSelectors,
+  ...roundedSizeSelectors,
+  ...selectElementSelectors,
+  ...inputClassSelectors,
+  ...uiAdoptionSelectors,
+  ...datasetTtlSelectors,
+  ...imageVariantSelectors,
+];
+
+const srcImportPatterns = [
+  ...vendorImportPatterns,
+  ...crossCuttingImportPatterns,
+  ...baseUiImportPatterns,
+  ...deprecatedBaseUiImportPatterns,
+  ...sonnerImportPatterns,
+];
+
+const clientImportPatterns = [...srcImportPatterns, ...serverRootImportPatterns];
 
 const corpAccessBoundary = {
   meta: {
@@ -797,18 +714,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
-        },
+        { paths: [...nextImageImportPaths], patterns: srcImportPatterns },
       ],
     },
   },
@@ -825,19 +731,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
-        },
+        { paths: [...nextImageImportPaths], patterns: clientImportPatterns },
       ],
     },
   },
@@ -847,17 +741,8 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...stalenessImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...reactFlowImportPatterns),
         },
       ],
     },
@@ -876,14 +761,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...wormholeSiteSchemaImportPatterns,
-          ],
+          patterns: [...srcImportPatterns, ...wormholeSiteSchemaImportPatterns],
         },
       ],
     },
@@ -899,15 +777,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-            ...wormholeSiteSchemaImportPatterns,
-          ],
+          patterns: [...clientImportPatterns, ...wormholeSiteSchemaImportPatterns],
         },
       ],
     },
@@ -915,19 +785,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/components/eve-image.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { patterns: clientImportPatterns }],
     },
   },
   {
@@ -936,16 +794,8 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...baseUiImportPatterns),
         },
       ],
     },
@@ -956,16 +806,8 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...sonnerImportPatterns),
         },
       ],
     },
@@ -976,16 +818,8 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...crossCuttingImportPatterns),
         },
       ],
     },
@@ -1023,13 +857,7 @@ const eslintConfig = defineConfig([
                 "Cron outcome telemetry belongs to defineCronRoute or CronWorkContext.record.",
             },
           ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: srcImportPatterns,
         },
       ],
     },
@@ -1047,17 +875,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...upstashRedisImportPatterns),
         },
       ],
     },
@@ -1069,17 +887,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...upstashRatelimitImportPatterns),
         },
       ],
     },
@@ -1096,17 +904,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...databaseDriverImportPatterns),
         },
       ],
     },
@@ -1123,17 +921,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...betterAuthImportPatterns),
         },
       ],
     },
@@ -1145,18 +933,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          patterns: except(clientImportPatterns, ...convexReactImportPatterns),
         },
       ],
     },
@@ -1168,17 +945,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...googleAuthImportPatterns),
         },
       ],
     },
@@ -1193,18 +960,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          patterns: except(clientImportPatterns, ...betterAuthImportPatterns),
         },
       ],
     },
@@ -1216,17 +972,11 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          patterns: except(
+            clientImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+          ),
         },
       ],
     },
@@ -1234,28 +984,14 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-      ],
+      "no-restricted-syntax": ["error", ...baseSyntaxSelectors],
     },
   },
   {
     files: ["src/**/*.test.{ts,tsx}"],
     ignores: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
-      ],
+      "no-restricted-syntax": ["error", ...testSyntaxSelectors],
     },
   },
   {
@@ -1263,14 +999,9 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
+        ...testSyntaxSelectors,
         ...directPostgresSelectors,
         ...postgresConnectionStringSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
       ],
     },
   },
@@ -1278,25 +1009,7 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}", "src/lib/env.ts"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
-      ],
+      "no-restricted-syntax": ["error", ...productionSyntaxSelectors],
     },
   },
   {
@@ -1305,21 +1018,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...esiHostSelectors),
       ],
     },
   },
@@ -1328,21 +1027,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...processEnvSelectors),
       ],
     },
   },
@@ -1351,21 +1036,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...hexColorSelectors),
       ],
     },
   },
@@ -1374,19 +1045,12 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...legacyTypeRoleSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(
+          productionSyntaxSelectors,
+          ...hexColorSelectors,
+          ...textSizeSelectors,
+          ...roundedSizeSelectors,
+        ),
       ],
     },
   },
@@ -1395,22 +1059,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...rawHtmlSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...inlineStyleSelectors),
       ],
     },
   },
@@ -1420,21 +1069,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...datasetTtlSelectors),
       ],
     },
   },
@@ -1443,11 +1078,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...imageVariantSelectors,
+        ...except(testSyntaxSelectors, ...datasetTtlSelectors),
       ],
     },
   },
@@ -1456,21 +1087,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
+        ...except(productionSyntaxSelectors, ...imageVariantSelectors),
       ],
     },
   },
@@ -1479,11 +1096,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...datasetTtlSelectors,
+        ...except(testSyntaxSelectors, ...imageVariantSelectors),
       ],
     },
   },
@@ -1495,10 +1108,7 @@ const eslintConfig = defineConfig([
         "error",
         ...bareFetchSelectors,
         ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
+        ...baseSyntaxSelectors,
       ],
     },
   },
@@ -1507,21 +1117,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...bareFetchSelectors),
       ],
     },
   },
@@ -1534,31 +1130,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
-      ],
-    },
-  },
-  {
-    files: ["src/components/ui/**/*.{ts,tsx,mts}"],
-    ignores: ["**/*.test.{ts,tsx}", "src/components/ui/tones.ts"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...primitiveSyntaxSelectorsExcept(),
+        ...except(productionSyntaxSelectors, ...ssoHostSelectors),
       ],
     },
   },
@@ -1571,7 +1143,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(rawButtonSelector, ...toneTokenSelectors),
+        ...except(productionSyntaxSelectors, rawButtonSelector, ...toneTokenSelectors),
       ],
     },
   },
@@ -1580,7 +1152,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(
+        ...except(
+          productionSyntaxSelectors,
           rawButtonSelector,
           liveRegionSelector,
           ...toneTokenSelectors,
@@ -1593,7 +1166,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(detailsSelector),
+        ...except(productionSyntaxSelectors, detailsSelector),
       ],
     },
   },
@@ -1602,7 +1175,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...toneTokenSelectors),
+        ...except(productionSyntaxSelectors, liveRegionSelector, ...toneTokenSelectors),
       ],
     },
   },
@@ -1611,7 +1184,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...skeletonTokenSelectors),
+        ...except(productionSyntaxSelectors, liveRegionSelector, ...skeletonTokenSelectors),
       ],
     },
   },
@@ -1620,7 +1193,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(visibleInputSelector, textareaSelector),
+        ...except(productionSyntaxSelectors, visibleInputSelector, textareaSelector),
       ],
     },
   },
@@ -1629,7 +1202,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(tableSelector),
+        ...except(productionSyntaxSelectors, tableSelector),
       ],
     },
   },
@@ -1647,7 +1220,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(...toneTokenSelectors),
+        ...except(productionSyntaxSelectors, ...toneTokenSelectors),
       ],
     },
   },
@@ -1656,7 +1229,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(...emptyStateTokenSelectors),
+        ...except(productionSyntaxSelectors, ...emptyStateTokenSelectors),
       ],
     },
   },
@@ -1665,7 +1238,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(...progressTokenSelectors),
+        ...except(productionSyntaxSelectors, ...progressTokenSelectors),
       ],
     },
   },
@@ -1674,7 +1247,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(loadingToastSelector),
+        ...except(productionSyntaxSelectors, loadingToastSelector),
       ],
     },
   },
@@ -1683,7 +1256,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(nativeTitleSelector),
+        ...except(productionSyntaxSelectors, nativeTitleSelector),
       ],
     },
   },
@@ -1692,7 +1265,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(rawButtonSelector),
+        ...except(productionSyntaxSelectors, rawButtonSelector),
       ],
     },
   },
@@ -1707,7 +1280,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(buttonTitleSelector),
+        ...except(productionSyntaxSelectors, buttonTitleSelector),
       ],
     },
   },
@@ -1718,7 +1291,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(detailsSelector),
+        ...except(productionSyntaxSelectors, detailsSelector),
       ],
     },
   },

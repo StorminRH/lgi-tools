@@ -1,7 +1,9 @@
 import { BetterAuthError } from 'better-auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const listLinkedCharactersMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
@@ -63,7 +65,7 @@ describe('industryCharacters', () => {
   });
 
   it('lists every pilot and which of them can sync personal and corporation jobs', async () => {
-    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
+    getSessionMock.mockResolvedValue(sessionFixture());
     listLinkedCharactersMock.mockResolvedValue([
       linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
       linked(200, JOB_SCOPE, false),
@@ -88,14 +90,14 @@ describe('jobCharacterIds', () => {
   });
 
   it('logs a failed read and gives none instead of failing the section', async () => {
-    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
+    getSessionMock.mockResolvedValue(sessionFixture());
     listLinkedCharactersMock.mockRejectedValue(new Error('neon: connection terminated'));
     expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [] });
     expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 
   it('passes the eligible ids through', async () => {
-    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
+    getSessionMock.mockResolvedValue(sessionFixture());
     listLinkedCharactersMock.mockResolvedValue([linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`)]);
     expect(await jobCharacterIds()).toEqual({ jobIds: [100], corpIds: [100] });
   });

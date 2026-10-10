@@ -31,13 +31,6 @@ const permissiveScoreboard = {
   },
 };
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
 function station(id: number, overrides: Partial<typeof eveNpcStations.$inferInsert> = {}) {
   return {
     id,
@@ -78,7 +71,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
       station(60_000_004, { name: 'Already named' }),
     ]);
     fetchMock.mockResolvedValue(
-      jsonResponse([
+      Response.json([
         { category: 'station', id: 60_000_001, name: 'Manufacturing Station' },
         { category: 'station', id: 60_000_002, name: 'Research Station' },
         { category: 'constellation', id: 60_000_002, name: 'Wrong category' },
@@ -140,7 +133,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
       requestedBatches.push(ids);
       if (requestedBatches.length === 1) return Promise.reject(new Error('first batch failed'));
       return Promise.resolve(
-        jsonResponse(ids.map((id) => ({ category: 'station', id, name: `Station ${id}` }))),
+        Response.json(ids.map((id) => ({ category: 'station', id, name: `Station ${id}` }))),
       );
     });
 
@@ -158,7 +151,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
 
   it('warns on malformed response envelopes and keeps the station unresolved', async () => {
     await harness.db.insert(eveNpcStations).values(station(60_000_001));
-    fetchMock.mockResolvedValue(jsonResponse({ names: [] }));
+    fetchMock.mockResolvedValue(Response.json({ names: [] }));
 
     await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
 
@@ -171,7 +164,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
 
   it('accepts an empty response without warning or changing the station', async () => {
     await harness.db.insert(eveNpcStations).values(station(60_000_001));
-    fetchMock.mockResolvedValue(jsonResponse([]));
+    fetchMock.mockResolvedValue(Response.json([]));
 
     await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
 

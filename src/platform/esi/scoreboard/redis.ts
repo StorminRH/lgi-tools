@@ -10,7 +10,6 @@ import {
   KEY_ERROR_ECHO,
   keyEtagBody,
   keyEtagMeta,
-  keyGroup,
   normalizeEsiPath,
   parseStoredInt,
   parseStoredMeta,
@@ -22,7 +21,6 @@ import {
   CALL_COUNT_TTL_SECONDS,
   ERROR_COUNT_TTL_SECONDS,
   ETAG_TTL_SECONDS,
-  GROUP_STATE_TTL_SECONDS,
   type EsiAvailabilitySnapshot,
   type EsiReport,
   type EsiBudgetSnapshot,
@@ -116,7 +114,6 @@ class RedisScoreboard implements EsiScoreboard {
       this.queueCallCount(pipeline, report),
       this.queueErrorCount(pipeline, report),
       this.queueErrorEcho(pipeline, report),
-      this.queueGroupState(pipeline, report),
       this.queueRetryBlock(pipeline, report),
       this.queueEtag(pipeline, report),
     ];
@@ -158,23 +155,6 @@ class RedisScoreboard implements EsiScoreboard {
       return true;
     }
     return false;
-  }
-
-  private queueGroupState(pipeline: Pipeline, report: EsiReport): boolean {
-    if (report.rateLimitGroup === null || report.rateLimitLimit === null) {
-      return false;
-    }
-    pipeline.set(
-      keyGroup(report.rateLimitGroup),
-      JSON.stringify({
-        limit: report.rateLimitLimit,
-        remaining: report.rateLimitRemaining,
-        used: report.rateLimitUsed,
-        observedAt: Date.now(),
-      }),
-      { ex: GROUP_STATE_TTL_SECONDS },
-    );
-    return true;
   }
 
   private queueRetryBlock(pipeline: Pipeline, report: EsiReport): boolean {

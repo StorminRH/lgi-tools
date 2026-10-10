@@ -2,32 +2,34 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#654](https://github.com/StorminRH/lgi-tools/pull/654).
+
 ← [Wave 1: Quick wins: delete dead code, fix small correctness and perf bugs](wave-01-quick-wins-delete-dead-code-fix-small.md) · [Index](README.md#roadmap) · [Wave 3: src/lib primitives: collections, math, async, errors, browser](wave-03-src-lib-primitives-collections-math-async.md) →
 
 Make every later PR cheaper and safer. P334 provides one ESLint exemption builder, so later lint additions are one-liners. P340 trims the coverage pins after wave-1 deletions. Shared helpers then replace the hand-rolled fakes: Convex error and seeding, route requests, session fixtures, console prefix silencing, problem bodies, DB harness, reserved connection, query chain, registry diff, domain fixtures, hook runtime and source-scan. The two medium-risk helpers (P338 hook runtime, P339 source-scan) go last. Each must show a planted violation still failing the gate it serves.
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P334](#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
-| ☐ | [P340](#p340) | Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body | testing | M | low | high | — |
-| ☐ | [P216](#p216) | Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup | testing | M | low | medium | — |
-| ☐ | [P341](#p341) | Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders | testing | M | low | medium | — |
-| ☐ | [P344](#p344) | Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests | testing | S | low | medium | — |
-| ☐ | [P346](#p346) | Add a prefix-scoped console silencer in lib test support and migrate the unasserted blanket spies | testing | M | low | medium | — |
-| ☐ | [P342](#p342) | Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json | testing | S | low | low | — |
-| ☐ | [P343](#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
-| ☐ | [P349](#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
-| ☐ | [P244](#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
-| ☐ | [P347](#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
-| ☐ | [P348](#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
-| ☐ | [P338](#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
-| ☐ | [P339](#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
+| ☑ | [P334](#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
+| ☑ | [P340](#p340) | Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body | testing | M | low | high | — |
+| ☑ | [P216](#p216) | Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup | testing | M | low | medium | — |
+| ☑ | [P341](#p341) | Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders | testing | M | low | medium | — |
+| ☑ | [P344](#p344) | Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests | testing | S | low | medium | — |
+| ☑ | [P346](#p346) | Add a prefix-scoped console silencer in lib test support and migrate the unasserted blanket spies | testing | M | low | medium | — |
+| ☑ | [P342](#p342) | Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json | testing | S | low | low | — |
+| ☑ | [P343](#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
+| ☑ | [P349](#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
+| ☑ | [P244](#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
+| ☑ | [P347](#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
+| ☑ | [P348](#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
+| ☑ | [P338](#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
+| ☑ | [P339](#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
 
 <a id="p334"></a>
 
 ## P334: Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -250/+40. That covers 10 inline syntax lists of about 16 lines down to one line each, the 20-line duplicate builder, the 10-line no-op block, about 10 import lists, and 12 pairs of about 10 lines down to about 3 each.
 - **Depends on:** —
@@ -103,7 +105,7 @@ const productionSyntaxSelectorsExcept = (...exemptions) => except(productionSynt
 
 ## P340: Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** high · **Size:** About -550 to -650 lines of mock prelude, about -35 redundant pins, about -4 lines of tautological body per file across 22 files, one file deleted; +0 unless the conditional helper is needed (+30)
 - **Depends on:** —
@@ -193,7 +195,7 @@ export function nextCacheMock(): Record<string, unknown>;
 
 ## P216: Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -75 lines of copied helpers across 9 files, +45 in the new setup module; about 75 assertion lines rewritten in place
 - **Depends on:** —
@@ -267,7 +269,7 @@ export function scheduledFunctionsNamed(t: Chain, nameFragment: string): Promise
 
 ## P341: Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -320 lines (~46 builders of 5-9 lines each, 4 locationOf, 11 importRoute wrappers) / +45
 - **Depends on:** —
@@ -371,7 +373,7 @@ export function cronRequest(path: string, secret?: string): Request;
 
 ## P344: Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -110 lines of literals across 17 files, +40 for the fixture and its test, +17 import lines: net about -55
 - **Depends on:** —
@@ -449,7 +451,7 @@ export function adminSessionFixture(overrides?: SessionFixtureOverrides): Better
 
 ## P346: Add a prefix-scoped console silencer in lib test support and migrate the unasserted blanket spies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** +25 helper, +35 helper test; per-file migration is roughly neutral (one line swapped, with an assertion sometimes added): net about +60 to +100
 - **Depends on:** —
@@ -520,7 +522,7 @@ export function silenceConsolePrefixes<L extends ConsoleLevel>(level: L, prefixe
 
 ## P342: Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -110 / +25
 - **Depends on:** —
@@ -598,7 +600,7 @@ new Response(JSON.stringify(problemBody(rateLimitedFailure(23), 'test-correlatio
 
 ## P343: Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -55 / +12
 - **Depends on:** —
@@ -674,7 +676,7 @@ export function seedEveAccount(
 
 ## P349: Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -14 lines across 4 files; no additions
 - **Depends on:** —
@@ -735,7 +737,7 @@ createReservedConnectionMock(query?: (strings: TemplateStringsArray, ...values: 
 
 ## P244: Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -~100 (five inline chains) / +~60 (helper and its test); net about -40
 - **Depends on:** —
@@ -806,7 +808,7 @@ vi.mock('@/db', () => ({ db: chain }));
 
 ## P347: Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -55 (two identical helpers with their self-tests, two hand-rolled diffs, two Object.values reflections) and +30 (helper and its test): net about -25
 - **Depends on:** —
@@ -867,7 +869,7 @@ export function registryCoverageDiff(expected: Iterable<string>, declared: reado
 
 ## P348: Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** About -430 lines across about 35 test files and +120 lines in 4 fixture modules: roughly -300 net
 - **Depends on:** —
@@ -987,7 +989,7 @@ Land this as three independent commits (mapper, industry-jobs, wormhole-sites); 
 
 ## P338: Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** about -150 across 10 test files / about +70 helper and +60 helper test
 - **Depends on:** —
@@ -1081,7 +1083,7 @@ export const settle: () => Promise<void>; // setTimeout(0) flush, only if adopte
 
 ## P339: Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** about -220 across 17 files / about +100 helper and +70 helper test
 - **Depends on:** —

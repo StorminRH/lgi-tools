@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { isNoProgrammaticSurface } from '@/composition/__tests__/vendor-resilience-census';
 import {
@@ -8,6 +8,7 @@ import {
   type VendorResilienceEntry,
   type VendorResiliencePolicy,
 } from '@/composition/__tests__/vendor-resilience-registry';
+import { filesMatching, listSourceFiles } from '@/lib/__tests__/source-scan';
 
 const POLICY_FIELDS: readonly (keyof VendorResiliencePolicy)[] = [
   'wrapper',
@@ -55,35 +56,12 @@ const PRODUCTION_POSTGRES_SITES = [
 
 const TEST_SUPPORT_POSTGRES_SITES = ['src/db/__tests__/support/db-test-harness.ts'];
 
-const SKIPPED_DIRECTORIES = new Set(['node_modules', '__fixtures__', '_generated']);
-const SKIPPED_SUFFIXES = ['.test.ts', '.test.tsx', '.d.ts'];
-
-function isScannedSource(fileName: string): boolean {
-  if (!fileName.endsWith('.ts') && !fileName.endsWith('.tsx')) return false;
-  return !SKIPPED_SUFFIXES.some((suffix) => fileName.endsWith(suffix));
-}
-
-function collectSources(roots: readonly string[]): string[] {
-  const found: string[] = [];
-  const walk = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (!SKIPPED_DIRECTORIES.has(entry.name)) walk(path);
-      } else if (isScannedSource(entry.name)) {
-        found.push(path);
-      }
-    }
-  };
-  for (const root of roots) walk(root);
-  return found.sort();
-}
-
-function filesMatching(pattern: RegExp): string[] {
-  return collectSources(['src', 'convex']).filter((file) =>
-    pattern.test(readFileSync(file, 'utf8')),
-  );
-}
+const SCANNED_SOURCES = listSourceFiles({
+  roots: ['src', 'convex'],
+  extensions: ['.ts', '.tsx'],
+  skipDirectories: ['node_modules', '__fixtures__', '_generated'],
+  skipSuffixes: ['.test.ts', '.test.tsx', '.d.ts'],
+});
 
 function exportsSymbol(source: string, symbol: string): boolean {
   const declared = new RegExp(
@@ -157,11 +135,11 @@ describe('vendor resilience registry', () => {
 
 describe('vendor client construction sites', () => {
   it('constructs the Upstash Redis client only in its declared wrapper', () => {
-    expect(filesMatching(/new Redis\(/)).toEqual(REDIS_CONSTRUCTION_SITES);
+    expect(filesMatching(SCANNED_SOURCES, /new Redis\(/)).toEqual(REDIS_CONSTRUCTION_SITES);
   });
 
   it('constructs postgres-js clients only in declared homes', () => {
-    expect(filesMatching(/(?<![\w.])postgres\(/)).toEqual(
+    expect(filesMatching(SCANNED_SOURCES, /(?<![\w.])postgres\(/)).toEqual(
       [...PRODUCTION_POSTGRES_SITES, ...TEST_SUPPORT_POSTGRES_SITES].sort(),
     );
   });
@@ -183,11 +161,11 @@ describe('vendor client construction sites', () => {
   });
 
   it('keeps the Neon client a single consumer so the driver global stays bounded', () => {
-    expect(filesMatching(/(?<![\w.])neon\([^)]/)).toEqual(['src/db/index.ts']);
+    expect(filesMatching(SCANNED_SOURCES, /(?<![\w.])neon\([^)]/)).toEqual(['src/db/index.ts']);
   });
 
   it('routes outbound HTTP only through the two sanctioned transport modules', () => {
-    const callers = filesMatching(/(?<![\w.'"])fetch\(/);
+    const callers = filesMatching(SCANNED_SOURCES, /(?<![\w.'"])fetch\(/);
     expect(callers).toEqual(['src/lib/fetch-with-timeout.ts', 'src/transport/api-client.ts']);
   });
 });

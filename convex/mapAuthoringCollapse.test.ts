@@ -13,6 +13,7 @@ import schema from './schema';
 
 import { connectionInsert } from './__tests__/connection-doc.setup';
 import { modules } from './__tests__/modules.setup';
+import { expectConvexErrorCode } from './__tests__/convexTest.setup';
 import {
   EDITOR,
   JITA,
@@ -23,7 +24,6 @@ import {
   WH_C,
   WH_ROOT,
   asUser,
-  expectConvexError,
   readConnection,
   readEvents,
   readSystem,
@@ -348,7 +348,7 @@ describe('map authoring', () => {
       });
       expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: NOW + 1 });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
           mapId: MAP_A,
           connectionId: cut,
@@ -383,7 +383,7 @@ describe('map authoring', () => {
         }));
       });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId,

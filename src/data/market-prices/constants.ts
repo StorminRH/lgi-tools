@@ -11,7 +11,7 @@ export const BULK_THRESHOLD = 100;
 
 export const PAGE_CONCURRENCY = 8;
 
-export const PER_TYPE_CONCURRENCY = 10;
+export const PER_TYPE_CONCURRENCY = 20;
 
 export const ON_DEMAND_REFRESH_LIMIT_PER_MINUTE = 20;
 

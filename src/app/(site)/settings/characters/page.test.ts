@@ -1,11 +1,13 @@
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 
 const m = vi.hoisted(() => ({
-  getFullSession: vi.fn(),
+  getFullSession: vi.fn<() => Promise<BetterAuthSession | null>>(),
   listLinkedCharacters: vi.fn(),
   redirect: vi.fn((to: string) => {
     throw new Error(`NEXT_REDIRECT ${to}`);
@@ -43,7 +45,7 @@ async function renderContent(error?: string): Promise<string> {
 }
 
 test('lists each linked character with its health, access, and the actions it allows', async () => {
-  m.getFullSession.mockResolvedValue({ user: { id: 'user-1' }, characterId: 90_000_001 });
+  m.getFullSession.mockResolvedValue(sessionFixture({ user: { id: 'user-1' }, characterId: 90_000_001 }));
   m.listLinkedCharacters.mockResolvedValue([
     linked(90_000_001, 'Aurel Vantesse', { authorizationDelayed: true }),
     linked(90_000_002, 'Bram Oskarsen', { scope: null, hasRefreshToken: false }),
@@ -72,7 +74,7 @@ test('lists each linked character with its health, access, and the actions it al
 });
 
 test('keeps the only character linked and explains a failed link', async () => {
-  m.getFullSession.mockResolvedValue({ user: { id: 'user-2' }, characterId: 90_000_003 });
+  m.getFullSession.mockResolvedValue(sessionFixture({ user: { id: 'user-2' }, characterId: 90_000_003 }));
   m.listLinkedCharacters.mockResolvedValue([linked(90_000_003, 'Kessa Draymoor', { scope: 'publicData' })]);
 
   const html = await renderContent('last_character');

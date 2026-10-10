@@ -11,7 +11,6 @@ export const AVAILABILITY_WINDOW_MINUTES = 60;
 export const CALL_COUNT_TTL_SECONDS = (AVAILABILITY_WINDOW_MINUTES + 5) * 60;
 /** The status a dispatch reports when ESI gave no answer at all. */
 export const NO_RESPONSE_STATUS = 0;
-export const GROUP_STATE_TTL_SECONDS = 1200;
 export const ETAG_TTL_SECONDS = 172_800;
 
 export interface CachedEtagMeta {
@@ -49,10 +48,6 @@ export interface EsiReport {
   status: number;
   errorLimitRemain: number | null;
   errorLimitReset: number | null;
-  rateLimitGroup: string | null;
-  rateLimitLimit: number | null;
-  rateLimitRemaining: number | null;
-  rateLimitUsed: number | null;
   retryAfter: number | null;
   etagToStore: (CachedEtagMeta & { body: string }) | null;
   refreshEtag: CachedEtagMeta | null;

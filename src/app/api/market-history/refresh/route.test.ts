@@ -1,5 +1,5 @@
-import { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const getLiveHistoryMock = vi.fn();
 const checkRateLimitMock = vi.fn();
@@ -15,15 +15,10 @@ vi.mock('@/data/telemetry/cost-metrics', () => ({
   emitCostMetric: (...args: unknown[]) => emitCostMetricMock(...args),
 }));
 
+import { postJson } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function request(typeIds: number[]): NextRequest {
-  return new NextRequest('http://localhost:3000/api/market-history/refresh', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ typeIds }),
-  });
-}
+const ROUTE = '/api/market-history/refresh';
 
 describe('POST /api/market-history/refresh telemetry', () => {
   beforeEach(() => {
@@ -34,11 +29,15 @@ describe('POST /api/market-history/refresh telemetry', () => {
       degraded: { fetched: 0, budgetExhausted: true },
       metrics: { requested: 1, freshEsi: 0, warmStored: 0, staleStored: 1, missing: 0 },
     });
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    silenceConsolePrefixes('warn', ['{"scope":"market-history/refresh",']);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('records stale-stored history without inventing a fallback source', async () => {
-    const response = await POST(request([34]));
+    const response = await POST(postJson(ROUTE, { typeIds: [34] }));
     expect(response.status).toBe(200);
     expect(checkRateLimitMock).toHaveBeenCalledWith(
       expect.any(Request),

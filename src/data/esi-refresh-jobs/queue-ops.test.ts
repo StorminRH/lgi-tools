@@ -1,34 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
+});
+
 const h = vi.hoisted(() => ({
   execute: vi.fn(),
-  select: vi.fn(),
 }));
-
-let cannedQueries: unknown[][] = [];
-
-function queryFor(rows: unknown[]) {
-  const result = Promise.resolve(rows);
-  const query = {
-    from: vi.fn(),
-    where: vi.fn(),
-    groupBy: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    then: result.then.bind(result),
-  };
-  query.from.mockReturnValue(query);
-  query.where.mockReturnValue(query);
-  query.groupBy.mockReturnValue(query);
-  query.orderBy.mockReturnValue(query);
-  query.limit.mockReturnValue(query);
-  return query;
-}
 
 vi.mock('@/db', () => ({
   db: {
     execute: h.execute,
-    select: h.select.mockImplementation(() => queryFor(cannedQueries.shift() ?? [])),
+    select: chain.select,
   },
 }));
 
@@ -41,15 +25,14 @@ import {
 const NOW = new Date('2026-07-14T12:00:00Z');
 
 beforeEach(() => {
-  cannedQueries = [];
+  reset();
   h.execute.mockReset();
-  h.select.mockClear();
 });
 
 describe('ESI refresh queue ops reads', () => {
   it('normalizes grouped queue stats', async () => {
     const oldest = new Date('2026-07-14T10:00:00Z');
-    cannedQueries = [[{ status: 'queued', count: '3', oldestCreatedAt: oldest }]];
+    state.results = [[{ status: 'queued', count: '3', oldestCreatedAt: oldest }]];
     await expect(getEsiRefreshQueueStats()).resolves.toEqual([
       { status: 'queued', count: 3, oldestCreatedAt: oldest },
     ]);
@@ -68,7 +51,7 @@ describe('ESI refresh queue ops reads', () => {
       createdAt: NOW,
       finishedAt: NOW,
     };
-    cannedQueries = [[row]];
+    state.results = [[row]];
     await expect(listDeadLetteredJobs(10)).resolves.toEqual([row]);
   });
 });

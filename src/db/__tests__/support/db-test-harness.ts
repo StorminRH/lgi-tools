@@ -128,21 +128,35 @@ export async function seedUser(
   });
 }
 
-export async function seedEveAccount(
+/**
+ * Insert one Better Auth account row for any provider. `updatedAt` defaults
+ * to the effective `createdAt`, so a suite that backdates an account gets a
+ * row that was last touched when it was created.
+ */
+export async function seedAccount(
+  database: PostgresJsDatabase,
+  base: { id: string; accountId: string; providerId: string; userId: string },
+  overrides: Partial<typeof account.$inferInsert> = {},
+): Promise<void> {
+  const createdAt = overrides.createdAt ?? new Date();
+  await database.insert(account).values({
+    ...base,
+    ...overrides,
+    createdAt,
+    updatedAt: overrides.updatedAt ?? createdAt,
+  });
+}
+
+export function seedEveAccount(
   database: PostgresJsDatabase,
   base: { id: string; characterId: number; userId: string },
   overrides?: Partial<typeof account.$inferInsert>,
 ): Promise<void> {
-  const now = new Date();
-  await database.insert(account).values({
-    id: base.id,
-    accountId: String(base.characterId),
-    providerId: 'eve',
-    userId: base.userId,
-    createdAt: now,
-    updatedAt: now,
-    ...overrides,
-  });
+  return seedAccount(
+    database,
+    { id: base.id, accountId: String(base.characterId), providerId: 'eve', userId: base.userId },
+    overrides,
+  );
 }
 
 export async function seedCharacter(

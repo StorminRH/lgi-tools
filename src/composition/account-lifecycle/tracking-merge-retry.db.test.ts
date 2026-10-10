@@ -1,12 +1,13 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { restoreMergeTracking } from '@/data/location-tracking/merge';
 import * as mergeStore from '@/data/location-tracking/merge-store';
 import { cancelPendingTracking, enqueueTrackingMerge } from '@/data/location-tracking/merge-store';
 import { pendingTrackingMerges } from '@/data/location-tracking/schema';
 import { purgeLocationTracking } from '@/data/location-tracking/purge';
 import { account, user } from '@/db/auth-schema';
-import { createDbTestHarness, seedEveAccount, seedUser } from '@/db/__tests__/support/db-test-harness';
+import { createDbTestHarness, seedAccount, seedEveAccount, seedUser } from '@/db/__tests__/support/db-test-harness';
 import { projectMapAccess, purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { reconcileTrackingMerges } from './tracking-merge-retry';
 
@@ -56,7 +57,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
     await enqueueTrackingMerge(harness.db, SOURCE, SURVIVOR, [selection]);
     const [job] = await queued();
     vi.mocked(restoreMergeTracking).mockRejectedValueOnce(new Error('response lost'));
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = silenceConsolePrefixes('error', ['[account-merge] tracking transfer retained for retry']);
     try {
       expect(await reconcile()).toEqual({ processed: 0, failed: 1 });
       expect(await queued()).toEqual([expect.objectContaining({ id: job!.id, selections: [selection] })]);
@@ -94,7 +95,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
     await seedOwner();
     await enqueueTrackingMerge(harness.db, SOURCE, SURVIVOR, [selection]);
     vi.mocked(purgeLocationTracking).mockRejectedValueOnce(new Error('purge unavailable'));
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = silenceConsolePrefixes('error', ['[account-merge] tracking transfer retained for retry']);
     try {
       expect(await reconcile()).toEqual({ processed: 0, failed: 1 });
       expect(restoreMergeTracking).not.toHaveBeenCalled();
@@ -106,7 +107,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
 
   it('filters against current EVE linkage so detached characters and other providers cannot regain tracking', async () => {
     await seedOwner();
-    await seedEveAccount(harness.db, { id: 'other-provider', userId: SURVIVOR, characterId: OTHER_CHARACTER }, { providerId: 'other' });
+    await seedAccount(harness.db, { id: 'other-provider', accountId: String(OTHER_CHARACTER), providerId: 'other', userId: SURVIVOR });
     await enqueueTrackingMerge(harness.db, SOURCE, SURVIVOR, [selection, { mapId: MAP, characterId: OTHER_CHARACTER }]);
     await harness.db.delete(account).where(eq(account.id, 'linked'));
 
