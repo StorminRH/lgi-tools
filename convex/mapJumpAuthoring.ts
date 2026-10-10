@@ -1,4 +1,4 @@
-import { ConvexError, v } from 'convex/values';
+import { ConvexError, type Infer, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
@@ -39,19 +39,7 @@ const jumpDecisionValidator = v.union(
   }),
 );
 
-type JumpDecision =
-  | {
-      readonly kind: 'resolve';
-      readonly candidateId: Id<'mapConnections'>;
-      readonly provenance: 'jump-verified' | 'assumed';
-      readonly candidateIds: readonly Id<'mapConnections'>[];
-      readonly survivors: readonly Id<'mapConnections'>[];
-    }
-  | {
-      readonly kind: 'insert';
-      readonly candidateIds: readonly Id<'mapConnections'>[];
-      readonly survivors: readonly Id<'mapConnections'>[];
-    };
+type JumpDecision = Infer<typeof jumpDecisionValidator>;
 
 interface ResolveJumpInput {
   readonly userId: string;

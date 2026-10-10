@@ -5,13 +5,14 @@ import {
   isWormholeTypeCode,
   WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
+  WORMHOLE_SIZE_CLASSES,
   type ConnectionProvenance,
   type ConnectionMassState,
   type WormholeDestinationHint,
   type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
-import { canonicalizeMapRoles, type MapRole } from '@/data/maps/access-contract';
+import { canonicalizeMapRoles, MAP_ROLES, type MapRole } from '@/data/maps/access-contract';
 import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 import { CONNECTION_DOOR_SIDES } from '@/data/maps/connection-hallway';
 import {
@@ -29,38 +30,6 @@ export { CONNECTION_PROVENANCES, type ConnectionProvenance };
 export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;
 
 export type NoteTargetKind = (typeof NOTE_TARGET_KINDS)[number];
-
-const MASS_STATE_LITERALS = {
-  stable: v.literal('stable'),
-  reduced: v.literal('reduced'),
-  critical: v.literal('critical'),
-} as const satisfies Record<ConnectionMassState, unknown>;
-
-const LIFE_STAGE_LITERALS = {
-  under_1_day: v.literal('under_1_day'),
-  under_4_hours: v.literal('under_4_hours'),
-  under_1_hour: v.literal('under_1_hour'),
-  expired: v.literal('expired'),
-} as const satisfies Record<WormholeLifeStage, unknown>;
-
-const NOTE_TARGET_KIND_LITERALS = {
-  map: v.literal('map'),
-  system: v.literal('system'),
-  signature: v.literal('signature'),
-} as const satisfies Record<NoteTargetKind, unknown>;
-
-const SHIP_SIZE_LITERALS = {
-  S: v.literal('S'),
-  M: v.literal('M'),
-  L: v.literal('L'),
-  XL: v.literal('XL'),
-} as const satisfies Record<WormholeSizeClass, unknown>;
-
-const MAP_ROLE_LITERALS = {
-  viewer: v.literal('viewer'),
-  editor: v.literal('editor'),
-  admin: v.literal('admin'),
-} as const satisfies Record<MapRole, unknown>;
 
 export const legacyMapOwnerRoleValidator = v.literal('owner');
 
@@ -91,17 +60,12 @@ export const connectionProvenanceValidator = v.union(
 );
 
 export const massStateValidator = v.union(
-  MASS_STATE_LITERALS.stable,
-  MASS_STATE_LITERALS.reduced,
-  MASS_STATE_LITERALS.critical,
+  ...CONNECTION_MASS_STATES.map((state) => v.literal(state)),
   v.null(),
 );
 
 export const lifeStageValidator = v.union(
-  LIFE_STAGE_LITERALS.under_1_day,
-  LIFE_STAGE_LITERALS.under_4_hours,
-  LIFE_STAGE_LITERALS.under_1_hour,
-  LIFE_STAGE_LITERALS.expired,
+  ...WORMHOLE_LIFE_STAGES.map((stage) => v.literal(stage)),
   v.null(),
 );
 
@@ -134,12 +98,7 @@ export const connectionLifetimeValidator = v.union(
   v.object({ kind: v.literal('unknown') }),
   v.object({
     kind: v.literal('stage'),
-    lifeStage: v.union(
-      LIFE_STAGE_LITERALS.under_1_day,
-      LIFE_STAGE_LITERALS.under_4_hours,
-      LIFE_STAGE_LITERALS.under_1_hour,
-      LIFE_STAGE_LITERALS.expired,
-    ),
+    lifeStage: v.union(...WORMHOLE_LIFE_STAGES.map((stage) => v.literal(stage))),
     observedAt: v.number(),
   }),
   v.object({
@@ -184,23 +143,16 @@ export const connectionTombstoneValidator = v.union(
 );
 
 export const shipSizeValidator = v.union(
-  SHIP_SIZE_LITERALS.S,
-  SHIP_SIZE_LITERALS.M,
-  SHIP_SIZE_LITERALS.L,
-  SHIP_SIZE_LITERALS.XL,
+  ...WORMHOLE_SIZE_CLASSES.map((size) => v.literal(size)),
   v.null(),
 );
 
 export const currentMapRoleValidator = v.union(
-  MAP_ROLE_LITERALS.viewer,
-  MAP_ROLE_LITERALS.editor,
-  MAP_ROLE_LITERALS.admin,
+  ...MAP_ROLES.map((role) => v.literal(role)),
 );
 
 export const mapRoleValidator = v.union(
-  MAP_ROLE_LITERALS.viewer,
-  MAP_ROLE_LITERALS.editor,
-  MAP_ROLE_LITERALS.admin,
+  ...MAP_ROLES.map((role) => v.literal(role)),
   legacyMapOwnerRoleValidator,
 );
 
@@ -226,9 +178,7 @@ export const mapEventPayloadValidator = v.union(
 );
 
 export const noteTargetKindValidator = v.union(
-  NOTE_TARGET_KIND_LITERALS.map,
-  NOTE_TARGET_KIND_LITERALS.system,
-  NOTE_TARGET_KIND_LITERALS.signature,
+  ...NOTE_TARGET_KINDS.map((kind) => v.literal(kind)),
 );
 
 function reject(code: string, detail: string): never {

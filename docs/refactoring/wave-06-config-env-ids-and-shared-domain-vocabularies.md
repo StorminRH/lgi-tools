@@ -24,7 +24,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P266](#p266) | Name the 'attributable (non-K162) wormhole type code' predicate once in wormhole-contract | contracts-validation | S | low | low | — |
 | ☑ | [P265](#p265) | Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound | contracts-validation | S | low | low | — |
 | ☑ | [P262](#p262) | Use ConnectionDoorSide and a CONNECTION_DOOR_SIDES tuple instead of 36 inline 'from' \| 'to' unions and the ConnectionDoor alias | contracts-validation | S | low | low | — |
-| ☐ | [P261](#p261) | Derive Convex TS types from their validators and build every enum validator from its data-zone tuple | contracts-validation | M | low | medium | [P262](#p262) |
+| ☑ | [P261](#p261) | Derive Convex TS types from their validators and build every enum validator from its data-zone tuple | contracts-validation | M | low | medium | [P262](#p262) |
 | ☐ | [P124](#p124) | Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator | generic-utility | S | low | low | — |
 | ☐ | [P125](#p125) | Share the system-code-set comparison between wh-statics diff and cross-check | generic-utility | S | low | low | — |
 | ☐ | [P082](#p082) | Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode | client-data | M | low | medium | [P124](#p124), [P266](#p266) |
@@ -1455,7 +1455,7 @@ Add an expectTypeOf, in the P261 mapEntityContracts test, that Infer<typeof conn
 
 ## P261: Derive Convex TS types from their validators and build every enum validator from its data-zone tuple
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +30. The literal maps lose about 31 lines, the CharacterResult and lease types about 18, JumpDecision 13, and the elimination types about 30 (moved, net smaller).
 - **Depends on:** [P262](#p262)
