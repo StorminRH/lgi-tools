@@ -1,6 +1,5 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { db, runSerializable } from '@/db';
-import { isSerializationFailure } from '@/db/pg-errors';
 import { industryProfiles } from '../schema';
 import type { IndustryProfileRow } from './api-contract';
 import { MAX_PROFILES_PER_USER, type ProfileDocument, readStoredDocument } from './profile-document';
@@ -38,30 +37,22 @@ export async function getIndustryProfileDocument(
   return row ? readStoredDocument(row.document) : null;
 }
 
-const CREATE_ATTEMPTS = 3;
-
 /**
  * Saves a new profile unless the account already holds the most it may. The
  * count and the insert are one serializable statement, so no lock is held: of
- * two creates that overlap, Postgres rejects one, and its next attempt sees the
- * other's profile.
+ * two creates that overlap, Postgres rejects one, and runSerializable runs it
+ * again, when it sees the other's profile. The retry lives there, not here.
  */
 export async function createIndustryProfile(
   userId: string,
   input: { id: string; name: string; document: ProfileDocument },
 ): Promise<boolean> {
-  const insert = sql`
+  const inserted = await runSerializable(sql`
     insert into ${industryProfiles} (id, user_id, name, document)
     select ${input.id}, ${userId}, ${input.name}, ${JSON.stringify(input.document)}::jsonb
     where (select count(*) from ${industryProfiles} where ${ownedLive(userId)}) < ${MAX_PROFILES_PER_USER}
-    returning id`;
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return (await runSerializable(insert)).length > 0;
-    } catch (error) {
-      if (attempt >= CREATE_ATTEMPTS || !isSerializationFailure(error)) throw error;
-    }
-  }
+    returning id`);
+  return inserted.length > 0;
 }
 
 /**
