@@ -1,3 +1,4 @@
+import { isFailedCall, sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
   epochMinute,
@@ -6,8 +7,10 @@ import {
 } from './keys';
 import { effectiveRemaining } from './budget';
 import {
+  AVAILABILITY_WINDOW_MINUTES,
   ETAG_TTL_SECONDS,
   type CachedEtagMeta,
+  type EsiAvailabilitySnapshot,
   type EsiBudgetSnapshot,
   type EsiReport,
   type EsiScoreboard,
@@ -16,6 +19,7 @@ import {
 
 class MemoryScoreboard implements EsiScoreboard {
   private errorCounts = new Map<number, number>();
+  private callCounts = new Map<number, { calls: number; failures: number }>();
   private echo: { value: number; expiresAt: number } | null = null;
   private blocks = new Map<string, { expiresAt: number }>();
   private metas = new Map<string, { meta: CachedEtagMeta; expiresAt: number }>();
@@ -64,9 +68,29 @@ class MemoryScoreboard implements EsiScoreboard {
     };
   }
 
+  async availabilitySnapshot(): Promise<EsiAvailabilitySnapshot> {
+    const buckets = windowMinutes(epochMinute()).map((minute) => this.callCounts.get(minute));
+    return {
+      calls: sumCounts(buckets.map((bucket) => bucket?.calls ?? null)),
+      failures: sumCounts(buckets.map((bucket) => bucket?.failures ?? null)),
+      source: 'process-local',
+    };
+  }
+
+  private recordCall(minute: number, status: number): void {
+    const bucket = this.callCounts.get(minute) ?? { calls: 0, failures: 0 };
+    bucket.calls += 1;
+    if (isFailedCall(status)) bucket.failures += 1;
+    this.callCounts.set(minute, bucket);
+    for (const key of this.callCounts.keys()) {
+      if (key <= minute - AVAILABILITY_WINDOW_MINUTES) this.callCounts.delete(key);
+    }
+  }
+
   async report(report: EsiReport): Promise<void> {
     const now = Date.now();
     const minute = epochMinute();
+    this.recordCall(minute, report.status);
 
     if (report.status >= 400) {
       this.errorCounts.set(minute, (this.errorCounts.get(minute) ?? 0) + 1);
