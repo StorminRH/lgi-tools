@@ -107,9 +107,9 @@ describe('correlation scope', () => {
     expect(later.neon).toEqual({ ms: 10, calls: 2, wallMs: 10 });
   });
 
-  it('reports no wall time when nothing was timed', async () => {
-    expect(await withCorrelationScope(async () => currentDependencyWallMs())).toBeNull();
-    expect(currentDependencyWallMs()).toBeNull();
+  it('reports zero wall time when nothing was timed', async () => {
+    expect(await withCorrelationScope(async () => currentDependencyWallMs())).toBe(0);
+    expect(currentDependencyWallMs()).toBe(0);
   });
 
   it('mints a fresh id and reports no timings outside any scope', () => {

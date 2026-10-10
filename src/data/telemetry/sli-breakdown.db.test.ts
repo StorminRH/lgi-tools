@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { DEPENDENCY_KINDS, type DependencyKind } from '@/lib/dependency-timing';
 import { operationsOfKind, USER_FACING_CAPABILITY_KINDS } from './capability';
 import {
   capabilityFailureDetail,
@@ -8,7 +9,7 @@ import {
   esiFailureGroups,
 } from './capability-stats';
 import { usageLogs } from './schema';
-import { getCapabilityLatency, getCapabilityOutcomeStats } from './sli-breakdown';
+import { getCapabilityLatency, getCapabilityOutcomeStats, getEsiClientErrors } from './sli-breakdown';
 import { ESI_FAILURE_OUTCOMES } from './sql';
 
 const harness = await createDbTestHarness({
@@ -123,6 +124,8 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
       p95Ms: 2_000,
       count: 1,
       slowestDependency: 'esi',
+      slowestShare: 0.9,
+      untimedShare: null,
     });
     expect(slowest.find((row) => row.operation === 'save-preferences')?.slowestDependency).toBeNull();
   });
@@ -147,9 +150,73 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
     await expect(getCapabilityLatency(range)).resolves.toEqual({
       p95: 300,
       slowest: [
-        { feature: 'planner', operation: 'read-owned-assets', p95Ms: 300, count: 2, slowestDependency: 'neon' },
+        {
+          feature: 'planner', operation: 'read-owned-assets', p95Ms: 300, count: 2,
+          slowestDependency: 'neon', slowestShare: expect.closeTo(1 / 3, 6), untimedShare: null,
+        },
       ],
     });
+  });
+
+  it('prefers wall time over summed time and reports the share no dependency covered', async () => {
+    const timestamp = new Date('2032-03-02T12:00:00Z');
+    const range = {
+      from: new Date('2032-03-01T00:00:00Z'),
+      to: new Date('2032-03-08T00:00:00Z'),
+    };
+    await harness.db.insert(usageLogs).values([
+      // Ten parallel 100 ms ESI calls: 1,000 ms summed, 100 ms of wall time.
+      capabilityRow(timestamp, {
+        feature: 'market', operation: 'refresh-market-prices', outcome: 'succeeded', durationMs: 400,
+        dependencies: {
+          esi: { ms: 1_000, calls: 10, wallMs: 100 },
+          redis: { ms: 300, calls: 20, wallMs: 200 },
+        },
+        dependencyWallMs: 300,
+      }),
+      capabilityRow(timestamp, {
+        feature: 'market', operation: 'refresh-market-prices', outcome: 'succeeded', durationMs: 400,
+        dependencies: { redis: { ms: 200, calls: 5, wallMs: 200 } },
+        dependencyWallMs: 200,
+      }),
+    ]);
+
+    await expect(getCapabilityLatency(range)).resolves.toEqual({
+      p95: 400,
+      slowest: [
+        {
+          feature: 'market', operation: 'refresh-market-prices', p95Ms: 400, count: 2,
+          slowestDependency: 'redis', slowestShare: 0.5, untimedShare: 0.375,
+        },
+      ],
+    });
+  });
+
+  it('sums ESI calls and 4xx answers per operation, counting older records without status4xx as none', async () => {
+    const timestamp = new Date('2033-03-02T12:00:00Z');
+    const later = new Date('2033-03-03T12:00:00Z');
+    const range = {
+      from: new Date('2033-03-01T00:00:00Z'),
+      to: new Date('2033-03-08T00:00:00Z'),
+    };
+    await harness.db.insert(usageLogs).values([
+      capabilityRow(timestamp, {
+        feature: 'maps', operation: 'search-characters', outcome: 'succeeded',
+        dependencies: { esi: { ms: 90, calls: 21, wallMs: 60, status4xx: 2 } },
+      }),
+      capabilityRow(later, {
+        feature: 'maps', operation: 'search-characters', outcome: 'succeeded',
+        dependencies: { esi: { ms: 30, calls: 4 } },
+      }),
+      capabilityRow(timestamp, {
+        feature: 'account', operation: 'save-preferences', outcome: 'succeeded',
+        dependencies: { neon: { ms: 5, calls: 1 } },
+      }),
+    ]);
+
+    await expect(getEsiClientErrors(range)).resolves.toEqual([
+      { feature: 'maps', operation: 'search-characters', errors: 2, calls: 25, lastSeen: later },
+    ]);
   });
 
   it('lists ESI-dependent operations CCP limited or failed', async () => {
@@ -210,9 +277,13 @@ const ORACLE = {
     select metadata ->> 'feature' as feature, metadata ->> 'operation' as operation,
       percentile_cont(0.95) within group (order by nullif(metadata ->> 'durationMs', 'null')::double precision) as p95,
       count(*)::int as count,
-      avg(coalesce(nullif(metadata -> 'dependencies' -> 'neon' ->> 'ms', 'null')::double precision, 0)) as neon,
-      avg(coalesce(nullif(metadata -> 'dependencies' -> 'esi' ->> 'ms', 'null')::double precision, 0)) as esi,
-      avg(coalesce(nullif(metadata -> 'dependencies' -> 'redis' ->> 'ms', 'null')::double precision, 0)) as redis
+      avg(nullif(metadata ->> 'durationMs', 'null')::double precision) as duration,
+      avg(nullif(metadata ->> 'durationMs', 'null')::double precision - nullif(metadata ->> 'dependencyWallMs', 'null')::double precision)
+        filter (where metadata ? 'dependencyWallMs')
+        / nullif(avg(nullif(metadata ->> 'durationMs', 'null')::double precision) filter (where metadata ? 'dependencyWallMs'), 0) as untimed,
+      ${DEPENDENCY_KINDS.map((kind) => `avg(coalesce(
+        nullif(metadata -> 'dependencies' -> '${kind}' ->> 'wallMs', 'null')::double precision,
+        nullif(metadata -> 'dependencies' -> '${kind}' ->> 'ms', 'null')::double precision, 0)) as ${kind}`).join(',\n      ')}
     from usage_logs where {where} and metadata ->> 'operation' = any($3::text[])
     group by 1, 2 order by 3 desc limit 5`,
 };
@@ -237,6 +308,8 @@ const DEPENDENCIES = [
   null,
   { redis: { ms: 7, calls: 1 } },
   { esi: { ms: 900, calls: 3 } },
+  { esi: { ms: 400, calls: 4, wallMs: 120 }, convex: { ms: 60, calls: 1, wallMs: 60 } },
+  { sso: { ms: 80, calls: 1, wallMs: 80 }, neon: { ms: 25, calls: 2, wallMs: 20 } },
 ];
 const CODES = ['ok', 'esi_rate_limited', 'template_limit', 'projection_unavailable'];
 const ERROR_CLASSES = [undefined, '23502', 'ECONNRESET'];
@@ -256,6 +329,7 @@ function variedRows(range: { from: Date }, total: number) {
       correlationId: `oracle-${i}`,
       ...(outcome === null ? {} : { outcome }),
       ...(dependencies === null ? {} : { dependencies }),
+      ...(i % 4 === 0 ? { dependencyWallMs: 20 + (i % 50) } : {}),
       ...(errorClass === undefined ? {} : { errorClass }),
     };
     return {
@@ -341,23 +415,28 @@ describe.skipIf(!harness.reachable)('capability reads agree with the per-figure 
     const [overall] = await oracle<{ p95: number }>(ORACLE.p95, userFacing);
     expect(latency.p95).toBe(Math.round(overall!.p95));
 
-    const slowest = await oracle<{ feature: string; operation: string; p95: number; count: number; neon: number; esi: number; redis: number }>(
-      ORACLE.slowest,
-      userFacing,
-    );
-    const heaviest = (row: { neon: number; esi: number; redis: number }) =>
-      (['neon', 'esi', 'redis'] as const).reduce<'neon' | 'esi' | 'redis' | null>(
+    type OracleRow = { feature: string; operation: string; p95: number; count: number; duration: number | null; untimed: number | null } & Record<DependencyKind, number>;
+    const slowest = await oracle<OracleRow>(ORACLE.slowest, userFacing);
+    const heaviest = (row: OracleRow) =>
+      DEPENDENCY_KINDS.reduce<DependencyKind | null>(
         (best, kind) => (row[kind] > 0 && (best === null || row[kind] > row[best]) ? kind : best),
         null,
       );
+    const clamp = (share: number) => Math.min(1, Math.max(0, share));
+    expect(slowest.some((row) => row.untimed !== null)).toBe(true);
     expect(latency.slowest).toEqual(
-      slowest.map((row) => ({
-        feature: row.feature,
-        operation: row.operation,
-        p95Ms: Math.round(row.p95),
-        count: row.count,
-        slowestDependency: heaviest(row),
-      })),
+      slowest.map((row) => {
+        const kind = heaviest(row);
+        return {
+          feature: row.feature,
+          operation: row.operation,
+          p95Ms: Math.round(row.p95),
+          count: row.count,
+          slowestDependency: kind,
+          slowestShare: kind === null || row.duration === null ? null : expect.closeTo(clamp(row[kind] / row.duration), 9),
+          untimedShare: row.untimed === null ? null : expect.closeTo(clamp(row.untimed), 9),
+        };
+      }),
     );
   });
 });

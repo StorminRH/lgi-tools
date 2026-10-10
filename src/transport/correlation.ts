@@ -103,10 +103,9 @@ export function currentDependencyTimings(): Partial<Record<DependencyKind, Depen
   return snapshot;
 }
 
-/** Elapsed time with any dependency call in flight, or null when nothing was timed. */
-export function currentDependencyWallMs(): number | null {
-  const intervals = storage.getStore()?.intervals ?? [];
-  return intervals.length === 0 ? null : unionMs(intervals);
+/** Elapsed time with any dependency call in flight; 0 when nothing was timed. */
+export function currentDependencyWallMs(): number {
+  return unionMs(storage.getStore()?.intervals ?? []);
 }
 
 export function stashFailure(failure: AppFailure): void {

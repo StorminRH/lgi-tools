@@ -140,7 +140,7 @@ describe('recordCapabilityOutcome', () => {
     });
 
     expect(metadata.dependencies).toEqual({});
-    expect(metadata).not.toHaveProperty('dependencyWallMs');
+    expect(metadata.dependencyWallMs).toBe(0);
     expect(metadata.correlationId).not.toBe('');
   });
 

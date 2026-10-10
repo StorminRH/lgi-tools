@@ -96,8 +96,8 @@ export interface CapabilityOutcomeRecord {
   code: string;
   durationMs: number;
   dependencies: Partial<Record<DependencyKind, DependencyTiming>>;
-  /** Elapsed time with any dependency call in flight; absent when nothing was timed. */
-  dependencyWallMs?: number;
+  /** Elapsed time with any dependency call in flight. Records written before it existed lack it. */
+  dependencyWallMs: number;
   retry: CapabilityRetry | null;
   correlationId: string;
   appVersion: string;
@@ -115,7 +115,6 @@ function buildCapabilityRecord(
   outcome: CapabilityOutcomeInput,
 ): CapabilityOutcomeRecord {
   const capability = CAPABILITIES[id];
-  const dependencyWallMs = currentDependencyWallMs();
   return {
     feature: capability.feature,
     operation: capability.operation,
@@ -123,7 +122,7 @@ function buildCapabilityRecord(
     code: outcome.code,
     durationMs: outcome.durationMs,
     dependencies: currentDependencyTimings(),
-    ...(dependencyWallMs === null ? {} : { dependencyWallMs }),
+    dependencyWallMs: currentDependencyWallMs(),
     retry: outcome.retry,
     correlationId: currentCorrelationId(),
     appVersion: APP_VERSION,
