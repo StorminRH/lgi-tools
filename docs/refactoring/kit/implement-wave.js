@@ -96,7 +96,7 @@ async function runCheck(label, phase, full) {
     const r = await agent(`${what} The working directory is ${REPO}. Postgres is up on :5433. The only acceptable skip is src/db/advisory-lock.concurrency.test.ts, which is gated on DATABASE_URL being exported; any other skip means passed=false. Report passed=true only when every command exits 0. Keep failures to the smallest actionable output per failing command, verbatim, with file and line.${waitRule}${sidecar}`, { label, phase, agentType: 'test-runner', schema: CHECK })
     if (!r) return { passed: false, skipped: '', failures: 'test-runner returned nothing' }
     if (!r.passed && /\.next\/dev\/types/.test(r.failures) && attempt === 0) {
-      await shell(`bash ${T}/env_guard.sh${A.killNextDev ? ' --kill-next' : ''}`, `${label}:guard`, phase)
+      await shell(`bash "${T}/env_guard.sh"${A.killNextDev ? ' --kill-next' : ''}`, `${label}:guard`, phase)
       continue
     }
     return r
@@ -129,7 +129,7 @@ function clip(text, max) {
 
 async function commitStep(tag, msg, mark, label, phase, pre = '') {
   const full = A.trailers ? `${msg}\n\n${A.trailers}` : msg
-  const steps = `${pre}${heredoc(`${S}/msg-${tag}.txt`, full)}\n${mark ? `python3 ${T}/mark.py ${mark}\n` : ''}git add -A\ngit commit -q -F ${S}/msg-${tag}.txt\ngit log -1 --format='%h %s'\ngit status --porcelain`
+  const steps = `${ICLOUD_GUARD}\n${pre}${heredoc(`${S}/msg-${tag}.txt`, full)}\n${mark ? `python3 "${T}/mark.py" ${mark}\n` : ''}git add -A\ngit commit -q -F "${S}/msg-${tag}.txt"\ngit log -1 --format='%h %s'\ngit status --porcelain`
   for (let tryNo = 1; tryNo <= 2; tryNo++) {
     const c = await shell(steps, tryNo === 1 ? label : `${label}:retry`, phase)
     if (c && c.ok) return c
@@ -137,17 +137,21 @@ async function commitStep(tag, msg, mark, label, phase, pre = '') {
   return null
 }
 
+// The checkout lives in an iCloud-synced folder: a branch switch or bulk file creation can spawn
+// untracked "name 2.ext" copies, which `git add -A` would sweep into an item commit.
+const ICLOUD_GUARD = `if git ls-files --others --exclude-standard | grep -E ' [0-9]+(\\.[^/]*)?$'; then echo 'untracked iCloud duplicate copies (listed above): move them out of the repo before committing'; exit 1; fi`
+
 function heredoc(path, text) {
-  return `cat > ${path} <<'LGI_WAVE_EOF'\n${text}\nLGI_WAVE_EOF`
+  return `cat > "${path}" <<'LGI_WAVE_EOF'\n${text}\nLGI_WAVE_EOF`
 }
 
 // ---------------------------------------------------------------------------------------
 phase('Prepare')
-const guard = await shell(`bash ${T}/env_guard.sh${A.killNextDev ? ' --kill-next' : ''}\nmkdir -p ${S}\ngit status --porcelain\ngit log --oneline -1`, 'env-guard', 'Prepare')
+const guard = await shell(`bash "${T}/env_guard.sh"${A.killNextDev ? ' --kill-next' : ''}\nmkdir -p "${S}"\ngit status --porcelain\ngit log --oneline -1`, 'env-guard', 'Prepare')
 if (!guard || !guard.ok) return { aborted: 'environment guard failed', output: guard && guard.output }
-await shell(`bash ${T}/cleanup.sh snapshot ${S}`, 'cleanup:snapshot', 'Prepare')
+await shell(`bash "${T}/cleanup.sh" snapshot "${S}"`, 'cleanup:snapshot', 'Prepare')
 async function finish(result) {
-  const sweep = await shell(`bash ${T}/cleanup.sh sweep ${S}`, 'cleanup:sweep', 'Verify')
+  const sweep = await shell(`bash "${T}/cleanup.sh" sweep "${S}"`, 'cleanup:sweep', 'Verify')
   return { ...result, cleanup: sweep ? sweep.output : 'cleanup sweep did not run; run docs/refactoring/kit/tools/cleanup.sh sweep yourself' }
 }
 if (/^\s*[MADRCU?]{1,2} /m.test(guard.output.split('\n').slice(1).join('\n'))) return { aborted: 'working tree not clean at start', output: guard.output }
@@ -208,7 +212,7 @@ commitSubject: one imperative sentence in this repo's style (see \`git log --one
     await shell(`git checkout -- .\ngit clean -fd\ngit status --porcelain`, `revert:${item.id}`, 'Implement')
     const msg = `Record that ${item.id} is blocked\n\n${(reason || 'No reason given.').slice(0, 900)}`
     const note = (reason || 'see commit').replace(/\s+/g, ' ').slice(0, 300)
-    const c = await commitStep(item.id, msg, `${item.id} blocked @${S}/note-${item.id}.txt`, `commit:${item.id}`, 'Implement', `${heredoc(`${S}/note-${item.id}.txt`, note)}\n`)
+    const c = await commitStep(item.id, msg, `${item.id} blocked "@${S}/note-${item.id}.txt"`, `commit:${item.id}`, 'Implement', `${heredoc(`${S}/note-${item.id}.txt`, note)}\n`)
     if (!c) return await finish({ aborted: `commit failed for blocked ${item.id}; the tree may hold uncommitted docs changes`, results })
     results.push({ id: item.id, status: 'blocked', reason, commit: c && c.output })
     progress += `- ${item.id} BLOCKED (nothing landed): ${(reason || '').slice(0, 300)}\n`
@@ -234,9 +238,9 @@ let review = { findings: 0, fixed: null }
 if (landed.length) {
   const lenses = [
     `Hunt for real defects the wave introduced: behavior changes the guide did not intend, broken edge cases (null, empty, zero, negative, boundary dates), lost error handling or retries, server/client boundary mistakes (a client module pulling in server-only code, a missing 'use client'), missing awaits, races, cache tags not invalidated or invalidated wrongly, auth or ownership checks weakened, accessibility regressions, and imports that cross .fallowrc.json zones illegally.`,
-    `Check completeness against the guide: for each item this wave marked done (${landed.join(', ')}), confirm every site was migrated (grep for leftover copies of the old pattern, including sites added since the guide), the new primitive has tests, exports, mocks, and coverage pins that became unused were removed, the home matches the write-up or its Conflicts entry, and nothing changed behavior beyond what the write-up lists. Also confirm that items marked "already done on development" really are.`,
+    `Check completeness against the guide: for each item this wave marked done (${landed.join(', ')}), confirm every site was migrated (grep for leftover copies of the old pattern, including sites added since the guide), the new primitive has tests, exports, mocks, and coverage pins that became unused were removed, the home matches the write-up or its Conflicts entry, and nothing changed behavior beyond what the write-up lists. Also confirm that items marked "already done on development" really are. Check that each new or changed test can actually fail: fixtures built from the helper under test, fake timers that move both clocks, timezone cases on one side of UTC only, and literal pins lost when a test file was moved or consolidated.`,
   ]
-  const reviews = await parallel(lenses.map((lens, k) => () => agent(`${CONTEXT}\n\nREVIEW wave ${A.wave}. Its commits are \`git log --oneline ${A.base}..HEAD\` and its diff is \`git diff ${A.base}...HEAD -- . ':!docs/refactoring'\`. ${lens}\n\nVerify every finding by reading the code and, where cheap, by running a focused test. Report only issues you are confident are real, each with a concrete fix. Return an empty list if there are none. Read-only: do not edit files.${LONG_CMDS}`, { label: `review:${k === 0 ? 'correctness' : 'completeness'}`, phase: 'Review', schema: FINDINGS })))
+  const reviews = await parallel(lenses.map((lens, k) => () => agent(`${CONTEXT}\n\nREVIEW wave ${A.wave}. Its commits are \`git log --oneline ${A.base}..HEAD\` and its diff is \`git diff ${A.base}...HEAD -- . ':!docs/refactoring'\`. ${lens}\n\nVerify every finding by reading the code and, where cheap, by running a focused test. Report only issues you are confident are real, each with a concrete fix. Return an empty list if there are none. Read-only: do not edit files.${LONG_CMDS}`, { label: `review:${k === 0 ? 'correctness' : 'completeness'}`, phase: 'Review', schema: FINDINGS, model: k === 0 ? 'opus' : 'fable', effort: 'high' })))
   const all = reviews.filter(Boolean).flatMap(r => r.findings)
   review.findings = all.length
   if (all.length) {
@@ -263,7 +267,7 @@ if (verify.passed) {
   const vsubject = verify.subject || `Fix the full verify gate for wave ${A.wave}`
   const vbody = verify.body || 'Changes needed for pnpm verify (coverage, CRAP, or production dead code) after the wave\'s items landed.'
   const vmsg = `${vsubject}\n\n${clip(vbody, 1500)}${A.trailers ? `\n\n${A.trailers}` : ''}`
-  const c = await shell(`if [ -n "$(git status --porcelain)" ]; then\n${heredoc(`${S}/msg-verify-${A.wave}.txt`, vmsg)}\ngit add -A\ngit commit -q -F ${S}/msg-verify-${A.wave}.txt\nfi\ngit log -1 --format='%h %s'`, 'verify:commit', 'Verify')
+  const c = await shell(`if [ -n "$(git status --porcelain)" ]; then\n${heredoc(`${S}/msg-verify-${A.wave}.txt`, vmsg)}\n${ICLOUD_GUARD}\ngit add -A\ngit commit -q -F "${S}/msg-verify-${A.wave}.txt"\nfi\ngit log -1 --format='%h %s'`, 'verify:commit', 'Verify')
   verify.commit = c && c.output
 }
 
