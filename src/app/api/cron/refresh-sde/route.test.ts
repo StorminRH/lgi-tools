@@ -40,7 +40,7 @@ vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => reserveMock(...args) },
 }));
 
-vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => ({}) }));
+vi.mock('@/db/direct-database', () => ({ directDatabase: () => ({}) }));
 
 vi.mock('next/cache', () => ({
   revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),

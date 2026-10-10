@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import { db } from '@/db';
+import { directDatabase } from '@/db/direct-database';
 import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
 import type { PostgresJsDb } from '@/lib/db-types';
 import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
@@ -84,11 +84,7 @@ export async function saveOwnedBlueprints(
   etags: string[],
   options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
-  let database = options.database;
-  if (database === undefined) {
-    resolveLockConnectionUrl();
-    database = drizzle(directClient);
-  }
+  const database = options.database ?? directDatabase();
   const now = new Date();
   await database.transaction(async (tx) => {
     await tx.insert(ownedBlueprintSyncs)

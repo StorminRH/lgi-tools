@@ -1,4 +1,3 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import {
   probeWhStaticsRefresh,
@@ -31,8 +30,8 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
     key: ADVISORY_LOCK_WH_STATICS_REFRESH,
     busyBody: () => ({ status: 'busy' }),
   },
-  preLock: async ({ client }) => {
-    const { feed, baseline } = await probeWhStaticsRefresh(drizzle(client));
+  preLock: async ({ database }) => {
+    const { feed, baseline } = await probeWhStaticsRefresh(database);
     if (feed.status === 'unchanged') {
       return {
         done: {
@@ -54,12 +53,12 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
     }
     return { proceed: { feed, baseline } };
   },
-  work: async ({ client, reserved }, { feed, baseline }) => {
+  work: async ({ database, reserved }, { feed, baseline }) => {
     if (reserved === undefined) {
       throw new Error('Statics refresh reached work without a reserved lock connection.');
     }
     const result = await recordChangedWhStaticsFeed(
-      drizzle(client),
+      database,
       feed,
       baseline,
     );

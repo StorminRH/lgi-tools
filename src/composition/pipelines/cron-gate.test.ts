@@ -6,11 +6,16 @@ import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 const withAdvisoryLockMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const connectionMock = vi.fn();
+const directDatabaseFake = { handle: 'direct-database' };
+const directDatabaseMock = vi.fn(() => directDatabaseFake);
 
 const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock();
 
 vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => reserveMock(...args) },
+}));
+vi.mock('@/db/direct-database', () => ({
+  directDatabase: () => directDatabaseMock(),
 }));
 vi.mock('@/db/advisory-lock', () => ({
   withAdvisoryLock: (...args: unknown[]) => withAdvisoryLockMock(...args),
@@ -38,6 +43,7 @@ const ROUTE = '/api/cron/example';
 describe('defineCronRoute', () => {
   beforeEach(() => {
     withAdvisoryLockMock.mockReset();
+    directDatabaseMock.mockClear();
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     connectionMock.mockReset().mockResolvedValue(undefined);
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
@@ -131,6 +137,7 @@ describe('defineCronRoute', () => {
       'capability',
       'telemetry',
     ]);
+    expect(directDatabaseMock).not.toHaveBeenCalled();
   });
 
   it('returns the declared busy body and records busy under always', async () => {
@@ -207,7 +214,7 @@ describe('defineCronRoute', () => {
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test route is lock-free' },
       work: async (ctx) => {
-        expect(ctx.client).toEqual(expect.anything());
+        expect(ctx.database).toBe(directDatabaseFake);
         expect(ctx.reserved).toBeUndefined();
         return {
           outcome: 'idle',
@@ -406,10 +413,7 @@ describe('defineCronRoute capability recording', () => {
       wakeClass: 'batch',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test' },
-      work: async (ctx) => {
-        await ctx.client.reserve();
-        return { outcome: 'refreshed', workDone: true, body: { status: 'ok' } };
-      },
+      work: async () => ({ outcome: 'refreshed', workDone: true, body: { status: 'ok' } }),
     });
 
     await GET(cronRequest(ROUTE));

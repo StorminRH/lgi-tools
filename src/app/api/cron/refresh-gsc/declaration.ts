@@ -25,9 +25,9 @@ export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse>
       durationMs,
     }),
   },
-  work: async ({ client }) => {
+  work: async ({ database }) => {
     const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);
-    const summary = await syncGsc(client, sitemapUrls);
+    const summary = await syncGsc(database, sitemapUrls);
 
     return {
       outcome: summary.status,

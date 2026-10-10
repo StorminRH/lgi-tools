@@ -1,8 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import type { Sql } from '@/db';
 import { chunk } from '@/lib/array';
-import type { AnyPgDb } from '@/lib/db-types';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { excludedSet } from '@/lib/db-upsert';
 import { errorMessage } from '@/lib/failure';
 import { daysBefore, isoDay } from '@/lib/iso-date';
@@ -306,7 +304,7 @@ async function syncUrlInspections(
   }
 }
 
-export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSyncSummary> {
+export async function syncGsc(database: PostgresJsDb, sitemapUrls: string[]): Promise<GscSyncSummary> {
   const start = Date.now();
   if (!isGscConfigured()) {
     return {
@@ -320,14 +318,13 @@ export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSy
     };
   }
 
-  const db = drizzle(client);
   const syncedAt = new Date();
   const endDate = isoDay(syncedAt);
   const startDate = isoDay(daysBefore(syncedAt, GSC_WINDOW_DAYS));
 
-  const search = await syncSearchAnalytics(db, startDate, endDate, syncedAt);
-  const sitemap = await syncSitemaps(db, syncedAt);
-  const urls = await syncUrlInspections(db, syncedAt, sitemapUrls);
+  const search = await syncSearchAnalytics(database, startDate, endDate, syncedAt);
+  const sitemap = await syncSitemaps(database, syncedAt);
+  const urls = await syncUrlInspections(database, syncedAt, sitemapUrls);
 
   const errors = [search.error, sitemap.error, ...urls.errors].filter(
     (e): e is string => e !== null,

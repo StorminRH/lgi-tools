@@ -1,4 +1,3 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import type { CronRefreshIndustryIndicesResponse } from '@/data/industry-indices/api-contract';
 import { ADVISORY_LOCK_INDUSTRY_INDICES } from '@/data/industry-indices/constants';
 import { refreshIndustryIndices } from '@/data/industry-indices/ingest';
@@ -17,8 +16,8 @@ export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefresh
     key: Number(ADVISORY_LOCK_INDUSTRY_INDICES),
     busyBody: () => ({ status: 'busy' }),
   },
-  work: async ({ client }) => {
-    const summary = await refreshIndustryIndices(drizzle(client));
+  work: async ({ database }) => {
+    const summary = await refreshIndustryIndices(database);
 
     return {
       outcome: 'refreshed',

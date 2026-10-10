@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import { db } from '@/db';
+import { directDatabase } from '@/db/direct-database';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { buildHoldingIndex, type CorpAssetEvidence, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
@@ -168,11 +168,7 @@ export async function saveCorpOwnedAssets(
   snapshotId: number,
   options: { database?: PostgresJsDb } = {},
 ): Promise<'saved' | 'superseded'> {
-  let database = options.database;
-  if (database === undefined) {
-    resolveLockConnectionUrl();
-    database = drizzle(directClient);
-  }
+  const database = options.database ?? directDatabase();
   const owner = { ownerType: 'corporation', ownerId: corporationId } as const;
   try {
     await database.transaction(async (tx) => {

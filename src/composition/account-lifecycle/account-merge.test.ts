@@ -45,7 +45,7 @@ vi.mock('@/composition/map-access-projection', () => ({
 }));
 vi.mock('@/composition/purge/register-all', () => ({ PURGE_CONTRIBUTORS: [] }));
 vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: doors.logUsageEvent }));
-vi.mock('@/db', () => ({ directClient: {}, resolveLockConnectionUrl: () => 'postgres://direct' }));
+vi.mock('@/db', () => ({ directClient: {} }));
 
 import type { PostgresJsDb } from '@/lib/db-types';
 import { mergeUsers, resolveMergePair, settleConvexAfterMerge, type MergeRequest } from './account-merge';

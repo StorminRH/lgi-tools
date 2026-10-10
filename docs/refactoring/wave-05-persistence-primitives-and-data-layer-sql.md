@@ -18,7 +18,7 @@ Run db suites with Postgres up.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P230](#p230) | Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies | persistence | S | low | medium | — |
 | ☑ | [P223](#p223) | Move mapAuthorizationRows to src/lib as executeRows and use it at every inline Array.isArray(result) normalization | persistence | S | low | medium | — |
-| ☐ | [P220](#p220) | Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it | persistence | M | low | medium | — |
+| ☑ | [P220](#p220) | Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it | persistence | M | low | medium | — |
 | ☐ | [P237](#p237) | Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts | persistence | S | low | low | [P220](#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) |
 | ☐ | [P242](#p242) | Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it | persistence | S | low | low | [P220](#p220) |
 | ☐ | [P228](#p228) | Add ownerKeyWhere beside ownerSyncStateColumns and return sync-state rows directly | persistence | S | low | low | — |
@@ -160,7 +160,7 @@ export async function executeRows<T extends Record<string, unknown>>(database: A
 
 ## P220: Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -55 / +25 (12 drizzle imports, 5 pre-checks, 3 let/if blocks and 2 Sql-to-drizzle wrappers removed; one 8-line module and one test added)
 - **Depends on:** —

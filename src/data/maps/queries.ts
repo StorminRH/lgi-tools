@@ -13,9 +13,9 @@ import {
   sql,
   type SQL,
 } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { db, directClient } from '@/db';
+import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
+import { directDatabase } from '@/db/direct-database';
 import { groupBy, sortedUniqueIds } from '@/lib/array';
 import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -510,7 +510,7 @@ export async function applyAuthorizedMapGrantChange(
   }
   // Revokes on one map run one at a time, so the last-own-character guard
   // reads the grants the previous revoke left behind.
-  const writer = database === db ? drizzle(directClient) : database;
+  const writer = database === db ? directDatabase() : database;
   return writer.transaction(async (transaction) => {
     await transaction.execute(sql`SELECT ${maps.id} FROM ${maps} WHERE ${maps.id} = ${mapId} FOR UPDATE`);
     if (change.principal.ownerType === 'character'

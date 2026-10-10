@@ -1,7 +1,7 @@
 import { and, asc, isNull, sql, type SQL } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { account, characters } from '@/db/auth-schema';
-import { db, directClient } from '@/db';
+import { db } from '@/db';
+import { directDatabase } from '@/db/direct-database';
 import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
@@ -55,7 +55,7 @@ export async function insertGrandfatherGrants(
   mapId: string,
   grants: readonly GrandfatherGrant[],
   authorizationFailureCutoff: Date,
-  database: AnyPgDb = drizzle(directClient),
+  database: AnyPgDb = directDatabase(),
 ): Promise<void> {
   if (grants.length === 0) return;
   await database.transaction(async (transaction) => {

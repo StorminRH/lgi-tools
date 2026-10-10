@@ -6,7 +6,7 @@ vi.mock('@/composition/pipelines/housekeeping', () => ({ runHousekeeping }));
 
 import { housekeepingDeclaration } from './declaration';
 
-const context = { client: {} as never, record: async () => {} };
+const context = { database: {} as never, record: async () => {} };
 
 function summary(overrides: Partial<HousekeepingSummary> = {}): HousekeepingSummary {
   return {

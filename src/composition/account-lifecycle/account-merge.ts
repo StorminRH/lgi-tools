@@ -1,6 +1,5 @@
 import { asc, eq, inArray, is } from 'drizzle-orm';
 import { PgTable } from 'drizzle-orm/pg-core';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/composition/drizzle-schema';
 import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { deliverCapturedMapAccessChanges } from '@/composition/map-affiliation-access';
@@ -10,8 +9,8 @@ import { enqueueTrackingMerge } from '@/data/location-tracking/merge-store';
 import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import { enqueueMergeReprojection } from '@/data/maps/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { directClient, resolveLockConnectionUrl } from '@/db';
 import { account, user } from '@/db/auth-schema';
+import { directDatabase } from '@/db/direct-database';
 import { bestEffort } from '@/lib/best-effort';
 import type { PostgresJsDb } from '@/lib/db-types';
 import { accountMatch, eveAccountsForUser } from '@/platform/auth/eve-account-shared';
@@ -86,11 +85,6 @@ async function commitMerge(
   await assertSourceEmpty(tx, SCHEMA_TABLES, source.id);
   await tx.delete(user).where(eq(user.id, source.id));
   return { survivorUserId: survivor.id, sourceUserId: source.id, movedCharacterIds, captured };
-}
-
-function directDatabase(): PostgresJsDb {
-  resolveLockConnectionUrl();
-  return drizzle(directClient);
 }
 
 export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): Promise<MergeResult> {

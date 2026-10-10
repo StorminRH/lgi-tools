@@ -1,7 +1,7 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { db, directClient } from '@/db';
 import { withAdvisoryLock } from '@/db/advisory-lock';
+import { directDatabase } from '@/db/direct-database';
 import { readWormholeCodex } from '@/data/eve-data/universe-assets';
 import type {
   WhStaticsRefreshResult,
@@ -87,8 +87,7 @@ export async function recordChangedWhStaticsFeed(
 }
 
 export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult> {
-  const probeDatabase = drizzle(directClient);
-  const { feed, baseline } = await probeWhStaticsRefresh(probeDatabase);
+  const { feed, baseline } = await probeWhStaticsRefresh(directDatabase());
   if (feed.status === 'unchanged') return { status: 'unchanged' };
   if (feed.status === 'unavailable') {
     return { status: 'feed-unavailable', reason: feed.reason };
@@ -97,17 +96,17 @@ export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult
   const outcome = await withAdvisoryLock(
     directClient,
     ADVISORY_LOCK_WH_STATICS_REFRESH,
-    () => recordChangedWhStaticsFeed(drizzle(directClient), feed, baseline),
+    () => recordChangedWhStaticsFeed(directDatabase(), feed, baseline),
   );
   return outcome.busy ? { status: 'busy' } : outcome.result;
 }
 
 export function promoteWhStaticsSnapshot(snapshotId: number) {
-  return promoteSnapshot(drizzle(directClient), snapshotId);
+  return promoteSnapshot(directDatabase(), snapshotId);
 }
 
 export function rejectWhStaticsSnapshot(snapshotId: number) {
-  return rejectSnapshot(drizzle(directClient), snapshotId);
+  return rejectSnapshot(directDatabase(), snapshotId);
 }
 
 export function getWhStaticsOperatorReview() {

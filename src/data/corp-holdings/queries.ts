@@ -1,7 +1,7 @@
 import { and, eq, inArray, notInArray } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import { db } from '@/db';
+import { directDatabase } from '@/db/direct-database';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { chunk } from '@/lib/array';
@@ -89,11 +89,7 @@ export async function saveCorpProfile(
   refreshedAt: Date,
   options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
-  let database = options.database;
-  if (database === undefined) {
-    resolveLockConnectionUrl();
-    database = drizzle(directClient);
-  }
+  const database = options.database ?? directDatabase();
   await database.transaction(async (tx) => {
     // The profile write serializes corporation refreshes before replacing its bases.
     // Freshness, HQ, and bases commit together as one authorization snapshot.

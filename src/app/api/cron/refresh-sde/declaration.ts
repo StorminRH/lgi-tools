@@ -1,4 +1,3 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { revalidateTag } from 'next/cache';
 import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
 import {
@@ -9,13 +8,14 @@ import {
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import type { PostgresJsDb } from '@/lib/db-types';
 import {
   runSdePipeline,
   summarizeMarketPricesRowCount,
 } from '@/composition/pipelines/sde-pipeline';
 
 export type SdePreLock = {
-  db: ReturnType<typeof drizzle>;
+  db: PostgresJsDb;
   storedVersion: string | null;
   remoteVersion: string | null;
 };
@@ -39,8 +39,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
       message: 'Another SDE ingest in flight',
     }),
   },
-  preLock: async ({ client }) => {
-    const db = drizzle(client);
+  preLock: async ({ database: db }) => {
     const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
     const remoteVersion = await getRemoteSdeVersion();
 
