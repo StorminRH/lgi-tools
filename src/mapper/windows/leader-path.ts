@@ -1,10 +1,13 @@
+import { roundTo } from '@/lib/math';
+
 export interface LeaderPoint {
   readonly x: number;
   readonly y: number;
 }
 
-function round(value: number): number {
-  return Math.round(value * 100) / 100;
+/** SVG coordinates to two decimals, which is finer than a device pixel. */
+function coords(point: LeaderPoint): string {
+  return `${roundTo(point.x, 2)} ${roundTo(point.y, 2)}`;
 }
 
 function distance(a: LeaderPoint, b: LeaderPoint): number {
@@ -29,19 +32,19 @@ export function roundedLeaderPath(
 ): string {
   const [first, ...rest] = points;
   if (first === undefined) return '';
-  let d = `M ${round(first.x)} ${round(first.y)}`;
+  let d = `M ${coords(first)}`;
   let previous = first;
   rest.forEach((point, index) => {
     const next = rest[index + 1];
     if (next === undefined) {
-      d += ` L ${round(point.x)} ${round(point.y)}`;
+      d += ` L ${coords(point)}`;
       return;
     }
     const r = Math.min(radius, distance(previous, point) / 2, distance(point, next) / 2);
     const entry = toward(point, previous, r);
     const exit = toward(point, next, r);
-    d += ` L ${round(entry.x)} ${round(entry.y)}`;
-    d += ` Q ${round(point.x)} ${round(point.y)} ${round(exit.x)} ${round(exit.y)}`;
+    d += ` L ${coords(entry)}`;
+    d += ` Q ${coords(point)} ${coords(exit)}`;
     previous = point;
   });
   return d;

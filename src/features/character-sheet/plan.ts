@@ -1,3 +1,5 @@
+import { sortedUniqueIds } from '@/lib/array';
+import { roundIsk } from '@/lib/math';
 import { type EsiJournalEntry, parseJournalNewestFirst, parseStructureBody } from './esi-projection';
 import type {
   DirectSectionKey,
@@ -82,10 +84,6 @@ export function planSectionRead<K extends DirectSectionKey>(
   };
 }
 
-function roundIsk(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 function journalSeries(entries: EsiJournalEntry[], windowStartMs: number, nowMs: number): JournalSeriesPoint[] {
   const bucketMs = Math.max(1, nowMs - windowStartMs) / JOURNAL_SERIES_POINTS;
   const lastPerBucket = new Map<number, JournalSeriesPoint>();
@@ -141,7 +139,7 @@ export function referencedStructureIds(sheet: SheetSections | null): number[] {
   for (const clone of clones?.jumpClones ?? []) {
     if (clone.location.locationType === 'structure') ids.add(clone.location.locationId);
   }
-  return [...ids].sort((a, b) => a - b);
+  return sortedUniqueIds(ids);
 }
 
 export function unresolvedStructureIds(sheet: SheetSections | null): number[] {

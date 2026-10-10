@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { StructureSearchResult } from '@/features/custom-structures/api-contract';
+import { getOrInsertComputed } from '@/lib/array';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { EVE_CHARACTER_SEARCH_SCOPE } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
@@ -127,7 +128,7 @@ export async function searchUpwellStructures(
 
   const seenBy = new Map<number, string[]>();
   for (const { accessToken, structureIds } of searched) {
-    for (const id of structureIds) seenBy.set(id, [...(seenBy.get(id) ?? []), accessToken]);
+    for (const id of structureIds) getOrInsertComputed(seenBy, id, () => []).push(accessToken);
   }
   const read = await Promise.all(
     [...seenBy].slice(0, MAX_STRUCTURE_RESULTS).map(([id, accessTokens]) => readWithAny(id, accessTokens, signal)),

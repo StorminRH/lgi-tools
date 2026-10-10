@@ -1,5 +1,6 @@
 import { ConvexError, v, type Infer } from 'convex/values';
 import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
+import { groupBy } from '@/lib/array';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
@@ -116,7 +117,7 @@ export const restoreMergeTracking = internalMutation({
     // here so a concurrent claim revocation conflicts with this transaction.
     let restored = 0;
     let skipped = 0;
-    for (const [mapId, mapSelections] of groupSelectionsByMap(selections)) {
+    for (const [mapId, mapSelections] of groupBy(selections, ({ mapId }) => mapId)) {
       const counts = await restoreMapSelections(ctx, mapId, survivorUserId, mapSelections);
       restored += counts.restored;
       skipped += counts.skipped;
@@ -182,18 +183,6 @@ interface SurvivorTrackingSlots {
   readonly tracked: Set<number>;
   count: number;
   mapCount: number | undefined;
-}
-
-function groupSelectionsByMap(
-  selections: readonly TrackingSelection[],
-): Map<string, TrackingSelection[]> {
-  const byMap = new Map<string, TrackingSelection[]>();
-  for (const selection of selections) {
-    const rows = byMap.get(selection.mapId) ?? [];
-    rows.push(selection);
-    byMap.set(selection.mapId, rows);
-  }
-  return byMap;
 }
 
 async function restoreMapSelections(

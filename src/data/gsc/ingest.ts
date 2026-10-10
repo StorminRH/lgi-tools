@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import type { Sql } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
+import { errorMessage } from '@/lib/failure';
 import {
   GSC_INSPECTION_BATCH_SIZE,
   GSC_INSPECTION_URL_LIMIT,
@@ -202,7 +203,7 @@ export async function inspectUrlsInBatches(
             record: indexStatusToRecord(url, await inspect(url), syncedAt, sitemapUrlCount),
           };
         } catch (err) {
-          return { ok: false, error: `url-inspection ${url}: ${errText(err)}` };
+          return { ok: false, error: `url-inspection ${url}: ${errorMessage(err)}` };
         }
       }),
     );
@@ -242,10 +243,6 @@ async function upsertSearchAnalytics(
 
 type SurfaceResult = { count: number; error: string | null };
 
-function errText(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
 async function syncSearchAnalytics(
   db: AnyPgDb,
   startDate: string,
@@ -266,7 +263,7 @@ async function syncSearchAnalytics(
     await upsertSearchAnalytics(db, records);
     return { count: records.length, error: null };
   } catch (err) {
-    return { count: 0, error: `search-analytics: ${errText(err)}` };
+    return { count: 0, error: `search-analytics: ${errorMessage(err)}` };
   }
 }
 
@@ -294,7 +291,7 @@ async function syncSitemaps(db: AnyPgDb, syncedAt: Date): Promise<SurfaceResult>
       });
     return { count: rows.length, error: null };
   } catch (err) {
-    return { count: 0, error: `sitemaps: ${errText(err)}` };
+    return { count: 0, error: `sitemaps: ${errorMessage(err)}` };
   }
 }
 
@@ -319,7 +316,7 @@ async function syncUrlInspections(
     await upsertUrlInspectionRecords(db, result.records);
     return { count: result.records.length, errors: result.errors };
   } catch (err) {
-    return { count: 0, errors: [`url-inspection: ${errText(err)}`] };
+    return { count: 0, errors: [`url-inspection: ${errorMessage(err)}`] };
   }
 }
 

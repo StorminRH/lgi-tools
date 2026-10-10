@@ -1,3 +1,4 @@
+import { sortedUniqueIds } from '@/lib/array';
 import { apiFetch } from '@/transport/api-client';
 import type { entityNamesEndpoint, typeNamesEndpoint } from './api-contract';
 
@@ -13,7 +14,7 @@ export function createNamesClient(
 ) {
   const namesById = new Map<number, Promise<string | undefined>>();
   const normalize = (ids: readonly number[]) => {
-    const unique = [...new Set(ids)].sort((left, right) => left - right);
+    const unique = sortedUniqueIds(ids);
     return policy.cache
       ? unique.filter((id) => Number.isInteger(id) && id > 0)
       : unique.slice(0, policy.maxIds);

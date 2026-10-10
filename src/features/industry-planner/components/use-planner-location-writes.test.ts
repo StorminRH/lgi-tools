@@ -10,8 +10,8 @@ const h = vi.hoisted(() => ({
 const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 vi.mock('react', () => rt.react);
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
-vi.mock('../read-with-retries', async (load) => {
-  const { readWithRetries } = await load<typeof import('../read-with-retries')>();
+vi.mock('@/lib/retry', async (load) => {
+  const { readWithRetries } = await load<typeof import('@/lib/retry')>();
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 

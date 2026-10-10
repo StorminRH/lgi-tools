@@ -1,3 +1,4 @@
+import { clamp, clamp01 } from '@/lib/math';
 import { djb2, mulberry32 } from '../lib/prng';
 import type { FogFrame, FogPaintDisc, FogPaintStroke } from './fog-model';
 
@@ -79,7 +80,7 @@ export function fogBackingScale(
   const bucket = Math.min(4, 2 ** Math.ceil(Math.log2(demand)));
   const area = Math.max(1, cover.width * cover.height);
   const budgetCap = Math.sqrt(maxPixels / area);
-  return Math.max(0.02, Math.min(bucket, budgetCap));
+  return clamp(bucket, 0.02, budgetCap);
 }
 
 const BRUSH_NOISE_CELLS = 8;
@@ -119,7 +120,7 @@ export function fogBrushAlpha(size: number, seed: number): Uint8ClampedArray {
       const band = Math.max(0, 1 - Math.abs(r - 0.75) / 0.35);
       const noise = latticeNoise(lattice, px / size, py / size);
       const value = falloff + (noise - 0.5) * 0.7 * band;
-      alpha[py * size + px] = Math.round(Math.min(1, Math.max(0, value)) * 255);
+      alpha[py * size + px] = Math.round(clamp01(value) * 255);
     }
   }
   return alpha;

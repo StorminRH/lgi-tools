@@ -181,7 +181,7 @@ const discordWebhooks = policy({
   idempotency:
     'Non-idempotent — a retry would post a duplicate message, which is why none is attempted.',
   degradation:
-    'Fire-and-forget: an unset DISCORD_ALERT_WEBHOOK_URL skips delivery silently while telemetry still records.',
+    'Best-effort: an unset DISCORD_ALERT_WEBHOOK_URL skips delivery silently while telemetry still records. A non-2xx webhook response rejects, and the caller logs it through bestEffort without changing its own outcome.',
   telemetryFields: "'public_esi_budget_alerted'.",
 });
 const fuzzworkPrices = policy({

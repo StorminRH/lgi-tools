@@ -1,12 +1,10 @@
-export function eligibleIdsKey(ids: number[]): string {
-  return [...new Set(ids)].sort((a, b) => a - b).join(',');
-}
+import { parseIdsKey } from './array';
 
 export function anyEligibleCold(
   characters: Array<{ characterId: number; data: unknown }>,
   eligibleKey: string,
 ): boolean {
-  const eligible = new Set(eligibleKey === '' ? [] : eligibleKey.split(',').map(Number));
+  const eligible = new Set(parseIdsKey(eligibleKey));
   return characters.some((character) => character.data === null && eligible.has(character.characterId));
 }
 

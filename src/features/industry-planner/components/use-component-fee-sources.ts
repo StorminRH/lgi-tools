@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { idsKey, parseIdsKey } from '@/lib/array';
+import { readWithRetries } from '@/lib/retry';
 import { apiFetch } from '@/transport/api-client';
 import { buildLocationEndpoint, costIndicesEndpoint } from '../api-contract';
 import type { AssembleOptions } from '../build-pricing';
 import { profileFeeSiteOf } from '../component-job-fees';
-import { readWithRetries } from '../read-with-retries';
 import type { ProfilePlan } from '../profiles/profile-plan';
 import type { BlueprintStructure, SystemJobCostIndex } from '../types';
 import { useResourceRead } from '../use-resource-read';
@@ -58,7 +59,7 @@ export function useComponentFeeSources(
       const { systemId } = siteOf(Number(bp));
       if (systemId !== null) ids.add(systemId);
     }
-    return [...ids].sort((a, b) => a - b).join(',');
+    return idsKey(ids);
   }, [siteOf, structure.nodeActivityByBlueprint]);
   const priceSystemId = useMemo(() => {
     if (!siteOf) return null;
@@ -76,7 +77,7 @@ export function useComponentFeeSources(
     async (signal: AbortSignal): Promise<ReadIndices | null> => {
       const data = await readWithRetries(async () => {
         const res = await apiFetch(costIndicesEndpoint, {
-          body: { systemIds: key.split(',').map(Number) },
+          body: { systemIds: parseIdsKey(key) },
           cache: 'no-store',
           signal,
         });

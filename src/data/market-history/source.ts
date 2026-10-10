@@ -6,6 +6,7 @@ import {
   esiUrl,
 } from '@/platform/esi';
 import { dedupe } from '@/lib/array';
+import { mapConcurrent } from '@/lib/fan-out';
 import {
   HISTORY_FETCH_CONCURRENCY,
   THE_FORGE_REGION_ID,
@@ -47,24 +48,6 @@ function historyUrl(typeId: number): string {
   return esiUrl(`/markets/${THE_FORGE_REGION_ID}/history/?type_id=${typeId}`);
 }
 
-async function runConcurrent<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  let cursor = 0;
-  const runners = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      while (cursor < items.length) {
-        const i = cursor++;
-        await worker(items[i]!);
-      }
-    },
-  );
-  await Promise.all(runners);
-}
-
 export async function fetchHistoryFromSource(
   typeIds: number[],
 ): Promise<{ results: RawHistory[]; budgetExhausted: boolean }> {
@@ -73,7 +56,7 @@ export async function fetchHistoryFromSource(
   const results: RawHistory[] = [];
   let budgetExhausted = false;
 
-  await runConcurrent(unique, HISTORY_FETCH_CONCURRENCY, async (typeId) => {
+  await mapConcurrent(unique, HISTORY_FETCH_CONCURRENCY, async (typeId) => {
     if (budgetExhausted) return;
     try {
       const res = await esiFetch(historyUrl(typeId));

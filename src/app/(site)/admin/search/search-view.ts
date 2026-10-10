@@ -4,6 +4,7 @@ import { searchTotalsFromTrend, toDateStr } from '@/data/gsc/queries';
 import type { GscDailyPoint, GscRange, GscSitemapStatus, GscTermStat, GscTotals } from '@/data/gsc/types';
 import { formatCount, formatQuantity } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
+import { roundTo } from '@/lib/math';
 
 /**
  * The one window the search cards read: the previous period ends the day
@@ -46,7 +47,7 @@ export function deriveGscPerformanceView(trend: readonly GscDailyPoint[]) {
     ),
     positionTrend: trendSeries(
       trend.map((d) => d.day),
-      trend.map((d) => Math.round(d.position * 10) / 10),
+      trend.map((d) => roundTo(d.position, 1)),
     ),
   };
 }

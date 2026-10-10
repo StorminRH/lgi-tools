@@ -29,8 +29,8 @@ vi.mock('@/components/use-system-search', () => ({
 }));
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => ({ session: {} }) }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
-vi.mock('../read-with-retries', async (load) => {
-  const { readWithRetries } = await load<typeof import('../read-with-retries')>();
+vi.mock('@/lib/retry', async (load) => {
+  const { readWithRetries } = await load<typeof import('@/lib/retry')>();
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 vi.mock('../profiles/use-industry-profiles', () => ({ useIndustryProfiles: () => ({ profiles: h.profiles, listFailed: h.profilesFailed, refresh: h.refreshProfiles }) }));

@@ -31,6 +31,7 @@ import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
 import { SECTION_LOAD_FAILED } from './load-section';
+import { getOrInsertComputed } from '@/lib/array';
 import { formatCount, formatQuantity } from '@/lib/format/number';
 
 export interface CronSignals {
@@ -440,9 +441,7 @@ function unavailableAttention(signals: AdminSignals): AttentionItem[] {
   for (const key of keys) {
     if (signals[key] !== SECTION_LOAD_FAILED) continue;
     const { label, page } = SOURCES[key];
-    const entry = byPage.get(page.href) ?? { page, labels: new Set<string>() };
-    entry.labels.add(label);
-    byPage.set(page.href, entry);
+    getOrInsertComputed(byPage, page.href, () => ({ page, labels: new Set() })).labels.add(label);
   }
   return [...byPage.values()].map(({ page, labels }) => ({
     id: `unavailable:${page.href}`,

@@ -5,6 +5,7 @@ import {
   type NodeChange,
 } from '@xyflow/react';
 import { useCallback, useMemo, useState } from 'react';
+import { parseIdsKey } from '@/lib/array';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { PlacedHalo } from '../halo/halo-model';
 import type { MotionTruth } from '../motion/motion-host-model';
@@ -108,13 +109,7 @@ export function useChainNodeSync(
   const nodeIdsKey = nodes
     .flatMap((node) => isStubNodeId(node.id) ? [] : [node.id])
     .join(',');
-  const nodeIds = useMemo(
-    () =>
-      new Set(
-        nodeIdsKey.length === 0 ? [] : nodeIdsKey.split(',').map(Number),
-      ),
-    [nodeIdsKey],
-  );
+  const nodeIds = useMemo(() => new Set(parseIdsKey(nodeIdsKey)), [nodeIdsKey]);
 
   return {
     deselectNodes,

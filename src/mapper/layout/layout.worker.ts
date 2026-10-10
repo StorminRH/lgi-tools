@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+import { errorMessage } from '@/lib/failure';
 import type { ChainPosition } from '../chain/intents';
 import { compassKernel } from './compass';
 import type { LayoutConfig, LayoutFacts } from './layout-contract';
@@ -32,7 +33,7 @@ self.onmessage = (event: MessageEvent<LayoutWorkerRequest>) => {
     const response: LayoutWorkerFailure = {
       kind: 'error',
       requestId,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     };
     self.postMessage(response);
   };

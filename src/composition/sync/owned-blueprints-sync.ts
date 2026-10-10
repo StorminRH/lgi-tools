@@ -11,6 +11,7 @@ import {
 import { getOwnedBlueprintMap, readBlueprintSyncState, saveOwnedBlueprints, stampBlueprintFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
@@ -34,10 +35,10 @@ export async function getOwnedBlueprintDetailOnView(
   requestedTypeIds: number[],
 ): Promise<OwnedBlueprintDetailEntry[]> {
   const viewer = await resolveCorpViewer(userId);
-  const evidence = new Map(await Promise.all(viewer.scope.corps.map(async (grant) =>
-    [grant.corporationId, grant.blueprints.kind === 'by-location'
-      ? await getCorpAssetEvidence(grant.corporationId) : null] as const,
-  )));
+  const evidence = await mapByIdDroppingNulls(
+    viewer.scope.corps.filter((grant) => grant.blueprints.kind === 'by-location').map((grant) => grant.corporationId),
+    getCorpAssetEvidence,
+  );
   const map = await getOwnedBlueprintMap(viewer.scope, evidence);
   after(() =>
     refreshOwnedBlueprintsForUser(

@@ -12,6 +12,7 @@ import {
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { type CurrentTraining, currentTraining, summarizeQueue } from '@/features/skill-queue/progress';
 import { formatUtcDate, formatRemaining } from '@/lib/format/time';
+import { withSearchParams } from '@/lib/search-params';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -189,11 +190,9 @@ export function railOrder<T extends Pick<BoardCharacter, 'characterId'>>(
 
 /** The same page with `?character=` set for a character view or removed for the overview. */
 export function boardViewHref(pathname: string, search: string, view: BoardView): string {
-  const params = new URLSearchParams(search);
-  if (view.view === 'character') params.set(CHARACTER_PARAM, String(view.characterId));
-  else params.delete(CHARACTER_PARAM);
-  const query = params.toString();
-  return query === '' ? pathname : `${pathname}?${query.replace(/=(&|$)/g, '$1')}`;
+  return withSearchParams(pathname, search, {
+    [CHARACTER_PARAM]: view.view === 'character' ? String(view.characterId) : null,
+  });
 }
 
 export function characterParam(params: { get: (key: string) => string | null }): string | null {

@@ -1,5 +1,6 @@
 import { inArray } from 'drizzle-orm';
 import { db as defaultDb } from '@/db';
+import { getOrInsertComputed } from '@/lib/array';
 import type { IndustryActivity } from './constants';
 import { adjustedPrices, industryCostIndices } from './schema';
 import type { SystemCostIndices } from './types';
@@ -19,12 +20,7 @@ export async function getSystemCostIndicesBatch(
 
   const out = new Map<number, Map<IndustryActivity, number>>();
   for (const r of rows) {
-    let inner = out.get(r.solarSystemId);
-    if (!inner) {
-      inner = new Map();
-      out.set(r.solarSystemId, inner);
-    }
-    inner.set(r.activity as IndustryActivity, r.costIndex);
+    getOrInsertComputed(out, r.solarSystemId, () => new Map()).set(r.activity as IndustryActivity, r.costIndex);
   }
   return out;
 }

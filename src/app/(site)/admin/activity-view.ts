@@ -2,6 +2,7 @@ import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometr
 import { movingAverage, zeroFillDaily } from './aggregate';
 import { computeDelta, type Delta } from '@/composition/admin-period';
 import type { DateRange } from '@/data/telemetry/types';
+import { groupBy } from '@/lib/array';
 
 const MS_PER_DAY = 86_400_000;
 const MA_WINDOW = 7;
@@ -32,12 +33,7 @@ const EMPTY: ActivityChartData = {
 function dedupeMarkersByDay(
   markers: { date: string; label: string }[],
 ): { date: string; label: string }[] {
-  const byDay = new Map<string, string[]>();
-  for (const m of markers) {
-    const list = byDay.get(m.date);
-    if (list) list.push(m.label);
-    else byDay.set(m.date, [m.label]);
-  }
+  const byDay = groupBy(markers, (m) => m.date, (m) => m.label);
   return [...byDay.entries()].map(([date, labels]) => ({
     date,
     label: labels.length === 1 ? labels[0]! : `${labels.length} releases`,

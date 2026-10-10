@@ -1,4 +1,5 @@
 import type { SecurityClass } from '@/data/eve-data/security';
+import type { Neighbours } from '@/lib/graph';
 import type { ChainPosition } from '../chain/intents';
 import { pairKey } from '../lib/pair-key';
 import type { LayoutFacts } from '../layout/layout-contract';
@@ -56,7 +57,7 @@ export const HALO_PINNED_LIMITS: HaloLimits = {
 
 export interface HaloInput {
   readonly authoredSystems: readonly { readonly systemId: number; readonly order: number }[];
-  readonly neighbours: (id: number) => readonly number[];
+  readonly neighbours: Neighbours;
   readonly securityClassOf: (id: number) => SecurityClass | undefined;
   readonly limits?: HaloLimits;
 }
@@ -69,7 +70,7 @@ interface HaloClaim {
 interface HaloScan {
   readonly authoredIds: ReadonlySet<number>;
   readonly limits: HaloLimits;
-  readonly neighbours: (id: number) => readonly number[];
+  readonly neighbours: Neighbours;
   readonly claims: Map<number, HaloClaim>;
   readonly claimedPerExit: Map<number, number>;
 }

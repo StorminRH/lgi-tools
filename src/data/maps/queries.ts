@@ -16,6 +16,7 @@ import {
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { db, directClient } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
+import { groupBy, sortedUniqueIds } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import {
@@ -199,15 +200,13 @@ function matchedPrincipalIds(
   ownerType: MapAccessOwnerType,
   principalIds: readonly number[],
 ): number[] {
-  return [
-    ...new Set(
-      grants
-        .filter((grant) =>
-          grant.ownerType === ownerType && principalIds.includes(grant.ownerId),
-        )
-        .map((grant) => grant.ownerId),
-    ),
-  ].sort((left, right) => left - right);
+  return sortedUniqueIds(
+    grants
+      .filter((grant) =>
+        grant.ownerType === ownerType && principalIds.includes(grant.ownerId),
+      )
+      .map((grant) => grant.ownerId),
+  );
 }
 
 function resolveProvenance(
@@ -263,14 +262,7 @@ function materializeAuthorizedMaps(
   userId: string,
   principals: MapPrincipals,
 ): Array<AuthorizedMapRow & { readonly archivedAt: Date | null }> {
-  const grouped = new Map<string, RawAuthorizedMapRow[]>();
-  for (const row of rows) {
-    const group = grouped.get(row.id) ?? [];
-    group.push(row);
-    grouped.set(row.id, group);
-  }
-
-  return [...grouped.values()]
+  return [...groupBy(rows, (row) => row.id).values()]
     .flatMap((group) => {
       const map = materializeAuthorizedMap(group, userId, principals);
       return map === null ? [] : [map];

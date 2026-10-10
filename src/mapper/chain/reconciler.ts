@@ -1,3 +1,4 @@
+import { getOrInsertComputed } from '@/lib/array';
 import {
   samePosition,
   type ChainPosition,
@@ -222,9 +223,7 @@ function suppressConnectionIdSwaps(
     const prior = previousConnections.get(connectionId);
     if (prior === undefined) continue;
     const key = endpointKey(prior.fromSystemId, prior.toSystemId);
-    const queue = unmatchedDepartedByEndpoint.get(key);
-    if (queue === undefined) unmatchedDepartedByEndpoint.set(key, [connectionId]);
-    else queue.push(connectionId);
+    getOrInsertComputed(unmatchedDepartedByEndpoint, key, () => []).push(connectionId);
   }
 
   const matchedDeparted = new Set<string>();

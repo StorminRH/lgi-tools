@@ -1,4 +1,5 @@
 import { ConvexError, v } from 'convex/values';
+import { groupBy, sortedUniqueIds } from '@/lib/array';
 import { query, type QueryCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
@@ -118,15 +119,12 @@ export const coverage = query({
       });
     }
 
-    const unique = [...new Set(characterIds)].sort((left, right) => left - right);
+    const unique = sortedUniqueIds(characterIds);
     const requested = new Set(unique);
-    const trackedByCharacter = new Map<number, Doc<'mapTracking'>[]>();
-    for (const row of await readMapTracking(ctx, mapId)) {
-      if (!requested.has(row.characterId)) continue;
-      const held = trackedByCharacter.get(row.characterId) ?? [];
-      held.push(row);
-      trackedByCharacter.set(row.characterId, held);
-    }
+    const trackedByCharacter = groupBy(
+      (await readMapTracking(ctx, mapId)).filter((row) => requested.has(row.characterId)),
+      (row) => row.characterId,
+    );
     const coverageRows = await Promise.all(unique.map(async (characterId) => ({
       characterId,
       covered: await characterCovered(ctx, trackedByCharacter.get(characterId) ?? []),

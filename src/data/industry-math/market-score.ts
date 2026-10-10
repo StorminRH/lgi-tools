@@ -1,3 +1,5 @@
+import { clamp01 } from '@/lib/math';
+
 export const CLEAR_DAYS_MAX = 30;
 
 export const STABILITY_CV_MAX = 0.3;
@@ -46,10 +48,6 @@ export interface MarketScore {
   liquidity: LiquiditySignal;
   stability: StabilitySignal;
   consistency: ConsistencySignal;
-}
-
-function clamp01(x: number): number {
-  return x < 0 ? 0 : x > 1 ? 1 : x;
 }
 
 function computeLiquidity(inputs: MarketScoreInputs): LiquiditySignal {

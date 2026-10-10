@@ -1,3 +1,4 @@
+import { getOrInsertComputed } from '@/lib/array';
 import type { ChainPosition } from '../chain/intents';
 import { deriveChainTree, type ChainTree } from './facts';
 import { headingVector, segmentsIntersect } from './geometry';
@@ -138,9 +139,7 @@ class BucketRegistry {
   }
 
   private take(candidate: CandidateSpot): void {
-    const occupied = this.taken.get(candidate.ring) ?? new Set<number>();
-    occupied.add(candidate.bucket);
-    this.taken.set(candidate.ring, occupied);
+    getOrInsertComputed(this.taken, candidate.ring, () => new Set()).add(candidate.bucket);
   }
 
   private tryTake(ring: number, idealAngle: number, sideways: number): ClaimedSpot | null {
@@ -148,10 +147,9 @@ class BucketRegistry {
     const step = FULL_CIRCLE / buckets;
     const start = Math.round(normalizeAngle(idealAngle) / step) % buckets;
     const bucket = (((start + centerOut(sideways)) % buckets) + buckets) % buckets;
-    const occupied = this.taken.get(ring) ?? new Set<number>();
+    const occupied = getOrInsertComputed(this.taken, ring, () => new Set());
     if (occupied.has(bucket)) return null;
     occupied.add(bucket);
-    this.taken.set(ring, occupied);
     return { ring, angle: bucket * step };
   }
 

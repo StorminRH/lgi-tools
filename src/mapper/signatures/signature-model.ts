@@ -10,6 +10,7 @@ import {
 import { signatureKind } from '@/data/maps/signature-lifecycle';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
+import { getOrInsertComputed, sameItems } from '@/lib/array';
 import { lifetimeUpperBoundLabel } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
@@ -212,9 +213,7 @@ export function glanceMarkIndex(
   for (const row of rows) {
     const bucket = identifiedGlanceBucket(row.group);
     if (bucket === null) continue;
-    const present = presentBySystem.get(row.systemId) ?? new Set<GlanceBucket>();
-    present.add(bucket);
-    presentBySystem.set(row.systemId, present);
+    getOrInsertComputed(presentBySystem, row.systemId, () => new Set()).add(bucket);
   }
   const index = new Map<number, readonly GlanceBucket[]>();
   for (const [systemId, present] of presentBySystem) {
@@ -233,8 +232,7 @@ export function sameGlanceMarkIndex(
   if (left.size !== right.size) return false;
   for (const [systemId, buckets] of left) {
     const other = right.get(systemId);
-    if (other === undefined || other.length !== buckets.length) return false;
-    if (buckets.some((bucket, index) => other[index] !== bucket)) return false;
+    if (other === undefined || !sameItems(buckets, other)) return false;
   }
   return true;
 }

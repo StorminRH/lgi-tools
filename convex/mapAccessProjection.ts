@@ -3,6 +3,7 @@ import {
   canonicalizeMapRoles,
   type MapRole,
 } from '@/data/maps/access-contract';
+import { groupBy, sameItems } from '@/lib/array';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
@@ -10,7 +11,6 @@ import {
   currentRolesFromStored,
   mapClaimCharactersValidator,
   type MapClaimCharacter,
-  type StoredMapRole,
 } from './lib/mapEntityContracts';
 import { readMapTracking } from './lib/mapTrackingCapacity';
 import {
@@ -57,13 +57,6 @@ export interface UserClaimsPurgeResult {
   readonly hasMore: boolean;
 }
 
-function rolesEqual(
-  left: readonly StoredMapRole[],
-  right: readonly MapRole[],
-): boolean {
-  return left.length === right.length && left.every((role, index) => role === right[index]);
-}
-
 interface DesiredClaim {
   readonly roles: MapRole[];
   readonly characters: MapClaimCharacter[] | undefined;
@@ -93,20 +86,7 @@ function charactersEqual(
   right: readonly MapClaimCharacter[] | undefined,
 ): boolean {
   if (left === undefined || right === undefined) return left === right;
-  return left.length === right.length && left.every((character, index) =>
-    character.characterId === right[index]?.characterId && character.name === right[index]?.name);
-}
-
-function indexClaimsByUser(
-  existing: Doc<'mapAccess'>[],
-): Map<string, Doc<'mapAccess'>[]> {
-  const byUser = new Map<string, Doc<'mapAccess'>[]>();
-  for (const row of existing) {
-    const rows = byUser.get(row.userId) ?? [];
-    rows.push(row);
-    byUser.set(row.userId, rows);
-  }
-  return byUser;
+  return sameItems(left, right, (a, b) => a.characterId === b.characterId && a.name === b.name);
 }
 
 async function applyDesiredUserClaim(
@@ -129,7 +109,7 @@ async function applyDesiredUserClaim(
     deleted += 1;
   }
 
-  if (rolesEqual(keeper.roles, roles) && charactersEqual(keeper.characters, characters)) {
+  if (sameItems(keeper.roles, roles) && charactersEqual(keeper.characters, characters)) {
     return { inserted: 0, updated: 0, deleted, unchanged: 1 };
   }
 
@@ -177,7 +157,7 @@ async function applyClaimSet(
     .query('mapAccess')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
     .collect();
-  const byUser = indexClaimsByUser(existing);
+  const byUser = groupBy(existing, (row) => row.userId);
   const counts = { ...NO_COUNTS };
 
   for (const [userId, claim] of desired) {
@@ -327,7 +307,7 @@ export const remapLegacyOwnerRoles = internalMutation({
     let remapped = 0;
     for (const row of page.page) {
       const roles = currentRolesFromStored(row.roles);
-      if (rolesEqual(row.roles, roles)) continue;
+      if (sameItems(row.roles, roles)) continue;
       await ctx.db.patch(row._id, { roles });
       remapped += 1;
     }

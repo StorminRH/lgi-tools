@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { settle } from '@/lib/__tests__/hook-runtime';
 
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
   reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
@@ -46,7 +47,7 @@ vi.mock('./map-access-projection', async (importOriginal) => ({
   projectMapAccess: mocks.projectMapAccess,
 }));
 
-import { checkCharacterAuthorizations } from './character-authorization';
+import { checkCharacterAuthorizations, checkUserCharacterAuthorizations } from './character-authorization';
 
 const change = { id: 'alice-account', characterId: '42', changedAt: new Date('2026-09-28T12:00:00Z') };
 
@@ -97,6 +98,54 @@ it('publishes newly confirmed invalid authorization in the same worker run', asy
   expect(mocks.enqueueAffectedMapAccessChanges.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.readPendingMapAccessChanges.mock.invocationCallOrder[1]!,
   );
+});
+
+it('stops claiming due characters once a claim fails and leaves the run failed', async () => {
+  const due = Array.from({ length: 8 }, (_, i) => ({ id: `account-${i}`, characterId: String(100 + i) }));
+  mocks.listDueAuthorizations.mockResolvedValue(due);
+  mocks.claimAuthorization.mockImplementation(async (id: string) => {
+    if (id === 'account-0') throw new Error('authorization store unavailable');
+    return true;
+  });
+
+  await expect(checkCharacterAuthorizations('alice')).rejects.toThrow('authorization store unavailable');
+  await settle();
+
+  expect(mocks.claimAuthorization.mock.calls.map(([id]) => id)).toEqual([
+    'account-0',
+    'account-1',
+    'account-2',
+    'account-3',
+  ]);
+  expect(mocks.getFreshAccessTokenForCharacter.mock.calls.map(([characterId]) => characterId)).toEqual([101, 102, 103]);
+  expect(mocks.suspendOverdueAuthorizations).toHaveBeenCalledOnce();
+});
+
+it('logs a failed token check and still checks the other characters before publishing', async () => {
+  const errors = silenceConsolePrefixes('error', ['[character-authorization] check failed']);
+  const down = new Error('SSO unavailable');
+  mocks.listDueAuthorizations.mockResolvedValue([
+    { id: 'account-1', characterId: '101' },
+    { id: 'account-2', characterId: '102' },
+  ]);
+  mocks.getFreshAccessTokenForCharacter.mockRejectedValueOnce(down);
+
+  await checkCharacterAuthorizations('alice');
+
+  expect(mocks.getFreshAccessTokenForCharacter.mock.calls.map(([characterId]) => characterId)).toEqual([101, 102]);
+  expect(errors).toHaveBeenCalledExactlyOnceWith('[character-authorization] check failed for 101', down);
+  expect(mocks.suspendOverdueAuthorizations).toHaveBeenCalledTimes(2);
+});
+
+it('logs and absorbs a failed background run so the request that started it is unaffected', async () => {
+  const errors = silenceConsolePrefixes('error', ['[character-authorization] background check failed']);
+  const down = new Error('database unavailable');
+  mocks.hasAuthorizationWork.mockRejectedValueOnce(down);
+
+  await expect(checkUserCharacterAuthorizations('alice')).resolves.toBeUndefined();
+
+  expect(errors).toHaveBeenCalledExactlyOnceWith('[character-authorization] background check failed for alice', down);
+  expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
 });
 
 it('checks queued access changes on a healthy visit without refreshing authorization', async () => {

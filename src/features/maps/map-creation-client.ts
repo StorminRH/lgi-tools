@@ -2,20 +2,17 @@ import {
   createMapEndpoint,
   type CreateMapRequest,
 } from '@/data/maps/api-contract';
+import { sleep } from '@/lib/retry';
 import { apiFetch } from '@/transport/api-client';
 import type { PreparedMapCreation } from './access-editor-model';
 import { atlasMapHref } from './map-navigation';
 
 export const MAP_CREATION_INTERSTITIAL_MIN_MS = 5_000;
 
-function delay(delayMs: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, delayMs));
-}
-
 export async function createMapWithMinimumInterstitial(input: CreateMapRequest) {
   const [outcome] = await Promise.all([
     apiFetch(createMapEndpoint, { body: input, cache: 'no-store' }),
-    delay(MAP_CREATION_INTERSTITIAL_MIN_MS),
+    sleep(MAP_CREATION_INTERSTITIAL_MIN_MS),
   ]);
   return outcome;
 }

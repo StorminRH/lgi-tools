@@ -1,3 +1,4 @@
+import { clamp } from '@/lib/math';
 import type { CachedEtagMeta } from './types';
 
 const ECHO_TTL_MAX_SECONDS = 90;
@@ -16,10 +17,6 @@ export function normalizeEsiPath(url: string): string {
 
 export function epochMinute(): number {
   return Math.floor(Date.now() / 60_000);
-}
-
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
 }
 
 export function echoTtl(resetSeconds: number | null): number {

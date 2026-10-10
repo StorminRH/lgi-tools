@@ -1,11 +1,10 @@
 import { runCapabilityRoute } from '@/app/api/capability-route';
 import type { CapabilityId } from '@/data/telemetry/capability';
-import type { AppFailure } from '@/lib/failure';
+import type { FailureResult } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 export type AuthorizationSuccess = { ok: true };
-export type FailureResult = { ok: false; failure: AppFailure };
 export type MaybePromise<T> = T | Promise<T>;
 type AuthorizationFunction = () => Promise<AuthorizationSuccess | FailureResult>;
 type ParseFunction = (

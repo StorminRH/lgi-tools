@@ -1,3 +1,4 @@
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import type { WhStaticsDiff } from './schema';
 
 export interface WhStaticAssignment {
@@ -9,10 +10,8 @@ function codesBySystem(
   assignments: readonly WhStaticAssignment[],
 ): Map<number, Set<string>> {
   const result = new Map<number, Set<string>>();
-  for (const assignment of assignments) {
-    const codes = result.get(assignment.systemId) ?? new Set<string>();
-    codes.add(assignment.code);
-    result.set(assignment.systemId, codes);
+  for (const { systemId, code } of assignments) {
+    getOrInsertComputed(result, systemId, () => new Set()).add(code);
   }
   return result;
 }
@@ -38,12 +37,8 @@ export function diffStatics(
   const systemsAdded: WhStaticsDiff['systemsAdded'][number][] = [];
   const systemsRemoved: WhStaticsDiff['systemsRemoved'][number][] = [];
   const systemsChanged: WhStaticsDiff['systemsChanged'][number][] = [];
-  const systemIds = new Set([
-    ...promotedBySystem.keys(),
-    ...incomingBySystem.keys(),
-  ]);
 
-  for (const systemId of [...systemIds].sort((left, right) => left - right)) {
+  for (const systemId of sortedUniqueIds([...promotedBySystem.keys(), ...incomingBySystem.keys()])) {
     const before = promotedBySystem.get(systemId);
     const after = incomingBySystem.get(systemId);
     if (before === undefined) {

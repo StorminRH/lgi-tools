@@ -1,3 +1,4 @@
+import { capitalize } from '@/lib/format/text';
 import {
   type MenuControlModel,
   resolveMenuControls,
@@ -15,7 +16,7 @@ export type PreferenceGroupView = {
 function titleForSpec(spec: PageSettingsSpec): string {
   if (spec.title !== undefined) return spec.title.replace(/\s+settings$/i, '');
   const segment = spec.route.split('/').filter(Boolean).pop() ?? spec.route;
-  return segment.charAt(0).toUpperCase() + segment.slice(1);
+  return capitalize(segment);
 }
 
 function preferenceModels(spec: PageSettingsSpec): MenuControlModel[] {

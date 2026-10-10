@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { getOrInsertComputed } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
   ATTRIBUTE_BONUS_DOGMA_NAMES,
@@ -162,10 +163,13 @@ export async function getSkillCatalog(): Promise<CatalogGroup[]> {
   ]);
   const groups = new Map<number, CatalogGroup>();
   for (const row of rows) {
-    const group = groups.get(row.groupId) ?? { groupId: row.groupId, name: row.groupName, skills: [] };
+    const group = getOrInsertComputed(groups, row.groupId, () => ({
+      groupId: row.groupId,
+      name: row.groupName,
+      skills: [],
+    }));
     const rank = attributeValue((row.attributes ?? {}) as AttrMap, ids, SKILL_RANK_DOGMA);
     group.skills.push({ typeId: row.typeId, name: row.name, rank: rank ?? FALLBACK_SKILL_RANK });
-    groups.set(row.groupId, group);
   }
   const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
   return [...groups.values()]

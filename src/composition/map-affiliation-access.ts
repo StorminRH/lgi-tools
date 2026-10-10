@@ -1,5 +1,6 @@
 import { reconcileTrackingMerges } from './account-lifecycle/tracking-merge-retry';
 import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
+import { mapConcurrent } from '@/lib/fan-out';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import {
   acknowledgeMapAccessChanges,
@@ -37,22 +38,18 @@ async function deliverPendingMapAccessChanges(
   if (pending.length === 0) return { processed: 0, failed: 0 };
   const mapIds = pending.map((row) => row.mapId);
   const succeeded = new Set<string>();
-  let next = 0;
-  await Promise.all(Array.from({ length: DELIVERY_CONCURRENCY }, async () => {
-    while (next < mapIds.length) {
-      const remaining = deadline - Date.now() - FINALIZE_RESERVE_MS;
-      if (remaining <= 0) return;
-      const mapId = mapIds[next++]!;
-      try {
-        requireCurrentProjection(await projectMapAccess(mapId, {
-          timeoutMs: Math.min(DELIVERY_TIMEOUT_MS, remaining),
-        }));
-        succeeded.add(mapId);
-      } catch (error) {
-        console.error('[map-affiliation-access] projection retained for retry', mapId, error);
-      }
+  await mapConcurrent(mapIds, DELIVERY_CONCURRENCY, async (mapId) => {
+    const remaining = deadline - Date.now() - FINALIZE_RESERVE_MS;
+    if (remaining <= 0) return;
+    try {
+      requireCurrentProjection(await projectMapAccess(mapId, {
+        timeoutMs: Math.min(DELIVERY_TIMEOUT_MS, remaining),
+      }));
+      succeeded.add(mapId);
+    } catch (error) {
+      console.error('[map-affiliation-access] projection retained for retry', mapId, error);
     }
-  }));
+  });
   const completed = pending.filter((row) => succeeded.has(row.mapId));
   const retry = pending.filter((row) => !succeeded.has(row.mapId));
   await acknowledgeMapAccessChanges(completed, retry);

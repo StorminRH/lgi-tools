@@ -25,33 +25,33 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P105](#p105) | Add src/lib/math.ts (clamp with min-wins, clamp01, clampPct, roundTo, roundIsk) and delete the private copies | generic-utility | S | low | low | — |
-| ☐ | [P096](#p096) | Export roundIsk from lib/format/isk and drop the three private copies and the inline pair | formatting | S | low | low | [P105](#p105) |
-| ☐ | [P101](#p101) | Add groupBy and getOrInsertComputed to src/lib/array.ts and replace the hand-rolled bucket and get-or-create loops | generic-utility | M | low | medium | — |
-| ☐ | [P102](#p102) | Promote eligibleIdsKey to sortedUniqueIds / idsKey / parseIdsKey in src/lib/array.ts and delete the local copies | generic-utility | S | low | low | — |
-| ☐ | [P112](#p112) | Add sameItems and sameFields shallow-equality helpers to src/lib | generic-utility | S | low | low | — |
-| ☐ | [P100](#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |
-| ☐ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
-| ☐ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
-| ☐ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
-| ☐ | [P249](#p249) | Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions | contracts-validation | S | low | low | — |
-| ☐ | [P145](#p145) | Promote hasTimeoutAbort to a chain-aware isTimeoutError in lib and use it in every timeout classifier | error-handling | S | low | medium | — |
-| ☐ | [P140](#p140) | Move readWithRetries and a shared sleep into src/lib/retry.ts, let withColdStartRetry absorb warmNeon, and share the planner build-location read | error-handling | M | low | medium | [P145](#p145) |
-| ☐ | [P126](#p126) | Time dependencies through one performance.now helper and stop ESI double-counting Redis | generic-utility | S | low | medium | — |
-| ☐ | [P130](#p130) | Retire transport/cron swallow and route log-and-continue side effects through lib bestEffort | generic-utility | S | low | low | — |
-| ☐ | [P173](#p173) | Route every ops alert through one private sendOpsAlert in lib/alerts that rejects non-2xx webhooks | server-pipeline | S | low | medium | [P130](#p130) |
-| ☐ | [P128](#p128) | Add one sentence-case identifier humaniser in lib/format and use it for label fallbacks | generic-utility | S | low | low | — |
-| ☐ | [P129](#p129) | Patch search params through one lib helper, and build the post-create link with atlasMapHref | generic-utility | S | low | low | — |
-| ☐ | [P047](#p047) | Add a shared useNow clock hook in src/lib for the four interval tickers | react-hook | S | low | low | — |
-| ☐ | [P226](#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
-| ☐ | [P115](#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
-| ☐ | [P066](#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
+| ☑ | [P105](#p105) | Add src/lib/math.ts (clamp with min-wins, clamp01, clampPct, roundTo, roundIsk) and delete the private copies | generic-utility | S | low | low | — |
+| ☑ | [P096](#p096) | Export roundIsk from lib/format/isk and drop the three private copies and the inline pair | formatting | S | low | low | [P105](#p105) |
+| ☑ | [P101](#p101) | Add groupBy and getOrInsertComputed to src/lib/array.ts and replace the hand-rolled bucket and get-or-create loops | generic-utility | M | low | medium | — |
+| ☑ | [P102](#p102) | Promote eligibleIdsKey to sortedUniqueIds / idsKey / parseIdsKey in src/lib/array.ts and delete the local copies | generic-utility | S | low | low | — |
+| ☑ | [P112](#p112) | Add sameItems and sameFields shallow-equality helpers to src/lib | generic-utility | S | low | low | — |
+| ☑ | [P100](#p100) | Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools | generic-utility | M | low | medium | — |
+| ☑ | [P104](#p104) | Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById | generic-utility | S | low | low | — |
+| ☑ | [P137](#p137) | Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is | generic-utility | S | low | low | — |
+| ☑ | [P151](#p151) | Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it | error-handling | S | low | low | — |
+| ☑ | [P249](#p249) | Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions | contracts-validation | S | low | low | — |
+| ☑ | [P145](#p145) | Promote hasTimeoutAbort to a chain-aware isTimeoutError in lib and use it in every timeout classifier | error-handling | S | low | medium | — |
+| ☑ | [P140](#p140) | Move readWithRetries and a shared sleep into src/lib/retry.ts, let withColdStartRetry absorb warmNeon, and share the planner build-location read | error-handling | M | low | medium | [P145](#p145) |
+| ☑ | [P126](#p126) | Time dependencies through one performance.now helper and stop ESI double-counting Redis | generic-utility | S | low | medium | — |
+| ☑ | [P130](#p130) | Retire transport/cron swallow and route log-and-continue side effects through lib bestEffort | generic-utility | S | low | low | — |
+| ☑ | [P173](#p173) | Route every ops alert through one private sendOpsAlert in lib/alerts that rejects non-2xx webhooks | server-pipeline | S | low | medium | [P130](#p130) |
+| ☑ | [P128](#p128) | Add one sentence-case identifier humaniser in lib/format and use it for label fallbacks | generic-utility | S | low | low | — |
+| ☑ | [P129](#p129) | Patch search params through one lib helper, and build the post-create link with atlasMapHref | generic-utility | S | low | low | — |
+| ☑ | [P047](#p047) | Add a shared useNow clock hook in src/lib for the four interval tickers | react-hook | S | low | low | — |
+| ☑ | [P226](#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
+| ☑ | [P115](#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
+| ☑ | [P066](#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
 
 <a id="p105"></a>
 
 ## P105: Add src/lib/math.ts (clamp with min-wins, clamp01, clampPct, roundTo, roundIsk) and delete the private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 production lines from deleted private helpers and inline expressions, +15 for lib/math.ts, +35 for tests
 - **Depends on:** —
@@ -174,7 +174,7 @@ Do not put roundIsk in lib/format/isk.ts. It feeds persisted values (net_worth_d
 
 ## P096: Export roundIsk from lib/format/isk and drop the three private copies and the inline pair
 
-- **Status:** [ ] not started
+- **Status:** [x] done by P105 (6871c6f9) under the P105/P096 conflict resolution
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -11 / +4, plus tests.
 - **Depends on:** [P105](#p105)
@@ -228,7 +228,7 @@ export function roundIsk(value: number): number; // Math.round(value * 100) / 10
 
 ## P101: Add groupBy and getOrInsertComputed to src/lib/array.ts and replace the hand-rolled bucket and get-or-create loops
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -120 lines at the sites and +45 in lib and tests (about -75 net).
 - **Depends on:** —
@@ -369,7 +369,7 @@ Related lead in the same file: wormhole-sites/queries.ts listSiteDetails (179-28
 
 ## P102: Promote eligibleIdsKey to sortedUniqueIds / idsKey / parseIdsKey in src/lib/array.ts and delete the local copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +15 (another -25 if the optional live-flag removal is done).
 - **Depends on:** —
@@ -471,7 +471,7 @@ This edits src/lib/array.ts alongside P101 and P103. There is no ordering depend
 
 ## P112: Add sameItems and sameFields shallow-equality helpers to src/lib
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -50 at the sites, about +20 helpers, about +30 tests
 - **Depends on:** —
@@ -539,7 +539,7 @@ export function sameFields<T extends object>(a: T, b: T): boolean; // same own-k
 
 ## P100: Add mapConcurrent to src/lib/fan-out.ts and replace six hand-rolled worker pools
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -75 production lines across five modules; about +20 in fan-out.ts; about +50 test lines
 - **Depends on:** —
@@ -661,7 +661,7 @@ No stopOnError or shouldStop options: no current caller needs them.
 
 ## P104: Use the existing mapByIdDroppingNulls at the five hand-rolled id fan-outs instead of adding mapById
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -18 / +3.
 - **Depends on:** —
@@ -744,7 +744,7 @@ If a site ever needs to tell 'read returned null' from 'not read', that would be
 
 ## P137: Add src/lib/graph.ts (Neighbours, breadthFirst, pathTo) and route trade-hubs, pilot-path and chain-collapse through it; leave halo's budgeted per-exit expansion as is
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -85 production lines (distancesFrom 19, scanTowardTargets/reconstructPath/PathScan 42, derivePilotPath/PilotPathInput 17, componentFrom 14), +45 for lib/graph.ts and about +10 at call sites; net about -30 production, with tests moved rather than added
 - **Depends on:** —
@@ -830,7 +830,7 @@ Do not route halo through the helper. Its per-exit and total budgets, and a reje
 
 ## P151: Add errorMessage(unknown) to src/lib/failure.ts and route the four copies plus errorCode's fallback through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -12 in callers (two 3-line helpers plus blanks deleted, three inline ternaries shortened), +4 helper, +10 test
 - **Depends on:** —
@@ -903,7 +903,7 @@ export function errorCode(error: unknown): string {
 
 ## P249: Move FailureResult next to AppFailure in lib/failure and use it for the pass/fail guard unions
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -12 / +3
 - **Depends on:** —
@@ -988,7 +988,7 @@ I could not confirm by running Fallow whether moving the type changes how Fallow
 
 ## P145: Promote hasTimeoutAbort to a chain-aware isTimeoutError in lib and use it in every timeout classifier
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -15/+20: one module moved, three local predicates deleted, one new test file.
 - **Depends on:** —
@@ -1051,7 +1051,7 @@ export function isTimeoutError(err: unknown): boolean; // breadth-first over cau
 
 ## P140: Move readWithRetries and a shared sleep into src/lib/retry.ts, let withColdStartRetry absorb warmNeon, and share the planner build-location read
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -60 / +40 (warm-neon loop, eve-status loop, 3 sleep helpers, 2 duplicate planner blocks removed; retry.ts, options and readBuildLocation added)
 - **Depends on:** [P145](#p145)
@@ -1125,7 +1125,7 @@ export function readBuildLocation(systemId: number, blueprintId: number, signal:
 
 ## P126: Time dependencies through one performance.now helper and stop ESI double-counting Redis
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** Production about -20 / +14. Tests about +40.
 - **Depends on:** —
@@ -1220,7 +1220,7 @@ Vitest 4 fake timers in esi/index.test.ts do not assert timing values, so the cl
 
 ## P130: Retire transport/cron swallow and route log-and-continue side effects through lib bestEffort
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -35 / +30: swallow and its tests removed, ~15 lines of inline try/catch collapsed, a ~25-line best-effort.test.ts added.
 - **Depends on:** —
@@ -1296,7 +1296,7 @@ export async function bestEffort(
 
 ## P173: Route every ops alert through one private sendOpsAlert in lib/alerts that rejects non-2xx webhooks
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** alerts.ts about -18/+14; alerts.test.ts about +35
 - **Depends on:** [P130](#p130)
@@ -1360,7 +1360,7 @@ export async function alertPublicEsiBudgetExhaustion(info: PublicEsiBudgetExhaus
 
 ## P128: Add one sentence-case identifier humaniser in lib/format and use it for label fallbacks
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** Production about -16 / +14. Tests about +20.
 - **Depends on:** —
@@ -1452,7 +1452,7 @@ Acronym preservation is new behavior. No current test covers it, but it avoids '
 
 ## P129: Patch search params through one lib helper, and build the post-create link with atlasMapHref
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** Production about -25 / +14. Tests about +25.
 - **Depends on:** —
@@ -1568,7 +1568,7 @@ handoffCreatedMap → atlasMapHref gives byte-identical output for any non-empty
 
 ## P047: Add a shared useNow clock hook in src/lib for the four interval tickers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 lines across four sites and +15 for the hook plus about 40 of tests; removes fallow near-dup groups -1801 and -1101
 - **Depends on:** —
@@ -1632,7 +1632,7 @@ export function useNow(
 
 ## P226: Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -110 lines across the two stores, preferences, use-search-recents and the doorbell observer; +60 in lib/web-storage.ts (plus its test). Net about -50 production lines.
 - **Depends on:** —
@@ -1710,7 +1710,7 @@ export function createStoredList<S, V>(opts: {
 
 ## P115: Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** Production: about -45 across the two sites, +35 for the primitive. Tests: about -45 (one fake deleted), +50 for the new primitive test.
 - **Depends on:** —
@@ -1787,7 +1787,7 @@ export function openPeerChannel(input: {
 
 ## P066: Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -18 lines at the two sites, +15 for the helper (net about 0); removes two dead catches and adds one tested fallback path
 - **Depends on:** —

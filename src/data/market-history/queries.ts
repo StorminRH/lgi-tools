@@ -1,6 +1,7 @@
 import { asc, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db as defaultDb } from '@/db';
+import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { computeHistoryInputs } from './aggregate';
 import { historyTag } from './constants';
@@ -25,20 +26,7 @@ export async function getStoredHistory(
     .where(inArray(marketHistory.typeId, typeIds))
     .orderBy(asc(marketHistory.date));
 
-  const out = new Map<number, HistoryDailyRow[]>();
-  for (const r of rows) {
-    const list = out.get(r.typeId) ?? [];
-    list.push({
-      date: r.date,
-      average: r.average,
-      highest: r.highest,
-      lowest: r.lowest,
-      volume: r.volume,
-      orderCount: r.orderCount,
-    });
-    out.set(r.typeId, list);
-  }
-  return out;
+  return groupBy(rows, (r) => r.typeId, ({ typeId: _typeId, ...day }): HistoryDailyRow => day);
 }
 
 export async function getHistoryMeta(

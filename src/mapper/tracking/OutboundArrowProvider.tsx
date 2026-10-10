@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useMemo, type ReactNode } from 'react';
+import type { Neighbours } from '@/lib/graph';
 import type { ChainEdge } from '../chain/nodes';
 import {
   EMPTY_OUTBOUND_ARROWS,
@@ -17,7 +18,7 @@ import {
 export interface OutboundArrowProviderProps {
   readonly drawnSystemIds: ReadonlySet<number>;
   readonly edges: readonly ChainEdge[];
-  readonly neighboursOf: (systemId: number) => readonly number[];
+  readonly neighboursOf: Neighbours;
   readonly children: ReactNode;
 }
 

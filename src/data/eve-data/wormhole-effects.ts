@@ -1,3 +1,6 @@
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
+import { capitalize, humanizeIdentifier } from '@/lib/format/text';
+import { roundTo } from '@/lib/math';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from './wormhole-contract';
 
 /**
@@ -128,18 +131,11 @@ export function parseEffectBeaconName(
   return { effect, wormholeClass: Number(classMatch) };
 }
 
-function humanize(name: string): string {
-  return name
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/^./, (first) => first.toUpperCase());
-}
-
 export function effectModifierLabel(displayName: string | null, name: string): string {
-  const raw = displayName?.trim() || humanize(name);
+  const raw = displayName?.trim() || humanizeIdentifier(name);
   const override = LABEL_OVERRIDES.get(raw.toLowerCase());
   if (override !== undefined) return override;
-  const stripped = raw.replace(TRAILING_DOGMA_WORDS, '');
-  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+  return capitalize(raw.replace(TRAILING_DOGMA_WORDS, ''));
 }
 
 /**
@@ -152,8 +148,7 @@ function foldResistances(modifiers: WormholeEffectModifier[]): WormholeEffectMod
   for (const modifier of modifiers) {
     const layer = RESISTANCE_LAYER.exec(modifier.label)?.[1];
     if (layer === undefined) continue;
-    const key = layer.toLowerCase();
-    byLayer.set(key, [...(byLayer.get(key) ?? []), modifier]);
+    getOrInsertComputed(byLayer, layer.toLowerCase(), () => []).push(modifier);
   }
   const folded = new Set<WormholeEffectModifier>();
   const merged: WormholeEffectModifier[] = [];
@@ -164,15 +159,11 @@ function foldResistances(modifiers: WormholeEffectModifier[]): WormholeEffectMod
     for (const modifier of group) folded.add(modifier);
     merged.push({
       attributeId: first.attributeId,
-      label: `${layer.charAt(0).toUpperCase()}${layer.slice(1)} resistances`,
+      label: `${capitalize(layer)} resistances`,
       percent: first.percent,
     });
   }
   return [...modifiers.filter((modifier) => !folded.has(modifier)), ...merged];
-}
-
-function roundPercent(value: number): number {
-  return Math.round(value * 10) / 10;
 }
 
 function percentConverter(attribute: EffectAttributeRow): ((value: number) => number) | undefined {
@@ -184,7 +175,7 @@ function percentConverter(attribute: EffectAttributeRow): ((value: number) => nu
 function attributeModifier(attribute: EffectAttributeRow, value: number): WormholeEffectModifier | null {
   const toPercent = percentConverter(attribute);
   if (toPercent === undefined) return null;
-  const raw = roundPercent(toPercent(value));
+  const raw = roundTo(toPercent(value), 1);
   if (raw === 0) return null;
   const resonance = RESONANCE.test(attribute.name) || RESONANCE.test(attribute.displayName ?? '');
   return {
@@ -249,5 +240,5 @@ export function beaconAttributeIds(beacons: readonly EffectBeaconRow[]): number[
       if (Number.isInteger(id)) ids.add(id);
     }
   }
-  return [...ids].sort((left, right) => left - right);
+  return sortedUniqueIds(ids);
 }

@@ -1,19 +1,10 @@
 import { z } from 'zod';
 import { blueprintImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
+import { useClientStore } from '@/lib/client-store';
+import { createStoredList } from '@/lib/web-storage';
 import type { SearchResult } from '@/platform/search';
 
-const STORAGE_KEY = 'lgi:search:recents';
-const MAX_RECENTS = 10;
 const EMPTY_RECENTS: SearchResult[] = [];
-
-const listeners = new Set<() => void>();
-let cachedRaw: string | null | undefined;
-let cachedSnapshot: SearchResult[] = EMPTY_RECENTS;
-
-type StoredRecent = Pick<
-  SearchResult,
-  'kind' | 'id' | 'label' | 'sub' | 'href' | 'iconText' | 'iconTone' | 'typeId'
->;
 
 const storedRecentSchema = z.object({
   kind: z.string(),
@@ -26,14 +17,7 @@ const storedRecentSchema = z.object({
   typeId: z.number().optional(),
 });
 
-function safeStorage(): Storage | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
+type StoredRecent = z.infer<typeof storedRecentSchema>;
 
 const BLUEPRINT_KIND = 'blueprint';
 const BLUEPRINT_ID_PREFIX = 'blueprint:';
@@ -53,84 +37,42 @@ function rendersIcon(r: StoredRecent): boolean {
   return r.kind !== BLUEPRINT_KIND || (r.typeId !== undefined && recentImage(r) !== undefined);
 }
 
-function readRecents(raw?: string | null): SearchResult[] {
-  return readStored(raw)
-    .slice(0, MAX_RECENTS)
-    .map((r) => {
-      const icon = recentImage(r);
-      return {
-        ...r,
-        ...(icon ? { icon } : {}),
-        kind: 'recent',
-        originKind: r.kind,
-      };
-    });
+function toRecentResult(r: StoredRecent): SearchResult {
+  const icon = recentImage(r);
+  return {
+    ...r,
+    ...(icon ? { icon } : {}),
+    kind: 'recent',
+    originKind: r.kind,
+  };
+}
+
+const recents = createStoredList({
+  key: 'lgi:search:recents',
+  max: 10,
+  item: storedRecentSchema,
+  sameEntry: (a, b) => a.id === b.id,
+  keep: rendersIcon,
+  project: (entries) => (entries.length === 0 ? EMPTY_RECENTS : entries.map(toRecentResult)),
+  serverValue: EMPTY_RECENTS,
+});
+
+/** This device's recent search picks, newest first, as `recent` rows. */
+export function useSearchRecents(): SearchResult[] {
+  return useClientStore(recents);
 }
 
 export function pushRecent(result: SearchResult): void {
   if (result.kind === 'recent') return;
   if (result.disabled) return;
-  const store = safeStorage();
-  if (!store) return;
-  const current = readStored();
-  const without = current.filter((r) => r.id !== result.id);
-  const next: StoredRecent[] = [
-    {
-      kind: result.kind,
-      id: result.id,
-      label: result.label,
-      sub: result.sub,
-      href: result.href,
-      iconText: result.iconText,
-      iconTone: result.iconTone,
-      typeId: result.typeId,
-    },
-    ...without,
-  ].slice(0, MAX_RECENTS);
-  store.setItem(STORAGE_KEY, JSON.stringify(next));
-  emitRecents();
-}
-
-export function subscribeRecents(onStoreChange: () => void): () => void {
-  listeners.add(onStoreChange);
-  return () => {
-    listeners.delete(onStoreChange);
-  };
-}
-
-export function getRecentsSnapshot(): SearchResult[] {
-  const raw = safeStorage()?.getItem(STORAGE_KEY) ?? null;
-  if (raw === cachedRaw) {
-    return cachedSnapshot;
-  }
-  cachedRaw = raw;
-  const next = readRecents(raw);
-  cachedSnapshot = next.length === 0 ? EMPTY_RECENTS : next;
-  return cachedSnapshot;
-}
-
-export function getRecentsServerSnapshot(): SearchResult[] {
-  return EMPTY_RECENTS;
-}
-
-function emitRecents(): void {
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
-function readStored(raw?: string | null): StoredRecent[] {
-  const value = raw !== undefined ? raw : safeStorage()?.getItem(STORAGE_KEY);
-  if (!value) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isStoredRecent).filter(rendersIcon);
-  } catch {
-    return [];
-  }
-}
-
-function isStoredRecent(value: unknown): value is StoredRecent {
-  return storedRecentSchema.safeParse(value).success;
+  recents.push({
+    kind: result.kind,
+    id: result.id,
+    label: result.label,
+    sub: result.sub,
+    href: result.href,
+    iconText: result.iconText,
+    iconTone: result.iconTone,
+    typeId: result.typeId,
+  });
 }

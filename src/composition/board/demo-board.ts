@@ -13,6 +13,7 @@ import type {
 import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { characterPortraitUrl } from '@/lib/eve-image';
+import { roundIsk } from '@/lib/math';
 import type { AssetLine, PriceBook, TypeCategories } from '@/features/net-worth/valuation';
 import type { BoardHistoryDay, BoardResponse, SkillCatalogGroup } from './api-contract';
 import {
@@ -324,10 +325,6 @@ const JOURNAL_CYCLE: ReadonlyArray<[refType: string, amount: number, description
 const JOURNAL_ROWS = 40;
 const JOURNAL_STEP = 18 * HOUR;
 const JOURNAL_START_JUST_PAST_30_DAYS = 30 * DAY + 6 * HOUR;
-
-function roundIsk(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 function demoJournalBody(now: number, scale: number, closing: number, idBase: number): unknown[] {
   const first = now - JOURNAL_START_JUST_PAST_30_DAYS;

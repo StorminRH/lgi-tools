@@ -1,4 +1,4 @@
-import { apiFetch } from '@/transport/api-client';
+import { postBeacon } from '@/transport/beacon';
 import { leaveSyncEndpoint } from './api-contract';
 import type { SyncDataset } from '@/lib/sync-engine';
 
@@ -6,11 +6,5 @@ export function postLeaveBeacon(input: {
   readonly dataset: SyncDataset;
   readonly tabId: string;
 }): void {
-  const body = { dataset: input.dataset, tabId: input.tabId };
-  if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
-    const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
-    const ok = navigator.sendBeacon(leaveSyncEndpoint.path, blob);
-    if (ok) return;
-  }
-  void apiFetch(leaveSyncEndpoint, { body, keepalive: true });
+  postBeacon(leaveSyncEndpoint, { dataset: input.dataset, tabId: input.tabId });
 }
