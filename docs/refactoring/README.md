@@ -318,7 +318,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P047](wave-03-src-lib-primitives-collections-math-async.md#p047) | Add a shared useNow clock hook in src/lib for the four interval tickers | react-hook | S | low | low | — |
 | ☑ | [P226](wave-03-src-lib-primitives-collections-math-async.md#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
 | ☑ | [P115](wave-03-src-lib-primitives-collections-math-async.md#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
-| ☐ | [P066](wave-03-src-lib-primitives-collections-math-async.md#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
+| ☑ | [P066](wave-03-src-lib-primitives-collections-math-async.md#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
 
 ### [Wave 4: Formatting, dates and names have one home](wave-04-formatting-dates-and-names-have-one-home.md)
 

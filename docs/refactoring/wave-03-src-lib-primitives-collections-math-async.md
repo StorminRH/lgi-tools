@@ -45,7 +45,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P047](#p047) | Add a shared useNow clock hook in src/lib for the four interval tickers | react-hook | S | low | low | — |
 | ☑ | [P226](#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
 | ☑ | [P115](#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
-| ☐ | [P066](#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
+| ☑ | [P066](#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
 
 <a id="p105"></a>
 
@@ -1787,7 +1787,7 @@ export function openPeerChannel(input: {
 
 ## P066: Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -18 lines at the two sites, +15 for the helper (net about 0); removes two dead catches and adds one tested fallback path
 - **Depends on:** —
