@@ -7,6 +7,7 @@ import {
   purgeUserMapAccessProjection,
   teardownMapAccessProjection,
 } from '@/composition/map-access-projection';
+import { isConvexConfigured, publicConvexUrl } from '@/config/public-env';
 import { purgeLocationTracking } from '@/data/location-tracking/purge';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { db } from '@/db';
@@ -41,8 +42,8 @@ function assertLocalSyntheticEnvironment(): string {
   if (!isLocalUrl(readEnv('BETTER_AUTH_URL'), ['http:'], ['localhost'])) {
     throw new Error('Synthetic pilot reset requires BETTER_AUTH_URL on http://localhost');
   }
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (convexUrl && !isLocalUrl(convexUrl, ['http:'])) {
+  const convexUrl = publicConvexUrl();
+  if (convexUrl !== undefined && !isLocalUrl(convexUrl, ['http:'])) {
     throw new Error('Synthetic pilot reset requires a local HTTP NEXT_PUBLIC_CONVEX_URL');
   }
   const secret = readAuthSecret();
@@ -81,7 +82,7 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
   // nukeAccount commits deletion first and requires owned-map Convex teardown,
   // so it cannot preserve either reset guarantee.
   await revokeUserSessions(SYNTHETIC_PILOT.userId);
-  if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+  if (isConvexConfigured()) {
     const ownedMaps = await db
       .select({ id: maps.id })
       .from(maps)

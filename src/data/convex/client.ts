@@ -1,6 +1,7 @@
 import { ConvexReactClient } from 'convex/react';
+import { publicConvexUrl } from '@/config/public-env';
 
-const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+const url = publicConvexUrl();
 
 const consoleLogger = {
   logVerbose(...args: unknown[]) {
