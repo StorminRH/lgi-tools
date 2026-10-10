@@ -28,6 +28,8 @@ pg_up() { (exec 3<>/dev/tcp/127.0.0.1/5433) 2>/dev/null; }
 if ! pg_up; then
   if [ -n "$CLAUDE_CODE_REMOTE" ] && [ -x .claude/cloud/stack.sh ]; then
     .claude/cloud/stack.sh start >/dev/null 2>&1
+    # The stack also spawns next dev, which this guard has just stopped; stop it again.
+    pkill -f '[p]npm dev'; pkill -f '[n]ext-server'; pkill -f '[n]ext/dist/bin/next dev'
   else
     docker compose up -d postgres >/dev/null 2>&1
   fi
