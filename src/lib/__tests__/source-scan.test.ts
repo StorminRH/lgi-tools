@@ -157,6 +157,19 @@ test('valueImportSpecifiers reads each clause from its own statement only', () =
   expect(valueImportSpecifiers("export type { D }\nimport { E } from './e';")).toEqual(['./e']);
 });
 
+test('valueImportSpecifiers reads a statement that follows another on the same line', () => {
+  expect(
+    valueImportSpecifiers("export type Props = {}; export { SitesTable } from './sites-table';"),
+  ).toEqual(['./sites-table']);
+  expect(valueImportSpecifiers("const n = 1; import { A } from './a'; import './b.css';")).toEqual([
+    './a',
+    './b.css',
+  ]);
+  expect(
+    valueImportSpecifiers("export type { C } from './c'; export type D = {}; import type E from './e';"),
+  ).toEqual([]);
+});
+
 test('resolveLocalImport resolves alias and relative specifiers to the first existing candidate', () => {
   const files = new Set([
     'src/lib/format.ts',

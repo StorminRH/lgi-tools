@@ -95,15 +95,10 @@ afterEach(() => {
 });
 
 describe('useLiveDataset', () => {
-  it('is loading until the first response arrives', () => {
-    h.apiFetch.mockReturnValue(new Promise(() => {}));
+  it('is loading until the first response arrives, then stores it and clears any earlier failure', async () => {
+    h.apiFetch.mockResolvedValue(ok({ rows: 1 }));
     const result = useLiveDataset(endpoint, 'k', neverCold);
     expect(result).toMatchObject({ response: null, loading: true, failed: false });
-  });
-
-  it('stores a successful response and clears any earlier failure', async () => {
-    h.apiFetch.mockResolvedValue(ok({ rows: 1 }));
-    useLiveDataset(endpoint, 'k', neverCold);
     await flush();
     expect(remembered()).toEqual({ rows: 1 });
     expect(setFailed()).toHaveBeenCalledWith(null);
@@ -123,6 +118,13 @@ describe('useLiveDataset', () => {
 
     await vi.advanceTimersByTimeAsync(60_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
+
+    // Rendered again with that failure settled, the hook reports failed and not loading.
+    h.setters.length = 0;
+    h.refIndex = 0;
+    h.state.push(h.identity);
+    h.apiFetch.mockReturnValue(new Promise(() => {}));
+    expect(useLiveDataset(endpoint, 'k', neverCold)).toMatchObject({ response: null, loading: false, failed: true });
   });
 
   it('recovers when the retry succeeds', async () => {
@@ -174,13 +176,6 @@ describe('useLiveDataset', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
     expect(setFailed()).not.toHaveBeenCalledWith(h.identity);
-  });
-
-  it('reports failed and not loading once the failure has settled', () => {
-    h.apiFetch.mockReturnValue(new Promise(() => {}));
-    h.state.push(h.identity);
-    const result = useLiveDataset(endpoint, 'k', neverCold);
-    expect(result).toMatchObject({ response: null, loading: false, failed: true });
   });
 
   it('draws the last response at once when it mounts again', async () => {

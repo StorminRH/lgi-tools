@@ -11,7 +11,8 @@ const failWith = (message: string, code?: string) => async () => {
 };
 const create = () => createIndustryProfile('owner', { id: 'caps', name: 'Capitals', document: emptyProfileDocument() });
 
-test('a create that overlapped another runs again, gives up after three attempts, and does not retry other failures', async () => {
+test('a create that overlapped another runs again, gives up after eight attempts, and does not retry other failures', async () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0);
   h.runSerializable.mockImplementationOnce(failWith('could not serialize access', '40001')).mockResolvedValueOnce([{ id: 'caps' }]);
   await expect(create()).resolves.toBe(true);
   h.runSerializable.mockImplementationOnce(failWith('could not serialize access', '40001')).mockResolvedValueOnce([]);
@@ -21,7 +22,7 @@ test('a create that overlapped another runs again, gives up after three attempts
   h.runSerializable.mockReset();
   h.runSerializable.mockImplementation(failWith('could not serialize access', '40001'));
   await expect(create()).rejects.toThrow('could not serialize access');
-  expect(h.runSerializable).toHaveBeenCalledTimes(3);
+  expect(h.runSerializable).toHaveBeenCalledTimes(8);
 
   h.runSerializable.mockReset();
   h.runSerializable.mockImplementation(failWith('offline'));
