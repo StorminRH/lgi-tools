@@ -72,10 +72,10 @@ function esiRows(esi: EsiHealth): EveStatusRow[] {
   ];
 }
 
-/** The SDE build LGI runs on, flagged when Tranquility has moved past it. */
-function sdeRows(sde: SdeBuild | null, status: ServerStatus): EveStatusRow[] {
+/** The SDE build LGI runs on, flagged when CCP has published a newer one. */
+function sdeRows(sde: SdeBuild | null): EveStatusRow[] {
   if (sde === null) return [{ label: 'Build', value: 'Unknown', level: 'neutral' }];
-  const behind = isLive(status) && status.build !== null && Number(sde.build) < Number(status.build);
+  const behind = sde.latestPublished !== null && Number(sde.build) < Number(sde.latestPublished);
   return [
     { label: 'Build', value: behind ? `${sde.build} · behind` : sde.build, level: behind ? 'amber' : 'green' },
     { label: 'Ingested', value: formatUtcDate(sde.ingestedAt), level: 'green' },
@@ -94,6 +94,6 @@ export function eveStatusSections({
   return [
     { heading: 'Tranquility', rows: tranquilityRows(status) },
     { heading: 'ESI', rows: esiRows(esi) },
-    { heading: 'Static data', rows: sdeRows(sde, status) },
+    { heading: 'Static data', rows: sdeRows(sde) },
   ];
 }

@@ -29,6 +29,7 @@ const prunes = vi.hoisted(() => ({
   pruneEsiRefreshJobs: h.prune('esi_refresh_jobs'),
   pruneWhStaticsSnapshots: h.prune('wh_statics_snapshots'),
   pruneStaleMarketHistory: h.prune('market_history'),
+  pruneEntityNames: h.prune('eve_entity_names'),
 }));
 
 vi.mock('@/db', () => ({ db: {} }));
@@ -47,6 +48,10 @@ vi.mock('./esi-snapshot-retention', () => ({ pruneEsiSnapshots: prunes.pruneEsiS
 vi.mock('@/data/esi-refresh-jobs/queries', () => ({ pruneEsiRefreshJobs: prunes.pruneEsiRefreshJobs }));
 vi.mock('@/data/wh-statics/queries', () => ({ pruneWhStaticsSnapshots: prunes.pruneWhStaticsSnapshots }));
 vi.mock('@/data/market-history/ingest', () => ({ pruneStaleMarketHistory: prunes.pruneStaleMarketHistory }));
+vi.mock('@/data/eve-data/entity-names-store', () => ({
+  ENTITY_NAME_RETENTION_DAYS: 30,
+  pruneEntityNames: prunes.pruneEntityNames,
+}));
 vi.mock('@/composition/account-lifecycle/account-purge', () => ({
   retryRequestedDeletions: h.retryRequestedDeletions,
 }));
@@ -97,6 +102,7 @@ describe('runHousekeeping', () => {
       'esi_refresh_jobs',
       'wh_statics_snapshots',
       'market_history',
+      'eve_entity_names',
       'account_merge_tracking_receipts',
     ]);
     expect(summary.status).toBe('cleaned');

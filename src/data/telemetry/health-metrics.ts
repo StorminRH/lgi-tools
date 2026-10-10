@@ -60,6 +60,13 @@ export const ESI_CLIENT_ERROR_TARGET = {
   direction: 'max',
 } as const satisfies AlertTarget;
 
+/** A 4xx share as a percentage that never rounds a real share down to zero. */
+export function formatClientErrorShare(rate: number): string {
+  const pct = rate * 100;
+  if (pct > 0 && pct < 0.1) return '<0.1%';
+  return `${pct.toFixed(pct < 10 ? 1 : 0)}%`;
+}
+
 export function targetLevel(value: number, target: AlertTarget): Exclude<StatusLevel, 'neutral'> {
   const breaches = (limit: number) =>
     target.direction === 'min' ? value < limit : value > limit;

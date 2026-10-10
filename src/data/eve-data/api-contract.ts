@@ -23,6 +23,8 @@ import {
 } from './wormhole-contract';
 
 export const ENTITY_NAMES_MAX_IDS = 200;
+/** Per client IP. A page asks once per names hook, so this leaves room for busy pages while capping what an anonymous caller can make ESI resolve. */
+export const ENTITY_NAMES_LIMIT_PER_MINUTE = 60;
 export const TYPE_NAMES_MAX_IDS = 200;
 
 export const typeNamesRequestSchema = z.object({
@@ -55,6 +57,7 @@ export const entityNamesEndpoint = defineEndpoint({
   responses: {
     200: jsonBody(entityNamesResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
+    429: problem('rate_limited'),
   },
 });
 
