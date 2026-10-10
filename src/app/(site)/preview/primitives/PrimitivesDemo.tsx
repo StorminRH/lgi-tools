@@ -1,6 +1,6 @@
 'use client';
 
-import { NavRailFrame, NavRailTree, navRailLink } from '@/components/ui/nav-rail';
+import { NavRailFrame, NavRailLayout, NavRailTree, navRailLink } from '@/components/ui/nav-rail';
 import { ActionsGroup } from './actions';
 import { ChoicesGroup } from './choices';
 import { DataGroup } from './data';
@@ -28,30 +28,33 @@ const CONTENTS: readonly { id: ReferenceGroupId; label: string }[] = [
 
 export function PrimitivesDemo() {
   return (
-    <div className="grid items-start gap-5 pb-16 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10">
-      <NavRailFrame title="Contents" label="Jump to" current="All primitives">
-        <NavRailTree
-          label="Primitive families"
-          groups={[{ id: 'families', label: 'Families', sections: CONTENTS }]}
-          renderSection={(section) => (
-            <a href={`#${section.id}`} className={`${navRailLink} block`}>
-              {section.label}
-            </a>
-          )}
-        />
-      </NavRailFrame>
-      <div className="flex min-w-0 flex-col gap-14">
-        <ActionsGroup />
-        <FormsGroup />
-        <ChoicesGroup />
-        <TagsGroup />
-        <FeedbackGroup />
-        <OverlaysGroup />
-        <NavigationGroup />
-        <StructureGroup />
-        <DataGroup />
-        <ProseGroup />
-      </div>
-    </div>
+    <NavRailLayout
+      className="pb-16"
+      rail={
+        <NavRailFrame title="Contents" label="Jump to" current="All primitives">
+          <NavRailTree
+            label="Primitive families"
+            groups={[{ id: 'families', label: 'Families', sections: CONTENTS }]}
+            renderSection={(section) => (
+              <a href={`#${section.id}`} className={`${navRailLink} block`}>
+                {section.label}
+              </a>
+            )}
+          />
+        </NavRailFrame>
+      }
+      contentClassName="flex flex-col gap-14"
+    >
+      <ActionsGroup />
+      <FormsGroup />
+      <ChoicesGroup />
+      <TagsGroup />
+      <FeedbackGroup />
+      <OverlaysGroup />
+      <NavigationGroup />
+      <StructureGroup />
+      <DataGroup />
+      <ProseGroup />
+    </NavRailLayout>
   );
 }

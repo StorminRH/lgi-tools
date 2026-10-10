@@ -134,7 +134,7 @@ export function NavigationGroup() {
       <Specimen
         name="ContentBrowser + NavRail"
         source="content-browser · nav-rail"
-        note="A sticky glass rail beside a reading column; below lg it collapses into a drawer bar. This page's own contents rail uses NavRailFrame and NavRailTree."
+        note="A sticky glass rail beside a reading column; below lg it collapses into a drawer bar. This page's own contents rail uses NavRailLayout, NavRailFrame and NavRailTree."
         wide
       >
         <ContentBrowser
