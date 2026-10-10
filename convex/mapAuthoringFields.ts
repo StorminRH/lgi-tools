@@ -20,6 +20,7 @@ import {
   type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import {
+  deathWindowFrom,
   intersectOrReset,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
@@ -103,21 +104,10 @@ function resolveDeathWindow(
   }
 
   validateDeathWindowInput(proposal);
-  const earliestAt = proposal.deathEarliestAt;
-  const latestAt = proposal.deathLatestAt;
-  if (earliestAt === null || latestAt === null) {
-    return null;
-  }
-  if (earliestAt === undefined || latestAt === undefined) {
-    throw new ConvexError({
-      code: 'INVALID_DEATH_WINDOW',
-      detail: 'Death-window timestamps must both be supplied.',
-    });
-  }
-  return intersectOrReset(storedDeathWindow(connection), {
-    earliestAt,
-    latestAt,
-  });
+  const proposed = deathWindowFrom(proposal.deathEarliestAt, proposal.deathLatestAt);
+  return proposed === null
+    ? null
+    : intersectOrReset(storedDeathWindow(connection), proposed);
 }
 
 function sameDeathWindow(

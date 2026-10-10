@@ -206,10 +206,6 @@ export function remainingMassAfterTravel(
   };
 }
 
-export function isKnownSpaceSystemId(systemId: number): boolean {
-  return systemId < 31_000_000;
-}
-
 export const WORMHOLE_LIFE_STAGES = [
   'under_1_day',
   'under_4_hours',

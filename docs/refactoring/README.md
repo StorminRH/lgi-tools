@@ -398,7 +398,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P124](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p124) | Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator | generic-utility | S | low | low | — |
 | ☑ | [P125](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p125) | Share the system-code-set comparison between wh-statics diff and cross-check | generic-utility | S | low | low | — |
 | ☑ | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082) | Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode | client-data | M | low | medium | [P124](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p124), [P266](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p266) |
-| ☐ | [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329) | Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers | simplification | S | low | medium | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082) |
+| ☑ | [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329) | Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers | simplification | S | low | medium | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082) |
 
 ### [Wave 7: UI kit primitives (src/components/ui)](wave-07-ui-kit-primitives-src-components-ui.md)
 

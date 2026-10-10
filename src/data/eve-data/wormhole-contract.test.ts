@@ -4,7 +4,6 @@ import {
   destinationHintSoleClassId,
   hintAdmitsClass,
   isAttributableWormholeTypeCode,
-  isKnownSpaceSystemId,
   isTypedCodexEntry,
   remainingMassAfterTravel,
   remainingMassBounds,
@@ -80,11 +79,6 @@ describe('wormhole-contract mass and destination math', () => {
     ['unresolved class fails open', 'nullsec', { wormholeClassId: null, securityStatus: null }, true],
   ] as const)('%s', (_name, hint, destination, expected) => {
     expect(hintAdmitsClass(hint, destination)).toBe(expected);
-  });
-
-  it('owns the stable known-space ID boundary', () => {
-    expect(isKnownSpaceSystemId(30_999_999)).toBe(true);
-    expect(isKnownSpaceSystemId(31_000_000)).toBe(false);
   });
 
   it.each([

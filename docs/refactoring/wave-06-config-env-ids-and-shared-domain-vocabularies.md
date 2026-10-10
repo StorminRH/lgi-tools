@@ -28,7 +28,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P124](#p124) | Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator | generic-utility | S | low | low | — |
 | ☑ | [P125](#p125) | Share the system-code-set comparison between wh-statics diff and cross-check | generic-utility | S | low | low | — |
 | ☑ | [P082](#p082) | Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode | client-data | M | low | medium | [P124](#p124), [P266](#p266) |
-| ☐ | [P329](#p329) | Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers | simplification | S | low | medium | [P082](#p082) |
+| ☑ | [P329](#p329) | Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers | simplification | S | low | medium | [P082](#p082) |
 
 <a id="p134"></a>
 
@@ -1850,7 +1850,7 @@ export type LifetimeConnection = Pick<ConnectionDetail, '_creationTime' | 'first
 
 ## P329: Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -35 / +6
 - **Depends on:** [P082](#p082)

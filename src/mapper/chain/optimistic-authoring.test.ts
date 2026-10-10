@@ -479,6 +479,37 @@ describe('explicit lifetime proposals', () => {
     });
   });
 
+  it('drops death windows the server would reject from both optimistic setters', () => {
+    const store = mockStore({
+      connections: [connectionRow('c1', JITA, AMARR)],
+    });
+    optimisticSetConnectionWormholeType(store, {
+      mapId: MAP,
+      connectionId: 'c1',
+      value: 'B274',
+      deathEarliestAt: Number.NaN,
+      deathLatestAt: 2,
+    });
+    expect(store.connections[0]?.lifetime).toEqual({ kind: 'unknown' });
+
+    optimisticSetConnectionLifeStage(
+      store,
+      {
+        mapId: MAP,
+        connectionId: 'c1',
+        value: 'under_1_day',
+        deathEarliestAt: 4,
+        deathLatestAt: 3,
+      },
+      5,
+    );
+    expect(store.connections[0]?.lifetime).toEqual({
+      kind: 'stage',
+      lifeStage: 'under_1_day',
+      observedAt: 5,
+    });
+  });
+
   it('optimistic claim removes the sig row from the unresolved page and patches the placeholder', () => {
     const placeholder = connectionRow('ghost', JITA, AMARR, {
       toSystemId: null,

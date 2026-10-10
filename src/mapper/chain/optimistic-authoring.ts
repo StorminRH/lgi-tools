@@ -16,6 +16,7 @@ import {
 } from '@/data/maps/chain-contract';
 import {
   deathWindowForReport,
+  deathWindowFrom,
   intersectOrReset,
   typedLifetimeWindow,
   type ConnectionDeathWindow,
@@ -297,7 +298,7 @@ export function optimisticSetConnectionLifeStage(
       lifetime: connectionLifetimeFrom({
         lifeStage: args.value,
         observedAt: now,
-        death: deathWindowFromArgs(args),
+        death: deathWindowFrom(args.deathEarliestAt, args.deathLatestAt),
       }),
     },
   });
@@ -328,7 +329,7 @@ export function optimisticSetConnectionWormholeType(
       lifetime: connectionLifetimeFrom({
         lifeStage: lifetimeStage(row.lifetime),
         observedAt: lifetimeObservedAt(row.lifetime),
-        death: deathWindowFromArgs(args),
+        death: deathWindowFrom(args.deathEarliestAt, args.deathLatestAt),
       }),
       resolution: clearPendingResolution(row.resolution),
     };
@@ -423,16 +424,6 @@ function storedWindow(
   connection: ConnectionWindowSource,
 ): ConnectionDeathWindow | null {
   return lifetimeDeathWindow(connection.lifetime);
-}
-
-function deathWindowFromArgs(args: {
-  readonly deathEarliestAt?: number | null;
-  readonly deathLatestAt?: number | null;
-}): ConnectionDeathWindow | null {
-  const earliestAt = args.deathEarliestAt ?? null;
-  const latestAt = args.deathLatestAt ?? null;
-  if (earliestAt === null || latestAt === null) return null;
-  return { earliestAt, latestAt };
 }
 
 function namedTypeCode(connection: {

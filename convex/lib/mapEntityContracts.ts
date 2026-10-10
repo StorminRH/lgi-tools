@@ -15,6 +15,7 @@ import {
 import { canonicalizeMapRoles, MAP_ROLES, type MapRole } from '@/data/maps/access-contract';
 import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 import { CONNECTION_DOOR_SIDES } from '@/data/maps/connection-hallway';
+import { deathWindowFrom } from '@/data/maps/connection-lifetime';
 import {
   SCANNED_KINDS,
   SIG_GROUPS,
@@ -222,7 +223,7 @@ export function validateDeathWindowInput(input: DeathWindowInput): void {
     reject('INVALID_DEATH_WINDOW', 'Death-window timestamps must both be null or both be set.');
   }
   if (earliest === null || latest === null) return;
-  if (!Number.isFinite(earliest) || !Number.isFinite(latest) || earliest > latest) {
+  if (deathWindowFrom(earliest, latest) === null) {
     reject('INVALID_DEATH_WINDOW', 'Death-window timestamps must be finite and ordered.');
   }
 }
