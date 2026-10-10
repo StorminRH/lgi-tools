@@ -9,7 +9,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P134](#p134) | Own the public Convex URL in one config-zone reader and fix SITE_URL's empty-string fallback | generic-utility | S | low | low | — |
-| ☐ | [P209](#p209) | Give the 'Convex is not configured' check one owner and report the door's reason | server-pipeline | S | low | low | [P134](#p134) |
+| ☑ | [P209](#p209) | Give the 'Convex is not configured' check one owner and report the door's reason | server-pipeline | S | low | low | [P134](#p134) |
 | ☐ | [P210](#p210) | Share one runtime-portable bearerMatches between Next and Convex, and make Convex answer 500 when its service secret is unset | convex | S | low | medium | — |
 | ☐ | [P211](#p211) | Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads | convex | S | low | low | [P210](#p210), [P134](#p134) |
 | ☐ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
@@ -107,7 +107,7 @@ export const SITE_URL: string = process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_S
 
 ## P209: Give the 'Convex is not configured' check one owner and report the door's reason
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -3 / +8
 - **Depends on:** [P134](#p134)

@@ -68,13 +68,20 @@ describe('postConvexHttpDoor', () => {
     );
   });
 
-  it('fails closed when configuration, transport, status, JSON, or contract is invalid', async () => {
-    h.readEnv.mockReturnValueOnce(undefined);
+  it.each([
+    ['convex_not_configured', () => vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '')],
+    ['unrecognized_convex_url', () => h.deriveConvexSiteUrl.mockReturnValueOnce(null)],
+    ['service_secret_missing', () => h.readEnv.mockReturnValueOnce(undefined)],
+  ] as const)('names the %s door reason without sending a request', async (reason, misconfigure) => {
+    misconfigure();
     await expect(postSample()).rejects.toMatchObject({
       name: 'DoorUnavailableError',
-      message: 'Sample door unavailable: Convex URL or service secret is unset or unsafe',
+      message: `Sample door unavailable: Convex URL or service secret is unset or unsafe (${reason})`,
     });
+    expect(h.fetchWithTimeout).not.toHaveBeenCalled();
+  });
 
+  it('fails closed when transport, status, JSON, or contract is invalid', async () => {
     h.fetchWithTimeout.mockRejectedValueOnce(new Error('down'));
     await expect(postSample()).rejects.toBeInstanceOf(DoorUnavailableError);
 

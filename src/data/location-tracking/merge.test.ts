@@ -41,7 +41,7 @@ describe('restoreMergeTracking', () => {
 
   it('rejects when Convex is not configured instead of pretending to have moved anything', async () => {
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
-    await expect(restoreMergeTracking('op', 'surv', [])).rejects.toThrow('service secret is unset');
+    await expect(restoreMergeTracking('op', 'surv', [])).rejects.toThrow('(convex_not_configured)');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
