@@ -10,7 +10,7 @@ import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { ADVISORY_LOCKS } from '@/db/advisory-lock';
-import type { PostgresJsDb } from '@/lib/db-types';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import {
   runSdePipeline,
   summarizeMarketPricesRowCount,
@@ -21,6 +21,17 @@ export type SdePreLock = {
   storedVersion: string | null;
   remoteVersion: string | null;
 };
+
+/**
+ * CCP can withdraw a build after a run recorded it as the newest. Once its
+ * manifest matches what LGI has loaded again, the recorded build follows, so
+ * the status readout stops saying LGI is behind.
+ */
+async function settleLatestPublished(db: AnyPgDb, remoteVersion: string): Promise<void> {
+  if ((await getSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED)) === remoteVersion) return;
+  await setSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED, remoteVersion);
+  revalidateTag(SDE_VERSION_CACHE_TAG, 'max');
+}
 
 export const refreshSdeDeclaration: CronRouteDeclaration<
   CronRefreshSdeResponse,
@@ -46,6 +57,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     const remoteVersion = await getRemoteSdeVersion();
 
     if (remoteVersion !== null && storedVersion === remoteVersion) {
+      await settleLatestPublished(db, remoteVersion);
       return {
         done: {
           outcome: 'up-to-date',

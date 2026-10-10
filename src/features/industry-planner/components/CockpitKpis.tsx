@@ -224,7 +224,11 @@ function MarginFigure({
   return (
     <div className={cn(KPI_FIG, marginToneClass(view.marginPct))}>
       <LivePrice value={formatSigned(view.margin, formatIsk)} pending={refreshing} />
-      {view.marginPct !== null && <span className="ml-1.5 text-ui">({formatPct(view.marginPct)})</span>}
+      {view.marginPct !== null && (
+        <span className="ml-1.5 text-ui">
+          ({view.marginPct < 0 ? formatSigned(view.marginPct, formatPct) : formatPct(view.marginPct)})
+        </span>
+      )}
     </div>
   );
 }

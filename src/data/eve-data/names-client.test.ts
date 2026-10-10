@@ -32,3 +32,14 @@ test('cached clients isolate endpoint results and retry failed batches', async (
   expect(await entities.load([1])).toEqual({ '1': 'Pilot' });
   expect(apiFetchMock).toHaveBeenCalledTimes(3);
 });
+
+test('entity outcomes carry the ids the server could not answer, and cached outcomes never do', async () => {
+  const entities = createNamesClient(entityNamesEndpoint, { maxIds: 5, cache: false, retryMs: 30_000 });
+  const types = createNamesClient(typeNamesEndpoint, { maxIds: 5, cache: true });
+  apiFetchMock.mockReset()
+    .mockResolvedValueOnce({ ok: true, data: { names: { '1': 'Pilot' }, pending: [2] } })
+    .mockResolvedValueOnce({ ok: true, data: { names: { '1': 'Ship' } } });
+  await expect(entities.loadOutcome([1, 2])).resolves.toEqual({ names: { '1': 'Pilot' }, pending: [2] });
+  await expect(types.loadOutcome([1])).resolves.toEqual({ names: { '1': 'Ship' }, pending: [] });
+  await expect(entities.loadOutcome([])).resolves.toEqual({ names: {}, pending: [] });
+});

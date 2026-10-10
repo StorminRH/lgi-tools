@@ -152,7 +152,9 @@ async function fetchOrReportNoResponse(
   try {
     return await fetchFromEsi(url, init);
   } catch (error) {
-    if (liveSb !== null) await reportAnswer(liveSb, noResponseReport(url));
+    // A caller that cancelled (a superseded typeahead) is no answer from ESI;
+    // the gate's own timeout uses a separate signal and still counts.
+    if (liveSb !== null && init.signal?.aborted !== true) await reportAnswer(liveSb, noResponseReport(url));
     throw error;
   }
 }
