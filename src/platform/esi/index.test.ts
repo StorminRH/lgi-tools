@@ -564,6 +564,7 @@ describe('esiFetch', () => {
 
   describe('round trips the gate saves', () => {
     const POST_URL = 'https://esi.evetech.net/universe/names/';
+    const IDS_URL = 'https://esi.evetech.net/universe/ids/';
     const post = { method: 'POST', body: '[1]' };
 
     function fakeScoreboard(remaining = 100): EsiScoreboard & {
@@ -661,6 +662,92 @@ describe('esiFetch', () => {
       await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
 
       expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('writes the echo before returning once ESI reports the budget running low', async () => {
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      const deferred: (() => Promise<void>)[] = [];
+      setWorkDeferrer((task) => {
+        deferred.push(task);
+        return true;
+      });
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR * 2 - 1) }))
+        .mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR * 2) }));
+
+      await esiFetch(TEST_URL);
+      expect(fake.report).toHaveBeenCalledOnce();
+      expect(fake.report.mock.calls[0]![0]).toMatchObject({ status: 200, errorLimitRemain: ESI_BUDGET_FLOOR * 2 - 1 });
+      expect(deferred).toEqual([]);
+
+      await esiFetch(TEST_URL);
+      expect(fake.report).toHaveBeenCalledOnce();
+      expect(deferred).toHaveLength(1);
+    });
+
+    it('caps the reused reading by the error count ESI reports on each answer', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Error-Limit-Remain': '3' }, []));
+
+      await esiFetch(POST_URL, post);
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+
+      expect(fake.preDispatch).toHaveBeenCalledOnce();
+      expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a 420 that arrived while an older shared read was still in flight', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const open = { effectiveRemaining: 100, blockedRetryAfter: null, etag: null };
+      let releaseRead: (state: typeof open) => void = () => {};
+      fake.preDispatch
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }))
+        .mockResolvedValueOnce(open);
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(420)).mockResolvedValueOnce(mockResponse(200));
+
+      const slowGet = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'esi_420' });
+      releaseRead(open);
+      await slowGet;
+
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('reads the shared state for a path this process has not read, even inside the reuse window', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      fake.preDispatch
+        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: null, etag: null })
+        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: 30, etag: null });
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, {}, []));
+
+      await esiFetch(POST_URL, post);
+      await expect(esiFetch(IDS_URL, post)).rejects.toMatchObject({ reason: 'rate_limited', retryAfterSeconds: 30 });
+
+      expect(fake.preDispatch).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a local 429 to the path that drew it', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(429, { 'Retry-After': '30' }))
+        .mockResolvedValueOnce(mockResponse(200, {}, []));
+
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'rate_limited' });
+      await expect(esiFetch(IDS_URL, post)).resolves.toMatchObject({ status: 200 });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it('blocks the path locally after a 429 until Retry-After', async () => {
