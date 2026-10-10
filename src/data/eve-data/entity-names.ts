@@ -39,6 +39,8 @@ interface Resolution {
   names: Record<string, string>;
   /** Ids that came back without a name, for whatever reason. */
   unnamed: number[];
+  /** Of those, the ids ESI could not answer for this time and that had no stored name to fall back on. */
+  pending: number[];
   failure: unknown;
 }
 
@@ -155,25 +157,35 @@ async function resolve(ids: readonly number[]): Promise<Resolution> {
     else if (hit.name === null) unnamed.push(id);
     else names[String(id)] = hit.name;
   }
-  if (toAsk.length === 0) return { names, unnamed, failure: null };
+  if (toAsk.length === 0) return { names, unnamed, pending: [], failure: null };
 
   const answers = await askEsi(toAsk);
   for (const row of answers.found) names[String(row.id)] = row.name;
   unnamed.push(...answers.missing);
   // ESI could not answer for these this time: an older stored name (rows are
   // kept 30 days) beats no name, as the per-id cache used to serve stale.
+  const pending: number[] = [];
   for (const id of answers.unresolved) {
     const prior = stored.get(id)?.name;
     if (prior != null) names[String(id)] = prior;
-    else unnamed.push(id);
+    else pending.push(id);
   }
+  unnamed.push(...pending);
   await remember(answers);
-  return { names, unnamed, failure: answers.failure };
+  return { names, unnamed, pending, failure: answers.failure };
 }
 
 /** Names for the ids ESI can resolve; the rest are left out. */
 export async function resolveEntityNames(ids: number[]): Promise<Record<string, string>> {
   return (await resolve(ids)).names;
+}
+
+/** Names as above, plus the ids ESI could not answer for this time, so a client knows to ask again. */
+export async function resolveEntityNamesWithPending(
+  ids: number[],
+): Promise<{ names: Record<string, string>; pending: number[] }> {
+  const { names, pending } = await resolve(ids);
+  return { names, pending };
 }
 
 /** Names for every id, or a throw when any id cannot be named right now. */

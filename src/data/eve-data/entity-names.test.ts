@@ -15,7 +15,7 @@ vi.mock('./entity-names-store', () => ({
   storeEntityNames: (...args: unknown[]) => h.store(...args),
 }));
 
-import { resolveEntityNames, resolveEntityNamesStrict } from './entity-names';
+import { resolveEntityNames, resolveEntityNamesStrict, resolveEntityNamesWithPending } from './entity-names';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -167,6 +167,23 @@ describe('resolveEntityNames', () => {
 
     await expect(resolveEntityNames([1, 2])).resolves.toEqual({});
     expect(h.store).not.toHaveBeenCalled();
+  });
+
+  it('reports which ids ESI could not answer this time, apart from ids it does not know', async () => {
+    h.readStored.mockResolvedValue(new Map([
+      [3, { name: 'Old Name', category: 'corporation', resolvedAt: new Date(Date.now() - 20 * DAY) }],
+    ]));
+    // 1 is unknown to ESI; 2 and 3 meet a 503 once the 404 batch is split.
+    h.esiFetch.mockImplementation(async (_url: string, init: RequestInit) => {
+      const ids = posted(init);
+      return new Response(null, { status: ids.length > 1 || ids[0] === 1 ? 404 : 503 });
+    });
+
+    const outcome = await resolveEntityNamesWithPending([1, 2, 3]);
+
+    // 3 falls back to its stored name; only 2 is left to ask for again.
+    expect(outcome).toEqual({ names: { '3': 'Old Name' }, pending: [2] });
+    expect(storedRows()).toEqual([{ id: 1, name: null, category: null }]);
   });
 
   it('serves an older stored name when ESI cannot answer for it now', async () => {
