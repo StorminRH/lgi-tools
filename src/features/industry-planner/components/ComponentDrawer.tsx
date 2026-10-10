@@ -93,7 +93,6 @@ function Identity({ sheet }: { sheet: ComponentSheet }) {
           {...nodeImage(sheet.blueprintTypeId, sheet.typeId)}
           size={64}
           alt={sheet.name}
-          mono={sheet.name.slice(0, 2)}
           className="rounded-card shadow-cta-glow"
         />
         <Steppers sheet={sheet} />
@@ -141,7 +140,7 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
         {...nodeImage(ledger.builds.get(row.typeId)?.blueprintTypeId, row.typeId)}
         size={32}
         alt=""
-        mono={row.name.slice(0, 2)}
+        mono={row.name}
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="truncate font-data text-ui text-name">{row.name}</span>

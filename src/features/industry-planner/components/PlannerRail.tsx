@@ -90,7 +90,6 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
           {...blueprintImage(structure.blueprintTypeId)}
           size={112}
           alt={structure.product.name}
-          mono={structure.product.name.slice(0, 2)}
           className="rounded-card shadow-cta-glow"
         />
         <BuildSteppers structure={structure} />

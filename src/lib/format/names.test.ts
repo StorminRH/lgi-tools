@@ -8,6 +8,15 @@ describe('initials', () => {
     expect(initials('Cyrus')).toBe('CY');
     expect(initials('  Anne   Bell  ')).toBe('AB');
     expect(initials('x')).toBe('X');
+    expect(initials('')).toBe('');
+  });
+
+  it('reads each word from its first letter or digit, and keeps a word that has neither', () => {
+    expect(initials("'Moreau' Fortizar")).toBe('MF');
+    expect(initials("'Augmented' Hammerhead")).toBe('AH');
+    expect(initials('"Quoted"')).toBe('QU');
+    expect(initials('C3')).toBe('C3');
+    expect(initials('→')).toBe('→');
   });
 });
 

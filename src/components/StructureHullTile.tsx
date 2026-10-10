@@ -12,5 +12,5 @@ export function StructureHullTile({ typeId, hullName }: { typeId: number | null;
       </span>
     );
   }
-  return <TypeIcon typeId={typeId} size={40} mono={hullName?.slice(0, 2)} />;
+  return <TypeIcon typeId={typeId} size={40} mono={hullName ?? undefined} />;
 }

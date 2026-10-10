@@ -13,7 +13,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | ☑ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
 | ☑ | [P318](#p318) | Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types | simplification | S | low | low | [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089) |
 | ☑ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
-| ☐ | [P009](#p009) | Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30 | ui-component | S | low | low | [P008](#p008) |
+| ☑ | [P009](#p009) | Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30 | ui-component | S | low | low | [P008](#p008) |
 | ☐ | [P012](#p012) | Derive the linked-character health label once in platform/auth and render admin character portraits with CharacterPortrait | ui-component | S | low | medium | [P008](#p008) |
 | ☐ | [P010](#p010) | Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook | ui-component | M | low | medium | — |
 | ☐ | [P011](#p011) | Reuse FacilitySubline in StructureRow, share the placeholder tile, export the structure source groups, and build facility keys with facilityKey | ui-component | S | low | low | [P010](#p010) |
@@ -439,7 +439,7 @@ export function EntityLogo({ kind, id, size, alt = '', className }: {
 
 ## P009: Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -12/+8 (10 slice calls and one initials import removed, the size union added)
 - **Depends on:** [P008](#p008)

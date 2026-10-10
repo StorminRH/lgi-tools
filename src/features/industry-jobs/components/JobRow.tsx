@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { initials } from '@/lib/format/names';
 import type { JobRowFrameData } from '../job-view';
 
 /**
@@ -24,7 +23,7 @@ export function JobRow({
   return (
     <div className="flex flex-col gap-2 border-t border-border-soft px-3.5 py-2.5 first:border-t-0">
       <div className="flex items-center gap-2.5">
-        <TypeIcon {...icon} size={22} mono={initials(headlineName)} />
+        <TypeIcon {...icon} size={22} mono={headlineName} />
         {/* On a narrow screen who and when drop under the name, so the name keeps the line. */}
         <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2.5">
           <span className="min-w-0 truncate font-data text-ui text-name sm:flex-1">

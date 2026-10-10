@@ -55,7 +55,7 @@ function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshin
             key={row.typeId}
             colsClass="grid-cols-[30px_minmax(0,1fr)_auto]"
             className="min-h-[44px] px-3 py-[9px]"
-            leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name.slice(0, 2)} />}
+            leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name} />}
             name={<div className="flex min-w-0 flex-col gap-px">
               <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
                 {row.name}
