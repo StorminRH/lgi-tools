@@ -3,20 +3,13 @@ import { capabilityRoute } from '@/app/api/capability-route';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import {
-  ADMIN_ACCESS_QUERY_MAX_LENGTH,
   adminRoleFormSchema,
+  sanitiseAdminAccessQuery,
 } from '@/platform/auth/api-contract';
 import { getUserById, setUserRole } from '@/platform/auth/admin-users';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { sanitiseUserText } from '@/lib/sanitise';
-
-function sanitiseQuery(raw: string | undefined): string | undefined {
-  if (raw === undefined) return undefined;
-  const cleaned = sanitiseUserText(raw, ADMIN_ACCESS_QUERY_MAX_LENGTH);
-  return cleaned.length === 0 ? undefined : cleaned;
-}
 
 function buildRedirect(request: NextRequest, query: string | undefined): URL {
   const url = new URL('/admin/users', request.url);
@@ -78,6 +71,6 @@ async function handlePost(request: NextRequest): Promise<Response> {
     },
   }).catch((err) => console.error('[admin/role] telemetry write failed', err));
 
-  const query = sanitiseQuery(parsed.data.q);
+  const query = sanitiseAdminAccessQuery(parsed.data.q);
   return Response.redirect(buildRedirect(request, query), 303);
 }

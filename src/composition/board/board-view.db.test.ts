@@ -242,7 +242,7 @@ function priceRow(typeId: number, pct5: number) {
     pct5Sell: pct5,
     updatedAt: new Date(STAMP),
     staleAfter: new Date('2026-09-28T00:00:00Z'),
-    source: 'esi',
+    source: 'esi' as const,
   };
 }
 

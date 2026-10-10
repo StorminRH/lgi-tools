@@ -18,6 +18,9 @@ export type StructureRigOption = {
 /** The activities a production structure bonus can apply to. */
 export const PRODUCTION_ACTIVITIES = ['manufacturing', 'reaction'] as const;
 
+/** What a production bonus multiplies: a job's materials, its time, or its install cost. */
+export const PRODUCTION_MODIFIER_KINDS = ['material', 'time', 'cost'] as const;
+
 /**
  * One hull or rig bonus as the SDE resolves it: the factor it multiplies a
  * job's material, time or cost by in each security band, for jobs in its
@@ -25,7 +28,7 @@ export const PRODUCTION_ACTIVITIES = ['manufacturing', 'reaction'] as const;
  */
 export type ProductionModifier = {
   activity: (typeof PRODUCTION_ACTIVITIES)[number];
-  kind: 'material' | 'time' | 'cost';
+  kind: (typeof PRODUCTION_MODIFIER_KINDS)[number];
   filterId: number | null;
   factor: { high: number; low: number; null: number };
 };

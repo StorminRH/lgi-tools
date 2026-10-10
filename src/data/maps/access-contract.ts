@@ -2,6 +2,13 @@ export const MAP_ROLES = ['viewer', 'editor', 'admin'] as const;
 
 export type MapRole = (typeof MAP_ROLES)[number];
 
+/** The roles a creator may hand out with a new map; Admin is granted only once the map exists. */
+export const MAP_CREATE_ROLES = ['viewer', 'editor'] as const satisfies readonly MapRole[];
+
+export function isMapCreateRole(role: MapRole | null): role is (typeof MAP_CREATE_ROLES)[number] {
+  return MAP_CREATE_ROLES.some((createRole) => createRole === role);
+}
+
 export const MAP_ACCESS_OWNER_TYPES = ['character', 'corporation'] as const;
 export type MapAccessOwnerType = (typeof MAP_ACCESS_OWNER_TYPES)[number];
 

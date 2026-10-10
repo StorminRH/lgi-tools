@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import { defineEndpoint, emptyBody, jsonBody, problem } from '@/transport/endpoint';
-import { MAP_ACCESS_OWNER_TYPES, MAP_ROLES } from './access-contract';
+import { MAP_ACCESS_OWNER_TYPES, MAP_CREATE_ROLES, MAP_ROLES } from './access-contract';
 
 /** maps.id is a Postgres uuid; a malformed id must fail here, not at the SQL cast. */
 const mapIdSchema = z.uuid();
@@ -16,7 +16,7 @@ export const MAX_CHARACTER_SEARCH_LENGTH = 100;
 const createMapGrantSchema = z.strictObject({
   ownerType: z.enum(MAP_ACCESS_OWNER_TYPES),
   ownerId: positiveIdSchema,
-  role: z.enum(['viewer', 'editor']),
+  role: z.enum(MAP_CREATE_ROLES),
 });
 
 /** Creator picks receive viewer grants; creator Admin belongs to the user. Picks may not repeat in `grants`. */

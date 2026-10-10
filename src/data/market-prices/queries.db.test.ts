@@ -20,7 +20,7 @@ describe.skipIf(!harness.reachable)('listStaleTypeIds executes against Postgres'
       typeId,
       updatedAt: new Date(fetchedAtMs),
       staleAfter: new Date(placeholder ? 0 : fetchedAtMs + 300_000),
-      source: 'esi',
+      source: 'esi' as const,
     });
     await harness.db.insert(marketPrices).values([
       row(34, now - BATCH_REFRESH_INTERVAL_MS),

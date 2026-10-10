@@ -52,7 +52,7 @@ export async function seedPlaceholderPrices(db: AnyPgDb, typeIds: readonly numbe
   for (const batch of chunk(typeIds, INSERT_BATCH)) {
     const written = await db
       .insert(marketPrices)
-      .values(batch.map((typeId) => ({ typeId, updatedAt, staleAfter, source: 'esi' })))
+      .values(batch.map((typeId) => ({ typeId, updatedAt, staleAfter, source: 'esi' as const })))
       .onConflictDoNothing()
       .returning({ typeId: marketPrices.typeId });
     inserted += written.length;

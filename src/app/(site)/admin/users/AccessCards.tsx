@@ -10,13 +10,13 @@ import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm'
 import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
 import { readEnv } from '@/lib/env';
 import { searchUsersByLinkedCharacterName, type AdminUser } from '@/platform/auth/admin-users';
+import { ADMIN_ACCESS_QUERY_MAX_LENGTH } from '@/platform/auth/api-contract';
 import { USERS_HREF } from '../admin-sections';
 import { getUserOwningCharacterShared, listAdminUsersShared } from '../shared-reads';
 import {
   adminRoleBadge,
   deriveAccessView,
   deriveAuditRowView,
-  MAX_QUERY_LENGTH,
   mergeAdminRows,
   type AuditRow,
 } from './access-view';
@@ -52,7 +52,7 @@ export function AccessSearchForm({ query }: { query: string | undefined }) {
         defaultValue={query ?? ''}
         placeholder="Search by character name"
         aria-label="Search by character name"
-        maxLength={MAX_QUERY_LENGTH}
+        maxLength={ADMIN_ACCESS_QUERY_MAX_LENGTH}
         className="min-w-0 flex-1"
       />
       <Button type="submit" variant="secondary" className="text-isk">

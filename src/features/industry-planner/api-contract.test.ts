@@ -8,7 +8,9 @@ import {
   buildLocationRequestSchema,
   buildLocationResponseSchema,
   skillLevelsRequestSchema,
+  type StructureModifier,
 } from './api-contract';
+import type { ProductionModifier } from '@/data/eve-data/structures';
 import type {
   AvailableStructure,
   AvailableStructuresResponse,
@@ -38,6 +40,10 @@ describe('industry-planner contract', () => {
 
   it('pins the build-location response to BuildLocationData exactly (both directions)', () => {
     expectTypeOf<z.infer<typeof buildLocationResponseSchema>>().toEqualTypeOf<BuildLocationData>();
+  });
+
+  it('pins the structure modifier wire shape to ProductionModifier exactly, every kind included', () => {
+    expectTypeOf<StructureModifier>().toEqualTypeOf<ProductionModifier>();
   });
 
   it('carries a numeric groupId on the available structure (schema ⇄ type)', () => {

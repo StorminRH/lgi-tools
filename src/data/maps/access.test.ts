@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isMapCreateRole,
   MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
   roleAllows,
@@ -179,6 +180,15 @@ describe('capability predicates', () => {
     { role: 'admin', capability: 'edit', expected: true },
   ] as const)('$role $capability is $expected', ({ role, capability, expected }) => {
     expect(roleAllows(role, capability)).toBe(expected);
+  });
+
+  it.each([
+    { role: 'viewer', expected: true },
+    { role: 'editor', expected: true },
+    { role: 'admin', expected: false },
+    { role: null, expected: false },
+  ] as const)('a new map may grant $role: $expected', ({ role, expected }) => {
+    expect(isMapCreateRole(role)).toBe(expected);
   });
 
   it('denies unknown or empty role sets and unions capabilities across a set', () => {

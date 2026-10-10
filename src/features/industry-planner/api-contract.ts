@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
-import { PRODUCTION_ACTIVITIES, type ProductionModifier } from '@/data/eve-data/structures';
+import {
+  PRODUCTION_ACTIVITIES,
+  PRODUCTION_MODIFIER_KINDS,
+  type ProductionModifier,
+} from '@/data/eve-data/structures';
 import { int4IdSchema, ownedRowIdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 import {
@@ -198,7 +202,7 @@ export const teamSkillLevelsEndpoint = defineEndpoint({
 
 const structureModifierSchema = z.object({
   activity: z.enum(PRODUCTION_ACTIVITIES),
-  kind: z.enum(['material', 'time', 'cost']),
+  kind: z.enum(PRODUCTION_MODIFIER_KINDS),
   filterId: z.number().nullable(),
   factor: z.object({ high: z.number(), low: z.number(), null: z.number() }),
 }) satisfies z.ZodType<ProductionModifier>;

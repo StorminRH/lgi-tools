@@ -95,6 +95,14 @@ describe('POST /api/maps/create', () => {
         )
       ).status,
     ).toBe(400);
+    // Admin is granted only once the map exists.
+    expect(
+      (
+        await POST(
+          postJson(ROUTE, { ...VALID_BODY, grants: [{ ownerType: 'character', ownerId: 42, role: 'admin' }] }),
+        )
+      ).status,
+    ).toBe(400);
     expect(h.createProjectedMap).not.toHaveBeenCalled();
   });
 

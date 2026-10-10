@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CHARACTER_ROLES } from '@/config/character-roles';
+import { sanitiseUserText } from '@/lib/sanitise';
 import {
   defineEndpoint,
   jsonBody,
@@ -43,6 +44,14 @@ export const unlinkCharacterFormSchema = z.object({
 });
 
 export const ADMIN_ACCESS_QUERY_MAX_LENGTH = 200;
+
+/** The admin access search text, cleaned; undefined when blank or repeated (?q=a&q=b). */
+export function sanitiseAdminAccessQuery(raw: string | readonly string[] | undefined): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const cleaned = sanitiseUserText(raw, ADMIN_ACCESS_QUERY_MAX_LENGTH);
+  return cleaned.length === 0 ? undefined : cleaned;
+}
+
 export const adminRoleFormSchema = z.object({
   userId: userIdField,
   nextRole: z.enum(CHARACTER_ROLES),

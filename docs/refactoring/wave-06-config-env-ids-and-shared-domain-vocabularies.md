@@ -20,7 +20,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P186](#p186) | Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth | esi-sync | S | low | medium | [P187](#p187) |
 | ☑ | [P252](#p252) | Export a syncEligibility projection from scope-health and use it wherever the canSync input is built | contracts-validation | S | low | low | [P186](#p186), [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) |
 | ☑ | [P258](#p258) | Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync | contracts-validation | M | low | low | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
-| ☐ | [P260](#p260) | Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them | contracts-validation | S | low | low | — |
+| ☑ | [P260](#p260) | Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them | contracts-validation | S | low | low | — |
 | ☐ | [P266](#p266) | Name the 'attributable (non-K162) wormhole type code' predicate once in wormhole-contract | contracts-validation | S | low | low | — |
 | ☐ | [P265](#p265) | Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound | contracts-validation | S | low | low | — |
 | ☐ | [P262](#p262) | Use ConnectionDoorSide and a CONNECTION_DOOR_SIDES tuple instead of 36 inline 'from' \| 'to' unions and the ConnectionDoor alias | contracts-validation | S | low | low | — |
@@ -1127,7 +1127,7 @@ F196's data/eve-data home is rejected for the tuple. It was chosen to reach data
 
 ## P260: Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +20 across 14 files.
 - **Depends on:** —
