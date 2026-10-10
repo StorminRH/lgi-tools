@@ -1,6 +1,8 @@
+import type { EveScope } from '@/config/eve-scopes';
 import { chunk } from '@/lib/array';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { HOUR_MS } from '@/lib/iso-date';
+import { scopeEligibility } from '@/lib/scope-eligibility';
 import {
   type EnumeratedOwner,
   makeCorpDescriptor,
@@ -22,24 +24,19 @@ import {
 } from './context-projection';
 import type { CorpHoldingContext } from './placement';
 
-export const CORP_CONTEXT_SYNC_SCOPES = [
+const CORP_CONTEXT_SYNC_SCOPES = [
   'esi-characters.read_corporation_roles.v1',
   'esi-corporations.read_divisions.v1',
   'esi-corporations.track_members.v1',
   'esi-assets.read_corporation_assets.v1',
   'esi-universe.read_structures.v1',
-] as const;
+] as const satisfies readonly EveScope[];
 
 const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 
 const CONTEXT_FRESHNESS = freshnessGate('corp_context');
 const NAMES_BATCH = 1000;
 const STRUCTURE_NAME_READS_PER_PASS = 10;
-
-function canSyncCorpContext(character: { hasRefreshToken: boolean; missingScopes: string[] }): boolean {
-  if (!character.hasRefreshToken) return false;
-  return !CORP_CONTEXT_SYNC_SCOPES.some((scope) => character.missingScopes.includes(scope));
-}
 
 export type CorpContextRead =
   | { kind: 'fresh'; body: unknown }
@@ -166,7 +163,7 @@ async function planContext(
 function makeDescriptor(port: CorpContextPort) {
   return makeCorpDescriptor<CorpOwner, CorpContextState, CorpContextSave>(port, {
     ownerOf: (_userId, corporationId) => ({ corporationId }),
-    eligible: canSyncCorpContext,
+    eligible: scopeEligibility(CORP_CONTEXT_SYNC_SCOPES),
     requiredRoles: CORP_CONTEXT_REQUIRED_ROLES,
     isStale: CONTEXT_FRESHNESS.isStale,
     readState: (owner) => port.readProfileState(owner.corporationId),

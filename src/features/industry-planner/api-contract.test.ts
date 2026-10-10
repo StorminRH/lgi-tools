@@ -7,7 +7,10 @@ import {
   blueprintIndexEntrySchema,
   buildLocationRequestSchema,
   buildLocationResponseSchema,
+  skillLevelsRequestSchema,
+  type StructureModifier,
 } from './api-contract';
+import type { ProductionModifier } from '@/data/eve-data/structures';
 import type {
   AvailableStructure,
   AvailableStructuresResponse,
@@ -27,8 +30,20 @@ describe('industry-planner contract', () => {
     }
   });
 
+  it('accepts character ids above int4 for skill levels, since character columns are bigint', () => {
+    expect(skillLevelsRequestSchema.safeParse({ characterId: 2_147_483_648 }).success).toBe(true);
+    expect(skillLevelsRequestSchema.safeParse({ characterId: 2_123_456_789 }).success).toBe(true);
+    for (const characterId of [0, -1, 1.5, 2 ** 53]) {
+      expect(skillLevelsRequestSchema.safeParse({ characterId }).success).toBe(false);
+    }
+  });
+
   it('pins the build-location response to BuildLocationData exactly (both directions)', () => {
     expectTypeOf<z.infer<typeof buildLocationResponseSchema>>().toEqualTypeOf<BuildLocationData>();
+  });
+
+  it('pins the structure modifier wire shape to ProductionModifier exactly, every kind included', () => {
+    expectTypeOf<StructureModifier>().toEqualTypeOf<ProductionModifier>();
   });
 
   it('carries a numeric groupId on the available structure (schema ⇄ type)', () => {

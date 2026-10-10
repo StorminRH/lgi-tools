@@ -6,6 +6,7 @@ import {
   identityFromDoors,
   isStaticPlaceholder,
   seatOrderOf,
+  type ConnectionDoorSide,
   type ConnectionIdentity,
 } from '@/data/maps/connection-hallway';
 import type { Doc, Id } from '../_generated/dataModel';
@@ -56,7 +57,7 @@ export async function insertStaticPlaceholder(
 
 function claimSystemId(
   row: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): number | null {
   return side === 'from' ? row.fromSystemId : row.toSystemId;
 }
@@ -168,7 +169,7 @@ async function rebindAwaitingCandidates(
 async function runClaim(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Promise<ClaimRun> {
   if (side === 'to') {
     return { outcome: 'none', survivorId: row._id };
@@ -202,7 +203,7 @@ async function runClaim(
 export async function claimStaticPlaceholder(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Promise<'claimed' | 'none'> {
   return (await runClaim(ctx, row, side)).outcome;
 }
@@ -210,7 +211,7 @@ export async function claimStaticPlaceholder(
 export async function claimStaticOrKeepId(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Promise<Id<'mapConnections'>> {
   return (await runClaim(ctx, row, side)).survivorId;
 }

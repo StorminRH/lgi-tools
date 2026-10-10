@@ -4,7 +4,6 @@ import {
   applyDoorType,
   applyReturnDoorType,
   connectionTypePatch,
-  isEntranceType,
   namedDoorType,
   returnDoorTypePatch,
   typedDoorsFrom,
@@ -13,12 +12,6 @@ import {
 const empty = blankHallway({ mapId: 'm', fromSystemId: 1, toSystemId: 2 });
 
 describe('connection door types', () => {
-  it('treats a named code as an entrance and K162 as an exit', () => {
-    expect(isEntranceType('C247')).toBe(true);
-    expect(isEntranceType('K162')).toBe(false);
-    expect(isEntranceType(null)).toBe(false);
-  });
-
   it('prefers the named mouth when the other mouth is a K162', () => {
     expect(namedDoorType({ from: 'C247', to: 'K162' })).toEqual({
       typeCode: 'C247',

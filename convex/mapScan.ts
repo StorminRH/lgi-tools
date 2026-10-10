@@ -29,7 +29,6 @@ import {
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import { eventActor } from './mapAuthoringEvents';
 import {
-  connectionProvenanceValidator,
   scannedKindValidator,
   sigGroupValidator,
 } from './lib/mapEntityContracts';
@@ -52,6 +51,9 @@ import {
   applyEliminationDeductionBatch,
   applyLinkDeduction,
   collectEliminationEvidence,
+  eliminationDeductionValidator,
+  eliminationEvidenceValidator,
+  eliminationOutcomeValidator,
 } from './lib/mapScanElimination';
 import {
   changeSignatureSelection,
@@ -64,50 +66,6 @@ export {
   MAP_SCAN_ROW_LIMIT,
   MAP_SIGNATURE_PAGE_SIZE,
 } from './lib/mapScanState';
-
-const eliminationDeductionValidator = v.union(
-  v.object({
-    signatureId: v.string(),
-    typeCode: v.string(),
-    provenance: v.literal('assumed'),
-  }),
-  v.object({
-    signatureId: v.string(),
-    connectionId: v.id('mapConnections'),
-    provenance: v.literal('assumed'),
-    expectedTypeCode: v.union(v.string(), v.null()),
-  }),
-);
-
-const eliminationOutcomeValidator = v.object({
-  signatureId: v.string(),
-  outcome: v.union(
-    v.literal('applied'),
-    v.literal('unchanged'),
-    v.literal('protected'),
-    v.literal('stale'),
-  ),
-  observationKey: v.union(v.string(), v.null()),
-});
-
-const eliminationEvidenceValidator = v.object({
-  canEdit: v.boolean(),
-  signatures: v.array(
-    v.object({
-      signatureId: v.string(),
-      wormholeTypeCode: v.union(v.string(), v.null()),
-      typeProvenance: v.union(connectionProvenanceValidator, v.null()),
-      observationKey: v.union(v.string(), v.null()),
-    }),
-  ),
-  connections: v.array(
-    v.object({
-      connectionId: v.id('mapConnections'),
-      wormholeTypeCode: v.union(v.string(), v.null()),
-      linkedSignature: v.boolean(),
-    }),
-  ),
-});
 
 const scanRowValidator = v.object({
   signatureId: v.string(),

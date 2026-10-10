@@ -1,10 +1,10 @@
 import { ConvexError } from 'convex/values';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { requireMapAccess } from './mapAccess';
-import { isPositiveId } from './mapEntityContracts';
 
 export function requireSystemId(systemId: number): void {
-  if (!isPositiveId(systemId)) {
+  if (!isPositiveSafeInteger(systemId)) {
     throw new ConvexError({
       code: 'INVALID_SYSTEM_ID',
       detail: 'A system ID must be a positive safe integer.',

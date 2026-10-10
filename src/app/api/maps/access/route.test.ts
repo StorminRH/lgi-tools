@@ -19,9 +19,11 @@ vi.mock('@/data/telemetry/queries', () => ({
 import { postJson } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
+const MAP_ID = '11111111-1111-4111-8111-111111111111';
+
 const UPSERT = {
   operation: 'upsert',
-  mapId: 'map-1',
+  mapId: MAP_ID,
   grant: { ownerType: 'character', ownerId: 42, role: 'editor' },
 };
 
@@ -40,7 +42,7 @@ describe('POST /api/maps/access', () => {
 
     const revoke = {
       operation: 'revoke',
-      mapId: 'map-1',
+      mapId: MAP_ID,
       principal: { ownerType: 'corporation', ownerId: 99 },
     };
     expect((await POST(postJson(ROUTE, revoke))).status).toBe(204);
@@ -68,6 +70,24 @@ describe('POST /api/maps/access', () => {
     expect(h.applyMapAccessUpdate).not.toHaveBeenCalled();
   });
 
+  it('rejects a map id that is not a UUID as an invalid body before it reaches SQL', async () => {
+    const principal = { ownerType: 'character', ownerId: 7 };
+    for (const body of [
+      { ...UPSERT, mapId: 'map-1' },
+      { operation: 'revoke', mapId: 'map-1', principal },
+      { operation: 'block', mapId: ` ${MAP_ID} `, characterId: 42 },
+      { operation: 'unblock', mapId: MAP_ID.slice(0, -1), characterId: 42 },
+    ]) {
+      const response = await POST(postJson(ROUTE, body));
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        code: 'invalid_body',
+        detail: 'mapId: Invalid UUID',
+      });
+    }
+    expect(h.applyMapAccessUpdate).not.toHaveBeenCalled();
+  });
+
   it('returns the declared denial for a non-admin map caller', async () => {
     h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'forbidden' });
 
@@ -80,7 +100,7 @@ describe('POST /api/maps/access', () => {
     h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'creator-character-required' });
 
     const response = await POST(postJson(ROUTE, {
-      operation: 'revoke', mapId: 'map-1', principal: { ownerType: 'character', ownerId: 7 },
+      operation: 'revoke', mapId: MAP_ID, principal: { ownerType: 'character', ownerId: 7 },
     }));
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({ code: 'map_creator_character_required' });
@@ -101,7 +121,7 @@ describe('POST /api/maps/access', () => {
   });
 
   it('answers block refusals with their codes and messages, and a successful block with 204', async () => {
-    const block = { operation: 'block', mapId: 'map-1', characterId: 42 };
+    const block = { operation: 'block', mapId: MAP_ID, characterId: 42 };
     expect((await POST(postJson(ROUTE, block))).status).toBe(204);
     expect(h.applyMapAccessUpdate).toHaveBeenCalledWith('user-1', block);
     expect((await POST(postJson(ROUTE, { ...block, operation: 'unblock' }))).status).toBe(204);

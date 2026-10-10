@@ -3,6 +3,7 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAP_CHAIN_UNDO_WINDOW_MS, tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
+import type { ConnectionDoorSide } from '@/data/maps/connection-hallway';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -1362,7 +1363,7 @@ describe('mapScan paste application and lifecycle', () => {
   it('keeps a named inbound type and adopts a named stub when the inbound is K162', async () => {
     async function linkTypedStub(
       stubType: string | null,
-      inboundType: { wormholeTypeCode: string | null; typedSide?: 'from' | 'to' },
+      inboundType: { wormholeTypeCode: string | null; typedSide?: ConnectionDoorSide },
     ): Promise<{ inbound: Record<string, unknown> | null }> {
       const t = convexTest(schema, modules);
       await seed(t);

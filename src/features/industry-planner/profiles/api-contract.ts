@@ -1,8 +1,8 @@
 import { z } from 'zod';
+import { ownedRowIdSchema } from '@/lib/id-schemas';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
 import { MAX_PROFILE_NAME_LEN, profileDocumentSchema } from './profile-document';
 
-const profileId = z.string().min(1).max(100);
 const profileName = z.string().trim().min(1).max(MAX_PROFILE_NAME_LEN);
 
 const industryProfileRowSchema = z.object({
@@ -46,7 +46,7 @@ export const createIndustryProfileEndpoint = defineEndpoint({
 });
 
 export const duplicateIndustryProfileRequestSchema = z.object({
-  id: profileId,
+  id: ownedRowIdSchema,
   name: profileName,
 });
 export const duplicateIndustryProfileEndpoint = defineEndpoint({
@@ -64,7 +64,7 @@ export const duplicateIndustryProfileEndpoint = defineEndpoint({
 });
 
 export const updateIndustryProfileRequestSchema = z.object({
-  id: profileId,
+  id: ownedRowIdSchema,
   expectedRevision: z.number().int().positive(),
   name: profileName,
   document: profileDocumentSchema,
@@ -84,7 +84,7 @@ export const updateIndustryProfileEndpoint = defineEndpoint({
 });
 
 export const deleteIndustryProfileRequestSchema = z.object({
-  id: profileId,
+  id: ownedRowIdSchema,
 });
 export const deleteIndustryProfileEndpoint = defineEndpoint({
   method: 'POST',

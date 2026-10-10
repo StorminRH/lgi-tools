@@ -36,7 +36,7 @@ const characterResultValidator = v.object({
   onlineExpiresAt: v.union(v.number(), v.null()),
 });
 
-type CharacterResult = Infer<typeof characterResultValidator>;
+export type CharacterResult = Infer<typeof characterResultValidator>;
 
 export const syncOutcomeValidator = v.union(
   v.object({

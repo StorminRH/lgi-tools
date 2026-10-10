@@ -23,6 +23,8 @@ import {
 import { securityStatusTextClass } from '@/data/eve-data/security';
 import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
 import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { MAX_ENTERED_BONUS_PCT } from '@/data/industry-math/entered-bonuses';
+import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
 import {
   createCustomStructureEndpoint,
@@ -58,8 +60,8 @@ const HULL_GROUPS: [number, string][] = [
 const FIELD_ERROR: Record<'name' | 'hull' | 'tax' | 'bonus' | 'save' | 'fit', string> = {
   name: 'Name the structure.',
   hull: 'Pick the hull.',
-  tax: 'Tax must be 0–10%.',
-  bonus: 'Bonuses must be 0–99%.',
+  tax: `Tax must be 0–${MAX_FACILITY_TAX_PCT}%.`,
+  bonus: `Bonuses must be 0–${MAX_ENTERED_BONUS_PCT}%.`,
   save: 'Could not save. Try again.',
   fit: 'No structure in that fit.',
 };

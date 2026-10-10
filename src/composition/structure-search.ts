@@ -1,18 +1,22 @@
 import { z } from 'zod';
+import { EVE_CHARACTER_SEARCH_SCOPE, type EveScope } from '@/config/eve-scopes';
 import type { StructureSearchResult } from '@/features/custom-structures/api-contract';
 import { getOrInsertComputed } from '@/lib/array';
+import { positiveIdSchema } from '@/lib/id-schemas';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { EVE_CHARACTER_SEARCH_SCOPE } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveScopeHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, esiFetch, esiUrl } from '@/platform/esi';
 import { EsiCharacterSearchError, fetchCharacterSearch } from './esi-character-search';
 
 const MAX_STRUCTURE_RESULTS = 8;
-const STRUCTURE_SEARCH_SCOPES = [EVE_CHARACTER_SEARCH_SCOPE, 'esi-universe.read_structures.v1'];
+const STRUCTURE_SEARCH_SCOPES = [
+  EVE_CHARACTER_SEARCH_SCOPE,
+  'esi-universe.read_structures.v1',
+] as const satisfies readonly EveScope[];
 
 const esiStructureSearchSchema = z.object({
-  structure: z.array(z.number().int().positive().safe()).optional(),
+  structure: z.array(positiveIdSchema).optional(),
 });
 
 const esiStructureSchema = z.object({

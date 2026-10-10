@@ -1,8 +1,8 @@
 import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { vercelProtectionBypassHeaders } from '@/lib/env';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { systemStaticsEndpoint } from '@/data/wh-statics/api-contract';
+import { appFetch } from '@/platform/auth/service-client';
 import { internal } from './_generated/api';
 import {
   internalAction,
@@ -10,6 +10,7 @@ import {
   internalQuery,
   type MutationCtx,
 } from './_generated/server';
+import { readAppOrigin } from './lib/deploymentEnv';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 import { insertStaticPlaceholder } from './lib/mapStaticClaim';
 import { findSystem } from './lib/mapSystemLookup';
@@ -44,18 +45,6 @@ function uniqueStaticCodes(codes: readonly string[]): string[] {
   return [...new Set(codes.filter((code) => code.length > 0))];
 }
 
-function systemStaticsUrl(siteUrl: string, systemId: number): string {
-  const origin = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
-  return `${origin}/api/universe/statics/${systemId}`;
-}
-
-function parseStaticsPayload(value: unknown): string[] | null {
-  if (typeof value !== 'object' || value === null) return null;
-  if (!('statics' in value) || !Array.isArray(value.statics)) return null;
-  if (!value.statics.every((code) => typeof code === 'string')) return null;
-  return uniqueStaticCodes(value.statics);
-}
-
 function skipStaticPlaceholders(
   reason: string,
   detail: { readonly mapId?: string; readonly systemId?: number },
@@ -70,31 +59,26 @@ function resolveBackfillBatch(batch: number | undefined): number {
   return Math.min(batch, STATIC_BACKFILL_BATCH);
 }
 
+function staticsSkipReason(
+  failure: { readonly kind: 'network' } | { readonly kind: 'protocol'; readonly status: number },
+): string {
+  if (failure.kind === 'network') return 'fetch failed';
+  return failure.status === 200 ? 'invalid statics payload' : `HTTP ${failure.status}`;
+}
+
 async function loadSystemStaticCodes(systemId: number): Promise<StaticCodesLoad> {
-  const siteUrl = process.env.SITE_URL;
-  if (siteUrl === undefined) {
-    skipStaticPlaceholders('missing SITE_URL', { systemId });
+  const origin = readAppOrigin();
+  if (origin === undefined) {
+    skipStaticPlaceholders('missing or invalid SITE_URL', { systemId });
     return { kind: 'skip' };
   }
-  try {
-    const response = await fetchWithTimeout(
-      systemStaticsUrl(siteUrl, systemId),
-      { headers: vercelProtectionBypassHeaders() },
-    );
-    if (!response.ok) {
-      skipStaticPlaceholders(`HTTP ${response.status}`, { systemId });
-      return { kind: 'skip' };
-    }
-    const codes = parseStaticsPayload(await response.json());
-    if (codes === null) {
-      skipStaticPlaceholders('invalid statics payload', { systemId });
-      return { kind: 'skip' };
-    }
-    return { kind: 'codes', codes };
-  } catch {
-    skipStaticPlaceholders('fetch failed', { systemId });
-    return { kind: 'skip' };
-  }
+  const outcome = await appFetch(systemStaticsEndpoint, {
+    baseUrl: origin,
+    params: { systemId },
+  });
+  if (outcome.ok) return { kind: 'codes', codes: uniqueStaticCodes(outcome.data.statics) };
+  skipStaticPlaceholders(staticsSkipReason(outcome), { systemId });
+  return { kind: 'skip' };
 }
 
 export async function ensureStaticPlaceholders(

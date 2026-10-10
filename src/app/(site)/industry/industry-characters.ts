@@ -6,10 +6,11 @@ import { cache } from 'react';
 import { auth } from '@/composition/auth';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { type PanelCharacter, toPanelCharacter } from '@/platform/auth/panel-character';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';
 import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
 import { readAuthSecret } from '@/lib/env';
+import type { ScopeEligibility } from '@/lib/scope-eligibility';
 
 export interface IndustryCharacters {
   /** Every linked character, as the job boards list them. */
@@ -20,20 +21,8 @@ export interface IndustryCharacters {
   corpIds: number[];
 }
 
-type SyncEligibility = (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) => boolean;
-
-function eligibleIds(linked: readonly LinkedCharacter[], canSync: SyncEligibility): number[] {
-  return linked
-    .filter((character) =>
-      canSync({
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth({
-          scope: character.scope,
-          hasRefreshToken: character.hasRefreshToken,
-        }).missingScopes,
-      }),
-    )
-    .map((character) => character.characterId);
+function eligibleIds(linked: readonly LinkedCharacter[], canSync: ScopeEligibility): number[] {
+  return linked.filter((character) => canSync(scopeHolderOf(character))).map((character) => character.characterId);
 }
 
 /**

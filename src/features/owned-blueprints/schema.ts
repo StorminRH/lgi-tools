@@ -1,12 +1,8 @@
 import { bigint, bigserial, index, integer, pgEnum, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
 import { ownerSyncStateColumns } from '@/lib/db-columns';
+import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 
-export const OWNED_BLUEPRINT_OWNER_TYPES = ['character', 'corporation'] as const;
-export type OwnedBlueprintOwnerType = (typeof OWNED_BLUEPRINT_OWNER_TYPES)[number];
-export const ownedBlueprintOwnerTypeEnum = pgEnum(
-  'owned_blueprint_owner_type',
-  OWNED_BLUEPRINT_OWNER_TYPES,
-);
+export const ownedBlueprintOwnerTypeEnum = pgEnum('owned_blueprint_owner_type', ESI_OWNER_TYPES);
 
 /**
  * The owned-blueprint rows. Columns are the OwnedBlueprint projection

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { deriveCharacterRowView } from './characters-view';
 
 test('deriveCharacterRowView reports healthy, disconnected, and missing-scope reconnect labels', () => {

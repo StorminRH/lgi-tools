@@ -7,7 +7,9 @@ import type {
 } from '@/data/eve-data/wormhole-contract';
 import type { ConnectionDeathWindow } from '@/data/maps/connection-lifetime';
 
-export type ConnectionDoorSide = 'from' | 'to';
+export const CONNECTION_DOOR_SIDES = ['from', 'to'] as const;
+
+export type ConnectionDoorSide = (typeof CONNECTION_DOOR_SIDES)[number];
 
 export type ConnectionRowId = string & { __tableName: 'mapConnections' };
 

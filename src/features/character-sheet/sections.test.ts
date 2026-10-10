@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { ATTRIBUTE_KEYS, ATTRIBUTE_BONUS_DOGMA_NAMES } from '@/data/eve-data/character-attributes';
 import { LOCATION_SYNC_SCOPES } from '@/data/location-tracking/sync-eligibility';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import { effectiveTtlMs } from '@/lib/esi-datasets/types';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 import { SHEET_SECTION_KEYS, SHEET_SECTIONS, TIER_ENTRY } from './sections';
 
 describe('SHEET_SECTIONS', () => {

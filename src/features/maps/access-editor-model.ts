@@ -1,8 +1,11 @@
 import type { CreateMapRequest } from '@/data/maps/api-contract';
-import type {
-  CorporationAccessOption,
-  MapAccessOwnerType,
-  MapRole,
+import {
+  isMapCreateRole,
+  MAP_CREATE_ROLES,
+  MAP_ROLES,
+  type CorporationAccessOption,
+  type MapAccessOwnerType,
+  type MapRole,
 } from '@/data/maps/access-contract';
 
 export type AccessEditorMode = 'create' | 'manage';
@@ -18,8 +21,6 @@ export interface AccessGrantDraft extends AccessPrincipalOption {
   readonly role: MapRole | null;
 }
 
-const CREATE_ROLES = ['viewer', 'editor'] as const;
-const MANAGE_ROLES = ['viewer', 'editor', 'admin'] as const;
 const MAP_ROLE_LABELS: Readonly<Record<MapRole, string>> = {
   viewer: 'Read-only',
   editor: 'Write',
@@ -31,7 +32,7 @@ export function mapRoleLabel(role: MapRole): string {
 }
 
 export function accessRolesForMode(mode: AccessEditorMode): readonly MapRole[] {
-  return mode === 'create' ? CREATE_ROLES : MANAGE_ROLES;
+  return mode === 'create' ? MAP_CREATE_ROLES : MAP_ROLES;
 }
 
 export function accessPrincipalKey(
@@ -92,26 +93,15 @@ export function setAccessDraftRole(
   );
 }
 
-export function accessDraftsComplete(
-  mode: AccessEditorMode,
-  drafts: readonly AccessGrantDraft[],
-): boolean {
-  const roles = accessRolesForMode(mode);
-  return drafts.every((draft) => draft.role !== null && roles.includes(draft.role));
-}
-
 export function createMapGrantsFromDrafts(
   drafts: readonly AccessGrantDraft[],
 ): CreateMapRequest['grants'] | null {
-  if (!accessDraftsComplete('create', drafts)) return null;
-  return drafts.map((draft) => {
-    const role = draft.role as 'viewer' | 'editor';
-    return {
-      ownerType: draft.ownerType,
-      ownerId: draft.ownerId,
-      role,
-    };
-  });
+  const grants: CreateMapRequest['grants'] = [];
+  for (const draft of drafts) {
+    if (!isMapCreateRole(draft.role)) return null;
+    grants.push({ ownerType: draft.ownerType, ownerId: draft.ownerId, role: draft.role });
+  }
+  return grants;
 }
 
 export type PreparedMapCreation =

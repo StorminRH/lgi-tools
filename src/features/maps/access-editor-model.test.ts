@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  accessDraftsComplete,
   accessPrincipalKey,
   accessRolesForMode,
   addAccessPrincipal,
@@ -31,7 +30,6 @@ describe('map access editor model', () => {
         role: null,
       },
     ]);
-    expect(accessDraftsComplete('create', drafts)).toBe(false);
     expect(createMapGrantsFromDrafts(drafts)).toBeNull();
 
     const explicit = setAccessDraftRole('create', drafts, drafts[0]!, 'viewer');
@@ -102,7 +100,7 @@ describe('map access editor model', () => {
 
     expect(duplicate).toEqual(added);
     expect(accessPrincipalKey(character)).toBe('character:42');
-    expect(accessDraftsComplete('create', added)).toBe(false);
+    expect(createMapGrantsFromDrafts(added)).toBeNull();
     expect(removeAccessPrincipal(added, character)).toEqual([]);
 
     const principal = {
@@ -121,7 +119,8 @@ describe('map access editor model', () => {
     ).toEqual(['Read-only', 'Write', 'Admin']);
     expect(refused[0]?.role).toBeNull();
     expect(accepted[0]?.role).toBe('admin');
-    expect(accessDraftsComplete('manage', accepted)).toBe(true);
+    // An Admin draft is a manage-mode role, so it never becomes a create grant.
+    expect(createMapGrantsFromDrafts(accepted)).toBeNull();
 
     expect(characterSearchPopupOpen(false, 3)).toBe(false);
     expect(characterSearchPopupOpen(true, 3)).toBe(true);

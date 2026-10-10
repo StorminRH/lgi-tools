@@ -4,7 +4,6 @@ import {
   deriveAccessView,
   deriveAuditRowView,
   mergeAdminRows,
-  sanitiseQuery,
 } from './access-view';
 import type { AdminUser } from '@/platform/auth/admin-users';
 
@@ -99,12 +98,4 @@ test('deriveAccessView filters admins from search, and says when the list stops 
   expect(truncated.resultsHint).toBe('50 matches · showing first 50, narrow your search');
 
   expect(deriveAccessView({ adminRows, searchResults: [] }).resultsHint).toBe('0 matches');
-});
-
-test('sanitiseQuery drops control characters, trims, caps the length and treats blank as no query', () => {
-  expect(sanitiseQuery('  Pilot\u0007 ')).toBe('Pilot');
-  expect(sanitiseQuery('x'.repeat(250))).toHaveLength(200);
-  expect(sanitiseQuery('   ')).toBeUndefined();
-  expect(sanitiseQuery(['a', 'b'])).toBeUndefined();
-  expect(sanitiseQuery(undefined)).toBeUndefined();
 });

@@ -23,6 +23,7 @@ import {
   type MeOptions,
 } from './build-batch';
 import { computeComponentJobFees, type ComponentFeeSources } from './component-job-fees';
+import type { CostBasis } from './cost-basis-view';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
 import { typeName } from './type-name';
 import type {
@@ -115,7 +116,7 @@ export interface AssembleOptions {
   };
   meOf?: (blueprintTypeId: number) => number | undefined;
   structureMeFactorOf?: (blueprintTypeId: number) => number;
-  basis?: 'batched' | 'marginal';
+  basis?: CostBasis;
 }
 
 /**
@@ -204,7 +205,7 @@ function computeNet(
 }
 
 interface CostBill {
-  basis: 'batched' | 'marginal';
+  basis: CostBasis;
   runs: number;
   meOpts: MeOptions;
   ledger: BatchLedger | undefined;

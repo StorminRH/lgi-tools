@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { blueprintImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
 import { useClientStore } from '@/lib/client-store';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { createStoredList } from '@/lib/web-storage';
 import type { SearchResult } from '@/platform/search';
 
@@ -25,7 +26,7 @@ const BLUEPRINT_ID_PREFIX = 'blueprint:';
 function storedBlueprintTypeId(r: StoredRecent): number | undefined {
   if (r.kind !== BLUEPRINT_KIND || !r.id.startsWith(BLUEPRINT_ID_PREFIX)) return undefined;
   const typeId = Number(r.id.slice(BLUEPRINT_ID_PREFIX.length));
-  return Number.isSafeInteger(typeId) && typeId > 0 ? typeId : undefined;
+  return isPositiveSafeInteger(typeId) ? typeId : undefined;
 }
 
 function recentImage(r: StoredRecent): EveImageDescriptor | undefined {

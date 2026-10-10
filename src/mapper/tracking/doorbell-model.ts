@@ -1,4 +1,5 @@
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { openPeerChannel, type PeerChannelPort } from '@/lib/peer-channel';
 
 export interface DoorbellMemoryEntry {
@@ -142,10 +143,6 @@ function parseDoorbellLease(input: unknown): DoorbellMemoryEntry['lease'] {
   if (!('expiresAt' in input) || typeof input.expiresAt !== 'number'
     || !isPositiveSafeInteger(input.expiresAt)) return undefined;
   return { id: input.id, expiresAt: input.expiresAt };
-}
-
-function isPositiveSafeInteger(value: number): boolean {
-  return Number.isSafeInteger(value) && value > 0;
 }
 
 function hasDoorbellEntryFields(input: object): input is {

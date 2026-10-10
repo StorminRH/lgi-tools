@@ -44,7 +44,7 @@ describe.skipIf(!harness.reachable)('seedPlaceholderPrices executes against Post
       bestSell: 4.1,
       updatedAt: new Date('2026-09-27T00:00:00Z'),
       staleAfter: new Date('2026-09-28T00:00:00Z'),
-      source: 'fuzzwork',
+      source: 'fuzzwork' as const,
     });
     await harness.db.insert(marketPrices).values([priced(1), priced(8_500), priced(16_500)]);
     // Four binds per row: one INSERT of 16,500 rows would need 66,000 parameters, past the 65,535 cap.

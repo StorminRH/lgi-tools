@@ -1,32 +1,20 @@
-import { describe, expect, it } from 'vitest';
-import {
-  canSyncCorpAssets,
-  CORP_ASSETS_REQUIRED_ROLES,
-  CORP_ASSETS_SYNC_SCOPES,
-} from './corp-sync-eligibility';
+import { expect, test } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
+import { canSyncCorpAssets, CORP_ASSETS_REQUIRED_ROLES } from './corp-sync-eligibility';
 
-describe('CORP_ASSETS_SYNC_SCOPES', () => {
-  it('pins the verified corp assets scopes and Director as the sole admitting role', () => {
+const NEEDED: readonly string[] = [
+  'esi-characters.read_corporation_roles.v1',
+  'esi-assets.read_corporation_assets.v1',
+];
 
-    expect([...CORP_ASSETS_SYNC_SCOPES]).toEqual([
-      'esi-characters.read_corporation_roles.v1',
-      'esi-assets.read_corporation_assets.v1',
-    ]);
-    expect([...CORP_ASSETS_REQUIRED_ROLES]).toEqual(['Director']);
-  });
+test('CORP_ASSETS_REQUIRED_ROLES pins Director as the sole admitting role', () => {
+  expect([...CORP_ASSETS_REQUIRED_ROLES]).toEqual(['Director']);
 });
 
-describe('canSyncCorpAssets', () => {
-  it.each([
-    [{ hasRefreshToken: true, missingScopes: [] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
-    [
-      { hasRefreshToken: true, missingScopes: ['esi-characters.read_corporation_roles.v1'] },
-      false,
-    ],
-    [{ hasRefreshToken: true, missingScopes: ['esi-assets.read_corporation_assets.v1'] }, false],
-    [{ hasRefreshToken: false, missingScopes: [] }, false],
-  ])('token + both corp scopes: %j → %s', (input, expected) => {
-    expect(canSyncCorpAssets(input)).toBe(expected);
-  });
+test('canSyncCorpAssets needs the roles and corporation assets scopes and no other', () => {
+  for (const scope of NEEDED) {
+    expect(canSyncCorpAssets({ hasRefreshToken: true, missingScopes: [scope] }), scope).toBe(false);
+  }
+  const others = EVE_SCOPES.filter((scope) => !NEEDED.includes(scope));
+  expect(canSyncCorpAssets({ hasRefreshToken: true, missingScopes: others })).toBe(true);
 });

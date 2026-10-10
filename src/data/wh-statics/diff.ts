@@ -1,56 +1,26 @@
-import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
+import { codesBySystem, compareSystemCodes, type SystemCode } from './code-sets';
 import type { WhStaticsDiff } from './schema';
 
-export interface WhStaticAssignment {
-  readonly systemId: number;
-  readonly code: string;
-}
-
-function codesBySystem(
-  assignments: readonly WhStaticAssignment[],
-): Map<number, Set<string>> {
-  const result = new Map<number, Set<string>>();
-  for (const { systemId, code } of assignments) {
-    getOrInsertComputed(result, systemId, () => new Set()).add(code);
-  }
-  return result;
-}
-
-function sortedCodes(values: ReadonlySet<string>): string[] {
-  return [...values].sort();
-}
-
-function sameCodes(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-  return left.size === right.size && [...left].every((code) => right.has(code));
-}
-
-function vocabulary(assignments: readonly WhStaticAssignment[]): Set<string> {
+function vocabulary(assignments: readonly SystemCode[]): Set<string> {
   return new Set(assignments.map((assignment) => assignment.code));
 }
 
 export function diffStatics(
-  promoted: readonly WhStaticAssignment[],
-  incoming: readonly WhStaticAssignment[],
+  promoted: readonly SystemCode[],
+  incoming: readonly SystemCode[],
 ): WhStaticsDiff {
-  const promotedBySystem = codesBySystem(promoted);
-  const incomingBySystem = codesBySystem(incoming);
   const systemsAdded: WhStaticsDiff['systemsAdded'][number][] = [];
   const systemsRemoved: WhStaticsDiff['systemsRemoved'][number][] = [];
   const systemsChanged: WhStaticsDiff['systemsChanged'][number][] = [];
 
-  for (const systemId of sortedUniqueIds([...promotedBySystem.keys(), ...incomingBySystem.keys()])) {
-    const before = promotedBySystem.get(systemId);
-    const after = incomingBySystem.get(systemId);
-    if (before === undefined) {
-      systemsAdded.push({ systemId, codes: sortedCodes(after!) });
-    } else if (after === undefined) {
-      systemsRemoved.push({ systemId, codes: sortedCodes(before) });
-    } else if (!sameCodes(before, after)) {
-      systemsChanged.push({
-        systemId,
-        before: sortedCodes(before),
-        after: sortedCodes(after),
-      });
+  for (const comparison of compareSystemCodes(codesBySystem(promoted), codesBySystem(incoming))) {
+    const { systemId } = comparison;
+    if (comparison.kind === 'right-only') {
+      systemsAdded.push({ systemId, codes: comparison.right });
+    } else if (comparison.kind === 'left-only') {
+      systemsRemoved.push({ systemId, codes: comparison.left });
+    } else if (comparison.kind === 'different') {
+      systemsChanged.push({ systemId, before: comparison.left, after: comparison.right });
     }
   }
 

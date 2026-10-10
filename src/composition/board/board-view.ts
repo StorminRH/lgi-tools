@@ -11,7 +11,7 @@ import {
   readCharacterSyncState,
 } from '@/features/skill-queue/queries';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { isoDay } from '@/lib/iso-date';
 import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
@@ -48,10 +48,7 @@ async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<Board
         corporationId: character.corporationId,
         allianceId: character.allianceId,
       },
-      health: {
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth(character).missingScopes,
-      },
+      health: scopeHolderOf(character),
       sheet: sheets.get(id) ?? null,
       skills: {
         data: skills.get(id) ?? null,

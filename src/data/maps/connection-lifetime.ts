@@ -41,18 +41,37 @@ export function deathWindowFrom(
     : null;
 }
 
+function usableLifetimeMs(lifetimeMinutes: number | null): number | null {
+  return lifetimeMinutes !== null &&
+    Number.isFinite(lifetimeMinutes) &&
+    lifetimeMinutes >= 0
+    ? lifetimeMinutes * 60_000
+    : null;
+}
+
+/**
+ * The typed lifetime as an absolute window from the hole's first sighting:
+ * it spawned no later than firstSeenAt, so firstSeenAt + max lifetime bounds
+ * its death. Rows without firstSeenAt fall back to _creationTime. Null when
+ * the lifetime is unknown, non-finite or negative.
+ */
+export function typedLifetimeWindow(
+  connection: { readonly firstSeenAt: number | null; readonly _creationTime: number },
+  lifetimeMinutes: number | null,
+): ConnectionDeathWindow | null {
+  const lifetimeMs = usableLifetimeMs(lifetimeMinutes);
+  if (lifetimeMs === null) return null;
+  const anchor = connection.firstSeenAt ?? connection._creationTime;
+  return { earliestAt: anchor, latestAt: anchor + lifetimeMs };
+}
+
 export function deathWindowForReport(
   bucket: WormholeLifeStage,
   observedAt: number,
   lifetimeMinutes: number | null,
 ): ConnectionDeathWindow {
   const interval = LIFE_STAGE_REMAINING_MS[bucket];
-  const lifetimeCap =
-    lifetimeMinutes !== null &&
-    Number.isFinite(lifetimeMinutes) &&
-    lifetimeMinutes >= 0
-      ? lifetimeMinutes * 60 * 1000
-      : Number.POSITIVE_INFINITY;
+  const lifetimeCap = usableLifetimeMs(lifetimeMinutes) ?? Number.POSITIVE_INFINITY;
   const maxRemaining = Math.min(interval.max, lifetimeCap);
   const minRemaining = Math.min(interval.min, maxRemaining);
 

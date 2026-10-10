@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
+import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
   defineEndpoint,
   jsonBody,
@@ -34,12 +35,11 @@ export const corpStructuresEndpoint = defineEndpoint({
   },
 });
 
-const PG_INT4_MAX = 2_147_483_647;
 export const MAX_CORP_STRUCTURE_RIGS = 3;
 export const setCorpStructureRigsRequestSchema = z.object({
-  corporationId: z.number().int().positive(),
-  structureId: z.number().int().positive(),
-  rigTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_CORP_STRUCTURE_RIGS),
+  corporationId: positiveIdSchema,
+  structureId: positiveIdSchema,
+  rigTypeIds: z.array(int4IdSchema).max(MAX_CORP_STRUCTURE_RIGS),
   taxPct: z.number().min(0).max(MAX_FACILITY_TAX_PCT).nullable().optional(),
 });
 const corpStructureRigsResponseSchema = z.object({

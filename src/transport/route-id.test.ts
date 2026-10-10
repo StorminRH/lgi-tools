@@ -2,9 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { loadNumericRouteEntity, parseNumericRouteId } from './route-id';
 
 describe('parseNumericRouteId', () => {
-  it('parses a bare digit string', () => {
+  it('parses a canonical int4 digit string', () => {
     expect(parseNumericRouteId('42')).toBe(42);
-    expect(parseNumericRouteId('0')).toBe(0);
+    expect(parseNumericRouteId('2147483647')).toBe(2_147_483_647);
+  });
+
+  it('rejects zero, non-canonical and oversized ids so they 404 instead of reaching int4 columns', () => {
+    expect(parseNumericRouteId('0')).toBeNull();
+    expect(parseNumericRouteId('0123')).toBeNull();
+    expect(parseNumericRouteId('1e3')).toBeNull();
+    expect(parseNumericRouteId('0x10')).toBeNull();
+    expect(parseNumericRouteId('2147483648')).toBeNull();
+    expect(parseNumericRouteId('99999999999999999999')).toBeNull();
   });
 
   it('rejects non-digit and mixed input (never partial-parses "12abc" as 12)', () => {

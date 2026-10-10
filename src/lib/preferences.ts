@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ownedRowIdSchema } from '@/lib/id-schemas';
 import { readStoredJson, safeStorage, writeStoredJson } from '@/lib/web-storage';
 
 const LS_PREFIX = 'lgi:pref:';
@@ -25,16 +26,20 @@ export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'expand',
 );
 
-export const industryCostBasis = define<'batched' | 'marginal'>(
+/** How the planner prices inputs: the whole batched line, or the marginal share of one build. */
+const COST_BASES = ['batched', 'marginal'] as const;
+export type CostBasis = (typeof COST_BASES)[number];
+
+export const industryCostBasis = define<CostBasis>(
   'industry.costBasis',
-  z.enum(['batched', 'marginal']),
+  z.enum(COST_BASES),
   'marginal',
 );
 
 /** The production profile the industry workspace opens on; checked against the live list. */
 export const industryProfile = define<string | null>(
   'industry.profileId',
-  z.string().min(1).max(100).nullable(),
+  ownedRowIdSchema.nullable(),
   null,
 );
 

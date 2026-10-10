@@ -117,6 +117,10 @@ export function createMapsPurgeContributor(
       }
     },
     async purgeUser({ userId }) {
+      // Unlike online status and location tracking, this does not skip when
+      // Convex is unconfigured: an owned map's chain lives in Convex, so its
+      // purge throws and the deletion stays requested for the daily retry
+      // rather than dropping the map row over an unpurged chain.
       await purgeOwnedMapChainsThenDeleteMaps(userId, hooks.purgeMapChain);
       await forgetMapBlockAccounts(userId);
       await bestEffort('maps/purge', 'user claim purge', userId, () =>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { publicConvexUrl } from "@/config/public-env";
 import { SITE_URL } from "@/config/site-url";
 import { isPublishedWormholeSiteId } from "@/features/wormhole-sites/catalogue-boundary";
 import { parseNumericRouteId } from "@/transport/route-id";
@@ -14,9 +15,9 @@ function isUnpublishedDirectSitePath(pathname: string): boolean {
   return id === null || !isPublishedWormholeSiteId(id);
 }
 
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+const CONVEX_URL = publicConvexUrl();
 const CONVEX_CONNECT_SRC = (() => {
-  if (!CONVEX_URL) return "";
+  if (CONVEX_URL === undefined) return "";
   const url = new URL(CONVEX_URL);
   const wsScheme = url.protocol === "http:" ? "ws:" : "wss:";
   return ` ${url.origin} ${wsScheme}//${url.host}`;

@@ -4,6 +4,7 @@ import {
   getWormholeCodex,
   type WormholeCodexEntry,
 } from '@/data/eve-data/universe-assets';
+import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
 import {
   eliminateSignatures,
   type EliminationDeduction,
@@ -114,6 +115,7 @@ async function logIdentifications(
   dependencies: SignatureEliminationDependencies,
 ): Promise<void> {
   const observedAt = new Date(dependencies.now());
+  const codexIndex = indexWormholeCodex(codex);
   const upserts: WhObservationInput[] = [];
   const deleteKeys: string[] = [];
   for (const identity of settled) {
@@ -127,7 +129,7 @@ async function logIdentifications(
             dedupeKey: identity.observationKey,
             destinationClassId: null,
           },
-          codex,
+          codexIndex,
         );
     if (observation !== null) {
       upserts.push({ ...observation, observedAt });

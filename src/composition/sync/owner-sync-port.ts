@@ -3,7 +3,7 @@ import { fetchAffiliations } from '@/platform/auth/affiliation-source';
 import { parseCharacterRolesBody } from '@/platform/auth/corp-roles';
 import { readRoleCorporationId, type StoredCorpRoles, upsertCorpRoles } from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed } from '@/platform/esi/authed-read';
 import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
@@ -20,11 +20,7 @@ export async function listCharactersWithHealth(userId: string): Promise<LinkedCh
   return linked.map((character) => ({
     characterId: character.characterId,
     corporationId: character.corporationId,
-    hasRefreshToken: character.hasRefreshToken,
-    missingScopes: deriveCharacterHealth({
-      scope: character.scope,
-      hasRefreshToken: character.hasRefreshToken,
-    }).missingScopes,
+    ...scopeHolderOf(character),
   }));
 }
 

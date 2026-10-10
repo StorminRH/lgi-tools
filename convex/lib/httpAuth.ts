@@ -1,13 +1,8 @@
 import { z } from 'zod';
 import type { PublicHttpAction } from 'convex/server';
+import { bearerMatches } from '@/lib/bearer';
+import { readEnv } from '@/lib/env';
 import { httpAction, type ActionCtx } from '../_generated/server';
-import { bearerMatches } from './bearerAuth';
-
-async function bearerOk(req: Request): Promise<boolean> {
-  const secret = process.env.CONVEX_SERVICE_SECRET;
-  if (!secret) return false;
-  return bearerMatches(req.headers.get('authorization'), secret);
-}
 
 async function readJsonBody(req: Request): Promise<unknown | null> {
   try {
@@ -21,7 +16,14 @@ export function authorizedAction(
   handle: (ctx: ActionCtx, req: Request) => Promise<Response>,
 ): PublicHttpAction {
   return httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    const secret = readEnv('CONVEX_SERVICE_SECRET');
+    if (secret === undefined) {
+      console.error('[httpAuth] CONVEX_SERVICE_SECRET is not set on this Convex deployment');
+      return new Response('Service authentication is not configured', { status: 500 });
+    }
+    if (!(await bearerMatches(req.headers.get('authorization'), secret))) {
+      return new Response('Unauthorized', { status: 401 });
+    }
     return handle(ctx, req);
   });
 }

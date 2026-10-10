@@ -14,7 +14,8 @@ import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
 import { internal } from './_generated/api';
 import { internalAction, type ActionCtx } from './_generated/server';
-import type { syncOutcomeValidator } from './characterLocationApply';
+import type { LeaseWrite } from './characterLocationAccess';
+import type { CharacterResult, syncOutcomeValidator } from './characterLocationApply';
 import {
   requireSyncEnv,
   resolveExpiresAt,
@@ -26,33 +27,12 @@ const FALLBACK_TTL_MS = 5_000;
 
 const ONLINE_FALLBACK_TTL_MS = 60_000;
 
-interface AccessLease {
-  accessToken: string;
-  expiresAt: number;
-}
-
-type LeaseWrite = AccessLease & { characterId: number };
+type AccessLease = Pick<LeaseWrite, 'accessToken' | 'expiresAt'>;
 
 interface HeldState {
   solarSystemId: number | null;
   etagLocation: string | null;
   etagShip: string | null;
-}
-
-interface CharacterResult {
-  characterId: number;
-  solarSystemId: number | null;
-  stationId: number | null;
-  structureId: number | null;
-  shipTypeId: number | null;
-  systemChanged: boolean;
-  etagLocation: string | null;
-  etagShip: string | null;
-  expiresAt: number | null;
-  error: string | null;
-  online: boolean | null;
-  etagOnline: string | null;
-  onlineExpiresAt: number | null;
 }
 
 type LocationReadResult = Omit<CharacterResult, 'online' | 'etagOnline' | 'onlineExpiresAt'>;

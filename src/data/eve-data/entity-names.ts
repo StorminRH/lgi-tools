@@ -1,4 +1,5 @@
 import { deferWork } from '@/lib/deferred-work';
+import { int4IdSchema } from '@/lib/id-schemas';
 import {
   readStoredEntityNames,
   storeEntityNames,
@@ -12,8 +13,7 @@ const FOUND_NAME_REUSE_MS = 7 * 24 * 60 * 60 * 1000;
 /** How long an id ESI could not resolve is left alone before it is tried again. */
 const MISSING_NAME_REUSE_MS = 6 * 60 * 60 * 1000;
 
-/** ESI rejects the whole POST (400) for any id outside int32, and allows 1000 unique ids per POST. */
-const ESI_ID_MAX = 2_147_483_647;
+/** ESI allows 1000 unique ids per POST, and rejects the whole POST (400) for any id outside int32. */
 const NAMES_PER_POST = 1000;
 
 /**
@@ -45,7 +45,7 @@ interface Resolution {
 }
 
 function isResolvableId(id: number): boolean {
-  return Number.isInteger(id) && id > 0 && id <= ESI_ID_MAX;
+  return int4IdSchema.safeParse(id).success;
 }
 
 function isFresh(stored: StoredEntityName, now: number): boolean {

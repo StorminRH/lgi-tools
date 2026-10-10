@@ -8,33 +8,33 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P134](#p134) | Own the public Convex URL in one config-zone reader and fix SITE_URL's empty-string fallback | generic-utility | S | low | low | — |
-| ☐ | [P209](#p209) | Give the 'Convex is not configured' check one owner and report the door's reason | server-pipeline | S | low | low | [P134](#p134) |
-| ☐ | [P210](#p210) | Share one runtime-portable bearerMatches between Next and Convex, and make Convex answer 500 when its service secret is unset | convex | S | low | medium | — |
-| ☐ | [P211](#p211) | Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads | convex | S | low | low | [P210](#p210), [P134](#p134) |
-| ☐ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
-| ☐ | [P247](#p247) | Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500 | contracts-validation | M | low | medium | — |
-| ☐ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
-| ☐ | [P187](#p187) | Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope | esi-sync | S | low | medium | — |
-| ☐ | [P350](#p350) | Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins | testing | S | low | low | [P187](#p187) |
-| ☐ | [P186](#p186) | Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth | esi-sync | S | low | medium | [P187](#p187) |
-| ☐ | [P252](#p252) | Export a syncEligibility projection from scope-health and use it wherever the canSync input is built | contracts-validation | S | low | low | [P186](#p186), [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) |
-| ☐ | [P258](#p258) | Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync | contracts-validation | M | low | low | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
-| ☐ | [P260](#p260) | Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them | contracts-validation | S | low | low | — |
-| ☐ | [P266](#p266) | Name the 'attributable (non-K162) wormhole type code' predicate once in wormhole-contract | contracts-validation | S | low | low | — |
-| ☐ | [P265](#p265) | Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound | contracts-validation | S | low | low | — |
-| ☐ | [P262](#p262) | Use ConnectionDoorSide and a CONNECTION_DOOR_SIDES tuple instead of 36 inline 'from' \| 'to' unions and the ConnectionDoor alias | contracts-validation | S | low | low | — |
-| ☐ | [P261](#p261) | Derive Convex TS types from their validators and build every enum validator from its data-zone tuple | contracts-validation | M | low | medium | [P262](#p262) |
-| ☐ | [P124](#p124) | Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator | generic-utility | S | low | low | — |
-| ☐ | [P125](#p125) | Share the system-code-set comparison between wh-statics diff and cross-check | generic-utility | S | low | low | — |
-| ☐ | [P082](#p082) | Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode | client-data | M | low | medium | [P124](#p124), [P266](#p266) |
-| ☐ | [P329](#p329) | Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers | simplification | S | low | medium | [P082](#p082) |
+| ☑ | [P134](#p134) | Own the public Convex URL in one config-zone reader and fix SITE_URL's empty-string fallback | generic-utility | S | low | low | — |
+| ☑ | [P209](#p209) | Give the 'Convex is not configured' check one owner and report the door's reason | server-pipeline | S | low | low | [P134](#p134) |
+| ☑ | [P210](#p210) | Share one runtime-portable bearerMatches between Next and Convex, and make Convex answer 500 when its service secret is unset | convex | S | low | medium | — |
+| ☑ | [P211](#p211) | Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads | convex | S | low | low | [P210](#p210), [P134](#p134) |
+| ☑ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
+| ☑ | [P247](#p247) | Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500 | contracts-validation | M | low | medium | — |
+| ☑ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
+| ☑ | [P187](#p187) | Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope | esi-sync | S | low | medium | — |
+| ☑ | [P350](#p350) | Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins | testing | S | low | low | [P187](#p187) |
+| ☑ | [P186](#p186) | Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth | esi-sync | S | low | medium | [P187](#p187) |
+| ☑ | [P252](#p252) | Export a syncEligibility projection from scope-health and use it wherever the canSync input is built | contracts-validation | S | low | low | [P186](#p186), [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303) |
+| ☑ | [P258](#p258) | Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync | contracts-validation | M | low | low | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
+| ☑ | [P260](#p260) | Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them | contracts-validation | S | low | low | — |
+| ☑ | [P266](#p266) | Name the 'attributable (non-K162) wormhole type code' predicate once in wormhole-contract | contracts-validation | S | low | low | — |
+| ☑ | [P265](#p265) | Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound | contracts-validation | S | low | low | — |
+| ☑ | [P262](#p262) | Use ConnectionDoorSide and a CONNECTION_DOOR_SIDES tuple instead of 36 inline 'from' \| 'to' unions and the ConnectionDoor alias | contracts-validation | S | low | low | — |
+| ☑ | [P261](#p261) | Derive Convex TS types from their validators and build every enum validator from its data-zone tuple | contracts-validation | M | low | medium | [P262](#p262) |
+| ☑ | [P124](#p124) | Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator | generic-utility | S | low | low | — |
+| ☑ | [P125](#p125) | Share the system-code-set comparison between wh-statics diff and cross-check | generic-utility | S | low | low | — |
+| ☑ | [P082](#p082) | Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode | client-data | M | low | medium | [P124](#p124), [P266](#p266) |
+| ☑ | [P329](#p329) | Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers | simplification | S | low | medium | [P082](#p082) |
 
 <a id="p134"></a>
 
 ## P134: Own the public Convex URL in one config-zone reader and fix SITE_URL's empty-string fallback
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About +10 source (new module) / -2 net at call sites; +30 tests
 - **Depends on:** —
@@ -107,7 +107,7 @@ export const SITE_URL: string = process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_S
 
 ## P209: Give the 'Convex is not configured' check one owner and report the door's reason
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -3 / +8
 - **Depends on:** [P134](#p134)
@@ -167,7 +167,7 @@ if (!door.ok) throw new DoorError(`${label}: Convex URL or service secret is uns
 
 ## P210: Share one runtime-portable bearerMatches between Next and Convex, and make Convex answer 500 when its service secret is unset
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -15: delete bearerAuth.ts (17) and its test (14) plus the node:crypto copy (5); add bearer.ts (17) and the unset-secret branch (5)
 - **Depends on:** —
@@ -230,7 +230,7 @@ export async function bearerMatches(authorization: string | null, secret: string
 
 ## P211: Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About +25 (reader, test, ESLint block) and -12 (two raw reads, trailing-slash code, raw secret checks)
 - **Depends on:** [P210](#p210), [P134](#p134)
@@ -293,7 +293,7 @@ export function readAppOrigin(): string | undefined
 
 ## P212: Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20 in mapStatics.ts, +12 in service-client.ts, +20 in tests
 - **Depends on:** [P211](#p211)
@@ -349,7 +349,7 @@ export function serviceFetch<const E extends EndpointContract>(endpoint: E, init
 
 ## P247: Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -45 / +30 (6 constants, ~12 inline schemas, 5 predicate copies)
 - **Depends on:** —
@@ -494,7 +494,7 @@ The idListSchema and formIdSchema from the original proposal are dropped: the ma
 
 ## P248: Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -2 / +2 in source; about 15 test fixture string changes. The optional ownedRowIdSchema adds about -5 / +3.
 - **Depends on:** —
@@ -579,7 +579,7 @@ The ownedRowIdSchema part depends on P247's module existing; the map-id fix is i
 
 ## P187: Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About +15/-30. The new config file is mostly a move (about 30 lines). The 6 glosses and the legacy split add about 12, and the satisfies annotations add about 15. The four stale comments remove about 25.
 - **Depends on:** —
@@ -715,7 +715,7 @@ This pairs with P186: typing the lib predicate's parameter makes every canSyncX 
 
 ## P350: Turn corp-context-sync.test.ts into a table-driven EVE_SCOPES membership test for every sync scope set, then delete the scope pins
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -50 lines (9 pin blocks and one file) and +15 lines (table)
 - **Depends on:** [P187](#p187)
@@ -794,7 +794,7 @@ test.each(Object.entries(SYNC_SCOPE_SETS))('%s requests only scopes sign-in asks
 
 ## P186: Replace the ten canSyncX copies with one hasScopes predicate in src/lib and one scopeHolderOf projection in platform/auth
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -100. The predicate bodies and inline types lose about 60 lines, the truth tables about 70, and the projections about 20; the lib module, its test and the mapper add about 50.
 - **Depends on:** [P187](#p187)
@@ -916,7 +916,7 @@ Refuted sub-claim: board-view cannot simply call listCharactersWithHealth, becau
 
 ## P252: Export a syncEligibility projection from scope-health and use it wherever the canSync input is built
 
-- **Status:** [ ] not started
+- **Status:** [x] already done (see commit)
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +8
 - **Depends on:** [P186](#p186), [P303](wave-01-quick-wins-delete-dead-code-fix-small.md#p303)
@@ -997,7 +997,7 @@ export function syncEligibility(character: { scope: string | null | undefined; h
 
 ## P258: Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -25 / +15 across ~18 files
 - **Depends on:** [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094)
@@ -1127,7 +1127,7 @@ F196's data/eve-data home is rejected for the tuple. It was chosen to reach data
 
 ## P260: Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +20 across 14 files.
 - **Depends on:** —
@@ -1255,7 +1255,7 @@ The rig-slot MAX_*_RIGS duplication belongs to its own opportunity.
 
 ## P266: Name the 'attributable (non-K162) wormhole type code' predicate once in wormhole-contract
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -6 / +4
 - **Depends on:** —
@@ -1314,7 +1314,7 @@ export function isAttributableWormholeTypeCode(code: string | null | undefined):
 
 ## P265: Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -8 in structure-draft and fees, +15 for the new module (+30 test lines moved or added)
 - **Depends on:** —
@@ -1379,7 +1379,7 @@ export function parseFacilityTaxDraft(draft: string) { return parsePercentDraft(
 
 ## P262: Use ConnectionDoorSide and a CONNECTION_DOOR_SIDES tuple instead of 36 inline 'from' | 'to' unions and the ConnectionDoor alias
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About ±40 type edits; net about +3 lines (tuple and imports) and -1 line (alias).
 - **Depends on:** —
@@ -1455,7 +1455,7 @@ Add an expectTypeOf, in the P261 mapEntityContracts test, that Infer<typeof conn
 
 ## P261: Derive Convex TS types from their validators and build every enum validator from its data-zone tuple
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +30. The literal maps lose about 31 lines, the CharacterResult and lease types about 18, JumpDecision 13, and the elimination types about 30 (moved, net smaller).
 - **Depends on:** [P262](#p262)
@@ -1570,7 +1570,7 @@ Existing guards:
 
 ## P124: Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About 25 lines removed and 35 added (new module about 30 lines plus test)
 - **Depends on:** —
@@ -1684,7 +1684,7 @@ Keep cross-check on the raw types list. Do not build a per-request system or adj
 
 ## P125: Share the system-code-set comparison between wh-statics diff and cross-check
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About 40 lines removed and 40 added (new module about 35 lines); net about 0 plus one test file; the value is one definition, not line count
 - **Depends on:** —
@@ -1766,7 +1766,7 @@ No drift was found between the two copies; they are behaviourally identical toda
 
 ## P082: Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -30 / +20 across 10 files; one intentional display change (an earlier ceiling for migrated connections)
 - **Depends on:** [P124](#p124), [P266](#p266)
@@ -1850,7 +1850,7 @@ export type LifetimeConnection = Pick<ConnectionDetail, '_creationTime' | 'first
 
 ## P329: Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -35 / +6
 - **Depends on:** [P082](#p082)
