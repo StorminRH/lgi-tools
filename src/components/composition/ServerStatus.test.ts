@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { HeldServerStatus, ServerStatus, ServerStatusFallback } from './ServerStatus';
 
-const ONLINE = { state: 'online', players: 27_240, build: '3569502', startedAt: null } as const;
+const ONLINE = { state: 'online', players: 27_240, startedAt: null } as const;
 
 test('HeldServerStatus server snapshot matches the Suspense fallback shell', () => {
   const held = renderToStaticMarkup(

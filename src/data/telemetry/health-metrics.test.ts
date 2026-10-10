@@ -5,6 +5,7 @@ import {
   deriveGscStatus,
   ESI_AVAILABILITY_TARGET,
   fallbackRatePoints,
+  formatClientErrorShare,
   formatFallbackShare,
   loginFrequencyBuckets,
   PRICES_HEALTHY_OUTCOMES,
@@ -24,6 +25,15 @@ describe('targetLevel', () => {
     expect(targetLevel(1000, latency)).toBe('green');
     expect(targetLevel(2000, latency)).toBe('amber');
     expect(targetLevel(4000, latency)).toBe('red');
+  });
+});
+
+describe('formatClientErrorShare', () => {
+  it('never rounds a real share down to zero and drops the decimal from ten percent up', () => {
+    expect(formatClientErrorShare(0)).toBe('0.0%');
+    expect(formatClientErrorShare(1 / 2_500)).toBe('<0.1%');
+    expect(formatClientErrorShare(0.035)).toBe('3.5%');
+    expect(formatClientErrorShare(0.15)).toBe('15%');
   });
 });
 
