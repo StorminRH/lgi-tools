@@ -15,7 +15,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P085](#p085) | Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local | formatting | S | low | medium | — |
 | ☑ | [P090](#p090) | Move pluralCount to lib/format/number as formatCount and replace the count-and-noun ternaries | formatting | M | low | low | [P085](#p085) |
 | ☑ | [P091](#p091) | Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards | formatting | S | low | low | — |
-| ☐ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
+| ☑ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
 | ☐ | [P084](#p084) | Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL | formatting | S | low | medium | — |
 | ☐ | [P094](#p094) | Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper | formatting | M | low | low | — |
 | ☐ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
@@ -645,7 +645,7 @@ export function formatFallbackShare(fallback: Pick<FallbackRateData, 'esi' | 'fa
 
 ## P095: Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -10 / +8, plus tests: signedIsk, formatEffectPercent and the `sign` field with its plumbing removed; one 5-line helper added.
 - **Depends on:** —

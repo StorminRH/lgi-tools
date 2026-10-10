@@ -59,7 +59,6 @@ export interface MarginFigures {
   showNet: boolean;
   margin: number | null;
   marginPct: number | null;
-  sign: string;
   missingSystemCostIndex: boolean;
   missingAdjustedPriceCount: number;
 }
@@ -83,7 +82,6 @@ export function deriveMarginFigures(
     showNet,
     margin,
     marginPct,
-    sign: margin !== null && margin > 0 ? '+' : '',
     missingSystemCostIndex: fees.some((fee) => fee.missingSystemCostIndex),
     missingAdjustedPriceCount: new Set(fees.flatMap((fee) => fee.missingAdjustedPriceTypeIds)).size,
   };

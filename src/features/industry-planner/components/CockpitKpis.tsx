@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
-import { formatPct, formatQuantity } from '@/lib/format/number';
+import { formatPct, formatQuantity, formatSigned } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
 import {
   cockpitMarginView,
@@ -222,7 +222,7 @@ function MarginFigure({
   }
   return (
     <div className={cn(KPI_FIG, marginToneClass(view.marginPct))}>
-      <LivePrice value={`${view.sign}${formatIsk(view.margin)}`} pending={refreshing} />
+      <LivePrice value={formatSigned(view.margin, formatIsk)} pending={refreshing} />
       {view.marginPct !== null && <span className="ml-1.5 text-ui">({formatPct(view.marginPct)})</span>}
     </div>
   );

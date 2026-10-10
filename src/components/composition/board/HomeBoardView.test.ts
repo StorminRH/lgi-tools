@@ -83,7 +83,9 @@ describe('HomeBoardView', () => {
   it('opens the pilot named in the URL full width, with a way back and no rail', () => {
     const html = render('full', '?character=9900000001');
     expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
-    expect(html).toContain('Recent wallet journal');
+    const journal = html.slice(html.indexOf('aria-label="Recent wallet journal"'));
+    expect(journal).toContain('<span class="text-isk">+61.00M</span>');
+    expect(journal).toContain('<span class="text-dps-high">−46.55M</span>');
     expect(html).toContain('Attributes &amp; implants');
     expect(html).toContain('All characters');
     expect(html).not.toContain('aria-label="Pilots"');

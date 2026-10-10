@@ -15,7 +15,6 @@ export interface CockpitMarginView {
   showNet: boolean;
   margin: number | null;
   marginPct: number | null;
-  sign: string;
   feeSystemName: string | undefined;
   marginLabel: string;
 }
@@ -35,14 +34,13 @@ export function cockpitMarginView(
     isReaction ? reactionNetAvailable : location !== null,
     marginMode,
   );
-  const { showNet, margin, marginPct, sign } = deriveMarginFigures(pricing?.summary ?? null, net);
+  const { showNet, margin, marginPct } = deriveMarginFigures(pricing?.summary ?? null, net);
   return {
     net,
     netAvailable,
     showNet,
     margin,
     marginPct,
-    sign,
     feeSystemName: isReaction && reactionSystem ? reactionSystem.systemName : location?.systemName,
     marginLabel: showNet ? 'Net margin' : 'Gross margin',
   };

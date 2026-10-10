@@ -10,6 +10,7 @@ import { useTypeNames } from '@/data/eve-data/use-type-names';
 import { WORMHOLE_EFFECT_NAME, type WormholeEffect } from '@/data/eve-data/wormhole-contract';
 import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormhole-sites/scanner-live-prices';
 import { formatIskShort } from '@/lib/format/isk';
+import { formatSigned } from '@/lib/format/number';
 import { useUniverseAssets } from '../chain/use-universe-assets';
 import { useSignatureRows } from '../signatures/signature-context';
 import { useSystemStaticSlots, useWormholeCodexStatus } from '../signatures/use-system-statics';
@@ -94,11 +95,6 @@ function Disclosure({ icon, label, count, value, children }: {
   );
 }
 
-function formatEffectPercent(percent: number): string {
-  const sign = percent > 0 ? '+' : '\u2212';
-  return `${sign}${Math.abs(percent)}%`;
-}
-
 function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number }) {
   const { codex, failed } = useWormholeCodexStatus();
   if (codex === null) {
@@ -117,7 +113,7 @@ function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffec
       {entry.modifiers.map((modifier) => (
         <li key={modifier.attributeId} className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 text-muted">{modifier.label}</span>
-          <span className="shrink-0 tabular-nums text-name">{formatEffectPercent(modifier.percent)}</span>
+          <span className="shrink-0 tabular-nums text-name">{formatSigned(modifier.percent, (magnitude) => `${magnitude}%`)}</span>
         </li>
       ))}
     </ul>

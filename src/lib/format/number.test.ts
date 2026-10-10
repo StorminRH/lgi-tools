@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCount, formatPct, formatQuantity } from './number';
+import { formatCount, formatPct, formatQuantity, formatSigned } from './number';
 
 describe('number formatters', () => {
   it('formats quantities and percentages with null/non-finite guards', () => {
@@ -34,5 +34,17 @@ describe('number formatters', () => {
     expect(formatCount(2, 'match', 'matches')).toBe('2 matches');
     expect(formatCount(0.6, 'job')).toBe('1 job');
     expect(formatCount(1.4, 'day')).toBe('1 day');
+  });
+
+  it('signs a value that can go either way with + or a true minus, and leaves zero unsigned', () => {
+    const fixed = (magnitude: number) => magnitude.toFixed(2);
+    expect(formatSigned(1250, fixed)).toBe('+1250.00');
+    expect(formatSigned(-1250, fixed)).toBe('\u22121250.00');
+    expect(formatSigned(-22, (magnitude) => `${magnitude}%`)).toBe('\u221222%');
+    expect(formatSigned(0, fixed)).toBe('0.00');
+    expect(formatSigned(-0, fixed)).toBe('0.00');
+    expect(formatSigned(null, fixed)).toBe('—');
+    expect(formatSigned(Number.NaN, fixed)).toBe('—');
+    expect(formatSigned(Number.NEGATIVE_INFINITY, fixed)).toBe('—');
   });
 });
