@@ -138,7 +138,7 @@ export function Select({
           </Base.Icon>
         ) : null}
       </Base.Trigger>
-      <Base.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
+      <Base.Portal container={overlayContainer}>
         <Base.Positioner side="bottom" sideOffset={8} alignItemWithTrigger={false} className="z-dropdown">
           <Base.Popup
             aria-label={ariaLabel}

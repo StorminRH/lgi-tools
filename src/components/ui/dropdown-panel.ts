@@ -4,6 +4,12 @@ export const panelSurface = 'border border-border-idle glass-dense glass-lit sha
 
 export const menuPanelSurface = `${panelSurface} rounded-card overflow-hidden`;
 
+/** Scale-and-fade in from the positioner's anchor edge, for Popover and Tooltip popups. */
+export const popIn =
+  'origin-[var(--transform-origin)] transition-[opacity,transform] duration-fast motion-reduce:transition-none ' +
+  'data-[starting-style]:scale-95 data-[starting-style]:opacity-0 ' +
+  'data-[ending-style]:scale-95 data-[ending-style]:opacity-0';
+
 export const dropdownPanel = `${panelSurface} dropdown-panel-in rounded-card p-1.5 outline-none`;
 
 export const dropdownOption = 'dropdown-option cursor-default select-none outline-none';

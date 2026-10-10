@@ -13,6 +13,7 @@ import {
   panelSurface,
   menuPanelSurface,
 } from './dropdown-panel';
+import { useOverlayPortalContainer } from './overlay-portal-container';
 
 const popup = cva('flex flex-col outline-none', {
   variants: {
@@ -21,7 +22,6 @@ const popup = cva('flex flex-col outline-none', {
       frosted: panelSurface,
     },
   },
-  defaultVariants: { surface: 'solid' },
 });
 
 export type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
@@ -32,6 +32,63 @@ export type DataAttributes = {
 export type MenuTriggerProps = DataAttributes & {
   ref?: React.Ref<HTMLButtonElement>;
 };
+export type PopupProps = React.ComponentProps<typeof Base.Popup>;
+
+/**
+ * The portal, positioner and popup under Menu and PointerMenu. Inside a dialog
+ * it portals into the dialog popup, so the menu stacks above it.
+ */
+export function MenuPopup({
+  label,
+  surface,
+  side,
+  align,
+  sideOffset,
+  alignOffset,
+  collisionPadding,
+  anchor,
+  popupProps,
+  finalFocus,
+  className,
+  children,
+}: {
+  label: string;
+  surface: 'solid' | 'frosted';
+  side?: PositionerProps['side'];
+  align?: PositionerProps['align'];
+  sideOffset?: PositionerProps['sideOffset'];
+  alignOffset?: PositionerProps['alignOffset'];
+  collisionPadding?: PositionerProps['collisionPadding'];
+  anchor?: MenuAnchor;
+  popupProps?: DataAttributes & { style?: CSSProperties };
+  finalFocus?: PopupProps['finalFocus'];
+  className?: string;
+  children: ReactNode;
+}) {
+  const overlayContainer = useOverlayPortalContainer();
+  return (
+    <Base.Portal container={overlayContainer}>
+      <Base.Positioner
+        side={side}
+        align={align}
+        sideOffset={sideOffset}
+        alignOffset={alignOffset}
+        collisionPadding={collisionPadding}
+        anchor={anchor}
+        className="z-dropdown"
+      >
+        <Base.Popup
+          {...popupProps}
+          aria-label={label}
+          finalFocus={finalFocus}
+          className={cn(popup({ surface }), className)}
+        >
+          {children}
+        </Base.Popup>
+      </Base.Positioner>
+    </Base.Portal>
+  );
+}
 
 export function Menu({
   trigger,
@@ -71,25 +128,20 @@ export function Menu({
       <Base.Trigger {...triggerProps} type="button" aria-label={label} className={triggerClassName}>
         {trigger}
       </Base.Trigger>
-      <Base.Portal>
-        <Base.Positioner
-          side={side}
-          align={align}
-          sideOffset={sideOffset}
-          alignOffset={alignOffset}
-          collisionPadding={collisionPadding}
-          anchor={anchor}
-          className="z-dropdown"
-        >
-          <Base.Popup
-            {...popupProps}
-            aria-label={label}
-            className={cn(popup({ surface }), className)}
-          >
-            {children}
-          </Base.Popup>
-        </Base.Positioner>
-      </Base.Portal>
+      <MenuPopup
+        label={label}
+        surface={surface}
+        side={side}
+        align={align}
+        sideOffset={sideOffset}
+        alignOffset={alignOffset}
+        collisionPadding={collisionPadding}
+        anchor={anchor}
+        popupProps={popupProps}
+        className={className}
+      >
+        {children}
+      </MenuPopup>
     </Base.Root>
   );
 }
