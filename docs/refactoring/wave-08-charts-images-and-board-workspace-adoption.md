@@ -8,7 +8,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P004](#p004) | Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx | ui-component | M | low | high | — |
+| ☑ | [P004](#p004) | Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx | ui-component | M | low | high | — |
 | ☐ | [P037](#p037) | Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart | ui-component | S | low | medium | [P004](#p004) |
 | ☐ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
 | ☐ | [P318](#p318) | Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types | simplification | S | low | low | [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089) |
@@ -28,7 +28,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 
 ## P004: Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** high · **Size:** About -135 (line-chart.tsx deleted), about -30 (trend-chart) and about -70 (annotated-daily-chart shell and DailyXAxis); about +25 (ChartBaseline, defaults, tests excluded). Net about -210.
 - **Depends on:** —

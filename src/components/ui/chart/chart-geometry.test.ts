@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { continuousHoverTarget, tickAnchor } from './chart-geometry';
+import { continuousHoverTarget, tickAnchor, tickIndices } from './chart-geometry';
 
 const data = [
   { x: 0, y: 5 },
@@ -19,4 +19,17 @@ test('hover snaps to the nearest datum, clamps to the ends, and is empty for no 
 test('tick labels grow inward from the edges and a lone label stays centred', () => {
   expect([0, 1, 2, 3].map((i) => tickAnchor(i, 4))).toEqual(['start', 'middle', 'middle', 'end']);
   expect(tickAnchor(0, 1)).toBe('middle');
+});
+
+test('date labels spread up to the cap across a series and always keep its first and last day', () => {
+  expect(tickIndices(0, 5)).toEqual([]);
+  expect(tickIndices(1, 5)).toEqual([0]);
+  expect(tickIndices(30, 1)).toEqual([0]);
+  expect(tickIndices(3, 5)).toEqual([0, 1, 2]);
+  expect(tickIndices(2, 5)).toEqual([0, 1]);
+  const spread = tickIndices(30, 5);
+  expect(spread[0]).toBe(0);
+  expect(spread.at(-1)).toBe(29);
+  expect(spread).toHaveLength(5);
+  expect(tickIndices(29, 5)).toEqual([0, 7, 14, 21, 28]);
 });

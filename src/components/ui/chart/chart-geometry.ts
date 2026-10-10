@@ -1,3 +1,9 @@
+/** The charts' default value format: the number as written. */
+export const formatPlainValue = (value: number): string => String(value);
+
+/** The charts' default label format: the label unchanged. */
+export const identityLabel = (label: string): string => label;
+
 export function extent(values: number[]): [number, number] {
   let min = values[0]!;
   let max = values[0]!;

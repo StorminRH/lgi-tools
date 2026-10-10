@@ -5,6 +5,4 @@ export type SparklineTone = Extract<
   'green' | 'orange' | 'red' | 'blue' | 'purple' | 'teal'
 >;
 
-export type SparklinePoint = { x: number; y: number };
-
 export { extent, paddedDomain, nearestIndex } from './chart/chart-geometry';

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Area, LinePath } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
 import { TimeSeriesFrame } from './chart/chart-frame';
-import { extent } from './chart/chart-geometry';
+import { extent, identityLabel } from './chart/chart-geometry';
 import { ValueAxisGrid } from './chart/value-axis';
 import type { SparklineTone } from './sparkline';
 import { toneHex } from './tones';
@@ -55,7 +55,7 @@ export function SplitAxisChart({
   width,
   height = 190,
   formatY,
-  formatTick = (label) => label,
+  formatTick = identityLabel,
   ariaLabel,
   renderTooltip,
 }: {
