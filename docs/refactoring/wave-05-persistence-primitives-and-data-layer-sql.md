@@ -20,7 +20,7 @@ Run db suites with Postgres up.
 | ☑ | [P223](#p223) | Move mapAuthorizationRows to src/lib as executeRows and use it at every inline Array.isArray(result) normalization | persistence | S | low | medium | — |
 | ☑ | [P220](#p220) | Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it | persistence | M | low | medium | — |
 | ☑ | [P237](#p237) | Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts | persistence | S | low | low | [P220](#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) |
-| ☐ | [P242](#p242) | Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it | persistence | S | low | low | [P220](#p220) |
+| ☑ | [P242](#p242) | Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it | persistence | S | low | low | [P220](#p220) |
 | ☐ | [P228](#p228) | Add ownerKeyWhere beside ownerSyncStateColumns and return sync-state rows directly | persistence | S | low | low | — |
 | ☐ | [P327](#p327) | Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL | simplification | S | low | low | [P228](#p228) |
 | ☐ | [P103](#p103) | Seed placeholder prices through one chunked function, route the hand-rolled batch loops through lib chunk, and build eve-data streamInsert on sde-io primitives | generic-utility | M | low | medium | — |
@@ -329,7 +329,7 @@ export async function withAdvisoryLock<T>(client: Sql, lockKey: number, work: ..
 
 ## P242: Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -~10 / +~10 (net ~0); the value is one named home for the lock protocol, not line count
 - **Depends on:** [P220](#p220)

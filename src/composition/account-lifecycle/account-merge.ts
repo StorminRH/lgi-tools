@@ -1,4 +1,4 @@
-import { asc, eq, inArray, is } from 'drizzle-orm';
+import { eq, is } from 'drizzle-orm';
 import { PgTable } from 'drizzle-orm/pg-core';
 import * as schema from '@/composition/drizzle-schema';
 import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
@@ -11,6 +11,7 @@ import { enqueueMergeReprojection } from '@/data/maps/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { account, user } from '@/db/auth-schema';
 import { directDatabase } from '@/db/direct-database';
+import { lockUserRows } from '@/db/locked-user';
 import { bestEffort } from '@/lib/best-effort';
 import type { PostgresJsDb } from '@/lib/db-types';
 import { accountMatch, eveAccountsForUser } from '@/platform/auth/eve-account-shared';
@@ -91,12 +92,7 @@ export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): P
   const database = deps.database ?? directDatabase();
   const contributors = deps.contributors ?? PURGE_CONTRIBUTORS;
   const outcome = await database.transaction(async (tx) => {
-    const lockedUsers = await tx
-      .select({ id: user.id, createdAt: user.createdAt, role: user.role })
-      .from(user)
-      .where(inArray(user.id, [request.linkingUserId, request.otherUserId]))
-      .orderBy(asc(user.id))
-      .for('update');
+    const lockedUsers = await lockUserRows(tx, [request.linkingUserId, request.otherUserId]);
     if (await usersHavePendingDeletion(tx, [request.linkingUserId, request.otherUserId])) {
       throw new PendingDeletionError();
     }

@@ -8,8 +8,9 @@ import { restoreMergeTracking } from '@/data/location-tracking/merge';
 import { readPendingTrackingMerges } from '@/data/location-tracking/merge-store';
 import { pendingTrackingMerges } from '@/data/location-tracking/schema';
 import { purgeLocationTracking } from '@/data/location-tracking/purge';
-import { account, user } from '@/db/auth-schema';
+import { account } from '@/db/auth-schema';
 import { directDatabase } from '@/db/direct-database';
+import { lockUserRows } from '@/db/locked-user';
 import type { PostgresJsDb } from '@/lib/db-types';
 import { eveAccountsForUser } from '@/platform/auth/eve-account-shared';
 
@@ -18,9 +19,8 @@ async function deliverTrackingMerge(
   pending: { id: string; userId: string },
 ): Promise<void> {
   await database.transaction(async (tx) => {
-    // Use the merge's user lock so a retry cannot restore into a login while it is being merged away.
-    const [owner] = await tx.select({ id: user.id }).from(user)
-      .where(eq(user.id, pending.userId)).for('update');
+    // Take the merge's lockUserRows so a retry cannot restore into a login while it is being merged away.
+    const [owner] = await lockUserRows(tx, [pending.userId]);
     if (owner === undefined) return;
     const [job] = await tx.select().from(pendingTrackingMerges)
       .where(and(eq(pendingTrackingMerges.id, pending.id), eq(pendingTrackingMerges.userId, owner.id)))
