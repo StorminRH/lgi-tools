@@ -34,6 +34,19 @@ test('Short and Compact tier negatives on their magnitude', () => {
   expect(formatIskCompact(-100_000)).toBe('-100K');
 });
 
+test('a figure that rounds up to 1000 moves to the next tier', () => {
+  expect(formatIskShort(999_960)).toBe('1.0M');
+  expect(formatIskShort(999_960, { unit: true })).toBe('1.0M ISK');
+  expect(formatIskShort(-999_960)).toBe('-1.0M');
+  expect(formatIskShort(999_499)).toBe('999K');
+  expect(formatIskShort(999_960_000)).toBe('1.0B');
+  expect(formatIskCompact(999_600)).toBe('1M');
+  expect(formatIskCompact(999_499)).toBe('999K');
+  expect(formatIskCompact(999_600_000)).toBe('1.0B');
+  expect(formatIsk(999_960)).toBe('1.00M');
+  expect(formatIsk(999_996_000)).toBe('1.00B');
+});
+
 test('the unit option appends ISK to a figure but never to the em-dash', () => {
   expect(formatIskShort(125_400_000, { unit: true })).toBe('125.4M ISK');
   expect(formatIskShort(1_245_000_000, { unit: true })).toBe('1.2B ISK');

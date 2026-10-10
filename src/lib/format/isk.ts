@@ -13,10 +13,20 @@ const FULL: IskTiers = { b: 2, m: 2, k: 1, unscaled: 2 };
 const SHORT: IskTiers = { b: 1, m: 1, k: 0 };
 const COMPACT: IskTiers = { b: 1, m: 0, k: 0 };
 
+/** Whether `abs / divisor` rounds to 1000 or more at `digits`, so the next tier up carries it. */
+function roundsToNextTier(abs: number, divisor: number, digits: number): boolean {
+  return Number((abs / divisor).toFixed(digits)) >= 1_000;
+}
+
+/** Picks the tier after rounding, so 999,960 prints `1.0M` rather than `1000K`. */
 function scaledIsk(value: number, { b, m, k, unscaled }: IskTiers): string {
   const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(b)}B`;
-  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(m)}M`;
+  if (abs >= 1_000_000_000 || roundsToNextTier(abs, 1_000_000, m)) {
+    return `${(value / 1_000_000_000).toFixed(b)}B`;
+  }
+  if (abs >= 1_000_000 || roundsToNextTier(abs, 1_000, k)) {
+    return `${(value / 1_000_000).toFixed(m)}M`;
+  }
   if (abs >= 1_000 || unscaled === undefined) return `${(value / 1_000).toFixed(k)}K`;
   return value.toFixed(unscaled);
 }
