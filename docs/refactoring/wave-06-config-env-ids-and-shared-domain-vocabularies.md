@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#666](https://github.com/StorminRH/lgi-tools/pull/666).
+
 ← [Wave 5: Persistence primitives and data-layer SQL](wave-05-persistence-primitives-and-data-layer-sql.md) · [Index](README.md#roadmap) · [Wave 7: UI kit primitives (src/components/ui)](wave-07-ui-kit-primitives-src-components-ui.md) →
 
 Single-source env readers: the public Convex URL, Convex-configured check with door reasons, a portable bearer compare, Convex deployment env and appFetch for statics. Add src/lib/id-schemas and UUID map ids. Move EVE scopes into config. hasScopes and scopeHolderOf follow, plus the table-driven scope test and ESI owner types. The closed vocabularies are then derived from one source each: CostBasis, modifier kinds, attributable wormhole codes, percent drafts, door sides and Convex validators. Last come the codex index, code sets, the typed-lifetime anchor and deathWindowFrom.
