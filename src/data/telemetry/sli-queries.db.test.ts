@@ -2,7 +2,6 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { usageLogs } from './schema';
 import { capabilitySuccessRate, esiAvailability } from './capability-stats';
-import { getEsiAvailability } from './queries';
 import { getCapabilityLatency, getCapabilityOutcomeStats } from './sli-breakdown';
 
 const harness = await createDbTestHarness({
@@ -101,7 +100,6 @@ describe.skipIf(!harness.reachable)('service indicator queries', () => {
   it('reports the ESI success rate over rows that recorded ESI time', async () => {
     const availability = esiAvailability(await getCapabilityOutcomeStats(RANGE));
     expect(availability).toEqual({ total: 2, healthy: 1, rate: 0.5 });
-    await expect(getEsiAvailability(RANGE)).resolves.toEqual(availability);
   });
 
   it('returns null rather than zero for a window with no recorded operations', async () => {
@@ -111,6 +109,5 @@ describe.skipIf(!harness.reachable)('service indicator queries', () => {
     expect(capabilitySuccessRate(stats, 'mutation')).toBeNull();
     expect(esiAvailability(stats).rate).toBeNull();
     await expect(getCapabilityLatency(EMPTY_RANGE)).resolves.toEqual({ p95: null, slowest: [] });
-    await expect(getEsiAvailability(EMPTY_RANGE)).resolves.toEqual({ total: 0, healthy: 0, rate: null });
   });
 });

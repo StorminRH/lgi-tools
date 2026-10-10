@@ -4,6 +4,7 @@ import { pruneTrackingMergeReceipts } from '@/composition/account-lifecycle/trac
 import { scopeLegacyMaps } from '@/composition/map-character-scoping';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { pruneDomainEvents } from '@/data/domain-events/queries';
+import { ENTITY_NAME_RETENTION_DAYS, pruneEntityNames } from '@/data/eve-data/entity-names-store';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { pruneEsiRefreshJobs } from '@/data/esi-refresh-jobs/queries';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
@@ -107,6 +108,10 @@ const DELETE_TASKS: readonly DeleteTask[] = [
   {
     task: 'market_history',
     run: (now, deadline) => pruneStaleMarketHistory(db, now, deadline),
+  },
+  {
+    task: 'eve_entity_names',
+    run: (now, deadline) => pruneEntityNames(db, ENTITY_NAME_RETENTION_DAYS, now, deadline),
   },
 ];
 

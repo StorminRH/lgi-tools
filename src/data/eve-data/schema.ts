@@ -303,3 +303,18 @@ export const eveDataMeta = pgTable('eve_data_meta', {
     .notNull()
     .defaultNow(),
 });
+
+/**
+ * Names ESI `/universe/names/` returned, shared across instances and deploys.
+ * A null name records that ESI could not resolve the id, so it is not asked
+ * again until that answer ages out.
+ */
+export const eveEntityNames = pgTable('eve_entity_names', {
+  id: bigint('id', { mode: 'number' }).primaryKey(),
+  name: text('name'),
+  category: text('category'),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  // Housekeeping deletes by age in batches; without it each batch scans the table.
+  resolvedAtIdx: index('eve_entity_names_resolved_at_idx').on(t.resolvedAt),
+}));

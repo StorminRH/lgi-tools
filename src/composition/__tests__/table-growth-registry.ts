@@ -1,5 +1,6 @@
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
+import { ENTITY_NAME_RETENTION_DAYS } from '@/data/eve-data/entity-names-store';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
@@ -228,6 +229,13 @@ export const TABLE_GROWTH_STORIES = [
     reason: 'replaced from the EVE SDE',
   },
   { kind: 'bounded', table: schema.eveNpcStations, reason: 'replaced from the EVE SDE' },
+  {
+    kind: 'pruned',
+    table: schema.eveEntityNames,
+    retentionDays: ENTITY_NAME_RETENTION_DAYS,
+    retentionConstant: 'ENTITY_NAME_RETENTION_DAYS',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping',
+  },
   { kind: 'bounded', table: schema.eveSystemJumps, reason: 'replaced from the EVE SDE' },
   {
     kind: 'bounded',
