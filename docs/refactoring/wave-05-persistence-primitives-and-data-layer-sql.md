@@ -27,7 +27,7 @@ Run db suites with Postgres up.
 | ☑ | [P172](#p172) | Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib | server-pipeline | M | low | medium | [P103](#p103), [P230](#p230) |
 | ☑ | [P264](#p264) | Give data/eve-data/coerce.ts asRecord, mapRecords and dogmaAttributePairs, and route every SDE parser through them | contracts-validation | S | low | low | [P172](#p172) |
 | ☑ | [P233](#p233) | Type the eve-data jsonb columns with $type<T>() and validate blueprint activities once at ingest | persistence | M | low | medium | [P264](#p264) |
-| ☐ | [P293](#p293) | Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them | efficiency | S | low | low | [P233](#p233), [P172](#p172) |
+| ☑ | [P293](#p293) | Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them | efficiency | S | low | low | [P233](#p233), [P172](#p172) |
 | ☐ | [P235](#p235) | Move the repeated usage_logs fragments (day, outcome, summedInt, referrer predicates, refreshed-price-cron filter) into telemetry/sql.ts and drop getFallbackRate's redundant totals query | persistence | S | low | medium | — |
 | ☐ | [P236](#p236) | Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE | persistence | S | low | low | — |
 | ☐ | [P232](#p232) | Give map lifecycle predicates and the active-admin selection one home, and write archive/restore SETs from the lifecycle contract | persistence | S | low | medium | [P223](#p223) |
@@ -921,7 +921,7 @@ export function isBlueprintActivitiesDocument(raw: unknown): raw is BlueprintAct
 
 ## P293: Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +12
 - **Depends on:** [P233](#p233), [P172](#p172)

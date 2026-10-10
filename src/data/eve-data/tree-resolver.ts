@@ -153,18 +153,6 @@ export function buildIndexesFromActivities(
   return { blueprintMaterials, productToBlueprint };
 }
 
-async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
-  const rows = await db
-    .select({
-      blueprintTypeId: industryBlueprints.blueprintTypeId,
-      activities: industryBlueprints.activities,
-      published: eveTypes.published,
-    })
-    .from(industryBlueprints)
-    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
-  return buildIndexesFromActivities(rows);
-}
-
 function runsFor(quantity: number, quantityPerRun: number): number {
   if (quantityPerRun === 0) throw new Error('runsFor: quantityPerRun is zero');
   return quantity / quantityPerRun;
@@ -309,8 +297,20 @@ export function hashResolverInputs(
     .digest('hex');
 }
 
-async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
-  const all = await db
+type ResolverInputRow = {
+  blueprintTypeId: number;
+  activities: BlueprintActivities;
+  published: boolean | null;
+};
+
+/**
+ * The resolver's one read: every blueprint's activities, left-joined to its
+ * own type for the published flag (null when the type row is missing). The
+ * input hash, the indexes and the blueprint id list all come from these rows,
+ * so the stored hash describes exactly the rows the trees were built from.
+ */
+async function readResolverInputs(db: AnyPgDb): Promise<ResolverInputRow[]> {
+  return db
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
       activities: industryBlueprints.activities,
@@ -318,7 +318,34 @@ async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     })
     .from(industryBlueprints)
     .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
-  return hashResolverInputs(all);
+}
+
+type ResolvePlan = {
+  hashAfter: string;
+  rebuild: { resolver: TreeResolver; blueprintIds: number[] } | null;
+};
+
+/**
+ * Reads the inputs once, hashes them, and on the rebuild path derives the
+ * resolver and the id list from the same rows. The rows stay local to this
+ * frame so they can be collected before the long insert loop runs.
+ */
+async function planResolve(
+  db: PostgresJsDb,
+  gate: { forceRebuild: boolean; hashBefore: string | null },
+): Promise<ResolvePlan> {
+  const rows = await readResolverInputs(db);
+  const hashAfter = hashResolverInputs(rows);
+  if (hashGateSkips({ ...gate, hashAfter }) && (await hasResolvedTrees(db))) {
+    return { hashAfter, rebuild: null };
+  }
+  return {
+    hashAfter,
+    rebuild: {
+      resolver: new TreeResolver(buildIndexesFromActivities(rows)),
+      blueprintIds: rows.map((row) => row.blueprintTypeId),
+    },
+  };
 }
 
 async function hasResolvedTrees(db: PostgresJsDb): Promise<boolean> {
@@ -369,8 +396,8 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
   const forceRebuild = readEnv('LGI_FORCE_TREE_REBUILD') === '1';
 
   const hashBefore = await getSdeMetaValue(db, SDE_META_KEY_TREE_HASH);
-  const hashAfter = await computeTreeResolverHash(db);
-  if (hashGateSkips({ forceRebuild, hashBefore, hashAfter }) && (await hasResolvedTrees(db))) {
+  const { hashAfter, rebuild } = await planResolve(db, { forceRebuild, hashBefore });
+  if (!rebuild) {
     return {
       blueprintsResolved: 0,
       flatMaterialsWritten: 0,
@@ -385,13 +412,7 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
     };
   }
 
-  const indexes = await buildIndexes(db);
-  const resolver = new TreeResolver(indexes);
-
-  const allBlueprintIds = await db
-    .select({ id: industryBlueprints.blueprintTypeId })
-    .from(industryBlueprints);
-
+  const { resolver, blueprintIds } = rebuild;
   const FLAT_BATCH_SIZE = 1000;
   const TREE_BATCH_SIZE = 500;
   const computedAt = new Date();
@@ -411,7 +432,7 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
       },
     );
 
-    for (const { id } of allBlueprintIds) {
+    for (const id of blueprintIds) {
       await flat.add(roundedFlatRows(resolver.flatForOneRun(id), id));
       await tree.add([{ blueprintTypeId: id, treeJson: resolver.treeForOneRun(id), computedAt }]);
     }
@@ -425,7 +446,7 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
 
   const stats = resolver.stats();
   return {
-    blueprintsResolved: allBlueprintIds.length,
+    blueprintsResolved: blueprintIds.length,
     flatMaterialsWritten: flatWritten,
     treesWritten: treeWritten,
     memoHits: stats.memoHits,
