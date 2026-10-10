@@ -4,6 +4,7 @@ import { getLatestReportDate, getSearchTotals } from '@/data/gsc/queries';
 import { pageViewSources } from '@/data/telemetry/page-view-stats';
 import { getReturningVsNew } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
+import { DAY_MS } from '@/lib/iso-date';
 import { ActivityChart } from './ActivityChart';
 import { deriveActivityView, rangeDayCount } from './activity-view';
 import { CardLink } from './CardLink';
@@ -13,8 +14,6 @@ import { loadSection } from './load-section';
 import { buildMetricRows, type SearchTotals } from './metric-view';
 import { searchPeriods } from './search/search-period';
 import { getPageViewStatsShared } from './shared-reads';
-
-const DAY_MS = 86_400_000;
 
 // Google reports whole days and lags the range, so search is compared on its
 // own latest report day: the only read that has to wait for another.

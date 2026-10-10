@@ -15,6 +15,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { EVE_SSO_HOST } from '@/lib/eve-provider';
+import { daysBefore } from '@/lib/iso-date';
 import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
 import { CRON_ACTIONS, splitCronOutcomes, type CronOutcomes, type PriceRefreshDay } from './cron-stats';
@@ -349,9 +350,7 @@ export async function getLoginCountsPerUser(range: DateRange): Promise<number[]>
 }
 
 export function lastNDaysRange(days: number, now: Date = new Date()): DateRange {
-  const to = now;
-  const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
-  return { from, to };
+  return { from: daysBefore(now, days), to: now };
 }
 
 export interface PriceSourceSplit {

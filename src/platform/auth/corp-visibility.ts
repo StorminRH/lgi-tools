@@ -1,3 +1,4 @@
+import type { CorpContexts } from '@/data/corp-holdings/context';
 import { type CorpHoldingContext, type Knowable, type Placement, placeUnder } from '@/data/corp-holdings/placement';
 import type { CharacterCorpRoles, CorpRole } from './corp-roles';
 
@@ -169,6 +170,6 @@ export function visiblePlacements<T extends { locationId: number; locationFlag: 
     .filter(({ placement }) => canSeeHolding(rule, placement));
 }
 
-export function contextsByCorp(scope: OwnedReadScope): ReadonlyMap<number, CorpHoldingContext> {
+export function contextsByCorp(scope: OwnedReadScope): CorpContexts {
   return new Map(scope.corps.map((grant) => [grant.corporationId, grant.context]));
 }

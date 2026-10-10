@@ -7,6 +7,11 @@ export const MANUFACTURING_ACTIVITY = 1;
 export const REACTION_ACTIVITY = 11;
 export type IndustryActivityId = typeof MANUFACTURING_ACTIVITY | typeof REACTION_ACTIVITY;
 
+/** Manufacturing and reactions are the activities a structure bonuses and a job fee prices. */
+export function isProductionActivity(id: number | null | undefined): id is IndustryActivityId {
+  return id === MANUFACTURING_ACTIVITY || id === REACTION_ACTIVITY;
+}
+
 export interface StructureBonus {
   me: number;
   te: number;

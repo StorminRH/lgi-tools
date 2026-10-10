@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
-import { formatPct } from '@/lib/format/number';
+import { formatPct, formatQuantity, formatSigned } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
 import {
   cockpitMarginView,
@@ -22,6 +22,7 @@ import {
 import { type MarginMode } from '../cockpit-margin';
 import type { CostBasis } from '../cost-basis-view';
 import { timeLeverRows } from '../time-lever-rows';
+import { typeNamer } from '../type-name';
 import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { hasUnpricedInputs } from '../fee-breakdown';
@@ -82,8 +83,8 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
   return (
     <KpiHelp label="How input cost is computed">
       <PopoverHeading>Input cost</PopoverHeading>
-      <PopoverRow label="Raw">{bases ? formatIsk(bases.batched) : '—'}</PopoverRow>
-      <PopoverRow label="Item">{bases ? formatIsk(bases.marginal) : '—'}</PopoverRow>
+      <PopoverRow label="Raw">{formatIsk(bases?.batched ?? null)}</PopoverRow>
+      <PopoverRow label="Item">{formatIsk(bases?.marginal ?? null)}</PopoverRow>
       <p className="max-w-[240px] text-ui leading-snug text-muted">
         Raw is the full production line, including the excess that whole batches produce.
         Item is only what this build consumes.
@@ -127,7 +128,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
       <p className="max-w-[240px] text-ui leading-snug text-muted">
         Available at <span className="text-text">{systemName}</span> for {article}{' '}
         <span className="text-isk">{callout.pct}%</span> discount —{' '}
-        {callout.units.toLocaleString('en-US')} units.
+        {formatQuantity(callout.units)} units.
       </p>
     </Popover>
   );
@@ -222,8 +223,12 @@ function MarginFigure({
   }
   return (
     <div className={cn(KPI_FIG, marginToneClass(view.marginPct))}>
-      <LivePrice value={`${view.sign}${formatIsk(view.margin)}`} pending={refreshing} />
-      {view.marginPct !== null && <span className="ml-1.5 text-ui">({formatPct(view.marginPct)})</span>}
+      <LivePrice value={formatSigned(view.margin, formatIsk)} pending={refreshing} />
+      {view.marginPct !== null && (
+        <span className="ml-1.5 text-ui">
+          ({view.marginPct < 0 ? formatSigned(view.marginPct, formatPct) : formatPct(view.marginPct)})
+        </span>
+      )}
     </div>
   );
 }
@@ -368,7 +373,7 @@ export function CockpitKpis({
           seeded={seeded}
           refreshing={refreshing || margin.held}
           setMarginMode={setMarginMode}
-          nameOf={(typeId) => structure.buildNodeDisplay[typeId]?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`}
+          nameOf={typeNamer(structure)}
         />
       </div>
       <div className={WIDE}>

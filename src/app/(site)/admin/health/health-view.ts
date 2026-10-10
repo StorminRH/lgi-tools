@@ -65,10 +65,6 @@ export function failureResultLabel(row: FailureGroup): string {
   return parts.join(' · ');
 }
 
-export function dayLabel(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 function percent(share: number): string {
   return `${Math.round(share * 100)}%`;
 }

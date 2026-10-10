@@ -2,7 +2,6 @@ import { after } from 'next/server';
 import { getCorpAssetEvidence } from '@/features/owned-assets/queries';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
-import { formatStationName } from '@/features/industry-planner/format-station-name';
 import {
   buildOwnedDetail,
   collectDetailNameIds,
@@ -12,6 +11,7 @@ import { getOwnedBlueprintMap, readBlueprintSyncState, saveOwnedBlueprints, stam
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';

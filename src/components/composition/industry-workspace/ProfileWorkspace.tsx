@@ -19,6 +19,7 @@ import {
 } from '@/features/industry-planner/profiles/use-industry-profiles';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { useAvailableStructures } from '@/features/industry-planner/use-available-structures';
+import { unresolvedName } from '@/lib/format/names';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { OVERVIEW_MOTION } from '../board/board-motion';
@@ -115,7 +116,7 @@ function characterNamer(
 ): (characterId: number) => string {
   const names = new Map<number, string>(doc?.members.map((m) => [m.characterId, m.name]) ?? []);
   for (const character of roster) names.set(character.characterId, character.name);
-  return (characterId) => names.get(characterId) ?? `Character ${characterId}`;
+  return (characterId) => names.get(characterId) ?? unresolvedName('character', characterId);
 }
 
 interface BoardData {

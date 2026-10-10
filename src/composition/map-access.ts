@@ -16,6 +16,7 @@ import {
 import { resolveUserCorpAccess } from '@/composition/corp-access';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { MapPrincipals } from '@/data/maps/access';
+import { nameOrUnresolved } from '@/lib/format/names';
 
 export interface MapChromeData {
   readonly maps: readonly AuthorizedMapRow[];
@@ -39,7 +40,7 @@ function groupBlocksByMap(
     adminMapIds.map((mapId) => [mapId, []]),
   );
   for (const { mapId, characterId } of blocks) {
-    byMap[mapId]?.push({ characterId, name: names[String(characterId)] ?? `Character ${characterId}` });
+    byMap[mapId]?.push({ characterId, name: nameOrUnresolved(names, characterId, 'character') });
   }
   return byMap;
 }
@@ -65,7 +66,7 @@ export async function listMapChromeData(userId: string): Promise<MapChromeData> 
   ]);
   const corporations = principals.corporationIds.map((corporationId) => ({
     corporationId,
-    name: names[String(corporationId)] ?? `Corporation ${corporationId}`,
+    name: nameOrUnresolved(names, corporationId, 'corporation'),
   }));
   const grantsByMapId: Record<string, MapAccessGrantOption[]> = Object.fromEntries(
     adminMapIds.map((mapId) => [mapId, []]),
@@ -73,9 +74,7 @@ export async function listMapChromeData(userId: string): Promise<MapChromeData> 
   for (const { mapId, ...grant } of grants) {
     grantsByMapId[mapId]?.push({
       ...grant,
-      name:
-        names[String(grant.ownerId)] ??
-        `${grant.ownerType === 'character' ? 'Character' : 'Corporation'} ${grant.ownerId}`,
+      name: nameOrUnresolved(names, grant.ownerId, grant.ownerType),
     });
   }
   const blocksByMapId = groupBlocksByMap(adminMapIds, blocks, names);

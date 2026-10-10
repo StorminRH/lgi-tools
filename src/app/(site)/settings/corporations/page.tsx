@@ -10,6 +10,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
+import { formatCount } from '@/lib/format/number';
 import { accountPageSettings } from '@/platform/page-settings/account';
 import { resolvePageControls } from '@/platform/page-settings/controls';
 import { QuietSectionHead } from '@/components/ui/section-head';
@@ -37,9 +38,7 @@ function MembershipRow({ membership }: { membership: CorporationMembershipView }
           )}
           <Pill tone="neutral">{membership.sharingLabel}</Pill>
           {membership.structureCount !== null ? (
-            <Pill tone="neutral">
-              {membership.structureCount} structure{membership.structureCount === 1 ? '' : 's'}
-            </Pill>
+            <Pill tone="neutral">{formatCount(membership.structureCount, 'structure')}</Pill>
           ) : null}
         </span>
       }

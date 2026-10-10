@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#660](https://github.com/StorminRH/lgi-tools/pull/660).
+
 ← [Wave 2: Tooling and test-harness foundations](wave-02-tooling-and-test-harness-foundations.md) · [Index](README.md#roadmap) · [Wave 4: Formatting, dates and names have one home](wave-04-formatting-dates-and-names-have-one-home.md) →
 
 Land the generic lib helpers that waves 4–15 consume, each with its first real consumers:

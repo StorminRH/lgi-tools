@@ -32,7 +32,8 @@ import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
 import { SECTION_LOAD_FAILED } from './load-section';
 import { getOrInsertComputed } from '@/lib/array';
-import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
+import { formatElapsed } from '@/lib/format/time';
 
 export interface CronSignals {
   lastRuns: CronLastRun[];
@@ -169,7 +170,7 @@ export function formatSliValue(key: keyof SliSignals, value: Loaded<number | nul
   if (value === SECTION_LOAD_FAILED) return 'unavailable';
   if (value === null || Number.isNaN(value)) return 'no data';
   if (key === 'latencyP95') return `${formatQuantity(value)} ms`;
-  return `${(value * 100).toFixed(1)}%`;
+  return formatPct(value * 100);
 }
 
 export function sliTargetLabel(key: keyof SliSignals): string {
@@ -226,12 +227,6 @@ function elapsedHours(from: Date, now: Date): number {
   return Math.max(0, (now.getTime() - from.getTime()) / 3_600_000);
 }
 
-function formatHours(hours: number): string {
-  if (hours < 1) return `${Math.floor(hours * 60)}m`;
-  if (hours < 48) return `${Math.floor(hours)}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
 // A live job older than this means owner data is going stale.
 const QUEUE_STALE_HOURS = 6;
 
@@ -271,7 +266,10 @@ function queueLine(queue: QueueSummary): StatusLine {
     id: 'queue',
     label: 'Refresh queue',
     value: queueCounts(queue),
-    note: queue.oldestDueHours === null ? undefined : `oldest job ${formatHours(queue.oldestDueHours)}`,
+    note:
+      queue.oldestDueHours === null
+        ? undefined
+        : `oldest job ${formatElapsed(Math.round(queue.oldestDueHours * 3_600_000), { dayAfterHours: 48 })}`,
     level: queueLevel(queue),
     quiet: true,
   };
@@ -411,10 +409,11 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
     });
   }
   if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) {
+    const oldest = formatElapsed(Math.round(queue.oldestDueHours * 3_600_000), { dayAfterHours: 48 });
     items.push({
       id: 'queue-backlog',
       level: 'amber',
-      title: `Refresh backlog of ${formatCount(queue.due, 'job')}, oldest ${formatHours(queue.oldestDueHours)}`,
+      title: `Refresh backlog of ${formatCount(queue.due, 'job')}, oldest ${oldest}`,
       detail: `target ≤ ${QUEUE_STALE_HOURS}h`,
       action: { label: 'Open queue', href: '/admin/queue' },
     });

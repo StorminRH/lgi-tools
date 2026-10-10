@@ -6,7 +6,6 @@ import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fi
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import {
   buildSignatureRows,
-  formatSignatureAge,
   groupSignatureSections,
   isEditablePasteTarget,
   scannerPasteDecision,
@@ -352,7 +351,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(legacySections[0]?.rows.map((row) => row.signatureId)).toEqual(['LEG-001']);
   });
 
-  it('reads the scanner life ceiling and shared age clock like the row editor', () => {
+  it('reads the scanner life ceiling like the row editor', () => {
     const typed: WormholeCodexEntry = {
       code: 'B274',
       typeId: 1,
@@ -389,11 +388,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         now,
       ),
     ).toBe('4h');
-
-    expect(formatSignatureAge(1_000, 1_000)).toBe('<1m');
-    expect(formatSignatureAge(1_000, 6 * 60_000 + 1_000)).toBe('6m');
-    expect(formatSignatureAge(1_000, 3 * 60 * 60_000 + 1_000)).toBe('3h');
-    expect(formatSignatureAge(1_000, 2 * 24 * 60 * 60_000 + 1_000)).toBe('2d');
   });
 
   it('classifies scanner pastes before side effects and maps refusals to toast copy', () => {

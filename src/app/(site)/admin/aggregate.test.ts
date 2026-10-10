@@ -1,22 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  dayString,
-  isWeekend,
-  movingAverage,
-  toDayNumber,
-  zeroFillDaily,
-} from './aggregate';
+import { movingAverage, zeroFillDaily } from './aggregate';
 
 describe('admin aggregate', () => {
   it('fills calendar days, smooths series, ', () => {
-    for (const day of ['2025-01-01', '2026-07-13', '2024-02-29']) {
-      expect(dayString(toDayNumber(day))).toBe(day);
-    }
-    expect(toDayNumber('2026-07-13') - toDayNumber('2026-07-12')).toBe(1);
-    expect(isWeekend('2026-07-11')).toBe(true);
-    expect(isWeekend('2026-07-12')).toBe(true);
-    expect(isWeekend('2026-07-13')).toBe(false);
-
     const series = zeroFillDaily(
       [
         { day: '2026-07-10', value: 5 },

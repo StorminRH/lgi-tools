@@ -232,6 +232,13 @@ describe('deriveAttention', () => {
       ['dead-letters', 'red', '/admin/queue'],
       ['queue-backlog', 'amber', '/admin/queue'],
     ]);
+    expect(items.map((i) => i.title)).toEqual([
+      '1 refresh job dead-lettered',
+      'Refresh backlog of 3 jobs, oldest 12h',
+    ]);
+
+    const single = attention(signals({ queue: [stat('queued', 1, 12)] }));
+    expect(single.map((i) => i.title)).toEqual(['Refresh backlog of 1 job, oldest 12h']);
   });
 
   it('routes each unhealthy status line to its page, red first', () => {

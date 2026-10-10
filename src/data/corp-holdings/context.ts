@@ -12,6 +12,8 @@ export interface MemberBase {
   readonly baseId: number | null;
 }
 
+export type CorpContexts = ReadonlyMap<number, CorpHoldingContext>;
+
 function namesById(names: Record<string, string>): ReadonlyMap<number, string> {
   return new Map(Object.entries(names).map(([id, name]) => [Number(id), name]));
 }
@@ -32,10 +34,7 @@ export function buildCorpHoldingContext(
   };
 }
 
-export function corpContextOf(
-  contexts: ReadonlyMap<number, CorpHoldingContext>,
-  corporationId: number,
-): CorpHoldingContext {
+export function corpContextOf(contexts: CorpContexts, corporationId: number): CorpHoldingContext {
   const context = contexts.get(corporationId);
   if (context === undefined) throw new Error(`No holding context for corporation ${corporationId}`);
   return context;

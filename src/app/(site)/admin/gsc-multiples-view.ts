@@ -1,5 +1,5 @@
 import { computeDelta, type Delta } from '@/composition/admin-period';
-import { formatQuantity } from '@/lib/format/number';
+import { formatPct, formatQuantity } from '@/lib/format/number';
 
 export interface GscMetricCell {
   title: string;
@@ -20,7 +20,7 @@ export function deriveGscMultiples(input: {
       value: formatQuantity(totals.clicks),
       delta: computeDelta(totals.clicks, prevTotals?.clicks ?? null),
       invert: false,
-      note: `${(totals.ctr * 100).toFixed(1)}% CTR`,
+      note: `${formatPct(totals.ctr * 100)} CTR`,
     },
     {
       title: 'Impressions',

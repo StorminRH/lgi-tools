@@ -9,6 +9,7 @@ import {
   UNSET_FIELD,
 } from './connection-field-group';
 import { blankDoor } from '@/data/maps/connection-hallway';
+import { withHostNumberLocale } from '@/lib/__tests__/host-locale';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import { ConnectionFields, parseDestinationSystem } from './connection-fields';
 
@@ -161,6 +162,25 @@ it('renders the six ruling fields with in-game wording and no retired controls',
   expect(retired).not.toContain('Auto-link');
   expect(retired).not.toContain('data-map-connection-resolution');
   expect(retired.split('data-select="Leads to"')).toHaveLength(2);
+});
+
+it('groups codex kilograms in en-US under any host locale', () => {
+  const markup = withHostNumberLocale('de-DE', () =>
+    renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: { ...CONNECTION, toSystemId: null },
+        codexReady: true,
+        codes: ['B274'],
+        entry: { ...TYPED, massRegen: 500_000_000 },
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    ),
+  );
+  expect(markup).toMatch(/data-map-codex-fact="Total mass"[^>]*>2,000,000,000 kg</);
+  expect(markup).toMatch(/data-map-codex-fact="Per-jump"[^>]*>375,000,000 kg</);
+  expect(markup).toMatch(/data-map-codex-fact="Regeneration"[^>]*>500,000,000 kg</);
 });
 
 it('locks type-derived size and Leads to, and offers Delete vs Restore by mode', () => {

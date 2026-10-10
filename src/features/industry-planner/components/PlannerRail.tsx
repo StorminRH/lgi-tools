@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/ui/stepper';
 import { eyebrow } from '@/components/ui/type-roles';
+import { activityLabel } from '@/data/eve-data/constants';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
@@ -18,7 +19,7 @@ import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { batchedCostOfRows } from '../cost-basis-view';
 import { useFavoriteBlueprints } from '../favorite-blueprints';
-import { activityLabel, PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
+import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { nodeTeState } from '../te-overrides';
@@ -235,7 +236,7 @@ function BuildTools({
       >
         <span>Raw ledger</span>
         <LivePrice
-          value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
+          value={formatIsk(grandTotal)}
           pending={refreshing}
           className="font-data text-ui text-isk"
         />

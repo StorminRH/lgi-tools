@@ -8,26 +8,26 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P088](#p088) | Fix formatRelativeTime's 28-29 day '0mo ago' bug and route the compact elapsed-age ladders through one lib formatter | formatting | S | low | medium | — |
-| ☐ | [P107](#p107) | Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies | generic-utility | M | low | medium | — |
-| ☐ | [P089](#p089) | Make lib/format/time the single UTC date home: one input type, adopt formatIsoDay everywhere, add formatUtcMinute and stripUtcYear | formatting | M | low | medium | [P088](#p088), [P107](#p107) |
-| ☐ | [P177](#p177) | Fix retention-pruner drift with existing retentionCutoff and formatIsoDay; keep per-owner pruners | server-pipeline | S | low | low | [P107](#p107), [P089](#p089) |
-| ☐ | [P085](#p085) | Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local | formatting | S | low | medium | — |
-| ☐ | [P090](#p090) | Move pluralCount to lib/format/number as formatCount and replace the count-and-noun ternaries | formatting | M | low | low | [P085](#p085) |
-| ☐ | [P091](#p091) | Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards | formatting | S | low | low | — |
-| ☐ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
-| ☐ | [P084](#p084) | Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL | formatting | S | low | medium | — |
-| ☐ | [P094](#p094) | Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper | formatting | M | low | low | — |
-| ☐ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
-| ☐ | [P272](#p272) | Move formatStationName to lib/format and parseStructureFit to features/custom-structures | feature-skeleton | S | low | low | — |
-| ☐ | [P098](#p098) | Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard | formatting | S | low | medium | — |
-| ☐ | [P118](#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
+| ☑ | [P088](#p088) | Fix formatRelativeTime's 28-29 day '0mo ago' bug and route the compact elapsed-age ladders through one lib formatter | formatting | S | low | medium | — |
+| ☑ | [P107](#p107) | Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies | generic-utility | M | low | medium | — |
+| ☑ | [P089](#p089) | Make lib/format/time the single UTC date home: one input type, adopt formatIsoDay everywhere, add formatUtcMinute and stripUtcYear | formatting | M | low | medium | [P088](#p088), [P107](#p107) |
+| ☑ | [P177](#p177) | Fix retention-pruner drift with existing retentionCutoff and formatIsoDay; keep per-owner pruners | server-pipeline | S | low | low | [P107](#p107), [P089](#p089) |
+| ☑ | [P085](#p085) | Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local | formatting | S | low | medium | — |
+| ☑ | [P090](#p090) | Move pluralCount to lib/format/number as formatCount and replace the count-and-noun ternaries | formatting | M | low | low | [P085](#p085) |
+| ☑ | [P091](#p091) | Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards | formatting | S | low | low | — |
+| ☑ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
+| ☑ | [P084](#p084) | Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL | formatting | S | low | medium | — |
+| ☑ | [P094](#p094) | Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper | formatting | M | low | low | — |
+| ☑ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
+| ☑ | [P272](#p272) | Move formatStationName to lib/format and parseStructureFit to features/custom-structures | feature-skeleton | S | low | low | — |
+| ☑ | [P098](#p098) | Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard | formatting | S | low | medium | — |
+| ☑ | [P118](#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
 
 <a id="p088"></a>
 
 ## P088: Fix formatRelativeTime's 28-29 day '0mo ago' bug and route the compact elapsed-age ladders through one lib formatter
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -35 / +22
 - **Depends on:** —
@@ -88,7 +88,7 @@ export function formatRelativeTime(date: Date | null, now?: number, largest: 'd'
 
 ## P107: Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -70 production lines (13 slice helpers or inlines, 2 toDayNumber, 2 shadow cutoffs, dayString/isWeekend, about 11 unit constants), +30 in iso-date.ts, +60 test lines; about -20 net test lines after moving the scattered helper tests
 - **Depends on:** —
@@ -257,7 +257,7 @@ The gsc/ingest.ts private chunk (111-115) is a verbatim copy of lib/array.chunk.
 
 ## P089: Make lib/format/time the single UTC date home: one input type, adopt formatIsoDay everywhere, add formatUtcMinute and stripUtcYear
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -50 / +30
 - **Depends on:** [P088](#p088), [P107](#p107)
@@ -338,7 +338,7 @@ export function stripUtcYear(label: string): string             // '9 Oct 2026' 
 
 ## P177: Fix retention-pruner drift with existing retentionCutoff and formatIsoDay; keep per-owner pruners
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20 / +12: delete two local retentionCutoff functions, toDateStr and dateStr; add a 3-line helper; small edits to the test and housekeeping.
 - **Depends on:** [P107](#p107), [P089](#p089)
@@ -421,7 +421,7 @@ export function pruneUsageLogs(database: AnyPgDb, retentionDays: number, now?: D
 
 ## P085: Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -8 / +6 (no new modules)
 - **Depends on:** —
@@ -495,7 +495,7 @@ export function queueSummaryValue(queue: QueueSummary): string; // `${formatQuan
 
 ## P090: Move pluralCount to lib/format/number as formatCount and replace the count-and-noun ternaries
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -40 / +12
 - **Depends on:** [P085](#p085)
@@ -567,7 +567,7 @@ export function formatCount(n: number, singular: string, plural = `${singular}s`
 
 ## P091: Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +8
 - **Depends on:** —
@@ -645,7 +645,7 @@ export function formatFallbackShare(fallback: Pick<FallbackRateData, 'esi' | 'fa
 
 ## P095: Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -10 / +8, plus tests: signedIsk, formatEffectPercent and the `sign` field with its plumbing removed; one 5-line helper added.
 - **Depends on:** —
@@ -707,7 +707,7 @@ export function formatSigned(value: number | null, format: (magnitude: number) =
 
 ## P084: Fold the wormhole-site ISK formatters into src/lib/format/isk.ts presets (Compact gains a K tier, Short and Compact take a unit option) and reuse the typed SITE_TYPE_LABEL
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -27 (format.ts 13, site-meta 14) / +12 in isk.ts
 - **Depends on:** —
@@ -767,7 +767,7 @@ export function formatIskCompact(value: number | null, options?: IskOptions): st
 
 **Tests.** Existing guards that must still pass unchanged: site-meta.test.ts:31,60 ('45M ISK', '12M ISK'); site-social-card.test.ts:27,46 ('125.4M ISK', '1.2B ISK'); ScannerLivePrices.test.ts:97-126; SystemIntelligenceBody.test.ts:93. Changed: src/lib/format/isk.test.ts (Compact sub-million expectation becomes '900K'; add K-tier, negative and unit cases). New: a site-card-header-view.test.ts case with blueLootIsk 950_000 expecting waveValue '950K'; an isk or search test pinning Compact 100_000 → '100K'.
 
-**Notes.** Visible changes: sub-million values on the card header, resource rows, live total and social card change from '0.9M' to '950K' (matching the table), and search changes from '0M' to '100K'. The SEO description copy is unchanged for values >= 1K. Below 1K, site-meta used to print the raw '${value} ISK'; Compact prints '1K ISK' or '0K ISK'. site-meta only formats values > 0 and real site values are far above 1K, so this is accepted. If a reviewer wants it, give Compact a below-1K tier that prints Math.round(value). Note that (0.95).toFixed(1) is '0.9', which is why the feature copy under-reports 950K. The fallow refactoring-target for isk.ts (19 dependents) argues for keeping the export names stable, which this design does.
+**Notes.** Visible changes: sub-million values on the card header, resource rows, live total and social card change from '0.9M' to '950K' (matching the table), and search changes from '0M' to '100K'. The SEO description copy is unchanged for values >= 1K. Below 1K, site-meta used to print the raw '${value} ISK'; Compact prints '1K ISK' or '0K ISK'. site-meta only formats values > 0 and real site values are far above 1K, so this is accepted. If a reviewer wants it, give Compact a below-1K tier that prints Math.round(value). Note that (0.95).toFixed(1) is '0.9', which is why the feature copy under-reports 950K. The shared core picks the tier after rounding, so a figure that would print as 1000 moves up a tier in every preset: 999,960 reads '1.0M' (Short) rather than '1000K', and 999,960,000 reads '1.0B' rather than '1000.0M'. The fallow refactoring-target for isk.ts (19 dependents) argues for keeping the export names stable, which this design does.
 
 <sub>Reported by: area:features-sites-misc, area:lib-infra, concern:formatting, dupes-triage-2.</sub>
 
@@ -775,7 +775,7 @@ export function formatIskCompact(value: number | null, options?: IskOptions): st
 
 ## P094: Add unresolvedName to lib/format/names, retire the '#' and 'Pilot' variants, and give the industry planner one typeName helper
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** About -20 / +35: two ownerFallback functions and an inline switch deleted, seven planner chains shortened, two small helpers plus tests added. About 30 call sites edited across ~25 files.
 - **Depends on:** —
@@ -864,7 +864,7 @@ export function typeNamer(structure: Pick<BlueprintStructure, 'materialNames'>):
 
 ## P108: Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -35 production lines (3 floor constants, 2 predicates, 4 label constants, 2 CorpContexts, 2 ownerFallback, 2 station branches, about 9 inline fallbacks), +15 in labels/context/names, +20 test lines
 - **Depends on:** [P094](#p094)
@@ -989,7 +989,7 @@ Do not touch market-prices' 1e9 ceiling in this change.
 
 ## P272: Move formatStationName to lib/format and parseStructureFit to features/custom-structures
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About 0 net: about 5 lines and one file move, and one file is deleted. Optionally +1 for the satisfies clause.
 - **Depends on:** —
@@ -1047,7 +1047,7 @@ export function parseStructureFit(clipboard: string, resolveTypeId: ResolveTypeI
 
 ## P098: Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -15 production lines (two label functions, a duplicate constant, productionActivity, the cast); about +12 production (activityLabel, the named id, the guard); +20 test lines
 - **Depends on:** —
@@ -1151,7 +1151,7 @@ Existing guards that must stay green: industry-jobs-styles.test.ts jobCategory (
 
 ## P118: Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +15 in production code (net about 0; consistency gain), +30 in tests
 - **Depends on:** —

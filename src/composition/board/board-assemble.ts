@@ -29,6 +29,7 @@ import {
 } from '@/features/net-worth/valuation';
 import type { CharacterSkillData } from '@/features/skill-queue/types';
 import { sortedUniqueIds } from '@/lib/array';
+import { isoDayStartMs } from '@/lib/iso-date';
 import { roundIsk } from '@/lib/math';
 import {
   BOARD_GAPS,
@@ -386,7 +387,7 @@ export interface StoredWorth {
 function latestStoredWorth(history: readonly BoardHistoryDay[]): Map<string, StoredWorth> {
   const latest = new Map<string, StoredWorth>();
   for (const day of history) {
-    const at = Date.parse(`${day.day}T00:00:00Z`);
+    const at = isoDayStartMs(day.day);
     for (const [id, worth] of Object.entries(day.pilots)) latest.set(id, { worth, at });
   }
   return latest;

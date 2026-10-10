@@ -2,8 +2,8 @@ import { cn } from '@/components/ui/cn';
 import { fieldVariants, triggerShape } from '@/components/ui/input';
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
-import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
 import type { NodeMeState } from './me-overrides';
+import { REACTION_ACTIVITY } from './structure-bonus';
 
 const THIN_MARGIN_PCT = 5;
 
@@ -59,7 +59,6 @@ export interface MarginFigures {
   showNet: boolean;
   margin: number | null;
   marginPct: number | null;
-  sign: string;
   missingSystemCostIndex: boolean;
   missingAdjustedPriceCount: number;
 }
@@ -83,14 +82,9 @@ export function deriveMarginFigures(
     showNet,
     margin,
     marginPct,
-    sign: margin !== null && margin > 0 ? '+' : '',
     missingSystemCostIndex: fees.some((fee) => fee.missingSystemCostIndex),
     missingAdjustedPriceCount: new Set(fees.flatMap((fee) => fee.missingAdjustedPriceTypeIds)).size,
   };
-}
-
-export function activityLabel(activityId: number): string {
-  return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
 }
 
 export interface Category {
@@ -126,7 +120,6 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
   );
 }
 
-const REACTION_ACTIVITY_ID = 11;
 export const REACTION_NODE_LABEL = 'Reaction';
 
 export interface NodeLabel {
@@ -148,7 +141,7 @@ export function classifyBuildNode(args: {
   if (isRoot) {
     return { label: groupName || categoryName || 'Final Product', tone: 'teal' };
   }
-  if (activityId === REACTION_ACTIVITY_ID) {
+  if (activityId === REACTION_ACTIVITY) {
     return { label: REACTION_NODE_LABEL, tone: 'purple' };
   }
   return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };

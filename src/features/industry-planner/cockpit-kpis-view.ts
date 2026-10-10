@@ -15,7 +15,6 @@ export interface CockpitMarginView {
   showNet: boolean;
   margin: number | null;
   marginPct: number | null;
-  sign: string;
   feeSystemName: string | undefined;
   marginLabel: string;
 }
@@ -35,14 +34,13 @@ export function cockpitMarginView(
     isReaction ? reactionNetAvailable : location !== null,
     marginMode,
   );
-  const { showNet, margin, marginPct, sign } = deriveMarginFigures(pricing?.summary ?? null, net);
+  const { showNet, margin, marginPct } = deriveMarginFigures(pricing?.summary ?? null, net);
   return {
     net,
     netAvailable,
     showNet,
     margin,
     marginPct,
-    sign,
     feeSystemName: isReaction && reactionSystem ? reactionSystem.systemName : location?.systemName,
     marginLabel: showNet ? 'Net margin' : 'Gross margin',
   };
@@ -62,7 +60,7 @@ export function sellTileView(pricing: BlueprintPricing | null): SellTileView {
     thinAnchor,
     discount,
     hasBadge: thinAnchor !== null || discount !== null,
-    revenue: pricing?.summary ? formatIsk(pricing.summary.revenue) : '—',
+    revenue: formatIsk(pricing?.summary.revenue ?? null),
   };
 }
 
@@ -75,7 +73,7 @@ export function inputCostView(pricing: BlueprintPricing | null): InputCostView {
   const summary = pricing?.summary ?? null;
   return {
     bases: summary?.bases ?? null,
-    inputCost: summary ? formatIsk(summary.inputCost) : '—',
+    inputCost: formatIsk(summary?.inputCost ?? null),
   };
 }
 

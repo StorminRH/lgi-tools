@@ -15,6 +15,7 @@ import {
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
+import { formatCount } from '@/lib/format/number';
 import {
   mapLifecycleFailureMessage,
   requestMapPurge,
@@ -207,7 +208,7 @@ export function TrashWindow({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Permanently delete selected maps?"
-        consequence={`${creatorIds.length} selected map${creatorIds.length === 1 ? '' : 's'} will enter the next scheduled purge. This cannot be undone after the sweep completes.`}
+        consequence={`${formatCount(creatorIds.length, 'selected map')} will enter the next scheduled purge. This cannot be undone after the sweep completes.`}
         busy={busy === 'purge'}
         error={error}
         confirmLabel="Permanently delete"

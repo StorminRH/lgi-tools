@@ -90,7 +90,7 @@ function Timeline({ queue, now }: { queue: BoardSkillsData['queue']; now: number
       <div className="mt-1.5 flex justify-between font-data text-micro text-muted">
         <span>now</span>
         <span>
-          ends {formatUtcDate(new Date(timeline.endsAt))} {formatUtcTime(timeline.endsAt)}
+          ends {formatUtcDate(timeline.endsAt)} {formatUtcTime(timeline.endsAt)}
         </span>
       </div>
     </div>

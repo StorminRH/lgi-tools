@@ -21,7 +21,7 @@ export function deriveDeadLetterView(rows: DeadLetterRow[]) {
     title: `${row.dataset.replaceAll('_', ' ')} · ${row.ownerType} ${row.ownerId}`,
     endpointClass: row.resource,
     failureClass: row.lastErrorCode ?? row.budgetReason ?? 'unclassified',
-    timing: `${formatUtcMinute(row.finishedAt ?? row.createdAt)} UTC`,
+    timing: formatUtcMinute(row.finishedAt ?? row.createdAt),
     attempts: row.attemptCount,
   }));
 }

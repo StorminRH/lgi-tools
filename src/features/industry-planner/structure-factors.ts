@@ -4,6 +4,7 @@ import type { AssembleOptions } from './build-pricing';
 import {
   computeStructureBonus,
   headlineStructureBonus,
+  isProductionActivity,
   MANUFACTURING_ACTIVITY,
   REACTION_ACTIVITY,
   type IndustryActivityId,
@@ -130,8 +131,9 @@ export function structureFactorsFor(args: {
   const bonusOf = (bp: number): StructureBonus | null => {
     if (memo.has(bp)) return memo.get(bp) ?? null;
     const activity = nodeActivityByBlueprint[bp];
-    const host = activity === MANUFACTURING_ACTIVITY || activity === REACTION_ACTIVITY ? hosts[activity] : null;
-    const bonus = host ? bonusFor(host.structure, activity as IndustryActivityId, host.security, { filterIds: nodeFilterIds[bp] ?? [] }) : null;
+    const bonus = isProductionActivity(activity)
+      ? bonusFor(hosts[activity].structure, activity, hosts[activity].security, { filterIds: nodeFilterIds[bp] ?? [] })
+      : null;
     memo.set(bp, bonus);
     return bonus;
   };

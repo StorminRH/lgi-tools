@@ -1,10 +1,7 @@
+import { formatPct } from '@/lib/format/number';
 import type { StructureReadout } from './structure-factors';
 
-/** One decimal at every size, as the game's industry tooltips show bonuses; the math keeps full precision. */
-export function formatBonusPct(n: number): string {
-  return `${n.toFixed(1)}%`;
-}
-
+// `pct` is formatPct's one decimal at every size, as the game's industry tooltips show bonuses; the math keeps full precision.
 export type StructureBonusRow =
   | { kind: 'me'; pct: string }
   | { kind: 'te'; pct: string }
@@ -18,8 +15,8 @@ function reactionRows(readout: StructureReadout): StructureBonusRow[] {
   if (rxn === null) return [];
   const rows: StructureBonusRow[] = [];
   const marker = () => readout.mfg !== null && rows.length === 0;
-  if (rxn.me > 0) rows.push({ kind: 'rxn-me', pct: formatBonusPct(rxn.me), withMarker: marker() });
-  if (rxn.te > 0) rows.push({ kind: 'rxn-te', pct: formatBonusPct(rxn.te), withMarker: marker() });
+  if (rxn.me > 0) rows.push({ kind: 'rxn-me', pct: formatPct(rxn.me), withMarker: marker() });
+  if (rxn.te > 0) rows.push({ kind: 'rxn-te', pct: formatPct(rxn.te), withMarker: marker() });
   return rows;
 }
 
@@ -30,9 +27,9 @@ function structureBonusRows(
   const mfg = readout.mfg;
   const tax = taxPct ?? null;
   const rows: StructureBonusRow[] = [];
-  if (mfg !== null && mfg.me > 0) rows.push({ kind: 'me', pct: formatBonusPct(mfg.me) });
-  if (mfg !== null && mfg.te > 0) rows.push({ kind: 'te', pct: formatBonusPct(mfg.te) });
-  if (mfg !== null && mfg.costBonus > 0) rows.push({ kind: 'cost', pct: formatBonusPct(mfg.costBonus) });
+  if (mfg !== null && mfg.me > 0) rows.push({ kind: 'me', pct: formatPct(mfg.me) });
+  if (mfg !== null && mfg.te > 0) rows.push({ kind: 'te', pct: formatPct(mfg.te) });
+  if (mfg !== null && mfg.costBonus > 0) rows.push({ kind: 'cost', pct: formatPct(mfg.costBonus) });
   rows.push(...reactionRows(readout));
   if (tax !== null) rows.push({ kind: 'tax', taxPct: tax });
   return rows;

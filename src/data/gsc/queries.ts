@@ -1,7 +1,8 @@
 import { and, between, desc, eq, lt, max, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { deleteInBatches, type BatchedDeleteResult } from '@/lib/batched-delete';
+import { deleteInBatches, retentionCutoffDay, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
+import { isoDay } from '@/lib/iso-date';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
   GscDailyPoint,
@@ -13,14 +14,6 @@ import type {
   GscUrlStatus,
 } from './types';
 
-export function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function retentionCutoff(retentionDays: number, now: Date): string {
-  return toDateStr(new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000));
-}
-
 export function pruneGscSearchAnalytics(
   database: AnyPgDb,
   retentionDays: number,
@@ -30,7 +23,7 @@ export function pruneGscSearchAnalytics(
   return deleteInBatches(
     database,
     gscSearchAnalytics,
-    lt(gscSearchAnalytics.date, retentionCutoff(retentionDays, now)),
+    lt(gscSearchAnalytics.date, retentionCutoffDay(retentionDays, now)),
     deadline,
   );
 }
@@ -44,13 +37,13 @@ export function pruneGscUrlInspections(
   return deleteInBatches(
     database,
     gscUrlInspection,
-    lt(gscUrlInspection.inspectionDate, retentionCutoff(retentionDays, now)),
+    lt(gscUrlInspection.inspectionDate, retentionCutoffDay(retentionDays, now)),
     deadline,
   );
 }
 
 function inRange(range: GscRange) {
-  return between(gscSearchAnalytics.date, toDateStr(range.from), toDateStr(range.to));
+  return between(gscSearchAnalytics.date, isoDay(range.from), isoDay(range.to));
 }
 
 const weightedPosition = sql<number>`coalesce(
@@ -235,7 +228,7 @@ export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDail
   const rows = await db
     .select({ day: gscUrlInspection.inspectionDate, indexed, notIndexed })
     .from(gscUrlInspection)
-    .where(between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)))
+    .where(between(gscUrlInspection.inspectionDate, isoDay(range.from), isoDay(range.to)))
     .groupBy(gscUrlInspection.inspectionDate)
     .having(
       sql`bool_and(${gscUrlInspection.sitemapUrlCount} is not null)

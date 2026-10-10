@@ -1,5 +1,6 @@
 import { chunk } from '@/lib/array';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import { HOUR_MS } from '@/lib/iso-date';
 import {
   type EnumeratedOwner,
   makeCorpDescriptor,
@@ -34,7 +35,6 @@ const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 const CONTEXT_FRESHNESS = freshnessGate('corp_context');
 const NAMES_BATCH = 1000;
 const STRUCTURE_NAME_READS_PER_PASS = 10;
-const HOUR_MS = 3_600_000;
 
 function canSyncCorpContext(character: { hasRefreshToken: boolean; missingScopes: string[] }): boolean {
   if (!character.hasRefreshToken) return false;

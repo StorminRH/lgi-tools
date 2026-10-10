@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deriveBudgetStatus } from '../signals';
-import { clientErrorLine, deriveBudgetCard, derivePressureLines, fallbackShare } from './esi-view';
+import { clientErrorLine, deriveBudgetCard, derivePressureLines } from './esi-view';
 
 const quiet = {
   esiSuccess: 0.995,
@@ -130,14 +130,5 @@ describe('clientErrorLine', () => {
     expect(clientErrorLine(summary(1, 5_000))).toMatchObject({ value: '<0.1%', level: 'green' });
     expect(clientErrorLine(summary(30, 200))).toMatchObject({ value: '15%', level: 'red' });
     expect(clientErrorLine(summary(0, 0))).toMatchObject({ value: '—', level: 'neutral', note: '0 of 0 calls' });
-  });
-});
-
-describe('fallbackShare', () => {
-  it('never rounds a real fallback down to zero', () => {
-    expect(fallbackShare({ esi: 999, fallback: 1, perDay: [] })).toBe('<1%');
-    expect(fallbackShare({ esi: 100, fallback: 0, perDay: [] })).toBe('0%');
-    expect(fallbackShare({ esi: 50, fallback: 50, perDay: [] })).toBe('50%');
-    expect(fallbackShare({ esi: 0, fallback: 0, perDay: [] })).toBe('no data');
   });
 });

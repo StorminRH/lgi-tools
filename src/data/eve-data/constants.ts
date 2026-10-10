@@ -34,14 +34,26 @@ export const ALL_ACTIVITY_NAMES = [
 ] as const;
 export type ActivityName = (typeof ALL_ACTIVITY_NAMES)[number];
 
-export const ACTIVITY_ID_LABEL: Record<number, string> = {
-  1: 'Manufacturing',
-  3: 'TE Research',
-  4: 'ME Research',
-  5: 'Copying',
-  8: 'Invention',
-  11: 'Reaction',
+/**
+ * Live ESI still reports some reaction jobs under activity 9, the reaction id
+ * the SDE retired in favour of 11. The SDE-fed planner never sees it.
+ */
+export const LEGACY_REACTION_ACTIVITY_ID = 9;
+
+const ACTIVITY_ID_LABEL: Record<number, string> = {
+  [ACTIVITY_NAME_TO_ID.manufacturing]: 'Manufacturing',
+  [ACTIVITY_NAME_TO_ID.research_time]: 'TE Research',
+  [ACTIVITY_NAME_TO_ID.research_material]: 'ME Research',
+  [ACTIVITY_NAME_TO_ID.copying]: 'Copying',
+  [ACTIVITY_NAME_TO_ID.invention]: 'Invention',
+  [LEGACY_REACTION_ACTIVITY_ID]: 'Reaction',
+  [ACTIVITY_NAME_TO_ID.reaction]: 'Reaction',
 };
+
+/** The display name of an industry activity id, or 'Industry' for one we do not name. */
+export function activityLabel(activityId: number): string {
+  return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
+}
 
 /**
  * The only activities the resolver + planner walk: 1 = manufacturing,

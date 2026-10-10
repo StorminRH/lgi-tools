@@ -1,12 +1,15 @@
 import type { Tone } from '@/components/ui/tones';
+import { activityLabel } from '@/data/eve-data/constants';
 import {
   jobImage,
   type EveImageDescriptor,
 } from '@/data/eve-data/type-images';
 import { sortedUniqueIds } from '@/lib/array';
+import { nameOrUnresolved } from '@/lib/format/names';
+import { formatCount } from '@/lib/format/number';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from './esi-projection';
-import { JOB_STATUS_META, jobActivityLabel } from './industry-jobs-styles';
+import { JOB_STATUS_META } from './industry-jobs-styles';
 import { type JobsSummary, jobProgress, summarizeJobs } from './job-state';
 import type { CharacterJobsData } from './types';
 
@@ -45,10 +48,10 @@ export function jobRowFrameData(
 ): JobRowFrameData {
   const { headlineId, icon, remainingMs, showBar } = jobRowModel(job, now);
   return {
-    headlineName: names[String(headlineId)] ?? `Type #${headlineId}`,
+    headlineName: nameOrUnresolved(names, headlineId, 'type'),
     icon,
     runs: job.runs,
-    activityLabel: jobActivityLabel(job.activity_id),
+    activityLabel: activityLabel(job.activity_id),
     remainingLabel: remainingMs !== null ? `done in ${formatRemaining(remainingMs)}` : '',
     meta: JOB_STATUS_META[job.status],
     showBar,
@@ -58,11 +61,11 @@ export function jobRowFrameData(
 
 export function runnerName(installerId: number | undefined, entityNames: Record<string, string>): string {
   if (installerId === undefined) return 'Unknown pilot';
-  return entityNames[String(installerId)] ?? `Pilot #${installerId}`;
+  return nameOrUnresolved(entityNames, installerId, 'character');
 }
 
 export function jobsSubtitle(summary: JobsSummary): string {
-  const count = summary.total === 1 ? '1 job' : `${summary.total} jobs`;
+  const count = formatCount(summary.total, 'job');
   const ready = summary.readyCount > 0 ? ` · ${summary.readyCount} ready` : '';
   const paused = summary.pausedCount > 0 ? ` · ${summary.pausedCount} paused` : '';
   return `${count}${ready}${paused}`;

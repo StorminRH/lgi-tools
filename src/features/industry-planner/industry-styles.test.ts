@@ -27,7 +27,6 @@ describe('deriveMarginFigures', () => {
       showNet: false,
       margin: 100,
       marginPct: 0.1,
-      sign: '+',
       missingSystemCostIndex: false,
       missingAdjustedPriceCount: 0,
     });
@@ -41,7 +40,6 @@ describe('deriveMarginFigures', () => {
       showNet: true,
       margin: -50,
       marginPct: -0.05,
-      sign: '',
       missingSystemCostIndex: true,
       missingAdjustedPriceCount: 2,
     });
@@ -49,7 +47,6 @@ describe('deriveMarginFigures', () => {
       showNet: false,
       margin: null,
       marginPct: null,
-      sign: '',
       missingSystemCostIndex: false,
       missingAdjustedPriceCount: 0,
     });

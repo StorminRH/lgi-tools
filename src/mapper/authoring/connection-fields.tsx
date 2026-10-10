@@ -25,6 +25,7 @@ import {
   doorHint,
   lifetimeStage,
 } from '@/data/maps/connection-hallway';
+import { formatQuantity } from '@/lib/format/number';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import {
   ConnectionFieldGroup,
@@ -617,5 +618,5 @@ function CodexFact({
 }
 
 function formatFactKg(kg: number): string {
-  return `${kg.toLocaleString()} kg`;
+  return `${formatQuantity(kg)} kg`;
 }

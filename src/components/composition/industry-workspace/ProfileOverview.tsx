@@ -7,8 +7,8 @@ import { Pill } from '@/components/ui/pill';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
-import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
 import type { AvailableStructure } from '@/features/industry-planner/types';
+import { formatPct } from '@/lib/format/number';
 import { SectionPanel } from '../board/SectionBody';
 import { FacilitiesPanel, type HullName } from './FacilitiesPanel';
 import { ProductionCapacity } from './ProductionCapacity';
@@ -33,7 +33,7 @@ interface TeamRow {
 function timeCell(row: TeamRow, pct: number | undefined): ReactNode {
   if (!row.member.linked) return <span className="text-faint">—</span>;
   if (pct === undefined) return <span className="text-faint">Syncing</span>;
-  return pct > 0 ? <span className="text-isk">−{formatBonusPct(pct)}</span> : <span className="text-faint">—</span>;
+  return pct > 0 ? <span className="text-isk">−{formatPct(pct)}</span> : <span className="text-faint">—</span>;
 }
 
 const COLUMNS: readonly StaticTableColumn<TeamRow>[] = [

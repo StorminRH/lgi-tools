@@ -1,10 +1,10 @@
+import { DAY_MS, isoDay, isUtcWeekend } from '@/lib/iso-date';
 
 const DAYS = 21;
 const START = Date.UTC(2026, 8, 1);
-const DAY_MS = 86_400_000;
 
 function dayLabel(index: number): string {
-  return new Date(START + index * DAY_MS).toISOString().slice(0, 10);
+  return isoDay(START + index * DAY_MS);
 }
 
 function wave(index: number, base: number, swing: number, period: number): number {
@@ -15,10 +15,7 @@ const indices = Array.from({ length: DAYS }, (_, index) => index);
 
 export const sampleLabels = indices.map(dayLabel);
 
-export const sampleWeekend = indices.map((index) => {
-  const weekday = new Date(START + index * DAY_MS).getUTCDay();
-  return weekday === 0 || weekday === 6;
-});
+export const sampleWeekend = sampleLabels.map(isUtcWeekend);
 
 export const sampleDaily = indices.map((index) => ({ x: index, y: wave(index, 120, 40, 7) }));
 

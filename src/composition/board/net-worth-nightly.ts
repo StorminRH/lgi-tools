@@ -1,3 +1,4 @@
+import { DAY_MS } from '@/lib/iso-date';
 import { listUserIdsWithLinkedCharacters } from '@/platform/auth/linked-characters';
 import { recordNetWorthSnapshot } from './board-view';
 
@@ -8,8 +9,6 @@ export interface NetWorthRevalueSummary {
   /** Accounts left for tomorrow because the run reached its deadline. */
   deferred: number;
 }
-
-const DAY_MS = 86_400_000;
 
 /** Starts the list one place further on each UTC day, so a deadline cuts a different tail every night. */
 function rotateByDay<T>(items: readonly T[], now: Date): T[] {

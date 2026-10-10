@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { JOB_STATUSES } from './esi-projection';
-import {
-  JOB_STATUS_META,
-  jobActivityLabel,
-  jobCategory,
-} from './industry-jobs-styles';
+import { JOB_STATUS_META, jobCategory } from './industry-jobs-styles';
 
 describe('JOB_STATUS_META', () => {
   it('covers every status the schema can store', () => {
@@ -12,17 +8,6 @@ describe('JOB_STATUS_META', () => {
       expect(JOB_STATUS_META[status].label).toBeTruthy();
       expect(JOB_STATUS_META[status].tone).toBeTruthy();
     }
-  });
-});
-
-describe('jobActivityLabel', () => {
-  it('labels the character-job activities off the shared map', () => {
-    expect(jobActivityLabel(1)).toBe('Manufacturing');
-    expect(jobActivityLabel(8)).toBe('Invention');
-  });
-
-  it('falls back generically for an unknown activity id', () => {
-    expect(jobActivityLabel(999)).toBe('Industry');
   });
 });
 

@@ -1,4 +1,5 @@
 import { getRoleChangeAudit } from '@/data/telemetry/queries';
+import { unresolvedName } from '@/lib/format/names';
 import { formatCount } from '@/lib/format/number';
 import { formatUtcMinute } from '@/lib/format/time';
 import { sanitiseUserText } from '@/lib/sanitise';
@@ -37,9 +38,9 @@ export function deriveAuditRowView(row: AuditRow): {
   toLabel: string;
 } {
   return {
-    timestamp: formatUtcMinute(row.timestamp),
-    actorLabel: row.actorName ?? (row.actorCharacterId == null ? 'Unknown actor' : `Character ${row.actorCharacterId}`),
-    targetLabel: row.targetName ?? (row.targetCharacterId == null ? 'Unknown target' : `Character ${row.targetCharacterId}`),
+    timestamp: formatUtcMinute(row.timestamp, { zone: false }),
+    actorLabel: row.actorName ?? (row.actorCharacterId == null ? 'Unknown actor' : unresolvedName('character', row.actorCharacterId)),
+    targetLabel: row.targetName ?? (row.targetCharacterId == null ? 'Unknown target' : unresolvedName('character', row.targetCharacterId)),
     fromTone: row.from === 'ADMIN' ? 'purple' : 'blue',
     fromLabel: row.from ?? '?',
     toTone: row.to === 'ADMIN' ? 'purple' : 'blue',

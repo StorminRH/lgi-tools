@@ -103,3 +103,14 @@ test('a net margin waiting on new fees is marked as updating', () => {
   expect(render()).toContain('>Net margin<');
   expect(figure()).toContain('price-pending');
 });
+
+test('a loss-making margin carries a true minus, the same glyph the wallet journal uses', () => {
+  const loss = priced([]);
+  h.pricing = { ...loss, net: { ...loss.net, netMargin: -1_250_000, netMarginPct: -12.5 } };
+  const html = render();
+  expect(html).toMatch(/<span[^>]*>−1\.25M<\/span>/);
+  expect(html).not.toContain('-1.25M');
+  // The percentage beside it uses the same minus, so one tile never shows two glyphs.
+  expect(html).toContain('(−12.5%)');
+  expect(html).not.toContain('(-12.5%)');
+});

@@ -10,12 +10,17 @@ import {
   type SystemRef,
 } from '@/composition/board/api-contract';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
-import { type CurrentTraining, currentTraining, summarizeQueue } from '@/features/skill-queue/progress';
+import {
+  type CurrentTraining,
+  currentTraining,
+  entryTimes,
+  isEntryFinished,
+  summarizeQueue,
+} from '@/features/skill-queue/progress';
+import { unresolvedName } from '@/lib/format/names';
 import { formatUtcDate, formatRemaining } from '@/lib/format/time';
+import { DAY_MS, HOUR_MS, isoDayStartMs } from '@/lib/iso-date';
 import { withSearchParams } from '@/lib/search-params';
-
-const HOUR = 60 * 60 * 1000;
-const DAY = 24 * HOUR;
 
 function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
@@ -44,7 +49,7 @@ export interface QueueHealth {
   label: string;
 }
 
-const QUEUE_WARN_MS = DAY;
+const QUEUE_WARN_MS = DAY_MS;
 
 export function queueHealth(skills: BoardSection<BoardSkillsData>, now: number): QueueHealth {
   if (skills.state === 'pending') return { tone: 'quiet', label: 'Syncing from EVE…' };
@@ -99,10 +104,7 @@ function trainingOf(
   return {
     training,
     skillName: skillId !== null ? (names[String(skillId)] ?? null) : null,
-    remainingLabel:
-      training.kind === 'training' && Number.isFinite(training.finishesAt)
-        ? formatRemaining(training.finishesAt - now)
-        : null,
+    remainingLabel: training.kind === 'training' ? formatRemaining(training.finishesAt - now) : null,
   };
 }
 
@@ -223,7 +225,7 @@ export function effectiveSkills(
     atV: skills.atV,
   };
   for (const entry of skills.queue) {
-    if (entry.finish_date === undefined || Date.parse(entry.finish_date) > now) continue;
+    if (!isEntryFinished(entry, now)) continue;
     applyFinishedEntry(effective, skills.levels, entry);
   }
   return effective;
@@ -289,11 +291,11 @@ export function groupSkills(
   return groups.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const FLOW_WINDOW_MS = 30 * DAY;
+const FLOW_WINDOW_MS = 30 * DAY_MS;
 
 export function flowWindowLabel(windowStart: string, now: number): string {
   const start = Date.parse(windowStart);
-  if (!Number.isFinite(start) || now - start >= FLOW_WINDOW_MS - HOUR) return 'last 30 days';
+  if (!Number.isFinite(start) || now - start >= FLOW_WINDOW_MS - HOUR_MS) return 'last 30 days';
   return `since ${formatUtcDate(windowStart)}`;
 }
 
@@ -316,7 +318,7 @@ export function balanceChart(series: readonly { t: number; balance: number }[]):
   const balances = series.map((point) => point.balance);
   return {
     points: balances.map((balance, index) => ({ x: index, y: balance })),
-    labels: series.map((point) => formatUtcDate(new Date(point.t))),
+    labels: series.map((point) => formatUtcDate(point.t)),
     domain: fittedDomain(balances),
   };
 }
@@ -371,7 +373,7 @@ export function boardIsCold(response: { characters: readonly BoardCharacter[] })
 
 export function placeName(place: PlaceRef): string {
   if (place.name !== null) return place.name;
-  return place.kind === 'structure' ? 'Player structure' : `Station ${place.id}`;
+  return place.kind === 'structure' ? 'Player structure' : unresolvedName('station', place.id);
 }
 
 export interface TimelineSegment {
@@ -389,10 +391,9 @@ export function queueTimeline(queue: readonly SkillQueueEntry[], now: number): Q
   const segments: TimelineSegment[] = [];
   let endsAt = now;
   for (const entry of queue) {
-    if (entry.start_date === undefined || entry.finish_date === undefined) continue;
-    const start = Date.parse(entry.start_date);
-    const finish = Date.parse(entry.finish_date);
-    if (!Number.isFinite(start) || !Number.isFinite(finish) || finish <= now) continue;
+    if (isEntryFinished(entry, now)) continue;
+    const { start, finish } = entryTimes(entry);
+    if (start === null || finish === null) continue;
     segments.push({ key: entry.queue_position, weight: finish - Math.max(start, now), training: start <= now });
     endsAt = Math.max(endsAt, finish);
   }
@@ -418,7 +419,7 @@ export function combinedFlow(characters: readonly BoardCharacter[], now: number)
   if (present.length === 0) return null;
   const starts = present.map((journal) => Date.parse(journal.windowStart));
   const latest = Math.max(...starts);
-  const aligned = Math.max(...starts) - Math.min(...starts) < DAY;
+  const aligned = Math.max(...starts) - Math.min(...starts) < DAY_MS;
   const window = flowWindowLabel(new Date(latest).toISOString(), now);
   return {
     inflow: present.reduce((sum, journal) => sum + journal.inflow, 0),
@@ -502,8 +503,6 @@ export interface WorthPoint {
   assets: number | null;
 }
 
-const dayStart = (day: string) => Date.parse(`${day}T00:00:00Z`);
-
 // Recorded days, with the journal's wallet series filling in before the first
 // one so a new account still sees its ISK; assets begin at the first snapshot.
 function stackWorth(
@@ -538,7 +537,7 @@ export function accountWorthSeries(
       netWorth += pilot.netWorth;
       liquid += pilot.liquidIsk;
     }
-    return [{ t: dayStart(day.day), netWorth, liquid }];
+    return [{ t: isoDayStartMs(day.day), netWorth, liquid }];
   });
   return stackWorth(recorded, netWorthSeries(characters, now).points);
 }
@@ -551,7 +550,7 @@ export function pilotWorthSeries(
 ): WorthPoint[] {
   const recorded = history.flatMap((day) => {
     const pilot = day.pilots[String(character.characterId)];
-    return pilot === undefined ? [] : [{ t: dayStart(day.day), netWorth: pilot.netWorth, liquid: pilot.liquidIsk }];
+    return pilot === undefined ? [] : [{ t: isoDayStartMs(day.day), netWorth: pilot.netWorth, liquid: pilot.liquidIsk }];
   });
   return stackWorth(recorded, netWorthSeries([character], now).points);
 }
@@ -563,7 +562,7 @@ export interface NetWorthSeries {
   of: number;
 }
 
-const startOfUtcDay = (t: number) => t - (((t % DAY) + DAY) % DAY);
+const startOfUtcDay = (t: number) => t - (((t % DAY_MS) + DAY_MS) % DAY_MS);
 
 // The balance a pilot held at the end of a day: its last point by then, or,
 // before its first point, that first point (its window opens no later).
@@ -597,10 +596,10 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
   const from = Math.max(...pilots.map((pilot) => Date.parse(pilot.journal.windowStart)));
   const firstDay = startOfUtcDay(from);
   const today = startOfUtcDay(now);
-  if (today - firstDay < DAY) return { ...empty, from };
+  if (today - firstDay < DAY_MS) return { ...empty, from };
   const points: { t: number; balance: number }[] = [];
-  for (let day = firstDay; day < today; day += DAY) {
-    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.series, day + DAY - 1), 0);
+  for (let day = firstDay; day < today; day += DAY_MS) {
+    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.series, day + DAY_MS - 1), 0);
     points.push({ t: day, balance });
   }
   points.push({ t: today, balance: pilots.reduce((sum, pilot) => sum + pilot.wallet.balance, 0) });
@@ -619,7 +618,7 @@ export interface QueueRow {
 export function remainingQueue(queue: readonly SkillQueueEntry[], now: number): QueueRow[] {
   return [...queue]
     .sort((a, b) => a.queue_position - b.queue_position)
-    .filter((entry) => entry.finish_date === undefined || Date.parse(entry.finish_date) > now)
+    .filter((entry) => !isEntryFinished(entry, now))
     .map((entry, index) => ({ number: index + 1, entry }));
 }
 

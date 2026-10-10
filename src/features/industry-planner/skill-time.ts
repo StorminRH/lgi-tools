@@ -1,5 +1,5 @@
+import { formatPct } from '@/lib/format/number';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
-import { formatBonusPct } from './structure-bonus-view';
 import type { BlueprintStructure } from './types';
 
 export const INDUSTRY_SKILL_ID = 3380;
@@ -144,6 +144,6 @@ export function buildSkillsView(
   const activityWidePct = breakdown.manufacturing.totalPct;
   const maxPerItemPct = breakdown.perItem.reduce((max, s) => Math.max(max, s.reductionPct), 0);
   const mfgHeadline =
-    activityWidePct > 0 ? `−${formatBonusPct(activityWidePct)}` : `up to −${formatBonusPct(maxPerItemPct)}`;
+    activityWidePct > 0 ? `−${formatPct(activityWidePct)}` : `up to −${formatPct(maxPerItemPct)}`;
   return { characterName: buildCharacter.name, breakdown, showMfg, showRxn, mfgHeadline };
 }
