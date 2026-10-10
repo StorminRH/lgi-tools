@@ -3,12 +3,13 @@
 import { useEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Drawer } from '@/components/ui/drawer';
+import { SectionPanel } from '@/components/ui/section-panel';
 import type { BoardSection, BoardSkillsData } from '@/composition/board/api-contract';
 import { SkillQueueRows } from '@/features/skill-queue/components/SkillQueueRows';
 import { formatUtcDate, formatUtcTime } from '@/lib/format/time';
 import { queueHealth, queueTimeline, queueWindow, remainingQueue, type TimelineSegment } from '../board-view-model';
 import { HealthLine } from '../board-bits';
-import { SectionBody, SectionPanel } from '../SectionBody';
+import { SectionBody } from '../SectionBody';
 
 /**
  * The next few skills to train, with the whole queue a click away in a

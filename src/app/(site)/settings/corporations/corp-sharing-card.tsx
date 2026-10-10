@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { setCorpDataSharingEndpoint } from '@/platform/auth/api-contract';
@@ -18,8 +17,7 @@ export function CorpSharingCard({
   memberCorps: SharingCorpView[];
 }) {
   return (
-    <Card>
-      <SectionHeader size="md" label="Share corporation data" />
+    <SectionPanel title="Share corporation data">
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         {directorCorps.map((corp) => (
           <SharingSwitchRow key={corp.corporationId} corp={corp} />
@@ -31,7 +29,7 @@ export function CorpSharingCard({
           </p>
         ))}
       </div>
-    </Card>
+    </SectionPanel>
   );
 }
 

@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import type { BoardIndustryData, BoardSection } from '@/composition/board/api-contract';
 import { Pill } from '@/components/ui/pill';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
-import { SectionBody, SectionPanel } from '../SectionBody';
+import { SectionBody } from '../SectionBody';
 
 export function IndustrySection({
   section,

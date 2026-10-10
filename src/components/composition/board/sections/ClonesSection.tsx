@@ -1,10 +1,11 @@
 import type { BoardCharacter, PlaceRef } from '@/composition/board/api-contract';
 import { EntityRow } from '@/components/ui/row';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
 import { placeName } from '../board-view-model';
 import { SystemName } from '../board-bits';
-import { SectionBody, SectionPanel } from '../SectionBody';
+import { SectionBody } from '../SectionBody';
 
 export function ClonesSection({
   section,

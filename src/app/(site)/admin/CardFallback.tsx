@@ -1,6 +1,4 @@
-import { Card } from '@/components/ui/card';
-import { cn } from '@/components/ui/cn';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 
 export function CardFallback({
@@ -13,8 +11,7 @@ export function CardFallback({
   className?: string;
 }) {
   return (
-    <Card className={cn('overflow-hidden', className)}>
-      <SectionHeader size="md" label={label} />
+    <SectionPanel title={label} className={className}>
       <SkeletonGroup label={`Loading ${label}`}>
         {Array.from({ length: rows }, (_, row) => (
           <div
@@ -26,6 +23,6 @@ export function CardFallback({
           </div>
         ))}
       </SkeletonGroup>
-    </Card>
+    </SectionPanel>
   );
 }

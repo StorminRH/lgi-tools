@@ -20,7 +20,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P020](#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
 | ☑ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
 | ☑ | [P016](#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
-| ☐ | [P002](#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
+| ☑ | [P002](#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
 | ☐ | [P017](#p017) | Expose SectionBody's note as SectionNote for board and workspace panels, and use EmptyState and LoadingLabel where they are bypassed | ui-component | S | low | medium | [P002](#p002) |
 | ☐ | [P034](#p034) | Move CardLink to ui, add ui ExternalLink and an inlineLink class, and make MultiplesCell children optional | ui-component | M | low | medium | — |
 | ☐ | [P036](#p036) | Render the admin GSC top-term lists with DistributionBars plus a new subline field | ui-component | S | low | low | — |
@@ -966,7 +966,7 @@ export function StatFigure(props: {
 
 ## P002: Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About +35 (new ui file and test) and about -20 (SectionBody). The 40 sites each lose a line and often an import, about -60. Net about -45.
 - **Depends on:** —

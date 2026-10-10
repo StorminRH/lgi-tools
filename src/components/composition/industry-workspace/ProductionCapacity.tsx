@@ -1,8 +1,8 @@
 'use client';
 
 import { EveImage } from '@/components/eve-image';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
-import { SectionPanel } from '../board/SectionBody';
 import {
   type MemberCapacity,
   poolFigure,

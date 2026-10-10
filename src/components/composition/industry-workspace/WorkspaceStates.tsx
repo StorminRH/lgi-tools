@@ -3,9 +3,9 @@
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { readoutSurface } from '@/components/ui/section-panel';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { EveSignInButton } from '../account/LoginButton';
-import { readoutSurface } from '../board/SectionBody';
 
 export function WorkspaceSkeleton() {
   return (

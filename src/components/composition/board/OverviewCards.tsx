@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { DistributionBars } from '@/components/ui/distribution-bars';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
@@ -14,7 +15,6 @@ import {
   worthShares,
 } from './board-view-model';
 import { WorthChart, WorthHeadline } from './WorthChart';
-import { SectionPanel } from './SectionBody';
 
 /**
  * The aggregate across pilots: wealth as the main card, industry as a slim

@@ -5,13 +5,13 @@ import { type RefObject, useReducer, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, insetSurface } from '@/components/ui/card';
+import { insetSurface } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { HelpPopover } from '@/components/ui/help-popover';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import {
@@ -37,27 +37,26 @@ export function AccountDangerZone({
   const onEmptied = () => setEmptied(true);
 
   return (
-    <Card className={className}>
-      <SectionHeader
-        size="md"
-        label={<span className="text-ui text-tone-red">Danger zone</span>}
-        hint={
-          <HelpPopover label="What purge and unlink do">
-            <PopoverHeading>Purge vs unlink</PopoverHeading>
-            <PopoverRow layout="description" label="Purge">
-              clears what the site has stored for a character and stops LGI.tools from accessing its
-              EVE data.
-            </PopoverRow>
-            <PopoverRow layout="description" label="Unlink">
-              detaches the character from your account. Unlink characters on{' '}
-              <Link href="/settings/characters" className="text-tone-blue hover:underline">
-                Settings → Characters
-              </Link>
-              . You can link them again later.
-            </PopoverRow>
-          </HelpPopover>
-        }
-      />
+    <SectionPanel
+      title={<span className="text-ui text-tone-red">Danger zone</span>}
+      meta={
+        <HelpPopover label="What purge and unlink do">
+          <PopoverHeading>Purge vs unlink</PopoverHeading>
+          <PopoverRow layout="description" label="Purge">
+            clears what the site has stored for a character and stops LGI.tools from accessing its
+            EVE data.
+          </PopoverRow>
+          <PopoverRow layout="description" label="Unlink">
+            detaches the character from your account. Unlink characters on{' '}
+            <Link href="/settings/characters" className="text-tone-blue hover:underline">
+              Settings → Characters
+            </Link>
+            . You can link them again later.
+          </PopoverRow>
+        </HelpPopover>
+      }
+      className={className}
+    >
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         <div className="flex flex-col gap-2.5">
           <p className="text-ui leading-relaxed text-muted">
@@ -88,7 +87,7 @@ export function AccountDangerZone({
       </div>
 
       <RevokeRedirectLightbox open={emptied} />
-    </Card>
+    </SectionPanel>
   );
 }
 

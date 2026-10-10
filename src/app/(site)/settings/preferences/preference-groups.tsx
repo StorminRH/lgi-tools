@@ -2,21 +2,20 @@
 
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import type { PageSettingsSpec } from '@/platform/page-settings/types';
 import { SettingsControlRow } from '../settings-control-row';
 import { derivePreferenceGroups, type PreferenceGroupView } from './preferences-view';
 
 function PreferenceGroupCard({ group }: { group: PreferenceGroupView }) {
   return (
-    <Card className="reveal reveal-1">
-      <SectionHeader size="md" label={group.title} />
+    <SectionPanel title={group.title} className="reveal reveal-1">
       <div className="flex flex-col gap-3 px-3.5 py-3.5">
         {group.models.map((model) => (
           <SettingsControlRow key={model.key} model={model} />
         ))}
       </div>
-    </Card>
+    </SectionPanel>
   );
 }
 

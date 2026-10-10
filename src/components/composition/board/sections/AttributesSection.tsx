@@ -3,12 +3,13 @@
 import { TypeIcon } from '@/components/type-icon';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
-import { SectionPanel, SectionBody } from '../SectionBody';
+import { SectionBody } from '../SectionBody';
 
 const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   intelligence: 'Intelligence',

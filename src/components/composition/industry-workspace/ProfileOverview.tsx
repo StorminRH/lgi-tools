@@ -4,12 +4,12 @@ import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { formatPct } from '@/lib/format/number';
-import { SectionPanel } from '../board/SectionBody';
 import { FacilitiesPanel, type HullName } from './FacilitiesPanel';
 import { ProductionCapacity } from './ProductionCapacity';
 import {

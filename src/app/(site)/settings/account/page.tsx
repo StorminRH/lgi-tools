@@ -4,9 +4,8 @@ import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
-import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getFullSession } from '@/composition/session';
 import { formatIsoDay } from '@/lib/format/time';
@@ -36,8 +35,7 @@ async function AccountContent() {
 
   return (
     <>
-      <Card className="reveal reveal-1">
-        <SectionHeader size="md" label="Overview" />
+      <SectionPanel title="Overview" className="reveal reveal-1">
         <OverviewRow label="Signed in as">
           <CharacterPortrait
             characterId={session.characterId ?? undefined}
@@ -60,7 +58,7 @@ async function AccountContent() {
         <OverviewRow label="Account created">
           <span className="font-data">{formatIsoDay(session.user.createdAt)}</span>
         </OverviewRow>
-      </Card>
+      </SectionPanel>
 
       <AccountDangerZone
         characters={characters.map((c) => ({ characterId: c.characterId, name: c.name }))}

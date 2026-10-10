@@ -21,7 +21,7 @@ export function Card({
 }: {
   hover?: boolean;
   font?: 'ui' | 'data';
-  as?: 'div' | 'li';
+  as?: 'div' | 'li' | 'section';
 } & ComponentProps<'div'>) {
   return createElement(
     as,

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { ChevronDownIcon } from '@/components/ui/icons';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { useSystemSearch } from '@/components/use-system-search';
 import { securityStatusTextClass } from '@/data/eve-data/security';
 import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
@@ -21,7 +22,6 @@ import {
   type ProfileFacility,
 } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
-import { SectionPanel } from '../board/SectionBody';
 import { AddFacilityRow } from './AddFacilityRow';
 import { CategoryChecklist } from './CategoryChecklist';
 import {

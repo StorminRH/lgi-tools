@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
@@ -47,8 +46,7 @@ function MembershipRow({ membership }: { membership: CorporationMembershipView }
 
 function MembershipsCard({ view }: { view: CorporationsView }) {
   return (
-    <Card className="reveal reveal-1">
-      <SectionHeader size="md" label="Memberships" />
+    <SectionPanel title="Memberships" className="reveal reveal-1">
       {view.memberships.length === 0 ? (
         <EmptyState>
           No corporation memberships known yet — they appear once a linked character&apos;s
@@ -66,7 +64,7 @@ function MembershipsCard({ view }: { view: CorporationsView }) {
         </Link>
         .
       </div>
-    </Card>
+    </SectionPanel>
   );
 }
 

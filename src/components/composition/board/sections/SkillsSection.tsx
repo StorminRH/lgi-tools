@@ -1,10 +1,11 @@
 import { Collapsible } from '@/components/ui/collapsible';
 import { cn } from '@/components/ui/cn';
 import { Dot } from '@/components/ui/dot';
+import { SectionPanel } from '@/components/ui/section-panel';
 import type { BoardSection, BoardSkillsData, SkillCatalogGroup } from '@/composition/board/api-contract';
 import { formatQuantity } from '@/lib/format/number';
 import { effectiveSkills, groupSkills, type SkillGroupModel } from '../board-view-model';
-import { SectionBody, SectionPanel } from '../SectionBody';
+import { SectionBody } from '../SectionBody';
 
 const PIPS = [1, 2, 3, 4, 5] as const;
 

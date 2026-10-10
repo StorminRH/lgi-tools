@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { cn } from '@/components/ui/cn';
+import { readoutSurface } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
@@ -8,7 +9,6 @@ import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
 import { effectiveSkills, placeName } from '../board-view-model';
 import { SystemName } from '../board-bits';
-import { readoutSurface } from '../SectionBody';
 import { CharacterIdentity } from './CharacterIdentity';
 import { IndustrySection } from './IndustrySection';
 

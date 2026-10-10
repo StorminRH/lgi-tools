@@ -14,6 +14,7 @@ import { SectionFooter } from '@/components/ui/section-footer';
 import { QuietSectionHead, SectionHead } from '@/components/ui/section-head';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SectionLabel } from '@/components/ui/section-label';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
 import { UrlSync } from '@/components/ui/url-sync';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
@@ -102,20 +103,19 @@ export function StructureGroup() {
       </Specimen>
 
       <Specimen
-        name="SectionHeader + SectionLabel + SectionFooter"
-        source="section-header · section-label · section-footer"
-        note="Card chrome: a header bar or a sentence-case sub-heading for a block inside the card body, the // section label, and a totals footer. as renders the label as an h2 or h3 so cards join the page outline."
+        name="SectionPanel + SectionHeader + SectionLabel + SectionFooter"
+        source="section-panel · section-header · section-label · section-footer"
+        note="Card chrome. SectionPanel is the titled card: the card glass under a medium header bar, with meta at the right of the bar. Inside it, a small header bar or a sentence-case sub-heading titles a block, and a footer carries totals; the // section label titles a group. titleAs on SectionPanel, and as on SectionHeader, render the title as an h2 or h3 so cards join the page outline."
       >
         <div className="flex flex-col gap-4">
-          <Card className="overflow-hidden">
-            <SectionHeader label="Materials" hint="12 items" />
-            <SectionHeader label="Medium bar" hint="size=md" size="md" />
+          <SectionPanel title="Materials" meta="12 items">
+            <SectionHeader label="Small bar" hint="size=sm" />
             <div className="px-3.5 py-3">
               <SectionHeader label="Sub variant · as h3" variant="sub" as="h3" className="mb-2" />
               <p className="font-ui text-ui text-muted">The block this sub-heading titles.</p>
             </div>
             <SectionFooter label="Total" value="128.4M ISK" />
-          </Card>
+          </SectionPanel>
           <div className="flex flex-col gap-2">
             <SectionLabel meta={<Stat>3 items</Stat>}>Section label</SectionLabel>
             <SectionLabel prefix={false}>Without prefix</SectionLabel>
