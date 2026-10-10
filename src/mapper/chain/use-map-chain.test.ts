@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc, Id } from '@/data/convex/data-model';
 import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
+import { chainSnapshot } from './__tests__/chain-snapshot-fixture';
 import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
   chainSignature,
@@ -609,22 +610,9 @@ describe('client subscription projections', () => {
 
 describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
   it('removes a tombstoned root from canvas state and re-roots to the next live system', () => {
-    const before: ChainSnapshot = {
-      systems: {
-        rows: [{ systemId: JITA }, { systemId: AMARR }],
-        complete: true,
-      },
-      connections: {
-        rows: [
-          {
-            connectionId: 'c1',
-            fromSystemId: JITA,
-            toSystemId: AMARR,
-          },
-        ],
-        complete: true,
-      },
-    };
+    const before = chainSnapshot([JITA, AMARR], [
+      { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
+    ]);
     const populated = reconcileChain(
       EMPTY_CHAIN_STATE,
       before,
@@ -632,10 +620,7 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
     );
     expect(deriveChainTree(factsFromSnapshot(before)).rootSystemId).toBe(JITA);
 
-    const afterFilter: ChainSnapshot = {
-      systems: { rows: [{ systemId: AMARR }], complete: true },
-      connections: { rows: [], complete: true },
-    };
+    const afterFilter = chainSnapshot([AMARR]);
     const after = reconcileChain(
       populated.state,
       afterFilter,
@@ -652,21 +637,8 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
   });
 
   it('re-derives the original root from pure facts once it is live again', () => {
-    const withoutRoot: ChainSnapshot = {
-      systems: { rows: [{ systemId: AMARR }, { systemId: DODIXIE }], complete: true },
-      connections: { rows: [], complete: true },
-    };
-    const restored: ChainSnapshot = {
-      systems: {
-        rows: [
-          { systemId: JITA },
-          { systemId: AMARR },
-          { systemId: DODIXIE },
-        ],
-        complete: true,
-      },
-      connections: { rows: [], complete: true },
-    };
+    const withoutRoot = chainSnapshot([AMARR, DODIXIE]);
+    const restored = chainSnapshot([JITA, AMARR, DODIXIE]);
     expect(deriveChainTree(factsFromSnapshot(withoutRoot)).rootSystemId).toBe(
       AMARR,
     );
@@ -676,32 +648,16 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
 
 describe('optimistic add through the merge', () => {
   it('shows an optimistic edge then removes it on rollback to server truth', () => {
-    const home: ChainSnapshot = {
-      systems: { rows: [{ systemId: JITA }], complete: true },
-      connections: { rows: [], complete: true },
-    };
+    const home = chainSnapshot([JITA]);
     const withHome = reconcileChain(
       EMPTY_CHAIN_STATE,
       home,
       keepPositions,
     );
 
-    const optimistic: ChainSnapshot = {
-      systems: {
-        rows: [{ systemId: JITA }, { systemId: AMARR }],
-        complete: true,
-      },
-      connections: {
-        rows: [
-          {
-            connectionId: 'optimistic:mapConnections:c1',
-            fromSystemId: JITA,
-            toSystemId: AMARR,
-          },
-        ],
-        complete: true,
-      },
-    };
+    const optimistic = chainSnapshot([JITA, AMARR], [
+      { connectionId: 'optimistic:mapConnections:c1', fromSystemId: JITA, toSystemId: AMARR },
+    ]);
     const local = reconcileChain(
       withHome.state,
       optimistic,
@@ -727,35 +683,12 @@ describe('optimistic add through the merge', () => {
   });
 
   it('swaps a confirmed id in place with no connection intent pair', () => {
-    const optimistic: ChainSnapshot = {
-      systems: {
-        rows: [{ systemId: JITA }, { systemId: AMARR }],
-        complete: true,
-      },
-      connections: {
-        rows: [
-          {
-            connectionId: 'optimistic:mapConnections:c1',
-            fromSystemId: JITA,
-            toSystemId: AMARR,
-          },
-        ],
-        complete: true,
-      },
-    };
-    const confirmed: ChainSnapshot = {
-      systems: optimistic.systems,
-      connections: {
-        rows: [
-          {
-            connectionId: 'confirmed:c1',
-            fromSystemId: JITA,
-            toSystemId: AMARR,
-          },
-        ],
-        complete: true,
-      },
-    };
+    const optimistic = chainSnapshot([JITA, AMARR], [
+      { connectionId: 'optimistic:mapConnections:c1', fromSystemId: JITA, toSystemId: AMARR },
+    ]);
+    const confirmed = chainSnapshot([JITA, AMARR], [
+      { connectionId: 'confirmed:c1', fromSystemId: JITA, toSystemId: AMARR },
+    ]);
     const local = reconcileChain(
       EMPTY_CHAIN_STATE,
       optimistic,

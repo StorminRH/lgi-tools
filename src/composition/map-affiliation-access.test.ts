@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 vi.mock('./account-lifecycle/tracking-merge-retry', () => ({ reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }) }));
 
@@ -33,7 +34,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.readPendingMapAccessChanges.mockResolvedValue(pending);
   mocks.projectMapAccess.mockResolvedValue({ outcome: 'applied' });
-  vi.spyOn(console, 'error').mockImplementation(() => {});
+  silenceConsolePrefixes('error', ['[map-affiliation-access] projection retained for retry']);
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 

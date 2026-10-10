@@ -27,7 +27,23 @@ instead of spying.
 
 Shared test helpers live under `src/db/__tests__/support/` and
 `convex/__tests__/*.setup.ts`. Import factories explicitly inside each test (or
-a per-test factory). Harness-owned `beforeAll` / `beforeEach` for disposable
+a per-test factory). A unit test that mocks `@/db` stands in the database with
+`createFakeQueryChain` from `src/db/__tests__/support/fake-query-chain.ts`, not
+a hand-built thenable chain. A test that mocks `react` to call hooks or
+components as plain functions and needs state, memos or effects that persist
+across renders runs on `createHookRuntime` from
+`src/lib/__tests__/hook-runtime.ts`, not a hand-rolled slot runtime; a scripted
+single-purpose fake (a fixed ref, spy setters, a hydration switch) stays local,
+as does any copy in `components/ui`, which may not import `lib`. A gate
+suite that scans the source tree lists files with `listSourceFiles` or
+`listRouteFiles` and reads them through `filesMatching`, `stripComments`,
+`valueImportSpecifiers` and `resolveLocalImport` from
+`src/lib/__tests__/source-scan.ts`, not a hand-rolled `readdirSync` walker,
+comment stripper or import regex; each gate still passes its own scan scope
+(roots, extensions, skipped directories and suffixes). Domain
+objects come from the owner's `__tests__/` fixture (`siteDetail`,
+`siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`), not a local literal builder;
+pass every field the test reads. Harness-owned `beforeAll` / `beforeEach` for disposable
 schema lifecycle is the exception — do not introduce extra hooks that hide
 arrange steps. That conflicts with the principles below.
 
@@ -112,7 +128,8 @@ Do not spin a live Convex deployment for the Vitest gate.
 - Keep test output free of stray logging. When a log is part of the tested
   contract, assert on the calls (prefer a stable first-argument tag plus
   `expect.any(Error)`; do not pin long prose). When the log is incidental,
-  silence only the expected tags — a blanket `.mockImplementation(() => {})`
+  silence only the expected tags with `silenceConsolePrefixes` from
+  `src/lib/__tests__/console-tags.ts` — a blanket `.mockImplementation(() => {})`
   can hide a real regression.
 
 ## Examples

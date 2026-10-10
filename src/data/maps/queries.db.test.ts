@@ -1,8 +1,8 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { account } from '@/db/auth-schema';
 import {
   createDbTestHarness,
+  seedAccount,
   seedCharacter,
   seedEveAccount,
   seedUser,
@@ -84,10 +84,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await seedEveAccount(harness.db, { id: 'acc-2', characterId: 43, userId: 'member' });
     await seedEveAccount(harness.db, { id: 'acc-3', characterId: 44, userId: 'outsider' });
     await seedEveAccount(harness.db, { id: 'acc-4', characterId: 45, userId: 'direct' });
-    await harness.db.insert(account).values({
-      id: 'discord', accountId: '42', providerId: 'discord', userId: 'outsider',
-      createdAt: new Date(), updatedAt: new Date(),
-    });
+    await seedAccount(harness.db, { id: 'discord', accountId: '42', providerId: 'discord', userId: 'outsider' });
 
     expect((await getMapAccessCandidateUserIds([42, 45], [990])).sort()).toEqual(['direct', 'member']);
     await expect(getMapAccessCandidateUserIds([], [990])).resolves.toEqual(['member']);

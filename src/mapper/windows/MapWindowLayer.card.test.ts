@@ -1,43 +1,16 @@
 import type { ReactElement, ReactNode } from 'react';
 import { expect, test, vi } from 'vitest';
 
-// A tiny hook runtime: state, refs and effect deps persist by call order, and
-// an effect re-runs (after its cleanup) only when its deps change.
-const h = vi.hoisted(() => {
-  const slots: { value: unknown }[] = [];
-  const runtime = {
-    index: 0,
-    flow: { nodes: [] as { id: string; selected: boolean }[], userSelectionActive: false },
-    slot<T>(init: () => T): { value: T } {
-      const index = runtime.index++;
-      slots[index] ??= { value: init() };
-      return slots[index] as { value: T };
-    },
-    effect(effect: () => void | (() => void), deps?: readonly unknown[]) {
-      const state = runtime.slot(() => ({ deps: undefined as readonly unknown[] | undefined, cleanup: undefined as void | (() => void) })).value;
-      if (state.deps && deps?.every((dep, i) => Object.is(dep, state.deps?.[i]))) return;
-      state.cleanup?.();
-      state.cleanup = effect();
-      state.deps = deps;
-    },
-  };
-  return runtime;
-});
+const h = vi.hoisted(() => ({
+  flow: { nodes: [] as { id: string; selected: boolean }[], userSelectionActive: false },
+}));
+// State, refs and effect deps persist by call order, and an effect re-runs
+// (after its cleanup) only when its deps change.
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react')>()),
-  useState: <T>(initial: T) => {
-    const state = h.slot(() => initial);
-    const set = (next: T | ((current: T) => T)) => {
-      state.value = typeof next === 'function' ? (next as (current: T) => T)(state.value) : next;
-    };
-    return [state.value, set];
-  },
-  useRef: <T>(initial: T) => h.slot(() => ({ current: initial })).value,
-  useMemo: <T>(factory: () => T) => factory(),
-  useCallback: <T>(callback: T) => callback,
-  useEffect: h.effect,
-  useLayoutEffect: h.effect,
+  ...rt.react,
 }));
 vi.mock('@xyflow/react', () => ({
   useStore: (selector: (state: typeof h.flow) => unknown) => selector(h.flow),
@@ -63,9 +36,10 @@ function select(...ids: number[]) {
 }
 
 function card(): SummaryProps {
-  h.index = 0;
-  const outer = MapWindowLayer({ dockSystemId: null, onDeselect }) as ReactElement<object, (props: object) => ReactElement<{ children: ReactNode[] }>>;
-  const layer = outer.type(outer.props);
+  const layer = rt.render(() => {
+    const outer = MapWindowLayer({ dockSystemId: null, onDeselect }) as ReactElement<object, (props: object) => ReactElement<{ children: ReactNode[] }>>;
+    return outer.type(outer.props);
+  });
   const summary = layer.props.children.find((child) => {
     const { type } = child as ReactElement;
     return typeof type === 'function' && type.name === 'SummarySurface';

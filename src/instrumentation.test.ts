@@ -1,17 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 
 import { registerNeonColdStartTelemetry } from '@/instrumentation.node';
 import { register } from '@/instrumentation';
 
-describe('coverage-gaps', () => {
-  it('pins leftover runtime exports on the test graph', () => {
-    const pinned = [
-      registerNeonColdStartTelemetry,
-      register,
-    ];
-    expect(pinned.length).toBeGreaterThan(0);
-    for (const value of pinned) {
-      expect(value).toBeDefined();
-    }
-  });
+test('pins leftover runtime exports on the test graph', () => {
+  expect([registerNeonColdStartTelemetry, register]).not.toContain(undefined);
 });

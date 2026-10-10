@@ -1,16 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const h = vi.hoisted(() => ({
   purgeEligibleMaps: vi.fn(),
-  reserve: vi.fn(),
   logUsageEvent: vi.fn(),
 }));
+const lock = createReservedConnectionMock();
 
 vi.mock('@/composition/map-purge', () => ({
   purgeEligibleMaps: (...args: unknown[]) => h.purgeEligibleMaps(...args),
 }));
 vi.mock('@/db', () => ({
-  directClient: { reserve: (...args: unknown[]) => h.reserve(...args) },
+  directClient: { reserve: (...args: unknown[]) => lock.reserve(...args) },
 }));
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
@@ -20,29 +23,22 @@ vi.mock('next/server', () => ({
   connection: vi.fn().mockResolvedValue(undefined),
 }));
 
-function authedRequest(): Request {
-  return new Request('http://localhost:3000/api/cron/purge-maps', {
-    headers: { authorization: 'Bearer cron-secret' },
-  });
-}
+const ROUTE = '/api/cron/purge-maps';
 
 beforeEach(() => {
   vi.resetModules();
-  vi.stubEnv('CRON_SECRET', 'cron-secret');
+  vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
   h.purgeEligibleMaps.mockReset().mockResolvedValue({
     selected: 2,
     tombstoned: 1,
     deletedDocuments: 300,
     projectionPending: 0,
   });
-  h.reserve.mockReset().mockImplementation(async () => {
-    const reserved = vi.fn()
-      .mockResolvedValueOnce([{ got: true }])
-      .mockResolvedValueOnce([{ unlocked: true }]);
-    return Object.assign(reserved, { release: vi.fn() });
-  });
+  lock.reserve.mockClear();
+  lock.reserved.mockClear();
+  lock.reserved.release.mockClear();
   h.logUsageEvent.mockReset().mockResolvedValue(undefined);
-  vi.spyOn(console, 'log').mockImplementation(() => {});
+  silenceConsolePrefixes('log', ['{"scope":"cron:']);
 });
 
 afterEach(() => {
@@ -59,7 +55,7 @@ describe('GET /api/cron/purge-maps', () => {
 
   it('runs the bounded sweep under the shared cron shell', async () => {
     const { GET } = await import('./route');
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       status: 'purged',

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { directClient, getDeletionClient } from '@/db';
 import {
   createDbTestHarness,
+  seedAccount,
   seedEveAccount as insertEveAccount,
   seedCharacter,
   seedUser as insertUser,
@@ -93,12 +94,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     id: string,
     characterId: number,
     userId: string,
-    createdAt: Date = new Date(),
+    createdAt?: Date,
   ) {
-    await insertEveAccount(harness.db, { id, characterId, userId }, {
-      createdAt,
-      updatedAt: createdAt,
-    });
+    await insertEveAccount(harness.db, { id, characterId, userId }, { createdAt });
   }
 
   async function seedSession(
@@ -156,7 +154,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await seedCharacter(harness.db, MOVED_CHAR, { name: 'Source Main', portraitUrl: 'source-portrait' });
     await seedCharacter(harness.db, OTHER_CHAR, { name: 'Target Oldest', portraitUrl: 'target-portrait' });
     // Same account id under another provider must not resolve to its holder.
-    await harness.db.insert(account).values({
+    await seedAccount(harness.db, {
       id: 'third-discord', accountId: String(UNLINKED_CHAR), providerId: 'discord', userId: THIRD_ID,
     });
 
@@ -278,11 +276,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID);
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID);
     await seedEveAccount('target', 90000023, TARGET_ID);
-    await harness.db.insert(account).values([
-      { id: 'discord', accountId: 'not-a-character', providerId: 'discord', userId: TARGET_ID },
-      // Another provider may reuse an EVE character's id; it is not a character.
-      { id: 'discord-clash', accountId: String(MOVED_CHAR), providerId: 'discord', userId: TARGET_ID },
-    ]);
+    await seedAccount(harness.db, { id: 'discord', accountId: 'not-a-character', providerId: 'discord', userId: TARGET_ID });
+    // Another provider may reuse an EVE character's id; it is not a character.
+    await seedAccount(harness.db, { id: 'discord-clash', accountId: String(MOVED_CHAR), providerId: 'discord', userId: TARGET_ID });
 
     await expect(getAccountTotals()).resolves.toEqual({ users: 2, characters: 3 });
   });

@@ -27,7 +27,6 @@ describe('readEsiAuthed', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
@@ -130,7 +129,6 @@ describe('readEsiPagedAuthed', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 

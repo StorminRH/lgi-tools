@@ -1,5 +1,6 @@
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -69,6 +70,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', () => {
@@ -213,7 +215,7 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
   });
 
   it('completes purge and keeps durable retry work when captured delivery fails after the grant delete', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[maps/purge] projection failed for']);
     hooks.deliverCaptured.mockRejectedValue(new Error('door down'));
     await seedUser(harness.db, 'owner');
     await harness.db.insert(maps).values({

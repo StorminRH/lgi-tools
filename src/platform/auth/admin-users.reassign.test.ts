@@ -1,32 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { chain, state } = vi.hoisted(() => {
-  const state = {
-    results: [] as unknown[],
-    calls: { delete: 0, update: 0 },
-  };
-  const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
-  };
-  for (const method of ['set', 'where', 'select', 'from', 'limit', 'orderBy', 'returning']) {
-    chain[method] = () => chain;
-  }
-  chain.for = () => Promise.resolve([]);
-  chain.update = () => {
-    state.calls.update += 1;
-    return chain;
-  };
-  chain.delete = () => {
-    state.calls.delete += 1;
-    return chain;
-  };
-  return { chain, state };
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
 });
 
 vi.mock('@/db', () => ({ db: chain, directClient: chain, resolveLockConnectionUrl: () => undefined }));
-vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => ({
-  transaction: (work: (tx: unknown) => unknown) => work(chain),
-}) }));
+vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => chain }));
 vi.mock('./deletion-jobs', async (importOriginal) => ({
   ...await importOriginal<typeof import('./deletion-jobs')>(),
   usersHavePendingDeletion: vi.fn().mockResolvedValue(false),
@@ -42,10 +22,12 @@ const runners = {
 
 import { deleteLinkedCharacter, reassignCharacter } from './admin-users';
 
+// withLockedUsers awaits a SELECT ... FOR UPDATE before the change runs.
+const lockedSource = [{ id: 'eve-user-2' }];
+const lockedPair = [{ id: 'admin-1' }, { id: 'eve-user-2' }];
+
 beforeEach(() => {
-  state.results = [];
-  state.calls.delete = 0;
-  state.calls.update = 0;
+  reset();
   runners.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
   runners.runBeforeCharacterUnlink.mockReset().mockResolvedValue([]);
   runners.runAfterFailedCharacterUnlink.mockReset().mockResolvedValue(undefined);
@@ -62,7 +44,7 @@ it('does not delete an admin-unlinked character when revocation fails', async ()
 });
 
 it('restores claims when admin unlink finds no matching account', async () => {
-  state.results = [[]];
+  state.results = [lockedSource, []];
   await expect(deleteLinkedCharacter('eve-user-2', 100, runners)).resolves.toBe(false);
   expect(runners.runAfterFailedCharacterUnlink).toHaveBeenCalledWith(100);
   expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
@@ -70,14 +52,14 @@ it('restores claims when admin unlink finds no matching account', async () => {
 
 it('restores claims when admin unlink delete fails', async () => {
   const failure = new Error('Neon unavailable');
-  state.results = [Promise.reject(failure)];
+  state.results = [lockedSource, Promise.reject(failure)];
   await expect(deleteLinkedCharacter('eve-user-2', 100, runners)).rejects.toBe(failure);
   expect(runners.runAfterFailedCharacterUnlink).toHaveBeenCalledWith(100);
 });
 
 describe('reassignCharacter', () => {
   it('deletes the source user when moving its last character', async () => {
-    state.results = [[{ id: 'moved' }], [], [], [], undefined];
+    state.results = [lockedPair, [{ id: 'moved' }], [], [], lockedSource, [], undefined];
     const out = await reassignCharacter({
       characterId: 100,
       fromUserId: 'eve-user-2',
@@ -102,7 +84,7 @@ describe('reassignCharacter', () => {
   it('keeps the source user when required collaborative purge fails', async () => {
     const failure = new Error('map purge unavailable');
     runners.runBeforeUserDelete.mockRejectedValueOnce(failure);
-    state.results = [[{ id: 'moved' }], [], []];
+    state.results = [lockedPair, [{ id: 'moved' }], [], []];
 
     await expect(
       reassignCharacter({
@@ -128,7 +110,7 @@ describe('reassignCharacter', () => {
 
   it('restores claims when moving the account fails', async () => {
     const failure = new Error('Neon unavailable');
-    state.results = [Promise.reject(failure)];
+    state.results = [lockedPair, Promise.reject(failure)];
     await expect(reassignCharacter({
       characterId: 100, fromUserId: 'eve-user-2', toUserId: 'admin-1', runners,
     })).rejects.toBe(failure);
@@ -137,7 +119,7 @@ describe('reassignCharacter', () => {
   });
 
   it('restores claims when the compare-and-swap matches no account', async () => {
-    state.results = [[], [], [], [], undefined];
+    state.results = [lockedPair, [], [], [], lockedSource, [], undefined];
     await expect(reassignCharacter({
       characterId: 100, fromUserId: 'eve-user-2', toUserId: 'admin-1', runners,
     })).resolves.toEqual({ sourceDeleted: true });

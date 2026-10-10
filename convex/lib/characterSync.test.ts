@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { problemBodySchema } from '@/lib/problem';
+import {
+  type AppFailure,
+  conflictFailure,
+  dependencyUnavailableFailure,
+  notFoundFailure,
+  unauthenticatedFailure,
+  unexpectedFailure,
+} from '@/lib/failure';
+import { problemBody, serializeProblem } from '@/lib/problem';
 import {
   resolveExpiresAt,
   vendCharacterToken,
@@ -9,18 +17,6 @@ const NOW = 1_700_000_000_000;
 const FALLBACK = 60_000;
 
 const ENV = { siteUrl: 'https://app.test', secret: 'service-secret' };
-
-const problemResponse = (code: string, status: number) =>
-  Response.json(
-    problemBodySchema.parse({
-      type: `https://lgi.tools/problems/${code}`,
-      title: 'Request failed',
-      status,
-      code,
-      correlationId: 'correlation-id',
-    }),
-    { status },
-  );
 
 const stubFetch = (response: Response | Error) => {
   const mock =
@@ -57,7 +53,7 @@ describe('vendCharacterToken', () => {
   });
 
   it('maps 404 to a silent skip', async () => {
-    stubFetch(problemResponse('not_found', 404));
+    stubFetch(serializeProblem(problemBody(notFoundFailure(), 'correlation-id')));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).resolves.toEqual({
       kind: 'skip',
@@ -65,15 +61,19 @@ describe('vendCharacterToken', () => {
   });
 
   it('maps 409 to a reauth requirement', async () => {
-    stubFetch(problemResponse('reauth_required', 409));
+    stubFetch(serializeProblem(problemBody(conflictFailure('reauth_required'), 'correlation-id')));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).resolves.toEqual({
       kind: 'reauth',
     });
   });
 
-  it.each([401, 500, 502])('maps other non-success status %i to unavailable', async (status) => {
-    stubFetch(problemResponse(status === 502 ? 'upstream_error' : 'unauthenticated', status));
+  it.each<[number, AppFailure]>([
+    [401, unauthenticatedFailure()],
+    [500, unexpectedFailure('not_configured')],
+    [502, dependencyUnavailableFailure('upstream_error', 502)],
+  ])('maps other non-success status %i to unavailable', async (_status, failure) => {
+    stubFetch(serializeProblem(problemBody(failure, 'correlation-id')));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).resolves.toEqual({
       kind: 'unavailable',

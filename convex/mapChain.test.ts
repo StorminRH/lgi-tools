@@ -1,9 +1,9 @@
 // @vitest-environment edge-runtime
 import { readFileSync } from 'node:fs';
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import type { PaginationResult } from 'convex/server';
-import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
+import { stripComments } from '@/lib/__tests__/source-scan';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { MAP_EVENT_READ_LIMIT } from './mapChainEvents';
@@ -13,6 +13,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { expectConvexErrorCode, grantMapAccess, type Chain } from './__tests__/convexTest.setup';
 
 const chain = {
   watchMapAccess: api.mapChainAccess.watchMapAccess,
@@ -31,21 +32,8 @@ const STRANGER = 'user-stranger';
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
 
-type Chain = TestConvex<typeof schema>;
-
 function asUser(t: Chain, userId = EDITOR) {
   return t.withIdentity({ subject: userId });
-}
-
-async function grant(
-  t: Chain,
-  mapId: string,
-  userId: string,
-  roles: ('viewer' | 'editor' | 'admin')[],
-): Promise<void> {
-  await t.run(async (ctx) => {
-    await ctx.db.insert('mapAccess', { mapId, userId, roles });
-  });
 }
 
 async function placeSystems(t: Chain, mapId: string, systemIds: number[]): Promise<void> {
@@ -72,16 +60,6 @@ async function connect(
       shipSize: 'M',
     }));
   });
-}
-
-async function expectErrorCode(call: Promise<unknown>, code: string): Promise<void> {
-  try {
-    await call;
-    expect.unreachable(`expected ConvexError ${code}`);
-  } catch (error) {
-    expect(error).toBeInstanceOf(ConvexError);
-    expect((error as ConvexError<{ code: string }>).data.code).toBe(code);
-  }
 }
 
 function page(numItems: number, cursor: string | null = null) {
@@ -113,7 +91,7 @@ describe('map chain read path', () => {
       ),
     )('serves $label of $fn an empty, complete page', async ({ fn, subject }) => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
       await placeSystems(t, MAP_A, [JITA]);
       await connect(t, MAP_A, JITA, AMARR);
 
@@ -133,7 +111,7 @@ describe('map chain read path', () => {
       ['a caller holding no claim', STRANGER],
     ] as const)('reports access as not granted for %s', async (_label, subject) => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
 
       const result = await (subject === undefined
         ? t.query(chain.watchMapAccess, { mapId: MAP_A })
@@ -147,7 +125,7 @@ describe('map chain read path', () => {
       ['a caller holding no claim', STRANGER],
     ] as const)('serves %s an empty event ledger', async (_label, subject) => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
       await t.run(async (ctx) => {
         await ctx.db.insert('mapEvents', {
           mapId: MAP_A,
@@ -167,8 +145,8 @@ describe('map chain read path', () => {
 
     it('reports granted access for a viewer and canEdit for an editor', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, VIEWER, ['viewer']);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
 
       expect(
         await asUser(t, VIEWER).query(chain.watchMapAccess, { mapId: MAP_A }),
@@ -182,7 +160,7 @@ describe('map chain read path', () => {
 
     it('gives a viewer disjoint resolved and unresolved connection feeds', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, VIEWER, ['viewer']);
+      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
       await placeSystems(t, MAP_A, [JITA, AMARR]);
       await connect(t, MAP_A, JITA, AMARR);
       const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
@@ -219,8 +197,8 @@ describe('map chain read path', () => {
 
     it('returns tombstoned unresolved rows as slot holders', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
-      await grant(t, MAP_A, VIEWER, ['viewer']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
       await placeSystems(t, MAP_A, [JITA]);
       const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
@@ -247,7 +225,7 @@ describe('map chain read path', () => {
 
     it('flips access off on revocation and restores rows when the claim returns', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
       await placeSystems(t, MAP_A, [JITA]);
 
       const before = await asUser(t).query(chain.watchMapSystems, {
@@ -275,7 +253,7 @@ describe('map chain read path', () => {
         })).page,
       ).toEqual([]);
 
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
 
       expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: true,
@@ -294,8 +272,8 @@ describe('map chain read path', () => {
   describe('reads', () => {
     it('returns only the requested map’s rows', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
-      await grant(t, MAP_B, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_B, EDITOR, ['editor']);
       await placeSystems(t, MAP_A, [JITA]);
       await placeSystems(t, MAP_B, [AMARR]);
       await connect(t, MAP_B, AMARR, AMARR + 1);
@@ -315,7 +293,7 @@ describe('map chain read path', () => {
 
     it('continues a multi-page systems read across real cursors', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
       const seeded = [JITA, JITA + 1, JITA + 2, JITA + 3, JITA + 4];
       await placeSystems(t, MAP_A, seeded);
 
@@ -341,7 +319,7 @@ describe('map chain read path', () => {
 
     it('clamps an oversized requested page to the maximum', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
       await placeSystems(
         t,
         MAP_A,
@@ -359,7 +337,7 @@ describe('map chain read path', () => {
 
     it('reads only one map event range, newest-first and bounded', async () => {
       const t = convexTest(schema, modules);
-      await grant(t, MAP_A, VIEWER, ['viewer']);
+      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
       await t.run(async (ctx) => {
         for (let at = 0; at < MAP_EVENT_READ_LIMIT + 2; at += 1) {
           await ctx.db.insert('mapEvents', {
@@ -435,7 +413,7 @@ describe('map chain read path', () => {
       await placeSystems(t, MAP_A, [JITA, AMARR]);
       await connect(t, MAP_A, JITA, AMARR);
 
-      await expectErrorCode(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
           mapId: MAP_A,
           systemId: AMARR,
@@ -491,7 +469,7 @@ describe('map chain read path', () => {
         }
       });
 
-      await expectErrorCode(
+      await expectConvexErrorCode(
         t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
           mapId: MAP_A,
           systemId: JITA,
@@ -533,10 +511,6 @@ describe('map chain read path', () => {
       'mapSignatureActivity',
     ] as const;
 
-    function codeOnly(source: string): string {
-      return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    }
-
     function countOccurrences(haystack: string, needle: string): number {
       return haystack.split(needle).length - 1;
     }
@@ -551,7 +525,7 @@ describe('map chain read path', () => {
       const rest = source.slice(start);
       const end = rest.indexOf('\n});');
       expect(end, `${name} must be a closed declaration`).toBeGreaterThan(0);
-      return codeOnly(rest.slice(0, end));
+      return stripComments(rest.slice(0, end));
     }
 
     function helperCode(source: string, startMarker: string, endMarker: string): string {
@@ -559,7 +533,7 @@ describe('map chain read path', () => {
       const end = source.indexOf(endMarker, start);
       expect(start, `${startMarker} must exist`).toBeGreaterThanOrEqual(0);
       expect(end, `${endMarker} must follow ${startMarker}`).toBeGreaterThan(start);
-      return codeOnly(source.slice(start, end));
+      return stripComments(source.slice(start, end));
     }
 
     it.each([

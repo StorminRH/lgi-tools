@@ -1,15 +1,16 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
+import { listSourceFiles } from '@/lib/__tests__/source-scan';
 
 test('globals.css imports each owner stylesheet once', () => {
   const root = 'src/app';
   const entry = `${root}/globals.css`;
-  const stylesheets = readdirSync('src', { recursive: true })
-    .map(String)
-    .filter((file) => file.endsWith('.css') && !file.endsWith('.module.css'))
-    .map((file) => path.join('src', file))
-    .filter((file) => file !== entry);
+  const stylesheets = listSourceFiles({
+    roots: ['src'],
+    extensions: ['.css'],
+    skipSuffixes: ['.module.css'],
+  }).filter((file) => file !== entry);
   const imports = [...readFileSync(entry, 'utf8').matchAll(/@import\s+["'](\.[^"']+\.css)["']/g)]
     .map((match) => path.join(root, match[1]!));
 

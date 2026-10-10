@@ -1,28 +1,9 @@
 import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { chain, recorded, executions } = vi.hoisted(() => {
-  const recorded: { op: 'delete' | 'update'; table: unknown }[] = [];
-  const executions = { count: 0 };
-  const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve([]),
-  };
-  for (const method of ['set', 'where', 'returning', 'from', 'limit', 'orderBy']) {
-    chain[method] = () => chain;
-  }
-  chain.delete = (table: unknown) => {
-    recorded.push({ op: 'delete', table });
-    return chain;
-  };
-  chain.update = (table: unknown) => {
-    recorded.push({ op: 'update', table });
-    return chain;
-  };
-  chain.execute = async () => {
-    executions.count += 1;
-    return [];
-  };
-  return { chain, recorded, executions };
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
 });
 
 vi.mock('@/db', () => ({ db: chain }));
@@ -55,18 +36,18 @@ vi.mock('@/composition/map-access-projection', () => ({
 
 import { runPurge } from './orchestrator';
 
-const names = (): string[] => recorded.map((r) => getTableConfig(r.table as PgTable).name);
+const names = (): string[] =>
+  state.recorded.filter((r) => r.op !== 'select').map((r) => getTableConfig(r.table as PgTable).name);
 
 beforeEach(() => {
-  recorded.length = 0;
-  executions.count = 0;
+  reset();
 });
 
 describe('runPurge orchestrator', () => {
   it('credential character purge removes account rows and runs the map grant statement', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 }, ['credential']);
     expect(names()).toEqual(['account']);
-    expect(executions.count).toBe(1);
+    expect(state.calls.execute).toBe(1);
   });
 
   it('full character purge runs credentials before the regenerable caches', async () => {

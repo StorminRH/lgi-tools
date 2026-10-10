@@ -36,14 +36,6 @@ export function findIdentityFkLeaks(tables: readonly PgTable[]): string[] {
   return findings.sort();
 }
 
-export function findUnclaimed(
-  flagged: readonly string[],
-  claimed: ReadonlySet<string>,
-  retained: ReadonlySet<string>,
-): string[] {
-  return flagged.filter((name) => !claimed.has(name) && !retained.has(name));
-}
-
 export interface NonNeonHome {
   readonly home: `convex:${string}`;
   readonly coveredBy: string;

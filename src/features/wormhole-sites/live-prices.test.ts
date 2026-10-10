@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { siteDetail, siteResource } from './__tests__/site-fixtures';
 import type { SiteDetail, SiteResource } from './types';
 
 const h = vi.hoisted(() => ({
@@ -16,51 +17,11 @@ vi.mock('@/data/eve-data/queries', () => ({
 
 import { overlayLivePrices } from './live-prices';
 
-function resource(
-  id: number,
-  values: Partial<SiteResource> = {},
-): SiteResource {
-  const base = {
-    id,
-    orderInSite: id,
-    resourceKind: 'gas',
-    resourceName: `Resource ${id}`,
-    units: 1,
-    volumeM3: 1,
-    iskPerM3: 1,
-    totalIsk: 100,
-    typeId: id,
-    liveIsk: null,
-    liveEligible: false,
-    ...values,
-  };
-  return {
-    ...base,
-    effectiveIsk: values.effectiveIsk === undefined
-      ? base.totalIsk
-      : values.effectiveIsk,
-  };
-}
+const resource = (id: number, values: Partial<SiteResource> = {}): SiteResource =>
+  siteResource({ id, units: 1, ...values });
 
-function site(
-  id: number,
-  resources: SiteResource[],
-  resourceValueIsk = 999,
-): SiteDetail {
-  return {
-    id,
-    name: `Site ${id}`,
-    siteType: 'gas',
-    wormholeClass: null,
-    signatureLabel: 'Gas Signature',
-    sourceTab: 'Gas',
-    blueLootIsk: null,
-    iskPerEhp: null,
-    resourceValueIsk,
-    waves: [],
-    resources,
-  };
-}
+const site = (id: number, resources: SiteResource[], resourceValueIsk = 999): SiteDetail =>
+  siteDetail({ id, siteType: 'gas', wormholeClass: null, resources, resourceValueIsk });
 
 beforeEach(() => {
   h.getPrices.mockReset();

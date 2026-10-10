@@ -1,30 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-let cannedQueries: unknown[][] = [];
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
+});
 
-function queryFor(rows: unknown[]) {
-  const result = Promise.resolve(rows);
-  const query = {
-    from: vi.fn(),
-    where: vi.fn(),
-    groupBy: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    then: result.then.bind(result),
-  };
-  query.from.mockReturnValue(query);
-  query.where.mockReturnValue(query);
-  query.groupBy.mockReturnValue(query);
-  query.orderBy.mockReturnValue(query);
-  query.limit.mockReturnValue(query);
-  return query;
-}
-
-vi.mock('@/db', () => ({
-  db: {
-    select: () => queryFor(cannedQueries.shift() ?? []),
-  },
-}));
+vi.mock('@/db', () => ({ db: chain }));
 
 import {
   getHistorySourceSplit,
@@ -39,12 +20,12 @@ const RANGE = {
 };
 
 beforeEach(() => {
-  cannedQueries = [];
+  reset();
 });
 
 describe('cost query result shaping', () => {
   it('normalizes the price and history source totals', async () => {
-    cannedQueries = [
+    state.results = [
       [{ cacheHits: '2', esiCount: '7', fuzzworkFallbackCount: '1', requested: '12', returned: '10' }],
       [{ freshEsi: '3', warmStored: '8', staleStored: '2', missing: '1' }],
     ];
@@ -65,7 +46,7 @@ describe('cost query result shaping', () => {
   });
 
   it('returns zero totals for empty source windows', async () => {
-    cannedQueries = [[], []];
+    state.results = [[], []];
     await expect(getPriceSourceSplit(RANGE)).resolves.toEqual({
       cacheHits: 0,
       esiCount: 0,
@@ -82,7 +63,7 @@ describe('cost query result shaping', () => {
   });
 
   it('normalizes write-behind and endpoint rows', async () => {
-    cannedQueries = [
+    state.results = [
       [{ action: 'market_price_write_behind', outcome: 'failed', count: '2' }],
       [{ endpoint: '/api/account/skills', count: '4', avgDurationMs: '12.6' }],
     ];

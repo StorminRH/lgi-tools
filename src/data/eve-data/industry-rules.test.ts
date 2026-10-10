@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import {
   parseAssemblyLine,
   parseIndustryRules,
@@ -168,7 +169,7 @@ describe('parseIndustryRules', () => {
         writeFile(path, (files[name as keyof SdeJsonlPaths] ?? []).map((row) => JSON.stringify(row)).join('\n')),
       ),
     );
-    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    silenceConsolePrefixes('log', ['Industry rules parse:']);
     return parseIndustryRules(paths);
   }
 

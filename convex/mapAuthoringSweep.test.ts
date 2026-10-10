@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import {
@@ -19,6 +20,7 @@ import schema from './schema';
 
 import { connectionInsert } from './__tests__/connection-doc.setup';
 import { modules } from './__tests__/modules.setup';
+import { type Chain } from './__tests__/convexTest.setup';
 import {
   AMARR,
   EDITOR,
@@ -28,7 +30,6 @@ import {
   WH_A,
   WH_B,
   WH_C,
-  type Chain,
   readConnection,
   readEvents,
   readSystem,
@@ -44,6 +45,7 @@ beforeEach(() => {
 
 afterEach(() => {
   restoreAuthoringTimers();
+  vi.restoreAllMocks();
 });
 
 describe('map authoring', () => {
@@ -505,7 +507,7 @@ describe('map authoring', () => {
           purgeAfter: null,
         })),
       );
-      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      silenceConsolePrefixes('error', ['{"scope":"map:ceiling-collapse",']);
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toMatchObject({ collapsed: 0, removedStubs: 0, failed: CEILING_SWEEP_BATCH, hasMore: true });

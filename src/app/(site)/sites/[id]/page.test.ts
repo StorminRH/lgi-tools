@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { siteDetail } from '@/features/wormhole-sites/__tests__/site-fixtures';
 import SiteDetailPage, { SiteDetailContent } from './page';
 
 const mocks = vi.hoisted(() => ({
@@ -70,19 +71,13 @@ vi.mock('@/data/market-prices/cache', () => ({
   getCachedPricesFreshness: async () => ({ lastUpdatedAt: null }),
 }));
 
-const site = {
+const site = siteDetail({
   id: 1,
   name: 'Forgotten Perimeter Coronation Platform',
-  siteType: 'relic' as const,
-  wormholeClass: 'C1' as const,
-  signatureLabel: 'ABC-123',
-  sourceTab: 'Sheet',
+  siteType: 'relic',
+  wormholeClass: 'C1',
   blueLootIsk: 1,
-  iskPerEhp: null,
-  resourceValueIsk: null,
-  waves: [],
-  resources: [],
-};
+});
 
 beforeEach(() => {
   mocks.getPricedSiteDetail.mockReset();

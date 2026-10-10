@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const h = vi.hoisted(() => {
   const order: string[] = [];
@@ -39,23 +40,20 @@ vi.mock('next/server', () => ({
   connection: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 import { GET } from './route';
 import { purgeEligibleMaps } from '@/composition/map-purge';
 
-function authedRequest(): Request {
-  return new Request('http://localhost:3000/api/cron/daily-batch', {
-    headers: { authorization: 'Bearer cron-secret' },
-  });
-}
+const ROUTE = '/api/cron/daily-batch';
 
 describe('GET /api/cron/daily-batch', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.stubEnv('CRON_SECRET', 'cron-secret');
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     h.order.length = 0;
     h.workByName.clear();
     h.logUsageEvent.mockReset().mockResolvedValue(undefined);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {
@@ -66,12 +64,12 @@ describe('GET /api/cron/daily-batch', () => {
 
   it('drains the refresh queue and revalues net worth after the price sweeps, wormhole statics only on Mondays and housekeeping last', async () => {
     vi.setSystemTime(new Date('2026-09-28T12:20:00Z'));
-    expect((await GET(authedRequest())).status).toBe(200);
+    expect((await GET(cronRequest(ROUTE))).status).toBe(200);
     expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:net-worth', 'cron:wh-statics', 'cron:housekeeping']);
 
     h.order.length = 0;
     vi.setSystemTime(new Date('2026-09-29T12:20:00Z'));
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
     expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:net-worth', 'cron:housekeeping']);
     await expect(response.json()).resolves.toMatchObject({
       steps: expect.arrayContaining([{ name: 'cron:wh-statics', status: 'skipped' }]),
@@ -80,10 +78,10 @@ describe('GET /api/cron/daily-batch', () => {
 
   it('skips the net-worth revalue when the price sweep fails', async () => {
     vi.setSystemTime(new Date('2026-09-29T12:20:00Z'));
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[cron:prices] batch step failed', '[cost-metrics] telemetry write failed']);
     h.workByName.set('cron:prices', async () => { throw new Error('prices down'); });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:housekeeping']);
     await expect(response.json()).resolves.toMatchObject({
@@ -118,7 +116,7 @@ describe('GET /api/cron/daily-batch', () => {
     });
     h.workByName.set('cron:prices', async () => { pricesStartedAt = Date.now(); });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(response.status).toBe(200);
     expect(tombstoned).toEqual(['map-0', 'map-1', 'map-2', 'map-3', 'map-4']);

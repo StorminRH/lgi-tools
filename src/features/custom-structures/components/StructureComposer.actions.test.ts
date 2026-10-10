@@ -1,6 +1,7 @@
 import { isValidElement, type ReactElement } from 'react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { StructureTypeOption } from '@/data/eve-data/structures';
+import { settle } from '@/lib/__tests__/hook-runtime';
 import {
   createCustomStructureEndpoint,
   deleteCustomStructureEndpoint,
@@ -10,31 +11,17 @@ import {
 import type { StructureDraft } from '../structure-draft';
 import type { CustomStructureRow } from '../types';
 
-// The composer runs on a minimal hook store so its handlers can be driven
-// directly: each call re-reads the state its last handlers wrote.
 const h = vi.hoisted(() => ({
-  states: [] as unknown[],
-  cursor: 0,
-  cleanups: [] as Array<() => void>,
   apiFetch: vi.fn(),
   suggest: vi.fn(async (_query: string): Promise<string[]> => []),
 }));
+// The composer runs on a minimal hook store so its handlers can be driven
+// directly: each call re-reads the state its last handlers wrote.
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react')>()),
-  useState: <T>(init: T | (() => T)) => {
-    const i = h.cursor++;
-    if (!(i in h.states)) h.states[i] = typeof init === 'function' ? (init as () => T)() : init;
-    const set = (next: T | ((prev: T) => T)) => {
-      h.states[i] = typeof next === 'function' ? (next as (prev: T) => T)(h.states[i] as T) : next;
-    };
-    return [h.states[i], set];
-  },
-  useMemo: <T>(make: () => T) => make(),
-  useEffect: (effect: () => void | (() => void)) => {
-    const cleanup = effect();
-    if (cleanup) h.cleanups.push(cleanup);
-  },
+  ...rt.react,
 }));
 vi.mock('@/components/use-system-search', () => ({
   useSystemSearch: () => ({
@@ -88,17 +75,12 @@ function* elements(node: unknown): Generator<ReactElement> {
   yield* elements((node.props as Props).children);
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
 function mount(editing: CustomStructureRow | null) {
-  h.states = [];
-  h.cleanups = [];
+  rt.unmount();
   const onSaved = vi.fn();
   const onClose = vi.fn();
-  const render = () => {
-    h.cursor = 0;
-    return StructureComposer({ structureTypes: TYPES, structureRigs: [], editing, onSaved, onClose }) as ReactElement;
-  };
+  const render = () =>
+    rt.render(StructureComposer, { structureTypes: TYPES, structureRigs: [], editing, onSaved, onClose }) as ReactElement;
   const find = (test: (props: Props) => boolean) => {
     for (const props of walk(render())) if (test(props)) return props;
     return null;
@@ -116,8 +98,8 @@ function mount(editing: CustomStructureRow | null) {
     element,
     call,
     button: (text: string) => call((p) => p.children === text, 'onClick'),
-    draft: () => h.states[0] as StructureDraft,
-    busy: () => h.states[1] as boolean,
+    draft: () => rt.states[0] as StructureDraft,
+    busy: () => rt.states[1] as boolean,
     error: () => find((p) => p.label === 'Check')?.children ?? null,
   };
 }
@@ -160,7 +142,7 @@ test('picking a found structure fills its name, system and hull, clearing rigs w
   const c = mount(null);
   c.call(named, 'onPick', { structureId: 1, name: 'Ashab Tatara', systemId: 30004759, structureTypeId: 35836 });
   expect(c.draft()).toMatchObject({ name: 'Ashab Tatara', systemId: 30004759, structureTypeId: 35836 });
-  h.states[0] = { ...c.draft(), rigSlots: [46486, null, null] };
+  rt.states[0] = { ...c.draft(), rigSlots: [46486, null, null] };
   c.call(named, 'onPick', { structureId: 3, name: 'Other Tatara', systemId: 30004759, structureTypeId: 35836 });
   expect(c.draft().rigSlots).toEqual([46486, null, null]);
   // A found structure whose hull the search cannot tell keeps the hull and rigs already set.
@@ -183,7 +165,7 @@ test('a typed system pins only on an exact name, and suggests the rest', async (
   c.find(system);
   await settle();
   expect(c.find(system)!.sys).toMatchObject({ shown: 'ama', suggestions: [{ name: 'Amamake' }] });
-  h.cleanups.forEach((cleanup) => cleanup());
+  rt.hide();
 
   c.call(system, 'onType', ' AMAMAKE ');
   expect(c.draft().systemId).toBe(30002537);

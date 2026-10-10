@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { filesMatching, listRouteFiles } from '@/lib/__tests__/source-scan';
 
 const API_DIR = dirname(fileURLToPath(import.meta.url));
 
@@ -113,27 +114,10 @@ const EXEMPT_MUTATIONS = {
 const MUTATING_METHOD_RE =
   /\bexport\s+(?:(?:async\s+)?function\s+(?:POST|PUT|PATCH|DELETE)\b|const\s+(?:POST|PUT|PATCH|DELETE)\b)/;
 
-function findRouteFiles(dir: string): string[] {
-  const routes: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      routes.push(...findRouteFiles(fullPath));
-    } else if (entry.name === 'route.ts') {
-      routes.push(fullPath);
-    }
-  }
-  return routes;
-}
-
 describe('same-origin mutation coverage', () => {
   it('classifies every mutating route exactly once', () => {
-    const mutatingRoutes = findRouteFiles(API_DIR)
-      .filter((file) => {
-        const source = readFileSync(file, 'utf8');
-        return MUTATING_METHOD_RE.test(source);
-      })
-      .map((file) => relative(API_DIR, file))
+    const mutatingRoutes = filesMatching(listRouteFiles(), MUTATING_METHOD_RE)
+      .map((file) => relative('src/app/api', file))
       .sort();
     const classifiedRoutes = [
       ...PIPELINE_MUTATIONS,

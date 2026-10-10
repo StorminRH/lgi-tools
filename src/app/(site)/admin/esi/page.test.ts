@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 
 const m = vi.hoisted(() => ({
   budget: vi.fn(),
@@ -15,7 +17,7 @@ const m = vi.hoisted(() => ({
   endpoints: vi.fn(),
 }));
 
-vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => ({ isAdmin: true }) }));
+vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => adminSessionFixture() }));
 vi.mock('next/navigation', () => ({
   unstable_rethrow: () => undefined,
   usePathname: () => '/admin/esi',
@@ -121,7 +123,7 @@ describe('admin ESI', () => {
   });
 
   it('blanks only the card whose read failed', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] endpoints section unavailable']);
     m.endpoints.mockRejectedValue(new Error('offline'));
 
     const html = await page();

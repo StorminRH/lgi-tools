@@ -1,14 +1,12 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
+import { postForm } from '@/lib/__tests__/route-requests';
 import { forbiddenFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 
-const ADMIN = {
-  user: { id: 'user-admin' },
-  session: {},
-  characterId: 90_000_001,
-  isAdmin: true,
-};
+const ADMIN = adminSessionFixture({ user: { id: 'user-admin' }, characterId: 90_000_001 });
 
 class SnapshotStateError extends Error {
   constructor(
@@ -25,7 +23,7 @@ class EmptySnapshotError extends Error {
   }
 }
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const sameOriginMock = vi.fn();
 const refreshMock = vi.fn();
 const promoteMock = vi.fn();
@@ -57,17 +55,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/wh-statics', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
-
-async function importRoute() {
-  return import('./route');
-}
+const ROUTE = '/api/admin/wh-statics';
 
 describe('POST /api/admin/wh-statics', () => {
   beforeEach(() => {
@@ -82,8 +70,8 @@ describe('POST /api/admin/wh-statics', () => {
 
   it('refuses a caller without admin authority before the origin check', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN, isAdmin: false });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ action: 'refresh' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
 
     expect(response.status).toBe(403);
     expect(sameOriginMock).not.toHaveBeenCalled();
@@ -98,8 +86,8 @@ describe('POST /api/admin/wh-statics', () => {
         'Cross-origin requests are not allowed',
       ),
     });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ action: 'refresh' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
 
     expect(response.status).toBe(403);
     expect(problemBodySchema.parse(await response.json())).toMatchObject({
@@ -109,9 +97,9 @@ describe('POST /api/admin/wh-statics', () => {
   });
 
   it('rejects an invalid action and missing snapshot id through the slice schema', async () => {
-    const { POST } = await importRoute();
-    const invalidAction = await POST(buildRequest({ action: 'apply' }));
-    const missingSnapshot = await POST(buildRequest({ action: 'promote' }));
+    const { POST } = await import('./route');
+    const invalidAction = await POST(postForm(ROUTE, { action: 'apply' }));
+    const missingSnapshot = await POST(postForm(ROUTE, { action: 'promote' }));
 
     expect(invalidAction.status).toBe(400);
     expect(missingSnapshot.status).toBe(400);
@@ -121,8 +109,8 @@ describe('POST /api/admin/wh-statics', () => {
 
   it('runs the shared on-demand refresh and redirects with its outcome', async () => {
     refreshMock.mockResolvedValue({ status: 'snapshot-pending' });
-    const { POST } = await importRoute();
-    const response = await POST(buildRequest({ action: 'refresh' }));
+    const { POST } = await import('./route');
+    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
 
     expect(refreshMock).toHaveBeenCalledOnce();
     expect(response.status).toBe(303);
@@ -137,9 +125,9 @@ describe('POST /api/admin/wh-statics', () => {
       systemCount: 2_604,
       assignmentCount: 3_772,
     });
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'promote', snapshotId: '7' }),
+      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
     );
 
     expect(promoteMock).toHaveBeenCalledWith(7);
@@ -151,9 +139,9 @@ describe('POST /api/admin/wh-statics', () => {
 
   it('rejects the named pending snapshot and redirects', async () => {
     rejectMock.mockResolvedValue(undefined);
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'reject', snapshotId: '8' }),
+      postForm(ROUTE, { action: 'reject', snapshotId: '8' }),
     );
 
     expect(rejectMock).toHaveBeenCalledWith(8);
@@ -165,9 +153,9 @@ describe('POST /api/admin/wh-statics', () => {
 
   it('maps a no-longer-pending snapshot to a conflict', async () => {
     promoteMock.mockRejectedValue(new SnapshotStateError(7, 'promoted'));
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'promote', snapshotId: '7' }),
+      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
     );
 
     expect(response.status).toBe(409);
@@ -178,9 +166,9 @@ describe('POST /api/admin/wh-statics', () => {
 
   it('maps an empty pending snapshot to a conflict', async () => {
     promoteMock.mockRejectedValue(new EmptySnapshotError(7));
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const response = await POST(
-      buildRequest({ action: 'promote', snapshotId: '7' }),
+      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
     );
 
     expect(response.status).toBe(409);
