@@ -20,6 +20,15 @@ import {
   esiUrl,
 } from './index';
 import { BODY_CACHE_MAX_BYTES, type EsiScoreboard } from './scoreboard';
+import { setDependencyTimingSink, type DependencyCall } from '@/lib/dependency-timing';
+
+function captureEsiCalls(): (DependencyCall | undefined)[] {
+  const calls: (DependencyCall | undefined)[] = [];
+  setDependencyTimingSink((kind, _ms, call) => {
+    if (kind === 'esi') calls.push(call);
+  });
+  return calls;
+}
 
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 
@@ -194,6 +203,27 @@ describe('esiFetch', () => {
 
     expect(res.status).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('times each ESI request as one esi call carrying its status', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockResponse(200))
+      .mockResolvedValueOnce(mockResponse(404));
+
+    const calls = captureEsiCalls();
+    await esiFetch(TEST_URL);
+    await esiFetch(TEST_URL);
+
+    expect(calls).toEqual([{ status: 200 }, { status: 404 }]);
+  });
+
+  it('times a request that never answered as an esi call without a status', async () => {
+    fetchSpy.mockRejectedValueOnce(new DOMException('signal timed out', 'TimeoutError'));
+
+    const calls = captureEsiCalls();
+    await expect(esiFetch(TEST_URL)).rejects.toThrow();
+
+    expect(calls).toEqual([undefined]);
   });
 
   it('returns 4xx responses to the caller without throwing', async () => {

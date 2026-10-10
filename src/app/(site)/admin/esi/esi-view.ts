@@ -1,5 +1,6 @@
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
-import { deriveEsiSourceStatus } from '@/data/telemetry/health-metrics';
+import type { EsiClientErrorSummary } from '@/data/telemetry/capability-stats';
+import { deriveEsiSourceStatus, ESI_CLIENT_ERROR_TARGET, targetLevel } from '@/data/telemetry/health-metrics';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import { ESI_ERROR_CEILING } from '@/platform/esi/scoreboard/types';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
@@ -69,6 +70,25 @@ function countLine(id: string, label: string, count: number, note?: string): Sta
   };
 }
 
+function shareLabel(rate: number): string {
+  const pct = rate * 100;
+  if (pct > 0 && pct < 0.1) return '<0.1%';
+  return `${pct.toFixed(pct < 10 ? 1 : 0)}%`;
+}
+
+/** ESI calls answered with a 4xx, as a share of all recorded ESI calls. */
+export function clientErrorLine(summary: EsiClientErrorSummary): StatusLine {
+  const worst = summary.groups[0];
+  const counts = `${formatQuantity(summary.errors)} of ${formatQuantity(summary.calls)} calls`;
+  return {
+    id: 'esi-4xx',
+    label: 'ESI 4xx answers',
+    value: summary.rate === null ? '—' : shareLabel(summary.rate),
+    note: worst === undefined ? counts : `${counts} · most from ${worst.feature} · ${worst.operation}`,
+    level: summary.rate === null ? 'neutral' : targetLevel(summary.rate, ESI_CLIENT_ERROR_TARGET),
+  };
+}
+
 export function derivePressureLines(input: {
   esiSuccess: number | null;
   esiSamples?: number;
@@ -76,6 +96,7 @@ export function derivePressureLines(input: {
   fallback: FallbackRateData;
   degradation: DegradationCallerCount[];
   queue: EsiRefreshQueueStat[];
+  clientErrors: EsiClientErrorSummary;
 }): StatusLine[] {
   const source = deriveEsiSourceStatus({
     fallback: input.fallback,
@@ -93,6 +114,7 @@ export function derivePressureLines(input: {
       note: `${input.esiSamples === undefined ? '—' : formatQuantity(input.esiSamples)} operations · target ${sliTargetLabel('esiSuccess')}`,
       level: sliLevel('esiSuccess', input.esiSuccess),
     },
+    clientErrorLine(input.clientErrors),
     countLine('exhaustions', 'Budget-blocked refreshes', input.budgetExhaustions),
     {
       id: 'fallback',
