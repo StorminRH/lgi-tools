@@ -28,9 +28,7 @@ export async function readCharacterJobs(characterId: number): Promise<CharacterJ
     .from(characterIndustryJobs)
     .where(eq(characterIndustryJobs.characterId, characterId))
     .limit(1);
-  const row = rows[0];
-  if (row === undefined) return null;
-  return { jobs: row.jobs };
+  return rows[0] ?? null;
 }
 
 export async function getJobsForCharacters(
@@ -50,8 +48,7 @@ export async function readCharacterJobSyncState(
     .from(characterIndustryJobSyncs)
     .where(eq(characterIndustryJobSyncs.characterId, characterId))
     .limit(1);
-  const row = rows[0];
-  return row ? { lastRefreshedAt: row.lastRefreshedAt, jobsEtag: row.jobsEtag } : null;
+  return rows[0] ?? null;
 }
 
 export async function saveCharacterJobs(
@@ -94,9 +91,7 @@ async function getCorpJobs(userId: string, corporationId: number): Promise<Chara
     .from(corpIndustryJobs)
     .where(and(eq(corpIndustryJobs.userId, userId), eq(corpIndustryJobs.corporationId, corporationId)))
     .limit(1);
-  const row = rows[0];
-  if (row === undefined) return null;
-  return { jobs: row.jobs };
+  return rows[0] ?? null;
 }
 
 export async function getCorpJobsForUser(
@@ -109,7 +104,7 @@ export async function getCorpJobsForUser(
 export async function listCorpJobSyncStates(
   userId: string,
 ): Promise<Array<{ corporationId: number } & CorpJobsSyncState>> {
-  const rows = await db
+  return db
     .select({
       corporationId: corpIndustryJobSyncs.corporationId,
       lastRefreshedAt: corpIndustryJobSyncs.lastRefreshedAt,
@@ -117,15 +112,8 @@ export async function listCorpJobSyncStates(
       syncError: corpIndustryJobSyncs.syncError,
     })
     .from(corpIndustryJobSyncs)
-    .where(eq(corpIndustryJobSyncs.userId, userId));
-  return rows
-    .map((row) => ({
-      corporationId: row.corporationId,
-      lastRefreshedAt: row.lastRefreshedAt,
-      jobsEtag: row.jobsEtag,
-      syncError: row.syncError,
-    }))
-    .sort((a, b) => a.corporationId - b.corporationId);
+    .where(eq(corpIndustryJobSyncs.userId, userId))
+    .orderBy(corpIndustryJobSyncs.corporationId);
 }
 
 export async function readCorpJobSyncState(
@@ -143,10 +131,7 @@ export async function readCorpJobSyncState(
       and(eq(corpIndustryJobSyncs.userId, userId), eq(corpIndustryJobSyncs.corporationId, corporationId)),
     )
     .limit(1);
-  const row = rows[0];
-  return row
-    ? { lastRefreshedAt: row.lastRefreshedAt, jobsEtag: row.jobsEtag, syncError: row.syncError }
-    : null;
+  return rows[0] ?? null;
 }
 
 export async function saveCorpJobs(

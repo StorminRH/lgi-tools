@@ -5,6 +5,7 @@ import {
   type ConnectionProvenance,
 } from '@/data/eve-data/wormhole-contract';
 import type { AnyPgDb } from '@/lib/db-types';
+import { excluded } from '@/lib/db-upsert';
 import { whObservations } from './schema';
 
 export interface WhObservationInput {
@@ -20,10 +21,6 @@ export interface WhObservationReconcile {
   readonly deleteKeys: readonly string[];
 }
 
-function excluded(column: string) {
-  return sql.raw(`excluded.${column}`);
-}
-
 function observationConflict(): {
   readonly target: typeof whObservations.dedupeKey;
   readonly set: {
@@ -34,10 +31,10 @@ function observationConflict(): {
   };
   readonly setWhere: SQL;
 } {
-  const solarSystemId = excluded(whObservations.solarSystemId.name);
-  const whTypeCode = excluded(whObservations.whTypeCode.name);
-  const provenance = excluded(whObservations.provenance.name);
-  const observedAt = excluded(whObservations.observedAt.name);
+  const solarSystemId = excluded(whObservations.solarSystemId);
+  const whTypeCode = excluded(whObservations.whTypeCode);
+  const provenance = excluded(whObservations.provenance);
+  const observedAt = excluded(whObservations.observedAt);
   return {
     target: whObservations.dedupeKey,
     set: { solarSystemId, whTypeCode, provenance, observedAt },

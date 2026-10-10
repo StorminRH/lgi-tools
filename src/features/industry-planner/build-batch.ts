@@ -1,4 +1,4 @@
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { roundTo } from '@/lib/math';
 
 interface Recipe {

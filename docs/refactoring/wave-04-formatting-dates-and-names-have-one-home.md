@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#661](https://github.com/StorminRH/lgi-tools/pull/661).
+
 ← [Wave 3: src/lib primitives: collections, math, async, errors, browser](wave-03-src-lib-primitives-collections-math-async.md) · [Index](README.md#roadmap) · [Wave 5: Persistence primitives and data-layer SQL](wave-05-persistence-primitives-and-data-layer-sql.md) →
 
 Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC day-math owner, and lib/format/time keeps display formatters (formatUtcMinute, stripUtcYear) delegating to it. retentionCutoffDay is built on both. Next come formatQuantity (null-aware), then formatCount, formatPct/formatFallbackShare and formatSigned, then the ISK presets. unresolvedName follows, with the corp-holdings location labels on top of it. Station names move to lib/format, activityLabel to data/eve-data, and entryTimes and romanLevel stay in skill-queue.

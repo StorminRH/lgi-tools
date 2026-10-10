@@ -1,8 +1,7 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import type { CronRefreshIndustryIndicesResponse } from '@/data/industry-indices/api-contract';
-import { ADVISORY_LOCK_INDUSTRY_INDICES } from '@/data/industry-indices/constants';
 import { refreshIndustryIndices } from '@/data/industry-indices/ingest';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import { ADVISORY_LOCKS } from '@/db/advisory-lock';
 
 export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefreshIndustryIndicesResponse> = {
   name: 'cron:industry-indices',
@@ -14,11 +13,11 @@ export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefresh
     justification: 'daily batch wakes Neon by design and preserves partial dataset history',
   },
   lock: {
-    key: Number(ADVISORY_LOCK_INDUSTRY_INDICES),
+    key: ADVISORY_LOCKS.industryIndices,
     busyBody: () => ({ status: 'busy' }),
   },
-  work: async ({ client }) => {
-    const summary = await refreshIndustryIndices(drizzle(client));
+  work: async ({ database }) => {
+    const summary = await refreshIndustryIndices(database);
 
     return {
       outcome: 'refreshed',

@@ -1,5 +1,5 @@
-import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
+import { ownerKeyWhere } from '@/lib/db-columns';
 import type { PurgeContributor } from '@/platform/purge/types';
 import { esiSnapshots } from './schema';
 
@@ -11,6 +11,6 @@ export const esiSnapshotsPurgeContributor: PurgeContributor = {
   async purgeCharacter({ characterId }) {
     await db
       .delete(esiSnapshots)
-      .where(and(eq(esiSnapshots.ownerType, 'character'), eq(esiSnapshots.ownerId, characterId)));
+      .where(ownerKeyWhere(esiSnapshots, { ownerType: 'character', ownerId: characterId }));
   },
 };

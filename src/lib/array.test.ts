@@ -21,6 +21,21 @@ describe('array helpers', () => {
   });
 });
 
+describe('chunk', () => {
+  it('slices a readonly array without mutating it and rejects a size that is not a positive integer', () => {
+    const ids: readonly number[] = Object.freeze([1, 2, 3, 4, 5, 6, 7]);
+    const batches = chunk(ids, 3);
+    expect(batches).toEqual([[1, 2, 3], [4, 5, 6], [7]]);
+    batches[0]!.push(99);
+    expect(ids).toEqual([1, 2, 3, 4, 5, 6, 7]);
+
+    for (const size of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => chunk(ids, size)).toThrow(RangeError);
+    }
+    expect(() => chunk([], 0)).toThrow(RangeError);
+  });
+});
+
 describe('groupBy', () => {
   it('keeps first-seen key order and input order within each group, with or without a value mapper', () => {
     const rows = [

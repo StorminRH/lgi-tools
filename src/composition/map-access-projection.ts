@@ -14,7 +14,7 @@ import {
   getMapAccessCandidateUserIds,
   reserveMapAccessProjectionRevision,
 } from '@/data/maps/queries';
-import { groupBy } from '@/lib/array';
+import { chunk, groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { unresolvedName } from '@/lib/format/names';
 import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
@@ -276,17 +276,20 @@ export async function purgeUserMapAccessProjection(
   });
 }
 
+/** Maps per claim-revocation mutation, sized to stay below Convex's per-mutation read and write limits. */
+const MAP_CLAIM_PURGE_BATCH = 32;
+
 export async function revokeUserMapClaims(
   userId: string,
   mapIds: readonly string[],
 ): Promise<void> {
-  // Keep each mutation below Convex's read/write limits; complete all batches
-  // before unlinking so a failed delivery leaves the character linked.
-  for (let start = 0; start < mapIds.length; start += 32) {
+  // Complete all batches before unlinking so a failed delivery leaves the
+  // character linked.
+  for (const batch of chunk(mapIds, MAP_CLAIM_PURGE_BATCH)) {
     const revision = await reserveMapAccessProjectionRevision();
     await postConvexHttpDoor({
       path: '/purge-user-map-claims',
-      body: { userId, revision, mapIds: mapIds.slice(start, start + 32) },
+      body: { userId, revision, mapIds: batch },
       schema: userPurgeResultSchema,
       error: ProjectionUnavailableError,
       label: 'Map access revocation unavailable',

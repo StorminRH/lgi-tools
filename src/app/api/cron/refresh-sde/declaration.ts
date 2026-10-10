@@ -1,8 +1,6 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { revalidateTag } from 'next/cache';
 import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
 import {
-  ADVISORY_LOCK_SDE_INGEST,
   SDE_CACHE_TAG,
   SDE_META_KEY_LATEST_PUBLISHED,
   SDE_META_KEY_VERSION,
@@ -11,14 +9,15 @@ import {
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
-import type { AnyPgDb } from '@/lib/db-types';
+import { ADVISORY_LOCKS } from '@/db/advisory-lock';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import {
   runSdePipeline,
   summarizeMarketPricesRowCount,
 } from '@/composition/pipelines/sde-pipeline';
 
 export type SdePreLock = {
-  db: ReturnType<typeof drizzle>;
+  db: PostgresJsDb;
   storedVersion: string | null;
   remoteVersion: string | null;
 };
@@ -47,14 +46,13 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     justification: 'daily batch wakes Neon by design and preserves version-gate history',
   },
   lock: {
-    key: Number(ADVISORY_LOCK_SDE_INGEST),
+    key: ADVISORY_LOCKS.sdeIngest,
     busyBody: () => ({
       status: 'busy',
       message: 'Another SDE ingest in flight',
     }),
   },
-  preLock: async ({ client }) => {
-    const db = drizzle(client);
+  preLock: async ({ database: db }) => {
     const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
     const remoteVersion = await getRemoteSdeVersion();
 

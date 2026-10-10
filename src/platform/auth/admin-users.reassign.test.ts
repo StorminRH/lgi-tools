@@ -5,8 +5,8 @@ const { chain, state, reset } = await vi.hoisted(async () => {
   return createFakeQueryChain();
 });
 
-vi.mock('@/db', () => ({ db: chain, directClient: chain, resolveLockConnectionUrl: () => undefined }));
-vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => chain }));
+vi.mock('@/db', () => ({ db: chain }));
+vi.mock('@/db/direct-database', () => ({ directDatabase: () => chain }));
 vi.mock('./deletion-jobs', async (importOriginal) => ({
   ...await importOriginal<typeof import('./deletion-jobs')>(),
   usersHavePendingDeletion: vi.fn().mockResolvedValue(false),

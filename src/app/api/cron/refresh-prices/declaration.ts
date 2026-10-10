@@ -22,8 +22,8 @@ export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesRes
     mode: 'none',
     justification: 'the sole bulk writer races safely with last-write-wins on-demand refreshes',
   },
-  work: async ({ client, record }) => {
-    const result = await refreshStalePrices(client);
+  work: async ({ database, record }) => {
+    const result = await refreshStalePrices(database);
 
     if (result.status === 'cached') {
       return {

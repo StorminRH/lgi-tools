@@ -15,13 +15,8 @@ import {
   eveTypes,
   industryBlueprints,
 } from './schema';
-
-export type TreeNode = {
-  typeId: number;
-  quantity: number;
-  inputs: TreeNode[];
-  producedBy?: { blueprintTypeId: number; quantityPerRun: number; runsNeeded: number };
-};
+import { makeBatchInserter } from './sde-io';
+import type { BlueprintActivities, TreeNode } from './types';
 
 export function computeHeights(nodes: TreeNode[]): Map<number, number> {
   const heights = new Map<number, number>();
@@ -69,13 +64,6 @@ export type ProductRow = {
   productTypeId: number;
   quantity: number;
 };
-
-export type ActivityIO = {
-  materials?: { typeID: number; quantity: number }[];
-  products?: { typeID: number; quantity: number }[];
-  time?: number;
-};
-export type BlueprintActivities = Record<string, ActivityIO | undefined>;
 
 export function activitiesToRows(
   blueprintTypeId: number,
@@ -163,24 +151,6 @@ export function buildIndexesFromActivities(
   }
 
   return { blueprintMaterials, productToBlueprint };
-}
-
-async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
-  const rows = await db
-    .select({
-      blueprintTypeId: industryBlueprints.blueprintTypeId,
-      activities: industryBlueprints.activities,
-      published: eveTypes.published,
-    })
-    .from(industryBlueprints)
-    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
-  return buildIndexesFromActivities(
-    rows as {
-      blueprintTypeId: number;
-      activities: BlueprintActivities;
-      published: boolean | null;
-    }[],
-  );
 }
 
 function runsFor(quantity: number, quantityPerRun: number): number {
@@ -286,7 +256,7 @@ export class TreeResolver {
 export function hashResolverInputs(
   rows: ReadonlyArray<{
     blueprintTypeId: number;
-    activities: unknown;
+    activities: BlueprintActivities;
     published: boolean | null;
   }>,
 ): string {
@@ -300,14 +270,12 @@ export function hashResolverInputs(
   for (const r of rows) {
     blueprintCount++;
     publishedSamples.push(`${r.blueprintTypeId}:${r.published === false ? 0 : 1}`);
-    const activities = (r.activities ?? {}) as BlueprintActivities;
-    for (const key of Object.keys(activities)) {
-      const act = activities[key];
+    for (const act of Object.values(r.activities)) {
       matEdges += act?.materials?.length ?? 0;
       prodEdges += act?.products?.length ?? 0;
     }
     if (!refSet.has(r.blueprintTypeId)) continue;
-    const { mats, prods } = activitiesToRows(r.blueprintTypeId, activities);
+    const { mats, prods } = activitiesToRows(r.blueprintTypeId, r.activities);
     for (const m of mats) {
       refSamples.push(`${m.blueprintTypeId}:m:${m.materialTypeId}:${m.quantity}`);
     }
@@ -329,8 +297,20 @@ export function hashResolverInputs(
     .digest('hex');
 }
 
-async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
-  const all = await db
+type ResolverInputRow = {
+  blueprintTypeId: number;
+  activities: BlueprintActivities;
+  published: boolean | null;
+};
+
+/**
+ * The resolver's one read: every blueprint's activities, left-joined to its
+ * own type for the published flag (null when the type row is missing). The
+ * input hash, the indexes and the blueprint id list all come from these rows,
+ * so the stored hash describes exactly the rows the trees were built from.
+ */
+async function readResolverInputs(db: AnyPgDb): Promise<ResolverInputRow[]> {
+  return db
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
       activities: industryBlueprints.activities,
@@ -338,14 +318,41 @@ async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     })
     .from(industryBlueprints)
     .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
-  return hashResolverInputs(all);
 }
 
-async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
-  const [{ exists }] = await db.execute<{ exists: boolean }>(
+type ResolvePlan = {
+  hashAfter: string;
+  rebuild: { resolver: TreeResolver; blueprintIds: number[] } | null;
+};
+
+/**
+ * Reads the inputs once, hashes them, and on the rebuild path derives the
+ * resolver and the id list from the same rows. The rows stay local to this
+ * frame so they can be collected before the long insert loop runs.
+ */
+async function planResolve(
+  db: PostgresJsDb,
+  gate: { forceRebuild: boolean; hashBefore: string | null },
+): Promise<ResolvePlan> {
+  const rows = await readResolverInputs(db);
+  const hashAfter = hashResolverInputs(rows);
+  if (hashGateSkips({ ...gate, hashAfter }) && (await hasResolvedTrees(db))) {
+    return { hashAfter, rebuild: null };
+  }
+  return {
+    hashAfter,
+    rebuild: {
+      resolver: new TreeResolver(buildIndexesFromActivities(rows)),
+      blueprintIds: rows.map((row) => row.blueprintTypeId),
+    },
+  };
+}
+
+async function hasResolvedTrees(db: PostgresJsDb): Promise<boolean> {
+  const [row] = await db.execute<{ exists: boolean }>(
     sql`SELECT EXISTS (SELECT 1 FROM ${blueprintTrees}) AS exists`,
   );
-  return exists;
+  return row?.exists ?? false;
 }
 
 export type FlatMaterialRow = {
@@ -384,43 +391,13 @@ export function assertNoResolverCycles(stats: { cycleWarnings: string[] }): void
   }
 }
 
-export function makeBatchInserter<T>(
-  batchSize: number,
-  sink: (batch: T[]) => Promise<void>,
-) {
-  let buffer: T[] = [];
-  let written = 0;
-  return {
-    async add(rows: readonly T[]): Promise<void> {
-      for (const row of rows) {
-        buffer.push(row);
-        if (buffer.length >= batchSize) {
-          await sink(buffer);
-          written += buffer.length;
-          buffer = [];
-        }
-      }
-    },
-    async flush(): Promise<void> {
-      if (buffer.length > 0) {
-        await sink(buffer);
-        written += buffer.length;
-        buffer = [];
-      }
-    },
-    written(): number {
-      return written;
-    },
-  };
-}
-
 export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary> {
   const start = Date.now();
   const forceRebuild = readEnv('LGI_FORCE_TREE_REBUILD') === '1';
 
   const hashBefore = await getSdeMetaValue(db, SDE_META_KEY_TREE_HASH);
-  const hashAfter = await computeTreeResolverHash(db);
-  if (hashGateSkips({ forceRebuild, hashBefore, hashAfter }) && (await hasResolvedTrees(db))) {
+  const { hashAfter, rebuild } = await planResolve(db, { forceRebuild, hashBefore });
+  if (!rebuild) {
     return {
       blueprintsResolved: 0,
       flatMaterialsWritten: 0,
@@ -435,13 +412,7 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
     };
   }
 
-  const indexes = await buildIndexes(db);
-  const resolver = new TreeResolver(indexes);
-
-  const allBlueprintIds = await db
-    .select({ id: industryBlueprints.blueprintTypeId })
-    .from(industryBlueprints);
-
+  const { resolver, blueprintIds } = rebuild;
   const FLAT_BATCH_SIZE = 1000;
   const TREE_BATCH_SIZE = 500;
   const computedAt = new Date();
@@ -461,7 +432,7 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
       },
     );
 
-    for (const { id } of allBlueprintIds) {
+    for (const id of blueprintIds) {
       await flat.add(roundedFlatRows(resolver.flatForOneRun(id), id));
       await tree.add([{ blueprintTypeId: id, treeJson: resolver.treeForOneRun(id), computedAt }]);
     }
@@ -475,7 +446,7 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
 
   const stats = resolver.stats();
   return {
-    blueprintsResolved: allBlueprintIds.length,
+    blueprintsResolved: blueprintIds.length,
     flatMaterialsWritten: flatWritten,
     treesWritten: treeWritten,
     memoHits: stats.memoHits,

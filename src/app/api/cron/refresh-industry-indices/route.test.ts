@@ -5,16 +5,12 @@ import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const refreshIndustryIndicesMock = vi.fn();
 const logUsageEventMock = vi.fn();
-const dbMock = {};
+const dbMock = { handle: 'direct-database' };
 
 let lockGot = true;
 const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
   () => Promise.resolve([{ got: lockGot }]),
 );
-
-vi.mock('@/data/industry-indices/constants', () => ({
-  ADVISORY_LOCK_INDUSTRY_INDICES: 41,
-}));
 
 vi.mock('@/data/industry-indices/ingest', () => ({
   refreshIndustryIndices: (...args: unknown[]) =>
@@ -29,7 +25,7 @@ vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => reserveMock(...args) },
 }));
 
-vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => dbMock }));
+vi.mock('@/db/direct-database', () => ({ directDatabase: () => dbMock }));
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
 const ROUTE = '/api/cron/refresh-industry-indices';

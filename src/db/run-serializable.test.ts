@@ -38,3 +38,14 @@ test('a statement that returns nothing reads as no rows', async () => {
   const { runSerializable } = await import('./index');
   await expect(runSerializable(sql`select 1 where false`)).resolves.toEqual([]);
 });
+
+test('a statement Postgres rejected for a concurrent write runs again in a fresh transaction', async () => {
+  vi.stubEnv('LOCAL_DB_DRIVER', '');
+  vi.stubEnv('DATABASE_URL', NEON_URL);
+  h.transaction
+    .mockRejectedValueOnce(Object.assign(new Error('could not serialize access'), { code: '40001' }))
+    .mockResolvedValueOnce([[{ id: 'a' }]]);
+  const { runSerializable } = await import('./index');
+  await expect(runSerializable(sql`insert into t select ${'a'} returning id`)).resolves.toEqual([{ id: 'a' }]);
+  expect(h.transaction).toHaveBeenCalledTimes(2);
+});

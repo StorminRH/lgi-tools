@@ -7,6 +7,7 @@ const logUsageEventMock = vi.fn();
 const emitDomainEventMock = vi.fn();
 const alertMock = vi.fn();
 const revalidateTagMock = vi.fn();
+const directDatabaseMock = { handle: 'direct-database' };
 
 vi.mock('@/data/market-prices/cache', () => ({
   PRICES_FRESHNESS_TAG: 'market-prices-freshness',
@@ -26,6 +27,10 @@ vi.mock('@/lib/alerts', () => ({
 }));
 
 vi.mock('@/db', () => ({ directClient: {} }));
+
+vi.mock('@/db/direct-database', () => ({
+  directDatabase: () => directDatabaseMock,
+}));
 
 vi.mock('next/cache', () => ({
   revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
@@ -82,6 +87,7 @@ describe('GET /api/cron/refresh-prices', () => {
     const { GET } = await import('./route');
     const res = await GET(cronRequest(ROUTE));
     expect((await res.json()).cached).toBe(true);
+    expect(refreshStalePricesMock).toHaveBeenCalledWith(directDatabaseMock);
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_prices',
       metadata: expect.objectContaining({ outcome: 'skipped', reason: 'empty-set' }),

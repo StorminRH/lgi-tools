@@ -1,5 +1,6 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { eveNpcStations } from './schema';
+import { chunk } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { postUniverseNames } from './universe-names';
 
@@ -14,8 +15,7 @@ export async function resolveNpcStationNames(db: AnyPgDb): Promise<{ resolved: n
   if (ids.length === 0) return { resolved: 0 };
 
   let resolved = 0;
-  for (let i = 0; i < ids.length; i += ESI_UNIVERSE_NAMES_POST_MAX) {
-    const batch = ids.slice(i, i + ESI_UNIVERSE_NAMES_POST_MAX);
+  for (const batch of chunk(ids, ESI_UNIVERSE_NAMES_POST_MAX)) {
     try {
       const named = await fetchStationNames(batch);
       if (named.length === 0) continue;

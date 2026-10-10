@@ -1,4 +1,3 @@
-import type { Sql } from '@/db';
 import type { CronBatchResponse, CronBatchStepStatus } from './api-contract';
 import {
   capabilityResultForError,
@@ -15,11 +14,14 @@ import {
   withAdvisoryLock,
   type ReservedConnection,
 } from '@/db/advisory-lock';
+import { directDatabase } from '@/db/direct-database';
+import type { PostgresJsDb } from '@/lib/db-types';
 
 export type CronWakeClass = 'batch' | 'idle-silent';
 
 export type CronWorkContext = {
-  client: Sql;
+  /** Drizzle over the direct client, built on first read. */
+  readonly database: PostgresJsDb;
   reserved?: ReservedConnection;
   record: (
     action: UsageAction,
@@ -73,7 +75,9 @@ function workContext(
   reserved?: ReservedConnection,
 ): CronWorkContext {
   return {
-    client: directClient,
+    get database() {
+      return directDatabase();
+    },
     reserved,
     record: (action, metadata) =>
       recordUsage(scope, action, metadata),

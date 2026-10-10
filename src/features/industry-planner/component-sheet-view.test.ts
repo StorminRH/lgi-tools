@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { computeBatchLedger } from './build-batch';
 import { computeComponentJobFees } from './component-job-fees';
 import { componentSheet } from './component-sheet-view';

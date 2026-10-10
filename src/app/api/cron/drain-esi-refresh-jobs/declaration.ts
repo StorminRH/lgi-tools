@@ -1,7 +1,7 @@
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
-import { ADVISORY_LOCK_ESI_REFRESH_QUEUE } from '@/data/esi-refresh-jobs/constants';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { drainEsiRefreshJobs } from '@/composition/sync/esi-refresh-worker';
+import { ADVISORY_LOCKS } from '@/db/advisory-lock';
 import { bestEffort } from '@/lib/best-effort';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
@@ -27,7 +27,7 @@ export const drainEsiRefreshJobsDeclaration: CronRouteDeclaration<EsiRefreshWork
   wakeClass: 'batch',
   record: { policy: 'noteworthy' },
   lock: {
-    key: Number(ADVISORY_LOCK_ESI_REFRESH_QUEUE),
+    key: ADVISORY_LOCKS.esiRefreshQueue,
     busyBody: (durationMs) => busySummary(durationMs),
   },
   work: async () => {

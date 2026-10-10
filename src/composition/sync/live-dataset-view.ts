@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { getTypeNames } from '@/data/eve-data/queries';
+import { getTypeNameRecord } from '@/data/eve-data/queries';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 
 export interface OwnerRow {
@@ -46,9 +46,5 @@ export async function getLiveDatasetOnView<TData, TRow>(
 
   const rows = owners.map((owner) => view.makeRow(owner, data.get(owner.id) ?? null));
 
-  const nameMap = await getTypeNames([...new Set(view.nameIds(rows))]);
-  const names: Record<string, string> = {};
-  for (const [id, name] of nameMap) names[String(id)] = name;
-
-  return { rows, names };
+  return { rows, names: await getTypeNameRecord(view.nameIds(rows)) };
 }

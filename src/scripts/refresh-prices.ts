@@ -32,7 +32,7 @@ async function main() {
     return;
   }
 
-  const result = await refreshStalePrices(client);
+  const result = await refreshStalePrices(db);
   if (result.status === 'cached') {
     console.log('Nothing stale — no Fuzzwork call.');
     console.log(JSON.stringify({

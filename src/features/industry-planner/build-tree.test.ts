@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TypeLabel } from '@/data/eve-data/queries';
-import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
+import { computeHeights } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { toBuildTree } from './build-tree';
 
 function fixture() {

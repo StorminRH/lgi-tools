@@ -1,6 +1,7 @@
-import { and, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt } from 'drizzle-orm';
 import { chunk } from '@/lib/array';
 import { retentionCutoffDay, type BatchedDeleteResult } from '@/lib/batched-delete';
+import { excludedSet } from '@/lib/db-upsert';
 import { daysBefore } from '@/lib/iso-date';
 import { HISTORY_RETENTION_DAYS } from './constants';
 import { marketHistory, marketHistoryMeta } from './schema';
@@ -9,10 +10,6 @@ import type { AnyPgDb } from '@/lib/db-types';
 
 const UPSERT_CHUNK_SIZE = 1000;
 const PRUNE_TYPE_CHUNK_SIZE = 100;
-
-function excluded(column: string) {
-  return sql.raw(`excluded.${column}`);
-}
 
 /**
  * A refresh trims its own type; this trims the types that have not refreshed in
@@ -67,13 +64,7 @@ export async function persistHistory(
       )
       .onConflictDoUpdate({
         target: [marketHistory.typeId, marketHistory.date],
-        set: {
-          average: excluded('average'),
-          highest: excluded('highest'),
-          lowest: excluded('lowest'),
-          volume: excluded('volume'),
-          orderCount: excluded('order_count'),
-        },
+        set: excludedSet(marketHistory, ['average', 'highest', 'lowest', 'volume', 'orderCount']),
       });
     written += batch.length;
   }
@@ -92,11 +83,7 @@ export async function persistHistory(
     .values({ typeId, updatedAt, staleAfter, source })
     .onConflictDoUpdate({
       target: marketHistoryMeta.typeId,
-      set: {
-        updatedAt: excluded('updated_at'),
-        staleAfter: excluded('stale_after'),
-        source: excluded('source'),
-      },
+      set: excludedSet(marketHistoryMeta, ['updatedAt', 'staleAfter', 'source']),
     });
 
   return { written };

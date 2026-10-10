@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
+import { asRecord } from './coerce';
 import {
   SDE_CACHE_TAG,
   SDE_META_KEY_VERSION,
@@ -212,16 +213,13 @@ function isKnownQaWormholeType(row: WormholeTypeRow): boolean {
 }
 
 function dogmaAttributes(row: WormholeTypeRow): Record<string, unknown> {
-  if (
-    typeof row.attributes !== 'object'
-    || row.attributes === null
-    || Array.isArray(row.attributes)
-  ) {
+  const attributes = asRecord(row.attributes);
+  if (attributes === null) {
     throw new Error(
       `SDE wormhole type ${row.id} (${row.name}) has no dogma row.`,
     );
   }
-  return row.attributes as Record<string, unknown>;
+  return attributes;
 }
 
 function requireDogmaNumber(

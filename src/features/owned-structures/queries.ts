@@ -42,8 +42,7 @@ export async function readCorpStructureSyncState(
     .from(corpStructureSyncs)
     .where(eq(corpStructureSyncs.corporationId, corporationId))
     .limit(1);
-  const row = rows[0];
-  return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
+  return rows[0] ?? null;
 }
 
 export async function listCorpStructureSyncStates(

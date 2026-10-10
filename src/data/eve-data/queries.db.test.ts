@@ -22,6 +22,7 @@ import {
   getIndustryTargetFilterSets,
   getProductionModifiers,
   getStructureRigs,
+  getTypeNameRecord,
   readShipMassByType,
 } from './queries';
 
@@ -104,6 +105,20 @@ describe.skipIf(!harness.reachable)('getBlueprintActivities executes against Pos
     await expect(readShipMassByType(harness.db, 670)).resolves.toBe(32_000);
     await expect(readShipMassByType(harness.db, 999_999)).resolves.toBeNull();
     await expect(readShipMassByType(harness.db, 123_456)).resolves.toBeNull();
+  });
+
+  it('keys type names by decimal id for any iterable of ids, repeated or unknown', async () => {
+    function* requested() {
+      yield 670;
+      yield 123_456;
+      yield 999_999;
+      yield 670;
+    }
+    await expect(getTypeNameRecord(requested())).resolves.toEqual({
+      '670': 'Capsule',
+      '999999': 'Massless fixture',
+    });
+    await expect(getTypeNameRecord(new Set<number>())).resolves.toEqual({});
   });
 });
 

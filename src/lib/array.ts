@@ -2,7 +2,15 @@ export function dedupe<T>(items: T[]): T[] {
   return [...new Set(items)];
 }
 
-export function chunk<T>(items: T[], size: number): T[][] {
+/**
+ * Consecutive slices of at most `size` items, in input order; only the last
+ * may be shorter. Throws a RangeError unless `size` is a positive integer:
+ * zero or a negative size never advances, and a fractional one slices unevenly.
+ */
+export function chunk<T>(items: readonly T[], size: number): T[][] {
+  if (!Number.isInteger(size) || size <= 0) {
+    throw new RangeError(`chunk size must be a positive integer, got ${size}`);
+  }
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;

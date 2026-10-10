@@ -1,5 +1,5 @@
 import type { TypeLabel } from '@/data/eve-data/queries';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { unresolvedName } from '@/lib/format/names';
 import { classifyBuildNode } from './industry-styles';
 import type { BuildNode, BuildNodeDisplay } from './types';
