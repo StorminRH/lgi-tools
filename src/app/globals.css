@@ -501,7 +501,7 @@ a:hover {
 
 /* ── Glass surface (glass-panel) ─────────────────────────────────────────
  * The one frosted-surface recipe: a color-mix tint of the deep well over
- * `backdrop-filter: blur() saturate()`, driven by the two :root --glass-*
+ * `backdrop-filter: blur() saturate()`, driven by the :root --glass-*
  * knobs below so density/blur tune in ONE place. 65% density on operator
  * review — the earlier 80% tier read as solid black over these near-black
  * pages (the tint only registers where blurred content shows through), and
@@ -553,6 +553,19 @@ a:hover {
   background-color: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
   -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
   backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--color-bg-deep);
+  }
+}
+/* glass-chip: the small inline frost worn by the ui banners, copy chips and
+ * Select/Combobox triggers. A faint white lift over a 55% deep well, on the
+ * tighter --glass-chip-blur. The owner sheets @apply it inside their
+ * @layer components rules, so utility-class overrides on those elements
+ * still win; it is not meant as an element class. */
+@utility glass-chip {
+  background-color: color-mix(in oklab, white 4%, color-mix(in oklab, var(--color-bg-deep) 55%, transparent));
+  -webkit-backdrop-filter: blur(var(--glass-chip-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-chip-blur)) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     background-color: var(--color-bg-deep);
   }
@@ -662,5 +675,6 @@ a:hover {
  * the frost instead of washing gray. */
 :root {
   --glass-blur: 16px;
+  --glass-chip-blur: 14px;
   --glass-saturate: 1.3;
 }
