@@ -1,5 +1,5 @@
 import type { WormholeCodexAsset } from '@/data/eve-data/universe-assets';
-import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
+import { codesBySystem, compareSystemCodes } from './code-sets';
 import type { PathfinderStaticRow } from './lineage';
 import type {
   WhStaticEntry,
@@ -21,14 +21,6 @@ export class UnknownLineageTypeError extends Error {
   }
 }
 
-function sortedValues(values: ReadonlySet<string>): string[] {
-  return [...values].sort();
-}
-
-function equalSets(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-  return left.size === right.size && [...left].every((value) => right.has(value));
-}
-
 export function crossCheckStatics(
   entries: readonly WhStaticEntry[],
   lineageRows: readonly PathfinderStaticRow[],
@@ -38,38 +30,33 @@ export function crossCheckStatics(
   const codeByTypeId = new Map(
     codex.types.map((entry) => [entry.typeId, entry.code]),
   );
-  const feedBySystem = new Map<number, Set<string>>();
   for (const entry of entries) {
     if (!knownCodes.has(entry.code)) {
       throw new UnknownCodexStaticError(entry.code);
     }
-    getOrInsertComputed(feedBySystem, entry.systemId, () => new Set()).add(entry.code);
   }
-  const lineageBySystem = new Map<number, Set<string>>();
-  for (const row of lineageRows) {
+  const lineage = lineageRows.map((row) => {
     const code = codeByTypeId.get(row.typeId);
     if (code === undefined) throw new UnknownLineageTypeError(row.typeId);
-    getOrInsertComputed(lineageBySystem, row.systemId, () => new Set()).add(code);
-  }
+    return { systemId: row.systemId, code };
+  });
 
   let agreedSystems = 0;
   const disagreements: WhStaticsDisagreement[] = [];
   const lineageOnlySystems: number[] = [];
   const feedOnlySystems: number[] = [];
-  for (const systemId of sortedUniqueIds([...feedBySystem.keys(), ...lineageBySystem.keys()])) {
-    const feed = feedBySystem.get(systemId);
-    const lineage = lineageBySystem.get(systemId);
-    if (feed === undefined) {
-      lineageOnlySystems.push(systemId);
-    } else if (lineage === undefined) {
-      feedOnlySystems.push(systemId);
-    } else if (equalSets(feed, lineage)) {
+  for (const comparison of compareSystemCodes(codesBySystem(entries), codesBySystem(lineage))) {
+    if (comparison.kind === 'left-only') {
+      feedOnlySystems.push(comparison.systemId);
+    } else if (comparison.kind === 'right-only') {
+      lineageOnlySystems.push(comparison.systemId);
+    } else if (comparison.kind === 'equal') {
       agreedSystems += 1;
     } else {
       disagreements.push({
-        systemId,
-        feedCodes: sortedValues(feed),
-        lineageCodes: sortedValues(lineage),
+        systemId: comparison.systemId,
+        feedCodes: comparison.left,
+        lineageCodes: comparison.right,
       });
     }
   }
