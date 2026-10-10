@@ -314,4 +314,7 @@ export const eveEntityNames = pgTable('eve_entity_names', {
   name: text('name'),
   category: text('category'),
   resolvedAt: timestamp('resolved_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  // Housekeeping deletes by age in batches; without it each batch scans the table.
+  resolvedAtIdx: index('eve_entity_names_resolved_at_idx').on(t.resolvedAt),
+}));

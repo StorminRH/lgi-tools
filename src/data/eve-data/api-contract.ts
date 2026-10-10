@@ -36,6 +36,8 @@ export const entityNamesRequestSchema = z.object({
 
 const entityNamesResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
+  /** Ids ESI could not answer for this time (as opposed to ids it does not know), worth asking again. */
+  pending: z.array(z.number()).optional(),
 });
 export type SdePipelineSummary = {
   ingest: IngestSummary;
