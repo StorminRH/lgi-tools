@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { SystemWithSecurity } from '@/components/security-status';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -25,6 +24,7 @@ import { unresolvedName } from '@/lib/format/names';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { FacilitySubline } from './facility-subline';
 import { type NewStructure, settleNewStructure, useNewStructureRequest } from './structures-panel';
 
 type Filter = 'all' | 'corp' | 'yours';
@@ -79,15 +79,7 @@ function StructureRow({
       </span>
       <div className="flex min-w-0 flex-col gap-1 [grid-area:name]">
         <span className="truncate font-ui text-nav font-medium text-name">{name}</span>
-        <span className="truncate font-data text-micro text-muted">
-          {hull?.name ?? 'Structure'}
-          {system ? (
-            <>
-              {' · '}
-              <SystemWithSecurity system={system} />
-            </>
-          ) : null}
-        </span>
+        <FacilitySubline kind={hull?.name ?? 'Structure'} system={system} />
       </div>
       <span className="[--bonus-label-col:2.5rem] [grid-area:readout] sm:self-end sm:justify-self-end sm:[--bonus-label-col:auto]">
         <StructureBonusColumns readout={readout} taxPct={taxPct} />

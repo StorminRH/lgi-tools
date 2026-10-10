@@ -1,8 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { SystemWithSecurity } from '@/components/security-status';
-import { StructureHullTile } from '@/components/StructureHullTile';
+import { PlaceholderTile, StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
@@ -24,6 +23,7 @@ import {
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { AddFacilityRow } from './AddFacilityRow';
 import { CategoryChecklist } from './CategoryChecklist';
+import { FacilitySubline } from './facility-subline';
 import {
   type FacilityPick,
   type FacilityView,
@@ -41,41 +41,19 @@ export interface HullName {
   name: string;
 }
 
+function hullName(hulls: readonly HullName[], typeId: number | undefined): string | null {
+  return hulls.find((h) => h.typeId === typeId)?.name ?? null;
+}
 
-function FacilityTile({ view, hulls }: { view: FacilityView; hulls: readonly HullName[] }) {
-  if (view.facility.kind === 'station') {
-    return (
-      <span
-        aria-hidden
-        className="grid size-10 shrink-0 place-items-center rounded-ctl border border-border bg-bg-deep/60 font-display text-micro font-bold tracking-copy text-muted"
-      >
-        NPC
-      </span>
-    );
-  }
-  const hull = hulls.find((h) => h.typeId === view.structure?.structureTypeId)?.name ?? null;
+function FacilityTile({ view, hull }: { view: FacilityView; hull: string | null }) {
+  if (view.facility.kind === 'station') return <PlaceholderTile label="NPC" className="text-micro tracking-copy" />;
   return <StructureHullTile typeId={view.structure?.structureTypeId ?? null} hullName={hull} />;
 }
 
-function facilityKind(view: FacilityView, hulls: readonly HullName[]): string {
+function facilityKind(view: FacilityView, hull: string | null): string {
   if (view.facility.kind === 'station') return 'NPC station';
   if (view.missing) return 'No longer available';
-  return hulls.find((h) => h.typeId === view.structure?.structureTypeId)?.name ?? 'Structure';
-}
-
-/** What a facility is and where: its hull or station, then its system and security. */
-function FacilitySubline({ kind, system }: { kind: string; system: SystemSearchEntry | null }) {
-  return (
-    <span className="truncate font-data text-micro text-muted">
-      {kind}
-      {system ? (
-        <>
-          {' · '}
-          <SystemWithSecurity system={system} />
-        </>
-      ) : null}
-    </span>
-  );
+  return hull ?? 'Structure';
 }
 
 function FacilityHeader({
@@ -89,14 +67,15 @@ function FacilityHeader({
 }) {
   const off = unavailableCategories(view);
   const builds = roleLine({ categories: view.facility.categories.filter((c) => !off.has(c)) });
+  const hull = hullName(hulls, view.structure?.structureTypeId);
   return (
     <span className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-1">
       <span className={cn(view.missing && 'opacity-50 grayscale')}>
-        <FacilityTile view={view} hulls={hulls} />
+        <FacilityTile view={view} hull={hull} />
       </span>
       <span className="flex min-w-0 flex-col gap-1">
         <span className="truncate font-ui text-nav font-medium text-name">{view.facility.name}</span>
-        <FacilitySubline kind={facilityKind(view, hulls)} system={system} />
+        <FacilitySubline kind={facilityKind(view, hull)} system={system} />
         <span className="truncate font-data text-micro text-isk sm:hidden">{builds}</span>
       </span>
       <span className="flex items-center gap-3">
@@ -186,7 +165,7 @@ export function FacilitiesPanel({
       <FacilitySubline kind="NPC station" system={systemOf(pick.station.systemId)} />
     ) : (
       <FacilitySubline
-        kind={hulls.find((h) => h.typeId === pick.structure.structureTypeId)?.name ?? 'Structure'}
+        kind={hullName(hulls, pick.structure.structureTypeId) ?? 'Structure'}
         system={systemOf(pick.structure.systemId)}
       />
     );
