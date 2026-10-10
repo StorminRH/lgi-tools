@@ -252,18 +252,29 @@ describe('map static placeholders', () => {
     expect(await scheduledFunctionsNamed(t, 'fetchSystemStatics')).toHaveLength(before.length);
   });
 
-  it('skips apply when fetch fails', async () => {
+  it.each([
+    ['a server error', () => new Response('nope', { status: 500 }), 'HTTP 500'],
+    ['a redirect', () => new Response('Redirecting...', { status: 302 }), 'HTTP 302'],
+    ['a 200 that is not JSON', () => new Response('<html>', { status: 200 }), 'invalid statics payload'],
+    ['a 200 off the contract', () => Response.json({ statics: [247] }), 'invalid statics payload'],
+    ['a network failure', (): Response => { throw new TypeError('fetch failed'); }, 'fetch failed'],
+  ] as const)('skips apply on %s', async (_case, respond, reason) => {
     const t = convexTest(schema, modules);
     await seedHome(t, WH_ROOT);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    stubStaticsFetch(() => new Response('nope', { status: 500 }));
+    stubStaticsFetch(respond);
     await t.action(internal.mapStatics.fetchSystemStatics, {
       mapId: MAP_A,
       systemId: WH_ROOT,
     });
     expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
-    expect(warn.mock.calls.some((call) => String(call[0]).includes('static placeholders skipped')))
-      .toBe(true);
+    const skips = warn.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.includes('static placeholders skipped'))
+      .map((line): unknown => JSON.parse(line));
+    expect(skips).toEqual([
+      { note: 'static placeholders skipped', reason, systemId: WH_ROOT },
+    ]);
   });
 
   it.each([
@@ -327,19 +338,6 @@ describe('map static placeholders', () => {
     const init = fetchMock.mock.calls[0]?.[1];
     expect(init?.headers).not.toHaveProperty('x-vercel-protection-bypass');
     expect((await liveStaticRows(t, WH_ROOT)).map((row) => row.staticCode)).toEqual(['C247']);
-  });
-
-  it('skips apply on HTTP 302', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    stubStaticsFetch(() => new Response('Redirecting...', { status: 302 }));
-    await t.action(internal.mapStatics.fetchSystemStatics, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-    });
-    expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
-    expect(warn.mock.calls.some((call) => String(call[0]).includes('HTTP 302'))).toBe(true);
   });
 
   it('backfillStaticPlaceholders on a fixture map', async () => {

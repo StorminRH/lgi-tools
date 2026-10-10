@@ -12,7 +12,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P209](#p209) | Give the 'Convex is not configured' check one owner and report the door's reason | server-pipeline | S | low | low | [P134](#p134) |
 | ☑ | [P210](#p210) | Share one runtime-portable bearerMatches between Next and Convex, and make Convex answer 500 when its service secret is unset | convex | S | low | medium | — |
 | ☑ | [P211](#p211) | Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads | convex | S | low | low | [P210](#p210), [P134](#p134) |
-| ☐ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
+| ☑ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
 | ☐ | [P247](#p247) | Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500 | contracts-validation | M | low | medium | — |
 | ☐ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
 | ☐ | [P187](#p187) | Move EVE_SCOPES into src/config/eve-scopes.ts with an EveScope type, type every sync scope list against it, and gloss every requested scope | esi-sync | S | low | medium | — |
@@ -293,7 +293,7 @@ export function readAppOrigin(): string | undefined
 
 ## P212: Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20 in mapStatics.ts, +12 in service-client.ts, +20 in tests
 - **Depends on:** [P211](#p211)
