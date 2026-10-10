@@ -17,6 +17,7 @@ import {
 } from '@/features/wormhole-sites/queries';
 import { deriveSiteMeta } from '@/features/wormhole-sites/site-meta';
 import { selectRelatedSites } from '@/features/wormhole-sites/related-sites';
+import { withSearchParams } from '@/lib/search-params';
 import { buildBreadcrumbList } from '@/lib/structured-data';
 
 const loadSite = cache(getPricedSiteDetail);
@@ -92,10 +93,10 @@ async function SiteDeepLinkMeta({
   const sp = await searchParams;
   const { lastUpdatedAt } = await getCachedPricesFreshness();
 
-  const qs = new URLSearchParams();
-  if (typeof sp.type === 'string') qs.set('type', sp.type);
-  if (typeof sp.class === 'string') qs.set('class', sp.class);
-  const backHref = qs.toString() ? `/sites?${qs}` : '/sites';
+  const backHref = withSearchParams('/sites', '', {
+    type: typeof sp.type === 'string' ? sp.type : null,
+    class: typeof sp.class === 'string' ? sp.class : null,
+  });
 
   return (
     <DeepLinkMetaView

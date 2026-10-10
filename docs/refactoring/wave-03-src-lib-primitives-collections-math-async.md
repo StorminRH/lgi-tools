@@ -41,7 +41,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P130](#p130) | Retire transport/cron swallow and route log-and-continue side effects through lib bestEffort | generic-utility | S | low | low | — |
 | ☑ | [P173](#p173) | Route every ops alert through one private sendOpsAlert in lib/alerts that rejects non-2xx webhooks | server-pipeline | S | low | medium | [P130](#p130) |
 | ☑ | [P128](#p128) | Add one sentence-case identifier humaniser in lib/format and use it for label fallbacks | generic-utility | S | low | low | — |
-| ☐ | [P129](#p129) | Patch search params through one lib helper, and build the post-create link with atlasMapHref | generic-utility | S | low | low | — |
+| ☑ | [P129](#p129) | Patch search params through one lib helper, and build the post-create link with atlasMapHref | generic-utility | S | low | low | — |
 | ☐ | [P047](#p047) | Add a shared useNow clock hook in src/lib for the four interval tickers | react-hook | S | low | low | — |
 | ☐ | [P226](#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
 | ☐ | [P115](#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
@@ -1452,7 +1452,7 @@ Acronym preservation is new behavior. No current test covers it, but it avoids '
 
 ## P129: Patch search params through one lib helper, and build the post-create link with atlasMapHref
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** Production about -25 / +14. Tests about +25.
 - **Depends on:** —

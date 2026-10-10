@@ -5,6 +5,7 @@ import type { IndustryProfileRow } from '@/features/industry-planner/profiles/ap
 import { type CategoryKey, categoryName } from '@/features/industry-planner/profiles/production-categories';
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { type AppliedTimeSkill, skillTimeBreakdown } from '@/features/industry-planner/skill-time';
+import { withSearchParams } from '@/lib/search-params';
 import { type BoardView, OVERVIEW } from '../board/board-view-model';
 
 export const SLOT_POOLS: readonly JobCategory[] = ['manufacturing', 'reactions', 'science'];
@@ -46,12 +47,7 @@ export function memberView(param: string | null, doc: ProfileDocument | null): B
 
 /** The address with another profile open and no member focused. */
 export function profileHref(pathname: string, search: string, profileId: string | null): string {
-  const params = new URLSearchParams(search);
-  if (profileId === null) params.delete('profile');
-  else params.set('profile', profileId);
-  params.delete('character');
-  const query = params.toString();
-  return query === '' ? pathname : `${pathname}?${query}`;
+  return withSearchParams(pathname, search, { profile: profileId, character: null });
 }
 
 // ---------------------------------------------------------------------------
