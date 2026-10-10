@@ -109,3 +109,23 @@ it('soft-navigates linked segments in place and leaves unlinked or disabled ones
   expect(fallback).not.toContain('aria-current');
   expect(segmentClasses(fallback, 'a', '30d')).not.toContain('bg-row-on');
 });
+
+it('lets a segment that targets a fragment keep the default scroll so it jumps to its anchor', () => {
+  const html = renderToStaticMarkup(
+    createElement(SegmentedControl, {
+      label: 'Reference sections',
+      value: 'choices',
+      options: [
+        { value: 'forms', label: 'Forms', href: '#forms' },
+        { value: 'choices', label: 'Choices', href: '/preview/primitives#choices' },
+        { value: 'range', label: 'Range', href: '/admin/traffic?range=7d' },
+      ],
+    }),
+  );
+
+  expect(segmentTag(html, 'a', 'Forms')).toMatch(/^ data-next-link="" data-scroll="undefined" href="#forms" class="/);
+  expect(segmentTag(html, 'a', 'Choices')).toMatch(
+    /^ data-next-link="" data-scroll="undefined" href="\/preview\/primitives#choices" aria-current="page" class="/,
+  );
+  expect(segmentTag(html, 'a', 'Range')).toMatch(/^ data-next-link="" data-scroll="false" href="\/admin\/traffic\?range=7d" class="/);
+});

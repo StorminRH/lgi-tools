@@ -86,8 +86,10 @@ export function SegmentedControl({
 
 /**
  * One link-mode segment: a soft navigation that keeps the scroll position,
- * since the choice changes in place. An option with no href, or a disabled
- * one, stays in the row as an unavailable link that goes nowhere.
+ * since the choice changes in place. An href with a fragment keeps Next's
+ * default scroll so it still jumps to its anchor. An option with no href,
+ * or a disabled one, stays in the row as an unavailable link that goes
+ * nowhere.
  */
 function SegmentLink({
   option,
@@ -108,7 +110,7 @@ function SegmentLink({
   return (
     <Link
       href={option.href}
-      scroll={false}
+      scroll={option.href.includes('#') ? undefined : false}
       aria-current={active ? 'page' : undefined}
       className={segment({ active, density })}
     >
