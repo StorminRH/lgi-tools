@@ -15,7 +15,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P001](#p001) | Complete the ui/dialog kit (DialogBody, DialogFooter, DialogCloseButton, closeDisabled, displayTitle) and route hand-built dialog chrome through it | ui-component | M | low | high | [P319](#p319), [P041](#p041) |
 | ☑ | [P019](#p019) | Portal every Base UI popup into the enclosing dialog, and share the pop-in transition | ui-component | S | medium | medium | — |
 | ☑ | [P021](#p021) | Give Checkbox and Switch a visible-label row, and let the existing Field label Select and PercentInput | ui-component | M | medium | low | — |
-| ☐ | [P006](#p006) | Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden) | ui-component | S | low | medium | — |
+| ☑ | [P006](#p006) | Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden) | ui-component | S | low | medium | — |
 | ☐ | [P018](#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
 | ☐ | [P020](#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
 | ☐ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
@@ -627,7 +627,7 @@ PercentInput({ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolea
 
 ## P006: Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -40 (7 five-line spans become one-line calls) and about +15 for the primitive. Net about -25.
 - **Depends on:** —

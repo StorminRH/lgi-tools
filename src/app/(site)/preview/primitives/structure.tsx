@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Measured } from '@/components/ui/measured';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { PageFooter } from '@/components/ui/page-footer';
@@ -153,7 +153,7 @@ export function StructureGroup() {
       <Specimen
         name="Collapsible + UrlSync"
         source="collapsible · url-sync · readout"
-        note="Native disclosure rows. chevron adds the turning ▾, hidden from screen readers. A ReadoutLine makes a status row the summary. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
+        note="Native disclosure rows. chevron adds the turning ▾, hidden from screen readers; CollapsibleChevron places one inside a custom header. A ReadoutLine makes a status row the summary. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
       >
         <Card className="overflow-hidden">
           <Collapsible
@@ -172,8 +172,16 @@ export function StructureGroup() {
           >
             <p className="px-3.5 pb-3 font-ui text-ui text-muted">The detail behind the status line.</p>
           </Collapsible>
-          <Collapsible header={<span className="text-name">Material breakdown</span>} defaultOpen>
-            <p className="px-3.5 pb-3 font-ui text-ui text-muted">Opens by default; the header row is the summary.</p>
+          <Collapsible
+            defaultOpen
+            header={
+              <span className="flex min-w-0 items-center gap-2">
+                <CollapsibleChevron />
+                <span className="text-name">Material breakdown</span>
+              </span>
+            }
+          >
+            <p className="px-3.5 pb-3 font-ui text-ui text-muted">Opens by default; CollapsibleChevron leads this custom header.</p>
           </Collapsible>
           <UrlSync basePath="/preview/primitives#" entityId="collapsible-sample">
             <Collapsible header={<span className="text-name">Synced to the URL</span>}>

@@ -26,19 +26,6 @@ vi.mock('@/components/ui/button', () => ({
     ),
 }));
 
-vi.mock('@/components/ui/collapsible', () => ({
-  Collapsible: (props: {
-    header: unknown;
-    children?: unknown;
-  }) =>
-    createElement(
-      'div',
-      { 'data-collapsible': '' },
-      props.header as never,
-      props.children as never,
-    ),
-}));
-
 const NOW = 10_000;
 
 function row(

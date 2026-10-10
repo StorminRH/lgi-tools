@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { Callout } from '@/components/ui/callout';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { getFullSession } from '@/composition/session';
@@ -112,12 +112,7 @@ function CharacterRow({
                 Granted access
               </span>
               <Pill tone="neutral">{view.scopes.length}</Pill>
-              <span
-                data-chevron
-                className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-              >
-                ▾
-              </span>
+              <CollapsibleChevron className="ml-auto" />
             </span>
           }
         >

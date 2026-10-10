@@ -58,7 +58,7 @@ describe('UI adoption exception census', () => {
     expect(codeMatching(/<[a-z][^>]*\baria-pressed=/)).toEqual([]);
     expect(
       codeMatching(
-        /text-empty|(?:bg|text|border)-(?:pill|chip)-|skeleton-shimmer|--pct|toast\.loading/,
+        /text-empty|(?:bg|text|border)-(?:pill|chip)-|skeleton-shimmer|--pct|toast\.loading|\bdata-chevron\b/,
       ),
     ).toEqual([]);
   });

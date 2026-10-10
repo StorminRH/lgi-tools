@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { useSystemSearch } from '@/components/use-system-search';
 import { securityStatusTextClass } from '@/data/eve-data/security';
@@ -103,7 +103,9 @@ function FacilityHeader({
         <span className="hidden max-w-[22rem] truncate font-data text-micro text-isk sm:block">
           {builds}
         </span>
-        <ChevronDownIcon size={14} className="shrink-0 text-muted transition-transform group-open:rotate-180" />
+        <CollapsibleChevron className="flex">
+          <ChevronDownIcon size={14} />
+        </CollapsibleChevron>
       </span>
     </span>
   );
