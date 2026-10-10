@@ -1190,7 +1190,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...except(productionSyntaxSelectors, liveRegionSelector, ...toneTokenSelectors),
+        ...except(productionSyntaxSelectors, liveRegionSelector),
       ],
     },
   },
@@ -1226,11 +1226,11 @@ const eslintConfig = defineConfig([
       "src/components/ui/access-gate.tsx",
       "src/components/ui/checkbox.tsx",
       "src/components/ui/chip-toggle.tsx",
-      "src/components/ui/chip.tsx",
       "src/components/ui/dropdown-panel.ts",
       "src/components/ui/field.tsx",
       "src/components/ui/pill.tsx",
       "src/components/ui/switch.tsx",
+      "src/components/ui/type-roles.ts",
     ],
     rules: {
       "no-restricted-syntax": [

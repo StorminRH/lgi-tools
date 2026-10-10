@@ -45,6 +45,8 @@ describe('MapControls', () => {
     expect(html).toContain('Motion dials');
     expect(html).toContain('Halo dials');
     expect(html).toContain('Fog dials');
+    // Each dial group's ▾ stays out of its summary's accessible name.
+    expect(html.match(/<span data-chevron="true" aria-hidden="true"/g)).toHaveLength(4);
     expect(html).not.toContain('Map lock');
     expect(html).not.toContain('Camera follow');
 

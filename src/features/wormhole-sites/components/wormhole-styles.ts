@@ -1,4 +1,4 @@
-import type { PillTone, ChipTone, DotTone } from '@/components/ui/tones';
+import type { PillTone, DotTone } from '@/components/ui/tones';
 import type { SiteType, WormholeClass } from '../types';
 
 export const CLASS_TONE: Record<WormholeClass, PillTone> = {
@@ -10,29 +10,12 @@ export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C6: 'purple',
 };
 
-export const CLASS_CHIP_TONE: Record<WormholeClass, ChipTone> = {
-  C1: 'green',
-  C2: 'green',
-  C3: 'orange',
-  C4: 'purple',
-  C5: 'red',
-  C6: 'purple',
-};
-
 export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   combat: 'red-soft',
   ore:    'yellow',
   gas:    'teal',
   relic:  'orange-soft',
   data:   'blue',
-};
-
-export const SITE_TYPE_CHIP_TONE: Record<SiteType, ChipTone> = {
-  combat: 'red',
-  ore: 'orange',
-  gas: 'green',
-  relic: 'orange',
-  data: 'blue',
 };
 
 export const SITE_TYPE_DOT_TONE: Record<SiteType, DotTone> = {
@@ -53,7 +36,7 @@ export const SITE_TYPE_LABEL: Record<SiteType, string> = {
 
 export type EwarKey = 'web' | 'scram' | 'neut' | 'rr';
 
-export const EWAR_TONE: Record<EwarKey, ChipTone> = {
+export const EWAR_TONE: Record<EwarKey, PillTone> = {
   web:   'blue',
   scram: 'red',
   neut:  'purple',
@@ -69,7 +52,7 @@ export const EWAR_LABEL: Record<EwarKey, string> = {
 
 export const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
 
-export const TRIGGER_CHIP_TONE: ChipTone = 'orange';
+export const TRIGGER_TONE: PillTone = 'orange';
 
 export const HACKING_DOT_TONE: Record<'relic' | 'data', DotTone> = {
   relic: 'orange',

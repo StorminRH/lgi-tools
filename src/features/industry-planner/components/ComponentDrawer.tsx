@@ -8,6 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { SidePanel } from '@/components/ui/side-panel';
+import { StatFigure } from '@/components/ui/stat-figure';
 import { eyebrow } from '@/components/ui/type-roles';
 import { useSystemSearch } from '@/components/use-system-search';
 import { activityLabel } from '@/data/eve-data/constants';
@@ -97,15 +98,6 @@ function Identity({ sheet }: { sheet: ComponentSheet }) {
         />
         <Steppers sheet={sheet} />
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, children, tone }: { label: string; children: ReactNode; tone?: string }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className={eyebrow({ size: 'micro', tone: 'muted' })}>{label}</span>
-      <span className={cn('font-data text-h3 tabular-nums text-name', tone)}>{children}</span>
     </div>
   );
 }
@@ -227,24 +219,24 @@ function Sheet({
         </Button>
       )}
       <Identity sheet={sheet} />
-      <div className="grid grid-cols-3 gap-4">
-        <Stat label="Needed">{formatQuantity(sheet.required)}</Stat>
-        <Stat label="Runs">
+      <dl className="grid grid-cols-3 gap-4">
+        <StatFigure label="Needed" className="gap-1">{formatQuantity(sheet.required)}</StatFigure>
+        <StatFigure label="Runs" className="gap-1">
           {formatQuantity(sheet.runs)}
           <span className="ml-1.5 text-micro text-muted">× {formatQuantity(sheet.batch)}</span>
-        </Stat>
-        <Stat label="Owned" tone={owned !== null && owned >= sheet.required ? 'text-isk' : undefined}>
+        </StatFigure>
+        <StatFigure label="Owned" tone={owned !== null && owned >= sheet.required ? 'text-isk' : undefined} className="gap-1">
           {formatQuantity(owned)}
-        </Stat>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Stat label="Build · per unit" tone={cheaper === 'build' ? 'text-isk' : undefined}>
+        </StatFigure>
+      </dl>
+      <dl className="grid grid-cols-2 gap-4">
+        <StatFigure label="Build · per unit" tone={cheaper === 'build' ? 'text-isk' : undefined} className="gap-1">
           <LivePrice value={formatIsk(sheet.buildPerUnit)} pending={refreshing} />
-        </Stat>
-        <Stat label="Buy · per unit" tone={cheaper === 'buy' ? 'text-isk' : undefined}>
+        </StatFigure>
+        <StatFigure label="Buy · per unit" tone={cheaper === 'buy' ? 'text-isk' : undefined} className="gap-1">
           <LivePrice value={formatIsk(sheet.buyPerUnit)} pending={refreshing} />
-        </Stat>
-      </div>
+        </StatFigure>
+      </dl>
       <JobRoute blueprintTypeId={sheet.blueprintTypeId} />
       {sheet.installFee && <InstallFee fee={sheet.installFee} refreshing={refreshing} />}
       <section aria-label="Inputs" className="flex flex-col gap-2">

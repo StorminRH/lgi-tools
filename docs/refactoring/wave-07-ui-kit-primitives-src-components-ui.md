@@ -8,38 +8,38 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P319](#p319) | Remove the single-value tone variants from Menu, PointerMenu, NavigationMenu, Dialog and SegmentedControl, and split ChipToggle into ChipToggle and ToggleRow | simplification | S | low | low | — |
-| ☐ | [P022](#p022) | Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants | ui-component | M | low | medium | [P319](#p319) |
-| ☐ | [P041](#p041) | Draw every check and close mark with ui/icons CheckIcon and CloseIcon | ui-component | S | low | low | — |
-| ☐ | [P053](#p053) | Route the ui chip glass through a globals.css glass-chip utility and the --glass-* knobs | css-styling | S | low | low | — |
-| ☐ | [P001](#p001) | Complete the ui/dialog kit (DialogBody, DialogFooter, DialogCloseButton, closeDisabled, displayTitle) and route hand-built dialog chrome through it | ui-component | M | low | high | [P319](#p319), [P041](#p041) |
-| ☐ | [P019](#p019) | Portal every Base UI popup into the enclosing dialog, and share the pop-in transition | ui-component | S | medium | medium | — |
-| ☐ | [P021](#p021) | Give Checkbox and Switch a visible-label row, and let the existing Field label Select and PercentInput | ui-component | M | medium | low | — |
-| ☐ | [P006](#p006) | Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden) | ui-component | S | low | medium | — |
-| ☐ | [P018](#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
-| ☐ | [P020](#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
-| ☐ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
-| ☐ | [P016](#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
-| ☐ | [P002](#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
-| ☐ | [P017](#p017) | Expose SectionBody's note as SectionNote for board and workspace panels, and use EmptyState and LoadingLabel where they are bypassed | ui-component | S | low | medium | [P002](#p002) |
-| ☐ | [P034](#p034) | Move CardLink to ui, add ui ExternalLink and an inlineLink class, and make MultiplesCell children optional | ui-component | M | low | medium | — |
-| ☐ | [P036](#p036) | Render the admin GSC top-term lists with DistributionBars plus a new subline field | ui-component | S | low | low | — |
-| ☐ | [P023](#p023) | Extract SwitcherMenu and a shared float icon trigger for the profile and map switchers | ui-component | S | low | low | — |
-| ☐ | [P057](#p057) | Move the document-wide view-transition reduced-motion rule to globals.css and share the board/industry view-transition fade keyframes | css-styling | S | low | low | — |
-| ☐ | [P039](#p039) | Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes | ui-component | M | medium | medium | — |
-| ☐ | [P123](#p123) | Route tool-nav activation and page-settings resolution through sectionMatches | generic-utility | S | low | low | — |
-| ☐ | [P320](#p320) | Use lib/section-path for every route-segment match, add a longest-match helper, and merge the telemetry payload helper into the client | simplification | S | low | medium | [P123](#p123), [P066](wave-03-src-lib-primitives-collections-math-async.md#p066) |
-| ☐ | [P024](#p024) | Add NavRailLayout beside NavRailFrame and one longest-prefix matchSection in lib/section-path | ui-component | S | low | low | [P123](#p123) |
-| ☐ | [P013](#p013) | Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu | ui-component | S | low | medium | [P128](wave-03-src-lib-primitives-collections-math-async.md#p128) |
-| ☐ | [P015](#p015) | Extract a StatusPanel for the error and 404 route states, and use LoadFailed for the map catalogue failure | ui-component | S | low | low | — |
-| ☐ | [P043](#p043) | Share one static Base Dialog stub for markup tests and drop redundant Button stubs | testing | S | low | low | [P001](#p001) |
-| ☐ | [P056](#p056) | Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction) | react-hook | M | low | low | [P001](#p001) |
+| ☑ | [P319](#p319) | Remove the single-value tone variants from Menu, PointerMenu, NavigationMenu, Dialog and SegmentedControl, and split ChipToggle into ChipToggle and ToggleRow | simplification | S | low | low | — |
+| ☑ | [P022](#p022) | Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants | ui-component | M | low | medium | [P319](#p319) |
+| ☑ | [P041](#p041) | Draw every check and close mark with ui/icons CheckIcon and CloseIcon | ui-component | S | low | low | — |
+| ☑ | [P053](#p053) | Route the ui chip glass through a globals.css glass-chip utility and the --glass-* knobs | css-styling | S | low | low | — |
+| ☑ | [P001](#p001) | Complete the ui/dialog kit (DialogBody, DialogFooter, DialogCloseButton, closeDisabled, displayTitle) and route hand-built dialog chrome through it | ui-component | M | low | high | [P319](#p319), [P041](#p041) |
+| ☑ | [P019](#p019) | Portal every Base UI popup into the enclosing dialog, and share the pop-in transition | ui-component | S | medium | medium | — |
+| ☑ | [P021](#p021) | Give Checkbox and Switch a visible-label row, and let the existing Field label Select and PercentInput | ui-component | M | medium | low | — |
+| ☑ | [P006](#p006) | Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden) | ui-component | S | low | medium | — |
+| ☑ | [P018](#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
+| ☑ | [P020](#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
+| ☑ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
+| ☑ | [P016](#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
+| ☑ | [P002](#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
+| ☑ | [P017](#p017) | Expose SectionBody's note as SectionNote for board and workspace panels, and use EmptyState and LoadingLabel where they are bypassed | ui-component | S | low | medium | [P002](#p002) |
+| ☑ | [P034](#p034) | Move CardLink to ui, add ui ExternalLink and an inlineLink class, and make MultiplesCell children optional | ui-component | M | low | medium | — |
+| ☑ | [P036](#p036) | Render the admin GSC top-term lists with DistributionBars plus a new subline field | ui-component | S | low | low | — |
+| ☑ | [P023](#p023) | Extract SwitcherMenu and a shared float icon trigger for the profile and map switchers | ui-component | S | low | low | — |
+| ☑ | [P057](#p057) | Move the document-wide view-transition reduced-motion rule to globals.css and share the board/industry view-transition fade keyframes | css-styling | S | low | low | — |
+| ☑ | [P039](#p039) | Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes | ui-component | M | medium | medium | — |
+| ☑ | [P123](#p123) | Route tool-nav activation and page-settings resolution through sectionMatches | generic-utility | S | low | low | — |
+| ☑ | [P320](#p320) | Use lib/section-path for every route-segment match, add a longest-match helper, and merge the telemetry payload helper into the client | simplification | S | low | medium | [P123](#p123), [P066](wave-03-src-lib-primitives-collections-math-async.md#p066) |
+| ☑ | [P024](#p024) | Add NavRailLayout beside NavRailFrame and one longest-prefix matchSection in lib/section-path | ui-component | S | low | low | [P123](#p123) |
+| ☑ | [P013](#p013) | Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu | ui-component | S | low | medium | [P128](wave-03-src-lib-primitives-collections-math-async.md#p128) |
+| ☑ | [P015](#p015) | Extract a StatusPanel for the error and 404 route states, and use LoadFailed for the map catalogue failure | ui-component | S | low | low | — |
+| ☑ | [P043](#p043) | Share one static Base Dialog stub for markup tests and drop redundant Button stubs | testing | S | low | low | [P001](#p001) |
+| ☑ | [P056](#p056) | Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction) | react-hook | M | low | low | [P001](#p001) |
 
 <a id="p319"></a>
 
 ## P319: Remove the single-value tone variants from Menu, PointerMenu, NavigationMenu, Dialog and SegmentedControl, and split ChipToggle into ChipToggle and ToggleRow
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -60 / +15
 - **Depends on:** —
@@ -109,7 +109,7 @@ export function ToggleRow(props: { value: string; children: ReactNode; className
 
 ## P022: Delete Chip, render every tinted label with Pill, and build ChipToggle on pillVariants
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +15: chip.tsx (-34), two dead tone maps (-16), about 15 dead or retired CSS token lines, and Chip/ChipTone imports across 10 files
 - **Depends on:** [P319](#p319)
@@ -186,7 +186,7 @@ type ChipToggleProps = { value: string; children: ReactNode; className?: string 
 
 ## P041: Draw every check and close mark with ui/icons CheckIcon and CloseIcon
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About +3 in icons, +3 in DialogHeader, -2 in checkbox, -14 in NodeCard, -18 in MapAccessDialog's header; glyph swaps net 0; net about -28
 - **Depends on:** —
@@ -288,7 +288,7 @@ Drift and a11y fixes: NodeAddMenu's close has no accessible label beyond '×'. M
 
 ## P053: Route the ui chip glass through a globals.css glass-chip utility and the --glass-* knobs
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** css-styling · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +14 CSS lines
 - **Depends on:** —
@@ -352,7 +352,7 @@ Drift and a11y fixes: NodeAddMenu's close has no accessible label beyond '×'. M
 
 ## P001: Complete the ui/dialog kit (DialogBody, DialogFooter, DialogCloseButton, closeDisabled, displayTitle) and route hand-built dialog chrome through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** high · **Size:** About +60 in ui (dialog.tsx, confirm-dialog.tsx, type-roles.ts) and about -120 across 13 sites. Net about -60.
 - **Depends on:** [P319](#p319), [P041](#p041)
@@ -470,7 +470,7 @@ The MapCatalogue unavailable card (255-262) is coordinated with the NoticePanel/
 
 ## P019: Portal every Base UI popup into the enclosing dialog, and share the pop-in transition
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** medium · **Payoff:** medium · **Size:** About -12/+10 for the hook and portals, -8/+6 for popIn; the optional MenuPopup shell is about -20/+25
 - **Depends on:** —
@@ -543,7 +543,7 @@ export function MenuPopup(props: { anchor?: MenuAnchor; side; align; sideOffset;
 
 ## P021: Give Checkbox and Switch a visible-label row, and let the existing Field label Select and PercentInput
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** low · **Size:** Checkbox/Switch half about -25 across 5 sites, +30 in ui (slot, token, tests); Field half about -15 (LabeledField, CorpRigEditor column, FeedbackModal span), +12 (id forwarding and labelStyle)
 - **Depends on:** —
@@ -627,7 +627,7 @@ PercentInput({ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolea
 
 ## P006: Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -40 (7 five-line spans become one-line calls) and about +15 for the primitive. Net about -25.
 - **Depends on:** —
@@ -696,7 +696,7 @@ export function CollapsibleChevron({ className, children = '▾' }: { className?
 
 ## P018: Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -35 (per-bar labels and aria-hidden props removed), +20 (SkeletonGroup and test)
 - **Depends on:** —
@@ -765,7 +765,7 @@ export function SkeletonGroup({ label, className, children, ...props }: { label:
 
 ## P020: Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -15 (the Pagination href branch and threading), +6 (Link import and the no-href fallback)
 - **Depends on:** —
@@ -825,7 +825,7 @@ export function SkeletonGroup({ label, className, children, ...props }: { label:
 
 ## P007: Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45 (KpiHelp body leaves kpi-tile, plus NetWorthHelp's and AccountDangerZone's trigger strings) and about +35 for the new file. Net about -10 to -15 plus a test.
 - **Depends on:** —
@@ -894,7 +894,7 @@ export function HelpPopover({ label, attention = false, keepSide, className, chi
 
 ## P016: Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +22 (plus about -20 more if the KpiTile fold in step 5 is done)
 - **Depends on:** —
@@ -966,7 +966,7 @@ export function StatFigure(props: {
 
 ## P002: Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About +35 (new ui file and test) and about -20 (SectionBody). The 40 sites each lose a line and often an import, about -60. Net about -45.
 - **Depends on:** —
@@ -1067,7 +1067,7 @@ The corp-sharing-card edit overlaps P001: land them in either order, but rebase 
 
 ## P017: Expose SectionBody's note as SectionNote for board and workspace panels, and use EmptyState and LoadingLabel where they are bypassed
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -12 / +14 (the gain is one style source for 9 notes, not line count)
 - **Depends on:** [P002](#p002)
@@ -1139,7 +1139,7 @@ export function SectionNote(props: {
 
 ## P034: Move CardLink to ui, add ui ExternalLink and an inlineLink class, and make MultiplesCell children optional
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -40 lines in src (CardLink.tsx 9, legal helper 7, contact/settings target/rel 8, board and ActionsCard about 6, {null} children 8), plus about 20 in ui/text-link.tsx and about 30 in its test
 - **Depends on:** —
@@ -1230,7 +1230,7 @@ MultiplesCell({ title, value, delta?, note?, children?: ReactNode }) // wrapper 
 
 ## P036: Render the admin GSC top-term lists with DistributionBars plus a new subline field
 
-- **Status:** [ ] not started
+- **Status:** [x] already done (see commit)
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 in SearchCards, +5 in distribution-bars, +10 in traffic-view, plus about 20 lines of tests
 - **Depends on:** —
@@ -1291,7 +1291,7 @@ export function gscTermRows(terms: GscTermStat[]): DistributionInput[] // {key: 
 
 ## P023: Extract SwitcherMenu and a shared float icon trigger for the profile and map switchers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +35. Net neutral, but removes two copies of a 160-character class string and one icon-trigger copy.
 - **Depends on:** —
@@ -1361,7 +1361,7 @@ export function SwitcherMenu(props: {
 
 ## P057: Move the document-wide view-transition reduced-motion rule to globals.css and share the board/industry view-transition fade keyframes
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** css-styling · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -16 / +12
 - **Depends on:** —
@@ -1425,7 +1425,7 @@ export function SwitcherMenu(props: {
 
 ## P039: Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** +15 helper and +30 test; about -4 per site across 8 sites, -4 in the NameField workaround, and about -20 redundant attribute lines; net about -25 production lines
 - **Depends on:** —
@@ -1544,7 +1544,7 @@ The Base UI behaviour was read from node_modules/@base-ui/react@1.7.0. Re-check 
 
 ## P123: Route tool-nav activation and page-settings resolution through sectionMatches
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About 15 lines removed and 12 added (plus a new test file)
 - **Depends on:** —
@@ -1620,7 +1620,7 @@ Existing guards:
 
 ## P320: Use lib/section-path for every route-segment match, add a longest-match helper, and merge the telemetry payload helper into the client
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -30 / +25 (two files deleted, three loops collapsed; one helper and its test added)
 - **Depends on:** [P123](#p123), [P066](wave-03-src-lib-primitives-collections-math-async.md#p066)
@@ -1690,7 +1690,7 @@ export function postTelemetry({ action, metadata }: TelemetryInput): void; // pa
 
 ## P024: Add NavRailLayout beside NavRailFrame and one longest-prefix matchSection in lib/section-path
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -35 / +40 (four grids and three matcher bodies collapse; the helper, the layout and a new test are added)
 - **Depends on:** [P123](#p123)
@@ -1757,7 +1757,7 @@ export function NavRailLayout(props: Omit<ComponentProps<'div'>, 'children'> & {
 
 ## P013: Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -90 / +40 (one file deleted, two dispatchers collapsed into one)
 - **Depends on:** [P128](wave-03-src-lib-primitives-collections-math-async.md#p128)
@@ -1812,7 +1812,7 @@ export function PreferenceControl({ model }: { model: MenuControlModel }): JSX.E
 
 ## P015: Extract a StatusPanel for the error and 404 route states, and use LoadFailed for the map catalogue failure
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -35 / +30 for StatusPanel; about -12 / +6 for the MapCatalogue LoadFailed swap
 - **Depends on:** —
@@ -1882,7 +1882,7 @@ export function StatusPanel(props: {
 
 ## P043: Share one static Base Dialog stub for markup tests and drop redundant Button stubs
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -130 lines of per-test stubs (≈95 dialog, ≈35 button) and +45 for the helper; net ≈ -85
 - **Depends on:** [P001](#p001)
@@ -1959,7 +1959,7 @@ vi.mock('@base-ui/react/dialog', () => import('@/components/ui/__tests__/static-
 
 ## P056: Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -45 / +35 (AccountDangerZone local hook and four hand-rolled target states removed; reducer gains target, hook moves to ui)
 - **Depends on:** [P001](#p001)

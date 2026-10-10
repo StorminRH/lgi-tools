@@ -5,33 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children }: { children: React.ReactNode }) =>
-    createElement('div', { role: 'dialog' }, children),
-  DialogClose: ({ children }: { children: React.ReactNode }) =>
-    createElement('button', null, children),
-  DialogDescription: ({ children }: { children: React.ReactNode }) =>
-    createElement('p', null, children),
-  DialogTitle: ({ children }: { children: React.ReactNode }) =>
-    createElement('h2', null, children),
-  DialogHeader: ({
-    title,
-    description,
-  }: {
-    title: React.ReactNode;
-    description: React.ReactNode;
-  }) =>
-    createElement(
-      'header',
-      null,
-      createElement('h2', null, title),
-      createElement('p', null, description),
-    ),
-}));
-vi.mock('@/components/ui/checkbox', () => ({
-  Checkbox: ({ label }: { label: string }) =>
-    createElement('input', { type: 'checkbox', 'aria-label': label }),
-}));
+vi.mock('@base-ui/react/dialog', async () => {
+  const { StaticBaseDialog } = await import('@/components/ui/__tests__/static-base-dialog');
+  return { Dialog: StaticBaseDialog };
+});
 vi.mock('@/components/ui/confirm-dialog', () => ({
   ConfirmDialog: ({ title }: { title: React.ReactNode }) =>
     createElement('div', { 'data-confirm-dialog': '' }, title),
@@ -74,8 +51,16 @@ describe('TrashWindow', () => {
         maps: MAPS,
       }),
     );
-    expect(markup).toContain('Select Created map');
-    expect(markup).toContain('Select Delegated map');
+    const label = markup.match(/<div role="dialog" aria-labelledby="([^"]+)"/)?.[1];
+    expect(label).toBeTruthy();
+    expect(markup.match(/<h2 id="([^"]+)"[^>]*>Deleted maps<\/h2>/)?.[1]).toBe(label);
+    // Each row's checkbox is named by its map, without the provenance beside it.
+    const names = [...markup.matchAll(/role="checkbox"[^>]* aria-labelledby="([^"]+)"/g)].map(
+      ([, id]) => new RegExp(`<span id="${id}" hidden="">([^<]*)</span>`).exec(markup)?.[1],
+    );
+    expect(names).toEqual(['Created map', 'Delegated map']);
+    expect(markup).toContain('Created by you');
+    expect(markup).toContain('Admin access');
     expect(markup).toContain('Restore');
     expect(markup.match(/data-confirm-dialog/g)).toHaveLength(1);
 

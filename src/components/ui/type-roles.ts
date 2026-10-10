@@ -29,3 +29,27 @@ export const eyebrow = cva('font-ui uppercase', {
     emphasis: 'normal',
   },
 });
+
+/** The display-face title of a dialog or card: semibold, tracked and uppercase. */
+export const displayTitle = cva('font-display font-semibold tracking-copy uppercase', {
+  variants: {
+    size: {
+      h2: 'text-h2',
+      h3: 'text-h3',
+      nav: 'text-nav',
+    },
+    tone: {
+      name: 'text-name',
+      danger: 'text-pill-red-text',
+    },
+    wrap: {
+      true: 'min-w-0 break-words',
+      false: '',
+    },
+  },
+  defaultVariants: {
+    size: 'h2',
+    tone: 'name',
+    wrap: false,
+  },
+});

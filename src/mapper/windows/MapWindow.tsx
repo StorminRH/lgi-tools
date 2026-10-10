@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { CloseIcon } from '@/components/ui/icons';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { mapFrostedSurface, mapOverlaySurface } from '../map-frosted-surface';
 import {
@@ -163,7 +164,7 @@ function WindowHeader({
           className="h-6 w-6 cursor-pointer justify-center text-muted hover:text-name"
           onClick={onClose}
         >
-          ×
+          <CloseIcon size={14} />
         </Button>
       ) : null}
     </header>

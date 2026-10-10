@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { ScannerEstIskCell } from '@/features/wormhole-sites/widget';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
 import { mapNestedSurface } from '../map-frosted-surface';
@@ -169,13 +169,7 @@ function ScannerSectionBlock({
         headerClassName="border-0 px-2.5 py-1.5 hover:bg-transparent"
         header={
           <span className="flex w-full items-center gap-2">
-            <span
-              data-chevron
-              aria-hidden
-              className="inline-block shrink-0 text-micro text-muted transition-transform"
-            >
-              ▾
-            </span>
+            <CollapsibleChevron />
             <span className="font-ui text-label font-semibold uppercase tracking-label text-muted">
               {section.title}
             </span>

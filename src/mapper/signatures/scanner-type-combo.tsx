@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
 import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
 import {
@@ -103,14 +104,16 @@ export function ScannerTypeCombo({
       open={popup.open}
       onOpenChange={popup.onOpenChange}
       value={query}
-      onValueChange={(next, details) => {
-        if (details.reason === 'item-press') {
-          const parsed = search.parse(next);
-          if (parsed.ok) onCommit(parsed.params.code);
-          return;
-        }
-        setQuery(next);
-      }}
+      onValueChange={(next, details) =>
+        pickOrType(next, details, {
+          onType: setQuery,
+          // A pressed code that does not parse commits nothing.
+          onPick: (picked) => {
+            const parsed = search.parse(picked);
+            if (parsed.ok) onCommit(parsed.params.code);
+          },
+        })
+      }
       items={items}
       filter={null}
       openOnInputClick

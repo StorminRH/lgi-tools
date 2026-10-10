@@ -1,0 +1,76 @@
+{
+ "wave": 11,
+ "heading": "Wave 11: ESI reads, owner-sync and owner-dataset persistence",
+ "briefs": [
+  {
+   "tech": "Next.js 16.3.4 caching and route handlers",
+   "focus": "next 16.3.4 as installed, with cacheComponents: true (next.config.ts:18). Cover revalidateTag(tag, 'max') against revalidateTag(tag, { expire: 0 }); why updateTag is unavailable here (Server Actions only, and this repo writes from route handlers, after() and crons); the cacheTag and cacheLife 'minutes'/'hours' profiles under 'use cache'; and whether revalidateTag throws outside a request store (purge orchestrator, scripts, tests). Read node_modules/next/dist/docs/01-app/03-api-reference/04-functions/{revalidateTag,updateTag,cacheTag,cacheLife,after}.md and 01-app/03-api-reference/01-directives/use-cache.md first. Confirm them against node_modules/next/dist/server/lib/cache-handlers/default.js, server/use-cache/use-cache-wrapper.js and server/web/spec-extension/revalidate.js. Also confirm that a Route Handler's request.signal aborts on client disconnect (P150). Repo files to read first: src/features/{industry-jobs,skill-queue,character-sheet,owned-assets,owned-blueprints,owned-structures}/queries.ts, src/data/corp-holdings/queries.ts, src/composition/purge/orchestrator.ts and src/lib/live-dataset.ts."
+  },
+  {
+   "tech": "Drizzle ORM 0.45 on postgres-js and Neon HTTP",
+   "focus": "drizzle-orm 0.45.2 over postgres-js 3.4.9 (directDatabase) and neon-http (@neondatabase/serverless 1.1.0, the default db). Cover which driver supports interactive db.transaction and row locks; insert().onConflictDoUpdate().returning(), and what the returned row holds when the update keeps an existing column (P273's tri-state taxPct); inArray with an empty list; how 0.45 wraps driver errors (the DrizzleQueryError cause chain), so isUniqueViolation still matches inside and outside a transaction; and the 65,534 bind-parameter limit for multi-row inserts. Read these first: src/db/index.ts, src/db/direct-database.ts, src/db/locked-user.ts, src/db/pg-errors.ts, src/lib/db-types.ts, src/features/owned-blueprints/queries.ts (the reference lock-first transaction), listCorpStructureSyncStates in src/features/owned-structures/queries.ts, and src/db/__tests__/support/db-test-harness.ts. Take signatures from the type definitions in node_modules/drizzle-orm, not from memory."
+  },
+  {
+   "tech": "Vitest 4.1",
+   "focus": "vitest 4.1.11 as installed. Cover:\n- vi.mock hoisting and factories with vi.importActual spreads. Closed barrel mocks of '@/platform/esi' and './owner-sync-port' must gain new exports such as readRolesForSync.\n- Mocking next/cache (revalidateTag, cacheLife, cacheTag) and asserting exact arguments and call order.\n- Deterministic concurrency tests with deferred promises (Promise.withResolvers) for singleFlight and memoizeAsync.\n- toMatchObject versus toEqual for read results that now carry expiresAt.\n- How *.db.test.ts suites skip when Postgres is down.\n\nRead vitest.config.ts, src/data/wh-statics/client.test.ts, src/composition/sync/owner-sync-port.test.ts, src/composition/sync/character-sheet-sync.test.ts, src/composition/purge/orchestrator.test.ts, src/features/owned-assets/queries.db.test.ts and src/db/__tests__/support/db-test-harness.ts first. src/platform/auth/eve-token-service.concurrency.db.test.ts must stay untouched."
+  },
+  {
+   "tech": "Zod 4",
+   "focus": "zod 4.5.4 as installed. Cover z.object with safeParse at module scope versus per call; per-category schemas for the ESI /characters/{id}/search/ body ('character' | 'structure', optional number arrays) typed so fetchCharacterSearch returns number[]; and .max() on arrays in API contracts (UPWELL_RIG_SLOTS). Read src/composition/esi-character-search.ts, src/composition/map-character-search.ts, src/composition/structure-search.ts, src/data/location-tracking/esi-projection.ts, src/features/custom-structures/api-contract.ts and src/features/owned-structures/api-contract.ts first. Use the v4 type definitions in node_modules/zod, not zod 3 memory."
+  },
+  {
+   "tech": "Fetch API and ESI headers (Node 22 and the Convex isolate)",
+   "focus": "The Fetch API as esiFetch uses it in Node 22.22 and in the Convex default runtime. Cover:\n- Headers.get case-insensitivity.\n- Whether a RequestInit with plain-object headers and an optional signal survives esiFetch unchanged. structure-search.test.ts reads init.headers.Authorization.\n- AbortSignal.throwIfAborted and the AbortError DOMException shape.\n- Date.parse on IMF-fixdate Expires values, and Number.parseInt prefix parsing.\n- ESI's X-Pages, Expires, Retry-After and X-ESI-Error-Limit-* headers.\n\nRead src/platform/esi/dispatch.ts, src/platform/esi/authed-read.ts, src/platform/esi/scoreboard/keys.ts, src/data/market-prices/source.ts, src/data/market-history/source.ts and src/lib/server-only-boundary.test.ts first; src/platform/esi is a server-only root shared with Convex. Confirm that convex/characterLocationSync.ts can import a dependency-free '@/platform/esi/paths' in the non-Node runtime, as it already imports '@/platform/esi/authed-read'."
+  }
+ ],
+ "waveCautions": "P190, P345, P189, P194 and P297 all edit composition/sync/owner-sync-port.ts. Land them strictly in table order, one PR at a time. P190 already deletes RefreshCorpMember and LinkedCharacterHealth, so P345 lands only its test fixtures. P193 owns the search-loop extraction (the README calls it firstScopedSearch). P150 only aligns the routes. It forwards request.signal only once aborts stop counting as failures. P189 and P292 share one module, src/lib/memoize.ts (singleFlight plus memoizeAsync). Never single-flight inside getFreshAccessTokenForCharacter. Writer chain: P336, then P239 (import P220's directDatabase), P184, P241 (uses expireNow and needs wave 10's P240, not started yet), then P273 (no rig-save revalidate). P286 lands before P178. P178's model, listCorpStructureSyncStates, now returns an array, not a Map. The export list in P184 step 5 goes stale once P286 lands. New platform/esi files must import nothing: the Convex isolate shares them, platform/esi is a server-only root, and features cannot import platform/esi. P194 touches convex/characterLocationSync.ts but changes no Convex exports, so no codegen is needed. Behaviour changes that need red-to-green tests: P193/P150, P184, P239, P297 and P241. P239 and P189 need real Postgres; skipped db tests are not green. Line numbers have drifted (dispatch.ts parseIntHeader is now at line 100). Notes left by earlier waves: ESI owner types live in platform/owner-sync (P258), scope eligibility in src/lib/scope-eligibility.ts and scopeHolderOf in scope-health (P186), and EVE scopes in src/config/eve-scopes.ts typed as EveScope (P187). Serialization-failure retries live in runSerializable (src/db/serialization-retry.ts, wave 5); do not add retry loops at call sites.",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P239 (step 1 only: directDatabase and its adoption)",
+   "evidence": "P220 (b97f2fb1) added the memoized src/db/direct-database.ts:12 directDatabase(). It is already used at src/features/owned-assets/queries.ts:169, src/features/owned-blueprints/queries.ts:86, src/data/corp-holdings/queries.ts:92, src/composition/account-lifecycle/account-merge.ts:92, src/composition/account-lifecycle/tracking-merge-retry.ts:50 and src/db/locked-user.ts:25. No inline drizzle(directClient) default remains outside direct-database.ts. What remains is src/db/snapshot-replace.ts and the writer migrations."
+  },
+  {
+   "item": "P190 (adjacent lead only: hasAllScopes helper)",
+   "evidence": "P186 (34101f58) added src/lib/scope-eligibility.ts hasScopes and scopeHolderOf, and every canSync* now uses them (for example src/composition/corp-viewer.ts:55 hasScopes(health, [ROLES_SCOPE])). Do not add a platform/owner-sync hasAllScopes. The core of P190 is not done: src/platform/owner-sync/index.ts still does not export CharacterSyncBase or CorpSyncBase."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P297",
+   "dependsOn": "P186",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P178",
+   "dependsOn": "P327",
+   "dependencyWave": 5,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P336",
+   "dependsOn": "P220",
+   "dependencyWave": 5,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P239",
+   "dependsOn": "P220",
+   "dependencyWave": 5,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P184",
+   "dependsOn": "P327",
+   "dependencyWave": 5,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P241",
+   "dependsOn": "P240",
+   "dependencyWave": 10,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

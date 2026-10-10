@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import { Popover } from '@/components/ui/popover';
 import { Card } from '@/components/ui/card';
 
 export const KPI_FIG = 'mt-2.5 font-data text-stat font-semibold leading-[1.02] tabular-nums';
@@ -22,39 +21,6 @@ export function KpiTile({
     >
       {children}
     </Card>
-  );
-}
-
-export function KpiHelp({
-  label,
-  keepSide,
-  attention = false,
-  className,
-  children,
-}: {
-  label: string;
-  /** The help's content grows while open. */
-  keepSide?: boolean;
-  /** Something inside wants a look: the mark turns amber. */
-  attention?: boolean;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Popover
-      keepSide={keepSide}
-      className={className}
-      label={label}
-      trigger="?"
-      triggerClassName={cn(
-        'inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border bg-bg-deep/60 text-micro font-bold',
-        attention
-          ? 'border-dps-mid/60 text-dps-mid hover:border-dps-mid'
-          : 'border-border-idle text-muted hover:border-isk-dim hover:text-isk',
-      )}
-    >
-      {children}
-    </Popover>
   );
 }
 

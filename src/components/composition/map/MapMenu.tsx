@@ -17,7 +17,7 @@ import {
   MenuLinkItem,
   menuRow,
 } from '@/components/ui/menu';
-import { floatSurface } from '@/components/ui/card';
+import { floatIconTrigger } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { useCopyFeedback } from '@/components/ui/use-copy-feedback';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
@@ -39,10 +39,6 @@ const portraitReveal =
   '[clip-path:circle(150%_at_calc(100%_-_var(--portrait-center))_var(--portrait-center))] transition-[clip-path,opacity] duration-[360ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ' +
   'data-[starting-style]:[clip-path:circle(var(--portrait-radius)_at_calc(100%_-_var(--portrait-center))_var(--portrait-center))] ' +
   'data-[ending-style]:[clip-path:circle(var(--portrait-radius)_at_calc(100%_-_var(--portrait-center))_var(--portrait-center))] data-[ending-style]:opacity-0';
-const glyphTrigger = cn(
-  floatSurface,
-  'inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:border-border-active hover:text-name',
-);
 
 function IdentityHeader({ session }: { session: Session }) {
   return (
@@ -186,7 +182,7 @@ export function MapMenu({
     : {
         label: 'Atlas menu',
         trigger: <HamburgerGlyph />,
-        triggerClassName: glyphTrigger,
+        triggerClassName: floatIconTrigger,
         sideOffset: 8,
       };
   const { header, account, className, ...menuShell } = shell;

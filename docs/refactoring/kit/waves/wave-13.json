@@ -1,0 +1,106 @@
+{
+ "wave": 13,
+ "heading": "Wave 13: Industry planner and wormhole-sites verticals",
+ "briefs": [
+  {
+   "tech": "React 19.2",
+   "focus": "react and react-dom 19.2.8 as installed. Read the @types/react 19 typings in node_modules for exact signatures, not memory. Cover: use(promise) inside its own Suspense boundary for a generic PromiseSeeder<T> (P070, P326), including a server-component promise passed as a prop into the 'use client' PricingProvider and what a rejected promise does (it reaches an error boundary, and P070 must never reject); why each seeder keeps its own <Suspense fallback={null}>; useMemo/useCallback dependency identity (module-level clampMe/clampTe constants in useOverrideSetters, P301); useContext read in leaf components and context through Base UI Popover portals (P025 NodeAdjusters inside NodeCard's popover); removing a provider's useLayoutEffect side effect while keeping first-render (renderToStaticMarkup) resolution (P072). Also cover context versus the useSyncExternalStore-backed createClientStore for hydration, and useEffectEvent if wave 12's P052 has landed it in useRefreshOnView. Read first: src/features/industry-planner/components/PricingProvider.tsx (PricingSeeder/HistorySeeder ~L86-117, useOverrideSetters), components/planner-contexts.tsx, components/MeAdjuster.tsx, src/features/wormhole-sites/site-catalogue.tsx, components/SiteResourcesLive.tsx, components/ScannerLivePrices.tsx, src/data/market-prices/use-refresh-on-view.ts, src/lib/client-store.ts and src/AGENTS.md."
+  },
+  {
+   "tech": "Next.js 16.3.4",
+   "focus": "Next 16.3.4 is non-standard. Read node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-cache.md, 03-api-reference/04-functions/cacheLife.md, cacheTag.md and revalidateTag.md, 01-getting-started/06-fetching-data.md, 08-caching.md and 02-guides/streaming.md. These are needed for P070's new getBlueprintAdjustedPrices: 'use cache' with cacheLife('hours') and cacheTag(SDE_CACHE_TAG) from src/data/eve-data/constants, wrapped in withColdStartRetry and returning [] on failure. Cover what a 'use cache' function may throw and how cacheLife bounds staleness when no tag is revalidated (cron:industry-indices revalidates none). Cover how a promise created in the src/app/(site)/industry/[id]/page.tsx server component streams to the client PricingProvider, and the connection()/Suspense hole used by PlannerOpenMetrics if the new read gets a planner_open_timing stage. For P227, confirm that a cached listSiteDetails/getSiteDetail ('use cache', cacheLife('max'), cacheTag(SDE_CACHE_TAG)) may call a shared uncached helper. Read first: src/features/industry-planner/queries.ts (getBlueprintStructure, getBlueprintPricing, getBuildLocation), the industry [id] page.tsx, src/app/api/industry/build-location/route.ts (to delete) and cost-indices/route.ts, and src/features/wormhole-sites/queries.ts. Zod 4.5.4 matters only for deleting the build-location defineEndpoint schemas in api-contract.ts and for typing SiteListItem as Omit<SiteDetail,'waves'|'resources'> over the z.infer'd SiteDetail."
+  },
+  {
+   "tech": "Drizzle ORM 0.45",
+   "focus": "drizzle-orm 0.45.2 as installed, through '@/db' (read src/db/index.ts: neon-http drizzle for reads, postgres-js for direct work). Read the pg-core select-builder and sql/expressions typings in node_modules/drizzle-orm for exact signatures. Topics:\n- P227's selectSiteRows(where?): select(columns).from(t).where(SQL | undefined).orderBy(a, b), eq versus inArray, and the SQL type import.\n- P227's optional join: innerJoin(waves, eq(npcs.waveId, waves.id)).where(inArray(waves.siteId, ids)), its row shape, and how several queries in one Promise.all behave over neon-http.\n- pgEnum fed from a readonly tuple imported from the drizzle-free site-taxonomy.ts, so the enum order is preserved.\nRead first: src/features/wormhole-sites/queries.ts (listSites, listSiteDetails, getSiteDetail, loadNpcsForWaves, aggregateWave), src/features/wormhole-sites/schema.ts and site-taxonomy.ts, and src/features/wormhole-sites/queries.test.ts. Its chained db mock supports only from/where/orderBy, so a join needs a mock extension that keeps the result-queue order waves, resources, npcs. Also read src/data/industry-indices/queries.ts (getAdjustedPrices) and src/data/eve-data/queries.ts (getIndustryStationsForSystem, whose only caller is getBuildLocation and which P070 deletes)."
+  },
+  {
+   "tech": "Vitest 4.1",
+   "focus": "vitest 4.1.11 as installed, with vitest.config.ts read first. The repo runs component tests in node with no Testing Library: they use react-dom/server renderToStaticMarkup or call components as functions and inspect props.children (NodeCard.test.ts relies on children[0] being the Button). Topics:\n- vi.mock factory hoisting with vi.hoisted state (the pattern in src/features/industry-planner/components/PlannerRail.test.ts:10-35).\n- Mocking a module that a newly added import also loads (MeAdjuster importing './planner-contexts').\n- Partial mocks with importOriginal, and fake timers for PromiseSeeder's setTimeout(0) seeding.\n- Mocking apiFetch and swapping buildLocationEndpoint for costIndicesEndpoint in use-planner-location-writes.test.ts and use-component-fee-sources.test.ts.\n- test.each tables for the site-type predicates.\n- How *.db.test.ts suites skip without Postgres (P070's queries.db.test.ts case); a skip is not green.\nRead first: PlannerRail.test.ts, NodeCard.test.ts, PricingProvider.test.ts, CockpitKpis.test.ts, src/features/wormhole-sites/queries.test.ts, site-catalogue.test.ts, components/ScannerLivePrices.test.ts, src/mapper/signatures/SignatureWindow.test.ts and scanner-row-open.test.ts, and src/composition/widget-host-registry.test.ts."
+  },
+  {
+   "tech": "Fallow 3.22",
+   "focus": "fallow 3.22.0 as configured in /home/user/lgi-tools/.fallowrc.json. Read node_modules/fallow/README.md, skills/fallow/references/cli-reference.md and issue-registry.json. Topics:\n- unused-exports with ignoreExportsUsedInFile false: an export used only in its own file counts as unused. This hits MeField/TeField after P025, classRangeIncludes after P120 swaps matchesClass, and computeMarginalMaterials/computeMarginalRuns after P291. Confirm whether imports from *.test.ts count as uses.\n- The exact scope of duplicate-exports ('Export name appears in multiple modules'). SystemRef is already exported from src/composition/board/api-contract.ts:38, EwarKey/EWAR_ORDER move to ewar.ts, and drizzle-schema.ts does export * from wormhole-sites/schema.ts.\n- unused-types and private-type-leaks for moved types (SelectedReactionSystem, BuildSystemRef, SiteNameIndexEntry).\n- unused-component-props (CockpitKpis' margin props).\n- circular-dependencies (site-class.ts with types.ts; site-name-lookup.ts with queries.ts).\n- coverage-gaps with requireAllFiles for each new file (efficiency.ts, ledger-parts.tsx, BlueprintMetaLine.tsx, ewar.ts, site-type.ts, site-class.ts, live-price-lookup.ts).\n- The 50-token / 5-line dupes thresholds.\n- `fallow guard <files>` to check a chosen home.\nAlso read the boundaries block: features and data are autoDiscover zones, one zone per slice. features may import data, lib, ui, components and db but no other feature; app and api may import features; mapper may import features."
+  }
+ ],
+ "waveCautions": "No Convex changes, so no codegen. The tree is at wave 7, and waves 8-12 still land first on the same files: wave 12 P052/P076 touch PricingProvider, build-pricing, types and queries; P069 rewrites the wormhole search.ts tie-break; wave 8 P009 touches NodeCard, PlannerRail and ComponentDrawer. Re-open every site. P340 deleted the coverage pins that P025, P026, P070 and P227 cite. P070 and P326 both create PromiseSeeder: the first to land owns it, and P326 must follow P070's slimmer SelectedLocation and build-system-apply payload. Per the README conflicts, WORMHOLE_CLASSES stays in site-taxonomy.ts: import it, never re-export it, and never import it from '../schema' in client code. P120 owns the class rank, siteClassRange, siteClassPill and the matchesClass swap, and drops SITE_TYPE_ORDER. P121 drops steps 7-9, and P227 skips step 2. P120 must delete classRangeIncludes when matchesClass goes, or Fallow reports an unused export. P070 is medium risk, so write the failing test first. It crosses app, api, data (getIndustryStationsForSystem, the telemetry capability) and the composition registries. It also needs src/app/api/handler-coverage.test.ts and same-origin-coverage.test.ts updated, and the planner.buildLocation preference kept. P072 crosses mapper, composition and app, keeps the context on purpose, and changes the ISK shown by /atlas search. P169 edits data/npc-stats and fixes the mock neut sign. Check whether a new SystemRef trips duplicate-exports. Notes left by earlier waves: P168 and P070 import activityLabel from '@/data/eve-data/constants' and use isProductionActivity (P098), where activity 9 reads 'Reaction'.",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P326 step 6 (CostBasis instead of the inline 'batched' | 'marginal' union)",
+   "evidence": "P260 did this. src/features/industry-planner/cost-basis-view.ts:1 is `export type { CostBasis } from '@/lib/preferences'`, and src/lib/preferences.ts:30-31 defines COST_BASES and CostBasis. PricingProvider.tsx:284, planner-contexts.tsx:48-49, build-pricing.ts:119 and :208, and types.ts:169 already use CostBasis, and a grep for `'batched' | 'marginal'` over src finds nothing. The rest of P326 is still open: the seeders (PricingProvider.tsx:88-117), TierRow (CockpitBuildPlan.tsx:42), the margin props (PlannerRail.tsx:258/267), the ownedTe memo (PricingProvider.tsx:440-442), BuildSystemRef (build-system-apply.ts:3) and SelectedReactionSystem (planner-contexts.tsx:31)."
+  },
+  {
+   "item": "P120 step 2 and the schema half of step 3 (drizzle-free WORMHOLE_CLASSES, imports repointed off schema.ts)",
+   "evidence": "P042 did this. src/features/wormhole-sites/site-taxonomy.ts:4-5 holds WORMHOLE_CLASSES and WormholeClass. schema.ts:2, api-contract.ts:4, sites-query.ts:5 and site-filter.ts:2 import from './site-taxonomy', and types.ts:1-3 re-exports the types from it. The rest of P120 is still open: the gas-classes.ts to site-class.ts rename, the three CLASS_ORDER copies (gas-classes.ts:8, sort.ts:21, search.ts:27), the SitesTable class pill (SitesTable.tsx:63-75) and CLASS_CHIPS (SitesFilterLayout.tsx:29)."
+  },
+  {
+   "item": "P121 step 4 (delete site-meta's private SITE_TYPE_LABEL and the dead `?? site.siteType` fallback)",
+   "evidence": "P084 did this. src/features/wormhole-sites/site-meta.ts:3 imports SITE_TYPE_LABEL from './components/wormhole-styles', and site-meta.ts:40 is `SITE_TYPE_LABEL[site.siteType]` with no fallback. Only the inline isWaveDriven at site-meta.ts:12-13 remains of that step."
+  },
+  {
+   "item": "P025 step 7, P026 tests note, P070 step 8 and P227 step 1 (edits to the industry-planner and wormhole-sites coverage.test.ts pins)",
+   "evidence": "P340 deleted both pin files in commit 3b77c322. `find src -name coverage.test.ts` returns only src/db/coverage.test.ts. P227 still needs real listSites tests, and MeField/TeField need a real consumer or test import instead of the pin."
+  },
+  {
+   "item": "P070 conflict-resolution prerequisites (SDE_CACHE_TAG instead of BLUEPRINT_STRUCTURE_TAG; readWithRetries in src/lib/retry.ts)",
+   "evidence": "SDE_CACHE_TAG is used at src/features/industry-planner/queries.ts:4,120,207,237, and readWithRetries is exported at src/lib/retry.ts:33 and imported at components/use-planner-location-writes.ts:4 and use-component-fee-sources.ts:5. The item itself is still open: buildLocationEndpoint is at api-contract.ts:71, getBuildLocation at queries.ts:264, and the route still exists."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P168",
+   "dependsOn": "P098",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P070",
+   "dependsOn": "P185",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P070",
+   "dependsOn": "P098",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P291",
+   "dependsOn": "P304",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P291",
+   "dependsOn": "P076",
+   "dependencyWave": 12,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P325",
+   "dependsOn": "P304",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P326",
+   "dependsOn": "P260",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P120",
+   "dependsOn": "P042",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P071",
+   "dependsOn": "P084",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

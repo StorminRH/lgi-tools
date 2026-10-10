@@ -1,0 +1,120 @@
+{
+ "wave": 10,
+ "heading": "Wave 10: Server pipelines, purge, telemetry and the admin console",
+ "briefs": [
+  {
+   "tech": "Next.js 16.3.4 and React 19.2.8 server APIs (cacheComponents: true)",
+   "focus": "Read node_modules/next/dist/docs/01-app/03-api-reference/04-functions/after.md (after() in Route Handlers, nested after calls, cookies()/headers() inside the callback, behaviour outside a request scope where after() throws), unstable_rethrow.md and connection.md, plus the cacheComponents guidance on reading the clock (new Date()) in server components, since next.config.ts:18 sets cacheComponents: true and rangeFor() reads the time. For React 19.2.8 cache(): how arguments are keyed (identity, hence the ISO-string keys), that a rejected promise is shared, and that it is a passthrough outside the react-server condition (node_modules/react/cjs/react.development.js). Read these repo files first: src/lib/deferred-work.ts, src/instrumentation.node.ts, src/data/telemetry/cost-metrics.ts, src/data/domain-events/queries.ts and its test at 122-136, src/app/(site)/admin/shared-reads.ts and load-section.ts. Items: P159, P316, P282, P158, P315."
+  },
+  {
+   "tech": "Vitest 4.1.11",
+   "focus": "Check the installed vitest 4.1.11 type definitions (node_modules/vitest) for these APIs: vi.mock factories with importOriginal partial mocks (the pattern is at src/composition/character-authorization.test.ts:43-46), vi.hoisted, vi.mocked, mockRejectedValue, and expectTypeOf for P322's assertion that the teardown outcome excludes 'stale'. Also cover: spying on process.exit and mocking the default export of 'postgres' (P174 script-runtime.test.ts); mocking next/server's after() to capture or flush callbacks (P159; existing pattern in src/data/telemetry/cost-metrics.test.ts:26-37); and how `vitest run --changed origin/development` selects tests. Before re-pointing mocks, read src/composition/purge/orchestrator.test.ts (a recording @/db chain), src/composition/map-affiliation-access.test.ts and src/composition/account-lifecycle/tracking-merge-retry.db.test.ts. Do not rely on memory for vi.* signatures."
+  },
+  {
+   "tech": "Drizzle ORM 0.45.2 (pg-core) with postgres-js 3.4.9",
+   "focus": "Check the installed drizzle-orm 0.45.2 for: the PgTable, PgColumn and AnyPgColumn generics; getTableColumns and getTableConfig, to discover a user_id column (see userKeyColumn in src/platform/purge/merge.ts); PgDialect.sqlToQuery, to render a delete predicate in unit tests; db.delete(table).where(and(eq(...))); PgDatabase<any,any,any> as MergeTx; and PostgresJsDatabase transaction typing plus a sql`clock_timestamp()` update value (P165 optional step). For postgres 3.4.9, check the postgres(url, { max, connect_timeout }) options, the Sql type, tagged-template row typing for an EXISTS probe, and client.end(). Read first: src/platform/purge/types.ts, src/platform/purge/merge.ts, src/lib/db-columns.ts (ownerKeyWhere), src/db/index.ts (PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl, lazy db proxy) and src/features/owned-assets/purge.ts. Items: P240, P165, P174."
+  },
+  {
+   "tech": "Node script bootstrap: tsx 4.23.13 and dotenv 17.4.2",
+   "focus": "package.json has no \"type\" field, so the package is CommonJS. Confirm how tsx 4.23.13 runs src/scripts/*.ts in that case: ESM or CJS output, and whether static imports are hoisted above an inline config() call. Then confirm that a first-line side-effect import of './load-env' runs before every other import, so P174's ordering rationale is stated correctly in the PR. For dotenv 17.4.2: the config({ path, quiet }) options, its default startup log line (new in v17), and override semantics when a variable is already set. Read src/scripts/script-runtime.ts, src/scripts/migrate.ts, src/scripts/ingest-sde-if-empty.ts, src/scripts/warm-neon.ts, the package.json build:vercel script, and src/esi-datasets/vendor-resilience.test.ts:45-55 (PRODUCTION_POSTGRES_SITES). Item: P174."
+  }
+ ],
+ "waveCautions": "Wave 10 stacks on waves 8 and 9, which this tree lacks, so re-open every site after rebasing. P159 waits for P141 and the wave-9 admin-route chain (P251 through P161). Wave-9 items P149, P160, P176, P256 and P257 also edit load-signals, AudienceCard, refresh-on-view, tracking-merge-retry, account-purge and map-creation.\n\nAn upstream rewrite after the audit changed the admin console. esi-source-shared.ts is now shared-reads.ts (sharedRangeRead), so P281 is done, and P158, P282, P299 and P314 shrink to residuals. Do not recreate range-reads.ts, queueCounts, heldForBudget, loadCronSignals or deriveBudgetCard.\n\n- **P316:** keep rangeFor's ceil-to-minute `to`, import DAY_MS from lib/iso-date, and note that lastNDaysRange's consumer is now users/AccessCards.tsx.\n- **P159:** src/lib/deferred-work.ts already wraps after() with an inline fallback. Reconcile it with runAfterResponse's drop-and-log contract rather than shipping two schedulers.\n- **P162:** data/telemetry/price-source-stats.ts exports a different PriceSourceDegradation.\n- **P165:** home the runner beside mapConcurrent in lib/fan-out.ts.\n- **P240:** platform/purge imports nothing, but the owner contributors now use lib ownerKeyWhere, so inject the predicate.\n- **P174:** 11 entries remain, and publicTableExists would have one consumer.\n- **P164 and P322:** behaviour and contract change, so write the failing tests first.\n\nNo Convex changes are expected. Notes left by earlier waves: P162's alert goes through the private sendOpsAlert in src/lib/alerts.ts (P173). P159 relies on bestEffort from src/lib/best-effort.ts (the old swallow helper is gone, P130). P299 reuses formatElapsed (src/lib/format/time.ts, P088), queueCounts (admin signals) and formatFallbackShare (src/data/telemetry/health-metrics.ts, P091). src/platform/purge may import nothing from src (.fallowrc.json allow list is empty), so purge code keeps its own small helpers such as resultRows in merge.ts; do not route it through src/lib.",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P281 (cache degradation and search-total reads per request; drop dead ESI cost reads)",
+   "evidence": "Done upstream after the audit, in commits 872495b3, a4ecb311, 094922ee and b4cd810c. esi-source-shared.ts no longer exists. src/app/(site)/admin/shared-reads.ts:24-27 holds the generalised ISO-keyed sharedRangeRead (the item's cacheByRange), shared-reads.ts:48 has getPriceSourceDegradationShared and shared-reads.ts:38 has getSearchTrendShared. getDegradationByCaller and deriveCostLensView no longer exist (grep finds nothing). ops-view.ts:29-34 deriveOnDemandMetrics takes no fallback or degradation inputs. The only remaining getSearchTotals caller is AudienceCard.tsx:26-27, which the item excluded."
+  },
+  {
+   "item": "P299 (ESI budget card on deriveBudgetStatus, dead cost-lens inputs, job-count and age helpers)",
+   "evidence": "Mostly done upstream (b4cd810c, f3e3c1d3, 4c305c2e) plus P088 and P085:\n- src/app/(site)/admin/esi/esi-view.ts:47-60 deriveBudgetCard is built on deriveBudgetStatus; deriveBudgetView and deriveBudgetGauge are gone.\n- signals.ts:260-262 queueCounts, used by health/health-view.ts:36, is the queueValueText equivalent.\n- signals.ts:300-304 heldForBudget already counts held jobs once.\n- formatElapsed (P088) is used at signals.ts:272,412 and queue/queue-view.ts:41.\n\nOnly countJobs is left: queue-view.ts:21-29 countOf versus the hand loop in signals.ts:239-251 summarizeQueue."
+  },
+  {
+   "item": "P158 (share admin cron, SLI and activity loaders)",
+   "evidence": "Mostly done upstream (28a1a2e7, cdad58d1):\n- src/app/(site)/admin/load-signals.ts:21-37 exports loadCronSignals, which health/ScheduledTasks.tsx:9,131 uses.\n- traffic/TrafficCards.tsx:18-21 has loadTrafficActivity.\n- Both SLI sites already share deriveSliSignals (load-signals.ts:47-52, health/HealthCards.tsx:35-43).\n\nWhat is left is small: AudienceCard.tsx:54 calls deriveActivityView inline, and the two loadSection('capability-outcomes'/'capability-latency') pairs remain. HealthCards also needs the raw outcomes and latency for its details, so a plain loadSliSignals no longer fits."
+  },
+  {
+   "item": "P282 (share range-key day count; stop waiting on the GSC report date)",
+   "evidence": "The efficiency half was done upstream in e885a3aa. AudienceCard.tsx:20-31 and 37-44 now run one Promise.all, with the GSC read isolated in loadSection('audience.search'). search/page.tsx:38-41 says Index coverage and Sitemaps start without the reporting day. What is left: the 7/30/90 mapping is still duplicated at search/search-period.ts:12 and composition/admin-period.ts:20, and AudienceCard.tsx:29 derives the inclusive day count inline."
+  },
+  {
+   "item": "P314 (trim admin and corporations view models; show search truncation)",
+   "evidence": "The admin half was redone upstream in 75ab3a55 with a different design. src/app/(site)/admin/users/access-view.ts:51-68 deriveAccessView now returns only nonAdminMatches and resultsHint, and users/page.tsx:34 renders resultsHint, including 'showing first 50, narrow your search', as the AdminSection hint. Do not move it into the body. What is left: the dead membershipHint at src/app/(site)/settings/corporations/corporations-view.ts:25,69, which only corporations-view.test.ts:69-77 reads."
+  },
+  {
+   "item": "P316 (move admin period math; absorb lastNDaysRange; align parseRange)",
+   "evidence": "Partly done:\n- composition/admin-period.ts:2 already imports daysBefore from lib/iso-date (P107).\n- The MS_PER_DAY constants in activity-view.ts and aggregate.ts are gone (grep finds nothing).\n- composition/coverage.test.ts was deleted by P340 (3b77c322), so step 7 is moot.\n\nStill to do:\n- the git mv (24 importers, all under app/(site)/admin);\n- the parseRange array policy (admin-period.ts:9-12 still rejects arrays; period.test.ts:15 pins '30d');\n- moving lastNDaysRange out of src/data/telemetry/queries.ts:346 (consumer is now users/AccessCards.tsx:9,42);\n- RANGE_DAYS;\n- signals.ts:289 inline 86_400_000.\n\nadmin-period.ts:16-21 rangeFor now ceils `to` to the minute, so delegating to lastNDaysRange must keep that."
+  },
+  {
+   "item": "P174 (scripts bootstrap)",
+   "evidence": "src/scripts/backfill-users-if-empty.ts is already deleted (P296), so only 11 dotenv entries remain (grep \"from 'dotenv'\" in src/scripts). The information_schema probe survives only at src/scripts/ingest-sde-if-empty.ts:55, so publicTableExists would have one consumer. Step 8's smoke list also names the deleted script."
+  },
+  {
+   "item": "P165 (deadline runner) home premise",
+   "evidence": "The item's condition 'if a bounded-concurrency primitive lands in src/lib/fan-out.ts' is already met. src/lib/fan-out.ts:20 exports mapConcurrent (P100, fd4919d3), used by map-affiliation-access.ts:41 and character-authorization.ts:43. Put runUntilDeadline beside it rather than in a new deadline-batch.ts. The four loops themselves are not migrated: tracking-merge-retry.ts:51 still hard-codes the 20_000 deadline."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P162",
+   "dependsOn": "P173",
+   "dependencyWave": 3,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P316",
+   "dependsOn": "P107",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P299",
+   "dependsOn": "P091",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P299",
+   "dependsOn": "P085",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P299",
+   "dependsOn": "P088",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P159",
+   "dependsOn": "P130",
+   "dependencyWave": 3,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P159",
+   "dependsOn": "P141",
+   "dependencyWave": 9,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P159 (README conflict order: wave-9 admin route chain P251 through P161 first)",
+   "dependsOn": "P251",
+   "dependencyWave": 9,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P159 (README conflict order: wave-9 admin route chain P251 through P161 first)",
+   "dependsOn": "P161",
+   "dependencyWave": 9,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P174 (README conflict: skip the deleted backfill-users-if-empty.ts)",
+   "dependsOn": "P296",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

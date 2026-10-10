@@ -1,4 +1,4 @@
-import { sectionMatches } from '@/lib/section-path';
+import { longestSectionMatch } from '@/lib/section-path';
 import { parseRange, type RangeKey } from '@/composition/admin-period';
 import { formatQuantity } from '@/lib/format/number';
 
@@ -25,6 +25,8 @@ export type AdminSection = {
   ranged: boolean;
   // Destinations outside the admin console open without the rail.
   leavesConsole: boolean;
+  // Lit only on its own path, not for the pages under it.
+  exact: boolean;
 };
 
 export type AdminNavGroup = {
@@ -41,7 +43,7 @@ function section(
   id: AdminSectionId,
   href: `/${string}`,
   title: string,
-  options: { ranged?: boolean; leavesConsole?: boolean } = {},
+  options: { ranged?: boolean; leavesConsole?: boolean; exact?: boolean } = {},
 ): AdminSection {
   return {
     id,
@@ -49,6 +51,7 @@ function section(
     title,
     ranged: options.ranged ?? false,
     leavesConsole: options.leavesConsole ?? false,
+    exact: options.exact ?? false,
   };
 }
 
@@ -56,7 +59,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
   {
     id: 'console',
     label: null,
-    sections: [section('overview', '/admin', 'Overview', { ranged: true })],
+    sections: [section('overview', '/admin', 'Overview', { ranged: true, exact: true })],
   },
   {
     id: 'monitor',
@@ -96,11 +99,12 @@ export function deriveActiveAdminSection(
   pathname: string,
   groups: readonly AdminNavGroup[] = ADMIN_NAV_GROUPS,
 ): AdminSection | null {
-  for (const group of groups) {
-    const match = group.sections.find((candidate) => sectionMatches(pathname, candidate.href, candidate.href === '/admin'));
-    if (match) return match;
-  }
-  return null;
+  return longestSectionMatch(
+    pathname,
+    groups.flatMap((group) => group.sections),
+    (candidate) => candidate.href,
+    (candidate) => candidate.exact,
+  );
 }
 
 export function rangeHref(basePath: `/${string}`, range: RangeKey): string {

@@ -4,10 +4,10 @@ import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { Callout } from '@/components/ui/callout';
-import { Chip } from '@/components/ui/chip';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
+import { ExternalLink, inlineLink } from '@/components/ui/text-link';
 import { getFullSession } from '@/composition/session';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
@@ -80,11 +80,11 @@ function CharacterRow({
         chips={
           <span className="flex flex-wrap items-center gap-[6px]">
             <Pill tone="neutral">ID {character.characterId}</Pill>
-            {isActive ? <Chip tone="green">Active</Chip> : null}
+            {isActive ? <Pill tone="green">Active</Pill> : null}
             {view.healthLabel ? (
-              <Chip tone="orange" className="normal-case">
+              <Pill tone="orange" className="shrink-0 normal-case">
                 {view.healthLabel}
-              </Chip>
+              </Pill>
             ) : null}
           </span>
         }
@@ -113,12 +113,7 @@ function CharacterRow({
                 Granted access
               </span>
               <Pill tone="neutral">{view.scopes.length}</Pill>
-              <span
-                data-chevron
-                className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-              >
-                ▾
-              </span>
+              <CollapsibleChevron className="ml-auto" />
             </span>
           }
         >
@@ -163,19 +158,14 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
         </div>
         <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
           Manage EVE access:{' '}
-          <a
-            href={EVE_AUTHORIZED_APPS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-tone-blue hover:underline"
-          >
+          <ExternalLink href={EVE_AUTHORIZED_APPS_URL} className={inlineLink}>
             EVE authorized apps
-          </a> ·{' '}
-          <Link href="/legal" className="text-tone-blue hover:underline">
+          </ExternalLink> ·{' '}
+          <Link href="/legal" className={inlineLink}>
             Data policy
           </Link>
           {' '}·{' '}
-          <Link href="/settings/account" className="text-tone-blue hover:underline">
+          <Link href="/settings/account" className={inlineLink}>
             Purge data
           </Link>
           .

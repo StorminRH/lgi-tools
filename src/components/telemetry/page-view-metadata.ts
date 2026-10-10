@@ -1,9 +1,10 @@
 import { EVE_SSO_HOST } from '@/lib/eve-provider';
+import { sectionMatches } from '@/lib/section-path';
 
-const SKIP_PREFIXES = ['/admin', '/api/'];
+const SKIP_SECTIONS = ['/admin', '/api'];
 
 export function shouldSkip(path: string): boolean {
-  return SKIP_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix));
+  return SKIP_SECTIONS.some((href) => sectionMatches(path, href));
 }
 
 export interface UtmTags {

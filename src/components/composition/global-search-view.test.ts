@@ -3,9 +3,10 @@ import type { SearchResult, SearchSection } from '@/platform/search';
 import { pillToneClasses } from '@/components/ui/pill';
 import { blueprintImage, itemImage } from '@/data/eve-data/type-images';
 import {
-  flattenSections,
   searchIconClass,
   searchRowImage,
+  searchRowKey,
+  searchRowsByKey,
   splitMatchRuns,
 } from './global-search-view';
 
@@ -35,13 +36,19 @@ describe('splitMatchRuns', () => {
   });
 });
 
-describe('flattenSections', () => {
-  it('flattens section results into one continuous list', () => {
-    const sections = [
+describe('searchRowsByKey', () => {
+  it('keys every row in display order, keeping a recent that repeats another section row', () => {
+    const tool = result({ id: 'tool:sites', label: 'Sites' });
+    const tools: SearchSection = { name: 'Tools', results: [tool] };
+    const rows = searchRowsByKey([
+      { name: 'Recent', results: [result({ id: 'tool:sites', label: 'Sites', sub: 'Recent' })] },
       { name: 'Sites', results: [result({ id: 'a' }), result({ id: 'b' })] },
-      { name: 'Tools', results: [result({ id: 'c' })] },
-    ] as SearchSection[];
-    expect(flattenSections(sections).map((r) => r.id)).toEqual(['a', 'b', 'c']);
+      tools,
+    ]);
+    expect([...rows.keys()]).toEqual(['Recent/tool:sites', 'Sites/a', 'Sites/b', 'Tools/tool:sites']);
+    // A rendered row's value finds that row, not the recent copy.
+    expect(rows.get(searchRowKey(tools, tool))).toBe(tool);
+    expect(rows.get('Recent/tool:sites')).toMatchObject({ sub: 'Recent' });
   });
 });
 

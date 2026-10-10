@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { cache, Suspense } from 'react';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
 import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
@@ -109,11 +109,11 @@ async function SiteDeepLinkMeta({
 
 function SiteDetailFallback() {
   return (
-    <div className="flex w-full flex-col items-center gap-4 pb-20">
-      <Skeleton label="Loading site" className="h-4 w-40 self-start" />
-      <Skeleton aria-hidden="true" className="h-10 w-full max-w-[32rem]" />
-      <Skeleton aria-hidden="true" className="h-64 w-full max-w-[32rem] rounded-card" />
-    </div>
+    <SkeletonGroup label="Loading site" className="flex w-full flex-col items-center gap-4 pb-20">
+      <Skeleton className="h-4 w-40 self-start" />
+      <Skeleton className="h-10 w-full max-w-[32rem]" />
+      <Skeleton className="h-64 w-full max-w-[32rem] rounded-card" />
+    </SkeletonGroup>
   );
 }
 

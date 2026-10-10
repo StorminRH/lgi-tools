@@ -1,6 +1,6 @@
 import type { EveStatusSection } from '@/components/composition/server-status-presentation';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import type { StatusLevel } from '@/data/telemetry/health-metrics';
 
 // Healthy values stay plain so only problems draw the eye.
@@ -27,11 +27,11 @@ export function EveStatusPanel({ sections }: { sections: EveStatusSection[] }) {
 
 export function EveStatusPanelFallback() {
   return (
-    <div className="flex flex-col gap-2">
-      <Skeleton label="Loading EVE status" className="h-3 w-24" />
+    <SkeletonGroup label="Loading EVE status" className="flex flex-col gap-2">
+      <Skeleton className="h-3 w-24" />
       {[0, 1, 2, 3].map((row) => (
-        <Skeleton key={row} aria-hidden className="h-3 w-full" />
+        <Skeleton key={row} className="h-3 w-full" />
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

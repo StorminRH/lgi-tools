@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
@@ -70,13 +70,7 @@ export function MapEventLog({
                   Events - {events.length}
                 </span>
               ) : null}
-              <span
-                data-chevron
-                aria-hidden
-                className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-              >
-                ▾
-              </span>
+              <CollapsibleChevron className="ml-auto" />
             </span>
           }
         >

@@ -1,0 +1,116 @@
+{
+ "wave": 12,
+ "heading": "Wave 12: Market data, search and client data reads",
+ "briefs": [
+  {
+   "tech": "React 19.2 and eslint-plugin-react-hooks 7.1.1",
+   "focus": "React 19.2.8 as installed. useEffectEvent: when the latest closure is updated, calls from async continuations and timers started inside an effect, the rule that it must not be passed down or listed in deps, and its interaction with deps such as [enabled, refreshKey] (P052, P077). useSyncExternalStore: subscribe start and stop when the subscriber count changes, a stable getServerSnapshot reference, and hydration when the client store already holds a value (P063 createClientResource and useClientResource). The documented pattern for setting state during render to adjust to changed props (P054 useServerDraft, P270 useAuthorityScopedMapDialogs). Then read the installed rule source in node_modules/.pnpm/eslint-plugin-react-hooks@7.1.1_*/node_modules/eslint-plugin-react-hooks for the effect-event, set-state-in-render, refs and purity checks. Read first: src/app/(site)/atlas/AtlasReturnRefresh.tsx, src/mapper/tracking/JumpDoorbellObserver.tsx, src/data/market-prices/use-refresh-on-view.ts, src/data/market-history/use-refresh-on-view.ts, src/lib/client-store.ts, src/lib/use-stable-value.ts, src/components/remembered-read.ts, src/platform/search/use-source-search.ts, eslint.config.mjs."
+  },
+  {
+   "tech": "Next.js 16.3.4",
+   "focus": "Read the bundled docs, not memory: node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-cache-remote.md, use-cache.md, use-cache-private.md, 04-functions/cacheLife.md, after.md, revalidateTag.md, 01-app/02-guides/lazy-loading.md, plus the useRouter and redirects pages. Answer these. (1) Does 'use cache: remote' store a returned failure value such as { raw: null, esiFailed: true } for the cacheLife window, and is a thrown error never cached? P295 step 6 requires the answer. (2) after() in route handlers: what happens to a rejection inside the callback, and is revalidateTag(tag, 'max') valid inside it? This covers P332's runWriteBehind. (3) Does dynamic import() inside a client module keep the code split for the lazy search sources (P328, P276)? (4) router.refresh() semantics (P054). (5) Changing the shape of a 'use cache: private' result (P065 adds skillIds). Read first: src/data/market-prices/refresh-on-view.ts, src/data/market-history/refresh-on-view.ts, src/app/api/market-prices/refresh/route.ts, src/app/api/market-refresh-route.ts, src/app/(site)/industry/industry-characters.ts, next.config.ts."
+  },
+  {
+   "tech": "Vitest 4.1",
+   "focus": "Vitest 4.1.11 as installed. Cover: vi.mock factory hoisting, and partial mocks of 'react' (vi.importActual spread versus adding useEffectEvent: (fn) => fn); vi.hoisted; vi.useFakeTimers with vi.advanceTimersByTimeAsync for debounce and shared retry timers (P048 useSearchAnswer, P063 one retry timer per resource); vi.resetModules or fresh imports for module-level singletons (P063 resources, the prices hook's refreshed cache); mocking a module reached only through dynamic import() (P328, P276 lazy sources); deferred-promise ordering assertions (P181). Read first: src/lib/__tests__/hook-runtime.ts. Its createHookRuntime has no useEffectEvent, and its useSyncExternalStore ignores subscribe, so it cannot test 'first subscriber starts a load'. Also read src/data/market-history/use-refresh-on-view.test.ts, src/platform/search/search.test.ts, src/composition/search/scope-equivalence.test.ts, src/data/eve-data/systems-search.test.ts, src/components/composition/PageMenuProvider.test.ts and vitest.config.ts. There is no jsdom or testing-library in this repo."
+  },
+  {
+   "tech": "Base UI",
+   "focus": "@base-ui/react 1.7.0 as installed. Read the type definitions in node_modules/@base-ui/react/combobox/root/ComboboxRoot.d.ts and the dialog root and popup .d.ts files; do not rely on memory. For P048, cover Combobox controlled open and onOpenChange: the eventDetails reasons, whether it fires on input change, item press and Escape, and how a controlled open=false interacts with typing (CharacterSearchControl moves from popupOpen state to dismissedFor). For P054, cover Combobox inside a Dialog. For P270, cover Dialog finalFocus and initialFocus in function form, and finalFocus when a keyed Dialog remounts or unmounts while open (EditingMapAccessDialog with key={editingMap.id}). Read first: src/components/ui/combobox.tsx, src/components/ui/combobox-pick.ts, src/components/ui/dialog.tsx, src/features/maps/CharacterSearchControl.tsx, src/features/maps/MapAccessDialog.tsx, src/features/maps/map-dialog-state.ts (connectedDialogFocus), src/features/maps/MapSwitcher.tsx, src/features/maps/MapCatalogue.tsx."
+  }
+ ],
+ "waveCautions": "No item touches convex/, so no codegen. Drift since audit e5b7b17: the #634 hotfix made getLivePrices seed-first (refresh-on-view.ts:90-99: live fetch only for staleIds, 5-min TTL, concurrency 20). The prices overlap in P181 step 1 and P332 step 5 is therefore invalid; overlap only history meta+stored and corp-structures. Rebase P295 onto staleIds and mapConcurrent, and fix the route's maxDuration comment. Conflicts: P052 owns both hook rewrites. P077 adds only WriteBehindResult and notifyObserver to src/lib/write-behind.ts. P332 adds runWriteBehind and un-exports notifyObserver once it is internal (Fallow). P076's pricedRows now has one consumer. P075: the entity client retries every 30s and the request schemas differ (int4 vs positive), so skip namesRequestSchema. Order P328, P069, P276: P069 deletes systemsSource, so P276 must rebuild an eager systems SearchSource around searchSystems. platform/search imports nothing; components cannot import composition. P063 (L) and P065 (medium): write failing tests first. P010 and P068 (waves 8-9) have not landed. createHookRuntime lacks useEffectEvent and ignores subscribe. P048 and P270 change visible behaviour and need regression tests. Land P054 before P270. StructureComposer, GlobalSearch and market-prices/refresh-on-view are hotspot chains: keep one PR in flight for each. Notes left by earlier waves: P054 builds on useConfirmGate in src/components/ui/use-confirm-gate.ts (P056), which keeps the last target through cancel and reset. P065: apiFetch never rejects (P154); it resolves a failure result, so callers branch on the result instead of catching.",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P332 step 6 (market-history private retentionCutoff)",
+   "evidence": "Done by P177. src/data/market-history/ingest.ts:3, 23 and 77 already use retentionCutoffDay from @/lib/batched-delete, and no local retentionCutoff remains. Drop this step."
+  },
+  {
+   "item": "P332 step 7 (shared int4 id schema across six PG_INT4_MAX copies)",
+   "evidence": "Done by P247. src/lib/id-schemas.ts:4 and 15 define int4IdSchema. It is used at src/data/market-prices/api-contract.ts:2,9, src/data/market-history/api-contract.ts:2,9, src/features/custom-structures/api-contract.ts:4, src/features/industry-planner/api-contract.ts:9 and src/features/owned-structures/api-contract.ts:4. A grep for PG_INT4_MAX, SERIAL_MAX and 2_147_483_647 finds only lib/id-schemas.ts:4. Drop this step."
+  },
+  {
+   "item": "P065 part B (move readWithRetries to src/lib, rewrite the eve-status loop) and the dead .catch in use-slots-live",
+   "evidence": "Done by P140 and P154. readWithRetries is at src/lib/retry.ts:33, and src/data/eve-status/queries.ts:3,39 already calls it. src/features/industry-jobs/use-slots-live.ts has no .catch. read-with-retries.ts no longer exists in features/industry-planner. What remains is part A (useSlotsLive on useLiveDataset with skillIds) and part C (move resource-read and use-resource-read, which are still in src/features/industry-planner, and add useRememberedResource)."
+  },
+  {
+   "item": "P075 step 1, second half (filter invalid ids on both branches before the uncached cap)",
+   "evidence": "src/data/eve-data/names-client.ts:17-19 already filters with the endpoint's own id schema before the cap, on both branches. Only the label change remains: the path sniff is still at names-client.ts:26. The entity client now sets retryMs 30_000 (src/components/use-entity-names.ts:11). The request schemas now differ intentionally (src/data/eve-data/api-contract.ts:30-35: int4 for types, positive for entities), so optional step 7 no longer applies."
+  },
+  {
+   "item": "P181 step 1 and P332 step 5, prices half (overlap getPrices with the live fetch)",
+   "evidence": "Superseded, not done. src/data/market-prices/refresh-on-view.ts:90-99 now reads the seed first, keeps fresh rows, and runs the live fetch only for staleIds. The live fetch therefore depends on the seed, and the overlap is no longer possible. The history half is still valid (src/data/market-history/refresh-on-view.ts:65 and 80 are still sequential), and so is the corp-structures part (src/composition/sync/corp-structures-sync.ts:95-113)."
+  },
+  {
+   "item": "Bounded worker-pool lead in the P181 and P332 notes, and the P295 sketch's runConcurrent and mapBounded",
+   "evidence": "Done by P100. src/lib/fan-out mapConcurrent is used at src/data/market-prices/source.ts:19,176 and src/data/market-prices/refresh-on-view.ts:5,99. A grep for mapBounded and runConcurrent outside tests finds nothing, so P295 must extract fetchPricesFromEsiPerType from the mapConcurrent loop."
+  },
+  {
+   "item": "P076 second pricedRows consumer (buildConfidenceInputs)",
+   "evidence": "Deleted by P304: a grep for buildConfidenceInputs outside tests finds nothing. Only src/features/industry-planner/initial-price-map.ts walks the rows, as the README conflict for P304 and P076 records."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P332",
+   "dependsOn": "P247",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P295",
+   "dependsOn": "P335",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P076",
+   "dependsOn": "P304",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P063",
+   "dependsOn": "P010",
+   "dependencyWave": 8,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P065",
+   "dependsOn": "P140",
+   "dependencyWave": 3,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P065",
+   "dependsOn": "P068",
+   "dependencyWave": 9,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P065",
+   "dependsOn": "P154",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P276",
+   "dependsOn": "P123",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P048",
+   "dependsOn": "P039",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P054",
+   "dependsOn": "P056",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

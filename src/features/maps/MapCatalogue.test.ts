@@ -226,8 +226,8 @@ describe('MapCatalogue', () => {
   it('distinguishes listing failure from a true zero-map account', () => {
     const markup = renderCatalogue([], false);
     expect(markup).toContain('data-map-catalogue-unavailable');
-    expect(markup).toContain('Map catalogue unavailable');
-    expect(markup).toContain('Try again');
+    expect(markup).toMatch(/<div role="alert"[^>]*>.*Map catalogue unavailable/);
+    expect(markup).toContain('<button type="button" aria-label="Try again"');
     expect(markup).not.toContain('data-map-catalogue-empty-hint');
     expect(markup).not.toContain('data-map-catalogue-create');
     expect(markup).not.toContain('data-map-catalogue-trash');

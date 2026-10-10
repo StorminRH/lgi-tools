@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+} from '@/components/ui/dialog';
 import {
   AFK_TICK_MS,
   afkConfigFromOverrides,
@@ -64,22 +71,17 @@ export function AfkDialog({ afk }: { readonly afk: AfkGateState }) {
       labelledBy={TITLE_ID}
       className="w-[min(26rem,calc(100vw-2rem))]"
     >
-      <DialogTitle
-        id={TITLE_ID}
-        className="border-b border-border-soft px-4 py-3 font-display text-h3 font-semibold tracking-copy uppercase text-name"
-      >
-        Still mapping?
-      </DialogTitle>
-      <div className="flex flex-col gap-3 px-4 py-4" data-afk-dialog>
+      <DialogHeader titleId={TITLE_ID} title="Still mapping?" size="h3" />
+      <DialogBody data-afk-dialog>
         <DialogDescription className="font-ui text-ui leading-relaxed text-text">
           {afk.paused
             ? 'It looked like you were AFK, so location tracking is paused. Continue to resume.'
             : 'It looks like you might be AFK. Tracking pauses in a few minutes unless you continue.'}
         </DialogDescription>
-      </div>
-      <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
+      </DialogBody>
+      <DialogFooter>
         <DialogClose render={<Button variant="primary" size="sm" />}>Continue</DialogClose>
-      </footer>
+      </DialogFooter>
     </Dialog>
   );
 }

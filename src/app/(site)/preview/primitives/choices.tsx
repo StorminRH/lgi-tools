@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Checkbox, type CheckboxTone } from '@/components/ui/checkbox';
-import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
+import { ChipToggle, ChipToggleGroup, ToggleRow } from '@/components/ui/chip-toggle';
 import { Dot } from '@/components/ui/dot';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { SegmentedControl } from '@/components/ui/segmented';
@@ -24,20 +24,18 @@ function ToneChecks() {
   return (
     <div className="flex flex-col gap-2.5">
       {CHECKBOX_TONES.map((tone) => (
-        <label key={tone} className="flex cursor-pointer items-center gap-2.5 font-ui text-ui text-text">
-          <Checkbox
-            tone={tone}
-            checked={checked[tone]}
-            onCheckedChange={(next) => setChecked((current) => ({ ...current, [tone]: next }))}
-            label={`${tone} checkbox`}
-          />
+        <Checkbox
+          key={tone}
+          tone={tone}
+          checked={checked[tone]}
+          onCheckedChange={(next) => setChecked((current) => ({ ...current, [tone]: next }))}
+        >
           {tone}
-        </label>
+        </Checkbox>
       ))}
-      <label className="flex items-center gap-2.5 font-ui text-ui text-muted">
-        <Checkbox checked={false} onCheckedChange={() => undefined} label="Disabled checkbox" disabled />
+      <Checkbox checked={false} onCheckedChange={() => undefined} disabled>
         disabled
-      </label>
+      </Checkbox>
     </div>
   );
 }
@@ -47,15 +45,14 @@ function ToneSwitches() {
   return (
     <div className="flex flex-col gap-2.5">
       {SWITCH_TONES.map((tone) => (
-        <label key={tone} className="flex cursor-pointer items-center gap-2.5 font-ui text-ui text-text">
-          <Switch
-            tone={tone}
-            checked={on[tone]}
-            onCheckedChange={(next) => setOn((current) => ({ ...current, [tone]: next }))}
-            label={`${tone} switch`}
-          />
+        <Switch
+          key={tone}
+          tone={tone}
+          checked={on[tone]}
+          onCheckedChange={(next) => setOn((current) => ({ ...current, [tone]: next }))}
+        >
           {tone}
-        </label>
+        </Switch>
       ))}
     </div>
   );
@@ -66,7 +63,6 @@ export function ChoicesGroup() {
   const [unit, setUnit] = useState('isk');
   const [density, setDensity] = useState('volume');
   const [siteTypes, setSiteTypes] = useState(['gas']);
-  const [filters, setFilters] = useState(['c3']);
   const [rows, setRows] = useState(['open']);
 
   return (
@@ -78,7 +74,7 @@ export function ChoicesGroup() {
       <Specimen
         name="Checkbox + Switch"
         source="checkbox · switch"
-        note="Controlled boolean inputs in their tone variants. Callers own the visible label."
+        note="Controlled boolean inputs in their tone variants. Children draw a clickable label row that names the control and dims when it is disabled; label alone names a bare control."
       >
         <div className="grid grid-cols-2 gap-6">
           <Variant label="checkbox">
@@ -110,7 +106,7 @@ export function ChoicesGroup() {
       <Specimen
         name="SegmentedControl"
         source="segmented"
-        note="A raised selection inside an inset track. Compact density for toolbars; link mode when the choice lives in the URL."
+        note="A raised selection inside an inset track. Compact density for toolbars; link mode when the choice lives in the URL, as soft navigations that keep the scroll position."
         wide
       >
         <div className="flex flex-wrap items-end gap-8">
@@ -141,30 +137,23 @@ export function ChoicesGroup() {
       </Specimen>
 
       <Specimen
-        name="ChipToggle"
+        name="ChipToggle + ToggleRow"
         source="chip-toggle"
-        note="Multi-select pressable chips in three appearances: tone keeps the domain colour, filter lights up when pressed, row reads as a list toggle."
+        note="Multi-select toggles inside a ChipToggleGroup. ChipToggle is a pressable chip that shows its domain colour when pressed and fades when not; ToggleRow is an untinted list row that fills when pressed."
         wide
       >
-        <div className="grid gap-5 md:grid-cols-3">
-          <Variant label="tone">
+        <div className="grid gap-5 md:grid-cols-2">
+          <Variant label="chip">
             <ChipToggleGroup value={siteTypes} onValueChange={setSiteTypes} label="Wormhole site types">
               <ChipToggle value="gas" tone="orange"><Dot tone="orange" size="sm" /> Gas</ChipToggle>
               <ChipToggle value="ore" tone="blue"><Dot tone="blue" size="sm" /> Ore</ChipToggle>
               <ChipToggle value="relic" tone="green"><Dot tone="green" size="sm" /> Relic</ChipToggle>
             </ChipToggleGroup>
           </Variant>
-          <Variant label="filter">
-            <ChipToggleGroup value={filters} onValueChange={setFilters} label="Wormhole classes">
-              <ChipToggle value="c1" tone="blue" appearance="filter">C1</ChipToggle>
-              <ChipToggle value="c3" tone="purple" appearance="filter">C3</ChipToggle>
-              <ChipToggle value="c5" tone="red" appearance="filter">C5</ChipToggle>
-            </ChipToggleGroup>
-          </Variant>
           <Variant label="row">
             <ChipToggleGroup value={rows} onValueChange={setRows} label="Row toggles">
-              <ChipToggle value="open" tone="green" appearance="row">Open sites</ChipToggle>
-              <ChipToggle value="done" tone="green" appearance="row">Cleared</ChipToggle>
+              <ToggleRow value="open">Open sites</ToggleRow>
+              <ToggleRow value="done">Cleared</ToggleRow>
             </ChipToggleGroup>
           </Variant>
         </div>

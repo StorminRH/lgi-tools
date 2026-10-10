@@ -89,6 +89,10 @@ export async function executeMergeRules(
   }
 }
 
+/**
+ * postgres-js resolves `execute` to a row array and neon-http to `{ rows }`.
+ * lib/db-execute owns that rule, but the purge zone imports nothing from src.
+ */
 function resultRows(result: unknown): unknown[] {
   return Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
 }

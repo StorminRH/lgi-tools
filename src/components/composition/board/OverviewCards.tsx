@@ -1,10 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import { DistributionBars } from '@/components/ui/distribution-bars';
+import { SectionPanel } from '@/components/ui/section-panel';
+import { StatFigure } from '@/components/ui/stat-figure';
+import { CardLink } from '@/components/ui/text-link';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
-import { FlowLine, StatFigure } from './board-bits';
+import { FlowLine } from './board-bits';
+import { SectionNote } from './SectionBody';
 import {
   accountWorthSeries,
   combinedFlow,
@@ -13,7 +16,6 @@ import {
   worthShares,
 } from './board-view-model';
 import { WorthChart, WorthHeadline } from './WorthChart';
-import { SectionPanel } from './SectionBody';
 
 /**
  * The aggregate across pilots: wealth as the main card, industry as a slim
@@ -57,7 +59,7 @@ function WealthCard({
   return (
     <SectionPanel title="Wealth">
       {lead === null ? (
-        <p className="px-3.5 py-3 text-ui text-faint">No wallet has synced yet. Reconnect a pilot to add it.</p>
+        <SectionNote>No wallet has synced yet. Reconnect a pilot to add it.</SectionNote>
       ) : (
         <>
           <div className="flex flex-col gap-1 px-3.5 pt-3 pb-2">
@@ -92,20 +94,20 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
           {totals !== null && totals.covered !== totals.total ? (
             <span>{totals.covered} of {totals.total}</span>
           ) : null}
-          <Link href="/industry/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
-            Open jobs →
-          </Link>
+          <CardLink href="/industry/jobs">Open jobs</CardLink>
         </span>
       }
     >
       {totals === null ? (
-        <p className="px-3.5 py-3 text-ui text-faint">No industry jobs have synced yet.</p>
+        <SectionNote>No industry jobs have synced yet.</SectionNote>
       ) : (
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 px-3.5 py-3">
           <dl className="grid grid-cols-3 gap-x-8">
-            <StatFigure label="Active" value={totals.active} />
-            <StatFigure label="Ready" value={totals.ready} tone={totals.ready > 0 ? 'text-isk' : 'text-name'} />
-            <StatFigure label="Slots" value={`${totals.used}/${totals.max}`} />
+            <StatFigure label="Active">{totals.active}</StatFigure>
+            <StatFigure label="Ready" tone={totals.ready > 0 ? 'text-isk' : 'text-name'}>
+              {totals.ready}
+            </StatFigure>
+            <StatFigure label="Slots">{`${totals.used}/${totals.max}`}</StatFigure>
           </dl>
           {totals.readyPilots.length > 0 ? (
             <span className="min-w-0 truncate text-ui text-isk">Ready: {totals.readyPilots.join(', ')}</span>

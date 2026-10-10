@@ -4,7 +4,8 @@ import { Popover as Base } from '@base-ui/react/popover';
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
-import { panelSurface } from './dropdown-panel';
+import { panelSurface, popIn } from './dropdown-panel';
+import { useOverlayPortalContainer } from './overlay-portal-container';
 import { scrollArea } from './scroll-area';
 import type { Tone } from './tones';
 import { eyebrow } from './type-roles';
@@ -16,9 +17,7 @@ const KEEP_SIDE = { side: 'shift', align: 'shift', fallbackAxisSide: 'none' } as
 
 const popup = cva(
   'flex w-[272px] flex-col gap-3 rounded-card border px-[14px] py-[12px] font-ui text-ui leading-snug normal-case tracking-normal outline-none ' +
-    'origin-[var(--transform-origin)] transition-[opacity,transform] duration-fast motion-reduce:transition-none ' +
-    'data-[starting-style]:scale-95 data-[starting-style]:opacity-0 ' +
-    'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
+    popIn,
   {
     variants: {
       tone: {
@@ -59,6 +58,7 @@ export function Popover({
   triggerClassName?: string;
   className?: string;
 }) {
+  const overlayContainer = useOverlayPortalContainer();
   return (
     <Base.Root modal={false} onOpenChange={onOpenChange}>
       <Base.Trigger
@@ -71,7 +71,7 @@ export function Popover({
       >
         {trigger}
       </Base.Trigger>
-      <Base.Portal>
+      <Base.Portal container={overlayContainer}>
         <Base.Positioner
           side={side}
           align={align}

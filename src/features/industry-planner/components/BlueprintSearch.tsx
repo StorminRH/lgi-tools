@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { SearchIcon } from '@/components/ui/icons';
 import { TypeIcon } from '@/components/type-icon';
 import { searchOneSource, type SearchResult } from '@/platform/search';
@@ -23,27 +24,20 @@ export function BlueprintSearch() {
     <Combobox.Root
       items={hits.map((hit) => hit.id)}
       value={query}
-      onValueChange={(next, details) => {
-        const picked = details.reason === 'item-press' ? hits.find((hit) => hit.id === next) : undefined;
-        if (picked) open(picked);
-        else setQuery(next);
-      }}
+      onValueChange={(next, details) =>
+        pickOrType(next, details, { lookup: (id) => hits.find((hit) => hit.id === id), onType: setQuery, onPick: open })
+      }
       // The highlighted result is the likely pick: fetch its route ahead of the press.
       onItemHighlighted={(id) => {
         const hit = hits.find((candidate) => candidate.id === id);
         if (hit) router.prefetch(hit.href);
       }}
       filter={null}
-      mode="list"
     >
       <Combobox.Field
         aria-label="Search for a blueprint"
         placeholder="Search for a blueprint"
         type="text"
-        spellCheck={false}
-        autoCorrect="off"
-        autoCapitalize="off"
-        autoComplete="off"
         prompt={<SearchIcon size={18} />}
         className="w-full py-3"
       />

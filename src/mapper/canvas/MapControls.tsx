@@ -3,7 +3,7 @@
 import { Panel } from '@xyflow/react';
 import { memo, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
 import { Stepper } from '@/components/ui/stepper';
@@ -390,12 +390,7 @@ function DialGroupHeader({ label }: { readonly label: string }) {
   return (
     <span className="flex w-full items-center gap-2">
       <span className="text-label uppercase tracking-label text-muted">{label}</span>
-      <span
-        data-chevron
-        className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-      >
-        ▾
-      </span>
+      <CollapsibleChevron className="ml-auto" />
     </span>
   );
 }

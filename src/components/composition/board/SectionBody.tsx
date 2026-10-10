@@ -1,28 +1,32 @@
 import type { ReactNode } from 'react';
-import { cardSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
-import { SectionHeader } from '@/components/ui/section-header';
 import type { BoardSection } from '@/composition/board/api-contract';
 
-/** The glass the sheet's readouts sit on; everything else floats on the backdrop. */
-export const readoutSurface = cn(cardSurface, 'min-w-0 overflow-hidden');
-
-export function SectionPanel({
-  title,
-  meta,
-  className,
+/**
+ * The quiet line a board or workspace panel shows in place of its rows: why
+ * there is nothing yet, or what to do about it. `divided` rules it off from
+ * content above it in the same panel; `alert` marks a state that needs the
+ * pilot's attention.
+ */
+export function SectionNote({
   children,
+  divided = false,
+  tone = 'quiet',
 }: {
-  title: ReactNode;
-  meta?: ReactNode;
-  className?: string;
   children: ReactNode;
+  divided?: boolean;
+  tone?: 'quiet' | 'alert';
 }) {
   return (
-    <section className={cn(readoutSurface, className)}>
-      <SectionHeader label={title} hint={meta} size="md" />
+    <p
+      className={cn(
+        'px-3.5 py-3 text-ui',
+        tone === 'alert' ? 'text-dps-high' : 'text-faint',
+        divided && 'border-t border-border-soft',
+      )}
+    >
       {children}
-    </section>
+    </p>
   );
 }
 
@@ -34,9 +38,5 @@ export function SectionBody<T>({
   children: (data: T) => ReactNode;
 }) {
   if (section.state === 'ready') return children(section.data);
-  return (
-    <p className="px-3.5 py-3 text-ui text-faint">
-      {section.state === 'pending' ? 'Syncing from EVE…' : 'Needs a reconnect to sync.'}
-    </p>
-  );
+  return <SectionNote>{section.state === 'pending' ? 'Syncing from EVE…' : 'Needs a reconnect to sync.'}</SectionNote>;
 }

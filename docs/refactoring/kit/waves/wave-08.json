@@ -1,0 +1,66 @@
+{
+ "wave": 8,
+ "heading": "Wave 8: Charts, images and board/workspace adoption",
+ "briefs": [
+  {
+   "tech": "React 19.2",
+   "focus": "React 19.2.8 as installed (node_modules/react) plus the canary build the App Router actually runs (node_modules/next/dist/compiled/react). Confirm three things for P005. First, a Server Component can call useId: node_modules/react/cjs/react.react-server.development.js:841 exports it. Second, a Server Component cannot pass a function prop such as onSubmit across a 'use client' boundary, which is why ConfirmActionForm is the thin client wrapper. Third, renderToStaticMarkup renders 'use client' components fine in node tests. For P003, check ViewTransition imported from 'react' (props name, share='morph', default='none'; types in node_modules/@types/react/canary.d.ts) and the rule that every animated part stays a direct child of the persistent container. For P010, check the useState/useEffect retry-timer pattern and why module-level Map identity keeps memo deps stable. Read first: src/components/composition/board/PilotRail.tsx, board-motion.ts, use-focus-view.ts, src/components/use-system-search.ts, src/components/composition/account/AdminForceLogoutForm.tsx."
+  },
+  {
+   "tech": "Next.js 16.3.4",
+   "focus": "This is a non-standard Next; use node_modules/next/dist/docs, not memory. P271: read 01-app/03-api-reference/04-functions/generate-metadata.md (shallow merge of openGraph and twitter with the root layout, notFound() inside generateMetadata near line 197, metadataBase resolving relative canonicals), 03-file-conventions/01-metadata/opengraph-image.md (Promise params, when a segment's file image applies), and node_modules/next/dist/lib/metadata/resolve-metadata.js:137-158 (the hasOwnProperty('images') check, so 'route' mode must omit the key rather than set undefined). cacheComponents is on in next.config.ts: read 01-directives/use-cache.md and how React cache() interacts with 'use cache' loaders (sites/[id]/page.tsx:22). P008 and P012: read 02-components/image.md for custom loader, onError, and preload versus loading. Read src/lib/page-metadata.ts, src/transport/route-id.ts, src/app/layout.tsx:40-60, src/components/eve-image.tsx and src/components/character-portrait.tsx first."
+  },
+  {
+   "tech": "visx 4",
+   "focus": "@visx/scale, @visx/shape, @visx/tooltip and @visx/event 4.0.0 as installed; read the .d.ts files under node_modules/@visx/*/lib. Check: scaleLinear (domain, range, nice, and the ReturnType<typeof scaleLinear<number>> that TimeSeriesFrame's xScale prop requires); Area versus AreaClosed (x, y0, y1, yScale, defined, fillOpacity); LinePath (defined, curve, and whether strokeOpacity={undefined} omits the attribute so split-axis markup stays byte-identical); useTooltip state. Read first: src/components/ui/chart/chart-frame.tsx, line-chart.tsx, value-axis.tsx, hover.ts, hover-layer.tsx, chart-geometry.ts, daily-chart-geometry.ts (post-audit half-bar inset), then src/components/ui/trend-chart.tsx, annotated-daily-chart.tsx, split-axis-chart.tsx, stacked-area-chart.tsx and their tests (P004, P037, P317)."
+  },
+  {
+   "tech": "Better Auth 1.6.30",
+   "focus": "better-auth/react createAuthClient with genericOAuthClient, as installed (node_modules/better-auth/dist/plugins/generic-oauth/client.d.mts and the client dist). Check: the return shape of signIn.oauth2({ providerId, callbackURL, errorCallbackURL }) and oauth2.link; whether they reject or resolve { error } on failure; and whether they navigate by window.location themselves. Also check authClient.signOut(): when it resolves with { error } and when it rejects, which matters for the .finally policy and the palette's success-only branch. Read first: src/platform/auth/auth-client.ts, reload-document-home.ts, link-character.ts, src/lib/eve-provider.ts, src/composition/search/commands-source.ts and commands-source.test.ts:82-125 (P067). For P012, read src/platform/auth/scope-health.ts and linked-characters.ts."
+  },
+  {
+   "tech": "Vitest 4.1",
+   "focus": "Vitest 4.1.11 as installed. Tests run in the node environment with no DOM. Cover: renderToStaticMarkup component tests (model on src/components/ui/stacked-area-chart.test.ts and annotated-daily-chart.test.ts); how vi.mock paths resolve after a file moves (use-cssom-tooltip.test.ts mocks 'react' with vi.hoisted, chart-frame.test.ts mocks './use-chart-hover'); vi.stubGlobal('confirm') with unstubAllGlobals; and calling a rendered element's onSubmit or onError prop directly to test the confirm and fallback branches (P005, P008, P009). For P183, read the Postgres harness for *.db.test.ts: src/db/__tests__/support/db-test-harness.ts, src/features/owned-structures/queries.db.test.ts, src/data/eve-data/character-facts.db.test.ts. Find out how a skip is reported when Postgres is down; a skip does not count as green. Read vitest.config.ts and src/esi-datasets/ui-adoption.test.ts (the census that P005 empties) first."
+  }
+ ],
+ "waveCautions": "No Convex items: leave convex/_generated alone. P004, P037, P317 and P005 live in ui (allow []), so they import only ./ siblings, never lib or data. Order: P004, P037, P317, P318; P008 then P009 (both edit type-icon.tsx); P010, P011, P183 (P010 owns SecPill). Move the tickIndices tests once, in P004. P317 must keep paddedDomain because P318 adopts it (widen to readonly). It adds ChartPoint only with a real consumer, or Fallow flags it. P318's regex step is already done by stripUtcYear; ship only the rest. P012's portraits are done: skip PortraitSize 40 and move only the label (UserDetailCards.tsx:85-94). P062's admin side was rewritten after the audit (levelReadout, ReadoutLine valueTone): re-derive the design or record it as revised. annotated-daily-chart.test.ts pins the post-audit half-bar inset; extend it. A dropped prop must also leave the props type, or unused-component-props fires. Visible changes need PR notes and red-to-green tests: chart tab stops, an all-zero domain of ±1, logo alt and placeholder, multi-word monograms, coloured composer security and the SecPill null tone, the BoardSkeleton width, sr-only disabled reasons, industry share cards and 404s. Hotspots: StructureComposer, GlobalSearch, AccountDangerZone. Keep the names startEveSignIn, getLoadedSystemsById and useSystemsById, because P222 and P063 use them. Notes left by earlier waves: P003 edits BoardSkeleton and WorkspaceStates, which wave 7 (P018) made SkeletonGroup roots; ui-adoption.test.ts bans `<Skeleton aria-hidden>`, so keep bars inside SkeletonGroup. P067 sees AccountDangerZone importing HelpPopover from ui/help-popover (P007), not Popover.",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P318 (partial: the year-dropping regex step)",
+   "evidence": "P089 already shipped the helper as stripUtcYear (src/lib/format/time.ts:27, tested at time.test.ts:44-46). All three board sites use it: BalanceTrend.tsx:36 formatTick={stripUtcYear}, WorthChart.tsx:67 and :89, and WalletSection.tsx:23 stripUtcYear(formatUtcDate(row.date)). Still to do: fittedDomain at board-view-model.ts:310, 322 and 660, pinned by board-view-model.test.ts:204-207; readyData, still private at board-view-model.ts:25; the Extract types at WalletSection.tsx:15 and AttributesSection.tsx:22-23; the repeated Pick at CharacterIdentity.tsx:18; and the missing BoardJournalData, BoardAttributesData and BoardImplantsData exports (api-contract.ts exports only Skills, Industry and NetWorth at :60, :122 and :129)."
+  },
+  {
+   "item": "P012 (partial: the admin portrait step)",
+   "evidence": "src/app/(site)/admin/users/AdminCharacterRow.tsx:33 renders CharacterPortrait at size 28. UserDetailCards.tsx uses it for both the account identity (AccountIdentity) and each linked character, and there is no raw EveImage left under admin/users/[userId]. Because the header no longer needs a 40px portrait, adding 40 to PortraitSize (character-portrait.tsx:7) is unnecessary. Still to do: the inline label at UserDetailCards.tsx:85-94 ('Missing scopes' or 'Disconnected', with no 'Verification delayed'; asserted at UserDetailCards.test.ts:129-130), and settings/characters/characters-view.ts, still the canonical copy at :10."
+  },
+  {
+   "item": "P062 (premise changed after the audit)",
+   "evidence": "src/app/(site)/admin/status-tone.ts:1-31 no longer exports LEVEL_VALUE_CLASS or LEVEL_DOT_TONE. It exports only levelReadout(level), which returns a ReadoutLine valueTone ('default' | 'orange' | 'red' | 'muted', mapped to classes at src/components/ui/readout.tsx:16-26), from post-audit commit f3e3c1d3. admin/StatusLines.tsx no longer exists; the importers are LevelRows.tsx, AdminOverviewCards.tsx and health/StatusRow.tsx. EveStatusPanel.tsx:7-12 LEVEL_CLASS still duplicates the severity mapping, but the write-up's statusValueClass(level, 'text-name') API is stale."
+  },
+  {
+   "item": "P004 (partial: the render-test scaffold)",
+   "evidence": "src/components/ui/annotated-daily-chart.test.ts already exists, added after the audit by 82b7ea9a. It renders AnnotatedDailyChart with renderToStaticMarkup and pins bar x and width plus the end-label x under the new half-bar inset. Extend it with the tabindex, aria-label and tick-count cases rather than creating it. The write-up's src/components/coverage.test.ts pin no longer exists (P340 is done), so there is no coverage pin to update. line-chart.tsx, the sparkline imports and the className and xTicks props are all still present (trend-chart.tsx:10 and :22-24; annotated-daily-chart.tsx:34-36)."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P318",
+   "dependsOn": "P089",
+   "dependencyWave": 4,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P003",
+   "dependsOn": "P018",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P271",
+   "dependsOn": "P247",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

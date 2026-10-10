@@ -1,0 +1,56 @@
+{
+ "wave": 14,
+ "heading": "Wave 14: Convex backend helpers",
+ "briefs": [
+  {
+   "tech": "Convex",
+   "focus": "convex 1.45.0 as installed (node_modules/convex/package.json). Read the type definitions, not memory: node_modules/convex/dist/esm-types/server/database.d.ts (table-first db.get/patch/delete(table, id) overloads that new code should prefer, db.system.get('_scheduled_functions', id) for runState in P205), query.d.ts (withIndex, take, unique, first, collect, paginate ordering and limits), pagination.d.ts (PaginationResult, PaginationOptions for P204's clampPageSize/deniedPage), values/errors.d.ts (ConvexError data payload and how object vs string data appear in .message, for P195's accountMerge change) and values/validator.d.ts (Infer, v.union). Confirm for P198 whether ctx.db.query(table) with a union-typed table name type-checks .withIndex('by_user_character', ...) when every member has that index, and whether returning Doc<T> for a generic T needs the single cast. Confirm transaction semantics: Promise.all of independent reads inside a mutation (P195, P289), sequential deletes, read-set/OCC conflicts from a wider by_map range read (P215), per-mutation document read/write limits (P196, P215), and what `convex codegen --typecheck disable` regenerates in convex/_generated when modules are added, moved or deleted (P199, P201, P204). Repo files first: convex/AGENTS.md, convex/schema.ts (by_user_character, by_map_user, by_map, by_map_character indexes), convex/lib/indexedQuery.ts, convex/lib/mapConnectionLookup.ts, convex/lib/locationCaches.ts, convex/lib/locationSchedule.ts, convex/mapPurge.ts, convex/mapChainPage.ts, convex/tsconfig.json."
+  },
+  {
+   "tech": "convex-test and Vitest 4.1",
+   "focus": "convex-test 0.0.56 (node_modules/convex-test/README.md and dist/index.d.ts) with vitest 4.1.11: convexTest(schema, modules) driven by the import.meta.glob map in convex/__tests__/modules.setup.ts (convex/__tests__/modules.test.ts fails when a production module is missing or extra), t.run for calling lib helpers directly inside a real transaction (uniqueByUserCharacter, deleteIndexedBatch, trackedPilotSystemsByMap, findLiveSystem, setRemovedPurgeAfter, findJumpStamp), t.withIdentity, t.mutation/t.query, scheduled functions and fake timers, and whether convex-test enforces Convex read/write limits (P215's 300-claimant smoke test) or exposes read counts (P199's one-read-per-map memo test). Vitest 4.1: vi.defineHelper, expect.unreachable, expect.objectContaining, rejects, and the `// @vitest-environment edge-runtime` pragma. Read first: convex/__tests__/convexTest.setup.ts (P216's expectConvexErrorCode, grantMapAccess, claimReconciler, scheduledFunctionsNamed), convex/__tests__/mapAuthoring.setup.ts, convex/__tests__/characterLocation.setup.ts, convex/__tests__/http.setup.ts, convex/__tests__/export-coverage.test.ts and vitest.config.ts."
+  },
+  {
+   "tech": "Zod 4",
+   "focus": "zod 4.5.4 as installed (node_modules/zod/v4/classic type definitions), imported as 'zod' and bundled into the Convex runtime. For P208: sharing a raw field-shape object between z.object (strips unknown keys, used by Convex request schemas) and z.strictObject (rejects unknown keys, used by Next response schemas); spreading a shape into a larger object versus .extend; typing an inferred type from a shape (z.infer<z.ZodObject<typeof shape>>) versus z.infer of a finished schema; z.input versus z.output with `satisfies` at a call site; .int() safe-integer bounds and .nonnegative() in v4. Read first: src/lib/id-schemas.ts (positiveIdSchema to reuse for characterId), src/data/location-tracking/merge.ts, src/data/location-tracking/schema.ts, src/data/location-tracking/constants.ts, convex/httpAccountMerge.ts, convex/httpLocation.ts, convex/httpEngine.ts, convex/lib/httpAuth.ts (authorizedJsonAction takes z.ZodType<T>), src/data/convex/api-contract.ts, src/data/convex/leave-door.ts and src/transport/endpoint.ts (why api-contract.ts cannot be imported by Convex)."
+  },
+  {
+   "tech": "Fallow 3.22",
+   "focus": "fallow 3.22.0 as installed: node_modules/fallow/README.md, schema.json, issue-registry.json and skills/fallow, read against the repo's .fallowrc.json and the fallow:static script in package.json. Cover the rules this wave trips: unused-exports and unused-types with ignoreExportsUsedInFile false (un-exporting stopSync, deleting UserCharacterIndexedTable, TablePurgeResult, MAP_JUMP_BOOKKEEPING_PURGE_BATCH, getPresence, findCharacterLocation), duplicate-exports (no re-export of TRACKED_CHARACTERS_PER_MAP_USER_CAP from mapTrackingOptIn), circular-dependencies between convex/lib and root modules (new lib/mapAuthoringEvents must not import ../mapAuthoringCollapse), boundary rules (convex may import data, lib, platform/auth, platform/esi; src/data children are autoDiscover zones that may not import each other except data/eve-data), dupes in weak mode at 50 tokens or 5 lines, health limits (cyclomatic 20, cognitive 15, CRAP 30) and coverage-gaps with requireAllFiles for new modules. Explain how `fallow guard <files>` reports a boundary check for a proposed home."
+  }
+ ],
+ "waveCautions": "Line refs drifted since e5b7b17 (readPairRows is now mapJumpAuthoring.ts:79); re-open every site. Unlisted overlaps: P195 steps 5 and 9 already do P289 steps 1-2, and P195 step 8 does P208's MERGE_TRACKING_LIMIT move; land each once, record the residual. P195, P198, P200 and P202 all edit mapScanApply.requireTrackedSystem, and P195's takeIndexedOrThrow conflicts with P200's non-throwing readUserMapTracking there: keep takeIndexedOrThrow and have P200 only repoint the cap import. P215 must not use readMapTracking; revocation never fails closed. P208: reuse the existing MAP_CLAIM_PURGE_BATCH name (P246 uses it) and positiveIdSchema. Use ConnectionDoorSide, not 'from' | 'to'. Hotspots: accountMerge, mapScanSelection, mapAuthoringCollapse, mapChainCleanup. New, moved (git mv) or deleted modules (P199, P201, P204) need modules.setup.ts, their own tests (coverage-gaps), and `pnpm exec convex codegen --typecheck disable`. Contract modules Convex imports must not import transport, next, drizzle or node. Keep removers sequential. Preserve every error code and detail; assert with expectConvexErrorCode. Red-to-green tests and PR notes for behaviour changes: P215 (medium risk, orphan tracking revoked), P195 (merge errors gain codes), P207 (no-op writes skipped), P208 (negative stamps rejected), P206 (to-door compare). Keep source pins green: mapAuthoringSweep.test.ts:524-532, mapScanSubscriptions.test.ts:190-193, mapChain.test.ts:499-610. Notes left by earlier waves: Convex enum validators are built from their data-zone tuples and the TS types inferred from validators (P261); bearerMatches is shared through src/lib/bearer.ts and Convex answers a logged 500 when CONVEX_SERVICE_SECRET is unset (P210); SITE_URL is read through readAppOrigin (P211); the convex lint block rejects raw process.env reads.",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P208 step 3 only (revoke batch constant), partial",
+   "evidence": "src/composition/map-access-projection.ts:279-288 already replaced both literal 32s with a module-local `const MAP_CLAIM_PURGE_BATCH = 32` fed to chunk(). It is not exported and not in src/data/maps/access-contract.ts, and convex/httpMapAccess.ts:62 still has `.max(32)`. The remaining work is to move the constant (keeping the MAP_CLAIM_PURGE_BATCH name that P246 uses) and use it on the Convex side. No other wave 14 end state exists: deleteIndexedBatch, findLiveSystem, findJumpStamp, retireLocationSync, setRemovedPurgeAfter, writeDoorTypeAndClaim, pruneMapTracking, readUserMapTracking, trackedPilotSystemsByMap, pilotInRemovedBranch, userPurgeBodySchema and convex/lib/pagination.ts have no hits. TRACKED_CHARACTERS_PER_MAP_USER_CAP is still at convex/mapTrackingOptIn.ts:8 and PilotsPresent is still at src/data/maps/chain-collapse.ts:4."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P195, P196, P198, P200, P202, P203, P205, P215 (new and tightened Convex error tests; the wave intro says to use P216's strict error-code assertions throughout)",
+   "dependsOn": "P216",
+   "dependencyWave": 2,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P196 (purgeForMap, purgeMapBatch and purgeUserClaims must keep the { deleted, hasMore } shape that httpMapAccess.ts drainBatches now consumes)",
+   "dependsOn": "P197",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P208 (merge-contract characterId field should reuse positiveIdSchema from src/lib/id-schemas.ts rather than restating z.number().int().positive())",
+   "dependsOn": "P247",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P207 (excluded site convex/mapHallwayBackfill.ts was deleted, so nothing to leave alone there)",
+   "dependsOn": "P324",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

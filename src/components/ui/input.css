@@ -6,8 +6,8 @@
   .field-glass {
     border: 1px solid var(--color-border);
     background-color: color-mix(in oklab, white 4%, transparent);
-    -webkit-backdrop-filter: blur(14px) saturate(1.3);
-    backdrop-filter: blur(14px) saturate(1.3);
+    -webkit-backdrop-filter: blur(var(--glass-chip-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-chip-blur)) saturate(var(--glass-saturate));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 6px 18px -12px rgba(0, 0, 0, 0.8);
     transition:
       border-color var(--transition-duration-panel),
@@ -44,7 +44,7 @@
   .field-trigger {
     border-radius: 12px;
     border-color: var(--color-border-active);
-    background-color: color-mix(in oklab, white 4%, color-mix(in oklab, var(--color-bg-deep) 55%, transparent));
+    @apply glass-chip;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.07),
       0 10px 30px -18px color-mix(in oklab, var(--color-aurora) 70%, transparent);

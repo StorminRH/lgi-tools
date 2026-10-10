@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { useSystemSearch } from '@/components/use-system-search';
 import {
   formatSec,
@@ -257,13 +258,12 @@ export function ScannerLeadsControl({
       open={popup.open}
       onOpenChange={popup.onOpenChange}
       value={query}
-      onValueChange={(next, details) => {
-        if (details.reason === 'item-press') {
-          commitScannerLeadsValue(next, setters);
-          return;
-        }
-        setQuery(next);
-      }}
+      onValueChange={(next, details) =>
+        pickOrType(next, details, {
+          onType: setQuery,
+          onPick: (picked) => commitScannerLeadsValue(picked, setters),
+        })
+      }
       items={items}
       filter={null}
       openOnInputClick

@@ -4,8 +4,9 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { ChevronDownIcon } from '@/components/ui/icons';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { useSystemSearch } from '@/components/use-system-search';
 import { securityStatusTextClass } from '@/data/eve-data/security';
 import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
@@ -21,7 +22,6 @@ import {
   type ProfileFacility,
 } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
-import { SectionPanel } from '../board/SectionBody';
 import { AddFacilityRow } from './AddFacilityRow';
 import { CategoryChecklist } from './CategoryChecklist';
 import {
@@ -103,7 +103,9 @@ function FacilityHeader({
         <span className="hidden max-w-[22rem] truncate font-data text-micro text-isk sm:block">
           {builds}
         </span>
-        <ChevronDownIcon size={14} className="shrink-0 text-muted transition-transform group-open:rotate-180" />
+        <CollapsibleChevron className="flex">
+          <ChevronDownIcon size={14} />
+        </CollapsibleChevron>
       </span>
     </span>
   );

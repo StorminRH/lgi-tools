@@ -4,6 +4,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { EntityRow } from '@/components/ui/row';
+import { ExternalLink } from '@/components/ui/text-link';
 import { eyebrow } from '@/components/ui/type-roles';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
@@ -53,13 +54,9 @@ export default function ContactPage() {
               leading="GitHub"
               name={
                 <span className="font-data text-ui text-text">
-                <a
-                  href="https://github.com/StorminRH/lgi-tools"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <ExternalLink href="https://github.com/StorminRH/lgi-tools">
                   github.com/StorminRH/lgi-tools
-                </a>
+                </ExternalLink>
                 <span className="mt-1 block text-micro text-muted">Open an issue or pull request</span>
               </span>
               }
@@ -88,14 +85,12 @@ export default function ContactPage() {
                     size={38}
                   />
                   <span className="flex min-w-0 flex-col">
-                    <a
+                    <ExternalLink
                       href={`https://evewho.com/character/${MAINTAINER_CHARACTER_ID}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="font-display text-ui font-bold leading-[1.15] text-name hover:text-isk"
                     >
                       {MAINTAINER_CHARACTER_NAME}
-                    </a>
+                    </ExternalLink>
                     <span className="mt-0.5 text-micro text-muted">EVE mail welcome</span>
                   </span>
                 </span>
@@ -109,14 +104,12 @@ export default function ContactPage() {
                 {MAINTAINER_CORPS.map((corp, i) => (
                   <span key={corp.id}>
                     {i > 0 && ' / '}
-                    <a
+                    <ExternalLink
                       href={`https://evewho.com/corporation/${corp.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="font-display font-bold text-name hover:text-isk"
                     >
                       {corp.name}
-                    </a>
+                    </ExternalLink>
                   </span>
                 ))}
               </span>

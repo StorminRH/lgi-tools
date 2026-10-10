@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import {
   MAX_CHARACTER_SEARCH_LENGTH,
   MIN_CHARACTER_SEARCH_LENGTH,
@@ -138,13 +139,11 @@ function useCharacterSearch(selectedKeys: ReadonlySet<string>) {
 export function CharacterSearchControl({
   disabled = false,
   label = 'Add character',
-  searchLabel = 'Search characters',
   selectedPrincipals,
   onSelect,
 }: {
   readonly disabled?: boolean;
   readonly label?: string;
-  readonly searchLabel?: string;
   readonly selectedPrincipals: readonly Pick<
     AccessPrincipalOption,
     'ownerType' | 'ownerId'
@@ -165,29 +164,37 @@ export function CharacterSearchControl({
     query,
     setPopupOpen,
   } = useCharacterSearch(selectedKeys);
+  const inputId = useId();
   const hintId = useId();
+  // Items are character ids. A pick goes to onSelect and clears the field, so neither the id nor the name lands there.
+  const byId = new Map(available.map((result) => [String(result.characterId), result]));
 
   return (
     <div className="flex flex-col gap-1.5" data-map-character-search>
-      <span className="font-ui text-label tracking-label uppercase text-muted">
+      <label htmlFor={inputId} className="font-ui text-label tracking-label uppercase text-muted">
         {label}
-      </span>
+      </label>
       <Combobox.Root
-        items={available}
+        items={[...byId.keys()]}
         value={query}
-        onValueChange={changeQuery}
-        itemToStringValue={(result: CharacterSearchResult) => result.name}
+        onValueChange={(next, details) =>
+          pickOrType(next, details, {
+            lookup: (id) => byId.get(id),
+            onType: changeQuery,
+            onPick: (result) => {
+              onSelect(principalFromCharacter(result));
+              changeQuery('');
+            },
+          })
+        }
         filter={null}
-        mode="list"
         open={open}
         onOpenChange={(next) => setPopupOpen(next)}
       >
         <Combobox.Field
-          aria-label={searchLabel}
+          id={inputId}
           aria-describedby={hintId}
           placeholder="Character name"
-          autoComplete="off"
-          spellCheck={false}
           disabled={disabled}
           trailing={
             busy ? (
@@ -201,12 +208,8 @@ export function CharacterSearchControl({
               {available.map((result) => (
                 <Combobox.Item
                   key={result.characterId}
-                  value={result}
+                  value={String(result.characterId)}
                   className="flex w-full items-center gap-2 px-2.5 py-2"
-                  onClick={() => {
-                    onSelect(principalFromCharacter(result));
-                    changeQuery('');
-                  }}
                 >
                   <CharacterPortrait
                     characterId={result.characterId}

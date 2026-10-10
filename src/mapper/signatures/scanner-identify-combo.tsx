@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
 import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
 import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
@@ -120,13 +121,9 @@ export function ScannerIdentifyCombo({
       open={popup.open}
       onOpenChange={popup.onOpenChange}
       value={query}
-      onValueChange={(next, details) => {
-        if (details.reason === 'item-press') {
-          commitValue(next);
-          return;
-        }
-        setQuery(next);
-      }}
+      onValueChange={(next, details) =>
+        pickOrType(next, details, { onType: setQuery, onPick: commitValue })
+      }
       items={items}
       filter={null}
       openOnInputClick

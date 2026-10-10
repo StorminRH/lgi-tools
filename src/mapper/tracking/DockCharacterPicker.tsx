@@ -2,6 +2,7 @@
 
 import { CharacterPortrait } from '@/components/character-portrait';
 import { cn } from '@/components/ui/cn';
+import { CheckIcon } from '@/components/ui/icons';
 import {
   Menu,
   MenuRadioGroup,
@@ -40,8 +41,8 @@ const PINNED_BADGE = (
 );
 
 const INDICATOR = (
-  <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
-    ✓
+  <MenuRadioItemIndicator className="ml-auto flex pl-2 text-muted">
+    <CheckIcon size={12} />
   </MenuRadioItemIndicator>
 );
 
