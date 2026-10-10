@@ -34,12 +34,13 @@ import { priceSourceDegradation, type PriceSourceDegradation } from './price-sou
 import { usageLogs } from './schema';
 import {
   CAPABILITY_ACTION,
-  capabilityOutcome,
   ESI_FAILURE_OUTCOMES,
   esiDependent,
   inRange,
-  jsonInt,
   jsonNumber,
+  metadataOutcome,
+  summedInt,
+  usageDay,
 } from './sql';
 import type {
   CronLastRun,
@@ -61,6 +62,8 @@ const pageReferrer = sql<string | null>`${usageLogs.metadata} ->> 'referrer'`;
 const isEntry = sql`${usageLogs.metadata} ->> 'is_entry' = 'true'`;
 // An EVE SSO bounce is the login round trip, not a referral.
 const externalReferrer = sql`${pageReferrer} is not null and lower(${pageReferrer}) <> ${EVE_SSO_HOST}`;
+const priceCaller = sql<string | null>`${usageLogs.metadata} ->> 'caller'`;
+const budgetExhausted = eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true');
 
 /**
  * Page views per UTC day for the range and, when given, the period just
@@ -71,7 +74,7 @@ export async function getPageViewStats(range: DateRange, previous: DateRange | n
   const rows = await db
     .select({
       current: sql<boolean>`${gte(usageLogs.timestamp, range.from)}`,
-      day: sql<string>`(${usageLogs.timestamp} at time zone 'UTC')::date`,
+      day: usageDay,
       views: count(),
       entries: sql<number>`count(*) filter (where ${isEntry})`.mapWith(Number),
       referrals: sql<number>`count(*) filter (where ${externalReferrer})`.mapWith(Number),
@@ -171,26 +174,18 @@ export async function getRoleChangeAudit(
  * volume both derive from it.
  */
 export async function getPriceRefreshDays(range: DateRange): Promise<PriceRefreshDay[]> {
-  const day = sql<string>`(${usageLogs.timestamp} at time zone 'UTC')::date`;
-  const total = (key: string) => sql<number>`coalesce(sum(${jsonInt(key)}), 0)`.mapWith(Number);
   const rows = await db
     .select({
-      day,
-      esi: total('esiCount'),
-      fallback: total('fuzzworkFallbackCount'),
-      fetched: total('fetched'),
-      written: total('written'),
+      day: usageDay,
+      esi: summedInt('esiCount'),
+      fallback: summedInt('fuzzworkFallbackCount'),
+      fetched: summedInt('fetched'),
+      written: summedInt('written'),
     })
     .from(usageLogs)
-    .where(
-      and(
-        inRange(range),
-        eq(usageLogs.action, 'cron_prices'),
-        eq(sql`${usageLogs.metadata} ->> 'outcome'`, 'refreshed'),
-      ),
-    )
-    .groupBy(day)
-    .orderBy(day);
+    .where(and(inRange(range), eq(usageLogs.action, 'cron_prices'), eq(metadataOutcome, 'refreshed')))
+    .groupBy(usageDay)
+    .orderBy(usageDay);
   return rows.map((r) => ({
     day: r.day,
     esi: Number(r.esi),
@@ -204,7 +199,6 @@ export async function countPublicEsiBudgetExhaustionsInWindow(
   from: Date,
   to: Date,
 ): Promise<number> {
-  const budgetExhausted = eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true');
   const [row] = await db
     .select({ n: count() })
     .from(usageLogs)
@@ -215,7 +209,7 @@ export async function countPublicEsiBudgetExhaustionsInWindow(
         or(
           and(
             eq(usageLogs.action, 'price_source_degraded'),
-            eq(sql`${usageLogs.metadata} ->> 'caller'`, 'on-demand'),
+            eq(priceCaller, 'on-demand'),
             budgetExhausted,
           ),
           and(eq(usageLogs.action, 'market_history_refresh'), budgetExhausted),
@@ -248,23 +242,22 @@ export async function hasPublicEsiBudgetAlertForWindow(
  * budget, in one scan.
  */
 export async function getPriceSourceDegradation(range: DateRange): Promise<PriceSourceDegradation> {
-  const caller = sql<string | null>`${usageLogs.metadata} ->> 'caller'`;
-  const budgetExhausted = eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true');
   const rows = await db
     .select({
-      caller,
+      caller: priceCaller,
       count: count(),
       budgetExhausted: sql<number>`count(*) filter (where ${budgetExhausted})`.mapWith(Number),
     })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, 'price_source_degraded')))
-    .groupBy(caller);
+    .groupBy(priceCaller);
   return priceSourceDegradation(rows);
 }
 
 /** Runs of every tracked cron by outcome, most frequent first within each. */
 export async function getCronOutcomes(range: DateRange): Promise<CronOutcomes> {
-  const outcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
+  // isNotNull below drops runs with no outcome, so every grouped one is a string.
+  const outcome = sql<string>`${metadataOutcome}`;
   const avgDurationMs = sql<number>`coalesce(avg(${jsonNumber('durationMs')}), 0)`.mapWith(Number);
   const rows = await db
     .select({ action: usageLogs.action, outcome, count: count(), avgDurationMs })
@@ -284,7 +277,7 @@ export async function getLastCronRuns(): Promise<CronLastRun[]> {
   const lastRun = db
     .select({
       timestamp: usageLogs.timestamp,
-      outcome: sql<string | null>`${usageLogs.metadata} ->> 'outcome'`.as('outcome'),
+      outcome: metadataOutcome.as('outcome'),
     })
     .from(usageLogs)
     .where(eq(usageLogs.action, sql`cron.action`))
@@ -363,7 +356,7 @@ export async function getEsiAvailability(range: DateRange) {
       total: count(),
       healthy: sql<number>`
         count(*) filter (
-          where not ${inArray(capabilityOutcome, [...ESI_FAILURE_OUTCOMES])}
+          where not ${inArray(metadataOutcome, [...ESI_FAILURE_OUTCOMES])}
         )
       `.mapWith(Number),
     })
@@ -408,10 +401,6 @@ export interface CostlyEndpoint {
   avgDurationMs: number;
 }
 
-function summedInt(key: string) {
-  return sql<number>`coalesce(sum(${jsonInt(key)}), 0)`.mapWith(Number);
-}
-
 export async function getPriceSourceSplit(range: DateRange): Promise<PriceSourceSplit> {
   const [row] = await db
     .select({
@@ -453,9 +442,8 @@ export async function getHistorySourceSplit(range: DateRange): Promise<HistorySo
 export async function getWriteBehindOutcomes(
   range: DateRange,
 ): Promise<WriteBehindOutcome[]> {
-  const outcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
   const rows = await db
-    .select({ action: usageLogs.action, outcome, count: count() })
+    .select({ action: usageLogs.action, outcome: metadataOutcome, count: count() })
     .from(usageLogs)
     .where(
       and(
@@ -464,10 +452,10 @@ export async function getWriteBehindOutcomes(
           'market_price_write_behind',
           'market_history_write_behind',
         ]),
-        isNotNull(outcome),
+        isNotNull(metadataOutcome),
       ),
     )
-    .groupBy(usageLogs.action, outcome)
+    .groupBy(usageLogs.action, metadataOutcome)
     .orderBy(usageLogs.action, desc(count()));
   return rows
     .filter((row) => row.outcome !== null)
