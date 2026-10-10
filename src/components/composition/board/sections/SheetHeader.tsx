@@ -7,7 +7,7 @@ import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
-import { effectiveSkills, placeName } from '../board-view-model';
+import { effectiveSkills, placeName, readyData } from '../board-view-model';
 import { SystemName } from '../board-bits';
 import { CharacterIdentity } from './CharacterIdentity';
 import { IndustrySection } from './IndustrySection';
@@ -67,8 +67,8 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 const kpiTile = cn(readoutSurface, 'gap-1 px-3 py-2.5 sm:px-3.5');
 
 function Kpis({ character, now }: { character: BoardCharacter; now: number }) {
-  const wallet = character.wallet.state === 'ready' ? character.wallet.data : null;
-  const skills = character.skills.state === 'ready' ? character.skills.data : null;
+  const wallet = readyData(character.wallet);
+  const skills = readyData(character.skills);
   const counts = skills === null ? null : effectiveSkills(skills, now);
   const free = skills?.unallocatedSp ?? 0;
   return (

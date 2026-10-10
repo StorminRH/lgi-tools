@@ -19,7 +19,6 @@ import {
   splitDomains,
   boardViewHref,
   characterParam,
-  fittedDomain,
   flowWindowLabel,
   effectiveSkills,
   groupSkills,
@@ -201,10 +200,11 @@ describe('places and timeline', () => {
   });
 });
 
-test('fittedDomain pads a swinging series, a flat series, and a flat zero', () => {
-  expect(fittedDomain([3_200_000_000, 3_500_000_000, 3_400_000_000])).toEqual([3_170_000_000, 3_530_000_000]);
-  expect(fittedDomain([2_000, 2_000])).toEqual([1_800, 2_200]);
-  expect(fittedDomain([0, 0])).toEqual([-0.1, 0.1]);
+test('the balance chart pads a swinging series by a tenth of its range, a flat one by a tenth of its value, and an all-zero one by 1 ISK', () => {
+  const series = (balances: number[]) => balances.map((balance, t) => ({ t, balance }));
+  expect(balanceChart(series([3_200_000_000, 3_500_000_000, 3_400_000_000])).domain).toEqual([3_170_000_000, 3_530_000_000]);
+  expect(balanceChart(series([2_000, 2_000])).domain).toEqual([1_800, 2_200]);
+  expect(balanceChart(series([0, 0])).domain).toEqual([-1, 1]);
 });
 
 describe('overview model', () => {
@@ -538,6 +538,12 @@ describe('worth chart mode', () => {
   it('fits each segment to its own range', () => {
     const series = [point(100, null), point(200, 3_000), point(150, 3_050)];
     expect(splitDomains(series)).toEqual({ upper: [2_880, 3_520], lower: [90, 210] });
+  });
+
+  it('gives an all-zero ISK band a whole ISK either side of zero, not a fraction of one', () => {
+    const series = [point(0, 3_000), point(0, 3_050)];
+    expect(worthChartMode(series)).toBe('broken');
+    expect(splitDomains(series).lower).toEqual([-1, 1]);
   });
 
   it('never fits a segment tighter than 5% of its midpoint, so a market wobble stays a ripple', () => {

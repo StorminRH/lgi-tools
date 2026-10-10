@@ -1,3 +1,4 @@
+import { paddedDomain } from '@/components/ui/chart/chart-geometry';
 import {
   BOARD_GAPS,
   type BoardCharacter,
@@ -22,7 +23,8 @@ import { formatUtcDate, formatRemaining } from '@/lib/format/time';
 import { DAY_MS, HOUR_MS, isoDayStartMs } from '@/lib/iso-date';
 import { withSearchParams } from '@/lib/search-params';
 
-function readyData<T>(section: BoardSection<T>): T | null {
+/** A section's data once it is ready, or null while it is pending or needs a reconnect. */
+export function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
 }
 
@@ -305,21 +307,12 @@ export interface BalanceChartModel {
   domain: [number, number];
 }
 
-const DOMAIN_PADDING = 0.1;
-
-export function fittedDomain(values: readonly number[]): [number, number] {
-  const low = Math.min(...values);
-  const high = Math.max(...values);
-  const pad = (high - low || Math.abs(high) || 1) * DOMAIN_PADDING;
-  return [low - pad, high + pad];
-}
-
 export function balanceChart(series: readonly { t: number; balance: number }[]): BalanceChartModel {
   const balances = series.map((point) => point.balance);
   return {
     points: balances.map((balance, index) => ({ x: index, y: balance })),
     labels: series.map((point) => formatUtcDate(point.t)),
-    domain: fittedDomain(balances),
+    domain: paddedDomain(balances),
   };
 }
 
@@ -657,7 +650,7 @@ export function worthChartMode(series: readonly WorthPoint[]): WorthChartMode {
 const MIN_BAND_SPAN = 0.05;
 
 function bandDomain(values: readonly number[]): [number, number] {
-  const [low, high] = fittedDomain(values);
+  const [low, high] = paddedDomain(values);
   const mid = (low + high) / 2;
   const half = Math.max((high - low) / 2, (Math.abs(mid) * MIN_BAND_SPAN) / 2);
   return [mid - half, mid + half];

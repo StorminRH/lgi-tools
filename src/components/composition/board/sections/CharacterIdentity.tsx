@@ -4,10 +4,8 @@ import { cn } from '@/components/ui/cn';
 import { StatusDot } from '@/components/ui/status-dot';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { pilotTransitionName } from '../board-motion';
-import { characterAge, characterSecurityClass } from '../board-view-model';
+import { characterAge, characterSecurityClass, readyData } from '../board-view-model';
 import { EntityLogo } from './EntityLogo';
-
-type IdentityCharacter = Pick<BoardCharacter, 'characterId' | 'name' | 'portraitUrl' | 'corporation' | 'alliance' | 'profile' | 'status'>;
 
 /** Portrait and identity details shared by character sheets. */
 export function CharacterIdentity({
@@ -39,7 +37,7 @@ export function CharacterIdentity({
   );
 }
 
-function Affiliation({ character }: { character: IdentityCharacter }) {
+function Affiliation({ character }: { character: Pick<BoardCharacter, 'corporation' | 'alliance'> }) {
   const { corporation, alliance } = character;
   if (corporation === null && alliance === null) return null;
   return (
@@ -60,9 +58,9 @@ function Affiliation({ character }: { character: IdentityCharacter }) {
   );
 }
 
-function IdentityLine({ character, now }: { character: IdentityCharacter; now: number }) {
-  const profile = character.profile.state === 'ready' ? character.profile.data : null;
-  const status = character.status.state === 'ready' ? character.status.data : null;
+function IdentityLine({ character, now }: { character: Pick<BoardCharacter, 'profile' | 'status'>; now: number }) {
+  const profile = readyData(character.profile);
+  const status = readyData(character.status);
   const age = profile !== null ? characterAge(profile.birthday, now) : null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-data text-micro text-muted">
