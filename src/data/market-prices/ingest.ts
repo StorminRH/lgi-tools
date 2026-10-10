@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AnyPgDb } from '@/lib/db-types';
+import { excluded, excludedSet } from '@/lib/db-upsert';
 import { marketPrices } from './schema';
 import { fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
@@ -15,10 +16,6 @@ export interface RefreshSummary {
   esiCount: number;
   fuzzworkFallbackCount: number;
   budgetExhausted: boolean;
-}
-
-function excluded(column: string) {
-  return sql.raw(`excluded.${column}`);
 }
 
 export async function refreshPrices(
@@ -109,21 +106,21 @@ export async function persistPrices(
       .values(rows.slice(i, i + BATCH))
       .onConflictDoUpdate({
         target: marketPrices.typeId,
-        set: {
-          bestBuy: excluded('best_buy'),
-          bestSell: excluded('best_sell'),
-          pct5Buy: excluded('pct5_buy'),
-          pct5Sell: excluded('pct5_sell'),
-          buyVolume: excluded('buy_volume'),
-          sellVolume: excluded('sell_volume'),
-          buyDepth: excluded('buy_depth'),
-          sellDepth: excluded('sell_depth'),
-          regionalDiscount: excluded('regional_discount'),
-          updatedAt: excluded('updated_at'),
-          staleAfter: excluded('stale_after'),
-          source: excluded('source'),
-        },
-        setWhere: sql`${marketPrices.updatedAt} <= excluded.updated_at`,
+        set: excludedSet(marketPrices, [
+          'bestBuy',
+          'bestSell',
+          'pct5Buy',
+          'pct5Sell',
+          'buyVolume',
+          'sellVolume',
+          'buyDepth',
+          'sellDepth',
+          'regionalDiscount',
+          'updatedAt',
+          'staleAfter',
+          'source',
+        ]),
+        setWhere: sql`${marketPrices.updatedAt} <= ${excluded(marketPrices.updatedAt)}`,
       })
       .returning({ typeId: marketPrices.typeId });
     summary.written += written.length;

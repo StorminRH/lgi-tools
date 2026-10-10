@@ -1,10 +1,11 @@
-import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, notInArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db, directClient, resolveLockConnectionUrl } from '@/db';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { chunk } from '@/lib/array';
+import { excluded } from '@/lib/db-upsert';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
 import { type CorpHoldingContext, type HoldingIndex, toHoldingNodes } from './placement';
 import { corpHoldingNodes, corpMemberBases, corpProfiles } from './schema';
@@ -112,7 +113,7 @@ export async function saveCorpProfile(
         .values(bases.map((base) => ({ corporationId, ...base })))
         .onConflictDoUpdate({
           target: corpMemberBases.characterId,
-          set: { corporationId, baseId: sql`excluded.base_id` },
+          set: { corporationId, baseId: excluded(corpMemberBases.baseId) },
         });
     }
   });

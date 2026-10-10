@@ -355,7 +355,7 @@ Run db suites with Postgres up.
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P230](wave-05-persistence-primitives-and-data-layer-sql.md#p230) | Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies | persistence | S | low | medium | — |
+| ☑ | [P230](wave-05-persistence-primitives-and-data-layer-sql.md#p230) | Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies | persistence | S | low | medium | — |
 | ☐ | [P223](wave-05-persistence-primitives-and-data-layer-sql.md#p223) | Move mapAuthorizationRows to src/lib as executeRows and use it at every inline Array.isArray(result) normalization | persistence | S | low | medium | — |
 | ☐ | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220) | Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it | persistence | M | low | medium | — |
 | ☐ | [P237](wave-05-persistence-primitives-and-data-layer-sql.md#p237) | Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts | persistence | S | low | low | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) |

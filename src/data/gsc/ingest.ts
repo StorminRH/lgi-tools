@@ -1,8 +1,9 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import type { Sql } from '@/db';
 import { chunk } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
+import { excludedSet } from '@/lib/db-upsert';
 import { errorMessage } from '@/lib/failure';
 import { daysBefore, isoDay } from '@/lib/iso-date';
 import {
@@ -21,10 +22,6 @@ import type {
   SearchAnalyticsApiRow,
   SitemapApiEntry,
 } from './types';
-
-function excluded(column: string) {
-  return sql.raw(`excluded.${column}`);
-}
 
 export type SearchAnalyticsRecord = typeof gscSearchAnalytics.$inferInsert;
 export type SitemapRecord = typeof gscSitemaps.$inferInsert;
@@ -160,19 +157,19 @@ export async function upsertUrlInspectionRecords(
     .values(records)
     .onConflictDoUpdate({
       target: [gscUrlInspection.inspectionDate, gscUrlInspection.url],
-      set: {
-        verdict: excluded('verdict'),
-        coverageState: excluded('coverage_state'),
-        robotsTxtState: excluded('robots_txt_state'),
-        indexingState: excluded('indexing_state'),
-        pageFetchState: excluded('page_fetch_state'),
-        lastCrawlTime: excluded('last_crawl_time'),
-        googleCanonical: excluded('google_canonical'),
-        userCanonical: excluded('user_canonical'),
-        crawledAs: excluded('crawled_as'),
-        sitemapUrlCount: excluded('sitemap_url_count'),
-        syncedAt: excluded('synced_at'),
-      },
+      set: excludedSet(gscUrlInspection, [
+        'verdict',
+        'coverageState',
+        'robotsTxtState',
+        'indexingState',
+        'pageFetchState',
+        'lastCrawlTime',
+        'googleCanonical',
+        'userCanonical',
+        'crawledAs',
+        'sitemapUrlCount',
+        'syncedAt',
+      ]),
     });
 }
 
@@ -223,12 +220,7 @@ async function upsertSearchAnalytics(
       .values(batch)
       .onConflictDoUpdate({
         target: [gscSearchAnalytics.date, gscSearchAnalytics.dimension, gscSearchAnalytics.key],
-        set: {
-          clicks: excluded('clicks'),
-          impressions: excluded('impressions'),
-          position: excluded('position'),
-          syncedAt: excluded('synced_at'),
-        },
+        set: excludedSet(gscSearchAnalytics, ['clicks', 'impressions', 'position', 'syncedAt']),
       });
   }
 }
@@ -269,17 +261,19 @@ async function syncSitemaps(db: AnyPgDb, syncedAt: Date): Promise<SurfaceResult>
       .values(rows)
       .onConflictDoUpdate({
         target: gscSitemaps.path,
-        set: {
-          lastSubmitted: excluded('last_submitted'),
-          lastDownloaded: excluded('last_downloaded'),
-          isPending: excluded('is_pending'),
-          isSitemapsIndex: excluded('is_sitemaps_index'),
-          type: excluded('type'),
-          warnings: excluded('warnings'),
-          errors: excluded('errors'),
-          submitted: excluded('submitted'),
-          syncedAt: excluded('synced_at'),
-        },
+        // `indexed` is left out on purpose: sitemapToRecord never writes it, so
+        // copying it from the proposed row would reset it to its default.
+        set: excludedSet(gscSitemaps, [
+          'lastSubmitted',
+          'lastDownloaded',
+          'isPending',
+          'isSitemapsIndex',
+          'type',
+          'warnings',
+          'errors',
+          'submitted',
+          'syncedAt',
+        ]),
       });
     return { count: rows.length, error: null };
   } catch (err) {

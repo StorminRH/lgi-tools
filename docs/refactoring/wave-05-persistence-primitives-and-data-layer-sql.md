@@ -16,7 +16,7 @@ Run db suites with Postgres up.
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P230](#p230) | Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies | persistence | S | low | medium | — |
+| ☑ | [P230](#p230) | Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies | persistence | S | low | medium | — |
 | ☐ | [P223](#p223) | Move mapAuthorizationRows to src/lib as executeRows and use it at every inline Array.isArray(result) normalization | persistence | S | low | medium | — |
 | ☐ | [P220](#p220) | Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it | persistence | M | low | medium | — |
 | ☐ | [P237](#p237) | Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts | persistence | S | low | low | [P220](#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) |
@@ -37,7 +37,7 @@ Run db suites with Postgres up.
 
 ## P230: Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** -15 (five private helpers), two inline strings replaced, about 40 call sites rewritten in place (shorter with excludedSet); +20 lib and +25 test
 - **Depends on:** —
