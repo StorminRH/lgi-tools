@@ -85,6 +85,25 @@ describe('esiFetch', () => {
     expect(report).toHaveBeenCalledWith(expect.objectContaining({ url: TEST_URL, status: 0 }));
   });
 
+  it('does not report a request its own caller cancelled', async () => {
+    const report = vi.fn().mockResolvedValue(undefined);
+    __setScoreboardForTests({
+      preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, etag: null }),
+      budgetSnapshot: vi.fn(),
+      availabilitySnapshot: vi.fn(),
+      report,
+      getCachedBody: vi.fn().mockResolvedValue(null),
+    });
+    const caller = new AbortController();
+    fetchSpy.mockImplementationOnce(async () => {
+      caller.abort();
+      throw new DOMException('This operation was aborted', 'AbortError');
+    });
+
+    await expect(esiFetch(TEST_URL, { signal: caller.signal })).rejects.toThrow('aborted');
+    expect(report).not.toHaveBeenCalled();
+  });
+
   it('dispatches the request and returns the response', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(200, { 'X-ESI-Error-Limit-Remain': '95' }),

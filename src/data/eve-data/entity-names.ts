@@ -18,11 +18,11 @@ const NAMES_PER_POST = 1000;
 
 /**
  * One unresolvable id makes ESI answer 404 for its whole batch, and every 4xx
- * spends the shared error budget. Finding the bad ids costs one POST per id,
- * so a single resolution may only spend this many.
+ * spends the shared error budget. A 404 batch is split in halves until its
+ * unresolvable ids are found (one bad id among 200 costs about 8 more 404s),
+ * and a single resolution may spend at most this many POSTs doing so.
  */
-const PER_ID_FALLBACK_LIMIT = 25;
-const PER_ID_CONCURRENCY = 8;
+const SPLIT_POST_LIMIT = 25;
 
 type FoundName = EntityNameRow & { name: string };
 
@@ -30,7 +30,7 @@ interface EsiNames {
   found: FoundName[];
   /** Ids ESI answered 404 for on their own: worth remembering as unresolvable. */
   missing: number[];
-  /** Ids with no answer this time (budget, outage, fallback cap): asked again next time. */
+  /** Ids with no answer this time (budget, outage, split cap): asked again next time. */
   unresolved: number[];
   failure: unknown;
 }
@@ -64,34 +64,6 @@ async function readStored(ids: readonly number[]): Promise<Map<number, StoredEnt
   }
 }
 
-async function mapBounded<T>(items: readonly T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
-  let cursor = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      while (cursor < items.length) await worker(items[cursor++]!);
-    }),
-  );
-}
-
-/** Asks ESI for each id alone, to tell the unresolvable ids in a 404 batch from the rest. */
-async function resolveOneByOne(ids: readonly number[], into: EsiNames): Promise<void> {
-  await mapBounded(ids, PER_ID_CONCURRENCY, async (id) => {
-    try {
-      const posted = await postUniverseNames([id]);
-      const row = posted.ok ? posted.data.find((candidate) => candidate.id === id && candidate.name.length > 0) : undefined;
-      if (row !== undefined) into.found.push({ id, name: row.name, category: row.category });
-      else if (!posted.ok && posted.status === 404) into.missing.push(id);
-      else {
-        into.unresolved.push(id);
-        into.failure ??= posted.ok ? new Error(`EVE entity name missing for ${id}`) : requestFailure(posted.status);
-      }
-    } catch (err) {
-      into.unresolved.push(id);
-      into.failure ??= err;
-    }
-  });
-}
-
 /** Files a successful batch answer: every asked id either came back named or is left for next time. */
 function absorbBatch(chunk: readonly number[], data: readonly UniverseNameRow[], into: EsiNames): void {
   const byId = new Map(data.filter((row) => row.name.length > 0).map((row) => [row.id, row]));
@@ -106,40 +78,48 @@ function absorbBatch(chunk: readonly number[], data: readonly UniverseNameRow[],
   }
 }
 
-/** Asks ESI for one batch; returns how many one-at-a-time retries it spent. */
-async function askChunk(chunk: readonly number[], fallbackLeft: number, into: EsiNames): Promise<number> {
+/**
+ * Asks ESI for one batch. A 404 batch holds at least one id ESI cannot name, so
+ * it is split in halves and each half asked again, down to single ids, which
+ * are remembered as unresolvable. Whatever the split budget cannot cover is
+ * asked again next time.
+ */
+async function askBatch(ids: readonly number[], budget: { postsLeft: number }, into: EsiNames): Promise<void> {
   let posted: Awaited<ReturnType<typeof postUniverseNames>>;
   try {
-    posted = await postUniverseNames(chunk);
+    posted = await postUniverseNames(ids);
   } catch (err) {
-    into.unresolved.push(...chunk);
+    into.unresolved.push(...ids);
     into.failure ??= err;
-    return 0;
+    return;
   }
   if (posted.ok) {
-    absorbBatch(chunk, posted.data, into);
-    return 0;
+    absorbBatch(ids, posted.data, into);
+    return;
   }
   if (posted.status !== 404) {
-    into.unresolved.push(...chunk);
+    into.unresolved.push(...ids);
     into.failure ??= requestFailure(posted.status);
-    return 0;
+    return;
   }
-  if (chunk.length === 1) {
-    into.missing.push(chunk[0]!);
-    return 0;
+  if (ids.length === 1) {
+    into.missing.push(ids[0]!);
+    return;
   }
-  const retry = chunk.slice(0, fallbackLeft);
-  into.unresolved.push(...chunk.slice(retry.length));
-  await resolveOneByOne(retry, into);
-  return retry.length;
+  if (budget.postsLeft < 2) {
+    into.unresolved.push(...ids);
+    return;
+  }
+  budget.postsLeft -= 2;
+  const half = Math.ceil(ids.length / 2);
+  await Promise.all([askBatch(ids.slice(0, half), budget, into), askBatch(ids.slice(half), budget, into)]);
 }
 
 async function askEsi(ids: readonly number[]): Promise<EsiNames> {
   const result: EsiNames = { found: [], missing: [], unresolved: [], failure: null };
-  let fallbackLeft = PER_ID_FALLBACK_LIMIT;
+  const budget = { postsLeft: SPLIT_POST_LIMIT };
   for (let i = 0; i < ids.length; i += NAMES_PER_POST) {
-    fallbackLeft -= await askChunk(ids.slice(i, i + NAMES_PER_POST), fallbackLeft, result);
+    await askBatch(ids.slice(i, i + NAMES_PER_POST), budget, result);
   }
   return result;
 }
@@ -179,7 +159,14 @@ async function resolve(ids: readonly number[]): Promise<Resolution> {
 
   const answers = await askEsi(toAsk);
   for (const row of answers.found) names[String(row.id)] = row.name;
-  unnamed.push(...answers.missing, ...answers.unresolved);
+  unnamed.push(...answers.missing);
+  // ESI could not answer for these this time: an older stored name (rows are
+  // kept 30 days) beats no name, as the per-id cache used to serve stale.
+  for (const id of answers.unresolved) {
+    const prior = stored.get(id)?.name;
+    if (prior != null) names[String(id)] = prior;
+    else unnamed.push(id);
+  }
   await remember(answers);
   return { names, unnamed, failure: answers.failure };
 }

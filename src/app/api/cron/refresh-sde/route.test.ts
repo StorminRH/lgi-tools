@@ -102,6 +102,18 @@ describe('GET /api/cron/refresh-sde', () => {
     expect(setSdeMetaValueMock).not.toHaveBeenCalled();
   });
 
+  it('settles a recorded build CCP withdrew once its manifest matches the loaded build again', async () => {
+    getSdeMetaValueMock.mockImplementation(async (_db: unknown, key: string) =>
+      key === SDE_META_KEY_LATEST_PUBLISHED ? '2026-05-08' : '2026-05-01');
+    getRemoteSdeVersionMock.mockResolvedValue('2026-05-01');
+    const { GET } = await import('./route');
+    const res = await GET(cronRequest(ROUTE));
+    expect((await res.json()).status).toBe('up-to-date');
+    expect(setSdeMetaValueMock.mock.calls).toEqual([[expect.anything(), SDE_META_KEY_LATEST_PUBLISHED, '2026-05-01']]);
+    expect(revalidateTagMock.mock.calls).toEqual([[SDE_VERSION_CACHE_TAG, 'max']]);
+    expect(reserveMock).not.toHaveBeenCalled();
+  });
+
   it('records a remote-unreachable run as cron_sde/remote-unreachable (O-3)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue(null);

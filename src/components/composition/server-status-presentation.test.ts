@@ -61,6 +61,13 @@ test('eveStatusSections flags what needs attention and admits what it cannot rea
     'Static data': ['Build: 3569502 · behind (amber)', 'Ingested: 2 Oct 2026 (green)'],
   });
 
+  // A manual ingest can load a build newer than the one the cron last recorded: not behind.
+  const olderRecorded = { ...SDE, latestPublished: '3569400' };
+  expect(values(eveStatusSections({ status: ONLINE, sde: olderRecorded, esi: HEALTHY }))['Static data']).toEqual([
+    'Build: 3569502 (green)',
+    'Ingested: 2 Oct 2026 (green)',
+  ]);
+
   const unknown: EsiHealth = { availability: { state: 'unknown' }, budget: { state: 'unknown' } };
   const unchecked = { ...SDE, latestPublished: null };
   expect(values(eveStatusSections({ status: { state: 'offline' }, sde: unchecked, esi: unknown }))).toMatchObject({
