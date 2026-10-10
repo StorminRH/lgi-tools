@@ -181,6 +181,13 @@ describe('service level details', () => {
     expect(html).toContain('planner · read-owned-assets');
     expect(html).toContain('2,400 ms');
     expect(html).toContain('1,200 runs · mostly esi (62%) · 20% untimed');
+
+    // A dependency that takes a sliver of the run is named, not called "mostly".
+    details.slowest = [{
+      feature: 'feedback', operation: 'submit-feedback', p95Ms: 900,
+      count: 3, slowestDependency: 'redis', slowestShare: 0.02, untimedShare: 0.98,
+    }];
+    expect(render('critical_latency_p95', details)).toContain('3 runs · redis 2% · 98% untimed');
   });
 
   it('shows ESI failures under the ESI-specific table label', () => {
@@ -204,6 +211,9 @@ describe('service level details', () => {
       groups: [{
         feature: 'maps', operation: 'search-characters', errors: 7, calls: 200,
         lastSeen: new Date('2026-09-21T10:00:00Z'),
+      }, {
+        feature: 'sync', operation: 'process-esi-refresh-job', errors: 1, calls: 2_500,
+        lastSeen: new Date('2026-09-20T10:00:00Z'),
       }],
     };
 
@@ -213,6 +223,8 @@ describe('service level details', () => {
     expect(html).toContain('maps · search-characters');
     expect(html).toContain('3.5%');
     expect(html).toContain('2026-09-21');
+    // One 4xx in 2,500 calls still reads as a share, not as none.
+    expect(html).toContain('&lt;0.1%');
   });
 
   it('shows queue counts, dead-letter timing and the queue link', () => {

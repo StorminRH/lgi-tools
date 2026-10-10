@@ -1,6 +1,11 @@
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import type { EsiClientErrorSummary } from '@/data/telemetry/capability-stats';
-import { deriveEsiSourceStatus, ESI_CLIENT_ERROR_TARGET, targetLevel } from '@/data/telemetry/health-metrics';
+import {
+  deriveEsiSourceStatus,
+  ESI_CLIENT_ERROR_TARGET,
+  formatClientErrorShare,
+  targetLevel,
+} from '@/data/telemetry/health-metrics';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import { ESI_ERROR_CEILING } from '@/platform/esi/scoreboard/types';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
@@ -71,12 +76,6 @@ function countLine(id: string, label: string, count: number, note?: string): Sta
   };
 }
 
-function shareLabel(rate: number): string {
-  const pct = rate * 100;
-  if (pct > 0 && pct < 0.1) return '<0.1%';
-  return `${pct.toFixed(pct < 10 ? 1 : 0)}%`;
-}
-
 /** ESI calls answered with a 4xx, as a share of all recorded ESI calls. */
 export function clientErrorLine(summary: EsiClientErrorSummary): StatusLine {
   const worst = summary.groups[0];
@@ -84,7 +83,7 @@ export function clientErrorLine(summary: EsiClientErrorSummary): StatusLine {
   return {
     id: 'esi-4xx',
     label: 'ESI 4xx answers',
-    value: summary.rate === null ? '—' : shareLabel(summary.rate),
+    value: summary.rate === null ? '—' : formatClientErrorShare(summary.rate),
     note: worst === undefined ? counts : `${counts} · most from ${worst.feature} · ${worst.operation}`,
     level: summary.rate === null ? 'neutral' : targetLevel(summary.rate, ESI_CLIENT_ERROR_TARGET),
   };

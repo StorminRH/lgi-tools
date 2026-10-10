@@ -328,6 +328,14 @@ export const DATA_OWNERSHIP = [
     boundary: KEYED_UPSERT,
     dataClass: 'global-reference',
   },
+  {
+    table: schema.eveEntityNames,
+    owner: 'data/eve-data',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: KEYED_UPSERT,
+    dataClass: 'global-reference',
+  },
 
   {
     table: schema.sites,
