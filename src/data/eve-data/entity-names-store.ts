@@ -52,9 +52,14 @@ function excluded(column: { name: string }) {
   return sql.raw(`excluded.${column.name}`);
 }
 
-/** Records ESI's answers, replacing older ones for the same ids. */
+/**
+ * Records ESI's answers, replacing older ones for the same ids. Rows go in id
+ * order, so two overlapping saves lock the same rows in the same order rather
+ * than deadlocking.
+ */
 export async function storeEntityNames(rows: readonly EntityNameRow[], resolvedAt: Date): Promise<void> {
-  for (const chunk of chunks(rows)) {
+  const ordered = [...rows].sort((a, b) => a.id - b.id);
+  for (const chunk of chunks(ordered)) {
     await db
       .insert(eveEntityNames)
       .values(chunk.map((row) => ({ ...row, resolvedAt })))

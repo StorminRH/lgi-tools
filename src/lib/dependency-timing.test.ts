@@ -54,6 +54,8 @@ describe('dependency timing', () => {
     try {
       const stop = startDependencyTimer('redis');
       vi.advanceTimersByTime(7);
+      // The wall clock steps back a minute (an NTP correction); the monotonic clock does not.
+      vi.setSystemTime(Date.now() - 60_000);
       expect(sink).not.toHaveBeenCalled();
 
       stop();

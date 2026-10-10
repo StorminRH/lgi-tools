@@ -4,7 +4,7 @@ import {
   entityNamesRequestSchema,
 } from '@/data/eve-data/api-contract';
 import { capabilityRoute } from '@/app/api/capability-route';
-import { resolveEntityNames } from '@/data/eve-data/entity-names';
+import { resolveEntityNamesWithPending } from '@/data/eve-data/entity-names';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
@@ -20,6 +20,6 @@ async function handlePost(req: Request): Promise<Response> {
   const limited = await checkRateLimit(req, { name: 'eve-entity-names', perMinute: ENTITY_NAMES_LIMIT_PER_MINUTE });
   if (!limited.ok) return apiResponse(entityNamesEndpoint, 429, limited.failure);
 
-  const names = await resolveEntityNames(parsed.data.ids);
-  return apiResponse(entityNamesEndpoint, 200, { names });
+  const { names, pending } = await resolveEntityNamesWithPending(parsed.data.ids);
+  return apiResponse(entityNamesEndpoint, 200, { names, pending });
 }
