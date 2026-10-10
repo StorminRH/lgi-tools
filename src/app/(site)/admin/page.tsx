@@ -1,3 +1,4 @@
+import { CardLink } from '@/components/ui/text-link';
 import { parseRange, rangeFor } from '@/composition/admin-period';
 import { getAccountTotals } from '@/platform/auth/admin-users';
 import { AccountTotals } from './AccountsCard';
@@ -6,7 +7,6 @@ import { AdminPageFrame } from './AdminFrame';
 import { AttentionList, STATUS_CARDS } from './AdminOverviewCards';
 import { AdminSection } from './AdminSection';
 import { AudienceBody, AudienceLinks, loadAudience } from './AudienceCard';
-import { CardLink } from './CardLink';
 import { LevelRows } from './LevelRows';
 import { loadAdminSignals } from './load-signals';
 import type { RangeSearchParams } from './RangeControl';

@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { ScannerCharacterPrompt } from './ScannerCharacterPrompt';
@@ -17,11 +17,6 @@ vi.mock('../windows/use-system-label', () => ({
 
 vi.mock('@/components/character-portrait', () => ({
   CharacterPortrait: ({ name }: { name: string }) => createElement('img', { alt: name }),
-}));
-
-vi.mock('@/components/ui/button', () => ({
-  Button: (props: { children?: ReactNode; onClick?: () => void } & Record<string, unknown>) =>
-    createElement('button', { ...props, type: 'button' }, props.children),
 }));
 
 const candidates = [

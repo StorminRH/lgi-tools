@@ -1,0 +1,122 @@
+{
+ "wave": 16,
+ "heading": "Wave 16: Large cross-cutting migrations (last)",
+ "briefs": [
+  {
+   "tech": "Drizzle ORM 0.45 + Postgres serializable inserts",
+   "focus": "drizzle-orm 0.45.2 as installed (read node_modules/drizzle-orm sql/sql.d.ts, pg-core/columns/*.d.ts, pg-core/dialect.*, utils.d.ts): sql template, sql.identifier, sql.param(value, encoder) and how PgDialect.sqlToQuery applies a column's mapToDriverValue (PgJsonb JSON.stringify, null), getTableColumns(table), PgColumn.getSQLType() output for integer, double precision, jsonb, text, boolean and pgEnum, and Table['$inferInsert']. Confirm that Postgres types untyped INSERT ... SELECT params as text, so each needs an explicit ::type cast, and that a null param cast to ::jsonb gives SQL NULL. Confirm how both drivers run one serializable statement: @neondatabase/serverless 1.x transaction([...], { isolationLevel: 'Serializable' }) and postgres 3.4 begin('isolation level serializable') with unsafe(text, params). Read these first: src/db/index.ts (runSerializable, :111), src/db/serialization-retry.ts, src/db/pg-errors.ts, src/features/industry-planner/profiles/queries.ts (createIndustryProfile), src/features/custom-structures/schema.ts, src/features/industry-planner/schema.ts and src/db/__tests__/support/db-test-harness.ts."
+  },
+  {
+   "tech": "Zod 4.5.4 + TypeScript contract typing",
+   "focus": "zod 4.5.4 as installed (read node_modules/zod v4 type definitions, not memory). Cover z.input, z.output and z.infer; z.strictObject versus z.object; whether .extend throws on an object that carries .superRefine in 4.5.4, and when to use .safeExtend instead; whether a .superRefine'd strictObject still works as a z.discriminatedUnion option; z.ZodType generic parameters for a ConvexDoor<P, Req, Res> interface with a const path generic; and `satisfies` checks of a schema against a domain type (EliminationDeduction, JumpMatchOutcome). Also cover TypeScript distributive conditional types with `infer C extends string` for P138's ProblemCodeOf over a union of failed outcomes, and why keyof over a union of response maps keeps only the shared statuses. Read these first: src/lib/convex-http-door.ts, src/transport/endpoint.ts (OutcomeOf, ProblemCodec, ProblemBodyFor), src/transport/decode.ts, src/lib/problem.ts (retryAfterSeconds), src/lib/id-schemas.ts, convex/httpJump.ts and src/composition/jump-resolver/convex-door.ts."
+  },
+  {
+   "tech": "Convex 1.45 HTTP actions + convex-test",
+   "focus": "convex 1.45.0 and convex-test 0.0.56 as installed. Cover httpRouter().route({ path, method, handler }) and whether a const door.path typed as `/${string}` is accepted; httpAction and PublicHttpAction; and what the default (non-Node) runtime can bundle when convex/ imports src modules through the @/ alias in convex/tsconfig.json. Door modules must pull in no node: imports and no fetch-client or env code transitively. Also cover convex-test's t.fetch for HTTP routes. Confirm that convex/_generated changes only when Convex function modules or exports change, and that `pnpm exec convex codegen --typecheck disable` regenerates it. Read these first: convex/http.ts, convex/lib/httpAuth.ts (authorizedJsonAction), convex/__tests__/http.setup.ts, convex/__tests__/modules.setup.ts, convex/__tests__/export-coverage.test.ts, convex/httpAccountMerge.ts, convex/httpMapAccess.ts, convex/httpLocation.ts and convex/httpEngine.ts."
+  },
+  {
+   "tech": "Tailwind CSS v4 + class-variance-authority + tailwind-merge",
+   "focus": "tailwindcss 4.3.3, class-variance-authority 0.7.1 and tailwind-merge 3.6.0 as installed. Cover the @theme tracking and font tokens (--tracking-optical, copy, label, wide, eyebrow; --font-ui, data, display) and the utilities they generate. For cva, cover variants whose value is '', defaultVariants, boolean variants (wrap: { true, false }) and VariantProps, and confirm that cva concatenates class and className without merging. For tailwind-merge, cover extendTailwindMerge theme and classGroups, so that cn(eyebrow(), 'tracking-label') and font overrides resolve correctly. Read these first: src/app/globals.css (tracking tokens at about :342-346, the html/body font-ui rule at about :449-457), src/components/ui/cn.ts, src/components/ui/type-roles.ts (eyebrow, displayTitle), src/components/ui/page-head.tsx, src/components/ui/section-head.tsx and src/components/ui/dialog.tsx."
+  },
+  {
+   "tech": "Vitest 4.1",
+   "focus": "vitest 4.1.11 as installed. Cover vi.hoisted plus vi.mock with a top-level await import, as create-profile.test.ts does, and whether vi.mock('@/db') also intercepts a relative ./index import from a new src/db/capped-insert.ts. Cover mockResolvedValueOnce chains, and type-level assertions (expectTypeOf, or @ts-expect-error in test files). vitest typecheck mode is not configured; `pnpm check` runs tsc --noEmit, so confirm that tsc covers test files. Cover running *.db.test.ts suites against local Postgres; they skip when it is down, and a skip is not a pass. Read these first: vitest.config.ts, tsconfig.json, src/features/industry-planner/profiles/create-profile.test.ts, src/db/serialization-retry.test.ts, src/db/__tests__/support/db-test-harness.ts, src/esi-datasets/ui-adoption.test.ts with src/lib/__tests__/source-scan.ts, and src/lib/convex-http-door.test.ts."
+  }
+ ],
+ "waveCautions": "P219: runSerializable already retries serialization failures (src/db/serialization-retry.ts, 10 attempts). insertWithinCap therefore adds no retry, and no retry tests need to move. Rename profile-writes.ts insertWithinCap, or fold it into createIndustryProfile, so two modules do not export the same name. DB tests must actually run on local Postgres; a skip is not green. P138 needs P063, P054 and P146 landed first. Its copy changes (feedback detail dropped, 429 copy from retryAfterSeconds, cross_origin fallback) need red-to-green tests and PR-body notes. AccountDangerZone now toasts inline after gate.run (P056), and it is a hotspot: one PR touching it at a time. P046: panel titles are already done through displayTitle. Phase 2 must produce identical classes (eyebrow defaults to font-medium). Phase 3 changes visuals and needs user review on /preview/primitives. The census regex also matches Footer tracking-[0.03em] and HeroBanner tracking-[0.28em], works per file, and skips every ui directory. P246 needs P208: wrap its merge-contract, leave-contract and MAP_CLAIM_REVOKE_BATCH rather than redeclaring them, and move its Convex-only userPurgeBodySchema into lib. Check whether zod .extend throws on refined objects. Switch postConvexHttpDoor and all 9 callers in one commit. Convex must never import convex-http-door.ts or transport. The strict snapshot parser must match Convex's real response. Notes left by earlier waves: P306 sees AccountDangerZone importing HelpPopover from ui/help-popover (P007), not Popover. Serialization-failure retries live in runSerializable (wave 5).",
+ "possiblyAlreadyDone": [
+  {
+   "item": "P219 steps 1-2: serialization retry and its tests",
+   "evidence": "Commit 5c40222c (on origin/development) moved the retry into runSerializable itself: src/db/index.ts:111-113 calls retrySerializationFailures (src/db/serialization-retry.ts:17), which makes 10 jittered attempts. createIndustryProfile (profiles/queries.ts) has no loop. create-profile.test.ts:11-21 is already thin, and the retry tests are in src/db/serialization-retry.test.ts:17,32,42,53. Still not done: saved-plans/route.ts:46 and :63-64 (count, recount, compensating delete), custom-structures/route.ts:30 (pre-count), and the stale industryProfiles note at data-ownership-registry.ts:841. src/db/capped-insert.ts does not exist."
+  },
+  {
+   "item": "P046 step 2: panelTitle for dialog and panel titles",
+   "evidence": "P001's displayTitle already covers it, with sizes h2, h3 and nav, the wrap option and a tone (src/components/ui/type-roles.ts:34). Sites using it: dialog.tsx:122 (wrap:true), MapCreationDialog.tsx:91, MapCatalogue.tsx:144 (wrap:true), NodeAddMenu.tsx:77. These use DialogHeader instead: AfkGate.tsx:74, FeedbackModal.tsx:255, MapAccessDialog.tsx:175 (closeDisabled) and confirm-dialog.tsx:73. A grep finds no 'font-display ... tracking-copy' panel-title strings left in those files. Per Conflicts, fold panelTitle into displayTitle; do not add a new role."
+  },
+  {
+   "item": "P046 step 3: token-equal arbitrary tracking",
+   "evidence": "P330 (commit fffa0798) did this. src/app/(site)/sites/[id]/page.tsx:74 now uses tracking-wide, and src/features/changelog/components/EntryCard.tsx:18 uses tracking-label. The only arbitrary tracking values left outside ui are GlobalSearch.tsx:195 tracking-[0.07em] (phase 3), Footer.tsx:10,17 tracking-[0.03em] and HeroBanner.tsx:9 tracking-[0.28em]."
+  },
+  {
+   "item": "P046 sites NotFoundContent:11 and ErrorPanel:35",
+   "evidence": "P015 moved these into StatusPanel. The cluster-D font-data label is now at src/components/composition/StatusPanel.tsx:29. NotFoundContent.tsx has no uppercase label left. ErrorPanel.tsx:38 still hand-rolls one. Phase 1 is not done: pageTitle is still unexported at page-head.tsx:7, and section-head.tsx:30 still has the literal class string."
+  },
+  {
+   "item": "P138 notes: remove dead apiFetch catches",
+   "evidence": "Partly done by P154. FeedbackModal.tsx has no catch branch left. Still present: use-industry-profiles.ts:86 and :114 `.catch(() => null)`, and account-actions.ts:28, :39 and :50 try/catch. src/transport/failure-copy.ts does not exist. map-lifecycle-client.ts:21-29 is still action-only. map-access-client.ts and map-creation-client.ts still branch on status."
+  },
+  {
+   "item": "P246 prerequisites from P247 and P209",
+   "evidence": "src/lib/id-schemas.ts:12 and :15 export positiveIdSchema and int4IdSchema, and convex already imports @/lib/id-schemas in 3 places. postConvexHttpDoor already reports the door's reason (src/lib/convex-http-door.ts:31). The item itself is not done: src/lib/convex-door-contract.ts does not exist, and convex/__tests__/http.setup.ts:9-23 still lacks '/purge-user-map-claims'. The six Error classes are still full declarations (for example map-access-projection.ts:73 and leave-door.ts:8)."
+  }
+ ],
+ "crossWaveDeps": [
+  {
+   "item": "P138",
+   "dependsOn": "P063",
+   "dependencyWave": 12,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P138",
+   "dependsOn": "P054",
+   "dependencyWave": 12,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P138",
+   "dependsOn": "P056",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P138",
+   "dependsOn": "P154",
+   "dependencyWave": 1,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P138",
+   "dependsOn": "P146",
+   "dependencyWave": 9,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P046",
+   "dependsOn": "P001",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P046",
+   "dependsOn": "P015",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P046",
+   "dependsOn": "P034",
+   "dependencyWave": 7,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P246",
+   "dependsOn": "P247",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  },
+  {
+   "item": "P246",
+   "dependsOn": "P208",
+   "dependencyWave": 14,
+   "dependencyStatus": "- **Status:** [ ] not started"
+  },
+  {
+   "item": "P246",
+   "dependsOn": "P209",
+   "dependencyWave": 6,
+   "dependencyStatus": "- **Status:** [x] done"
+  }
+ ],
+ "note": "Drafted 2026-10-10 from the guide and the tree at wave 7 (claude/primitives-wave-07). Re-check possiblyAlreadyDone and crossWaveDeps against the current tree; development keeps moving."
+}

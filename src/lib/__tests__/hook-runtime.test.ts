@@ -35,6 +35,24 @@ test('state keeps its slot by call order across renders, with a lazy initializer
   expect(seeded.render(() => [seeded.react.useState(1)[0], seeded.react.useState('unused')[0]])).toEqual([1, 'seeded']);
 });
 
+test('a reducer shares the state slots in call order, and each dispatch reduces the latest state', () => {
+  const rt = createHookRuntime();
+  const { react } = rt;
+  const add = (total: number, step: number) => total + step;
+  const tally = () => {
+    const [label] = react.useState('tally');
+    const [total, dispatch] = react.useReducer(add, 10);
+    return { label, total, dispatch };
+  };
+
+  const first = rt.render(tally);
+  expect(first).toMatchObject({ label: 'tally', total: 10 });
+  first.dispatch(1);
+  first.dispatch(2);
+  expect(rt.render(tally).total).toBe(13);
+  expect(rt.states).toEqual(['tally', 13]);
+});
+
 test('effects and memos re-run only when deps change by identity or count, or on every render without deps', () => {
   const rt = createHookRuntime();
   const { react } = rt;

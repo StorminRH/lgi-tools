@@ -12,7 +12,7 @@ import {
 import { usePreference } from '@/components/PreferencesProvider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
+import { ChipToggle, ChipToggleGroup, ToggleRow } from '@/components/ui/chip-toggle';
 import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedControl } from '@/components/ui/segmented';
@@ -20,8 +20,7 @@ import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
 import {
-  CLASS_CHIP_TONE,
-  SITE_TYPE_CHIP_TONE,
+  CLASS_TONE,
   SITE_TYPE_DOT_TONE,
   SITE_TYPE_LABEL,
 } from './wormhole-styles';
@@ -37,6 +36,8 @@ const VIEW_OPTIONS = [
   { value: 'cards', label: 'Cards' },
   { value: 'table', label: 'Table' },
 ] as const;
+// The quiet link-style button that clears every filter.
+const RESET_FILTERS_CLASS = 'text-ui text-faint underline underline-offset-3 hover:text-isk';
 
 export interface SiteFilterMeta {
   id: number;
@@ -113,8 +114,7 @@ export function SitesFilterLayout({
                     <ChipToggle
                       key={c}
                       value={c}
-                      tone={CLASS_CHIP_TONE[c]}
-                      appearance="filter"
+                      tone={CLASS_TONE[c]}
                       className="w-full justify-center px-2 py-1.5 text-ui"
                     >
                       {c}
@@ -132,13 +132,7 @@ export function SitesFilterLayout({
                   className="mt-2 flex-col items-stretch"
                 >
                   {TYPE_ROWS.map((t) => (
-                    <ChipToggle
-                      key={t}
-                      value={t}
-                      tone={SITE_TYPE_CHIP_TONE[t]}
-                      appearance="row"
-                      className="w-full gap-2"
-                    >
+                    <ToggleRow key={t} value={t} className="w-full gap-2">
                       <Dot
                         tone={SITE_TYPE_DOT_TONE[t]}
                         size="md"
@@ -148,12 +142,12 @@ export function SitesFilterLayout({
                       />
                       <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
                       <span className="text-faint">{typeCount(t)}</span>
-                    </ChipToggle>
+                    </ToggleRow>
                   ))}
                 </ChipToggleGroup>
               </div>
 
-              <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
+              <Button variant="bare" type="button" className={RESET_FILTERS_CLASS} onClick={reset}>
                 reset filters
               </Button>
             </div>
@@ -218,7 +212,7 @@ export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: R
           <Button
             variant="bare"
             type="button"
-            className="text-ui text-faint underline underline-offset-3 hover:text-isk"
+            className={RESET_FILTERS_CLASS}
             onClick={reset}
           >
             reset filters

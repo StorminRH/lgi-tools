@@ -14,31 +14,6 @@ vi.mock('react', async (importOriginal) => ({
 }));
 vi.mock('@/data/convex/use-live-value', () => ({ useLiveValue: liveValue }));
 
-vi.mock('@/components/ui/button', () => ({
-  Button: (props: {
-    children?: unknown;
-    'data-map-event-restore'?: string;
-  }) =>
-    createElement(
-      'button',
-      { 'data-map-event-restore': props['data-map-event-restore'] },
-      props.children as never,
-    ),
-}));
-
-vi.mock('@/components/ui/collapsible', () => ({
-  Collapsible: (props: {
-    header: unknown;
-    children?: unknown;
-  }) =>
-    createElement(
-      'div',
-      { 'data-collapsible': '' },
-      props.header as never,
-      props.children as never,
-    ),
-}));
-
 const NOW = 10_000;
 
 function row(
@@ -125,7 +100,6 @@ describe('MapEventLog', () => {
     );
     expect(editor).toContain('data-map-event-restore');
     expect(editor).toContain('data-map-event-undoable="true"');
-    expect(editor).not.toContain('map-chip-undo-pulse');
     expect(editor).toContain('bottom-4 right-14');
     expect(editor).toContain('Events - 2');
     expect(editor).toContain('Removed 2 downstream systems');

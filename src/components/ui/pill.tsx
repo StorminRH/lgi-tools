@@ -20,7 +20,7 @@ export const pillToneClasses = {
   blue:         'pill-soft border-transparent [--pill-tone:var(--color-tone-blue)] text-tone-blue',
 } satisfies Record<PillTone, string>;
 
-const pillVariants = cva(
+export const pillVariants = cva(
   'font-ui font-semibold border inline-flex items-center gap-1.5',
   {
     variants: {

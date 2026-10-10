@@ -31,26 +31,11 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('map=map-a'),
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({
-    children,
-    finalFocus,
-  }: {
-    children: React.ReactNode;
-    finalFocus?: React.RefObject<HTMLElement | null>;
-  }) =>
-    createElement(
-      'div',
-      { role: 'dialog', 'data-has-final-focus': String(finalFocus !== undefined) },
-      children,
-    ),
-  DialogClose: ({ children }: { children: React.ReactNode }) =>
-    createElement('button', null, children),
-  DialogDescription: ({ children }: { children: React.ReactNode }) =>
-    createElement('p', null, children),
-  DialogTitle: ({ children, ...props }: { children: React.ReactNode }) =>
-    createElement('h2', props, children),
-}));
+// Stub the Base layer so the real ui/dialog chrome renders as static markup.
+vi.mock('@base-ui/react/dialog', async () => {
+  const { StaticBaseDialog } = await import('@/components/ui/__tests__/static-base-dialog');
+  return { Dialog: StaticBaseDialog };
+});
 
 vi.mock('@/components/use-account-characters', () => ({
   useAccountCharacters: () => [
@@ -85,6 +70,7 @@ vi.mock('./AccessListEditor', () => ({
     ),
 }));
 
+import { dialogProbe } from '@/components/ui/__tests__/static-base-dialog';
 import {
   MapAccessDialog,
   mapAccessGrantRevision,
@@ -108,13 +94,14 @@ describe('MapAccessDialog', () => {
   });
 
   it('seeds the shared manage editor with presentation-ready delegated grants', () => {
+    const finalFocus = { current: null };
     const markup = renderToStaticMarkup(
       createElement(MapAccessDialog, {
         mapId: 'map-a',
         mapName: 'Alpha',
         open: true,
         onOpenChange: vi.fn(),
-        finalFocus: { current: null },
+        finalFocus,
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
         initialGrants: [
           {
@@ -137,7 +124,7 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('data-access-editor-mode="manage"');
     expect(markup).toContain('data-access-grants="42:Scout:editor"');
     expect(markup).toContain('data-character-search');
-    expect(markup).toContain('data-has-final-focus="true"');
+    expect(dialogProbe.popup?.finalFocus).toBe(finalFocus);
     expect(markup).toContain('Done');
     expect(markup).not.toContain('Delete map');
     expect(markup).toContain('data-own-character-picker');

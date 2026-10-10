@@ -11,8 +11,7 @@ interface PageControlProps {
   target: number;
   text: string;
   current: boolean;
-  hrefForPage?: (page: number) => string;
-  onPageChange?: (page: number) => void;
+  onPageChange: (page: number) => void;
 }
 
 const CURRENT_PAGE = {
@@ -26,31 +25,20 @@ const CURRENT_PAGE = {
   },
 } as const;
 
-const ignorePageChange = () => undefined;
-
 function PageControl({
   target,
   text,
   current,
-  hrefForPage,
-  onPageChange = ignorePageChange,
+  onPageChange,
 }: PageControlProps) {
   const state = CURRENT_PAGE[String(current) as 'true' | 'false'];
-  const classes = cn(itemClass, state.className);
-  if (hrefForPage) {
-    return (
-      <a href={hrefForPage(target)} aria-current={state.ariaCurrent} className={classes}>
-        {text}
-      </a>
-    );
-  }
   return (
     <button
       type="button"
       disabled={current}
       onClick={() => onPageChange(target)}
       aria-current={state.ariaCurrent}
-      className={classes}
+      className={cn(itemClass, state.className)}
     >
       {text}
     </button>
@@ -66,14 +54,12 @@ function PaginationItemControl({
   item,
   index,
   page,
-  hrefForPage,
   onPageChange,
 }: {
   item: ReturnType<typeof paginationItems>[number];
   index: number;
   page: number;
-  hrefForPage?: (page: number) => string;
-  onPageChange?: (page: number) => void;
+  onPageChange: (page: number) => void;
 }) {
   if (item === 'ellipsis') {
     return (
@@ -87,7 +73,6 @@ function PaginationItemControl({
       target={item}
       text={String(item)}
       current={item === page}
-      hrefForPage={hrefForPage}
       onPageChange={onPageChange}
     />
   );
@@ -98,7 +83,6 @@ export function Pagination({
   pageCount,
   total,
   pageSize,
-  hrefForPage,
   onPageChange,
   label = 'Pagination',
   className,
@@ -107,8 +91,7 @@ export function Pagination({
   pageCount: number;
   total: number;
   pageSize: number;
-  hrefForPage?: (page: number) => string;
-  onPageChange?: (page: number) => void;
+  onPageChange: (page: number) => void;
   label?: string;
   className?: string;
 }) {
@@ -119,7 +102,6 @@ export function Pagination({
         target={page - 1}
         text="‹"
         current={false}
-        hrefForPage={hrefForPage}
         onPageChange={onPageChange}
       />
       {paginationItems(page, pageCount).map((item, index) => (
@@ -128,7 +110,6 @@ export function Pagination({
           item={item}
           index={index}
           page={page}
-          hrefForPage={hrefForPage}
           onPageChange={onPageChange}
         />
       ))}
@@ -137,7 +118,6 @@ export function Pagination({
         target={page + 1}
         text="›"
         current={false}
-        hrefForPage={hrefForPage}
         onPageChange={onPageChange}
       />
       <span className="ml-2 font-ui text-label text-faint">

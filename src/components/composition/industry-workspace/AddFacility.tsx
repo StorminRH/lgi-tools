@@ -2,6 +2,7 @@
 
 import { type ReactNode, type Ref, useEffect, useState } from 'react';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { SearchIcon } from '@/components/ui/icons';
 import { loadStations, type StationSearchEntry } from '@/data/eve-data/stations-search';
 import type { AvailableStructure } from '@/features/industry-planner/types';
@@ -107,21 +108,21 @@ export function AddFacility({
     <Combobox.Root
       items={[...options.keys()]}
       value={query}
-      onValueChange={(next, details) => {
-        const picked = details.reason === 'item-press' ? options.get(next) : undefined;
-        if (picked === undefined) {
-          setQuery(next);
-          return;
-        }
-        onAdd(picked.pick);
-        setQuery('');
-        onScopeEnd?.();
-      }}
+      onValueChange={(next, details) =>
+        pickOrType(next, details, {
+          lookup: (value) => options.get(value),
+          onType: setQuery,
+          onPick: (picked) => {
+            onAdd(picked.pick);
+            setQuery('');
+            onScopeEnd?.();
+          },
+        })
+      }
       onOpenChange={(open) => {
         if (open) setOpened(true);
       }}
       filter={null}
-      mode="list"
       openOnInputClick
     >
       <Combobox.Field
@@ -135,10 +136,6 @@ export function AddFacility({
         }}
         className={className}
         type="text"
-        spellCheck={false}
-        autoCorrect="off"
-        autoCapitalize="off"
-        autoComplete="off"
         prompt={prompt}
       />
       <FacilityOptions groups={groups} describe={describe} />

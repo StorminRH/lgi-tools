@@ -27,11 +27,6 @@ vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children?: React.ReactNode }) => children,
 }));
 
-vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, ...props }: { children?: React.ReactNode }) =>
-    createElement('button', props, children),
-}));
-
 vi.mock('../authoring/use-wormhole-editor-data', () => ({
   useWormholeEditorData: () => ({
     codex: {

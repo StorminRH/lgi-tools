@@ -6,11 +6,12 @@ import { CharacterIdentity } from '../board/sections/CharacterIdentity';
 import { Button } from '@/components/ui/button';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { Pill } from '@/components/ui/pill';
+import { SectionPanel } from '@/components/ui/section-panel';
 import type { CategoryKey } from '@/features/industry-planner/profiles/production-categories';
 import { romanLevel } from '@/features/skill-queue/progress';
 import { formatPct } from '@/lib/format/number';
 import { PANELS_MOTION, SHEET_MOTION } from '../board/board-motion';
-import { SectionPanel } from '../board/SectionBody';
+import { SectionNote } from '../board/SectionBody';
 import { CategoryChecklist } from './CategoryChecklist';
 import { ProductionCapacity } from './ProductionCapacity';
 import {
@@ -71,7 +72,7 @@ function SkillsPanel({ skills }: { skills: MemberSkills | null }) {
   return (
     <SectionPanel title="Production skills">
       {skills === null ? (
-        <p className="px-3.5 py-3 text-ui text-faint">Skills are still syncing from EVE.</p>
+        <SectionNote>Skills are still syncing from EVE.</SectionNote>
       ) : (
         <div className="flex flex-col gap-3 px-3.5 py-3">
           <dl className="flex flex-col gap-4">

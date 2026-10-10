@@ -4,12 +4,13 @@ import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { formatPct } from '@/lib/format/number';
-import { SectionPanel } from '../board/SectionBody';
+import { SectionNote } from '../board/SectionBody';
 import { FacilitiesPanel, type HullName } from './FacilitiesPanel';
 import { ProductionCapacity } from './ProductionCapacity';
 import {
@@ -99,9 +100,7 @@ function TeamSkillsPanel({
   return (
     <SectionPanel title="Production skills">
       {rows.length === 0 ? (
-        <p className="px-3.5 py-3 text-ui text-muted">
-          No one is on this profile yet. Add a linked character to assign what they build.
-        </p>
+        <SectionNote>No one is on this profile yet. Add a linked character to assign what they build.</SectionNote>
       ) : (
         <div className="overflow-x-auto px-1.5">
           <StaticTable

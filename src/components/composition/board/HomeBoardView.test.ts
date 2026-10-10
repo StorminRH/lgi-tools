@@ -125,6 +125,8 @@ describe('board chrome', () => {
     expect(framed).toContain('Sample data');
     expect(framed.match(/class="[^"]*\breveal\b/g)).toHaveLength(1);
     const live = renderToStaticMarkup(BoardFrame({ children: createElement(BoardSkeleton) }));
+    expect(live).toContain('role="status" aria-label="Loading your characters"');
+    expect(live.match(/role="status"/g)).toHaveLength(1);
     expect(live).not.toContain('live-ping');
     expect(live).not.toContain('Sample data');
     expect(framed).toContain('Add character');

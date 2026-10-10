@@ -1,10 +1,11 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { floatSurface } from '@/components/ui/card';
+import { floatIconTrigger } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { CheckIcon } from '@/components/ui/icons';
 import { Menu, MenuItem, menuRow } from '@/components/ui/menu';
-import { scrollArea } from '@/components/ui/scroll-area';
+import { SwitcherMenu } from '@/components/ui/switcher-menu';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { formatCount } from '@/lib/format/number';
 
@@ -29,23 +30,10 @@ export function ProfileBar({
 }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-      <Menu
+      <SwitcherMenu
         label={`Switch profile from ${selected.name}`}
-        trigger={
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">{selected.name}</span>
-            <span aria-hidden className="font-data text-label text-faint">⌄</span>
-          </span>
-        }
-        triggerClassName={cn(
-          floatSurface,
-          'flex h-10 w-max max-w-full min-w-0 cursor-pointer items-center rounded-full px-4 font-display text-h3 font-bold tracking-copy text-name outline-none transition-colors hover:border-border-active focus-visible:border-border-active',
-        )}
-        className={`${scrollArea} flex min-w-64 flex-col rounded-card p-[5px] max-h-[min(24rem,var(--available-height))] overflow-y-auto overscroll-contain`}
-        surface="frosted"
-        side="bottom"
-        align="start"
-        sideOffset={8}
+        current={selected.name}
+        className="flex min-w-64 flex-col"
       >
         {profiles.map((profile) => {
           const current = profile.id === selected.id;
@@ -58,8 +46,8 @@ export function ProfileBar({
               onClick={() => onSelect(profile.id)}
             >
               <span className="flex min-w-0 items-center gap-2">
-                <span aria-hidden className={cn('w-3 font-data text-isk', !current && 'invisible')}>
-                  ✓
+                <span aria-hidden className={cn('flex w-3 text-isk', !current && 'invisible')}>
+                  <CheckIcon size={12} />
                 </span>
                 <span className="truncate">{profile.name}</span>
               </span>
@@ -69,14 +57,11 @@ export function ProfileBar({
             </MenuItem>
           );
         })}
-      </Menu>
+      </SwitcherMenu>
       <Menu
         label={`Manage ${selected.name}`}
         trigger={<span aria-hidden>⋯</span>}
-        triggerClassName={cn(
-          floatSurface,
-          'flex size-10 cursor-pointer items-center justify-center rounded-full font-data text-h3 text-muted outline-none transition-colors hover:border-border-active hover:text-name focus-visible:border-border-active',
-        )}
+        triggerClassName={cn(floatIconTrigger, 'font-data text-h3')}
         className="flex min-w-48 flex-col rounded-card p-[5px]"
         surface="frosted"
         side="bottom"

@@ -91,12 +91,18 @@ function mount(editing: CustomStructureRow | null) {
   };
   const call = (test: (props: Props) => boolean, handler: string, ...args: unknown[]) =>
     (find(test)![handler] as Handler)(...(args as never[]));
+  // The control inside the Field whose visible label reads `text`.
+  const field = (text: string, handler: string, ...args: unknown[]) => {
+    const control = find((p) => p.label === text && 'labelStyle' in p)!.children as ReactElement<Props>;
+    return (control.props[handler] as Handler)(...(args as never[]));
+  };
   return {
     onSaved,
     onClose,
     find,
     element,
     call,
+    field,
     button: (text: string) => call((p) => p.children === text, 'onClick'),
     draft: () => rt.states[0] as StructureDraft,
     busy: () => rt.states[1] as boolean,
@@ -113,9 +119,7 @@ function bonusTabs(c: ReturnType<typeof mount>): Props {
 
 const named = (p: Props) => 'onName' in p;
 const system = (p: Props) => 'onType' in p;
-const hull = (p: Props) => p.ariaLabel === 'Hull';
 const bonuses = (p: Props) => 'onReadFit' in p;
-const tax = (p: Props) => p.ariaLabel === 'Facility tax';
 
 beforeEach(() => {
   h.apiFetch.mockReset();
@@ -131,8 +135,8 @@ test('a new structure says what is missing before it saves', () => {
   expect(c.error()).toBeNull();
   c.button('Save');
   expect(c.error()).toBe('Pick the hull.');
-  c.call(hull, 'onValueChange', '35825');
-  c.call(tax, 'onChange', '12');
+  c.field('Hull', 'onValueChange', '35825');
+  c.field('Facility tax', 'onChange', '12');
   c.button('Save');
   expect(c.error()).toBe('Tax must be 0–10%.');
   expect(h.apiFetch).not.toHaveBeenCalled();
@@ -152,8 +156,11 @@ test('picking a found structure fills its name, system and hull, clearing rigs w
   c.call(named, 'onPick', { structureId: 2, name: 'Odd Keepstar', systemId: 30002537, structureTypeId: 35834 });
   expect(c.draft()).toMatchObject({ name: 'Odd Keepstar', systemId: 30002537, structureTypeId: null });
   expect(c.draft().rigSlots).toEqual([null, null, null]);
-  c.call(hull, 'onValueChange', '35825');
-  c.call(hull, 'onValueChange', '');
+  // A found name is held to the length a typed one is.
+  c.call(named, 'onPick', { structureId: 5, name: 'y'.repeat(85), systemId: 30002537, structureTypeId: null });
+  expect(c.draft().name).toBe('y'.repeat(80));
+  c.field('Hull', 'onValueChange', '35825');
+  c.field('Hull', 'onValueChange', '');
   expect(c.draft().structureTypeId).toBeNull();
 });
 
@@ -177,7 +184,7 @@ test('a typed system pins only on an exact name, and suggests the rest', async (
 test('saving a new structure creates it and hands back the list', async () => {
   const c = mount(null);
   c.call(named, 'onName', 'Home Raitaru');
-  c.call(hull, 'onValueChange', '35825');
+  c.field('Hull', 'onValueChange', '35825');
   c.call(bonuses, 'onDraft', { bonus: { me: '1', te: '', cost: '', rxnMe: '', rxnTe: '' } });
   const createdId = '38534fe4-6d47-4007-8d99-0890bc6c9770';
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: SAVED, createdId } });

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { formatRemaining, formatUtcTime } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { jobRowFrameData, jobsCardModel } from '../job-view';
@@ -110,23 +110,18 @@ function JobsCardRows({
 /** Two placeholder rows in the shape of a job row: icon, name, time, progress. */
 function JobRowsSkeleton() {
   return (
-    <div className="flex flex-col">
+    <SkeletonGroup label="Loading jobs" className="flex flex-col">
       {[0, 1].map((row) => (
         <div key={row} className="flex flex-col gap-2 border-t border-border-soft px-3.5 py-2.5 first:border-t-0">
           <div className="flex items-center gap-2.5">
-            {/* The first placeholder announces the load; the rest are decoration. */}
-            <Skeleton
-              label="Loading jobs"
-              aria-hidden={row === 0 ? undefined : true}
-              className="size-5.5 rounded-ctl"
-            />
-            <Skeleton aria-hidden className="h-3 w-48 max-w-[50%]" />
-            <Skeleton aria-hidden className="ml-auto h-3 w-24" />
+            <Skeleton className="size-5.5 rounded-ctl" />
+            <Skeleton className="h-3 w-48 max-w-[50%]" />
+            <Skeleton className="ml-auto h-3 w-24" />
           </div>
-          <Skeleton aria-hidden className="h-1 w-full rounded-full" />
+          <Skeleton className="h-1 w-full rounded-full" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }
 
@@ -135,8 +130,8 @@ export function JobsCardSkeleton() {
   return (
     <Card>
       <div className="flex items-center gap-3 border-b border-border-soft px-3.5 py-3">
-        <Skeleton aria-hidden className="size-9 rounded-ctl" />
-        <Skeleton aria-hidden className="h-4 w-40" />
+        <Skeleton className="size-9 rounded-ctl" />
+        <Skeleton className="h-4 w-40" />
       </div>
       <SectionHeader label="Industry jobs" />
       <JobRowsSkeleton />

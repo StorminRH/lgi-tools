@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { cn } from '@/components/ui/cn';
+import { HelpPopover } from '@/components/ui/help-popover';
 import { LivePrice } from '@/components/ui/live-price';
 import { PriceConfidence } from '@/components/ui/price-confidence';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
@@ -27,7 +28,7 @@ import { marginToneClass, type RegionalDiscountCallout } from '../industry-style
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { hasUnpricedInputs } from '../fee-breakdown';
 import { FeeBreakdownPanel } from './FeeBreakdownPanel';
-import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
+import { KpiHead, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { LoadFailed } from '@/components/ui/load-failed';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
@@ -81,7 +82,7 @@ function RawItemToggle({
 
 function InputCostHelp({ bases }: { bases: { batched: number; marginal: number } | null }) {
   return (
-    <KpiHelp label="How input cost is computed">
+    <HelpPopover label="How input cost is computed">
       <PopoverHeading>Input cost</PopoverHeading>
       <PopoverRow label="Raw">{formatIsk(bases?.batched ?? null)}</PopoverRow>
       <PopoverRow label="Item">{formatIsk(bases?.marginal ?? null)}</PopoverRow>
@@ -89,7 +90,7 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
         Raw is the full production line, including the excess that whole batches produce.
         Item is only what this build consumes.
       </p>
-    </KpiHelp>
+    </HelpPopover>
   );
 }
 
@@ -167,15 +168,15 @@ function FeeHover({
 }) {
   // Wide enough that an indented line such as an assumed facility tax reads in full.
   return (
-    <KpiHelp label="Fee breakdown" keepSide attention={hasUnpricedInputs(net)} className="w-[296px]">
+    <HelpPopover label="Fee breakdown" keepSide attention={hasUnpricedInputs(net)} className="w-[296px]">
       <FeeBreakdownPanel net={net} systemName={systemName} nameOf={nameOf} />
-    </KpiHelp>
+    </HelpPopover>
   );
 }
 
 function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
   return (
-    <KpiHelp label="How total job time is calculated">
+    <HelpPopover label="How total job time is calculated">
       <PopoverHeading>Total job time — whole tree</PopoverHeading>
       <div className="flex flex-col">
         <div className={cn(scrollArea, 'flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1')}>
@@ -203,7 +204,7 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
         Sequential — one job at a time. TE, structure and skills applied per job; parallel slots
         not counted.
       </p>
-    </KpiHelp>
+    </HelpPopover>
   );
 }
 
@@ -283,7 +284,7 @@ function BuildTimeTile({
       <KpiHead
         label="Build time"
         right={
-          <KpiHelp label="How build time is estimated">
+          <HelpPopover label="How build time is estimated">
             <PopoverHeading>Build time — final job</PopoverHeading>
             <PopoverRow label="Runs">×{runs}</PopoverRow>
             <PopoverRow label="Time efficiency">
@@ -291,7 +292,7 @@ function BuildTimeTile({
             </PopoverRow>
             <PopoverRow label="Skills">{leverRows.skills}</PopoverRow>
             <PopoverRow label="Structure">{leverRows.structure}</PopoverRow>
-          </KpiHelp>
+          </HelpPopover>
         }
       />
       <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.topJob ?? '—'}</div>

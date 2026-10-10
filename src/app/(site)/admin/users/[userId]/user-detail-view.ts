@@ -1,4 +1,4 @@
-import type { ChipTone } from '@/components/ui/tones';
+import type { PillTone } from '@/components/ui/tones';
 import type { CharacterRole } from '@/platform/auth/types';
 import { adminRoleBadge } from '../access-view';
 
@@ -11,7 +11,7 @@ export function deriveIdentityChips({
   role: CharacterRole;
   isSuperadmin: boolean;
   isViewerSelf: boolean;
-}): { tone: ChipTone; label: string }[] {
+}): { tone: PillTone; label: string }[] {
   const roleChip = adminRoleBadge({ isSuperadmin, role });
   return isViewerSelf ? [roleChip, { tone: 'green', label: 'You' }] : [roleChip];
 }

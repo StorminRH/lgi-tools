@@ -39,7 +39,7 @@ export interface CategoryLeaf {
   key: CategoryKey;
   /** Short, under its group's heading. */
   label: string;
-  /** On its own, as in a summary line. */
+  /** On its own, as in a summary line. Starts with `label`, since it names the checklist box that shows `label`. */
   name: string;
   /** CCP's industry target filter this leaf is. */
   filterId: number;
@@ -69,7 +69,7 @@ export const CATEGORY_GROUPS: readonly CategoryGroup[] = [
       { key: 'medium-t2-ships', label: 'Medium T2', name: 'Medium T2 ships', filterId: 8 },
       { key: 'large-t1-ships', label: 'Large T1', name: 'Large T1 ships', filterId: 9 },
       { key: 'large-t2-ships', label: 'Large T2', name: 'Large T2 ships', filterId: 10 },
-      { key: 'capital-ships', label: 'Capitals', name: 'Capital ships', filterId: CAPITAL_SHIPS_FILTER_ID },
+      { key: 'capital-ships', label: 'Capital', name: 'Capital ships', filterId: CAPITAL_SHIPS_FILTER_ID },
     ],
   },
   {

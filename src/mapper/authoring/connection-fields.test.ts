@@ -43,16 +43,6 @@ vi.mock('@/components/ui/terminal-search', () => ({
     }),
 }));
 
-vi.mock('@/components/ui/button', () => ({
-  Button: ({
-    children,
-    variant: _variant,
-    size: _size,
-    ...props
-  }: Record<string, unknown> & { children?: unknown }) =>
-    createElement('button', props, children as never),
-}));
-
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: (props: { children?: unknown; content?: unknown }) =>
     createElement('div', { 'data-tooltip': '' }, props.children as never),

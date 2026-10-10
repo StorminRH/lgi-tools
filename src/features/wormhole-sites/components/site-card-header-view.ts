@@ -1,4 +1,4 @@
-import type { ChipTone, PillTone } from '@/components/ui/tones';
+import type { PillTone } from '@/components/ui/tones';
 import { formatIskShort } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import { formatClassRange, gasClassRange } from '../gas-classes';
@@ -52,7 +52,7 @@ export type SiteCardHeaderView = {
   isWaveDriven: boolean;
   classPill: { tone: PillTone; label: string } | null;
   typePill: { tone: PillTone; label: string };
-  ewarPills: { key: EwarKey; tone: ChipTone; label: string }[];
+  ewarPills: { key: EwarKey; tone: PillTone; label: string }[];
 };
 
 export function deriveSiteCardHeaderView(

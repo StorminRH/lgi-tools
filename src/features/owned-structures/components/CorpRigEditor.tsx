@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { Field } from '@/components/ui/field';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { StructureRigOption } from '@/data/eve-data/structures';
 import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
@@ -62,10 +63,9 @@ export function CorpRigEditor({
       />
       {error && <Callout label="Check">{error}</Callout>}
       <div className="flex items-end justify-end gap-2.5">
-        <label className="mr-auto flex w-40 flex-col gap-1.5">
-          <span className={eyebrow({ size: 'micro' })}>Facility tax</span>
-          <PercentInput value={taxDraft} onChange={setTaxDraft} ariaLabel="Facility tax" disabled={busy} />
-        </label>
+        <Field label="Facility tax" labelStyle="eyebrow" className="mr-auto w-40">
+          <PercentInput value={taxDraft} onChange={setTaxDraft} disabled={busy} />
+        </Field>
         <Button size="sm" onClick={onClose}>Cancel</Button>
         <Button variant="primary" size="sm" disabled={busy} onClick={() => void save()}>
           Save

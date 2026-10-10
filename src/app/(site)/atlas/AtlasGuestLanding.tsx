@@ -1,9 +1,8 @@
 import { EveSignInButton } from '@/components/composition/account/LoginButton';
 import { AccessGate } from '@/components/ui/access-gate';
-import { Card } from '@/components/ui/card';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { ATLAS_TAGLINE } from '@/features/maps/atlas-copy';
 
 const SETUP_STEPS = [
@@ -44,8 +43,7 @@ export function AtlasGuestLanding({
             {null}
           </AccessGate>
 
-          <Card className="reveal reveal-2">
-            <SectionHeader size="md" label="Set up tracking" />
+          <SectionPanel title="Set up tracking" className="reveal reveal-2">
             <ol data-atlas-guest-steps>
               {SETUP_STEPS.map((step, index) => (
                 <li
@@ -62,7 +60,7 @@ export function AtlasGuestLanding({
                 </li>
               ))}
             </ol>
-          </Card>
+          </SectionPanel>
         </div>
       </PageShell>
     </div>

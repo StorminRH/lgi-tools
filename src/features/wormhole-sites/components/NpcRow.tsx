@@ -1,4 +1,4 @@
-import { Chip } from '@/components/ui/chip';
+import { Pill } from '@/components/ui/pill';
 import { Stat } from '@/components/ui/row';
 import type { Npc } from '../types';
 import { ShipClassIcon } from './ShipClassIcon';
@@ -6,7 +6,7 @@ import {
   EWAR_LABEL,
   EWAR_ORDER,
   EWAR_TONE,
-  TRIGGER_CHIP_TONE,
+  TRIGGER_TONE,
   type EwarKey,
 } from './wormhole-styles';
 
@@ -34,11 +34,15 @@ export function NpcRow({ npc }: { npc: Npc }) {
       </span>
       <span className="flex items-center gap-[4px]">
         {ewars.map((k) => (
-          <Chip key={k} tone={EWAR_TONE[k]}>
+          <Pill key={k} tone={EWAR_TONE[k]} className="shrink-0">
             {k === 'neut' && npc.neut ? `NEUT ${npc.neut}` : EWAR_LABEL[k]}
-          </Chip>
+          </Pill>
         ))}
-        {npc.triggerLabel && <Chip tone={TRIGGER_CHIP_TONE}>{npc.triggerLabel}</Chip>}
+        {npc.triggerLabel && (
+          <Pill tone={TRIGGER_TONE} className="shrink-0">
+            {npc.triggerLabel}
+          </Pill>
+        )}
       </span>
       <span className="justify-self-end">
         {npc.dps != null && <Stat className="text-text font-semibold">{npc.dps} DPS</Stat>}

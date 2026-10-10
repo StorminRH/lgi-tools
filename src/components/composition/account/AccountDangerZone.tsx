@@ -1,17 +1,20 @@
 'use client';
 
 import { cn } from '@/components/ui/cn';
-import { type RefObject, useReducer, useRef, useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, insetSurface } from '@/components/ui/card';
+import { insetSurface } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
-import { SectionHeader } from '@/components/ui/section-header';
+import { HelpPopover } from '@/components/ui/help-popover';
+import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
+import { SectionPanel } from '@/components/ui/section-panel';
+import { inlineLink } from '@/components/ui/text-link';
 import { toast } from '@/components/ui/toast';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import { apiFetch } from '@/transport/api-client';
 import {
   isDeleteAcknowledged,
@@ -21,7 +24,6 @@ import {
   runPurgeCharacter,
 } from '@/platform/auth/account-actions';
 import { authClient } from '@/platform/auth/auth-client';
-import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '@/platform/auth/confirm-gate';
 import { forgetSignedInBrowser } from '@/platform/auth/reload-document-home';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
@@ -36,31 +38,26 @@ export function AccountDangerZone({
   const onEmptied = () => setEmptied(true);
 
   return (
-    <Card className={className}>
-      <SectionHeader
-        size="md"
-        label={<span className="text-ui text-tone-red">Danger zone</span>}
-        hint={
-          <Popover
-            label="What purge and unlink do"
-            trigger="?"
-            triggerClassName="grid h-4 w-4 place-items-center rounded-full border border-border text-micro text-muted hover:text-text"
-          >
-            <PopoverHeading>Purge vs unlink</PopoverHeading>
-            <PopoverRow layout="description" label="Purge">
-              clears what the site has stored for a character and stops LGI.tools from accessing its
-              EVE data.
-            </PopoverRow>
-            <PopoverRow layout="description" label="Unlink">
-              detaches the character from your account. Unlink characters on{' '}
-              <Link href="/settings/characters" className="text-tone-blue hover:underline">
-                Settings → Characters
-              </Link>
-              . You can link them again later.
-            </PopoverRow>
-          </Popover>
-        }
-      />
+    <SectionPanel
+      title={<span className="text-ui text-tone-red">Danger zone</span>}
+      meta={
+        <HelpPopover label="What purge and unlink do">
+          <PopoverHeading>Purge vs unlink</PopoverHeading>
+          <PopoverRow layout="description" label="Purge">
+            clears what the site has stored for a character and stops LGI.tools from accessing its
+            EVE data.
+          </PopoverRow>
+          <PopoverRow layout="description" label="Unlink">
+            detaches the character from your account. Unlink characters on{' '}
+            <Link href="/settings/characters" className={inlineLink}>
+              Settings → Characters
+            </Link>
+            . You can link them again later.
+          </PopoverRow>
+        </HelpPopover>
+      }
+      className={className}
+    >
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         <div className="flex flex-col gap-2.5">
           <p className="text-ui leading-relaxed text-muted">
@@ -91,43 +88,13 @@ export function AccountDangerZone({
       </div>
 
       <RevokeRedirectLightbox open={emptied} />
-    </Card>
+    </SectionPanel>
   );
 }
 
-function useConfirmGate() {
-  const [phase, dispatch] = useReducer(confirmGateReducer, INITIAL_CONFIRM_PHASE);
-  const [errored, setErrored] = useState(false);
-
-  function request() {
-    setErrored(false);
-    dispatch({ type: 'request' });
-  }
-
-  async function run<T extends { kind: string }>(
-    action: () => Promise<T>,
-    errorToast: string,
-  ): Promise<T> {
-    setErrored(false);
-    dispatch({ type: 'confirm' });
-    const outcome = await action();
-    if (outcome.kind === 'error') {
-      dispatch({ type: 'fail' });
-      setErrored(true);
-      toast.error(errorToast);
-    }
-    return outcome;
-  }
-
-  return {
-    errored,
-    open: phase !== 'idle',
-    busy: phase === 'running',
-    request,
-    cancel: () => dispatch({ type: 'cancel' }),
-    reset: () => dispatch({ type: 'reset' }),
-    run,
-  };
+/** An account action that failed; its dialog stays open for a retry. */
+function isError(outcome: { kind: string }): boolean {
+  return outcome.kind === 'error';
 }
 
 function DangerButton({
@@ -170,11 +137,10 @@ function PurgeCharacterControl({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   async function onConfirm() {
-    const outcome = await gate.run(
-      () => runPurgeCharacter(characterId, apiFetch),
-      'Purge failed',
-    );
-    if (outcome.kind === 'emptied') {
+    const outcome = await gate.run(() => runPurgeCharacter(characterId, apiFetch), isError);
+    if (outcome.kind === 'error') {
+      toast.error('Purge failed');
+    } else if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();
     } else if (outcome.kind === 'stayed') {
@@ -187,7 +153,7 @@ function PurgeCharacterControl({
   return (
     <div className={cn(insetSurface, 'flex items-center justify-between gap-2 px-3 py-2')}>
       <span className="min-w-0 truncate font-data text-ui text-text">{characterName}</span>
-      <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
+      <DangerButton triggerRef={triggerRef} onClick={() => gate.request()} label="Purge" />
       <ConfirmDialog
         open={gate.open}
         onOpenChange={(next) => {
@@ -222,11 +188,10 @@ function LogoutEverywhereControl() {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   async function onConfirm() {
-    const outcome = await gate.run(
-      () => runLogoutEverywhere(apiFetch),
-      'Sign-out failed',
-    );
-    if (outcome.kind === 'done') {
+    const outcome = await gate.run(() => runLogoutEverywhere(apiFetch), isError);
+    if (outcome.kind === 'error') {
+      toast.error('Sign-out failed');
+    } else if (outcome.kind === 'done') {
       const target = redirectTargetFor(outcome) ?? '/';
       void authClient.signOut().finally(() => {
         forgetSignedInBrowser();
@@ -245,7 +210,7 @@ function LogoutEverywhereControl() {
         ref={triggerRef}
         variant="secondary"
         size="sm"
-        onClick={gate.request}
+        onClick={() => gate.request()}
         className="shrink-0"
       >
         Log out everywhere
@@ -283,8 +248,10 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
 
   async function onConfirm() {
     if (!isDeleteAcknowledged(acknowledged)) return;
-    const outcome = await gate.run(() => runDeleteAccount(apiFetch), 'Account deletion failed');
-    if (outcome.kind === 'emptied') {
+    const outcome = await gate.run(() => runDeleteAccount(apiFetch), isError);
+    if (outcome.kind === 'error') {
+      toast.error('Account deletion failed');
+    } else if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();
     }
@@ -315,17 +282,16 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
         finalFocus={triggerRef}
         className="w-[min(400px,calc(100vw-2rem))]"
       >
-        <label className="flex items-start gap-2 text-ui text-text">
-          <Checkbox
-            checked={acknowledged}
-            onCheckedChange={setAcknowledged}
-            label="Acknowledge permanent account deletion"
-            tone="red"
-            disabled={gate.busy}
-            className="mt-0.5"
-          />
-          <span>I understand my account and all of my saved data will be lost.</span>
-        </label>
+        <Checkbox
+          checked={acknowledged}
+          onCheckedChange={setAcknowledged}
+          tone="red"
+          disabled={gate.busy}
+          className="mt-0.5"
+          rowClassName="items-start"
+        >
+          I understand my account and all of my saved data will be lost.
+        </Checkbox>
       </ConfirmDialog>
     </div>
   );

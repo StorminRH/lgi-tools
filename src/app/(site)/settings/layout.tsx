@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { NavRailLayout } from '@/components/ui/nav-rail';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SettingsNav, SettingsNavFallback } from './settings-nav';
@@ -9,17 +10,19 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
     <PageShell mode="workspace">
       <div className="flex flex-col gap-0 pb-20">
         <PageHead title="Settings" />
-        <div
+        <NavRailLayout
           data-settings-layout
-          className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,var(--container-reading))] lg:gap-10"
+          columns="reading"
+          rail={
+            <Suspense fallback={<SettingsNavFallback />}>
+              <SettingsNav />
+            </Suspense>
+          }
+          contentProps={{ 'data-settings-content': true }}
+          contentClassName="flex flex-col gap-6"
         >
-          <Suspense fallback={<SettingsNavFallback />}>
-            <SettingsNav />
-          </Suspense>
-          <div data-settings-content className="flex min-w-0 flex-col gap-6">
-            {children}
-          </div>
-        </div>
+          {children}
+        </NavRailLayout>
       </div>
     </PageShell>
   );

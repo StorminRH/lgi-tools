@@ -1,4 +1,4 @@
-import { createElement, type ReactElement, type ReactNode } from 'react';
+import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
@@ -7,12 +7,10 @@ import { setMemberCategories } from '@/features/industry-planner/profiles/assign
 import { settle } from '@/lib/__tests__/hook-runtime';
 
 // Show dialog contents inline; the real popups only mount in a browser.
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children }: { children: ReactNode }) => createElement('div', { role: 'dialog' }, children),
-  DialogHeader: ({ title, description }: { title: ReactNode; description?: ReactNode }) =>
-    createElement('header', null, title, description),
-  DialogClose: ({ children }: { children: ReactNode }) => createElement('button', null, children),
-}));
+vi.mock('@base-ui/react/dialog', async () => {
+  const { StaticBaseDialog } = await import('@/components/ui/__tests__/static-base-dialog');
+  return { Dialog: StaticBaseDialog };
+});
 
 vi.mock('@/components/character-portrait', () => ({
   CharacterPortrait: ({ name }: { name: string }) => createElement('img', { alt: name }),
@@ -90,6 +88,9 @@ test('creating suggests a free name, starts with the picked characters, and open
 
   // Every linked character starts unpicked, and the profile needs at least one.
   const html = renderToStaticMarkup(createElement(ProfileNameDialog, { ...create.props } as never));
+  const label = html.match(/<div role="dialog" aria-labelledby="([^"]+)"/)?.[1];
+  expect(label).toBeTruthy();
+  expect(html.match(/<h2 id="([^"]+)"[^>]*>New profile<\/h2>/)?.[1]).toBe(label);
   expect(html).toContain('aria-label="Characters"');
   expect(html).toMatch(/aria-pressed="false"[^>]*aria-label="Builder"/);
   expect(html).toMatch(/aria-pressed="false"[^>]*aria-label="Reactor"/);

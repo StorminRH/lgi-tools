@@ -16,6 +16,7 @@ describe('deriveActiveAdminSection', () => {
     expect(deriveActiveAdminSection('/admin/')?.id).toBe('overview');
     expect(deriveActiveAdminSection('/admin/esi')?.id).toBe('esi');
     expect(deriveActiveAdminSection('/admin/statics/anything')?.id).toBe('statics');
+    expect(deriveActiveAdminSection('/admin/unlisted')).toBeNull();
     expect(deriveActiveAdminSection('/admin-ish')).toBeNull();
     expect(deriveActiveAdminSection('/')).toBeNull();
   });

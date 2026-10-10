@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 
-type IconProps = { size?: number; className?: string };
+type IconProps = { size?: number; className?: string; strokeWidth?: number };
 
 function strokeIcon(paths: ReactNode) {
-  return function StrokeIcon({ size = 16, className }: IconProps) {
+  return function StrokeIcon({ size = 16, className, strokeWidth = 1.8 }: IconProps) {
     return (
       <svg
         aria-hidden
@@ -12,7 +12,7 @@ function strokeIcon(paths: ReactNode) {
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.8}
+        strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}

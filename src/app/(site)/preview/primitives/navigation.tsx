@@ -11,7 +11,9 @@ import {
 } from '@/components/ui/navigation-menu';
 import { PageHead, PageTitle } from '@/components/ui/page-head';
 import { Pagination } from '@/components/ui/pagination';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Tabs } from '@/components/ui/tabs';
+import { CardLink, ExternalLink, inlineLink } from '@/components/ui/text-link';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 const NAV_ITEMS = [
@@ -57,7 +59,7 @@ export function NavigationGroup() {
       <Specimen
         name="Pagination"
         source="pagination"
-        note="Compact page controls beside an honest row count. Link mode via hrefForPage, callback mode via onPageChange."
+        note="Compact page controls beside an honest row count. Each control hands its page to onPageChange."
       >
         <Pagination page={page} pageCount={12} total={284} pageSize={25} onPageChange={setPage} />
       </Specimen>
@@ -86,6 +88,37 @@ export function NavigationGroup() {
       </Specimen>
 
       <Specimen
+        name="CardLink + ExternalLink + inlineLink"
+        source="text-link"
+        note="Text links. CardLink is the action in a card header's hint: an accent label whose arrow never wraps away from it, with ↗ when the link leaves the console. ExternalLink opens another site in a new tab without handing it this page. inlineLink colours a link inside helper copy."
+      >
+        <div className="flex flex-col gap-4">
+          <Variant label="card link">
+            <div className="flex flex-col gap-2">
+              <SectionHeader label="Industry" hint={<CardLink href="#navigation">Open jobs</CardLink>} />
+              <SectionHeader
+                label="UI reference"
+                hint={
+                  <CardLink href="#navigation" arrow="↗">
+                    Primitives
+                  </CardLink>
+                }
+              />
+            </div>
+          </Variant>
+          <Variant label="external, inline">
+            <p className="font-ui text-ui leading-relaxed text-muted">
+              Source and issues live on{' '}
+              <ExternalLink href="https://github.com/StorminRH/lgi-tools" className={inlineLink}>
+                GitHub
+              </ExternalLink>
+              .
+            </p>
+          </Variant>
+        </div>
+      </Specimen>
+
+      <Specimen
         name="PageHead"
         source="page-head"
         note="Display title, subtitle, and meta in three sizes, for pages the nav does not already name. PageTitle also stands alone."
@@ -101,7 +134,7 @@ export function NavigationGroup() {
       <Specimen
         name="ContentBrowser + NavRail"
         source="content-browser · nav-rail"
-        note="A sticky glass rail beside a reading column; below lg it collapses into a drawer bar. This page's own contents rail uses NavRailFrame and NavRailTree."
+        note="A sticky glass rail beside a reading column; below lg it collapses into a drawer bar. This page's own contents rail uses NavRailLayout, NavRailFrame and NavRailTree."
         wide
       >
         <ContentBrowser

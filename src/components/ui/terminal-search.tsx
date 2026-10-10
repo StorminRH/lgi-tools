@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type Ref } from 'react';
 import { Callout } from './callout';
 import * as Combobox from './combobox';
+import { pickOrType } from './combobox-pick';
 import { scrollArea } from './scroll-area';
 import { deriveTerminalDropdown } from './terminal-search-view';
 import { eyebrow } from './type-roles';
@@ -95,11 +96,19 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
       <Combobox.Root
         items={visibleSuggestions}
         value={value}
-        onValueChange={(next: string) => {
-          setValue(next);
-          setError(null);
-          highlightedRef.current = null;
-        }}
+        onValueChange={(next, details) =>
+          pickOrType(next, details, {
+            onType: (text) => {
+              setValue(text);
+              setError(null);
+              highlightedRef.current = null;
+            },
+            onPick: (suggestion) => {
+              setValue(suggestion);
+              submitParsedString(suggestion);
+            },
+          })
+        }
         onItemHighlighted={(v: string | undefined) => {
           highlightedRef.current = v ?? null;
         }}
@@ -107,17 +116,12 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
           if (!open) highlightedRef.current = null;
         }}
         filter={null}
-        mode="list"
       >
         <Combobox.Field
           ref={inputRef}
           id={inputId}
           type="text"
           placeholder={placeholder}
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          autoComplete="off"
           className="h-[30px] w-full"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && highlightedRef.current === null) {
@@ -136,10 +140,6 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
                 <Combobox.Item
                   key={s}
                   value={s}
-                  onClick={() => {
-                    setValue(s);
-                    submitParsedString(s);
-                  }}
                   className="w-full px-2.5 py-2 text-ui font-data text-text"
                 >
                   {s}
