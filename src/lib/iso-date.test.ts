@@ -79,3 +79,15 @@ test('the UTC day helpers ignore the host time zone', () => {
     vi.unstubAllEnvs();
   }
 });
+
+test('weekends follow the UTC day behind UTC as well', () => {
+  // West of UTC, a UTC midnight is still the previous local day.
+  vi.stubEnv('TZ', 'Pacific/Honolulu');
+  try {
+    expect(new Date('2026-07-13T00:00:00Z').getDay()).toBe(0);
+    expect(isUtcWeekend('2026-07-13')).toBe(false);
+    expect(isUtcWeekend('2026-07-11')).toBe(true);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
