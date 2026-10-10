@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { Pill } from '@/components/ui/pill';
 import type { CategoryKey } from '@/features/industry-planner/profiles/production-categories';
+import { romanLevel } from '@/features/skill-queue/progress';
 import { formatPct } from '@/lib/format/number';
 import { PANELS_MOTION, SHEET_MOTION } from '../board/board-motion';
 import { SectionPanel } from '../board/SectionBody';
@@ -18,12 +19,6 @@ import {
   type MemberSkills,
   type RailMember,
 } from './workspace-model';
-
-const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'] as const;
-
-function level(n: number): string {
-  return ROMAN[n] ?? String(n);
-}
 
 function MemberCategories({
   member,
@@ -62,7 +57,7 @@ function TimeSkillRow({
             {group.skills.map((skill) => (
               <li key={skill.name} className="flex items-baseline justify-between gap-3">
                 <span>{skill.name}</span>
-                <span className="font-data">{level(skill.level)}</span>
+                <span className="font-data">{romanLevel(skill.level)}</span>
               </li>
             ))}
           </ul>

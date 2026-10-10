@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkillQueueEntry } from './esi-projection';
-import { currentTraining, entryProgress, romanLevel, summarizeQueue } from './progress';
+import { currentTraining, entryProgress, entryTimes, isEntryFinished, romanLevel, summarizeQueue } from './progress';
 
 const NOW = Date.parse('2026-06-11T12:00:00Z');
 
@@ -54,6 +54,29 @@ describe('entryProgress', () => {
       finish_date: '2026-06-14T00:00:00Z',
     });
     expect(entryProgress(future, NOW).status).toBe('pending');
+  });
+
+  it('counts a passed finish as done whatever the start, and a finish that does not parse as paused', () => {
+    expect(entryTimes(entry({ start_date: '2026-06-11T12:00:00Z', finish_date: 'garbage' }))).toEqual({
+      start: NOW,
+      finish: null,
+    });
+    expect(entryTimes(entry({}))).toEqual({ start: null, finish: null });
+    expect(isEntryFinished(entry({ finish_date: '2026-06-11T12:00:00Z' }), NOW)).toBe(true);
+    expect(isEntryFinished(entry({ finish_date: '2026-06-11T12:00:00.001Z' }), NOW)).toBe(false);
+    expect(isEntryFinished(entry({ finish_date: 'garbage' }), NOW)).toBe(false);
+    expect(isEntryFinished(entry({}), NOW)).toBe(false);
+
+    const undated = entry({ finish_date: '2026-06-10T00:00:00Z' });
+    expect(entryProgress(undated, NOW)).toEqual({ status: 'done', pct: 100 });
+    const garbled = entry({
+      start_date: '2026-06-01T00:00:00Z',
+      finish_date: 'garbage',
+      level_start_sp: 0,
+      level_end_sp: 1000,
+      training_start_sp: 250,
+    });
+    expect(entryProgress(garbled, NOW)).toEqual({ status: 'paused', pct: 25 });
   });
 });
 
@@ -124,6 +147,18 @@ describe('currentTraining', () => {
     });
     const result = currentTraining([done, next], NOW);
     expect(result).toMatchObject({ kind: 'training', skillId: 1978 });
+  });
+
+  it('skips a head that finished without a start date, and stops paused at a finish that does not parse', () => {
+    const undated = entry({ finish_date: '2026-06-10T00:00:00Z' });
+    const next = entry({ ...active, skill_id: 1978, queue_position: 1 });
+    expect(currentTraining([undated, next], NOW)).toMatchObject({
+      kind: 'training',
+      skillId: 1978,
+      finishesAt: Date.parse('2026-06-12T00:00:00Z'),
+    });
+    const garbled = entry({ start_date: '2026-06-11T00:00:00Z', finish_date: 'garbage' });
+    expect(currentTraining([garbled, next], NOW)).toEqual({ kind: 'paused', skillId: 3339, level: 5, pct: 0 });
   });
 
   it('reports a paused queue without a finish time', () => {

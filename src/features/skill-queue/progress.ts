@@ -16,13 +16,36 @@ function spPct(entry: SkillQueueEntry, trainedFraction: number): number | null {
   return clampPct(((currentSp - startSp) / (endSp - startSp)) * 100);
 }
 
+function parseOptionalMs(iso: string | undefined): number | null {
+  if (iso === undefined) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+export interface EntryTimes {
+  /** Epoch ms, or null when the date is missing or does not parse. */
+  start: number | null;
+  finish: number | null;
+}
+
+/** A queue entry's start and finish times; ESI omits both while the queue is paused. */
+export function entryTimes(entry: Pick<SkillQueueEntry, 'start_date' | 'finish_date'>): EntryTimes {
+  return { start: parseOptionalMs(entry.start_date), finish: parseOptionalMs(entry.finish_date) };
+}
+
+/**
+ * An entry has finished once its finish time has passed, whatever its start
+ * time says. A missing or unparseable finish never counts as finished.
+ */
+export function isEntryFinished(entry: Pick<SkillQueueEntry, 'finish_date'>, now: number): boolean {
+  const finish = parseOptionalMs(entry.finish_date);
+  return finish !== null && finish <= now;
+}
+
 export function entryProgress(entry: SkillQueueEntry, now: number): EntryProgress {
-  const start = entry.start_date !== undefined ? Date.parse(entry.start_date) : null;
-  const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;
-  if (start === null || finish === null || !Number.isFinite(start) || !Number.isFinite(finish)) {
-    return { status: 'paused', pct: spPct(entry, 0) ?? 0 };
-  }
-  if (finish <= now) return { status: 'done', pct: 100 };
+  if (isEntryFinished(entry, now)) return { status: 'done', pct: 100 };
+  const { start, finish } = entryTimes(entry);
+  if (start === null || finish === null) return { status: 'paused', pct: spPct(entry, 0) ?? 0 };
   if (start > now) return { status: 'pending', pct: spPct(entry, 0) ?? 0 };
   const timeFraction = (now - start) / (finish - start);
   return {
@@ -47,9 +70,7 @@ export function summarizeQueue(entries: SkillQueueEntry[], now: number): QueueSu
   if (doneCount === entries.length) {
     return { kind: 'complete', doneCount, finishesAt: null };
   }
-  const finishes = entries
-    .map((entry) => (entry.finish_date !== undefined ? Date.parse(entry.finish_date) : NaN))
-    .filter((t) => Number.isFinite(t));
+  const finishes = entries.map((entry) => entryTimes(entry).finish).filter((finish) => finish !== null);
   return {
     kind: 'active',
     doneCount,
@@ -74,11 +95,12 @@ export function currentTraining(entries: SkillQueueEntry[], now: number): Curren
   for (const entry of ordered) {
     const { status, pct } = entryProgress(entry, now);
     if (status === 'done') continue;
-    if (status === 'paused') {
+    // Any status but paused means both dates parsed, so the finish is set.
+    const { finish } = entryTimes(entry);
+    if (status === 'paused' || finish === null) {
       return { kind: 'paused', skillId: entry.skill_id, level: entry.finished_level, pct };
     }
-    const finishesAt = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : NaN;
-    return { kind: 'training', skillId: entry.skill_id, level: entry.finished_level, pct, finishesAt };
+    return { kind: 'training', skillId: entry.skill_id, level: entry.finished_level, pct, finishesAt: finish };
   }
   return { kind: 'complete' };
 }

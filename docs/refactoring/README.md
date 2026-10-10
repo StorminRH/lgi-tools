@@ -339,7 +339,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P108](wave-04-formatting-dates-and-names-have-one-home.md#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
 | ☑ | [P272](wave-04-formatting-dates-and-names-have-one-home.md#p272) | Move formatStationName to lib/format and parseStructureFit to features/custom-structures | feature-skeleton | S | low | low | — |
 | ☑ | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) | Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard | formatting | S | low | medium | — |
-| ☐ | [P118](wave-04-formatting-dates-and-names-have-one-home.md#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
+| ☑ | [P118](wave-04-formatting-dates-and-names-have-one-home.md#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
 
 ### [Wave 5: Persistence primitives and data-layer SQL](wave-05-persistence-primitives-and-data-layer-sql.md)
 

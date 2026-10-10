@@ -10,7 +10,13 @@ import {
   type SystemRef,
 } from '@/composition/board/api-contract';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
-import { type CurrentTraining, currentTraining, summarizeQueue } from '@/features/skill-queue/progress';
+import {
+  type CurrentTraining,
+  currentTraining,
+  entryTimes,
+  isEntryFinished,
+  summarizeQueue,
+} from '@/features/skill-queue/progress';
 import { unresolvedName } from '@/lib/format/names';
 import { formatUtcDate, formatRemaining } from '@/lib/format/time';
 import { DAY_MS, HOUR_MS, isoDayStartMs } from '@/lib/iso-date';
@@ -98,10 +104,7 @@ function trainingOf(
   return {
     training,
     skillName: skillId !== null ? (names[String(skillId)] ?? null) : null,
-    remainingLabel:
-      training.kind === 'training' && Number.isFinite(training.finishesAt)
-        ? formatRemaining(training.finishesAt - now)
-        : null,
+    remainingLabel: training.kind === 'training' ? formatRemaining(training.finishesAt - now) : null,
   };
 }
 
@@ -222,7 +225,7 @@ export function effectiveSkills(
     atV: skills.atV,
   };
   for (const entry of skills.queue) {
-    if (entry.finish_date === undefined || Date.parse(entry.finish_date) > now) continue;
+    if (!isEntryFinished(entry, now)) continue;
     applyFinishedEntry(effective, skills.levels, entry);
   }
   return effective;
@@ -388,10 +391,9 @@ export function queueTimeline(queue: readonly SkillQueueEntry[], now: number): Q
   const segments: TimelineSegment[] = [];
   let endsAt = now;
   for (const entry of queue) {
-    if (entry.start_date === undefined || entry.finish_date === undefined) continue;
-    const start = Date.parse(entry.start_date);
-    const finish = Date.parse(entry.finish_date);
-    if (!Number.isFinite(start) || !Number.isFinite(finish) || finish <= now) continue;
+    if (isEntryFinished(entry, now)) continue;
+    const { start, finish } = entryTimes(entry);
+    if (start === null || finish === null) continue;
     segments.push({ key: entry.queue_position, weight: finish - Math.max(start, now), training: start <= now });
     endsAt = Math.max(endsAt, finish);
   }
@@ -616,7 +618,7 @@ export interface QueueRow {
 export function remainingQueue(queue: readonly SkillQueueEntry[], now: number): QueueRow[] {
   return [...queue]
     .sort((a, b) => a.queue_position - b.queue_position)
-    .filter((entry) => entry.finish_date === undefined || Date.parse(entry.finish_date) > now)
+    .filter((entry) => !isEntryFinished(entry, now))
     .map((entry, index) => ({ number: index + 1, entry }));
 }
 

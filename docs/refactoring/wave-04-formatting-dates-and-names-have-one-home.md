@@ -21,7 +21,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P108](#p108) | Export the structure-id rule, location labels and public location name from data/corp-holdings/labels.ts, and the unresolved-entity fallback from lib/format/names.ts | generic-utility | S | low | medium | [P094](#p094) |
 | ☑ | [P272](#p272) | Move formatStationName to lib/format and parseStructureFit to features/custom-structures | feature-skeleton | S | low | low | — |
 | ☑ | [P098](#p098) | Hoist activityLabel to data/eve-data, label activity 9 as a reaction, and unify the planner's production-activity guard | formatting | S | low | medium | — |
-| ☐ | [P118](#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
+| ☑ | [P118](#p118) | Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule | generic-utility | S | low | low | — |
 
 <a id="p088"></a>
 
@@ -1151,7 +1151,7 @@ Existing guards that must stay green: industry-jobs-styles.test.ts jobCategory (
 
 ## P118: Reuse romanLevel in MemberDetail and give skill-queue one parsed-time and finished-entry rule
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +15 in production code (net about 0; consistency gain), +30 in tests
 - **Depends on:** —
