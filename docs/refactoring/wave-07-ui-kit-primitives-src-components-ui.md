@@ -23,7 +23,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P002](#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
 | ☑ | [P017](#p017) | Expose SectionBody's note as SectionNote for board and workspace panels, and use EmptyState and LoadingLabel where they are bypassed | ui-component | S | low | medium | [P002](#p002) |
 | ☑ | [P034](#p034) | Move CardLink to ui, add ui ExternalLink and an inlineLink class, and make MultiplesCell children optional | ui-component | M | low | medium | — |
-| ☐ | [P036](#p036) | Render the admin GSC top-term lists with DistributionBars plus a new subline field | ui-component | S | low | low | — |
+| ☑ | [P036](#p036) | Render the admin GSC top-term lists with DistributionBars plus a new subline field | ui-component | S | low | low | — |
 | ☐ | [P023](#p023) | Extract SwitcherMenu and a shared float icon trigger for the profile and map switchers | ui-component | S | low | low | — |
 | ☐ | [P057](#p057) | Move the document-wide view-transition reduced-motion rule to globals.css and share the board/industry view-transition fade keyframes | css-styling | S | low | low | — |
 | ☐ | [P039](#p039) | Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes | ui-component | M | medium | medium | — |
@@ -1230,7 +1230,7 @@ MultiplesCell({ title, value, delta?, note?, children?: ReactNode }) // wrapper 
 
 ## P036: Render the admin GSC top-term lists with DistributionBars plus a new subline field
 
-- **Status:** [ ] not started
+- **Status:** [x] already done (see commit)
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 in SearchCards, +5 in distribution-bars, +10 in traffic-view, plus about 20 lines of tests
 - **Depends on:** —
