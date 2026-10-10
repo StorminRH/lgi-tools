@@ -45,7 +45,6 @@ installLocalStorageShim();
 installDocumentShim();
 
 const {
-  COST_BASES,
   industryCostBasis,
   sitesView,
   atlasDockCharacter,
@@ -110,8 +109,8 @@ describe('validatePreferenceValue', () => {
     expect(validatePreferenceValue('industry.favoriteBlueprints', [2049])).toBe(false);
   });
 
-  it('keeps the cost basis to COST_BASES', () => {
-    for (const basis of COST_BASES) {
+  it('keeps the cost basis to batched or marginal', () => {
+    for (const basis of ['batched', 'marginal']) {
       expect(validatePreferenceValue(industryCostBasis.key, basis)).toBe(true);
     }
     expect(validatePreferenceValue(industryCostBasis.key, 'average')).toBe(false);

@@ -24,7 +24,7 @@ import {
 } from './context-projection';
 import type { CorpHoldingContext } from './placement';
 
-export const CORP_CONTEXT_SYNC_SCOPES = [
+const CORP_CONTEXT_SYNC_SCOPES = [
   'esi-characters.read_corporation_roles.v1',
   'esi-corporations.read_divisions.v1',
   'esi-corporations.track_members.v1',

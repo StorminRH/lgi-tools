@@ -27,7 +27,7 @@ export const sitesDetailMode = define<'lightbox' | 'expand'>(
 );
 
 /** How the planner prices inputs: the whole batched line, or the marginal share of one build. */
-export const COST_BASES = ['batched', 'marginal'] as const;
+const COST_BASES = ['batched', 'marginal'] as const;
 export type CostBasis = (typeof COST_BASES)[number];
 
 export const industryCostBasis = define<CostBasis>(

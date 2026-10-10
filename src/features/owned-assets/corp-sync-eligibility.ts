@@ -6,7 +6,7 @@ import { scopeEligibility } from '@/lib/scope-eligibility';
  * corp-assets read lives under `esi-assets` (NOT `esi-corporations` — unlike
  * the corp BLUEPRINTS read).
  */
-export const CORP_ASSETS_SYNC_SCOPES = [
+const CORP_ASSETS_SYNC_SCOPES = [
   'esi-characters.read_corporation_roles.v1',
   'esi-assets.read_corporation_assets.v1',
 ] as const satisfies readonly EveScope[];
