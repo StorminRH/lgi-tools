@@ -6,12 +6,14 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 export const MODULE_EXTENSIONS = ['.ts', '.tsx', '.mts'] as const;
 const ROUTE_FILE = /^route\.(?:ts|js|mts|mjs)$/;
 
-// The clause stops at a `;`, a quote, or a line that opens another import or
-// export, so a match that starts at a statement without `from` fails there
-// instead of splicing that statement into the next one's clause.
+// A statement starts at the file start, a line start or after a `;`, so a
+// second statement on the same line is still read. The clause stops at a
+// `;`, a quote, or a line that opens another import or export, so a match
+// that starts at a statement without `from` fails there instead of splicing
+// that statement into the next one's clause.
 const FROM_CLAUSE =
-  /(?:^|\n)\s*(?:import|export)\s+((?:(?!\n\s*(?:import|export)\b)[^;'"])*?)\s+from\s+['"]([^'"]+)['"]/g;
-const SIDE_EFFECT_IMPORT = /(?:^|\n)\s*import\s*['"]([^'"]+)['"]/g;
+  /(?:^|\n|;)\s*(?:import|export)\s+((?:(?!\n\s*(?:import|export)\b)[^;'"])*?)\s+from\s+['"]([^'"]+)['"]/g;
+const SIDE_EFFECT_IMPORT = /(?:^|\n|;)\s*import\s*['"]([^'"]+)['"]/g;
 const DYNAMIC_IMPORT = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
 function filesUnder(
