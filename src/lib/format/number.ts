@@ -1,4 +1,6 @@
-export function formatQuantity(value: number): string {
+/** A whole number grouped in en-US, so server and client agree; `—` for null or non-finite. */
+export function formatQuantity(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '—';
   return Math.round(value).toLocaleString('en-US');
 }
 

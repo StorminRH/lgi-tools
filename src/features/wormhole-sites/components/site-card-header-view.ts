@@ -1,4 +1,5 @@
 import type { ChipTone, PillTone } from '@/components/ui/tones';
+import { formatQuantity } from '@/lib/format/number';
 import { formatClassRange, gasClassRange } from '../gas-classes';
 import { formatIsk } from '../format';
 import type { SiteDetail, SiteResource } from '../types';
@@ -15,7 +16,7 @@ import {
 function combatSubLine(site: SiteDetail): string {
   const peakDps = site.waves.reduce((m, w) => Math.max(m, w.dpsTotal), 0);
   const totalEhp = site.waves.reduce((n, w) => n + w.ehpTotal, 0);
-  return `DPS ${peakDps.toLocaleString('en-US')} · EHP ${Math.round(totalEhp / 1000).toLocaleString('en-US')}k`;
+  return `DPS ${formatQuantity(peakDps)} · EHP ${formatQuantity(totalEhp / 1000)}k`;
 }
 
 function resourceSubLine(resources: SiteResource[]): string | null {

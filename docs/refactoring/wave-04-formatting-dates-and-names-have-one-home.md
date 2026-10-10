@@ -12,7 +12,7 @@ Fix formatRelativeTime and add formatElapsed. Then lib/iso-date becomes the UTC 
 | ☑ | [P107](#p107) | Make lib/iso-date.ts the home for UTC day math (isoDay, isoDayNumber, isoDayFromNumber, isoDayStartMs, isUtcWeekend, daysBefore, DAY_MS/HOUR_MS) and delete the private copies | generic-utility | M | low | medium | — |
 | ☑ | [P089](#p089) | Make lib/format/time the single UTC date home: one input type, adopt formatIsoDay everywhere, add formatUtcMinute and stripUtcYear | formatting | M | low | medium | [P088](#p088), [P107](#p107) |
 | ☑ | [P177](#p177) | Fix retention-pruner drift with existing retentionCutoff and formatIsoDay; keep per-owner pruners | server-pipeline | S | low | low | [P107](#p107), [P089](#p089) |
-| ☐ | [P085](#p085) | Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local | formatting | S | low | medium | — |
+| ☑ | [P085](#p085) | Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local | formatting | S | low | medium | — |
 | ☐ | [P090](#p090) | Move pluralCount to lib/format/number as formatCount and replace the count-and-noun ternaries | formatting | M | low | low | [P085](#p085) |
 | ☐ | [P091](#p091) | Retire formatBonusPct for formatPct, share the Fuzzwork fallback-share label from data/telemetry, and drop redundant formatIsk null guards | formatting | S | low | low | — |
 | ☐ | [P095](#p095) | Add formatSigned to lib/format/number and use it for the wallet, the margin and effect modifiers | formatting | S | low | low | — |
@@ -421,7 +421,7 @@ export function pruneUsageLogs(database: AnyPgDb, retentionDays: number, now?: D
 
 ## P085: Route client-rendered and drifted number grouping through formatQuantity (null-aware), keep unit suffixes local
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -8 / +6 (no new modules)
 - **Depends on:** —

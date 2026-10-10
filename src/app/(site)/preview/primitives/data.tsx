@@ -13,6 +13,7 @@ import { StackedAreaChart } from '@/components/ui/stacked-area-chart';
 import { SlimShareBar, StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { TrendChart } from '@/components/ui/trend-chart';
+import { formatQuantity } from '@/lib/format/number';
 import {
   sampleAverage,
   sampleBars,
@@ -29,7 +30,7 @@ type Material = { material: string; quantity: number };
 
 const MATERIAL_COLUMNS = [
   { key: 'material', label: 'Material', rowHeader: true, render: (row) => row.material },
-  { key: 'quantity', label: 'Quantity', align: 'right', render: (row) => row.quantity.toLocaleString('en-US') },
+  { key: 'quantity', label: 'Quantity', align: 'right', render: (row) => formatQuantity(row.quantity) },
 ] satisfies readonly StaticTableColumn<Material>[];
 
 type Plan = { id: string; name: string; runs: number; margin: number };
@@ -86,7 +87,7 @@ function ChartSlot({ children }: { children: (width: number) => ReactNode }) {
 }
 
 const formatIsk = (value: number) => `${value.toLocaleString('en-US')}M`;
-const formatClicks = (value: number) => `${value.toLocaleString('en-US')} clk`;
+const formatClicks = (value: number) => `${formatQuantity(value)} clk`;
 const shortDay = (label: string) => label.slice(5);
 
 const TOP_QUERIES = [

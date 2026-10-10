@@ -25,7 +25,7 @@ function budgetFigures(budget: EsiBudgetSnapshot): OpsMetricRow[] {
     },
     {
       label: 'Lowest recent CCP allowance',
-      value: budget.echo === null ? '—' : formatQuantity(budget.echo),
+      value: formatQuantity(budget.echo),
       note: budget.echo === null ? 'not observed' : 'CCP response header',
     },
     {

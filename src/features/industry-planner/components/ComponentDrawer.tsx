@@ -233,7 +233,7 @@ function Sheet({
           <span className="ml-1.5 text-micro text-muted">× {formatQuantity(sheet.batch)}</span>
         </Stat>
         <Stat label="Owned" tone={owned !== null && owned >= sheet.required ? 'text-isk' : undefined}>
-          {owned === null ? '—' : formatQuantity(owned)}
+          {formatQuantity(owned)}
         </Stat>
       </div>
       <div className="grid grid-cols-2 gap-4">

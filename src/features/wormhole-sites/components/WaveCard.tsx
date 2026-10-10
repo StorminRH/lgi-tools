@@ -1,4 +1,5 @@
 import { Collapsible } from '@/components/ui/collapsible';
+import { formatQuantity } from '@/lib/format/number';
 import type { Wave } from '../types';
 import { EwarRow } from './EwarRow';
 import { NpcRow } from './NpcRow';
@@ -25,7 +26,7 @@ export function WaveCard({
             {displayLabel}
           </span>
           <span className="ml-auto text-micro font-semibold tracking-label text-text">
-            DPS {formatDps(wave.dpsTotal)}
+            DPS {formatQuantity(wave.dpsTotal)}
           </span>
         </>
       }
@@ -45,9 +46,4 @@ export function WaveCard({
       </div>
     </Collapsible>
   );
-}
-
-function formatDps(dps: number | null): string {
-  if (dps == null) return '—';
-  return dps.toLocaleString();
 }

@@ -5,6 +5,11 @@ describe('number formatters', () => {
   it('formats quantities and percentages with null/non-finite guards', () => {
     expect(formatQuantity(1234567)).toBe('1,234,567');
     expect(formatQuantity(999.6)).toBe('1,000');
+    expect(formatQuantity(0)).toBe('0');
+    expect(formatQuantity(-4200)).toBe('-4,200');
+    expect(formatQuantity(null)).toBe('—');
+    expect(formatQuantity(Number.NaN)).toBe('—');
+    expect(formatQuantity(Number.POSITIVE_INFINITY)).toBe('—');
 
     expect(formatPct(12.34)).toBe('12.3%');
     expect(formatPct(0)).toBe('0.0%');

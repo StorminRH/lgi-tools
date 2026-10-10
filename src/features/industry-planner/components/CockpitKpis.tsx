@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
-import { formatPct } from '@/lib/format/number';
+import { formatPct, formatQuantity } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
 import {
   cockpitMarginView,
@@ -127,7 +127,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
       <p className="max-w-[240px] text-ui leading-snug text-muted">
         Available at <span className="text-text">{systemName}</span> for {article}{' '}
         <span className="text-isk">{callout.pct}%</span> discount —{' '}
-        {callout.units.toLocaleString('en-US')} units.
+        {formatQuantity(callout.units)} units.
       </p>
     </Popover>
   );

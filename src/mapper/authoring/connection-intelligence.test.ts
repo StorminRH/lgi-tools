@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { withHostNumberLocale } from '@/lib/__tests__/host-locale';
 import {
   codexPanelFacts,
   formatDurationBound,
@@ -62,7 +63,13 @@ describe('connection intelligence', () => {
     expect(codexPanelFacts(K162)).toBeNull();
     expect(codexPanelFacts(null)).toBeNull();
 
-    expect(massRowDisplay(TYPED, 'stable', null, null).kind).toBe('range');
+    expect(withHostNumberLocale('de-DE', () => massRowDisplay(TYPED, 'stable', null, null))).toEqual({
+      kind: 'range',
+      minKg: 900_000_000,
+      maxKg: 2_200_000_000,
+      label: '900M kg–2.2B kg (±10% spawn)',
+      title: '900,000,000–2,200,000,000 kg remaining',
+    });
     expect(massRowDisplay(REGEN, 'stable', null, null)).toEqual({
       kind: 'regenerates',
       label: 'Regenerates — no mass interval',
