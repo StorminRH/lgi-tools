@@ -1,3 +1,5 @@
+import { humanizeIdentifier } from '@/lib/format/text';
+
 const REF_TYPE_LABELS: Readonly<Record<string, string>> = {
   agent_mission_reward: 'Mission reward',
   agent_mission_time_bonus_reward: 'Mission bonus',
@@ -35,14 +37,6 @@ const REF_TYPE_LABELS: Readonly<Record<string, string>> = {
   war_fee: 'War fee',
 };
 
-function titleCase(snake: string): string {
-  return snake
-    .split('_')
-    .filter((word) => word.length > 0)
-    .map((word) => word[0]!.toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
 export function journalRefLabel(refType: string): string {
-  return REF_TYPE_LABELS[refType] ?? titleCase(refType);
+  return REF_TYPE_LABELS[refType] ?? humanizeIdentifier(refType);
 }
