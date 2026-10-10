@@ -2,7 +2,13 @@ import type { ReactNode } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
-import type { CapabilityFailureDetail, FailureGroup, SlowOperation } from '@/data/telemetry/capability-stats';
+import type {
+  CapabilityFailureDetail,
+  EsiClientErrorGroup,
+  EsiClientErrorSummary,
+  FailureGroup,
+  SlowOperation,
+} from '@/data/telemetry/capability-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
 import { formatQuantity } from '@/lib/format/number';
@@ -35,6 +41,7 @@ export interface ServiceLevelDetails {
   mutation: Loaded<FailureDetail>;
   slowest: Loaded<SlowOperation[]>;
   esi: Loaded<FailureGroup[]>;
+  esiClientErrors: Loaded<EsiClientErrorSummary>;
   queue: Loaded<EsiRefreshQueueStat[]>;
   deadLetters: Loaded<DeadLetterRow[]>;
 }
@@ -89,6 +96,36 @@ const SLOW_COLUMNS = [
     className: 'whitespace-nowrap tabular-nums',
   },
 ] satisfies readonly StaticTableColumn<SlowOperation>[];
+
+const CLIENT_ERROR_COLUMNS = [
+  {
+    key: 'operation',
+    label: 'Operation',
+    rowHeader: true,
+    render: (row) => <span className="block min-w-0 text-text">{operationLabel(row)}</span>,
+  },
+  {
+    key: 'errors',
+    label: '4xx',
+    align: 'right',
+    render: (row) => formatQuantity(row.errors),
+    className: 'tabular-nums',
+  },
+  {
+    key: 'share',
+    label: 'Of calls',
+    align: 'right',
+    render: (row) => (row.calls > 0 ? `${((row.errors / row.calls) * 100).toFixed(1)}%` : '—'),
+    className: 'tabular-nums',
+  },
+  {
+    key: 'last',
+    label: 'Last seen',
+    align: 'right',
+    render: (row) => (row.lastSeen === null ? '—' : isoDay(row.lastSeen)),
+    className: 'whitespace-nowrap text-muted tabular-nums',
+  },
+] satisfies readonly StaticTableColumn<EsiClientErrorGroup>[];
 
 function Unavailable() {
   return <EmptyState inset kind="unavailable">Details unavailable.</EmptyState>;
@@ -154,9 +191,32 @@ function SlowestBody({ slowest }: { slowest: Loaded<SlowOperation[]> }) {
   );
 }
 
-function EsiBody({ esi }: { esi: Loaded<FailureGroup[]> }) {
-  if (esi === SECTION_LOAD_FAILED) return <Unavailable />;
-  return <FailureTable groups={esi} label="Top ESI failure groups" />;
+function ClientErrorTable({ summary }: { summary: Loaded<EsiClientErrorSummary> }) {
+  if (summary === SECTION_LOAD_FAILED) return <Unavailable />;
+  if (summary.groups.length === 0) {
+    return <EmptyState inset kind="clear">No 4xx answers from ESI in this period.</EmptyState>;
+  }
+  return (
+    <TitledBlock title="ESI 4xx answers">
+      <StaticTable
+        ariaLabel="ESI 4xx answers"
+        columns={CLIENT_ERROR_COLUMNS}
+        rows={summary.groups}
+        getRowKey={operationLabel}
+      />
+    </TitledBlock>
+  );
+}
+
+function EsiBody({ details }: { details: ServiceLevelDetails }) {
+  return (
+    <>
+      {details.esi === SECTION_LOAD_FAILED
+        ? <Unavailable />
+        : <FailureTable groups={details.esi} label="Top ESI failure groups" />}
+      <ClientErrorTable summary={details.esiClientErrors} />
+    </>
+  );
 }
 
 function BacklogBody({ details }: { details: ServiceLevelDetails }) {
@@ -206,7 +266,7 @@ function detailFor(row: ServiceLevelRow, details: ServiceLevelDetails): ReactNod
     case 'critical_latency_p95':
       return <SlowestBody slowest={details.slowest} />;
     case 'esi_success_rate':
-      return <EsiBody esi={details.esi} />;
+      return <EsiBody details={details} />;
     case 'job_backlog':
       return <BacklogBody details={details} />;
   }

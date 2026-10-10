@@ -3,6 +3,7 @@ import {
   capabilityFailureDetail,
   capabilitySuccessRate,
   esiAvailability,
+  esiClientErrors,
   esiFailureGroups,
   roundedP95,
   slowestOperations,
@@ -188,10 +189,26 @@ describe('roundedP95', () => {
 });
 
 describe('slowestOperations', () => {
-  function latency(operation: string, p95: number | null, dependencyMs: OperationLatency['dependencyMs']): OperationLatency {
-    return { feature: 'planner', operation, p95, count: 2, dependencyMs };
+  const none: OperationLatency['dependencyMs'] = {
+    neon: null, esi: null, redis: null, convex: null, sso: null, fuzzwork: null,
+  };
+  function latency(
+    operation: string,
+    p95: number | null,
+    dependencyMs: Partial<OperationLatency['dependencyMs']>,
+    extra: Partial<Pick<OperationLatency, 'durationMs' | 'untimedShare'>> = {},
+  ): OperationLatency {
+    return {
+      feature: 'planner',
+      operation,
+      p95,
+      count: 2,
+      durationMs: 200,
+      untimedShare: null,
+      ...extra,
+      dependencyMs: { ...none, ...dependencyMs },
+    };
   }
-  const none = { neon: null, esi: null, redis: null };
 
   it('keeps the five slowest by p95, an untimed operation first as Postgres sorts it', () => {
     const rows = [
@@ -212,10 +229,44 @@ describe('slowestOperations', () => {
     ]);
   });
 
-  it('names the dependency with the most average time per run', () => {
-    const [row] = slowestOperations([latency('a', 100, { neon: 20, esi: 150, redis: 5 })]);
-    expect(row).toEqual({ feature: 'planner', operation: 'a', p95Ms: 100, count: 2, slowestDependency: 'esi' });
+  it('names the dependency with the most average time per run and its share of the run', () => {
+    const [row] = slowestOperations([
+      latency('a', 100, { neon: 20, esi: 150, redis: 5 }, { untimedShare: 0.1 }),
+    ]);
+    expect(row).toEqual({
+      feature: 'planner',
+      operation: 'a',
+      p95Ms: 100,
+      count: 2,
+      slowestDependency: 'esi',
+      slowestShare: 0.75,
+      untimedShare: 0.1,
+    });
     expect(slowestOperations([latency('a', 1, { neon: 0, esi: Number.NaN, redis: null })])[0]?.slowestDependency).toBeNull();
     expect(slowestOperations([latency('a', 1, { neon: 9, esi: 9, redis: 3 })])[0]?.slowestDependency).toBe('neon');
+    expect(slowestOperations([latency('a', 1, { convex: 40, neon: 9 })])[0]?.slowestDependency).toBe('convex');
+  });
+
+  it('clamps shares to 0-1 and leaves them unknown without a duration or recorded wall time', () => {
+    const [over] = slowestOperations([latency('a', 1, { esi: 500 }, { untimedShare: -0.2 })]);
+    expect(over).toMatchObject({ slowestShare: 1, untimedShare: 0 });
+    const [unknown] = slowestOperations([latency('a', 1, { esi: 5 }, { durationMs: null, untimedShare: Number.NaN })]);
+    expect(unknown).toMatchObject({ slowestShare: null, untimedShare: null });
+  });
+});
+
+describe('esiClientErrors', () => {
+  const group = (operation: string, errors: number, calls: number) => ({
+    feature: 'planner', operation, errors, calls, lastSeen: new Date('2026-09-20T00:00:00Z'),
+  });
+
+  it('totals every operation but lists only those with a 4xx, most first', () => {
+    const summary = esiClientErrors([group('a', 0, 100), group('b', 2, 50), group('c', 5, 50)]);
+    expect(summary).toMatchObject({ errors: 7, calls: 200, rate: 0.035 });
+    expect(summary.groups.map((row) => row.operation)).toEqual(['c', 'b']);
+  });
+
+  it('has no rate before any ESI call was recorded', () => {
+    expect(esiClientErrors([])).toEqual({ errors: 0, calls: 0, rate: null, groups: [] });
   });
 });

@@ -38,13 +38,21 @@ export async function getIndustryProfileDocument(
   return row ? readStoredDocument(row.document) : null;
 }
 
-const CREATE_ATTEMPTS = 3;
+const CREATE_ATTEMPTS = 8;
+/** Retry n waits a random 0 to n times this long, so rejected creates spread out. */
+const CREATE_BACKOFF_MS = 20;
+
+function pauseBeforeCreateRetry(attempt: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, Math.random() * CREATE_BACKOFF_MS * attempt));
+}
 
 /**
  * Saves a new profile unless the account already holds the most it may. The
  * count and the insert are one serializable statement, so no lock is held: of
  * two creates that overlap, Postgres rejects one, and its next attempt sees the
- * other's profile.
+ * other's profile. Postgres tracks those conflicts by page, so creates for
+ * different accounts can reject each other too; the random pause keeps a busy
+ * burst from colliding on every attempt.
  */
 export async function createIndustryProfile(
   userId: string,
@@ -61,6 +69,7 @@ export async function createIndustryProfile(
     } catch (error) {
       if (attempt >= CREATE_ATTEMPTS || !isSerializationFailure(error)) throw error;
     }
+    await pauseBeforeCreateRetry(attempt);
   }
 }
 
