@@ -2,6 +2,8 @@
 
 import { useId, useRef, useState, type MouseEvent } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { floatIconTrigger } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
@@ -35,6 +37,7 @@ import { PointerMenu, type MenuAnchor } from '@/components/ui/pointer-menu';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { Tooltip } from '@/components/ui/tooltip';
 import { SidePanel } from '@/components/ui/side-panel';
+import { SwitcherMenu } from '@/components/ui/switcher-menu';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 const secondaryTrigger = buttonVariants({ variant: 'secondary', size: 'sm' });
@@ -94,6 +97,41 @@ function ReferenceMenu({ surface }: { surface: 'solid' | 'frosted' }) {
         <MenuLinkItem className={menuRow} href="#overlays">Back to overlays</MenuLinkItem>
       </MenuGroup>
     </Menu>
+  );
+}
+
+const SWITCHER_PLANS = ['Main build', 'Capital parts', 'Reaction chain'] as const;
+
+function SwitcherSample() {
+  const [current, setCurrent] = useState<string>(SWITCHER_PLANS[0]);
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <SwitcherMenu label={`Switch plan from ${current}`} current={current} className="flex min-w-56 flex-col">
+        {SWITCHER_PLANS.map((plan) => (
+          <MenuItem
+            key={plan}
+            closeOnClick
+            aria-current={plan === current ? 'true' : undefined}
+            className={cn(menuRow, 'rounded-ctl', plan === current && 'bg-row-on text-name')}
+            onClick={() => setCurrent(plan)}
+          >
+            {plan}
+          </MenuItem>
+        ))}
+      </SwitcherMenu>
+      <Menu
+        label={`Manage ${current}`}
+        trigger={<span aria-hidden>⋯</span>}
+        triggerClassName={cn(floatIconTrigger, 'font-data text-h3')}
+        className="min-w-48 rounded-card p-[5px]"
+        surface="frosted"
+        align="start"
+        sideOffset={8}
+      >
+        <MenuItem closeOnClick className={cn(menuRow, 'rounded-ctl')}>Rename…</MenuItem>
+        <MenuItem closeOnClick className={cn(menuRow, 'rounded-ctl')}>Duplicate…</MenuItem>
+      </Menu>
+    </div>
   );
 }
 
@@ -285,6 +323,14 @@ export function OverlaysGroup() {
             <ReferenceMenu surface="frosted" />
           </Variant>
         </div>
+      </Specimen>
+
+      <Specimen
+        name="SwitcherMenu"
+        source="switcher-menu · card"
+        note="A floating glass pill that names the open record and switches it from a frosted list capped at 24rem. Callers own the rows and mark the open one with aria-current. floatIconTrigger is the round glass button beside it."
+      >
+        <SwitcherSample />
       </Specimen>
 
       <Specimen

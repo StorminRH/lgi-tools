@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { floatSurface } from '@/components/ui/card';
-import { cn } from '@/components/ui/cn';
-import { Menu, MenuItem, menuRow } from '@/components/ui/menu';
-import { scrollArea } from '@/components/ui/scroll-area';
+import { MenuItem, menuRow } from '@/components/ui/menu';
+import { SwitcherMenu } from '@/components/ui/switcher-menu';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
@@ -82,29 +80,17 @@ export function MapSwitcher({
 
   return (
     <>
-      <Menu
+      <SwitcherMenu
         label={`Switch map from ${selected.name}`}
-        trigger={
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">{selected.name}</span>
-            <span aria-hidden className="font-data text-label text-faint">⌄</span>
-          </span>
-        }
+        current={selected.name}
+        align="center"
         triggerProps={{
           ref: triggerRef,
           'data-map-switcher-trigger': '',
           'data-map-id': selected.id,
         }}
         popupProps={{ 'data-map-switcher-panel': '' }}
-        triggerClassName={cn(
-          floatSurface,
-          'flex h-10 w-max max-w-full min-w-0 cursor-pointer items-center rounded-full px-4 font-display text-h3 font-bold tracking-copy text-name outline-none transition-colors hover:border-border-active focus-visible:border-border-active',
-        )}
-        className={`${scrollArea} grid min-w-72 grid-cols-[minmax(0,1fr)_auto] rounded-card p-[5px] max-h-[min(24rem,var(--available-height))] overflow-y-auto overscroll-contain`}
-        surface="frosted"
-        side="bottom"
-        align="center"
-        sideOffset={8}
+        className="grid min-w-72 grid-cols-[minmax(0,1fr)_auto]"
       >
         {maps.map((map) => (
           <div key={map.id} className="col-span-2 grid grid-cols-subgrid">
@@ -143,7 +129,7 @@ export function MapSwitcher({
             )}
           </div>
         ))}
-      </Menu>
+      </SwitcherMenu>
       {dialogs.editingMapId !== null ? (
         <MapAccessDialog
           key={dialogs.editingMapId}

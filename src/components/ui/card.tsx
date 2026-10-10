@@ -8,6 +8,9 @@ export const cardSurface =
 // pinned controls. Callers choose the shape (rounded-full, rounded-sheet).
 export const floatSurface = 'border border-border glass-surface glass-lit shadow-float';
 
+// The round 40px floating glass button that opens an icon menu (⋯, ☰).
+export const floatIconTrigger = `${floatSurface} flex size-10 cursor-pointer items-center justify-center rounded-full text-muted outline-none transition-colors hover:border-border-active hover:text-name focus-visible:border-border-active`;
+
 // A row or tile set into a surface: list items inside cards and dialogs.
 export const insetSurface = 'rounded-ctl border border-border-soft bg-bg-deep/60';
 
