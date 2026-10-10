@@ -7,6 +7,7 @@ import {
   blueprintIndexEntrySchema,
   buildLocationRequestSchema,
   buildLocationResponseSchema,
+  skillLevelsRequestSchema,
 } from './api-contract';
 import type {
   AvailableStructure,
@@ -24,6 +25,14 @@ describe('industry-planner contract', () => {
     expect(buildLocationRequestSchema.safeParse({ blueprintId: 100, systemId: null }).success).toBe(true);
     for (const systemId of [0, -1, 1.5, 2_147_483_648, undefined]) {
       expect(buildLocationRequestSchema.safeParse({ blueprintId: 100, systemId }).success).toBe(false);
+    }
+  });
+
+  it('accepts character ids above int4 for skill levels, since character columns are bigint', () => {
+    expect(skillLevelsRequestSchema.safeParse({ characterId: 2_147_483_648 }).success).toBe(true);
+    expect(skillLevelsRequestSchema.safeParse({ characterId: 2_123_456_789 }).success).toBe(true);
+    for (const characterId of [0, -1, 1.5, 2 ** 53]) {
+      expect(skillLevelsRequestSchema.safeParse({ characterId }).success).toBe(false);
     }
   });
 

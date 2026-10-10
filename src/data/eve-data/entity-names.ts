@@ -1,5 +1,6 @@
 import { cacheLife } from 'next/cache';
 import { mapConcurrent } from '@/lib/fan-out';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { postUniverseNames } from './universe-names';
 
 const NAME_CACHE_LIFE = 'days';
@@ -22,7 +23,7 @@ async function resolveEntityNamesBounded(
   ids: number[],
   resolveOne: (id: number) => Promise<string | null>,
 ): Promise<Record<string, string>> {
-  const unique = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0);
+  const unique = [...new Set(ids)].filter(isPositiveSafeInteger);
   const resolved = await mapConcurrent(
     unique,
     RESOLVE_CONCURRENCY,

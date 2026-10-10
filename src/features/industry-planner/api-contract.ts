@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { PRODUCTION_ACTIVITIES, type ProductionModifier } from '@/data/eve-data/structures';
+import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
   defineEndpoint,
   jsonBody,
@@ -19,8 +20,6 @@ import type {
   OwnedBlueprintsResponse,
   SystemJobCostIndex,
 } from './types';
-
-const PG_INT4_MAX = 2_147_483_647;
 
 export const blueprintIndexEntrySchema = z.object({
   blueprintTypeId: z.number(),
@@ -42,8 +41,8 @@ export const blueprintsEndpoint = defineEndpoint({
 
 export const buildLocationRequestSchema = z.object({
   // Adjusted prices are global and can be read before choosing an installation system.
-  systemId: z.number().int().positive().max(PG_INT4_MAX).nullable(),
-  blueprintId: z.number().int().positive().max(PG_INT4_MAX),
+  systemId: int4IdSchema.nullable(),
+  blueprintId: int4IdSchema,
 });
 
 const industryStationViewSchema = z.object({
@@ -78,7 +77,7 @@ export const buildLocationEndpoint = defineEndpoint({
 const MAX_COST_INDEX_SYSTEMS = 64;
 
 export const costIndicesRequestSchema = z.object({
-  systemIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_COST_INDEX_SYSTEMS),
+  systemIds: z.array(int4IdSchema).max(MAX_COST_INDEX_SYSTEMS),
 });
 
 const systemCostIndexSchema = z.object({
@@ -101,7 +100,7 @@ export const costIndicesEndpoint = defineEndpoint({
 });
 
 export const ownedBlueprintsRequestSchema = z.object({
-  blueprintTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(4096),
+  blueprintTypeIds: z.array(int4IdSchema).max(4096),
 });
 
 const ownedBlueprintMeEntrySchema = z.object({
@@ -130,7 +129,7 @@ export const ownedBlueprintsEndpoint = defineEndpoint({
 });
 
 export const ownedAssetsRequestSchema = z.object({
-  typeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(4096),
+  typeIds: z.array(int4IdSchema).max(4096),
 });
 
 const assetHoldingSchema = z.object({
@@ -163,7 +162,7 @@ export const ownedAssetsEndpoint = defineEndpoint({
 });
 
 export const skillLevelsRequestSchema = z.object({
-  characterId: z.number().int().positive().max(PG_INT4_MAX),
+  characterId: positiveIdSchema,
 });
 
 const skillLevelsResponseSchema = z.object({

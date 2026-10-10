@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import { defineEndpoint, emptyBody, jsonBody, problem } from '@/transport/endpoint';
 import { MAP_ACCESS_OWNER_TYPES, MAP_ROLES } from './access-contract';
 
@@ -11,11 +12,9 @@ const MAX_MAP_CREATOR_CHARACTERS = 32;
 export const MIN_CHARACTER_SEARCH_LENGTH = 3;
 export const MAX_CHARACTER_SEARCH_LENGTH = 100;
 
-const characterIdSchema = z.number().int().positive().safe();
-
 const createMapGrantSchema = z.strictObject({
   ownerType: z.enum(MAP_ACCESS_OWNER_TYPES),
-  ownerId: characterIdSchema,
+  ownerId: positiveIdSchema,
   role: z.enum(['viewer', 'editor']),
 });
 
@@ -23,7 +22,7 @@ const createMapGrantSchema = z.strictObject({
 export const createMapRequestSchema = z
   .strictObject({
     name: z.string().trim().min(1).max(MAX_MAP_NAME_LENGTH),
-    creatorCharacterIds: z.array(characterIdSchema).min(1).max(MAX_MAP_CREATOR_CHARACTERS),
+    creatorCharacterIds: z.array(positiveIdSchema).min(1).max(MAX_MAP_CREATOR_CHARACTERS),
     grants: z.array(createMapGrantSchema).max(MAX_MAP_CREATE_GRANTS),
   })
   .superRefine((body, ctx) => {
@@ -79,7 +78,7 @@ export const searchCharactersRequestSchema = z.strictObject({
 });
 
 const characterSearchResultSchema = z.strictObject({
-  characterId: z.number().int().positive().safe(),
+  characterId: positiveIdSchema,
   name: z.string().min(1),
   portraitUrl: z.string().url(),
 });
@@ -110,12 +109,10 @@ export const searchCharactersEndpoint = defineEndpoint({
   },
 });
 
-const systemIdSchema = z.number().int().positive().safe();
-
 export const signatureEliminationRequestSchema = z
   .strictObject({
     mapId: mapIdSchema,
-    systemIds: z.array(systemIdSchema).min(1).max(2),
+    systemIds: z.array(int4IdSchema).min(1).max(2),
   })
   .superRefine((body, ctx) => {
     if (body.systemIds.length !== new Set(body.systemIds).size) {
@@ -130,20 +127,20 @@ export const signatureEliminationRequestSchema = z
 const signatureEliminationSystemResultSchema = z.discriminatedUnion('status', [
   z.strictObject({
     status: z.literal('applied'),
-    systemId: systemIdSchema,
+    systemId: int4IdSchema,
     signatureIds: z.array(z.string().min(1)).min(1),
   }),
   z.strictObject({
     status: z.literal('quiet'),
-    systemId: systemIdSchema,
+    systemId: int4IdSchema,
   }),
   z.strictObject({
     status: z.literal('statics-unavailable'),
-    systemId: systemIdSchema,
+    systemId: int4IdSchema,
   }),
   z.strictObject({
     status: z.literal('observations-unavailable'),
-    systemId: systemIdSchema,
+    systemId: int4IdSchema,
   }),
 ]);
 
@@ -173,7 +170,7 @@ export const signatureEliminationEndpoint = defineEndpoint({
 
 const mapAccessPrincipalSchema = z.strictObject({
   ownerType: z.enum(MAP_ACCESS_OWNER_TYPES),
-  ownerId: z.number().int().positive().safe(),
+  ownerId: positiveIdSchema,
 });
 
 export const updateMapAccessRequestSchema = z.discriminatedUnion('operation', [
@@ -190,12 +187,12 @@ export const updateMapAccessRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({
     operation: z.literal('block'),
     mapId: mapIdSchema,
-    characterId: characterIdSchema,
+    characterId: positiveIdSchema,
   }),
   z.strictObject({
     operation: z.literal('unblock'),
     mapId: mapIdSchema,
-    characterId: characterIdSchema,
+    characterId: positiveIdSchema,
   }),
 ]);
 
@@ -272,7 +269,7 @@ export const jumpResolverRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('doorbell'),
     mapId: mapIdSchema,
-    characterId: z.number().int().positive().safe(),
+    characterId: positiveIdSchema,
   }),
   z.strictObject({
     kind: z.literal('confirm'),

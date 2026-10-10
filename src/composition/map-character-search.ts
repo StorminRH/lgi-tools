@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { SearchCharactersResponse } from '@/data/maps/api-contract';
 import { resolveEntityNamesStrict } from '@/data/eve-data/entity-names';
 import { characterPortraitUrl } from '@/lib/eve-image';
+import { positiveIdSchema } from '@/lib/id-schemas';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { EVE_CHARACTER_SEARCH_SCOPE } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
@@ -12,14 +13,14 @@ import { fetchCharacterSearch } from './esi-character-search';
 const MAX_TYPEAHEAD_RESULTS = 20;
 
 const esiCharacterSearchSchema = z.object({
-  character: z.array(z.number().int().positive().safe()).optional(),
+  character: z.array(positiveIdSchema).optional(),
 });
 
 const universeIdsSchema = z.object({
   characters: z
     .array(
       z.object({
-        id: z.number().int().positive().safe(),
+        id: positiveIdSchema,
         name: z.string().min(1),
       }),
     )

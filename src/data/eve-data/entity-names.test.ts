@@ -32,6 +32,18 @@ describe('resolveEntityNamesStrict', () => {
     );
   });
 
+  it('drops ids that are not positive safe integers before asking ESI', async () => {
+    h.esiFetch.mockImplementation(async (_url: string, init: RequestInit) => {
+      const [id] = JSON.parse(String(init.body)) as [number];
+      return Response.json([{ category: 'character', id, name: `Pilot ${id}` }]);
+    });
+
+    await expect(resolveEntityNamesStrict([0, -1, 1.5, 2 ** 53, 7, 7])).resolves.toEqual({
+      '7': 'Pilot 7',
+    });
+    expect(h.esiFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('resolves every id while keeping cold ESI fan-out at the shared cap', async () => {
     let active = 0;
     let maxActive = 0;

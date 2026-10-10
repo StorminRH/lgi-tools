@@ -1,6 +1,9 @@
+import { pathIdParamSchema } from '@/lib/id-schemas';
+
+/** A canonical int4 route id (no leading zero, sign or exponent), else null for a 404. */
 export function parseNumericRouteId(raw: string): number | null {
-  if (!/^\d+$/.test(raw)) return null;
-  return Number.parseInt(raw, 10);
+  const parsed = pathIdParamSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
 
 export async function loadNumericRouteEntity<T>(

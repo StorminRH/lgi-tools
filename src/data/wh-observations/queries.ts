@@ -6,6 +6,7 @@ import {
 } from '@/data/eve-data/wormhole-contract';
 import type { AnyPgDb } from '@/lib/db-types';
 import { excluded } from '@/lib/db-upsert';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { whObservations } from './schema';
 
 export interface WhObservationInput {
@@ -47,16 +48,12 @@ function observationConflict(): {
   };
 }
 
-function validSolarSystemId(value: number): boolean {
-  return Number.isSafeInteger(value) && value > 0;
-}
-
 function attributableTypeCode(value: string): boolean {
   return isWormholeTypeCode(value) && value !== FAR_SIDE_WORMHOLE_CODE;
 }
 
 function assertObservationInput(input: WhObservationInput): void {
-  if (!validSolarSystemId(input.solarSystemId)) {
+  if (!isPositiveSafeInteger(input.solarSystemId)) {
     throw new Error('Wormhole observation requires a valid solar-system id.');
   }
   if (!attributableTypeCode(input.whTypeCode)) {

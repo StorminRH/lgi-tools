@@ -18,6 +18,7 @@ import {
   SIG_GROUPS,
   type ScannedKind,
 } from '@/data/maps/scan-parse';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 
 export { CONNECTION_MASS_STATES, type ConnectionMassState };
 export { WORMHOLE_LIFE_STAGES, type WormholeLifeStage };
@@ -231,10 +232,6 @@ function reject(code: string, detail: string): never {
   throw new ConvexError({ code, detail });
 }
 
-export function isPositiveId(value: number): boolean {
-  return Number.isSafeInteger(value) && value > 0;
-}
-
 function requireAbsoluteTimestamp(label: string, value: number | null): void {
   if (value !== null && !Number.isFinite(value)) {
     reject('INVALID_TIMESTAMP', `${label} must be an absolute finite timestamp or null.`);
@@ -278,7 +275,7 @@ export function validateDeathWindowInput(input: DeathWindowInput): void {
 }
 
 export function validateConnectionInput(input: ConnectionInput): void {
-  if (!isPositiveId(input.fromSystemId) || !isPositiveId(input.toSystemId)) {
+  if (!isPositiveSafeInteger(input.fromSystemId) || !isPositiveSafeInteger(input.toSystemId)) {
     reject('INVALID_SYSTEM_ID', 'Connection endpoints must be positive safe integers.');
   }
   if (input.fromSystemId === input.toSystemId) {
@@ -293,7 +290,7 @@ export function validateConnectionInput(input: ConnectionInput): void {
 }
 
 export function validateUnresolvedHoleInput(input: UnresolvedHoleInput): void {
-  if (!isPositiveId(input.fromSystemId)) {
+  if (!isPositiveSafeInteger(input.fromSystemId)) {
     reject('INVALID_SYSTEM_ID', 'An unresolved hole origin must be a positive safe integer.');
   }
   if (input.toSystemId !== null) {

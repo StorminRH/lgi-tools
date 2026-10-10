@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pathIdParamSchema } from '@/lib/id-schemas';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
 import { SITE_TYPES, WORMHOLE_CLASSES } from './site-taxonomy';
 
@@ -99,15 +100,7 @@ export type Wave = z.infer<typeof waveSchema>;
 export type SiteResource = z.infer<typeof siteResourceSchema>;
 export type SiteDetail = z.infer<typeof siteDetailSchema>;
 
-const POSTGRES_SERIAL_MAX = 2_147_483_647;
-
-const siteIdParamSchema = z.object({
-  id: z
-    .string()
-    .regex(/^[1-9]\d*$/)
-    .transform(Number)
-    .pipe(z.number().int().positive().max(POSTGRES_SERIAL_MAX)),
-});
+const siteIdParamSchema = z.object({ id: pathIdParamSchema });
 
 export const siteDetailEndpoint = defineEndpoint({
   method: 'GET',

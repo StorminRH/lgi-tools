@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
   defineEndpoint,
   jsonBody,
@@ -25,11 +26,11 @@ export const ENTITY_NAMES_MAX_IDS = 200;
 export const TYPE_NAMES_MAX_IDS = 200;
 
 export const typeNamesRequestSchema = z.object({
-  ids: z.array(z.number().int().positive()).min(1).max(TYPE_NAMES_MAX_IDS),
+  ids: z.array(int4IdSchema).min(1).max(TYPE_NAMES_MAX_IDS),
 });
 
 export const entityNamesRequestSchema = z.object({
-  ids: z.array(z.number().int().positive()).min(1).max(ENTITY_NAMES_MAX_IDS),
+  ids: z.array(positiveIdSchema).min(1).max(ENTITY_NAMES_MAX_IDS),
 });
 
 const entityNamesResponseSchema = z.object({

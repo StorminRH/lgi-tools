@@ -1,4 +1,5 @@
 import { chunk, sortedUniqueIds } from '@/lib/array';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { apiFetch } from '@/transport/api-client';
 import type { entityNamesEndpoint, typeNamesEndpoint } from './api-contract';
 
@@ -9,10 +10,8 @@ export function createNamesClient(
 ) {
   const namesById = new Map<number, Promise<string | undefined>>();
   const normalize = (ids: readonly number[]) => {
-    const unique = sortedUniqueIds(ids);
-    return policy.cache
-      ? unique.filter((id) => Number.isInteger(id) && id > 0)
-      : unique.slice(0, policy.maxIds);
+    const unique = sortedUniqueIds(ids).filter(isPositiveSafeInteger);
+    return policy.cache ? unique : unique.slice(0, policy.maxIds);
   };
   async function request(ids: number[]): Promise<Record<string, string>> {
     const result = await apiFetch(endpoint, { body: { ids } });

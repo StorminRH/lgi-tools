@@ -1,4 +1,5 @@
 import { sortedUniqueIds } from '@/lib/array';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { HEARTBEAT_MS } from '@/lib/sync-engine';
 
 export const HEARTBEAT_PEER_TIMEOUT_MS = 3 * HEARTBEAT_MS;
@@ -14,7 +15,7 @@ function parsePresence(input: object): Omit<Presence, 'tabId'> | null {
   if (!('characterIdsHint' in input) || !Array.isArray(input.characterIdsHint)) return null;
   const characterIdsHint: number[] = [];
   for (const id of input.characterIdsHint) {
-    if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) return null;
+    if (typeof id !== 'number' || !isPositiveSafeInteger(id)) return null;
     characterIdsHint.push(id);
   }
   return characterIdsHint.length > 0 ? { visible: input.visible, characterIdsHint } : null;
