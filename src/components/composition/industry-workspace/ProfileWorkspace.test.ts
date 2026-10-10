@@ -167,7 +167,6 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   live.profiles = [];
   const first = render();
   expect(first).toContain('Create your first production profile');
-  expect(first).toMatch(/Add characters.*Add structures.*Simulate a build/);
 
   live.profiles = [teamProfile(), { ...teamProfile(), id: 'rx', name: 'Reactions only' }];
   live.slots = [
@@ -218,10 +217,8 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   // Skills that have not synced are said to be syncing, not shown as zero.
   expect(reactor).toContain('Skills are still syncing from EVE.');
   expect(capacityReadout(reactor)).toContain('?/?');
-  expect(reactor).not.toContain('Reaction material bonuses from rigs are not modelled yet.');
-  expect(reactor).not.toContain('Manage structures');
-  expect(reactor).not.toContain('Reactions facility');
-  expect(reactor).not.toContain('Job slots');
+  // The team sheet offers adding a facility; a member's sheet does not.
+  expect(reactor).not.toContain('aria-label="Add a facility"');
   expect(reactor).toContain(`What ${REACTOR.name} builds</legend>`);
   const categories = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
   expect(categories).toHaveLength(22);

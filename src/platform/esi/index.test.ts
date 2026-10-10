@@ -20,6 +20,16 @@ import {
   esiUrl,
 } from './index';
 import { BODY_CACHE_MAX_BYTES, type EsiScoreboard } from './scoreboard';
+import { setDependencyTimingSink, type DependencyCall } from '@/lib/dependency-timing';
+import { setWorkDeferrer } from '@/lib/deferred-work';
+
+function captureEsiCalls(): (DependencyCall | undefined)[] {
+  const calls: (DependencyCall | undefined)[] = [];
+  setDependencyTimingSink((kind, _ms, call) => {
+    if (kind === 'esi') calls.push(call);
+  });
+  return calls;
+}
 
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 
@@ -194,6 +204,27 @@ describe('esiFetch', () => {
 
     expect(res.status).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('times each ESI request as one esi call carrying its status', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockResponse(200))
+      .mockResolvedValueOnce(mockResponse(404));
+
+    const calls = captureEsiCalls();
+    await esiFetch(TEST_URL);
+    await esiFetch(TEST_URL);
+
+    expect(calls).toEqual([{ status: 200 }, { status: 404 }]);
+  });
+
+  it('times a request that never answered as an esi call without a status', async () => {
+    fetchSpy.mockRejectedValueOnce(new DOMException('signal timed out', 'TimeoutError'));
+
+    const calls = captureEsiCalls();
+    await expect(esiFetch(TEST_URL)).rejects.toThrow();
+
+    expect(calls).toEqual([undefined]);
   });
 
   it('returns 4xx responses to the caller without throwing', async () => {
@@ -528,6 +559,311 @@ describe('esiFetch', () => {
       const res = await esiFetch(TEST_URL);
       expect(res.status).toBe(200);
       expect(preDispatch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('round trips the gate saves', () => {
+    const POST_URL = 'https://esi.evetech.net/universe/names/';
+    const IDS_URL = 'https://esi.evetech.net/universe/ids/';
+    const post = { method: 'POST', body: '[1]' };
+
+    function fakeScoreboard(remaining = 100): EsiScoreboard & {
+      preDispatch: ReturnType<typeof vi.fn>;
+      report: ReturnType<typeof vi.fn>;
+    } {
+      return {
+        preDispatch: vi.fn().mockResolvedValue({
+          effectiveRemaining: remaining,
+          blockedRetryAfter: null,
+          etag: null,
+        }),
+        budgetSnapshot: vi.fn(),
+        report: vi.fn().mockResolvedValue(undefined),
+        getCachedBody: vi.fn().mockResolvedValue(null),
+      };
+    }
+
+    afterEach(() => {
+      setWorkDeferrer(null);
+    });
+
+    it('defers the report for a success but counts an error answer before returning', async () => {
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      const deferred: (() => Promise<void>)[] = [];
+      setWorkDeferrer((task) => {
+        deferred.push(task);
+        return true;
+      });
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Error-Limit-Remain': '95' }))
+        .mockResolvedValueOnce(mockResponse(404));
+
+      await esiFetch(TEST_URL);
+      expect(fake.report).not.toHaveBeenCalled();
+      expect(deferred).toHaveLength(1);
+
+      await esiFetch(TEST_URL);
+      expect(fake.report).toHaveBeenCalledOnce();
+      expect(fake.report.mock.calls[0]![0]).toMatchObject({ status: 404 });
+
+      await deferred[0]!();
+      expect(fake.report).toHaveBeenCalledTimes(2);
+      expect(fake.report.mock.calls[1]![0]).toMatchObject({ status: 200, errorLimitRemain: 95 });
+    });
+
+    it('reuses a fresh shared budget reading for calls without an ETag, and reads again after it ages', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy.mockImplementation(async () => mockResponse(200, {}, []));
+
+      await esiFetch(POST_URL, post);
+      await esiFetch(POST_URL, post);
+      expect(fake.preDispatch).toHaveBeenCalledOnce();
+
+      vi.advanceTimersByTime(1_000);
+      await esiFetch(POST_URL, post);
+      expect(fake.preDispatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('still reads the shared state on every ETag-eligible GET', async () => {
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy.mockImplementation(async () => mockResponse(200));
+
+      await esiFetch(TEST_URL);
+      await esiFetch(TEST_URL);
+
+      expect(fake.preDispatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('counts its own error answers against the reused reading', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard(ESI_BUDGET_FLOOR + 1);
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(404)).mockResolvedValueOnce(mockResponse(404));
+
+      await esiFetch(POST_URL, post);
+      await esiFetch(POST_URL, post);
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+
+      expect(fake.preDispatch).toHaveBeenCalledOnce();
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('closes the gate locally on a 420 without waiting for the next shared reading', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(420));
+
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'esi_420' });
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('writes the echo before returning once ESI reports the budget running low', async () => {
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      const deferred: (() => Promise<void>)[] = [];
+      setWorkDeferrer((task) => {
+        deferred.push(task);
+        return true;
+      });
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR * 2 - 1) }))
+        .mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR * 2) }));
+
+      await esiFetch(TEST_URL);
+      expect(fake.report).toHaveBeenCalledOnce();
+      expect(fake.report.mock.calls[0]![0]).toMatchObject({ status: 200, errorLimitRemain: ESI_BUDGET_FLOOR * 2 - 1 });
+      expect(deferred).toEqual([]);
+
+      await esiFetch(TEST_URL);
+      expect(fake.report).toHaveBeenCalledOnce();
+      expect(deferred).toHaveLength(1);
+    });
+
+    it('caps the reused reading by the error count ESI reports on each answer', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Error-Limit-Remain': '3' }, []));
+
+      await esiFetch(POST_URL, post);
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+
+      expect(fake.preDispatch).toHaveBeenCalledOnce();
+      expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a 420 that arrived while an older shared read was still in flight', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const open = { effectiveRemaining: 100, blockedRetryAfter: null, etag: null };
+      let releaseRead: (state: typeof open) => void = () => {};
+      fake.preDispatch
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }))
+        .mockResolvedValueOnce(open);
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(420));
+
+      const slowGet = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'esi_420' });
+      releaseRead(open);
+
+      // The read predates the 420, so neither the call that made it nor the next one goes out.
+      await expect(slowGet).rejects.toMatchObject({ reason: 'error_budget' });
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+      expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('trusts a shared reading over errors it saw while the read was out, which reach the shared count first', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const reading = { effectiveRemaining: ESI_BUDGET_FLOOR, blockedRetryAfter: null, etag: null };
+      let releaseRead: (state: typeof reading) => void = () => {};
+      fake.preDispatch
+        .mockResolvedValueOnce({ ...reading, effectiveRemaining: 100 })
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }));
+      __setScoreboardForTests(fake);
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, {}, []))
+        .mockResolvedValueOnce(mockResponse(404))
+        .mockResolvedValue(mockResponse(200));
+
+      await esiFetch(POST_URL, post);
+      const slowGet = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(esiFetch(POST_URL, post)).resolves.toMatchObject({ status: 404 });
+      releaseRead(reading);
+
+      await expect(slowGet).resolves.toMatchObject({ status: 200 });
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("caps a shared read by ESI's newest error count from while it was out", async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const reading = { effectiveRemaining: 100, blockedRetryAfter: null, etag: null };
+      let releaseRead: (state: typeof reading) => void = () => {};
+      fake.preDispatch
+        .mockResolvedValueOnce(reading)
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }));
+      __setScoreboardForTests(fake);
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, {}, []))
+        .mockResolvedValueOnce(mockResponse(404, { 'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR - 1) }))
+        .mockResolvedValue(mockResponse(200));
+
+      await esiFetch(POST_URL, post);
+      const slowGet = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(esiFetch(POST_URL, post)).resolves.toMatchObject({ status: 404 });
+      releaseRead(reading);
+
+      await expect(slowGet).rejects.toMatchObject({ reason: 'error_budget' });
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a newer low reading when an older read returns after it', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const reading = (effectiveRemaining: number) => ({ effectiveRemaining, blockedRetryAfter: null, etag: null });
+      let releaseOlder: (state: ReturnType<typeof reading>) => void = () => {};
+      fake.preDispatch
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseOlder = resolve; }))
+        .mockResolvedValueOnce(reading(ESI_BUDGET_FLOOR - 5));
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValue(mockResponse(200));
+
+      const older = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(esiFetch(TEST_URL)).rejects.toMatchObject({ reason: 'error_budget' });
+      releaseOlder(reading(100));
+
+      await expect(older).rejects.toMatchObject({ reason: 'error_budget' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('lets a recovered shared reading through when an older call finishes while it is read', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const reading = (effectiveRemaining: number) => ({ effectiveRemaining, blockedRetryAfter: null, etag: null });
+      let releaseRead: (state: ReturnType<typeof reading>) => void = () => {};
+      let releaseFetch: (res: Response) => void = () => {};
+      fake.preDispatch
+        .mockResolvedValueOnce(reading(100))
+        .mockResolvedValueOnce(reading(ESI_BUDGET_FLOOR - 5))
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }));
+      __setScoreboardForTests(fake);
+      fetchSpy
+        .mockImplementationOnce(() => new Promise<Response>((resolve) => { releaseFetch = resolve; }))
+        .mockResolvedValueOnce(mockResponse(200));
+
+      // A call goes out on a good reading and is still in flight when the budget dips and recovers.
+      const slowPost = esiFetch(POST_URL, post);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+      await vi.advanceTimersByTimeAsync(2_000);
+      const get = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(0);
+      releaseFetch(mockResponse(200, {}, []));
+      await slowPost;
+      releaseRead(reading(100));
+
+      await expect(get).resolves.toMatchObject({ status: 200 });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('reads the shared state for a path this process has not read, even inside the reuse window', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      fake.preDispatch
+        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: null, etag: null })
+        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: 30, etag: null });
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, {}, []));
+
+      await esiFetch(POST_URL, post);
+      await expect(esiFetch(IDS_URL, post)).rejects.toMatchObject({ reason: 'rate_limited', retryAfterSeconds: 30 });
+
+      expect(fake.preDispatch).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a local 429 to the path that drew it', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(429, { 'Retry-After': '30' }))
+        .mockResolvedValueOnce(mockResponse(200, {}, []));
+
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'rate_limited' });
+      await expect(esiFetch(IDS_URL, post)).resolves.toMatchObject({ status: 200 });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('blocks the path locally after a 429 until Retry-After', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(429, { 'Retry-After': '30' }));
+
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'rate_limited' });
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({
+        reason: 'rate_limited',
+        retryAfterSeconds: 30,
+      });
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(fake.preDispatch).toHaveBeenCalledOnce();
     });
   });
 

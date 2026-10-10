@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { timeDependency } from '@/lib/dependency-timing';
 
 export type ConvexHttpDoorError = new (
   message: string,
@@ -41,10 +42,11 @@ export async function postConvexHttpDoor<T>({
   };
   let response: Response;
   try {
-    response =
+    response = await timeDependency('convex', () =>
       timeoutMs === undefined
-        ? await fetchWithTimeout(`${siteUrl}${path}`, init)
-        : await fetchWithTimeout(`${siteUrl}${path}`, init, timeoutMs);
+        ? fetchWithTimeout(`${siteUrl}${path}`, init)
+        : fetchWithTimeout(`${siteUrl}${path}`, init, timeoutMs),
+    );
   } catch (cause) {
     throw new DoorError(`${label}: ${path} request failed`, { cause });
   }

@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
 import { trendSeries } from '@/composition/admin-period';
-import { esiAvailability } from '@/data/telemetry/capability-stats';
+import { esiAvailability, esiClientErrors } from '@/data/telemetry/capability-stats';
 import { fallbackRate } from '@/data/telemetry/cron-stats';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
 import {
@@ -19,6 +19,7 @@ import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { AdminBarChart, AdminTrendChart } from '../charts';
 import {
   getCapabilityOutcomeStatsShared,
+  getEsiClientErrorsShared,
   getEsiRefreshQueueStatsShared,
   getPriceRefreshDaysShared,
   getPriceSourceDegradationShared,
@@ -67,11 +68,12 @@ export function BudgetGauge({ budget }: { budget: Awaited<ReturnType<typeof load
 }
 
 export async function loadPressureLines(range: DateRange) {
-  const [outcomes, fallback, degradation, queue] = await Promise.all([
+  const [outcomes, fallback, degradation, queue, clientErrors] = await Promise.all([
     getCapabilityOutcomeStatsShared(range),
     getPriceRefreshDaysShared(range).then(fallbackRate),
     getPriceSourceDegradationShared(range),
     getEsiRefreshQueueStatsShared(),
+    getEsiClientErrorsShared(range).then(esiClientErrors),
   ]);
   const esiSuccess = esiAvailability(outcomes);
   return derivePressureLines({
@@ -81,6 +83,7 @@ export async function loadPressureLines(range: DateRange) {
     fallback,
     degradation: degradation.byCaller,
     queue,
+    clientErrors,
   });
 }
 

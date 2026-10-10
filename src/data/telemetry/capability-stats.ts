@@ -1,4 +1,4 @@
-import type { DependencyKind } from '@/lib/dependency-timing';
+import { DEPENDENCY_KINDS, type DependencyKind } from '@/lib/dependency-timing';
 import { operationsOfKind, type CapabilityKind } from './capability';
 import { ESI_FAILURE_OUTCOMES } from './sql';
 import type { DateRange } from './types';
@@ -54,8 +54,12 @@ export interface SlowOperation {
   operation: string;
   p95Ms: number;
   count: number;
-  /** The dependency with the most average time per run, or null when none was timed. */
+  /** The dependency with the most average wall time per run, or null when none was timed. */
   slowestDependency: DependencyKind | null;
+  /** That dependency's average wall time as a share of the average run, 0-1. */
+  slowestShare: number | null;
+  /** Average share of a run spent with no timed dependency in flight, 0-1. */
+  untimedShare: number | null;
 }
 
 /** Latency of one user-facing operation, averaged per run. */
@@ -64,7 +68,30 @@ export interface OperationLatency {
   operation: string;
   p95: number | null;
   count: number;
+  /** Average duration of the runs that recorded wall time, or null when none did. */
+  durationMs: number | null;
+  /** Average wall time per run with that dependency in flight. */
   dependencyMs: Record<DependencyKind, number | null>;
+  /** Average share of a run with no timed dependency in flight, over runs that recorded it. */
+  untimedShare: number | null;
+}
+
+/** ESI calls one operation made in the range and how many were answered with a 4xx. */
+export interface EsiClientErrorGroup {
+  feature: string;
+  operation: string;
+  errors: number;
+  calls: number;
+  lastSeen: Date | null;
+}
+
+export interface EsiClientErrorSummary {
+  errors: number;
+  calls: number;
+  /** errors / calls, or null when no ESI call was recorded. */
+  rate: number | null;
+  /** Operations with at least one 4xx, most first. */
+  groups: EsiClientErrorGroup[];
 }
 
 export interface CapabilityLatency {
@@ -76,7 +103,6 @@ export type ServiceKind = Extract<CapabilityKind, 'read' | 'mutation'>;
 
 const BREAKDOWN_LIMIT = 8;
 const SLOWEST_LIMIT = 5;
-const DEPENDENCY_KINDS = ['neon', 'esi', 'redis'] as const satisfies readonly DependencyKind[];
 const ESI_FAILURES = new Set<string>(ESI_FAILURE_OUTCOMES);
 
 /** A rejected bad request is the system working, so it is left out of save/action success. */
@@ -211,6 +237,39 @@ function slowestDependency(averages: Record<DependencyKind, number | null>): Dep
   return slowest;
 }
 
+function shareOf(part: number | null, whole: number | null): number | null {
+  if (part === null || whole === null || Number.isNaN(part) || !(whole > 0)) return null;
+  return Math.min(1, Math.max(0, part / whole));
+}
+
+function dependencyShares(
+  row: OperationLatency,
+): Pick<SlowOperation, 'slowestDependency' | 'slowestShare' | 'untimedShare'> {
+  const slowest = slowestDependency(row.dependencyMs);
+  return {
+    slowestDependency: slowest,
+    slowestShare: slowest === null ? null : shareOf(row.dependencyMs[slowest], row.durationMs),
+    untimedShare: row.untimedShare === null || Number.isNaN(row.untimedShare)
+      ? null
+      : Math.min(1, Math.max(0, row.untimedShare)),
+  };
+}
+
+/** Totals and the operations that drew 4xx answers from ESI. */
+export function esiClientErrors(groups: readonly EsiClientErrorGroup[]): EsiClientErrorSummary {
+  const errors = groups.reduce((total, group) => total + group.errors, 0);
+  const calls = groups.reduce((total, group) => total + group.calls, 0);
+  return {
+    errors,
+    calls,
+    rate: calls > 0 ? errors / calls : null,
+    groups: groups
+      .filter((group) => group.errors > 0)
+      .sort((a, b) => b.errors - a.errors || a.operation.localeCompare(b.operation))
+      .slice(0, BREAKDOWN_LIMIT),
+  };
+}
+
 /** A whole-millisecond p95, or null when the window timed nothing. */
 export function roundedP95(p95: number | null | undefined): number | null {
   if (p95 === null || p95 === undefined || Number.isNaN(p95)) return null;
@@ -235,6 +294,6 @@ export function slowestOperations(operations: readonly OperationLatency[]): Slow
       operation: row.operation,
       p95Ms: Math.round(row.p95 ?? 0),
       count: row.count,
-      slowestDependency: slowestDependency(row.dependencyMs),
+      ...dependencyShares(row),
     }));
 }

@@ -4,6 +4,7 @@ import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { characterPortraitUrl, type EveImageSize } from '@/lib/eve-image';
+import { timeDependency } from '@/lib/dependency-timing';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
   EVE_AUDIENCE,
@@ -42,7 +43,7 @@ function jwks() {
       [customFetch]: (input, init) => {
         const headers = new Headers(init?.headers);
         headers.set('User-Agent', OUTBOUND_USER_AGENT);
-        return fetchWithTimeout(input, { ...init, headers });
+        return timeDependency('sso', () => fetchWithTimeout(input, { ...init, headers }));
       },
     });
   }
@@ -86,9 +87,8 @@ export async function exchangeCodeForToken({
     code_verifier: codeVerifier,
   });
 
-  const res = await fetchWithTimeout(
-    EVE_TOKEN_URL,
-    buildTokenRequestInit(body, clientId, clientSecret),
+  const res = await timeDependency('sso', () =>
+    fetchWithTimeout(EVE_TOKEN_URL, buildTokenRequestInit(body, clientId, clientSecret)),
   );
 
   if (!res.ok) {
@@ -148,9 +148,8 @@ export async function refreshEveToken({
 
   let res: Response;
   try {
-    res = await fetchWithTimeout(
-      EVE_TOKEN_URL,
-      buildTokenRequestInit(body, clientId, clientSecret),
+    res = await timeDependency('sso', () =>
+      fetchWithTimeout(EVE_TOKEN_URL, buildTokenRequestInit(body, clientId, clientSecret)),
     );
   } catch (error) {
     return {
@@ -216,9 +215,8 @@ export async function revokeEveRefreshToken({
   });
 
   try {
-    const res = await fetchWithTimeout(
-      EVE_REVOKE_URL,
-      buildTokenRequestInit(body, clientId, clientSecret),
+    const res = await timeDependency('sso', () =>
+      fetchWithTimeout(EVE_REVOKE_URL, buildTokenRequestInit(body, clientId, clientSecret)),
     );
     return { ok: res.ok };
   } catch {

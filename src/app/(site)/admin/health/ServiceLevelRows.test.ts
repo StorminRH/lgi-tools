@@ -40,6 +40,7 @@ function emptyDetails(): ServiceLevelDetails {
     mutation: { range, groups: [], daily: [] },
     slowest: [],
     esi: [],
+    esiClientErrors: { errors: 0, calls: 0, rate: null, groups: [] },
     queue: [],
     deadLetters: [],
   };
@@ -151,6 +152,7 @@ describe('service level details', () => {
       mutation: SECTION_LOAD_FAILED,
       slowest: SECTION_LOAD_FAILED,
       esi: SECTION_LOAD_FAILED,
+      esiClientErrors: SECTION_LOAD_FAILED,
       queue: SECTION_LOAD_FAILED,
       deadLetters: SECTION_LOAD_FAILED,
     });
@@ -165,12 +167,12 @@ describe('service level details', () => {
     expect(render('critical_latency_p95', details)).toContain('No operations in this period.');
     details.slowest = [{
       feature: 'planner', operation: 'read-owned-assets', p95Ms: 2400,
-      count: 1, slowestDependency: null,
+      count: 1, slowestDependency: null, slowestShare: null, untimedShare: null,
     }];
     expect(render('critical_latency_p95', details)).toContain('1 run');
     details.slowest = [{
       feature: 'planner', operation: 'read-owned-assets', p95Ms: 2400,
-      count: 1200, slowestDependency: 'esi',
+      count: 1200, slowestDependency: 'esi', slowestShare: 0.62, untimedShare: 0.2,
     }];
 
     const html = render('critical_latency_p95', details);
@@ -178,7 +180,14 @@ describe('service level details', () => {
     expect(html).toContain('aria-label="Slowest operations"');
     expect(html).toContain('planner · read-owned-assets');
     expect(html).toContain('2,400 ms');
-    expect(html).toContain('1,200 runs · mostly esi on average');
+    expect(html).toContain('1,200 runs · mostly esi (62%) · 20% untimed');
+
+    // A dependency that takes a sliver of the run is named, not called "mostly".
+    details.slowest = [{
+      feature: 'feedback', operation: 'submit-feedback', p95Ms: 900,
+      count: 3, slowestDependency: 'redis', slowestShare: 0.02, untimedShare: 0.98,
+    }];
+    expect(render('critical_latency_p95', details)).toContain('3 runs · redis 2% · 98% untimed');
   });
 
   it('shows ESI failures under the ESI-specific table label', () => {
@@ -190,6 +199,32 @@ describe('service level details', () => {
     expect(html).toContain('aria-label="Top ESI failure groups"');
     expect(html).toContain('account · refresh-assets');
     expect(html).not.toContain('Failures by day');
+    expect(html).toContain('No 4xx answers from ESI in this period.');
+  });
+
+  it('lists the operations ESI answered with a 4xx', () => {
+    const details = emptyDetails();
+    details.esiClientErrors = {
+      errors: 7,
+      calls: 200,
+      rate: 0.035,
+      groups: [{
+        feature: 'maps', operation: 'search-characters', errors: 7, calls: 200,
+        lastSeen: new Date('2026-09-21T10:00:00Z'),
+      }, {
+        feature: 'sync', operation: 'process-esi-refresh-job', errors: 1, calls: 2_500,
+        lastSeen: new Date('2026-09-20T10:00:00Z'),
+      }],
+    };
+
+    const html = render('esi_success_rate', details);
+
+    expect(html).toContain('aria-label="ESI 4xx answers"');
+    expect(html).toContain('maps · search-characters');
+    expect(html).toContain('3.5%');
+    expect(html).toContain('2026-09-21');
+    // One 4xx in 2,500 calls still reads as a share, not as none.
+    expect(html).toContain('&lt;0.1%');
   });
 
   it('shows queue counts, dead-letter timing and the queue link', () => {

@@ -69,7 +69,20 @@ export function dayLabel(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function percent(share: number): string {
+  return `${Math.round(share * 100)}%`;
+}
+
+/** The heaviest timed dependency; "mostly" only when it takes half the run or its share is unknown. */
+function dependencyPart(dependency: string, share: number | null): string {
+  if (share === null) return `mostly ${dependency}`;
+  return share >= 0.5 ? `mostly ${dependency} (${percent(share)})` : `${dependency} ${percent(share)}`;
+}
+
+/** Run count, where most of a run's time went, and how much of it no timed dependency covers. */
 export function slowOperationNote(row: SlowOperation): string {
-  const runs = formatCount(row.count, 'run');
-  return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency} on average`;
+  const parts = [formatCount(row.count, 'run')];
+  if (row.slowestDependency !== null) parts.push(dependencyPart(row.slowestDependency, row.slowestShare));
+  if (row.untimedShare !== null) parts.push(`${percent(row.untimedShare)} untimed`);
+  return parts.join(' · ');
 }

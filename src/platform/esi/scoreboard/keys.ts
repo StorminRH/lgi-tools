@@ -37,9 +37,6 @@ export const KEY_ERROR_ECHO = `${KEY_PREFIX}:err:echo`;
 export function keyBlock(path: string): string {
   return `${KEY_PREFIX}:rl:block:${path}`;
 }
-export function keyGroup(group: string): string {
-  return `${KEY_PREFIX}:rl:group:${group}`;
-}
 function urlPathAndQuery(url: string): string {
   const parsed = new URL(url);
   return `${parsed.pathname}${parsed.search}`;
