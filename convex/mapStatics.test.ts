@@ -266,17 +266,29 @@ describe('map static placeholders', () => {
       .toBe(true);
   });
 
-  it('skips apply when SITE_URL is missing', async () => {
+  it.each([
+    ['unset', undefined],
+    ['empty', ''],
+    ['plain HTTP off loopback', 'http://app.test'],
+  ] as const)('skips apply without fetching when SITE_URL is %s', async (_case, siteUrl) => {
     const t = convexTest(schema, modules);
     await seedHome(t, WH_ROOT);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = stubStaticsFetch(() => Response.json({ statics: ['C247'] }));
+    vi.stubEnv('SITE_URL', siteUrl);
     await t.action(internal.mapStatics.fetchSystemStatics, {
       mapId: MAP_A,
       systemId: WH_ROOT,
     });
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
-    expect(warn.mock.calls.some((call) => String(call[0]).includes('static placeholders skipped')))
-      .toBe(true);
+    const skips = warn.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.includes('static placeholders skipped'))
+      .map((line): unknown => JSON.parse(line));
+    expect(skips).toEqual([
+      { note: 'static placeholders skipped', reason: 'missing or invalid SITE_URL', systemId: WH_ROOT },
+    ]);
   });
 
   it('sends the Vercel protection bypass header when the secret is set', async () => {

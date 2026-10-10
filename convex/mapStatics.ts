@@ -10,6 +10,7 @@ import {
   internalQuery,
   type MutationCtx,
 } from './_generated/server';
+import { readAppOrigin } from './lib/deploymentEnv';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 import { insertStaticPlaceholder } from './lib/mapStaticClaim';
 import { findSystem } from './lib/mapSystemLookup';
@@ -44,8 +45,7 @@ function uniqueStaticCodes(codes: readonly string[]): string[] {
   return [...new Set(codes.filter((code) => code.length > 0))];
 }
 
-function systemStaticsUrl(siteUrl: string, systemId: number): string {
-  const origin = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+function systemStaticsUrl(origin: string, systemId: number): string {
   return `${origin}/api/universe/statics/${systemId}`;
 }
 
@@ -71,14 +71,14 @@ function resolveBackfillBatch(batch: number | undefined): number {
 }
 
 async function loadSystemStaticCodes(systemId: number): Promise<StaticCodesLoad> {
-  const siteUrl = process.env.SITE_URL;
-  if (siteUrl === undefined) {
-    skipStaticPlaceholders('missing SITE_URL', { systemId });
+  const origin = readAppOrigin();
+  if (origin === undefined) {
+    skipStaticPlaceholders('missing or invalid SITE_URL', { systemId });
     return { kind: 'skip' };
   }
   try {
     const response = await fetchWithTimeout(
-      systemStaticsUrl(siteUrl, systemId),
+      systemStaticsUrl(origin, systemId),
       { headers: vercelProtectionBypassHeaders() },
     );
     if (!response.ok) {

@@ -1,7 +1,7 @@
 import { publicConvexUrl } from '@/config/public-env';
 import { readEnv } from '@/lib/env';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
-import { isLocalUrl } from '@/lib/url-safety';
+import { isSafeServiceUrl } from '@/lib/url-safety';
 
 export function resolveConvexServiceDoor():
   | { readonly ok: true; readonly siteUrl: string; readonly secret: string }
@@ -15,12 +15,4 @@ export function resolveConvexServiceDoor():
   const secret = readEnv('CONVEX_SERVICE_SECRET');
   if (!secret) return { ok: false, reason: 'service_secret_missing' };
   return { ok: true, siteUrl, secret };
-}
-
-function isSafeServiceUrl(value: string): boolean {
-  try {
-    return new URL(value).protocol === 'https:' || isLocalUrl(value, ['http:']);
-  } catch {
-    return false;
-  }
 }

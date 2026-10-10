@@ -26,6 +26,7 @@ import type * as httpJump from "../httpJump.js";
 import type * as httpLocation from "../httpLocation.js";
 import type * as httpMapAccess from "../httpMapAccess.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
+import type * as lib_deploymentEnv from "../lib/deploymentEnv.js";
 import type * as lib_errorCode from "../lib/errorCode.js";
 import type * as lib_httpAuth from "../lib/httpAuth.js";
 import type * as lib_indexedQuery from "../lib/indexedQuery.js";
@@ -106,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   httpLocation: typeof httpLocation;
   httpMapAccess: typeof httpMapAccess;
   "lib/characterSync": typeof lib_characterSync;
+  "lib/deploymentEnv": typeof lib_deploymentEnv;
   "lib/errorCode": typeof lib_errorCode;
   "lib/httpAuth": typeof lib_httpAuth;
   "lib/indexedQuery": typeof lib_indexedQuery;

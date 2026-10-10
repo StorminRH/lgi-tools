@@ -52,6 +52,7 @@ export const modules = import.meta.glob([
   '../onlineStatus.ts',
   '../schema.ts',
   '../lib/characterSync.ts',
+  '../lib/deploymentEnv.ts',
   '../lib/errorCode.ts',
   '../lib/httpAuth.ts',
   '../lib/indexedQuery.ts',

@@ -11,7 +11,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P134](#p134) | Own the public Convex URL in one config-zone reader and fix SITE_URL's empty-string fallback | generic-utility | S | low | low | — |
 | ☑ | [P209](#p209) | Give the 'Convex is not configured' check one owner and report the door's reason | server-pipeline | S | low | low | [P134](#p134) |
 | ☑ | [P210](#p210) | Share one runtime-portable bearerMatches between Next and Convex, and make Convex answer 500 when its service secret is unset | convex | S | low | medium | — |
-| ☐ | [P211](#p211) | Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads | convex | S | low | low | [P210](#p210), [P134](#p134) |
+| ☑ | [P211](#p211) | Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads | convex | S | low | low | [P210](#p210), [P134](#p134) |
 | ☐ | [P212](#p212) | Fetch system statics from Convex through the service-client with the systemStaticsEndpoint contract | contracts-validation | S | low | low | [P211](#p211) |
 | ☐ | [P247](#p247) | Add src/lib/id-schemas.ts (positive id, int4 id, path id) and bound the int4 reads that currently 500 | contracts-validation | M | low | medium | — |
 | ☐ | [P248](#p248) | Validate public map ids as UUIDs in data/maps/api-contract.ts; optionally share the owned-row text-id bound | contracts-validation | S | low | low | — |
@@ -230,7 +230,7 @@ export async function bearerMatches(authorization: string | null, secret: string
 
 ## P211: Read SITE_URL through one Convex reader and CONVEX_SERVICE_SECRET through readEnv, then lint convex for raw env reads
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About +25 (reader, test, ESLint block) and -12 (two raw reads, trailing-slash code, raw secret checks)
 - **Depends on:** [P210](#p210), [P134](#p134)
