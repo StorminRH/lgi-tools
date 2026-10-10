@@ -34,7 +34,7 @@ describe('jobRowModel', () => {
 });
 
 describe('jobRowFrameData', () => {
-  it('builds the resolved-name row bundle, or a Type# fallback', () => {
+  it('builds the resolved-name row bundle, or a Type N fallback', () => {
     const data = jobRowFrameData(industryJob({ end_date: '2026-06-12T13:00:00Z' }), { '587': 'Ishkur' }, NOW);
     expect(data.headlineName).toBe('Ishkur');
     expect(data.icon).toEqual(jobImage(1, 587, 691));
@@ -46,14 +46,14 @@ describe('jobRowFrameData', () => {
 
   it('leaves an empty countdown label off an active job with no finite end', () => {
     expect(jobRowFrameData(industryJob({ status: 'paused' }), {}, NOW).remainingLabel).toBe('');
-    expect(jobRowFrameData(industryJob(), {}, NOW).headlineName).toBe('Type #587');
+    expect(jobRowFrameData(industryJob(), {}, NOW).headlineName).toBe('Type 587');
   });
 });
 
 describe('runnerName', () => {
-  it('resolves a present installer, falls back to Pilot#, or Unknown when absent', () => {
+  it('resolves a present installer, falls back to Character N, or Unknown when absent', () => {
     expect(runnerName(42, { '42': 'Karaka' })).toBe('Karaka');
-    expect(runnerName(42, {})).toBe('Pilot #42');
+    expect(runnerName(42, {})).toBe('Character 42');
     expect(runnerName(undefined, {})).toBe('Unknown pilot');
   });
 });

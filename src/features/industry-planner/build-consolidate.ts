@@ -1,6 +1,7 @@
 import type { Tone } from '@/components/ui/tones';
 import { getOrInsertComputed } from '@/lib/array';
 import type { BatchLedger } from './build-batch';
+import { typeName } from './type-name';
 import type { BlueprintStructure, BuildNode } from './types';
 
 export interface ConsolidatedItem {
@@ -61,7 +62,7 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
     return {
       typeId,
       quantity,
-      name: d?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`,
+      name: typeName(structure, typeId),
       label: d?.label ?? '',
       tone: d?.tone ?? 'neutral',
       isRaw: d?.isRaw ?? true,

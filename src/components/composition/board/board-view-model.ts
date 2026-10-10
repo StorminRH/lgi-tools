@@ -11,6 +11,7 @@ import {
 } from '@/composition/board/api-contract';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { type CurrentTraining, currentTraining, summarizeQueue } from '@/features/skill-queue/progress';
+import { unresolvedName } from '@/lib/format/names';
 import { formatUtcDate, formatRemaining } from '@/lib/format/time';
 import { DAY_MS, HOUR_MS, isoDayStartMs } from '@/lib/iso-date';
 import { withSearchParams } from '@/lib/search-params';
@@ -369,7 +370,7 @@ export function boardIsCold(response: { characters: readonly BoardCharacter[] })
 
 export function placeName(place: PlaceRef): string {
   if (place.name !== null) return place.name;
-  return place.kind === 'structure' ? 'Player structure' : `Station ${place.id}`;
+  return place.kind === 'structure' ? 'Player structure' : unresolvedName('station', place.id);
 }
 
 export interface TimelineSegment {

@@ -20,6 +20,7 @@ import { componentSheet, type ComponentInputRow, type ComponentSheet } from '../
 import { activityLabel } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { nodeTeState } from '../te-overrides';
+import { typeName } from '../type-name';
 import type { BlueprintStructure } from '../types';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { useBuildPlan, useBuildSetup, useMarketData } from './planner-contexts';
@@ -303,10 +304,7 @@ export function ComponentDrawer({
           jobFee: pricing?.net?.componentJobs?.jobs.find((job) => job.typeId === id),
         });
   const previousId = stack.length > 1 ? stack[stack.length - 2]! : null;
-  const previous =
-    previousId === null
-      ? null
-      : (structure.buildNodeDisplay[previousId]?.name ?? structure.materialNames[previousId] ?? `Type ${previousId}`);
+  const previous = previousId === null ? null : typeName(structure, previousId);
   return (
     <SidePanel open={stack.length > 0} onOpenChange={(open) => !open && onStackChange([])} title={sheet?.name ?? ''}>
       {sheet && (

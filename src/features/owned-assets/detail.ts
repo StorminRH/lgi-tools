@@ -1,6 +1,7 @@
 import { corpContextOf } from '@/data/corp-holdings/context';
 import { corpHoldingNameIds, type EntityNames, type FormatStation, labelCorpHolding } from '@/data/corp-holdings/labels';
 import type { CorpHoldingContext } from '@/data/corp-holdings/placement';
+import { nameOrUnresolved } from '@/lib/format/names';
 import type { AssetHolding, OwnedAssetMap } from './asset-map';
 import type { OwnedAssetOwnerType } from './schema';
 
@@ -64,10 +65,6 @@ export function collectAssetNameIds(map: OwnedAssetMap, contexts: CorpContexts):
   return [...ids];
 }
 
-function ownerFallback(ownerType: OwnedAssetOwnerType, ownerId: number): string {
-  return ownerType === 'corporation' ? `Corporation ${ownerId}` : `Character ${ownerId}`;
-}
-
 function resolveLocationName(holding: CharacterHolding, names: EntityNames, formatStation: FormatStation): string {
   const { locationId, locationType, locationFlag } = holding;
   if (locationType === 'station') {
@@ -92,7 +89,7 @@ function resolveHolding(
   formatStation: FormatStation,
   contexts: CorpContexts,
 ): ResolvedHolding {
-  const ownerName = names[String(holding.ownerId)] ?? ownerFallback(holding.ownerType, holding.ownerId);
+  const ownerName = nameOrUnresolved(names, holding.ownerId, holding.ownerType);
   if (holding.ownerType === 'corporation') {
     const label = labelCorpHolding(holding.placement, corpContextOf(contexts, holding.ownerId), names, formatStation);
     return { ownerType: 'corporation', ownerName, ...label, quantity: holding.quantity };

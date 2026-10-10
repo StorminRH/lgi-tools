@@ -4,6 +4,7 @@ import {
   type EveImageDescriptor,
 } from '@/data/eve-data/type-images';
 import { sortedUniqueIds } from '@/lib/array';
+import { nameOrUnresolved } from '@/lib/format/names';
 import { formatCount } from '@/lib/format/number';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from './esi-projection';
@@ -46,7 +47,7 @@ export function jobRowFrameData(
 ): JobRowFrameData {
   const { headlineId, icon, remainingMs, showBar } = jobRowModel(job, now);
   return {
-    headlineName: names[String(headlineId)] ?? `Type #${headlineId}`,
+    headlineName: nameOrUnresolved(names, headlineId, 'type'),
     icon,
     runs: job.runs,
     activityLabel: jobActivityLabel(job.activity_id),
@@ -59,7 +60,7 @@ export function jobRowFrameData(
 
 export function runnerName(installerId: number | undefined, entityNames: Record<string, string>): string {
   if (installerId === undefined) return 'Unknown pilot';
-  return entityNames[String(installerId)] ?? `Pilot #${installerId}`;
+  return nameOrUnresolved(entityNames, installerId, 'character');
 }
 
 export function jobsSubtitle(summary: JobsSummary): string {

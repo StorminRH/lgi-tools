@@ -22,6 +22,7 @@ import {
 import { type MarginMode } from '../cockpit-margin';
 import type { CostBasis } from '../cost-basis-view';
 import { timeLeverRows } from '../time-lever-rows';
+import { typeNamer } from '../type-name';
 import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { hasUnpricedInputs } from '../fee-breakdown';
@@ -368,7 +369,7 @@ export function CockpitKpis({
           seeded={seeded}
           refreshing={refreshing || margin.held}
           setMarginMode={setMarginMode}
-          nameOf={(typeId) => structure.buildNodeDisplay[typeId]?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`}
+          nameOf={typeNamer(structure)}
         />
       </div>
       <div className={WIDE}>

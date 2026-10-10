@@ -12,6 +12,7 @@ import { LoadFailed } from '@/components/ui/load-failed';
 import { SectionLabel } from '@/components/ui/section-label';
 import { ENTITY_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
 import { corporationLogoUrl } from '@/lib/eve-image';
+import { nameOrUnresolved } from '@/lib/format/names';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
 import { corpEntityIds, type CorpGroupState, corpGroupState, runnerName } from '../job-view';
@@ -93,7 +94,7 @@ function CorpJobsList({
           className="size-9 shrink-0 rounded-ctl border border-border-soft"
         />
       }
-      title={entityNames[String(corp.corporationId)] ?? `Corporation #${corp.corporationId}`}
+      title={nameOrUnresolved(entityNames, corp.corporationId, 'corporation')}
       notice={CORP_NOTICES[corpGroupState(corp)]}
       data={corp.data}
       lastSyncedAt={corp.lastRefreshedAt}

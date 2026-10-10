@@ -1,5 +1,6 @@
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { unresolvedName } from '@/lib/format/names';
 import { type CurrentTraining, romanLevel } from '../progress';
 
 function PlayGlyph() {
@@ -35,7 +36,7 @@ export function TrainingLine({
   }
   const label = (
     <span className="text-name truncate flex-1 min-w-0">
-      {skillName ?? `Skill #${training.skillId}`}{' '}
+      {skillName ?? unresolvedName('skill', training.skillId)}{' '}
       <span className="text-muted">{romanLevel(training.level)}</span>
     </span>
   );

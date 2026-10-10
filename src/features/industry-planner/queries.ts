@@ -29,6 +29,7 @@ import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { toPlainPriceFigures } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
+import { unresolvedName } from '@/lib/format/names';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { collectBlueprintTypeIds, collectRawTypeIds, productTypeByBlueprint } from './build-batch';
 import {
@@ -99,7 +100,7 @@ async function nodeTimeSkillsFor(
         ? [
             {
               skillTypeId: skill.typeId,
-              skillName: skillNames.get(skill.typeId) ?? `Skill ${skill.typeId}`,
+              skillName: skillNames.get(skill.typeId) ?? unresolvedName('skill', skill.typeId),
               timePctPerLevel: pct,
             },
           ]
@@ -160,7 +161,7 @@ export async function getBlueprintStructure(
       activityId: chosen.activityId,
       product: {
         typeId: chosen.productTypeId,
-        name: materialNames[chosen.productTypeId] ?? `Type ${chosen.productTypeId}`,
+        name: materialNames[chosen.productTypeId] ?? unresolvedName('type', chosen.productTypeId),
         quantityPerRun: chosen.quantity,
         renderable: isRenderableCategory(labels.get(chosen.productTypeId)?.categoryName ?? ''),
       },

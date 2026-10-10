@@ -1,5 +1,6 @@
 import type { TypeLabel } from '@/data/eve-data/queries';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import { unresolvedName } from '@/lib/format/names';
 import { classifyBuildNode } from './industry-styles';
 import type { BuildNode, BuildNodeDisplay } from './types';
 
@@ -28,7 +29,7 @@ export function toBuildTree(args: {
       categoryName: l?.categoryName ?? '',
     });
     display[typeId] = {
-      name: l?.name ?? `Type ${typeId}`,
+      name: l?.name ?? unresolvedName('type', typeId),
       height: heights.get(typeId) ?? 0,
       isRaw,
       label: cls.label,
@@ -69,7 +70,7 @@ export function toBuildTree(args: {
     categoryName: rl?.categoryName ?? '',
   });
   display[product.typeId] = {
-    name: rl?.name ?? `Type ${product.typeId}`,
+    name: rl?.name ?? unresolvedName('type', product.typeId),
     height: rootHeight,
     isRaw: false,
     label: rootCls.label,

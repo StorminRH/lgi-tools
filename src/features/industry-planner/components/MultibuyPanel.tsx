@@ -18,6 +18,7 @@ import {
   tierRowsFromTierOf,
   type NetMode,
 } from '../multibuy';
+import { typeNamer } from '../type-name';
 import type { BlueprintStructure } from '../types';
 import { KpiHelp } from './kpi-tile';
 import { useBuildPlan, usePlannerConfig } from './planner-contexts';
@@ -51,7 +52,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
     });
     return multibuyEntries(
       buy,
-      (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+      typeNamer(structure),
       (typeId) => tierOf.get(typeId),
     );
   }, [structure, runs, ledgerMeOpts, tierOf, uncheckedTiers, effectiveMode, ownedAssets]);

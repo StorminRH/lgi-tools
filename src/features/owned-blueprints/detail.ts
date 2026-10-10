@@ -1,6 +1,7 @@
 import { corpContextOf } from '@/data/corp-holdings/context';
 import { corpHoldingNameIds, type EntityNames, type FormatStation, labelCorpHolding } from '@/data/corp-holdings/labels';
 import type { CorpHoldingContext } from '@/data/corp-holdings/placement';
+import { nameOrUnresolved } from '@/lib/format/names';
 import type { OwnedBlueprintMap, OwnedBlueprintSummary } from './blueprint-map';
 import type { OwnedBlueprintOwnerType } from './schema';
 
@@ -44,10 +45,6 @@ export function collectDetailNameIds(map: OwnedBlueprintMap, requestedTypeIds: n
   return [...ids];
 }
 
-function ownerFallback(ownerType: OwnedBlueprintOwnerType, ownerId: number): string {
-  return ownerType === 'corporation' ? `Corporation ${ownerId}` : `Character ${ownerId}`;
-}
-
 function resolveLocationName(locationId: number, names: EntityNames, formatStation: FormatStation): string {
   if (isPlayerStructure(locationId)) return STRUCTURE_LABEL;
   const resolved = names[String(locationId)];
@@ -86,7 +83,7 @@ export function buildOwnedDetail(
       me: summary.me,
       te: summary.te,
       ownerType: summary.ownerType,
-      ownerName: names[String(summary.ownerId)] ?? ownerFallback(summary.ownerType, summary.ownerId),
+      ownerName: nameOrUnresolved(names, summary.ownerId, summary.ownerType),
       ...resolveWhere(summary, names, formatStation, contexts),
     });
   }
