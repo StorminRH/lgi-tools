@@ -25,7 +25,7 @@ interface CorpJobsSave {
 function makeDescriptor(port: CorpJobsPort) {
   return makeCorpDescriptor<CorpOwner, CorpJobsSyncState, CorpJobsSave>(port, {
     ownerOf: (userId, corporationId) => ({ userId, corporationId }),
-    eligible: (owner) => canSyncCorpIndustryJobs(owner),
+    eligible: canSyncCorpIndustryJobs,
     requiredRoles: CORP_INDUSTRY_JOBS_REQUIRED_ROLES,
     isStale: CORP_JOBS_FRESHNESS.isStale,
     readState: (owner) => port.readSyncState(owner.userId, owner.corporationId),

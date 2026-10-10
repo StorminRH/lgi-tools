@@ -1,4 +1,5 @@
 import type { EveScope } from '@/config/eve-scopes';
+import { scopeEligibility } from '@/lib/scope-eligibility';
 
 /**
  * The roles read is shared with corp jobs / blueprints / assets; the
@@ -11,10 +12,4 @@ export const CORP_STRUCTURES_SYNC_SCOPES = [
 
 export const CORP_STRUCTURES_REQUIRED_ROLES = ['Station_Manager', 'Director'] as const;
 
-export function canSyncCorpStructures(character: {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}): boolean {
-  if (!character.hasRefreshToken) return false;
-  return !CORP_STRUCTURES_SYNC_SCOPES.some((scope) => character.missingScopes.includes(scope));
-}
+export const canSyncCorpStructures = scopeEligibility(CORP_STRUCTURES_SYNC_SCOPES);

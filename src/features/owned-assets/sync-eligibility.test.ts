@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { canSyncAssets } from './sync-eligibility';
 
-describe('canSyncAssets', () => {
-  it.each([
-    [{ hasRefreshToken: true, missingScopes: [] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-assets.read_assets.v1'] }, false],
-    [{ hasRefreshToken: false, missingScopes: [] }, false],
-  ])('token + required scope: %j → %s', (input, expected) => {
-    expect(canSyncAssets(input)).toBe(expected);
-  });
+const NEEDED: readonly string[] = ['esi-assets.read_assets.v1'];
+
+test('canSyncAssets needs the character assets scope and no other', () => {
+  for (const scope of NEEDED) {
+    expect(canSyncAssets({ hasRefreshToken: true, missingScopes: [scope] }), scope).toBe(false);
+  }
+  const others = EVE_SCOPES.filter((scope) => !NEEDED.includes(scope));
+  expect(canSyncAssets({ hasRefreshToken: true, missingScopes: others })).toBe(true);
 });

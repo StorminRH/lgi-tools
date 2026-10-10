@@ -1,4 +1,5 @@
 import type { EveScope } from '@/config/eve-scopes';
+import { scopeEligibility } from '@/lib/scope-eligibility';
 
 /**
  * The roles read is shared with corp industry jobs + corp blueprints; the
@@ -12,10 +13,4 @@ export const CORP_ASSETS_SYNC_SCOPES = [
 
 export const CORP_ASSETS_REQUIRED_ROLES = ['Director'] as const;
 
-export function canSyncCorpAssets(character: {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}): boolean {
-  if (!character.hasRefreshToken) return false;
-  return !CORP_ASSETS_SYNC_SCOPES.some((scope) => character.missingScopes.includes(scope));
-}
+export const canSyncCorpAssets = scopeEligibility(CORP_ASSETS_SYNC_SCOPES);

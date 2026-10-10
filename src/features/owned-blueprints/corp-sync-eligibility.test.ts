@@ -1,23 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { canSyncCorpBlueprints, CORP_BLUEPRINTS_REQUIRED_ROLES } from './corp-sync-eligibility';
 
-describe('CORP_BLUEPRINTS_REQUIRED_ROLES', () => {
-  it('pins Director as the sole admitting role', () => {
-    expect([...CORP_BLUEPRINTS_REQUIRED_ROLES]).toEqual(['Director']);
-  });
+const NEEDED: readonly string[] = [
+  'esi-characters.read_corporation_roles.v1',
+  'esi-corporations.read_blueprints.v1',
+];
+
+test('CORP_BLUEPRINTS_REQUIRED_ROLES pins Director as the sole admitting role', () => {
+  expect([...CORP_BLUEPRINTS_REQUIRED_ROLES]).toEqual(['Director']);
 });
 
-describe('canSyncCorpBlueprints', () => {
-  it.each([
-    [{ hasRefreshToken: true, missingScopes: [] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
-    [
-      { hasRefreshToken: true, missingScopes: ['esi-characters.read_corporation_roles.v1'] },
-      false,
-    ],
-    [{ hasRefreshToken: true, missingScopes: ['esi-corporations.read_blueprints.v1'] }, false],
-    [{ hasRefreshToken: false, missingScopes: [] }, false],
-  ])('token + both corp scopes: %j → %s', (input, expected) => {
-    expect(canSyncCorpBlueprints(input)).toBe(expected);
-  });
+test('canSyncCorpBlueprints needs the roles and corporation blueprints scopes and no other', () => {
+  for (const scope of NEEDED) {
+    expect(canSyncCorpBlueprints({ hasRefreshToken: true, missingScopes: [scope] }), scope).toBe(false);
+  }
+  const others = EVE_SCOPES.filter((scope) => !NEEDED.includes(scope));
+  expect(canSyncCorpBlueprints({ hasRefreshToken: true, missingScopes: others })).toBe(true);
 });

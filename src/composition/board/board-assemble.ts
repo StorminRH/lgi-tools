@@ -32,6 +32,7 @@ import type { CharacterSkillData } from '@/features/skill-queue/types';
 import { sortedUniqueIds } from '@/lib/array';
 import { isoDayStartMs } from '@/lib/iso-date';
 import { roundIsk } from '@/lib/math';
+import { hasScopes, type ScopeHolder } from '@/lib/scope-eligibility';
 import {
   BOARD_GAPS,
   type BoardCharacter,
@@ -55,14 +56,9 @@ export interface BoardIdentity {
   allianceId: number | null;
 }
 
-export interface BoardHealth {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}
-
 export interface BoardRaw {
   identity: BoardIdentity;
-  health: BoardHealth;
+  health: ScopeHolder;
   sheet: SheetSections | null;
   skills: { data: CharacterSkillData | null; levels: Record<string, number> | null; refreshedAt: number | null };
   jobs: { data: CharacterJobsData | null; refreshedAt: number | null };
@@ -413,13 +409,10 @@ function deniedGaps(sheet: SheetSections | null): Set<BoardGap> {
   return gaps;
 }
 
+/** Without a refresh token every gap shows, in BOARD_GAPS order. */
 function boardGaps(raw: BoardRaw): BoardGap[] {
-  if (!raw.health.hasRefreshToken) return [...BOARD_GAPS];
   const denied = deniedGaps(raw.sheet);
-  return BOARD_GAPS.filter(
-    (gap) =>
-      denied.has(gap) || GAP_SCOPES[gap].some((scope) => raw.health.missingScopes.includes(scope)),
-  );
+  return BOARD_GAPS.filter((gap) => denied.has(gap) || !hasScopes(raw.health, GAP_SCOPES[gap]));
 }
 
 export function assembleBoardCharacter(

@@ -1,4 +1,5 @@
 import { EVE_SCOPES, type EveScope } from '@/config/eve-scopes';
+import type { ScopeHolder } from '@/lib/scope-eligibility';
 
 export interface CharacterHealth {
   needsReconnect: boolean;
@@ -43,6 +44,17 @@ export function deriveCharacterHealth(input: {
   hasRefreshToken: boolean;
 }): CharacterHealth {
   return deriveScopeHealth(input, EVE_SCOPES);
+}
+
+/**
+ * A linked-character row as the sync-eligibility predicates read it. The
+ * missing scopes are a fresh array, so callers may keep them in mutable rows.
+ */
+export function scopeHolderOf(character: { scope: string | null | undefined; hasRefreshToken: boolean }) {
+  return {
+    hasRefreshToken: character.hasRefreshToken,
+    missingScopes: deriveCharacterHealth(character).missingScopes,
+  } satisfies ScopeHolder;
 }
 
 export type GrantedScope = { id: string; gloss?: string; status: 'active' | 'legacy' };

@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import type { ScopeHolder } from '@/lib/scope-eligibility';
 import { toAccountCharacter, toPanelCharacter } from './panel-character';
 
 const base = { characterId: 90001, name: 'Pilot Alpha', portraitUrl: 'https://img/1.jpg' };
@@ -28,7 +29,7 @@ test('projects client-safe fields, never the granted scope, and wires needsRecon
   expect(toPanelCharacter(syncable, () => true).needsReconnect).toBe(false);
   expect(toPanelCharacter(syncable, () => false).needsReconnect).toBe(true);
 
-  let seen: { hasRefreshToken: boolean; missingScopes: string[] } | undefined;
+  let seen: ScopeHolder | undefined;
   toPanelCharacter({ ...base, scope: '', hasRefreshToken: false }, (eligibility) => {
     seen = eligibility;
     return eligibility.hasRefreshToken;

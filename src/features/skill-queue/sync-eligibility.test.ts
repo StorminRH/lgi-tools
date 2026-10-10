@@ -1,14 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import { canSyncSkillQueue } from './sync-eligibility';
 
-describe('canSyncSkillQueue', () => {
-  it.each([
-    [{ hasRefreshToken: true, missingScopes: [] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-industry.read_character_jobs.v1'] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, false],
-    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skillqueue.v1'] }, false],
-    [{ hasRefreshToken: false, missingScopes: [] }, false],
-  ])('token + both skill scopes: %j → %s', (input, expected) => {
-    expect(canSyncSkillQueue(input)).toBe(expected);
-  });
+const NEEDED: readonly string[] = [
+  'esi-skills.read_skills.v1',
+  'esi-skills.read_skillqueue.v1',
+];
+
+test('canSyncSkillQueue needs the skills and skill queue scopes and no other', () => {
+  for (const scope of NEEDED) {
+    expect(canSyncSkillQueue({ hasRefreshToken: true, missingScopes: [scope] }), scope).toBe(false);
+  }
+  const others = EVE_SCOPES.filter((scope) => !NEEDED.includes(scope));
+  expect(canSyncSkillQueue({ hasRefreshToken: true, missingScopes: others })).toBe(true);
 });

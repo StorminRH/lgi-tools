@@ -3,6 +3,7 @@ import type { EveScope } from '@/config/eve-scopes';
 import { getCorpHoldingContext, readCorpMemberContext } from '@/data/corp-holdings/queries';
 import type { Knowable } from '@/data/corp-holdings/placement';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import { hasScopes } from '@/lib/scope-eligibility';
 import type { UserCorpAccess } from '@/platform/auth/corp-access';
 import { narrowCorpRoles } from '@/platform/auth/corp-roles';
 import { readCorpRoles, type StoredCorpRoles } from '@/platform/auth/corp-roles-store';
@@ -52,7 +53,7 @@ function usableStoredRoles(
 }
 
 function canFetchRoles(health: LinkedCharacterHealth | undefined): boolean {
-  return health !== undefined && health.hasRefreshToken && !health.missingScopes.includes(ROLES_SCOPE);
+  return health !== undefined && hasScopes(health, [ROLES_SCOPE]);
 }
 
 async function fetchedRolesOrUnknown(characterId: number, corporationId: number): Promise<MemberRoles> {
