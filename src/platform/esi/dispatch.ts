@@ -44,14 +44,27 @@ interface LocalBudget {
   remaining: number;
   readAt: number;
   errorsSince: number;
-  /** Observation order, so a read can tell what this process learned while it was in flight. */
-  seq: number;
 }
 
 let localBudget: LocalBudget | null = null;
 /** Per normalized path: when the shared block was last read, until when it holds, and in what order. */
 const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null; seq: number }>();
+
+/**
+ * What this process has seen, in order, so a shared read can fold in only
+ * what arrived while it was in flight: every observation takes the next
+ * sequence number, error answers are counted, and the newest ESI
+ * error-limit header and the last 420 keep the number they arrived with.
+ */
 let localSeq = 0;
+let localErrorCount = 0;
+let latestRemain: { value: number; seq: number } | null = null;
+let closedSeq = -1;
+
+interface ReadMark {
+  seq: number;
+  errors: number;
+}
 
 let scoreboardOverride: EsiScoreboard | 'unavailable' | null = null;
 
@@ -71,6 +84,10 @@ export function __resetEsiGateForTests(): void {
   trickleCount = 0;
   localBudget = null;
   localBlocks.clear();
+  localSeq = 0;
+  localErrorCount = 0;
+  latestRemain = null;
+  closedSeq = -1;
   scoreboardOverride = null;
   __resetScoreboardForTests();
 }
@@ -230,22 +247,25 @@ function localPreDispatch(url: string, now: number): PreDispatchState | null {
   };
 }
 
+/** The shared budget, less what this process saw after the read started: its errors, ESI's newest count, a 420. */
+function budgetAfterRead(pre: PreDispatchState, mark: ReadMark): number {
+  let remaining = pre.effectiveRemaining - (localErrorCount - mark.errors);
+  if (latestRemain !== null && latestRemain.seq > mark.seq) remaining = Math.min(remaining, latestRemain.value);
+  return closedSeq > mark.seq ? 0 : remaining;
+}
+
 /**
  * Keeps a shared reading for reuse and returns what this call should obey.
- * Answers and readings this process took in after the read started (`readSeq`)
- * are newer than the read, so the lower budget and the later block win.
+ * Answers and blocks this process took in after the read started (`mark`) are
+ * newer than the read, so they lower the budget and the later block wins.
  */
-function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number, now: number): PreDispatchState {
-  const newerBudget =
-    localBudget !== null && localBudget.seq > readSeq
-      ? localBudget.remaining - localBudget.errorsSince
-      : Number.POSITIVE_INFINITY;
-  const effectiveRemaining = Math.min(pre.effectiveRemaining, newerBudget);
-  localBudget = { remaining: effectiveRemaining, readAt: now, errorsSince: 0, seq: ++localSeq };
+function rememberPreDispatch(url: string, pre: PreDispatchState, mark: ReadMark, now: number): PreDispatchState {
+  const effectiveRemaining = budgetAfterRead(pre, mark);
+  localBudget = { remaining: effectiveRemaining, readAt: now, errorsSince: 0 };
 
   const path = normalizeEsiPath(url);
   const previous = localBlocks.get(path);
-  const newerUntil = previous !== undefined && previous.seq > readSeq ? previous.blockedUntil ?? 0 : 0;
+  const newerUntil = previous !== undefined && previous.seq > mark.seq ? previous.blockedUntil ?? 0 : 0;
   const readUntil = pre.blockedRetryAfter === null ? 0 : now + pre.blockedRetryAfter * 1000;
   const blockedUntil = Math.max(readUntil, newerUntil);
   localBlocks.set(path, { readAt: now, blockedUntil: blockedUntil > 0 ? blockedUntil : null, seq: ++localSeq });
@@ -263,19 +283,22 @@ function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number
  */
 function noteLocalAnswer(url: string, res: Response): void {
   const now = Date.now();
+  const seq = ++localSeq;
+  const remain = parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain');
+  if (res.status >= 400) localErrorCount += 1;
+  if (remain !== null) latestRemain = { value: remain, seq };
   if (res.status === 420) {
-    localBudget = { remaining: 0, readAt: now, errorsSince: 0, seq: ++localSeq };
+    closedSeq = seq;
+    localBudget = { remaining: 0, readAt: now, errorsSince: 0 };
   } else if (localBudget !== null) {
     if (res.status >= 400) localBudget.errorsSince += 1;
-    const remain = parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain');
     if (remain !== null) {
       localBudget.remaining = Math.min(localBudget.remaining, remain + localBudget.errorsSince);
     }
-    localBudget.seq = ++localSeq;
   }
   if (res.status === 429) {
     const retryAfter = resolveRetryAfter(parseIntHeader(res.headers, 'Retry-After'));
-    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000, seq: ++localSeq });
+    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000, seq });
   }
 }
 
@@ -289,10 +312,10 @@ export async function consultPreDispatch(
     const local = localPreDispatch(url, Date.now());
     if (local !== null) return local;
   }
-  const readSeq = localSeq;
+  const mark: ReadMark = { seq: localSeq, errors: localErrorCount };
   try {
     const pre = await sb.preDispatch(url, wantEtag);
-    return rememberPreDispatch(url, pre, readSeq, Date.now());
+    return rememberPreDispatch(url, pre, mark, Date.now());
   } catch (err) {
     redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
     console.warn('[esi] scoreboard pre-dispatch failed', err);
