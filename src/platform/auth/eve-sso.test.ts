@@ -4,7 +4,6 @@ import {
   EVE_REVOKE_URL,
   claimsToCharacter,
   exchangeCodeForToken,
-  portraitUrl,
   refreshEveToken,
   revokeEveRefreshToken,
 } from './eve-sso';
@@ -43,20 +42,6 @@ describe('claimsToCharacter', () => {
         sub: 'CHARACTER:EVE:1',
       } as Parameters<typeof claimsToCharacter>[0]),
     ).toThrow(/missing `name`/);
-  });
-});
-
-describe('portraitUrl', () => {
-  it('defaults to size=128', () => {
-    expect(portraitUrl(42)).toBe(
-      'https://images.evetech.net/characters/42/portrait?size=128',
-    );
-  });
-
-  it('respects the size argument', () => {
-    expect(portraitUrl(42, 64)).toBe(
-      'https://images.evetech.net/characters/42/portrait?size=64',
-    );
   });
 });
 

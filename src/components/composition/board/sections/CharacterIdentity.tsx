@@ -1,11 +1,11 @@
 import { ViewTransition } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
+import { EntityLogo } from '@/components/entity-logo';
 import { cn } from '@/components/ui/cn';
 import { StatusDot } from '@/components/ui/status-dot';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { pilotTransitionName } from '../board-motion';
 import { characterAge, characterSecurityClass, readyData } from '../board-view-model';
-import { EntityLogo } from './EntityLogo';
 
 /** Portrait and identity details shared by character sheets. */
 export function CharacterIdentity({
@@ -44,13 +44,13 @@ function Affiliation({ character }: { character: Pick<BoardCharacter, 'corporati
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-ui text-text">
       {corporation !== null && (
         <span className="inline-flex min-w-0 items-center gap-1.5">
-          <EntityLogo kind="corporation" id={corporation.id} name={corporation.name ?? 'Corporation'} />
+          <EntityLogo kind="corporation" id={corporation.id} size={20} />
           <span className="truncate">{corporation.name ?? 'Unknown corporation'}</span>
         </span>
       )}
       {alliance !== null && (
         <span className="inline-flex min-w-0 items-center gap-1.5">
-          <EntityLogo kind="alliance" id={alliance.id} name={alliance.name ?? 'Alliance'} />
+          <EntityLogo kind="alliance" id={alliance.id} size={20} />
           <span className="truncate">{alliance.name ?? 'Unknown alliance'}</span>
         </span>
       )}

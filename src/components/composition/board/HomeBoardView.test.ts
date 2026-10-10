@@ -83,6 +83,8 @@ describe('HomeBoardView', () => {
   it('opens the pilot named in the URL full width, with a way back and no rail', () => {
     const html = render('full', '?character=9900000001');
     expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
+    // The corporation's name sits beside its logo, so the logo itself is unlabelled.
+    expect(html).toContain('<span data-eve-image-family="corporation-logo" data-alt=""></span>');
     const journal = html.slice(html.indexOf('aria-label="Recent wallet journal"'));
     expect(journal).toContain('<span class="text-isk">+61.00M</span>');
     expect(journal).toContain('<span class="text-dps-high">−46.55M</span>');

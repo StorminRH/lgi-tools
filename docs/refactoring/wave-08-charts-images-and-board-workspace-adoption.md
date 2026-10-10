@@ -12,7 +12,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | ☑ | [P037](#p037) | Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart | ui-component | S | low | medium | [P004](#p004) |
 | ☑ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
 | ☑ | [P318](#p318) | Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types | simplification | S | low | low | [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089) |
-| ☐ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
+| ☑ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
 | ☐ | [P009](#p009) | Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30 | ui-component | S | low | low | [P008](#p008) |
 | ☐ | [P012](#p012) | Derive the linked-character health label once in platform/auth and render admin character portraits with CharacterPortrait | ui-component | S | low | medium | [P008](#p008) |
 | ☐ | [P010](#p010) | Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook | ui-component | M | low | medium | — |
@@ -352,7 +352,7 @@ export type BoardImplantsData = z.infer<typeof implantsDataSchema>;
 
 ## P008: Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** Removes about 30 lines (3 raw EveImage blocks, the redundant portrait src fallbacks, the dead logoUrl field and mapping) and adds about 35 (EntityLogo grows a size map and placeholder; lib gains the path table). Roughly neutral; the gain is one owner for image URLs and one logo component.
 - **Depends on:** —

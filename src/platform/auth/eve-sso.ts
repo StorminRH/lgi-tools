@@ -4,7 +4,7 @@ import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { isTimeoutError } from '@/lib/error-chain';
-import { characterPortraitUrl, type EveImageSize } from '@/lib/eve-image';
+import { characterPortraitUrl } from '@/lib/eve-image';
 import { timeDependency } from '@/lib/dependency-timing';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
@@ -244,10 +244,6 @@ export function claimsToCharacter(claims: EveJwtClaims): CharacterIdentity {
   return {
     characterId,
     name: claims.name,
-    portraitUrl: portraitUrl(characterId),
+    portraitUrl: characterPortraitUrl(characterId, 128),
   };
-}
-
-export function portraitUrl(characterId: number, size: EveImageSize = 128): string {
-  return characterPortraitUrl(characterId, size);
 }

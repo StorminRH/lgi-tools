@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { TypeIconVariant } from '@/data/eve-data/type-images';
-import type { EveImageFamily } from '@/lib/eve-image';
+import { eveImageSrc, type EveImageFamily } from '@/lib/eve-image';
 import { EveImage } from './eve-image';
 import { cn } from './ui/cn';
 
@@ -63,7 +63,7 @@ export function TypeIcon({
       source="eve"
       family={IMAGE_FAMILY[variant]}
       className={cn('type-icon', className)}
-      src={`https://images.evetech.net/types/${typeId}/${variant}`}
+      src={eveImageSrc(IMAGE_FAMILY[variant], typeId)}
       width={size}
       height={size}
       alt={alt}
