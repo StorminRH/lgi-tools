@@ -6,6 +6,7 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SegmentedControl } from '@/components/ui/segmented';
+import { formatCount } from '@/lib/format/number';
 import { computeMultibuyDemand } from '../build-batch';
 import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
 import {
@@ -14,7 +15,6 @@ import {
   hasOwnedStock,
   multibuyBuildSet,
   multibuyEntries,
-  pluralCount,
   tierRowsFromTierOf,
   type NetMode,
 } from '../multibuy';
@@ -64,7 +64,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
   };
 
   const copyValue = buildMultibuyText(entries);
-  const entryCount = pluralCount(entries.length, 'item', 'items');
+  const entryCount = formatCount(entries.length, 'item');
 
   return (
     <Popover
@@ -122,7 +122,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
               label={`Build tier ${depth}`}
             />
             <span className="text-ui text-text">Tier {depth}</span>
-            <span className="text-micro text-faint">· {pluralCount(count, 'type', 'types')}</span>
+            <span className="text-micro text-faint">· {formatCount(count, 'type')}</span>
           </label>
         ))}
       </div>

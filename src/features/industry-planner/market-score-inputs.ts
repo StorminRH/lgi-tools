@@ -3,6 +3,7 @@ import { HISTORY_ADV_WINDOWS } from '@/data/market-history/constants';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { DEPTH_BANDS_PCT } from '@/data/market-prices/constants';
 import type { DepthBand } from '@/data/market-prices/types';
+import { formatCount } from '@/lib/format/number';
 import { formatElapsed } from '@/lib/format/time';
 import { DAY_MS, isoDayNumber } from '@/lib/iso-date';
 
@@ -22,9 +23,7 @@ export function daysSinceHistoryDate(latestDate: string | null, nowMs: number): 
 }
 
 function daysPhrase(n: number): string {
-  if (n < 1) return '<1 day';
-  const r = Math.round(n);
-  return `${r} day${r === 1 ? '' : 's'}`;
+  return n < 1 ? '<1 day' : formatCount(n, 'day');
 }
 
 const BAND_WORD = { steady: 'steady', moderate: 'moderate', spiky: 'spiky' } as const;

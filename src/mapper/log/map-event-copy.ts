@@ -1,5 +1,6 @@
 import type { Doc } from '@/data/convex/data-model';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
+import { formatCount } from '@/lib/format/number';
 
 export type MapEventRow = Doc<'mapEvents'>;
 
@@ -17,21 +18,21 @@ export function mapEventLabel(event: MapEventRow): string {
       return 'Severed connection — branch kept';
     case 'branch_removed': {
       const count = systemCount(event);
-      return `Removed ${count} downstream system${count === 1 ? '' : 's'}`;
+      return `Removed ${formatCount(count, 'downstream system')}`;
     }
     case 'branch_restored': {
       const count = systemCount(event);
-      return `Restored branch (${count} system${count === 1 ? '' : 's'})`;
+      return `Restored branch (${formatCount(count, 'system')})`;
     }
     case 'connection_restored':
       return 'Restored connection';
     case 'signatures_removed': {
       const count = signatureIdCount(event);
-      return `Removed ${count} signature${count === 1 ? '' : 's'}`;
+      return `Removed ${formatCount(count, 'signature')}`;
     }
     case 'signatures_restored': {
       const count = signatureIdCount(event);
-      return `Restored ${count} signature${count === 1 ? '' : 's'}`;
+      return `Restored ${formatCount(count, 'signature')}`;
     }
     default:
       return event.kind;

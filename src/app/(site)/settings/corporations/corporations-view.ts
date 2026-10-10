@@ -1,4 +1,5 @@
 import type { CorpStructurePageView } from '@/features/owned-structures/types';
+import { formatCount } from '@/lib/format/number';
 import type { PageControlModel } from '@/platform/page-settings/controls';
 
 export type CorporationRoleLabel = 'Director' | 'Station Manager' | 'Member';
@@ -65,6 +66,6 @@ export function deriveCorporationsView(rows: readonly CorpStructurePageView[]): 
     directorCorps: rows.filter((corp) => corp.canManageSharing).map(toSharingCorp),
     memberCorps: rows.filter((corp) => !corp.canManageSharing).map(toSharingCorp),
     memberships: rows.map(toMembership).sort(byRoleThenName),
-    membershipHint: `${rows.length} corporation${rows.length === 1 ? '' : 's'}`,
+    membershipHint: formatCount(rows.length, 'corporation'),
   };
 }

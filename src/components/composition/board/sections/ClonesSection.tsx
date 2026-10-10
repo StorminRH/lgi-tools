@@ -1,5 +1,6 @@
 import type { BoardCharacter, PlaceRef } from '@/composition/board/api-contract';
 import { EntityRow } from '@/components/ui/row';
+import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
 import { placeName } from '../board-view-model';
 import { SystemName } from '../board-bits';
@@ -34,7 +35,7 @@ export function ClonesSection({
                   name={<Place place={clone.location} label={clone.name} />}
                   trailing={
                     <span className="font-data text-micro text-muted">
-                      {clone.implantCount} {clone.implantCount === 1 ? 'implant' : 'implants'}
+                      {formatCount(clone.implantCount, 'implant')}
                     </span>
                   }
                 />

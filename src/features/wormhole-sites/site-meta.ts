@@ -1,3 +1,4 @@
+import { formatCount } from '@/lib/format/number';
 import type { SiteDetail } from './types';
 
 function formatIsk(value: number): string {
@@ -29,7 +30,7 @@ export function buildSiteDescription(
     const lootText =
       loot > 0 ? `${formatIsk(loot)} estimated blue-loot value` : 'sleeper loot';
     const waves = site.waves.length;
-    const waveText = waves > 0 ? `, ${waves} NPC wave${waves === 1 ? '' : 's'}` : '';
+    const waveText = waves > 0 ? `, ${formatCount(waves, 'NPC wave')}` : '';
     return `${site.name} is a ${kind} in Eve Online wormhole space — ${lootText}${waveText}, with full NPC and EWAR stats.`;
   }
 

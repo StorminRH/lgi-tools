@@ -6,6 +6,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
+import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
 import { SectionPanel, SectionBody } from '../SectionBody';
 
@@ -53,7 +54,7 @@ function AttributeGrid({ attributes }: { attributes: Attributes }) {
         ))}
       </dl>
       <p className="font-data text-micro text-muted">
-        {attributes.bonusRemaps} bonus {attributes.bonusRemaps === 1 ? 'remap' : 'remaps'} ·{' '}
+        {formatCount(attributes.bonusRemaps, 'bonus remap')} ·{' '}
         {attributes.nextRemapDate !== null
           ? `next remap ${formatUtcDate(attributes.nextRemapDate)}`
           : 'remap available now'}

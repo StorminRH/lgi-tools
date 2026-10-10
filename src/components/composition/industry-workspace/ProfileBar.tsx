@@ -6,13 +6,9 @@ import { cn } from '@/components/ui/cn';
 import { Menu, MenuItem, menuRow } from '@/components/ui/menu';
 import { scrollArea } from '@/components/ui/scroll-area';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
+import { formatCount } from '@/lib/format/number';
 
 export type ProfileAction = 'create' | 'rename' | 'duplicate' | 'delete';
-
-function memberCount(profile: IndustryProfileRow): string {
-  const n = profile.document.members.length;
-  return `${n} ${n === 1 ? 'member' : 'members'}`;
-}
 
 /**
  * Which profile the workspace shows, and the actions on it. Switching is an
@@ -67,7 +63,9 @@ export function ProfileBar({
                 </span>
                 <span className="truncate">{profile.name}</span>
               </span>
-              <span className="shrink-0 font-data text-micro text-faint">{memberCount(profile)}</span>
+              <span className="shrink-0 font-data text-micro text-faint">
+                {formatCount(profile.document.members.length, 'member')}
+              </span>
             </MenuItem>
           );
         })}

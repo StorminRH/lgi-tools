@@ -12,6 +12,7 @@ import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';
 import { Kbd } from '@/components/ui/kbd';
 import { SearchIcon } from '@/components/ui/icons';
+import { formatCount } from '@/lib/format/number';
 import { flattenSections, searchIconClass, searchRowImage, splitMatchRuns } from './global-search-view';
 
 export type Props = {
@@ -129,7 +130,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                     <span>{section.name}</span>
                     {section.name === 'Sites' && section.results.length > 0 && (
                       <span className="font-normal text-muted">
-                        {section.results.length} match{section.results.length === 1 ? '' : 'es'}
+                        {formatCount(section.results.length, 'match', 'matches')}
                       </span>
                     )}
                   </Combobox.GroupLabel>

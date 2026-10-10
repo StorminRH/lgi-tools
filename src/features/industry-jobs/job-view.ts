@@ -4,6 +4,7 @@ import {
   type EveImageDescriptor,
 } from '@/data/eve-data/type-images';
 import { sortedUniqueIds } from '@/lib/array';
+import { formatCount } from '@/lib/format/number';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from './esi-projection';
 import { JOB_STATUS_META, jobActivityLabel } from './industry-jobs-styles';
@@ -62,7 +63,7 @@ export function runnerName(installerId: number | undefined, entityNames: Record<
 }
 
 export function jobsSubtitle(summary: JobsSummary): string {
-  const count = summary.total === 1 ? '1 job' : `${summary.total} jobs`;
+  const count = formatCount(summary.total, 'job');
   const ready = summary.readyCount > 0 ? ` · ${summary.readyCount} ready` : '';
   const paused = summary.pausedCount > 0 ? ` · ${summary.pausedCount} paused` : '';
   return `${count}${ready}${paused}`;
