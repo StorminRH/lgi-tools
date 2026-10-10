@@ -91,6 +91,10 @@ export async function getCapabilityLatency(range: DateRange): Promise<Capability
   // summed times never set a share beside the untimed share of newer ones.
   const average = (column: SQL.Aliased<number>) =>
     sql<number | null>`coalesce(avg(${column}) filter (where ${recordedWall}), avg(${column}))`.mapWith(Number);
+  // Shares divide by this, so it stays null until a run records wall time:
+  // summed times from older runs can still name the heaviest dependency, but
+  // overlapping calls make them no measure of how much of a run they took.
+  const recordedDuration = sql<number | null>`avg(${runs.durationMs}) filter (where ${recordedWall})`.mapWith(Number);
   const dependencyAverages = Object.fromEntries(
     DEPENDENCY_KINDS.map((kind) => [kind, average(runColumns[dependencyColumn(kind)]!)]),
   ) as Record<DependencyKind, SQL<number | null>>;
@@ -101,7 +105,7 @@ export async function getCapabilityLatency(range: DateRange): Promise<Capability
       overall: sql<number>`grouping(${runs.feature}, ${runs.operation})`.mapWith(Number),
       p95: sql<number | null>`percentile_cont(0.95) within group (order by ${runs.durationMs})`.mapWith(Number),
       count: count(),
-      durationMs: average(runs.durationMs),
+      durationMs: recordedDuration,
       untimedShare: sql<number | null>`
         avg(${runs.durationMs} - ${runs.dependencyWallMs}) filter (where ${recordedWall})
         / nullif(avg(${runs.durationMs}) filter (where ${recordedWall}), 0)

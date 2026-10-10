@@ -1,10 +1,18 @@
-import { expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { emptyProfileDocument } from './profile-document';
 
 const h = vi.hoisted(() => ({ runSerializable: vi.fn() }));
 vi.mock('@/db', () => ({ db: {}, runSerializable: h.runSerializable }));
 
 const { createIndustryProfile } = await import('./queries');
+
+beforeEach(() => {
+  h.runSerializable.mockReset();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const failWith = (message: string, code?: string) => async () => {
   throw Object.assign(new Error(message), { code });

@@ -708,14 +708,38 @@ describe('esiFetch', () => {
         .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }))
         .mockResolvedValueOnce(open);
       __setScoreboardForTests(fake);
-      fetchSpy.mockResolvedValueOnce(mockResponse(420)).mockResolvedValueOnce(mockResponse(200));
+      fetchSpy.mockResolvedValueOnce(mockResponse(420));
 
       const slowGet = esiFetch(TEST_URL);
       await vi.advanceTimersByTimeAsync(10);
       await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'esi_420' });
       releaseRead(open);
-      await slowGet;
 
+      // The read predates the 420, so neither the call that made it nor the next one goes out.
+      await expect(slowGet).rejects.toMatchObject({ reason: 'error_budget' });
+      await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
+      expect(fetchSpy).toHaveBeenCalledOnce();
+    });
+
+    it('keeps its own errors from while an older shared read was in flight, for that call too', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const reading = { effectiveRemaining: ESI_BUDGET_FLOOR + 1, blockedRetryAfter: null, etag: null };
+      let releaseRead: (state: typeof reading) => void = () => {};
+      fake.preDispatch
+        .mockResolvedValueOnce(reading)
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }));
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValueOnce(mockResponse(404)).mockResolvedValueOnce(mockResponse(404));
+
+      await expect(esiFetch(POST_URL, post)).resolves.toMatchObject({ status: 404 });
+      const slowGet = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(esiFetch(POST_URL, post)).resolves.toMatchObject({ status: 404 });
+      releaseRead(reading);
+
+      // Two local 404s leave one error under the floor: the slow GET and the next POST both stop.
+      await expect(slowGet).rejects.toMatchObject({ reason: 'error_budget' });
       await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });

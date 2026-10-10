@@ -124,7 +124,8 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
       p95Ms: 2_000,
       count: 1,
       slowestDependency: 'esi',
-      slowestShare: 0.9,
+      // Seeded runs predate wall time: summed times name the dependency but give no share.
+      slowestShare: null,
       untimedShare: null,
     });
     expect(slowest.find((row) => row.operation === 'save-preferences')?.slowestDependency).toBeNull();
@@ -152,7 +153,7 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
       slowest: [
         {
           feature: 'planner', operation: 'read-owned-assets', p95Ms: 300, count: 2,
-          slowestDependency: 'neon', slowestShare: expect.closeTo(1 / 3, 6), untimedShare: null,
+          slowestDependency: 'neon', slowestShare: null, untimedShare: null,
         },
       ],
     });
@@ -318,7 +319,7 @@ const ORACLE = {
     select metadata ->> 'feature' as feature, metadata ->> 'operation' as operation,
       percentile_cont(0.95) within group (order by nullif(metadata ->> 'durationMs', 'null')::double precision) as p95,
       count(*)::int as count,
-      ${recordedFirst(`nullif(metadata ->> 'durationMs', 'null')::double precision`)} as duration,
+      avg(nullif(metadata ->> 'durationMs', 'null')::double precision) filter (where metadata ? 'dependencyWallMs') as duration,
       avg(nullif(metadata ->> 'durationMs', 'null')::double precision - nullif(metadata ->> 'dependencyWallMs', 'null')::double precision)
         filter (where metadata ? 'dependencyWallMs')
         / nullif(avg(nullif(metadata ->> 'durationMs', 'null')::double precision) filter (where metadata ? 'dependencyWallMs'), 0) as untimed,

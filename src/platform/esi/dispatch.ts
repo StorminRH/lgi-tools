@@ -44,11 +44,14 @@ interface LocalBudget {
   remaining: number;
   readAt: number;
   errorsSince: number;
+  /** Observation order, so a read can tell what this process learned while it was in flight. */
+  seq: number;
 }
 
 let localBudget: LocalBudget | null = null;
-/** Per normalized path: when the shared block was last read, and until when it holds. */
-const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null }>();
+/** Per normalized path: when the shared block was last read, until when it holds, and in what order. */
+const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null; seq: number }>();
+let localSeq = 0;
 
 let scoreboardOverride: EsiScoreboard | 'unavailable' | null = null;
 
@@ -228,23 +231,29 @@ function localPreDispatch(url: string, now: number): PreDispatchState | null {
 }
 
 /**
- * Keeps a shared reading for reuse. A 420, 429 or other reading this process
- * took in while the read was in flight is newer than the read, so the lower
- * budget and the later block of the two win.
+ * Keeps a shared reading for reuse and returns what this call should obey.
+ * Answers and readings this process took in after the read started (`readSeq`)
+ * are newer than the read, so the lower budget and the later block win.
  */
-function rememberPreDispatch(url: string, pre: PreDispatchState, readStartedAt: number, now: number): void {
+function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number, now: number): PreDispatchState {
   const newerBudget =
-    localBudget !== null && localBudget.readAt > readStartedAt
+    localBudget !== null && localBudget.seq > readSeq
       ? localBudget.remaining - localBudget.errorsSince
       : Number.POSITIVE_INFINITY;
-  localBudget = { remaining: Math.min(pre.effectiveRemaining, newerBudget), readAt: now, errorsSince: 0 };
+  const effectiveRemaining = Math.min(pre.effectiveRemaining, newerBudget);
+  localBudget = { remaining: effectiveRemaining, readAt: now, errorsSince: 0, seq: ++localSeq };
 
   const path = normalizeEsiPath(url);
   const previous = localBlocks.get(path);
-  const newerUntil = previous !== undefined && previous.readAt > readStartedAt ? previous.blockedUntil ?? 0 : 0;
+  const newerUntil = previous !== undefined && previous.seq > readSeq ? previous.blockedUntil ?? 0 : 0;
   const readUntil = pre.blockedRetryAfter === null ? 0 : now + pre.blockedRetryAfter * 1000;
   const blockedUntil = Math.max(readUntil, newerUntil);
-  localBlocks.set(path, { readAt: now, blockedUntil: blockedUntil > 0 ? blockedUntil : null });
+  localBlocks.set(path, { readAt: now, blockedUntil: blockedUntil > 0 ? blockedUntil : null, seq: ++localSeq });
+
+  const blockedRetryAfter = newerUntil > Math.max(readUntil, now)
+    ? Math.ceil((newerUntil - now) / 1000)
+    : pre.blockedRetryAfter;
+  return { ...pre, effectiveRemaining, blockedRetryAfter };
 }
 
 /**
@@ -255,17 +264,18 @@ function rememberPreDispatch(url: string, pre: PreDispatchState, readStartedAt: 
 function noteLocalAnswer(url: string, res: Response): void {
   const now = Date.now();
   if (res.status === 420) {
-    localBudget = { remaining: 0, readAt: now, errorsSince: 0 };
+    localBudget = { remaining: 0, readAt: now, errorsSince: 0, seq: ++localSeq };
   } else if (localBudget !== null) {
     if (res.status >= 400) localBudget.errorsSince += 1;
     const remain = parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain');
     if (remain !== null) {
       localBudget.remaining = Math.min(localBudget.remaining, remain + localBudget.errorsSince);
     }
+    localBudget.seq = ++localSeq;
   }
   if (res.status === 429) {
     const retryAfter = resolveRetryAfter(parseIntHeader(res.headers, 'Retry-After'));
-    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000 });
+    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000, seq: ++localSeq });
   }
 }
 
@@ -279,11 +289,10 @@ export async function consultPreDispatch(
     const local = localPreDispatch(url, Date.now());
     if (local !== null) return local;
   }
-  const readStartedAt = Date.now();
+  const readSeq = localSeq;
   try {
     const pre = await sb.preDispatch(url, wantEtag);
-    rememberPreDispatch(url, pre, readStartedAt, Date.now());
-    return pre;
+    return rememberPreDispatch(url, pre, readSeq, Date.now());
   } catch (err) {
     redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
     console.warn('[esi] scoreboard pre-dispatch failed', err);
