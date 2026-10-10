@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { SDE_META_KEY_LATEST_PUBLISHED, SDE_META_KEY_VERSION } from './constants';
+import {
+  SDE_CACHE_TAG,
+  SDE_META_KEY_LATEST_PUBLISHED,
+  SDE_META_KEY_VERSION,
+  SDE_VERSION_CACHE_TAG,
+} from './constants';
 
-vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
+const cache = vi.hoisted(() => ({ cacheTag: vi.fn() }));
+vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: cache.cacheTag }));
 
 const { getCachedSdeVersion, getSdeMetaValue, setSdeMetaValue } = await import('./meta');
 
@@ -14,12 +20,13 @@ const harness = await createDbTestHarness({
 });
 
 describe.skipIf(!harness.reachable)('SDE version read', () => {
-  it('reads nothing before the first ingest or cron check', async () => {
+  it('reads nothing before the first ingest or cron check, under the tag the cron refreshes', async () => {
     await expect(getCachedSdeVersion()).resolves.toEqual({
       version: null,
       ingestedAt: null,
       latestPublished: null,
     });
+    expect(cache.cacheTag).toHaveBeenCalledWith(SDE_CACHE_TAG, SDE_VERSION_CACHE_TAG);
   });
 
   it('reads the loaded build and when it landed while CCP has published nothing newer', async () => {
