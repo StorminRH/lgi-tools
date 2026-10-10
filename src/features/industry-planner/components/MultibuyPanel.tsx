@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CopyButton } from '@/components/ui/copy-button';
+import { HelpPopover } from '@/components/ui/help-popover';
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SegmentedControl } from '@/components/ui/segmented';
@@ -20,7 +21,6 @@ import {
 } from '../multibuy';
 import { typeNamer } from '../type-name';
 import type { BlueprintStructure } from '../types';
-import { KpiHelp } from './kpi-tile';
 import { useBuildPlan, usePlannerConfig } from './planner-contexts';
 
 const NET_MODES = ['Total', 'Remaining'] as const satisfies readonly NetMode[];
@@ -85,7 +85,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
     >
       <div className="flex items-center justify-between">
         <PopoverHeading>Multibuy export</PopoverHeading>
-        <KpiHelp label="What the multibuy export copies">
+        <HelpPopover label="What the multibuy export copies">
           <p className="text-ui leading-snug text-muted">
             Check the tiers you&rsquo;ll build yourself.
           </p>
@@ -95,7 +95,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
           <PopoverRow layout="description" label="Remaining">
             the same list minus what your linked characters already own
           </PopoverRow>
-        </KpiHelp>
+        </HelpPopover>
       </div>
 
       <SegmentedControl

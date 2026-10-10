@@ -18,7 +18,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P006](#p006) | Export CollapsibleChevron from ui/collapsible and make it the only data-chevron owner (fixes 4 missing aria-hidden) | ui-component | S | low | medium | — |
 | ☑ | [P018](#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
 | ☑ | [P020](#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
-| ☐ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
+| ☑ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
 | ☐ | [P016](#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
 | ☐ | [P002](#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
 | ☐ | [P017](#p017) | Expose SectionBody's note as SectionNote for board and workspace panels, and use EmptyState and LoadingLabel where they are bypassed | ui-component | S | low | medium | [P002](#p002) |
@@ -825,7 +825,7 @@ export function SkeletonGroup({ label, className, children, ...props }: { label:
 
 ## P007: Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45 (KpiHelp body leaves kpi-tile, plus NetWorthHelp's and AccountDangerZone's trigger strings) and about +35 for the new file. Net about -10 to -15 plus a test.
 - **Depends on:** —

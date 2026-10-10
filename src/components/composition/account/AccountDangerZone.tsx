@@ -9,7 +9,8 @@ import { Card, insetSurface } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
+import { HelpPopover } from '@/components/ui/help-popover';
+import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
@@ -41,11 +42,7 @@ export function AccountDangerZone({
         size="md"
         label={<span className="text-ui text-tone-red">Danger zone</span>}
         hint={
-          <Popover
-            label="What purge and unlink do"
-            trigger="?"
-            triggerClassName="grid h-4 w-4 place-items-center rounded-full border border-border text-micro text-muted hover:text-text"
-          >
+          <HelpPopover label="What purge and unlink do">
             <PopoverHeading>Purge vs unlink</PopoverHeading>
             <PopoverRow layout="description" label="Purge">
               clears what the site has stored for a character and stops LGI.tools from accessing its
@@ -58,7 +55,7 @@ export function AccountDangerZone({
               </Link>
               . You can link them again later.
             </PopoverRow>
-          </Popover>
+          </HelpPopover>
         }
       />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">

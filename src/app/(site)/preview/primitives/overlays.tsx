@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Drawer, DrawerClose } from '@/components/ui/drawer';
+import { HelpPopover } from '@/components/ui/help-popover';
 import { CheckIcon } from '@/components/ui/icons';
 import {
   Menu,
@@ -245,6 +246,29 @@ export function OverlaysGroup() {
             <PopoverHeading>Synced</PopoverHeading>
             <PopoverRow label="Last update">2 min ago</PopoverRow>
           </Popover>
+        </div>
+      </Specimen>
+
+      <Specimen
+        name="HelpPopover"
+        source="help-popover"
+        note="The (?) mark beside a figure: a Popover that opens on hover or tap. It turns amber when something inside wants a look."
+      >
+        <div className="flex flex-wrap gap-6">
+          <Variant label="neutral">
+            <HelpPopover label="How input cost is computed">
+              <PopoverHeading>Input cost</PopoverHeading>
+              <PopoverRow label="Raw">412.0M</PopoverRow>
+              <PopoverRow label="Item">370.8M</PopoverRow>
+            </HelpPopover>
+          </Variant>
+          <Variant label="attention">
+            <HelpPopover label="Fee breakdown" attention>
+              <PopoverHeading>Fee breakdown</PopoverHeading>
+              <PopoverRow label="Job fees">4.2M</PopoverRow>
+              <PopoverRow label="Unpriced inputs" layout="description">2 inputs have no Jita price yet.</PopoverRow>
+            </HelpPopover>
+          </Variant>
         </div>
       </Specimen>
 

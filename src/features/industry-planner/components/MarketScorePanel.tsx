@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Dot } from '@/components/ui/dot';
+import { HelpPopover } from '@/components/ui/help-popover';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { marketScoreView } from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
-import { KpiHead, KpiHelp, KpiTile, KPI_FIG } from './kpi-tile';
+import { KpiHead, KpiTile, KPI_FIG } from './kpi-tile';
 import { useMarketData } from './planner-contexts';
 
 export function MarketScorePanel({ structure }: { structure: BlueprintStructure }) {
@@ -39,7 +40,7 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
     <KpiTile>
       <KpiHead
         label="Market Score"
-        right={<KpiHelp label="How the Market Score is calculated">{breakdown}</KpiHelp>}
+        right={<HelpPopover label="How the Market Score is calculated">{breakdown}</HelpPopover>}
       />
       <div className={cn(KPI_FIG, 'text-name')}>
         {view.scoreDisplay}
