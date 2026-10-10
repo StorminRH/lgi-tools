@@ -25,7 +25,6 @@ import type * as httpEngine from "../httpEngine.js";
 import type * as httpJump from "../httpJump.js";
 import type * as httpLocation from "../httpLocation.js";
 import type * as httpMapAccess from "../httpMapAccess.js";
-import type * as lib_bearerAuth from "../lib/bearerAuth.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
 import type * as lib_errorCode from "../lib/errorCode.js";
 import type * as lib_httpAuth from "../lib/httpAuth.js";
@@ -106,7 +105,6 @@ declare const fullApi: ApiFromModules<{
   httpJump: typeof httpJump;
   httpLocation: typeof httpLocation;
   httpMapAccess: typeof httpMapAccess;
-  "lib/bearerAuth": typeof lib_bearerAuth;
   "lib/characterSync": typeof lib_characterSync;
   "lib/errorCode": typeof lib_errorCode;
   "lib/httpAuth": typeof lib_httpAuth;

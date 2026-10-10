@@ -1,17 +1,11 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
+import { bearerMatches } from '@/lib/bearer';
 import { readEnv } from '@/lib/env';
 import {
   type CheckResult,
   unauthenticatedFailure,
   unexpectedFailure,
 } from '@/lib/failure';
-
-export function bearerMatches(authorization: string | null, secret: string): boolean {
-  const provided = createHash('sha256').update(authorization ?? '').digest();
-  const expected = createHash('sha256').update(`Bearer ${secret}`).digest();
-  return timingSafeEqual(provided, expected);
-}
 
 export async function checkBearerSecret(
   req: Request,
@@ -30,7 +24,7 @@ export async function checkBearerSecret(
       ),
     };
   }
-  if (!bearerMatches(req.headers.get('authorization'), secret)) {
+  if (!(await bearerMatches(req.headers.get('authorization'), secret))) {
     return { ok: false, failure: unauthenticatedFailure() };
   }
   return { ok: true };

@@ -51,7 +51,6 @@ export const modules = import.meta.glob([
   '../mapTrackingTeardown.ts',
   '../onlineStatus.ts',
   '../schema.ts',
-  '../lib/bearerAuth.ts',
   '../lib/characterSync.ts',
   '../lib/errorCode.ts',
   '../lib/httpAuth.ts',
