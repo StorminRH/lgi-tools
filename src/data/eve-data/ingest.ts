@@ -1,5 +1,3 @@
-import { createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDb } from '@/lib/db-types';
 import {
@@ -19,6 +17,7 @@ import {
 } from './source';
 import { boolOf, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
 import { emitIndustryRules, parseIndustryRules } from './industry-rules';
+import { makeBatchInserter, streamJsonl } from './sde-io';
 import { emitUniverseNeon, parseUniverse } from './universe';
 
 export type IngestSummary = {
@@ -52,31 +51,13 @@ async function streamInsert<T extends Record<string, unknown>>(
   mapRow: (row: Record<string, unknown>) => T | null,
   flush: (batch: T[]) => Promise<void>,
 ): Promise<number> {
-  const rl = createInterface({
-    input: createReadStream(path),
-    crlfDelay: Infinity,
-  });
-
-  let batch: T[] = [];
-  let total = 0;
-
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const mapped = mapRow(JSON.parse(trimmed) as Record<string, unknown>);
-    if (!mapped) continue;
-    batch.push(mapped);
-    if (batch.length >= BATCH_SIZE) {
-      await flush(batch);
-      total += batch.length;
-      batch = [];
-    }
+  const inserter = makeBatchInserter(BATCH_SIZE, flush);
+  for await (const row of streamJsonl(path)) {
+    const mapped = mapRow(row);
+    if (mapped) await inserter.add([mapped]);
   }
-  if (batch.length > 0) {
-    await flush(batch);
-    total += batch.length;
-  }
-  return total;
+  await inserter.flush();
+  return inserter.written();
 }
 
 export async function runIngest(

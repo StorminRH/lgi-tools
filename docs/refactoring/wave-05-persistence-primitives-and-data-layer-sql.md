@@ -24,7 +24,7 @@ Run db suites with Postgres up.
 | ☑ | [P228](#p228) | Add ownerKeyWhere beside ownerSyncStateColumns and return sync-state rows directly | persistence | S | low | low | — |
 | ☑ | [P327](#p327) | Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL | simplification | S | low | low | [P228](#p228) |
 | ☑ | [P103](#p103) | Seed placeholder prices through one chunked function, route the hand-rolled batch loops through lib chunk, and build eve-data streamInsert on sde-io primitives | generic-utility | M | low | medium | — |
-| ☐ | [P172](#p172) | Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib | server-pipeline | M | low | medium | [P103](#p103), [P230](#p230) |
+| ☑ | [P172](#p172) | Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib | server-pipeline | M | low | medium | [P103](#p103), [P230](#p230) |
 | ☐ | [P264](#p264) | Give data/eve-data/coerce.ts asRecord, mapRecords and dogmaAttributePairs, and route every SDE parser through them | contracts-validation | S | low | low | [P172](#p172) |
 | ☐ | [P233](#p233) | Type the eve-data jsonb columns with $type<T>() and validate blueprint activities once at ingest | persistence | M | low | medium | [P264](#p264) |
 | ☐ | [P293](#p293) | Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them | efficiency | S | low | low | [P233](#p233), [P172](#p172) |
@@ -663,7 +663,7 @@ Smaller points:
 
 ## P172: Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -85 / +40 (gsc chunk copy, four extra excluded copies, the duplicate readline loop, the duplicate buffer/flush, and the duplicate name list and atomic write removed)
 - **Depends on:** [P103](#p103), [P230](#p230)

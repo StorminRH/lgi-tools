@@ -15,6 +15,7 @@ import {
   eveTypes,
   industryBlueprints,
 } from './schema';
+import { makeBatchInserter } from './sde-io';
 
 export type TreeNode = {
   typeId: number;
@@ -382,36 +383,6 @@ export function assertNoResolverCycles(stats: { cycleWarnings: string[] }): void
         `first few: ${stats.cycleWarnings.slice(0, 5).join(' | ')}`,
     );
   }
-}
-
-export function makeBatchInserter<T>(
-  batchSize: number,
-  sink: (batch: T[]) => Promise<void>,
-) {
-  let buffer: T[] = [];
-  let written = 0;
-  return {
-    async add(rows: readonly T[]): Promise<void> {
-      for (const row of rows) {
-        buffer.push(row);
-        if (buffer.length >= batchSize) {
-          await sink(buffer);
-          written += buffer.length;
-          buffer = [];
-        }
-      }
-    },
-    async flush(): Promise<void> {
-      if (buffer.length > 0) {
-        await sink(buffer);
-        written += buffer.length;
-        buffer = [];
-      }
-    },
-    written(): number {
-      return written;
-    },
-  };
 }
 
 export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary> {
