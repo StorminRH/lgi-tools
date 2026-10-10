@@ -68,7 +68,7 @@ export interface OperationLatency {
   operation: string;
   p95: number | null;
   count: number;
-  /** Average run duration. */
+  /** Average duration of the runs that recorded wall time, or null when none did. */
   durationMs: number | null;
   /** Average wall time per run with that dependency in flight. */
   dependencyMs: Record<DependencyKind, number | null>;

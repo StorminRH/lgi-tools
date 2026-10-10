@@ -37,3 +37,17 @@ test('runs work now when after() refuses because there is no request scope', asy
 
   expect(task).toHaveBeenCalledOnce();
 });
+
+test('register installs the after-response deferrer on the Node runtime', async () => {
+  vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+  try {
+    await register();
+    const task = vi.fn(async () => {});
+
+    await deferWork(task);
+
+    expect(afterMock).toHaveBeenCalledWith(task);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

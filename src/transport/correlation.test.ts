@@ -67,8 +67,9 @@ describe('correlation scope', () => {
   });
 
   it('counts overlapping calls once in wall time but in full in summed time', async () => {
-    // Three 100 ms calls ending at 100, 150 and 400 cover 0-150 and 300-400.
-    clockAt(100, 150, 400);
+    // ESI calls ending at 100 and 150 cover 0-150; the Redis call ending at
+    // 160 covers 60-160, so together the run waited 0-160, not 250 ms.
+    clockAt(100, 150, 160);
     const { timings, wallMs } = await withCorrelationScope(async () => {
       addDependencyTiming('esi', 100);
       addDependencyTiming('esi', 100);
@@ -78,22 +79,23 @@ describe('correlation scope', () => {
 
     expect(timings.esi).toEqual({ ms: 200, calls: 2, wallMs: 150 });
     expect(timings.redis).toEqual({ ms: 100, calls: 1, wallMs: 100 });
-    expect(wallMs).toBe(250);
+    expect(wallMs).toBe(160);
   });
 
   it('counts calls answered with a 4xx status, leaving rate limiting to its own outcome', async () => {
-    clockAt(10, 20, 30, 40, 50, 60);
+    clockAt(10, 20, 30, 40, 50, 60, 70);
     const timings = await withCorrelationScope(async () => {
       addDependencyTiming('esi', 1, { status: 200 });
       addDependencyTiming('esi', 1, { status: 404 });
       addDependencyTiming('esi', 1, { status: 400 });
       addDependencyTiming('esi', 1, { status: 420 });
       addDependencyTiming('esi', 1, { status: 429 });
+      addDependencyTiming('esi', 1, { status: 503 });
       addDependencyTiming('esi', 1);
       return currentDependencyTimings();
     });
 
-    expect(timings.esi).toEqual({ ms: 6, calls: 6, wallMs: 6, status4xx: 2 });
+    expect(timings.esi).toEqual({ ms: 7, calls: 7, wallMs: 7, status4xx: 2 });
   });
 
   it('returns a snapshot that later calls do not change', async () => {

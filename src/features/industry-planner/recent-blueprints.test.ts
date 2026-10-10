@@ -62,16 +62,19 @@ test('a recorded blueprint tells whoever is listening, until they stop', () => {
 });
 
 test('a device that will not store anything still opens blueprints', () => {
-  vi.stubGlobal('window', {
-    localStorage: { getItem: () => null, setItem: () => { throw new Error('quota'); } },
-  });
-  expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
-  vi.stubGlobal('window', {
-    get localStorage(): Storage {
-      throw new Error('blocked');
-    },
-  });
-  expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
-  expect(useRecentBlueprints()).toEqual([]);
-  vi.stubGlobal('window', device);
+  try {
+    vi.stubGlobal('window', {
+      localStorage: { getItem: () => null, setItem: () => { throw new Error('quota'); } },
+    });
+    expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
+    vi.stubGlobal('window', {
+      get localStorage(): Storage {
+        throw new Error('blocked');
+      },
+    });
+    expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
+    expect(useRecentBlueprints()).toEqual([]);
+  } finally {
+    vi.stubGlobal('window', device);
+  }
 });
