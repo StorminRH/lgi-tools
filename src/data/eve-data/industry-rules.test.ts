@@ -113,6 +113,19 @@ describe('resolveModifiers', () => {
     expect(rows).toEqual([]);
     expect(unresolved).toBe(2);
   });
+
+  it('skips source entries that are not records instead of throwing or reading array indexes as kinds', () => {
+    const { rows, unresolved } = resolve([
+      {
+        _key: RAITARU,
+        manufacturing: { material: [null, 7, { dogmaAttributeID: 2600 }], cost: null },
+        research_time: [[{ dogmaAttributeID: 2601 }]],
+        invention: 'none',
+      },
+    ]);
+    expect(rows.map((r) => [r.activity, r.kind, r.attributeId])).toEqual([['manufacturing', 'material', 2600]]);
+    expect(unresolved).toBe(0);
+  });
 });
 
 describe('industry rule parsers', () => {
@@ -181,7 +194,7 @@ describe('parseIndustryRules', () => {
         { _key: L_EQUIPMENT_T2, manufacturing: { material: [{ dogmaAttributeID: 2538, filterID: 2 }] } },
       ],
       dogmaEffects: [
-        { _key: 6805, modifierInfo: [{ modifiedAttributeID: 2538, modifyingAttributeID: 2594, operation: POST_PERCENT }] },
+        { _key: 6805, modifierInfo: [null, { modifiedAttributeID: 2538, modifyingAttributeID: 2594, operation: POST_PERCENT }] },
         {
           _key: 6842,
           modifierInfo: [
@@ -192,7 +205,7 @@ describe('parseIndustryRules', () => {
         { _key: 6999 },
       ],
       typeDogma: [
-        { _key: RAITARU, dogmaAttributes: [{ attributeID: 2600, value: 0.99 }, { attributeID: 2601 }] },
+        { _key: RAITARU, dogmaAttributes: [{ attributeID: 2600, value: 0.5 }, null, { attributeID: 2600, value: 0.99 }, { attributeID: 2601 }] },
         {
           _key: L_EQUIPMENT_T2,
           dogmaAttributes: [

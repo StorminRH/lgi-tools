@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { AnyPgDb } from '@/lib/db-types';
-import { intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
+import { asRecord, dogmaAttributePairs, intOrNull, localizedEn, mapRecords, strOrNull } from './coerce';
 import {
   industryAssemblyLines,
   industryInstallationTypes,
@@ -76,8 +76,7 @@ const SECURITY_BAND_ATTRS = { high: 2355, low: 2356, null: 2357 } as const;
 function idList(value: unknown, key?: string): number[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry) => {
-    const raw = key !== undefined && typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>)[key] : entry;
-    const id = intOrNull(raw);
+    const id = intOrNull(key === undefined ? entry : asRecord(entry)?.[key]);
     return id === null ? [] : [id];
   });
 }
@@ -111,25 +110,20 @@ export function parseInstallationType(r: Record<string, unknown>): InstallationT
 }
 
 function parseEffectModifiers(r: Record<string, unknown>): EffectModifier[] {
-  if (!Array.isArray(r.modifierInfo)) return [];
-  return r.modifierInfo.flatMap((m) => {
-    const info = m as Record<string, unknown>;
+  return mapRecords(r.modifierInfo, (info) => {
     const modifiedAttributeId = intOrNull(info.modifiedAttributeID);
     const modifyingAttributeId = intOrNull(info.modifyingAttributeID);
     const operation = intOrNull(info.operation);
-    if (modifiedAttributeId === null || modifyingAttributeId === null || operation === null) return [];
-    return [{ modifiedAttributeId, modifyingAttributeId, operation }];
+    if (modifiedAttributeId === null || modifyingAttributeId === null || operation === null) return null;
+    return { modifiedAttributeId, modifyingAttributeId, operation };
   });
 }
 
 function parseSourceDogma(r: Record<string, unknown>): SourceDogma {
-  const attributes = new Map<number, number>();
-  for (const a of Array.isArray(r.dogmaAttributes) ? r.dogmaAttributes : []) {
-    const id = intOrNull((a as Record<string, unknown>).attributeID);
-    const value = numOrNull((a as Record<string, unknown>).value);
-    if (id !== null && value !== null) attributes.set(id, value);
-  }
-  return { attributes, effectIds: idList(r.dogmaEffects, 'effectID') };
+  return {
+    attributes: new Map(dogmaAttributePairs(r.dogmaAttributes)),
+    effectIds: idList(r.dogmaEffects, 'effectID'),
+  };
 }
 
 type Factors = { high: number; low: number; null: number };
@@ -168,18 +162,18 @@ function factorsFor(
 type SourceEntry = { activity: string; kind: string; attributeId: number; filterId: number | null };
 
 function kindEntries(activity: string, kind: string, list: unknown): SourceEntry[] {
-  return (Array.isArray(list) ? list : []).flatMap((raw) => {
-    const entry = raw as Record<string, unknown>;
+  return mapRecords(list, (entry) => {
     const attributeId = intOrNull(entry.dogmaAttributeID);
-    return attributeId === null ? [] : [{ activity, kind, attributeId, filterId: intOrNull(entry.filterID) }];
+    return attributeId === null ? null : { activity, kind, attributeId, filterId: intOrNull(entry.filterID) };
   });
 }
 
 /** A modifier source's `activity → kind → [{ dogmaAttributeID, filterID? }]` tree, flattened. */
 function sourceEntries(source: Record<string, unknown>): SourceEntry[] {
-  return Object.entries(source).flatMap(([activity, kinds]) => {
-    if (activity === '_key' || typeof kinds !== 'object' || kinds === null) return [];
-    return Object.entries(kinds as Record<string, unknown>).flatMap(([kind, list]) => kindEntries(activity, kind, list));
+  return Object.entries(source).flatMap(([activity, value]) => {
+    const kinds = asRecord(value);
+    if (activity === '_key' || kinds === null) return [];
+    return Object.entries(kinds).flatMap(([kind, list]) => kindEntries(activity, kind, list));
   });
 }
 
@@ -215,13 +209,6 @@ export function resolveModifiers(
   return { rows, unresolved };
 }
 
-function rowsOf<T>(rows: readonly Record<string, unknown>[], parse: (r: Record<string, unknown>) => T | null): T[] {
-  return rows.flatMap((r) => {
-    const parsed = parse(r);
-    return parsed === null ? [] : [parsed];
-  });
-}
-
 export async function parseIndustryRules(paths: SdeJsonlPaths): Promise<IndustryRules> {
   const [filterRows, sources, effectRows, lineRows, installationRows] = await Promise.all([
     readJsonl(paths.industryTargetFilters),
@@ -237,10 +224,10 @@ export async function parseIndustryRules(paths: SdeJsonlPaths): Promise<Industry
   const { rows: modifiers, unresolved } = resolveModifiers(sources, effects, dogmaByType);
 
   const rules: IndustryRules = {
-    filters: rowsOf(filterRows, parseTargetFilter),
+    filters: mapRecords(filterRows, parseTargetFilter),
     modifiers,
-    assemblyLines: rowsOf(lineRows, parseAssemblyLine),
-    installationTypes: rowsOf(installationRows, parseInstallationType),
+    assemblyLines: mapRecords(lineRows, parseAssemblyLine),
+    installationTypes: mapRecords(installationRows, parseInstallationType),
   };
   console.log(
     `Industry rules parse: ${rules.filters.length} target filters, ${modifiers.length} modifiers ` +

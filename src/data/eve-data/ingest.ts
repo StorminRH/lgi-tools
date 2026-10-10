@@ -15,7 +15,7 @@ import {
   cleanupSdeJsonl,
   type SdeJsonlPaths,
 } from './source';
-import { boolOf, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
+import { boolOf, dogmaAttributePairs, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
 import { emitIndustryRules, parseIndustryRules } from './industry-rules';
 import { makeBatchInserter, streamJsonl } from './sde-io';
 import { emitUniverseNeon, parseUniverse } from './universe';
@@ -199,14 +199,7 @@ export async function runIngest(
           const typeId = intOrNull(r._key);
           const list = r.dogmaAttributes;
           if (typeId === null || !Array.isArray(list)) return null;
-          const attributes: Record<string, number> = {};
-          for (const a of list) {
-            const attrId = intOrNull((a as Record<string, unknown>).attributeID);
-            const value = numOrNull((a as Record<string, unknown>).value);
-            if (attrId === null || value === null) continue;
-            attributes[String(attrId)] = value;
-          }
-          return { typeId, attributes };
+          return { typeId, attributes: Object.fromEntries(dogmaAttributePairs(list)) };
         },
         async (batch) => {
           await tx.insert(typeDogma).values(batch);

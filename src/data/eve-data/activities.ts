@@ -1,4 +1,4 @@
-import { numOrNull, intOrNull } from './coerce';
+import { asRecord, intOrNull, mapRecords, numOrNull } from './coerce';
 import {
   ACTIVITY_NAME_TO_ID,
   ALL_ACTIVITY_NAMES,
@@ -24,29 +24,8 @@ export type BlueprintActivity = {
 
 export type BlueprintActivitySet = BlueprintActivity[];
 
-function asObject(raw: unknown): Record<string, unknown> | null {
-  return raw !== null && typeof raw === 'object' && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : null;
-}
-
-function mapEntries<T>(
-  raw: unknown,
-  fn: (entry: Record<string, unknown>) => T | null,
-): T[] {
-  if (!Array.isArray(raw)) return [];
-  const out: T[] = [];
-  for (const entry of raw) {
-    const e = asObject(entry);
-    if (!e) continue;
-    const mapped = fn(e);
-    if (mapped !== null) out.push(mapped);
-  }
-  return out;
-}
-
 function parseMaterials(raw: unknown): ActivityMaterial[] {
-  return mapEntries(raw, (e) => {
+  return mapRecords(raw, (e) => {
     const typeId = intOrNull(e.typeID);
     const quantity = intOrNull(e.quantity);
     return typeId === null || quantity === null ? null : { typeId, quantity };
@@ -54,7 +33,7 @@ function parseMaterials(raw: unknown): ActivityMaterial[] {
 }
 
 function parseProducts(raw: unknown): ActivityProduct[] {
-  return mapEntries(raw, (e) => {
+  return mapRecords(raw, (e) => {
     const typeId = intOrNull(e.typeID);
     const quantity = intOrNull(e.quantity);
     if (typeId === null || quantity === null) return null;
@@ -64,7 +43,7 @@ function parseProducts(raw: unknown): ActivityProduct[] {
 }
 
 function parseSkills(raw: unknown): ActivitySkill[] {
-  return mapEntries(raw, (e) => {
+  return mapRecords(raw, (e) => {
     const typeId = intOrNull(e.typeID);
     const level = intOrNull(e.level);
     return typeId === null || level === null ? null : { typeId, level };
@@ -72,11 +51,11 @@ function parseSkills(raw: unknown): ActivitySkill[] {
 }
 
 export function parseBlueprintActivities(raw: unknown): BlueprintActivitySet {
-  const activities = asObject(raw);
+  const activities = asRecord(raw);
   if (!activities) return [];
   const out: BlueprintActivitySet = [];
   for (const name of ALL_ACTIVITY_NAMES) {
-    const act = asObject(activities[name]);
+    const act = asRecord(activities[name]);
     if (!act) continue;
     out.push({
       name,

@@ -158,6 +158,8 @@ beforeAll(async () => {
       {
         _key: 100,
         dogmaAttributes: [
+          { attributeID: 20, value: 9 },
+          null,
           { attributeID: 20, value: 1.5 },
           { attributeID: null, value: 10 },
           { attributeID: 21, value: null },

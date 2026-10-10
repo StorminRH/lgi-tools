@@ -1,6 +1,7 @@
 import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import { capitalize, humanizeIdentifier } from '@/lib/format/text';
 import { roundTo } from '@/lib/math';
+import { asRecord } from './coerce';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from './wormhole-contract';
 
 /**
@@ -189,9 +190,10 @@ function beaconModifiers(
   attributes: unknown,
   attributeById: ReadonlyMap<number, EffectAttributeRow>,
 ): WormholeEffectModifier[] {
-  if (typeof attributes !== 'object' || attributes === null || Array.isArray(attributes)) return [];
+  const record = asRecord(attributes);
+  if (record === null) return [];
   const modifiers: WormholeEffectModifier[] = [];
-  for (const [key, value] of Object.entries(attributes as Record<string, unknown>)) {
+  for (const [key, value] of Object.entries(record)) {
     const attribute = attributeById.get(Number(key));
     if (attribute === undefined || typeof value !== 'number' || !Number.isFinite(value)) continue;
     const modifier = attributeModifier(attribute, value);
@@ -234,8 +236,7 @@ export function buildWormholeEffects(
 export function beaconAttributeIds(beacons: readonly EffectBeaconRow[]): number[] {
   const ids = new Set<number>();
   for (const beacon of beacons) {
-    if (typeof beacon.attributes !== 'object' || beacon.attributes === null) continue;
-    for (const key of Object.keys(beacon.attributes)) {
+    for (const key of Object.keys(asRecord(beacon.attributes) ?? {})) {
       const id = Number(key);
       if (Number.isInteger(id)) ids.add(id);
     }
