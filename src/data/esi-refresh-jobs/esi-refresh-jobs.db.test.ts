@@ -1,6 +1,7 @@
 import { asc, count, eq, gte, inArray, min, or } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import {
+  claimDueEsiRefreshJobs,
   enqueueEsiRefreshJob,
   getEsiRefreshQueueResidual,
   getEsiRefreshQueueStats,
@@ -13,6 +14,7 @@ import {
   LIVE_ESI_REFRESH_JOB_STATUSES,
 } from '@/data/esi-refresh-jobs/constants';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
+import type { EsiRefreshJob, EsiRefreshJobStatus } from '@/data/esi-refresh-jobs/types';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 
@@ -265,6 +267,54 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
     });
   });
 
+  it('claims due jobs in due order, a batch at a time, and leaves every other row alone', async () => {
+    const database = harness.db;
+    const at = (time: string) => new Date(`2026-07-14T${time}:00Z`);
+    // Inserted against due order, so the claim cannot lean on insertion order.
+    await database.insert(esiRefreshJobs).values([
+      scheduledJob('due-at-now', 'queued', NOW, at('08:00')),
+      scheduledJob('due-tie-newer', 'failed_retryable', at('11:30'), at('10:30')),
+      scheduledJob('due-tie-older', 'deferred_for_budget', at('11:30'), at('09:00')),
+      scheduledJob('due-first', 'queued', at('11:00'), at('10:00')),
+      scheduledJob('future', 'queued', at('13:00'), at('07:00')),
+      scheduledJob('already-running', 'running', at('10:00'), at('07:00')),
+      terminalJob('dead', 'dead_lettered', at('10:00')),
+      terminalJob('done', 'succeeded', at('10:00')),
+    ]);
+    const claimedView = (jobs: EsiRefreshJob[]) =>
+      jobs.map(({ idempotencyKey, status, updatedAt }) => ({ idempotencyKey, status, updatedAt }));
+
+    const firstBatch = await claimDueEsiRefreshJobs(3, NOW);
+    expect(claimedView(firstBatch)).toEqual([
+      { idempotencyKey: 'due-first', status: 'running', updatedAt: NOW },
+      { idempotencyKey: 'due-tie-older', status: 'running', updatedAt: NOW },
+      { idempotencyKey: 'due-tie-newer', status: 'running', updatedAt: NOW },
+    ]);
+    expect(claimedView(await claimDueEsiRefreshJobs(3, NOW))).toEqual([
+      { idempotencyKey: 'due-at-now', status: 'running', updatedAt: NOW },
+    ]);
+    await expect(claimDueEsiRefreshJobs(3, NOW)).resolves.toEqual([]);
+
+    const rows = await database
+      .select({
+        key: esiRefreshJobs.idempotencyKey,
+        status: esiRefreshJobs.status,
+        updatedAt: esiRefreshJobs.updatedAt,
+      })
+      .from(esiRefreshJobs)
+      .orderBy(asc(esiRefreshJobs.idempotencyKey));
+    expect(rows).toEqual([
+      { key: 'already-running', status: 'running', updatedAt: at('07:00') },
+      { key: 'dead', status: 'dead_lettered', updatedAt: at('10:00') },
+      { key: 'done', status: 'succeeded', updatedAt: at('10:00') },
+      { key: 'due-at-now', status: 'running', updatedAt: NOW },
+      { key: 'due-first', status: 'running', updatedAt: NOW },
+      { key: 'due-tie-newer', status: 'running', updatedAt: NOW },
+      { key: 'due-tie-older', status: 'running', updatedAt: NOW },
+      { key: 'future', status: 'queued', updatedAt: at('07:00') },
+    ]);
+  });
+
   it('counts interrupted runs and dead-letters the fifth interruption', async () => {
     const database = harness.db;
     await database.insert(esiRefreshJobs).values([
@@ -327,6 +377,20 @@ function terminalJob(
     createdAt: finishedAt,
     updatedAt: finishedAt,
     finishedAt,
+  };
+}
+
+function scheduledJob(
+  idempotencyKey: string,
+  status: EsiRefreshJobStatus,
+  nextAttemptAt: Date,
+  createdAt: Date,
+) {
+  return {
+    ...terminalJob(idempotencyKey, 'succeeded', createdAt),
+    status,
+    nextAttemptAt,
+    finishedAt: null,
   };
 }
 

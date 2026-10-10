@@ -5,6 +5,7 @@ import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/li
 import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import {
+  CLAIMABLE_ESI_REFRESH_JOB_STATUSES,
   ESI_DEAD_LETTER_RETENTION_DAYS,
   ESI_REFRESH_JOB_RETENTION_DAYS,
   ESI_REFRESH_JOB_MAX_ATTEMPTS,
@@ -151,41 +152,34 @@ export async function claimDueEsiRefreshJobs(
   limit: number,
   now = new Date(),
 ): Promise<EsiRefreshJob[]> {
-  const due = await db
-    .select()
+  const due = db
+    .select({ id: esiRefreshJobs.id })
     .from(esiRefreshJobs)
     .where(
       and(
-        inArray(esiRefreshJobs.status, [
-          'queued',
-          'deferred_for_budget',
-          'failed_retryable',
-        ]),
+        inArray(esiRefreshJobs.status, CLAIMABLE_ESI_REFRESH_JOB_STATUSES),
         lte(esiRefreshJobs.nextAttemptAt, now),
       ),
     )
     .orderBy(asc(esiRefreshJobs.nextAttemptAt), asc(esiRefreshJobs.createdAt))
     .limit(limit);
-
-  const claimed: EsiRefreshJob[] = [];
-  for (const job of due) {
-    const rows = await db
-      .update(esiRefreshJobs)
-      .set({ status: 'running', updatedAt: now })
-      .where(
-        and(
-          eq(esiRefreshJobs.id, job.id),
-          inArray(esiRefreshJobs.status, [
-            'queued',
-            'deferred_for_budget',
-            'failed_retryable',
-          ]),
-        ),
-      )
-      .returning();
-    if (rows[0] !== undefined) claimed.push(rows[0]);
-  }
-  return claimed;
+  // The outer status recheck keeps the claim exact if a row changed after
+  // the subquery picked it. RETURNING has no order, so restore the due order.
+  const claimed = await db
+    .update(esiRefreshJobs)
+    .set({ status: 'running', updatedAt: now })
+    .where(
+      and(
+        inArray(esiRefreshJobs.id, due),
+        inArray(esiRefreshJobs.status, CLAIMABLE_ESI_REFRESH_JOB_STATUSES),
+      ),
+    )
+    .returning();
+  return claimed.sort(
+    (a, b) =>
+      a.nextAttemptAt.getTime() - b.nextAttemptAt.getTime() ||
+      a.createdAt.getTime() - b.createdAt.getTime(),
+  );
 }
 
 // Live jobs and dead letters count however old they are; the remaining
@@ -270,7 +264,7 @@ export async function requeueDeadLetteredJob(
           and not exists (
             select 1 from ${esiRefreshJobs} live
             where live.idempotency_key = (select idempotency_key from target)
-              and live.status in ('queued', 'running', 'deferred_for_budget', 'failed_retryable')
+              and ${inArray(sql`live.status`, LIVE_ESI_REFRESH_JOB_STATUSES)}
           )
         returning 'requeued'::text as outcome
       )

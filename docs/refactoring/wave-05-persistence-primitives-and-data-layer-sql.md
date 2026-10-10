@@ -29,7 +29,7 @@ Run db suites with Postgres up.
 | ☑ | [P233](#p233) | Type the eve-data jsonb columns with $type<T>() and validate blueprint activities once at ingest | persistence | M | low | medium | [P264](#p264) |
 | ☑ | [P293](#p293) | Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them | efficiency | S | low | low | [P233](#p233), [P172](#p172) |
 | ☑ | [P235](#p235) | Move the repeated usage_logs fragments (day, outcome, summedInt, referrer predicates, refreshed-price-cron filter) into telemetry/sql.ts and drop getFallbackRate's redundant totals query | persistence | S | low | medium | — |
-| ☐ | [P236](#p236) | Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE | persistence | S | low | low | — |
+| ☑ | [P236](#p236) | Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE | persistence | S | low | low | — |
 | ☐ | [P232](#p232) | Give map lifecycle predicates and the active-admin selection one home, and write archive/restore SETs from the lifecycle contract | persistence | S | low | medium | [P223](#p223) |
 | ☐ | [P225](#p225) | Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site | persistence | S | low | low | [P223](#p223) |
 
@@ -1059,7 +1059,7 @@ export function refreshedPriceCron(range: DateRange): SQL; // and(inRange(range)
 
 ## P236: Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +10 in production code; about +40 test lines
 - **Depends on:** —
