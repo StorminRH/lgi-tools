@@ -20,6 +20,7 @@ import {
   boardViewHref,
   characterParam,
   flowWindowLabel,
+  focusedView,
   effectiveSkills,
   groupSkills,
   placeName,
@@ -98,6 +99,15 @@ describe('board view state', () => {
     expect(boardViewFrom('9900000002abc', chars)).toEqual({ view: 'overview' });
     expect(boardViewFrom('', chars)).toEqual({ view: 'overview' });
     expect(characterParam(new URLSearchParams('?character=7'))).toBe('7');
+  });
+
+  it('focuses a character only for a whole-number id the caller has', () => {
+    const hasSeven = (id: number) => id === 7;
+    expect(focusedView('7', hasSeven)).toEqual({ view: 'character', characterId: 7 });
+    expect(focusedView('8', hasSeven)).toEqual({ view: 'overview' });
+    for (const param of [null, '', '-7', '7.5', '7abc', ' 7']) {
+      expect(focusedView(param, () => true)).toEqual({ view: 'overview' });
+    }
   });
 
   it('always opens a lone pilot on its own sheet', () => {

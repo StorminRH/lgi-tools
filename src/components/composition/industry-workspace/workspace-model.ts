@@ -6,7 +6,7 @@ import { type CategoryKey, categoryName } from '@/features/industry-planner/prof
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { type AppliedTimeSkill, skillTimeBreakdown } from '@/features/industry-planner/skill-time';
 import { withSearchParams } from '@/lib/search-params';
-import { type BoardView, OVERVIEW } from '../board/board-view-model';
+import { type BoardView, boardViewHref, focusedView, OVERVIEW } from '../board/board-view-model';
 
 export const SLOT_POOLS: readonly JobCategory[] = ['manufacturing', 'reactions', 'science'];
 
@@ -40,14 +40,12 @@ export function resolveSelection(
 }
 
 export function memberView(param: string | null, doc: ProfileDocument | null): BoardView {
-  if (doc === null || param === null || !/^\d+$/.test(param)) return OVERVIEW;
-  const characterId = Number(param);
-  return doc.members.some((m) => m.characterId === characterId) ? { view: 'character', characterId } : OVERVIEW;
+  return doc === null ? OVERVIEW : focusedView(param, (id) => doc.members.some((m) => m.characterId === id));
 }
 
 /** The address with another profile open and no member focused. */
 export function profileHref(pathname: string, search: string, profileId: string | null): string {
-  return withSearchParams(pathname, search, { profile: profileId, character: null });
+  return boardViewHref(pathname, withSearchParams('', search, { profile: profileId }), OVERVIEW);
 }
 
 // ---------------------------------------------------------------------------

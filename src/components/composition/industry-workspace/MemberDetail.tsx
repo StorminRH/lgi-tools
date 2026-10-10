@@ -3,7 +3,7 @@
 import { type ReactNode, type Ref, ViewTransition } from 'react';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { CharacterIdentity } from '../board/sections/CharacterIdentity';
-import { Button } from '@/components/ui/button';
+import { backAction, Button } from '@/components/ui/button';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { Pill } from '@/components/ui/pill';
 import { SectionPanel } from '@/components/ui/section-panel';
@@ -168,12 +168,7 @@ export function MemberSheet({
       <ViewTransition {...SHEET_MOTION} default="none">
         <div className="flex min-w-0 flex-col gap-6">
           {controls}
-          <Button
-            ref={backRef}
-            variant="bare"
-            onClick={onBack}
-            className="self-start gap-2 rounded-ctl py-1 font-data text-ui text-muted hover:text-isk"
-          >
+          <Button ref={backRef} variant="bare" onClick={onBack} className={backAction}>
             <span aria-hidden>←</span> All members
           </Button>
           <MemberHeader character={character} now={now} member={member} skills={skills} onRemove={onRemove} />

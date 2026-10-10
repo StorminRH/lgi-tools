@@ -161,18 +161,23 @@ export const OVERVIEW: BoardView = { view: 'overview' };
 const CHARACTER_PARAM = 'character';
 
 /**
- * A lone pilot always gets its own sheet. With more, `?character=` picks one
- * and anything else (no param, an id not on this board) is the overview.
+ * The character `?character=` names, when `has` says it is one of this
+ * board's; anything else (no param, not an id, someone else) is the overview.
  */
+export function focusedView(param: string | null, has: (characterId: number) => boolean): BoardView {
+  if (param === null || !/^\d+$/.test(param)) return OVERVIEW;
+  const characterId = Number(param);
+  return has(characterId) ? { view: 'character', characterId } : OVERVIEW;
+}
+
+/** A lone pilot always gets its own sheet. With more, `?character=` picks one. */
 export function boardViewFrom(
   param: string | null,
   characters: readonly Pick<BoardCharacter, 'characterId'>[],
 ): BoardView {
   const [only] = characters;
   if (characters.length === 1 && only !== undefined) return { view: 'character', characterId: only.characterId };
-  if (param === null || !/^\d+$/.test(param)) return OVERVIEW;
-  const characterId = Number(param);
-  return characters.some((c) => c.characterId === characterId) ? { view: 'character', characterId } : OVERVIEW;
+  return focusedView(param, (id) => characters.some((c) => c.characterId === id));
 }
 
 export type BoardTransitionType = 'board-open' | 'board-close';

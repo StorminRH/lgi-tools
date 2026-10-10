@@ -18,7 +18,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | ☑ | [P010](#p010) | Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook | ui-component | M | low | medium | — |
 | ☑ | [P011](#p011) | Reuse FacilitySubline in StructureRow, share the placeholder tile, export the structure source groups, and build facility keys with facilityKey | ui-component | S | low | low | [P010](#p010) |
 | ☑ | [P183](#p183) | Derive owned-structure security classes through getSystemFacts | server-pipeline | S | low | low | [P010](#p010) |
-| ☐ | [P003](#p003) | Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace | ui-component | M | low | medium | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) |
+| ☑ | [P003](#p003) | Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace | ui-component | M | low | medium | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) |
 | ☐ | [P005](#p005) | Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift | ui-component | M | low | medium | — |
 | ☐ | [P062](#p062) | Share one StatusLevel tone module between EveStatusPanel and admin, keeping each surface's plain colour | css-styling | S | low | low | — |
 | ☐ | [P067](#p067) | Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins | client-data | S | low | low | — |
@@ -765,7 +765,7 @@ getSystemFacts(ids: number[]): Promise<Map<number, SystemFacts>> // existing; in
 
 ## P003: Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About +80 (focus-rail.tsx, focusedView, backAction, tests) and about -120 (PilotRail, MemberRail, AddCharacter, the two details, models, grids). Net about -40.
 - **Depends on:** [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018)

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { backAction, Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { StarIcon } from '@/components/ui/icons';
 import { LivePrice } from '@/components/ui/live-price';
@@ -65,7 +65,7 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
         <Link
           href={SEARCH_HREF}
           transitionTypes={['industry-tab']}
-          className="mb-2 inline-flex items-center gap-2 self-start rounded-ctl py-1 font-data text-ui text-muted no-underline hover:text-isk"
+          className={cn(backAction, 'mb-2 no-underline')}
         >
           <span aria-hidden>←</span> Back to search
         </Link>

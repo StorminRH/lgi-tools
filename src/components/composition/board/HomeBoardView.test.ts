@@ -129,6 +129,11 @@ describe('board chrome', () => {
     const live = renderToStaticMarkup(BoardFrame({ children: createElement(BoardSkeleton) }));
     expect(live).toContain('role="status" aria-label="Loading your characters"');
     expect(live.match(/role="status"/g)).toHaveLength(1);
+    // The skeleton holds the rail at the live overview's width, so the board
+    // does not jump sideways when it loads.
+    const railTrack = (html: string) => /lg:grid-cols-\[[^\]]+\]/.exec(html)?.[0];
+    expect(railTrack(render('full'))).toMatch(/^lg:grid-cols-/);
+    expect(railTrack(live)).toBe(railTrack(render('full')));
     expect(live).not.toContain('live-ping');
     expect(live).not.toContain('Sample data');
     expect(framed).toContain('Add character');

@@ -1,4 +1,5 @@
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
+import { FOCUS_OVERVIEW_GRID } from './focus-rail';
 
 const PILOT_KEYS = ['b', 'c', 'd'] as const;
 const CARD_KEYS = ['attention', 'training', 'wealth', 'industry'] as const;
@@ -6,17 +7,14 @@ const CARD_KEYS = ['attention', 'training', 'wealth', 'industry'] as const;
 /** The pilot rail and the overview cards, in outline. */
 export function BoardSkeleton() {
   return (
-    <SkeletonGroup
-      label="Loading your characters"
-      className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-10"
-    >
+    <SkeletonGroup label="Loading your characters" className={FOCUS_OVERVIEW_GRID}>
       <div className="flex gap-4 lg:flex-col lg:gap-3">
         <Skeleton className="h-8 w-24 rounded-full max-lg:hidden" />
-        <Skeleton className="size-12 shrink-0 rounded-full lg:size-28" />
+        <Skeleton className="size-12 shrink-0 rounded-full lg:size-14 xl:size-28" />
         <Skeleton className="h-5 w-36 max-lg:hidden" />
         {PILOT_KEYS.map((key) => (
           <div key={key} className="flex shrink-0 items-center gap-3">
-            <Skeleton className="size-12 shrink-0 rounded-full lg:size-16" />
+            <Skeleton className="size-12 shrink-0 rounded-full lg:size-14 xl:size-16" />
             <Skeleton className="h-4 w-28 max-lg:hidden" />
           </div>
         ))}
