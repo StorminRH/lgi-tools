@@ -645,6 +645,18 @@ a:hover {
 .reveal-5 { animation-delay: 350ms; }
 .reveal-6 { animation-delay: 420ms; }
 
+/* View-transition fades shared by the board and the industry tabs. A
+ * ::view-transition-new rule sets --vt-rise to shorten the 12px rise. */
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+@keyframes vt-rise-in {
+  from { opacity: 0; translate: 0 var(--vt-rise, 12px); }
+}
+
 /* Live ping: radar ring around a status dot. */
 .live-ping {
   position: relative;
@@ -668,6 +680,14 @@ a:hover {
   .live-ping::after { animation: none; }
   .reveal { animation: none; }
   .lift, .lift:hover { transition: none; translate: none; }
+  /* Every view transition (board, industry tabs, planner view) lands at once. */
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }
 
 /* Plain :root (not @theme) — these are shared knobs, not utility-generating
