@@ -227,6 +227,17 @@ export function isWormholeTypeCode(value: string): boolean {
   return WORMHOLE_TYPE_CODE.test(value);
 }
 
+/**
+ * A near-side codex entry: the hole's own type, carrying its mass, lifetime,
+ * size and target class. Structural so the server-only universe-assets types
+ * need not be imported here.
+ */
+export function isTypedCodexEntry<Entry extends { readonly farSide: boolean }>(
+  entry: Entry | null | undefined,
+): entry is Extract<Entry, { farSide: false }> {
+  return entry != null && !entry.farSide;
+}
+
 /** A well-formed type code other than the K162 exit, so it names the hole's type. */
 export function isAttributableWormholeTypeCode(code: string | null | undefined): boolean {
   return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);

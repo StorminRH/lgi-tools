@@ -263,7 +263,10 @@ export function groupSignatureSections(
 }
 
 export function scannerLifeUpperBound(
-  connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
+  connection: Pick<
+    ConnectionEditorDetail,
+    '_creationTime' | 'firstSeenAt' | 'lifetime'
+  > | null,
   entry: WormholeCodexEntry | null,
   now: number,
 ): string {

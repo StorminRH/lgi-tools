@@ -2,6 +2,7 @@ import {
   effectiveWormholeClassId,
   FAR_SIDE_WORMHOLE_CODE,
   hintAdmitsClass,
+  isTypedCodexEntry,
   WORMHOLE_SIZE_CLASSES,
   wormholeSizeClass,
   type WormholeDestinationHint,
@@ -57,7 +58,7 @@ function typedEntry(
 ): TypedWormholeCodexEntry | null {
   if (candidate.wormholeTypeCode === null) return null;
   const entry = codex.byCode(candidate.wormholeTypeCode);
-  return entry !== null && !entry.farSide ? entry : null;
+  return isTypedCodexEntry(entry) ? entry : null;
 }
 
 function typedClassVerdict(

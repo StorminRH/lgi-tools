@@ -7,6 +7,7 @@ import {
   loadUniverseAssets,
   loadWormholeCodex,
 } from '@/data/eve-data/universe-assets-client';
+import { isTypedCodexEntry } from '@/data/eve-data/wormhole-contract';
 
 const JITA_ID = 30_000_142;
 
@@ -30,7 +31,7 @@ function systemName(
 function wormholeSummary(
   entry: ReturnType<Awaited<ReturnType<typeof loadWormholeCodex>>['byCode']>,
 ): string {
-  if (entry === null || entry.farSide) return 'B274 unavailable';
+  if (!isTypedCodexEntry(entry)) return 'B274 unavailable';
   return `B274 ${entry.sizeClass} → class ${entry.targetClass}`;
 }
 

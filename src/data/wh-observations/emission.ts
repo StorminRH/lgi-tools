@@ -1,4 +1,7 @@
-import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
+import {
+  isTypedCodexEntry,
+  type ConnectionProvenance,
+} from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexIndex } from '@/data/eve-data/wormhole-codex-index';
 import type { WhObservationInput } from './queries';
 
@@ -22,7 +25,7 @@ export function observationFor(
     return null;
   }
   const entry = codex.byCode(facts.whTypeCode);
-  if (entry === null || entry.farSide) return null;
+  if (!isTypedCodexEntry(entry)) return null;
   if (
     facts.destinationClassId !== null
     && entry.targetClass !== facts.destinationClassId

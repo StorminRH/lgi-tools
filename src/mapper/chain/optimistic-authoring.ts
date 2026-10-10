@@ -17,11 +17,13 @@ import {
 import {
   deathWindowForReport,
   intersectOrReset,
+  typedLifetimeWindow,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
-import type {
-  WormholeDestinationHint,
-  WormholeLifeStage,
+import {
+  isTypedCodexEntry,
+  type WormholeDestinationHint,
+  type WormholeLifeStage,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
@@ -444,18 +446,9 @@ export function wormholeTypeWindowProposal(
   connection: ConnectionWindowSource,
   lifetimeMinutes: number | null,
 ): ConnectionDeathWindow | null {
-  if (
-    lifetimeMinutes === null ||
-    !Number.isFinite(lifetimeMinutes) ||
-    lifetimeMinutes < 0
-  ) {
-    return storedWindow(connection);
-  }
-  const firstSeenAt = connection.firstSeenAt ?? connection._creationTime;
-  return intersectOrReset(storedWindow(connection), {
-    earliestAt: firstSeenAt,
-    latestAt: firstSeenAt + lifetimeMinutes * 60_000,
-  });
+  const stored = storedWindow(connection);
+  const typed = typedLifetimeWindow(connection, lifetimeMinutes);
+  return typed === null ? stored : intersectOrReset(stored, typed);
 }
 
 export function lifeStageWindowProposal(
@@ -490,9 +483,7 @@ async function nullOnRejection<Value>(
 export function lifetimeMinutesFromEntry(
   entry: WormholeCodexEntry | null,
 ): number | null {
-  if (entry === null) return null;
-  if (entry.farSide) return null;
-  return entry.lifetimeMinutes;
+  return isTypedCodexEntry(entry) ? entry.lifetimeMinutes : null;
 }
 
 async function lifetimeMinutesFor(code: string | null): Promise<number | null> {

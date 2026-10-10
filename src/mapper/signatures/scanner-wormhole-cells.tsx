@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useMemo, type ReactNode } from 'react';
-import { systemClassText } from '@/data/eve-data/system-identity';
 import type { SigGroup } from '@/data/maps/scan-parse';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
@@ -28,6 +27,7 @@ import {
   type SignatureWindowRow,
 } from './signature-model';
 import { destinationReadout } from './system-readout';
+import { staticClassForCode } from './use-system-statics';
 
 function scannerCellKey(
   kind: 'type' | 'leads',
@@ -95,11 +95,11 @@ export function useWormholeCellContext({
 }): WormholeCellContext {
   const editorData = useWormholeEditorData(scannerSystemId ?? 0, null);
   const assets = useUniverseAssets();
-  const classLabelOf = useCallback((code: string): string | null => {
-    const entry = editorData.codex?.byCode(code) ?? null;
-    if (entry === null || entry.farSide) return null;
-    return systemClassText(entry.targetClass);
-  }, [editorData.codex]);
+  const classLabelOf = useCallback(
+    (code: string): string | null =>
+      staticClassForCode(code, editorData.codex)?.className ?? null,
+    [editorData.codex],
+  );
   return useMemo(() => {
     const systemInfo =
       assets === null ? null : (id: number) => assets.systemInfo(id);

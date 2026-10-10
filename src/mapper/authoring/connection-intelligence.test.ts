@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { withHostNumberLocale } from '@/lib/__tests__/host-locale';
+import { HOUR_MS } from '@/lib/iso-date';
 import {
   codexPanelFacts,
   formatDurationBound,
@@ -38,12 +39,14 @@ const K162: WormholeCodexEntry = {
 
 const CONNECTION: LifetimeConnection = {
   _creationTime: 1_000,
+  firstSeenAt: null,
   lifetime: { kind: 'stage', lifeStage: 'under_1_day', observedAt: 1_000 },
 };
 
 function withWindow(earliestAt: number, latestAt: number): LifetimeConnection {
   return {
     _creationTime: 1_000,
+    firstSeenAt: null,
     lifetime: {
       kind: 'window',
       earliestAt,
@@ -109,5 +112,33 @@ describe('connection intelligence', () => {
     expect(lifetimeUpperBoundLabel(withWindow(500, 900), TYPED, 1_000)).toBe(
       'Expired',
     );
+  });
+
+  it('anchors the typed ceiling of a migrated connection on its first sighting', () => {
+    const createdAt = Date.UTC(2026, 0, 1, 12);
+    const migrated: LifetimeConnection = {
+      _creationTime: createdAt,
+      firstSeenAt: createdAt - 2 * HOUR_MS,
+      lifetime: { kind: 'unknown' },
+    };
+
+    expect(lifetimeRowDisplay(migrated, TYPED, createdAt)).toEqual({
+      kind: 'ceiling',
+      label: '≤ 14h',
+      title: 'Typed ceiling 2026-01-02T02:00:00.000Z',
+    });
+    expect(lifetimeUpperBoundLabel(migrated, TYPED, createdAt)).toBe('14h');
+    expect(
+      lifetimeRowDisplay({ ...migrated, firstSeenAt: null }, TYPED, createdAt),
+    ).toEqual({
+      kind: 'ceiling',
+      label: '≤ 16h',
+      title: 'Typed ceiling 2026-01-02T04:00:00.000Z',
+    });
+    expect(
+      lifetimeRowDisplay(migrated, TYPED, createdAt + 14 * HOUR_MS),
+    ).toEqual({ kind: 'expired', label: 'Expired' });
+    expect(lifetimeRowDisplay(migrated, K162, createdAt)).toEqual({ kind: 'unset' });
+    expect(lifetimeUpperBoundLabel(migrated, null, createdAt)).toBeNull();
   });
 });

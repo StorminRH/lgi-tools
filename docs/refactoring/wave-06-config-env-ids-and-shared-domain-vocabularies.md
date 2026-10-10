@@ -27,7 +27,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P261](#p261) | Derive Convex TS types from their validators and build every enum validator from its data-zone tuple | contracts-validation | M | low | medium | [P262](#p262) |
 | ☑ | [P124](#p124) | Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator | generic-utility | S | low | low | — |
 | ☑ | [P125](#p125) | Share the system-code-set comparison between wh-statics diff and cross-check | generic-utility | S | low | low | — |
-| ☐ | [P082](#p082) | Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode | client-data | M | low | medium | [P124](#p124), [P266](#p266) |
+| ☑ | [P082](#p082) | Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode | client-data | M | low | medium | [P124](#p124), [P266](#p266) |
 | ☐ | [P329](#p329) | Make deathWindowFrom the single death-window constructor (mapper optimistic args, convex validation) and delete test-only data wrappers | simplification | S | low | medium | [P082](#p082) |
 
 <a id="p134"></a>
@@ -1766,7 +1766,7 @@ No drift was found between the two copies; they are behaviourally identical toda
 
 ## P082: Anchor the typed lifetime ceiling on firstSeenAt through one connection-lifetime helper, make isCodexSizeLocked a type guard, and reuse staticClassForCode
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -30 / +20 across 10 files; one intentional display change (an earlier ceiling for migrated connections)
 - **Depends on:** [P124](#p124), [P266](#p266)

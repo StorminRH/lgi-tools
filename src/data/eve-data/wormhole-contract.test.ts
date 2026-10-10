@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import type { WormholeCodexEntry } from './universe-assets';
 import {
   destinationHintSoleClassId,
   hintAdmitsClass,
   isAttributableWormholeTypeCode,
   isKnownSpaceSystemId,
+  isTypedCodexEntry,
   remainingMassAfterTravel,
   remainingMassBounds,
 } from './wormhole-contract';
@@ -112,4 +114,28 @@ it('attributes named wormhole type codes but not the K162 exit or malformed code
   expect(isAttributableWormholeTypeCode('c247')).toBe(false);
   expect(isAttributableWormholeTypeCode('K16')).toBe(false);
   expect(isAttributableWormholeTypeCode('C2470')).toBe(false);
+});
+
+it('narrows a codex lookup to the typed near-side entry and refuses the K162 exit or a miss', () => {
+  const lookups: Record<string, WormholeCodexEntry | null> = {
+    B274: {
+      code: 'B274',
+      typeId: 1,
+      farSide: false,
+      totalMass: 2_000_000_000,
+      maxJumpMass: 300_000_000,
+      massRegen: 0,
+      lifetimeMinutes: 1_440,
+      sizeClass: 'L',
+      targetClass: 7,
+    },
+    K162: { code: 'K162', typeId: 2, farSide: true },
+    MISSING: null,
+  };
+  const typed = lookups.B274;
+  expect(isTypedCodexEntry(typed)).toBe(true);
+  expect(isTypedCodexEntry(typed) ? typed.sizeClass : null).toBe('L');
+  expect(isTypedCodexEntry(lookups.K162)).toBe(false);
+  expect(isTypedCodexEntry(lookups.MISSING)).toBe(false);
+  expect(isTypedCodexEntry(undefined)).toBe(false);
 });

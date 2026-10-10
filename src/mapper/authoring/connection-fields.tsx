@@ -147,7 +147,6 @@ export function ConnectionFields({
   originLeads = [],
 }: ConnectionFieldsProps) {
   const readOnly = mode === 'restore';
-  const lockedSize = isCodexSizeLocked(entry);
   return (
     <div
       data-map-connection-fields
@@ -173,7 +172,6 @@ export function ConnectionFields({
       <SizeField
         connection={connection}
         entry={entry}
-        lockedSize={lockedSize}
         readOnly={readOnly}
         onChange={setters.setShipSize}
       />
@@ -282,20 +280,18 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
 function SizeField({
   connection,
   entry,
-  lockedSize,
   readOnly,
   onChange,
 }: {
   readonly connection: ConnectionEditorDetail;
   readonly entry: WormholeCodexEntry | null;
-  readonly lockedSize: boolean;
   readonly readOnly: boolean;
   readonly onChange: (value: WormholeSizeClass | null) => void;
 }) {
-  const lockedValue =
-    lockedSize && entry !== null && !entry.farSide
-      ? entry.sizeClass
-      : (connection.shipSize ?? 'Unset');
+  const lockedSize = isCodexSizeLocked(entry);
+  const lockedValue = lockedSize
+    ? entry.sizeClass
+    : (connection.shipSize ?? 'Unset');
   return (
     <OptionalSelectField
       label="Size"

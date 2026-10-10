@@ -1,4 +1,7 @@
-import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
+import {
+  isTypedCodexEntry,
+  type ConnectionProvenance,
+} from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
 
@@ -61,10 +64,9 @@ function codexAdmits(input: EliminationInput): boolean {
   const codex = indexWormholeCodex(input.codex);
   if (codex.conflictingCodes.size > 0) return false;
 
-  const staticsValid = input.staticTypeCodes.every((code) => {
-    const entry = codex.byCode(code);
-    return entry !== null && !entry.farSide;
-  });
+  const staticsValid = input.staticTypeCodes.every((code) =>
+    isTypedCodexEntry(codex.byCode(code)),
+  );
   const factsValid = [...input.signatures, ...input.connections].every((fact) =>
     fact.wormholeTypeCode === null || codex.byCode(fact.wormholeTypeCode) !== null,
   );
