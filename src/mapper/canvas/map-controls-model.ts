@@ -1,3 +1,5 @@
+import { sameItems } from '@/lib/array';
+import { clamp } from '@/lib/math';
 import type { FogConfig } from '../fog/fog-model';
 import type { HaloLimits } from '../halo/halo-model';
 import {
@@ -37,7 +39,7 @@ export function clampStepped(
   max: number,
   step: number,
 ): number {
-  const clamped = Math.min(max, Math.max(min, value));
+  const clamped = clamp(value, min, max);
   const steps = Math.round((clamped - min) / step);
   return min + steps * step;
 }
@@ -176,12 +178,7 @@ export function directionPresetOf(
     DirectionPresetId,
     readonly number[],
   ][]) {
-    if (
-      sequence.length === config.directionSequence.length &&
-      sequence.every((heading, index) => heading === config.directionSequence[index])
-    ) {
-      return id;
-    }
+    if (sameItems(sequence, config.directionSequence)) return id;
   }
   return null;
 }

@@ -1,3 +1,4 @@
+import { roundIsk } from '@/lib/math';
 import {
   BLUEPRINT_CATEGORY_ID,
   EXCLUDED_LOCATION_FLAGS,
@@ -78,10 +79,6 @@ export function unitValue(typeId: number, prices: UnitPrices | undefined): numbe
   if (typeId === PLEX_TYPE_ID) return prices.average;
   if (prices.jitaMid !== null && prices.average !== null) return Math.min(prices.jitaMid, prices.average);
   return prices.jitaMid ?? prices.average;
-}
-
-function roundIsk(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 function isExcludedAsset(line: AssetLine, categories: TypeCategories): boolean {

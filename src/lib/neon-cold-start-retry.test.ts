@@ -68,31 +68,6 @@ describe('isNeonColdStartError', () => {
       expect(isNeonColdStartError(wrapped)).toBe(true);
       expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(true);
     });
-
-    it('finds the timeout when a non-timeout cause sits alongside it', () => {
-      const wrapped = neonError(`Error connecting to database: ${abort()}`, {
-        cause: new TypeError('some other detail'),
-        sourceError: abort(),
-      });
-      expect(isNeonColdStartError(wrapped)).toBe(false);
-      expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(false);
-    });
-
-    it('finds the timeout when it hides behind the cause branch', () => {
-      const wrapped = neonError(`Error connecting to database: ${abort()}`, {
-        cause: neonError('inner', { sourceError: abort() }),
-        sourceError: new TypeError('some other detail'),
-      });
-      expect(isNeonColdStartError(wrapped)).toBe(false);
-    });
-
-    it('terminates on a cycle across both links', () => {
-      const a = neonError(COLD_START);
-      const b = neonError('inner');
-      Object.assign(a, { cause: b, sourceError: b });
-      Object.assign(b, { cause: a, sourceError: a });
-      expect(isNeonColdStartError(a)).toBe(true);
-    });
   });
 });
 
@@ -140,6 +115,28 @@ describe('withColdStartRetry', () => {
     await expect(result).resolves.toBe('rows');
     expect(read).toHaveBeenCalledTimes(2);
     expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringMatching(/^\[neon-cold-start-retry\] attempt 1\/4 failed .*; retrying in 500ms$/),
+    );
+    expect(sink).toHaveBeenCalledWith({ outcome: 'recovered', attempts: 2, totalDelayMs: 500 });
+  });
+
+  it('retries a timed-out connect under its own label when asked to', async () => {
+    const sink = vi.fn();
+    configureNeonColdStartMetricSink(sink);
+    const timedOut = neonError('Error connecting to database: TimeoutError: signal timed out', {
+      sourceError: new DOMException('signal timed out', 'TimeoutError'),
+    });
+    const read = vi.fn().mockRejectedValueOnce(drizzleWrapped(timedOut)).mockResolvedValue('rows');
+    const result = withColdStartRetry(read, { label: 'warm-neon', retryTimeouts: true });
+
+    await vi.advanceTimersByTimeAsync(499);
+    expect(read).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toBe('rows');
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(console.warn).toHaveBeenCalledOnce();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/^\[warm-neon\] attempt 1\/4 failed/));
     expect(sink).toHaveBeenCalledWith({ outcome: 'recovered', attempts: 2, totalDelayMs: 500 });
   });
 

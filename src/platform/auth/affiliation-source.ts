@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { chunk, dedupe } from '@/lib/array';
+import { isTimeoutError } from '@/lib/error-chain';
 import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
 import { SYNTHETIC_PILOT } from './synthetic-pilot';
 
@@ -45,7 +46,7 @@ function isTransientFetchFailure(error: unknown): boolean {
     error instanceof EsiBudgetExhaustedError
     || error instanceof EsiServerError
     || error instanceof TypeError
-    || (error instanceof DOMException && error.name === 'TimeoutError')
+    || isTimeoutError(error)
   );
 }
 

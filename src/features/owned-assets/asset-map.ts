@@ -1,4 +1,5 @@
 import type { Placement } from '@/data/corp-holdings/placement';
+import { getOrInsertComputed } from '@/lib/array';
 import { type CorpGrant, visiblePlacements } from '@/platform/auth/corp-visibility';
 
 export interface AssetRow {
@@ -62,11 +63,7 @@ export function buildOwnedAssetMap(rows: readonly AssetMapInput[], typeIds?: num
   const map: OwnedAssetMap = new Map();
   for (const row of rows) {
     if (wanted !== null && !wanted.has(row.typeId)) continue;
-    let summary = map.get(row.typeId);
-    if (summary === undefined) {
-      summary = { ownedQty: 0, heldBy: [] };
-      map.set(row.typeId, summary);
-    }
+    const summary = getOrInsertComputed(map, row.typeId, () => ({ ownedQty: 0, heldBy: [] }));
     summary.ownedQty += row.quantity;
     summary.heldBy.push(toHolding(row));
   }

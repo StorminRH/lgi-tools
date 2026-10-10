@@ -1,6 +1,7 @@
 'use client';
 
 import type { Id } from '@/data/convex/data-model';
+import type { Neighbours } from '@/lib/graph';
 import { DEFAULT_LAYOUT_CONFIG, type LayoutConfig } from '../layout/layout-contract';
 import type { HaloLimits, PlacedHalo } from '../halo/halo-model';
 import type { AwaitingJumpSummary, ConnectionDetail, UnresolvedHoleSummary } from './connection-detail';
@@ -29,7 +30,7 @@ export interface MapChain {
   readonly rootSystemId: number | null;
   readonly halo: PlacedHalo;
   readonly stubs: readonly PlacedStub[];
-  readonly neighboursOf: (systemId: number) => readonly number[];
+  readonly neighboursOf: Neighbours;
 }
 
 export function useMapChain(

@@ -9,6 +9,7 @@ import {
   type GrandfatherGrant,
 } from '@/data/maps/character-scoping';
 import { getMapGrants } from '@/data/maps/queries';
+import { groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from '@/platform/auth/authorization-policy';
 import {
@@ -52,8 +53,7 @@ function highestRoleByUser(claims: readonly MapAccessClaim[]) {
 }
 
 function eligibleByUser(grants: readonly DatedMapGrant[], affiliations: readonly AccountAffiliation[]) {
-  const rows = new Map<string, AccountAffiliation[]>();
-  for (const row of affiliations) rows.set(row.userId, [...(rows.get(row.userId) ?? []), row]);
+  const rows = groupBy(affiliations, (row) => row.userId);
   return new Map([...rows].map(([userId, held]) => [userId, new Set(eligibleCharacterIds(grants, held))]));
 }
 

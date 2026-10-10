@@ -1,3 +1,4 @@
+import { clampPct } from '@/lib/math';
 import type { IndustryJob, JobStatus } from './esi-projection';
 
 export function deriveJobStatus(status: JobStatus, endDate: string, nowMs: number): JobStatus {
@@ -18,10 +19,6 @@ export function jobProgress(job: IndustryJob, nowMs: number): number {
     return Number.isFinite(paused) ? clampPct(((paused - start) / (end - start)) * 100) : 0;
   }
   return clampPct(((nowMs - start) / (end - start)) * 100);
-}
-
-function clampPct(pct: number): number {
-  return Math.min(100, Math.max(0, pct));
 }
 
 export interface JobsSummary {

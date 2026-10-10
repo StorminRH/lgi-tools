@@ -10,6 +10,7 @@ import {
   publishCreatedMap,
   type CreateMapGrant,
 } from '@/data/maps/queries';
+import { sleep } from '@/lib/retry';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 
 const PROJECTION_ATTEMPT_OFFSETS_MS = [0, 2_000, 5_000, 10_000] as const;
@@ -58,10 +59,6 @@ function creationGrants(input: CreateMapRequest): CreateMapGrant[] {
     })),
     ...input.grants,
   ];
-}
-
-function delay(delayMs: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 async function projectOnCreationLadder(
@@ -146,7 +143,7 @@ export async function createProjectedMap(
   const teardown = dependencies.teardown ?? teardownMapAccessProjection;
   const linked = dependencies.listLinkedCharacterIds ?? listLinkedCharacterIds;
   const now = dependencies.now ?? Date.now;
-  const pause = dependencies.pause ?? delay;
+  const pause = dependencies.pause ?? sleep;
 
   const linkedIds = new Set(await linked(userId));
   if (!input.creatorCharacterIds.every((characterId) => linkedIds.has(characterId))) {

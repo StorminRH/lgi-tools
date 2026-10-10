@@ -3,6 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { db, directClient, resolveLockConnectionUrl } from '@/db';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { buildHoldingIndex, type CorpAssetEvidence, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
 import { invalidateHoldingNodes, saveHoldingNodes } from '@/data/corp-holdings/queries';
 import { decryptSnapshotBody } from '@/data/esi-snapshots/crypto';
@@ -94,10 +95,7 @@ export async function getOwnedAssetMap(scope: OwnedReadScope, typeIds: number[])
 
 /** Every stored row per character, for valuation; characters without rows map to an empty list. */
 export async function listCharacterAssetRows(characterIds: number[]): Promise<Map<number, AssetRow[]>> {
-  const perOwner = await Promise.all(
-    characterIds.map((ownerId) => getOwnerAssetRows({ ownerType: 'character', ownerId })),
-  );
-  return new Map(characterIds.map((id, i) => [id, perOwner[i] ?? []]));
+  return mapByIdDroppingNulls(characterIds, (ownerId) => getOwnerAssetRows({ ownerType: 'character', ownerId }));
 }
 
 export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {

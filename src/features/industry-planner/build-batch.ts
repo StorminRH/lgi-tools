@@ -1,4 +1,5 @@
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import { roundTo } from '@/lib/math';
 
 interface Recipe {
   blueprintTypeId: number;
@@ -53,10 +54,6 @@ export interface MeOptions {
 
 const UNSET_ME: MeOptions = { meOf: () => undefined, topBlueprintTypeId: 0 };
 
-function roundTo2(x: number): number {
-  return Math.round(x * 100) / 100;
-}
-
 function meFactor(me: number): number {
   return me <= 0 ? 1 : 1 - me / 100;
 }
@@ -64,7 +61,7 @@ function meFactor(me: number): number {
 function meAdjust(qty: number, runs: number, me: number, structureMult = 1): number {
   const mult = meFactor(me) * structureMult;
   if (mult >= 1) return qty * runs;
-  return Math.max(runs, Math.ceil(roundTo2(qty * runs * mult)));
+  return Math.max(runs, Math.ceil(roundTo(qty * runs * mult, 2)));
 }
 
 function topologicalDemand(recipes: Map<number, Recipe>): {

@@ -3,6 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { eveSolarSystems } from '@/data/eve-data/schema';
 import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { ParsedCorpStructure } from './esi-projection';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
 import type { CorpStructureRow, CorpStructuresSyncState } from './types';
@@ -30,10 +31,7 @@ async function getCorpStructureRows(corporationId: number): Promise<CorpStructur
 export async function getCorpStructures(
   corporationIds: number[],
 ): Promise<Map<number, CorpStructureRow[]>> {
-  const perCorp = await Promise.all(
-    corporationIds.map(async (corpId) => [corpId, await getCorpStructureRows(corpId)] as const),
-  );
-  return new Map(perCorp);
+  return mapByIdDroppingNulls(corporationIds, getCorpStructureRows);
 }
 
 export async function readCorpStructureSyncState(

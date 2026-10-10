@@ -1,4 +1,5 @@
 import type { WormholeCodexAsset } from '@/data/eve-data/universe-assets';
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import type { PathfinderStaticRow } from './lineage';
 import type {
   WhStaticEntry,
@@ -18,16 +19,6 @@ export class UnknownLineageTypeError extends Error {
     super(`Wormhole codex has no code for Pathfinder type ${typeId}`);
     this.name = 'UnknownLineageTypeError';
   }
-}
-
-function addToSystemSet(
-  target: Map<number, Set<string>>,
-  systemId: number,
-  code: string,
-): void {
-  const values = target.get(systemId) ?? new Set<string>();
-  values.add(code);
-  target.set(systemId, values);
 }
 
 function sortedValues(values: ReadonlySet<string>): string[] {
@@ -52,24 +43,20 @@ export function crossCheckStatics(
     if (!knownCodes.has(entry.code)) {
       throw new UnknownCodexStaticError(entry.code);
     }
-    addToSystemSet(feedBySystem, entry.systemId, entry.code);
+    getOrInsertComputed(feedBySystem, entry.systemId, () => new Set()).add(entry.code);
   }
   const lineageBySystem = new Map<number, Set<string>>();
   for (const row of lineageRows) {
     const code = codeByTypeId.get(row.typeId);
     if (code === undefined) throw new UnknownLineageTypeError(row.typeId);
-    addToSystemSet(lineageBySystem, row.systemId, code);
+    getOrInsertComputed(lineageBySystem, row.systemId, () => new Set()).add(code);
   }
 
   let agreedSystems = 0;
   const disagreements: WhStaticsDisagreement[] = [];
   const lineageOnlySystems: number[] = [];
   const feedOnlySystems: number[] = [];
-  const systemIds = new Set([
-    ...feedBySystem.keys(),
-    ...lineageBySystem.keys(),
-  ]);
-  for (const systemId of [...systemIds].sort((left, right) => left - right)) {
+  for (const systemId of sortedUniqueIds([...feedBySystem.keys(), ...lineageBySystem.keys()])) {
     const feed = feedBySystem.get(systemId);
     const lineage = lineageBySystem.get(systemId);
     if (feed === undefined) {

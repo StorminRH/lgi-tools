@@ -1,3 +1,5 @@
+import { roundTo } from '@/lib/math';
+
 export const SECURITY_CLASSES = ['high', 'low', 'null', 'wormhole'] as const;
 export type SecurityClass = (typeof SECURITY_CLASSES)[number];
 
@@ -17,7 +19,7 @@ export function systemSecurityClass(
 export function roundSecurityStatus(securityStatus: number): number {
   if (securityStatus === 0) return 0;
   if (securityStatus > 0 && securityStatus < 0.05) return 0.1;
-  return Math.round(securityStatus * 10) / 10;
+  return roundTo(securityStatus, 1);
 }
 
 const POSITIVE_SECURITY_BANDS = [

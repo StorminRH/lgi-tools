@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
   forbiddenFailure,
-  type AppFailure,
+  type FailureResult,
   unauthenticatedFailure,
 } from '@/lib/failure';
 import { auth } from '@/composition/auth';
@@ -13,7 +13,7 @@ export type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.g
 
 export type SessionCheckResult =
   | { ok: true; session: BetterAuthSession }
-  | { ok: false; failure: AppFailure };
+  | FailureResult;
 
 export async function checkSession(): Promise<SessionCheckResult> {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -43,7 +43,7 @@ export async function checkAdminMutation(
 
 export type UserIdCheckResult =
   | { ok: true; userId: string }
-  | { ok: false; failure: AppFailure };
+  | FailureResult;
 
 export async function checkUserId(): Promise<UserIdCheckResult> {
   const userId = await getCurrentUserId();

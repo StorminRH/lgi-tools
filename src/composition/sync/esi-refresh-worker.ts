@@ -28,7 +28,8 @@ import type {
   EsiRefreshJob,
 } from '@/data/esi-refresh-jobs/types';
 import { alertEsiRefreshDeadLetter } from '@/lib/alerts';
-import { swallow } from '@/transport/cron';
+import { bestEffort } from '@/lib/best-effort';
+import { isTimeoutError } from '@/lib/error-chain';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { runCorpContextRefreshJob } from './corp-context-sync';
 import { runCorporationIndustryJobsRefreshJob } from './corp-industry-jobs-sync';
@@ -74,7 +75,7 @@ function targetOf(job: EsiRefreshJob): OwnerSyncTarget {
 }
 
 function retryCode(error: unknown): string {
-  if (error instanceof DOMException && error.name === 'TimeoutError') return 'timeout';
+  if (isTimeoutError(error)) return 'timeout';
   if (error instanceof TypeError) return 'connection';
   if (error instanceof Error) return error.name || 'unexpected';
   return 'unexpected';
@@ -110,8 +111,7 @@ async function alertDeadLetter(
   attemptCount: number,
   failureCode: string,
 ): Promise<void> {
-  await swallow(
-    '[esi-refresh-worker] dead-letter alert failed',
+  await bestEffort('esi-refresh-worker', 'dead-letter alert', `job ${job.id}`, () =>
     alertEsiRefreshDeadLetter({
       jobId: job.id,
       dataset: job.dataset,

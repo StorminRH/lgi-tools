@@ -1,4 +1,5 @@
 import { useEffect, type RefObject } from 'react';
+import { clamp } from '@/lib/math';
 
 const LEAD_COL = 44;
 const COL_GAPS = 18;
@@ -19,7 +20,7 @@ export function deriveNpcNameColWidth(rows: NpcRowMetrics[]): number | null {
   }
   if (maxName <= 0 || !Number.isFinite(gridContent)) return null;
   const available = gridContent - LEAD_COL - COL_GAPS - maxTrailing;
-  return Math.round(Math.max(MIN_NAME, Math.min(maxName + NAME_BUFFER, available)));
+  return Math.round(clamp(maxName + NAME_BUFFER, MIN_NAME, available));
 }
 
 function elWidth(el: Element | undefined): number {

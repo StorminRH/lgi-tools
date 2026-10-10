@@ -1,13 +1,13 @@
 import type { z } from 'zod';
-import { validationFailure, type AppFailure } from '@/lib/failure';
+import { validationFailure, type AppFailure, type FailureResult } from '@/lib/failure';
 
 export type ParsedFormBody<T> =
   | { ok: true; data: T }
-  | { ok: false; failure: AppFailure };
+  | FailureResult;
 
 export type ReadJsonBodyResult<T> =
   | { ok: true; data: T }
-  | { ok: false; failure: AppFailure; zodError?: z.ZodError };
+  | (FailureResult & { zodError?: z.ZodError });
 
 export async function readJsonBody<S extends z.ZodTypeAny>(
   request: Request,

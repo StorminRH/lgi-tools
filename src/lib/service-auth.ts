@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
 import { readEnv } from '@/lib/env';
 import {
-  type AppFailure,
+  type CheckResult,
   unauthenticatedFailure,
   unexpectedFailure,
 } from '@/lib/failure';
@@ -16,7 +16,7 @@ export function bearerMatches(authorization: string | null, secret: string): boo
 export async function checkBearerSecret(
   req: Request,
   envVar: 'CRON_SECRET' | 'CONVEX_SERVICE_SECRET',
-): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
+): Promise<CheckResult> {
   await connection();
   const secret = readEnv(envVar);
   if (!secret) {

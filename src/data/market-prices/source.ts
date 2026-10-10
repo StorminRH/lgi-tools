@@ -15,7 +15,8 @@ import {
   esiFetch,
   esiUrl,
 } from '@/platform/esi';
-import { dedupe } from '@/lib/array';
+import { dedupe, getOrInsertComputed } from '@/lib/array';
+import { mapConcurrent } from '@/lib/fan-out';
 import {
   computeDepth,
   computeSide,
@@ -62,33 +63,6 @@ interface OrderBucket {
   remoteSell: Map<number, RemoteStationBook>;
 }
 
-async function runConcurrent<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  if (items.length === 0) return;
-  let cursor = 0;
-  let cancelled = false;
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      while (true) {
-        if (cancelled) return;
-        const i = cursor++;
-        if (i >= items.length) return;
-        try {
-          await worker(items[i]!);
-        } catch (err) {
-          cancelled = true;
-          throw err;
-        }
-      }
-    },
-  );
-  await Promise.all(workers);
-}
-
 function absorbOrders(
   orders: EsiOrder[],
   wanted: Set<number>,
@@ -98,11 +72,7 @@ function absorbOrders(
     if (!wanted.has(o.type_id)) continue;
     const atHub = o.location_id === JITA_44_STATION_ID;
     if (o.is_buy_order && !atHub) continue;
-    let bucket = buckets.get(o.type_id);
-    if (!bucket) {
-      bucket = { hubBuy: [], hubSell: [], remoteSell: new Map() };
-      buckets.set(o.type_id, bucket);
-    }
+    const bucket = getOrInsertComputed(buckets, o.type_id, () => ({ hubBuy: [], hubSell: [], remoteSell: new Map() }));
     const entry: OrderEntry = {
       price: o.price,
       volume: BigInt(o.volume_remain),
@@ -119,11 +89,7 @@ function absorbRemoteSell(
   entry: OrderEntry,
 ): void {
   if (!isDiscountEligibleLocation(o.location_id)) return;
-  let book = bucket.remoteSell.get(o.location_id);
-  if (!book) {
-    book = { systemId: o.system_id, orders: [] };
-    bucket.remoteSell.set(o.location_id, book);
-  }
+  const book = getOrInsertComputed(bucket.remoteSell, o.location_id, () => ({ systemId: o.system_id, orders: [] }));
   book.orders.push(entry);
 }
 
@@ -189,7 +155,7 @@ async function fetchViaEsiRegionDump(
   if (totalPages > 1) {
     const pages: number[] = [];
     for (let p = 2; p <= totalPages; p++) pages.push(p);
-    await runConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
+    await mapConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
       const res = await esiFetch(regionDumpPageUrl(page));
       if (!res.ok) throw new EsiServerError(res.status);
       const orders = parseEsiOrders(filterRawByWantedType(await res.json(), wanted));
@@ -207,7 +173,7 @@ async function fetchViaEsiPerType(
   const fallbackNeeded: number[] = [];
   let budgetExhausted = false;
 
-  await runConcurrent(typeIds, PER_TYPE_CONCURRENCY, async (typeId) => {
+  await mapConcurrent(typeIds, PER_TYPE_CONCURRENCY, async (typeId) => {
     if (budgetExhausted) {
       fallbackNeeded.push(typeId);
       return;

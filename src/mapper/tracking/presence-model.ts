@@ -1,3 +1,5 @@
+import { groupBy, sortedUniqueIds } from '@/lib/array';
+
 export type PresenceStatusWord = 'Docked' | 'In space';
 
 export interface TrackedLocationSnapshot {
@@ -52,12 +54,7 @@ export function derivePresence(input: PresenceInput): ReadonlyMap<number, System
     }
   }
 
-  const pilotsBySystem = new Map<number, PresencePilot[]>();
-  for (const { systemId, pilot } of byCharacter.values()) {
-    const list = pilotsBySystem.get(systemId) ?? [];
-    list.push(pilot);
-    pilotsBySystem.set(systemId, list);
-  }
+  const pilotsBySystem = groupBy(byCharacter.values(), (held) => held.systemId, (held) => held.pilot);
 
   const presence = new Map<number, SystemPresence>();
   for (const [systemId, pilots] of pilotsBySystem) {
@@ -92,8 +89,7 @@ export function coverageQueryArgs(
   if (tracking === undefined) return 'skip';
   return {
     mapId,
-    characterIds: [...new Set(tracking.tracked.map((row) => row.characterId))]
-      .sort((left, right) => left - right),
+    characterIds: sortedUniqueIds(tracking.tracked.map((row) => row.characterId)),
   };
 }
 

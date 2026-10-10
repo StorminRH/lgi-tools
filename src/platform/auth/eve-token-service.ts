@@ -3,6 +3,7 @@ import { emitDomainEvent } from '@/data/domain-events/queries';
 import { db } from '@/db';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
+import { bestEffort } from '@/lib/best-effort';
 import { requireEnv } from '@/lib/env';
 import {
   EVE_PROVIDER_ID,
@@ -190,7 +191,7 @@ async function recordRetryableFailure(
  * treats as a harmless no-op (200 either way).
  */
 export async function revokeStoredCharacterToken(ciphertext: string | null): Promise<void> {
-  try {
+  await bestEffort('eve-token', 'revoke', null, async () => {
     const refreshToken = ciphertext ? decryptToken(ciphertext) : null;
     if (refreshToken === null) return;
     await revokeEveRefreshToken({
@@ -198,9 +199,7 @@ export async function revokeStoredCharacterToken(ciphertext: string | null): Pro
       clientId: requireEnv('EVE_CLIENT_ID'),
       clientSecret: requireEnv('EVE_CLIENT_SECRET'),
     });
-  } catch (err) {
-    console.error('[eve-token] revoke failed', err);
-  }
+  });
 }
 
 export async function getFreshAccessTokenForCharacter(

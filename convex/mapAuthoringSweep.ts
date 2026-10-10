@@ -1,4 +1,5 @@
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { getOrInsertComputed } from '@/lib/array';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
@@ -75,14 +76,11 @@ type RemovedStubEvents = Map<
 
 function recordRemovedStub(events: RemovedStubEvents, stub: Doc<'mapConnections'>): void {
   if (stub.from.signatureId === null) return;
-  const key = `${stub.mapId}:${stub.fromSystemId}`;
-  const entry = events.get(key) ?? {
+  getOrInsertComputed(events, `${stub.mapId}:${stub.fromSystemId}`, () => ({
     mapId: stub.mapId,
     systemId: stub.fromSystemId,
     signatureIds: [],
-  };
-  entry.signatureIds.push(stub.from.signatureId);
-  events.set(key, entry);
+  })).signatureIds.push(stub.from.signatureId);
 }
 
 async function sweepExpiredCeilings(

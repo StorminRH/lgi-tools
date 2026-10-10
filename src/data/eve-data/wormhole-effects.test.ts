@@ -106,7 +106,7 @@ describe('buildWormholeEffects', () => {
 
   it('falls back to the display name without its dogma suffix', () => {
     expect(effectModifierLabel('Warp speed multiplier', 'warpSpeedMultiplier')).toBe('Warp speed');
-    expect(effectModifierLabel(null, 'droneTrackingBonus')).toBe('Drone Tracking');
+    expect(effectModifierLabel(null, 'droneTrackingBonus')).toBe('Drone tracking');
     expect(effectModifierLabel('  ', 'agilityMultiplier')).toBe('Agility');
   });
 

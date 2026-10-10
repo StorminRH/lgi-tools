@@ -4,6 +4,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Tooltip } from '@/components/ui/tooltip';
+import { clampPct } from '@/lib/math';
 import {
   formatSignatureAge,
   scannerGroupTypeLabel,
@@ -30,7 +31,7 @@ function SignalFill({ signalPct }: { readonly signalPct: number | null }) {
   useEffect(() => {
     ref.current?.style.setProperty(
       '--signature-signal',
-      `${Math.max(0, Math.min(100, signalPct ?? 0))}%`,
+      `${clampPct(signalPct ?? 0)}%`,
     );
   }, [signalPct]);
   return <div ref={ref} data-signature-signal-fill aria-hidden />;

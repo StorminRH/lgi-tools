@@ -1,12 +1,12 @@
 import type { z } from 'zod';
-import { validationFailure, type AppFailure } from '@/lib/failure';
+import { validationFailure, type FailureResult } from '@/lib/failure';
 import { parseQueryInput } from '@/transport/endpoint';
 import { sitesEndpoint, sitesQuerySchema } from './api-contract';
 import { SITE_TYPES, WORMHOLE_CLASSES } from './site-taxonomy';
 
 export type SitesQueryParse =
   | { ok: true; data: z.infer<typeof sitesQuerySchema> }
-  | { ok: false; failure: AppFailure };
+  | FailureResult;
 
 export function parseSitesQuery(searchParams: URLSearchParams): SitesQueryParse {
   const parsed = parseQueryInput(sitesEndpoint, searchParams);

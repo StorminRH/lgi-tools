@@ -1,3 +1,4 @@
+import { clamp } from '@/lib/math';
 import { roundedLeaderPath } from '../windows/leader-path';
 
 export interface LeaderRect {
@@ -34,11 +35,6 @@ const STUB_PX = 12;
 const MIN_RUN_PX = 14;
 
 const CORNER_RADIUS_PX = 8;
-
-function clamp(value: number, low: number, high: number): number {
-  if (high < low) return low;
-  return Math.min(Math.max(value, low), high);
-}
 
 /**
  * A bracket on the selected row's right edge and a callout to the card: a

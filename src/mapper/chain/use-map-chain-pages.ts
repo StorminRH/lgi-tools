@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { chainTombstoneState } from '@/data/maps/chain-contract';
+import { useNow } from '@/lib/use-now';
 import {
   staticClassForCode,
   useWormholeCodex,
@@ -126,21 +127,8 @@ export type MapChainPages = ReturnType<typeof useMapChainPages>;
 export function useConnectionPresentationNow(
   connections: MapChainPages['connections'],
 ) {
-  const [connectionPresentationNow, setConnectionPresentationNow] = useState(
-    () => Date.now(),
+  // Ticks only while some connection is still dying at the clock's own reading.
+  return useNow(TOMBSTONE_TICK_MS, (now) =>
+    connections.rows.some((row) => chainTombstoneState(row, now) === 'dying'),
   );
-  const hasDyingConnection = connections.rows.some(
-    (row) => chainTombstoneState(row, connectionPresentationNow) === 'dying',
-  );
-
-  useEffect(() => {
-    if (!hasDyingConnection) return;
-    const timer = window.setInterval(
-      () => setConnectionPresentationNow(Date.now()),
-      TOMBSTONE_TICK_MS,
-    );
-    return () => window.clearInterval(timer);
-  }, [hasDyingConnection]);
-
-  return connectionPresentationNow;
 }

@@ -1,4 +1,5 @@
 import { freshnessGate, type FreshnessGate } from '@/lib/esi-datasets/freshness';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
@@ -120,15 +121,8 @@ function structuresDescriptor(
         const readIds = (state?.referenced ?? []).filter((id) =>
           unresolved.has(id) || (expired && previous?.data?.names[String(id)]?.kind === 'hidden'),
         );
-        const reads = await Promise.all(
-          readIds.map(async (id) => [id, await port.readStructure(id, accessToken)] as const),
-        );
-        return planStructures(
-          state?.referenced ?? [],
-          state?.previous?.data ?? null,
-          new Map(reads),
-          port.now(),
-        );
+        const reads = await mapByIdDroppingNulls(readIds, (id) => port.readStructure(id, accessToken));
+        return planStructures(state?.referenced ?? [], state?.previous?.data ?? null, reads, port.now());
       },
       save: (characterId, payload) => port.mergeSection(characterId, 'structures', payload.envelope),
     },

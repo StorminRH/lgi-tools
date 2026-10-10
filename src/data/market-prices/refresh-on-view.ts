@@ -2,6 +2,7 @@ import { cacheLife } from 'next/cache';
 import { after } from 'next/server';
 import { db } from '@/db';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import { mapConcurrent } from '@/lib/fan-out';
 import { consumeFreshPriceResolution, markFreshPriceResolution } from './cache-resolution';
 import { PER_TYPE_CONCURRENCY } from './constants';
 import { persistPrices } from './ingest';
@@ -66,24 +67,6 @@ async function fetchLivePrice(
   };
 }
 
-async function mapBounded<T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (true) {
-      const i = cursor++;
-      if (i >= items.length) return;
-      results[i] = await worker(items[i]!);
-    }
-  });
-  await Promise.all(runners);
-  return results;
-}
-
 export async function getLivePrices(
   typeIds: number[],
   onWriteBehind?: (result: PriceWriteBehindResult) => void,
@@ -113,7 +96,7 @@ export async function getLivePrices(
     if (expiresAt > now) prices.set(id, { ...row, staleAfter: new Date(expiresAt) });
   }
   const staleIds = ids.filter((id) => !prices.has(id));
-  const live = await mapBounded(staleIds, PER_TYPE_CONCURRENCY, async (id) => {
+  const live = await mapConcurrent(staleIds, PER_TYPE_CONCURRENCY, async (id) => {
     try {
       const result = await fetchLivePrice(id);
       return {

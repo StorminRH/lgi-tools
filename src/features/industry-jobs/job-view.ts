@@ -3,6 +3,7 @@ import {
   jobImage,
   type EveImageDescriptor,
 } from '@/data/eve-data/type-images';
+import { sortedUniqueIds } from '@/lib/array';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from './esi-projection';
 import { JOB_STATUS_META, jobActivityLabel } from './industry-jobs-styles';
@@ -94,7 +95,7 @@ export function corpEntityIds(
       if (job.installer_id !== undefined) set.add(job.installer_id);
     }
   }
-  return [...set].sort((a, b) => a - b).slice(0, maxIds);
+  return sortedUniqueIds(set).slice(0, maxIds);
 }
 
 export type CorpGroupState = 'needs-role' | 'sync-error' | 'empty' | 'rows';

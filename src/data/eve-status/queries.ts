@@ -1,5 +1,6 @@
 import { cacheLife } from 'next/cache';
 import { getCachedSdeVersion } from '@/data/eve-data/meta';
+import { readWithRetries } from '@/lib/retry';
 import { EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
 import { ESI_STATUS_PATH } from './constants';
 import { parseServerStatus } from './parse';
@@ -34,13 +35,8 @@ async function readServerStatus(): Promise<ServerStatus | null> {
  */
 export async function getNavServerStatus(): Promise<ServerStatus> {
   'use cache: remote';
-  let status = await readServerStatus();
-  for (const delay of STATUS_RETRY_DELAYS_MS) {
-    if (status !== null) break;
-    await new Promise((resolve) => setTimeout(resolve, delay));
-    status = await readServerStatus();
-  }
-  status ??= { state: 'unknown' };
+  const status: ServerStatus =
+    (await readWithRetries(readServerStatus, undefined, STATUS_RETRY_DELAYS_MS)) ?? { state: 'unknown' };
   cacheLife(status.state === 'online' || status.state === 'vip' ? LIVE_STATUS_CACHE : OFFLINE_STATUS_CACHE);
   return status;
 }
