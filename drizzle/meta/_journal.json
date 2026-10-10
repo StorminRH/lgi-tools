@@ -568,6 +568,13 @@
       "when": 1791537582242,
       "tag": "0080_query_statistics",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1791595482043,
+      "tag": "0081_eve_entity_names",
+      "breakpoints": true
     }
   ]
 }

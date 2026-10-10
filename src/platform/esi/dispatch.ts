@@ -12,6 +12,7 @@ import {
 import { markRecentBudgetExhaustion } from './exhaustion-marker';
 import {
   BODY_CACHE_MAX_BYTES,
+  NO_RESPONSE_STATUS,
   resolveScoreboard,
   __resetScoreboardForTests,
   type CachedEtagMeta,
@@ -35,19 +36,31 @@ let trickleCount = 0;
 /**
  * How long this process trusts its last shared budget reading for calls that
  * need no per-URL ETag read. Errors seen locally since the reading count
- * against it, so the only blind spot is other instances' errors in this window.
+ * against it, and ESI's error-limit header on each answer caps it, so the only
+ * blind spot is other instances' errors that no answer here has reported yet.
  */
 const LOCAL_BUDGET_REUSE_MS = 1_000;
+
+/**
+ * Every shared read (when it starts) and every answer takes the next number
+ * here, so the newest observation wins: a read never overwrites a reading or
+ * block from a read that started later, or a 420 or 429 seen after it started.
+ */
+let localSeq = 0;
 
 interface LocalBudget {
   remaining: number;
   readAt: number;
   errorsSince: number;
+  /** When the read behind it started, or the 420 that closed it. */
+  seq: number;
 }
 
 let localBudget: LocalBudget | null = null;
-/** Per normalized path: when the shared block was last read, and until when it holds. */
-const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null }>();
+/** Per normalized path: when the shared block was last read, until when it holds, and in what order. */
+const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null; seq: number }>();
+/** ESI's newest count of errors left, which already includes every error up to that answer. */
+let latestRemain: { value: number; seq: number } | null = null;
 
 let scoreboardOverride: EsiScoreboard | 'unavailable' | null = null;
 
@@ -67,6 +80,8 @@ export function __resetEsiGateForTests(): void {
   trickleCount = 0;
   localBudget = null;
   localBlocks.clear();
+  localSeq = 0;
+  latestRemain = null;
   scoreboardOverride = null;
   __resetScoreboardForTests();
 }
@@ -116,6 +131,32 @@ function buildReport(
   };
 }
 
+/** What the scoreboard hears about a dispatch that got no answer from ESI. */
+function noResponseReport(url: string): EsiReport {
+  return {
+    url,
+    status: NO_RESPONSE_STATUS,
+    errorLimitRemain: null,
+    errorLimitReset: null,
+    retryAfter: null,
+    etagToStore: null,
+    refreshEtag: null,
+  };
+}
+
+async function fetchOrReportNoResponse(
+  url: string,
+  init: RequestInit,
+  liveSb: EsiScoreboard | null,
+): Promise<Response> {
+  try {
+    return await fetchFromEsi(url, init);
+  } catch (error) {
+    if (liveSb !== null) await reportAnswer(liveSb, noResponseReport(url));
+    throw error;
+  }
+}
+
 async function safeReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
   try {
     await sb.report(report);
@@ -126,11 +167,22 @@ async function safeReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
 }
 
 /**
- * Error answers are counted before the call returns, so the shared budget
- * stays current; bookkeeping for successes and 304s runs after the response.
+ * Below this many errors left in ESI's window, a success's echo is written
+ * before the call returns as well. Every deferred echo then sits above it, so
+ * one that lands late (after a long cron response) can never close the gate,
+ * and the shared reading learns of a shrinking budget while the floor is still
+ * ESI_BUDGET_FLOOR errors away.
+ */
+const DEFERRED_ECHO_MIN_REMAIN = ESI_BUDGET_FLOOR * 2;
+
+/**
+ * Error answers, and answers whose echo shows the budget running low, are
+ * counted before the call returns, so the shared budget stays current; other
+ * bookkeeping for successes and 304s runs after the response.
  */
 async function reportAnswer(sb: EsiScoreboard, report: EsiReport): Promise<void> {
-  if (report.status >= 400) {
+  const lowEcho = report.errorLimitRemain !== null && report.errorLimitRemain < DEFERRED_ECHO_MIN_REMAIN;
+  if (report.status >= 400 || lowEcho) {
     await safeReport(sb, report);
     return;
   }
@@ -215,25 +267,67 @@ function localPreDispatch(url: string, now: number): PreDispatchState | null {
   };
 }
 
-function rememberPreDispatch(url: string, pre: PreDispatchState, now: number): void {
-  localBudget = { remaining: pre.effectiveRemaining, readAt: now, errorsSince: 0 };
-  localBlocks.set(normalizeEsiPath(url), {
-    readAt: now,
-    blockedUntil: pre.blockedRetryAfter === null ? null : now + pre.blockedRetryAfter * 1000,
-  });
+/**
+ * The budget this call obeys. A newer reading (or a 420 since) outranks this
+ * read and stays; otherwise the read is kept, capped by any error count ESI
+ * reported after it started. Errors seen locally meanwhile are not taken off
+ * again: their reports reach the shared count first, and the floor covers
+ * the rest.
+ */
+function rememberBudget(pre: PreDispatchState, readSeq: number, now: number): number {
+  if (localBudget !== null && localBudget.seq > readSeq) return localBudget.remaining - localBudget.errorsSince;
+  const remaining =
+    latestRemain !== null && latestRemain.seq > readSeq
+      ? Math.min(pre.effectiveRemaining, latestRemain.value)
+      : pre.effectiveRemaining;
+  localBudget = { remaining, readAt: now, errorsSince: 0, seq: readSeq };
+  return remaining;
 }
 
-/** Folds an answer this process just saw into its local reading until the next shared one; the 429 block matches the shared one's clamp. */
+/** The block this call obeys on its path, by the same newest-wins rule. */
+function rememberBlock(url: string, pre: PreDispatchState, readSeq: number, now: number): number | null {
+  const path = normalizeEsiPath(url);
+  const previous = localBlocks.get(path);
+  if (previous !== undefined && previous.seq > readSeq) {
+    return previous.blockedUntil !== null && previous.blockedUntil > now
+      ? Math.ceil((previous.blockedUntil - now) / 1000)
+      : null;
+  }
+  const blockedUntil = pre.blockedRetryAfter === null ? null : now + pre.blockedRetryAfter * 1000;
+  localBlocks.set(path, { readAt: now, blockedUntil, seq: readSeq });
+  return pre.blockedRetryAfter;
+}
+
+/** Keeps a shared reading for reuse and returns what this call should obey. */
+function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number, now: number): PreDispatchState {
+  return {
+    ...pre,
+    effectiveRemaining: rememberBudget(pre, readSeq, now),
+    blockedRetryAfter: rememberBlock(url, pre, readSeq, now),
+  };
+}
+
+/**
+ * Folds an answer this process just saw into its local reading until the next
+ * shared one. ESI's own count of errors left already includes the answer, so
+ * it caps the reading; the 429 block matches the shared one's clamp.
+ */
 function noteLocalAnswer(url: string, res: Response): void {
   const now = Date.now();
+  const seq = ++localSeq;
+  const remain = parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain');
+  if (remain !== null) latestRemain = { value: remain, seq };
   if (res.status === 420) {
-    localBudget = { remaining: 0, readAt: now, errorsSince: 0 };
-  } else if (res.status >= 400 && localBudget !== null) {
-    localBudget.errorsSince += 1;
+    localBudget = { remaining: 0, readAt: now, errorsSince: 0, seq };
+  } else if (localBudget !== null) {
+    if (res.status >= 400) localBudget.errorsSince += 1;
+    if (remain !== null) {
+      localBudget.remaining = Math.min(localBudget.remaining, remain + localBudget.errorsSince);
+    }
   }
   if (res.status === 429) {
     const retryAfter = resolveRetryAfter(parseIntHeader(res.headers, 'Retry-After'));
-    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000 });
+    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000, seq });
   }
 }
 
@@ -247,10 +341,10 @@ export async function consultPreDispatch(
     const local = localPreDispatch(url, Date.now());
     if (local !== null) return local;
   }
+  const readSeq = ++localSeq;
   try {
     const pre = await sb.preDispatch(url, wantEtag);
-    rememberPreDispatch(url, pre, Date.now());
-    return pre;
+    return rememberPreDispatch(url, pre, readSeq, Date.now());
   } catch (err) {
     redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
     console.warn('[esi] scoreboard pre-dispatch failed', err);
@@ -406,7 +500,7 @@ export async function dispatch(
 ): Promise<Response> {
   for (;;) {
     const headers = buildHeaders(init, etagMeta?.etag ?? null);
-    const res = await fetchFromEsi(url, { ...init, headers });
+    const res = await fetchOrReportNoResponse(url, { ...init, headers }, liveSb);
     noteLocalAnswer(url, res);
 
     if (res.status === 304 && etagMeta !== null) {

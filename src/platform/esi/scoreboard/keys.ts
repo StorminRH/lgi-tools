@@ -30,6 +30,12 @@ export function resolveRetryAfter(retryAfter: number | null): number {
 export function keyErrorCount(minute: number): string {
   return `${KEY_PREFIX}:err:count:${minute}`;
 }
+export function keyCallCount(minute: number): string {
+  return `${KEY_PREFIX}:call:count:${minute}`;
+}
+export function keyFailureCount(minute: number): string {
+  return `${KEY_PREFIX}:fail:count:${minute}`;
+}
 export const KEY_ERROR_ECHO = `${KEY_PREFIX}:err:echo`;
 export function keyBlock(path: string): string {
   return `${KEY_PREFIX}:rl:block:${path}`;

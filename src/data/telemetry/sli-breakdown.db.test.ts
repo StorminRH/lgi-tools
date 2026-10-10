@@ -124,7 +124,8 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
       p95Ms: 2_000,
       count: 1,
       slowestDependency: 'esi',
-      slowestShare: 0.9,
+      // Seeded runs predate wall time: summed times name the dependency but give no share.
+      slowestShare: null,
       untimedShare: null,
     });
     expect(slowest.find((row) => row.operation === 'save-preferences')?.slowestDependency).toBeNull();
@@ -152,7 +153,7 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
       slowest: [
         {
           feature: 'planner', operation: 'read-owned-assets', p95Ms: 300, count: 2,
-          slowestDependency: 'neon', slowestShare: expect.closeTo(1 / 3, 6), untimedShare: null,
+          slowestDependency: 'neon', slowestShare: null, untimedShare: null,
         },
       ],
     });
@@ -192,9 +193,40 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
     });
   });
 
-  it('sums ESI calls and 4xx answers per operation, counting older records without status4xx as none', async () => {
+  it('takes shares from runs that recorded wall time when an operation has both kinds', async () => {
+    const timestamp = new Date('2034-03-02T12:00:00Z');
+    const range = {
+      from: new Date('2034-03-01T00:00:00Z'),
+      to: new Date('2034-03-08T00:00:00Z'),
+    };
+    await harness.db.insert(usageLogs).values([
+      // An older run: ten parallel ESI calls summed to more than the run took.
+      capabilityRow(timestamp, {
+        feature: 'market', operation: 'refresh-market-prices', outcome: 'succeeded', durationMs: 400,
+        dependencies: { esi: { ms: 1_000, calls: 10 } },
+      }),
+      capabilityRow(timestamp, {
+        feature: 'market', operation: 'refresh-market-prices', outcome: 'succeeded', durationMs: 400,
+        dependencies: { esi: { ms: 1_000, calls: 10, wallMs: 100 }, redis: { ms: 100, calls: 4, wallMs: 100 } },
+        dependencyWallMs: 200,
+      }),
+    ]);
+
+    await expect(getCapabilityLatency(range)).resolves.toEqual({
+      p95: 400,
+      slowest: [
+        {
+          feature: 'market', operation: 'refresh-market-prices', p95Ms: 400, count: 2,
+          slowestDependency: 'esi', slowestShare: 0.25, untimedShare: 0.5,
+        },
+      ],
+    });
+  });
+
+  it('sums ESI calls and 4xx answers per operation, leaving out older records that could not record a 4xx', async () => {
     const timestamp = new Date('2033-03-02T12:00:00Z');
     const later = new Date('2033-03-03T12:00:00Z');
+    const latest = new Date('2033-03-04T12:00:00Z');
     const range = {
       from: new Date('2033-03-01T00:00:00Z'),
       to: new Date('2033-03-08T00:00:00Z'),
@@ -204,7 +236,13 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
         feature: 'maps', operation: 'search-characters', outcome: 'succeeded',
         dependencies: { esi: { ms: 90, calls: 21, wallMs: 60, status4xx: 2 } },
       }),
+      // A later clean run counts its calls but does not move "last seen".
       capabilityRow(later, {
+        feature: 'maps', operation: 'search-characters', outcome: 'succeeded',
+        dependencies: { esi: { ms: 20, calls: 5, wallMs: 20 } },
+      }),
+      // Written before statuses were captured: no wall time, so not counted at all.
+      capabilityRow(latest, {
         feature: 'maps', operation: 'search-characters', outcome: 'succeeded',
         dependencies: { esi: { ms: 30, calls: 4 } },
       }),
@@ -215,7 +253,7 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
     ]);
 
     await expect(getEsiClientErrors(range)).resolves.toEqual([
-      { feature: 'maps', operation: 'search-characters', errors: 2, calls: 25, lastSeen: later },
+      { feature: 'maps', operation: 'search-characters', errors: 2, calls: 26, lastSeen: timestamp },
     ]);
   });
 
@@ -233,6 +271,10 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
     ]);
   });
 });
+
+/** Average over runs that recorded wall time, falling back to every run when none did. */
+const recordedFirst = (value: string) =>
+  `coalesce(avg(${value}) filter (where metadata ? 'dependencyWallMs'), avg(${value}))`;
 
 // The per-figure queries these reads replaced, kept as the reference the
 // single grouped reads must agree with.
@@ -277,13 +319,13 @@ const ORACLE = {
     select metadata ->> 'feature' as feature, metadata ->> 'operation' as operation,
       percentile_cont(0.95) within group (order by nullif(metadata ->> 'durationMs', 'null')::double precision) as p95,
       count(*)::int as count,
-      avg(nullif(metadata ->> 'durationMs', 'null')::double precision) as duration,
+      avg(nullif(metadata ->> 'durationMs', 'null')::double precision) filter (where metadata ? 'dependencyWallMs') as duration,
       avg(nullif(metadata ->> 'durationMs', 'null')::double precision - nullif(metadata ->> 'dependencyWallMs', 'null')::double precision)
         filter (where metadata ? 'dependencyWallMs')
         / nullif(avg(nullif(metadata ->> 'durationMs', 'null')::double precision) filter (where metadata ? 'dependencyWallMs'), 0) as untimed,
-      ${DEPENDENCY_KINDS.map((kind) => `avg(coalesce(
+      ${DEPENDENCY_KINDS.map((kind) => `${recordedFirst(`coalesce(
         nullif(metadata -> 'dependencies' -> '${kind}' ->> 'wallMs', 'null')::double precision,
-        nullif(metadata -> 'dependencies' -> '${kind}' ->> 'ms', 'null')::double precision, 0)) as ${kind}`).join(',\n      ')}
+        nullif(metadata -> 'dependencies' -> '${kind}' ->> 'ms', 'null')::double precision, 0)`)} as ${kind}`).join(',\n      ')}
     from usage_logs where {where} and metadata ->> 'operation' = any($3::text[])
     group by 1, 2 order by 3 desc limit 5`,
 };

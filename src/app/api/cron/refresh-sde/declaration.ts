@@ -4,7 +4,9 @@ import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
 import {
   ADVISORY_LOCK_SDE_INGEST,
   SDE_CACHE_TAG,
+  SDE_META_KEY_LATEST_PUBLISHED,
   SDE_META_KEY_VERSION,
+  SDE_VERSION_CACHE_TAG,
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
@@ -70,6 +72,13 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
           },
         },
       };
+    }
+
+    // Record the newer build before the ingest so the status readout can
+    // say LGI is behind until the ingest lands, however that goes.
+    if (remoteVersion !== null) {
+      await setSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED, remoteVersion);
+      revalidateTag(SDE_VERSION_CACHE_TAG, 'max');
     }
 
     return { proceed: { db, storedVersion, remoteVersion } };

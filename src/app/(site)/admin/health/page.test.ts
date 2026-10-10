@@ -10,6 +10,7 @@ const m = vi.hoisted(() => ({
   priceRefreshDays: vi.fn(),
   outcomeStats: vi.fn(),
   latency: vi.fn(),
+  clientErrors: vi.fn(),
   queue: vi.fn(),
   deadLetters: vi.fn(),
   events: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock('../shared-reads', () => ({
   getPriceRefreshDaysShared: m.priceRefreshDays,
   getCapabilityOutcomeStatsShared: m.outcomeStats,
   getCapabilityLatencyShared: m.latency,
+  getEsiClientErrorsShared: m.clientErrors,
   getEsiRefreshQueueStatsShared: m.queue,
 }));
 vi.mock('@/data/esi-refresh-jobs/queries', () => ({ listDeadLetteredJobs: m.deadLetters }));
@@ -65,6 +67,7 @@ describe('admin health', () => {
     m.priceRefreshDays.mockResolvedValue([]);
     m.outcomeStats.mockResolvedValue([]);
     m.latency.mockResolvedValue({ p95: 420, slowest: [] });
+    m.clientErrors.mockResolvedValue([]);
     m.queue.mockResolvedValue([]);
     m.deadLetters.mockResolvedValue([]);
     m.events.mockResolvedValue([
@@ -133,6 +136,7 @@ describe('admin health', () => {
     const html = await page();
 
     expect(html).toMatch(/text-tone-orange"[^>]*>(?:(?!<\/svg>).)*<\/svg><div class="min-w-0">Details unavailable\.<\/div>/);
+    expect(html.match(/Details unavailable\./g)).toHaveLength(1);
     expect(html).not.toContain('Unable to load this section.');
   });
 

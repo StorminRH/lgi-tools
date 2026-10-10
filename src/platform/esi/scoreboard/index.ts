@@ -1,10 +1,11 @@
 import { allowUnconfiguredUpstash, resolveUpstashRest } from '@/lib/upstash';
 import { createMemoryScoreboard, readMemoryBudgetSnapshot } from './memory';
 import { createRedisScoreboard, readRedisBudgetSnapshot } from './redis';
-import type { EsiBudgetSnapshot, EsiScoreboard } from './types';
+import type { EsiAvailabilitySnapshot, EsiBudgetSnapshot, EsiScoreboard } from './types';
 
 export {
   BODY_CACHE_MAX_BYTES,
+  NO_RESPONSE_STATUS,
   type CachedEtagMeta,
   type EsiBudgetSnapshot,
   type EsiReport,
@@ -62,6 +63,13 @@ export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null>
   return scoreboard.backend === 'redis'
     ? await readRedisBudgetSnapshot(scoreboard.scoreboard)
     : await readMemoryBudgetSnapshot(scoreboard.scoreboard);
+}
+
+/** The last hour of ESI calls as the gate saw them, or null when no scoreboard is configured. */
+export async function readEsiAvailabilitySnapshot(): Promise<EsiAvailabilitySnapshot | null> {
+  const scoreboard = resolveConcreteScoreboard();
+  if (scoreboard === null) return null;
+  return await scoreboard.scoreboard.availabilitySnapshot();
 }
 
 export function __resetScoreboardForTests(): void {

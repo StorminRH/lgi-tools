@@ -44,8 +44,10 @@ export async function getNavServerStatus(): Promise<ServerStatus> {
 /** The SDE build LGI runs on, or null when none is recorded or the read fails. */
 export async function getIngestedSdeBuild(): Promise<SdeBuild | null> {
   try {
-    const { version, ingestedAt } = await getCachedSdeVersion();
-    return version === null || ingestedAt === null ? null : { build: version, ingestedAt };
+    const { version, ingestedAt, latestPublished } = await getCachedSdeVersion();
+    return version === null || ingestedAt === null
+      ? null
+      : { build: version, ingestedAt, latestPublished };
   } catch (error) {
     console.error('[eve-status] SDE version read failed', error);
     return null;

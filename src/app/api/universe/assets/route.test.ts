@@ -46,6 +46,7 @@ describe('GET /api/universe/assets', () => {
     getCachedSdeVersionMock.mockResolvedValue({
       version: VERSION,
       ingestedAt: new Date(),
+      latestPublished: VERSION,
     });
     const { GET } = await import('./route');
     const response = await GET();
@@ -60,6 +61,7 @@ describe('GET /api/universe/assets', () => {
     getCachedSdeVersionMock.mockResolvedValue({
       version: null,
       ingestedAt: null,
+      latestPublished: null,
     });
     const { GET } = await import('./route');
     const response = await GET();
