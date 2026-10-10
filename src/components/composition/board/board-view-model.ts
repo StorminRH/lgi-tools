@@ -314,7 +314,7 @@ export function balanceChart(series: readonly { t: number; balance: number }[]):
   const balances = series.map((point) => point.balance);
   return {
     points: balances.map((balance, index) => ({ x: index, y: balance })),
-    labels: series.map((point) => formatUtcDate(new Date(point.t))),
+    labels: series.map((point) => formatUtcDate(point.t)),
     domain: fittedDomain(balances),
   };
 }

@@ -7,6 +7,7 @@ import {
   formatUtcDate,
   formatUtcMinute,
   formatUtcTime,
+  stripUtcYear,
 } from './time';
 
 describe('time formatters', () => {
@@ -15,14 +16,34 @@ describe('time formatters', () => {
     expect(formatUtcDate('2026-01-02T23:30:00.000Z')).toBe('2 Jan 2026');
     expect(formatUtcDate('2026-07-11')).toBe('11 Jul 2026');
     expect(formatUtcDate('2025-12-31')).toBe('31 Dec 2025');
+    expect(formatUtcDate(Date.parse('2026-10-09T23:59:59.999Z'))).toBe('9 Oct 2026');
     expect(formatUtcDate(null)).toBe('—');
     expect(formatUtcDate('not a date')).toBe('—');
+    expect(formatUtcDate(Number.NaN)).toBe('—');
     expect(formatUtcTime(new Date('2026-06-19T15:00:00.000Z'))).toBe('15:00');
     expect(formatUtcTime(Date.parse('2026-01-02T23:30:00.000Z'))).toBe('23:30');
+    expect(formatUtcTime('2026-01-02T00:05:00.000+02:00')).toBe('22:05');
     expect(formatUtcTime(null)).toBe('—');
+    expect(formatUtcTime(new Date(Number.NaN))).toBe('—');
     expect(formatIsoDay(new Date('2026-06-19T15:00:00.000Z'))).toBe('2026-06-19');
-    expect(formatUtcMinute(new Date('2026-06-09T12:34:56.789Z'))).toBe('2026-06-09 12:34');
-    expect(formatUtcMinute(new Date('2026-01-02T23:30:00.000+02:00'))).toBe('2026-01-02 21:30');
+    expect(formatIsoDay(Date.parse('2026-06-04T23:59:59.999Z'))).toBe('2026-06-04');
+    expect(() => formatIsoDay(Number.NaN)).toThrow(RangeError);
+  });
+
+  it('stamps UTC minutes from any date input, labelling the zone unless a header already does', () => {
+    expect(formatUtcMinute(new Date('2026-06-09T12:34:56.789Z'))).toBe('2026-06-09 12:34 UTC');
+    expect(formatUtcMinute(Date.parse('2026-06-09T00:00:59.999Z'))).toBe('2026-06-09 00:00 UTC');
+    expect(formatUtcMinute('2026-01-02T23:30:00.000+02:00')).toBe('2026-01-02 21:30 UTC');
+    expect(formatUtcMinute(new Date('2026-06-09T12:34:56.789Z'), { zone: false })).toBe('2026-06-09 12:34');
+    expect(formatUtcMinute(null)).toBe('—');
+    expect(formatUtcMinute(null, { empty: 'never' })).toBe('never');
+    expect(formatUtcMinute('not a date', { empty: 'never' })).toBe('never');
+  });
+
+  it('strips the year from a UTC date label for compact ticks', () => {
+    expect(stripUtcYear(formatUtcDate('2026-10-09'))).toBe('9 Oct');
+    expect(stripUtcYear('31 Dec 2025')).toBe('31 Dec');
+    expect(stripUtcYear('—')).toBe('—');
   });
 
   it('floors relative and remaining time to the largest useful units', () => {

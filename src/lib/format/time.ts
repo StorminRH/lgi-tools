@@ -1,5 +1,15 @@
 import { isoDay } from '@/lib/iso-date';
 
+/** A Date, epoch milliseconds, or a parseable date string (an offset-free date-time string reads as local time). */
+export type DateInput = Date | number | string;
+
+/** The instant a value names, or null for null or an invalid date. */
+function toDate(value: DateInput | null): Date | null {
+  if (value === null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 const UTC_DAY = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',
@@ -7,11 +17,15 @@ const UTC_DAY = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 });
 
-export function formatUtcDate(value: Date | string | null): string {
-  if (value == null) return '—';
-  const date = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return '—';
-  return UTC_DAY.format(date);
+/** `9 Oct 2026` in UTC, or `—` for null or an invalid date. */
+export function formatUtcDate(value: DateInput | null): string {
+  const date = toDate(value);
+  return date === null ? '—' : UTC_DAY.format(date);
+}
+
+/** Drops the year from a {@link formatUtcDate} label (`9 Oct 2026` to `9 Oct`) for axis ticks and dense rows. */
+export function stripUtcYear(label: string): string {
+  return label.replace(/ \d{4}$/, '');
 }
 
 const UTC_TIME = new Intl.DateTimeFormat('en-GB', {
@@ -21,20 +35,30 @@ const UTC_TIME = new Intl.DateTimeFormat('en-GB', {
   hourCycle: 'h23',
 });
 
-export function formatUtcTime(value: Date | number | null): string {
-  if (value == null) return '—';
-  const date = typeof value === 'number' ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return '—';
-  return UTC_TIME.format(date);
+/** `14:05` in UTC, or `—` for null or an invalid date. */
+export function formatUtcTime(value: DateInput | null): string {
+  const date = toDate(value);
+  return date === null ? '—' : UTC_TIME.format(date);
 }
 
-export function formatIsoDay(date: Date): string {
-  return isoDay(date);
+/** `2026-10-09`, the UTC calendar day; throws on an invalid date. */
+export function formatIsoDay(value: Date | number): string {
+  return isoDay(value);
 }
 
-/** `YYYY-MM-DD HH:mm` in UTC, for audit rows and job timestamps. */
-export function formatUtcMinute(date: Date): string {
-  return date.toISOString().replace('T', ' ').slice(0, 16);
+/**
+ * `2026-10-09 14:05 UTC` for audit rows and job timestamps, or `empty` for
+ * null or an invalid date. `zone: false` drops the ` UTC` label where a column
+ * header already names the zone.
+ */
+export function formatUtcMinute(
+  value: DateInput | null,
+  { empty = '—', zone = true }: { empty?: string; zone?: boolean } = {},
+): string {
+  const date = toDate(value);
+  if (date === null) return empty;
+  const stamp = date.toISOString().replace('T', ' ').slice(0, 16);
+  return zone ? `${stamp} UTC` : stamp;
 }
 
 /**

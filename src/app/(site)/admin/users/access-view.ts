@@ -37,7 +37,7 @@ export function deriveAuditRowView(row: AuditRow): {
   toLabel: string;
 } {
   return {
-    timestamp: formatUtcMinute(row.timestamp),
+    timestamp: formatUtcMinute(row.timestamp, { zone: false }),
     actorLabel: row.actorName ?? (row.actorCharacterId == null ? 'Unknown actor' : `Character ${row.actorCharacterId}`),
     targetLabel: row.targetName ?? (row.targetCharacterId == null ? 'Unknown target' : `Character ${row.targetCharacterId}`),
     fromTone: row.from === 'ADMIN' ? 'purple' : 'blue',
