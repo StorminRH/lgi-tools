@@ -4,7 +4,6 @@ export const ESI_ERROR_CEILING = 100;
 export const BODY_CACHE_MAX_BYTES = 131_072;
 
 export const ERROR_COUNT_TTL_SECONDS = 120;
-export const GROUP_STATE_TTL_SECONDS = 1200;
 export const ETAG_TTL_SECONDS = 172_800;
 
 export interface CachedEtagMeta {
@@ -31,10 +30,6 @@ export interface EsiReport {
   status: number;
   errorLimitRemain: number | null;
   errorLimitReset: number | null;
-  rateLimitGroup: string | null;
-  rateLimitLimit: number | null;
-  rateLimitRemaining: number | null;
-  rateLimitUsed: number | null;
   retryAfter: number | null;
   etagToStore: (CachedEtagMeta & { body: string }) | null;
   refreshEtag: CachedEtagMeta | null;
