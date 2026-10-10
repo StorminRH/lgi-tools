@@ -116,15 +116,15 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
 
       <div className="flex flex-col gap-1.5">
         {tierRows.map(([depth, count]) => (
-          <label key={depth} className="flex cursor-pointer items-center gap-2">
-            <Checkbox
-              checked={!uncheckedTiers.has(depth)}
-              onCheckedChange={(build) => toggleTier(depth, build)}
-              label={`Build tier ${depth}`}
-            />
-            <span className="text-ui text-text">Tier {depth}</span>
+          <Checkbox
+            key={depth}
+            checked={!uncheckedTiers.has(depth)}
+            onCheckedChange={(build) => toggleTier(depth, build)}
+            label={`Tier ${depth}`}
+          >
+            <span>Tier {depth}</span>
             <span className="text-micro text-faint">· {formatCount(count, 'type')}</span>
-          </label>
+          </Checkbox>
         ))}
       </div>
 

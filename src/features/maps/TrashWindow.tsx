@@ -69,23 +69,19 @@ function TrashMapRows({
     return <p className="font-ui text-ui text-muted">Trash is empty.</p>;
   }
   return maps.map((map) => (
-    <label
+    <Checkbox
       key={map.id}
-      className={cn(insetSurface, 'flex cursor-pointer items-center gap-3 px-3 py-2')}
+      checked={selected.has(map.id)}
+      onCheckedChange={(checked) => onCheckedChange(map.id, checked)}
+      label={map.name}
+      disabled={disabled}
+      rowClassName={cn(insetSurface, 'gap-3 px-3 py-2')}
     >
-      <Checkbox
-        checked={selected.has(map.id)}
-        onCheckedChange={(checked) => onCheckedChange(map.id, checked)}
-        label={`Select ${map.name}`}
-        disabled={disabled}
-      />
-      <span className="min-w-0 flex-1 truncate font-ui text-ui text-name">
-        {map.name}
-      </span>
+      <span className="min-w-0 flex-1 truncate text-name">{map.name}</span>
       <span className="font-data text-micro text-muted">
         {map.provenance.kind === 'created' ? 'Created by you' : 'Admin access'}
       </span>
-    </label>
+    </Checkbox>
   ));
 }
 

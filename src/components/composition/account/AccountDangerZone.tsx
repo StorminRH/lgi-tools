@@ -315,17 +315,16 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
         finalFocus={triggerRef}
         className="w-[min(400px,calc(100vw-2rem))]"
       >
-        <label className="flex items-start gap-2 text-ui text-text">
-          <Checkbox
-            checked={acknowledged}
-            onCheckedChange={setAcknowledged}
-            label="Acknowledge permanent account deletion"
-            tone="red"
-            disabled={gate.busy}
-            className="mt-0.5"
-          />
-          <span>I understand my account and all of my saved data will be lost.</span>
-        </label>
+        <Checkbox
+          checked={acknowledged}
+          onCheckedChange={setAcknowledged}
+          tone="red"
+          disabled={gate.busy}
+          className="mt-0.5"
+          rowClassName="items-start"
+        >
+          I understand my account and all of my saved data will be lost.
+        </Checkbox>
       </ConfirmDialog>
     </div>
   );

@@ -28,14 +28,22 @@ vi.mock('react', async (importOriginal) => ({
 }));
 vi.mock('@/transport/api-client', () => api);
 vi.mock('@/components/ui/toast', () => ({ toast: ui.toast }));
-vi.mock('@/components/ui/switch', () => ({
-  Switch: ({ checked, onCheckedChange, label }: {
-    checked: boolean;
-    onCheckedChange: (checked: boolean) => void;
-    label: string;
-  }) => {
-    ui.toggle = onCheckedChange;
-    return createElement('button', { role: 'switch', 'aria-checked': checked, 'aria-label': label });
+// Stub only Base UI's switch so the real Switch row names it; keep its change handler to drive.
+vi.mock('@base-ui/react/switch', () => ({
+  Switch: {
+    Root: (props: {
+      checked: boolean;
+      onCheckedChange: (checked: boolean) => void;
+      'aria-labelledby'?: string;
+    }) => {
+      ui.toggle = props.onCheckedChange;
+      return createElement('span', {
+        role: 'switch',
+        'aria-checked': props.checked,
+        'aria-labelledby': props['aria-labelledby'],
+      });
+    },
+    Thumb: () => null,
   },
 }));
 vi.mock('@/components/ui/confirm-dialog', () => ({
@@ -58,7 +66,10 @@ function render() {
 
 test('switching sharing off asks first, then stops sharing and closes once the request settles', async () => {
   let html = render();
-  expect(html).toContain('<button role="switch" aria-checked="true" aria-label="Share Signal Cartel&#x27;s data">');
+  // The switch is named by the corporation alone; its sharing state stays out of the name.
+  const nameId = /<span role="switch" aria-checked="true" aria-labelledby="([^"]+)"><\/span>/.exec(html)?.[1];
+  expect(html).toContain(`<span id="${nameId}" hidden="">Signal Cartel</span><span>Signal Cartel</span>`);
+  expect(html).toMatch(/>sharing on<\/span><\/label>/);
   expect(html).not.toContain('role="dialog"');
 
   ui.toggle?.(false);

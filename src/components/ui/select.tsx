@@ -4,6 +4,7 @@ import { Select as Base } from '@base-ui/react/select';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { dropdownGroupLabel, dropdownItem, dropdownPanel } from './dropdown-panel';
+import type { FieldControlProps } from './field';
 import { CheckIcon, ChevronDownIcon } from './icons';
 import { fieldText, fieldVariants, triggerShape, type FieldSize } from './input';
 import { useOverlayPortalContainer } from './overlay-portal-container';
@@ -70,6 +71,10 @@ function Option({
   );
 }
 
+/**
+ * A dropdown of options. Name it with `ariaLabel`, or wrap it in a Field, which
+ * hands the trigger its `id`, `aria-describedby` and `aria-invalid`.
+ */
 export function Select({
   value,
   onValueChange,
@@ -82,12 +87,12 @@ export function Select({
   open,
   onOpenChange,
   caret = true,
-}: FieldSize & {
+  ...fieldWiring
+}: FieldSize & FieldControlProps & {
   value: string;
   onValueChange: (value: string) => void;
   items: SelectItems;
-  ariaLabel: string;
-  disabled?: boolean;
+  ariaLabel?: string;
   className?: string;
   align?: SelectAlign;
   open?: boolean;
@@ -107,6 +112,7 @@ export function Select({
         : { open, onOpenChange: (next: boolean) => onOpenChange?.(next) })}
     >
       <Base.Trigger
+        {...fieldWiring}
         aria-label={ariaLabel}
         className={cn(
           fieldVariants({ size }),

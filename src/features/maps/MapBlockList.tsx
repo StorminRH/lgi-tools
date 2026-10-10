@@ -81,7 +81,6 @@ export function MapBlockList({
       </p>
       <CharacterSearchControl
         label="Block character"
-        searchLabel="Search characters to block"
         disabled={disabled}
         selectedPrincipals={blockedPrincipals(editor.blocks)}
         onSelect={setPending}

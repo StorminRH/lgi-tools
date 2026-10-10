@@ -138,13 +138,11 @@ function useCharacterSearch(selectedKeys: ReadonlySet<string>) {
 export function CharacterSearchControl({
   disabled = false,
   label = 'Add character',
-  searchLabel = 'Search characters',
   selectedPrincipals,
   onSelect,
 }: {
   readonly disabled?: boolean;
   readonly label?: string;
-  readonly searchLabel?: string;
   readonly selectedPrincipals: readonly Pick<
     AccessPrincipalOption,
     'ownerType' | 'ownerId'
@@ -165,13 +163,14 @@ export function CharacterSearchControl({
     query,
     setPopupOpen,
   } = useCharacterSearch(selectedKeys);
+  const inputId = useId();
   const hintId = useId();
 
   return (
     <div className="flex flex-col gap-1.5" data-map-character-search>
-      <span className="font-ui text-label tracking-label uppercase text-muted">
+      <label htmlFor={inputId} className="font-ui text-label tracking-label uppercase text-muted">
         {label}
-      </span>
+      </label>
       <Combobox.Root
         items={available}
         value={query}
@@ -183,7 +182,7 @@ export function CharacterSearchControl({
         onOpenChange={(next) => setPopupOpen(next)}
       >
         <Combobox.Field
-          aria-label={searchLabel}
+          id={inputId}
           aria-describedby={hintId}
           placeholder="Character name"
           autoComplete="off"

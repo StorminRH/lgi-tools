@@ -29,10 +29,6 @@ vi.mock('@/components/ui/dialog', async (importOriginal) => ({
       createElement('p', null, description),
     ),
 }));
-vi.mock('@/components/ui/checkbox', () => ({
-  Checkbox: ({ label }: { label: string }) =>
-    createElement('input', { type: 'checkbox', 'aria-label': label }),
-}));
 vi.mock('@/components/ui/confirm-dialog', () => ({
   ConfirmDialog: ({ title }: { title: React.ReactNode }) =>
     createElement('div', { 'data-confirm-dialog': '' }, title),
@@ -75,8 +71,13 @@ describe('TrashWindow', () => {
         maps: MAPS,
       }),
     );
-    expect(markup).toContain('Select Created map');
-    expect(markup).toContain('Select Delegated map');
+    // Each row's checkbox is named by its map, without the provenance beside it.
+    const names = [...markup.matchAll(/role="checkbox"[^>]* aria-labelledby="([^"]+)"/g)].map(
+      ([, id]) => new RegExp(`<span id="${id}" hidden="">([^<]*)</span>`).exec(markup)?.[1],
+    );
+    expect(names).toEqual(['Created map', 'Delegated map']);
+    expect(markup).toContain('Created by you');
+    expect(markup).toContain('Admin access');
     expect(markup).toContain('Restore');
     expect(markup.match(/data-confirm-dialog/g)).toHaveLength(1);
 

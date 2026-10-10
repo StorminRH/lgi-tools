@@ -24,20 +24,18 @@ function ToneChecks() {
   return (
     <div className="flex flex-col gap-2.5">
       {CHECKBOX_TONES.map((tone) => (
-        <label key={tone} className="flex cursor-pointer items-center gap-2.5 font-ui text-ui text-text">
-          <Checkbox
-            tone={tone}
-            checked={checked[tone]}
-            onCheckedChange={(next) => setChecked((current) => ({ ...current, [tone]: next }))}
-            label={`${tone} checkbox`}
-          />
+        <Checkbox
+          key={tone}
+          tone={tone}
+          checked={checked[tone]}
+          onCheckedChange={(next) => setChecked((current) => ({ ...current, [tone]: next }))}
+        >
           {tone}
-        </label>
+        </Checkbox>
       ))}
-      <label className="flex items-center gap-2.5 font-ui text-ui text-muted">
-        <Checkbox checked={false} onCheckedChange={() => undefined} label="Disabled checkbox" disabled />
+      <Checkbox checked={false} onCheckedChange={() => undefined} disabled>
         disabled
-      </label>
+      </Checkbox>
     </div>
   );
 }
@@ -47,15 +45,14 @@ function ToneSwitches() {
   return (
     <div className="flex flex-col gap-2.5">
       {SWITCH_TONES.map((tone) => (
-        <label key={tone} className="flex cursor-pointer items-center gap-2.5 font-ui text-ui text-text">
-          <Switch
-            tone={tone}
-            checked={on[tone]}
-            onCheckedChange={(next) => setOn((current) => ({ ...current, [tone]: next }))}
-            label={`${tone} switch`}
-          />
+        <Switch
+          key={tone}
+          tone={tone}
+          checked={on[tone]}
+          onCheckedChange={(next) => setOn((current) => ({ ...current, [tone]: next }))}
+        >
           {tone}
-        </label>
+        </Switch>
       ))}
     </div>
   );
@@ -77,7 +74,7 @@ export function ChoicesGroup() {
       <Specimen
         name="Checkbox + Switch"
         source="checkbox · switch"
-        note="Controlled boolean inputs in their tone variants. Callers own the visible label."
+        note="Controlled boolean inputs in their tone variants. Children draw a clickable label row that names the control and dims when it is disabled; label alone names a bare control."
       >
         <div className="grid grid-cols-2 gap-6">
           <Variant label="checkbox">

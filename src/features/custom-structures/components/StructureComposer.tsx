@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PercentInput } from '@/components/PercentInput';
 import { RigSupply } from '@/components/RigSupply';
 import { StructureHullTile } from '@/components/StructureHullTile';
@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import { cardSurface, insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { Field } from '@/components/ui/field';
 import { CloseIcon } from '@/components/ui/icons';
 import { Textarea } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
 import { Select, type SelectItems } from '@/components/ui/select';
 import { Tabs } from '@/components/ui/tabs';
-import { eyebrow } from '@/components/ui/type-roles';
 import { useSystemSearch } from '@/components/use-system-search';
 import {
   SDE_CITADEL_GROUP_ID,
@@ -49,8 +49,6 @@ import type { CustomStructureRow } from '../types';
 import { useStructureSearch } from '../use-structure-search';
 import { PickField, type PickOption } from './PickField';
 
-const label = eyebrow({ size: 'micro' });
-
 const HULL_GROUPS: [number, string][] = [
   [SDE_ENGINEERING_COMPLEX_GROUP_ID, 'Engineering complex'],
   [SDE_REFINERY_GROUP_ID, 'Refinery'],
@@ -81,15 +79,6 @@ function hullItems(types: StructureTypeOption[]): SelectItems {
 
 function SecPill({ security }: { security: number | null }) {
   return <Pill tone={security !== null && security >= 0.45 ? 'green' : security !== null && security > 0 ? 'orange' : 'red'}>{formatSec(security)}</Pill>;
-}
-
-function LabeledField({ htmlFor, text, children, className }: { htmlFor?: string; text: string; children: ReactNode; className?: string }) {
-  return (
-    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <label htmlFor={htmlFor} className={label}>{text}</label>
-      {children}
-    </div>
-  );
 }
 
 function useSystemField(systemId: number | null) {
@@ -125,7 +114,6 @@ function NameField({
   onName: (name: string) => void;
   onPick: (hit: StructureSearchResult) => void;
 }) {
-  const id = useId();
   const [typed, setTyped] = useState('');
   const picked = useRef<string | null>(null);
   const hits = useStructureSearch(typed);
@@ -141,9 +129,8 @@ function NameField({
     };
   });
   return (
-    <LabeledField htmlFor={id} text="Structure">
+    <Field label="Structure" labelStyle="eyebrow">
       <PickField
-        id={id}
         value={draft.name}
         onValueChange={(name) => {
           onName(name);
@@ -156,7 +143,7 @@ function NameField({
           onPick(hit);
         }}
       />
-    </LabeledField>
+    </Field>
   );
 }
 
@@ -375,14 +362,13 @@ export function StructureComposer({
         />
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
           <SystemField sys={sys} onType={typeSystem} onPick={(s) => { sys.setQuery(''); update({ systemId: s.id }); }} />
-          <LabeledField text="Hull">
+          <Field label="Hull" labelStyle="eyebrow">
             <Select
               value={draft.structureTypeId === null ? '' : String(draft.structureTypeId)}
               onValueChange={(v) => update({ structureTypeId: v === '' ? null : Number(v), rigSlots: slotsFromRigs([]) })}
               items={hullItems(structureTypes)}
-              ariaLabel="Hull"
             />
-          </LabeledField>
+          </Field>
         </div>
         <BonusSection
           draft={draft}
@@ -394,9 +380,9 @@ export function StructureComposer({
           onDraft={update}
           onReadFit={(fit) => void readFit(fit)}
         />
-        <LabeledField text="Facility tax" className="w-40">
-          <PercentInput value={draft.taxDraft} onChange={(taxDraft) => update({ taxDraft })} ariaLabel="Facility tax" />
-        </LabeledField>
+        <Field label="Facility tax" labelStyle="eyebrow" className="w-40">
+          <PercentInput value={draft.taxDraft} onChange={(taxDraft) => update({ taxDraft })} />
+        </Field>
         {error && <Callout label="Check">{FIELD_ERROR[error]}</Callout>}
       </div>
       <div className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
@@ -423,7 +409,6 @@ function SystemField({
   onType: (text: string) => void;
   onPick: (system: SystemSearchEntry) => void;
 }) {
-  const id = useId();
   const options: PickOption<SystemSearchEntry>[] = sys.suggestions.map((s) => ({
     key: String(s.id),
     value: s.name,
@@ -432,15 +417,14 @@ function SystemField({
     item: s,
   }));
   return (
-    <LabeledField htmlFor={id} text="System">
+    <Field label="System" labelStyle="eyebrow">
       <PickField
-        id={id}
         value={sys.shown}
         onValueChange={onType}
         options={options}
         onPick={onPick}
         trailing={sys.system ? <SecPill security={sys.system.security} /> : undefined}
       />
-    </LabeledField>
+    </Field>
   );
 }

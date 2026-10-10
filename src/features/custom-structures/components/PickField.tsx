@@ -12,7 +12,10 @@ export interface PickOption<T> {
   item: T;
 }
 
-/** A free-text field whose suggestions, when picked, hand back the item behind them. */
+/**
+ * A free-text field whose suggestions, when picked, hand back the item behind
+ * them. A wrapping Field hands it the `id` its label points at.
+ */
 export function PickField<T>({
   id,
   value,
@@ -21,7 +24,7 @@ export function PickField<T>({
   onPick,
   trailing,
 }: {
-  id: string;
+  id?: string;
   value: string;
   onValueChange: (value: string) => void;
   options: PickOption<T>[];

@@ -67,18 +67,17 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="flex items-center gap-2.5">
-        <Switch
-          checked={enabled}
-          onCheckedChange={onToggle}
-          disabled={busy}
-          label={`Share ${corp.corporationName}'s data`}
-        />
-        <span className="text-ui text-text">{corp.corporationName}</span>
+      <Switch
+        checked={enabled}
+        onCheckedChange={onToggle}
+        disabled={busy}
+        label={corp.corporationName}
+      >
+        <span>{corp.corporationName}</span>
         <span className="text-label uppercase tracking-wide text-muted">
           {enabled ? 'sharing on' : 'sharing off'}
         </span>
-      </label>
+      </Switch>
       <p className="text-body text-muted">Share corporation data with members based on their in-game role access.</p>
 
       <ConfirmDialog
