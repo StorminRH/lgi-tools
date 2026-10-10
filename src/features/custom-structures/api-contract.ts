@@ -6,6 +6,7 @@ import {
   jsonBody,
   problem,
 } from '@/transport/endpoint';
+import type { ParsedStructureFit } from './structure-fit-parse';
 import type { CustomStructureRow } from './types';
 
 const PG_INT4_MAX = 2_147_483_647;
@@ -104,7 +105,7 @@ const parseStructureFitResponseSchema = z.object({
   parsed: z
     .object({ structureTypeId: z.number(), name: z.string().nullable(), rigTypeIds: z.array(z.number()) })
     .nullable(),
-});
+}) satisfies z.ZodType<{ parsed: ParsedStructureFit | null }>;
 export const parseStructureFitEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/parse-fit',

@@ -28,3 +28,10 @@ export function nameOrUnresolved(
 ): string {
   return names[String(id)] ?? unresolvedName(kind, id);
 }
+
+/** An NPC station name with its dash separators typeset: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant' becomes 'Jita IV-4 — Caldari Navy Assembly Plant'. */
+export function formatStationName(name: string): string {
+  const collapsed = name.replace(/ - Moon (\d+) - /, '-$1 — ');
+  if (collapsed !== name) return collapsed;
+  return name.replace(' - ', ' — ');
+}

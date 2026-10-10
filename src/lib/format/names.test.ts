@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from 'vitest';
-import { initials, nameOrUnresolved, unresolvedName } from './names';
+import { formatStationName, initials, nameOrUnresolved, unresolvedName } from './names';
 
 describe('initials', () => {
   it('builds a two-letter monogram from words or a single token', () => {
@@ -28,4 +28,18 @@ test('nameOrUnresolved reads the id-keyed record and falls back by kind on a mis
   expect(nameOrUnresolved(names, 43, 'character')).toBe('Character 43');
   expect(nameOrUnresolved(names, 98000002, 'corporation')).toBe('Corporation 98000002');
   expect(nameOrUnresolved({}, 587, 'type')).toBe('Type 587');
+});
+
+test('formatStationName collapses the moon form and typesets the first plain separator', () => {
+  expect(formatStationName('Jita IV - Moon 4 - Caldari Navy Assembly Plant')).toBe(
+    'Jita IV-4 — Caldari Navy Assembly Plant',
+  );
+  expect(formatStationName('Dodixie IX - Moon 20 - Federation Navy Assembly Plant')).toBe(
+    'Dodixie IX-20 — Federation Navy Assembly Plant',
+  );
+  expect(formatStationName('Amarr VIII (Oris) - Emperor Family Academy')).toBe(
+    'Amarr VIII (Oris) — Emperor Family Academy',
+  );
+  expect(formatStationName('A - B - C')).toBe('A — B - C');
+  expect(formatStationName('Some Station')).toBe('Some Station');
 });
