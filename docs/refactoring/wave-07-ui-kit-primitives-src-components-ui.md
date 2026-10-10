@@ -30,7 +30,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P123](#p123) | Route tool-nav activation and page-settings resolution through sectionMatches | generic-utility | S | low | low | — |
 | ☑ | [P320](#p320) | Use lib/section-path for every route-segment match, add a longest-match helper, and merge the telemetry payload helper into the client | simplification | S | low | medium | [P123](#p123), [P066](wave-03-src-lib-primitives-collections-math-async.md#p066) |
 | ☑ | [P024](#p024) | Add NavRailLayout beside NavRailFrame and one longest-prefix matchSection in lib/section-path | ui-component | S | low | low | [P123](#p123) |
-| ☐ | [P013](#p013) | Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu | ui-component | S | low | medium | [P128](wave-03-src-lib-primitives-collections-math-async.md#p128) |
+| ☑ | [P013](#p013) | Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu | ui-component | S | low | medium | [P128](wave-03-src-lib-primitives-collections-math-async.md#p128) |
 | ☐ | [P015](#p015) | Extract a StatusPanel for the error and 404 route states, and use LoadFailed for the map catalogue failure | ui-component | S | low | low | — |
 | ☐ | [P043](#p043) | Share one static Base Dialog stub for markup tests and drop redundant Button stubs | testing | S | low | low | [P001](#p001) |
 | ☐ | [P056](#p056) | Move the confirm gate next to ConfirmDialog in ui with a retained target, and adopt it for the map confirmations (drop useAsyncAction) | react-hook | M | low | low | [P001](#p001) |
@@ -1757,7 +1757,7 @@ export function NavRailLayout(props: Omit<ComponentProps<'div'>, 'children'> & {
 
 ## P013: Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -90 / +40 (one file deleted, two dispatchers collapsed into one)
 - **Depends on:** [P128](wave-03-src-lib-primitives-collections-math-async.md#p128)

@@ -1,10 +1,10 @@
 'use client';
 
+import { PreferenceControl } from '@/components/preference-control';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionPanel } from '@/components/ui/section-panel';
 import type { PageSettingsSpec } from '@/platform/page-settings/types';
-import { SettingsControlRow } from '../settings-control-row';
 import { derivePreferenceGroups, type PreferenceGroupView } from './preferences-view';
 
 function PreferenceGroupCard({ group }: { group: PreferenceGroupView }) {
@@ -12,7 +12,10 @@ function PreferenceGroupCard({ group }: { group: PreferenceGroupView }) {
     <SectionPanel title={group.title} className="reveal reveal-1">
       <div className="flex flex-col gap-3 px-3.5 py-3.5">
         {group.models.map((model) => (
-          <SettingsControlRow key={model.key} model={model} />
+          <div key={model.key} className="flex items-center justify-between gap-4">
+            <span className="text-ui text-text">{model.label}</span>
+            <PreferenceControl model={model} />
+          </div>
         ))}
       </div>
     </SectionPanel>
