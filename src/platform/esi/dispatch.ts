@@ -37,7 +37,7 @@ let trickleCount = 0;
  * need no per-URL ETag read. Errors seen locally since the reading count
  * against it, so the only blind spot is other instances' errors in this window.
  */
-const LOCAL_BUDGET_TTL_MS = 1_000;
+const LOCAL_BUDGET_REUSE_MS = 1_000;
 
 interface LocalBudget {
   remaining: number;
@@ -202,9 +202,9 @@ export async function serveFromExpiresWindow(
 
 /** The shared state from this process's recent reading, when both budget and block are fresh. */
 function localPreDispatch(url: string, now: number): PreDispatchState | null {
-  if (localBudget === null || now - localBudget.readAt >= LOCAL_BUDGET_TTL_MS) return null;
+  if (localBudget === null || now - localBudget.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
   const block = localBlocks.get(normalizeEsiPath(url));
-  if (block === undefined || now - block.readAt >= LOCAL_BUDGET_TTL_MS) return null;
+  if (block === undefined || now - block.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
   return {
     effectiveRemaining: localBudget.remaining - localBudget.errorsSince,
     blockedRetryAfter:
