@@ -14,6 +14,7 @@ import {
   type WormholeCodexAsset,
 } from '@/data/eve-data/universe-assets';
 import { readShipMassByType } from '@/data/eve-data/queries';
+import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
 import { matchJump } from '@/data/maps/hole-matching';
 import { classifyMovement } from '@/data/maps/movement-classification';
 import { resolveSignatureElimination } from '@/composition/signature-elimination/resolver';
@@ -217,7 +218,7 @@ async function emitObservation(
       dedupeKey: emission.observationKey,
       destinationClassId: effectiveWormholeClassId(destination),
     },
-    codex.types,
+    indexWormholeCodex(codex.types),
   );
   if (observation === null) return false;
 

@@ -12,6 +12,10 @@ import type {
   TypedWormholeCodexEntry,
   WormholeCodexEntry,
 } from '@/data/eve-data/universe-assets';
+import {
+  indexWormholeCodex,
+  type WormholeCodexIndex,
+} from '@/data/eve-data/wormhole-codex-index';
 
 export interface HoleMatchCandidate {
   readonly id: string;
@@ -49,11 +53,11 @@ interface EvaluatedCandidate {
 
 function typedEntry(
   candidate: HoleMatchCandidate,
-  codexByCode: ReadonlyMap<string, WormholeCodexEntry>,
+  codex: WormholeCodexIndex,
 ): TypedWormholeCodexEntry | null {
   if (candidate.wormholeTypeCode === null) return null;
-  const entry = codexByCode.get(candidate.wormholeTypeCode);
-  return entry !== undefined && !entry.farSide ? entry : null;
+  const entry = codex.byCode(candidate.wormholeTypeCode);
+  return entry !== null && !entry.farSide ? entry : null;
 }
 
 function typedClassVerdict(
@@ -121,12 +125,12 @@ function staticsCensusSatisfied(evidence: JumpEvidence): boolean {
 }
 
 export function matchJump(evidence: JumpEvidence): JumpMatchOutcome {
-  const codexByCode = new Map(evidence.codex.map((entry) => [entry.code, entry]));
+  const codex = indexWormholeCodex(evidence.codex);
   const destinationClassId = effectiveWormholeClassId(evidence.destination);
   const survivors: EvaluatedCandidate[] = [];
 
   for (const candidate of evidence.candidates) {
-    const entry = typedEntry(candidate, codexByCode);
+    const entry = typedEntry(candidate, codex);
     const verdict = typedClassVerdict(entry, destinationClassId);
     if (verdict === 'contradicted') continue;
     if (

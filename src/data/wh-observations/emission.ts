@@ -1,5 +1,5 @@
 import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
-import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import type { WormholeCodexIndex } from '@/data/eve-data/wormhole-codex-index';
 import type { WhObservationInput } from './queries';
 
 export interface ObservationFacts {
@@ -12,7 +12,7 @@ export interface ObservationFacts {
 
 export function observationFor(
   facts: ObservationFacts,
-  codex: readonly WormholeCodexEntry[],
+  codex: Pick<WormholeCodexIndex, 'byCode'>,
 ): Omit<WhObservationInput, 'observedAt'> | null {
   if (
     facts.whTypeCode === null
@@ -21,8 +21,8 @@ export function observationFor(
   ) {
     return null;
   }
-  const entry = codex.find((candidate) => candidate.code === facts.whTypeCode);
-  if (entry === undefined || entry.farSide) return null;
+  const entry = codex.byCode(facts.whTypeCode);
+  if (entry === null || entry.farSide) return null;
   if (
     facts.destinationClassId !== null
     && entry.targetClass !== facts.destinationClassId

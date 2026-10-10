@@ -386,6 +386,18 @@ const INFERENCE_CASES = [
     }),
     expected: { deductions: [], quiet: true },
   },
+  {
+    name: 'a conflicting duplicate of a code outside the evidence still fails closed',
+    input: input({
+      staticTypeCodes: ['B274'],
+      signatures: [signature('AAA-111')],
+      codex: [
+        ...CODEX,
+        { ...B274_CODEX_ENTRY, code: 'H296', typeId: 101 },
+      ],
+    }),
+    expected: { deductions: [], quiet: true },
+  },
 ] satisfies readonly InferenceCase[];
 
 describe('eliminateSignatures', () => {
