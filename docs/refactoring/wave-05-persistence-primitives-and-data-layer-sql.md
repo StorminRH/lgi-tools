@@ -31,7 +31,7 @@ Run db suites with Postgres up.
 | ☑ | [P235](#p235) | Move the repeated usage_logs fragments (day, outcome, summedInt, referrer predicates, refreshed-price-cron filter) into telemetry/sql.ts and drop getFallbackRate's redundant totals query | persistence | S | low | medium | — |
 | ☑ | [P236](#p236) | Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE | persistence | S | low | low | — |
 | ☑ | [P232](#p232) | Give map lifecycle predicates and the active-admin selection one home, and write archive/restore SETs from the lifecycle contract | persistence | S | low | medium | [P223](#p223) |
-| ☐ | [P225](#p225) | Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site | persistence | S | low | low | [P223](#p223) |
+| ☑ | [P225](#p225) | Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site | persistence | S | low | low | [P223](#p223) |
 
 <a id="p230"></a>
 
@@ -1206,7 +1206,7 @@ export function activeAdminMapsSelection(userId: string, principals: MapPrincipa
 
 ## P225: Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -8 / +14
 - **Depends on:** [P223](#p223)

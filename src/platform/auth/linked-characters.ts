@@ -4,7 +4,7 @@ import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from '
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
-import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
+import { isAuthorizationDelayed } from './authorization-policy';
 import { unresolvedName } from '@/lib/format/names';
 
 export interface CharacterLoginIdentity {
@@ -89,8 +89,7 @@ function toLinkedCharacter(
     portraitUrl: r.portraitUrl ?? portraitUrl(characterId),
     scope: r.scope,
     hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,
-    authorizationDelayed: r.authorizationFailureFirstAt != null
-      && Date.now() - r.authorizationFailureFirstAt.getTime() >= AUTHORIZATION_MAX_FAILURE_AGE_MS,
+    authorizationDelayed: isAuthorizationDelayed(r.authorizationFailureFirstAt),
     linkedAt: r.createdAt,
     corporationId: r.corporationId ?? null,
     allianceId: r.allianceId ?? null,

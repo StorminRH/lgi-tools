@@ -11,7 +11,7 @@ import {
 import { getMapGrants } from '@/data/maps/queries';
 import { groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
-import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from '@/platform/auth/authorization-policy';
+import { authorizationFailureCutoff } from '@/platform/auth/authorization-policy';
 import {
   computeMapAccessClaims,
   eligibleCharacterIds,
@@ -110,7 +110,7 @@ async function grandfatherPass(
     await deps.grandfather(
       mapId,
       grandfatherGrants({ claims, grants, tracked, affiliations }),
-      new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS),
+      authorizationFailureCutoff(),
     );
     const nextTransfers = await deps.readTransfers(mapId);
     const considered = new Set(tracked.map(trackedPairKey));

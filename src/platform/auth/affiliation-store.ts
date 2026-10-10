@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
 import {
@@ -9,7 +9,8 @@ import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
-import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
+import { authorizationFailureCutoff } from './authorization-policy';
+import { authorizationFailureCurrent } from './authorization-store';
 import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
@@ -64,10 +65,7 @@ export async function getUsersAffiliations(
       refreshedAt: characters.affiliationRefreshedAt,
       sharedAccessEligible: sql<boolean>`${and(
         isNotNull(account.refreshToken),
-        or(
-          isNull(account.authorizationFailureFirstAt),
-          gt(account.authorizationFailureFirstAt, new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS)),
-        ),
+        authorizationFailureCurrent(authorizationFailureCutoff()),
       )}`,
     })
     .from(account)

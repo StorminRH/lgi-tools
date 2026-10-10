@@ -370,7 +370,7 @@ Run db suites with Postgres up.
 | ☑ | [P235](wave-05-persistence-primitives-and-data-layer-sql.md#p235) | Move the repeated usage_logs fragments (day, outcome, summedInt, referrer predicates, refreshed-price-cron filter) into telemetry/sql.ts and drop getFallbackRate's redundant totals query | persistence | S | low | medium | — |
 | ☑ | [P236](wave-05-persistence-primitives-and-data-layer-sql.md#p236) | Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE | persistence | S | low | low | — |
 | ☑ | [P232](wave-05-persistence-primitives-and-data-layer-sql.md#p232) | Give map lifecycle predicates and the active-admin selection one home, and write archive/restore SETs from the lifecycle contract | persistence | S | low | medium | [P223](wave-05-persistence-primitives-and-data-layer-sql.md#p223) |
-| ☐ | [P225](wave-05-persistence-primitives-and-data-layer-sql.md#p225) | Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site | persistence | S | low | low | [P223](wave-05-persistence-primitives-and-data-layer-sql.md#p223) |
+| ☑ | [P225](wave-05-persistence-primitives-and-data-layer-sql.md#p225) | Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site | persistence | S | low | low | [P223](wave-05-persistence-primitives-and-data-layer-sql.md#p223) |
 
 ### [Wave 6: Config, env, ids and shared domain vocabularies](wave-06-config-env-ids-and-shared-domain-vocabularies.md)
 

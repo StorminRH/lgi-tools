@@ -36,6 +36,11 @@ export async function listUnscopedMapIds(limit: number, database: AnyPgDb = db):
   return rows.map((row) => row.id);
 }
 
+/**
+ * Mirrors platform/auth's sharedAccessEligible: a refresh token plus
+ * authorizationFailureCurrent(cutoff). The data zone may not import
+ * platform/auth, so composition passes authorizationFailureCutoff() in.
+ */
 function sharedAccessEligible(alias: string, authorizationFailureCutoff: Date): SQL {
   const linked = sql.identifier(alias);
   return sql`${linked}.refresh_token IS NOT NULL AND (
