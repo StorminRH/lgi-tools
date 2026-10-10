@@ -1,57 +1,184 @@
-import { cacheLife } from 'next/cache';
+import { deferWork } from '@/lib/deferred-work';
+import {
+  readStoredEntityNames,
+  storeEntityNames,
+  type EntityNameRow,
+  type StoredEntityName,
+} from './entity-names-store';
 import { postUniverseNames } from './universe-names';
 
-const NAME_CACHE_LIFE = 'days';
+/** How long a stored name is reused before ESI is asked again; pilots and corporations can be renamed. */
+const FOUND_NAME_REUSE_MS = 7 * 24 * 60 * 60 * 1000;
+/** How long an id ESI could not resolve is left alone before it is tried again. */
+const MISSING_NAME_REUSE_MS = 6 * 60 * 60 * 1000;
 
-const RESOLVE_CONCURRENCY = 8;
+/** ESI rejects the whole POST (400) for any id outside int32, and allows 1000 unique ids per POST. */
+const ESI_ID_MAX = 2_147_483_647;
+const NAMES_PER_POST = 1000;
 
-async function fetchEntityName(id: number): Promise<string> {
-  'use cache: remote';
-  cacheLife(NAME_CACHE_LIFE);
-  const posted = await postUniverseNames([id]);
-  if (!posted.ok) throw new Error(`EVE entity name request failed (${posted.status})`);
-  const row = posted.data.find(
-    (candidate) => candidate.id === id && candidate.name.length > 0,
-  );
-  if (row === undefined) throw new Error(`EVE entity name missing for ${id}`);
-  return row.name;
+/**
+ * One unresolvable id makes ESI answer 404 for its whole batch, and every 4xx
+ * spends the shared error budget. Finding the bad ids costs one POST per id,
+ * so a single resolution may only spend this many.
+ */
+const PER_ID_FALLBACK_LIMIT = 25;
+const PER_ID_CONCURRENCY = 8;
+
+type FoundName = EntityNameRow & { name: string };
+
+interface EsiNames {
+  found: FoundName[];
+  /** Ids ESI answered 404 for on their own: worth remembering as unresolvable. */
+  missing: number[];
+  /** Ids with no answer this time (budget, outage, fallback cap): asked again next time. */
+  unresolved: number[];
+  failure: unknown;
 }
 
-async function resolveEntityNamesBounded(
-  ids: number[],
-  resolveOne: (id: number) => Promise<string | null>,
-): Promise<Record<string, string>> {
-  const unique = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0);
-  const names: Record<string, string> = {};
+interface Resolution {
+  names: Record<string, string>;
+  /** Ids that came back without a name, for whatever reason. */
+  unnamed: number[];
+  failure: unknown;
+}
+
+function isResolvableId(id: number): boolean {
+  return Number.isInteger(id) && id > 0 && id <= ESI_ID_MAX;
+}
+
+function isFresh(stored: StoredEntityName, now: number): boolean {
+  const reuseMs = stored.name === null ? MISSING_NAME_REUSE_MS : FOUND_NAME_REUSE_MS;
+  return now - stored.resolvedAt.getTime() < reuseMs;
+}
+
+function requestFailure(status: number): Error {
+  return new Error(`EVE entity name request failed (${status})`);
+}
+
+async function readStored(ids: readonly number[]): Promise<Map<number, StoredEntityName>> {
+  try {
+    return await readStoredEntityNames(ids);
+  } catch (err) {
+    console.warn('[entity-names] stored names unavailable; asking ESI', err);
+    return new Map();
+  }
+}
+
+async function mapBounded<T>(items: readonly T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
   let cursor = 0;
-  const runners = Array.from(
-    { length: Math.min(RESOLVE_CONCURRENCY, unique.length) },
-    async () => {
-      while (cursor < unique.length) {
-        const id = unique[cursor++]!;
-        const name = await resolveOne(id);
-        if (name !== null) names[String(id)] = name;
-      }
-    },
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (cursor < items.length) await worker(items[cursor++]!);
+    }),
   );
-  await Promise.all(runners);
-  return names;
 }
 
-export async function resolveEntityNames(ids: number[]): Promise<Record<string, string>> {
-  return resolveEntityNamesBounded(ids, async (id) => {
+/** Asks ESI for each id alone, to tell the unresolvable ids in a 404 batch from the rest. */
+async function resolveOneByOne(ids: readonly number[], into: EsiNames): Promise<void> {
+  await mapBounded(ids, PER_ID_CONCURRENCY, async (id) => {
     try {
-      return await fetchEntityName(id);
-    } catch {
-      return null;
+      const posted = await postUniverseNames([id]);
+      const row = posted.ok ? posted.data.find((candidate) => candidate.id === id && candidate.name.length > 0) : undefined;
+      if (row !== undefined) into.found.push({ id, name: row.name, category: row.category });
+      else if (!posted.ok && posted.status === 404) into.missing.push(id);
+      else {
+        into.unresolved.push(id);
+        into.failure ??= posted.ok ? new Error(`EVE entity name missing for ${id}`) : requestFailure(posted.status);
+      }
+    } catch (err) {
+      into.unresolved.push(id);
+      into.failure ??= err;
     }
   });
 }
 
-export async function resolveEntityNamesStrict(
-  ids: number[],
-): Promise<Record<string, string>> {
-  return resolveEntityNamesBounded(ids, async (id) => {
-    return fetchEntityName(id);
+async function askEsi(ids: readonly number[]): Promise<EsiNames> {
+  const result: EsiNames = { found: [], missing: [], unresolved: [], failure: null };
+  let fallbackLeft = PER_ID_FALLBACK_LIMIT;
+  for (let i = 0; i < ids.length; i += NAMES_PER_POST) {
+    const chunk = ids.slice(i, i + NAMES_PER_POST);
+    let posted: Awaited<ReturnType<typeof postUniverseNames>>;
+    try {
+      posted = await postUniverseNames(chunk);
+    } catch (err) {
+      result.unresolved.push(...chunk);
+      result.failure ??= err;
+      continue;
+    }
+    if (posted.ok) {
+      const byId = new Map(posted.data.filter((row) => row.name.length > 0).map((row) => [row.id, row]));
+      for (const id of chunk) {
+        const row = byId.get(id);
+        if (row !== undefined) result.found.push({ id, name: row.name, category: row.category });
+        else {
+          result.unresolved.push(id);
+          result.failure ??= new Error(`EVE entity name missing for ${id}`);
+        }
+      }
+    } else if (posted.status === 404 && chunk.length === 1) {
+      result.missing.push(chunk[0]!);
+    } else if (posted.status === 404) {
+      const retry = chunk.slice(0, fallbackLeft);
+      fallbackLeft -= retry.length;
+      result.unresolved.push(...chunk.slice(retry.length));
+      await resolveOneByOne(retry, result);
+    } else {
+      result.unresolved.push(...chunk);
+      result.failure ??= requestFailure(posted.status);
+    }
+  }
+  return result;
+}
+
+/** Records ESI's answers after the response, so the next resolution reads them instead of asking again. */
+function remember(answers: EsiNames): Promise<void> {
+  const rows: EntityNameRow[] = [
+    ...answers.found,
+    ...answers.missing.map((id) => ({ id, name: null, category: null })),
+  ];
+  if (rows.length === 0) return Promise.resolve();
+  return deferWork(async () => {
+    try {
+      await storeEntityNames(rows, new Date());
+    } catch (err) {
+      console.warn('[entity-names] could not store resolved names', err);
+    }
   });
+}
+
+async function resolve(ids: readonly number[]): Promise<Resolution> {
+  const unique = [...new Set(ids)];
+  const resolvable = unique.filter(isResolvableId);
+  const names: Record<string, string> = {};
+  const unnamed: number[] = unique.filter((id) => !isResolvableId(id));
+
+  const stored = await readStored(resolvable);
+  const now = Date.now();
+  const toAsk: number[] = [];
+  for (const id of resolvable) {
+    const hit = stored.get(id);
+    if (hit === undefined || !isFresh(hit, now)) toAsk.push(id);
+    else if (hit.name === null) unnamed.push(id);
+    else names[String(id)] = hit.name;
+  }
+  if (toAsk.length === 0) return { names, unnamed, failure: null };
+
+  const answers = await askEsi(toAsk);
+  for (const row of answers.found) names[String(row.id)] = row.name;
+  unnamed.push(...answers.missing, ...answers.unresolved);
+  await remember(answers);
+  return { names, unnamed, failure: answers.failure };
+}
+
+/** Names for the ids ESI can resolve; the rest are left out. */
+export async function resolveEntityNames(ids: number[]): Promise<Record<string, string>> {
+  return (await resolve(ids)).names;
+}
+
+/** Names for every id, or a throw when any id cannot be named right now. */
+export async function resolveEntityNamesStrict(ids: number[]): Promise<Record<string, string>> {
+  const { names, unnamed, failure } = await resolve(ids);
+  if (failure !== null) throw failure;
+  if (unnamed.length > 0) throw new Error(`EVE entity name missing for ${unnamed[0]}`);
+  return names;
 }
