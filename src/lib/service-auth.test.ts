@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
@@ -34,7 +35,7 @@ describe('bearerMatches', () => {
 
 describe('checkBearerSecret', () => {
   it('returns typed failures and preserves successful admission', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[service-auth] missing required environment variable']);
     vi.stubEnv('CRON_SECRET', '');
     await expect(
       checkBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET'),

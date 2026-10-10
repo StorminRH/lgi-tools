@@ -7,6 +7,7 @@ import type { Id } from '../_generated/dataModel';
 import schema from '../schema';
 import { modules } from '../__tests__/modules.setup';
 import { connectionInsert } from '../__tests__/connection-doc.setup';
+import { type Chain } from '../__tests__/convexTest.setup';
 import {
   MAP_A,
   NOW,
@@ -16,7 +17,6 @@ import {
   installAuthoringTimers,
   restoreAuthoringTimers,
   seedHome,
-  type Chain,
 } from '../__tests__/mapAuthoring.setup';
 import {
   claimStaticPlaceholder,

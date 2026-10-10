@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { siteDetail, siteWave } from './__tests__/site-fixtures';
 import { summariseSiteShipClasses } from './npc-summary';
-import type { Npc, SiteDetail, Wave } from './types';
+import type { Npc, SiteDetail } from './types';
 
 function mkNpc(code: string, typeId: number, quantity: number, order = 0): Npc {
   return {
@@ -24,43 +25,15 @@ function mkNpc(code: string, typeId: number, quantity: number, order = 0): Npc {
   };
 }
 
-function mkWave(id: number, npcs: Npc[]): Wave {
-  return {
-    id,
-    waveNumber: id,
-    waveLabel: `Wave ${id}`,
-    ewScram: null,
-    ewWeb: null,
-    ewNeut: null,
-    ewRrep: null,
-    dpsTotal: 0,
-    alphaTotal: 0,
-    ehpTotal: 0,
-    npcs,
-  };
-}
-
-function mkSite(waves: Wave[]): SiteDetail {
-  return {
-    id: 1,
-    name: 'Test Site',
-    siteType: 'combat',
-    wormholeClass: 'C5',
-    signatureLabel: 'ABC-123',
-    sourceTab: 'C5',
-    blueLootIsk: null,
-    iskPerEhp: null,
-    resourceValueIsk: null,
-    waves,
-    resources: [],
-  };
-}
+/** One site whose waves field the given NPCs, wave by wave. */
+const mkSite = (waves: Npc[][]): SiteDetail =>
+  siteDetail({ waves: waves.map((npcs) => siteWave({ npcs })) });
 
 describe('summariseSiteShipClasses', () => {
   it('sums counts across waves and orders by hull size then sentry', () => {
     const site = mkSite([
-      mkWave(1, [mkNpc('B', 30196, 6, 0), mkNpc('F', 30209, 4, 1)]),
-      mkWave(2, [mkNpc('C', 30200, 12, 0), mkNpc('F', 30209, 3, 1), mkNpc('T', 30460, 2, 2)]),
+      [mkNpc('B', 30196, 6, 0), mkNpc('F', 30209, 4, 1)],
+      [mkNpc('C', 30200, 12, 0), mkNpc('F', 30209, 3, 1), mkNpc('T', 30460, 2, 2)],
     ]);
 
     const summary = summariseSiteShipClasses(site);
@@ -74,7 +47,7 @@ describe('summariseSiteShipClasses', () => {
 
   it('folds multiple types of one class into a single summed entry', () => {
     const site = mkSite([
-      mkWave(1, [mkNpc('F', 30215, 2, 0), mkNpc('F', 30216, 9, 1), mkNpc('F', 30217, 3, 2)]),
+      [mkNpc('F', 30215, 2, 0), mkNpc('F', 30216, 9, 1), mkNpc('F', 30217, 3, 2)],
     ]);
 
     const summary = summariseSiteShipClasses(site);
@@ -83,7 +56,7 @@ describe('summariseSiteShipClasses', () => {
   });
 
   it('ignores unknown class codes', () => {
-    const site = mkSite([mkWave(1, [mkNpc('X', 99999, 4, 0), mkNpc('F', 30209, 2, 1)])]);
+    const site = mkSite([[mkNpc('X', 99999, 4, 0), mkNpc('F', 30209, 2, 1)]]);
 
     const summary = summariseSiteShipClasses(site);
     expect(summary.map((s) => s.code)).toEqual(['F']);

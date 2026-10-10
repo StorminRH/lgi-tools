@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 
 const m = vi.hoisted(() => ({
   lastCronRuns: vi.fn(),
@@ -13,7 +15,7 @@ const m = vi.hoisted(() => ({
   events: vi.fn(),
 }));
 
-vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => ({ isAdmin: true }) }));
+vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => adminSessionFixture() }));
 vi.mock('next/navigation', () => ({
   unstable_rethrow: () => undefined,
   usePathname: () => '/admin/health',
@@ -125,7 +127,7 @@ describe('admin health', () => {
   });
 
   it('marks only the failed detail of a service level unavailable', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] sli-details.dead-letters section unavailable']);
     m.deadLetters.mockRejectedValue(new Error('offline'));
 
     const html = await page();
@@ -135,7 +137,7 @@ describe('admin health', () => {
   });
 
   it('blanks only the card whose read failed', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] event-log section unavailable']);
     m.events.mockRejectedValue(new Error('offline'));
 
     const html = await page();

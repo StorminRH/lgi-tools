@@ -1,13 +1,10 @@
-import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const ADMIN_SESSION = {
-  user: { id: 'admin-1' },
-  characterId: 1,
-  isAdmin: true,
-};
+const ADMIN_SESSION = adminSessionFixture({ user: { id: 'admin-1' }, characterId: 1 });
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const accountBelongsToUserMock = vi.fn();
 const reassignCharacterMock = vi.fn();
 const reconcileAfterCharacterRemovalMock = vi.fn();
@@ -37,15 +34,10 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
+import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/characters/reassign', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/admin/characters/reassign';
 
 function locationOf(res: Response): string {
   return res.headers.get('location') ?? '';
@@ -69,18 +61,18 @@ describe('POST /api/admin/characters/reassign', () => {
   it('refuses non-admins, a malformed form, a no-op self-move, and an unowned character', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_SESSION, isAdmin: false });
     expect(
-      (await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }))).status,
+      (await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }))).status,
     ).toBe(403);
 
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    expect((await POST(buildRequest({ characterId: '200' }))).status).toBe(400);
-    expect((await POST(buildRequest({ fromUserId: 'admin-1', characterId: '200' }))).status).toBe(
+    expect((await POST(postForm(ROUTE, { characterId: '200' }))).status).toBe(400);
+    expect((await POST(postForm(ROUTE, { fromUserId: 'admin-1', characterId: '200' }))).status).toBe(
       400,
     );
 
     accountBelongsToUserMock.mockResolvedValue(false);
     expect(
-      (await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }))).status,
+      (await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }))).status,
     ).toBe(404);
     expect(reassignCharacterMock).not.toHaveBeenCalled();
   });
@@ -89,7 +81,7 @@ describe('POST /api/admin/characters/reassign', () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
     accountBelongsToUserMock.mockResolvedValue(true);
     reassignCharacterMock.mockResolvedValue({ sourceDeleted: true });
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
+    const res = await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }));
     expect(res.status).toBe(303);
     expect(locationOf(res)).toBe('http://localhost:3000/admin/users/admin-1');
     expect(reassignCharacterMock).toHaveBeenCalledWith({
@@ -114,7 +106,7 @@ describe('POST /api/admin/characters/reassign', () => {
     reassignCharacterMock.mockResolvedValue({ sourceDeleted: false });
     reconcileAfterCharacterRemovalMock.mockResolvedValue({ accountEmptied: false });
 
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
+    const res = await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }));
 
     expect(res.status).toBe(303);
     expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledWith(
@@ -137,7 +129,7 @@ describe('POST /api/admin/characters/reassign', () => {
     reassignCharacterMock.mockResolvedValue({ sourceDeleted: false });
     reconcileAfterCharacterRemovalMock.mockRejectedValue(new Error('transient database failure'));
 
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
+    const res = await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }));
 
     expect(res.status).toBe(303);
     expect(errorSpy).toHaveBeenCalledWith(

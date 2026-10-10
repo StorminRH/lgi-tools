@@ -2,34 +2,19 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type * as SlotsHooks from './use-slots-live';
 import type * as ReadIdentities from '@/platform/auth/read-identity';
 
-const h = vi.hoisted(() => ({
-  apiFetch: vi.fn(),
-  cleanup: undefined as (() => void) | undefined,
-  deps: undefined as readonly unknown[] | undefined,
-}));
+const h = vi.hoisted(() => ({ apiFetch: vi.fn() }));
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
-vi.mock('react', () => ({
-  useSyncExternalStore: (_subscribe: unknown, get: () => unknown) => get(),
-  useEffect: (effect: () => void | (() => void), deps: readonly unknown[]) => {
-    if (h.deps && deps.every((dep, i) => Object.is(dep, h.deps![i]))) return;
-    h.cleanup?.();
-    h.deps = deps;
-    h.cleanup = effect() || undefined;
-  },
-}));
+vi.mock('react', () => rt.react);
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
 
 let hooks: typeof SlotsHooks;
 let identities: typeof ReadIdentities;
 
-function remount() {
-  h.cleanup?.();
-  h.cleanup = undefined;
-  h.deps = undefined;
-}
+const slots = () => rt.render(hooks.useSlotsLive);
 
 beforeEach(async () => {
-  remount();
+  rt.unmount();
   vi.resetModules();
   vi.useFakeTimers();
   h.apiFetch.mockReset();
@@ -39,7 +24,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  remount();
+  rt.unmount();
   vi.useRealTimers();
 });
 
@@ -48,37 +33,37 @@ const ok = { ok: true, data: { characters } };
 
 test('a same-identity return keeps slots even when the background refresh fails', async () => {
   h.apiFetch.mockResolvedValueOnce(ok);
-  expect(hooks.useSlotsLive().loading).toBe(true);
+  expect(slots().loading).toBe(true);
   await vi.advanceTimersByTimeAsync(0);
-  expect(hooks.useSlotsLive()).toEqual({ characters, loading: false });
-  remount();
+  expect(slots()).toEqual({ characters, loading: false });
+  rt.unmount();
   h.apiFetch.mockResolvedValue({ ok: false });
-  expect(hooks.useSlotsLive()).toEqual({ characters, loading: false });
+  expect(slots()).toEqual({ characters, loading: false });
   await vi.advanceTimersByTimeAsync(125_000);
-  expect(hooks.useSlotsLive()).toEqual({ characters, loading: false });
+  expect(slots()).toEqual({ characters, loading: false });
 });
 
 test('an identity change before effect cleanup rejects the old slots response and reads the new account', async () => {
   let resolve!: (value: unknown) => void;
   h.apiFetch.mockReturnValueOnce(new Promise((yes) => { resolve = yes; }));
-  hooks.useSlotsLive();
+  slots();
   identities.publishReadIdentity({ userId: 'account-b', characterId: 7 });
   resolve(ok);
   await vi.advanceTimersByTimeAsync(0);
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: [] } });
-  expect(hooks.useSlotsLive()).toEqual({ characters: [], loading: true });
+  expect(slots()).toEqual({ characters: [], loading: true });
   await vi.advanceTimersByTimeAsync(0);
-  expect(hooks.useSlotsLive()).toEqual({ characters: [], loading: false });
+  expect(slots()).toEqual({ characters: [], loading: false });
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
   identities.publishReadIdentity(null);
-  expect(hooks.useSlotsLive()).toEqual({ characters: [], loading: true });
+  expect(slots()).toEqual({ characters: [], loading: true });
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
 test('first-read failures settle empty after the bounded retries', async () => {
   h.apiFetch.mockResolvedValue({ ok: false });
-  hooks.useSlotsLive();
+  slots();
   await vi.advanceTimersByTimeAsync(125_000);
-  expect(hooks.useSlotsLive()).toEqual({ characters: [], loading: false });
+  expect(slots()).toEqual({ characters: [], loading: false });
   expect(h.apiFetch).toHaveBeenCalledTimes(25);
 });

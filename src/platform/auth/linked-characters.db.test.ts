@@ -44,12 +44,9 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
 
   async function seedCharacter(
     characterId: number,
-    overrides: Partial<typeof characters.$inferInsert> = {},
+    overrides?: Partial<typeof characters.$inferInsert>,
   ) {
-    await insertCharacter(harness.db, characterId, {
-      portraitUrl: `https://images.example/${characterId}`,
-      ...overrides,
-    });
+    await insertCharacter(harness.db, characterId, overrides);
   }
 
   async function seedEveAccount(
@@ -60,7 +57,6 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
   ) {
     await insertEveAccount(harness.db, { id, characterId, userId: USER_ID }, {
       createdAt,
-      updatedAt: createdAt,
       ...overrides,
     });
   }
@@ -148,12 +144,7 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
   it('denies unowned characters and stores only explicitly selected linked ids', async () => {
     await seedEveAccount('owned', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
     await seedUser('other-user');
-    await harness.db.insert(account).values({
-      id: 'other',
-      accountId: String(SECOND_CHAR),
-      providerId: 'eve',
-      userId: 'other-user',
-    });
+    await insertEveAccount(harness.db, { id: 'other', characterId: SECOND_CHAR, userId: 'other-user' });
 
     await expect(accountBelongsToUser(USER_ID, FIRST_CHAR)).resolves.toBe(true);
     await expect(accountBelongsToUser(USER_ID, SECOND_CHAR)).resolves.toBe(false);

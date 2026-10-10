@@ -1,25 +1,15 @@
-import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { listSourceFiles } from '@/lib/__tests__/source-scan';
 import { modules } from './modules.setup';
 
-const SKIPPED_DIRECTORIES = new Set(['_generated', '__tests__', 'node_modules']);
-
-function productionModules(directory: string): string[] {
-  const found: string[] = [];
-  const walk = (current: string): void => {
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const path = `${current}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (!SKIPPED_DIRECTORIES.has(entry.name)) walk(path);
-        continue;
-      }
-      if (!entry.name.endsWith('.ts') || entry.name.endsWith('.d.ts')) continue;
-      if (entry.name.includes('.test.')) continue;
-      found.push(path.replaceAll('\\', '/').replace(/^convex\//, '../'));
-    }
-  };
-  walk(directory);
-  return found.sort();
+function productionModules(): string[] {
+  return listSourceFiles({
+    roots: ['convex'],
+    extensions: ['.ts'],
+    skipDirectories: ['_generated', '__tests__', 'node_modules'],
+    skipSuffixes: ['.test.ts', '.d.ts'],
+  }).map((file) => file.replace(/^convex\//, '../'));
 }
 
 describe('convex-test module map', () => {
@@ -27,7 +17,7 @@ describe('convex-test module map', () => {
     const listed = Object.keys(modules).sort();
     expect(listed).toEqual(
       [
-        ...productionModules('convex'),
+        ...productionModules(),
         '../_generated/api.js',
         '../_generated/server.js',
       ].sort(),
@@ -35,25 +25,11 @@ describe('convex-test module map', () => {
   });
 
   it('names non-test helpers so Convex deploy skips them', () => {
-    const helpers: string[] = [];
-    const walk = (current: string): void => {
-      for (const entry of readdirSync(current, { withFileTypes: true })) {
-        const path = `${current}/${entry.name}`;
-        if (entry.isDirectory()) {
-          walk(path);
-          continue;
-        }
-        if (
-          !entry.name.endsWith('.ts') ||
-          entry.name.includes('.test.') ||
-          entry.name.endsWith('.d.ts')
-        ) {
-          continue;
-        }
-        helpers.push(entry.name);
-      }
-    };
-    walk('convex/__tests__');
+    const helpers = listSourceFiles({
+      roots: ['convex/__tests__'],
+      extensions: ['.ts'],
+      skipSuffixes: ['.test.ts', '.d.ts'],
+    }).map((file) => path.posix.basename(file));
     expect(helpers.length).toBeGreaterThan(0);
     for (const name of helpers) {
       expect((name.match(/\./g) ?? []).length).toBeGreaterThan(1);

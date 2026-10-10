@@ -1,10 +1,11 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { blankHallway } from '@/data/maps/connection-hallway';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
+import { expectConvexErrorCode, grantMapAccess, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 
 const MAP = 'pending-jump';
@@ -13,7 +14,6 @@ const FROM = 31_000_001;
 const TO = 31_000_002;
 const AT = 1_800_000_000_000;
 const MASS = 10_000_000;
-type Chain = TestConvex<typeof schema>;
 
 async function track(t: Chain, characterId: number) {
   await t.run(async (ctx) => {
@@ -101,12 +101,12 @@ describe('ambiguous jump identity', () => {
     const { t, candidates, args } = await setup();
     const sourceId = await pending(t, args);
     const before = await state(t);
-    await expect(t.withIdentity({ subject: USER }).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
+    await expectConvexErrorCode(t.withIdentity({ subject: USER }).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
       mapId: MAP,
       connectionId: sourceId,
       side: 'from',
       value: 'C247',
-    })).rejects.toThrow('UNANSWERED_JUMP');
+    }), 'UNANSWERED_JUMP');
     expect(await state(t)).toEqual(before);
     const targetId = candidates[1];
     if (targetId === undefined) throw new Error('missing candidate');
@@ -166,7 +166,7 @@ describe('ambiguous jump identity', () => {
     expect(after.connections.filter((row) => candidates.includes(row._id) && row._id !== targetId))
       .toEqual(before.connections.filter((row) => row._id !== targetId));
     expect(after.systems.some((row) => row.systemId === TO)).toBe(true);
-    await expect(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, targetId))).rejects.toThrow('UNKNOWN_CONNECTION');
+    await expectConvexErrorCode(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, targetId)), 'UNKNOWN_CONNECTION');
     expect(await state(t)).toEqual(after);
   });
 
@@ -275,13 +275,13 @@ describe('ambiguous jump identity', () => {
     const sourceId = await pending(t, args);
     const targetId = candidates[0];
     if (targetId === undefined) throw new Error('missing candidate');
-    await t.run(async (ctx) => { await ctx.db.insert('mapAccess', { mapId: MAP, userId: 'viewer', roles: ['viewer'] }); });
+    await grantMapAccess(t, MAP, 'viewer', ['viewer']);
     const before = await state(t);
-    await expect(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, { ...answer(sourceId, targetId), userId: 'viewer' })).rejects.toThrow();
+    await expectConvexErrorCode(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, { ...answer(sourceId, targetId), userId: 'viewer' }), 'FORBIDDEN');
     expect(await state(t)).toEqual(before);
     const unoffered = await t.run((ctx) => ctx.db.insert('mapConnections', blankHallway({ mapId: MAP, fromSystemId: FROM, toSystemId: null })));
     const withOther = await state(t);
-    await expect(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, unoffered))).rejects.toThrow('INVALID_SIGNATURE_CHOICE');
+    await expectConvexErrorCode(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, unoffered)), 'INVALID_SIGNATURE_CHOICE');
     expect(await state(t)).toEqual(withOther);
   });
 
@@ -323,7 +323,11 @@ describe('ambiguous jump identity', () => {
     expect(after.connections.find((row) => row._id === targetId)).toMatchObject({ toSystemId: TO, observationKey: 'scan-BBB-002', observedMassKg: MASS });
   });
 
-  it.each(['resolved', 'deleted', 'mass'] as const)('rejects a %s candidate and preserves the pending jump', async (change) => {
+  it.each([
+    ['resolved', 'INVALID_REASSOCIATION'],
+    ['deleted', 'CONNECTION_TOMBSTONED'],
+    ['mass', 'TARGET_HAS_JUMP_FACTS'],
+  ] as const)('rejects a %s candidate with %s and preserves the pending jump', async (change, code) => {
     const { t, candidates, args } = await setup();
     const sourceId = await pending(t, args);
     const targetId = candidates[0];
@@ -334,7 +338,7 @@ describe('ambiguous jump identity', () => {
       if (change === 'mass') await ctx.db.patch(targetId, { observedMassKg: 1 });
     });
     const before = await state(t);
-    await expect(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, targetId))).rejects.toThrow();
+    await expectConvexErrorCode(t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, targetId)), code);
     expect(await state(t)).toEqual(before);
     expect(before.systems.map((row) => row.systemId)).toEqual([FROM]);
   });

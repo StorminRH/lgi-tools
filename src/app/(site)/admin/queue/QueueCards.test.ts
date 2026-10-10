@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 
 const mocks = vi.hoisted(() => ({
@@ -50,7 +51,7 @@ describe('loadDeadLetters', () => {
   });
 
   it('keeps the list when only the total fails', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] dead-letter-total section unavailable']);
     mocks.jobs.mockResolvedValue([job(1, 1)]);
     mocks.stats.mockRejectedValue(new Error('offline'));
 

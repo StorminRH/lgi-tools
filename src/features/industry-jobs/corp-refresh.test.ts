@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { industryJob } from './__tests__/job-fixture';
 import { refreshCorpJobsForUser } from './corp-refresh';
 import type { IndustryJob } from './esi-projection';
 import type { CorpJobsPort, JobsEsiRead, RefreshCorpMember } from './types';
@@ -12,19 +13,6 @@ function member(overrides: Partial<RefreshCorpMember> = {}): RefreshCorpMember {
     corporationId: 2000,
     hasRefreshToken: true,
     missingScopes: [],
-    ...overrides,
-  };
-}
-
-function job(overrides: Partial<IndustryJob> = {}): IndustryJob {
-  return {
-    job_id: 1,
-    activity_id: 1,
-    blueprint_type_id: 100,
-    runs: 1,
-    status: 'active',
-    start_date: '2026-06-28T00:00:00Z',
-    end_date: '2026-06-28T01:00:00Z',
     ...overrides,
   };
 }
@@ -102,7 +90,7 @@ describe('refreshCorpJobsForUser', () => {
   });
 
   it('resolves a director and saves the board for a never-synced corp', async () => {
-    const fresh = job({ job_id: 7 });
+    const fresh = industryJob({ job_id: 7 });
     const { port, calls } = makeFakePort({
       members: [member({ characterId: 1, corporationId: 2000 })],
       reads: { 2000: { kind: 'fresh', body: [fresh], etag: 'etag-1' } },
@@ -238,8 +226,8 @@ describe('refreshCorpJobsForUser', () => {
         member({ characterId: 2, corporationId: 3000 }),
       ],
       reads: {
-        2000: { kind: 'fresh', body: [job({ job_id: 1 })], etag: 'a' },
-        3000: { kind: 'fresh', body: [job({ job_id: 2 })], etag: 'b' },
+        2000: { kind: 'fresh', body: [industryJob({ job_id: 1 })], etag: 'a' },
+        3000: { kind: 'fresh', body: [industryJob({ job_id: 2 })], etag: 'b' },
       },
     });
     await refreshCorpJobsForUser(port, 'user-1');

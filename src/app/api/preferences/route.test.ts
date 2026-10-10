@@ -21,23 +21,11 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEventMock(...args),
 }));
 
-import type { NextRequest } from 'next/server';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-function makeRequest(
-  body: unknown,
-  origin?: string,
-): NextRequest {
-  return new Request('http://localhost:3000/api/preferences', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(origin === undefined ? {} : { Origin: origin }),
-    },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  }) as unknown as NextRequest;
-}
+const ROUTE = '/api/preferences';
 
 const VALID_BODY = { key: 'sites.view', value: 'table' };
 
@@ -55,14 +43,14 @@ describe('POST /api/preferences', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
 
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
 
     expect(res.status).toBe(401);
     expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for malformed JSON', async () => {
-    const res = await POST(makeRequest('{not valid json'));
+    const res = await POST(postJson(ROUTE, '{not valid json'));
 
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
@@ -73,14 +61,14 @@ describe('POST /api/preferences', () => {
   });
 
   it('returns 400 for an unknown preference key', async () => {
-    const res = await POST(makeRequest({ key: 'sites.theme', value: 'dark' }));
+    const res = await POST(postJson(ROUTE, { key: 'sites.theme', value: 'dark' }));
 
     expect(res.status).toBe(400);
     expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 when the value does not match the key', async () => {
-    const res = await POST(makeRequest({ key: 'sites.view', value: 'grid' }));
+    const res = await POST(postJson(ROUTE, { key: 'sites.view', value: 'grid' }));
 
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
@@ -91,9 +79,7 @@ describe('POST /api/preferences', () => {
   });
 
   it('upserts the caller preference and returns 204', async () => {
-    const res = await POST(
-      makeRequest(VALID_BODY, 'http://localhost:3000'),
-    );
+    const res = await POST(postJson(ROUTE, VALID_BODY, { origin: 'http://localhost:3000' }));
 
     expect(res.status).toBe(204);
     expect(await res.text()).toBe('');

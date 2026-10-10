@@ -16,16 +16,11 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-function request(body: unknown): Request {
-  return new Request('http://localhost:3000/api/maps/jump', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/maps/jump';
 
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
@@ -40,7 +35,7 @@ beforeEach(() => {
 describe('POST /api/maps/jump', () => {
   it('rejects forged doorbell facts and anonymous callers before resolving, then forwards authenticated bodies', async () => {
     const forged = await POST(
-      request({
+      postJson(ROUTE, {
         kind: 'doorbell',
         mapId: 'map-1',
         characterId: 90_000_001,
@@ -59,7 +54,7 @@ describe('POST /api/maps/jump', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     const anonymous = await POST(
-      request({ kind: 'doorbell', mapId: 'map-1', characterId: 90_000_001 }),
+      postJson(ROUTE, { kind: 'doorbell', mapId: 'map-1', characterId: 90_000_001 }),
     );
     expect(anonymous.status).toBe(401);
     expect(h.resolveJumpRequest).not.toHaveBeenCalled();
@@ -69,7 +64,7 @@ describe('POST /api/maps/jump', () => {
       mapId: 'map-1',
       connectionId: 'connection-1',
     };
-    const ok = await POST(request(body));
+    const ok = await POST(postJson(ROUTE, body));
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({
       status: 'processed',

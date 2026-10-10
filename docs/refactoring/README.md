@@ -260,20 +260,20 @@ Make every later PR cheaper and safer. P334 provides one ESLint exemption builde
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P334](wave-02-tooling-and-test-harness-foundations.md#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
-| ☐ | [P340](wave-02-tooling-and-test-harness-foundations.md#p340) | Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body | testing | M | low | high | — |
-| ☐ | [P216](wave-02-tooling-and-test-harness-foundations.md#p216) | Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup | testing | M | low | medium | — |
-| ☐ | [P341](wave-02-tooling-and-test-harness-foundations.md#p341) | Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders | testing | M | low | medium | — |
-| ☐ | [P344](wave-02-tooling-and-test-harness-foundations.md#p344) | Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests | testing | S | low | medium | — |
-| ☐ | [P346](wave-02-tooling-and-test-harness-foundations.md#p346) | Add a prefix-scoped console silencer in lib test support and migrate the unasserted blanket spies | testing | M | low | medium | — |
-| ☐ | [P342](wave-02-tooling-and-test-harness-foundations.md#p342) | Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json | testing | S | low | low | — |
-| ☐ | [P343](wave-02-tooling-and-test-harness-foundations.md#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
-| ☐ | [P349](wave-02-tooling-and-test-harness-foundations.md#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
-| ☐ | [P244](wave-02-tooling-and-test-harness-foundations.md#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
-| ☐ | [P347](wave-02-tooling-and-test-harness-foundations.md#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
-| ☐ | [P348](wave-02-tooling-and-test-harness-foundations.md#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
-| ☐ | [P338](wave-02-tooling-and-test-harness-foundations.md#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
-| ☐ | [P339](wave-02-tooling-and-test-harness-foundations.md#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
+| ☑ | [P334](wave-02-tooling-and-test-harness-foundations.md#p334) | Build every no-restricted-syntax and no-restricted-imports list from one canonical list minus exemptions | simplification | M | low | medium | — |
+| ☑ | [P340](wave-02-tooling-and-test-harness-foundations.md#p340) | Delete redundant coverage pins and per-file dead Next/Convex mocks; collapse the tautological pin body | testing | M | low | high | — |
+| ☑ | [P216](wave-02-tooling-and-test-harness-foundations.md#p216) | Add one strict ConvexError-code assertion and shared map-access seeding helpers to the Convex test setup | testing | M | low | medium | — |
+| ☑ | [P341](wave-02-tooling-and-test-harness-foundations.md#p341) | Add src/lib/__tests__/route-requests.ts (postJson, postForm, postEmpty, cronRequest) and migrate the route tests' local builders | testing | M | low | medium | — |
+| ☑ | [P344](wave-02-tooling-and-test-harness-foundations.md#p344) | Add typed BetterAuthSession fixtures and type the getSession mocks in route and session tests | testing | S | low | medium | — |
+| ☑ | [P346](wave-02-tooling-and-test-harness-foundations.md#p346) | Add a prefix-scoped console silencer in lib test support and migrate the unasserted blanket spies | testing | M | low | medium | — |
+| ☑ | [P342](wave-02-tooling-and-test-harness-foundations.md#p342) | Build valid problem fixtures with problemBody/serializeProblem and replace local jsonResponse helpers with Response.json | testing | S | low | low | — |
+| ☑ | [P343](wave-02-tooling-and-test-harness-foundations.md#p343) | Adopt the DB harness's resetBetweenTests and expect.poll; drop cargo portrait overrides; pair updatedAt in the harness and add seedAccount | testing | S | low | low | — |
+| ☑ | [P349](wave-02-tooling-and-test-harness-foundations.md#p349) | Use createReservedConnectionMock in the four cron route tests that hand-roll the reserved connection | testing | S | low | low | — |
+| ☑ | [P244](wave-02-tooling-and-test-harness-foundations.md#p244) | Add createFakeQueryChain to src/db/__tests__/support and migrate the five hand-built Drizzle chains | testing | S | low | low | — |
+| ☑ | [P347](wave-02-tooling-and-test-harness-foundations.md#p347) | Share one registry coverage diff and use reflectedSchemaTables in the purge and ESI registry gates | testing | S | low | low | — |
+| ☑ | [P348](wave-02-tooling-and-test-harness-foundations.md#p348) | Add per-domain test fixture builders for wormhole sites, industry jobs and mapper chain/layout facts | testing | M | low | low | — |
+| ☑ | [P338](wave-02-tooling-and-test-harness-foundations.md#p338) | Extract the shared stateful hook runtime that ~10 hook tests hand-roll, and leave the scripted single-purpose React fakes local | testing | M | medium | medium | — |
+| ☑ | [P339](wave-02-tooling-and-test-harness-foundations.md#p339) | Add one source-scan test helper (file listing, route listing, comment strip, pattern match, value-import extraction and resolution) and migrate the rail, census and contract tests to it | testing | M | medium | medium | — |
 
 ### [Wave 3: src/lib primitives: collections, math, async, errors, browser](wave-03-src-lib-primitives-collections-math-async.md)
 

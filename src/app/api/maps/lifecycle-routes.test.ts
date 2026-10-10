@@ -20,19 +20,12 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
+import { postJson } from '@/lib/__tests__/route-requests';
 import { POST as deleteMap } from './delete/route';
 import { POST as purgeMapNow } from './purge-now/route';
 import { POST as restoreMap } from './restore/route';
 
 const MAP_ID = '11111111-1111-4111-8111-111111111111';
-
-function request(path: string, body: unknown): Request {
-  return new Request(`http://localhost:3000/api/maps/${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
 
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
@@ -48,7 +41,7 @@ describe('map lifecycle routes', () => {
     ['restore', restoreMap, h.restoreMapForUser],
     ['purge-now', purgeMapNow, h.requestMapPurgeForUser],
   ] as const)('POST /api/maps/%s validates and dispatches one map id', async (path, route, owner) => {
-    const response = await route(request(path, { mapId: MAP_ID }));
+    const response = await route(postJson(`/api/maps/${path}`, { mapId: MAP_ID }));
     expect(response.status).toBe(204);
     expect(owner).toHaveBeenCalledWith('user-1', { mapId: MAP_ID });
   });
@@ -59,18 +52,18 @@ describe('map lifecycle routes', () => {
     ['purge-now', purgeMapNow, h.requestMapPurgeForUser, 'map_creator_required'],
   ] as const)('POST /api/maps/%s returns its declared lifecycle denial', async (path, route, owner, code) => {
     owner.mockResolvedValueOnce({ ok: false });
-    const response = await route(request(path, { mapId: MAP_ID }));
+    const response = await route(postJson(`/api/maps/${path}`, { mapId: MAP_ID }));
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({ code });
   });
 
   it('rejects malformed and unauthenticated input before lifecycle work', async () => {
-    expect((await deleteMap(request('delete', { mapId: 'not-a-uuid' }))).status).toBe(400);
+    expect((await deleteMap(postJson('/api/maps/delete', { mapId: 'not-a-uuid' }))).status).toBe(400);
     h.checkUserId.mockResolvedValueOnce({
       ok: false,
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
-    expect((await restoreMap(request('restore', { mapId: MAP_ID }))).status).toBe(401);
+    expect((await restoreMap(postJson('/api/maps/restore', { mapId: MAP_ID }))).status).toBe(401);
     expect(h.restoreMapForUser).not.toHaveBeenCalled();
   });
 });

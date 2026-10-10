@@ -16,13 +16,6 @@ const permissiveScoreboard = {
   },
 };
 
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -45,7 +38,7 @@ test('skips ESI for empty input, POSTs de-duplicated ids, maps the response, and
   expect(fetchMock).not.toHaveBeenCalled();
 
   fetchMock.mockResolvedValueOnce(
-    jsonResponse([
+    Response.json([
       { character_id: 101, corporation_id: 2000, alliance_id: 99, faction_id: 500 },
       { character_id: 102, corporation_id: 3000 },
     ]),
@@ -66,7 +59,7 @@ test('skips ESI for empty input, POSTs de-duplicated ids, maps the response, and
     transientFailure: false,
   });
 
-  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([])));
+  fetchMock.mockImplementation(() => Promise.resolve(Response.json([])));
   const ids = Array.from({ length: 1500 }, (_, i) => i + 1);
 
   await fetchAffiliations(ids);
@@ -86,9 +79,9 @@ test('bisects mixed 404s so live characters refresh, confirms single-id 404s as 
       return new Response('not found', { status: 404 });
     }
     if (ids.length === 1 && ids[0] === 102) {
-      return jsonResponse([{ character_id: 102, corporation_id: 3000 }]);
+      return Response.json([{ character_id: 102, corporation_id: 3000 }]);
     }
-    return jsonResponse([]);
+    return Response.json([]);
   });
 
   await expect(fetchAffiliations([101, 102])).resolves.toEqual({
@@ -100,7 +93,7 @@ test('bisects mixed 404s so live characters refresh, confirms single-id 404s as 
   });
 
   fetchMock.mockReset();
-  fetchMock.mockResolvedValueOnce(jsonResponse([{ character_id: 999, corporation_id: 3000 }]));
+  fetchMock.mockResolvedValueOnce(Response.json([{ character_id: 999, corporation_id: 3000 }]));
   await expect(fetchAffiliations([101])).resolves.toEqual({
     rows: [{ characterId: 101, corporationId: null, allianceId: null, factionId: null }],
     transientFailure: false,
@@ -121,7 +114,7 @@ test.each([
       if (ids[0] === 101) {
         return confirmed === 'departure'
           ? new Response('not found', { status: 404 })
-          : jsonResponse([{ character_id: 101, corporation_id: 3000 }]);
+          : Response.json([{ character_id: 101, corporation_id: 3000 }]);
       }
       if (failure === 'timeout') throw new DOMException('signal timed out', 'TimeoutError');
       return new Response('unavailable', { status: 503 });
@@ -146,7 +139,7 @@ test.each(['503', 'network', 'timeout', 'invalid JSON'] as const)(
     fetchMock.mockImplementation(async (_url: unknown, init: { body: string }) => {
       const batch = JSON.parse(init.body) as number[];
       if (batch.length === 1000) {
-        return jsonResponse([{ character_id: 1, corporation_id: 3000 }]);
+        return Response.json([{ character_id: 1, corporation_id: 3000 }]);
       }
       if (failure === 'network') throw new TypeError('fetch failed');
       if (failure === 'timeout') throw new DOMException('signal timed out', 'TimeoutError');
@@ -182,13 +175,13 @@ test('marks budget, 5xx, empty-200, and unparseable bodies as transient, but une
     transientFailure: true,
   });
 
-  fetchMock.mockResolvedValueOnce(jsonResponse([]));
+  fetchMock.mockResolvedValueOnce(Response.json([]));
   await expect(fetchAffiliations([101, 102])).resolves.toEqual({
     rows: [],
     transientFailure: true,
   });
 
-  fetchMock.mockResolvedValueOnce(jsonResponse([{ character_id: 'bad' }]));
+  fetchMock.mockResolvedValueOnce(Response.json([{ character_id: 'bad' }]));
   await expect(fetchAffiliations([101])).resolves.toEqual({
     rows: [],
     transientFailure: true,
@@ -208,7 +201,7 @@ test('in development, omits the local synthetic E2E character before calling ESI
   expect(fetchMock).not.toHaveBeenCalled();
 
   fetchMock.mockResolvedValueOnce(
-    jsonResponse([{ character_id: 102, corporation_id: 3000 }]),
+    Response.json([{ character_id: 102, corporation_id: 3000 }]),
   );
   const result = await fetchAffiliations([SYNTHETIC_PILOT.characterId, 102]);
   expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual([102]);
@@ -219,7 +212,7 @@ test('in development, omits the local synthetic E2E character before calling ESI
 
   vi.stubEnv('NODE_ENV', 'production');
   fetchMock.mockResolvedValueOnce(
-    new Response(JSON.stringify({ error: 'Invalid character ID' }), { status: 400 }),
+    Response.json({ error: 'Invalid character ID' }, { status: 400 }),
   );
 
   await expect(fetchAffiliations([SYNTHETIC_PILOT.characterId, 102])).resolves.toEqual({

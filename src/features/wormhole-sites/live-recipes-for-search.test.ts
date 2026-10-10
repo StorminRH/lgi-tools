@@ -1,37 +1,31 @@
 import { expect, test } from 'vitest';
+import { siteResource } from './__tests__/site-fixtures';
 import { liveRecipesForSearch } from './live-recipes-for-search';
 import type { SiteResource } from './types';
 
-function resource(overrides: Partial<SiteResource>): SiteResource {
-  return {
-    id: 1,
-    orderInSite: 0,
+const gas = (over: Partial<SiteResource>): SiteResource =>
+  siteResource({
     resourceKind: 'gas',
-    resourceName: 'Fullerite-C50',
-    units: 1_000,
-    volumeM3: null,
-    iskPerM3: null,
-    totalIsk: 20_000_000,
     typeId: 30370,
+    units: 1_000,
+    totalIsk: 20_000_000,
     liveIsk: 28_100_000,
-    effectiveIsk: 28_100_000,
     liveEligible: true,
-    ...overrides,
-  };
-}
+    ...over,
+  });
 
 test('liveRecipesForSearch keeps only live-eligible resources with type id and units', () => {
   expect(liveRecipesForSearch([])).toEqual([]);
-  expect(liveRecipesForSearch([resource({ liveEligible: false })])).toEqual([]);
+  expect(liveRecipesForSearch([gas({ liveEligible: false })])).toEqual([]);
 
   expect(
     liveRecipesForSearch([
-      resource({ id: 1 }),
-      resource({ id: 2, liveEligible: false, typeId: 1 }),
-      resource({ id: 3, typeId: null }),
-      resource({ id: 4, units: null }),
-      resource({ id: 5, units: 0 }),
-      resource({
+      gas({ id: 1 }),
+      gas({ id: 2, liveEligible: false, typeId: 1 }),
+      gas({ id: 3, typeId: null }),
+      gas({ id: 4, units: null }),
+      gas({ id: 5, units: 0 }),
+      gas({
         id: 6,
         typeId: 30371,
         units: 500,

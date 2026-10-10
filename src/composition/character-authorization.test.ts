@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
   reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
@@ -113,7 +114,7 @@ it('delivers a failed queued revocation on a later healthy visit', async () => {
   mocks.hasAuthorizationWork.mockResolvedValue(false);
   mocks.readPendingMapAccessChanges.mockResolvedValue(pending);
   mocks.projectMapAccess.mockRejectedValueOnce(new Error('Convex unavailable'));
-  vi.spyOn(console, 'error').mockImplementation(() => {});
+  silenceConsolePrefixes('error', ['[map-affiliation-access] projection retained for retry']);
 
   await checkCharacterAuthorizations('alice');
   expect(mocks.acknowledgeMapAccessChanges).toHaveBeenLastCalledWith([], pending);

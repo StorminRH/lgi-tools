@@ -1,17 +1,10 @@
-import { NextRequest } from 'next/server';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const SESSION = {
-  user: { id: 'eve-user-1' },
-  session: {},
-  characterId: 100,
-  name: 'Alice',
-  portraitUrl: 'a',
-  role: 'USER' as const,
-  isAdmin: false,
-};
+const SESSION = sessionFixture();
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const nukeAccountMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
@@ -29,11 +22,10 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
+import { postEmpty } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function buildRequest(): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/delete', { method: 'POST' });
-}
+const ROUTE = '/api/account/delete';
 
 beforeEach(() => {
   getSessionMock.mockReset();
@@ -45,12 +37,12 @@ beforeEach(() => {
 
 test('refuses anonymous callers and nukes the signed-in account with an identity-free counter', async () => {
   getSessionMock.mockResolvedValue(null);
-  const unauthenticated = await POST(buildRequest());
+  const unauthenticated = await POST(postEmpty(ROUTE));
   expect(unauthenticated.status).toBe(401);
   expect(nukeAccountMock).not.toHaveBeenCalled();
 
   getSessionMock.mockResolvedValue(SESSION);
-  const res = await POST(buildRequest());
+  const res = await POST(postEmpty(ROUTE));
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual({ ok: true });
   expect(nukeAccountMock).toHaveBeenCalledWith('eve-user-1');

@@ -26,7 +26,7 @@ vi.mock('@/data/eve-data/queries', () => ({
   getStructureRigs: (...args: unknown[]) => h.getStructureRigsMock(...args),
 }));
 
-import { NextRequest } from 'next/server';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
@@ -45,13 +45,7 @@ const corpStructure = {
   name: 'Perimeter Fort',
 };
 
-function makeRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/corp-structures/rigs', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/account/corp-structures/rigs';
 
 const VALID_BODY = { corporationId: 2001, structureId: 1001, rigTypeIds: [37170], taxPct: 1.5 };
 
@@ -73,20 +67,20 @@ describe('POST /api/account/corp-structures/rigs', () => {
       ok: false,
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(401);
     expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for an invalid body', async () => {
-    const res = await POST(makeRequest({ corporationId: 2001 }));
+    const res = await POST(postJson(ROUTE, { corporationId: 2001 }));
     expect(res.status).toBe(400);
     expect(h.stationManagerGateMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for a structure the corp does not own', async () => {
     h.getCorpStructuresMock.mockResolvedValue(new Map());
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_structure',
@@ -95,7 +89,7 @@ describe('POST /api/account/corp-structures/rigs', () => {
   });
 
   it('returns 400 for a rig that does not fit the structure', async () => {
-    const res = await POST(makeRequest({ ...VALID_BODY, rigTypeIds: [46490] }));
+    const res = await POST(postJson(ROUTE, { ...VALID_BODY, rigTypeIds: [46490] }));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_structure',
@@ -105,7 +99,7 @@ describe('POST /api/account/corp-structures/rigs', () => {
   });
 
   it('saves the rigs and echoes the stored completion', async () => {
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ structureId: 1001, rigTypeIds: [37170], taxPct: 1.5 });
     expect(h.upsertCorpStructureRigsMock).toHaveBeenCalledWith(2001, 1001, [37170], 1.5);

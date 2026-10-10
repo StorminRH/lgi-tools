@@ -1,11 +1,12 @@
 import { eq, isNull } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { usageLogs } from '@/data/telemetry/schema';
 import { userPreferences } from '@/data/preferences/schema';
 import { mapAccess, maps } from '@/data/maps/schema';
 import {
   createDbTestHarness,
-  seedCharacter as insertCharacter,
+  seedCharacter,
   seedEveAccount as insertEveAccount,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
@@ -172,12 +173,6 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     });
   });
 
-  async function seedCharacter(characterId: number) {
-    await insertCharacter(harness.db, characterId, {
-      portraitUrl: `https://images.example/${characterId}`,
-    });
-  }
-
   async function seedEveAccount(
     id: string,
     characterId: number,
@@ -185,7 +180,6 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   ) {
     await insertEveAccount(harness.db, { id, characterId, userId: USER_ID }, {
       createdAt,
-      updatedAt: createdAt,
       refreshToken: `grant-${characterId}`,
     });
   }
@@ -291,8 +285,8 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   }
 
   it('revokes before credential deletion and fully purges one character while retaining the user', async () => {
-    await seedCharacter(FIRST_CHAR);
-    await seedCharacter(SECOND_CHAR);
+    await seedCharacter(harness.db, FIRST_CHAR);
+    await seedCharacter(harness.db, SECOND_CHAR);
     await seedEveAccount('first', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
     await seedEveAccount('second', SECOND_CHAR, new Date('2026-07-02T00:00:00Z'));
     await seedCharacterCache(FIRST_CHAR);
@@ -362,7 +356,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   });
 
   it('deletes a last-character user only after the credential row is gone', async () => {
-    await seedCharacter(FIRST_CHAR);
+    await seedCharacter(harness.db, FIRST_CHAR);
     await seedEveAccount('only', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
     await harness.db.insert(session).values({
       id: 'purge-session',
@@ -381,8 +375,8 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   });
 
   it('nukes every character and user tier, retains the audit trail, and is idempotent', async () => {
-    await seedCharacter(FIRST_CHAR);
-    await seedCharacter(SECOND_CHAR);
+    await seedCharacter(harness.db, FIRST_CHAR);
+    await seedCharacter(harness.db, SECOND_CHAR);
     await seedEveAccount('first', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
     await seedEveAccount('second', SECOND_CHAR, new Date('2026-07-02T00:00:00Z'));
     await seedCharacterCache(FIRST_CHAR);
@@ -456,7 +450,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   it('purges a fresh Better Auth link committed after whole-user deletion finishes enumerating links', async () => {
     await seedEveAccount('old', FIRST_CHAR, new Date());
     await seedUserData();
-    await seedCharacter(SECOND_CHAR);
+    await seedCharacter(harness.db, SECOND_CHAR);
     const entered = gate();
     const resume = gate();
     mapPurge.purgeMapChain.mockImplementationOnce(async () => {
@@ -515,7 +509,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
 
   it('preserves a fresh Better Auth link that arrives during admin reassignment cleanup through the daily retry', async () => {
     await seedEveAccount('moved', FIRST_CHAR, new Date());
-    await seedCharacter(SECOND_CHAR);
+    await seedCharacter(harness.db, SECOND_CHAR);
     await seedUser(harness.db, 'admin-target');
     const entered = gate();
     const resume = gate();
@@ -672,7 +666,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     const first = await queueCharacter(FIRST_CHAR);
     await harness.db.update(pendingDeletions).set({ queuedAt: old }).where(eq(pendingDeletions.id, first!.id));
     revokeMock.mockRejectedValueOnce(new Error('fixture failure'));
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const error = silenceConsolePrefixes('error', ['[account-purge] requested deletion retry failed']);
     expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 1 });
     error.mockRestore();
     const [retained] = await harness.db.select().from(pendingDeletions);

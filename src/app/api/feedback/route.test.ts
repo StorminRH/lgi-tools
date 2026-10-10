@@ -1,6 +1,6 @@
-import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import type { Session } from '@/platform/auth/types';
 
@@ -38,31 +38,7 @@ vi.mock('@/lib/rate-limit', () => ({
     checkRateLimitMock(request, options),
 }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
-function buildRequest(
-  body: unknown,
-  origin?: string,
-): NextRequest {
-  return new NextRequest('http://localhost:3000/api/feedback', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...(origin === undefined ? {} : { origin }),
-    },
-    body: JSON.stringify(body),
-  });
-}
-
-function buildRawRequest(body: string): NextRequest {
-  return new NextRequest('http://localhost:3000/api/feedback', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body,
-  });
-}
+const ROUTE = '/api/feedback';
 
 async function expectProblem(
   response: Response,
@@ -119,16 +95,17 @@ describe('POST /api/feedback', () => {
       new Response(JSON.stringify(LINEAR_SUCCESS), { status: 200 }),
     );
 
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     const res = await POST(
-      buildRequest(
+      postJson(
+        ROUTE,
         {
           title: 'sites browser is broken on C3 relic',
           message: 'Relic sites on C3 lose their filter after refresh.',
           path: '/sites?class=c3',
           category: 'bug',
         },
-        'http://localhost:3000',
+        { origin: 'http://localhost:3000' },
       ),
     );
 
@@ -178,7 +155,7 @@ describe('POST /api/feedback', () => {
     fetchMock.mockClear();
 
     const anon = await POST(
-      buildRequest({
+      postJson(ROUTE, {
         title: 'love the changelog',
         message: 'The latest notes were easy to scan.',
         path: '/changelog',
@@ -208,7 +185,7 @@ describe('POST /api/feedback', () => {
     fetchMock.mockClear();
 
     const scrubbed = await POST(
-      buildRequest({
+      postJson(ROUTE, {
         title: 'hello\u0000world\u0007',
         message: 'please\u0000add export',
         path: '/sites\u0000?q=test',
@@ -227,10 +204,10 @@ describe('POST /api/feedback', () => {
 
   it('rejects empty, malformed, oversized, and invalid path or category bodies before Linear', async () => {
     getSessionMock.mockResolvedValue(SESSION);
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
 
     await expectProblem(
-      await POST(buildRawRequest('{not json')),
+      await POST(postJson(ROUTE, '{not json')),
       400,
       'invalid_json',
       'Invalid JSON',
@@ -238,13 +215,13 @@ describe('POST /api/feedback', () => {
     expect(checkRateLimitMock).not.toHaveBeenCalled();
 
     await expectProblem(
-      await POST(buildRequest({ message: 'hi', path: '/sites' })),
+      await POST(postJson(ROUTE, { message: 'hi', path: '/sites' })),
       400,
       'invalid_body',
     );
     await expectProblem(
       await POST(
-        buildRequest({
+        postJson(ROUTE, {
           title: 'x'.repeat(481),
           message: 'hi',
           path: '/sites',
@@ -256,14 +233,14 @@ describe('POST /api/feedback', () => {
     );
     await expectProblem(
       await POST(
-        buildRequest({ title: 'hi', message: 'x'.repeat(8001), path: '/sites', category: 'bug' }),
+        postJson(ROUTE, { title: 'hi', message: 'x'.repeat(8001), path: '/sites', category: 'bug' }),
       ),
       400,
       'invalid_body',
     );
     await expectProblem(
       await POST(
-        buildRequest({
+        postJson(ROUTE, {
           title: 'hi',
           message: 'hi',
           path: '/' + 'x'.repeat(2049),
@@ -274,27 +251,27 @@ describe('POST /api/feedback', () => {
       'invalid_body',
     );
     await expectProblem(
-      await POST(buildRequest({ title: 'hi', message: 42, path: '/sites', category: 'bug' })),
+      await POST(postJson(ROUTE, { title: 'hi', message: 42, path: '/sites', category: 'bug' })),
       400,
       'invalid_body',
     );
     expect(checkRateLimitMock).not.toHaveBeenCalled();
 
     await expectProblem(
-      await POST(buildRequest({ title: '   ', message: 'hi', path: '/sites', category: 'bug' })),
+      await POST(postJson(ROUTE, { title: '   ', message: 'hi', path: '/sites', category: 'bug' })),
       400,
       'title_empty',
       'title must not be empty',
     );
     await expectProblem(
-      await POST(buildRequest({ title: 'hi', message: '    ', path: '/sites', category: 'bug' })),
+      await POST(postJson(ROUTE, { title: 'hi', message: '    ', path: '/sites', category: 'bug' })),
       400,
       'message_empty',
       'message must not be empty',
     );
     await expectProblem(
       await POST(
-        buildRequest({ title: 'hi', message: 'hi', path: 'not-a-path', category: 'bug' }),
+        postJson(ROUTE, { title: 'hi', message: 'hi', path: 'not-a-path', category: 'bug' }),
       ),
       400,
       'path_invalid',
@@ -306,12 +283,13 @@ describe('POST /api/feedback', () => {
   });
 
   it('blocks cross-origin posts and maps unset token or Linear failure without telemetry', async () => {
-    const { POST } = await importRoute();
+    const { POST } = await import('./route');
     await expectProblem(
       await POST(
-        buildRequest(
+        postJson(
+          ROUTE,
           { title: 'hello', message: 'hello', path: '/sites', category: 'bug' },
-          'https://foreign.example',
+          { origin: 'https://foreign.example' },
         ),
       ),
       403,
@@ -326,7 +304,7 @@ describe('POST /api/feedback', () => {
     logUsageEventMock.mockClear();
     await expectProblem(
       await POST(
-        buildRequest({ title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
+        postJson(ROUTE, { title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
       ),
       502,
       'linear_failed',
@@ -339,7 +317,7 @@ describe('POST /api/feedback', () => {
     );
     await expectProblem(
       await POST(
-        buildRequest({ title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
+        postJson(ROUTE, { title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
       ),
       502,
       'linear_failed',
@@ -351,7 +329,7 @@ describe('POST /api/feedback', () => {
     fetchMock.mockClear();
     await expectProblem(
       await POST(
-        buildRequest({ title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
+        postJson(ROUTE, { title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
       ),
       503,
       'feedback_unconfigured',

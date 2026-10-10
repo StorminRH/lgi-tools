@@ -12,12 +12,6 @@ import {
 
 const echoSchema = z.object({ value: z.string() });
 
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-
 const problemResponseBody = (code = 'invalid_body', status = 400) =>
   problemBodySchema.parse({
     type: 'https://lgi.tools/problems/validation',
@@ -52,13 +46,13 @@ const emptyWireEndpoint = defineEndpoint({
 describe('decodeEndpointResponse', () => {
   it('returns the raw JSON body through the declared success arm', async () => {
     await expect(
-      decodeEndpointResponse(endpoint, jsonResponse({ value: 'ok', extra: 1 })),
+      decodeEndpointResponse(endpoint, Response.json({ value: 'ok', extra: 1 })),
     ).resolves.toEqual({ ok: true, status: 200, data: { value: 'ok', extra: 1 } });
   });
 
   it('returns a declared problem through its API arm', async () => {
     await expect(
-      decodeEndpointResponse(endpoint, jsonResponse(problemResponseBody(), 400)),
+      decodeEndpointResponse(endpoint, Response.json(problemResponseBody(), { status: 400 })),
     ).resolves.toMatchObject({
       ok: false,
       kind: 'api',
@@ -71,7 +65,7 @@ describe('decodeEndpointResponse', () => {
     await expect(
       decodeEndpointResponse(
         endpoint,
-        jsonResponse(problemResponseBody('anything_at_all', 409), 409),
+        Response.json(problemResponseBody('anything_at_all', 409), { status: 409 }),
       ),
     ).resolves.toMatchObject({ ok: false, kind: 'api', status: 409 });
   });
@@ -84,7 +78,7 @@ describe('decodeEndpointResponse', () => {
 
   it('rejects an undeclared status as protocol drift', async () => {
     await expect(
-      decodeEndpointResponse(endpoint, jsonResponse({ value: 'ok' }, 201)),
+      decodeEndpointResponse(endpoint, Response.json({ value: 'ok' }, { status: 201 })),
     ).resolves.toEqual({
       ok: false,
       kind: 'protocol',
@@ -106,7 +100,7 @@ describe('decodeEndpointResponse', () => {
 
   it('rejects a success body that fails its schema', async () => {
     await expect(
-      decodeEndpointResponse(endpoint, jsonResponse({ value: 123 })),
+      decodeEndpointResponse(endpoint, Response.json({ value: 123 })),
     ).resolves.toEqual({
       ok: false,
       kind: 'protocol',
@@ -134,7 +128,10 @@ describe('decodeEndpointResponse', () => {
 
   it('rejects a problem body whose status disagrees with the wire status', async () => {
     await expect(
-      decodeEndpointResponse(endpoint, jsonResponse(problemResponseBody('invalid_body', 409), 400)),
+      decodeEndpointResponse(
+        endpoint,
+        Response.json(problemResponseBody('invalid_body', 409), { status: 400 }),
+      ),
     ).resolves.toEqual({
       ok: false,
       kind: 'protocol',
@@ -145,7 +142,10 @@ describe('decodeEndpointResponse', () => {
 
   it('rejects a problem code outside the declared vocabulary', async () => {
     await expect(
-      decodeEndpointResponse(endpoint, jsonResponse(problemResponseBody('other_code'), 400)),
+      decodeEndpointResponse(
+        endpoint,
+        Response.json(problemResponseBody('other_code'), { status: 400 }),
+      ),
     ).resolves.toEqual({
       ok: false,
       kind: 'protocol',
@@ -155,7 +155,7 @@ describe('decodeEndpointResponse', () => {
   });
 
   it('returns a network arm when a body stream fails mid-read', async () => {
-    const response = jsonResponse({ value: 'ok' });
+    const response = Response.json({ value: 'ok' });
     vi.spyOn(response, 'json').mockRejectedValue(new TypeError('stream failed'));
 
     await expect(decodeEndpointResponse(endpoint, response)).resolves.toMatchObject({

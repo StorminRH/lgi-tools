@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { internal } from '../_generated/api';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
@@ -8,6 +8,7 @@ import schema from '../schema';
 
 import { modules } from '../__tests__/modules.setup';
 import { connectionInsert } from '../__tests__/connection-doc.setup';
+import { type Chain } from '../__tests__/convexTest.setup';
 
 const NOW = 1_800_000_000_000;
 const MAP_ID = 'map-cleanup';
@@ -25,7 +26,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-type Convex = TestConvex<typeof schema>;
 
 function liveSystem(systemId: number) {
   return { mapId: MAP_ID, systemId, deletedAt: null, purgeAfter: null };
@@ -64,11 +64,11 @@ function signatureRow(systemId: number, signatureId: string) {
   };
 }
 
-function purge(t: Convex) {
+function purge(t: Chain) {
   return t.mutation(internal.mapChainCleanup.purgeExpiredChainTombstones, {});
 }
 
-function get<T extends 'mapSystems' | 'mapConnections'>(t: Convex, id: import('../_generated/dataModel').Id<T>) {
+function get<T extends 'mapSystems' | 'mapConnections'>(t: Chain, id: import('../_generated/dataModel').Id<T>) {
   return t.run(async (ctx) => await ctx.db.get(id));
 }
 

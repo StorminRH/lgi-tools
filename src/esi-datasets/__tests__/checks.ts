@@ -21,16 +21,6 @@ export function isEsiMirrorTable(table: PgTable): boolean {
   );
 }
 
-export function findUnregisteredMirrors(
-  flagged: readonly string[],
-  claimed: ReadonlySet<string>,
-  infrastructure: ReadonlySet<string>,
-): string[] {
-  return flagged.filter(
-    (name) => !claimed.has(name) && !infrastructure.has(name),
-  );
-}
-
 function ruleFinding(
   entry: EsiDatasetEntry,
   rule: EsiGateRuleId,
