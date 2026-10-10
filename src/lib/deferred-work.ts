@@ -1,10 +1,15 @@
 /** Accepts a task to run after the response, or returns false to make the caller run it now. */
 export type WorkDeferrer = (task: () => Promise<void>) => boolean;
 
-let deferrer: WorkDeferrer | null = null;
+/**
+ * Next compiles instrumentation and route code as separate copies of this
+ * module, so a module-level variable set in `register()` would never reach a
+ * route. The deferrer lives on `globalThis`, which every copy shares.
+ */
+const slot = globalThis as typeof globalThis & { __lgiWorkDeferrer?: WorkDeferrer | null };
 
 export function setWorkDeferrer(next: WorkDeferrer | null): void {
-  deferrer = next;
+  slot.__lgiWorkDeferrer = next;
 }
 
 /**
@@ -13,6 +18,6 @@ export function setWorkDeferrer(next: WorkDeferrer | null): void {
  * tests, or outside a request scope.
  */
 export async function deferWork(task: () => Promise<void>): Promise<void> {
-  if (deferrer?.(task) === true) return;
+  if (slot.__lgiWorkDeferrer?.(task) === true) return;
   await task();
 }

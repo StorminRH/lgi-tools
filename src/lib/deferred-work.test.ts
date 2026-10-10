@@ -34,4 +34,20 @@ describe('deferWork', () => {
 
     expect(task).toHaveBeenCalledOnce();
   });
+
+  it('reaches a separately loaded copy of the module, as Next loads one per layer', async () => {
+    const deferred: (() => Promise<void>)[] = [];
+    setWorkDeferrer((next) => {
+      deferred.push(next);
+      return true;
+    });
+    vi.resetModules();
+    const routeCopy = await import('./deferred-work');
+    const task = vi.fn(async () => {});
+
+    await routeCopy.deferWork(task);
+
+    expect(task).not.toHaveBeenCalled();
+    expect(deferred).toEqual([task]);
+  });
 });
