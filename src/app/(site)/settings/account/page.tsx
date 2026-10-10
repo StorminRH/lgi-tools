@@ -7,6 +7,7 @@ import { AccountDangerZone } from '@/components/composition/account/AccountDange
 import { Pill } from '@/components/ui/pill';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton } from '@/components/ui/skeleton';
+import { inlineLink } from '@/components/ui/text-link';
 import { getFullSession } from '@/composition/session';
 import { formatIsoDay } from '@/lib/format/time';
 import { getActiveSessionCount } from '@/platform/auth/admin-users';
@@ -48,7 +49,7 @@ async function AccountContent() {
         </OverviewRow>
         <OverviewRow label="Linked characters">
           <span className="font-data">{characters.length}</span>
-          <Link href="/settings/characters" className="text-tone-blue hover:underline">
+          <Link href="/settings/characters" className={inlineLink}>
             Manage →
           </Link>
         </OverviewRow>

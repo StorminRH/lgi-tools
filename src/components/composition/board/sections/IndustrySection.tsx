@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import type { BoardIndustryData, BoardSection } from '@/composition/board/api-contract';
 import { Pill } from '@/components/ui/pill';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
+import { CardLink } from '@/components/ui/text-link';
 import { SectionBody } from '../SectionBody';
 
 export function IndustrySection({
@@ -16,11 +16,7 @@ export function IndustrySection({
     <SectionPanel
       title="Industry"
       className={className}
-      meta={
-        <Link href="/industry/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
-          Open jobs →
-        </Link>
-      }
+      meta={<CardLink href="/industry/jobs">Open jobs</CardLink>}
     >
       <SectionBody section={section}>
         {(industry) => (

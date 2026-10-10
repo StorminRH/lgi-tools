@@ -6,6 +6,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Prose } from '@/components/ui/prose';
 import { SectionLabel } from '@/components/ui/section-label';
+import { ExternalLink } from '@/components/ui/text-link';
 import { eyebrow } from '@/components/ui/type-roles';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { buildPageMetadata } from '@/lib/page-metadata';
@@ -16,14 +17,6 @@ export const metadata = buildPageMetadata({
     'How LGI.tools handles site usage data and the EVE character data you grant through EVE SSO.',
   canonical: '/legal',
 });
-
-function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  );
-}
 
 function LegalCard({
   title,

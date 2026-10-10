@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
+import { CardLink } from '@/components/ui/text-link';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import type {
   CapabilityFailureDetail,
@@ -14,7 +15,6 @@ import { trendSeries } from '@/composition/admin-period';
 import { formatPct, formatQuantity } from '@/lib/format/number';
 import { isoDay } from '@/lib/iso-date';
 import { zeroFillDaily } from '../aggregate';
-import { CardLink } from '../CardLink';
 import { AdminTrendChart } from '../charts';
 import { SECTION_LOAD_FAILED } from '../load-section';
 import { deriveDeadLetterView } from '../ops-view';

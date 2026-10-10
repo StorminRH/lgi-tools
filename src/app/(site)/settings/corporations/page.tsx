@@ -6,6 +6,7 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton } from '@/components/ui/skeleton';
+import { inlineLink } from '@/components/ui/text-link';
 import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { formatCount } from '@/lib/format/number';
@@ -59,7 +60,7 @@ function MembershipsCard({ view }: { view: CorporationsView }) {
       )}
       <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
         Manage stations and taxes on{' '}
-        <Link href="/structures" className="text-tone-blue hover:underline">
+        <Link href="/structures" className={inlineLink}>
           Structures
         </Link>
         .

@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { HelpPopover } from '@/components/ui/help-popover';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SectionPanel } from '@/components/ui/section-panel';
+import { inlineLink } from '@/components/ui/text-link';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import {
@@ -48,7 +49,7 @@ export function AccountDangerZone({
           </PopoverRow>
           <PopoverRow layout="description" label="Unlink">
             detaches the character from your account. Unlink characters on{' '}
-            <Link href="/settings/characters" className="text-tone-blue hover:underline">
+            <Link href="/settings/characters" className={inlineLink}>
               Settings → Characters
             </Link>
             . You can link them again later.

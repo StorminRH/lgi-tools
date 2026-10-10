@@ -36,6 +36,8 @@ const VIEW_OPTIONS = [
   { value: 'cards', label: 'Cards' },
   { value: 'table', label: 'Table' },
 ] as const;
+// The quiet link-style button that clears every filter.
+const RESET_FILTERS_CLASS = 'text-ui text-faint underline underline-offset-3 hover:text-isk';
 
 export interface SiteFilterMeta {
   id: number;
@@ -145,7 +147,7 @@ export function SitesFilterLayout({
                 </ChipToggleGroup>
               </div>
 
-              <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
+              <Button variant="bare" type="button" className={RESET_FILTERS_CLASS} onClick={reset}>
                 reset filters
               </Button>
             </div>
@@ -210,7 +212,7 @@ export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: R
           <Button
             variant="bare"
             type="button"
-            className="text-ui text-faint underline underline-offset-3 hover:text-isk"
+            className={RESET_FILTERS_CLASS}
             onClick={reset}
           >
             reset filters

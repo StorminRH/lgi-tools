@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
+import { CardLink } from '@/components/ui/text-link';
 import { getSystemStatics } from '@/data/wh-statics/queries';
 import { deriveActionRows, type AdminActionRow, type StaticsVersions } from './actions-view';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
@@ -40,9 +41,7 @@ function ReferenceTile() {
       <span className="font-ui text-ui text-text">UI reference</span>
       <span className="mt-auto flex flex-wrap gap-x-3 gap-y-1 font-ui text-label">
         {REFERENCE_LINKS.map((link) => (
-          <Link key={link.href} href={link.href} className="text-isk no-underline transition-colors hover:text-name">
-            {link.label} ↗
-          </Link>
+          <CardLink key={link.href} href={link.href} arrow="↗">{link.label}</CardLink>
         ))}
       </span>
     </li>

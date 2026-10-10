@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
+import { CardLink } from '@/components/ui/text-link';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { FlowLine } from './board-bits';
@@ -94,9 +94,7 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
           {totals !== null && totals.covered !== totals.total ? (
             <span>{totals.covered} of {totals.total}</span>
           ) : null}
-          <Link href="/industry/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
-            Open jobs →
-          </Link>
+          <CardLink href="/industry/jobs">Open jobs</CardLink>
         </span>
       }
     >

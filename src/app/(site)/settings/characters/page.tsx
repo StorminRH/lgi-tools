@@ -7,6 +7,7 @@ import { Callout } from '@/components/ui/callout';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
+import { ExternalLink, inlineLink } from '@/components/ui/text-link';
 import { getFullSession } from '@/composition/session';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
@@ -157,19 +158,14 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
         </div>
         <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
           Manage EVE access:{' '}
-          <a
-            href={EVE_AUTHORIZED_APPS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-tone-blue hover:underline"
-          >
+          <ExternalLink href={EVE_AUTHORIZED_APPS_URL} className={inlineLink}>
             EVE authorized apps
-          </a> ·{' '}
-          <Link href="/legal" className="text-tone-blue hover:underline">
+          </ExternalLink> ·{' '}
+          <Link href="/legal" className={inlineLink}>
             Data policy
           </Link>
           {' '}·{' '}
-          <Link href="/settings/account" className="text-tone-blue hover:underline">
+          <Link href="/settings/account" className={inlineLink}>
             Purge data
           </Link>
           .
