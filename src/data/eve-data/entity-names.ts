@@ -5,7 +5,7 @@ import {
   type EntityNameRow,
   type StoredEntityName,
 } from './entity-names-store';
-import { postUniverseNames } from './universe-names';
+import { postUniverseNames, type UniverseNameRow } from './universe-names';
 
 /** How long a stored name is reused before ESI is asked again; pilots and corporations can be renamed. */
 const FOUND_NAME_REUSE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -92,40 +92,54 @@ async function resolveOneByOne(ids: readonly number[], into: EsiNames): Promise<
   });
 }
 
+/** Files a successful batch answer: every asked id either came back named or is left for next time. */
+function absorbBatch(chunk: readonly number[], data: readonly UniverseNameRow[], into: EsiNames): void {
+  const byId = new Map(data.filter((row) => row.name.length > 0).map((row) => [row.id, row]));
+  for (const id of chunk) {
+    const row = byId.get(id);
+    if (row !== undefined) {
+      into.found.push({ id, name: row.name, category: row.category });
+    } else {
+      into.unresolved.push(id);
+      into.failure ??= new Error(`EVE entity name missing for ${id}`);
+    }
+  }
+}
+
+/** Asks ESI for one batch; returns how many one-at-a-time retries it spent. */
+async function askChunk(chunk: readonly number[], fallbackLeft: number, into: EsiNames): Promise<number> {
+  let posted: Awaited<ReturnType<typeof postUniverseNames>>;
+  try {
+    posted = await postUniverseNames(chunk);
+  } catch (err) {
+    into.unresolved.push(...chunk);
+    into.failure ??= err;
+    return 0;
+  }
+  if (posted.ok) {
+    absorbBatch(chunk, posted.data, into);
+    return 0;
+  }
+  if (posted.status !== 404) {
+    into.unresolved.push(...chunk);
+    into.failure ??= requestFailure(posted.status);
+    return 0;
+  }
+  if (chunk.length === 1) {
+    into.missing.push(chunk[0]!);
+    return 0;
+  }
+  const retry = chunk.slice(0, fallbackLeft);
+  into.unresolved.push(...chunk.slice(retry.length));
+  await resolveOneByOne(retry, into);
+  return retry.length;
+}
+
 async function askEsi(ids: readonly number[]): Promise<EsiNames> {
   const result: EsiNames = { found: [], missing: [], unresolved: [], failure: null };
   let fallbackLeft = PER_ID_FALLBACK_LIMIT;
   for (let i = 0; i < ids.length; i += NAMES_PER_POST) {
-    const chunk = ids.slice(i, i + NAMES_PER_POST);
-    let posted: Awaited<ReturnType<typeof postUniverseNames>>;
-    try {
-      posted = await postUniverseNames(chunk);
-    } catch (err) {
-      result.unresolved.push(...chunk);
-      result.failure ??= err;
-      continue;
-    }
-    if (posted.ok) {
-      const byId = new Map(posted.data.filter((row) => row.name.length > 0).map((row) => [row.id, row]));
-      for (const id of chunk) {
-        const row = byId.get(id);
-        if (row !== undefined) result.found.push({ id, name: row.name, category: row.category });
-        else {
-          result.unresolved.push(id);
-          result.failure ??= new Error(`EVE entity name missing for ${id}`);
-        }
-      }
-    } else if (posted.status === 404 && chunk.length === 1) {
-      result.missing.push(chunk[0]!);
-    } else if (posted.status === 404) {
-      const retry = chunk.slice(0, fallbackLeft);
-      fallbackLeft -= retry.length;
-      result.unresolved.push(...chunk.slice(retry.length));
-      await resolveOneByOne(retry, result);
-    } else {
-      result.unresolved.push(...chunk);
-      result.failure ??= requestFailure(posted.status);
-    }
+    fallbackLeft -= await askChunk(ids.slice(i, i + NAMES_PER_POST), fallbackLeft, result);
   }
   return result;
 }
