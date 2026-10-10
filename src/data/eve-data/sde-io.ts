@@ -1,6 +1,7 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { PgInsertValue, PgTable } from 'drizzle-orm/pg-core';
+import { chunk } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 
 const INSERT_BATCH = 1000;
@@ -29,7 +30,7 @@ export async function insertChunked<T extends Record<string, unknown>>(
   table: PgTable,
   rows: T[],
 ): Promise<void> {
-  for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-    await tx.insert(table).values(rows.slice(i, i + INSERT_BATCH) as PgInsertValue<PgTable>[]);
+  for (const batch of chunk(rows, INSERT_BATCH)) {
+    await tx.insert(table).values(batch as PgInsertValue<PgTable>[]);
   }
 }

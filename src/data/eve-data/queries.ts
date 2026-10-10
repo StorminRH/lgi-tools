@@ -104,6 +104,11 @@ export async function getTypeNames(ids: number[]): Promise<Map<number, string>> 
   return out;
 }
 
+/** Names of the distinct `ids` keyed by decimal id, the wire shape of a names response; unknown ids are absent. */
+export async function getTypeNameRecord(ids: Iterable<number>): Promise<Record<string, string>> {
+  return Object.fromEntries(await getTypeNames([...new Set(ids)]));
+}
+
 export type TypeLabel = { name: string; groupId: number; groupName: string; categoryId: number; categoryName: string };
 
 export async function getTypeLabels(ids: number[]): Promise<Map<number, TypeLabel>> {

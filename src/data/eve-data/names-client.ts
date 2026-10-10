@@ -1,4 +1,4 @@
-import { sortedUniqueIds } from '@/lib/array';
+import { chunk, sortedUniqueIds } from '@/lib/array';
 import { apiFetch } from '@/transport/api-client';
 import type { entityNamesEndpoint, typeNamesEndpoint } from './api-contract';
 
@@ -27,8 +27,7 @@ export function createNamesClient(
     if (unique.length === 0) return {};
     if (!policy.cache) return request(unique);
     const missing = unique.filter((id) => !namesById.has(id));
-    for (let start = 0; start < missing.length; start += policy.maxIds) {
-      const batch = missing.slice(start, start + policy.maxIds);
+    for (const batch of chunk(missing, policy.maxIds)) {
       const pending = request(batch);
       for (const id of batch) {
         namesById.set(id, pending.then((names) => names[String(id)]).catch((error: unknown) => {

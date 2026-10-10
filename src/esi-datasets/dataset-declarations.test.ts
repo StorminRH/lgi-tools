@@ -289,7 +289,6 @@ const KNOWN_CROSS_OWNER_WRITES = [
   'src/composition/account-lifecycle/account-purge.ts::account',
   'src/composition/account-lifecycle/owner-transfer.ts::account',
   'src/composition/pipelines/esi-snapshot-retention.ts::esi_snapshots',
-  'src/composition/pipelines/sde-pipeline.ts::market_prices',
 ];
 const MINIMUM_DETECTED_WRITE_SITES = 70;
 

@@ -374,13 +374,6 @@ export const DATA_OWNERSHIP = [
     table: schema.marketPrices,
     owner: 'data/market-prices',
     reads: 'open',
-    writers: [
-      {
-        by: 'composition/pipelines',
-        reason:
-          'The SDE pipeline seeds a price row per newly imported type so the planner has a baseline before the first market refresh; a cross-slice pipeline may not live inside either slice.',
-      },
-    ],
     invariants: ['pk(type_id)'],
     boundary: KEYED_UPSERT,
     dataClass: 'global-reference',
