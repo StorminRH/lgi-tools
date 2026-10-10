@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { DistributionBars } from '@/components/ui/distribution-bars';
+import { StatFigure } from '@/components/ui/stat-figure';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
-import { FlowLine, StatFigure } from './board-bits';
+import { FlowLine } from './board-bits';
 import {
   accountWorthSeries,
   combinedFlow,
@@ -103,9 +104,11 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
       ) : (
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 px-3.5 py-3">
           <dl className="grid grid-cols-3 gap-x-8">
-            <StatFigure label="Active" value={totals.active} />
-            <StatFigure label="Ready" value={totals.ready} tone={totals.ready > 0 ? 'text-isk' : 'text-name'} />
-            <StatFigure label="Slots" value={`${totals.used}/${totals.max}`} />
+            <StatFigure label="Active">{totals.active}</StatFigure>
+            <StatFigure label="Ready" tone={totals.ready > 0 ? 'text-isk' : 'text-name'}>
+              {totals.ready}
+            </StatFigure>
+            <StatFigure label="Slots">{`${totals.used}/${totals.max}`}</StatFigure>
           </dl>
           {totals.readyPilots.length > 0 ? (
             <span className="min-w-0 truncate text-ui text-isk">Ready: {totals.readyPilots.join(', ')}</span>

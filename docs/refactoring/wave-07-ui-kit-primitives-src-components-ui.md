@@ -19,7 +19,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P018](#p018) | Make Skeleton decorative unless labelled, and add a SkeletonGroup status region for composite fallbacks | ui-component | S | low | medium | — |
 | ☑ | [P020](#p020) | Render SegmentedControl's link mode with next/link and drop Pagination's unused href mode | ui-component | S | low | low | — |
 | ☑ | [P007](#p007) | Promote KpiHelp to ui/help-popover.tsx as HelpPopover and replace NetWorthHelp and the AccountDangerZone (?) trigger | ui-component | S | low | medium | — |
-| ☐ | [P016](#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
+| ☑ | [P016](#p016) | Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it | ui-component | S | low | low | — |
 | ☐ | [P002](#p002) | Promote board SectionPanel to ui and use it for the 40 hand-built Card + SectionHeader cards | ui-component | M | low | medium | — |
 | ☐ | [P017](#p017) | Expose SectionBody's note as SectionNote for board and workspace panels, and use EmptyState and LoadingLabel where they are bypassed | ui-component | S | low | medium | [P002](#p002) |
 | ☐ | [P034](#p034) | Move CardLink to ui, add ui ExternalLink and an inlineLink class, and make MultiplesCell children optional | ui-component | M | low | medium | — |
@@ -894,7 +894,7 @@ export function HelpPopover({ label, attention = false, keepSide, className, chi
 
 ## P016: Move StatFigure to ui and replace ComponentDrawer's private Stat and AttributesSection's inline copy with it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +22 (plus about -20 more if the KpiTile fold in step 5 is done)
 - **Depends on:** —

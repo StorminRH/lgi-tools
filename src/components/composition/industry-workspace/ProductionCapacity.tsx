@@ -1,7 +1,7 @@
 'use client';
 
 import { EveImage } from '@/components/eve-image';
-import { StatFigure } from '../board/board-bits';
+import { StatFigure } from '@/components/ui/stat-figure';
 import { SectionPanel } from '../board/SectionBody';
 import {
   type MemberCapacity,
@@ -31,23 +31,19 @@ export function ProductionCapacity({
       ) : (
         <dl aria-label="Production capacity" className="grid gap-x-8 gap-y-3 px-3.5 py-3 sm:grid-cols-3">
           {SLOT_POOLS.map((pool) => (
-            <StatFigure
-              key={pool}
-              label={SLOT_POOL_LABELS[pool]}
-              value={
-                <span className="flex items-center gap-2">
-                  <EveImage
-                    source="static"
-                    src={`/icons/ccp/industry-${pool}.png`}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className="size-6 shrink-0 object-contain"
-                  />
-                  <span>{poolFigure(pools[pool])}</span>
-                </span>
-              }
-            />
+            <StatFigure key={pool} label={SLOT_POOL_LABELS[pool]}>
+              <span className="flex items-center gap-2">
+                <EveImage
+                  source="static"
+                  src={`/icons/ccp/industry-${pool}.png`}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="size-6 shrink-0 object-contain"
+                />
+                <span>{poolFigure(pools[pool])}</span>
+              </span>
+            </StatFigure>
           ))}
         </dl>
       )}

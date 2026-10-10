@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
+import { cn } from '@/components/ui/cn';
+import { StatFigure } from '@/components/ui/stat-figure';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
 import { effectiveSkills, placeName } from '../board-view-model';
-import { KpiTile, SystemName } from '../board-bits';
+import { SystemName } from '../board-bits';
+import { readoutSurface } from '../SectionBody';
 import { CharacterIdentity } from './CharacterIdentity';
 import { IndustrySection } from './IndustrySection';
 
@@ -60,6 +63,9 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** A stat readout on its own glass tile. */
+const kpiTile = cn(readoutSurface, 'gap-1 px-3 py-2.5 sm:px-3.5');
+
 function Kpis({ character, now }: { character: BoardCharacter; now: number }) {
   const wallet = character.wallet.state === 'ready' ? character.wallet.data : null;
   const skills = character.skills.state === 'ready' ? character.skills.data : null;
@@ -69,20 +75,26 @@ function Kpis({ character, now }: { character: BoardCharacter; now: number }) {
     <div className="flex flex-col gap-2">
       {wallet !== null && (
         <dl>
-          <KpiTile label="Wallet" tone="text-isk">
+          <StatFigure label="Wallet" tone="text-isk" size="lg" className={kpiTile}>
             {formatIsk(wallet.balance)} <span className="text-micro text-muted sm:text-ui">ISK</span>
-          </KpiTile>
+          </StatFigure>
         </dl>
       )}
       <IndustrySection section={character.industry} />
       {skills !== null && (
         <dl className="grid grid-cols-2 gap-2 xl:grid-cols-1">
-          <KpiTile label="Skill points" note={free > 0 ? `+${formatCompactQuantity(free)} free` : undefined}>
+          <StatFigure
+            label="Skill points"
+            size="lg"
+            note={free > 0 ? `+${formatCompactQuantity(free)} free` : undefined}
+            noteTone="text-isk"
+            className={kpiTile}
+          >
             {formatCompactQuantity(skills.totalSp)}
-          </KpiTile>
-          <KpiTile label="Skills" note={`${formatQuantity(counts?.atV ?? 0)} at V`} noteTone="text-muted">
+          </StatFigure>
+          <StatFigure label="Skills" size="lg" note={`${formatQuantity(counts?.atV ?? 0)} at V`} className={kpiTile}>
             {formatQuantity(counts?.known ?? 0)}
-          </KpiTile>
+          </StatFigure>
         </dl>
       )}
     </div>

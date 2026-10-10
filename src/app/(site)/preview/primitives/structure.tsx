@@ -1,7 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, cardSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Measured } from '@/components/ui/measured';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
@@ -13,10 +14,13 @@ import { SectionFooter } from '@/components/ui/section-footer';
 import { QuietSectionHead, SectionHead } from '@/components/ui/section-head';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SectionLabel } from '@/components/ui/section-label';
+import { StatFigure } from '@/components/ui/stat-figure';
 import { UrlSync } from '@/components/ui/url-sync';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 const RESOURCE_COLS = 'grid-cols-[minmax(0,1fr)_auto_auto]';
+
+const STAT_TILE = cn(cardSurface, 'gap-1 px-3 py-2.5');
 
 const MULTIPLES = [
   { title: 'Jobs running', value: '14', note: 'of 20 slots' },
@@ -223,6 +227,36 @@ export function StructureGroup() {
             <Measured>
               {(width) => <span className="font-data text-ui text-isk">This slot is {width}px wide</span>}
             </Measured>
+          </Variant>
+        </div>
+      </Specimen>
+
+      <Specimen
+        name="StatFigure"
+        source="stat-figure"
+        note="A small labelled figure: an eyebrow term over a tabular value, rendered as a term and description inside a dl. The value takes a tone; the lg size and a note line suit a figure that stands as its own tile."
+      >
+        <div className="flex flex-col gap-4">
+          <dl className="grid grid-cols-3 gap-3">
+            <StatFigure label="Active">14</StatFigure>
+            <StatFigure label="Ready" tone="text-isk">3</StatFigure>
+            <StatFigure label="Slots">17/20</StatFigure>
+          </dl>
+          <Variant label="tile · lg with a note">
+            <dl className="grid grid-cols-2 gap-2">
+              <StatFigure
+                label="Skill points"
+                size="lg"
+                note="+1.2M free"
+                noteTone="text-isk"
+                className={STAT_TILE}
+              >
+                48.6M
+              </StatFigure>
+              <StatFigure label="Skills" size="lg" note="212 at V" className={STAT_TILE}>
+                431
+              </StatFigure>
+            </dl>
           </Variant>
         </div>
       </Specimen>
