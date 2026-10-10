@@ -2,12 +2,12 @@ import { and, asc, isNull, sql, type SQL } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { account, characters } from '@/db/auth-schema';
 import { db, directClient } from '@/db';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapRole } from './access-contract';
 import {
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   userBlockedFromMap,
   type PendingMapAccessChange,
 } from './authorization-sql';
@@ -129,7 +129,7 @@ export async function stampCharacterScoped(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH target AS (
       SELECT ${maps.id} AS id FROM ${maps}
       WHERE ${maps.id} = ${mapId} AND ${maps.tombstonedAt} IS NULL

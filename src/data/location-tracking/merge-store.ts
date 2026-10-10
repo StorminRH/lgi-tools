@@ -1,6 +1,7 @@
 import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import { pendingTrackingMerges, type TrackingSelection } from './schema';
 import { MERGE_RECEIPT_BATCH_SIZE } from './constants';
@@ -27,14 +28,13 @@ export async function readPendingTrackingMerges(userId?: string) {
 }
 
 export async function readPendingMapTrackingTransfers(mapId: string, database: AnyPgDb = db) {
-  const result = await database.execute<{ userId: string; characterId: number | string }>(sql`
+  const rows = await executeRows<{ userId: string; characterId: number | string }>(database, sql`
     SELECT DISTINCT pending.user_id AS "userId", (selection->>'characterId')::bigint AS "characterId"
     FROM ${pendingTrackingMerges} AS pending
     CROSS JOIN LATERAL jsonb_array_elements(pending.selections) AS selection
     WHERE selection->>'mapId' = ${mapId}
     ORDER BY "userId", "characterId"
   `);
-  const rows: { userId: string; characterId: number | string }[] = Array.isArray(result) ? result : result.rows;
   return rows.map(({ userId, characterId }) => ({ userId, characterId: Number(characterId) }));
 }
 

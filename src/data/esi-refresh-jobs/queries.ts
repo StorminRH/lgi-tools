@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizz
 import { db } from '@/db';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import {
   ESI_DEAD_LETTER_RETENTION_DAYS,
@@ -248,7 +249,7 @@ export async function requeueDeadLetteredJob(
 ): Promise<RequeueDeadLetterOutcome> {
   try {
     const nowIso = now.toISOString();
-    const result = await db.execute<{ outcome: RequeueDeadLetterOutcome['outcome'] }>(sql`
+    const [row] = await executeRows<{ outcome: RequeueDeadLetterOutcome['outcome'] }>(db, sql`
       with target as (
         select status, idempotency_key
         from ${esiRefreshJobs}
@@ -282,9 +283,7 @@ export async function requeueDeadLetteredJob(
       where not exists (select 1 from updated)
       limit 1
     `);
-    const rows = Array.isArray(result) ? result : result.rows;
-    const outcome = rows[0]?.outcome ?? 'not_found';
-    return { outcome };
+    return { outcome: row?.outcome ?? 'not_found' };
   } catch (error) {
     if (isUniqueViolation(error)) return { outcome: 'superseded' };
     throw error;

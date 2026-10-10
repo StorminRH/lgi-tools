@@ -341,11 +341,11 @@ async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   return hashResolverInputs(all);
 }
 
-async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
-  const [{ exists }] = await db.execute<{ exists: boolean }>(
+async function hasResolvedTrees(db: PostgresJsDb): Promise<boolean> {
+  const [row] = await db.execute<{ exists: boolean }>(
     sql`SELECT EXISTS (SELECT 1 FROM ${blueprintTrees}) AS exists`,
   );
-  return exists;
+  return row?.exists ?? false;
 }
 
 export type FlatMaterialRow = {

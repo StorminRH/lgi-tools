@@ -1,13 +1,13 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account } from '@/db/auth-schema';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapPrincipals } from './access';
 import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   type PendingMapAccessChange,
 } from './authorization-sql';
 import { mapBlockAccounts, mapBlocks, maps } from './schema';
@@ -54,7 +54,7 @@ export async function blockAuthorizedMapCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<MapBlockAttempt | null> {
-  const [row] = await mapAuthorizationRows<{
+  const [row] = await executeRows<{
     creatorUserId: string;
     holderUserId: string | null;
     mapId: string | null;
@@ -109,7 +109,7 @@ export async function unblockAuthorizedMapCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
       ${activeAdminMaps(userId, principals, [mapId])}
     ), removed AS (
@@ -131,7 +131,7 @@ export async function getAuthorizedMapBlocksForMaps(
 ): Promise<MapBlockRow[]> {
   const uniqueMapIds = [...new Set(mapIds)];
   if (uniqueMapIds.length === 0) return [];
-  const rows = await mapAuthorizationRows<{ mapId: string; characterId: number | string }>(database, sql`
+  const rows = await executeRows<{ mapId: string; characterId: number | string }>(database, sql`
     SELECT block.map_id AS "mapId", block.character_id AS "characterId"
     FROM ${mapBlocks} AS block
     WHERE block.map_id IN (${activeAdminMaps(userId, principals, uniqueMapIds)})
@@ -145,7 +145,7 @@ export async function getBlockedMapUserIds(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<string[]> {
-  const rows = await mapAuthorizationRows<{ userId: string }>(database, sql`
+  const rows = await executeRows<{ userId: string }>(database, sql`
     SELECT holder.user_id AS "userId"
     FROM ${mapBlocks} AS block
     INNER JOIN ${mapBlockAccounts} AS holder ON holder.block_id = block.id

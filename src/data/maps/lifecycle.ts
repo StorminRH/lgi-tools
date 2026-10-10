@@ -11,12 +11,12 @@ import {
   sql,
 } from 'drizzle-orm';
 import { db } from '@/db';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   type PendingMapAccessChange,
 } from './authorization-sql';
 import {
@@ -45,7 +45,7 @@ export async function archiveAuthorizedMap(
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
   const nowIso = now.toISOString();
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,
@@ -80,7 +80,7 @@ export async function restoreAuthorizedMap(
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const cutoffIso = cutoff.toISOString();
   const nowIso = now.toISOString();
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,

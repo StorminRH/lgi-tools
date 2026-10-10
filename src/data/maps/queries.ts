@@ -17,6 +17,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { db, directClient } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { groupBy, sortedUniqueIds } from '@/lib/array';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import {
@@ -36,7 +37,6 @@ import {
 import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   recordBlockedCharacterHolders,
   userBlockedFromMap,
   type PendingMapAccessChange,
@@ -52,7 +52,7 @@ export async function reserveMapAccessProjectionRevision(
   database: AnyPgDb = db,
 ): Promise<number> {
   // public. pins the production sequence; disposable-schema harnesses steer via search_path elsewhere.
-  const [row] = await mapAuthorizationRows<{ revision: string | number }>(database, sql`
+  const [row] = await executeRows<{ revision: string | number }>(database, sql`
     SELECT nextval(
       ${`public.${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}`}::regclass
     )::text AS revision
@@ -451,7 +451,7 @@ export async function getAuthorizedMapGrantsForMaps(
 ): Promise<MapGrantRow[]> {
   const uniqueMapIds = [...new Set(mapIds)];
   if (uniqueMapIds.length === 0) return [];
-  const rows = await mapAuthorizationRows<{
+  const rows = await executeRows<{
     mapId: string;
     ownerType: MapAccessOwnerType;
     ownerId: number | string;
@@ -543,7 +543,7 @@ async function writeAuthorizedGrantChange(
       AND ${mapAccess.ownerId} = ${change.principal.ownerId}
       AND ${keepsCreatorsLastCharacter(mapId)}
   `;
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
       ${activeMapAdminSelection(userId, principals, mapId)}
     ), changed AS (${mutation})
@@ -590,7 +590,7 @@ export async function isCreatorsLastCharacterGrant(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<boolean> {
-  const rows = await mapAuthorizationRows<{ ownerId: number | string }>(database, sql`
+  const rows = await executeRows<{ ownerId: number | string }>(database, sql`
     WITH authorized_map AS (
       ${activeMapAdminSelection(userId, principals, mapId)}
     )
@@ -673,7 +673,7 @@ export async function getGrantedMapIdsForCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<string[]> {
-  const rows = await mapAuthorizationRows<{ id: string }>(database, grantedMapIdsSelection(characterId));
+  const rows = await executeRows<{ id: string }>(database, grantedMapIdsSelection(characterId));
   return rows.map((row) => row.id);
 }
 
@@ -681,7 +681,7 @@ export async function enqueueAffectedMapAccessChanges(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange[]> {
-  return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  return executeRows<PendingMapAccessChange>(database, sql`
     WITH recorded AS (
       ${recordBlockedCharacterHolders(characterId)}
     ), affected AS (
@@ -705,7 +705,7 @@ export async function enqueueMergeReprojection(
     `,
     ...args.movedCharacterIds.map((characterId) => affectedMapIdsSelection(characterId)),
   ];
-  return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  return executeRows<PendingMapAccessChange>(database, sql`
     WITH affected AS (
       ${sql.join(selections, sql` UNION `)}
     )
