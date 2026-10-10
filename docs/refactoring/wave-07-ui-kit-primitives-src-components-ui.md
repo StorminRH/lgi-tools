@@ -27,7 +27,7 @@ Simplify, then complete, the ui kit. P319 removes single-value tone variants fir
 | ☑ | [P023](#p023) | Extract SwitcherMenu and a shared float icon trigger for the profile and map switchers | ui-component | S | low | low | — |
 | ☑ | [P057](#p057) | Move the document-wide view-transition reduced-motion rule to globals.css and share the board/industry view-transition fade keyframes | css-styling | S | low | low | — |
 | ☑ | [P039](#p039) | Standardise search-field picks on Base UI's item-press change with one ui helper, and drop the redundant input attributes | ui-component | M | medium | medium | — |
-| ☐ | [P123](#p123) | Route tool-nav activation and page-settings resolution through sectionMatches | generic-utility | S | low | low | — |
+| ☑ | [P123](#p123) | Route tool-nav activation and page-settings resolution through sectionMatches | generic-utility | S | low | low | — |
 | ☐ | [P320](#p320) | Use lib/section-path for every route-segment match, add a longest-match helper, and merge the telemetry payload helper into the client | simplification | S | low | medium | [P123](#p123), [P066](wave-03-src-lib-primitives-collections-math-async.md#p066) |
 | ☐ | [P024](#p024) | Add NavRailLayout beside NavRailFrame and one longest-prefix matchSection in lib/section-path | ui-component | S | low | low | [P123](#p123) |
 | ☐ | [P013](#p013) | Extract PreferenceControl, the MenuControlModel-bound control, and use it in the settings page and the page menu | ui-component | S | low | medium | [P128](wave-03-src-lib-primitives-collections-math-async.md#p128) |
@@ -1544,7 +1544,7 @@ The Base UI behaviour was read from node_modules/@base-ui/react@1.7.0. Re-check 
 
 ## P123: Route tool-nav activation and page-settings resolution through sectionMatches
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About 15 lines removed and 12 added (plus a new test file)
 - **Depends on:** —

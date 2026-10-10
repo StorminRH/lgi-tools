@@ -1,3 +1,5 @@
+import { sectionMatches } from '@/lib/section-path';
+
 export type Tool = {
   label: string;
   abbr: string;
@@ -57,7 +59,7 @@ export function visibleNavTools(): Tool[] {
 
 export function isToolActive(tool: Tool, pathname: string | null): boolean {
   if (pathname == null || !tool.matchPrefix) return false;
-  return [tool.matchPrefix, ...(tool.alsoMatches ?? [])].some((prefix) => pathname.startsWith(prefix));
+  return [tool.matchPrefix, ...(tool.alsoMatches ?? [])].some((prefix) => sectionMatches(pathname, prefix));
 }
 
 export type NavToolItem =
