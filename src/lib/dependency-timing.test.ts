@@ -19,8 +19,8 @@ describe('dependency timing', () => {
     addDependencyTiming('redis', 3);
 
     expect(sink.mock.calls).toEqual([
-      ['neon', 12],
-      ['redis', 3],
+      ['neon', 12, undefined],
+      ['redis', 3, undefined],
     ]);
   });
 
@@ -33,7 +33,7 @@ describe('dependency timing', () => {
     addDependencyTiming('esi', 40);
 
     expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledWith('esi', 40);
+    expect(second).toHaveBeenCalledWith('esi', 40, undefined);
   });
 
   it('passes a call status through to the sink', () => {
