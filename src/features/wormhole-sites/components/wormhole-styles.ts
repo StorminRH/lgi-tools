@@ -27,14 +27,6 @@ export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   data:   'blue',
 };
 
-export const SITE_TYPE_CHIP_TONE: Record<SiteType, ChipTone> = {
-  combat: 'red',
-  ore: 'orange',
-  gas: 'green',
-  relic: 'orange',
-  data: 'blue',
-};
-
 export const SITE_TYPE_DOT_TONE: Record<SiteType, DotTone> = {
   combat: 'red',
   ore: 'orange',

@@ -12,7 +12,7 @@ import {
 import { usePreference } from '@/components/PreferencesProvider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
+import { ChipToggle, ChipToggleGroup, ToggleRow } from '@/components/ui/chip-toggle';
 import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedControl } from '@/components/ui/segmented';
@@ -21,7 +21,6 @@ import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
 import {
   CLASS_CHIP_TONE,
-  SITE_TYPE_CHIP_TONE,
   SITE_TYPE_DOT_TONE,
   SITE_TYPE_LABEL,
 } from './wormhole-styles';
@@ -114,7 +113,6 @@ export function SitesFilterLayout({
                       key={c}
                       value={c}
                       tone={CLASS_CHIP_TONE[c]}
-                      appearance="filter"
                       className="w-full justify-center px-2 py-1.5 text-ui"
                     >
                       {c}
@@ -132,13 +130,7 @@ export function SitesFilterLayout({
                   className="mt-2 flex-col items-stretch"
                 >
                   {TYPE_ROWS.map((t) => (
-                    <ChipToggle
-                      key={t}
-                      value={t}
-                      tone={SITE_TYPE_CHIP_TONE[t]}
-                      appearance="row"
-                      className="w-full gap-2"
-                    >
+                    <ToggleRow key={t} value={t} className="w-full gap-2">
                       <Dot
                         tone={SITE_TYPE_DOT_TONE[t]}
                         size="md"
@@ -148,7 +140,7 @@ export function SitesFilterLayout({
                       />
                       <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
                       <span className="text-faint">{typeCount(t)}</span>
-                    </ChipToggle>
+                    </ToggleRow>
                   ))}
                 </ChipToggleGroup>
               </div>

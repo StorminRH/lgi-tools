@@ -1,26 +1,15 @@
 'use client';
 
 import { Menu as Base } from '@base-ui/react/menu';
-import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
 import type { DataAttributes, MenuAnchor, PositionerProps } from './menu';
 import { useOverlayPortalContainer } from './overlay-portal-container';
-import type { Tone } from './tones';
 
 export type { MenuAnchor };
 
-export type PointerMenuTone = Extract<Tone, 'neutral'>;
-
-const popup = cva(cn('flex flex-col outline-none', panelSurface), {
-  variants: {
-    tone: {
-      neutral: '',
-    } satisfies Record<PointerMenuTone, string>,
-  },
-  defaultVariants: { tone: 'neutral' },
-});
+const popup = cn('flex flex-col outline-none', panelSurface);
 
 export type PopupProps = React.ComponentProps<typeof Base.Popup>;
 
@@ -30,7 +19,6 @@ export function PointerMenu({
   anchor,
   children,
   label,
-  tone = 'neutral',
   side = 'bottom',
   align = 'start',
   sideOffset = 4,
@@ -44,7 +32,6 @@ export function PointerMenu({
   anchor: MenuAnchor | null;
   children: ReactNode;
   label: string;
-  tone?: PointerMenuTone;
   side?: PositionerProps['side'];
   align?: PositionerProps['align'];
   sideOffset?: PositionerProps['sideOffset'];
@@ -68,7 +55,7 @@ export function PointerMenu({
             {...popupProps}
             aria-label={label}
             finalFocus={finalFocus}
-            className={cn(popup({ tone }), className)}
+            className={cn(popup, className)}
           >
             {children}
           </Base.Popup>

@@ -38,28 +38,47 @@ export function ChipToggle({
   value,
   children,
   className,
-  appearance = 'tone',
 }: {
   tone: ChipTone;
   value: string;
   children: ReactNode;
   className?: string;
-  appearance?: 'tone' | 'filter' | 'row';
 }) {
   return (
     <Toggle
       value={value}
       className={(state) =>
         cn(
-          appearance === 'row'
-            ? 'inline-flex items-center rounded-ctl px-2.5 py-1.5 font-ui text-ui text-muted'
-            : chipVariants({ tone }),
+          chipVariants({ tone }),
           'chip-toggle cursor-pointer',
-          appearance !== 'row' &&
-            !state.pressed &&
-            '[--pill-tone:var(--color-faint)] text-muted hover:text-name',
-          appearance === 'row' && 'hover:bg-row-sites-hover hover:text-text',
-          appearance === 'row' && state.pressed && 'bg-row-sites-on text-name',
+          !state.pressed && '[--pill-tone:var(--color-faint)] text-muted hover:text-name',
+          className,
+        )
+      }
+    >
+      {children}
+    </Toggle>
+  );
+}
+
+/** A list-row toggle for a ChipToggleGroup: untinted, with the row fill when pressed. */
+export function ToggleRow({
+  value,
+  children,
+  className,
+}: {
+  value: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Toggle
+      value={value}
+      className={(state) =>
+        cn(
+          'inline-flex items-center rounded-ctl px-2.5 py-1.5 font-ui text-ui text-muted',
+          'chip-toggle cursor-pointer hover:bg-row-sites-hover hover:text-text',
+          state.pressed && 'bg-row-sites-on text-name',
           className,
         )
       }

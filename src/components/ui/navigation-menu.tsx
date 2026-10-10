@@ -4,18 +4,8 @@ import { NavigationMenu as Base } from '@base-ui/react/navigation-menu';
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
-import type { Tone } from './tones';
 
-export type NavigationMenuTone = Extract<Tone, 'neutral'>;
-
-const list = cva('flex items-center gap-0.5 list-none m-0 p-0', {
-  variants: {
-    tone: {
-      neutral: '',
-    } satisfies Record<NavigationMenuTone, string>,
-  },
-  defaultVariants: { tone: 'neutral' },
-});
+const list = 'flex items-center gap-0.5 list-none m-0 p-0';
 
 export const navigationMenuLink = cva(
   'inline-flex items-center whitespace-nowrap font-ui text-nav font-medium text-muted ' +
@@ -62,17 +52,15 @@ export const navigationMenuLink = cva(
 export function NavigationMenu({
   children,
   label,
-  tone = 'neutral',
   className,
 }: {
   children: ReactNode;
   label: string;
-  tone?: NavigationMenuTone;
   className?: string;
 }) {
   return (
     <Base.Root aria-label={label} className={cn('flex', className)}>
-      <Base.List className={list({ tone })}>{children}</Base.List>
+      <Base.List className={list}>{children}</Base.List>
     </Base.Root>
   );
 }

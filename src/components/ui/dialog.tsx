@@ -1,7 +1,6 @@
 'use client';
 
 import { Dialog as Base } from '@base-ui/react/dialog';
-import { cva } from 'class-variance-authority';
 import {
   useState,
   type ComponentProps,
@@ -11,33 +10,21 @@ import {
 import { Button } from './button';
 import { cn } from './cn';
 import { OverlayPortalContainerProvider } from './overlay-portal-container';
-import type { Tone } from './tones';
-
-export type DialogTone = Extract<Tone, 'neutral'>;
 
 export type DialogFocusTarget = ComponentProps<typeof Base.Popup>['finalFocus'];
 
-const popup = cva(
+const popup =
   'fixed left-1/2 top-1/2 z-overlay -translate-x-1/2 -translate-y-1/2 outline-none ' +
-    'transition-[scale,opacity] duration-panel ease-panel ' +
-    'data-[starting-style]:scale-[0.92] data-[starting-style]:opacity-0 ' +
-    'data-[ending-style]:scale-[0.92] data-[ending-style]:opacity-0 motion-reduce:transition-none',
-  {
-    variants: {
-      tone: {
-        neutral: 'glass-dense glass-lit border border-border text-text font-ui rounded-panel shadow-dd',
-      } satisfies Record<DialogTone, string>,
-    },
-    defaultVariants: { tone: 'neutral' },
-  },
-);
+  'transition-[scale,opacity] duration-panel ease-panel ' +
+  'data-[starting-style]:scale-[0.92] data-[starting-style]:opacity-0 ' +
+  'data-[ending-style]:scale-[0.92] data-[ending-style]:opacity-0 motion-reduce:transition-none ' +
+  'glass-dense glass-lit border border-border text-text font-ui rounded-panel shadow-dd';
 
 export function Dialog({
   open,
   onOpenChange,
   labelledBy,
   children,
-  tone = 'neutral',
   className,
   finalFocus,
   initialFocus,
@@ -47,7 +34,6 @@ export function Dialog({
   onOpenChange?: (open: boolean) => void;
   labelledBy?: string;
   children: ReactNode;
-  tone?: DialogTone;
   className?: string;
   finalFocus?: DialogFocusTarget;
   initialFocus?: RefObject<HTMLElement | null>;
@@ -64,7 +50,7 @@ export function Dialog({
           {...(labelledBy !== undefined ? { 'aria-labelledby': labelledBy } : {})}
           finalFocus={finalFocus}
           initialFocus={initialFocus}
-          className={cn(popup({ tone }), className)}
+          className={cn(popup, className)}
         >
           <OverlayPortalContainerProvider container={popupEl}>
             {children}

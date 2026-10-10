@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Checkbox, type CheckboxTone } from '@/components/ui/checkbox';
-import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
+import { ChipToggle, ChipToggleGroup, ToggleRow } from '@/components/ui/chip-toggle';
 import { Dot } from '@/components/ui/dot';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { SegmentedControl } from '@/components/ui/segmented';
@@ -66,7 +66,6 @@ export function ChoicesGroup() {
   const [unit, setUnit] = useState('isk');
   const [density, setDensity] = useState('volume');
   const [siteTypes, setSiteTypes] = useState(['gas']);
-  const [filters, setFilters] = useState(['c3']);
   const [rows, setRows] = useState(['open']);
 
   return (
@@ -141,30 +140,23 @@ export function ChoicesGroup() {
       </Specimen>
 
       <Specimen
-        name="ChipToggle"
+        name="ChipToggle + ToggleRow"
         source="chip-toggle"
-        note="Multi-select pressable chips in three appearances: tone keeps the domain colour, filter lights up when pressed, row reads as a list toggle."
+        note="Multi-select toggles inside a ChipToggleGroup. ChipToggle is a pressable chip that shows its domain colour when pressed and fades when not; ToggleRow is an untinted list row that fills when pressed."
         wide
       >
-        <div className="grid gap-5 md:grid-cols-3">
-          <Variant label="tone">
+        <div className="grid gap-5 md:grid-cols-2">
+          <Variant label="chip">
             <ChipToggleGroup value={siteTypes} onValueChange={setSiteTypes} label="Wormhole site types">
               <ChipToggle value="gas" tone="orange"><Dot tone="orange" size="sm" /> Gas</ChipToggle>
               <ChipToggle value="ore" tone="blue"><Dot tone="blue" size="sm" /> Ore</ChipToggle>
               <ChipToggle value="relic" tone="green"><Dot tone="green" size="sm" /> Relic</ChipToggle>
             </ChipToggleGroup>
           </Variant>
-          <Variant label="filter">
-            <ChipToggleGroup value={filters} onValueChange={setFilters} label="Wormhole classes">
-              <ChipToggle value="c1" tone="blue" appearance="filter">C1</ChipToggle>
-              <ChipToggle value="c3" tone="purple" appearance="filter">C3</ChipToggle>
-              <ChipToggle value="c5" tone="red" appearance="filter">C5</ChipToggle>
-            </ChipToggleGroup>
-          </Variant>
           <Variant label="row">
             <ChipToggleGroup value={rows} onValueChange={setRows} label="Row toggles">
-              <ChipToggle value="open" tone="green" appearance="row">Open sites</ChipToggle>
-              <ChipToggle value="done" tone="green" appearance="row">Cleared</ChipToggle>
+              <ToggleRow value="open">Open sites</ToggleRow>
+              <ToggleRow value="done">Cleared</ToggleRow>
             </ChipToggleGroup>
           </Variant>
         </div>

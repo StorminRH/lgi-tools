@@ -13,21 +13,15 @@ import {
   panelSurface,
   menuPanelSurface,
 } from './dropdown-panel';
-import type { Tone } from './tones';
-
-export type MenuTone = Extract<Tone, 'neutral'>;
 
 const popup = cva('flex flex-col outline-none', {
   variants: {
-    tone: {
-      neutral: '',
-    } satisfies Record<MenuTone, string>,
     surface: {
       solid: menuPanelSurface,
       frosted: panelSurface,
     },
   },
-  defaultVariants: { tone: 'neutral', surface: 'solid' },
+  defaultVariants: { surface: 'solid' },
 });
 
 export type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
@@ -43,7 +37,6 @@ export function Menu({
   trigger,
   children,
   label,
-  tone = 'neutral',
   surface = 'solid',
   side = 'bottom',
   align = 'end',
@@ -60,7 +53,6 @@ export function Menu({
   trigger: ReactNode;
   children: ReactNode;
   label: string;
-  tone?: MenuTone;
   surface?: 'solid' | 'frosted';
   side?: PositionerProps['side'];
   align?: PositionerProps['align'];
@@ -92,7 +84,7 @@ export function Menu({
           <Base.Popup
             {...popupProps}
             aria-label={label}
-            className={cn(popup({ tone, surface }), className)}
+            className={cn(popup({ surface }), className)}
           >
             {children}
           </Base.Popup>
