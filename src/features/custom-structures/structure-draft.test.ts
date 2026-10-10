@@ -60,6 +60,15 @@ describe('payloadFromDraft', () => {
     const word = { ...emptyStructureDraft().bonus, me: 'abc' };
     expect(payloadFromDraft(draft({ name: 'X', structureTypeId: 1, bonus: word }))).toEqual({ ok: false, field: 'bonus' });
   });
+
+  it('reads bonus cells with the same plain-decimal grammar as the tax, capped at 99%', () => {
+    const save = (cell: string) =>
+      payloadFromDraft(draft({ name: 'X', structureTypeId: 1, bonus: { ...emptyStructureDraft().bonus, cost: cell } }));
+    expect(save('99')).toMatchObject({ ok: true, payload: { bonuses: { manufacturing: { me: 0, te: 0, cost: 99 } } } });
+    for (const cell of ['99.01', '1e1', '0x0A', '.5', '+1']) {
+      expect(save(cell)).toEqual({ ok: false, field: 'bonus' });
+    }
+  });
 });
 
 describe('draftFromRow', () => {

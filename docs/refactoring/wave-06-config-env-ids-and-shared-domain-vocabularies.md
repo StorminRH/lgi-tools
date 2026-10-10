@@ -22,7 +22,7 @@ Single-source env readers: the public Convex URL, Convex-configured check with d
 | ☑ | [P258](#p258) | Add one unnamed-entity fallback label helper and define the ESI owner-type vocabulary once in platform/owner-sync | contracts-validation | M | low | low | [P094](wave-04-formatting-dates-and-names-have-one-home.md#p094) |
 | ☑ | [P260](#p260) | Reuse the existing CostBasis, modifier-kind, roman-level, map-create-role and admin-query vocabularies instead of restating them | contracts-validation | S | low | low | — |
 | ☑ | [P266](#p266) | Name the 'attributable (non-K162) wormhole type code' predicate once in wormhole-contract | contracts-validation | S | low | low | — |
-| ☐ | [P265](#p265) | Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound | contracts-validation | S | low | low | — |
+| ☑ | [P265](#p265) | Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound | contracts-validation | S | low | low | — |
 | ☐ | [P262](#p262) | Use ConnectionDoorSide and a CONNECTION_DOOR_SIDES tuple instead of 36 inline 'from' \| 'to' unions and the ConnectionDoor alias | contracts-validation | S | low | low | — |
 | ☐ | [P261](#p261) | Derive Convex TS types from their validators and build every enum validator from its data-zone tuple | contracts-validation | M | low | medium | [P262](#p262) |
 | ☐ | [P124](#p124) | Give the wormhole codex one code index (lowest typeId wins, conflicts exposed) shared by client, hole-matching, emission and the eliminator | generic-utility | S | low | low | — |
@@ -1314,7 +1314,7 @@ export function isAttributableWormholeTypeCode(code: string | null | undefined):
 
 ## P265: Parse PercentInput drafts with one grammar and name the 99% entered-bonus bound
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -8 in structure-draft and fees, +15 for the new module (+30 test lines moved or added)
 - **Depends on:** —
