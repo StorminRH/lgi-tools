@@ -43,7 +43,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P128](#p128) | Add one sentence-case identifier humaniser in lib/format and use it for label fallbacks | generic-utility | S | low | low | — |
 | ☑ | [P129](#p129) | Patch search params through one lib helper, and build the post-create link with atlasMapHref | generic-utility | S | low | low | — |
 | ☑ | [P047](#p047) | Add a shared useNow clock hook in src/lib for the four interval tickers | react-hook | S | low | low | — |
-| ☐ | [P226](#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
+| ☑ | [P226](#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
 | ☐ | [P115](#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
 | ☐ | [P066](#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
 
@@ -1632,7 +1632,7 @@ export function useNow(
 
 ## P226: Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -110 lines across the two stores, preferences, use-search-recents and the doorbell observer; +60 in lib/web-storage.ts (plus its test). Net about -50 production lines.
 - **Depends on:** —
