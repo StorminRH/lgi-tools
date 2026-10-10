@@ -8,7 +8,7 @@ export interface DependencyTiming {
   calls: number;
   /** Elapsed time with at least one call of this kind in flight. */
   wallMs?: number;
-  /** Calls answered with a 4xx status, recorded only for kinds that report a status. */
+  /** Calls answered with a 4xx other than 420/429; only kinds that report a status record it. */
   status4xx?: number;
 }
 

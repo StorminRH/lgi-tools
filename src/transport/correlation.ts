@@ -43,6 +43,11 @@ function installDependencySink(): void {
   });
 }
 
+/** A 4xx other than 420/429, which callers already record as rate limiting. */
+function isClientError(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 420 && status !== 429;
+}
+
 function recordCall(
   scope: CorrelationScope,
   kind: DependencyKind,
@@ -54,7 +59,7 @@ function recordCall(
   const tally = (scope.dependencies[kind] ??= { ms: 0, calls: 0, status4xx: 0, intervals: [] });
   tally.ms += ms;
   tally.calls += 1;
-  if (call?.status !== undefined && call.status >= 400 && call.status < 500) tally.status4xx += 1;
+  if (call?.status !== undefined && isClientError(call.status)) tally.status4xx += 1;
   tally.intervals.push(interval);
   scope.intervals.push(interval);
 }

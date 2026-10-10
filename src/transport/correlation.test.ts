@@ -81,17 +81,19 @@ describe('correlation scope', () => {
     expect(wallMs).toBe(250);
   });
 
-  it('counts calls answered with a 4xx status', async () => {
-    clockAt(10, 20, 30, 40);
+  it('counts calls answered with a 4xx status, leaving rate limiting to its own outcome', async () => {
+    clockAt(10, 20, 30, 40, 50, 60);
     const timings = await withCorrelationScope(async () => {
       addDependencyTiming('esi', 1, { status: 200 });
       addDependencyTiming('esi', 1, { status: 404 });
       addDependencyTiming('esi', 1, { status: 400 });
+      addDependencyTiming('esi', 1, { status: 420 });
+      addDependencyTiming('esi', 1, { status: 429 });
       addDependencyTiming('esi', 1);
       return currentDependencyTimings();
     });
 
-    expect(timings.esi).toEqual({ ms: 4, calls: 4, wallMs: 4, status4xx: 2 });
+    expect(timings.esi).toEqual({ ms: 6, calls: 6, wallMs: 6, status4xx: 2 });
   });
 
   it('returns a snapshot that later calls do not change', async () => {
