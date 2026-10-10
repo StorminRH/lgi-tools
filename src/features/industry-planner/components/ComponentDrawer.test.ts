@@ -1,7 +1,7 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { computeBatchLedger } from '../build-batch';
 import type { IndustryProfileRow } from '../profiles/api-contract';
 import { emptyProfileDocument } from '../profiles/profile-document';

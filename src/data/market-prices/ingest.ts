@@ -1,11 +1,15 @@
 import { sql } from 'drizzle-orm';
+import { chunk } from '@/lib/array';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AnyPgDb } from '@/lib/db-types';
+import { excluded, excludedSet } from '@/lib/db-upsert';
 import { marketPrices } from './schema';
 import { fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 
 const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
+/** Rows per market_prices insert: 13 binds a row for a priced upsert, far below the bind-parameter cap. */
+const INSERT_BATCH = 1000;
 
 export interface RefreshSummary {
   requested: number;
@@ -15,10 +19,6 @@ export interface RefreshSummary {
   esiCount: number;
   fuzzworkFallbackCount: number;
   budgetExhausted: boolean;
-}
-
-function excluded(column: string) {
-  return sql.raw(`excluded.${column}`);
 }
 
 export async function refreshPrices(
@@ -41,20 +41,23 @@ export async function refreshPrices(
 }
 
 /**
- * NULL-priced rows with epoch staleness, the same shape the SDE pipeline seeds for tracked types, so the
- * nightly bulk sweep prices newly seen types overnight. Existing rows are never touched.
+ * NULL-priced rows with epoch staleness and source 'esi', so the nightly bulk sweep prices newly seen
+ * types overnight. The SDE pipeline seeds every tracked type through here and the board seeds unpriced
+ * owned types. Existing rows are never touched; returns how many rows this call inserted.
  */
-export async function seedPlaceholderPrices(db: AnyPgDb, typeIds: number[]): Promise<number> {
-  if (typeIds.length === 0) return 0;
+export async function seedPlaceholderPrices(db: AnyPgDb, typeIds: readonly number[]): Promise<number> {
   const updatedAt = new Date();
-  const written = await db
-    .insert(marketPrices)
-    .values(
-      typeIds.map((typeId) => ({ typeId, updatedAt, staleAfter: new Date(0), source: 'esi' })),
-    )
-    .onConflictDoNothing()
-    .returning({ typeId: marketPrices.typeId });
-  return written.length;
+  const staleAfter = new Date(0);
+  let inserted = 0;
+  for (const batch of chunk(typeIds, INSERT_BATCH)) {
+    const written = await db
+      .insert(marketPrices)
+      .values(batch.map((typeId) => ({ typeId, updatedAt, staleAfter, source: 'esi' })))
+      .onConflictDoNothing()
+      .returning({ typeId: marketPrices.typeId });
+    inserted += written.length;
+  }
+  return inserted;
 }
 
 export async function persistPrices(
@@ -102,28 +105,27 @@ export async function persistPrices(
     };
   });
 
-  const BATCH = 1000;
-  for (let i = 0; i < rows.length; i += BATCH) {
+  for (const batch of chunk(rows, INSERT_BATCH)) {
     const written = await db
       .insert(marketPrices)
-      .values(rows.slice(i, i + BATCH))
+      .values(batch)
       .onConflictDoUpdate({
         target: marketPrices.typeId,
-        set: {
-          bestBuy: excluded('best_buy'),
-          bestSell: excluded('best_sell'),
-          pct5Buy: excluded('pct5_buy'),
-          pct5Sell: excluded('pct5_sell'),
-          buyVolume: excluded('buy_volume'),
-          sellVolume: excluded('sell_volume'),
-          buyDepth: excluded('buy_depth'),
-          sellDepth: excluded('sell_depth'),
-          regionalDiscount: excluded('regional_discount'),
-          updatedAt: excluded('updated_at'),
-          staleAfter: excluded('stale_after'),
-          source: excluded('source'),
-        },
-        setWhere: sql`${marketPrices.updatedAt} <= excluded.updated_at`,
+        set: excludedSet(marketPrices, [
+          'bestBuy',
+          'bestSell',
+          'pct5Buy',
+          'pct5Sell',
+          'buyVolume',
+          'sellVolume',
+          'buyDepth',
+          'sellDepth',
+          'regionalDiscount',
+          'updatedAt',
+          'staleAfter',
+          'source',
+        ]),
+        setWhere: sql`${marketPrices.updatedAt} <= ${excluded(marketPrices.updatedAt)}`,
       })
       .returning({ typeId: marketPrices.typeId });
     summary.written += written.length;

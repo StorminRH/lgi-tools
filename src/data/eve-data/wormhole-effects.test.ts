@@ -134,6 +134,7 @@ describe('buildWormholeEffects', () => {
         { id: 1, name: 'a', attributes: { 9: 1, 3: 2 } },
         { id: 2, name: 'b', attributes: { 3: 1, x: 1 } },
         { id: 3, name: 'c', attributes: null },
+        { id: 4, name: 'd', attributes: [1.1, 1.2] },
       ]),
     ).toEqual([3, 9]);
   });

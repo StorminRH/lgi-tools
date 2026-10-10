@@ -1,5 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
+import { ownerKeyWhere } from '@/lib/db-columns';
 import { esiSnapshots } from './schema';
 import type { InsertEsiSnapshotInput } from './types';
 
@@ -21,8 +22,7 @@ export async function readCorpAssetSnapshots(corporationId: number, ids: number[
     .from(esiSnapshots)
     .where(and(
       inArray(esiSnapshots.id, ids),
-      eq(esiSnapshots.ownerType, 'corporation'),
-      eq(esiSnapshots.ownerId, corporationId),
+      ownerKeyWhere(esiSnapshots, { ownerType: 'corporation', ownerId: corporationId }),
       eq(esiSnapshots.endpoint, `/corporations/${corporationId}/assets/`),
     ));
 }

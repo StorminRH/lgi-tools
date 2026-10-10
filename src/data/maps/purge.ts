@@ -1,11 +1,11 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { bestEffort } from '@/lib/best-effort';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { MergeSubject, MergeTx, PurgeContributor } from '@/platform/purge/types';
 import {
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   type PendingMapAccessChange,
 } from './authorization-sql';
 import {
@@ -79,7 +79,7 @@ async function purgeCharacterMapGrants(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange[]> {
-  return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  return executeRows<PendingMapAccessChange>(database, sql`
     WITH affected AS (
       ${affectedMapIdsSelection(characterId)}
     ), deleted AS (

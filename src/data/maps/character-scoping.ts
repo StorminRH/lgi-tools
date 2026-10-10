@@ -1,16 +1,17 @@
 import { and, asc, isNull, sql, type SQL } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { account, characters } from '@/db/auth-schema';
-import { db, directClient } from '@/db';
+import { db } from '@/db';
+import { directDatabase } from '@/db/direct-database';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapRole } from './access-contract';
 import {
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   userBlockedFromMap,
   type PendingMapAccessChange,
 } from './authorization-sql';
+import { activeMapCondition } from './lifecycle-sql';
 import { mapAccess, maps } from './schema';
 
 export interface GrandfatherGrant {
@@ -29,12 +30,17 @@ export async function listUnscopedMapIds(limit: number, database: AnyPgDb = db):
   const rows = await database
     .select({ id: maps.id })
     .from(maps)
-    .where(and(isNull(maps.characterScopedAt), isNull(maps.archivedAt), isNull(maps.tombstonedAt)))
+    .where(and(isNull(maps.characterScopedAt), activeMapCondition()))
     .orderBy(asc(maps.id))
     .limit(limit);
   return rows.map((row) => row.id);
 }
 
+/**
+ * Mirrors platform/auth's sharedAccessEligible: a refresh token plus
+ * authorizationFailureCurrent(cutoff). The data zone may not import
+ * platform/auth, so composition passes authorizationFailureCutoff() in.
+ */
 function sharedAccessEligible(alias: string, authorizationFailureCutoff: Date): SQL {
   const linked = sql.identifier(alias);
   return sql`${linked}.refresh_token IS NOT NULL AND (
@@ -55,7 +61,7 @@ export async function insertGrandfatherGrants(
   mapId: string,
   grants: readonly GrandfatherGrant[],
   authorizationFailureCutoff: Date,
-  database: AnyPgDb = drizzle(directClient),
+  database: AnyPgDb = directDatabase(),
 ): Promise<void> {
   if (grants.length === 0) return;
   await database.transaction(async (transaction) => {
@@ -129,7 +135,7 @@ export async function stampCharacterScoped(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH target AS (
       SELECT ${maps.id} AS id FROM ${maps}
       WHERE ${maps.id} = ${mapId} AND ${maps.tombstonedAt} IS NULL

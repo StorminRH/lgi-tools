@@ -76,11 +76,11 @@ export function rigFitsStructure(
 }
 
 export function shapeStructureRigs(
-  rows: ReadonlyArray<{ id: number; name: string; attributes: unknown }>,
+  rows: ReadonlyArray<{ id: number; name: string; attributes: AttrMap | null }>,
 ): StructureRigOption[] {
   const out: StructureRigOption[] = [];
   for (const r of rows) {
-    const attrs = (r.attributes ?? {}) as AttrMap;
+    const attrs = r.attributes ?? {};
     const canFitGroups = RIG_CAN_FIT_GROUP_ATTRS.map((a) => attrs[a]).filter(
       (g): g is number => g !== undefined,
     );

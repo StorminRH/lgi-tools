@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import {
   bigint,
   bigserial,
@@ -14,6 +14,7 @@ import {
   ESI_REFRESH_DATASETS,
   ESI_REFRESH_JOB_STATUSES,
   ESI_REFRESH_OWNER_TYPES,
+  LIVE_ESI_REFRESH_JOB_STATUSES,
 } from './constants';
 
 export const esiRefreshDatasetEnum = pgEnum('esi_refresh_dataset', ESI_REFRESH_DATASETS);
@@ -56,9 +57,7 @@ export const esiRefreshJobs = pgTable(
   (t) => [
     uniqueIndex('esi_refresh_jobs_live_key_unique')
       .on(t.idempotencyKey)
-      .where(
-        sql`${t.status} in ('queued', 'running', 'deferred_for_budget', 'failed_retryable')`,
-      ),
+      .where(inArray(t.status, LIVE_ESI_REFRESH_JOB_STATUSES).inlineParams()),
     index('esi_refresh_jobs_due_idx').on(t.status, t.nextAttemptAt, t.createdAt),
     index('esi_refresh_jobs_finished_idx').on(t.status, t.finishedAt),
     index('esi_refresh_jobs_user_idx').on(t.userId),

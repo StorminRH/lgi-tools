@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, test, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
   cleanupSdeJsonl,
@@ -95,6 +95,32 @@ describe('eve-data source outbound headers', () => {
     fetchSpy.mockResolvedValueOnce(new Response(null, { status: 503 }));
     expect(await getRemoteSdeVersion()).toBeNull();
   });
+});
+
+test('a zip download that fails mid-body leaves no partial file in the SDE cache', async () => {
+  await rm(JSONL_CACHE_DIR, { recursive: true, force: true });
+  const failure = new Error('connection reset mid-body');
+  let sentFirstChunk = false;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (sentFirstChunk) {
+        controller.error(failure);
+        return;
+      }
+      sentFirstChunk = true;
+      controller.enqueue(Uint8Array.of(0x50, 0x4b, 0x03, 0x04));
+    },
+  });
+  const fetchSpy = vi
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response(body, { status: 200 }));
+  try {
+    await expect(downloadSdeJsonl()).rejects.toBe(failure);
+    await expect(readdir(JSONL_CACHE_DIR)).resolves.toEqual([]);
+  } finally {
+    fetchSpy.mockRestore();
+    await rm(JSONL_CACHE_DIR, { recursive: true, force: true });
+  }
 });
 
 describe('cleanupSdeJsonl', () => {

@@ -14,28 +14,29 @@ import {
   CAPABILITY_ACTION,
   capabilityFeature,
   capabilityOperation,
-  capabilityOutcome,
   capabilityRows,
   esiDependent,
   inRange,
   jsonNumber,
+  metadataOutcome,
+  usageDay,
 } from './sql';
 import type { DateRange } from './types';
 
 // Failure detail is only kept for outcomes other than `succeeded`, so the
 // grouping stays one row per operation for the common case.
 function failureOnly(value: SQL): SQL<string | null> {
-  return sql<string | null>`case when ${capabilityOutcome} <> 'succeeded' then ${value} end`;
+  return sql<string | null>`case when ${metadataOutcome} <> 'succeeded' then ${value} end`;
 }
 
 const outcomeGroup = {
   operation: sql<string | null>`${capabilityOperation}`,
-  outcome: sql<string | null>`${capabilityOutcome}`,
+  outcome: metadataOutcome,
   esi: sql<boolean | null>`${esiDependent}`,
   feature: failureOnly(capabilityFeature),
   code: failureOnly(sql`${usageLogs.metadata} ->> 'code'`),
   errorClass: failureOnly(sql`${usageLogs.metadata} ->> 'errorClass'`),
-  day: failureOnly(sql`(${usageLogs.timestamp} at time zone 'UTC')::date`),
+  day: failureOnly(usageDay),
 };
 
 /**

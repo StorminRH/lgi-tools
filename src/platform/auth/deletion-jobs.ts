@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { deletionDatabase } from '@/db/deletion-client';
 import { account, user } from '@/db/auth-schema';
+import { lockUserRows } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
 import { accountMatch, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
 import { pendingDeletions } from './deletion-schema';
@@ -17,10 +18,6 @@ async function existingJob(database: AnyPgDb, userId: string) {
   const [job] = await database.select().from(pendingDeletions)
     .where(eq(pendingDeletions.userId, userId)).limit(1);
   return job;
-}
-
-async function lockUser(database: AnyPgDb, userId: string) {
-  return database.select({ id: user.id }).from(user).where(eq(user.id, userId)).for('update');
 }
 
 async function insertJob(database: AnyPgDb, request: PendingDeletion) {
@@ -54,10 +51,10 @@ async function requestStillPending(database: AnyPgDb, request: PendingDeletion) 
   ));
 }
 
-/** The user lock matches merge initialization; never wait for a job lock while holding it. */
+/** lockUserRows matches merge initialization; never wait for a job lock while holding it. */
 export async function enqueueDeletion(request: PendingDeletion): Promise<DeletionJob | undefined> {
   return deletionDatabase().transaction(async (tx) => {
-    await lockUser(tx, request.userId);
+    await lockUserRows(tx, [request.userId]);
     const existing = await existingJob(tx, request.userId);
     if (existing !== undefined) return existing;
     if ((await requestStillPending(tx, request)).length === 0) return undefined;
@@ -67,7 +64,7 @@ export async function enqueueDeletion(request: PendingDeletion): Promise<Deletio
 
 export async function requestDeletion(userId: string, characterId?: number): Promise<PendingDeletion | null> {
   return deletionDatabase().transaction(async (tx) => {
-    const owners = await lockUser(tx, userId);
+    const owners = await lockUserRows(tx, [userId]);
     if (owners.length === 0) return null;
     const now = new Date();
     if (characterId === undefined) {
@@ -105,7 +102,7 @@ export async function rotateDeletionJob(id: string): Promise<void> {
 
 export async function enqueueTransfer(userId: string, characterId: number, accountRowId?: string): Promise<DeletionJob | undefined> {
   return deletionDatabase().transaction(async (tx) => {
-    await lockUser(tx, userId);
+    await lockUserRows(tx, [userId]);
     const existing = await existingJob(tx, userId);
     if (existing !== undefined) return existing;
     const [link] = await tx.select({ id: account.id }).from(account).where(and(

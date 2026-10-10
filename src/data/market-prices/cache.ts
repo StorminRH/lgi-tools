@@ -1,12 +1,11 @@
 import { desc } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
-import { db, type Sql } from '@/db';
+import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { refreshPrices, type RefreshSummary } from './ingest';
 import { listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
-import type { AnyPgDb } from '@/lib/db-types';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 
 export type CachedRefreshResult =
   | { status: 'cached'; reason: 'empty-set'; lastUpdatedAt: Date | null }
@@ -32,17 +31,15 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   return withColdStartRetry(() => getPricesFreshness(db));
 }
 
-export async function refreshStalePrices(client: Sql): Promise<CachedRefreshResult> {
-  const db = drizzle(client);
-
-  const typeIds = await listStaleTypeIds(db);
+export async function refreshStalePrices(database: PostgresJsDb): Promise<CachedRefreshResult> {
+  const typeIds = await listStaleTypeIds(database);
   if (typeIds.length === 0) {
-    const { lastUpdatedAt } = await getPricesFreshness(db);
+    const { lastUpdatedAt } = await getPricesFreshness(database);
     return { status: 'cached', reason: 'empty-set', lastUpdatedAt };
   }
 
-  const summary = await refreshPrices(db, typeIds);
-  const { lastUpdatedAt } = await getPricesFreshness(db);
+  const summary = await refreshPrices(database, typeIds);
+  const { lastUpdatedAt } = await getPricesFreshness(database);
   return {
     status: 'refreshed',
     lastUpdatedAt: lastUpdatedAt ?? new Date(),

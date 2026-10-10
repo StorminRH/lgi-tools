@@ -1,7 +1,7 @@
-import { and, eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { isUniqueViolation } from '@/db/pg-errors';
+import { ownerKeyWhere } from '@/lib/db-columns';
 import { readOwnerSyncState, saveOwnedAssets } from './queries';
 import { ownedAssets } from './schema';
 import type { OwnedAsset } from './esi-projection';
@@ -50,7 +50,7 @@ async function committedRowCount(): Promise<number> {
   const rows = await harness.db
     .select({ id: ownedAssets.id })
     .from(ownedAssets)
-    .where(and(eq(ownedAssets.ownerType, owner.ownerType), eq(ownedAssets.ownerId, owner.ownerId)));
+    .where(ownerKeyWhere(ownedAssets, owner));
   return rows.length;
 }
 

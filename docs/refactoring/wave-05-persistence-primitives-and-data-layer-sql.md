@@ -16,28 +16,28 @@ Run db suites with Postgres up.
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P230](#p230) | Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies | persistence | S | low | medium | — |
-| ☐ | [P223](#p223) | Move mapAuthorizationRows to src/lib as executeRows and use it at every inline Array.isArray(result) normalization | persistence | S | low | medium | — |
-| ☐ | [P220](#p220) | Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it | persistence | M | low | medium | — |
-| ☐ | [P237](#p237) | Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts | persistence | S | low | low | [P220](#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) |
-| ☐ | [P242](#p242) | Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it | persistence | S | low | low | [P220](#p220) |
-| ☐ | [P228](#p228) | Add ownerKeyWhere beside ownerSyncStateColumns and return sync-state rows directly | persistence | S | low | low | — |
-| ☐ | [P327](#p327) | Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL | simplification | S | low | low | [P228](#p228) |
-| ☐ | [P103](#p103) | Seed placeholder prices through one chunked function, route the hand-rolled batch loops through lib chunk, and build eve-data streamInsert on sde-io primitives | generic-utility | M | low | medium | — |
-| ☐ | [P172](#p172) | Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib | server-pipeline | M | low | medium | [P103](#p103), [P230](#p230) |
-| ☐ | [P264](#p264) | Give data/eve-data/coerce.ts asRecord, mapRecords and dogmaAttributePairs, and route every SDE parser through them | contracts-validation | S | low | low | [P172](#p172) |
-| ☐ | [P233](#p233) | Type the eve-data jsonb columns with $type<T>() and validate blueprint activities once at ingest | persistence | M | low | medium | [P264](#p264) |
-| ☐ | [P293](#p293) | Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them | efficiency | S | low | low | [P233](#p233), [P172](#p172) |
-| ☐ | [P235](#p235) | Move the repeated usage_logs fragments (day, outcome, summedInt, referrer predicates, refreshed-price-cron filter) into telemetry/sql.ts and drop getFallbackRate's redundant totals query | persistence | S | low | medium | — |
-| ☐ | [P236](#p236) | Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE | persistence | S | low | low | — |
-| ☐ | [P232](#p232) | Give map lifecycle predicates and the active-admin selection one home, and write archive/restore SETs from the lifecycle contract | persistence | S | low | medium | [P223](#p223) |
-| ☐ | [P225](#p225) | Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site | persistence | S | low | low | [P223](#p223) |
+| ☑ | [P230](#p230) | Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies | persistence | S | low | medium | — |
+| ☑ | [P223](#p223) | Move mapAuthorizationRows to src/lib as executeRows and use it at every inline Array.isArray(result) normalization | persistence | S | low | medium | — |
+| ☑ | [P220](#p220) | Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it | persistence | M | low | medium | — |
+| ☑ | [P237](#p237) | Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts | persistence | S | low | low | [P220](#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296) |
+| ☑ | [P242](#p242) | Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it | persistence | S | low | low | [P220](#p220) |
+| ☑ | [P228](#p228) | Add ownerKeyWhere beside ownerSyncStateColumns and return sync-state rows directly | persistence | S | low | low | — |
+| ☑ | [P327](#p327) | Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL | simplification | S | low | low | [P228](#p228) |
+| ☑ | [P103](#p103) | Seed placeholder prices through one chunked function, route the hand-rolled batch loops through lib chunk, and build eve-data streamInsert on sde-io primitives | generic-utility | M | low | medium | — |
+| ☑ | [P172](#p172) | Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib | server-pipeline | M | low | medium | [P103](#p103), [P230](#p230) |
+| ☑ | [P264](#p264) | Give data/eve-data/coerce.ts asRecord, mapRecords and dogmaAttributePairs, and route every SDE parser through them | contracts-validation | S | low | low | [P172](#p172) |
+| ☑ | [P233](#p233) | Type the eve-data jsonb columns with $type<T>() and validate blueprint activities once at ingest | persistence | M | low | medium | [P264](#p264) |
+| ☑ | [P293](#p293) | Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them | efficiency | S | low | low | [P233](#p233), [P172](#p172) |
+| ☑ | [P235](#p235) | Move the repeated usage_logs fragments (day, outcome, summedInt, referrer predicates, refreshed-price-cron filter) into telemetry/sql.ts and drop getFallbackRate's redundant totals query | persistence | S | low | medium | — |
+| ☑ | [P236](#p236) | Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE | persistence | S | low | low | — |
+| ☑ | [P232](#p232) | Give map lifecycle predicates and the active-admin selection one home, and write archive/restore SETs from the lifecycle contract | persistence | S | low | medium | [P223](#p223) |
+| ☑ | [P225](#p225) | Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site | persistence | S | low | low | [P223](#p223) |
 
 <a id="p230"></a>
 
 ## P230: Share one typed excluded(column) helper for Drizzle upserts and delete the five private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** -15 (five private helpers), two inline strings replaced, about 40 call sites rewritten in place (shorter with excludedSet); +20 lib and +25 test
 - **Depends on:** —
@@ -95,7 +95,7 @@ export function excludedSet<T extends PgTable, K extends keyof T['_']['columns']
 
 ## P223: Move mapAuthorizationRows to src/lib as executeRows and use it at every inline Array.isArray(result) normalization
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -12 / +12 (helper moves; five inline ternaries removed)
 - **Depends on:** —
@@ -160,7 +160,7 @@ export async function executeRows<T extends Record<string, unknown>>(database: A
 
 ## P220: Add a memoized directDatabase() to src/db and route every interactive-transaction site and cron context through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -55 / +25 (12 drizzle imports, 5 pre-checks, 3 let/if blocks and 2 Sql-to-drizzle wrappers removed; one 8-line module and one test added)
 - **Depends on:** —
@@ -252,7 +252,7 @@ export async function syncGsc(database: PostgresJsDb, sitemapUrls: string[]): Pr
 
 ## P237: Register every session advisory-lock key as a plain number in src/db/advisory-lock.ts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** missing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +15 production; +10 test
 - **Depends on:** [P220](#p220), [P296](wave-01-quick-wins-delete-dead-code-fix-small.md#p296)
@@ -329,7 +329,7 @@ export async function withAdvisoryLock<T>(client: Sql, lockKey: number, work: ..
 
 ## P242: Export lockUserRows(tx, ids) from src/db/locked-user.ts and build every user-row lock on it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -~10 / +~10 (net ~0); the value is one named home for the lock protocol, not line count
 - **Depends on:** [P220](#p220)
@@ -388,7 +388,7 @@ export async function withLockedUsers<T>(userIds: string[], change: (database: A
 
 ## P228: Add ownerKeyWhere beside ownerSyncStateColumns and return sync-state rows directly
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 lines (17 predicates shortened in place, 12 rebuild lines, 7 identity-map lines); +15 in lib including the test
 - **Depends on:** —
@@ -461,7 +461,7 @@ export function ownerKeyWhere(
 
 ## P327: Return selected rows directly from feature sync-state readers and sort corp job syncs in SQL
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -35 / +8
 - **Depends on:** [P228](#p228)
@@ -526,7 +526,7 @@ export async function listCorpJobSyncStates(userId: string): Promise<Array<{ cor
 
 ## P103: Seed placeholder prices through one chunked function, route the hand-rolled batch loops through lib chunk, and build eve-data streamInsert on sde-io primitives
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -80 / +35.
 - **Depends on:** —
@@ -663,7 +663,7 @@ Smaller points:
 
 ## P172: Make data/eve-data stream JSONL and batch inserts through sde-io, and route chunk loops and the upsert excluded() helper through src/lib
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -85 / +40 (gsc chunk copy, four extra excluded copies, the duplicate readline loop, the duplicate buffer/flush, and the duplicate name list and atomic write removed)
 - **Depends on:** [P103](#p103), [P230](#p230)
@@ -745,7 +745,7 @@ async function pipeToFileAtomic(source: NodeJS.ReadableStream, dest: string): Pr
 
 ## P264: Give data/eve-data/coerce.ts asRecord, mapRecords and dogmaAttributePairs, and route every SDE parser through them
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -45 / +30, plus about -10 more if the optional JSONL reader is extracted.
 - **Depends on:** [P172](#p172)
@@ -846,7 +846,7 @@ Lead for a separate opportunity (not verified in depth): plain-object guards are
 
 ## P233: Type the eve-data jsonb columns with $type<T>() and validate blueprint activities once at ingest
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** -25 / +30
 - **Depends on:** [P264](#p264)
@@ -921,7 +921,7 @@ export function isBlueprintActivitiesDocument(raw: unknown): raw is BlueprintAct
 
 ## P293: Read tree-resolver inputs once per resolveAllTrees and derive the hash, indexes and blueprint ids from them
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +12
 - **Depends on:** [P233](#p233), [P172](#p172)
@@ -982,7 +982,7 @@ const blueprintIds = rows.map((r) => r.blueprintTypeId);
 
 ## P235: Move the repeated usage_logs fragments (day, outcome, summedInt, referrer predicates, refreshed-price-cron filter) into telemetry/sql.ts and drop getFallbackRate's redundant totals query
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** -35 / +20
 - **Depends on:** —
@@ -1059,7 +1059,7 @@ export function refreshedPriceCron(range: DateRange): SQL; // and(inRange(range)
 
 ## P236: Derive ESI refresh status sets from one constant module and claim due jobs in one UPDATE
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +10 in production code; about +40 test lines
 - **Depends on:** —
@@ -1132,7 +1132,7 @@ return claimed.sort((a, b) => a.nextAttemptAt.getTime() - b.nextAttemptAt.getTim
 
 ## P232: Give map lifecycle predicates and the active-admin selection one home, and write archive/restore SETs from the lifecycle contract
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** -45 / +30
 - **Depends on:** [P223](#p223)
@@ -1206,7 +1206,7 @@ export function activeAdminMapsSelection(userId: string, principals: MapPrincipa
 
 ## P225: Derive the authorization-failure cutoff and the delayed check from authorization-policy instead of recomputing them at each site
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -8 / +14
 - **Depends on:** [P223](#p223)

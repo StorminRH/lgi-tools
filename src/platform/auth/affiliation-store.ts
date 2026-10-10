@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
 import {
@@ -7,8 +7,10 @@ import {
 } from '@/data/maps/authorization-sql';
 import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
-import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
+import { authorizationFailureCutoff } from './authorization-policy';
+import { authorizationFailureCurrent } from './authorization-store';
 import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
@@ -63,10 +65,7 @@ export async function getUsersAffiliations(
       refreshedAt: characters.affiliationRefreshedAt,
       sharedAccessEligible: sql<boolean>`${and(
         isNotNull(account.refreshToken),
-        or(
-          isNull(account.authorizationFailureFirstAt),
-          gt(account.authorizationFailureFirstAt, new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS)),
-        ),
+        authorizationFailureCurrent(authorizationFailureCutoff()),
       )}`,
     })
     .from(account)
@@ -119,11 +118,10 @@ function formatAffiliationObservedAt(observedAt: Date | string): string {
 }
 
 export async function captureAffiliationObservedAt(): Promise<string> {
-  const result = await db.execute<{ now: string }>(sql`
+  const [row] = await executeRows<{ now: string }>(db, sql`
     SELECT to_char(timezone('utc', clock_timestamp()), 'YYYY-MM-DD HH24:MI:SS.US') AS now
   `);
-  const rows = Array.isArray(result) ? result : result.rows;
-  const now = rows[0]?.now;
+  const now = row?.now;
   if (typeof now !== 'string' || now.length === 0) {
     throw new Error('Affiliation observation clock returned an invalid timestamp.');
   }
@@ -141,10 +139,10 @@ export async function updateAffiliations(
   const incoming = [...new Map(rows.map((row) => [row.characterId, row])).values()];
   const observedIso = formatAffiliationObservedAt(observedAt);
   const ttlSeconds = AFFILIATION_FRESHNESS.ttlMs / 1000;
-  const result = await db.execute<{
+  const [persisted] = await executeRows<{
     refreshed: number;
     accessChanged: boolean;
-  }>(sql`
+  }>(db, sql`
     WITH incoming AS (
       SELECT * FROM jsonb_to_recordset(${JSON.stringify(incoming)}::jsonb)
         AS r("characterId" bigint, "corporationId" bigint, "allianceId" bigint, "factionId" bigint)
@@ -181,10 +179,9 @@ export async function updateAffiliations(
            EXISTS (SELECT 1 FROM queued) AS "accessChanged"
     FROM updated
   `);
-  const persisted = Array.isArray(result) ? result : result.rows;
   return {
-    accessChanged: persisted[0]?.accessChanged ?? false,
-    refreshed: persisted[0]?.refreshed ?? 0,
+    accessChanged: persisted?.accessChanged ?? false,
+    refreshed: persisted?.refreshed ?? 0,
   };
 }
 

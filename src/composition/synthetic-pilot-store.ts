@@ -11,6 +11,7 @@ import { purgeLocationTracking } from '@/data/location-tracking/purge';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
+import { ownerKeyWhere } from '@/lib/db-columns';
 import { readAuthSecret, readEnv, isHostedVercel } from '@/lib/env';
 import { isLocalUrl } from '@/lib/url-safety';
 import { characterPortraitUrl } from '@/lib/eve-image';
@@ -95,12 +96,7 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
   await db.transaction(async (tx) => {
     await tx
       .delete(mapAccess)
-      .where(
-        and(
-          eq(mapAccess.ownerType, 'character'),
-          eq(mapAccess.ownerId, SYNTHETIC_PILOT.characterId),
-        ),
-      );
+      .where(ownerKeyWhere(mapAccess, { ownerType: 'character', ownerId: SYNTHETIC_PILOT.characterId }));
     await tx.delete(user).where(eq(user.id, SYNTHETIC_PILOT.userId));
     await createSyntheticPilotRows(tx);
   });

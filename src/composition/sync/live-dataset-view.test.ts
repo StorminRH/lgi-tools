@@ -8,11 +8,12 @@ vi.mock('next/server', () => ({
   },
 }));
 
-const getTypeNamesArgs: number[][] = [];
+const nameRecordArgs: number[][] = [];
 vi.mock('@/data/eve-data/queries', () => ({
-  getTypeNames: vi.fn(async (ids: number[]) => {
-    getTypeNamesArgs.push(ids);
-    return new Map(ids.map((id) => [id, `Type #${id}`]));
+  getTypeNameRecord: vi.fn(async (ids: Iterable<number>) => {
+    const requested = [...ids];
+    nameRecordArgs.push(requested);
+    return Object.fromEntries(requested.map((id) => [String(id), `Type #${id}`]));
   }),
 }));
 
@@ -25,7 +26,7 @@ import { characterRow, getLiveDatasetOnView, type OwnerRow, readCharacterOwners 
 
 beforeEach(() => {
   afterCalls.length = 0;
-  getTypeNamesArgs.length = 0;
+  nameRecordArgs.length = 0;
   for (const key of Object.keys(linkedByUser)) delete linkedByUser[key];
 });
 
@@ -84,7 +85,7 @@ describe('readCharacterOwners', () => {
 });
 
 describe('getLiveDatasetOnView', () => {
-  it('builds rows from owners+data, schedules the refresh, and resolves deduped name ids', async () => {
+  it('builds rows from owners+data, schedules the refresh, and resolves the name ids the rows reference', async () => {
     const refresh = vi.fn();
     const result = await getLiveDatasetOnView<{ ids: number[] }, { key: number; data: { ids: number[] } | null }>(
       'u1',
@@ -110,8 +111,7 @@ describe('getLiveDatasetOnView', () => {
     ]);
     expect(afterCalls).toHaveLength(1);
     expect(refresh).toHaveBeenCalledWith('u1');
-    expect(getTypeNamesArgs).toHaveLength(1);
-    expect([...getTypeNamesArgs[0]!].sort((a, b) => a - b)).toEqual([100, 200]);
+    expect(nameRecordArgs).toEqual([[100, 200, 100]]);
     expect(result.names).toEqual({ '100': 'Type #100', '200': 'Type #200' });
   });
 
@@ -123,6 +123,6 @@ describe('getLiveDatasetOnView', () => {
       nameIds: () => [],
     });
     expect(result.names).toEqual({});
-    expect(getTypeNamesArgs[0]).toEqual([]);
+    expect(nameRecordArgs).toEqual([[]]);
   });
 });

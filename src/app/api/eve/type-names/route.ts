@@ -3,7 +3,7 @@ import {
   typeNamesRequestSchema,
 } from '@/data/eve-data/api-contract';
 import { capabilityRoute } from '@/app/api/capability-route';
-import { getTypeNames } from '@/data/eve-data/queries';
+import { getTypeNameRecord } from '@/data/eve-data/queries';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
@@ -14,10 +14,6 @@ async function handlePost(req: Request): Promise<Response> {
   const parsed = await readJsonBody(req, typeNamesRequestSchema);
   if (!parsed.ok) return apiResponse(typeNamesEndpoint, 400, parsed.failure);
 
-  const nameMap = await getTypeNames([...new Set(parsed.data.ids)]);
-  const names: Record<string, string> = {};
-  for (const [id, name] of nameMap) {
-    names[String(id)] = name;
-  }
+  const names = await getTypeNameRecord(parsed.data.ids);
   return apiResponse(typeNamesEndpoint, 200, { names });
 }

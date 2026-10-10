@@ -1,14 +1,10 @@
-import { sql } from 'drizzle-orm';
 import { chunk } from '@/lib/array';
+import { excludedSet } from '@/lib/db-upsert';
 import { UPSERT_CHUNK_SIZE } from './constants';
 import { adjustedPrices, industryCostIndices } from './schema';
 import { fetchAdjustedPrices, fetchCostIndices } from './source';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
-
-function excluded(column: string) {
-  return sql.raw(`excluded.${column}`);
-}
 
 /**
  * Per-dataset outcome. The two datasets refresh independently — one failing
@@ -47,7 +43,7 @@ async function persistCostIndices(
       )
       .onConflictDoUpdate({
         target: [industryCostIndices.solarSystemId, industryCostIndices.activity],
-        set: { costIndex: excluded('cost_index'), updatedAt: excluded('updated_at') },
+        set: excludedSet(industryCostIndices, ['costIndex', 'updatedAt']),
       });
     written += batch.length;
   }
@@ -73,11 +69,7 @@ async function persistAdjustedPrices(
       )
       .onConflictDoUpdate({
         target: adjustedPrices.typeId,
-        set: {
-          adjustedPrice: excluded('adjusted_price'),
-          averagePrice: excluded('average_price'),
-          updatedAt: excluded('updated_at'),
-        },
+        set: excludedSet(adjustedPrices, ['adjustedPrice', 'averagePrice', 'updatedAt']),
       });
     written += batch.length;
   }

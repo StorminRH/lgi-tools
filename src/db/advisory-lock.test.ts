@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createReservedConnectionMock } from './__tests__/support/reserved-connection-mock';
-import { withAdvisoryLock } from './advisory-lock';
+import { ADVISORY_LOCKS, withAdvisoryLock } from './advisory-lock';
 
 function makeClient(got: boolean, opts: { unlockThrows?: boolean } = {}) {
   const sqlCalls: string[] = [];
@@ -56,5 +56,31 @@ describe('withAdvisoryLock', () => {
     const { client, release } = makeClient(true, { unlockThrows: true });
     await expect(withAdvisoryLock(client, 42, async () => 'ok')).rejects.toThrow('unlock failed');
     expect(release).toHaveBeenCalledTimes(1);
+  });
+});
+
+it('registers each advisory-lock key once, as a safe integer outside the retired and test keys', () => {
+  const retiredKeys = [8_273_619_012, 8_273_619_016, 8_419_273_051];
+  const concurrencyTestKey = 918_273_645;
+  const keys = Object.values(ADVISORY_LOCKS);
+
+  expect(new Set(keys).size).toBe(keys.length);
+  for (const key of keys) {
+    expect(Number.isSafeInteger(key), `${key} is not a safe integer`).toBe(true);
+    expect(retiredKeys, `${key} reuses a retired key`).not.toContain(key);
+    expect(key).not.toBe(concurrencyTestKey);
+  }
+});
+
+it('keeps every advisory-lock key at its deployed value', () => {
+  // A changed key lets a run on the old deploy and one on the new deploy hold
+  // "the same" lock at once, so each value is pinned to what production uses.
+  expect(ADVISORY_LOCKS).toEqual({
+    sdeIngest: 8_273_619_013,
+    industryIndices: 8_273_619_014,
+    gscSync: 8_273_619_015,
+    esiRefreshQueue: 8_273_619_017,
+    whStaticsRefresh: 8_273_619_018,
+    mapPurge: 8_273_619_019,
   });
 });

@@ -12,6 +12,7 @@ import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 const probeMock = vi.fn();
 const recordChangedMock = vi.fn();
 const logUsageEventMock = vi.fn();
+const directDatabaseMock = { handle: 'direct-database' };
 
 let lockGot = true;
 const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
@@ -32,17 +33,9 @@ vi.mock('@/db', () => ({
   directClient: { reserve: () => reserveMock() },
 }));
 
-vi.mock('drizzle-orm/postgres-js', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('drizzle-orm/postgres-js')>();
-  return {
-    ...actual,
-    drizzle: (client: unknown) =>
-      typeof client === 'function'
-        ? (actual.drizzle as (connection: unknown) => unknown)(client)
-        : { client },
-  };
-});
+vi.mock('@/db/direct-database', () => ({
+  directDatabase: () => directDatabaseMock,
+}));
 
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
@@ -94,6 +87,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
+    expect(probeMock).toHaveBeenCalledWith(directDatabaseMock);
     expect(reserveMock).not.toHaveBeenCalled();
     expect(recordChangedMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -208,7 +202,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
 
     expect(await response.json()).toEqual(result);
     expect(recordChangedMock).toHaveBeenCalledWith(
-      { client: { reserve: expect.any(Function) } },
+      directDatabaseMock,
       feed,
       BASELINE,
     );
@@ -238,7 +232,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
     expect(recordChangedMock).toHaveBeenCalledWith(
-      { client: { reserve: expect.any(Function) } },
+      directDatabaseMock,
       feed,
       BASELINE,
     );

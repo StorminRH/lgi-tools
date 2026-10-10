@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
+import { excluded } from '@/lib/db-upsert';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { characterSheets } from './schema';
 import type { SectionEnvelope, SheetSectionKey, SheetSections } from './types';
@@ -42,7 +43,7 @@ export async function mergeSheetSection<K extends SheetSectionKey>(
     .onConflictDoUpdate({
       target: characterSheets.characterId,
       set: {
-        sections: sql`${characterSheets.sections} || excluded.sections`,
+        sections: sql`${characterSheets.sections} || ${excluded(characterSheets.sections)}`,
         lastRefreshedAt: now,
       },
     });

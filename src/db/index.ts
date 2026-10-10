@@ -7,6 +7,7 @@ import postgres from 'postgres';
 import { timeDependency } from '@/lib/dependency-timing';
 import { readEnv, requireEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { retrySerializationFailures } from './serialization-retry';
 import { withQueryTiming } from './timed-postgres';
 
 export type Db = ReturnType<typeof drizzleHttp>;
@@ -102,11 +103,17 @@ const dialect = new PgDialect();
 /**
  * Runs one statement alone in a serializable transaction. Nothing waits on a
  * lock: when a concurrent write conflicts with what the statement read,
- * Postgres rejects it with a serialization failure (see isSerializationFailure)
- * for the caller to retry. Over Neon's HTTP driver it is a single request.
+ * Postgres rejects it with a serialization failure, and the statement runs
+ * again here in a fresh transaction (see retrySerializationFailures). That is
+ * safe because a rejected transaction left nothing behind, so callers never
+ * retry it themselves. Over Neon's HTTP driver each attempt is a single request.
  */
-export async function runSerializable(query: SQL): Promise<Record<string, unknown>[]> {
+export function runSerializable(query: SQL): Promise<Record<string, unknown>[]> {
   const { sql: text, params } = dialect.sqlToQuery(query);
+  return retrySerializationFailures(() => runSerializableOnce(text, params));
+}
+
+async function runSerializableOnce(text: string, params: unknown[]): Promise<Record<string, unknown>[]> {
   if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
     const client = (getDb() as unknown as { $client: Sql }).$client;
     const rows = await client.begin('isolation level serializable', (tx) => tx.unsafe(text, params as never[]));
