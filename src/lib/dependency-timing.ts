@@ -1,11 +1,23 @@
-export type DependencyKind = 'neon' | 'esi' | 'redis';
+export const DEPENDENCY_KINDS = ['neon', 'esi', 'redis', 'convex', 'sso', 'fuzzwork'] as const;
+
+export type DependencyKind = (typeof DEPENDENCY_KINDS)[number];
 
 export interface DependencyTiming {
+  /** Summed duration of every call; concurrent calls each count in full. */
   ms: number;
   calls: number;
+  /** Elapsed time with at least one call of this kind in flight. */
+  wallMs?: number;
+  /** Calls answered with a 4xx other than 420/429; only kinds that report a status record it. */
+  status4xx?: number;
 }
 
-export type DependencyTimingSink = (kind: DependencyKind, ms: number) => void;
+/** What a finished call reports beyond its duration. */
+export interface DependencyCall {
+  status?: number;
+}
+
+export type DependencyTimingSink = (kind: DependencyKind, ms: number, call?: DependencyCall) => void;
 
 let sink: DependencyTimingSink | null = null;
 
@@ -13,8 +25,9 @@ export function setDependencyTimingSink(next: DependencyTimingSink): void {
   sink = next;
 }
 
-export function addDependencyTiming(kind: DependencyKind, ms: number): void {
-  sink?.(kind, ms);
+/** Report a call that just finished after `ms` milliseconds. */
+export function addDependencyTiming(kind: DependencyKind, ms: number, call?: DependencyCall): void {
+  sink?.(kind, ms, call);
 }
 
 export function isThenable(value: unknown): value is PromiseLike<unknown> {
