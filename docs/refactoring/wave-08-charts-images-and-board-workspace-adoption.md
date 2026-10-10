@@ -9,7 +9,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P004](#p004) | Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx | ui-component | M | low | high | — |
-| ☐ | [P037](#p037) | Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart | ui-component | S | low | medium | [P004](#p004) |
+| ☑ | [P037](#p037) | Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart | ui-component | S | low | medium | [P004](#p004) |
 | ☐ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
 | ☐ | [P318](#p318) | Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types | simplification | S | low | low | [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089) |
 | ☐ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
@@ -130,7 +130,7 @@ Intended behavior change: every BalanceTrend and admin trend or daily chart gain
 
 ## P037: Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -70 across the two charts (2 × about 30 band lines plus 2 × about 7 isolated lines plus the MARGIN constants), about +45 in band-series.tsx, plus about 30 test lines
 - **Depends on:** [P004](#p004)
