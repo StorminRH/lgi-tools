@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { readWithRetries } from '@/lib/retry';
 import { apiFetch } from '@/transport/api-client';
 import { buildLocationEndpoint } from '../api-contract';
 import { createBuildSystemApplier, type ApplySystemOptions, type BuildSystemRef } from '../build-system-apply';
-import { readWithRetries } from '../read-with-retries';
 import type { ReactionLocationSnapshot } from '../selection-policy';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import type { BlueprintStructure } from '../types';

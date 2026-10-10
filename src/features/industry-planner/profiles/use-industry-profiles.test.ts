@@ -10,7 +10,7 @@ const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runt
 vi.mock('react', () => rt.react);
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
 vi.mock('@/components/ui/toast', () => ({ toast: { error: h.notify } }));
-vi.mock('../read-with-retries', () => ({ readWithRetries: (read: () => Promise<unknown>) => read().catch(() => null) }));
+vi.mock('@/lib/retry', () => ({ readWithRetries: (read: () => Promise<unknown>) => read().catch(() => null) }));
 
 import { useIndustryProfiles } from './use-industry-profiles';
 

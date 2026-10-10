@@ -1,4 +1,5 @@
 import { isTimeoutError } from '@/lib/error-chain';
+import { sleep } from '@/lib/retry';
 
 const MAX_ATTEMPTS = 4;
 const BASE_DELAY_MS = 500;
@@ -29,12 +30,17 @@ async function emitMetric(metric: NeonColdStartMetric): Promise<void> {
   }
 }
 
+function isRetryable(error: unknown, retryTimeouts: boolean): boolean {
+  return isNeonColdStartError(error) || (retryTimeouts && isTimeoutError(error));
+}
+
 async function retryDelayFor(
   error: unknown,
   attempt: number,
   totalDelayMs: number,
+  retryTimeouts: boolean,
 ): Promise<number> {
-  if (!isNeonColdStartError(error)) throw error;
+  if (!isRetryable(error, retryTimeouts)) throw error;
   if (attempt >= MAX_ATTEMPTS) {
     await emitMetric({ outcome: 'exhausted', attempts: attempt, totalDelayMs });
     throw error;
@@ -42,18 +48,17 @@ async function retryDelayFor(
   return BASE_DELAY_MS * 2 ** (attempt - 1);
 }
 
-export async function pauseBeforeRetry(
+async function pauseBeforeRetry(
   label: string,
   attempt: number,
-  maxAttempts: number,
   err: unknown,
   delayMs: number,
 ): Promise<void> {
   const summary = err instanceof Error ? err.message.split('\n')[0] : String(err);
   console.warn(
-    `[${label}] attempt ${attempt}/${maxAttempts} failed (${summary}); retrying in ${delayMs}ms`,
+    `[${label}] attempt ${attempt}/${MAX_ATTEMPTS} failed (${summary}); retrying in ${delayMs}ms`,
   );
-  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  await sleep(delayMs);
 }
 
 export function isNeonColdStartError(err: unknown): boolean {
@@ -77,7 +82,16 @@ export function isNeonColdStartError(err: unknown): boolean {
   return false;
 }
 
-export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> {
+/**
+ * Runs a read, retrying a Neon cold start up to 4 attempts on a 500ms, 1s,
+ * 2s backoff. A timeout abort fails at once unless `retryTimeouts` is set;
+ * `label` tags each attempt's warn line.
+ */
+export async function withColdStartRetry<T>(
+  read: () => Promise<T>,
+  options: { readonly label?: string; readonly retryTimeouts?: boolean } = {},
+): Promise<T> {
+  const { label = 'neon-cold-start-retry', retryTimeouts = false } = options;
   let totalDelayMs = 0;
   for (let attempt = 1; ; attempt++) {
     try {
@@ -87,9 +101,9 @@ export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> 
       }
       return result;
     } catch (err) {
-      const delayMs = await retryDelayFor(err, attempt, totalDelayMs);
+      const delayMs = await retryDelayFor(err, attempt, totalDelayMs, retryTimeouts);
       totalDelayMs += delayMs;
-      await pauseBeforeRetry('neon-cold-start-retry', attempt, MAX_ATTEMPTS, err, delayMs);
+      await pauseBeforeRetry(label, attempt, err, delayMs);
     }
   }
 }

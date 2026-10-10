@@ -2,11 +2,11 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { idsKey, parseIdsKey } from '@/lib/array';
+import { readWithRetries } from '@/lib/retry';
 import { apiFetch } from '@/transport/api-client';
 import { buildLocationEndpoint, costIndicesEndpoint } from '../api-contract';
 import type { AssembleOptions } from '../build-pricing';
 import { profileFeeSiteOf } from '../component-job-fees';
-import { readWithRetries } from '../read-with-retries';
 import type { ProfilePlan } from '../profiles/profile-plan';
 import type { BlueprintStructure, SystemJobCostIndex } from '../types';
 import { useResourceRead } from '../use-resource-read';

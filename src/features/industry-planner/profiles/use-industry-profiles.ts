@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
 import { toast } from '@/components/ui/toast';
+import { readWithRetries } from '@/lib/retry';
 import { apiFetch } from '@/transport/api-client';
 import {
   createIndustryProfileEndpoint,
@@ -12,7 +13,6 @@ import {
   industryProfilesEndpoint,
   updateIndustryProfileEndpoint,
 } from './api-contract';
-import { readWithRetries } from '../read-with-retries';
 import type { ProfileDocument } from './profile-document';
 import { createProfileSync, type ProfileSync, type ProfileSyncState, type ProfilesResult } from './profile-sync';
 import { createFailureMessage, type PendingEdit } from './profile-view';

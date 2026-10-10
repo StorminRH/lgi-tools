@@ -7,6 +7,7 @@ import { projectMapAccess } from '@/composition/map-access-projection';
 import { db } from '@/db';
 import { maps } from '@/data/maps/schema';
 import { readEnv, requireEnv } from '@/lib/env';
+import { sleep } from '@/lib/retry';
 import type { LayoutEdge } from '@/mapper/layout/layout-contract';
 import {
   generateChainTimeline,
@@ -100,10 +101,6 @@ async function convexRun(path: string, args: Record<string, unknown>): Promise<s
   } catch (error) {
     throw new Error(`${path} failed: ${errorDetail(error)}`);
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function pace(intervalMs: number): Promise<void> {

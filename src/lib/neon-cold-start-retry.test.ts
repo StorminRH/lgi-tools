@@ -115,6 +115,28 @@ describe('withColdStartRetry', () => {
     await expect(result).resolves.toBe('rows');
     expect(read).toHaveBeenCalledTimes(2);
     expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringMatching(/^\[neon-cold-start-retry\] attempt 1\/4 failed .*; retrying in 500ms$/),
+    );
+    expect(sink).toHaveBeenCalledWith({ outcome: 'recovered', attempts: 2, totalDelayMs: 500 });
+  });
+
+  it('retries a timed-out connect under its own label when asked to', async () => {
+    const sink = vi.fn();
+    configureNeonColdStartMetricSink(sink);
+    const timedOut = neonError('Error connecting to database: TimeoutError: signal timed out', {
+      sourceError: new DOMException('signal timed out', 'TimeoutError'),
+    });
+    const read = vi.fn().mockRejectedValueOnce(drizzleWrapped(timedOut)).mockResolvedValue('rows');
+    const result = withColdStartRetry(read, { label: 'warm-neon', retryTimeouts: true });
+
+    await vi.advanceTimersByTimeAsync(499);
+    expect(read).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toBe('rows');
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(console.warn).toHaveBeenCalledOnce();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/^\[warm-neon\] attempt 1\/4 failed/));
     expect(sink).toHaveBeenCalledWith({ outcome: 'recovered', attempts: 2, totalDelayMs: 500 });
   });
 
