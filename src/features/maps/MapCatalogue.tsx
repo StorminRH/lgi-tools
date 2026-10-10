@@ -7,6 +7,7 @@ import { EveImage } from '@/components/eve-image';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { displayTitle } from '@/components/ui/type-roles';
@@ -255,19 +256,13 @@ function MapCatalogueSurface({
       >
         <PageShell mode="workspace">
           <h1 className="sr-only">Atlas</h1>
-          <Card className="flex max-w-lg flex-col items-center gap-4 p-6 text-center">
-            <div className="flex flex-col gap-1.5">
-              <h2 className={displayTitle()}>
-                Map catalogue unavailable
-              </h2>
-              <p className="font-ui text-ui leading-relaxed text-muted">
-                Atlas could not load your authorized maps. Retry before creating or managing a map.
-              </p>
-            </div>
-            <Button variant="primary" onClick={onRetry}>
-              Try again
-            </Button>
-          </Card>
+          <LoadFailed
+            title="Map catalogue unavailable"
+            detail="Atlas could not load your authorized maps. Retry before creating or managing a map."
+            retryLabel="Try again"
+            onRetry={onRetry}
+            className="max-w-lg"
+          />
         </PageShell>
       </div>
     );

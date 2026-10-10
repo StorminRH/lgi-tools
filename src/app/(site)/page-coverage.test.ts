@@ -5,13 +5,11 @@ import AppSiteAdminSearchPage from '@/app/(site)/admin/search/page';
 import AppSiteAdminStaticsPage from '@/app/(site)/admin/statics/page';
 import { getStaticsReviewShared } from '@/app/(site)/admin/shared-reads';
 import AppSiteAdminTrafficPage from '@/app/(site)/admin/traffic/page';
-import AppSiteAtlasError from '@/app/(site)/atlas/error';
 import { metadata } from '@/app/(site)/atlas/page';
 import AppSiteChangelogSlugPage, { generateMetadata, generateStaticParams } from '@/app/(site)/changelog/[slug]/page';
 import AppSiteChangelogLayout from '@/app/(site)/changelog/layout';
 import AppSiteChangelogPage, { metadata as AppSiteChangelogPageMetadata } from '@/app/(site)/changelog/page';
 import AppSiteContactPage, { metadata as AppSiteContactPageMetadata } from '@/app/(site)/contact/page';
-import AppSiteError from '@/app/(site)/error';
 import { IndustryLanding } from '@/app/(site)/industry/IndustryLanding';
 import AppSiteIndustryIdPage, { generateMetadata as AppSiteIndustryIdPageGenerateMetadata } from '@/app/(site)/industry/[id]/page';
 import AppSiteIndustryPage, { metadata as AppSiteIndustryPageMetadata } from '@/app/(site)/industry/page';
@@ -44,7 +42,6 @@ test('pins leftover runtime exports on the test graph', () => {
     AppSiteAdminStaticsPage,
     getStaticsReviewShared,
     AppSiteAdminTrafficPage,
-    AppSiteAtlasError,
     metadata,
     generateMetadata,
     generateStaticParams,
@@ -54,7 +51,6 @@ test('pins leftover runtime exports on the test graph', () => {
     AppSiteChangelogPage,
     AppSiteContactPageMetadata,
     AppSiteContactPage,
-    AppSiteError,
     IndustryLanding,
     AppSiteIndustryIdPageGenerateMetadata,
     AppSiteIndustryIdPage,
