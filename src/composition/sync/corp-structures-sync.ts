@@ -19,6 +19,7 @@ import type {
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { SecurityClass } from '@/data/eve-data/security';
+import { nameOrUnresolved } from '@/lib/format/names';
 import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
 
 function makeCorpStructuresPort(): CorpStructuresPort {
@@ -141,7 +142,7 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
 
   return corporations.map(({ corporationId, sharing, grant }) => ({
     corporationId,
-    corporationName: names[String(corporationId)] ?? `Corporation ${corporationId}`,
+    corporationName: nameOrUnresolved(names, corporationId, 'corporation'),
     structureAccess: grant.structures,
     canManageSharing: grant.manageSharing,
     sharing,

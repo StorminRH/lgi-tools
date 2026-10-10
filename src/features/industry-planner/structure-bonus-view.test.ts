@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StructureBonus } from './structure-bonus';
-import { formatBonusPct, structureBonusColumns } from './structure-bonus-view';
+import { structureBonusColumns } from './structure-bonus-view';
 import type { StructureReadout } from './structure-factors';
 
 const bonus = (over: Partial<StructureBonus>): StructureBonus => ({
@@ -8,16 +8,6 @@ const bonus = (over: Partial<StructureBonus>): StructureBonus => ({
   te: 0,
   costBonus: 0,
   ...over,
-});
-
-describe('formatBonusPct', () => {
-  it('shows one decimal at every size, as the game does', () => {
-    expect(formatBonusPct(2.4)).toBe('2.4%');
-    expect(formatBonusPct(3.38)).toBe('3.4%');
-    expect(formatBonusPct(9.99)).toBe('10.0%');
-    expect(formatBonusPct(21.5)).toBe('21.5%');
-    expect(formatBonusPct(24)).toBe('24.0%');
-  });
 });
 
 // Every metric the columns show, in reading order.

@@ -271,15 +271,6 @@ export function scannerLifeUpperBound(
   return lifetimeUpperBoundLabel(connection, entry, now) ?? '—';
 }
 
-export function formatSignatureAge(firstSeenAt: number, now: number): string {
-  const minutes = Math.max(0, Math.floor((now - firstSeenAt) / 60_000));
-  if (minutes < 1) return '<1m';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
 export function isEditablePasteTarget(target: EventTarget | null): boolean {
   if (typeof Element === 'undefined') return false;
   return target instanceof Element && target.matches(

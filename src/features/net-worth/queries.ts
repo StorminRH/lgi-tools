@@ -6,10 +6,6 @@ import { NET_WORTH_HISTORY_DAYS } from './constants';
 import { netWorthDays } from './schema';
 import type { NetWorthDay } from './types';
 
-export function utcDay(at: Date): string {
-  return at.toISOString().slice(0, 10);
-}
-
 /**
  * One statement: the keyed upsert of the day's row and the prune to the newest rows both run as
  * data-modifying CTEs, so they land together on the transaction-free request path. The prune ranks the

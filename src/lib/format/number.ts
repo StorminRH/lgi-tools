@@ -1,4 +1,6 @@
-export function formatQuantity(value: number): string {
+/** A whole number grouped in en-US, so server and client agree; `—` for null or non-finite. */
+export function formatQuantity(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '—';
   return Math.round(value).toLocaleString('en-US');
 }
 
@@ -18,4 +20,15 @@ export function formatPct(value: number | null): string {
 export function formatCount(count: number, one: string, many = `${one}s`): string {
   const rounded = Math.round(count);
   return `${formatQuantity(rounded)} ${rounded === 1 ? one : many}`;
+}
+
+/**
+ * A value that can go either way, `format`ted as a magnitude after `+` or a
+ * true minus (U+2212, never ASCII `-`): `+1.25M`, `−22%`. Zero is unsigned;
+ * `—` for null or non-finite.
+ */
+export function formatSigned(value: number | null, format: (magnitude: number) => string): string {
+  if (value === null || !Number.isFinite(value)) return '—';
+  const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+  return `${sign}${format(Math.abs(value))}`;
 }

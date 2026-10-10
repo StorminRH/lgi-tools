@@ -68,7 +68,7 @@ const DELETE_TASKS: readonly DeleteTask[] = [
   },
   {
     task: 'usage_logs',
-    run: (now, deadline) => pruneUsageLogs(USAGE_LOG_RETENTION_DAYS, now, deadline),
+    run: (now, deadline) => pruneUsageLogs(db, USAGE_LOG_RETENTION_DAYS, now, deadline),
   },
   {
     task: 'gsc_search_analytics',

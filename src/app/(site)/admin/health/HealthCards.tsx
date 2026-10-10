@@ -77,7 +77,7 @@ export function EventLog({ events }: { events: DomainEventRow[] }) {
           className="flex flex-col gap-0.5 border-b border-border-soft px-3.5 py-2 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-4"
         >
           <span className="shrink-0 font-data text-micro tabular-nums text-muted sm:w-[140px]">
-            {formatUtcMinute(event.occurredAt)} UTC
+            {formatUtcMinute(event.occurredAt)}
           </span>
           <span className="min-w-0 text-ui text-text">{summarizeDomainEvent(event)}</span>
         </li>

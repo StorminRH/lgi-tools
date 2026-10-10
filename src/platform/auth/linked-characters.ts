@@ -5,6 +5,7 @@ import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
+import { unresolvedName } from '@/lib/format/names';
 
 export interface CharacterLoginIdentity {
   characterId: number;
@@ -84,7 +85,7 @@ function toLinkedCharacter(
 ): LinkedCharacter {
   return {
     characterId,
-    name: r.name ?? `Character ${r.accountId}`,
+    name: r.name ?? unresolvedName('character', r.accountId),
     portraitUrl: r.portraitUrl ?? portraitUrl(characterId),
     scope: r.scope,
     hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,

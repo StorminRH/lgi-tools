@@ -13,6 +13,7 @@ import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { formatUtcDate } from '@/lib/format/time';
 import { corporationLogoUrl } from '@/lib/eve-image';
+import { unresolvedName } from '@/lib/format/names';
 import { mapRoleLabel } from './access-editor-model';
 import { MapAccessDialog } from './MapAccessDialog';
 import { MapLifecycleDialogs } from './MapLifecycleDialogs';
@@ -88,7 +89,7 @@ function CorporationBadges({
     <div className="flex flex-wrap gap-2" data-map-catalogue-corporations={map.id}>
       {map.provenance.corporationIds.map((corporationId) => {
         const corporation = corporationById.get(corporationId);
-        const name = corporation?.name ?? `Corporation ${corporationId}`;
+        const name = corporation?.name ?? unresolvedName('corporation', corporationId);
         return (
           <span
             key={corporationId}

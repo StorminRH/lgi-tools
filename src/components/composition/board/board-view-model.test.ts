@@ -374,6 +374,13 @@ describe('queueWindow', () => {
     expect(queueHealth(ready(queue), NOW)).toEqual({ tone: 'bad', label: 'Queue paused' });
   });
 
+  it('keeps an entry whose finish does not parse, reading it as paused', () => {
+    const garbled = { ...entry(0, -1, null), finish_date: 'garbage' };
+    expect(remainingQueue([garbled], NOW)).toEqual([{ number: 1, entry: garbled }]);
+    expect(queueHealth(ready([garbled]), NOW)).toEqual({ tone: 'bad', label: 'Queue paused' });
+    expect(queueTimeline([garbled], NOW)).toBeNull();
+  });
+
   it('never counts a finished entry as training or time left', () => {
     expect(queueHealth(ready([entry(0, -9, -1), entry(1, -1, 5)]), NOW)).toEqual({
       tone: 'warn',
@@ -417,6 +424,17 @@ describe('effectiveSkills', () => {
     const catalog = [{ groupId: 1, name: 'Gunnery', skills: [{ typeId: 3300, name: 'Gunnery', rank: 1 }] }];
     const [group] = groupSkills(effectiveSkills({ ...base, queue: [done(3300, 5)] }, NOW), catalog);
     expect(group).toMatchObject({ trained: 1, atV: 1, skills: [{ level: 5, reported: 4 }] });
+  });
+
+  it('applies a passed finish without a start date, but never a finish that does not parse', () => {
+    const { start_date: _start, ...undated } = done(3300, 5);
+    const garbled = { ...done(3302, 1), finish_date: 'garbage' };
+    expect(effectiveSkills({ ...base, queue: [undated, garbled] }, NOW)).toEqual({
+      levels: { '3300': 5, '3301': 2 },
+      reported: { '3300': 4 },
+      known: 2,
+      atV: 1,
+    });
   });
 });
 

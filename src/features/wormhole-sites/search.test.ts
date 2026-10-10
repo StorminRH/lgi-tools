@@ -55,4 +55,10 @@ describe('sitesSearchSource', () => {
     expect(result!.iconText).toBe('—');
     expect(result!.sub).toContain('42');
   });
+
+  it('summarizes a sub-million site in thousands instead of 0M', async () => {
+    setSiteSearchIndex([entry({ id: 9, name: 'Sleeper Data Sanctuary', blueLootIsk: 100_000 })]);
+    const [result] = await sitesSearchSource.search('Sanctuary', ctx);
+    expect(result!.sub).toBe('Combat · 100K');
+  });
 });

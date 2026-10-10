@@ -16,6 +16,7 @@ import {
 } from '@/data/maps/queries';
 import { groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
+import { unresolvedName } from '@/lib/format/names';
 import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 export interface MapClaimCharacter {
@@ -115,7 +116,7 @@ async function nameCharacters(
     ...claim,
     characters: characterIds.map((characterId) => ({
       characterId,
-      name: names.get(characterId) ?? `Character ${characterId}`,
+      name: names.get(characterId) ?? unresolvedName('character', characterId),
     })),
   }));
 }

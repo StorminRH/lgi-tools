@@ -5,7 +5,7 @@ import {
   parseStructureFitEndpoint,
   parseStructureFitRequestSchema,
 } from '@/features/custom-structures/api-contract';
-import { parseStructureFit } from '@/features/industry-planner/structure-fit-parse';
+import { parseStructureFit } from '@/features/custom-structures/structure-fit-parse';
 import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';

@@ -10,6 +10,8 @@ import {
   lifetimeDisplay,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
+import { formatQuantity } from '@/lib/format/number';
+import { HOUR_MS } from '@/lib/iso-date';
 import type { ConnectionDetail } from '../chain/connection-detail';
 
 export interface CodexPanelFacts {
@@ -44,8 +46,6 @@ export type LifetimeRowDisplay =
       readonly title: string;
     }
   | { readonly kind: 'expired'; readonly label: string };
-
-const HOUR_MS = 60 * 60 * 1000;
 
 export function isCodexSizeLocked(entry: WormholeCodexEntry | null): boolean {
   return entry !== null && entry.farSide === false;
@@ -112,7 +112,7 @@ export function massRowDisplay(
     minKg: bounds.minKg,
     maxKg: bounds.maxKg,
     label: `${formatKilograms(bounds.minKg)}–${formatKilograms(bounds.maxKg)} (±10% spawn)`,
-    title: `${bounds.minKg.toLocaleString()}–${bounds.maxKg.toLocaleString()} kg remaining`,
+    title: `${formatQuantity(bounds.minKg)}–${formatQuantity(bounds.maxKg)} kg remaining`,
   };
 }
 

@@ -113,9 +113,7 @@ function GscSyncDetail({
         <>
           <DetailCaption>
             Google data lags ~2–3 days · last synced{' '}
-            {lastSyncedAt
-              ? `${formatUtcMinute(lastSyncedAt)} UTC`
-              : 'never'}
+            {formatUtcMinute(lastSyncedAt, { empty: 'never' })}
           </DetailCaption>
           {gscOutcomes.length > 0 && (
             <TitledBlock title="Sync runs by outcome">

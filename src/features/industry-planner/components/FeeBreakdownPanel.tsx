@@ -8,14 +8,12 @@ import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import type { NetMarginView } from '../types';
 import { UnpricedInputs } from './UnpricedInputs';
 
-const isk = (v: number | null) => (v === null ? '—' : formatIsk(v));
-
 function FeeRow({ line }: { line: FeeLine }) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between gap-4">
         <span className="truncate text-muted">{line.label}</span>
-        <span className={cn('shrink-0 tabular-nums', line.unpriced ? 'text-dps-mid' : 'text-text')}>{isk(line.value)}</span>
+        <span className={cn('shrink-0 tabular-nums', line.unpriced ? 'text-dps-mid' : 'text-text')}>{formatIsk(line.value)}</span>
       </div>
       <UnpricedInputs names={line.unpriced ?? []} />
     </div>
@@ -46,7 +44,7 @@ function FeeSection({
             </span>
             {label}
           </span>
-          <span className={cn('shrink-0 tabular-nums', partial ? 'text-dps-mid' : 'text-name')}>{isk(total)}</span>
+          <span className={cn('shrink-0 tabular-nums', partial ? 'text-dps-mid' : 'text-name')}>{formatIsk(total)}</span>
         </>
       }
     >

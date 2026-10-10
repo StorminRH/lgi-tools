@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { withHostNumberLocale } from '@/lib/__tests__/host-locale';
 import { siteResource } from '../__tests__/site-fixtures';
 import {
   deriveResourceRowView,
@@ -32,5 +33,20 @@ describe('resource row view', () => {
     expect(resourceValueEligible(siteResource({ liveEligible: true, typeId: 22 }))).toBe(true);
     expect(resourceValueEligible(siteResource({ liveEligible: false, typeId: 22 }))).toBe(false);
     expect(resourceValueEligible(siteResource({ liveEligible: true, typeId: null }))).toBe(false);
+  });
+
+  it('groups volume and counts in en-US under any host locale, so the client hydrates the server text', () => {
+    const view = withHostNumberLocale('de-DE', () => ({
+      hostGrouping: (4000).toLocaleString(),
+      volume: formatM3(4000),
+      ore: deriveResourceRowView(siteResource({ units: 1250, volumeM3: 40_000 }), 'ore').meta,
+      gas: deriveResourceRowView(siteResource({ units: 3000, volumeM3: 6000 }), 'gas').meta,
+    }));
+    expect(view).toEqual({
+      hostGrouping: '4.000',
+      volume: '4,000 m³',
+      ore: '1,250 rocks · 40,000 m³',
+      gas: '3,000 units · 6,000 m³',
+    });
   });
 });

@@ -2,8 +2,9 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDbTestHarness, seedEveAccount, seedUser } from '@/db/__tests__/support/db-test-harness';
 import { user } from '@/db/auth-schema';
+import { DAY_MS, isoDay, isoDayStartMs } from '@/lib/iso-date';
 import { NET_WORTH_HISTORY_DAYS } from './constants';
-import { getNetWorthHistory, upsertNetWorthDay, utcDay } from './queries';
+import { getNetWorthHistory, upsertNetWorthDay } from './queries';
 import type { NetWorthDay } from './types';
 import { netWorthDays } from './schema';
 import { netWorthPurgeContributor } from './purge';
@@ -21,7 +22,6 @@ const harness = await createDbTestHarness({
 const USER = 'worth-user';
 const OTHER = 'other-user';
 const RECORDED = new Date('2026-09-27T12:00:00Z');
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const snapshot = (day: string, netWorth: number, liquidIsk = 100): NetWorthDay => ({
   day,
@@ -32,7 +32,7 @@ const snapshot = (day: string, netWorth: number, liquidIsk = 100): NetWorthDay =
   pilots: { '9900000001': { netWorth: netWorth - 1, liquidIsk }, '9900000002': { netWorth: 1, liquidIsk: 0 } },
 });
 
-const dayBefore = (day: string, n: number) => utcDay(new Date(Date.parse(`${day}T00:00:00Z`) - n * DAY_MS));
+const dayBefore = (day: string, n: number) => isoDay(isoDayStartMs(day) - n * DAY_MS);
 
 async function rowsFor(userId: string) {
   return harness.db.select().from(netWorthDays).where(eq(netWorthDays.userId, userId)).orderBy(netWorthDays.day);
@@ -175,12 +175,5 @@ describe.skipIf(!harness.reachable)('net_worth_days queries execute against Post
     expect(await getNetWorthHistory(OTHER)).toEqual([snapshot('2026-09-25', 40)]);
     await netWorthPurgeContributor.purgeCharacter!({ kind: 'character', userId: USER, characterId: 9900000001 });
     expect(await getNetWorthHistory(USER)).toEqual([unrelated]);
-  });
-});
-
-describe('utcDay', () => {
-  it('formats the UTC calendar day', () => {
-    expect(utcDay(new Date('2026-09-27T23:59:59Z'))).toBe('2026-09-27');
-    expect(utcDay(new Date('2026-09-27T00:00:00Z'))).toBe('2026-09-27');
   });
 });

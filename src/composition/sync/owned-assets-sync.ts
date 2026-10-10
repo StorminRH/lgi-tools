@@ -1,7 +1,6 @@
 import { after } from 'next/server';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
-import { formatStationName } from '@/features/industry-planner/format-station-name';
 import {
   buildOwnedAssetDetail,
   collectAssetNameIds,
@@ -13,6 +12,7 @@ import {
   refreshOwnedAssetsForUser,
 } from '@/features/owned-assets/refresh';
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
+import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';

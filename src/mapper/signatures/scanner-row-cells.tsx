@@ -4,12 +4,9 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Tooltip } from '@/components/ui/tooltip';
+import { formatElapsed } from '@/lib/format/time';
 import { clampPct } from '@/lib/math';
-import {
-  formatSignatureAge,
-  scannerGroupTypeLabel,
-  type SignatureWindowRow,
-} from './signature-model';
+import { scannerGroupTypeLabel, type SignatureWindowRow } from './signature-model';
 import { scannerRowOpenAction } from './scanner-row-open';
 
 export type OpenRowActions = (
@@ -72,10 +69,10 @@ export function IdCell({
   readonly now: number;
 }) {
   return (
-    <Tooltip content={`Age ${formatSignatureAge(row.firstSeenAt, now)}`}>
+    <Tooltip content={`Age ${formatElapsed(now - row.firstSeenAt)}`}>
       <span className="whitespace-nowrap text-isk tabular-nums">
         {row.signatureId}
-        <span className="sr-only">{` Age ${formatSignatureAge(row.firstSeenAt, now)}`}</span>
+        <span className="sr-only">{` Age ${formatElapsed(now - row.firstSeenAt)}`}</span>
       </span>
     </Tooltip>
   );

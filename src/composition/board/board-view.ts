@@ -1,7 +1,7 @@
 import { after } from 'next/server';
 import { getCharacterSheets, readSheetRow } from '@/features/character-sheet/queries';
 import { getJobsForCharacters, readCharacterJobs, readCharacterJobSyncState } from '@/features/industry-jobs/queries';
-import { getNetWorthHistory, upsertNetWorthDay, utcDay } from '@/features/net-worth/queries';
+import { getNetWorthHistory, upsertNetWorthDay } from '@/features/net-worth/queries';
 import { listCharacterAssetRows, readOwnerAssetRows, readOwnerSyncState } from '@/features/owned-assets/queries';
 import {
   getSkillLevelsForCharacters,
@@ -13,6 +13,7 @@ import {
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { isoDay } from '@/lib/iso-date';
 import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
 import { refreshJobsOnView } from '@/composition/sync/industry-jobs-sync';
 import { refreshCharacterAssetsOnView } from '@/composition/sync/owned-assets-sync';
@@ -85,7 +86,7 @@ export async function recordNetWorthSnapshot(userId: string, now = new Date()): 
   const snapshot = netWorthSnapshot(raws, {
     prices: valuation.prices,
     typeCategories: valuation.categories,
-  }, utcDay(now));
+  }, isoDay(now));
   if (snapshot.pilotsIncluded > 0) await upsertNetWorthDay(userId, snapshot, now);
   await seedUnpricedTypes(valuation.unseeded);
 }

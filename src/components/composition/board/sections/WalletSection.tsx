@@ -3,7 +3,8 @@
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
-import { formatUtcDate } from '@/lib/format/time';
+import { formatSigned } from '@/lib/format/number';
+import { formatUtcDate, stripUtcYear } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
 import { FlowLine } from '../board-bits';
 import { pilotWorthSeries, recentJournal } from '../board-view-model';
@@ -13,14 +14,12 @@ import { WorthChart, WorthHeadline } from '../WorthChart';
 type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
 type JournalRow = Journal['recent'][number];
 
-const signedIsk = (amount: number): string => `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${formatIsk(Math.abs(amount))}`;
-
 const COLUMNS: readonly StaticTableColumn<JournalRow>[] = [
   {
     key: 'date',
     label: 'Date',
     className: 'whitespace-nowrap text-muted',
-    render: (row) => formatUtcDate(row.date).replace(/ \d{4}$/, ''),
+    render: (row) => stripUtcYear(formatUtcDate(row.date)),
   },
   { key: 'type', label: 'Type', className: 'max-w-[160px] truncate text-name', render: (row) => row.refLabel },
   {
@@ -29,7 +28,7 @@ const COLUMNS: readonly StaticTableColumn<JournalRow>[] = [
     align: 'right',
     className: 'whitespace-nowrap tabular-nums',
     render: (row) => (
-      <span className={row.amount >= 0 ? 'text-isk' : 'text-dps-high'}>{signedIsk(row.amount)}</span>
+      <span className={row.amount >= 0 ? 'text-isk' : 'text-dps-high'}>{formatSigned(row.amount, formatIsk)}</span>
     ),
   },
   {

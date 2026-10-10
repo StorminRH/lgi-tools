@@ -1,10 +1,11 @@
 import type { DotTone } from '@/components/ui/tones';
+import { formatQuantity } from '@/lib/format/number';
 import type { SiteResource, SiteType } from '../types';
 import { HACKING_DOT_TONE } from './wormhole-styles';
 
 export function formatM3(m3: number | null): string {
   if (m3 == null) return '—';
-  return `${m3.toLocaleString()} m³`;
+  return `${formatQuantity(m3)} m³`;
 }
 
 export type ResourceRowView = {
@@ -21,13 +22,13 @@ export function deriveResourceRowView(resource: SiteResource, siteType: SiteType
     const units = resource.units ?? 0;
     return {
       colsClass: 'grid-cols-[1fr_auto_auto]',
-      meta: `${units.toLocaleString()} rocks · ${formatM3(resource.volumeM3)}`,
+      meta: `${formatQuantity(units)} rocks · ${formatM3(resource.volumeM3)}`,
       dotTone: null,
     };
   }
   const gasMeta =
     resource.units != null
-      ? `${resource.units.toLocaleString()} units · ${formatM3(resource.volumeM3)}`
+      ? `${formatQuantity(resource.units)} units · ${formatM3(resource.volumeM3)}`
       : formatM3(resource.volumeM3);
   return { colsClass: 'grid-cols-[1fr_auto_auto]', meta: gasMeta, dotTone: null };
 }

@@ -1,6 +1,7 @@
 import { and, eq, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
+import type { AnyPgDb } from '@/lib/db-types';
 import { usageLogs } from './schema';
 import type { UsageAction } from './types';
 
@@ -41,10 +42,11 @@ export async function completePublicEsiBudgetAlertClaim(id: number): Promise<voi
 }
 
 export function pruneUsageLogs(
+  database: AnyPgDb,
   retentionDays: number,
   now: Date = new Date(),
   deadline?: number,
 ): Promise<BatchedDeleteResult> {
   const cutoff = retentionCutoff(retentionDays, now);
-  return deleteInBatches(db, usageLogs, lt(usageLogs.timestamp, cutoff), deadline);
+  return deleteInBatches(database, usageLogs, lt(usageLogs.timestamp, cutoff), deadline);
 }

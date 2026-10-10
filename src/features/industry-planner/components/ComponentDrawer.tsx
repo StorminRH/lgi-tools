@@ -10,6 +10,7 @@ import { LivePrice } from '@/components/ui/live-price';
 import { SidePanel } from '@/components/ui/side-panel';
 import { eyebrow } from '@/components/ui/type-roles';
 import { useSystemSearch } from '@/components/use-system-search';
+import { activityLabel } from '@/data/eve-data/constants';
 import { securityStatusTextClass } from '@/data/eve-data/security';
 import { formatSec } from '@/data/eve-data/systems-search';
 import { nodeImage } from '@/data/eve-data/type-images';
@@ -17,9 +18,9 @@ import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import { isEfficiencyEligible, unitPriceMap } from '../build-plan-view';
 import { componentSheet, type ComponentInputRow, type ComponentSheet } from '../component-sheet-view';
-import { activityLabel } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { nodeTeState } from '../te-overrides';
+import { typeName } from '../type-name';
 import type { BlueprintStructure } from '../types';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { useBuildPlan, useBuildSetup, useMarketData } from './planner-contexts';
@@ -156,7 +157,7 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5 font-data tabular-nums">
         <span className="text-ui text-name">{formatQuantity(row.quantity)}</span>
-        <LivePrice value={row.value === null ? '—' : formatIsk(row.value)} pending={refreshing} className="text-micro text-isk" />
+        <LivePrice value={formatIsk(row.value)} pending={refreshing} className="text-micro text-isk" />
       </span>
       {row.buildable && <span aria-hidden className="text-muted">›</span>}
     </>
@@ -233,7 +234,7 @@ function Sheet({
           <span className="ml-1.5 text-micro text-muted">× {formatQuantity(sheet.batch)}</span>
         </Stat>
         <Stat label="Owned" tone={owned !== null && owned >= sheet.required ? 'text-isk' : undefined}>
-          {owned === null ? '—' : formatQuantity(owned)}
+          {formatQuantity(owned)}
         </Stat>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -303,10 +304,7 @@ export function ComponentDrawer({
           jobFee: pricing?.net?.componentJobs?.jobs.find((job) => job.typeId === id),
         });
   const previousId = stack.length > 1 ? stack[stack.length - 2]! : null;
-  const previous =
-    previousId === null
-      ? null
-      : (structure.buildNodeDisplay[previousId]?.name ?? structure.materialNames[previousId] ?? `Type ${previousId}`);
+  const previous = previousId === null ? null : typeName(structure, previousId);
   return (
     <SidePanel open={stack.length > 0} onOpenChange={(open) => !open && onStackChange([])} title={sheet?.name ?? ''}>
       {sheet && (

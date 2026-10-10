@@ -35,10 +35,6 @@ export function hasOwnedStock(ownedAssets: { size: number } | null): boolean {
   return (ownedAssets?.size ?? 0) > 0;
 }
 
-export function pluralCount(n: number, singular: string, plural: string): string {
-  return `${n} ${n === 1 ? singular : plural}`;
-}
-
 export interface MultibuyEntry {
   name: string;
   qty: number;

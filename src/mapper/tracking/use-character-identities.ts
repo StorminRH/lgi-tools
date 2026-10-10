@@ -2,6 +2,7 @@
 
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { useEntityNames } from '@/components/use-entity-names';
+import { nameOrUnresolved } from '@/lib/format/names';
 
 export interface CharacterIdentity {
   readonly name: string;
@@ -20,7 +21,7 @@ export function useCharacterIdentities(
   return (characterId) => {
     const row = roster?.find((candidate) => candidate.characterId === characterId);
     return {
-      name: row?.name ?? names[String(characterId)] ?? `Character ${characterId}`,
+      name: row?.name ?? nameOrUnresolved(names, characterId, 'character'),
       portraitUrl: row?.portraitUrl,
     };
   };

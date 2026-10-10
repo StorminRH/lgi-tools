@@ -13,6 +13,7 @@ import type {
 import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { characterPortraitUrl } from '@/lib/eve-image';
+import { DAY_MS, HOUR_MS, isoDay } from '@/lib/iso-date';
 import { roundIsk } from '@/lib/math';
 import type { AssetLine, PriceBook, TypeCategories } from '@/features/net-worth/valuation';
 import type { BoardHistoryDay, BoardResponse, SkillCatalogGroup } from './api-contract';
@@ -29,9 +30,6 @@ export const DEMO_VARIANTS = ['full', 'one', 'reconnect', 'empty'] as const;
 export type DemoVariant = (typeof DEMO_VARIANTS)[number];
 
 export const FIXTURE_NOW = Date.parse('2026-09-27T12:00:00Z');
-
-const HOUR = 60 * 60 * 1000;
-const DAY = 24 * HOUR;
 
 const SYNTHETIC_CHARACTER_ID_BASE = 9_900_000_000;
 
@@ -323,8 +321,8 @@ const JOURNAL_CYCLE: ReadonlyArray<[refType: string, amount: number, description
 ];
 
 const JOURNAL_ROWS = 40;
-const JOURNAL_STEP = 18 * HOUR;
-const JOURNAL_START_JUST_PAST_30_DAYS = 30 * DAY + 6 * HOUR;
+const JOURNAL_STEP = 18 * HOUR_MS;
+const JOURNAL_START_JUST_PAST_30_DAYS = 30 * DAY_MS + 6 * HOUR_MS;
 
 function demoJournalBody(now: number, scale: number, closing: number, idBase: number): unknown[] {
   const first = now - JOURNAL_START_JUST_PAST_30_DAYS;
@@ -470,7 +468,7 @@ function aurel(now: number): BoardRaw {
         name: null,
       },
     ],
-    lastCloneJumpDate: new Date(now - 9 * DAY).toISOString(),
+    lastCloneJumpDate: new Date(now - 9 * DAY_MS).toISOString(),
   };
   return {
     identity: {
@@ -484,7 +482,7 @@ function aurel(now: number): BoardRaw {
     sheet: {
       profile: envelope<'profile'>(
         { character: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.31 } },
-        now - 6 * HOUR,
+        now - 6 * HOUR_MS,
       ),
       status: envelope<'status'>(
         statusData(
@@ -495,7 +493,7 @@ function aurel(now: number): BoardRaw {
             shipTypeId: TENGU,
             shipName: 'Quiet Ledger',
             online: true,
-            lastLoginAt: now - 3 * HOUR,
+            lastLoginAt: now - 3 * HOUR_MS,
           },
           1_030_000_000_101,
         ),
@@ -507,8 +505,8 @@ function aurel(now: number): BoardRaw {
             { intelligence: 27, memory: 21, perception: 17, willpower: 17, charisma: 17 },
             {
               bonusRemaps: 1,
-              lastRemapDate: new Date(now - 200 * DAY).toISOString(),
-              accruedRemapCooldownDate: new Date(now + 165 * DAY).toISOString(),
+              lastRemapDate: new Date(now - 200 * DAY_MS).toISOString(),
+              accruedRemapCooldownDate: new Date(now + 165 * DAY_MS).toISOString(),
             },
           ),
         },
@@ -555,12 +553,12 @@ function aurel(now: number): BoardRaw {
         unallocatedSp: 405_000,
         entries: [
           queueEntry(3334, 0, 5, { start: 226_275, end: 1_280_000, trainingStart: 902_400 }, {
-            startAt: now - 2 * DAY,
-            finishAt: now + 20 * HOUR,
+            startAt: now - 2 * DAY_MS,
+            finishAt: now + 20 * HOUR_MS,
           }),
           queueEntry(33096, 1, 4, { start: 48_000, end: 271_530, trainingStart: 48_000 }, {
-            startAt: now + 20 * HOUR,
-            finishAt: now + 3 * DAY,
+            startAt: now + 20 * HOUR_MS,
+            finishAt: now + 3 * DAY_MS,
           }),
         ],
       },
@@ -570,9 +568,9 @@ function aurel(now: number): BoardRaw {
     jobs: {
       data: {
         jobs: [
-          manufacturingJob(510_001, 'active', now - 19 * HOUR, now + 5 * HOUR),
-          manufacturingJob(510_002, 'active', now - 6 * HOUR, now + 30 * HOUR),
-          manufacturingJob(510_003, 'ready', now - 3 * DAY, now - 2 * HOUR),
+          manufacturingJob(510_001, 'active', now - 19 * HOUR_MS, now + 5 * HOUR_MS),
+          manufacturingJob(510_002, 'active', now - 6 * HOUR_MS, now + 30 * HOUR_MS),
+          manufacturingJob(510_003, 'ready', now - 3 * DAY_MS, now - 2 * HOUR_MS),
         ],
       },
       refreshedAt: now - 6 * 60_000,
@@ -594,7 +592,7 @@ function kessa(now: number): BoardRaw {
     sheet: {
       profile: envelope<'profile'>(
         { character: { birthday: '2019-08-02T18:05:00Z', securityStatus: -1.8 } },
-        now - 11 * HOUR,
+        now - 11 * HOUR_MS,
       ),
       status: envelope<'status'>(
         statusData(
@@ -605,7 +603,7 @@ function kessa(now: number): BoardRaw {
             shipTypeId: ISHTAR,
             shipName: 'Sable Kite',
             online: false,
-            lastLoginAt: now - 14 * HOUR,
+            lastLoginAt: now - 14 * HOUR_MS,
           },
           1_030_000_000_202,
         ),
@@ -644,8 +642,8 @@ function kessa(now: number): BoardRaw {
         totalSp: 18_240_100,
         entries: [
           queueEntry(33699, 0, 5, { start: 90_510, end: 512_000, trainingStart: 260_000 }, {
-            startAt: now - 30 * HOUR,
-            finishAt: now + 9 * HOUR,
+            startAt: now - 30 * HOUR_MS,
+            finishAt: now + 9 * HOUR_MS,
           }),
         ],
       },
@@ -670,7 +668,7 @@ function torvin(now: number): BoardRaw {
     sheet: {
       profile: envelope<'profile'>(
         { character: { birthday: '2011-11-22T12:30:00Z', securityStatus: 0.42 } },
-        now - 20 * HOUR,
+        now - 20 * HOUR_MS,
       ),
       status: envelope<'status'>(
         statusData(
@@ -681,7 +679,7 @@ function torvin(now: number): BoardRaw {
             shipTypeId: RETRIEVER,
             shipName: 'Gravel Sparrow',
             online: false,
-            lastLoginAt: now - 3 * DAY,
+            lastLoginAt: now - 3 * DAY_MS,
           },
           1_030_000_000_303,
         ),
@@ -693,8 +691,8 @@ function torvin(now: number): BoardRaw {
             { intelligence: 21, memory: 27, perception: 17, willpower: 17, charisma: 17 },
             {
               bonusRemaps: 0,
-              lastRemapDate: new Date(now - 40 * DAY).toISOString(),
-              accruedRemapCooldownDate: new Date(now + 325 * DAY).toISOString(),
+              lastRemapDate: new Date(now - 40 * DAY_MS).toISOString(),
+              accruedRemapCooldownDate: new Date(now + 325 * DAY_MS).toISOString(),
             },
           ),
         },
@@ -713,7 +711,7 @@ function torvin(now: number): BoardRaw {
                 name: 'Hek hauler',
               },
             ],
-            lastCloneJumpDate: new Date(now - 40 * DAY).toISOString(),
+            lastCloneJumpDate: new Date(now - 40 * DAY_MS).toISOString(),
           },
         },
         now - 90_000,
@@ -740,10 +738,10 @@ function torvin(now: number): BoardRaw {
     jobs: {
       data: {
         jobs: [
-          manufacturingJob(520_001, 'active', now - 12 * HOUR, now + 12 * HOUR),
-          manufacturingJob(520_002, 'active', now - DAY, now + 2 * DAY),
-          manufacturingJob(520_003, 'ready', now - 2 * DAY, now - 5 * HOUR),
-          manufacturingJob(520_004, 'delivered', now - 6 * DAY, now - 4 * DAY),
+          manufacturingJob(520_001, 'active', now - 12 * HOUR_MS, now + 12 * HOUR_MS),
+          manufacturingJob(520_002, 'active', now - DAY_MS, now + 2 * DAY_MS),
+          manufacturingJob(520_003, 'ready', now - 2 * DAY_MS, now - 5 * HOUR_MS),
+          manufacturingJob(520_004, 'delivered', now - 6 * DAY_MS, now - 4 * DAY_MS),
         ],
       },
       refreshedAt: now - 6 * 60_000,
@@ -765,7 +763,7 @@ function ilyana(now: number): BoardRaw {
     sheet: {
       profile: envelope<'profile'>(
         { character: { birthday: '2022-01-15T07:12:00Z', securityStatus: 0 } },
-        now - 2 * HOUR,
+        now - 2 * HOUR_MS,
       ),
       status: envelope<'status'>(
         statusData(
@@ -837,10 +835,6 @@ const HISTORY_DAYS = 90;
 const SKIPPED_DAY_PERIODS = [7, 11] as const;
 const SKIPPED_DAY_OFFSETS = [3, 5] as const;
 
-function utcDayOf(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
-}
-
 /** A day the demo account did not open the board; the chart must cope with the gap. */
 function isSkippedDay(daysAgo: number): boolean {
   return SKIPPED_DAY_PERIODS.some((period, i) => daysAgo % period === SKIPPED_DAY_OFFSETS[i]);
@@ -854,7 +848,7 @@ function pastWorth(today: number, daysAgo: number, seed: number): number {
 }
 
 function demoHistory(now: number, raws: readonly BoardRaw[]): BoardHistoryDay[] {
-  const today = netWorthSnapshot(raws, DEMO_NAMES, utcDayOf(now));
+  const today = netWorthSnapshot(raws, DEMO_NAMES, isoDay(now));
   if (today.pilotsIncluded === 0) return [];
   const days: BoardHistoryDay[] = [];
   for (let daysAgo = HISTORY_DAYS; daysAgo >= 1; daysAgo -= 1) {
@@ -869,7 +863,7 @@ function demoHistory(now: number, raws: readonly BoardRaw[]): BoardHistoryDay[] 
       liquidIsk += past.liquidIsk;
     });
     days.push({
-      day: utcDayOf(now - daysAgo * DAY),
+      day: isoDay(now - daysAgo * DAY_MS),
       netWorth: roundIsk(netWorth),
       liquidIsk: roundIsk(liquidIsk),
       included: today.pilotsIncluded,

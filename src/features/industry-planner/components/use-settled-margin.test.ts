@@ -17,7 +17,6 @@ const view = (showNet: boolean, margin: number): CockpitMarginView => ({
   showNet,
   margin,
   marginPct: null,
-  sign: margin < 0 ? '' : '+',
   feeSystemName: undefined,
   marginLabel: showNet ? 'Net margin' : 'Gross margin',
 });

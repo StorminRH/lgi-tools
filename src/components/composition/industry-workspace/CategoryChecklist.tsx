@@ -11,7 +11,7 @@ import {
   categoryName,
 } from '@/features/industry-planner/profiles/production-categories';
 import { MANUFACTURING_ACTIVITY, type StructureBonus } from '@/features/industry-planner/structure-bonus';
-import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
+import { formatPct } from '@/lib/format/number';
 
 interface ChecklistProps {
   categories: readonly CategoryKey[];
@@ -24,7 +24,7 @@ const NONE: ReadonlySet<CategoryKey> = new Set();
 const NO_BONUSES: ReadonlyMap<CategoryKey, StructureBonus> = new Map();
 
 function bonusText(bonus: StructureBonus): string {
-  return [bonus.me > 0 ? `ME ${formatBonusPct(bonus.me)}` : null, bonus.te > 0 ? `TE ${formatBonusPct(bonus.te)}` : null]
+  return [bonus.me > 0 ? `ME ${formatPct(bonus.me)}` : null, bonus.te > 0 ? `TE ${formatPct(bonus.te)}` : null]
     .filter(Boolean)
     .join(' · ');
 }

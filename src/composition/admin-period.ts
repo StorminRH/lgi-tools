@@ -1,4 +1,5 @@
 import type { DateRange } from '@/data/telemetry/types';
+import { daysBefore } from '@/lib/iso-date';
 
 export const RANGES = ['7d', '30d', '90d', 'all'] as const;
 export type RangeKey = (typeof RANGES)[number];
@@ -18,7 +19,7 @@ export function rangeFor(key: RangeKey, now: Date = new Date()): DateRange {
   const to = new Date(Math.ceil(now.getTime() / MINUTE_MS) * MINUTE_MS);
   if (key === 'all') return { from: ALL_TIME_FROM, to };
   const days = key === '7d' ? 7 : key === '30d' ? 30 : 90;
-  return { from: new Date(to.getTime() - days * 24 * 60 * 60 * 1000), to };
+  return { from: daysBefore(to, days), to };
 }
 
 export function previousRange(key: RangeKey, range: DateRange): DateRange | null {

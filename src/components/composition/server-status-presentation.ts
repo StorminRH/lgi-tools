@@ -50,7 +50,7 @@ function tranquilityRows(status: ServerStatus): EveStatusRow[] {
   if (isLive(status)) {
     rows.push({ label: 'Players', value: formatQuantity(status.players), level: 'green' });
     if (status.startedAt !== null) {
-      rows.push({ label: 'Up since', value: `${formatUtcTime(new Date(status.startedAt))} UTC`, level: 'green' });
+      rows.push({ label: 'Up since', value: `${formatUtcTime(status.startedAt)} UTC`, level: 'green' });
     }
   }
   return rows;

@@ -1,4 +1,4 @@
-import { formatIskHeader } from './format';
+import { formatIskShort } from '@/lib/format/isk';
 import { deriveSiteMeta } from './site-meta';
 import type { SiteDetail } from './types';
 
@@ -17,7 +17,7 @@ export function deriveSiteSocialCardContent(site: SiteDetail): SiteSocialCardCon
   return {
     name: site.name,
     classification: [classLabel, typeLabel].filter(Boolean).join(' · '),
-    value: formatIskHeader(isk),
+    value: formatIskShort(isk, { unit: true }),
     valueCaption: isResourceSite ? 'LIVE JITA RESOURCE VALUE' : 'ESTIMATED BLUE-LOOT VALUE',
   };
 }

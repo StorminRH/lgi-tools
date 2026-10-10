@@ -24,6 +24,7 @@ import {
 } from './build-batch';
 import { computeComponentJobFees, type ComponentFeeSources } from './component-job-fees';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
+import { typeName } from './type-name';
 import type {
   BlueprintPricing,
   BlueprintStructure,
@@ -267,7 +268,7 @@ export function assemblePricing(
 
   const rows: MaterialCostRow[] = rowsCost.perMaterial.map((c) => ({
     typeId: c.typeId,
-    name: structure.materialNames[c.typeId] ?? `Type ${c.typeId}`,
+    name: typeName(structure, c.typeId),
     quantity: c.quantity,
     unitBuy: c.unitBuy,
     extendedCost: c.extendedCost,

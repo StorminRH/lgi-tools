@@ -21,6 +21,7 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import { refreshAvailableStructures, useAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { CorpRigEditor } from '@/features/owned-structures/components/CorpRigEditor';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
+import { unresolvedName } from '@/lib/format/names';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
@@ -147,7 +148,7 @@ function CorpGroup({
           <StructureRow
             key={s.structureId}
             lookups={lookups}
-            name={s.name ?? lookups.types.find((t) => t.typeId === s.typeId)?.name ?? `Structure ${s.structureId}`}
+            name={s.name ?? lookups.types.find((t) => t.typeId === s.typeId)?.name ?? unresolvedName('structure', s.structureId)}
             typeId={s.typeId}
             systemId={s.systemId}
             readout={readoutFor(lookups, `corp:${s.structureId}`, s.systemId)}
