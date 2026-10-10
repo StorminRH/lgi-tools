@@ -13,6 +13,7 @@ import {
 } from '@/data/eve-data/wormhole-contract';
 import { canonicalizeMapRoles, type MapRole } from '@/data/maps/access-contract';
 import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
+import { CONNECTION_DOOR_SIDES } from '@/data/maps/connection-hallway';
 import {
   SCANNED_KINDS,
   SIG_GROUPS,
@@ -69,7 +70,9 @@ export function currentRolesFromStored(roles: readonly StoredMapRole[]): MapRole
   return canonicalizeMapRoles(roles.map((role) => role === 'owner' ? 'admin' : role));
 }
 
-export const connectionDoorSideValidator = v.union(v.literal('from'), v.literal('to'));
+export const connectionDoorSideValidator = v.union(
+  ...CONNECTION_DOOR_SIDES.map((side) => v.literal(side)),
+);
 
 export const scannedKindValidator = v.union(
   ...SCANNED_KINDS.map((kind) => v.literal(kind)),

@@ -4,7 +4,12 @@ import {
   absorbDoorLeadsNote,
   doorDestination,
 } from '@/data/maps/connection-door-destinations';
-import { hallwayDoor, leadsToFromSystem, replaceDoor } from '@/data/maps/connection-hallway';
+import {
+  hallwayDoor,
+  leadsToFromSystem,
+  replaceDoor,
+  type ConnectionDoorSide,
+} from '@/data/maps/connection-hallway';
 import { isScannerSignatureId, type ScannedRow } from '@/data/maps/scan-parse';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
@@ -132,7 +137,7 @@ export function rowMaps<Row extends { signatureId: string }>(
 export function endpointSide(
   connection: Doc<'mapConnections'>,
   systemId: number,
-): 'from' | 'to' | null {
+): ConnectionDoorSide | null {
   if (connection.fromSystemId === systemId) return 'from';
   return connection.toSystemId === systemId ? 'to' : null;
 }
@@ -140,7 +145,7 @@ export function endpointSide(
 export function leadsNotePatch(
   surviving: Doc<'mapConnections'>,
   stubTyped: number | null,
-  attachedSide: 'from' | 'to',
+  attachedSide: ConnectionDoorSide,
 ): Partial<Doc<'mapConnections'>> {
   const door = hallwayDoor(surviving, attachedSide);
   const kept = absorbDoorLeadsNote(

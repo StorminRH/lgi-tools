@@ -15,6 +15,7 @@ import {
   hallwayDoorTypes,
   identityFromDoors,
   replaceDoor,
+  type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import {
   isWormholeTypeCode,
@@ -60,14 +61,14 @@ export type EliminationEvidence = {
 
 function endpointTypeCode(
   connection: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): string | null {
   return hallwayDoorTypes(connection)[side];
 }
 
 function endpointOwnsSignature(
   connection: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): boolean {
   return hallwayDoor(connection, side).signatureId !== null;
 }
@@ -198,13 +199,13 @@ async function applyTypeDeduction(
   return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 
-function occupiedLeadsTo(target: Doc<'mapConnections'>, side: 'from' | 'to') {
+function occupiedLeadsTo(target: Doc<'mapConnections'>, side: ConnectionDoorSide) {
   return hallwayDoor(target, side).leadsTo;
 }
 
 function clearOccupiedDestinationNote(
   target: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Partial<Doc<'mapConnections'>> {
   const door = hallwayDoor(target, side);
   return replaceDoor(target, side, { ...door, leadsTo: { kind: 'unset' } });
@@ -212,7 +213,7 @@ function clearOccupiedDestinationNote(
 
 function vacateOccupiedDoor(
   target: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Doc<'mapConnections'> {
   const afterType = {
     ...target,
@@ -229,7 +230,7 @@ async function recreateOccupiedDoorAsStub(
   target: Doc<'mapConnections'>,
   systemId: number,
   occupant: string,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Promise<void> {
   const doorType = hallwayDoorTypes(target)[side];
   const doors = typedDoorsFrom('from', doorType);
@@ -300,7 +301,7 @@ export async function applyLinkDeduction(
 function applyLinkKnowledge(
   surviving: Doc<'mapConnections'>,
   stub: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Doc<'mapConnections'> {
   const afterTypes = { ...surviving, ...absorbDoorKnowledge(surviving, stub, side) };
   return {
@@ -311,7 +312,7 @@ function applyLinkKnowledge(
 
 function applyDoorSignature(
   hallway: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
   signatureId: string,
 ): Doc<'mapConnections'> {
   const door = hallwayDoor(hallway, side);
@@ -334,7 +335,7 @@ async function findLeftoverOriginStub(
   ctx: MutationCtx,
   target: Doc<'mapConnections'>,
   sourceId: Id<'mapConnections'>,
-  attachedSide: 'from' | 'to',
+  attachedSide: ConnectionDoorSide,
 ): Promise<{ row: Doc<'mapConnections'>; id: Id<'mapConnections'> } | null> {
   const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
   const oppositeSystemId = oppositeSide === 'from'
@@ -355,7 +356,7 @@ async function findLeftoverOriginStub(
 function absorbLeftoverOriginStub(
   target: Doc<'mapConnections'>,
   leftover: Doc<'mapConnections'>,
-  attachedSide: 'from' | 'to',
+  attachedSide: ConnectionDoorSide,
 ): Doc<'mapConnections'> {
   const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
   const afterKnowledge = applyLinkKnowledge(target, leftover, oppositeSide);

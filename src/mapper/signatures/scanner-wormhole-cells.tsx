@@ -11,7 +11,12 @@ import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { namedDoorType } from '@/data/maps/connection-door-types';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
-import { doorHint, hallwayDoorTypes, lifetimeStage } from '@/data/maps/connection-hallway';
+import {
+  doorHint,
+  hallwayDoorTypes,
+  lifetimeStage,
+  type ConnectionDoorSide,
+} from '@/data/maps/connection-hallway';
 import { originLeadOptions } from './origin-leads';
 import { IdCell, NameCell } from './scanner-row-cells';
 import { ScannerLeadsControl, scannerLeadsReadout } from './scanner-leads-control';
@@ -58,7 +63,7 @@ export interface WormholeCellContext {
   ) => ReturnType<typeof destinationReadout>;
   readonly bindConnectionSetters?: (
     connection: ConnectionEditorDetail,
-    side?: 'from' | 'to',
+    side?: ConnectionDoorSide,
   ) => ConnectionFieldSetters;
   readonly entryOf: (
     connection: ConnectionEditorDetail,

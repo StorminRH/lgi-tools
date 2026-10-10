@@ -1,4 +1,5 @@
 import type { Id } from '@/data/convex/data-model';
+import type { ConnectionDoorSide } from '@/data/maps/connection-hallway';
 import type { SemanticWrite } from '@/data/maps/semantic-write';
 import type {
   ConnectionMassState,
@@ -14,7 +15,7 @@ export interface ConnectionFieldAuthoringApi {
     mapId: string;
     connection: ConnectionEditorDetail;
     value: string | null;
-    side?: 'from' | 'to';
+    side?: ConnectionDoorSide;
   }) => Promise<SemanticWrite | undefined>;
   readonly setConnectionShipSize: (args: {
     mapId: string;
@@ -29,13 +30,13 @@ export interface ConnectionFieldAuthoringApi {
   readonly setConnectionDestinationHint: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: WormholeDestinationHint | null;
   }) => Promise<unknown>;
   readonly setConnectionDestination: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: number | null;
   }) => Promise<unknown>;
   readonly setConnectionLifeStage: (args: {
@@ -57,7 +58,7 @@ export function connectionFieldSetters(
   setWormholeType = (value: string | null) => {
     void authoring.setConnectionWormholeType({ mapId, connection, value, side });
   },
-  side: 'from' | 'to' = 'from',
+  side: ConnectionDoorSide = 'from',
 ): ConnectionFieldSetters {
   const connectionId = connection.connectionId;
   return {

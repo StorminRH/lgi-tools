@@ -10,8 +10,6 @@ import type {
 } from '@/data/maps/connection-hallway';
 import { blankDoor, hallwayDoorTypes, identityFromDoors } from '@/data/maps/connection-hallway';
 
-export type { ConnectionDoorSide as ConnectionDoor };
-
 export interface ConnectionDoorTypes {
   readonly from: string | null;
   readonly to: string | null;

@@ -9,7 +9,7 @@ import {
 } from '@/data/maps/scan-parse';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
+import { hallwayDoorTypes, type ConnectionDoorSide } from '@/data/maps/connection-hallway';
 import { getOrInsertComputed, sameItems } from '@/lib/array';
 import { lifetimeUpperBoundLabel } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
@@ -25,7 +25,7 @@ export interface SignatureWindowRow {
   readonly signalPct: number | null;
   readonly firstSeenAt: number;
   readonly connection: ConnectionEditorDetail | null;
-  readonly endpoint?: 'from' | 'to';
+  readonly endpoint?: ConnectionDoorSide;
   readonly className: string | null;
 }
 
@@ -68,14 +68,14 @@ function signatureDocumentRow(
 
 function localWormholeTypeCode(
   row: ConnectionSignatureInput,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): string | null {
   return hallwayDoorTypes(row)[side];
 }
 
 function connectionSideRow(
   row: ConnectionSignatureInput,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
   classLabelOf: (code: string) => string | null,
 ): SignatureWindowRow | null {
   const signatureId = side === 'from' ? row.from.signatureId : row.to.signatureId;

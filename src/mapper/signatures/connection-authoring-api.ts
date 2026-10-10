@@ -1,6 +1,7 @@
 import { toast } from '@/components/ui/toast';
 import type { Id } from '@/data/convex/data-model';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
+import type { ConnectionDoorSide } from '@/data/maps/connection-hallway';
 import { followUpTypeSetterTypedHole } from './type-setter-follow-up';
 import type {
   ConnectionDetail,
@@ -86,7 +87,7 @@ export function bindConnectionSetters(
 ) {
   return (
     connection: ConnectionEditorDetail,
-    side: 'from' | 'to' = 'from',
+    side: ConnectionDoorSide = 'from',
   ) =>
     connectionFieldSetters(
       mapId,
@@ -118,7 +119,7 @@ export async function applyWormholeType(input: {
   readonly mapId: string;
   readonly connection: ConnectionDetail;
   readonly value: string | null;
-  readonly side?: 'from' | 'to';
+  readonly side?: ConnectionDoorSide;
   readonly authoring: ConnectionAuthoringApi;
 }): Promise<void> {
   const result = await input.authoring.setConnectionWormholeType({

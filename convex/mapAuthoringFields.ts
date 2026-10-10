@@ -17,6 +17,7 @@ import {
   lifetimeObservedAt,
   lifetimeStage,
   replaceDoor,
+  type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import {
   intersectOrReset,
@@ -63,7 +64,7 @@ async function requireLiveConnection(
 async function writeDoorLeadsTo(
   ctx: MutationCtx,
   connection: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
   leadsTo: Doc<'mapConnections'>['from']['leadsTo'],
 ): Promise<{ changed: boolean }> {
   const door = hallwayDoor(connection, side);
@@ -136,7 +137,7 @@ async function applyConnectionWormholeType(
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
     readonly value: string | null;
-    readonly side?: 'from' | 'to';
+    readonly side?: ConnectionDoorSide;
     readonly deathEarliestAt?: number | null;
     readonly deathLatestAt?: number | null;
   },
@@ -200,7 +201,7 @@ async function applyConnectionDestinationHint(
   input: {
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
-    readonly side: 'from' | 'to';
+    readonly side: ConnectionDoorSide;
     readonly value: WormholeDestinationHint | null;
   },
 ): Promise<{ changed: boolean }> {
@@ -222,7 +223,7 @@ async function applyConnectionDestination(
   input: {
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
-    readonly side: 'from' | 'to';
+    readonly side: ConnectionDoorSide;
     readonly value: number | null;
   },
 ): Promise<{ changed: boolean }> {

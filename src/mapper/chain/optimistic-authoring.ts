@@ -43,6 +43,7 @@ import {
   replaceDoor,
 } from '@/data/maps/connection-hallway';
 import type {
+  ConnectionDoorSide,
   ConnectionDoorValue,
   ConnectionHallway,
   ConnectionLifetime,
@@ -306,7 +307,7 @@ export function optimisticSetConnectionWormholeType(
     mapId: string;
     connectionId: string;
     value: string | null;
-    side?: 'from' | 'to';
+    side?: ConnectionDoorSide;
     deathEarliestAt?: number | null;
     deathLatestAt?: number | null;
   },
@@ -524,7 +525,7 @@ function optimisticPatchDoorLeadsTo(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     leadsTo: DoorLeadsTo;
   },
 ): void {
@@ -557,7 +558,7 @@ export function optimisticSetConnectionDestination(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: number | null;
   },
 ): void {
@@ -574,7 +575,7 @@ function optimisticSetConnectionDestinationHint(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: WormholeDestinationHint | null;
   },
 ): void {
@@ -671,7 +672,7 @@ export function useChainAuthoringMutations() {
       mapId: string;
       connection: ConnectionEditorDetail;
       value: string | null;
-      side?: 'from' | 'to';
+      side?: ConnectionDoorSide;
     }) => {
       const proposal = wormholeTypeWindowProposal(
         args.connection,
