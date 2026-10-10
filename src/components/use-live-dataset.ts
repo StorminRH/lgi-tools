@@ -5,6 +5,7 @@ import { apiFetch } from '@/transport/api-client';
 import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
 import { getOrInsertComputed } from '@/lib/array';
 import { loadFailureStep, RECONCILE_ONCE, reconcileDelay } from '@/lib/live-dataset';
+import { useNow } from '@/lib/use-now';
 import { currentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 import { createRememberedRead, type RememberedRead, useRememberedRead } from './remembered-read';
 
@@ -101,11 +102,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
     setAttempts((n) => n + 1);
   }, []);
 
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), TICK_MS);
-    return () => clearInterval(timer);
-  }, []);
+  const now = useNow(TICK_MS);
 
   return { response, now, loading: response === null && !failed, failed, retry };
 }
