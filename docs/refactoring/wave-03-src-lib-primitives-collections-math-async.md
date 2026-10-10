@@ -44,7 +44,7 @@ Additions to src/lib/array.ts (P101, P102, P112) and src/lib/failure.ts (P151, P
 | ☑ | [P129](#p129) | Patch search params through one lib helper, and build the post-create link with atlasMapHref | generic-utility | S | low | low | — |
 | ☑ | [P047](#p047) | Add a shared useNow clock hook in src/lib for the four interval tickers | react-hook | S | low | low | — |
 | ☑ | [P226](#p226) | Extract safe web-storage helpers and a stored MRU list into src/lib/web-storage.ts (fixes the unguarded setItem in search recents) | client-data | M | low | medium | — |
-| ☐ | [P115](#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
+| ☑ | [P115](#p115) | Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts | generic-utility | S | low | low | — |
 | ☐ | [P066](#p066) | Extract postBeacon (sendBeacon with keepalive-fetch fallback) into src/transport | client-data | S | low | low | — |
 
 <a id="p105"></a>
@@ -1710,7 +1710,7 @@ export function createStoredList<S, V>(opts: {
 
 ## P115: Extract the BroadcastChannel peer-link lifecycle into src/lib/peer-channel.ts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** Production: about -45 across the two sites, +35 for the primitive. Tests: about -45 (one fake deleted), +50 for the new primitive test.
 - **Depends on:** —

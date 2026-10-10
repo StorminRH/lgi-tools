@@ -1,4 +1,5 @@
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
+import { openPeerChannel, type PeerChannelPort } from '@/lib/peer-channel';
 
 export interface DoorbellMemoryEntry {
   readonly transitionObservedAt: number;
@@ -15,10 +16,6 @@ export const DOORBELL_RETRY_INTERVAL_MS = 15_000;
 const DOORBELL_JOIN_WAIT_MS = 100;
 
 export const DOORBELL_CHANNEL_PREFIX = 'lgi-atlas-doorbell-v1';
-
-function doorbellChannelName(userId: string): string {
-  return JSON.stringify([DOORBELL_CHANNEL_PREFIX, userId]);
-}
 
 function doorbellStorageKey(mapId: string): string {
   return JSON.stringify([DOORBELL_CHANNEL_PREFIX, mapId]);
@@ -313,41 +310,23 @@ function mergeDoorbellMemory(
   }
 }
 
-export type DoorbellChannel = Pick<BroadcastChannel, 'postMessage' | 'close'> & {
-  onmessage: ((event: MessageEvent<unknown>) => void) | null;
-  onmessageerror: ((event: MessageEvent<unknown>) => void) | null;
-};
-
 export function joinDoorbellChannel(input: {
   readonly userId: string;
   readonly mapId: string;
   readonly tabId: string;
   readonly memory: Map<number, DoorbellMemoryEntry>;
-  readonly openChannel: (name: string) => DoorbellChannel;
+  readonly openChannel: (name: string) => PeerChannelPort;
   readonly persist: () => void;
 }): { share(): void; close(): void; readonly ready: Promise<void> } {
   let markReady = () => {};
   const ready = new Promise<void>((resolve) => { markReady = resolve; });
   const timer = setTimeout(() => markReady(), DOORBELL_JOIN_WAIT_MS);
   const finishJoin = () => { clearTimeout(timer); markReady(); };
-  let channel: DoorbellChannel | null = null;
-  const disconnect = () => {
-    finishJoin();
-    const previous = channel;
-    channel = null;
-    if (previous === null) return;
-    previous.onmessage = null;
-    previous.onmessageerror = null;
-    try {
-      previous.close();
-    } catch {
-    }
-  };
-  try {
-    channel = input.openChannel(doorbellChannelName(input.userId));
-    channel.onmessage = (event: MessageEvent<unknown>) => {
-      if (channel === null) return;
-      const message = parseDoorbellMemoryMessage(event.data);
+  const link = openPeerChannel({
+    key: [DOORBELL_CHANNEL_PREFIX, input.userId],
+    open: input.openChannel,
+    onMessage(data) {
+      const message = parseDoorbellMemoryMessage(data);
       if (
         message === null
         || message.tabId === input.tabId
@@ -359,24 +338,17 @@ export function joinDoorbellChannel(input: {
       input.persist();
       if (message.requestSnapshot) share();
       else finishJoin();
-    };
-    channel.onmessageerror = disconnect;
-  } catch {
-    disconnect();
-  }
+    },
+    onDisconnect: finishJoin,
+  });
   function share(requestSnapshot = false) {
-    if (channel === null) return;
-    try {
-      channel.postMessage({
-        tabId: input.tabId,
-        mapId: input.mapId,
-        entries: snapshotDoorbellMemory(input.memory),
-        requestSnapshot,
-      });
-    } catch {
-      disconnect();
-    }
+    link.post({
+      tabId: input.tabId,
+      mapId: input.mapId,
+      entries: snapshotDoorbellMemory(input.memory),
+      requestSnapshot,
+    });
   }
   share(true);
-  return { share, close: disconnect, ready };
+  return { share, close: link.close, ready };
 }

@@ -40,8 +40,11 @@ suite that scans the source tree lists files with `listSourceFiles` or
 `valueImportSpecifiers` and `resolveLocalImport` from
 `src/lib/__tests__/source-scan.ts`, not a hand-rolled `readdirSync` walker,
 comment stripper or import regex; each gate still passes its own scan scope
-(roots, extensions, skipped directories and suffixes). Domain
-objects come from the owner's `__tests__/` fixture (`siteDetail`,
+(roots, extensions, skipped directories and suffixes). A test of a cross-tab
+peer link opens its channels on `createBroadcastBus` from
+`src/lib/__tests__/broadcast-bus.ts`, not a hand-rolled channel and bus fake;
+a stub of the global `BroadcastChannel` that only records calls stays local.
+Domain objects come from the owner's `__tests__/` fixture (`siteDetail`,
 `siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`), not a local literal builder;
 pass every field the test reads. Harness-owned `beforeAll` / `beforeEach` for disposable
 schema lifecycle is the exception — do not introduce extra hooks that hide

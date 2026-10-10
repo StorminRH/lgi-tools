@@ -1,60 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type BroadcastBus, createBroadcastBus } from '@/lib/__tests__/broadcast-bus';
 import { HEARTBEAT_MS } from '@/lib/sync-engine';
 import { HEARTBEAT_PEER_TIMEOUT_MS } from './heartbeat-peers';
 import { startHeartbeatSession } from './heartbeat-session';
 
 type Host = Parameters<typeof startHeartbeatSession>[0];
-type Channel = ReturnType<Host['openChannel']>;
 type Beat = Parameters<Host['beat']>[0];
 
-class TestChannel implements Channel {
-  onmessage: Channel['onmessage'] = null;
-  onmessageerror: Channel['onmessageerror'] = null;
-  closed = false;
-  failPosts = false;
-
-  constructor(readonly name: string, private bus: TestBus) {}
-
-  postMessage(data: unknown) {
-    if (this.closed || this.failPosts) throw new Error('channel unavailable');
-    this.bus.send(this, data);
-  }
-
-  close() {
-    this.closed = true;
-  }
-
-  deliver(data: unknown) {
-    if (!this.closed) this.onmessage?.(new MessageEvent('message', { data }));
-  }
-}
-
-class TestBus {
-  channels: TestChannel[] = [];
-  queue: Array<() => void> = [];
-  unavailable = false;
-
-  open = (name: string) => {
-    if (this.unavailable) throw new Error('BroadcastChannel unavailable');
-    const channel = new TestChannel(name, this);
-    this.channels.push(channel);
-    return channel;
-  };
-
-  send(sender: TestChannel, data: unknown) {
-    for (const receiver of this.channels) {
-      if (receiver === sender || receiver.closed || receiver.name !== sender.name) continue;
-      const cloned = structuredClone(data);
-      this.queue.push(() => receiver.deliver(cloned));
-    }
-  }
-
-  flush() {
-    while (this.queue.length > 0) this.queue.shift()?.();
-  }
-}
-
-function participant(bus: TestBus, id: string, options: {
+function participant(bus: BroadcastBus, id: string, options: {
   visible?: boolean;
   hints?: number[];
   userId?: string;
@@ -88,7 +41,7 @@ function participant(bus: TestBus, id: string, options: {
   };
 }
 
-function advance(bus: TestBus, ms = HEARTBEAT_MS) {
+function advance(bus: BroadcastBus, ms = HEARTBEAT_MS) {
   vi.advanceTimersByTime(ms);
   bus.flush();
 }
@@ -98,7 +51,7 @@ afterEach(() => vi.useRealTimers());
 
 describe('heartbeat participants', () => {
   it.each([1, 2, 3])('converges %i participants to one interval writer while each mounts', (count) => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const tabs = Array.from({ length: count }, (_, index) => participant(bus, `${index}`));
     bus.flush();
     expect(tabs.every((tab) => tab.beats[0]?.reason === 'mount')).toBe(true);
@@ -109,7 +62,7 @@ describe('heartbeat participants', () => {
   });
 
   it('unions and deduplicates distinct current hints without changing direct beats', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const first = participant(bus, 'a', { hints: [100, 200] });
     const second = participant(bus, 'b', { hints: [200, 300] });
     const third = participant(bus, 'c', { hints: [400] });
@@ -123,7 +76,7 @@ describe('heartbeat participants', () => {
   });
 
   it('prefers a visible peer and transfers to a hidden peer when all become hidden', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const first = participant(bus, 'a', { visible: false });
     const second = participant(bus, 'b');
     bus.flush();
@@ -143,7 +96,7 @@ describe('heartbeat participants', () => {
   });
 
   it('rephases a returning tab interval while sending its direct visible beat', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const tab = participant(bus, 'a', { visible: false });
     const half = HEARTBEAT_MS / 2;
     advance(bus, half);
@@ -156,7 +109,7 @@ describe('heartbeat participants', () => {
   });
 
   it('keeps an isolated hidden tab beating', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const tab = participant(bus, 'a', { visible: false });
     advance(bus);
     advance(bus);
@@ -164,7 +117,7 @@ describe('heartbeat participants', () => {
   });
 
   it('sends the server-fenced leave and hands off immediately on graceful close', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const first = participant(bus, 'a', { hints: [100] });
     const second = participant(bus, 'b', { hints: [200] });
     bus.flush();
@@ -180,7 +133,7 @@ describe('heartbeat participants', () => {
   });
 
   it('sends leaves when all tabs close before peer messages can be delivered', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const first = participant(bus, 'a');
     const second = participant(bus, 'b');
     bus.flush();
@@ -195,7 +148,7 @@ describe('heartbeat participants', () => {
   });
 
   it('sends the final leave even while a crashed peer remains cached', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const crashed = participant(bus, 'a');
     const survivor = participant(bus, 'b');
     bus.flush();
@@ -206,7 +159,7 @@ describe('heartbeat participants', () => {
   });
 
   it('expires a crashed leader and its hints using local receipt time', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const first = participant(bus, 'a', { hints: [100] });
     const second = participant(bus, 'b', { hints: [200] });
     bus.flush();
@@ -219,7 +172,7 @@ describe('heartbeat participants', () => {
   });
 
   it('ignores malformed, empty-hint, and self messages', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const tab = participant(bus, 'z');
     const channel = bus.channels[0];
     for (const data of [
@@ -235,7 +188,7 @@ describe('heartbeat participants', () => {
   });
 
   it('falls back independently if BroadcastChannel is unavailable', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     bus.unavailable = true;
     const first = participant(bus, 'a');
     const second = participant(bus, 'b');
@@ -245,7 +198,7 @@ describe('heartbeat participants', () => {
   });
 
   it.each(['post', 'receive'])('falls back when channel %s fails', (failure) => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     participant(bus, 'a', { hints: [200] });
     const second = participant(bus, 'b');
     bus.flush();
@@ -259,7 +212,7 @@ describe('heartbeat participants', () => {
   });
 
   it('suspends in bfcache and rejoins with a fresh ID and immediate beat', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const tab = participant(bus, 'a');
     tab.session.onPageShow({ persisted: false });
     expect(tab.beats).toHaveLength(1);
@@ -278,7 +231,7 @@ describe('heartbeat participants', () => {
   });
 
   it('sends one leave for an isolated discarded document and stops all future beats', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const tab = participant(bus, 'a');
     tab.session.onPageHide({ persisted: false });
     tab.session.onPageHide({ persisted: false });
@@ -289,7 +242,7 @@ describe('heartbeat participants', () => {
   });
 
   it('withdraws removed hints on cleanup without a beacon and ignores late restoration', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const first = participant(bus, 'a', { hints: [100] });
     const second = participant(bus, 'b', { hints: [200] });
     bus.flush();
@@ -307,7 +260,7 @@ describe('heartbeat participants', () => {
   });
 
   it('isolates users and withdraws the old account before replacement', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const old = participant(bus, 'a', { userId: 'old', hints: [100] });
     const other = participant(bus, 'b', { userId: 'new', hints: [200] });
     bus.flush();
