@@ -721,18 +721,17 @@ describe('esiFetch', () => {
       expect(fetchSpy).toHaveBeenCalledOnce();
     });
 
-    it('keeps its own errors from while an older shared read was in flight, for that call too', async () => {
+    it('trusts a shared reading over errors it saw while the read was out, which reach the shared count first', async () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
-      const reading = { effectiveRemaining: ESI_BUDGET_FLOOR + 1, blockedRetryAfter: null, etag: null };
+      const reading = { effectiveRemaining: ESI_BUDGET_FLOOR, blockedRetryAfter: null, etag: null };
       let releaseRead: (state: typeof reading) => void = () => {};
       fake.preDispatch
-        .mockResolvedValueOnce({ ...reading, effectiveRemaining: ESI_BUDGET_FLOOR + 2 })
+        .mockResolvedValueOnce({ ...reading, effectiveRemaining: 100 })
         .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }));
       __setScoreboardForTests(fake);
       fetchSpy
         .mockResolvedValueOnce(mockResponse(200, {}, []))
-        .mockResolvedValueOnce(mockResponse(404))
         .mockResolvedValueOnce(mockResponse(404))
         .mockResolvedValue(mockResponse(200));
 
@@ -740,13 +739,55 @@ describe('esiFetch', () => {
       const slowGet = esiFetch(TEST_URL);
       await vi.advanceTimersByTimeAsync(0);
       await expect(esiFetch(POST_URL, post)).resolves.toMatchObject({ status: 404 });
+      releaseRead(reading);
+
+      await expect(slowGet).resolves.toMatchObject({ status: 200 });
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("caps a shared read by ESI's newest error count from while it was out", async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const reading = { effectiveRemaining: 100, blockedRetryAfter: null, etag: null };
+      let releaseRead: (state: typeof reading) => void = () => {};
+      fake.preDispatch
+        .mockResolvedValueOnce(reading)
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }));
+      __setScoreboardForTests(fake);
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, {}, []))
+        .mockResolvedValueOnce(mockResponse(404, { 'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR - 1) }))
+        .mockResolvedValue(mockResponse(200));
+
+      await esiFetch(POST_URL, post);
+      const slowGet = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(0);
       await expect(esiFetch(POST_URL, post)).resolves.toMatchObject({ status: 404 });
       releaseRead(reading);
 
-      // Two 404s while the read was out leave the shared figure one under the floor.
       await expect(slowGet).rejects.toMatchObject({ reason: 'error_budget' });
       await expect(esiFetch(POST_URL, post)).rejects.toMatchObject({ reason: 'error_budget' });
-      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a newer low reading when an older read returns after it', async () => {
+      vi.useFakeTimers();
+      const fake = fakeScoreboard();
+      const reading = (effectiveRemaining: number) => ({ effectiveRemaining, blockedRetryAfter: null, etag: null });
+      let releaseOlder: (state: ReturnType<typeof reading>) => void = () => {};
+      fake.preDispatch
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseOlder = resolve; }))
+        .mockResolvedValueOnce(reading(ESI_BUDGET_FLOOR - 5));
+      __setScoreboardForTests(fake);
+      fetchSpy.mockResolvedValue(mockResponse(200));
+
+      const older = esiFetch(TEST_URL);
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(esiFetch(TEST_URL)).rejects.toMatchObject({ reason: 'error_budget' });
+      releaseOlder(reading(100));
+
+      await expect(older).rejects.toMatchObject({ reason: 'error_budget' });
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it('lets a recovered shared reading through when an older call finishes while it is read', async () => {
