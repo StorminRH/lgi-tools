@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deriveBudgetStatus } from '../signals';
-import { deriveBudgetCard, derivePressureLines } from './esi-view';
+import { clientErrorLine, deriveBudgetCard, derivePressureLines } from './esi-view';
 
 const quiet = {
   esiSuccess: 0.995,
@@ -8,6 +8,7 @@ const quiet = {
   fallback: { esi: 200, fallback: 0, perDay: [] },
   degradation: [],
   queue: [],
+  clientErrors: { errors: 0, calls: 500, rate: 0, groups: [] },
 };
 
 describe('deriveBudgetCard', () => {
@@ -64,8 +65,9 @@ describe('deriveBudgetCard', () => {
 describe('derivePressureLines', () => {
   it('is all green on a quiet period', () => {
     const lines = derivePressureLines(quiet);
-    expect(lines.map((line) => line.level)).toEqual(['green', 'green', 'green', 'green', 'green']);
-    expect(lines[2]).toMatchObject({ value: '0%', note: '0 of 200 priced items' });
+    expect(lines.map((line) => line.level)).toEqual(['green', 'green', 'green', 'green', 'green', 'green']);
+    expect(lines[1]).toMatchObject({ id: 'esi-4xx', value: '0.0%', note: '0 of 500 calls' });
+    expect(lines[3]).toMatchObject({ value: '0%', note: '0 of 200 priced items' });
     // Counts with nothing to add carry no note at all, not an empty one.
     expect(lines.filter((line) => line.note === undefined).map((line) => line.id)).toEqual([
       'exhaustions',
@@ -87,21 +89,46 @@ describe('derivePressureLines', () => {
         { status: 'deferred_for_budget', count: 6, oldestCreatedAt: new Date() },
         { status: 'queued', count: 2, oldestCreatedAt: new Date() },
       ],
+      clientErrors: {
+        errors: 3,
+        calls: 100,
+        rate: 0.03,
+        groups: [{ feature: 'maps', operation: 'search-characters', errors: 3, calls: 40, lastSeen: new Date() }],
+      },
     });
     expect(lines.map((line) => [line.value, line.level])).toEqual([
       ['90.0%', 'amber'],
+      ['3.0%', 'amber'],
       ['3', 'amber'],
       ['60%', 'red'],
       ['5', 'amber'],
       ['6', 'amber'],
     ]);
-    expect(lines[3]!.note).toBe('prices 4 · history 1');
+    expect(lines[1]!.note).toBe('3 of 100 calls · most from maps · search-characters');
+    expect(lines[4]!.note).toBe('prices 4 · history 1');
     expect(lines[0]!.note).toBe('— operations · target ≥ 95%');
   });
 
   it('reports no data before any price refresh', () => {
     const lines = derivePressureLines({ ...quiet, esiSuccess: null, fallback: { esi: 0, fallback: 0, perDay: [] } });
     expect(lines[0]).toMatchObject({ value: 'no data', level: 'neutral' });
-    expect(lines[2]).toMatchObject({ value: 'no data', level: 'neutral' });
+    expect(lines[3]).toMatchObject({ value: 'no data', level: 'neutral' });
+  });
+});
+
+describe('clientErrorLine', () => {
+  const summary = (errors: number, calls: number) => ({
+    errors,
+    calls,
+    rate: calls > 0 ? errors / calls : null,
+    groups: [],
+  });
+
+  it('goes red past the fail share and neutral with no recorded calls', () => {
+    expect(clientErrorLine(summary(6, 100))).toMatchObject({ value: '6.0%', level: 'red' });
+    expect(clientErrorLine(summary(1, 100))).toMatchObject({ value: '1.0%', level: 'green' });
+    expect(clientErrorLine(summary(1, 5_000))).toMatchObject({ value: '<0.1%', level: 'green' });
+    expect(clientErrorLine(summary(30, 200))).toMatchObject({ value: '15%', level: 'red' });
+    expect(clientErrorLine(summary(0, 0))).toMatchObject({ value: '—', level: 'neutral', note: '0 of 0 calls' });
   });
 });

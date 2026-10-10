@@ -21,8 +21,8 @@ describe('dependency timing', () => {
     addDependencyTiming('redis', 3);
 
     expect(sink.mock.calls).toEqual([
-      ['neon', 12],
-      ['redis', 3],
+      ['neon', 12, undefined],
+      ['redis', 3, undefined],
     ]);
   });
 
@@ -35,7 +35,16 @@ describe('dependency timing', () => {
     addDependencyTiming('esi', 40);
 
     expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledWith('esi', 40);
+    expect(second).toHaveBeenCalledWith('esi', 40, undefined);
+  });
+
+  it('passes a call status through to the sink', () => {
+    const sink = vi.fn();
+    setDependencyTimingSink(sink);
+
+    addDependencyTiming('esi', 9, { status: 404 });
+
+    expect(sink).toHaveBeenCalledWith('esi', 9, { status: 404 });
   });
 
   it('records the elapsed monotonic time when a started timer is stopped', () => {
@@ -48,7 +57,7 @@ describe('dependency timing', () => {
       expect(sink).not.toHaveBeenCalled();
 
       stop();
-      expect(sink.mock.calls).toEqual([['redis', 7]]);
+      expect(sink.mock.calls).toEqual([['redis', 7, undefined]]);
     } finally {
       vi.useRealTimers();
     }
@@ -66,7 +75,7 @@ describe('dependency timing', () => {
       await vi.advanceTimersByTimeAsync(25);
 
       await expect(pending).resolves.toBe('rows');
-      expect(sink.mock.calls).toEqual([['neon', 25]]);
+      expect(sink.mock.calls).toEqual([['neon', 25, undefined]]);
     } finally {
       vi.useRealTimers();
     }
@@ -85,7 +94,7 @@ describe('dependency timing', () => {
       await vi.advanceTimersByTimeAsync(40);
 
       await settled;
-      expect(sink.mock.calls).toEqual([['esi', 40]]);
+      expect(sink.mock.calls).toEqual([['esi', 40, undefined]]);
     } finally {
       vi.useRealTimers();
     }

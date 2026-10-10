@@ -6,9 +6,11 @@ import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
   capabilityFailureDetail,
+  esiClientErrors,
   esiFailureGroups,
   type CapabilityLatency,
   type CapabilityOutcomeStat,
+  type EsiClientErrorGroup,
 } from '@/data/telemetry/capability-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { loadSection } from '../load-section';
@@ -16,6 +18,7 @@ import { summarizeDomainEvent } from '../ops-view';
 import {
   getCapabilityLatencyShared,
   getCapabilityOutcomeStatsShared,
+  getEsiClientErrorsShared,
   getEsiRefreshQueueStatsShared,
 } from '../shared-reads';
 import { deriveSliSignals, mapLoaded, summarizeQueue, type Loaded } from '../signals';
@@ -29,15 +32,16 @@ import { formatUtcMinute } from '@/lib/format/time';
  * the rows cannot do without.
  */
 export async function loadServiceLevels(range: DateRange) {
-  const [outcomes, latency, queue, deadLetters] = await Promise.all([
+  const [outcomes, latency, queue, deadLetters, clientErrors] = await Promise.all([
     loadSection('capability-outcomes', () => getCapabilityOutcomeStatsShared(range)),
     loadSection('capability-latency', () => getCapabilityLatencyShared(range)),
     getEsiRefreshQueueStatsShared(),
     loadSection('sli-details.dead-letters', () => listDeadLetteredJobs(DEAD_LETTER_PREVIEW)),
+    loadSection('sli-details.esi-4xx', () => getEsiClientErrorsShared(range)),
   ]);
   return {
     rows: deriveServiceLevels(deriveSliSignals(outcomes, latency), summarizeQueue(queue, range.to)),
-    details: serviceLevelDetails(range, { outcomes, latency, queue, deadLetters }),
+    details: serviceLevelDetails(range, { outcomes, latency, queue, deadLetters, clientErrors }),
   };
 }
 
@@ -48,6 +52,7 @@ function serviceLevelDetails(
     latency: Loaded<CapabilityLatency>;
     queue: EsiRefreshQueueStat[];
     deadLetters: Loaded<DeadLetterRow[]>;
+    clientErrors: Loaded<EsiClientErrorGroup[]>;
   },
 ): ServiceLevelDetails {
   return {
@@ -56,6 +61,7 @@ function serviceLevelDetails(
     mutation: mapLoaded(reads.outcomes, (stats) => ({ range, ...capabilityFailureDetail(stats, 'mutation', range) })),
     slowest: mapLoaded(reads.latency, (latency) => latency.slowest),
     esi: mapLoaded(reads.outcomes, (stats) => esiFailureGroups(stats, range)),
+    esiClientErrors: mapLoaded(reads.clientErrors, esiClientErrors),
     queue: reads.queue,
     deadLetters: reads.deadLetters,
   };

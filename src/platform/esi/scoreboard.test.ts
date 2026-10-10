@@ -149,10 +149,6 @@ function makeReport(overrides: Partial<EsiReport>): EsiReport {
     status: 200,
     errorLimitRemain: null,
     errorLimitReset: null,
-    rateLimitGroup: null,
-    rateLimitLimit: null,
-    rateLimitRemaining: null,
-    rateLimitUsed: null,
     retryAfter: null,
     etagToStore: null,
     refreshEtag: null,
@@ -285,18 +281,6 @@ describe('RedisScoreboard', () => {
     expect(h.store.get(key)?.expiresAt).toBe(Date.now() + 120_000);
   });
 
-  it('still counts errors that carry token-bucket headers (conservative rule)', async () => {
-    const sb = redisScoreboard();
-    await sb.report(
-      makeReport({
-        status: 404,
-        rateLimitGroup: 'market-orders',
-        rateLimitLimit: 12_000,
-      }),
-    );
-    expect(h.store.get(`lgi:esi:err:count:${currentMinute()}`)?.value).toBe('1');
-  });
-
   it('does not count 2xx/3xx responses as errors', async () => {
     const sb = redisScoreboard();
     await sb.report(makeReport({ status: 200, errorLimitRemain: 95 }));
@@ -350,27 +334,10 @@ describe('RedisScoreboard', () => {
     expect(h.store.get(BLOCK_KEY)?.value).toBe(String(nowSec + 30));
   });
 
-  it('stores per-group token-bucket state for the sync engine to read', async () => {
+  it('writes nothing for a plain success without error-limit or cache headers', async () => {
     const sb = redisScoreboard();
-    await sb.report(
-      makeReport({
-        status: 200,
-        rateLimitGroup: 'market-orders',
-        rateLimitLimit: 12_000,
-        rateLimitRemaining: 11_990,
-        rateLimitUsed: 10,
-      }),
-    );
-
-    const entry = h.store.get('lgi:esi:rl:group:market-orders');
-    expect(entry).toBeDefined();
-    expect(JSON.parse(entry!.value)).toEqual({
-      limit: 12_000,
-      remaining: 11_990,
-      used: 10,
-      observedAt: Date.now(),
-    });
-    expect(entry!.expiresAt).toBe(Date.now() + 1_200_000);
+    await sb.report(makeReport({ status: 200 }));
+    expect([...h.store.keys()]).toEqual([]);
   });
 
   it('stores ETag meta and body together and serves the body back', async () => {

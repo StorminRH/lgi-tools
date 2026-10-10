@@ -53,6 +53,13 @@ export const ESI_AVAILABILITY_TARGET = {
   direction: 'min',
 } as const satisfies AlertTarget;
 
+/** The share of ESI calls answered with a 4xx: any rise above warn needs a look. */
+export const ESI_CLIENT_ERROR_TARGET = {
+  warn: 0.01,
+  fail: 0.05,
+  direction: 'max',
+} as const satisfies AlertTarget;
+
 export function targetLevel(value: number, target: AlertTarget): Exclude<StatusLevel, 'neutral'> {
   const breaches = (limit: number) =>
     target.direction === 'min' ? value < limit : value > limit;

@@ -76,7 +76,8 @@ describe('recordCapabilityOutcome', () => {
       outcome: 'conflict',
       code: 'template_limit',
       durationMs: 41,
-      dependencies: { neon: { ms: 8, calls: 1 } },
+      dependencies: { neon: { ms: 8, calls: 1, wallMs: expect.closeTo(8, 6) } },
+      dependencyWallMs: expect.closeTo(8, 6),
       retry: null,
       correlationId: expect.any(String),
       appVersion: APP_VERSION,
@@ -139,6 +140,7 @@ describe('recordCapabilityOutcome', () => {
     });
 
     expect(metadata.dependencies).toEqual({});
+    expect(metadata.dependencyWallMs).toBe(0);
     expect(metadata.correlationId).not.toBe('');
   });
 
