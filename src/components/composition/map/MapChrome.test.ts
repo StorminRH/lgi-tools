@@ -2,7 +2,6 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { MapCatalogueDataProvider } from '@/features/maps/map-catalogue-data';
-import { listRegisteredSources } from '@/platform/search';
 import { MapChrome } from './MapChrome';
 
 vi.mock('@/components/composition/FeedbackButton', () => ({
@@ -88,12 +87,6 @@ describe('MapChrome', () => {
       ),
     );
   }
-
-  it('registers the systems search source so atlas pickers can suggest', () => {
-    expect(listRegisteredSources().some((source) => source.id === 'systems')).toBe(
-      true,
-    );
-  });
 
   it('composes three floating positions while leaving the search slot empty', () => {
     const markup = renderChrome({

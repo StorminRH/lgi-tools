@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { searchAll, type SearchResult, type SearchSection } from '@/platform/search';
+import { SEARCH_SOURCES } from '@/composition/search/register-all';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { pushRecent, useSearchRecents } from '@/features/search-recents/storage';
@@ -44,7 +45,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
-    searchAll(debounced, { session, isAdmin, recents, signal: controller.signal })
+    searchAll(SEARCH_SOURCES, debounced, { session, isAdmin, recents, signal: controller.signal })
       .then((next) => {
         if (controller.signal.aborted) return;
         setSections(next);

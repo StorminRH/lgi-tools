@@ -20,8 +20,9 @@ vi.mock('@/transport/api-client', () => ({
       : { ok: true, status: 200, data: { blueprints: BP_FIXTURE } }),
 }));
 
-import '@/composition/search/register-all';
-import { listRegisteredSources, searchAll, type SearchContext, type SearchResult, type SearchSection } from '@/platform/search';
+import { SEARCH_SOURCES } from '@/composition/search/register-all';
+import { systemsSource } from '@/data/eve-data/systems-search';
+import { searchAll, searchOneSource, type SearchContext, type SearchResult, type SearchSection } from '@/platform/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import type { Session } from '@/platform/auth/types';
@@ -99,11 +100,11 @@ afterEach(() => {
 
 describe('full-scope search over the real manifest (characterization anchor)', () => {
   it('returns nothing for an empty query when there are no recents', async () => {
-    expect(await searchAll('', signedOut())).toEqual([]);
+    expect(await searchAll(SEARCH_SOURCES, '', signedOut())).toEqual([]);
   });
 
   it('surfaces only Recent rows, in recency order, on an empty query', async () => {
-    const out = await searchAll('', signedIn());
+    const out = await searchAll(SEARCH_SOURCES, '', signedIn());
     expect(out).toEqual([
       {
         name: 'Recent',
@@ -113,11 +114,11 @@ describe('full-scope search over the real manifest (characterization anchor)', (
   });
 
   it('treats a whitespace-only query exactly like an empty one', async () => {
-    expect(await searchAll('   ', signedIn())).toEqual(await searchAll('', signedIn()));
+    expect(await searchAll(SEARCH_SOURCES, '   ', signedIn())).toEqual(await searchAll(SEARCH_SOURCES, '', signedIn()));
   });
 
   it('matches sites with per-source ranking (fuzzy score, then class, then ISK)', async () => {
-    const out = await searchAll('perimeter', signedOut());
+    const out = await searchAll(SEARCH_SOURCES, 'perimeter', signedOut());
     expect(out).toMatchInlineSnapshot(`
       [
         {
@@ -210,7 +211,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
   });
 
   it('matches blueprints through the lazy-loaded index', async () => {
-    const out = await searchAll('legion', signedOut());
+    const out = await searchAll(SEARCH_SOURCES, 'legion', signedOut());
     expect(out).toMatchInlineSnapshot(`
       [
         {
@@ -243,7 +244,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
   });
 
   it('matches tools', async () => {
-    const out = await searchAll('industry', signedOut());
+    const out = await searchAll(SEARCH_SOURCES, 'industry', signedOut());
     expect(project(out)).toMatchInlineSnapshot(`
       [
         {
@@ -270,7 +271,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
   });
 
   it('gates commands on the session: signed out sees log-in', async () => {
-    const out = await searchAll('log', signedOut());
+    const out = await searchAll(SEARCH_SOURCES, 'log', signedOut());
     expect(project(out)).toMatchInlineSnapshot(`
       [
         {
@@ -297,7 +298,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
   });
 
   it('gates commands on the session: signed in sees log-out', async () => {
-    const out = await searchAll('log', signedIn());
+    const out = await searchAll(SEARCH_SOURCES, 'log', signedIn());
     expect(project(out)).toMatchInlineSnapshot(`
       [
         {
@@ -324,11 +325,11 @@ describe('full-scope search over the real manifest (characterization anchor)', (
   });
 
   it('hides admin commands from non-admins', async () => {
-    expect(await searchAll('admin', signedIn())).toEqual([]);
+    expect(await searchAll(SEARCH_SOURCES, 'admin', signedIn())).toEqual([]);
   });
 
   it('shows admin commands to admins', async () => {
-    const out = await searchAll('admin', admin());
+    const out = await searchAll(SEARCH_SOURCES, 'admin', admin());
     expect(project(out)).toMatchInlineSnapshot(`
       [
         {
@@ -368,102 +369,32 @@ describe('full-scope search over the real manifest (characterization anchor)', (
     `);
   });
 
-  it('returns sections in registration order when every source matches', async () => {
-    const out = await searchAll('in', admin());
+  it('returns sections in manifest order when every source matches', async () => {
+    const out = await searchAll(SEARCH_SOURCES, 'in', admin());
     expect(out.map((s) => s.name)).toEqual(['Recent', 'Sites', 'Blueprints', 'Tools', 'Commands']);
   });
 });
 
-const DEFAULT_SOURCE_IDS = ['recents', 'sites', 'blueprints', 'tools', 'commands'] as const;
-
-const REGISTERED_SOURCE_IDS = [...DEFAULT_SOURCE_IDS, 'systems'] as const;
-
-const SECTION_NAME_BY_ID: Record<(typeof DEFAULT_SOURCE_IDS)[number], string> = {
-  recents: 'Recent',
-  sites: 'Sites',
-  blueprints: 'Blueprints',
-  tools: 'Tools',
-  commands: 'Commands',
-};
-
-const MATRIX: readonly [string, () => SearchContext][] = [
-  ['', signedIn],
-  ['perimeter', signedOut],
-  ['legion', signedOut],
-  ['industry', signedOut],
-  ['log', signedOut],
-  ['log', signedIn],
-  ['admin', admin],
-  ['in', admin],
-];
-
-describe('scoped queries against the real manifest', () => {
-  it('an explicit all-default-ids scope equals the default full-scope run', async () => {
-    for (const [query, ctx] of MATRIX) {
-      expect(await searchAll(query, ctx(), DEFAULT_SOURCE_IDS)).toEqual(await searchAll(query, ctx()));
-    }
+describe('the global search manifest (SEARCH_SOURCES)', () => {
+  it('lists each source once, in the order its sections come back', () => {
+    const ids = SEARCH_SOURCES.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(['recents', 'sites', 'blueprints', 'tools', 'commands']);
   });
 
-  it("a singleton scope returns exactly that source's slice of the full run", async () => {
-    for (const [query, ctx] of MATRIX) {
-      const full = await searchAll(query, ctx());
-      for (const id of DEFAULT_SOURCE_IDS) {
-        const scoped = await searchAll(query, ctx(), [id]);
-        expect(scoped).toEqual(full.filter((s) => s.name === SECTION_NAME_BY_ID[id]));
-      }
-    }
-  });
+  it('leaves systems out of the global search, while a form field still reaches them', async () => {
+    expect(await searchAll(SEARCH_SOURCES, 'jita', signedOut())).toEqual([]);
+    expect((await searchAll(SEARCH_SOURCES, 'perimeter', signedOut())).map((s) => s.name)).toEqual(['Sites']);
 
-  it('a subset scope returns only that subset, in registration order', async () => {
-    const out = await searchAll('in', admin(), ['commands', 'sites']);
-    expect(out.map((s) => s.name)).toEqual(['Sites', 'Commands']);
-    const full = await searchAll('in', admin());
-    expect(out).toEqual(full.filter((s) => s.name === 'Sites' || s.name === 'Commands'));
-  });
-
-  it('pins the manifest: every registered id listed, unique, in registration order', () => {
-    expect(listRegisteredSources().map((s) => s.id)).toEqual([...REGISTERED_SOURCE_IDS]);
-  });
-
-  it('a full-scope run after scoped queries still sees every source', async () => {
-    const out = await searchAll('in', admin());
-    expect(out.map((s) => s.name)).toEqual(['Recent', 'Sites', 'Blueprints', 'Tools', 'Commands']);
-  });
-});
-
-describe('default-scope-excluded sources (systems)', () => {
-  it('a default-scope run never consults the excluded source', async () => {
-    expect(await searchAll('jita', signedOut())).toEqual([]);
-    const names = (await searchAll('perimeter', signedOut())).map((s) => s.name);
-    expect(names).toEqual(['Sites']);
-  });
-
-  it("an explicit ['systems'] scope reaches the excluded source through the lazy wrapper", async () => {
-    const out = await searchAll('jita', signedOut(), ['systems']);
-    expect(out).toEqual([
+    expect(await searchOneSource('jita', systemsSource, new AbortController().signal)).toEqual([
       {
-        name: 'Systems',
-        results: [
-          {
-            kind: 'system',
-            id: 'system:30000142',
-            label: 'Jita',
-            sub: '0.9',
-            href: '#',
-            matchIndices: [0, 1, 2, 3],
-          },
-        ],
+        kind: 'system',
+        id: 'system:30000142',
+        label: 'Jita',
+        sub: '0.9',
+        href: '#',
+        matchIndices: [0, 1, 2, 3],
       },
     ]);
-  });
-
-  it('a mixed scope returns included + excluded sections in registration order', async () => {
-    const out = await searchAll('perimeter', signedOut(), ['systems', 'sites']);
-    expect(out.map((s) => s.name)).toEqual(['Sites', 'Systems']);
-  });
-
-  it('pins the flag on the registered systems source', () => {
-    const systems = listRegisteredSources().find((s) => s.id === 'systems');
-    expect(systems?.excludeFromDefaultScope).toBe(true);
   });
 });

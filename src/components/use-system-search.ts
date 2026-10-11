@@ -5,6 +5,7 @@ import {
   lookupSystem,
   matchSystem,
   systemsResource,
+  systemsSource,
   type SystemSearchEntry,
 } from '@/data/eve-data/systems-search';
 import { useClientResource } from '@/lib/client-resource';
@@ -52,7 +53,7 @@ export function useSystemSearch(): SystemSearch {
     ctrlRef.current?.abort();
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
-    const results = await searchOneSource(input, 'systems', ctrl.signal);
+    const results = await searchOneSource(input, systemsSource, ctrl.signal);
     return results.map((r) => r.label);
   }, []);
 

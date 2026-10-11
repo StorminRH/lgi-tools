@@ -1,34 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PREFERENCE_KEYS, STRIP_SURFACE_IDS, stripDimmedKey } from '@/lib/preferences';
-import {
-  __resetPageSettings,
-  listPageSettings,
-  registerPageSettings,
-  resolvePageSettings,
-} from '@/platform/page-settings';
 import { FEATURE_CONTROL_IDS } from '@/platform/page-settings/feature-controls';
-import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/specs';
+import { PAGE_SETTINGS_SPECS, resolvePageSettings } from '@/composition/page-settings/specs';
 import { atlasPageSettings } from '@/platform/page-settings/atlas';
 
-beforeEach(() => __resetPageSettings());
-
-describe('page-settings engine', () => {
-  it('registers, lists, resolves, and resets', () => {
-    expect(listPageSettings()).toEqual([]);
-
-    registerPageSettings({ route: '/a' });
-    registerPageSettings({ route: '/b', controls: [] });
-    expect(listPageSettings().map((s) => s.route)).toEqual(['/a', '/b']);
-
-    expect(resolvePageSettings('/a')).toEqual({ route: '/a' });
-    expect(resolvePageSettings('/nope')).toBeNull();
-
-    __resetPageSettings();
-    expect(listPageSettings()).toEqual([]);
-  });
-});
-
-describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
+describe('the page-settings specs (PAGE_SETTINGS_SPECS)', () => {
   it('every spec has a non-empty route and references only real preference keys or feature-control ids (anti-drift)', () => {
     expect(PAGE_SETTINGS_SPECS.length).toBeGreaterThan(0);
     for (const spec of PAGE_SETTINGS_SPECS) {
@@ -43,14 +19,12 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
     }
   });
 
-  it('registers at most one spec per route (the engine keeps the first; a duplicate would be silently dead)', () => {
+  it('declares at most one spec per route (resolution keeps the first; a duplicate would be silently dead)', () => {
     const routes = PAGE_SETTINGS_SPECS.map((spec) => spec.route);
     expect(new Set(routes).size).toBe(routes.length);
   });
 
-  it('resolves /sites and its sub-routes once registered, empty elsewhere', () => {
-    for (const spec of PAGE_SETTINGS_SPECS) registerPageSettings(spec);
-
+  it('resolves /sites and its sub-routes, empty elsewhere', () => {
     const sites = resolvePageSettings('/sites');
     expect(sites?.route).toBe('/sites');
     expect(resolvePageSettings('/sites/30002')).toBe(sites);
@@ -58,8 +32,6 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
   });
 
   it('resolves the account settings page to its junction-owned spec', () => {
-    for (const spec of PAGE_SETTINGS_SPECS) registerPageSettings(spec);
-
     expect(resolvePageSettings('/settings')?.route).toBe('/settings');
   });
 
@@ -74,8 +46,6 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
   });
 
   it('resolves the tracker surfaces to their strip-declaring specs; /sites declares none (D-7)', () => {
-    for (const spec of PAGE_SETTINGS_SPECS) registerPageSettings(spec);
-
     expect(resolvePageSettings('/industry/jobs')?.strip?.surfaceId).toBe('jobs');
     expect(resolvePageSettings('/sites')?.strip).toBeUndefined();
   });

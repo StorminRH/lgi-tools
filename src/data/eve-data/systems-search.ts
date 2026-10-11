@@ -1,6 +1,7 @@
 import { createClientResource } from '@/lib/client-resource';
 import { apiFetchData } from '@/transport/api-fetch-data';
 import { fuzzyMatch } from '@/platform/search/match';
+import type { SearchSource } from '@/platform/search';
 import { indexedFuzzySearch } from '@/platform/search/rank';
 import { systemsEndpoint } from './api-contract';
 import { formatSecurityStatus } from './security';
@@ -53,7 +54,7 @@ export function matchSystem(systems: SystemSearchEntry[], input: string): System
   return best;
 }
 
-export const searchSystems = indexedFuzzySearch({
+const searchSystems = indexedFuzzySearch({
   load: async () => (await systemsResource.load()).systems,
   label: (entry) => entry.name,
   toResult: (entry, match) => ({
@@ -65,3 +66,11 @@ export const searchSystems = indexedFuzzySearch({
     matchIndices: match.matchIndices,
   }),
 });
+
+/** System names for a form field's suggestions; the global search leaves systems out. */
+export const systemsSource: SearchSource = {
+  id: 'systems',
+  name: 'Systems',
+  limit: 10,
+  search: searchSystems,
+};

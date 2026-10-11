@@ -19,7 +19,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 | ☑ | [P065](#p065) | Rebuild useSlotsLive on useLiveDataset with skill-eligible coldness, promote readWithRetries and the latest-wins read to src/lib, and add useRememberedResource for the three remembered per-identity reads | client-data | M | medium | medium | [P140](wave-03-src-lib-primitives-collections-math-async.md#p140), [P068](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p068), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154) |
 | ☑ | [P328](#p328) | Make lazy search sources load only their search function | simplification | S | low | low | — |
 | ☑ | [P069](#p069) | Send every search source through rankFuzzyResults (with a tie-break), declare lazy-source metadata once, and share the all-words name match | client-data | M | low | medium | [P328](#p328) |
-| ☐ | [P276](#p276) | Replace the page-settings and search side-effect registries with static arrays passed explicitly | feature-skeleton | M | low | medium | [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069) |
+| ☑ | [P276](#p276) | Replace the page-settings and search side-effect registries with static arrays passed explicitly | feature-skeleton | M | low | medium | [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069) |
 | ☐ | [P048](#p048) | Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook | react-hook | M | low | medium | [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
 | ☐ | [P054](#p054) | Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot | react-hook | S | low | low | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048) |
 | ☐ | [P270](#p270) | Extract useAuthorityScopedMapDialogs and an EditingMapAccessDialog host for MapSwitcher and MapCatalogue | feature-skeleton | S | low | low | [P054](#p054) |
@@ -819,7 +819,7 @@ matchesAllWords(name: string, query: string): boolean  // query trimmed+lowercas
 
 ## P276: Replace the page-settings and search side-effect registries with static arrays passed explicitly
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** prod about −80/+30 (platform/page-settings/index.ts −20, page-settings register-all −6, search registry functions about −45 replaced by a lazySearchSource factory of about +20, data/eve-data/search.ts −9, two side-effect imports −2, resolvePageSettings +3, SEARCH_SOURCES +7); tests net about −60 (scoping suite and engine test removed, register calls become array literals)
 - **Depends on:** [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069)
