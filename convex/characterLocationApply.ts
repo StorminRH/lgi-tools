@@ -2,9 +2,7 @@ import { type Infer, v } from 'convex/values';
 import {
   computeChainBoundary,
   computeNextDueAt,
-  isColdFromPresence,
   LOCATION_CADENCE_FLOOR_MS,
-  LOCATION_COLD_AFTER_MS,
   minCacheWindow,
 } from '@/lib/sync-engine';
 import type { Doc } from './_generated/dataModel';
@@ -19,7 +17,7 @@ import {
   type LocationSyncState,
   scheduleRun,
 } from './lib/locationSchedule';
-import { getPresence } from './lib/subjects';
+import { isLocationWatcherCold } from './lib/subjects';
 
 export const JUMP_CONTINUITY_MS = 45_000;
 
@@ -86,8 +84,7 @@ export const finishSync = internalMutation({
     };
     const next = { ...state, ...stamp };
 
-    const presence = await getPresence(ctx.db, 'characterLocation', args.userId);
-    const cold = isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, now);
+    const cold = await isLocationWatcherCold(ctx.db, args.userId, now);
     const at = cold ? null : nextRunAt(args.outcome, next, now);
     if (at === null) {
       await ctx.db.patch('locationSync', state._id, { ...stamp, jobId: null });

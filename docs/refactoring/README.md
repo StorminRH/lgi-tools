@@ -601,7 +601,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 | ☑ | [P202](wave-14-convex-backend-helpers.md#p202) | Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup | convex | M | low | medium | — |
 | ☑ | [P203](wave-14-convex-backend-helpers.md#p203) | Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert | convex | S | low | low | — |
 | ☑ | [P204](wave-14-convex-backend-helpers.md#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
-| ☐ | [P205](wave-14-convex-backend-helpers.md#p205) | Fold the location-sync lifecycle steps into locationSchedule and subjects helpers | convex | S | low | medium | — |
+| ☑ | [P205](wave-14-convex-backend-helpers.md#p205) | Fold the location-sync lifecycle steps into locationSchedule and subjects helpers | convex | S | low | medium | — |
 | ☐ | [P289](wave-14-convex-backend-helpers.md#p289) | Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id | efficiency | S | low | low | — |
 | ☐ | [P206](wave-14-convex-backend-helpers.md#p206) | Share the stamp-patch-claim tail of door-type writes and drop the redundant re-reads | convex | S | low | low | [P289](wave-14-convex-backend-helpers.md#p289) |
 | ☐ | [P207](wave-14-convex-backend-helpers.md#p207) | Route scan stub removal through retainRemovedConnection and share the removed-connection purgeAfter re-stamp | convex | S | low | low | — |

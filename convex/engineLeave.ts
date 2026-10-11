@@ -1,9 +1,8 @@
 import { v } from 'convex/values';
 import { LOCATION_COLD_AFTER_MS } from '@/lib/sync-engine';
 import { internalMutation } from './_generated/server';
-import { clearCoverageForUser } from './lib/locationCoverage';
-import { getLocationSync, stopSync } from './lib/locationSchedule';
-import { getPresence } from './lib/subjects';
+import { retireLocationSync } from './lib/locationSchedule';
+import { getLocationPresence } from './lib/subjects';
 
 export const leave = internalMutation({
   args: {
@@ -12,7 +11,7 @@ export const leave = internalMutation({
     tabId: v.string(),
   },
   handler: async (ctx, { userId, tabId }) => {
-    const presence = await getPresence(ctx.db, 'characterLocation', userId);
+    const presence = await getLocationPresence(ctx.db, userId);
     if (presence !== null && presence.tabId !== undefined && presence.tabId !== tabId) {
       return { retired: false };
     }
@@ -25,12 +24,7 @@ export const leave = internalMutation({
         leftTabId: tabId,
       });
     }
-    const state = await getLocationSync(ctx.db, userId);
-    if (state !== null) {
-      await stopSync(ctx, state, now);
-    } else {
-      await clearCoverageForUser(ctx, userId);
-    }
+    await retireLocationSync(ctx, userId, now);
     return { retired: true };
   },
 });

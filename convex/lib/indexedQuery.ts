@@ -8,7 +8,6 @@ export type UserCharacterTable =
   | 'characterLocationOnline'
   | 'characterLocationAccess';
 export type PurgeAfterTable = 'mapSystems' | 'mapConnections';
-export type StoredDataset = Doc<'syncPresence'>['dataset'];
 
 /** The one row a (user, character) pair holds in a single-row location table. */
 export function uniqueByUserCharacter<T extends UserCharacterTable>(
@@ -28,7 +27,7 @@ export function uniqueByUserCharacter<T extends UserCharacterTable>(
 
 export function uniqueByUserDataset(
   db: DatabaseReader,
-  dataset: StoredDataset,
+  dataset: Doc<'syncPresence'>['dataset'],
   userId: string,
 ): Promise<Doc<'syncPresence'> | null> {
   return db
