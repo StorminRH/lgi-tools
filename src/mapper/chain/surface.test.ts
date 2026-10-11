@@ -78,7 +78,6 @@ describe('mapper source contract', () => {
       'chain/use-map-chain-merge.ts',
       'chain/use-map-chain-pages.ts',
       'chain/use-map-chain.ts',
-      'chain/use-universe-assets.ts',
       'fog/FogLayer.tsx',
       'fog/fog-host.ts',
       'fog/fog-model.ts',

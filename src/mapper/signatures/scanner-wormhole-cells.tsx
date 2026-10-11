@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useMemo, type ReactNode } from 'react';
+import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 import type { SigGroup } from '@/data/maps/scan-parse';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
 import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
-import { useUniverseAssets } from '../chain/use-universe-assets';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { namedDoorType } from '@/data/maps/connection-door-types';
@@ -101,8 +101,7 @@ export function useWormholeCellContext({
     [editorData.codex],
   );
   return useMemo(() => {
-    const systemInfo =
-      assets === null ? null : (id: number) => assets.systemInfo(id);
+    const systemInfo = assets?.systemInfo ?? null;
     return {
       now,
       canEdit,

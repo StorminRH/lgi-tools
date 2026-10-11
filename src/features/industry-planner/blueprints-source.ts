@@ -1,4 +1,5 @@
-import { apiFetch } from '@/transport/api-client';
+import { createClientResource } from '@/lib/client-resource';
+import { apiFetchData } from '@/transport/api-fetch-data';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import type { SearchSource } from '@/platform/search';
 import { rankFuzzyResults } from '@/platform/search/rank';
@@ -7,25 +8,10 @@ import type { BlueprintIndexEntry } from './types';
 
 const MAX_RESULTS = 20;
 
-let indexPromise: Promise<BlueprintIndexEntry[]> | null = null;
-
-function loadIndex(): Promise<BlueprintIndexEntry[]> {
-  if (!indexPromise) {
-    indexPromise = apiFetch(blueprintsEndpoint)
-      .then((result) => {
-        if (!result.ok) {
-          const reason = 'status' in result ? result.status : result.kind;
-          throw new Error(`blueprint index ${reason}`);
-        }
-        return result.data.blueprints;
-      })
-      .catch((err) => {
-        indexPromise = null;
-        throw err;
-      });
-  }
-  return indexPromise;
-}
+// No reader subscribes, so a failed load is simply read again by the next search.
+const blueprintIndex = createClientResource(
+  async (): Promise<BlueprintIndexEntry[]> => (await apiFetchData(blueprintsEndpoint, 'blueprint index')).blueprints,
+);
 
 export const blueprintsSource: SearchSource = {
   id: 'blueprints',
@@ -34,7 +20,7 @@ export const blueprintsSource: SearchSource = {
   async search(query, ctx) {
     if (query.length === 0) return [];
 
-    const index = await loadIndex();
+    const index = await blueprintIndex.load();
     if (ctx.signal?.aborted) return [];
 
     return rankFuzzyResults(

@@ -95,29 +95,28 @@ describe('systemsSource', () => {
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('retries after a failed load instead of caching the rejection, and fills the snapshot on success', async () => {
+  it('forgets a failed load so the next reader loads again, and publishes one index to every reader', async () => {
     const m = await freshModule();
-    const listener = vi.fn();
-    const unsubscribe = m.loadedSystemsById.subscribe(listener);
     apiFetchMock.mockClear();
-    apiFetchMock.mockRejectedValueOnce(new Error('network down'));
-    await expect(m.loadSystems()).rejects.toThrow('network down');
-    expect(m.getLoadedSystems()).toBeNull();
-    expect(m.loadedSystemsById.get()).toBeNull();
-    expect(listener).not.toHaveBeenCalled();
+    apiFetchMock
+      .mockResolvedValueOnce({ ok: false, kind: 'api', status: 503, error: null })
+      .mockResolvedValueOnce({ ok: true, status: 200, data: { systems: SYSTEMS } });
+    await expect(m.systemsResource.load()).rejects.toThrow('system index api 503');
+    expect(m.systemsResource.get()).toEqual({ value: null, failed: true });
 
-    apiFetchMock.mockResolvedValueOnce({ ok: true, status: 200, data: { systems: SYSTEMS } });
-    await expect(m.loadSystems()).resolves.toEqual(SYSTEMS);
-    expect(m.getLoadedSystems()).toEqual(SYSTEMS);
-    const byId = m.loadedSystemsById.get();
-    expect(byId?.size).toBe(SYSTEMS.length);
-    expect(byId?.get(30000142)).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
-    expect(byId?.get(5)?.security).toBeNull();
-    // The map is built once per load, so readers keep one identity.
-    expect(m.loadedSystemsById.get()).toBe(byId);
-    // Every reader hears the load, and the server never has an index.
+    const listener = vi.fn();
+    const unsubscribe = m.systemsResource.subscribe(listener);
+    const index = await m.systemsResource.load();
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+    expect(index.systems).toEqual(SYSTEMS);
+    expect(index.byId.size).toBe(SYSTEMS.length);
+    expect(index.byId.get(30000142)).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
+    expect(index.byId.get(5)?.security).toBeNull();
+    // Every reader hears the load and gets the same index, and the server never has one.
     expect(listener).toHaveBeenCalledOnce();
-    expect(m.loadedSystemsById.serverValue).toBeNull();
+    expect(m.systemsResource.get()).toEqual({ value: index, failed: false });
+    expect(m.systemsResource.get().value).toBe(index);
+    expect(m.systemsResource.serverValue).toEqual({ value: null, failed: false });
     unsubscribe();
   });
 

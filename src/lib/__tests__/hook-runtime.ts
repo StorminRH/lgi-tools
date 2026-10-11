@@ -39,7 +39,9 @@ function rewound() {
  * it started, reaches the newest values. useCallback hands back the callback
  * it is given, unmemoized, so a memo that depends on a callback recomputes
  * each render and a test that changes a mocked input reaches it.
- * useSyncExternalStore reads the snapshot.
+ * useSyncExternalStore reads the snapshot and keeps a subscription in the
+ * next effect slot, so a store sees one subscriber per mounted reader until
+ * `unmount` or `hide`; a store change does not re-render, so call `render`.
  *
  * The helper imports nothing from 'react', so a test can load it for its own
  * `vi.mock('react')`:
@@ -91,6 +93,13 @@ export function createHookRuntime() {
     slots.effects[index] = { deps, cleanup: effect() };
   }
 
+  /** Reads the snapshot, then subscribes in the next effect slot as React does after commit, again whenever `subscribe` changes. */
+  function useSyncExternalStore<T>(subscribe: (onStoreChange: () => void) => () => void, getSnapshot: () => T): T {
+    const snapshot = getSnapshot();
+    useEffect(() => subscribe(() => {}), [subscribe]);
+    return snapshot;
+  }
+
   function cleanUpEffects() {
     for (const effect of slots.effects) effect.cleanup?.();
     slots.effects = [];
@@ -106,7 +115,7 @@ export function createHookRuntime() {
       useEffect,
       useEffectEvent,
       useLayoutEffect: useEffect,
-      useSyncExternalStore: <T>(_subscribe: unknown, getSnapshot: () => T): T => getSnapshot(),
+      useSyncExternalStore,
     },
     /** Rewinds every cursor, then calls the component or hook with `args`. */
     render<A extends unknown[], R>(component: (...args: A) => R, ...args: A): R {

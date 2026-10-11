@@ -139,6 +139,30 @@ test('hide cleans up live effects and keeps state, while unmount drops every slo
   expect(seen.at(-1)).toBe('subscribe 0');
 });
 
+test('an external store gets one subscription per mounted reader, moved when subscribe changes and dropped on hide and unmount', () => {
+  const rt = createHookRuntime();
+  const { react } = rt;
+  const live = new Set<string>();
+  const subscribeAs = (name: string) => () => {
+    live.add(name);
+    return () => live.delete(name);
+  };
+  const first = subscribeAs('first');
+  const reader = (subscribe: () => () => void) => react.useSyncExternalStore(subscribe, () => [...live].join());
+
+  expect(rt.render(reader, first)).toBe('');
+  expect([...live]).toEqual(['first']);
+  expect(rt.render(reader, first)).toBe('first');
+  rt.render(reader, subscribeAs('second'));
+  expect([...live]).toEqual(['second']);
+  rt.hide();
+  expect(live.size).toBe(0);
+  rt.render(reader, first);
+  expect([...live]).toEqual(['first']);
+  rt.unmount();
+  expect(live.size).toBe(0);
+});
+
 test('settle lets promise callbacks and zero-delay timers queued before it run', async () => {
   const seen: string[] = [];
   setTimeout(() => seen.push('timer'), 0);

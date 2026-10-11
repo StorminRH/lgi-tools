@@ -1,5 +1,5 @@
 import { chunk, sortedUniqueIds } from '@/lib/array';
-import { apiFetch } from '@/transport/api-client';
+import { apiFetchData } from '@/transport/api-fetch-data';
 import {
   ENTITY_NAMES_MAX_IDS,
   TYPE_NAMES_MAX_IDS,
@@ -13,7 +13,7 @@ interface NamesOutcome {
 }
 
 interface NamesPolicy {
-  /** Names the endpoint in a failed lookup's error, as `<label> names <reason>`. */
+  /** Names the endpoint in a failed lookup's error, as `<label> names <failure>`, such as `type names api 503`. */
   label: 'type' | 'entity';
   maxIds: number;
   cache: boolean;
@@ -33,12 +33,8 @@ function createNamesClient(
     return policy.cache ? unique : unique.slice(0, policy.maxIds);
   };
   async function requestOutcome(ids: number[]): Promise<NamesOutcome> {
-    const result = await apiFetch(endpoint, { body: { ids } });
-    if (!result.ok) {
-      const reason = 'status' in result ? result.status : result.kind;
-      throw new Error(`${policy.label} names ${reason}`);
-    }
-    return { names: result.data.names, pending: result.data.pending ?? [] };
+    const data = await apiFetchData(endpoint, `${policy.label} names`, { body: { ids } });
+    return { names: data.names, pending: data.pending ?? [] };
   }
   const request = async (ids: number[]) => (await requestOutcome(ids)).names;
   /** Names, plus the ids the server could not answer for this time (uncached clients only). */

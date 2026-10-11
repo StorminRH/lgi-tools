@@ -1,5 +1,5 @@
-import { createClientStore, type ClientStore } from '@/lib/client-store';
-import { apiFetch } from '@/transport/api-client';
+import { createClientResource } from '@/lib/client-resource';
+import { apiFetchData } from '@/transport/api-fetch-data';
 import type { SearchSource } from '@/platform/search';
 import { fuzzyMatch } from '@/platform/search/match';
 import { rankFuzzyResults } from '@/platform/search/rank';
@@ -14,43 +14,20 @@ export interface SystemSearchEntry {
 
 const MAX_RESULTS = 20;
 
-let indexPromise: Promise<SystemSearchEntry[]> | null = null;
-let loadedIndex: SystemSearchEntry[] | null = null;
-// Built once per load, so its identity holds for as long as the index does.
-const loadedById = createClientStore<ReadonlyMap<number, SystemSearchEntry> | null>(null);
-
-export function loadSystems(): Promise<SystemSearchEntry[]> {
-  if (!indexPromise) {
-    indexPromise = apiFetch(systemsEndpoint)
-      .then((result) => {
-        if (!result.ok) {
-          const reason = 'status' in result ? result.status : result.kind;
-          throw new Error(`system index ${reason}`);
-        }
-        loadedIndex = result.data.systems;
-        loadedById.set(new Map(loadedIndex.map((system) => [system.id, system])));
-        return loadedIndex;
-      })
-      .catch((err) => {
-        indexPromise = null;
-        throw err;
-      });
-  }
-  return indexPromise;
-}
-
-export function getLoadedSystems(): SystemSearchEntry[] | null {
-  return loadedIndex;
+async function readSystemIndex(): Promise<{
+  readonly systems: SystemSearchEntry[];
+  readonly byId: ReadonlyMap<number, SystemSearchEntry>;
+}> {
+  const { systems } = await apiFetchData(systemsEndpoint, 'system index');
+  return { systems, byId: new Map(systems.map((system) => [system.id, system])) };
 }
 
 /**
- * The loaded index keyed by system id, or null until a load succeeds. A store,
- * so every reader re-renders when any caller's load succeeds.
+ * The system index for this page, as a list and keyed by id. Both are built
+ * once per load, so their identities hold for as long as the index does, and
+ * any caller's load reaches every reader.
  */
-export const loadedSystemsById: Pick<
-  ClientStore<ReadonlyMap<number, SystemSearchEntry> | null>,
-  'get' | 'subscribe' | 'serverValue'
-> = loadedById;
+export const systemsResource = createClientResource(readSystemIndex);
 
 /** The system behind an id, or null with no id, no index yet, or no such system. */
 export function lookupSystem(
@@ -87,11 +64,11 @@ export const systemsSource: SearchSource = {
   async search(query, ctx) {
     if (query.length === 0) return [];
 
-    const index = await loadSystems();
+    const { systems } = await systemsResource.load();
     if (ctx.signal?.aborted) return [];
 
     return rankFuzzyResults(
-      index,
+      systems,
       query,
       (entry) => entry.name,
       (entry, match) => ({

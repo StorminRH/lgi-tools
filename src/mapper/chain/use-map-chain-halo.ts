@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { systemSecurityClass } from '@/data/eve-data/security';
+import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 import {
   deriveHalo,
   EMPTY_HALO,
@@ -14,7 +15,6 @@ import {
   stubPostKey,
   type AccountedStubLayoutRow,
 } from './stub-layout';
-import { useUniverseAssets } from './use-universe-assets';
 
 const EMPTY_NEIGHBOURS: readonly number[] = [];
 
@@ -48,10 +48,7 @@ export function useMapChainHalo(
   );
   const labelOf = useCallback(
     (systemId: number): SystemLabel =>
-      resolveSystemLabel(
-        systemId,
-        assets === null ? null : (id: number) => assets.systemInfo(id),
-      ),
+      resolveSystemLabel(systemId, assets?.systemInfo ?? null),
     [assets],
   );
 

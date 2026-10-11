@@ -4,12 +4,10 @@ import { useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import { useWormholeCodex } from '@/data/eve-data/use-universe-assets';
 import { chainTombstoneState } from '@/data/maps/chain-contract';
 import { useNow } from '@/lib/use-now';
-import {
-  staticClassForCode,
-  useWormholeCodex,
-} from '../signatures/use-system-statics';
+import { staticClassForCode } from '../signatures/use-system-statics';
 import { filterLivePages } from './chain-signature';
 import {
   awaitingJumpsFromRows,

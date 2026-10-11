@@ -45,8 +45,8 @@ test('type names batch past the request limit, cache every answer and ask again 
   expect(apiFetchMock.mock.calls[1]?.[1].body.ids).toEqual([201]);
   expect(await typeNamesClient.load([1, 201])).toEqual({ '1': 'Ship 1', '201': 'Ship 201' });
   expect(apiFetchMock).toHaveBeenCalledTimes(2);
-  apiFetchMock.mockResolvedValueOnce({ ok: false, kind: 'http', status: 503 });
-  await expect(typeNamesClient.load([587])).rejects.toThrow('type names 503');
+  apiFetchMock.mockResolvedValueOnce({ ok: false, kind: 'api', status: 503, error: null });
+  await expect(typeNamesClient.load([587])).rejects.toThrow('type names api 503');
   apiFetchMock.mockResolvedValueOnce({ ok: true, data: { names: { '587': 'Rifter' } } });
   const [first, second] = await Promise.all([typeNamesClient.load([587]), typeNamesClient.load([587])]);
   expect(first).toEqual({ '587': 'Rifter' });

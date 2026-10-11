@@ -23,9 +23,9 @@ import {
   type WormholeDestinationHint,
   type WormholeEffect,
 } from '@/data/eve-data/wormhole-contract';
+import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 import type { NodeMotion } from '../motion/motion-contract';
 import { IntelIcon } from '../windows/IntelIcon';
-import { useUniverseAssets } from '../chain/use-universe-assets';
 import { isDerivedNode, kspaceCaptionOffset, nodeCaptionKind } from './disc-chrome';
 import { SystemIntelMarks } from './SystemIntelMarks';
 import { ChainViewportContext } from './ChainViewportContext';

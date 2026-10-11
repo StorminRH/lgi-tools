@@ -15,7 +15,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 | ☑ | [P295](#p295) | Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type | efficiency | S | low | medium | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332) |
 | ☑ | [P076](#p076) | Name the plain price-figure type in data/market-prices and build RefreshedPrice, PriceLite and the planner rows from it | contracts-validation | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
 | ☑ | [P075](#p075) | Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label | client-data | S | low | low | — |
-| ☐ | [P063](#p063) | Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it | client-data | L | medium | medium | [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075) |
+| ☑ | [P063](#p063) | Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it | client-data | L | medium | medium | [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075) |
 | ☐ | [P065](#p065) | Rebuild useSlotsLive on useLiveDataset with skill-eligible coldness, promote readWithRetries and the latest-wins read to src/lib, and add useRememberedResource for the three remembered per-identity reads | client-data | M | medium | medium | [P140](wave-03-src-lib-primitives-collections-math-async.md#p140), [P068](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p068), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154) |
 | ☐ | [P328](#p328) | Make lazy search sources load only their search function | simplification | S | low | low | — |
 | ☐ | [P069](#p069) | Send every search source through rankFuzzyResults (with a tie-break), declare lazy-source metadata once, and share the all-words name match | client-data | M | low | medium | [P328](#p328) |
@@ -492,7 +492,7 @@ const namesRequestSchema = (max: number) => z.object({ ids: z.array(z.number().i
 
 ## P063: Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** L · **Risk:** medium · **Payoff:** medium · **Size:** About -200 lines across loaders, hooks and adapters; about +110 for the primitive, transport helpers and one-line hooks (net about -90), plus about 120 lines of new tests
 - **Depends on:** [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075)

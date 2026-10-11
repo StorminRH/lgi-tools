@@ -1,4 +1,5 @@
-import { apiFetch } from '@/transport/api-client';
+import { createClientResource } from '@/lib/client-resource';
+import { apiFetchData } from '@/transport/api-fetch-data';
 import { stationsEndpoint } from './api-contract';
 
 export interface StationSearchEntry {
@@ -8,17 +9,10 @@ export interface StationSearchEntry {
   security: number | null;
 }
 
-let indexPromise: Promise<StationSearchEntry[]> | null = null;
-
 /** The manufacturing station index, read once per page and kept. */
-export function loadStations(): Promise<StationSearchEntry[]> {
-  indexPromise ??= apiFetch(stationsEndpoint).then((result) => {
-    if (result.ok) return result.data.stations;
-    indexPromise = null;
-    throw new Error(`station index ${'status' in result ? result.status : result.kind}`);
-  });
-  return indexPromise;
-}
+export const stationsResource = createClientResource(
+  async (): Promise<StationSearchEntry[]> => (await apiFetchData(stationsEndpoint, 'station index')).stations,
+);
 
 /**
  * Stations whose name holds every word typed, in any order: the system name
