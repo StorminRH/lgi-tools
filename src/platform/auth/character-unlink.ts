@@ -12,7 +12,8 @@ import type { IdentityProjectionRunners } from './identity-projection-runners';
  * A revocation or removal failure comes back as an outcome, so each caller
  * chooses how to report it; failures after the removal propagate. A
  * runAfterCharacterUnlink failure still settles, then rethrows, and a settle
- * failure skips the linkChanged runners that follow it.
+ * failure still runs the linkChanged runners and afterSettle, then rethrows:
+ * the removal has committed, so its projections must still follow it.
  */
 export async function unlinkCharacter({
   userId,
@@ -60,9 +61,12 @@ export async function unlinkCharacter({
   try {
     if (removed) await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
   } finally {
-    ({ accountEmptied } = await reconcileAfterCharacterRemoval(userId, characterId, runners));
-    await runners.runAfterCharacterLinkChanged({ userId, characterId });
-    await afterSettle?.(removed);
+    try {
+      ({ accountEmptied } = await reconcileAfterCharacterRemoval(userId, characterId, runners));
+    } finally {
+      await runners.runAfterCharacterLinkChanged({ userId, characterId });
+      await afterSettle?.(removed);
+    }
   }
   return removed
     ? { removed: true, accountEmptied }

@@ -81,7 +81,7 @@ describe('reassignCharacter', () => {
     ]);
   });
 
-  it('keeps the source user when required collaborative purge fails', async () => {
+  it('keeps the source user when required collaborative purge fails, still reprojecting both users', async () => {
     const failure = new Error('map purge unavailable');
     runners.runBeforeUserDelete.mockRejectedValueOnce(failure);
     state.results = [lockedPair, [{ id: 'moved' }], []];
@@ -95,7 +95,11 @@ describe('reassignCharacter', () => {
       }),
     ).rejects.toBe(failure);
     expect(state.calls.delete).toBe(0);
-    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+    // The move committed, so the failed settle still runs both link-changed projections before it rethrows.
+    expect(runners.runAfterCharacterLinkChanged.mock.calls).toEqual([
+      [{ userId: 'eve-user-2', characterId: 100 }],
+      [{ userId: 'admin-1', characterId: 100 }],
+    ]);
   });
 
   it('does not move a character if its former map claims cannot be revoked', async () => {
