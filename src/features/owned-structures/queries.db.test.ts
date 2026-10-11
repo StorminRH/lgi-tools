@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { eveSolarSystems } from '@/data/eve-data/schema';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
@@ -38,8 +39,11 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       securityClass: 'high',
       name: 'Raitaru B (old)',
     });
+    vi.mocked(revalidateTag).mockClear();
     await upsertCorpStructureRigs(corp, 600002, [37178, 37180], 1.5);
+    expect(revalidateTag).not.toHaveBeenCalled();
     await saveCorpStructures(corp, [], ['"e1"']);
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('corp-structures:9004', 'max');
 
     const remaining = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(remaining).toHaveLength(0);

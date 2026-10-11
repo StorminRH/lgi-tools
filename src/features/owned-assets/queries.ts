@@ -128,35 +128,31 @@ export async function listCharacterAssetSyncStates(
   return new Map(rows.map(({ ownerId, ...state }) => [ownerId, state]));
 }
 
-export async function saveOwnedAssets(
+/** Replace the owner's rows, then stamp its sync row. Throws on any failure; the caller owns the outcome. */
+async function writeOwnedAssets(
+  database: AnyPgDb,
   owner: OwnerKey,
   rows: OwnedAsset[],
   etags: string[],
-  snapshotId: number | null = null,
-  database: AnyPgDb = db,
-): Promise<'saved' | 'superseded'> {
+  snapshotId: number | null,
+): Promise<void> {
   const now = new Date();
   await database
     .delete(ownedAssets)
     .where(ownerKeyWhere(ownedAssets, owner));
   if (rows.length > 0) {
-    try {
-      await database.insert(ownedAssets).values(
-        rows.map((r) => ({
-          ownerType: owner.ownerType,
-          ownerId: owner.ownerId,
-          typeId: r.type_id,
-          quantity: r.quantity,
-          locationId: r.location_id,
-          locationFlag: r.location_flag,
-          locationType: r.location_type,
-          snapshotId,
-        })),
-      );
-    } catch (error) {
-      if (database !== db || !isUniqueViolation(error)) throw error;
-      return 'superseded';
-    }
+    await database.insert(ownedAssets).values(
+      rows.map((r) => ({
+        ownerType: owner.ownerType,
+        ownerId: owner.ownerId,
+        typeId: r.type_id,
+        quantity: r.quantity,
+        locationId: r.location_id,
+        locationFlag: r.location_flag,
+        locationType: r.location_type,
+        snapshotId,
+      })),
+    );
   }
   await database
     .insert(ownedAssetSyncs)
@@ -165,7 +161,21 @@ export async function saveOwnedAssets(
       target: [ownedAssetSyncs.ownerType, ownedAssetSyncs.ownerId],
       set: { lastRefreshedAt: now, pageEtags: etags },
     });
-  if (database === db) revalidateTag(ownedAssetsTag(owner), 'max');
+}
+
+/** Publish a character's assets; a refresh that loses the insert race is 'superseded' and stamps nothing. */
+export async function saveOwnedAssets(
+  owner: OwnerKey,
+  rows: OwnedAsset[],
+  etags: string[],
+): Promise<'saved' | 'superseded'> {
+  try {
+    await writeOwnedAssets(db, owner, rows, etags, null);
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    return 'superseded';
+  }
+  revalidateTag(ownedAssetsTag(owner), 'max');
   return 'saved';
 }
 
@@ -198,7 +208,7 @@ export async function saveCorpOwnedAssets(
         set: { pageEtags: etags },
       });
       await saveHoldingNodes(corporationId, index, new Date(), tx);
-      await saveOwnedAssets(owner, rows, etags, snapshotId, tx);
+      await writeOwnedAssets(tx, owner, rows, etags, snapshotId);
     });
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;

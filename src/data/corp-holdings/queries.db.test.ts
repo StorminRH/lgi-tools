@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
@@ -9,7 +10,7 @@ import {
   saveHoldingNodes,
   stampCorpProfileFresh,
 } from './queries';
-import { buildHoldingIndex, type CorpAssetItem, placeUnder } from './placement';
+import { buildHoldingIndex, type CorpAssetItem, type HoldingIndex, placeUnder } from './placement';
 import { corpHoldingNodes, corpMemberBases } from './schema';
 import type { CorpProfile, MemberBase } from './context';
 
@@ -68,9 +69,15 @@ async function committedNodeIds(): Promise<number[]> {
   return rows.map((row) => row.itemId).sort((a, b) => a - b);
 }
 
+function saveHoldingNodesInTransaction(corporationId: number, index: HoldingIndex): Promise<void> {
+  return harness.db.transaction((tx) => saveHoldingNodes(corporationId, index, NOW, tx));
+}
+
 describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () => {
   it('stores the tree and rebuilds placements from it, with the HQ unknown before a context pass', async () => {
-    expect(await saveHoldingNodes(CORP, tree, NOW)).toBe('saved');
+    vi.mocked(revalidateTag).mockClear();
+    await saveHoldingNodesInTransaction(CORP, tree);
+    expect(revalidateTag).not.toHaveBeenCalled();
 
     const context = await getCorpHoldingContext(CORP);
     expect(context.hq).toEqual({ kind: 'unknown' });
@@ -89,43 +96,13 @@ describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () =>
   });
 
   it('replaces the corp tree and leaves other corps alone', async () => {
-    await saveHoldingNodes(CORP, tree, NOW);
-    await saveHoldingNodes(OTHER_CORP, tree, NOW);
+    await saveHoldingNodesInTransaction(CORP, tree);
+    await saveHoldingNodesInTransaction(OTHER_CORP, tree);
 
-    await saveHoldingNodes(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]), NOW);
+    await saveHoldingNodesInTransaction(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]));
 
     expect(await committedNodeIds()).toEqual([7001]);
     expect(placeUnder((await getCorpHoldingContext(OTHER_CORP)).index, CAN, 'Unlocked').kind).toBe('hangar');
-  });
-
-  it('reports superseded when a concurrent refresh wins the insert race', async () => {
-    await saveHoldingNodes(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]), NOW);
-
-    let signalInserted!: () => void;
-    let releaseWinner!: () => void;
-    const winnerHasInserted = new Promise<void>((resolve) => {
-      signalInserted = resolve;
-    });
-    const winnerMayCommit = new Promise<void>((resolve) => {
-      releaseWinner = resolve;
-    });
-    const winner = harness.sql.begin(async (tx) => {
-      await tx`
-        INSERT INTO corp_holding_nodes (corporation_id, item_id, kind, root_id, refreshed_at)
-        VALUES (${CORP}, ${OFFICE}, 'office', ${STATION}, ${NOW.toISOString()})
-      `;
-      signalInserted();
-      await winnerMayCommit;
-    });
-    await winnerHasInserted;
-
-    const loser = saveHoldingNodes(CORP, tree, NOW);
-    await expect.poll(async () => (await committedNodeIds()).length, { timeout: 3_000, interval: 5 }).toBe(0);
-    releaseWinner();
-    await winner;
-
-    expect(await loser).toBe('superseded');
-    expect(await committedNodeIds()).toEqual([OFFICE]);
   });
 });
 

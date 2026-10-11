@@ -134,5 +134,4 @@ export async function upsertCorpStructureRigs(
       target: [corpStructureRigs.corporationId, corpStructureRigs.structureId],
       set: { rigTypeIds, ...taxSet, setAt: new Date() },
     });
-  revalidateTag(corpStructuresTag(corporationId), 'max');
 }

@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { isUniqueViolation } from '@/db/pg-errors';
@@ -55,12 +56,14 @@ async function committedRowCount(): Promise<number> {
 }
 
 describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () => {
-  it('returns saved and stores the aggregated set for a single writer', async () => {
+  it('returns saved, stores the aggregated set for a single writer and invalidates its tag', async () => {
+    vi.mocked(revalidateTag).mockClear();
     const outcome = await saveOwnedAssets(owner, [asset(), asset({ type_id: 35 })], ['"etag"']);
 
     expect(outcome).toBe('saved');
     expect(await committedRowCount()).toBe(2);
     expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"etag"']);
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', 'max');
   });
 
   it('rejects a direct duplicate of the natural key as a unique violation', async () => {
@@ -95,8 +98,9 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
     expect(await committedRowCount()).toBe(5);
   });
 
-  it('coalesces a refresh that loses the insert race to superseded, stamping nothing', async () => {
+  it('coalesces a refresh that loses the insert race to superseded, stamping and invalidating nothing', async () => {
     await saveOwnedAssets(owner, [asset({ type_id: 35 })], ['"winner"']);
+    vi.mocked(revalidateTag).mockClear();
 
     let signalInserted!: () => void;
     let releaseWinner!: () => void;
@@ -127,6 +131,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
     expect(await loser).toBe('superseded');
     expect(await committedRowCount()).toBe(1);
     expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"winner"']);
+    expect(revalidateTag).not.toHaveBeenCalled();
   });
 });
 

@@ -3,7 +3,6 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { directDatabase } from '@/db/direct-database';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
-import { isUniqueViolation } from '@/db/pg-errors';
 import { chunk } from '@/lib/array';
 import { excluded } from '@/lib/db-upsert';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
@@ -55,27 +54,25 @@ export async function getCorpHoldingContext(corporationId: number): Promise<Corp
   return buildCorpHoldingContext(corporationId, nodes, profile);
 }
 
+/**
+ * Replace a corporation's placement tree inside the caller's transaction. It
+ * neither swallows a unique violation nor invalidates: the transaction owner
+ * maps a lost race to 'superseded' and calls invalidateHoldingNodes after commit.
+ */
 export async function saveHoldingNodes(
   corporationId: number,
   index: HoldingIndex,
   refreshedAt: Date,
-  database: AnyPgDb = db,
-): Promise<'saved' | 'superseded'> {
+  tx: AnyPgDb,
+): Promise<void> {
   const rows = toHoldingNodes(index).map((node) => ({
     ...node,
     corporationId,
     refreshedAt,
     containers: [...node.containers],
   }));
-  await database.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
-  try {
-    for (const batch of chunk(rows, NODE_INSERT_BATCH)) await database.insert(corpHoldingNodes).values(batch);
-  } catch (error) {
-    if (database !== db || !isUniqueViolation(error)) throw error;
-    return 'superseded';
-  }
-  if (database === db) invalidateHoldingNodes(corporationId);
-  return 'saved';
+  await tx.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
+  for (const batch of chunk(rows, NODE_INSERT_BATCH)) await tx.insert(corpHoldingNodes).values(batch);
 }
 
 export function invalidateHoldingNodes(corporationId: number): void {
