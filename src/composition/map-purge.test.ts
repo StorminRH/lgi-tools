@@ -82,7 +82,6 @@ describe('purgeEligibleMaps', () => {
       selected: 2,
       tombstoned: 0,
       deletedDocuments: 0,
-      projectionPending: 0,
     });
     expect(purgeChain).not.toHaveBeenCalled();
     expect(teardownAccess).not.toHaveBeenCalled();
@@ -113,7 +112,6 @@ describe('purgeEligibleMaps', () => {
       selected: 2,
       tombstoned: 1,
       deletedDocuments: 9,
-      projectionPending: 0,
     });
     expect(order).toEqual(['purge:map-a', 'teardown:map-a', 'tombstone:map-a']);
   });
@@ -174,7 +172,6 @@ describe('purgeEligibleMaps', () => {
       selected: 2,
       tombstoned: 2,
       deletedDocuments: 18,
-      projectionPending: 0,
     });
     expect(order).toEqual([
       'purge:map-a',

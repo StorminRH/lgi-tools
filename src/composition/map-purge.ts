@@ -45,7 +45,6 @@ export async function purgeEligibleMaps(
   readonly selected: number;
   readonly tombstoned: number;
   readonly deletedDocuments: number;
-  readonly projectionPending: number;
 }> {
   const deadline = Date.now() + MAP_PURGE_WORK_BUDGET_MS;
   const claimMaps = dependencies.claimMaps ?? claimPurgeableMaps;
@@ -55,7 +54,6 @@ export async function purgeEligibleMaps(
   const due = await claimMaps();
   let tombstoned = 0;
   let deletedDocuments = 0;
-  const projectionPending = 0;
 
   for (const map of due) {
     if (Date.now() >= deadline) break;
@@ -82,5 +80,5 @@ export async function purgeEligibleMaps(
     tombstoned += 1;
     deletedDocuments += purge.deleted;
   }
-  return { selected: due.length, tombstoned, deletedDocuments, projectionPending };
+  return { selected: due.length, tombstoned, deletedDocuments };
 }

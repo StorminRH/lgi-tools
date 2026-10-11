@@ -1,4 +1,4 @@
-import { expect, test, vi } from 'vitest';
+import { expect, expectTypeOf, test, vi } from 'vitest';
 import { createProjectedMap } from './map-creation';
 import { deleteMapForUser, restoreMapForUser } from './map-lifecycle';
 
@@ -282,6 +282,9 @@ test('posts computed claims, refuses door/env/stale/purge failures, and does not
   await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
     ProjectionUnavailableError,
   );
+  expectTypeOf<Awaited<ReturnType<typeof teardownMapAccessProjection>>['outcome']>()
+    .extract<'stale'>()
+    .toBeNever();
 
   mocks.fetchWithTimeout.mockResolvedValue(Response.json({ deleted: 'nope' }));
   await expect(purgeUserMapAccessProjection('user-1')).rejects.toBeInstanceOf(

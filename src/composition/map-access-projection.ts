@@ -86,7 +86,11 @@ function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrin
 
 export type AccountAffiliation = CachedAffiliation & { readonly userId: string };
 
-/** Every linked character of these accounts, read as the projection reads them. */
+/**
+ * Every linked character of these accounts, read as the projection reads them.
+ * Map scoping reads through here because the corp-access lint boundary keeps
+ * raw affiliation reads inside access resolution.
+ */
 export function readAccountAffiliations(userIds: readonly string[]): Promise<AccountAffiliation[]> {
   return getUsersAffiliations(userIds);
 }

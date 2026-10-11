@@ -39,7 +39,8 @@ vi.mock('@/lib/convex-http-door', async (importOriginal) => {
 });
 
 import { encryptToken } from '@/platform/auth/token-crypto';
-import { proveCharacter, purgeTransferredCharacter } from './owner-transfer';
+import { transferCharacter } from './account-purge';
+import { proveCharacter } from './owner-transfer';
 import { account, characters, session, user } from '@/db/auth-schema';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
@@ -232,7 +233,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
         pilots: { [SURVIVOR_CHAR]: { netWorth: 200, liquidIsk: 200 } }, recordedAt: new Date() },
     ]);
 
-    await purgeTransferredCharacter(SOURCE_ID, MOVED_CHAR);
+    await transferCharacter(SOURCE_ID, MOVED_CHAR);
 
     expect((await harness.db.select().from(netWorthDays)).map((row) => row.day)).toEqual(['2026-09-27']);
 
