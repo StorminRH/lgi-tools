@@ -18,7 +18,7 @@ export async function POST(request: Request): Promise<Response> {
     parse: (incoming) => readJsonBody(incoming, searchCharactersRequestSchema),
     handle: async ({ userId }, body) => {
       try {
-        const response = await searchMapCharacters(userId, body.search);
+        const response = await searchMapCharacters(userId, body.search, request.signal);
         return apiResponse(searchCharactersEndpoint, 200, response);
       } catch (cause) {
         return apiResponse(

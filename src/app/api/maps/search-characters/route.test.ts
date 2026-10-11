@@ -69,7 +69,8 @@ describe('POST /api/maps/search-characters', () => {
       Response.json({ character: [196379789, 2112625428] }),
     );
 
-    const response = await POST(postJson(ROUTE, { search: '  Chribba  ' }));
+    const request = postJson(ROUTE, { search: '  Chribba  ' });
+    const response = await POST(request);
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -98,6 +99,7 @@ describe('POST /api/maps/search-characters', () => {
     expect(parsed.searchParams.get('search')).toBe('Chribba');
     expect(parsed.searchParams.get('strict')).toBe('false');
     expect(init.headers).toEqual({ Authorization: 'Bearer scoped-token' });
+    expect(init.signal).toBe(request.signal);
     expect(h.resolveEntityNamesStrict).toHaveBeenCalledWith([196379789, 2112625428]);
   });
 

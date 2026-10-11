@@ -10,7 +10,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P192](#p192) | Share one nullable-int and HTTP-date header parser inside platform/esi | esi-sync | S | low | low | — |
 | ☑ | [P193](#p193) | Share the scoped-linked-character ESI search loop and its id parse in composition/esi-character-search | esi-sync | S | low | medium | — |
-| ☐ | [P150](#p150) | Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling | api-route | M | medium | medium | [P193](#p193) |
+| ☑ | [P150](#p150) | Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling | api-route | M | medium | medium | [P193](#p193) |
 | ☐ | [P191](#p191) | Add platform/esi request-init builders and use one X-Pages parser; keep each public reader's status handling local | esi-sync | S | low | low | [P192](#p192), [P193](#p193) |
 | ☐ | [P194](#p194) | Build ESI paths shared across modules once, and tie the snapshot endpoint's writer and reader to one builder | esi-sync | M | low | medium | — |
 | ☐ | [P190](#p190) | Make platform/owner-sync the single home for owner-sync port bases and read-result types | esi-sync | M | low | medium | — |
@@ -193,7 +193,7 @@ Preserve these behaviors:
 
 ## P150: Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** About -30/+35 for the loop, routes and contract, plus tests; the abort-recording step adds about 15
 - **Depends on:** [P193](#p193)

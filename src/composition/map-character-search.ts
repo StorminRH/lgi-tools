@@ -61,10 +61,11 @@ async function searchExactName(search: string): Promise<SearchCharactersResponse
 export async function searchMapCharacters(
   userId: string,
   search: string,
+  signal?: AbortSignal,
 ): Promise<SearchCharactersResponse> {
   const scoped = await scopedLinkedCharacters(userId, [EVE_CHARACTER_SEARCH_SCOPE]);
   if (scoped.length === 0) return searchExactName(search);
 
-  const { first } = await firstScopedSearch(scoped, 'character', search);
+  const { first } = await firstScopedSearch(scoped, 'character', search, signal);
   return typeaheadResponse(first.ids);
 }

@@ -141,6 +141,7 @@ export const searchStructuresEndpoint = defineEndpoint({
     200: jsonBody(searchStructuresResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
     503: problem('structure_search_unavailable'),
   },
 });

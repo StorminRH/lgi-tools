@@ -358,11 +358,13 @@ function mutationRoute(entry: MutationRouteEntry): IdempotencyEntry {
   };
 }
 
+const SCOPED_SEARCH_TOKEN_VEND =
+  'token vending may refresh encrypted EVE credentials or invalid-grant state; those writes use ciphertext-keyed compare-and-swap and a repeat reflects the stored winner rather than applying an unsafe second mutation.';
+
 const mapsSearchCharactersRoute = mutationRoute({
   route: 'src/app/api/maps/search-characters/route.ts',
   verdict: 'key-protected',
-  evidence:
-    'Character results are read-only, while token vending may refresh encrypted EVE credentials or invalid-grant state; those writes use ciphertext-keyed compare-and-swap and a repeat reflects the stored winner rather than applying an unsafe second mutation.',
+  evidence: `Character results are read-only, while ${SCOPED_SEARCH_TOKEN_VEND}`,
 });
 const eveTypeNamesRoute = readRoute({
   route: 'src/app/api/eve/type-names/route.ts',
@@ -396,9 +398,10 @@ const customStructuresParseFitRoute = readRoute({
   route: 'src/app/api/account/custom-structures/parse-fit/route.ts',
   evidence: 'Parses a pasted fit against reference data; writes nothing.',
 });
-const customStructuresSearchRoute = readRoute({
+const customStructuresSearchRoute = mutationRoute({
   route: 'src/app/api/account/custom-structures/search/route.ts',
-  evidence: 'Reads matching structures from ESI with the caller’s token; writes nothing.',
+  verdict: 'key-protected',
+  evidence: `Structure results are read-only, while ${SCOPED_SEARCH_TOKEN_VEND}`,
 });
 const accountActiveCharacterRoute = mutationRoute({
   route: 'src/app/api/account/active-character/route.ts',
