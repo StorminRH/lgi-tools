@@ -268,7 +268,8 @@ if (landed.length) {
 // ---------------------------------------------------------------------------------------
 phase('Verify')
 const verify = await fixUntilGreen('verify', 'Verify', `You are fixing the branch so the full gate passes at the end of wave ${A.wave}. The wave's commits are \`git log --oneline ${A.base}..HEAD\`.`, true)
-if (verify.passed) {
+// A first-run pass leaves nothing to commit; skip the step (the classifier has blocked it as a no-op).
+if (verify.passed && verify.rounds > 0) {
   const vsubject = verify.subject || `Fix the full verify gate for wave ${A.wave}`
   const vbody = verify.body || 'Changes needed for pnpm verify (coverage, CRAP, or production dead code) after the wave\'s items landed.'
   const vmsg = `${vsubject}\n\n${clip(vbody, 1500)}${A.trailers ? `\n\n${A.trailers}` : ''}`
