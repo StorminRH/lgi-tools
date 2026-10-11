@@ -13,10 +13,32 @@ const RECONCILE_BUDGET_MS = 20_000;
 const DELIVERY_TIMEOUT_MS = 4_000;
 const FINALIZE_RESERVE_MS = 1_000;
 const DELIVERY_CONCURRENCY = 4;
+// Visits inside this window share one drain. No cron drains map_access_changes, so keep it
+// short: a change delivered by a visit can wait up to this much longer.
+const VISIT_DRAIN_INTERVAL_MS = 15_000;
+
+let visitDrain: { startedAt: number; run: Promise<{ processed: number; failed: number }> } | null = null;
 
 export async function reconcileAffiliationAccess(): Promise<{ processed: number; failed: number }> {
   await reconcileTrackingMerges();
   return deliverPendingMapAccessChanges(await readPendingMapAccessChanges());
+}
+
+/**
+ * The opportunistic drain for page and session visits. Visits on this instance
+ * share one run per {@link VISIT_DRAIN_INTERVAL_MS}, and a failed run lets the
+ * next visit retry. Callers that just queued changes use
+ * {@link reconcileAffiliationAccess}, which is never coalesced.
+ */
+export function reconcileAffiliationAccessOnVisit(): Promise<{ processed: number; failed: number }> {
+  const now = Date.now();
+  if (visitDrain && now - visitDrain.startedAt < VISIT_DRAIN_INTERVAL_MS) return visitDrain.run;
+  const drain = { startedAt: now, run: reconcileAffiliationAccess() };
+  visitDrain = drain;
+  drain.run.catch(() => {
+    if (visitDrain === drain) visitDrain = null;
+  });
+  return drain.run;
 }
 
 export async function deliverCapturedMapAccessChanges(

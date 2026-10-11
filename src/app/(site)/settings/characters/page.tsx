@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
@@ -8,7 +7,7 @@ import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { ExternalLink, inlineLink } from '@/components/ui/text-link';
-import { getFullSession } from '@/composition/session';
+import { requireSessionPage } from '@/composition/route-guards';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { LinkedCharactersCard } from '@/components/composition/account/LinkedCharactersCard';
@@ -17,16 +16,17 @@ import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkChar
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveLinkedCharacterStatus } from '@/platform/auth/scope-health';
-import { resolveErrorMessage } from '@/lib/error-copy';
+import { LINK_ERROR_MESSAGES } from '@/composition/auth-error';
+import { resolveNotice } from '@/lib/error-copy';
+import type { BetterAuthLinkError, CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { QuietSectionHead } from '@/components/ui/section-head';
 
-const ERROR_MESSAGES: Record<string, string> = {
-  account_already_linked_to_different_user: 'That character is already linked to another account.',
+const ERROR_MESSAGES = {
+  ...LINK_ERROR_MESSAGES,
   last_character: "You can't unlink your only character.",
   not_linked: "That character isn't linked to your account.",
   unlink_failed: 'Could not remove that character. Please try again.',
-  "email_doesn't_match": 'Linking failed. Please try again.',
-};
+} satisfies Record<CharacterLinkNotice | BetterAuthLinkError, string>;
 
 type CharactersSearchParams = Promise<{ error?: string | string[] }>;
 
@@ -125,16 +125,14 @@ function CharacterRow({
 }
 
 async function CharactersContent({ searchParams }: { searchParams: CharactersSearchParams }) {
-  const session = await getFullSession();
-  if (!session) {
-    redirect('/?auth_error=login_required');
-  }
+  const session = await requireSessionPage();
 
   const [{ error: rawError }, characters] = await Promise.all([
     searchParams,
     listLinkedCharacters(session.user.id),
   ]);
-  const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
+  // Better Auth writes its own codes here too, so anything unknown gets the generic copy.
+  const error = resolveNotice(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
   const isOnlyCharacter = characters.length <= 1;
 
   return (

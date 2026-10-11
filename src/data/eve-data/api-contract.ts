@@ -124,7 +124,7 @@ const universeAssetVersionSchema = z.string().min(1).max(64);
 export const UNIVERSE_ASSET_CACHE_CONTROL =
   'public, max-age=31536000, immutable';
 
-export const universeAssetVersionParamsSchema = z.object({
+const universeAssetVersionParamsSchema = z.object({
   version: universeAssetVersionSchema,
 });
 

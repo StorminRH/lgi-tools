@@ -43,8 +43,12 @@ export function postForm(path: string, fields: Record<string, string>): NextRequ
   });
 }
 
-export function postEmpty(path: string): NextRequest {
-  return new NextRequest(`${BASE_URL}${path}`, { method: 'POST' });
+/** No Origin header is sent unless `origin` is given. */
+export function postEmpty(path: string, { origin }: { origin?: string } = {}): NextRequest {
+  return new NextRequest(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: origin ? { origin } : undefined,
+  });
 }
 
 /** GET carrying the `Bearer TEST_CRON_SECRET` authorization a cron route checks. */

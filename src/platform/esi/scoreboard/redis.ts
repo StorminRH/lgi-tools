@@ -196,9 +196,3 @@ class RedisScoreboard implements EsiScoreboard {
 export function createRedisScoreboard(url: string, token: string): EsiScoreboard {
   return new RedisScoreboard(url, token);
 }
-
-export function readRedisBudgetSnapshot(
-  scoreboard: EsiScoreboard,
-): Promise<EsiBudgetSnapshot> {
-  return scoreboard.budgetSnapshot();
-}

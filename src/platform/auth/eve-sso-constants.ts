@@ -1,5 +1,3 @@
-export { EVE_PROVIDER_ID } from '@/lib/eve-provider';
-
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
 export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
 /** CCP's published OAuth2 token-revocation endpoint (RFC 7009). */

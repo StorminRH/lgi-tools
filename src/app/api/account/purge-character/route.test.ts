@@ -13,7 +13,8 @@ vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/platform/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/auth/linked-characters')>()),
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
 }));
 
@@ -26,6 +27,11 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 import { postJson } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
@@ -48,7 +54,9 @@ test('refuses anonymous, invalid, and unowned character purges', async () => {
   expect((await POST(postJson(ROUTE, { characterId: 'not-a-number' }))).status).toBe(400);
 
   accountBelongsToUserMock.mockResolvedValue(false);
-  expect((await POST(postJson(ROUTE, { characterId: 999 }))).status).toBe(400);
+  const unowned = await POST(postJson(ROUTE, { characterId: 999 }));
+  expect(unowned.status).toBe(400);
+  expect(await unowned.json()).toMatchObject({ code: 'not_linked' });
   expect(purgeOwnCharacterMock).not.toHaveBeenCalled();
 });
 

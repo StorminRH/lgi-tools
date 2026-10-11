@@ -27,6 +27,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 import { LeaveSyncDoorError } from '@/data/convex/leave-door';
+import { rateLimitedFailure } from '@/lib/failure';
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
@@ -75,6 +76,25 @@ describe('POST /api/sync-leave', () => {
     expect(problemBodySchema.parse(await forged.json())).toMatchObject({
       code: 'invalid_body',
     });
+    expect(h.postLeaveSync).not.toHaveBeenCalled();
+  });
+
+  it('throttles before authorizing, with the 429 its contract declares', async () => {
+    h.checkRateLimit.mockResolvedValueOnce({ ok: false, failure: rateLimitedFailure(12) });
+    const throttled = await POST(
+      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
+    );
+    expect(throttled.status).toBe(429);
+    expect(throttled.headers.get('Retry-After')).toBe('12');
+    expect(problemBodySchema.parse(await throttled.json())).toMatchObject({
+      code: 'rate_limited',
+      retryAfterSeconds: 12,
+    });
+    expect(h.checkRateLimit).toHaveBeenCalledWith(expect.any(Request), {
+      name: 'sync-leave',
+      perMinute: 30,
+    });
+    expect(h.checkUserId).not.toHaveBeenCalled();
     expect(h.postLeaveSync).not.toHaveBeenCalled();
   });
 

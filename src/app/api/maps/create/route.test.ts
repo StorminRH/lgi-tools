@@ -52,7 +52,7 @@ describe('POST /api/maps/create', () => {
     h.createProjectedMap.mockResolvedValueOnce({ ok: false, reason: 'unlinked-creator-character' });
     const response = await POST(postJson(ROUTE, { ...VALID_BODY, creatorCharacterIds: [9] }));
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({ code: 'invalid_body' });
+    await expect(response.json()).resolves.toMatchObject({ code: 'not_linked' });
   });
 
   it('reuses one authenticated identity for preflight and authorization', async () => {

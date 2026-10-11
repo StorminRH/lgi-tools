@@ -137,9 +137,3 @@ class MemoryScoreboard implements EsiScoreboard {
 export function createMemoryScoreboard(): EsiScoreboard {
   return new MemoryScoreboard();
 }
-
-export function readMemoryBudgetSnapshot(
-  scoreboard: EsiScoreboard,
-): Promise<EsiBudgetSnapshot> {
-  return scoreboard.budgetSnapshot();
-}

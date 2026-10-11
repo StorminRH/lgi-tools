@@ -10,7 +10,8 @@ import {
   listIndustryProfiles,
   updateIndustryProfile,
 } from '@/features/industry-planner/profiles/queries';
-import { conflictFailure, notFoundFailure, validationFailure } from '@/lib/failure';
+import { conflictFailure, notFoundFailure } from '@/lib/failure';
+import { notLinkedFailure } from '@/platform/auth/linked-characters';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 import { addsUnlinkedMembers } from '../profile-writes';
@@ -19,6 +20,7 @@ import { addsUnlinkedMembers } from '../profile-writes';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.update-industry-profile',
+    endpoint: updateIndustryProfileEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, updateIndustryProfileRequestSchema),
     handle: async ({ userId }, body) => {
@@ -31,11 +33,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
       if (await addsUnlinkedMembers(userId, body.document, previous)) {
-        return apiResponse(
-          updateIndustryProfileEndpoint,
-          400,
-          validationFailure('not_linked', 'Character not linked to your account'),
-        );
+        return apiResponse(updateIndustryProfileEndpoint, 400, notLinkedFailure());
       }
       if (!(await updateIndustryProfile(userId, body))) {
         return apiResponse(

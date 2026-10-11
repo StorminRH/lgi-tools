@@ -121,3 +121,62 @@ it('skips queue I/O for unchanged refreshes and delivers newly queued changes', 
   await refreshAffiliationsAndReconcile([1]);
   expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
 });
+
+/** A module instance with no recent visit drain, since the coalescing window is per instance. */
+async function freshInstance() {
+  vi.resetModules();
+  return import('./map-affiliation-access');
+}
+
+it('shares one visit drain until the interval passes, then drains again', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const { reconcileAffiliationAccessOnVisit } = await freshInstance();
+
+  const [first, second] = await Promise.all([
+    reconcileAffiliationAccessOnVisit(),
+    reconcileAffiliationAccessOnVisit(),
+  ]);
+  expect(first).toEqual({ processed: 2, failed: 0 });
+  expect(second).toBe(first);
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
+  expect(mocks.projectMapAccess).toHaveBeenCalledTimes(2);
+
+  vi.advanceTimersByTime(14_999);
+  expect(await reconcileAffiliationAccessOnVisit()).toBe(first);
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
+
+  vi.advanceTimersByTime(1);
+  expect(await reconcileAffiliationAccessOnVisit()).toEqual({ processed: 2, failed: 0 });
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledTimes(2);
+  expect(mocks.projectMapAccess).toHaveBeenCalledTimes(4);
+});
+
+it('lets the next visit retry at once after a visit drain fails, and keeps a newer drain when an older one fails late', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const { reconcileAffiliationAccessOnVisit } = await freshInstance();
+
+  mocks.readPendingMapAccessChanges.mockRejectedValueOnce(new Error('database unavailable'));
+  await expect(reconcileAffiliationAccessOnVisit()).rejects.toThrow('database unavailable');
+  expect(await reconcileAffiliationAccessOnVisit()).toEqual({ processed: 2, failed: 0 });
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledTimes(2);
+
+  vi.advanceTimersByTime(15_000);
+  let failOldRead!: (error: Error) => void;
+  mocks.readPendingMapAccessChanges.mockReturnValueOnce(new Promise((_, reject) => { failOldRead = reject; }));
+  const older = reconcileAffiliationAccessOnVisit();
+  vi.advanceTimersByTime(15_000);
+  const newer = reconcileAffiliationAccessOnVisit();
+  await expect(newer).resolves.toEqual({ processed: 2, failed: 0 });
+  failOldRead(new Error('database unavailable'));
+  await expect(older).rejects.toThrow('database unavailable');
+
+  expect(await reconcileAffiliationAccessOnVisit()).toEqual({ processed: 2, failed: 0 });
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledTimes(4);
+});
+
+it('never coalesces the post-enqueue drain, even while a visit drain is running', async () => {
+  const { reconcileAffiliationAccess: drainNow, reconcileAffiliationAccessOnVisit } = await freshInstance();
+  await Promise.all([reconcileAffiliationAccessOnVisit(), drainNow(), drainNow()]);
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledTimes(3);
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledTimes(3);
+});

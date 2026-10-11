@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-vi.mock('next/server', () => ({ after: vi.fn() }));
-vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: vi.fn() }));
 import type { CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 const mocks = vi.hoisted(() => ({
+  after: vi.fn(),
+  reconcileAffiliationAccessOnVisit: vi.fn(),
   getAuthorizedMapGrantsForMaps: vi.fn(),
   getAuthorizedMapBlocksForMaps: vi.fn(),
   listAuthorizedMapsForPrincipals: vi.fn(),
@@ -13,6 +13,11 @@ const mocks = vi.hoisted(() => ({
   resolveEntityNames: vi.fn(),
 }));
 
+vi.mock('next/server', () => ({ after: mocks.after }));
+vi.mock('@/composition/map-affiliation-access', () => ({
+  reconcileAffiliationAccess: vi.fn(),
+  reconcileAffiliationAccessOnVisit: mocks.reconcileAffiliationAccessOnVisit,
+}));
 vi.mock('@/data/maps/queries', () => ({
   getAuthorizedMapGrantsForMaps: mocks.getAuthorizedMapGrantsForMaps,
   listAuthorizedMapsForPrincipals: mocks.listAuthorizedMapsForPrincipals,
@@ -174,6 +179,9 @@ describe('map chrome data', () => {
     );
     expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100, 77, 78]);
     expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
+    // A chrome load drains the outbox opportunistically, sharing the coalesced visit drain.
+    expect(mocks.after).toHaveBeenCalledExactlyOnceWith(mocks.reconcileAffiliationAccessOnVisit);
+    expect(mocks.reconcileAffiliationAccessOnVisit).not.toHaveBeenCalled();
   });
 });
 

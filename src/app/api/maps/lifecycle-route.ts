@@ -41,6 +41,7 @@ export function runMapLifecycleRoute(
 ): Promise<Response> {
   return runMutationRoute(request, {
     capability: options.capability,
+    endpoint: options.endpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, mapLifecycleRequestSchema),
     handle: async ({ userId }, body) => {

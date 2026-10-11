@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
@@ -8,8 +12,7 @@ const SESSION = sessionFixture();
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const unlinkAccountMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
-const repointActiveToOldestMock = vi.fn();
-const getStoredActiveCharacterIdMock = vi.fn();
+const reconcileAfterCharacterRemovalMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const getOwnedMapIdsMock = vi.fn();
 const enqueueAffectedMapAccessChangesMock = vi.fn();
@@ -18,6 +21,7 @@ const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
 const revokeUserMapClaimsMock = vi.fn();
 const eraseNetWorthHistoryMock = vi.fn();
+const emitCostMetricMock = capabilityOutcomeMock();
 vi.mock('@/features/net-worth/purge', () => ({
   eraseNetWorthHistoryForCharacter: (...args: unknown[]) => eraseNetWorthHistoryMock(...args),
 }));
@@ -31,10 +35,13 @@ vi.mock('@/composition/auth', () => ({
   },
 }));
 
-vi.mock('@/platform/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/auth/linked-characters')>()),
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
-  repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
-  getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),
+}));
+
+vi.mock('@/platform/auth/account-purge', () => ({
+  reconcileAfterCharacterRemoval: (...args: unknown[]) => reconcileAfterCharacterRemovalMock(...args),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -55,14 +62,25 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (action: string, metadata: Record<string, unknown>) =>
+    emitCostMetricMock(action, metadata),
+}));
+
 const teardownLocationTrackingMock = vi.hoisted(() => vi.fn());
 vi.mock('@/data/location-tracking/purge', () => ({
   teardownLocationTracking: (...args: unknown[]) => teardownLocationTrackingMock(...args),
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 import { postForm } from '@/lib/__tests__/route-requests';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { POST } from './route';
 
 const ROUTE = '/api/account/characters/unlink';
@@ -78,9 +96,9 @@ describe('POST /api/account/characters/unlink', () => {
     getSessionMock.mockReset();
     unlinkAccountMock.mockReset();
     listLinkedCharactersMock.mockReset();
-    repointActiveToOldestMock.mockReset();
-    getStoredActiveCharacterIdMock.mockReset();
+    reconcileAfterCharacterRemovalMock.mockReset().mockResolvedValue({ accountEmptied: false });
     logUsageEventMock.mockReset();
+    emitCostMetricMock.mockReset();
     getOwnedMapIdsMock.mockReset();
     enqueueAffectedMapAccessChangesMock.mockReset();
     projectMapAccessMock.mockReset();
@@ -115,18 +133,22 @@ describe('POST /api/account/characters/unlink', () => {
     const notLinked = await POST(postForm(ROUTE, { characterId: '999' }));
     expect(locationOf(notLinked)).toContain('error=not_linked');
     expect(unlinkAccountMock).not.toHaveBeenCalled();
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
+      { outcome: 'unauthenticated', code: 'unauthenticated' },
+      { outcome: 'validation', code: 'last_character' },
+      { outcome: 'validation', code: 'not_linked' },
+    ]);
   });
 
-  it('unlinks and re-points only when the removed character was active', async () => {
+  it('unlinks, then settles the account identity before the link-changed cleanup', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    getStoredActiveCharacterIdMock.mockResolvedValue(100);
     unlinkAccountMock.mockResolvedValue({ status: true });
 
-    const active = await POST(postForm(ROUTE, { characterId: '100' }));
-    expect(active.status).toBe(303);
+    const res = await POST(postForm(ROUTE, { characterId: '100' }));
+    expect(res.status).toBe(303);
     expect(eraseNetWorthHistoryMock).toHaveBeenCalledWith('eve-user-1', 100);
-    expect(locationOf(active)).toBe('http://localhost:3000/settings/characters');
+    expect(locationOf(res)).toBe('http://localhost:3000/settings/characters');
     expect(unlinkAccountMock).toHaveBeenCalledWith({
       body: { providerId: 'eve', accountId: '100' },
       headers: expect.any(Headers),
@@ -139,44 +161,49 @@ describe('POST /api/account/characters/unlink', () => {
     expect(revokeUserMapClaimsMock.mock.invocationCallOrder[0]).toBeLessThan(
       unlinkAccountMock.mock.invocationCallOrder[0]!,
     );
+    expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledExactlyOnceWith(
+      'eve-user-1',
+      100,
+      identityProjectionRunners,
+    );
+    expect(unlinkAccountMock.mock.invocationCallOrder[0]).toBeLessThan(
+      reconcileAfterCharacterRemovalMock.mock.invocationCallOrder[0]!,
+    );
     expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
-    expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
+    expect(reconcileAfterCharacterRemovalMock.mock.invocationCallOrder[0]).toBeLessThan(
+      teardownLocationTrackingMock.mock.invocationCallOrder[0]!,
+    );
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-
-    unlinkAccountMock.mockClear();
-    repointActiveToOldestMock.mockClear();
-    enqueueAffectedMapAccessChangesMock.mockClear();
-    teardownLocationTrackingMock.mockClear();
-    logUsageEventMock.mockClear();
-    const inactive = await POST(postForm(ROUTE, { characterId: '200' }));
-    expect(inactive.status).toBe(303);
-    expect(repointActiveToOldestMock).not.toHaveBeenCalled();
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
   });
 
-  it('finishes location and active-character cleanup before reporting a history-erasure failure', async () => {
+  it('finishes identity and location cleanup before reporting a history-erasure failure', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    getStoredActiveCharacterIdMock.mockResolvedValue(100);
     unlinkAccountMock.mockResolvedValue({ status: true });
     const failure = new Error('history deletion failed');
     eraseNetWorthHistoryMock.mockRejectedValueOnce(failure);
     await expect(POST(postForm(ROUTE, { characterId: '100' }))).rejects.toBe(failure);
+    expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledWith('eve-user-1', 100, identityProjectionRunners);
     expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
-    expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
   });
 
   it('maps an unlinkAccount failure to a clean error redirect (not a 500)', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     unlinkAccountMock.mockRejectedValue(new Error('boom'));
+    const errorSpy = silenceConsolePrefixes('error', ['[account/unlink] unlinkAccount failed']);
     const res = await POST(postForm(ROUTE, { characterId: '200' }));
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
-    expect(repointActiveToOldestMock).not.toHaveBeenCalled();
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
+    expect(errorSpy).toHaveBeenCalledWith('[account/unlink] unlinkAccount failed', expect.any(Error));
+    expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
     expect(enqueueAffectedMapAccessChangesMock.mock.calls).toEqual([[200], [200]]);
     expect(enqueueAffectedMapAccessChangesMock.mock.invocationCallOrder[1]).toBeGreaterThan(
       unlinkAccountMock.mock.invocationCallOrder[0]!,
     );
+    errorSpy.mockRestore();
   });
 
   it('keeps the character linked when Convex revocation fails', async () => {
@@ -186,22 +213,22 @@ describe('POST /api/account/characters/unlink', () => {
     revokeUserMapClaimsMock.mockRejectedValue(new Error('Convex unavailable'));
     const errorSpy = silenceConsolePrefixes('error', [
       '[account/unlink] map access revocation failed',
-      '[cost-metrics] telemetry scheduling failed',
     ]);
 
     const response = await POST(postForm(ROUTE, { characterId: '100' }));
 
     expect(locationOf(response)).toContain('error=unlink_failed');
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
     expect(revokeUserMapClaimsMock).toHaveBeenCalledWith('eve-user-1', ['map-1']);
+    expect(errorSpy).toHaveBeenCalledWith('[account/unlink] map access revocation failed', expect.any(Error));
     expect(unlinkAccountMock).not.toHaveBeenCalled();
-    expect(repointActiveToOldestMock).not.toHaveBeenCalled();
+    expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 
   it('keeps the character linked when queuing the affected maps fails', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    getStoredActiveCharacterIdMock.mockResolvedValue(100);
     unlinkAccountMock.mockResolvedValue({ status: true });
     enqueueAffectedMapAccessChangesMock.mockRejectedValue(new Error('neon enqueue failed'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -211,7 +238,7 @@ describe('POST /api/account/characters/unlink', () => {
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
     expect(unlinkAccountMock).not.toHaveBeenCalled();
-    expect(repointActiveToOldestMock).not.toHaveBeenCalled();
+    expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });

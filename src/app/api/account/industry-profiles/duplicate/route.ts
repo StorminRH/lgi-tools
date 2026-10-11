@@ -18,6 +18,7 @@ import { insertWithinCap } from '../profile-writes';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.duplicate-industry-profile',
+    endpoint: duplicateIndustryProfileEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, duplicateIndustryProfileRequestSchema),
     handle: async ({ userId }, { id: sourceId, name }) => {

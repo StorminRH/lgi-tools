@@ -7,7 +7,7 @@ import { scrollArea } from '@/components/ui/scroll-area';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
 import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
-import { readEnv } from '@/lib/env';
+import { superadminCharacterId } from '@/platform/auth/admin-policy';
 import { searchUsersByLinkedCharacterName, type AdminUser } from '@/platform/auth/admin-users';
 import { ADMIN_ACCESS_QUERY_MAX_LENGTH } from '@/platform/auth/api-contract';
 import { USERS_HREF } from '../admin-sections';
@@ -25,10 +25,10 @@ const AUDIT_WINDOW_DAYS = 90;
 
 /** Every admin, with the env superadmin added or flagged. Request-cached, so search reuses it. */
 export async function loadAdminRows(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
-  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
+  const superId = superadminCharacterId();
   const [dbAdmins, superUser] = await Promise.all([
     listAdminUsersShared(),
-    Number.isFinite(superId) && superId > 0 ? getUserOwningCharacterShared(superId) : Promise.resolve(null),
+    superId === null ? null : getUserOwningCharacterShared(superId),
   ]);
   return mergeAdminRows(dbAdmins, superUser);
 }

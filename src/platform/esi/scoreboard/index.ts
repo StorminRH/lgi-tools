@@ -1,6 +1,6 @@
 import { allowUnconfiguredUpstash, resolveUpstashRest } from '@/lib/upstash';
-import { createMemoryScoreboard, readMemoryBudgetSnapshot } from './memory';
-import { createRedisScoreboard, readRedisBudgetSnapshot } from './redis';
+import { createMemoryScoreboard } from './memory';
+import { createRedisScoreboard } from './redis';
 import type { EsiAvailabilitySnapshot, EsiBudgetSnapshot, EsiScoreboard } from './types';
 
 export {
@@ -14,23 +14,19 @@ export {
 } from './types';
 export { normalizeEsiPath, resolveRetryAfter } from './keys';
 
-type ResolvedScoreboard =
-  | { backend: 'redis'; scoreboard: ReturnType<typeof createRedisScoreboard> }
-  | { backend: 'memory'; scoreboard: ReturnType<typeof createMemoryScoreboard> };
-
-const redisScoreboards = new Map<string, ReturnType<typeof createRedisScoreboard>>();
-let memoryScoreboard: ReturnType<typeof createMemoryScoreboard> | null = null;
+const redisScoreboards = new Map<string, EsiScoreboard>();
+let memoryScoreboard: EsiScoreboard | null = null;
 let warnedMissingEnvDev = false;
 let erroredMissingEnvProd = false;
 
-function resolveConcreteScoreboard(): ResolvedScoreboard | null {
+export function resolveScoreboard(): EsiScoreboard | null {
   const upstash = resolveUpstashRest();
   if (upstash) {
     const cached = redisScoreboards.get(upstash.url);
-    if (cached) return { backend: 'redis', scoreboard: cached };
+    if (cached) return cached;
     const created = createRedisScoreboard(upstash.url, upstash.token);
     redisScoreboards.set(upstash.url, created);
-    return { backend: 'redis', scoreboard: created };
+    return created;
   }
 
   if (allowUnconfiguredUpstash()) {
@@ -41,7 +37,7 @@ function resolveConcreteScoreboard(): ResolvedScoreboard | null {
       warnedMissingEnvDev = true;
     }
     memoryScoreboard ??= createMemoryScoreboard();
-    return { backend: 'memory', scoreboard: memoryScoreboard };
+    return memoryScoreboard;
   }
 
   if (!erroredMissingEnvProd) {
@@ -53,23 +49,15 @@ function resolveConcreteScoreboard(): ResolvedScoreboard | null {
   return null;
 }
 
-export function resolveScoreboard(): EsiScoreboard | null {
-  return resolveConcreteScoreboard()?.scoreboard ?? null;
-}
-
 export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null> {
-  const scoreboard = resolveConcreteScoreboard();
-  if (scoreboard === null) return null;
-  return scoreboard.backend === 'redis'
-    ? await readRedisBudgetSnapshot(scoreboard.scoreboard)
-    : await readMemoryBudgetSnapshot(scoreboard.scoreboard);
+  const scoreboard = resolveScoreboard();
+  return scoreboard === null ? null : await scoreboard.budgetSnapshot();
 }
 
 /** The last hour of ESI calls as the gate saw them, or null when no scoreboard is configured. */
 export async function readEsiAvailabilitySnapshot(): Promise<EsiAvailabilitySnapshot | null> {
-  const scoreboard = resolveConcreteScoreboard();
-  if (scoreboard === null) return null;
-  return await scoreboard.scoreboard.availabilitySnapshot();
+  const scoreboard = resolveScoreboard();
+  return scoreboard === null ? null : await scoreboard.availabilitySnapshot();
 }
 
 export function __resetScoreboardForTests(): void {

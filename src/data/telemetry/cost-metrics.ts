@@ -36,15 +36,44 @@ export function emitCostMetric(
   }
 }
 
+/**
+ * Emits one cost metric when `promise` settles, timed from `timer`, and hands
+ * back the same promise. `resultMetadata` adds fields read from the resolved
+ * value to the succeeded event only.
+ */
 export function observeCostPromise<T>(
   promise: Promise<T>,
   action: UsageAction,
   metadata: Record<string, unknown>,
   timer: CostTimer = startCostTimer(),
+  resultMetadata?: (value: T) => Record<string, unknown>,
 ): Promise<T> {
   void promise.then(
-    () => emitCostMetric(action, { ...metadata, outcome: 'succeeded', durationMs: elapsedCostTimer(timer) }),
+    (value) => {
+      const durationMs = elapsedCostTimer(timer);
+      emitCostMetric(action, {
+        ...metadata,
+        ...describeResult(value, resultMetadata),
+        outcome: 'succeeded',
+        durationMs,
+      });
+    },
     () => emitCostMetric(action, { ...metadata, outcome: 'failed', durationMs: elapsedCostTimer(timer) }),
   );
   return promise;
+}
+
+// Runs inside a detached then-callback, so a throwing hook would surface as an
+// unhandled rejection and drop the event. It loses only its own fields instead.
+function describeResult<T>(
+  value: T,
+  resultMetadata: ((value: T) => Record<string, unknown>) | undefined,
+): Record<string, unknown> {
+  if (!resultMetadata) return {};
+  try {
+    return resultMetadata(value);
+  } catch (error) {
+    console.error('[cost-metrics] result metadata failed', error);
+    return {};
+  }
 }

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
@@ -7,33 +6,6 @@ import {
   jsonBody,
   problem,
 } from '@/transport/endpoint';
-
-const corpStructureRowSchema = z.object({
-  structureId: z.number(),
-  typeId: z.number(),
-  systemId: z.number(),
-  securityClass: z.enum(SECURITY_CLASSES),
-  name: z.string().nullable(),
-});
-
-const viewerCorpStructuresSchema = z.object({
-  corporationId: z.number(),
-  structures: z.array(corpStructureRowSchema),
-  lastRefreshedAt: z.number().nullable(),
-});
-
-const corpStructuresResponseSchema = z.object({
-  corporations: z.array(viewerCorpStructuresSchema),
-});
-
-export const corpStructuresEndpoint = defineEndpoint({
-  method: 'GET',
-  path: '/api/account/corp-structures',
-  request: null,
-  responses: {
-    200: jsonBody(corpStructuresResponseSchema),
-  },
-});
 
 export const MAX_CORP_STRUCTURE_RIGS = 3;
 export const setCorpStructureRigsRequestSchema = z.object({

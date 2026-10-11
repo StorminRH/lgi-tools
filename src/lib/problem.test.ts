@@ -9,7 +9,7 @@ import {
   unexpectedFailure,
   validationFailure,
 } from './failure';
-import { problemBody, problemBodySchema, serializeProblem } from './problem';
+import { problemBody, problemBodySchema, problemStatus, serializeProblem } from './problem';
 
 describe('problem mapper', () => {
   it('maps every failure category to the complete stable problem shape', () => {
@@ -100,4 +100,14 @@ describe('problem mapper', () => {
       ).toThrow(new RangeError('retryAfterSeconds must be a positive integer'));
     },
   );
+});
+
+describe('problemStatus', () => {
+  it('honours only a dependency failure override and otherwise uses the category status', () => {
+    expect(problemStatus(dependencyUnavailableFailure('upstream_error', 502))).toBe(502);
+    expect(problemStatus(dependencyUnavailableFailure('upstream_error', 503))).toBe(503);
+    expect(problemStatus({ category: 'dependency_unavailable', code: 'upstream_error' })).toBe(503);
+    expect(problemStatus({ category: 'unexpected', code: 'not_configured', status: 502 })).toBe(500);
+    expect(problemStatus(unauthenticatedFailure())).toBe(401);
+  });
 });

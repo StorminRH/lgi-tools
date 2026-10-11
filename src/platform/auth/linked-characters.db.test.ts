@@ -148,7 +148,11 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
 
     await expect(accountBelongsToUser(USER_ID, FIRST_CHAR)).resolves.toBe(true);
     await expect(accountBelongsToUser(USER_ID, SECOND_CHAR)).resolves.toBe(false);
-    await setActiveCharacter(USER_ID, FIRST_CHAR);
+    await expect(setActiveCharacter(USER_ID, FIRST_CHAR)).resolves.toBe(true);
+    await expect(getStoredActiveCharacterId(USER_ID)).resolves.toBe(FIRST_CHAR);
+
+    await expect(setActiveCharacter(USER_ID, SECOND_CHAR)).resolves.toBe(false);
+    await expect(setActiveCharacter(USER_ID, 99999999)).resolves.toBe(false);
     await expect(getStoredActiveCharacterId(USER_ID)).resolves.toBe(FIRST_CHAR);
   });
 

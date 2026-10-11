@@ -17,7 +17,6 @@ import { toast } from '@/components/ui/toast';
 import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import { apiFetch } from '@/transport/api-client';
 import {
-  isDeleteAcknowledged,
   redirectTargetFor,
   runDeleteAccount,
   runLogoutEverywhere,
@@ -234,7 +233,7 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
   const gate = useConfirmGate();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
-  const canConfirm = isDeleteAcknowledged(acknowledged) && !gate.busy;
+  const canConfirm = acknowledged && !gate.busy;
 
   function openDialog() {
     setAcknowledged(false);
@@ -242,7 +241,7 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
   }
 
   async function onConfirm() {
-    if (!isDeleteAcknowledged(acknowledged)) return;
+    if (!acknowledged) return;
     const outcome = await gate.run(() => runDeleteAccount(apiFetch), isError);
     if (outcome.kind === 'error') {
       toast.error('Account deletion failed');

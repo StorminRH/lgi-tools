@@ -23,7 +23,7 @@ import type { CorpStructurePageStructure, CorpStructurePageView } from '@/featur
 import { unresolvedName } from '@/lib/format/names';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
-import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { isCurrentReadIdentity, type ReadIdentity, sameReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 import { FacilitySubline } from './facility-subline';
 import { type NewStructure, settleNewStructure, useNewStructureRequest } from './structures-panel';
 
@@ -278,7 +278,7 @@ export function StructuresManager(props: StructuresManagerProps) {
   const committed = useClientCommitted();
   const { loading } = useAuth();
   const router = useRouter();
-  const matches = identity?.userId === owner.userId && identity.characterId === owner.characterId;
+  const matches = sameReadIdentity(identity, owner);
   useEffect(() => {
     if (committed && !loading && !matches) router.refresh();
   }, [committed, loading, matches, identity, router]);
@@ -314,7 +314,7 @@ function StructuresManagerContent({
       structureRigs={structureRigs}
       editing={row}
       onSaved={(structures, createdId) => {
-        if (identity === null || identity !== currentReadIdentity()) return;
+        if (!isCurrentReadIdentity(identity)) return;
         if (request !== null && createdId !== undefined) {
           settleNewStructure(request, savedStructure(structures, createdId, structureTypes));
         }
@@ -342,7 +342,7 @@ function StructuresManagerContent({
             composer={composer}
             setComposer={setComposer}
             onCorpSaved={(structureId, saved) => {
-              if (identity === null || identity !== currentReadIdentity()) return;
+              if (!isCurrentReadIdentity(identity)) return;
               setCorps((prev) => prev.map(withCorpRigs(structureId, saved)));
               settle();
             }}

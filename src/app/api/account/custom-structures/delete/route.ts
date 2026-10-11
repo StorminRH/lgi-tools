@@ -16,6 +16,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'structures.delete-custom-structure',
+    endpoint: deleteCustomStructureEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, deleteCustomStructureRequestSchema),
     handle: async ({ userId }, { id }) => {

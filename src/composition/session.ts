@@ -1,7 +1,6 @@
 import { headers } from 'next/headers';
 import { after } from 'next/server';
 import { cache } from 'react';
-import { readEnv } from '@/lib/env';
 import { auth } from '@/composition/auth';
 import { checkUserCharacterAuthorizations } from '@/composition/character-authorization';
 import type { Session } from '@/platform/auth/types';
@@ -32,10 +31,4 @@ export async function getSessionCharacterId(): Promise<number | null> {
 export async function getCurrentUserId(): Promise<string | null> {
   const result = await getFullSession();
   return result?.user?.id ?? null;
-}
-
-export function isAdmin(session: Session | null): boolean {
-  if (!session) return false;
-  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  return session.characterId === superId || session.role === 'ADMIN';
 }

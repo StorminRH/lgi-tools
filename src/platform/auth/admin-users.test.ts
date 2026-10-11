@@ -51,6 +51,8 @@ describe('toAdminUser', () => {
     });
     expect(toAdminUser({ ...base, characterId: null }).characterId).toBeNull();
     expect(toAdminUser({ ...base, characterId: 'not-a-number' }).characterId).toBeNull();
+    expect(toAdminUser({ ...base, characterId: '' }).characterId).toBeNull();
+    expect(toAdminUser({ ...base, characterId: ' 12 ' }).characterId).toBeNull();
     expect(toAdminUser({ ...base, portraitUrl: null }).portraitUrl).toBe('');
   });
 

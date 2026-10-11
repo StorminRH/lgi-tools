@@ -13,6 +13,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'maps.search-characters',
+    endpoint: searchCharactersEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, searchCharactersRequestSchema),
     handle: async ({ userId }, body) => {

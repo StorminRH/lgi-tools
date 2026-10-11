@@ -14,6 +14,7 @@ const PIPELINE_MUTATIONS = [
   'account/custom-structures/delete/route.ts',
   'account/custom-structures/route.ts',
   'account/custom-structures/update/route.ts',
+  'account/delete/route.ts',
   'account/industry-profiles/delete/route.ts',
   'account/industry-profiles/duplicate/route.ts',
   'account/industry-profiles/route.ts',
@@ -24,8 +25,13 @@ const PIPELINE_MUTATIONS = [
   'account/saved-plans/rename/route.ts',
   'account/saved-plans/route.ts',
   'account/sessions/revoke/route.ts',
+  'admin/characters/reassign/route.ts',
   'admin/characters/unlink/route.ts',
+  'admin/esi-jobs/retry/route.ts',
+  'admin/role/route.ts',
   'admin/sessions/revoke/route.ts',
+  'admin/wh-statics/route.ts',
+  'feedback/route.ts',
   'maps/access/route.ts',
   'maps/create/route.ts',
   'maps/delete/route.ts',
@@ -38,19 +44,7 @@ const PIPELINE_MUTATIONS = [
   'sync-leave/route.ts',
 ] as const;
 
-const DIRECT_MUTATIONS = [
-  'account/delete/route.ts',
-  'feedback/route.ts',
-] as const;
-
 const LOCAL_SYNTHETIC_MUTATIONS = ['dev/synthetic-pilot/route.ts'] as const;
-
-const ADMIN_MUTATIONS = [
-  'admin/characters/reassign/route.ts',
-  'admin/esi-jobs/retry/route.ts',
-  'admin/role/route.ts',
-  'admin/wh-statics/route.ts',
-] as const;
 
 const EXEMPT_MUTATIONS = {
   'internal/eve-token/route.ts': {
@@ -121,8 +115,6 @@ describe('same-origin mutation coverage', () => {
       .sort();
     const classifiedRoutes = [
       ...PIPELINE_MUTATIONS,
-      ...DIRECT_MUTATIONS,
-      ...ADMIN_MUTATIONS,
       ...LOCAL_SYNTHETIC_MUTATIONS,
       ...Object.keys(EXEMPT_MUTATIONS),
     ];
@@ -141,31 +133,12 @@ describe('same-origin mutation coverage', () => {
     expect(usesMutationRoute || usesLifecycleRoute).toBe(true);
   });
 
-  it.each(DIRECT_MUTATIONS)('%s invokes the shared gate directly', (route) => {
-    const source = readFileSync(join(API_DIR, route), 'utf8');
-
-    expect(source).toContain(
-      "import { requireSameOrigin } from '@/platform/auth/same-origin';",
-    );
-    expect(source).toContain('const originCheck = requireSameOrigin(request);');
-  });
-
   it.each(LOCAL_SYNTHETIC_MUTATIONS)('%s requires matching localhost origin before reset', (route) => {
     const source = readFileSync(join(API_DIR, route), 'utf8');
 
     expect(source).toContain("from '@/platform/auth/synthetic-pilot';");
     expect(source).toContain('!canMintSyntheticPilotRequest(request)');
   });
-
-  it.each(ADMIN_MUTATIONS)(
-    '%s invokes the shared admin mutation gate',
-    (route) => {
-      const source = readFileSync(join(API_DIR, route), 'utf8');
-
-      expect(source).toContain("from '@/app/api/admin-mutation';");
-      expect(source).toContain('adminMutationGate(request)');
-    },
-  );
 
   it.each(Object.entries(EXEMPT_MUTATIONS))(
     '%s records its exemption: $reason',
@@ -183,10 +156,9 @@ describe('same-origin mutation coverage', () => {
     },
   );
 
-  it('keeps the shared mutation, lifecycle, and admin gates wired', () => {
+  it('keeps the shared mutation and lifecycle gates wired', () => {
     const mutation = readFileSync(join(API_DIR, 'mutation-route.ts'), 'utf8');
     const lifecycle = readFileSync(join(API_DIR, 'maps/lifecycle-route.ts'), 'utf8');
-    const admin = readFileSync(join(API_DIR, 'admin-mutation.ts'), 'utf8');
 
     expect(mutation).toContain(
       "import { requireSameOrigin } from '@/platform/auth/same-origin';",
@@ -194,9 +166,5 @@ describe('same-origin mutation coverage', () => {
     expect(mutation).toContain('const originCheck = requireSameOrigin(request);');
     expect(lifecycle).toContain("from '@/app/api/mutation-route';");
     expect(lifecycle).toContain('runMutationRoute(request');
-    expect(admin).toContain(
-      "import { checkAdminMutation, type SessionCheckResult } from '@/composition/route-guards';",
-    );
-    expect(admin).toContain('const gate = await checkAdminMutation(request);');
   });
 });

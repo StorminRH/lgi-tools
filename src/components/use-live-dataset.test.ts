@@ -55,7 +55,7 @@ vi.mock('@/transport/api-client', () => ({
 }));
 vi.mock('@/platform/auth/read-identity', () => ({
   useReadIdentity: () => h.identity,
-  currentReadIdentity: () => h.identity,
+  isCurrentReadIdentity: (identity: typeof h.identity) => identity !== null && identity === h.identity,
 }));
 
 import { useLiveDataset } from './use-live-dataset';

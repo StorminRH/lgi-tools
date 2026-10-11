@@ -5,7 +5,7 @@ import {
   purgeCharacterEndpoint,
   purgeCharacterRequestSchema,
 } from '@/platform/auth/api-contract';
-import { accountBelongsToUser } from '@/platform/auth/linked-characters';
+import { accountBelongsToUser, notLinkedFailure } from '@/platform/auth/linked-characters';
 import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
 import { validationFailure } from '@/lib/failure';
 import { checkSession } from '@/composition/route-guards';
@@ -17,6 +17,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.purge-character',
+    endpoint: purgeCharacterEndpoint,
     preflight: rateLimitPreflight(
       request,
       { name: 'account-purge-character', perMinute: 10 },
@@ -37,14 +38,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     },
     handle: async ({ session }, { characterId }) => {
       if (!(await accountBelongsToUser(session.user.id, characterId))) {
-        return apiResponse(
-          purgeCharacterEndpoint,
-          400,
-          validationFailure(
-            'not_linked',
-            'Character not linked to your account',
-          ),
-        );
+        return apiResponse(purgeCharacterEndpoint, 400, notLinkedFailure());
       }
 
       const result = await purgeOwnCharacter(session.user.id, characterId);

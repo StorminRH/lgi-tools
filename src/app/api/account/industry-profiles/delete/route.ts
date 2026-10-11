@@ -16,6 +16,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.delete-industry-profile',
+    endpoint: deleteIndustryProfileEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, deleteIndustryProfileRequestSchema),
     handle: async ({ userId }, { id }) => {

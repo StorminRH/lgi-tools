@@ -16,7 +16,7 @@ import {
 import type { ProfileDocument } from './profile-document';
 import { createProfileSync, type ProfileSync, type ProfileSyncState, type ProfilesResult } from './profile-sync';
 import { createFailureMessage, type PendingEdit } from './profile-view';
-import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { isCurrentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 
 export interface IndustryProfilesState extends ProfileSyncState {
   busy: boolean;
@@ -70,7 +70,7 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
         if (next.profiles !== null) profilesMemory.set(next.profiles, identity);
       },
       notify: (message) => toast.error(message),
-      isCurrent: () => identity !== null && identity === currentReadIdentity(),
+      isCurrent: () => isCurrentReadIdentity(identity),
     }),
     [identity],
   );
@@ -81,10 +81,10 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
 
   const addProfile = useCallback(
     async (call: () => Promise<AddOutcome>): Promise<string | null> => {
-      if (identity === null || identity !== currentReadIdentity()) return null;
+      if (!isCurrentReadIdentity(identity)) return null;
       setBusyIdentity(identity);
       const res = await sync.request(call).catch(() => null);
-      if (identity !== currentReadIdentity()) return null;
+      if (!isCurrentReadIdentity(identity)) return null;
       setBusyIdentity(null);
       if (!res?.ok) {
         toast.error(createFailureMessage(res?.error?.code));
@@ -109,10 +109,10 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
 
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
-      if (identity === null || identity !== currentReadIdentity()) return false;
+      if (!isCurrentReadIdentity(identity)) return false;
       setBusyIdentity(identity);
       const res = await sync.request(() => apiFetch(deleteIndustryProfileEndpoint, { body: { id } })).catch(() => null);
-      if (identity !== currentReadIdentity()) return false;
+      if (!isCurrentReadIdentity(identity)) return false;
       setBusyIdentity(null);
       if (!res?.ok) {
         toast.error("Couldn't delete the profile.");

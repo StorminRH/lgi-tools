@@ -1,16 +1,12 @@
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { getFullSession } from '@/composition/session';
+import { requireSessionPage } from '@/composition/route-guards';
 import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/specs';
 import { QuietSectionHead } from '@/components/ui/section-head';
 import { PreferenceGroups } from './preference-groups';
 
 /** Sends a signed-out visitor home. The controls need nothing from the request, so they prerender. */
 async function RequireSession() {
-  const session = await getFullSession();
-  if (!session) {
-    redirect('/?auth_error=login_required');
-  }
+  await requireSessionPage();
   return null;
 }
 

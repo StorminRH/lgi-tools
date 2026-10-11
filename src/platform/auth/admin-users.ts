@@ -5,11 +5,15 @@ import { withLockedUsers } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
 import { unresolvedName } from '@/lib/format/names';
 import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
-import { characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
-import { reconcileAfterCharacterRemoval } from './account-purge';
-import { EVE_PROVIDER_ID } from './eve-sso';
+import {
+  characterProfileJoin,
+  characterProfileJoinOn,
+  parseLinkedAccountId,
+  userAccountMatch,
+} from './eve-account-shared';
+import { unlinkCharacter } from './character-unlink';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
-import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
 import { account, characters, session, user } from '@/db/auth-schema';
 import type { CharacterRole } from './types';
 
@@ -38,13 +42,12 @@ export function toAdminUser(row: {
   role: CharacterRole;
   characterId: string | null;
 }): AdminUser {
-  const parsed = row.characterId != null ? Number(row.characterId) : null;
   return {
     userId: row.userId,
     name: row.characterName ?? (row.characterId != null ? unresolvedName('character', row.characterId) : row.userName),
     portraitUrl: row.portraitUrl ?? '',
     role: row.role,
-    characterId: parsed !== null && Number.isFinite(parsed) ? parsed : null,
+    characterId: row.characterId == null ? null : parseLinkedAccountId(row.characterId),
   };
 }
 
@@ -158,7 +161,7 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
     .where(or(
       ilike(user.name, pattern),
       exists(db.select({ one: sql`1` }).from(linkedAccount)
-        .innerJoin(linkedCharacter, eq(sql`${linkedCharacter.characterId}::text`, linkedAccount.accountId))
+        .innerJoin(linkedCharacter, characterProfileJoinOn(linkedAccount.accountId, linkedCharacter.characterId))
         .where(and(
           eq(linkedAccount.userId, user.id),
           eq(linkedAccount.providerId, EVE_PROVIDER_ID),
@@ -200,30 +203,20 @@ export async function deleteLinkedCharacter(
   characterId: number,
   runners: IdentityProjectionRunners,
 ): Promise<boolean> {
-  const mapIds = await runners.runBeforeCharacterUnlink({ userId, characterId });
-  let deleted: Array<{ id: string }>;
-  try {
-    deleted = await changeCharacterOwnership([userId], (database) => database
-      .delete(account)
-      .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
-      .returning({ id: account.id }));
-  } catch (error) {
-    await runners.runAfterFailedCharacterUnlink(characterId);
-    throw error;
-  }
-  if (deleted.length === 0) {
-    await runners.runAfterFailedCharacterUnlink(characterId);
-    return false;
-  }
-  try {
-    await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
-  } finally {
-    await runners.runAfterCharacterLinkChanged({ userId, characterId });
-    if (await getStoredActiveCharacterId(userId) === characterId) {
-      await repointActiveToOldest(userId);
-    }
-  }
-  return true;
+  const outcome = await unlinkCharacter({
+    userId,
+    characterId,
+    runners,
+    remove: async () => {
+      const deleted = await changeCharacterOwnership([userId], (database) => database
+        .delete(account)
+        .where(userAccountMatch(userId, characterId))
+        .returning({ id: account.id }));
+      return deleted.length > 0;
+    },
+  });
+  if ('error' in outcome) throw outcome.error;
+  return outcome.removed;
 }
 
 export async function revokeUserSessions(userId: string): Promise<number> {
@@ -253,47 +246,25 @@ export async function reassignCharacter({
   toUserId: string;
   runners: IdentityProjectionRunners;
 }): Promise<{ sourceDeleted: boolean }> {
-  const mapIds = await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
-  let moved: Array<{ id: string }>;
-  try {
-    moved = await changeCharacterOwnership([fromUserId, toUserId], (database) => database
-      .update(account)
-      .set({ userId: toUserId, updatedAt: new Date() })
-      .where(
-        and(
-          eq(account.providerId, EVE_PROVIDER_ID),
-          eq(account.accountId, String(characterId)),
-          eq(account.userId, fromUserId),
-        ),
-      )
-      .returning({ id: account.id }));
-  } catch (error) {
-    await runners.runAfterFailedCharacterUnlink(characterId);
-    throw error;
-  }
-  if (moved.length === 0) {
-    await runners.runAfterFailedCharacterUnlink(characterId);
-  }
-  let sourceDeleted = false;
-  try {
-    if (moved.length > 0) {
-      await runners.runAfterCharacterUnlink({ userId: fromUserId, characterId, mapIds });
-    }
-  } finally {
-    const [remaining] = await db
-      .select({ id: account.id })
-      .from(account)
-      .where(eveAccountsForUser(fromUserId))
-      .limit(1);
-
-    if (!remaining) {
-      sourceDeleted = (await reconcileAfterCharacterRemoval(fromUserId, characterId, runners)).accountEmptied;
-    } else if (await getStoredActiveCharacterId(fromUserId) === characterId) {
-      await repointActiveToOldest(fromUserId);
-    }
-    await runners.runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
+  const outcome = await unlinkCharacter({
+    userId: fromUserId,
+    characterId,
+    runners,
+    remove: async () => {
+      const moved = await changeCharacterOwnership([fromUserId, toUserId], (database) => database
+        .update(account)
+        .set({ userId: toUserId, updatedAt: new Date() })
+        .where(userAccountMatch(fromUserId, characterId))
+        .returning({ id: account.id }));
+      return moved.length > 0;
+    },
+    // A lost compare-and-swap still settles the source, which may already be empty.
+    settleOnMiss: true,
     // The receiving account gains the pilot as a fresh link would, which also revalues its roster.
-    if (moved.length > 0) await runners.runAfterCharacterLinkChanged({ userId: toUserId, characterId });
-  }
-  return { sourceDeleted };
+    afterSettle: async (moved) => {
+      if (moved) await runners.runAfterCharacterLinkChanged({ userId: toUserId, characterId });
+    },
+  });
+  if ('error' in outcome) throw outcome.error;
+  return { sourceDeleted: outcome.accountEmptied };
 }
