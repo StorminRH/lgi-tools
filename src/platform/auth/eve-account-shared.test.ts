@@ -5,6 +5,8 @@ import { account, characters } from '@/db/auth-schema';
 import {
   characterProfileJoin,
   characterProfileJoinOn,
+  linkedCharacterIds,
+  mapLinkedRows,
   parseLinkedAccountId,
   userAccountMatch,
 } from './eve-account-shared';
@@ -44,5 +46,24 @@ test('parseLinkedAccountId keeps digit character ids and drops values the SQL bi
   expect(parseLinkedAccountId('')).toBeNull();
   expect(parseLinkedAccountId('1e5')).toBeNull();
   expect(parseLinkedAccountId('90000011.5')).toBeNull();
+  expect(parseLinkedAccountId(' 12 ')).toBeNull();
   expect(parseLinkedAccountId('9007199254740993')).toBeNull();
+});
+
+test('linkedCharacterIds and mapLinkedRows keep row order and drop the account ids Number() would coerce', () => {
+  const rows = [
+    { accountId: '90000013', name: 'Third' },
+    { accountId: '', name: 'Empty' },
+    { accountId: ' 12 ', name: 'Padded' },
+    { accountId: '1e3', name: 'Exponent' },
+    { accountId: 'not-a-number', name: 'Foreign' },
+    { accountId: '9007199254740993', name: 'Unsafe' },
+    { accountId: '90000011', name: 'First' },
+  ];
+
+  expect(linkedCharacterIds(rows)).toEqual([90000013, 90000011]);
+  expect(mapLinkedRows(rows, (characterId, row) => `${row.name}:${characterId}`)).toEqual([
+    'Third:90000013',
+    'First:90000011',
+  ]);
 });

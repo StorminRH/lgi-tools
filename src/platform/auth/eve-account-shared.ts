@@ -33,3 +33,19 @@ export function parseLinkedAccountId(accountId: string): number | null {
   const characterId = Number(accountId);
   return Number.isSafeInteger(characterId) ? characterId : null;
 }
+
+/** Maps each linked-account row to `toValue` in row order, dropping rows whose account id does not parse. */
+export function mapLinkedRows<R extends { readonly accountId: string }, T>(
+  rows: readonly R[],
+  toValue: (characterId: number, row: R) => T,
+): T[] {
+  return rows.flatMap((row) => {
+    const characterId = parseLinkedAccountId(row.accountId);
+    return characterId === null ? [] : [toValue(characterId, row)];
+  });
+}
+
+/** The character ids of linked-account rows in row order, dropping malformed account ids. */
+export function linkedCharacterIds(rows: readonly { readonly accountId: string }[]): number[] {
+  return mapLinkedRows(rows, (characterId) => characterId);
+}

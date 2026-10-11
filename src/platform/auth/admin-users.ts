@@ -5,7 +5,13 @@ import { withLockedUsers } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
 import { unresolvedName } from '@/lib/format/names';
 import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
-import { characterProfileJoin, characterProfileJoinOn, eveAccountsForUser, userAccountMatch } from './eve-account-shared';
+import {
+  characterProfileJoin,
+  characterProfileJoinOn,
+  eveAccountsForUser,
+  parseLinkedAccountId,
+  userAccountMatch,
+} from './eve-account-shared';
 import { reconcileAfterCharacterRemoval } from './account-purge';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
@@ -38,13 +44,12 @@ export function toAdminUser(row: {
   role: CharacterRole;
   characterId: string | null;
 }): AdminUser {
-  const parsed = row.characterId != null ? Number(row.characterId) : null;
   return {
     userId: row.userId,
     name: row.characterName ?? (row.characterId != null ? unresolvedName('character', row.characterId) : row.userName),
     portraitUrl: row.portraitUrl ?? '',
     role: row.role,
-    characterId: parsed !== null && Number.isFinite(parsed) ? parsed : null,
+    characterId: row.characterId == null ? null : parseLinkedAccountId(row.characterId),
   };
 }
 

@@ -4,7 +4,7 @@ import { deletionDatabase } from '@/db/deletion-client';
 import { account, user } from '@/db/auth-schema';
 import { lockUserRows } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
-import { accountMatch, eveAccountsForUser, parseLinkedAccountId, userAccountMatch } from './eve-account-shared';
+import { accountMatch, eveAccountsForUser, linkedCharacterIds, userAccountMatch } from './eve-account-shared';
 import { pendingDeletions } from './deletion-schema';
 import type { PendingDeletion } from './purge';
 
@@ -23,10 +23,7 @@ async function existingJob(database: AnyPgDb, userId: string) {
 async function insertJob(database: AnyPgDb, request: PendingDeletion) {
   const linked = await database.select({ accountId: account.accountId }).from(account)
     .where(eveAccountsForUser(request.userId));
-  const characterIds = linked.flatMap((row) => {
-    const id = parseLinkedAccountId(row.accountId);
-    return id === null ? [] : [id];
-  });
+  const characterIds = linkedCharacterIds(linked);
   const [job] = await database.insert(pendingDeletions).values({
     userId: request.userId,
     scope: request.scope,

@@ -26,6 +26,7 @@ import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
 import { encryptToken } from './token-crypto';
 import { encryptAccountTokens } from './account-token-encryption';
+import { parseLinkedAccountId } from './eve-account-shared';
 import { deriveSessionIdentity } from './session-identity';
 import { isAdminIdentity, normalizeCharacterRole } from './admin-policy';
 
@@ -61,8 +62,8 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
           }),
           after: async (acct) => {
             if (acct.providerId !== EVE_PROVIDER_ID) return;
-            const characterId = Number(acct.accountId);
-            if (!Number.isFinite(characterId)) return;
+            const characterId = parseLinkedAccountId(acct.accountId);
+            if (characterId === null) return;
             await runners.runAfterCharacterLinkChanged({ userId: acct.userId, characterId });
           },
         },

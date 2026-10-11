@@ -100,6 +100,21 @@ it('publishes newly confirmed invalid authorization in the same worker run', asy
   );
 });
 
+it('acknowledges a malformed account id without enqueueing map access and never refreshes one', async () => {
+  mocks.listAuthorizationAccessChanges.mockResolvedValueOnce([{ ...change, characterId: 'not-a-number' }]);
+  mocks.listDueAuthorizations.mockResolvedValue([
+    { id: 'malformed-account', characterId: '' },
+    { id: 'account-1', characterId: '101' },
+  ]);
+
+  await checkCharacterAuthorizations('alice');
+
+  expect(mocks.enqueueAffectedMapAccessChanges).not.toHaveBeenCalled();
+  expect(mocks.acknowledgeAuthorizationAccessChange).toHaveBeenCalledExactlyOnceWith(change.id, change.changedAt);
+  expect(mocks.claimAuthorization.mock.calls.map(([id]) => id)).toEqual(['malformed-account', 'account-1']);
+  expect(mocks.getFreshAccessTokenForCharacter).toHaveBeenCalledExactlyOnceWith(101, { forceRefresh: true });
+});
+
 it('stops claiming due characters once a claim fails and leaves the run failed', async () => {
   const due = Array.from({ length: 8 }, (_, i) => ({ id: `account-${i}`, characterId: String(100 + i) }));
   mocks.listDueAuthorizations.mockResolvedValue(due);

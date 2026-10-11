@@ -1,6 +1,12 @@
 import { asc, and, eq, exists, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId, userAccountMatch } from './eve-account-shared';
+import {
+  characterProfileJoin,
+  eveAccountsForUser,
+  mapLinkedRows,
+  parseLinkedAccountId,
+  userAccountMatch,
+} from './eve-account-shared';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
@@ -118,10 +124,7 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
     .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
-  return rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null ? [] : [toLinkedCharacter(characterId, r)];
-  });
+  return mapLinkedRows(rows, toLinkedCharacter);
 }
 
 /** Every account with at least one linked pilot, in a stable order. */
@@ -155,12 +158,7 @@ export async function resolveActiveCharacter(
     .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
-  const linked = rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null
-      ? []
-      : [{ characterId, name: r.name, portraitUrl: r.portraitUrl }];
-  });
+  const linked = mapLinkedRows(rows, (characterId, r) => ({ characterId, name: r.name, portraitUrl: r.portraitUrl }));
 
   const [first] = linked;
   if (first === undefined) return null;
