@@ -945,6 +945,8 @@ export async function measureOwnedDataRead<T>(input: MeasuredOwnedDataRead<T>): 
 
 **Notes.** Every endpoint.path equals the old literal, so the metadata.endpoint values that getTopCostlyEndpoints groups on do not change. Keep Date.now integer durations. Switching to performance.now would change the stored durationMs type, and nothing gains from it. Adding corp-structures adds a new row to the admin cost view, which is the intended fix. Whether the GET owned reads should also gain capability telemetry is a separate decision outside this change.
 
+**After the promote 9 review.** `GET /api/account/corp-structures` was removed, with its contract and route test: nothing in the app called it. The planner reads corp structures through `/api/account/structures`, and the pages read them on the server. The contract-keyed measurement and the OnView coverage scan stay.
+
 <sub>Reported by: area:app-api, concern:request-pipeline.</sub>
 
 <a id="p160"></a>

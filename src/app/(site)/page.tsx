@@ -8,12 +8,12 @@ import { JsonLd } from '@/components/composition/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
-import { isAuthErrorCode } from '@/composition/auth-error';
+import { isAuthErrorCode, LINK_ERROR_MESSAGES } from '@/composition/auth-error';
 import { buildDemoBoard, demoVariant } from '@/composition/board/demo-board';
 import { readEnv } from '@/lib/env';
 import { resolveNotice } from '@/lib/error-copy';
 import { buildPageMetadata } from '@/lib/page-metadata';
-import type { AuthErrorCode, BetterAuthSignInError } from '@/platform/auth/api-contract';
+import type { AuthErrorCode, BetterAuthLinkError, BetterAuthSignInError } from '@/platform/auth/api-contract';
 
 export const metadata = buildPageMetadata({
   title: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
@@ -52,15 +52,23 @@ const AUTH_ERROR_MESSAGES = {
 } satisfies Record<AuthErrorCode, string>;
 
 const SIGN_IN_ERROR_MESSAGES = {
+  ...LINK_ERROR_MESSAGES,
   account_not_linked:
     "That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings → Characters.",
-} satisfies Record<BetterAuthSignInError, string>;
+} satisfies Record<BetterAuthSignInError | BetterAuthLinkError, string>;
 
-/** A page guard's `?auth_error=` notice, else the copy for a refused sign-in's `?error=`. */
+/**
+ * Any other `?error=` on the home page is a sign-in or link from here that did not finish (an
+ * expired state cookie, EVE failing the code exchange, Better Auth's own error redirect). The code
+ * is never shown: Better Auth only filters it to a word, and `error_description` is raw.
+ */
+const SIGN_IN_FAILED_MESSAGE = "Your EVE login didn't finish. Please try again.";
+
+/** A page guard's `?auth_error=` notice, else the copy for a sign-in or link that came back with `?error=`. */
 function authNotice(params: { [key: string]: string | string[] | undefined }): string | null {
   const code = params.auth_error;
   if (isAuthErrorCode(code)) return AUTH_ERROR_MESSAGES[code];
-  return resolveNotice(params.error, SIGN_IN_ERROR_MESSAGES);
+  return resolveNotice(params.error, SIGN_IN_ERROR_MESSAGES, SIGN_IN_FAILED_MESSAGE);
 }
 
 async function AuthErrorNotice({

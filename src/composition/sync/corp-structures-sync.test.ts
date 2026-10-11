@@ -46,7 +46,6 @@ import { narrowCorpRoles } from '@/platform/auth/corp-roles';
 import { compileCorpGrant, type SharingState } from '@/platform/auth/corp-visibility';
 import {
   getAvailableCorpStructuresForUser,
-  getCorpStructuresForUserOnView,
   getCorpStructuresPageData,
 } from './corp-structures-sync';
 
@@ -108,9 +107,7 @@ function viewWithThreeCorps(): void {
 describe('corp structure reads', () => {
   it('waits for a real request before resolving the viewer on both read seams', async () => {
     await expect(getCorpStructuresPageData('user-1')).resolves.toEqual([]);
-    await expect(getCorpStructuresForUserOnView('user-1')).resolves.toEqual({
-      corporations: [],
-    });
+    await expect(getAvailableCorpStructuresForUser('user-1')).resolves.toEqual([]);
 
     expect(mocks.connection).toHaveBeenCalledTimes(2);
     expect(mocks.resolveCorpViewer).toHaveBeenCalledTimes(2);
