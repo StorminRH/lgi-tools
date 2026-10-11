@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { allowAnonymous, runMutationRoute } from '@/app/api/mutation-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { getSession } from '@/composition/session';
 import { APP_VERSION } from '@/config/app-version';
 import {
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
-      void logUsageEvent({
+      emitUsageEvent('feedback', {
         action: 'feedback_submitted',
         characterId: session?.characterId ?? null,
         metadata: {
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           path,
           category,
         },
-      }).catch((err) => console.error('[feedback] telemetry write failed', err));
+      });
 
       return apiResponse(feedbackEndpoint, 204);
     },

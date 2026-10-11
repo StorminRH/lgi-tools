@@ -32,7 +32,7 @@ vi.mock('../drain-esi-refresh-jobs/declaration', () => ({
 vi.mock('../revalue-net-worth/declaration', () => ({ revalueNetWorthDeclaration: h.declaration('cron:net-worth') }));
 vi.mock('../refresh-wh-statics/declaration', () => ({ refreshWhStaticsDeclaration: h.declaration('cron:wh-statics') }));
 vi.mock('@/db', () => ({ directClient: {} }));
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 vi.mock('next/server', () => ({

@@ -4,7 +4,6 @@ const h = vi.hoisted(() => ({
   requireUserIdMock: vi.fn(),
   getPreferencesForUserMock: vi.fn(),
   upsertPreferenceMock: vi.fn(),
-  logUsageEventMock: vi.fn(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
@@ -16,9 +15,6 @@ vi.mock('@/composition/session', () => ({
 vi.mock('@/data/preferences/queries', () => ({
   getPreferencesForUser: (...args: unknown[]) => h.getPreferencesForUserMock(...args),
   upsertPreference: (...args: unknown[]) => h.upsertPreferenceMock(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEventMock(...args),
 }));
 
 import { postJson } from '@/lib/__tests__/route-requests';
@@ -34,7 +30,6 @@ describe('POST /api/preferences', () => {
     h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
     h.getPreferencesForUserMock.mockReset();
     h.upsertPreferenceMock.mockReset().mockResolvedValue(undefined);
-    h.logUsageEventMock.mockReset().mockResolvedValue(undefined);
   });
 
   it('returns 401 for an anonymous caller', async () => {

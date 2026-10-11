@@ -4,7 +4,7 @@ import {
   telemetryRequestSchema,
 } from '@/data/telemetry/api-contract';
 import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { getSessionCharacterId } from '@/composition/session';
 import { validationFailure } from '@/lib/failure';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -40,15 +40,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     return apiResponse(telemetryEndpoint, 429, limit.failure);
   }
 
-  void getSessionCharacterId()
-    .then((characterId) =>
-      logUsageEvent({
-        action: parsed.data.action,
-        characterId,
-        metadata: safeMetadata,
-      }),
-    )
-    .catch((err) => console.error('[telemetry] failed to record usage event', err));
+  emitUsageEvent('telemetry', async () => ({
+    action: parsed.data.action,
+    characterId: await getSessionCharacterId(),
+    metadata: safeMetadata,
+  }));
 
   return apiResponse(telemetryEndpoint, 204);
 }

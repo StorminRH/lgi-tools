@@ -15,7 +15,7 @@ vi.mock('@/composition/map-purge', () => ({
 vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => lock.reserve(...args) },
 }));
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 vi.mock('next/server', () => ({

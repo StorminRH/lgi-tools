@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   applyMapAccessUpdate: vi.fn(),
   checkUserId: vi.fn(),
-  logUsageEvent: vi.fn(),
 }));
 
 vi.mock('@/composition/map-access-update', () => ({
@@ -11,9 +10,6 @@ vi.mock('@/composition/map-access-update', () => ({
 }));
 vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
 import { postJson } from '@/lib/__tests__/route-requests';
@@ -32,7 +28,6 @@ const ROUTE = '/api/maps/access';
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.applyMapAccessUpdate.mockReset().mockResolvedValue({ ok: true });
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
 });
 
 describe('POST /api/maps/access', () => {

@@ -5,7 +5,6 @@ const h = vi.hoisted(() => ({
   esiFetch: vi.fn(),
   getFreshAccessTokenForCharacter: vi.fn(),
   listLinkedCharacters: vi.fn(),
-  logUsageEvent: vi.fn(),
   resolveEntityNamesStrict: vi.fn(),
 }));
 
@@ -25,9 +24,6 @@ vi.mock('@/platform/esi', () => ({
 }));
 vi.mock('@/data/eve-data/entity-names', () => ({
   resolveEntityNamesStrict: (...args: unknown[]) => h.resolveEntityNamesStrict(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 vi.mock('next/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/server')>()),
@@ -61,7 +57,6 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ kind: 'ok', accessToken: 'scoped-token', expiresAt: 1 });
   h.listLinkedCharacters.mockReset().mockResolvedValue([SCOPED_CHARACTER]);
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   h.resolveEntityNamesStrict.mockReset().mockResolvedValue({
     '196379789': 'Chribba',
     '2112625428': 'Chribba Prime',

@@ -9,7 +9,7 @@ import {
 import { getUserById, setUserRole } from '@/platform/auth/admin-users';
 import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const previousRole = target.role;
       await setUserRole(userId, nextRole);
 
-      void logUsageEvent({
+      emitUsageEvent('admin/role', {
         action: 'role_change',
         characterId: session.characterId,
         metadata: {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           from: previousRole,
           to: nextRole,
         },
-      }).catch((err) => console.error('[admin/role] telemetry write failed', err));
+      });
 
       return seeOther(request, '/admin/users', {
         query: { q: sanitiseAdminAccessQuery(q) },

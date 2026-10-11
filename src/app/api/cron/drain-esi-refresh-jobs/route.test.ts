@@ -16,7 +16,7 @@ const { reserve } = createReservedConnectionMock(
 vi.mock('@/db', () => ({
   directClient: { reserve: () => reserve() },
 }));
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (input: unknown) => mocks.logUsageEvent(input),
 }));
 vi.mock('@/composition/sync/esi-refresh-worker', () => ({

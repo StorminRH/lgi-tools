@@ -5,7 +5,6 @@ const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   getSession: vi.fn(),
   getUserById: vi.fn(),
-  logUsageEvent: vi.fn(),
   checkRateLimit: vi.fn(),
   fetchWithTimeout: vi.fn(),
   tokenService: vi.fn(),
@@ -37,9 +36,6 @@ vi.mock('@/composition/session', () => ({
 vi.mock('@/platform/auth/admin-users', () => ({
   getUserById: (...args: unknown[]) => h.getUserById(...args),
   setUserRole: vi.fn(),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (...args: unknown[]) => h.checkRateLimit(...args),
@@ -151,7 +147,6 @@ beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.getSession.mockReset().mockResolvedValue(null);
   h.getUserById.mockReset().mockResolvedValue(null);
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   h.checkRateLimit.mockReset().mockResolvedValue({ ok: true });
   h.fetchWithTimeout.mockReset().mockResolvedValue(new Response(null, { status: 204 }));
   h.tokenService.mockReset().mockResolvedValue({ kind: 'ok', accessToken: 'token', expiresAt: 1 });

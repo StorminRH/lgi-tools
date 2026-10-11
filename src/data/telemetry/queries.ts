@@ -49,7 +49,6 @@ import type {
 export {
   claimPublicEsiBudgetAlert,
   completePublicEsiBudgetAlertClaim,
-  logUsageEvent,
   pruneUsageLogs,
 } from './log';
 

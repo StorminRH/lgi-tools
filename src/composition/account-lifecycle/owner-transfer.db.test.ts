@@ -258,17 +258,17 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
 
     expect(await readAccount(MOVED_CHAR)).toEqual({ ownerHash: H1, userId: TARGET_ID });
     expect(await userIds()).toEqual([TARGET_ID]);
-    expect(after).toHaveBeenCalledTimes(1);
-    await vi.waitFor(async () => {
-      const [event] = await harness.db
-        .select()
-        .from(usageLogs)
-        .where(eq(usageLogs.action, 'auth_merge'))
-        .limit(1);
-      expect(event).toMatchObject({
-        characterId: MOVED_CHAR,
-        metadata: { sourceUserId: SOURCE_ID, survivorUserId: TARGET_ID, movedCharacterIds: [MOVED_CHAR] },
-      });
+    // The merge schedules its audit row, then the Convex settle; run only the audit write.
+    expect(after).toHaveBeenCalledTimes(2);
+    await after.mock.calls[0]![0]();
+    const [event] = await harness.db
+      .select()
+      .from(usageLogs)
+      .where(eq(usageLogs.action, 'auth_merge'))
+      .limit(1);
+    expect(event).toMatchObject({
+      characterId: MOVED_CHAR,
+      metadata: { sourceUserId: SOURCE_ID, survivorUserId: TARGET_ID, movedCharacterIds: [MOVED_CHAR] },
     });
   });
 

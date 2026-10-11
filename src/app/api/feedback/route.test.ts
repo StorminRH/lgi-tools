@@ -21,7 +21,7 @@ const LINEAR_SUCCESS = {
 };
 
 const getSessionMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 const fetchMock = vi.fn();
 const checkRateLimitMock = vi.fn();
 
@@ -29,9 +29,11 @@ vi.mock('@/composition/session', () => ({
   getSession: () => getSessionMock(),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
+// Capability outcomes also reach emitUsageEvent, through cost-metrics; keep them out of the events under test.
+vi.mock('@/data/telemetry/cost-metrics', () => ({ emitCostMetric: vi.fn() }));
 
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (request: Request, options: unknown) =>
@@ -76,8 +78,7 @@ describe('POST /api/feedback', () => {
     vi.resetModules();
     vi.stubEnv('LINEAR_API_KEY', 'lin_api_test_token');
     getSessionMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
+    emitUsageEventMock.mockReset();
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
     checkRateLimitMock.mockReset();
@@ -135,8 +136,8 @@ describe('POST /api/feedback', () => {
       'Relic sites on C3 lose their filter after refresh.',
     );
 
-    expect(logUsageEventMock).toHaveBeenCalledOnce();
-    expect(logUsageEventMock).toHaveBeenCalledWith({
+    expect(emitUsageEventMock).toHaveBeenCalledOnce();
+    expect(emitUsageEventMock).toHaveBeenCalledWith('feedback', {
       action: 'feedback_submitted',
       characterId: 1000000000,
       metadata: {
@@ -151,7 +152,7 @@ describe('POST /api/feedback', () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(LINEAR_SUCCESS), { status: 200 }),
     );
-    logUsageEventMock.mockClear();
+    emitUsageEventMock.mockClear();
     fetchMock.mockClear();
 
     const anon = await POST(
@@ -167,7 +168,7 @@ describe('POST /api/feedback', () => {
     expect(anonPayload.variables.input.title).toBe('love the changelog');
     expect(anonPayload.variables.input.labelIds).toBeUndefined();
     expect(anonPayload.variables.input.description).toContain('**Submitted by:** Anonymous');
-    expect(logUsageEventMock).toHaveBeenCalledWith({
+    expect(emitUsageEventMock).toHaveBeenCalledWith('feedback', {
       action: 'feedback_submitted',
       characterId: null,
       metadata: {
@@ -279,7 +280,7 @@ describe('POST /api/feedback', () => {
     );
     expect(checkRateLimitMock).toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(emitUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('blocks cross-origin posts and maps unset token or Linear failure without telemetry', async () => {
@@ -307,7 +308,7 @@ describe('POST /api/feedback', () => {
 
     getSessionMock.mockResolvedValue(SESSION);
     fetchMock.mockResolvedValue(new Response('rate limited', { status: 429 }));
-    logUsageEventMock.mockClear();
+    emitUsageEventMock.mockClear();
     await expectProblem(
       await POST(
         postJson(ROUTE, { title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
@@ -316,7 +317,7 @@ describe('POST /api/feedback', () => {
       'linear_failed',
       'Linear rejected the feedback',
     );
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(emitUsageEventMock).not.toHaveBeenCalled();
 
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ errors: [{ message: 'denied' }] }), { status: 200 }),
@@ -329,7 +330,7 @@ describe('POST /api/feedback', () => {
       'linear_failed',
       'Linear rejected the feedback',
     );
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(emitUsageEventMock).not.toHaveBeenCalled();
 
     vi.stubEnv('LINEAR_API_KEY', '');
     fetchMock.mockClear();

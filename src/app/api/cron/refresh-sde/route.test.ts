@@ -37,7 +37,7 @@ vi.mock('@/composition/pipelines/sde-pipeline', () => ({
     summarizeMarketPricesRowCountMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 

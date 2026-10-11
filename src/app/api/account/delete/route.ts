@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { accountDeleteEndpoint } from '@/platform/auth/api-contract';
 import { nukeAccount } from '@/composition/account-lifecycle/account-purge';
 import { checkSession } from '@/composition/route-guards';
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ session }) => {
       await nukeAccount(session.user.id);
 
-      void logUsageEvent({
+      emitUsageEvent('account/delete', {
         action: 'account_purge',
         metadata: { scope: 'account' },
-      }).catch((err) => console.error('[account/delete] telemetry write failed', err));
+      });
 
       return apiResponse(accountDeleteEndpoint, 200, { ok: true });
     },

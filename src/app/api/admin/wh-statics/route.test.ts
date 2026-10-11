@@ -32,7 +32,6 @@ const sameOriginMock = vi.fn();
 const refreshMock = vi.fn();
 const promoteMock = vi.fn();
 const rejectMock = vi.fn();
-const logUsageEventMock = vi.fn();
 const emitCostMetricMock = capabilityOutcomeMock();
 
 vi.mock('@/composition/auth', () => ({
@@ -52,10 +51,6 @@ vi.mock('@/composition/wh-statics-refresh', () => ({
 vi.mock('@/data/wh-statics/queries', () => ({
   WhStaticsEmptySnapshotError: EmptySnapshotError,
   WhStaticsSnapshotStateError: SnapshotStateError,
-}));
-
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
 vi.mock('@/data/telemetry/cost-metrics', () => ({
@@ -80,7 +75,6 @@ describe('POST /api/admin/wh-statics', () => {
     refreshMock.mockReset();
     promoteMock.mockReset();
     rejectMock.mockReset();
-    logUsageEventMock.mockReset().mockResolvedValue(undefined);
     emitCostMetricMock.mockReset();
   });
 

@@ -13,7 +13,7 @@ const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const unlinkAccountMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 const reconcileAfterCharacterRemovalMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 const enqueueAffectedMapAccessChangesMock = vi.fn();
 const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
@@ -56,8 +56,8 @@ vi.mock('@/composition/map-access-projection', () => ({
   revokeUserMapClaims: (...args: unknown[]) => revokeUserMapClaimsMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
 
 vi.mock('@/data/telemetry/cost-metrics', () => ({
@@ -95,7 +95,7 @@ describe('POST /api/account/characters/unlink', () => {
     unlinkAccountMock.mockReset();
     listLinkedCharactersMock.mockReset();
     reconcileAfterCharacterRemovalMock.mockReset().mockResolvedValue({ accountEmptied: false });
-    logUsageEventMock.mockReset();
+    emitUsageEventMock.mockReset();
     emitCostMetricMock.mockReset();
     enqueueAffectedMapAccessChangesMock.mockReset();
     projectMapAccessMock.mockReset();
@@ -104,7 +104,6 @@ describe('POST /api/account/characters/unlink', () => {
     revokeUserMapClaimsMock.mockReset().mockResolvedValue(undefined);
     eraseNetWorthHistoryMock.mockReset().mockResolvedValue(undefined);
     teardownLocationTrackingMock.mockReset().mockResolvedValue(undefined);
-    logUsageEventMock.mockResolvedValue(undefined);
     enqueueAffectedMapAccessChangesMock.mockResolvedValue([]);
     projectMapAccessMock.mockResolvedValue({
       inserted: 0,
@@ -169,7 +168,11 @@ describe('POST /api/account/characters/unlink', () => {
     expect(reconcileAfterCharacterRemovalMock.mock.invocationCallOrder[0]).toBeLessThan(
       teardownLocationTrackingMock.mock.invocationCallOrder[0]!,
     );
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('account/characters/unlink', {
+      action: 'character_unlink',
+      characterId: SESSION.characterId,
+      metadata: { userId: 'eve-user-1', unlinkedCharacterId: 100 },
+    });
     expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
   });
 

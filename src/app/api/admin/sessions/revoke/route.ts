@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse, seeOther } from '@/transport/api-response';
 import { adminRevokeSessionsFormSchema } from '@/platform/auth/api-contract';
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       const revoked = await revokeUserSessions(userId);
 
-      void logUsageEvent({
+      emitUsageEvent('admin/sessions/revoke', {
         action: 'admin_force_logout',
         characterId: session.characterId,
         metadata: {
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           targetCharacterId: target.characterId,
           sessionsRevoked: revoked,
         },
-      }).catch((err) => console.error('[admin/sessions/revoke] telemetry write failed', err));
+      });
 
       return seeOther(request, `/admin/users/${userId}`);
     },

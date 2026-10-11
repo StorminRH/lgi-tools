@@ -1,5 +1,5 @@
 import { PRODUCTION_SITE_URL, SITE_URL } from '@/config/site-url';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { readEnv } from '@/lib/env';
 import { forbiddenFailure, type CheckResult } from '@/lib/failure';
 
@@ -45,15 +45,13 @@ export function requireSameOrigin(request: Request): CheckResult {
     && (normalizedOrigin === requestUrl.origin || normalizedOrigin === canonicalOrigin())
   ) return { ok: true };
 
-  void logUsageEvent({
+  emitUsageEvent('same-origin', {
     action: 'cross_origin_mutation',
     metadata: {
       route: requestUrl.pathname,
       offendingOrigin: normalizedOrigin ?? 'invalid',
       source,
     },
-  }).catch((error: unknown) => {
-    console.error('[same-origin] telemetry write failed', error);
   });
 
   return {

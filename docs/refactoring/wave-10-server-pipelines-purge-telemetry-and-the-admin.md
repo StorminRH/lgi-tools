@@ -36,7 +36,7 @@ In order:
 | ☑ | [P299](#p299) | Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers | simplification | M | low | medium | [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088) |
 | ☑ | [P314](#p314) | Trim admin and corporations view models to rendered fields and show search truncation in the results body | simplification | S | low | low | — |
 | ☑ | [P315](#p315) | Derive admin hrefs, titles and range controls from admin-sections instead of literals | simplification | M | low | low | [P316](#p316) |
-| ☐ | [P159](#p159) | Route every usage-telemetry write through one after()-scheduled emitter, sharing the scheduler with domain events | server-pipeline | M | medium | high | [P130](wave-03-src-lib-primitives-collections-math-async.md#p130), [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141) |
+| ☑ | [P159](#p159) | Route every usage-telemetry write through one after()-scheduled emitter, sharing the scheduler with domain events | server-pipeline | M | medium | high | [P130](wave-03-src-lib-primitives-collections-math-async.md#p130), [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141) |
 
 <a id="p162"></a>
 
@@ -1128,7 +1128,7 @@ export function AdminPageFrame(props: { section: AdminSectionId; actions?: React
 
 ## P159: Route every usage-telemetry write through one after()-scheduled emitter, sharing the scheduler with domain events
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** high · **Size:** about −60 / +40 in production (16 inline catches, recordUsage, insertDomainEvent and the cost-metrics bodies shrink; two small modules are added), plus mechanical mock changes in about 25 test files
 - **Depends on:** [P130](wave-03-src-lib-primitives-collections-math-async.md#p130), [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141)

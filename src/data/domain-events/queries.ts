@@ -1,28 +1,18 @@
-import { after } from 'next/server';
 import { lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { runAfterResponse } from '@/lib/after-response';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
 import { domainEvents } from './schema';
 import type { DomainEventInput, DomainEventRow } from './types';
 
-async function insertDomainEvent(input: DomainEventInput): Promise<void> {
-  try {
+export function emitDomainEvent(input: DomainEventInput): void {
+  runAfterResponse('domain-events', 'ledger', async () => {
     await db.insert(domainEvents).values({
       eventType: input.eventType,
       metadata: input.metadata,
     });
-  } catch (error) {
-    console.error('[domain-events] ledger write failed', error);
-  }
-}
-
-export function emitDomainEvent(input: DomainEventInput): void {
-  try {
-    after(() => insertDomainEvent(input));
-  } catch (error) {
-    console.error('[domain-events] ledger scheduling failed', error);
-  }
+  });
 }
 
 // Spelled out to match domain_events_occurred_idx (DESC NULLS LAST). Drizzle's
