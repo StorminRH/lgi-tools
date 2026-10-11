@@ -20,7 +20,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 | ☑ | [P328](#p328) | Make lazy search sources load only their search function | simplification | S | low | low | — |
 | ☑ | [P069](#p069) | Send every search source through rankFuzzyResults (with a tie-break), declare lazy-source metadata once, and share the all-words name match | client-data | M | low | medium | [P328](#p328) |
 | ☑ | [P276](#p276) | Replace the page-settings and search side-effect registries with static arrays passed explicitly | feature-skeleton | M | low | medium | [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069) |
-| ☐ | [P048](#p048) | Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook | react-hook | M | low | medium | [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
+| ☑ | [P048](#p048) | Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook | react-hook | M | low | medium | [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
 | ☐ | [P054](#p054) | Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot | react-hook | S | low | low | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048) |
 | ☐ | [P270](#p270) | Extract useAuthorityScopedMapDialogs and an EditingMapAccessDialog host for MapSwitcher and MapCatalogue | feature-skeleton | S | low | low | [P054](#p054) |
 
@@ -931,7 +931,7 @@ Drift bug found: StructureComposer.tsx:102 lacks the rejection handler that Term
 
 ## P048: Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -45 production lines (GlobalSearch -18, CharacterSearchControl -35, hook +8); about +90 test lines
 - **Depends on:** [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039)
