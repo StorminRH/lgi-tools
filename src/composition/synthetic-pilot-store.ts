@@ -3,10 +3,7 @@ import 'server-only';
 import { and, eq, ne } from 'drizzle-orm';
 import { auth } from '@/composition/auth';
 import { purgeOwnedMapChains } from '@/composition/map-purge';
-import {
-  purgeUserMapAccessProjection,
-  teardownMapAccessProjection,
-} from '@/composition/map-access-projection';
+import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { isConvexConfigured, publicConvexUrl } from '@/config/public-env';
 import { purgeLocationTracking } from '@/data/location-tracking/purge';
 import { mapAccess } from '@/data/maps/schema';
@@ -79,9 +76,7 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
   // so it cannot preserve either reset guarantee.
   await revokeUserSessions(SYNTHETIC_PILOT.userId);
   if (isConvexConfigured()) {
-    for (const mapId of await purgeOwnedMapChains(SYNTHETIC_PILOT.userId)) {
-      await teardownMapAccessProjection(mapId);
-    }
+    await purgeOwnedMapChains(SYNTHETIC_PILOT.userId);
     await purgeUserMapAccessProjection(SYNTHETIC_PILOT.userId);
     await purgeLocationTracking(SYNTHETIC_PILOT.userId, null);
   }

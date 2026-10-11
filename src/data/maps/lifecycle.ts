@@ -164,6 +164,26 @@ export async function claimPurgeableMaps(
   );
 }
 
+/**
+ * Closes every map the user owns ahead of an account deletion: a tombstoned map
+ * projects no claims. Maps the purge cron has already claimed are left to it;
+ * they are archived, so they project none either.
+ */
+export async function tombstoneOwnedMaps(
+  userId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<void> {
+  await database
+    .update(maps)
+    .set({
+      ...tombstonedMapLifecycle(now),
+      archivedAt: sql`coalesce(${maps.archivedAt}, ${now.toISOString()}::timestamptz)`,
+      updatedAt: now,
+    })
+    .where(and(eq(maps.userId, userId), isNull(maps.tombstonedAt), isNull(maps.purgeClaimedAt)));
+}
+
 export async function tombstonePurgedMap(
   mapId: string,
   now: Date = new Date(),

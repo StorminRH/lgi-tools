@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { ProjectionUnavailableError } from './map-access-projection';
 import {
   MapPurgeUnavailableError,
@@ -7,10 +7,25 @@ import {
 } from './map-purge';
 
 const ownedMapIds = vi.hoisted(() => vi.fn<(userId: string) => Promise<string[]>>());
+const tombstoneOwnedMaps = vi.hoisted(() => vi.fn<(userId: string) => Promise<void>>());
+const teardownMapAccessProjection = vi.hoisted(() => vi.fn<(mapId: string) => Promise<unknown>>());
 vi.mock('@/data/maps/queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/data/maps/queries')>(),
   getOwnedMapIds: ownedMapIds,
 }));
+vi.mock('@/data/maps/lifecycle', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/data/maps/lifecycle')>(),
+  tombstoneOwnedMaps,
+}));
+vi.mock('@/composition/map-access-projection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/composition/map-access-projection')>(),
+  teardownMapAccessProjection,
+}));
+
+beforeEach(() => {
+  tombstoneOwnedMaps.mockResolvedValue(undefined);
+  teardownMapAccessProjection.mockResolvedValue({ outcome: 'applied' });
+});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -18,6 +33,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   ownedMapIds.mockReset();
+  tombstoneOwnedMaps.mockReset();
+  teardownMapAccessProjection.mockReset();
 });
 
 describe('purgeOwnedMapChains', () => {
@@ -38,9 +55,10 @@ describe('purgeOwnedMapChains', () => {
     await expect(purgeOwnedMapChains('owner')).rejects.toBeInstanceOf(
       MapPurgeUnavailableError,
     );
+    expect(teardownMapAccessProjection).not.toHaveBeenCalled();
   });
 
-  it('purges each owned chain in order, one at a time, and returns the purged ids', async () => {
+  it('tombstones the owned maps first, then purges and fences each chain in order, one at a time', async () => {
     configure();
     ownedMapIds.mockResolvedValueOnce(['map-a', 'map-b']);
     let inFlight = 0;
@@ -55,17 +73,33 @@ describe('purgeOwnedMapChains', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(purgeOwnedMapChains('owner')).resolves.toEqual(['map-a', 'map-b']);
+    expect(tombstoneOwnedMaps).toHaveBeenCalledExactlyOnceWith('owner');
     expect(ownedMapIds).toHaveBeenCalledExactlyOnceWith('owner');
     expect(purgedMapIds(fetchMock)).toEqual(['map-a', 'map-b']);
+    expect(teardownMapAccessProjection.mock.calls).toEqual([['map-a'], ['map-b']]);
     expect(peak).toBe(1);
     expect(fetchMock).toHaveBeenCalledWith(
       'https://example.convex.site/purge-map-chain',
       expect.objectContaining({ method: 'POST' }),
     );
+    // The tombstone comes before the listing, and each fence directly follows its own purge.
+    const [purgeA, purgeB] = fetchMock.mock.invocationCallOrder;
+    const [fenceA, fenceB] = teardownMapAccessProjection.mock.invocationCallOrder;
+    const order = [
+      tombstoneOwnedMaps.mock.invocationCallOrder[0]!,
+      ownedMapIds.mock.invocationCallOrder[0]!,
+      purgeA!,
+      fenceA!,
+      purgeB!,
+      fenceB!,
+    ];
+    expect(order).toEqual([...order].sort((left, right) => left - right));
 
     ownedMapIds.mockResolvedValueOnce([]);
     await expect(purgeOwnedMapChains('mapless')).resolves.toEqual([]);
+    expect(tombstoneOwnedMaps).toHaveBeenLastCalledWith('mapless');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(teardownMapAccessProjection).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -85,6 +119,25 @@ describe('purgeOwnedMapChains', () => {
       MapPurgeUnavailableError,
     );
     expect(purgedMapIds(fetchMock)).toEqual(['map-a']);
+    expect(teardownMapAccessProjection).not.toHaveBeenCalled();
+  });
+
+  it('stops at a failed fence, before the next chain, so the retry repeats it', async () => {
+    configure();
+    ownedMapIds.mockResolvedValueOnce(['map-a', 'map-b']);
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ deleted: 3, remaining: false }));
+    vi.stubGlobal('fetch', fetchMock);
+    const stale = new ProjectionUnavailableError('Map access projection unavailable: a newer projection already won');
+    teardownMapAccessProjection.mockRejectedValueOnce(stale);
+
+    const failure = await purgeOwnedMapChains('owner').catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(MapPurgeUnavailableError);
+    expect(failure).toMatchObject({
+      message: 'Map access projection fence failed for map-a',
+      cause: stale,
+    });
+    expect(purgedMapIds(fetchMock)).toEqual(['map-a']);
+    expect(teardownMapAccessProjection.mock.calls).toEqual([['map-a']]);
   });
 });
 

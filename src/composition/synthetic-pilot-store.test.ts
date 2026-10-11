@@ -57,12 +57,14 @@ vi.mock('@/composition/map-purge', () => ({
   // The pilot owns one map; its chain goes before its access fence.
   async purgeOwnedMapChains(userId: string) {
     const owned = userId === 'e2e-pilot' ? ['owned-map'] : [];
-    for (const id of owned) await cleanup('chain', id);
+    for (const id of owned) {
+      await cleanup('chain', id);
+      await cleanup('projection', id);
+    }
     return owned;
   },
 }));
 vi.mock('@/composition/map-access-projection', () => ({
-  teardownMapAccessProjection: (id: string) => cleanup('projection', id),
   purgeUserMapAccessProjection: (id: string) => cleanup('claims', id),
 }));
 vi.mock('@/data/location-tracking/purge', () => ({

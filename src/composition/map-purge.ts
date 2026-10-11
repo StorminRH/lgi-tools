@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { teardownMapAccessProjection } from '@/composition/map-access-projection';
 import {
   claimPurgeableMaps,
+  tombstoneOwnedMaps,
   tombstonePurgedMap,
 } from '@/data/maps/lifecycle';
 import { getOwnedMapIds } from '@/data/maps/queries';
@@ -34,14 +35,40 @@ async function purgeMapChain(
 }
 
 /**
- * Purges the Convex chain of every map the user owns, one map at a time so
- * each call stays inside Convex's batch limits, and returns the purged ids.
- * The first failure stops the run; the caller keeps the deletion retryable.
+ * An empty projection at a fresh revision. The chain purge deletes the map's
+ * projection watermark, which leaves Convex accepting any revision; the fence
+ * restores one above every projection reserved before it.
+ */
+async function fenceMapAccess(
+  mapId: string,
+  teardownAccess: typeof teardownMapAccessProjection = teardownMapAccessProjection,
+): Promise<void> {
+  try {
+    await teardownAccess(mapId);
+  } catch (cause) {
+    throw new MapPurgeUnavailableError(
+      `Map access projection fence failed for ${mapId}`,
+      { cause },
+    );
+  }
+}
+
+/**
+ * Erases every map the user owns for an account deletion and returns their
+ * ids. The maps are tombstoned first, so any projection computed from then on
+ * carries no claims. Each chain is then purged, one map at a time so each call
+ * stays inside Convex's batch limits, and fenced at once: a projection computed
+ * before the tombstone that lands after the purge is either wiped by the fence
+ * or refused as stale, instead of re-granting access to the erased map. The
+ * first failure stops the run; the rows stay listed, so the caller's retry
+ * repeats every step.
  */
 export async function purgeOwnedMapChains(userId: string): Promise<string[]> {
+  await tombstoneOwnedMaps(userId);
   const ownedMapIds = await getOwnedMapIds(userId);
   for (const mapId of ownedMapIds) {
     await purgeMapChain(mapId);
+    await fenceMapAccess(mapId);
   }
   return ownedMapIds;
 }
@@ -77,14 +104,7 @@ export async function purgeEligibleMaps(
         `Map purge did not finish for ${map.id}`,
       );
     }
-    try {
-      await teardownAccess(map.id);
-    } catch (cause) {
-      throw new MapPurgeUnavailableError(
-        `Map access projection fence failed for ${map.id}`,
-        { cause },
-      );
-    }
+    await fenceMapAccess(map.id, teardownAccess);
     const marked = await tombstoneMap(map.id);
     if (!marked) {
       throw new MapPurgeUnavailableError(

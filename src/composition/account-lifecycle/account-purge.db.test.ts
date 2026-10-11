@@ -23,19 +23,28 @@ vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => {
 const revokeMock = vi.hoisted(() => vi.fn());
 const mapPurge = vi.hoisted(() => ({
   purgeMapChain: vi.fn().mockResolvedValue({ deleted: 0, remaining: false }),
+  fenceMapAccess: vi.fn(),
 }));
 vi.mock('@/platform/auth/eve-token-service', () => ({
   revokeStoredCharacterToken: (ciphertext: string | null) => revokeMock(ciphertext),
 }));
-// Stands in for the Convex /purge-map-chain door, so the real owned-map purge runs.
+// Stands in for the Convex /purge-map-chain door and for the empty-claim /project-map-access
+// fence, so the real owned-map purge and its fence run. Other projections still reach the
+// unconfigured door and fail as before.
 vi.mock('@/lib/convex-http-door', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
   return {
     ...actual,
-    postConvexHttpDoor: async (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
-      options.path === '/purge-map-chain'
-        ? options.schema.parse(await mapPurge.purgeMapChain((options.body as { mapId: string }).mapId))
-        : actual.postConvexHttpDoor(options),
+    postConvexHttpDoor: async (options: Parameters<typeof actual.postConvexHttpDoor>[0]) => {
+      if (options.path === '/purge-map-chain') {
+        return options.schema.parse(await mapPurge.purgeMapChain((options.body as { mapId: string }).mapId));
+      }
+      if (options.path === '/project-map-access' && (options.body as { claims: unknown[] }).claims.length === 0) {
+        mapPurge.fenceMapAccess(options.body);
+        return options.schema.parse({ outcome: 'applied', inserted: 0, updated: 0, deleted: 0, unchanged: 0 });
+      }
+      return actual.postConvexHttpDoor(options);
+    },
   };
 });
 
@@ -175,6 +184,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
       deleted: 0,
       remaining: false,
     });
+    mapPurge.fenceMapAccess.mockReset();
     await seedUser(harness.db, USER_ID, {
       name: 'Purge Pilot',
       email: syntheticEmail(FIRST_CHAR),
@@ -404,6 +414,13 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(mapPurge.purgeMapChain).toHaveBeenCalledWith(
       '11111111-1111-4111-8111-111111111111',
     );
+    // The erased chain is fenced at once with an empty projection, so a late delivery cannot re-grant it.
+    expect(mapPurge.fenceMapAccess).toHaveBeenCalledWith({
+      mapId: '11111111-1111-4111-8111-111111111111',
+      revision: expect.any(Number),
+      claims: [],
+    });
+    expect(mapPurge.purgeMapChain).toHaveBeenCalledBefore(mapPurge.fenceMapAccess);
     expect(revokeMock.mock.calls).toEqual([[`grant-${FIRST_CHAR}`], [`grant-${SECOND_CHAR}`]]);
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);
@@ -731,6 +748,9 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await seedUserData();
     mapPurge.purgeMapChain.mockRejectedValueOnce(new Error('Convex unavailable'));
     await expect(purgeOwnCharacter(USER_ID, FIRST_CHAR)).rejects.toThrow('Convex unavailable');
+    // The failed attempt already closed the map; its row stays listed for the retry.
+    expect((await harness.db.select().from(maps))[0]?.tombstonedAt).not.toBeNull();
+    expect(mapPurge.fenceMapAccess).not.toHaveBeenCalled();
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await harness.db.select().from(pendingDeletions)).toHaveLength(1);
     expect((await harness.db.select().from(user))[0]?.deletionRequestedAt).toBeNull();
