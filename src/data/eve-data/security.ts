@@ -16,10 +16,15 @@ export function systemSecurityClass(
   return 'null';
 }
 
-export function roundSecurityStatus(securityStatus: number): number {
+function roundSecurityStatus(securityStatus: number): number {
   if (securityStatus === 0) return 0;
   if (securityStatus > 0 && securityStatus < 0.05) return 0.1;
   return roundTo(securityStatus, 1);
+}
+
+/** A system's security as the game shows it: one decimal, CCP-rounded, and a dash when unknown. */
+export function formatSecurityStatus(securityStatus: number | null): string {
+  return securityStatus === null ? '—' : roundSecurityStatus(securityStatus).toFixed(1);
 }
 
 const POSITIVE_SECURITY_BANDS = [

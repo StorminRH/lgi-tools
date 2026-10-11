@@ -5,6 +5,7 @@ import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useState, Vi
 import { useBoardLive } from '../board/use-board-live';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Banner } from '@/components/ui/banner';
+import { cn } from '@/components/ui/cn';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { flattenJobs } from '@/features/industry-jobs/flatten-jobs';
 import type { ViewerCorpJobs, ViewerJobs } from '@/features/industry-jobs/live-derive';
@@ -23,6 +24,7 @@ import { unresolvedName } from '@/lib/format/names';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { OVERVIEW_MOTION } from '../board/board-motion';
+import { FOCUS_OVERVIEW_GRID, FOCUS_SHEET_GRID } from '../board/focus-rail';
 import { useFocusView } from '../board/use-focus-view';
 import type { HullName } from './FacilitiesPanel';
 import { MemberSheet } from './MemberDetail';
@@ -107,9 +109,6 @@ function useProfileNavigation(profiles: readonly IndustryProfileRow[]) {
   return { selection, selectProfile };
 }
 
-const OVERVIEW_GRID = 'grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10';
-const SHEET_GRID = 'grid scroll-mt-28 gap-x-10 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]';
-
 function characterNamer(
   roster: readonly RosterCharacter[],
   doc: ProfileDocument | null,
@@ -154,7 +153,12 @@ function ProfileBoard({
 
   if (member !== undefined) {
     return (
-      <div ref={rootRef} role="article" aria-label={`${member.name} in ${profile.name}`} className={SHEET_GRID}>
+      <div
+        ref={rootRef}
+        role="article"
+        aria-label={`${member.name} in ${profile.name}`}
+        className={cn('scroll-mt-28', FOCUS_SHEET_GRID)}
+      >
         <OpenMember
           key={`${profile.id}:${member.characterId}`}
           controls={controls}
@@ -171,7 +175,7 @@ function ProfileBoard({
     );
   }
   return (
-    <div ref={rootRef} className={OVERVIEW_GRID}>
+    <div ref={rootRef} className={cn('scroll-mt-28', FOCUS_OVERVIEW_GRID)}>
       <ViewTransition {...OVERVIEW_MOTION} default="none">
         <div className="flex min-w-0 flex-col gap-6">
           {controls}

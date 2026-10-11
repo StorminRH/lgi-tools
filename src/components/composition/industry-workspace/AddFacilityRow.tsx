@@ -5,9 +5,10 @@ import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Menu, MenuGroup, MenuItem, menuRow, menuSeparator } from '@/components/ui/menu';
+import { facilityKey } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { AddFacility, type FacilityScope } from './AddFacility';
-import type { FacilityPick } from './facilities-model';
+import { type FacilityPick, STRUCTURE_SOURCE_GROUPS } from './facilities-model';
 import { setStructuresPanelOpen } from './structures-panel';
 
 /** The Engineering Complex the structure button wears, as the rows wear their hulls. */
@@ -24,11 +25,6 @@ function StationTile() {
     </span>
   );
 }
-
-const PICKER_GROUPS = [
-  { label: 'Corporation structures', source: 'corp' },
-  { label: 'Your structures', source: 'custom' },
-] as const;
 
 /**
  * The account's structures not yet on the profile, then a new structure,
@@ -49,7 +45,7 @@ function StructurePicker({
   onNewStructure: () => void;
   full: boolean;
 }) {
-  const open = (structures ?? []).filter((s) => !taken.has(`structure:${s.id}`));
+  const open = (structures ?? []).filter((s) => !taken.has(facilityKey({ kind: 'structure', id: s.id })));
   return (
     <Menu
       label="Add a structure"
@@ -67,7 +63,7 @@ function StructurePicker({
       align="end"
       sideOffset={6}
     >
-      {PICKER_GROUPS.map(({ label, source }) => {
+      {STRUCTURE_SOURCE_GROUPS.map(({ label, source }) => {
         const group = open.filter((s) => s.source === source);
         return group.length > 0 ? (
           <MenuGroup key={source} label={label}>

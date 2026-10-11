@@ -1,6 +1,8 @@
 'use client';
 
+import { ActionForm } from '@/components/ui/action-form';
 import { Button } from '@/components/ui/button';
+import { ConfirmActionForm } from '@/components/ui/confirm-action-form';
 import { CopyButton } from '@/components/ui/copy-button';
 import {
   AlertIcon,
@@ -61,6 +63,36 @@ export function ActionsGroup() {
             </Button>
           </Variant>
         </div>
+      </Specimen>
+
+      <Specimen
+        name="ActionForm"
+        source="action-form"
+        note="A one-button POST form with hidden fields. A disabled button says why on hover and to screen readers, through a linked sr-only line. These post back to this page."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <ActionForm action="#actions" fields={{ specimen: 'action-form' }}>
+            Post back
+          </ActionForm>
+          <ActionForm action="#actions" disabled disabledReason="A disabled action names its reason.">
+            Unavailable
+          </ActionForm>
+        </div>
+      </Specimen>
+
+      <Specimen
+        name="ConfirmActionForm"
+        source="confirm-action-form"
+        note="An ActionForm that asks before it posts and stays put on Cancel; the client boundary for server-rendered admin actions."
+      >
+        <ConfirmActionForm
+          action="#actions"
+          fields={{ specimen: 'confirm-action-form' }}
+          confirm="Post this specimen back to the reference page?"
+          variant="danger"
+        >
+          Ask first
+        </ConfirmActionForm>
       </Specimen>
 
       <Specimen

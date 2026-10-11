@@ -1,3 +1,4 @@
+import { levelValueClass } from '@/components/status-level-tone';
 import { cn } from '@/components/ui/cn';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -50,7 +51,7 @@ export function BudgetGauge({ budget }: { budget: Awaited<ReturnType<typeof load
     <>
       <div className="flex flex-col gap-2 px-3.5 py-3">
         <div className="flex items-baseline gap-2">
-          <span className={cn('font-data text-stat tabular-nums', budget.level === 'red' ? 'text-tone-red' : 'text-name')}>
+          <span className={cn('font-data text-stat tabular-nums', levelValueClass(budget.level, 'text-name'))}>
             {budget.remaining}
           </span>
           <span className="font-ui text-ui text-muted">of {budget.ceiling} estimated errors remaining</span>

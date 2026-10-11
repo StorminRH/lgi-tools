@@ -1,15 +1,7 @@
 import type { EveStatusSection } from '@/components/composition/server-status-presentation';
+import { levelValueClass } from '@/components/status-level-tone';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
-import type { StatusLevel } from '@/data/telemetry/health-metrics';
-
-// Healthy values stay plain so only problems draw the eye.
-const LEVEL_CLASS: Record<StatusLevel, string | undefined> = {
-  green: undefined,
-  amber: 'text-tone-orange',
-  red: 'text-tone-red',
-  neutral: 'text-muted',
-};
 
 /** Tranquility, ESI and the static data LGI runs on, one block each. */
 export function EveStatusPanel({ sections }: { sections: EveStatusSection[] }) {
@@ -18,7 +10,8 @@ export function EveStatusPanel({ sections }: { sections: EveStatusSection[] }) {
       <PopoverHeading>{section.heading}</PopoverHeading>
       {section.rows.map((row) => (
         <PopoverRow key={row.label} label={row.label}>
-          <span className={LEVEL_CLASS[row.level]}>{row.value}</span>
+          {/* A healthy value inherits the row's plain colour; only problems draw the eye. */}
+          <span className={levelValueClass(row.level)}>{row.value}</span>
         </PopoverRow>
       ))}
     </section>

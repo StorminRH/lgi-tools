@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState, type ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
+import { SystemWithSecurity } from '@/components/security-status';
 import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -10,10 +11,9 @@ import { LivePrice } from '@/components/ui/live-price';
 import { SidePanel } from '@/components/ui/side-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
 import { eyebrow } from '@/components/ui/type-roles';
-import { useSystemSearch } from '@/components/use-system-search';
+import { useSystemsById } from '@/components/use-system-search';
 import { activityLabel } from '@/data/eve-data/constants';
-import { securityStatusTextClass } from '@/data/eve-data/security';
-import { formatSec } from '@/data/eve-data/systems-search';
+import { lookupSystem } from '@/data/eve-data/systems-search';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
@@ -93,7 +93,6 @@ function Identity({ sheet }: { sheet: ComponentSheet }) {
           {...nodeImage(sheet.blueprintTypeId, sheet.typeId)}
           size={64}
           alt={sheet.name}
-          mono={sheet.name.slice(0, 2)}
           className="rounded-card shadow-cta-glow"
         />
         <Steppers sheet={sheet} />
@@ -105,11 +104,11 @@ function Identity({ sheet }: { sheet: ComponentSheet }) {
 /** Where the profile runs this job, and who runs it. */
 function JobRoute({ blueprintTypeId }: { blueprintTypeId: number }) {
   const { profile, profilePlan } = useBuildSetup();
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   if (!profile || !profilePlan) return null;
   const route = profilePlan.routeOf(blueprintTypeId);
   const builder = profile.document.members.find((m) => m.characterId === route.characterId) ?? null;
-  const system = systems.find((s) => s.id === route.facility?.systemId) ?? null;
+  const system = lookupSystem(systemsById, route.facility?.systemId ?? null);
   if (!route.facility && !builder) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -118,7 +117,7 @@ function JobRoute({ blueprintTypeId }: { blueprintTypeId: number }) {
           <span className="truncate font-ui text-nav text-name">{route.facility.name}</span>
           {system && (
             <span className="font-data text-micro text-muted">
-              {system.name} <span className={securityStatusTextClass(system.security)}>{formatSec(system.security)}</span>
+              <SystemWithSecurity system={system} />
             </span>
           )}
         </div>
@@ -141,7 +140,7 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
         {...nodeImage(ledger.builds.get(row.typeId)?.blueprintTypeId, row.typeId)}
         size={32}
         alt=""
-        mono={row.name.slice(0, 2)}
+        mono={row.name}
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="truncate font-data text-ui text-name">{row.name}</span>

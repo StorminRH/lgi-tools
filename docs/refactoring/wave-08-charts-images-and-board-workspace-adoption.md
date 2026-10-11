@@ -8,27 +8,27 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P004](#p004) | Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx | ui-component | M | low | high | — |
-| ☐ | [P037](#p037) | Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart | ui-component | S | low | medium | [P004](#p004) |
-| ☐ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
-| ☐ | [P318](#p318) | Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types | simplification | S | low | low | [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089) |
-| ☐ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
-| ☐ | [P009](#p009) | Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30 | ui-component | S | low | low | [P008](#p008) |
-| ☐ | [P012](#p012) | Derive the linked-character health label once in platform/auth and render admin character portraits with CharacterPortrait | ui-component | S | low | medium | [P008](#p008) |
-| ☐ | [P010](#p010) | Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook | ui-component | M | low | medium | — |
-| ☐ | [P011](#p011) | Reuse FacilitySubline in StructureRow, share the placeholder tile, export the structure source groups, and build facility keys with facilityKey | ui-component | S | low | low | [P010](#p010) |
-| ☐ | [P183](#p183) | Derive owned-structure security classes through getSystemFacts | server-pipeline | S | low | low | [P010](#p010) |
-| ☐ | [P003](#p003) | Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace | ui-component | M | low | medium | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) |
-| ☐ | [P005](#p005) | Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift | ui-component | M | low | medium | — |
-| ☐ | [P062](#p062) | Share one StatusLevel tone module between EveStatusPanel and admin, keeping each surface's plain colour | css-styling | S | low | low | — |
-| ☐ | [P067](#p067) | Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins | client-data | S | low | low | — |
-| ☐ | [P271](#p271) | Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity | feature-skeleton | M | low | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247) |
+| ☑ | [P004](#p004) | Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx | ui-component | M | low | high | — |
+| ☑ | [P037](#p037) | Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart | ui-component | S | low | medium | [P004](#p004) |
+| ☑ | [P317](#p317) | Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/ | simplification | S | low | low | [P004](#p004), [P037](#p037) |
+| ☑ | [P318](#p318) | Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types | simplification | S | low | low | [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089) |
+| ☑ | [P008](#p008) | Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait | ui-component | M | low | medium | — |
+| ☑ | [P009](#p009) | Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30 | ui-component | S | low | low | [P008](#p008) |
+| ☑ | [P012](#p012) | Derive the linked-character health label once in platform/auth and render admin character portraits with CharacterPortrait | ui-component | S | low | medium | [P008](#p008) |
+| ☑ | [P010](#p010) | Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook | ui-component | M | low | medium | — |
+| ☑ | [P011](#p011) | Reuse FacilitySubline in StructureRow, share the placeholder tile, export the structure source groups, and build facility keys with facilityKey | ui-component | S | low | low | [P010](#p010) |
+| ☑ | [P183](#p183) | Derive owned-structure security classes through getSystemFacts | server-pipeline | S | low | low | [P010](#p010) |
+| ☑ | [P003](#p003) | Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace | ui-component | M | low | medium | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) |
+| ☑ | [P005](#p005) | Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift | ui-component | M | low | medium | — |
+| ☑ | [P062](#p062) | Share one StatusLevel tone module between EveStatusPanel and admin, keeping each surface's plain colour | css-styling | S | low | low | — |
+| ☑ | [P067](#p067) | Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins | client-data | S | low | low | — |
+| ☑ | [P271](#p271) | Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity | feature-skeleton | M | low | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247) |
 
 <a id="p004"></a>
 
 ## P004: Build TrendChart and AnnotatedDailyChart on TimeSeriesFrame and delete chart/line-chart.tsx
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** high · **Size:** About -135 (line-chart.tsx deleted), about -30 (trend-chart) and about -70 (annotated-daily-chart shell and DailyXAxis); about +25 (ChartBaseline, defaults, tests excluded). Net about -210.
 - **Depends on:** —
@@ -130,7 +130,7 @@ Intended behavior change: every BalanceTrend and admin trend or daily chart gain
 
 ## P037: Extract a gap-aware BandSeries and a shared band-chart margin for SplitAxisChart and StackedAreaChart
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -70 across the two charts (2 × about 30 band lines plus 2 × about 7 isolated lines plus the MARGIN constants), about +45 in band-series.tsx, plus about 30 test lines
 - **Depends on:** [P004](#p004)
@@ -195,7 +195,7 @@ export function BandSeries<P extends { x: number }>(props: {
 
 ## P317: Retire the vestigial sparkline module: ChartTone in tones, tests on chart-geometry, cssom tooltip into chart/
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +5 (two test files merged, one module deleted)
 - **Depends on:** [P004](#p004), [P037](#p037)
@@ -267,7 +267,7 @@ export type LineChartProps<T extends ChartPoint> = { ... tone?: ChartTone ... }
 
 ## P318: Use paddedDomain in board-view-model, add one year-dropping date helper, and export readyData and the missing board data types
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -25 / +12 (fittedDomain and its test, three regexes, three Extract types, five inline unwraps; plus one lib helper and its test, and three type exports)
 - **Depends on:** [P317](#p317), [P089](wave-04-formatting-dates-and-names-have-one-home.md#p089)
@@ -352,7 +352,7 @@ export type BoardImplantsData = z.infer<typeof implantsDataSchema>;
 
 ## P008: Route every EVE image URL through lib/eve-image (eveImageSrc) and promote EntityLogo to src/components/entity-logo.tsx as the corp/alliance counterpart of CharacterPortrait
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** Removes about 30 lines (3 raw EveImage blocks, the redundant portrait src fallbacks, the dead logoUrl field and mapping) and adds about 35 (EntityLogo grows a size map and placeholder; lib gains the path table). Roughly neutral; the gain is one owner for image URLs and one logo component.
 - **Depends on:** —
@@ -439,7 +439,7 @@ export function EntityLogo({ kind, id, size, alt = '', className }: {
 
 ## P009: Derive TypeIcon's fallback monogram with initials() and make its size a typed union that includes 30
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -12/+8 (10 slice calls and one initials import removed, the size union added)
 - **Depends on:** [P008](#p008)
@@ -506,7 +506,7 @@ export function TypeIcon(props: { typeId: number; variant?: TypeIconVariant; siz
 
 ## P012: Derive the linked-character health label once in platform/auth and render admin character portraits with CharacterPortrait
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -25/+8 (inline label and two EveImage blocks removed; characters-view.ts folded into scope-health.ts)
 - **Depends on:** [P008](#p008)
@@ -567,7 +567,7 @@ export type PortraitSize = 20 | 28 | 32 | 36 | 38 | 40 | 64 | 112 | 160; // 40: 
 
 ## P010: Move the security formatter beside the security bands, add SecurityStatus/SystemWithSecurity, and resolve systems by id through one useSystemsById hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -45/+40: formatter moved (0), 5 inline fragments collapse (-12), new component file (+15), new hook replaces useSystemName's loader (net 0), id finds and 5 dead useSystemSearch mounts removed (-15), SecPill map (+4)
 - **Depends on:** —
@@ -646,7 +646,7 @@ export function useSystemName(systemId: number | null): string | null; // useSys
 
 ## P011: Reuse FacilitySubline in StructureRow, share the placeholder tile, export the structure source groups, and build facility keys with facilityKey
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30/+18
 - **Depends on:** [P010](#p010)
@@ -712,7 +712,7 @@ export const STRUCTURE_SOURCE_GROUPS = [
 
 ## P183: Derive owned-structure security classes through getSystemFacts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -18 / +4 (SecPill step about +4 / -1)
 - **Depends on:** [P010](#p010)
@@ -765,7 +765,7 @@ getSystemFacts(ids: number[]): Promise<Map<number, SystemFacts>> // existing; in
 
 ## P003: Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About +80 (focus-rail.tsx, focusedView, backAction, tests) and about -120 (PilotRail, MemberRail, AddCharacter, the two details, models, grids). Net about -40.
 - **Depends on:** [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018)
@@ -882,7 +882,7 @@ If P002 lands first, RailEntry's sibling files import readoutSurface/SectionPane
 
 ## P005: Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -150 across the 8 sites (3 'use client' files lose useId and the confirm blocks; RetryJobForm and the local statics ActionForm are deleted) and about +70 for the two ui files. Net about -80 before tests.
 - **Depends on:** —
@@ -969,7 +969,7 @@ export function ConfirmActionForm(props: Omit<ActionFormProps, 'onSubmit'> & { c
 
 ## P062: Share one StatusLevel tone module between EveStatusPanel and admin, keeping each surface's plain colour
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** css-styling · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +20 (net about -5 prod lines plus a small test)
 - **Depends on:** —
@@ -1029,7 +1029,7 @@ export function statusValueClass(level: StatusLevel, plain = ''): string; // amb
 
 ## P067: Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20 lines at the call sites, +12 in platform/auth, plus about 40 lines of new tests
 - **Depends on:** —
@@ -1092,7 +1092,7 @@ export function startCharacterLink(callbackURL = '/settings/characters'): void /
 
 ## P271: Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -50 removed across five pages and the OG image, about +12 in page-metadata.ts and its test; net about -38.
 - **Depends on:** [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247)

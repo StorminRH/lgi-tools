@@ -44,3 +44,8 @@ export function ValueAxisGrid({ ticks, y, left, right, format }: ValueAxisGridPr
     </>
   );
 }
+
+/** The plot's bottom edge: drawn after the value grid, so it covers a grid line at the bottom. */
+export function ChartBaseline({ left, right, y }: { left: number; right: number; y: number }) {
+  return <line x1={left} x2={right} y1={y} y2={y} className="stroke-[var(--color-border)]" strokeWidth={1} />;
+}

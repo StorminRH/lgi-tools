@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
+import { levelReadout } from '@/components/status-level-tone';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ReadoutLine } from '@/components/ui/readout';
 import { type ShareSegment, SlimShareBar } from '@/components/ui/stacked-share-bar';
 import type { SubsystemStatus } from '@/data/telemetry/health-metrics';
-import { levelReadout } from '../status-tone';
 
 /** A status line that opens onto its detail, laid out like the overview's status rows. */
 export function StatusRow({

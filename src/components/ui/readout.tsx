@@ -3,6 +3,9 @@ import { cn } from './cn';
 import { Dot } from './dot';
 import type { DotTone } from './tones';
 
+/** A status value's colour: `default` for a healthy value, the rest for problems. */
+export type ValueTone = 'default' | 'muted' | 'orange' | 'red';
+
 export type ReadoutLineProps = {
   label: ReactNode;
   value?: ReactNode;
@@ -13,17 +16,25 @@ export type ReadoutLineProps = {
   /** The verdict the dot's colour stands for, such as "Warning", read to screen readers only. */
   status?: string;
   /** Healthy values stay `default`; only problems should draw the eye. */
-  valueTone?: 'default' | 'muted' | 'orange' | 'red';
+  valueTone?: ValueTone;
   /** Sits at the end of the first line: a chevron, a pill, a small button. */
   trailing?: ReactNode;
 };
 
-const VALUE_TONE = {
-  default: 'text-name',
+const SEVERITY_CLASS = {
   muted: 'text-muted',
   orange: 'text-tone-orange',
   red: 'text-tone-red',
-} satisfies Record<NonNullable<ReadoutLineProps['valueTone']>, string>;
+} satisfies Record<Exclude<ValueTone, 'default'>, string>;
+
+/**
+ * A status value's colour class. A healthy value takes `plain`, the surface's
+ * own value colour, so one inside a popover row can inherit it; a readout row
+ * passes `text-name`.
+ */
+export function valueToneClass(tone: ValueTone, plain?: string): string | undefined {
+  return tone === 'default' ? plain : SEVERITY_CLASS[tone];
+}
 
 // One text-ui line box tall, so whatever sits inside centres on the label's
 // first line however many lines the label, note or value wrap to.
@@ -75,7 +86,7 @@ export function ReadoutLine({
         <span
           className={cn(
             'max-w-2/3 text-right font-data text-ui tabular-nums wrap-anywhere',
-            VALUE_TONE[valueTone],
+            valueToneClass(valueTone, 'text-name'),
           )}
         >
           {value}

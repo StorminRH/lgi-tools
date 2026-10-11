@@ -30,7 +30,7 @@ function Shelf({ label, empty, blueprints }: { label: string; empty: string; blu
             <EntityRow
               colsClass="grid-cols-[26px_minmax(0,1fr)]"
               className="py-[11px]"
-              leading={<TypeIcon {...blueprintImage(blueprint.typeId)} size={26} mono={blueprint.name.slice(0, 2)} />}
+              leading={<TypeIcon {...blueprintImage(blueprint.typeId)} size={26} mono={blueprint.name} />}
               name={<span className="font-semibold">{blueprint.name}</span>}
             />
           </IntentPrefetchLink>

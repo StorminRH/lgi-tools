@@ -83,6 +83,8 @@ describe('HomeBoardView', () => {
   it('opens the pilot named in the URL full width, with a way back and no rail', () => {
     const html = render('full', '?character=9900000001');
     expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
+    // The corporation's name sits beside its logo, so the logo itself is unlabelled.
+    expect(html).toContain('<span data-eve-image-family="corporation-logo" data-alt=""></span>');
     const journal = html.slice(html.indexOf('aria-label="Recent wallet journal"'));
     expect(journal).toContain('<span class="text-isk">+61.00M</span>');
     expect(journal).toContain('<span class="text-dps-high">−46.55M</span>');
@@ -127,6 +129,11 @@ describe('board chrome', () => {
     const live = renderToStaticMarkup(BoardFrame({ children: createElement(BoardSkeleton) }));
     expect(live).toContain('role="status" aria-label="Loading your characters"');
     expect(live.match(/role="status"/g)).toHaveLength(1);
+    // The skeleton holds the rail at the live overview's width, so the board
+    // does not jump sideways when it loads.
+    const railTrack = (html: string) => /lg:grid-cols-\[[^\]]+\]/.exec(html)?.[0];
+    expect(railTrack(render('full'))).toMatch(/^lg:grid-cols-/);
+    expect(railTrack(live)).toBe(railTrack(render('full')));
     expect(live).not.toContain('live-ping');
     expect(live).not.toContain('Sample data');
     expect(framed).toContain('Add character');

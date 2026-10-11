@@ -38,19 +38,16 @@ describe('UI adoption exception census', () => {
     expect(codeMatching(/<input\b(?![^>]*\btype=["']hidden["'])/)).toEqual([]);
   });
 
-  it('pins every hidden server-action field owner', () => {
-    expect(codeMatching(/<input\b[^>]*\btype=["']hidden["']/)).toEqual(
-      [...uiAdoptionRegistry.hiddenInputs].sort(),
-    );
+  it('keeps POST forms and their hidden fields inside the ActionForm primitive', () => {
+    expect(codeMatching(/<form\b[^>]*\bmethod=["']post["']/i)).toEqual([]);
+    expect(codeMatching(/<input\b[^>]*\btype=["']hidden["']/)).toEqual([]);
   });
 
-  it('pins native and disabled-control title exceptions separately', () => {
+  it('pins native titles and leaves disabled-control reasons to ActionForm', () => {
     expect(codeMatching(/<[a-z][^>]*\btitle=/)).toEqual(
       exceptionFiles(uiAdoptionRegistry.nativeTitles),
     );
-    expect(codeMatching(/\btitle=\{(?:disabled|view\.isSelf)\s*\?/)).toEqual(
-      [...uiAdoptionRegistry.disabledControlTitles].sort(),
-    );
+    expect(codeMatching(/\btitle=\{(?:disabled|view\.isSelf)\s*\?/)).toEqual([]);
   });
 
   it('keeps hand-built action semantics and primitive-owned tokens at zero', () => {

@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import type { AdminUser } from '@/platform/auth/admin-users';
 import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 
@@ -130,6 +131,22 @@ describe('user detail cards', () => {
     expect(html).toContain('Disconnected');
     expect(html.match(/Reassign to me/g)).toHaveLength(2);
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Unlink/);
+  });
+
+  it('tells the admin when a fully granted character is waiting on verification', () => {
+    const granted = { hasRefreshToken: true, scope: EVE_SCOPES.join(' ') };
+    const html = renderToStaticMarkup(
+      createElement(LinkedCharacterList, {
+        userId: 'target',
+        characters: [character(1, { ...granted, authorizationDelayed: true }), character(2, granted)],
+        activeId: null,
+        isViewerSelf: false,
+      }),
+    );
+
+    expect(html.match(/Verification delayed/g)).toHaveLength(1);
+    expect(html).not.toContain('Missing scopes');
+    expect(html).not.toContain('Disconnected');
   });
 
   it('does not offer to reassign your own characters, nor to unlink the last one', () => {

@@ -152,7 +152,7 @@ function BuildableIcon({
           EFFICIENCY_TONE_CLASSES[efficiency.state].frame,
           'cursor-pointer',
         )}
-        trigger={<TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />}
+        trigger={<TypeIcon {...icon} size={30} mono={name} />}
       >
         <PopoverHeading>Blueprint Research Adjusters</PopoverHeading>
         {efficiency.adjusters}
@@ -177,7 +177,7 @@ function NodeIcon({
   if (efficiency) return <BuildableIcon icon={icon} name={name} efficiency={efficiency} detail={detail} />;
   return (
     <span className={cn(FRAME, 'border-transparent')}>
-      <TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />
+      <TypeIcon {...icon} size={30} mono={name} />
     </span>
   );
 }

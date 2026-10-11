@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   characterPortraitUrl,
-  corporationLogoUrl,
   EVE_IMAGE_SIZES,
+  eveImageSrc,
   type EveImageFamily,
   type EveImageSize,
   snapEveImageSize,
@@ -24,7 +24,7 @@ describe('EVE image URL builders', () => {
     expect(characterPortraitUrl(2112625428)).toBe(
       'https://images.evetech.net/characters/2112625428/portrait?size=64',
     );
-    expect(corporationLogoUrl(98632851)).toBe(
+    expect(eveImageSrc('corporation-logo', 98632851)).toBe(
       'https://images.evetech.net/corporations/98632851/logo?size=64',
     );
   });
@@ -35,11 +35,24 @@ describe('EVE image URL builders', () => {
       expect(characterPortraitUrl(2112625428, size)).toBe(
         `https://images.evetech.net/characters/2112625428/portrait?size=${size}`,
       );
-      expect(corporationLogoUrl(98632851, size)).toBe(
+      expect(eveImageSrc('corporation-logo', 98632851, size)).toBe(
         `https://images.evetech.net/corporations/98632851/logo?size=${size}`,
       );
     },
   );
+
+  it.each([
+    ['character-portrait', 'characters/90000001/portrait'],
+    ['corporation-logo', 'corporations/90000001/logo'],
+    ['alliance-logo', 'alliances/90000001/logo'],
+    ['type-icon', 'types/90000001/icon'],
+    ['type-render', 'types/90000001/render'],
+    ['type-bp', 'types/90000001/bp'],
+    ['type-bpc', 'types/90000001/bpc'],
+  ] satisfies [EveImageFamily, string][])('builds the %s path on the CCP image server', (family, path) => {
+    expect(eveImageSrc(family, 90000001)).toBe(`https://images.evetech.net/${path}?size=64`);
+    expect(eveImageSrc(family, 90000001, 512)).toBe(`https://images.evetech.net/${path}?size=512`);
+  });
 });
 
 describe('EVE image size policy', () => {

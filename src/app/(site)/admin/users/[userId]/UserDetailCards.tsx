@@ -12,7 +12,7 @@ import {
   listLinkedCharacters,
   type LinkedCharacter,
 } from '@/platform/auth/linked-characters';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { deriveLinkedCharacterStatus } from '@/platform/auth/scope-health';
 import { AdminCard } from '../../AdminSection';
 import { AdminCharacterRow } from '../AdminCharacterRow';
 import { deriveIdentityChips, forceLogoutDisabled } from './user-detail-view';
@@ -82,16 +82,16 @@ export function AccountIdentity({
 }
 
 function CharacterChips({ character, isActive }: { character: LinkedCharacter; isActive: boolean }) {
-  const health = deriveCharacterHealth({ scope: character.scope, hasRefreshToken: character.hasRefreshToken });
+  const { healthLabel } = deriveLinkedCharacterStatus(character);
   return (
     <>
       <Pill tone="neutral" className="whitespace-nowrap">
         linked {formatIsoDay(character.linkedAt)}
       </Pill>
       {isActive ? <Pill tone="green">Selected</Pill> : null}
-      {health.needsReconnect ? (
+      {healthLabel ? (
         <Pill tone="orange" className="shrink-0 normal-case">
-          {character.hasRefreshToken ? 'Missing scopes' : 'Disconnected'}
+          {healthLabel}
         </Pill>
       ) : null}
     </>

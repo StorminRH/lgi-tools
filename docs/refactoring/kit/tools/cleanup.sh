@@ -30,8 +30,9 @@ case $mode in
     done
     sleep 1
     for p in $(comm -13 "$dir/pids-before" <(pids)); do kill -9 "$p" 2>/dev/null && echo "killed $p"; done
-    for w in $(comm -13 "$dir/worktrees-before" <(worktrees)); do
-      if git worktree remove "$w" 2>/dev/null; then echo "removed worktree $w"; else echo "LEFT dirty worktree $w (inspect, then: git worktree remove --force $w)"; fi
+    # Read line by line: worktree paths can contain spaces.
+    comm -13 "$dir/worktrees-before" <(worktrees) | while IFS= read -r w; do
+      if git worktree remove "$w" 2>/dev/null; then echo "removed worktree $w"; else echo "LEFT dirty worktree $w (inspect, then: git worktree remove --force \"$w\")"; fi
     done
     git worktree prune
     echo "worktrees: $(worktrees | wc -l | tr -d ' ')"

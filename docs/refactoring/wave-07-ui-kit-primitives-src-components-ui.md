@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#672](https://github.com/StorminRH/lgi-tools/pull/672).
+
 ← [Wave 6: Config, env, ids and shared domain vocabularies](wave-06-config-env-ids-and-shared-domain-vocabularies.md) · [Index](README.md#roadmap) · [Wave 8: Charts, images and board/workspace adoption](wave-08-charts-images-and-board-workspace-adoption.md) →
 
 Simplify, then complete, the ui kit. P319 removes single-value tone variants first, so P022 (Chip→Pill and ChipToggle) and P001 (dialog kit) build on clean primitives. CheckIcon/CloseIcon and the glass-chip utility land before the dialog kit. Then come the overlay portals, labelled Checkbox/Switch and Field, CollapsibleChevron, decorative Skeleton, next/link SegmentedControl, HelpPopover, StatFigure, SectionPanel, SectionNote, CardLink/ExternalLink, DistributionBars subline, SwitcherMenu, view-transition CSS and the combobox pick helper. P123 lands the longest section match, and P320 and P024 consume it. PreferenceControl and StatusPanel follow. The dialog test stub and confirm gate come last, against the final dialog API.

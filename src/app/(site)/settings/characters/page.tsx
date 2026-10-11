@@ -16,9 +16,9 @@ import { SwitchCharacterForm } from '@/components/composition/account/SwitchChar
 import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkCharacterForm';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
+import { deriveLinkedCharacterStatus } from '@/platform/auth/scope-health';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { QuietSectionHead } from '@/components/ui/section-head';
-import { deriveCharacterRowView } from './characters-view';
 
 const ERROR_MESSAGES: Record<string, string> = {
   account_already_linked_to_different_user: 'That character is already linked to another account.',
@@ -61,7 +61,7 @@ function CharacterRow({
   isActive: boolean;
   isOnlyCharacter: boolean;
 }) {
-  const view = deriveCharacterRowView(character);
+  const status = deriveLinkedCharacterStatus(character);
 
   return (
     <div className="border-t border-border-soft">
@@ -81,9 +81,9 @@ function CharacterRow({
           <span className="flex flex-wrap items-center gap-[6px]">
             <Pill tone="neutral">ID {character.characterId}</Pill>
             {isActive ? <Pill tone="green">Active</Pill> : null}
-            {view.healthLabel ? (
+            {status.healthLabel ? (
               <Pill tone="orange" className="shrink-0 normal-case">
-                {view.healthLabel}
+                {status.healthLabel}
               </Pill>
             ) : null}
           </span>
@@ -93,17 +93,17 @@ function CharacterRow({
             characterId={character.characterId}
             isActive={isActive}
             isOnlyCharacter={isOnlyCharacter}
-            needsReconnect={view.needsReconnect}
+            needsReconnect={status.needsReconnect}
           />
         }
       />
-      {view.authorizationDelayed ? (
+      {status.authorizationDelayed ? (
         <Callout className="mx-3.5 my-2" label="Verification delayed">
           We couldn&apos;t verify this character with EVE. Shared access through this character is
           paused while we retry automatically. Access resumes when verification succeeds.
         </Callout>
       ) : null}
-      {view.scopes.length > 0 ? (
+      {status.scopes.length > 0 ? (
         <Collapsible
           className="border-b-0"
           headerClassName="px-3.5 py-[6px]"
@@ -112,12 +112,12 @@ function CharacterRow({
               <span className="text-label uppercase tracking-label text-muted">
                 Granted access
               </span>
-              <Pill tone="neutral">{view.scopes.length}</Pill>
+              <Pill tone="neutral">{status.scopes.length}</Pill>
               <CollapsibleChevron className="ml-auto" />
             </span>
           }
         >
-          <GrantedScopesList scopes={view.scopes} />
+          <GrantedScopesList scopes={status.scopes} />
         </Collapsible>
       ) : null}
     </div>

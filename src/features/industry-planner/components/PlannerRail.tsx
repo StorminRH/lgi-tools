@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { backAction, Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { StarIcon } from '@/components/ui/icons';
 import { LivePrice } from '@/components/ui/live-price';
@@ -15,8 +15,8 @@ import { activityLabel } from '@/data/eve-data/constants';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
-import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { startEveSignIn } from '@/platform/auth/link-character';
 import { batchedCostOfRows } from '../cost-basis-view';
 import { useFavoriteBlueprints } from '../favorite-blueprints';
 import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
@@ -65,7 +65,7 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
         <Link
           href={SEARCH_HREF}
           transitionTypes={['industry-tab']}
-          className="mb-2 inline-flex items-center gap-2 self-start rounded-ctl py-1 font-data text-ui text-muted no-underline hover:text-isk"
+          className={cn(backAction, 'mb-2 no-underline')}
         >
           <span aria-hidden>←</span> Back to search
         </Link>
@@ -90,7 +90,6 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
           {...blueprintImage(structure.blueprintTypeId)}
           size={112}
           alt={structure.product.name}
-          mono={structure.product.name.slice(0, 2)}
           className="rounded-card shadow-cta-glow"
         />
         <BuildSteppers structure={structure} />
@@ -117,7 +116,7 @@ function ProfileSwitch() {
       <Button
         variant="primary"
         className={ctaClass}
-        onClick={() => void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: PROFILES_HREF })}
+        onClick={() => startEveSignIn(PROFILES_HREF)}
       >
         Create a profile
       </Button>

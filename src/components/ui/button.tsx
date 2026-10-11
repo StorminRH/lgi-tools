@@ -35,6 +35,10 @@ export const buttonVariants = cva(
   },
 );
 
+/** The quiet "← All …" way back out of a focused view, on a bare Button or a Link. */
+export const backAction =
+  'inline-flex items-center gap-2 self-start rounded-ctl py-1 font-data text-ui text-muted hover:text-isk';
+
 export type StyledButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant'> & {
   variant?: NonNullable<VariantProps<typeof buttonVariants>['variant']>;
 };

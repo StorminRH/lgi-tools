@@ -1,6 +1,4 @@
-'use client';
-
-import { Button } from '@/components/ui/button';
+import { ConfirmActionForm } from '@/components/ui/confirm-action-form';
 
 /** Offered only for characters on another account: the page leaves it out for the viewing admin's own. */
 export function AdminReassignCharacterForm({
@@ -13,24 +11,13 @@ export function AdminReassignCharacterForm({
   fromUserId: string;
 }) {
   return (
-    <form
-      method="POST"
+    <ConfirmActionForm
       action="/api/admin/characters/reassign"
-      onSubmit={(e) => {
-        if (
-          !window.confirm(
-            `Move ${characterName} (ID ${characterId}) onto your account? If this leaves the source account empty, it will be removed.`,
-          )
-        ) {
-          e.preventDefault();
-        }
-      }}
+      fields={{ characterId, fromUserId }}
+      confirm={`Move ${characterName} (ID ${characterId}) onto your account? If this leaves the source account empty, it will be removed.`}
+      className="text-isk whitespace-nowrap"
     >
-      <input type="hidden" name="characterId" value={characterId} />
-      <input type="hidden" name="fromUserId" value={fromUserId} />
-      <Button type="submit" variant="secondary" size="sm" className="text-isk whitespace-nowrap">
-        Reassign to me
-      </Button>
-    </form>
+      Reassign to me
+    </ConfirmActionForm>
   );
 }

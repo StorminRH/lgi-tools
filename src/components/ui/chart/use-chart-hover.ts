@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { useTooltip } from '@visx/tooltip';
-import { useCssomTooltip } from '../use-cssom-tooltip';
+import { useCssomTooltip } from './use-cssom-tooltip';
 
 export function useChartHover<T>() {
   const svgRef = useRef<SVGSVGElement>(null);

@@ -2,15 +2,11 @@
 
 import { LinePath } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
-import { type SparklineTone } from './sparkline';
-import { toneHex } from './tones';
+import { toneHex, type ChartTone } from './tones';
 import { dailyChartModel, type DailyHoverPoint } from './chart/daily-chart-geometry';
-import { tickAnchor, tickIndices } from './chart/chart-geometry';
-import { useChartHover } from './chart/use-chart-hover';
-import { ChartCanvas } from './chart/chart-canvas';
-import { ValueAxisGrid } from './chart/value-axis';
-import { HoverCaptureRect, HoverCrosshair } from './chart/hover-layer';
-import { continuousHoverHandler } from './chart/hover';
+import { formatPlainValue, identityLabel } from './chart/chart-geometry';
+import { TimeSeriesFrame } from './chart/chart-frame';
+import { ChartBaseline, ValueAxisGrid } from './chart/value-axis';
 
 type NumericScale = (value: number) => number;
 
@@ -28,21 +24,16 @@ export type AnnotatedDailyChartProps = {
   referenceLine: { value: number; label: string } | null;
   eventMarkers?: { x: number; label: string }[];
   endLabel?: EndLabel;
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
-  className?: string;
   yTicks?: number;
-  xTicks?: number;
   formatY?: (y: number) => string;
   formatTick?: (label: string) => string;
   ariaLabel?: string;
 };
 
 const MARGIN = { top: 10, right: 66, bottom: 24, left: 44 };
-
-const formatNumber = (value: number): string => String(value);
-const identity = (label: string): string => label;
 
 function DailyBars({
   points,
@@ -194,36 +185,6 @@ function ChartEndLabel({ endLabel, x, y }: { endLabel: EndLabel | undefined; x: 
   );
 }
 
-function DailyXAxis({
-  idx,
-  labels,
-  xScale,
-  y,
-  formatTick,
-}: {
-  idx: number[];
-  labels: string[];
-  xScale: NumericScale;
-  y: number;
-  formatTick: (label: string) => string;
-}) {
-  return (
-    <>
-      {idx.map((i) => (
-        <text
-          key={i}
-          x={xScale(i)}
-          y={y}
-          textAnchor={tickAnchor(i, labels.length)}
-          className="fill-[var(--color-muted)] font-data text-micro"
-        >
-          {formatTick(labels[i] ?? '')}
-        </text>
-      ))}
-    </>
-  );
-}
-
 function DailyTooltip({ datum, formatY }: { datum: DailyHoverPoint; formatY: (y: number) => string }) {
   return (
     <>
@@ -245,18 +206,14 @@ export function AnnotatedDailyChart({
   tone = 'blue',
   width = 520,
   height = 220,
-  className,
   yTicks = 4,
-  xTicks = 5,
-  formatY = formatNumber,
-  formatTick = identity,
+  formatY = formatPlainValue,
+  formatTick = identityLabel,
   ariaLabel = 'Daily activity chart',
 }: AnnotatedDailyChartProps) {
-  const hover = useChartHover<DailyHoverPoint>();
-  const fill = toneHex[tone];
-
   if (points.length === 0) return null;
 
+  const fill = toneHex[tone];
   const innerBottom = height - MARGIN.bottom;
   const plotLeft = MARGIN.left;
   const plotRight = width - MARGIN.right;
@@ -280,39 +237,23 @@ export function AnnotatedDailyChart({
   });
 
   const yTickValues = yScale.ticks(yTicks).filter(Number.isInteger);
-  const xTickIdx = tickIndices(points.length, xTicks);
   const endY = Math.min(Math.max(yScale(model.lastAvg), MARGIN.top + 8), innerBottom - 18);
 
-  const handleMove = continuousHoverHandler({
-    svgRef: hover.svgRef,
-    xScale,
-    yScale,
-    xs: model.xs,
-    data: model.hover,
-    showTooltip: hover.showTooltip,
-  });
-  const datum = hover.tooltipData;
-
   return (
-    <ChartCanvas
-      svgRef={hover.svgRef}
+    <TimeSeriesFrame
+      points={model.hover}
+      xScale={xScale}
+      yScale={yScale}
       width={width}
       height={height}
+      margin={MARGIN}
       ariaLabel={ariaLabel}
-      className={className}
-      tooltipRef={hover.tooltipRef}
-      tooltipOpen={hover.tooltipOpen}
-      tooltip={datum && <DailyTooltip datum={datum} formatY={formatY} />}
+      crosshairColor={fill}
+      formatTick={formatTick}
+      renderTooltip={(datum) => <DailyTooltip datum={datum} formatY={formatY} />}
     >
       <ValueAxisGrid ticks={yTickValues} y={yScale} left={plotLeft} right={plotRight} format={formatY} />
-      <line
-        x1={plotLeft}
-        x2={plotRight}
-        y1={innerBottom}
-        y2={innerBottom}
-        className="stroke-[var(--color-border)]"
-        strokeWidth={1}
-      />
+      <ChartBaseline left={plotLeft} right={plotRight} y={innerBottom} />
       <DailyBars
         points={points}
         weekend={weekend}
@@ -326,23 +267,6 @@ export function AnnotatedDailyChart({
       <ReferenceLine reference={referenceLine} yScale={yScale} left={plotLeft} right={plotRight} />
       <MovingAverageLine average={average} xScale={xScale} yScale={yScale} />
       <ChartEndLabel endLabel={endLabel} x={model.endX} y={endY} />
-      <DailyXAxis idx={xTickIdx} labels={labels} xScale={xScale} y={height - 6} formatTick={formatTick} />
-      <HoverCrosshair
-        open={hover.tooltipOpen}
-        left={hover.tooltipLeft}
-        top={hover.tooltipTop}
-        y1={MARGIN.top}
-        y2={innerBottom}
-        color={fill}
-      />
-      <HoverCaptureRect
-        x={plotLeft}
-        y={MARGIN.top}
-        width={Math.max(0, plotRight - plotLeft)}
-        height={Math.max(0, innerBottom - MARGIN.top)}
-        onMove={handleMove}
-        onLeave={hover.hideTooltip}
-      />
-    </ChartCanvas>
+    </TimeSeriesFrame>
   );
 }

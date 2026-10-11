@@ -9,10 +9,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { eyebrow } from '@/components/ui/type-roles';
-import { useSystemSearch } from '@/components/use-system-search';
-import { securityStatusTextClass } from '@/data/eve-data/security';
+import { useSystemsById } from '@/components/use-system-search';
 import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
-import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { StructureComposer } from '@/features/custom-structures/components/StructureComposer';
 import type { CustomStructureRow } from '@/features/custom-structures/types';
 import { StructureBonusColumns } from '@/features/industry-planner/components/structure-bonus-readout';
@@ -25,6 +24,7 @@ import { unresolvedName } from '@/lib/format/names';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { FacilitySubline } from './facility-subline';
 import { type NewStructure, settleNewStructure, useNewStructureRequest } from './structures-panel';
 
 type Filter = 'all' | 'corp' | 'yours';
@@ -43,15 +43,14 @@ const rowGrid =
 
 interface Lookups {
   types: StructureTypeOption[];
-  systems: SystemSearchEntry[];
+  systemsById: ReadonlyMap<number, SystemSearchEntry> | null;
   available: Map<string, AvailableStructure>;
 }
 
 function readoutFor(lookups: Lookups, id: string, systemId: number | null): StructureReadout {
   const structure = lookups.available.get(id);
   if (!structure) return NO_READOUT;
-  const security = lookups.systems.find((s) => s.id === systemId)?.security ?? null;
-  return structureBonusesAt(structure, security);
+  return structureBonusesAt(structure, lookupSystem(lookups.systemsById, systemId)?.security ?? null);
 }
 
 function StructureRow({
@@ -72,7 +71,7 @@ function StructureRow({
   action: ReactNode;
 }) {
   const hull = lookups.types.find((t) => t.typeId === typeId) ?? null;
-  const system = lookups.systems.find((s) => s.id === systemId) ?? null;
+  const system = lookupSystem(lookups.systemsById, systemId);
   return (
     <li className={cn(rowGrid, 'group items-center gap-x-3 gap-y-2 px-2 py-2.5 sm:gap-y-1.5')}>
       <span className="[grid-area:tile]">
@@ -80,15 +79,7 @@ function StructureRow({
       </span>
       <div className="flex min-w-0 flex-col gap-1 [grid-area:name]">
         <span className="truncate font-ui text-nav font-medium text-name">{name}</span>
-        <span className="truncate font-data text-micro text-muted">
-          {hull?.name ?? 'Structure'}
-          {system ? (
-            <>
-              {' · '}
-              {system.name} <span className={securityStatusTextClass(system.security)}>{formatSec(system.security)}</span>
-            </>
-          ) : null}
-        </span>
+        <FacilitySubline kind={hull?.name ?? 'Structure'} system={system} />
       </div>
       <span className="[--bonus-label-col:2.5rem] [grid-area:readout] sm:self-end sm:justify-self-end sm:[--bonus-label-col:auto]">
         <StructureBonusColumns readout={readout} taxPct={taxPct} />
@@ -249,10 +240,10 @@ function YoursGroup({
 
 function useLookups(structureTypes: StructureTypeOption[]): Lookups {
   const available = useAvailableStructures();
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   return useMemo<Lookups>(
-    () => ({ types: structureTypes, systems, available: new Map((available ?? []).map((s) => [s.id, s])) }),
-    [structureTypes, systems, available],
+    () => ({ types: structureTypes, systemsById, available: new Map((available ?? []).map((s) => [s.id, s])) }),
+    [structureTypes, systemsById, available],
   );
 }
 

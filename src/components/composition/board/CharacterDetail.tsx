@@ -2,7 +2,7 @@
 
 import { type Ref, ViewTransition } from 'react';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
-import { Button } from '@/components/ui/button';
+import { backAction, Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import type { BoardCharacter, BoardHistoryDay, SkillCatalogGroup } from '@/composition/board/api-contract';
 import { AddCharacter } from './AddCharacter';
@@ -43,12 +43,7 @@ export function CharacterDetail({
       {onBack !== undefined && (
         <ViewTransition {...SHEET_MOTION} default="none">
           <div className="xl:col-span-2">
-            <Button
-              ref={backRef}
-              variant="bare"
-              onClick={onBack}
-              className="gap-2 rounded-ctl py-1 font-data text-ui text-muted hover:text-isk"
-            >
+            <Button ref={backRef} variant="bare" onClick={onBack} className={backAction}>
               <span aria-hidden>←</span> All characters
             </Button>
           </div>

@@ -33,10 +33,25 @@ export function snapEveImageSize(
   return EVE_IMAGE_SIZES.at(-1)!;
 }
 
-export function characterPortraitUrl(characterId: number, size: EveImageSize = 64): string {
-  return `${IMAGE_HOST}/characters/${characterId}/portrait?size=${size}`;
+const FAMILY_PATH: Record<EveImageFamily, (id: number) => string> = {
+  'character-portrait': (id) => `characters/${id}/portrait`,
+  'corporation-logo': (id) => `corporations/${id}/logo`,
+  'alliance-logo': (id) => `alliances/${id}/logo`,
+  'type-icon': (id) => `types/${id}/icon`,
+  'type-render': (id) => `types/${id}/render`,
+  'type-bp': (id) => `types/${id}/bp`,
+  'type-bpc': (id) => `types/${id}/bpc`,
+};
+
+/**
+ * The image-server URL for one entity's image. EveImage's loader rewrites
+ * the size to fit the box it renders, so the size here only matters to a
+ * URL that is stored or used outside EveImage.
+ */
+export function eveImageSrc(family: EveImageFamily, id: number, size: EveImageSize = 64): string {
+  return `${IMAGE_HOST}/${FAMILY_PATH[family](id)}?size=${size}`;
 }
 
-export function corporationLogoUrl(corporationId: number, size: EveImageSize = 64): string {
-  return `${IMAGE_HOST}/corporations/${corporationId}/logo?size=${size}`;
+export function characterPortraitUrl(characterId: number, size: EveImageSize = 64): string {
+  return eveImageSrc('character-portrait', characterId, size);
 }
