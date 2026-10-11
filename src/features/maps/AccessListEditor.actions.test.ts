@@ -58,4 +58,8 @@ test('revoking asks first, removes the grant on confirm, and the closing dialog 
   expect(onPrincipalRemove).toHaveBeenCalledExactlyOnceWith(grant);
   expect(dialogProbe.root?.open).toBe(false);
   expect(html).toContain(consequence);
+
+  // A second click on the fading dialog's confirm button revokes nothing more.
+  ui.presses.get('Revoke access')?.();
+  expect(onPrincipalRemove).toHaveBeenCalledOnce();
 });
