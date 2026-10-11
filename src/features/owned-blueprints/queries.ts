@@ -1,6 +1,6 @@
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
-import { directDatabase } from '@/db/direct-database';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import type { PostgresJsDb } from '@/lib/db-types';
@@ -83,36 +83,32 @@ export async function saveOwnedBlueprints(
   etags: string[],
   options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
-  const database = options.database ?? directDatabase();
   const now = new Date();
-  await database.transaction(async (tx) => {
-    await tx.insert(ownedBlueprintSyncs)
-      .values({ ...owner, lastRefreshedAt: now, pageEtags: etags })
+  const outcome = await replaceOwnerSnapshot({
+    lock: (tx) => tx
+      .insert(ownedBlueprintSyncs)
+      .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })
       .onConflictDoUpdate({
         target: [ownedBlueprintSyncs.ownerType, ownedBlueprintSyncs.ownerId],
         set: { lastRefreshedAt: now, pageEtags: etags },
-      });
-    await tx
-      .delete(ownedBlueprints)
-      .where(ownerKeyWhere(ownedBlueprints, owner));
-    if (rows.length > 0) {
-      await tx.insert(ownedBlueprints).values(
-        rows.map((r) => ({
-          ownerType: owner.ownerType,
-          ownerId: owner.ownerId,
-          itemId: r.item_id,
-          typeId: r.type_id,
-          materialEfficiency: r.material_efficiency,
-          timeEfficiency: r.time_efficiency,
-          runs: r.runs,
-          quantity: r.quantity,
-          locationId: r.location_id,
-          locationFlag: r.location_flag,
-        })),
-      );
-    }
-  });
-  revalidateTag(ownedBlueprintsTag(owner), 'max');
+      }),
+    replace: async (tx) => {
+      await tx.delete(ownedBlueprints).where(ownerKeyWhere(ownedBlueprints, owner));
+      await insertInBatches(tx, ownedBlueprints, rows.map((r) => ({
+        ownerType: owner.ownerType,
+        ownerId: owner.ownerId,
+        itemId: r.item_id,
+        typeId: r.type_id,
+        materialEfficiency: r.material_efficiency,
+        timeEfficiency: r.time_efficiency,
+        runs: r.runs,
+        quantity: r.quantity,
+        locationId: r.location_id,
+        locationFlag: r.location_flag,
+      })));
+    },
+  }, options.database);
+  if (outcome === 'saved') revalidateTag(ownedBlueprintsTag(owner), 'max');
 }
 
 export async function stampBlueprintFresh(owner: OwnerKey): Promise<void> {

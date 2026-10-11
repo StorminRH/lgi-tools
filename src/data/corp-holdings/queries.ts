@@ -1,15 +1,12 @@
 import { and, eq, inArray, notInArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
-import { directDatabase } from '@/db/direct-database';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
-import { chunk } from '@/lib/array';
 import { excluded } from '@/lib/db-upsert';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
 import { type CorpHoldingContext, type HoldingIndex, toHoldingNodes } from './placement';
 import { corpHoldingNodes, corpMemberBases, corpProfiles } from './schema';
-
-const NODE_INSERT_BATCH = 1000;
 
 function holdingsTag(corporationId: number): string {
   return `corp-holdings:${corporationId}`;
@@ -55,30 +52,34 @@ export async function getCorpHoldingContext(corporationId: number): Promise<Corp
 }
 
 /**
- * Replace a corporation's placement tree inside the caller's transaction. It
+ * Replace a corporation's placement tree on the caller's transaction. It
  * neither swallows a unique violation nor invalidates: the transaction owner
  * maps a lost race to 'superseded' and calls invalidateHoldingNodes after commit.
  */
-export async function saveHoldingNodes(
+export async function replaceHoldingNodes(
+  tx: AnyPgDb,
   corporationId: number,
   index: HoldingIndex,
   refreshedAt: Date,
-  tx: AnyPgDb,
 ): Promise<void> {
-  const rows = toHoldingNodes(index).map((node) => ({
+  await tx.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
+  await insertInBatches(tx, corpHoldingNodes, toHoldingNodes(index).map((node) => ({
     ...node,
     corporationId,
     refreshedAt,
     containers: [...node.containers],
-  }));
-  await tx.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
-  for (const batch of chunk(rows, NODE_INSERT_BATCH)) await tx.insert(corpHoldingNodes).values(batch);
+  })));
 }
 
 export function invalidateHoldingNodes(corporationId: number): void {
   revalidateTag(holdingsTag(corporationId), 'max');
 }
 
+/**
+ * The profile upsert takes the corporation's lock before its member bases are
+ * replaced, so freshness, HQ, and bases commit together as one authorization
+ * snapshot.
+ */
 export async function saveCorpProfile(
   corporationId: number,
   profile: CorpProfile,
@@ -86,21 +87,19 @@ export async function saveCorpProfile(
   refreshedAt: Date,
   options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
-  const database = options.database ?? directDatabase();
-  await database.transaction(async (tx) => {
-    // The profile write serializes corporation refreshes before replacing its bases.
-    // Freshness, HQ, and bases commit together as one authorization snapshot.
-    await tx
+  const outcome = await replaceOwnerSnapshot({
+    lock: (tx) => tx
       .insert(corpProfiles)
       .values({ corporationId, ...profile, lastRefreshedAt: refreshedAt })
-      .onConflictDoUpdate({ target: corpProfiles.corporationId, set: { ...profile, lastRefreshedAt: refreshedAt } });
-    await tx
-      .delete(corpMemberBases)
-      .where(and(
-        eq(corpMemberBases.corporationId, corporationId),
-        notInArray(corpMemberBases.characterId, bases.map((base) => base.characterId)),
-      ));
-    if (bases.length > 0) {
+      .onConflictDoUpdate({ target: corpProfiles.corporationId, set: { ...profile, lastRefreshedAt: refreshedAt } }),
+    replace: async (tx) => {
+      await tx
+        .delete(corpMemberBases)
+        .where(and(
+          eq(corpMemberBases.corporationId, corporationId),
+          notInArray(corpMemberBases.characterId, bases.map((base) => base.characterId)),
+        ));
+      if (bases.length === 0) return;
       await tx
         .insert(corpMemberBases)
         .values(bases.map((base) => ({ corporationId, ...base })))
@@ -108,9 +107,9 @@ export async function saveCorpProfile(
           target: corpMemberBases.characterId,
           set: { corporationId, baseId: excluded(corpMemberBases.baseId) },
         });
-    }
-  });
-  revalidateTag(profileTag(corporationId), 'max');
+    },
+  }, options.database);
+  if (outcome === 'saved') revalidateTag(profileTag(corporationId), 'max');
 }
 
 export async function readCorpProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null> {

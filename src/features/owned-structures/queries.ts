@@ -1,6 +1,7 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import { getSystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
@@ -56,6 +57,10 @@ export async function listCorpStructureSyncStates(
     .where(inArray(corpStructureSyncs.corporationId, corporationIds));
 }
 
+/**
+ * Replace a corporation's structures under its sync-row lock. The port keeps
+ * Promise<void>: a superseded save changed nothing and invalidates nothing.
+ */
 export async function saveCorpStructures(
   corporationId: number,
   rows: ParsedCorpStructure[],
@@ -63,27 +68,28 @@ export async function saveCorpStructures(
 ): Promise<void> {
   const now = new Date();
   const systems = await getSystemFacts([...new Set(rows.map((r) => r.system_id))]);
-  await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
-  if (rows.length > 0) {
-    await db.insert(corpStructures).values(
-      rows.map((r) => ({
-        corporationId,
-        structureId: r.structure_id,
-        typeId: r.type_id,
-        systemId: r.system_id,
-        securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
-        name: r.name ?? null,
-      })),
-    );
-  }
-  await db
-    .insert(corpStructureSyncs)
-    .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
-    .onConflictDoUpdate({
-      target: corpStructureSyncs.corporationId,
-      set: { lastRefreshedAt: now, pageEtags: etags },
-    });
-  revalidateTag(corpStructuresTag(corporationId), 'max');
+  const records = rows.map((r) => ({
+    corporationId,
+    structureId: r.structure_id,
+    typeId: r.type_id,
+    systemId: r.system_id,
+    securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
+    name: r.name ?? null,
+  }));
+  const outcome = await replaceOwnerSnapshot({
+    lock: (tx) => tx
+      .insert(corpStructureSyncs)
+      .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
+      .onConflictDoUpdate({
+        target: corpStructureSyncs.corporationId,
+        set: { lastRefreshedAt: now, pageEtags: etags },
+      }),
+    replace: async (tx) => {
+      await tx.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
+      await insertInBatches(tx, corpStructures, records);
+    },
+  });
+  if (outcome === 'saved') revalidateTag(corpStructuresTag(corporationId), 'max');
 }
 
 export async function stampCorpStructuresFresh(corporationId: number): Promise<void> {

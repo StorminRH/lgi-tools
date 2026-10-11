@@ -1,13 +1,13 @@
 import { eq } from 'drizzle-orm';
 import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
-import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { countSessionsWaitingOn, createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpHoldingContext,
   readCorpProfileState,
   readCorpMemberContext,
+  replaceHoldingNodes,
   saveCorpProfile as persistCorpProfile,
-  saveHoldingNodes,
   stampCorpProfileFresh,
 } from './queries';
 import { buildHoldingIndex, type CorpAssetItem, type HoldingIndex, placeUnder } from './placement';
@@ -69,14 +69,14 @@ async function committedNodeIds(): Promise<number[]> {
   return rows.map((row) => row.itemId).sort((a, b) => a - b);
 }
 
-function saveHoldingNodesInTransaction(corporationId: number, index: HoldingIndex): Promise<void> {
-  return harness.db.transaction((tx) => saveHoldingNodes(corporationId, index, NOW, tx));
+function replaceHoldingNodesInTransaction(corporationId: number, index: HoldingIndex): Promise<void> {
+  return harness.db.transaction((tx) => replaceHoldingNodes(tx, corporationId, index, NOW));
 }
 
 describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () => {
   it('stores the tree and rebuilds placements from it, with the HQ unknown before a context pass', async () => {
     vi.mocked(revalidateTag).mockClear();
-    await saveHoldingNodesInTransaction(CORP, tree);
+    await replaceHoldingNodesInTransaction(CORP, tree);
     expect(revalidateTag).not.toHaveBeenCalled();
 
     const context = await getCorpHoldingContext(CORP);
@@ -96,10 +96,10 @@ describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () =>
   });
 
   it('replaces the corp tree and leaves other corps alone', async () => {
-    await saveHoldingNodesInTransaction(CORP, tree);
-    await saveHoldingNodesInTransaction(OTHER_CORP, tree);
+    await replaceHoldingNodesInTransaction(CORP, tree);
+    await replaceHoldingNodesInTransaction(OTHER_CORP, tree);
 
-    await saveHoldingNodesInTransaction(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]));
+    await replaceHoldingNodesInTransaction(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]));
 
     expect(await committedNodeIds()).toEqual([7001]);
     expect(placeUnder((await getCorpHoldingContext(OTHER_CORP)).index, CAN, 'Unlocked').kind).toBe('hangar');
@@ -186,18 +186,7 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
         saveCorpProfile(CORP, { ...profile, hqStationId: 60008494 }, [{ characterId: 90002, baseId: 60008494 }], NOW),
         saveCorpProfile(CORP, { ...profile, hqStationId: 60011866 }, [{ characterId: 90003, baseId: 60011866 }], NOW),
       ]);
-      await expect.poll(async () => {
-        const [row] = await harness.sql<{ count: number }[]>`
-          WITH RECURSIVE waiting AS (
-            SELECT pid FROM pg_stat_activity WHERE ${holder!.pid} = ANY(pg_blocking_pids(pid))
-            UNION
-            SELECT activity.pid FROM pg_stat_activity activity
-            JOIN waiting ON waiting.pid = ANY(pg_blocking_pids(activity.pid))
-          )
-          SELECT count(*)::integer AS count FROM waiting
-        `;
-        return row?.count;
-      }, { timeout: 3_000, interval: 20 }).toBe(2);
+      await expect.poll(() => countSessionsWaitingOn(harness.sql, holder!.pid), { timeout: 3_000, interval: 20 }).toBe(2);
       expect((await readCorpMemberContext(CORP, [90001, 90002, 90003]))?.bases).toEqual(new Map([[90001, STATION]]));
       await blocker`COMMIT`;
       await saves;

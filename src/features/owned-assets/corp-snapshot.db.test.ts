@@ -115,6 +115,16 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     expect(rows[0]!.quantity).toBe(division * 11);
   });
 
+  it('stamps the sync row with the new etags and refresh time on every publication', async () => {
+    await save(2, 100, await snapshot(2, 100));
+    await harness.sql`UPDATE owned_asset_syncs SET last_refreshed_at = '2000-01-01T00:00:00Z'`;
+    const before = Date.now();
+    await save(1, 25, await snapshot(1, 25));
+    const state = await readOwnerSyncState(owner);
+    expect(state?.pageEtags).toEqual(['division-1']);
+    expect(state?.lastRefreshedAt?.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
   it('publishes an empty content set together with the moved container', async () => {
     await save(2, 100, await snapshot(2, 100));
     await save(1, 0, await snapshot(1, 0));

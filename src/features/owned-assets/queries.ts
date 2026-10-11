@@ -1,15 +1,14 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
-import { directDatabase } from '@/db/direct-database';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { buildHoldingIndex, type CorpAssetEvidence, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
-import { invalidateHoldingNodes, saveHoldingNodes } from '@/data/corp-holdings/queries';
+import { invalidateHoldingNodes, replaceHoldingNodes } from '@/data/corp-holdings/queries';
 import { decryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import { readCorpAssetSnapshots } from '@/data/esi-snapshots/queries';
-import { isUniqueViolation } from '@/db/pg-errors';
 import { type CorpGrant, type OwnedReadScope } from '@/platform/auth/corp-visibility';
 import {
   type AssetMapInput,
@@ -128,33 +127,9 @@ export async function listCharacterAssetSyncStates(
   return new Map(rows.map(({ ownerId, ...state }) => [ownerId, state]));
 }
 
-/** Replace the owner's rows, then stamp its sync row. Throws on any failure; the caller owns the outcome. */
-async function writeOwnedAssets(
-  database: AnyPgDb,
-  owner: OwnerKey,
-  rows: OwnedAsset[],
-  etags: string[],
-  snapshotId: number | null,
-): Promise<void> {
-  const now = new Date();
-  await database
-    .delete(ownedAssets)
-    .where(ownerKeyWhere(ownedAssets, owner));
-  if (rows.length > 0) {
-    await database.insert(ownedAssets).values(
-      rows.map((r) => ({
-        ownerType: owner.ownerType,
-        ownerId: owner.ownerId,
-        typeId: r.type_id,
-        quantity: r.quantity,
-        locationId: r.location_id,
-        locationFlag: r.location_flag,
-        locationType: r.location_type,
-        snapshotId,
-      })),
-    );
-  }
-  await database
+/** Upsert the owner's sync row with the new etags: the first step of every replace, and the lock it holds. */
+function upsertAssetSync(owner: OwnerKey, etags: string[], now: Date) {
+  return (tx: AnyPgDb) => tx
     .insert(ownedAssetSyncs)
     .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })
     .onConflictDoUpdate({
@@ -163,20 +138,38 @@ async function writeOwnedAssets(
     });
 }
 
-/** Publish a character's assets; a refresh that loses the insert race is 'superseded' and stamps nothing. */
+/** Delete and re-insert the owner's rows on the caller's transaction. */
+async function replaceOwnerAssetRows(
+  tx: AnyPgDb,
+  owner: OwnerKey,
+  rows: OwnedAsset[],
+  snapshotId: number | null,
+): Promise<void> {
+  await tx.delete(ownedAssets).where(ownerKeyWhere(ownedAssets, owner));
+  await insertInBatches(tx, ownedAssets, rows.map((r) => ({
+    ownerType: owner.ownerType,
+    ownerId: owner.ownerId,
+    typeId: r.type_id,
+    quantity: r.quantity,
+    locationId: r.location_id,
+    locationFlag: r.location_flag,
+    locationType: r.location_type,
+    snapshotId,
+  })));
+}
+
+/** Publish a character's assets under its sync-row lock; a unique violation is 'superseded' and changes nothing. */
 export async function saveOwnedAssets(
   owner: OwnerKey,
   rows: OwnedAsset[],
   etags: string[],
 ): Promise<'saved' | 'superseded'> {
-  try {
-    await writeOwnedAssets(db, owner, rows, etags, null);
-  } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
-    return 'superseded';
-  }
-  revalidateTag(ownedAssetsTag(owner), 'max');
-  return 'saved';
+  const outcome = await replaceOwnerSnapshot({
+    lock: upsertAssetSync(owner, etags, new Date()),
+    replace: (tx) => replaceOwnerAssetRows(tx, owner, rows, null),
+  });
+  if (outcome === 'saved') revalidateTag(ownedAssetsTag(owner), 'max');
+  return outcome;
 }
 
 export async function stampOwnerFresh(owner: OwnerKey): Promise<void> {
@@ -195,26 +188,18 @@ export async function saveCorpOwnedAssets(
   snapshotId: number,
   options: { database?: PostgresJsDb } = {},
 ): Promise<'saved' | 'superseded'> {
-  const database = options.database ?? directDatabase();
   const owner = { ownerType: 'corporation', ownerId: corporationId } as const;
-  try {
-    await database.transaction(async (tx) => {
-      // Upsert first: it locks even a corporation's initial publication, making
-      // concurrent refreshes replace complete snapshots rather than interleave.
-      await tx.insert(ownedAssetSyncs).values({
-        ...owner, lastRefreshedAt: new Date(), pageEtags: etags,
-      }).onConflictDoUpdate({
-        target: [ownedAssetSyncs.ownerType, ownedAssetSyncs.ownerId],
-        set: { pageEtags: etags },
-      });
-      await saveHoldingNodes(corporationId, index, new Date(), tx);
-      await writeOwnedAssets(tx, owner, rows, etags, snapshotId);
-    });
-  } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
-    return 'superseded';
+  const refreshedAt = new Date();
+  const outcome = await replaceOwnerSnapshot({
+    lock: upsertAssetSync(owner, etags, refreshedAt),
+    replace: async (tx) => {
+      await replaceHoldingNodes(tx, corporationId, index, refreshedAt);
+      await replaceOwnerAssetRows(tx, owner, rows, snapshotId);
+    },
+  }, options.database);
+  if (outcome === 'saved') {
+    invalidateHoldingNodes(corporationId);
+    revalidateTag(ownedAssetsTag(owner), 'max');
   }
-  invalidateHoldingNodes(corporationId);
-  revalidateTag(ownedAssetsTag(owner), 'max');
-  return 'saved';
+  return outcome;
 }
