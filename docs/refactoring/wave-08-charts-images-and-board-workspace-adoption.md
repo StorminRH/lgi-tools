@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#674](https://github.com/StorminRH/lgi-tools/pull/674).
+
 ← [Wave 7: UI kit primitives (src/components/ui)](wave-07-ui-kit-primitives-src-components-ui.md) · [Index](README.md#roadmap) · [Wave 9: Auth, routes and the mutation/transport pipeline](wave-09-auth-routes-and-the-mutation-transport-pipeline.md) →
 
 Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the sparkline module, then tidy the board domain. Route all EVE images through eveImageSrc, with TypeIcon and CharacterPortrait on top. Add SecurityStatus/useSystemsById and the facility helpers, the shared focus rail, ActionForm, one status-level tone, and signOutAndLeave/startEveSignIn. Last, route page metadata through buildPageMetadata, which uses P247's route ids.
