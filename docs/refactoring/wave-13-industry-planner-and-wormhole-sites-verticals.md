@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#681](https://github.com/StorminRH/lgi-tools/pull/681).
+
 ← [Wave 12: Market data, search and client data reads](wave-12-market-data-search-and-client-data-reads.md) · [Index](README.md#roadmap) · [Wave 14: Convex backend helpers](wave-14-convex-backend-helpers.md) →
 
 Planner: one efficiency module, then MeField/TeField reading context, then ledger parts. StructureFactors is built once, which unblocks P070 (adjusted prices seeded once, build-location endpoint retired; medium risk, high payoff). Then the batch ledger once, pricedTypeIds and shell glue. Wormhole sites: site class (on P042's taxonomy), then site type, then one site-detail assembly, then the EWAR module, the live-priced guard and deletion of the module-global site index. P298 in wave 15 depends on that deletion.
