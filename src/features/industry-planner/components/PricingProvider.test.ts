@@ -9,12 +9,16 @@ vi.mock('@/components/ui/loading-toast', () => ({
   useLoadingToast: () => undefined,
 }));
 
-vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
-  useRefreshOnView: () => ({
+const h = vi.hoisted(() => ({
+  useRefreshOnView: vi.fn((_typeIds: number[]) => ({
     prices: new Map(),
     isPending: () => false,
     refreshing: false,
-  }),
+  })),
+}));
+
+vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
+  useRefreshOnView: h.useRefreshOnView,
 }));
 
 vi.mock('@/data/market-history/use-refresh-on-view', () => ({
@@ -93,5 +97,46 @@ describe('PricingProvider', () => {
     expect(markup).toContain(
       '<output data-seeded="false" data-runs="1" data-location="none" data-profile="none" data-skills="false" data-ledger="0">contexts-ready</output>',
     );
+  });
+
+  it('refreshes every type the server prices: raws, the product, then intermediates', () => {
+    const structure: BlueprintStructure = {
+      ...STRUCTURE,
+      tree: [
+        {
+          typeId: 500,
+          quantity: 2,
+          producedBy: { blueprintTypeId: 1500, quantityPerRun: 1, runsNeeded: 2 },
+          inputs: [{ typeId: 34, quantity: 100, inputs: [] }],
+        },
+        { typeId: 35, quantity: 50, inputs: [] },
+      ],
+      buildTree: [
+        {
+          typeId: 200,
+          quantity: 1,
+          inputs: [
+            { typeId: 500, quantity: 2, inputs: [{ typeId: 34, quantity: 100, inputs: [] }] },
+            { typeId: 35, quantity: 50, inputs: [] },
+          ],
+        },
+      ],
+      buildNodeDisplay: {
+        200: { name: 'Context Contract', height: 2, isRaw: false, label: 'Item', tone: 'teal' },
+        500: { name: 'Subassembly', height: 1, isRaw: false, label: 'Component', tone: 'blue' },
+        34: { name: 'Tritanium', height: 0, isRaw: true, label: 'Mineral', tone: 'neutral' },
+        35: { name: 'Pyerite', height: 0, isRaw: true, label: 'Mineral', tone: 'neutral' },
+      },
+    };
+    renderToStaticMarkup(
+      createElement(TestPricingProvider, {
+        structure,
+        pricingPromise: pendingPricing,
+        historyPromise: pendingHistory,
+        adjustedPricesPromise: pendingAdjustedPrices,
+      }),
+    );
+
+    expect(h.useRefreshOnView.mock.lastCall?.[0]).toEqual([34, 35, 200, 500]);
   });
 });

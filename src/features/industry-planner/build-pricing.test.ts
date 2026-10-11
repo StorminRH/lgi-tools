@@ -4,7 +4,7 @@ import { computeBatchLedger } from './build-batch';
 import { deriveMarginFigures } from './industry-styles';
 import {
   assemblePricing,
-  collectIntermediateTypeIds,
+  pricedTypeIds,
   type PriceLite,
 } from './build-pricing';
 import type { CostBasis } from './cost-basis-view';
@@ -147,20 +147,32 @@ const BUILD_TREE: BuildNode[] = [
   },
 ];
 
-test('collectIntermediateTypeIds returns buildable non-root nodes once, excluding roots and raws', () => {
-  expect(collectIntermediateTypeIds(BUILD_TREE, DISPLAY)).toEqual([500]);
+test('pricedTypeIds lists the raws, the product, then the intermediates, each once', () => {
+  const structure: BlueprintStructure = {
+    ...STRUCTURE,
+    tree: [
+      {
+        typeId: 500,
+        quantity: 2,
+        producedBy: { blueprintTypeId: 1500, quantityPerRun: 1, runsNeeded: 2 },
+        inputs: [{ typeId: 34, quantity: 100, inputs: [] }],
+      },
+      { typeId: 35, quantity: 50, inputs: [] },
+    ],
+    buildTree: BUILD_TREE,
+    buildNodeDisplay: DISPLAY,
+  };
+  expect(pricedTypeIds(structure)).toEqual([34, 35, 999, 500]);
 
-  const shared: BuildNode[] = [
-    {
-      typeId: 999,
-      quantity: 1,
-      inputs: [
-        { typeId: 500, quantity: 2, inputs: [] },
-        { typeId: 500, quantity: 3, inputs: [] },
-      ],
-    },
-  ];
-  expect(collectIntermediateTypeIds(shared, DISPLAY)).toEqual([500]);
+  // A product or intermediate that also turns up among the raws keeps its first place.
+  const repeated: BlueprintStructure = {
+    ...structure,
+    tree: [
+      { typeId: 500, quantity: 2, inputs: [] },
+      { typeId: 999, quantity: 1, inputs: [] },
+    ],
+  };
+  expect(pricedTypeIds(repeated)).toEqual([500, 999]);
 });
 
 describe('assemblePricing intermediate side-channel', () => {
@@ -201,6 +213,21 @@ describe('assemblePricing intermediate side-channel', () => {
       },
     ]);
     expect(pricing.summary.inputCost).toBe(650);
+  });
+
+  it('prices an intermediate the build tree reaches twice once', () => {
+    const shared: BuildNode[] = [
+      {
+        typeId: 999,
+        quantity: 1,
+        inputs: [
+          { typeId: 500, quantity: 2, inputs: [] },
+          { typeId: 500, quantity: 3, inputs: [] },
+        ],
+      },
+    ];
+    const pricing = assemblePricing({ ...structure, buildTree: shared }, (typeId) => PRICES[typeId]);
+    expect(pricing.intermediatePrices.map((p) => p.typeId)).toEqual([500]);
   });
 });
 

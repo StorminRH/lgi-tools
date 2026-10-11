@@ -13,7 +13,9 @@ import {
   type PriceOf,
 } from '@/data/industry-math/profitability';
 import type { PlainPriceFigures, PriceSource } from '@/data/market-prices/types';
+import { dedupe } from '@/lib/array';
 import {
+  collectRawTypeIds,
   computeBatchLedger,
   computeMarginalDemand,
   feeJobs,
@@ -80,7 +82,7 @@ function rowPriceFields(p: PriceLite | undefined): RowPriceFields {
   };
 }
 
-export function collectIntermediateTypeIds(
+function collectIntermediateTypeIds(
   buildTree: BuildNode[],
   display: Record<number, BuildNodeDisplay>,
 ): number[] {
@@ -95,6 +97,21 @@ export function collectIntermediateTypeIds(
   };
   for (const root of buildTree) walk(root);
   return [...out];
+}
+
+/**
+ * Every type assemblePricing reads: the raw materials, the product, then the
+ * intermediates, each once. The server prices exactly these ids and the
+ * client refreshes them, so the two cannot drift apart.
+ */
+export function pricedTypeIds(
+  structure: Pick<BlueprintStructure, 'tree' | 'product' | 'buildTree' | 'buildNodeDisplay'>,
+): number[] {
+  return dedupe([
+    ...collectRawTypeIds(structure.tree),
+    structure.product.typeId,
+    ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
+  ]);
 }
 
 export interface AssembleOptions {
@@ -271,11 +288,10 @@ export function assemblePricing(
   const intermediatePrices: IntermediatePrice[] = collectIntermediateTypeIds(
     structure.buildTree,
     structure.buildNodeDisplay,
-  ).map((typeId) => ({
-    typeId,
-    bestBuy: priceOf(typeId)?.bestBuy ?? null,
-    ...rowPriceFields(priceOf(typeId)),
-  }));
+  ).map((typeId) => {
+    const p = priceOf(typeId);
+    return { typeId, bestBuy: p?.bestBuy ?? null, ...rowPriceFields(p) };
+  });
 
   return {
     rows,

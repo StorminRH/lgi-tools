@@ -26,7 +26,6 @@ import { apiFetch } from '@/transport/api-client';
 import { industryCostBasis } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,
-  collectRawTypeIds,
   computeBatchLedger,
   type BatchLedger,
   type MeOptions,
@@ -50,10 +49,7 @@ import { useResourceRead } from '@/lib/use-resource-read';
 import { useAvailableStructures } from '../use-available-structures';
 import { typeNamer } from '../type-name';
 import { toMarketScoreInputs } from '../market-score-inputs';
-import {
-  assemblePricing,
-  collectIntermediateTypeIds,
-} from '../build-pricing';
+import { assemblePricing, pricedTypeIds } from '../build-pricing';
 import { mapOwnedBlueprints, type OwnedBlueprintMaps } from '../owned-blueprint-maps';
 import { createPriceSnapshot, type PriceSnapshot } from '../price-snapshot';
 import {
@@ -212,16 +208,7 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
   const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
   const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
   const [ownedAssets, setOwnedAssets] = useState<Map<number, OwnedAssetEntry> | null>(null);
-  const toRefresh = useMemo(
-    () => [
-      ...new Set<number>([
-        ...collectRawTypeIds(structure.tree),
-        structure.product.typeId,
-        ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
-      ]),
-    ],
-    [structure],
-  );
+  const toRefresh = useMemo(() => pricedTypeIds(structure), [structure]);
   const ownedBlueprintTypeIds = useMemo(
     () => collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId),
     [structure],

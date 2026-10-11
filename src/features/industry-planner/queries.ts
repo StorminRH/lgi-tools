@@ -28,7 +28,7 @@ import { dedupe } from '@/lib/array';
 import { unresolvedName } from '@/lib/format/names';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { collectBlueprintTypeIds, collectRawTypeIds, productTypeByBlueprint } from './build-batch';
-import { assemblePricing, collectIntermediateTypeIds } from './build-pricing';
+import { assemblePricing, pricedTypeIds } from './build-pricing';
 import { toBuildTree } from './build-tree';
 import { classifyRaw } from './industry-styles';
 import type {
@@ -200,12 +200,7 @@ export async function getBlueprintPricing(
   const structure = await getBlueprintStructure(blueprintId);
   if (!structure) return null;
 
-  const priceIds = dedupe([
-    ...collectRawTypeIds(structure.tree),
-    structure.product.typeId,
-    ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
-  ]);
-  const priceMap = await getPrices(priceIds);
+  const priceMap = await getPrices(pricedTypeIds(structure));
 
   return assemblePricing(
     structure,
