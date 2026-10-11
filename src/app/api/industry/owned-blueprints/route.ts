@@ -24,7 +24,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
 
   const blueprintTypeIds = Array.from(new Set(parsed.data.blueprintTypeIds));
   const blueprints = await measureOwnedDataRead({
-    endpoint: '/api/industry/owned-blueprints',
+    endpoint: ownedBlueprintsEndpoint,
     requested: blueprintTypeIds.length,
     read: () => getOwnedBlueprintDetailOnView(userId, blueprintTypeIds),
     returned: (value) => value.length,

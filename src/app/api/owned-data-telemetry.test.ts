@@ -15,7 +15,7 @@ describe('measureOwnedDataRead', () => {
     const value = ['a', 'b'];
     await expect(
       measureOwnedDataRead({
-        endpoint: '/api/industry/owned-assets',
+        endpoint: { path: '/api/industry/owned-assets' },
         requested: 5,
         read: () => Promise.resolve(value),
         returned: (rows) => rows.length,
@@ -36,7 +36,7 @@ describe('measureOwnedDataRead', () => {
     const error = new Error('read failed');
     await expect(
       measureOwnedDataRead({
-        endpoint: '/api/account/industry-slots',
+        endpoint: { path: '/api/account/industry-slots' },
         read: () => Promise.reject(error),
         returned: () => 0,
       }),

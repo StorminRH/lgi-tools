@@ -1,17 +1,8 @@
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
-
-export type OwnedDataEndpoint =
-  | '/api/account/board'
-  | '/api/account/industry-slots'
-  | '/api/account/industry-jobs'
-  | '/api/account/corp-industry-jobs'
-  | '/api/industry/skill-levels'
-  | '/api/industry/team-skill-levels'
-  | '/api/industry/owned-blueprints'
-  | '/api/industry/owned-assets';
+import type { EndpointContract } from '@/transport/endpoint';
 
 export interface MeasuredOwnedDataRead<T> {
-  endpoint: OwnedDataEndpoint;
+  endpoint: Pick<EndpointContract, 'path'>;
   requested?: number;
   read: () => Promise<T>;
   returned: (result: T) => number;
@@ -27,7 +18,7 @@ export async function measureOwnedDataRead<T>({
   try {
     const result = await read();
     emitCostMetric('owned_data_read', {
-      endpoint,
+      endpoint: endpoint.path,
       ...(requested === undefined ? {} : { requested }),
       returned: returned(result),
       outcome: 'succeeded',
@@ -36,7 +27,7 @@ export async function measureOwnedDataRead<T>({
     return result;
   } catch (error) {
     emitCostMetric('owned_data_read', {
-      endpoint,
+      endpoint: endpoint.path,
       ...(requested === undefined ? {} : { requested }),
       outcome: 'failed',
       durationMs: Date.now() - startedAt,

@@ -17,7 +17,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | ☑ | [P256](#p256) | Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked | contracts-validation | S | low | low | [P255](#p255) |
 | ☑ | [P250](#p250) | Check runMutationRoute stage failures against the endpoint contract, and derive status only where it varies | contracts-validation | S | low | medium | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P141](#p141) |
 | ☑ | [P306](#p306) | Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight) | simplification | S | low | low | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) |
-| ☐ | [P143](#p143) | Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route | api-route | S | low | low | — |
+| ☑ | [P143](#p143) | Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route | api-route | S | low | low | — |
 | ☐ | [P160](#p160) | Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook | server-pipeline | S | low | low | [P143](#p143) |
 | ☐ | [P153](#p153) | Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell | api-route | S | low | low | — |
 | ☐ | [P149](#p149) | Generalise loadSection into readOr(message, load, fallback) for app-zone degrade reads and use it in AtlasBound and jobCharacterIds | error-handling | S | low | low | — |
@@ -876,7 +876,7 @@ export const characterIdFormSchema = z.object({ characterId: characterIdField })
 
 ## P143: Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -10 / +45 (union removed; corp-structures measurement, route test and guard scan added)
 - **Depends on:** —

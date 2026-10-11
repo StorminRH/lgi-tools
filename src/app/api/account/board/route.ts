@@ -12,7 +12,7 @@ export async function GET(): Promise<Response> {
     return apiResponse(boardEndpoint, 200, { characters: [], skillCatalog: [], history: [] });
   }
   const board = await measureOwnedDataRead({
-    endpoint: '/api/account/board',
+    endpoint: boardEndpoint,
     read: () => getBoardForUserOnView(userId),
     returned: (value) => value.characters.length,
   });
