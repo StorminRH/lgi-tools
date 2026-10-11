@@ -10,7 +10,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P301](#p301) | Fold te-overrides, node-frame-state and override-map into one efficiency module and share the ME/TE factor | simplification | S | low | low | — |
 | ☑ | [P025](#p025) | Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line | ui-component | S | low | medium | [P301](#p301) |
-| ☐ | [P026](#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
+| ☑ | [P026](#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
 | ☐ | [P168](#p168) | Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus | server-pipeline | S | low | low | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
 | ☐ | [P070](#p070) | Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint | client-data | M | medium | high | [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
 | ☐ | [P291](#p291) | Resolve the batch ledger and marginal demand once per assemblePricing call | efficiency | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076) |
@@ -169,7 +169,7 @@ export function BlueprintMetaLine(props: { group: string; activity: string | nul
 
 ## P026: Share the cockpit's ledger column head and item name stack inside industry-planner
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -24 lines at the call sites and +40 in the new file plus test. Net source grows by about 15 lines. The gain is one definition shared by two views.
 - **Depends on:** —

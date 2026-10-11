@@ -10,6 +10,7 @@ import { QtyRing } from '@/components/ui/qty-ring';
 import { TypeIcon } from '@/components/type-icon';
 import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import { formatQuantity } from '@/lib/format/number';
+import { ItemNameStack } from './ledger-parts';
 import { ProvenanceRows } from './MeAdjuster';
 import type { EfficiencyState } from '../efficiency';
 import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
@@ -256,14 +257,11 @@ export function NodeCard({
       <span className="relative z-10 pointer-events-none [grid-area:icon] [&_button]:pointer-events-auto">
         <NodeIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
       </span>
-      <div className="relative z-10 pointer-events-none flex min-w-0 flex-col gap-px [grid-area:name]">
-        <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
-          {name}
-        </span>
-        <span className="truncate font-data text-label uppercase tracking-label text-muted">
-          {label}
-        </span>
-      </div>
+      <ItemNameStack
+        className="relative z-10 pointer-events-none [grid-area:name]"
+        name={name}
+        label={label}
+      />
       <span className="relative z-10 pointer-events-none [grid-area:qty] [&_button]:pointer-events-auto">
         <QtyRingCell name={name} qty={qty} value={value} ownedQty={ownedQty} heldBy={heldBy} />
       </span>

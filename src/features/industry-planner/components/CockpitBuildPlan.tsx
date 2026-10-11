@@ -4,9 +4,7 @@ import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LivePrice } from '@/components/ui/live-price';
 import { nodeImage } from '@/data/eve-data/type-images';
-import { formatIsk } from '@/lib/format/isk';
 import { isEfficiencyEligible, tierColumnView, unitPriceMap, type TierRowView } from '../build-plan-view';
 import {
   consolidateBuild,
@@ -16,6 +14,7 @@ import {
 } from '../build-consolidate';
 import { nodeFrameState } from '../efficiency';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
+import { LedgerColumnHead } from './ledger-parts';
 import { NodeAdjusters } from './MeAdjuster';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
@@ -134,18 +133,13 @@ function TierColumn({
   return (
     <div className="@container min-w-0">
       {/* A narrow column stacks its subtotal under the tier name, so every column's cards start level. */}
-      <div className="mb-2 flex items-center gap-x-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted @max-[14rem]:flex-col @max-[14rem]:items-start">
-        <span className="flex items-center gap-2">
-          Tier {tier.depth}
-          <span className="text-faint">· {tier.items.length}</span>
-        </span>
-        <span className="h-0 flex-1 border-b border-dotted border-border-idle @max-[14rem]:hidden" />
-        <LivePrice
-          value={formatIsk(subtotal)}
-          pending={refreshing}
-          className="text-ui font-semibold tracking-normal text-isk"
-        />
-      </div>
+      <LedgerColumnHead
+        label={`Tier ${tier.depth}`}
+        count={tier.items.length}
+        total={subtotal}
+        pending={refreshing}
+        collapseNarrow
+      />
       <div className="flex flex-col gap-2">
         {rows.map((row) => (
           <TierRowSlot key={row.item.typeId} row={row} handlers={handlers} />
