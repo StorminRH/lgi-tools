@@ -229,6 +229,36 @@ function stripDerivedControls(node: ChainNode): ChainNode {
   return rest;
 }
 
+/**
+ * The node a placed system draws as, authored or halo: the previous local
+ * node minus its derived controls, the declared frame, and the label data.
+ */
+function systemNodeBase(
+  placed: { readonly systemId: number; readonly position: ChainPosition },
+  labelOf: (systemId: number) => SystemLabel,
+  localById: ReadonlyMap<string, ChainNode>,
+): ChainNode {
+  const id = String(placed.systemId);
+  const local = localById.get(id);
+  const label = labelOf(placed.systemId);
+  return {
+    ...(local === undefined ? undefined : stripDerivedControls(local)),
+    id,
+    type: CHAIN_NODE_TYPE,
+    width: SYSTEM_FRAME_WIDTH,
+    height: SYSTEM_FRAME_HEIGHT,
+    position: placed.position,
+    style: INERT_NODE_STYLE,
+    data: {
+      name: label.name,
+      className: label.className,
+      security: label.security ?? null,
+      whClassId: label.whClassId ?? null,
+      effect: label.effect ?? null,
+    },
+  };
+}
+
 export function syncNodes(
   previous: readonly ChainNode[],
   systems: ChainState['systems'],
@@ -238,52 +268,18 @@ export function syncNodes(
 ): ChainNode[] {
   const localById = new Map(previous.map((node) => [node.id, node]));
 
-  const authored = [...systems.values()].map((placed): ChainNode => {
-    const id = String(placed.systemId);
-    const local = localById.get(id);
-    const label = labelOf(placed.systemId);
-
-    return {
-      ...(local === undefined ? undefined : stripDerivedControls(local)),
-      id,
-      type: CHAIN_NODE_TYPE,
-      width: SYSTEM_FRAME_WIDTH,
-      height: SYSTEM_FRAME_HEIGHT,
-      position: placed.position,
-      style: INERT_NODE_STYLE,
-      data: {
-        name: label.name,
-        className: label.className,
-        security: label.security ?? null,
-        whClassId: label.whClassId ?? null,
-        effect: label.effect ?? null,
-      },
-    };
-  });
+  const authored = [...systems.values()].map((placed) =>
+    systemNodeBase(placed, labelOf, localById),
+  );
 
   const haloNodes = halo
     .filter((placed) => !systems.has(placed.systemId))
     .map((placed): ChainNode => {
-      const id = String(placed.systemId);
-      const local = localById.get(id);
-      const label = labelOf(placed.systemId);
+      const base = systemNodeBase(placed, labelOf, localById);
       const node: ChainNode = {
-        ...(local === undefined ? undefined : stripDerivedControls(local)),
-        id,
-        type: CHAIN_NODE_TYPE,
-        width: SYSTEM_FRAME_WIDTH,
-        height: SYSTEM_FRAME_HEIGHT,
-        position: placed.position,
+        ...base,
         draggable: false,
-        style: INERT_NODE_STYLE,
-        data: {
-          name: label.name,
-          className: label.className,
-          security: label.security ?? null,
-          whClassId: label.whClassId ?? null,
-          effect: label.effect ?? null,
-          halo: { ring: placed.ring, fogged: placed.fogged },
-        },
+        data: { ...base.data, halo: { ring: placed.ring, fogged: placed.fogged } },
       };
       if (!placed.fogged) return node;
       return {

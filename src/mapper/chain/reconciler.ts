@@ -5,7 +5,6 @@ import {
   type MapChainIntent,
 } from './intents';
 import { isOptimisticTempId } from './optimistic-authoring';
-import type { PlacementAssigner, PlacementCandidate } from './placement';
 
 export interface PlacedSystem {
   readonly systemId: number;
@@ -143,26 +142,17 @@ function resolveVisibleConnections(
 export function reconcileChain(
   previous: ChainState,
   snapshot: ChainSnapshot,
-  assigner: PlacementAssigner,
+  positions: ReadonlyMap<number, ChainPosition>,
 ): ChainMerge {
   const present = resolvePresentSystems(previous, snapshot);
   const presentSet = new Set(present);
   const known = resolveKnownConnections(previous, snapshot);
   const visible = resolveVisibleConnections(known, presentSet);
 
-  const candidates: PlacementCandidate[] = present.map((systemId) => ({
-    systemId,
-    position: previous.systems.get(systemId)?.position ?? null,
-  }));
-  const proposals = assigner({
-    systems: candidates,
-    connections: [...visible.values()],
-  });
-
   const { systems, appeared, moved } = placeSystems(
     previous,
     present,
-    proposals,
+    positions,
   );
 
   const departedSystems: MapChainIntent[] = [...previous.systems.keys()]

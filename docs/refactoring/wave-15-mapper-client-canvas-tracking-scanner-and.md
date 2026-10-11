@@ -14,7 +14,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P307](#p307) | Delete dead camera flight state and collapse mapper camera-fit, window and edge pass-throughs | simplification | M | low | low | — |
-| ☐ | [P308](#p308) | Pass kernel positions straight to reconcileChain and trim stub-layout and syncNodes duplication | simplification | M | low | low | — |
+| ☑ | [P308](#p308) | Pass kernel positions straight to reconcileChain and trim stub-layout and syncNodes duplication | simplification | M | low | low | — |
 | ☐ | [P309](#p309) | Share one tree-link claim between map edge drawing and the layout crossing report | simplification | S | low | low | — |
 | ☐ | [P310](#p310) | Hoist compass ring-slot arithmetic per ring and make compassKernel async | simplification | S | low | low | — |
 | ☐ | [P055](#p055) | Declare the measured-node shape once in edge-geometry and pass React Flow internal nodes to it directly for camera focus | react-hook | S | low | low | — |
@@ -127,7 +127,7 @@ export function computeFollowerTransform(baseline, anchorId, viewport, anchor: F
 
 ## P308: Pass kernel positions straight to reconcileChain and trim stub-layout and syncNodes duplication
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** Production about -50 / +15; tests about -60 / +45 (new helper about 25 lines)
 - **Depends on:** —

@@ -67,7 +67,6 @@ describe('mapper source contract', () => {
       'chain/labels.ts',
       'chain/nodes.ts',
       'chain/optimistic-authoring.ts',
-      'chain/placement.ts',
       'chain/reconciler.ts',
       'chain/stub-layout.ts',
       'chain/use-authoring-menus.ts',
