@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { dependencyUnavailableFailure } from '@/lib/failure';
+import { dependencyUnavailableFailure, validationFailure } from '@/lib/failure';
 import { problemBody, serializeProblem, type ProblemBody } from '@/lib/problem';
 import {
   createMapWithMinimumInterstitial,
@@ -84,6 +84,30 @@ describe('createMapWithMinimumInterstitial', () => {
 
     expect(outcome.ok).toBe(false);
     expect(mapCreationFailureMessage(outcome)).toContain('rolled back');
+  });
+
+  it('tells a caller naming someone else\'s character to pick their own, not to check the connection', async () => {
+    vi.useFakeTimers();
+    const refusal = (code: string) =>
+      serializeProblem(problemBody(validationFailure(code), 'correlation-id'));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce(refusal('not_linked'))
+        .mockResolvedValueOnce(refusal('invalid_body')),
+    );
+
+    const unlinked = createMapWithMinimumInterstitial(INPUT);
+    await vi.advanceTimersByTimeAsync(MAP_CREATION_INTERSTITIAL_MIN_MS);
+    const unlinkedOutcome = await unlinked;
+    expect(unlinkedOutcome).toMatchObject({ ok: false, kind: 'api', status: 400 });
+    expect(mapCreationFailureMessage(unlinkedOutcome)).toContain('your own linked characters');
+
+    const malformed = createMapWithMinimumInterstitial(INPUT);
+    await vi.advanceTimersByTimeAsync(MAP_CREATION_INTERSTITIAL_MIN_MS);
+    const malformedOutcome = await malformed;
+    expect(malformedOutcome).toMatchObject({ ok: false, kind: 'api', status: 400 });
+    expect(mapCreationFailureMessage(malformedOutcome)).toContain('Check your connection');
   });
 });
 

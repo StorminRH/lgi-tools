@@ -31,6 +31,7 @@ export async function GET(): Promise<Response> {
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.create-saved-plan',
+    endpoint: createSavedPlanEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, createSavedPlanRequestSchema),
     handle: async ({ userId }, body) => {

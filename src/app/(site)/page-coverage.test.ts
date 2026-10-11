@@ -17,7 +17,7 @@ import AppSiteIndustryJobsPage, { metadata as AppSiteIndustryJobsPageMetadata } 
 import AppSiteIndustryLayout from '@/app/(site)/industry/layout';
 import AppSiteIndustryPlannerPage, { metadata as AppSiteIndustryPlannerPageMetadata } from '@/app/(site)/industry/planner/page';
 import AppSiteLegalPage, { metadata as AppSiteLegalPageMetadata } from '@/app/(site)/legal/page';
-import AppSitePage, { metadata as AppSitePageMetadata } from '@/app/(site)/page';
+import { metadata as AppSitePageMetadata } from '@/app/(site)/page';
 import AppSitePreviewCardsPage, { metadata as AppSitePreviewCardsPageMetadata } from '@/app/(site)/preview/cards/page';
 import { PrimitivesDemo } from '@/app/(site)/preview/primitives/PrimitivesDemo';
 import AppSitePreviewPrimitivesPage, { metadata as AppSitePreviewPrimitivesPageMetadata } from '@/app/(site)/preview/primitives/page';
@@ -64,7 +64,6 @@ test('pins leftover runtime exports on the test graph', () => {
     AppSiteLegalPageMetadata,
     AppSiteLegalPage,
     AppSitePageMetadata,
-    AppSitePage,
     AppSitePreviewCardsPageMetadata,
     AppSitePreviewCardsPage,
     PrimitivesDemo,

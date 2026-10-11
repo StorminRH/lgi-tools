@@ -3,9 +3,9 @@ import { Pill } from '@/components/ui/pill';
 import { AdminForceLogoutForm } from '@/components/composition/account/AdminForceLogoutForm';
 import { AdminReassignCharacterForm } from '@/components/composition/account/AdminReassignCharacterForm';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
-import { readEnv } from '@/lib/env';
 import { formatCount } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
+import { superadminCharacterId } from '@/platform/auth/admin-policy';
 import { getActiveSessionCount, getUserById, type AdminUser } from '@/platform/auth/admin-users';
 import {
   getStoredActiveCharacterId,
@@ -26,7 +26,7 @@ import { deriveIdentityChips, forceLogoutDisabled } from './user-detail-view';
  */
 export function readUserDetail(userId: string) {
   const characters = listLinkedCharacters(userId);
-  const superadminId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
+  const superadminId = superadminCharacterId();
   const reads = {
     user: getUserById(userId),
     characters,

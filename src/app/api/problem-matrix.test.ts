@@ -28,7 +28,6 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 vi.mock('@/composition/route-guards', () => ({
   checkAdmin: (...args: unknown[]) => h.checkAdmin(...args),
-  checkAdminMutation: (...args: unknown[]) => h.checkAdmin(...args),
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/composition/session', () => ({
@@ -202,6 +201,13 @@ describe('route-level problem status matrix', () => {
       ),
       400,
       'path_invalid',
+    );
+    await expectProblem(
+      await postAdminRole(
+        postJson('/api/admin/role', { userId: 'target-user', nextRole: 'ADMIN' }),
+      ),
+      400,
+      'invalid_form',
     );
   });
 

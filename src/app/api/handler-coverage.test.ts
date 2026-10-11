@@ -2,7 +2,6 @@ import { expect, test } from 'vitest';
 
 import { GET } from '@/app/api/account/characters/route';
 import { GET as AppApiAccountCorpIndustryJobsRouteGET } from '@/app/api/account/corp-industry-jobs/route';
-import { GET as AppApiAccountCorpStructuresRouteGET } from '@/app/api/account/corp-structures/route';
 import { POST as AppApiAccountCustomStructuresDeleteRoutePOST } from '@/app/api/account/custom-structures/delete/route';
 import { GET as AppApiAccountBoardRouteGET } from '@/app/api/account/board/route';
 import { GET as AppApiAccountIndustryJobsRouteGET } from '@/app/api/account/industry-jobs/route';
@@ -35,7 +34,6 @@ test('pins leftover runtime exports on the test graph', () => {
   expect([
     GET,
     AppApiAccountCorpIndustryJobsRouteGET,
-    AppApiAccountCorpStructuresRouteGET,
     AppApiAccountCustomStructuresDeleteRoutePOST,
     AppApiAccountBoardRouteGET,
     AppApiAccountIndustryJobsRouteGET,

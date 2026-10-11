@@ -49,11 +49,14 @@ describe('exchangeCodeForToken outbound headers', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
   it('sends the outbound User-Agent to the EVE token endpoint', async () => {
@@ -67,8 +70,6 @@ describe('exchangeCodeForToken outbound headers', () => {
     await exchangeCodeForToken({
       code: 'auth-code',
       codeVerifier: 'verifier',
-      clientId: 'client-id',
-      clientSecret: 'client-secret',
     });
 
     const [, init] = fetchSpy.mock.calls[0];
@@ -88,8 +89,6 @@ describe('exchangeCodeForToken outbound headers', () => {
     await exchangeCodeForToken({
       code: 'auth-code',
       codeVerifier: 'verifier',
-      clientId: 'client-id',
-      clientSecret: 'client-secret',
     });
 
     const [, init] = fetchSpy.mock.calls[0];
@@ -107,8 +106,6 @@ describe('exchangeCodeForToken outbound headers', () => {
       exchangeCodeForToken({
         code: 'auth-code',
         codeVerifier: 'verifier',
-        clientId: 'client-id',
-        clientSecret: 'client-secret',
       }),
     ).rejects.toThrow(/boundary validation/);
   });
@@ -118,18 +115,17 @@ describe('refreshEveToken', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
-  const input = {
-    refreshToken: 'a+b/c',
-    clientId: 'client-id',
-    clientSecret: 'client-secret',
-  };
+  const input = { refreshToken: 'a+b/c' };
 
   it('returns ok with the rotated refresh token, and sends a refresh grant with the outbound UA + timeout', async () => {
     fetchSpy.mockResolvedValueOnce(
@@ -227,6 +223,12 @@ describe('refreshEveToken', () => {
     });
   });
 
+  it('rejects on a missing client credential instead of classifying it as a retryable connection failure', async () => {
+    vi.stubEnv('EVE_CLIENT_ID', undefined);
+    await expect(refreshEveToken(input)).rejects.toThrow('EVE_CLIENT_ID is not set');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('preserves server retry delays without treating rate limiting as revocation', async () => {
     fetchSpy.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: { 'Retry-After': '600' } }));
     expect(await refreshEveToken(input)).toEqual({
@@ -249,18 +251,17 @@ describe('revokeEveRefreshToken', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
-  const input = {
-    refreshToken: 'a+b/c',
-    clientId: 'client-id',
-    clientSecret: 'client-secret',
-  };
+  const input = { refreshToken: 'a+b/c' };
 
   it('POSTs the RFC 7009 revoke params to the revoke endpoint with Basic auth + the outbound UA', async () => {
     fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
@@ -289,5 +290,11 @@ describe('revokeEveRefreshToken', () => {
   it('swallows a network/timeout error and reports ok:false (never aborts a purge)', async () => {
     fetchSpy.mockRejectedValueOnce(new Error('aborted'));
     expect(await revokeEveRefreshToken(input)).toEqual({ ok: false });
+  });
+
+  it('throws a missing client credential before the request instead of reporting ok:false', async () => {
+    vi.stubEnv('EVE_CLIENT_SECRET', undefined);
+    await expect(revokeEveRefreshToken(input)).rejects.toThrow('EVE_CLIENT_SECRET is not set');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

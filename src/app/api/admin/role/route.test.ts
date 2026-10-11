@@ -38,6 +38,11 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 const ROUTE = '/api/admin/role';
 

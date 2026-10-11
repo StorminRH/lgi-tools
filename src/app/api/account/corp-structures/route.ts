@@ -1,6 +1,7 @@
 import { getCorpStructuresForUserOnView } from '@/composition/sync/corp-structures-sync';
 import { getCurrentUserId } from '@/composition/session';
 import { corpStructuresEndpoint } from '@/features/owned-structures/api-contract';
+import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 import { apiResponse } from '@/transport/api-response';
 
 // authz: auth
@@ -10,6 +11,10 @@ export async function GET(): Promise<Response> {
   if (!userId) {
     return apiResponse(corpStructuresEndpoint, 200, { corporations: [] });
   }
-  const result = await getCorpStructuresForUserOnView(userId);
+  const result = await measureOwnedDataRead({
+    endpoint: corpStructuresEndpoint,
+    read: () => getCorpStructuresForUserOnView(userId),
+    returned: (value) => value.corporations.length,
+  });
   return apiResponse(corpStructuresEndpoint, 200, result);
 }

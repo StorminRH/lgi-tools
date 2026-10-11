@@ -12,7 +12,7 @@ import { account } from '@/db/auth-schema';
 import { directDatabase } from '@/db/direct-database';
 import { lockUserRows } from '@/db/locked-user';
 import type { PostgresJsDb } from '@/lib/db-types';
-import { eveAccountsForUser } from '@/platform/auth/eve-account-shared';
+import { eveAccountsForUser, linkedCharacterIds } from '@/platform/auth/eve-account-shared';
 
 async function deliverTrackingMerge(
   database: PostgresJsDb,
@@ -28,7 +28,7 @@ async function deliverTrackingMerge(
     if (job === undefined) return;
     const linked = await tx.select({ accountId: account.accountId }).from(account)
       .where(eveAccountsForUser(owner.id)).for('update');
-    const characterIds = new Set(linked.map((row) => Number(row.accountId)));
+    const characterIds = new Set(linkedCharacterIds(linked));
     const selections = job.selections.filter((row) => characterIds.has(row.characterId));
 
     await purgeUserMapAccessProjection(job.sourceUserId);

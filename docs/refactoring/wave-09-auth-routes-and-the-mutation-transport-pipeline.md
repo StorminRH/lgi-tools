@@ -8,31 +8,31 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P251](#p251) | Make parseFormBody take a field list and own the form-field failure | contracts-validation | S | low | low | — |
-| ☐ | [P141](#p141) | Move the four admin form routes, account/delete and feedback onto runMutationRoute; delete adminMutationGate and checkAdminMutation | api-route | M | low | medium | — |
-| ☐ | [P146](#p146) | Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes | api-route | M | low | medium | [P251](#p251) |
-| ☐ | [P167](#p167) | Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth | server-pipeline | S | low | medium | — |
-| ☐ | [P254](#p254) | Add requireSessionPage and a typed auth_error vocabulary so login_required shows a notice | contracts-validation | S | low | medium | [P167](#p167) |
-| ☐ | [P255](#p255) | Resolve query-string notices with one own-key typed resolver and type each flow's notice codes | contracts-validation | M | low | medium | [P146](#p146), [P254](#p254) |
-| ☐ | [P256](#p256) | Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked | contracts-validation | S | low | low | [P255](#p255) |
-| ☐ | [P250](#p250) | Check runMutationRoute stage failures against the endpoint contract, and derive status only where it varies | contracts-validation | S | low | medium | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P141](#p141) |
-| ☐ | [P306](#p306) | Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight) | simplification | S | low | low | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) |
-| ☐ | [P143](#p143) | Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route | api-route | S | low | low | — |
-| ☐ | [P160](#p160) | Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook | server-pipeline | S | low | low | [P143](#p143) |
-| ☐ | [P153](#p153) | Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell | api-route | S | low | low | — |
-| ☐ | [P149](#p149) | Generalise loadSection into readOr(message, load, fallback) for app-zone degrade reads and use it in AtlasBound and jobCharacterIds | error-handling | S | low | low | — |
-| ☐ | [P068](#p068) | Add isCurrentReadIdentity and sameReadIdentity to platform/auth/read-identity and replace the hand-written staleness guards | client-data | S | low | low | — |
-| ☐ | [P337](#p337) | Read the EVE SSO client credentials inside eve-sso's token-request builder and drop clientId/clientSecret from the three token inputs | simplification | S | low | low | — |
-| ☐ | [P222](#p222) | Reuse the eve-account-shared predicates, import EVE_PROVIDER_ID only from @/lib/eve-provider, and add signInWithEve beside startCharacterLink | persistence | S | low | low | [P067](wave-08-charts-images-and-board-workspace-adoption.md#p067) |
-| ☐ | [P257](#p257) | Route linked-account-to-characterId conversions through parseLinkedAccountId and one ids helper | contracts-validation | S | low | low | [P222](#p222) |
-| ☐ | [P176](#p176) | Resolve every guard through getFullSession, reuse the get-session response for the background check, and coalesce the opportunistic affiliation drain | server-pipeline | M | medium | medium | [P287](wave-01-quick-wins-delete-dead-code-fix-small.md#p287), [P167](#p167) |
-| ☐ | [P161](#p161) | Route user unlink, admin unlink and reassign through one unlinkCharacter that ends in reconcileAfterCharacterRemoval | server-pipeline | M | medium | high | [P141](#p141), [P146](#p146), [P256](#p256), [P257](#p257) |
+| ☑ | [P251](#p251) | Make parseFormBody take a field list and own the form-field failure | contracts-validation | S | low | low | — |
+| ☑ | [P141](#p141) | Move the four admin form routes, account/delete and feedback onto runMutationRoute; delete adminMutationGate and checkAdminMutation | api-route | M | low | medium | — |
+| ☑ | [P146](#p146) | Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes | api-route | M | low | medium | [P251](#p251) |
+| ☑ | [P167](#p167) | Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth | server-pipeline | S | low | medium | — |
+| ☑ | [P254](#p254) | Add requireSessionPage and a typed auth_error vocabulary so login_required shows a notice | contracts-validation | S | low | medium | [P167](#p167) |
+| ☑ | [P255](#p255) | Resolve query-string notices with one own-key typed resolver and type each flow's notice codes | contracts-validation | M | low | medium | [P146](#p146), [P254](#p254) |
+| ☑ | [P256](#p256) | Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked | contracts-validation | S | low | low | [P255](#p255) |
+| ☑ | [P250](#p250) | Check runMutationRoute stage failures against the endpoint contract, and derive status only where it varies | contracts-validation | S | low | medium | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P141](#p141) |
+| ☑ | [P306](#p306) | Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight) | simplification | S | low | low | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) |
+| ☑ | [P143](#p143) | Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route | api-route | S | low | low | — |
+| ☑ | [P160](#p160) | Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook | server-pipeline | S | low | low | [P143](#p143) |
+| ☑ | [P153](#p153) | Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell | api-route | S | low | low | — |
+| ☑ | [P149](#p149) | Generalise loadSection into readOr(message, load, fallback) for app-zone degrade reads and use it in AtlasBound and jobCharacterIds | error-handling | S | low | low | — |
+| ☑ | [P068](#p068) | Add isCurrentReadIdentity and sameReadIdentity to platform/auth/read-identity and replace the hand-written staleness guards | client-data | S | low | low | — |
+| ☑ | [P337](#p337) | Read the EVE SSO client credentials inside eve-sso's token-request builder and drop clientId/clientSecret from the three token inputs | simplification | S | low | low | — |
+| ☑ | [P222](#p222) | Reuse the eve-account-shared predicates, import EVE_PROVIDER_ID only from @/lib/eve-provider, and add signInWithEve beside startCharacterLink | persistence | S | low | low | [P067](wave-08-charts-images-and-board-workspace-adoption.md#p067) |
+| ☑ | [P257](#p257) | Route linked-account-to-characterId conversions through parseLinkedAccountId and one ids helper | contracts-validation | S | low | low | [P222](#p222) |
+| ☑ | [P176](#p176) | Resolve every guard through getFullSession, reuse the get-session response for the background check, and coalesce the opportunistic affiliation drain | server-pipeline | M | medium | medium | [P287](wave-01-quick-wins-delete-dead-code-fix-small.md#p287), [P167](#p167) |
+| ☑ | [P161](#p161) | Route user unlink, admin unlink and reassign through one unlinkCharacter that ends in reconcileAfterCharacterRemoval | server-pipeline | M | medium | high | [P141](#p141), [P146](#p146), [P256](#p256), [P257](#p257) |
 
 <a id="p251"></a>
 
 ## P251: Make parseFormBody take a field list and own the form-field failure
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +10
 - **Depends on:** —
@@ -113,7 +113,7 @@ export async function parseFormBody<S extends z.ZodTypeAny>(
 
 ## P141: Move the four admin form routes, account/delete and feedback onto runMutationRoute; delete adminMutationGate and checkAdminMutation
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -75 / +35 (admin-mutation.ts, checkAdminMutation and its test, two coverage buckets and their wiring assertions removed; route bodies roughly neutral)
 - **Depends on:** —
@@ -195,7 +195,7 @@ runMutationRoute(request, { capability: 'feedback.submit-feedback', authorize: a
 
 ## P146: Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -30/+25 in routes and helpers, plus around 40 lines of tests
 - **Depends on:** [P251](#p251)
@@ -263,7 +263,7 @@ export const characterIdFormSchema = z.object({ characterId: characterIdFormFiel
 
 ## P167: Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -20 / +25 including the new test; about -45 for the deleted duplicate test
 - **Depends on:** —
@@ -331,7 +331,7 @@ export function normalizeCharacterRole(raw: unknown): CharacterRole; // CHARACTE
 
 ## P254: Add requireSessionPage and a typed auth_error vocabulary so login_required shows a notice
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -20 / +35 (the new module and tests add more lines than the guards remove)
 - **Depends on:** [P167](#p167)
@@ -410,7 +410,7 @@ const AUTH_ERROR_MESSAGES = { login_required: '...', admin_required: '...' } sat
 
 ## P255: Resolve query-string notices with one own-key typed resolver and type each flow's notice codes
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -40 / +45 across ~14 files (3 local redirect helpers and outcomeMessage deleted; resolver +6; seeOther +8)
 - **Depends on:** [P146](#p146), [P254](#p254)
@@ -576,7 +576,7 @@ Follow-up lead: admin reassign (already_linked, not_linked), admin role (self_ro
 
 ## P256: Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +15
 - **Depends on:** [P255](#p255)
@@ -680,7 +680,7 @@ Guards: the industry-profiles route tests and purge-character tests assert the u
 
 ## P250: Check runMutationRoute stage failures against the endpoint contract, and derive status only where it varies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about +30 / -20 (helper and option added; two ternaries and two hand-rolled preflights removed; ~25 one-word `endpoint:` additions)
 - **Depends on:** [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P141](#p141)
@@ -784,7 +784,7 @@ Existing guards: src/app/api/problem-matrix.test.ts (covers eve-token), src/app/
 
 ## P306: Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -55 / +15 lines (production), about -15 lines (tests)
 - **Depends on:** [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136)
@@ -876,7 +876,7 @@ export const characterIdFormSchema = z.object({ characterId: characterIdField })
 
 ## P143: Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -10 / +45 (union removed; corp-structures measurement, route test and guard scan added)
 - **Depends on:** —
@@ -951,7 +951,7 @@ export async function measureOwnedDataRead<T>(input: MeasuredOwnedDataRead<T>): 
 
 ## P160: Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +12 (owned-data-telemetry.ts 46 to ~20 lines; cost-metrics.ts +6)
 - **Depends on:** [P143](#p143)
@@ -1025,7 +1025,7 @@ export function measureOwnedDataRead<T>({ endpoint, requested, read, returned }:
 
 ## P153: Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -96 across the three route files, +~30 for the stubs, +~30 for the shell, +~8 in api-contracts.test.ts, -4 in the manifest route; net about -30
 - **Depends on:** —
@@ -1103,7 +1103,7 @@ export const GET = versionedAssetRoute(adjacencyEndpoint, getAdjacencyGraph);
 
 ## P149: Generalise loadSection into readOr(message, load, fallback) for app-zone degrade reads and use it in AtlasBound and jobCharacterIds
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20/+12
 - **Depends on:** —
@@ -1159,7 +1159,7 @@ export async function readOr<T, F>(message: string, load: () => Promise<T>, fall
 
 ## P068: Add isCurrentReadIdentity and sameReadIdentity to platform/auth/read-identity and replace the hand-written staleness guards
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** missing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -5 net (+10 helper lines, 13 expressions shortened, plus 2 test-mock lines)
 - **Depends on:** —
@@ -1217,7 +1217,7 @@ export function sameReadIdentity(a: ReadIdentity | null, b: ReadIdentity | null)
 
 ## P337: Read the EVE SSO client credentials inside eve-sso's token-request builder and drop clientId/clientSecret from the three token inputs
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +6
 - **Depends on:** —
@@ -1275,7 +1275,7 @@ export interface RevokeTokenInput { refreshToken: string }
 
 ## P222: Reuse the eve-account-shared predicates, import EVE_PROVIDER_ID only from @/lib/eve-provider, and add signInWithEve beside startCharacterLink
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +20
 - **Depends on:** [P067](wave-08-charts-images-and-board-workspace-adoption.md#p067)
@@ -1362,7 +1362,7 @@ export function startCharacterLink(callbackURL = '/settings/characters'): void; 
 
 ## P257: Route linked-account-to-characterId conversions through parseLinkedAccountId and one ids helper
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +15
 - **Depends on:** [P222](#p222)
@@ -1465,7 +1465,7 @@ The composition deletion path's throw on malformed ids is intentional (a purge m
 
 ## P176: Resolve every guard through getFullSession, reuse the get-session response for the background check, and coalesce the opportunistic affiliation drain
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** about -15/+35 in source; +60 test lines
 - **Depends on:** [P287](wave-01-quick-wins-delete-dead-code-fix-small.md#p287), [P167](#p167)
@@ -1571,7 +1571,7 @@ Existing guards: session.test.ts (after scheduling), guard-emissions.test.ts (CO
 
 ## P161: Route user unlink, admin unlink and reassign through one unlinkCharacter that ends in reconcileAfterCharacterRemoval
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** high · **Size:** about -100 / +70 (user route -35/+12, admin-users -45/+22, reassign route -12, admin unlink route -6/+3, new helper +35)
 - **Depends on:** [P141](#p141), [P146](#p146), [P256](#p256), [P257](#p257)

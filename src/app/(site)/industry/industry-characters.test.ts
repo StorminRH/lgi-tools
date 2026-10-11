@@ -91,9 +91,10 @@ describe('jobCharacterIds', () => {
 
   it('logs a failed read and gives none instead of failing the section', async () => {
     getSessionMock.mockResolvedValue(sessionFixture());
-    listLinkedCharactersMock.mockRejectedValue(new Error('neon: connection terminated'));
+    const err = new Error('neon: connection terminated');
+    listLinkedCharactersMock.mockRejectedValue(err);
     expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [] });
-    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls).toEqual([['[industry/industry-characters] failed to resolve linked characters', err]]);
   });
 
   it('passes the eligible ids through', async () => {

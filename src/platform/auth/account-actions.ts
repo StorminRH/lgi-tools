@@ -59,7 +59,3 @@ export function redirectTargetFor(outcome: DestructionOutcome): string | null {
   if (outcome.kind === 'done') return '/';
   return null;
 }
-
-export function isDeleteAcknowledged(acknowledged: boolean): boolean {
-  return acknowledged === true;
-}

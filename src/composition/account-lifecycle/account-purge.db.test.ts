@@ -578,6 +578,27 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(revokeMock).not.toHaveBeenCalled();
   });
 
+  it('repairs the identity from the oldest parseable link and never mints NaN@eve.invalid from a malformed one', async () => {
+    const runners = {
+      runBeforeUserDelete: vi.fn(),
+      runBeforeCharacterUnlink: async () => [],
+      runAfterFailedCharacterUnlink: async () => {},
+      runAfterCharacterUnlink: async () => {},
+      runAfterCharacterLinkChanged: vi.fn(),
+    };
+    await seedEveAccount('malformed', FIRST_CHAR, new Date('2026-01-01T00:00:00Z'));
+    await harness.db.update(account).set({ accountId: 'not-a-character' }).where(eq(account.id, 'malformed'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, runners)).toEqual({ accountEmptied: false });
+    expect((await harness.db.select().from(user))[0]).toMatchObject({ email: syntheticEmail(FIRST_CHAR) });
+
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, runners)).toEqual({ accountEmptied: false });
+    expect((await harness.db.select().from(user))[0]).toMatchObject({ email: syntheticEmail(SECOND_CHAR) });
+    expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
+    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+  });
+
   async function queueCharacter(characterId: number, userId = USER_ID) {
     const request = await requestDeletion(userId, characterId);
     expect(request).not.toBeNull();

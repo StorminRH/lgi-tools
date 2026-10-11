@@ -1,13 +1,12 @@
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
   forbiddenFailure,
   type FailureResult,
   unauthenticatedFailure,
 } from '@/lib/failure';
-import { auth } from '@/composition/auth';
+import type { auth } from '@/composition/auth';
+import { authErrorHref } from '@/composition/auth-error';
 import { getCurrentUserId, getFullSession } from '@/composition/session';
-import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 export type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 
@@ -15,8 +14,9 @@ export type SessionCheckResult =
   | { ok: true; session: BetterAuthSession }
   | FailureResult;
 
+// Every guard reads through getFullSession, so each signed-in request schedules the authorization check.
 export async function checkSession(): Promise<SessionCheckResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session) {
     return { ok: false, failure: unauthenticatedFailure() };
   }
@@ -24,21 +24,11 @@ export async function checkSession(): Promise<SessionCheckResult> {
 }
 
 export async function checkAdmin(): Promise<SessionCheckResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session?.isAdmin) {
     return { ok: false, failure: forbiddenFailure() };
   }
   return { ok: true, session };
-}
-
-export async function checkAdminMutation(
-  request: Request,
-): Promise<SessionCheckResult> {
-  const gate = await checkAdmin();
-  if (!gate.ok) return gate;
-  const origin = requireSameOrigin(request);
-  if (!origin.ok) return origin;
-  return gate;
 }
 
 export type UserIdCheckResult =
@@ -53,10 +43,19 @@ export async function checkUserId(): Promise<UserIdCheckResult> {
   return { ok: true, userId };
 }
 
+/** Page guard for signed-in screens: sends a signed-out visitor home with the login notice. */
+export async function requireSessionPage(): Promise<BetterAuthSession> {
+  const session = await getFullSession();
+  if (!session) {
+    redirect(authErrorHref('login_required'));
+  }
+  return session;
+}
+
 export async function requireAdminPage(): Promise<BetterAuthSession> {
   const session = await getFullSession();
   if (!session?.isAdmin) {
-    redirect('/?auth_error=admin_required');
+    redirect(authErrorHref('admin_required'));
   }
   return session;
 }

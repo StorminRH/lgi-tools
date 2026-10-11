@@ -1,21 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 
 const ADMIN_SESSION = adminSessionFixture({ user: { id: 'admin-1' }, characterId: 1 });
 
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
-const accountBelongsToUserMock = vi.fn();
 const deleteLinkedCharacterMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 const logUsageEventMock = vi.fn();
+const emitCostMetricMock = capabilityOutcomeMock();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
 vi.mock('@/platform/auth/linked-characters', () => ({
-  accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
 }));
 
@@ -27,7 +30,17 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (action: string, metadata: Record<string, unknown>) =>
+    emitCostMetricMock(action, metadata),
+}));
+
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
@@ -43,11 +56,11 @@ const TWO_CHARS = [{ characterId: 100 }, { characterId: 200 }];
 describe('POST /api/admin/characters/unlink', () => {
   beforeEach(() => {
     getSessionMock.mockReset();
-    accountBelongsToUserMock.mockReset();
     deleteLinkedCharacterMock.mockReset();
     listLinkedCharactersMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
+    emitCostMetricMock.mockReset();
   });
 
   it('refuses non-admins, a malformed form, an unowned character, and the last character', async () => {
@@ -59,22 +72,27 @@ describe('POST /api/admin/characters/unlink', () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
     expect((await POST(postForm(ROUTE, { userId: 'eve-user-2' }))).status).toBe(400);
 
-    accountBelongsToUserMock.mockResolvedValue(false);
-    expect(
-      (await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '999' }))).status,
-    ).toBe(404);
+    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
+    const unowned = await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '999' }));
+    expect(unowned.status).toBe(303);
+    expect(locationOf(unowned)).toBe('http://localhost:3000/admin/users/eve-user-2?error=not_linked');
+    expect(listLinkedCharactersMock).toHaveBeenCalledExactlyOnceWith('eve-user-2');
 
-    accountBelongsToUserMock.mockResolvedValue(true);
     listLinkedCharactersMock.mockResolvedValue([{ characterId: 100 }]);
     const last = await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '100' }));
     expect(last.status).toBe(303);
     expect(locationOf(last)).toContain('error=last_character');
     expect(deleteLinkedCharacterMock).not.toHaveBeenCalled();
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
+      { outcome: 'forbidden', code: 'forbidden' },
+      { outcome: 'validation', code: 'invalid_form_field' },
+      { outcome: 'not_found', code: 'not_linked' },
+      { outcome: 'validation', code: 'last_character' },
+    ]);
   });
 
   it('delegates unlink and active-character repair to the lifecycle operation', async () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    accountBelongsToUserMock.mockResolvedValue(true);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     deleteLinkedCharacterMock.mockResolvedValue(true);
 
@@ -93,7 +111,21 @@ describe('POST /api/admin/characters/unlink', () => {
       }),
     );
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
+  });
 
+  it('reports a character removed by a concurrent unlink as a conflict', async () => {
+    getSessionMock.mockResolvedValue(ADMIN_SESSION);
+    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
+    deleteLinkedCharacterMock.mockResolvedValue(false);
 
+    const raced = await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '200' }));
+
+    expect(raced.status).toBe(303);
+    expect(locationOf(raced)).toBe(
+      'http://localhost:3000/admin/users/eve-user-2?error=unlink_failed',
+    );
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'conflict', code: 'unlink_failed' }]);
+    expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 });

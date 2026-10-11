@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
 import { apiFetch } from '@/transport/api-client';
 import type { OutcomeOf } from '@/transport/endpoint';
-import { currentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { isCurrentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 import { industrySlotsEndpoint, type IndustrySlotsResponse, type ViewerSlots } from './api-contract';
 
 const RECONCILE_DELAY_MS = 5_000;
@@ -29,7 +29,7 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
 
     async function load(): Promise<void> {
       const result = await apiFetch(industrySlotsEndpoint);
-      if (!cancelled && identity === currentReadIdentity()) onResult(result);
+      if (!cancelled && isCurrentReadIdentity(identity)) onResult(result);
     }
 
     function onResult(result: OutcomeOf<typeof industrySlotsEndpoint>): void {

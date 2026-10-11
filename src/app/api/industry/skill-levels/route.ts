@@ -22,7 +22,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
     return apiResponse(skillLevelsEndpoint, 200, { levels: null });
   }
   const levels = await measureOwnedDataRead({
-    endpoint: '/api/industry/skill-levels',
+    endpoint: skillLevelsEndpoint,
     requested: 1,
     read: () => getSkillLevelsForCharacterOnView(userId, parsed.data.characterId),
     returned: (value) => (value === null ? 0 : 1),

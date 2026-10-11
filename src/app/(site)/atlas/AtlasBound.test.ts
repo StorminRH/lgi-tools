@@ -227,12 +227,18 @@ describe('AtlasBound', () => {
       pricedErr,
     );
 
-    mocks.getSiteSearchIndex.mockRejectedValue(new Error('catalogue down'));
+    const catalogueErr = new Error('catalogue down');
+    mocks.getSiteSearchIndex.mockRejectedValue(catalogueErr);
     consoleError.mockClear();
     mocks.rethrow.mockClear();
     const empty = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(empty).toContain('data-map-canvas-frame');
     expect(empty).toContain('data-map-site-index="0"');
+    expect(mocks.rethrow).toHaveBeenCalledWith(catalogueErr);
+    expect(consoleError.mock.calls).toEqual([
+      ['[map] scanner site catalogue unavailable; degrading', pricedErr],
+      ['[map] lightweight site catalogue unavailable; empty seed', catalogueErr],
+    ]);
   });
 
   it('marks a failed map listing as unavailable instead of a true empty catalogue', async () => {

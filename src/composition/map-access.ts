@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { reconcileAffiliationAccess } from './map-affiliation-access';
+import { reconcileAffiliationAccessOnVisit } from './map-affiliation-access';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
@@ -47,7 +47,7 @@ function groupBlocksByMap(
 
 export async function listMapChromeData(userId: string): Promise<MapChromeData> {
   const principals = await resolveMapPrincipals(userId);
-  after(reconcileAffiliationAccess);
+  after(reconcileAffiliationAccessOnVisit);
   const [maps, deletedMaps] = await Promise.all([
     listAuthorizedMapsForPrincipals(userId, principals),
     listDeletedRestorableMapsForPrincipals(userId, principals),

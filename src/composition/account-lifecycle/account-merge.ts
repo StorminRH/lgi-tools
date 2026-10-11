@@ -14,7 +14,7 @@ import { directDatabase } from '@/db/direct-database';
 import { lockUserRows } from '@/db/locked-user';
 import { bestEffort } from '@/lib/best-effort';
 import type { PostgresJsDb } from '@/lib/db-types';
-import { accountMatch, eveAccountsForUser } from '@/platform/auth/eve-account-shared';
+import { accountMatch, eveAccountsForUser, linkedCharacterIds } from '@/platform/auth/eve-account-shared';
 import { pickSurvivor, type MergeCandidate } from '@/platform/auth/owner-reconcile';
 import { PendingDeletionError, usersHavePendingDeletion } from '@/platform/auth/deletion-jobs';
 import { assertSourceEmpty, executeMergeRules } from '@/platform/purge/merge';
@@ -72,11 +72,9 @@ async function commitMerge(
   { survivor, source }: { survivor: MergeCandidate; source: MergeCandidate },
 ): Promise<CommittedMerge> {
   const selections = await snapshotMergeTracking(source.id);
-  const movedCharacterIds = (
-    await tx.select({ accountId: account.accountId }).from(account).where(eveAccountsForUser(source.id))
-  )
-    .map((row) => Number(row.accountId))
-    .filter((characterId) => Number.isFinite(characterId));
+  const movedCharacterIds = linkedCharacterIds(
+    await tx.select({ accountId: account.accountId }).from(account).where(eveAccountsForUser(source.id)),
+  );
   const captured = await enqueueMergeReprojection(tx, { sourceUserId: source.id, movedCharacterIds });
   await executeMergeRules(tx, contributors, { sourceUserId: source.id, survivorUserId: survivor.id });
   if (source.role === 'ADMIN' && survivor.role !== 'ADMIN') {

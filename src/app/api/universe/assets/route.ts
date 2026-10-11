@@ -13,9 +13,8 @@ import {
 export async function GET(): Promise<Response> {
   await connection();
   const { version } = await getCachedSdeVersion();
-  if (version === null) {
-    return withCacheControl(
-      apiResponse(
+  const response = version === null
+    ? apiResponse(
         universeAssetManifestEndpoint,
         503,
         dependencyUnavailableFailure(
@@ -23,12 +22,7 @@ export async function GET(): Promise<Response> {
           503,
           { detail: 'Universe assets are unavailable until the SDE is ingested.' },
         ),
-      ),
-      'no-store',
-    );
-  }
-  return withCacheControl(
-    apiResponse(universeAssetManifestEndpoint, 200, { version: composeUniverseAssetVersion(version) }),
-    'no-store',
-  );
+      )
+    : apiResponse(universeAssetManifestEndpoint, 200, { version: composeUniverseAssetVersion(version) });
+  return withCacheControl(response, 'no-store');
 }

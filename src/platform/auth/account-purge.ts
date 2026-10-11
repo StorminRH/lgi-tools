@@ -1,7 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { withLockedUsers } from '@/db/locked-user';
-import { eveAccountsForUser } from './eve-account-shared';
+import { eveAccountsForUser, linkedCharacterIds } from './eve-account-shared';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { repointActiveToOldest } from './linked-characters';
 import { account, user } from '@/db/auth-schema';
@@ -17,16 +17,24 @@ export async function deleteUserIfUnlinked(userId: string): Promise<boolean> {
   });
 }
 
-async function repairUserIdentity(userId: string, characterId: number, replacementAccountId: string): Promise<void> {
+/**
+ * With no parseable replacement the email stays as it is: a synthetic email minted
+ * from NaN would collide on the unique email column.
+ */
+async function repairUserIdentity(
+  userId: string,
+  characterId: number,
+  replacementCharacterId: number | null,
+): Promise<void> {
   const [u] = await db
     .select({ email: user.email, activeCharacterId: user.activeCharacterId })
     .from(user)
     .where(eq(user.id, userId))
     .limit(1);
-  if (u?.email === syntheticEmail(characterId)) {
+  if (replacementCharacterId !== null && u?.email === syntheticEmail(characterId)) {
     await db
       .update(user)
-      .set({ email: syntheticEmail(Number(replacementAccountId)), updatedAt: new Date() })
+      .set({ email: syntheticEmail(replacementCharacterId), updatedAt: new Date() })
       .where(eq(user.id, userId));
   }
   if (u?.activeCharacterId === characterId) {
@@ -43,17 +51,18 @@ export async function reconcileAfterCharacterRemoval(
   for (;;) {
     const remaining = await db.select({ accountId: account.accountId }).from(account)
       .where(eveAccountsForUser(userId)).orderBy(asc(account.createdAt));
-    const [firstRemaining] = remaining;
-    if (firstRemaining === undefined) {
+    // Any EVE row, parseable or not, keeps the user, as in deleteUserIfUnlinked.
+    if (remaining.length === 0) {
       await runners.runBeforeUserDelete(userId);
       if (await deleteUserIfUnlinked(userId)) return { accountEmptied: true };
       restoreProjection = true;
       continue;
     }
-    await repairUserIdentity(userId, characterId, firstRemaining.accountId);
+    const remainingCharacterIds = linkedCharacterIds(remaining);
+    await repairUserIdentity(userId, characterId, remainingCharacterIds[0] ?? null);
     if (restoreProjection) {
-      for (const link of remaining) {
-        await runners.runAfterCharacterLinkChanged({ userId, characterId: Number(link.accountId) });
+      for (const remainingCharacterId of remainingCharacterIds) {
+        await runners.runAfterCharacterLinkChanged({ userId, characterId: remainingCharacterId });
       }
     }
     return { accountEmptied: false };

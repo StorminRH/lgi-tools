@@ -1,4 +1,4 @@
-import { EVE_PROVIDER_ID } from './eve-sso-constants';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { TOKEN_CRYPTO_VERSION } from './token-crypto';
 
 /**

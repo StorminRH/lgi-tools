@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
@@ -7,7 +6,7 @@ import { EntityRow } from '@/components/ui/row';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { inlineLink } from '@/components/ui/text-link';
-import { getFullSession } from '@/composition/session';
+import { requireSessionPage } from '@/composition/route-guards';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { formatCount } from '@/lib/format/number';
 import { accountPageSettings } from '@/platform/page-settings/account';
@@ -70,10 +69,7 @@ function MembershipsCard({ view }: { view: CorporationsView }) {
 }
 
 async function CorporationsContent() {
-  const session = await getFullSession();
-  if (!session) {
-    redirect('/?auth_error=login_required');
-  }
+  const session = await requireSessionPage();
 
   const models = resolvePageControls(accountPageSettings);
   const rows = settingsNeedsCorpSharing(models)

@@ -13,6 +13,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'maps.eliminate-signatures',
+    endpoint: signatureEliminationEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, signatureEliminationRequestSchema),
     handle: async ({ userId }, body) => apiResponse(

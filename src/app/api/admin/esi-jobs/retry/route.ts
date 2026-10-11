@@ -1,42 +1,37 @@
 import type { NextRequest } from 'next/server';
-import { capabilityRoute } from '@/app/api/capability-route';
+import { runMutationRoute } from '@/app/api/mutation-route';
+import { checkAdmin } from '@/composition/route-guards';
 import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contract';
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
-import { adminMutationGate } from '@/app/api/admin-mutation';
+import { notFoundFailure } from '@/lib/failure';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
 // authz: admin
-export const POST = capabilityRoute('admin.requeue-esi-job', handlePost);
+export async function POST(request: NextRequest): Promise<Response> {
+  return runMutationRoute(request, {
+    capability: 'admin.requeue-esi-job',
+    authorize: checkAdmin,
+    parse: (incoming) =>
+      parseFormBody(incoming, retryEsiRefreshJobFormSchema, ['jobId']),
+    handle: async ({ session }, { jobId }) => {
+      const result = await requeueDeadLetteredJob(jobId);
+      if (result.outcome === 'not_found') {
+        return problemResponse(
+          notFoundFailure('job_not_found', 'Dead-lettered job not found'),
+        );
+      }
 
-async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await adminMutationGate(request);
-  if (!gate.ok) return gate.response;
+      void logUsageEvent({
+        action: 'admin_esi_job_requeued',
+        characterId: session.characterId,
+        metadata: { jobId, outcome: result.outcome },
+      }).catch((error) =>
+        console.error('[admin/esi-jobs/retry] telemetry write failed', error),
+      );
 
-  const parsed = await parseFormBody(
-    request,
-    retryEsiRefreshJobFormSchema,
-    (form) => ({ jobId: form.get('jobId') }),
-    () => validationFailure('invalid_form_field', 'Invalid form'),
-  );
-  if (!parsed.ok) return problemResponse(parsed.failure);
-
-  const result = await requeueDeadLetteredJob(parsed.data.jobId);
-  if (result.outcome === 'not_found') {
-    return problemResponse(
-      notFoundFailure('job_not_found', 'Dead-lettered job not found'),
-    );
-  }
-
-  void logUsageEvent({
-    action: 'admin_esi_job_requeued',
-    characterId: gate.session.characterId,
-    metadata: { jobId: parsed.data.jobId, outcome: result.outcome },
-  }).catch((error) =>
-    console.error('[admin/esi-jobs/retry] telemetry write failed', error),
-  );
-
-  return Response.redirect(new URL('/admin/queue', request.url), 303);
+      return seeOther(request, '/admin/queue');
+    },
+  });
 }

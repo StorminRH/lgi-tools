@@ -58,8 +58,6 @@ const past = () => new Date(Date.now() - 1000);
 
 beforeEach(() => {
   vi.stubEnv('EVE_TOKEN_ENCRYPTION_KEY', VALID_KEY);
-  vi.stubEnv('EVE_CLIENT_ID', 'client-id');
-  vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
   h.selectRows = [];
   h.rereadRows = null;
   h.selectCount = 0;
@@ -136,11 +134,7 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'ok',
       accessToken: 'new-access',
     });
-    expect(h.refreshEveTokenMock).toHaveBeenCalledWith({
-      refreshToken: 'old-refresh',
-      clientId: 'client-id',
-      clientSecret: 'client-secret',
-    });
+    expect(h.refreshEveTokenMock).toHaveBeenCalledWith({ refreshToken: 'old-refresh' });
     const persisted = h.updateSpy.mock.calls[0]![0] as { accessToken: string; refreshToken: string };
     expect(persisted.refreshToken.startsWith('v1:')).toBe(true);
     expect(persisted.accessToken.startsWith('v1:')).toBe(true);

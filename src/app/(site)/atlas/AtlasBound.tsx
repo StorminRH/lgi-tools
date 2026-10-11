@@ -1,4 +1,3 @@
-import { unstable_rethrow } from 'next/navigation';
 import { connection } from 'next/server';
 import {
   listMapChromeData,
@@ -17,6 +16,7 @@ import {
   type SessionCheckResult,
 } from '@/composition/route-guards';
 import type { Session } from '@/platform/auth/types';
+import { readOr } from '../read-or';
 import { AtlasCanvasFrame } from './AtlasCanvasFrame';
 import { AtlasGuestLanding } from './AtlasGuestLanding';
 import { AtlasReturnRefresh } from './AtlasReturnRefresh';
@@ -29,33 +29,21 @@ const EMPTY_MAP_CHROME: MapChromeData = {
   blocksByMapId: {},
 };
 
+const UNAVAILABLE_CHROME = { data: EMPTY_MAP_CHROME, listingAvailable: false } as const;
+
 async function loadScannerCatalogue(): Promise<readonly SiteSearchEntry[]> {
-  try {
-    return await getScannerSiteIndex();
-  } catch (err) {
-    unstable_rethrow(err);
-    console.error('[map] scanner site catalogue unavailable; degrading', err);
-  }
-  try {
-    return await getSiteSearchIndex();
-  } catch (err) {
-    unstable_rethrow(err);
-    console.error('[map] lightweight site catalogue unavailable; empty seed', err);
-  }
-  return [];
+  return (
+    (await readOr('[map] scanner site catalogue unavailable; degrading', getScannerSiteIndex, null)) ??
+    readOr('[map] lightweight site catalogue unavailable; empty seed', getSiteSearchIndex, [])
+  );
 }
 
-async function loadMapChromeData(userId: string) {
-  try {
-    return {
-      data: await listMapChromeData(userId),
-      listingAvailable: true,
-    } as const;
-  } catch (err) {
-    unstable_rethrow(err);
-    console.error('[map] map listing unavailable; retry required', err);
-    return { data: EMPTY_MAP_CHROME, listingAvailable: false } as const;
-  }
+function loadMapChromeData(userId: string) {
+  return readOr(
+    '[map] map listing unavailable; retry required',
+    async () => ({ data: await listMapChromeData(userId), listingAvailable: true }) as const,
+    UNAVAILABLE_CHROME,
+  );
 }
 
 function atlasAccountSession(gate: SessionCheckResult | null): Session | null {
@@ -77,22 +65,14 @@ export async function AtlasBound({
 }) {
   await connection();
 
-  let gate: SessionCheckResult | null = null;
-  try {
-    gate = await checkSession();
-  } catch (err) {
-    unstable_rethrow(err);
-    console.error('[map] authorization check unavailable', err);
-  }
+  const gate = await readOr('[map] authorization check unavailable', checkSession, null);
 
   if (gate?.ok === false) return <AtlasGuestLanding returnHref={returnHref} />;
 
   const session = atlasAccountSession(gate);
   const [siteIndex, chromeSnapshot] = await Promise.all([
     loadScannerCatalogue(),
-    gate === null
-      ? Promise.resolve({ data: EMPTY_MAP_CHROME, listingAvailable: false } as const)
-      : loadMapChromeData(gate.session.user.id),
+    gate === null ? Promise.resolve(UNAVAILABLE_CHROME) : loadMapChromeData(gate.session.user.id),
   ]);
   const chromeData = chromeSnapshot.data;
   const showCanvas = mapSelected && gate?.ok === true;

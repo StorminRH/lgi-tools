@@ -296,6 +296,12 @@ describe('POST /api/feedback', () => {
       'cross_origin',
       'Cross-origin requests are not allowed',
     );
+    await expectProblem(
+      await POST(postJson(ROUTE, '{not json', { origin: 'https://foreign.example' })),
+      403,
+      'cross_origin',
+    );
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
 

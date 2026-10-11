@@ -24,7 +24,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
   const assets = await measureOwnedDataRead({
-    endpoint: '/api/industry/owned-assets',
+    endpoint: ownedAssetsEndpoint,
     requested: typeIds.length,
     read: () => getOwnedAssetDetailOnView(userId, typeIds),
     returned: (value) => value.length,

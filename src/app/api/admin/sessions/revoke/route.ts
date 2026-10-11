@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { adminRevokeSessionsFormSchema } from '@/platform/auth/api-contract';
 import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
 import { checkAdmin } from '@/composition/route-guards';
@@ -14,12 +14,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     capability: 'admin.revoke-user-sessions',
     authorize: checkAdmin,
     parse: (incoming) =>
-      parseFormBody(
-        incoming,
-        adminRevokeSessionsFormSchema,
-        (form) => ({ userId: form.get('userId') }),
-        () => validationFailure('invalid_form_field', 'Invalid form'),
-      ),
+      parseFormBody(incoming, adminRevokeSessionsFormSchema, ['userId']),
     handle: async ({ session }, { userId }) => {
       if (userId === session.user.id) {
         return problemResponse(
@@ -50,7 +45,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       }).catch((err) => console.error('[admin/sessions/revoke] telemetry write failed', err));
 
-      return Response.redirect(new URL(`/admin/users/${userId}`, request.url), 303);
+      return seeOther(request, `/admin/users/${userId}`);
     },
   });
 }

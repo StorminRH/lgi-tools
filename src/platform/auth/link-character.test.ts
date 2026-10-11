@@ -26,12 +26,17 @@ test('startEveSignIn asks the auth client for EVE sign-in, returning home by def
   expect(client.signInOauth2).toHaveBeenLastCalledWith({ providerId: 'eve', callbackURL: '/' });
 });
 
-test('startEveSignIn swallows a rejected sign-in request', async () => {
+function watchUnhandledRejections() {
   const unhandled = vi.fn();
   process.on('unhandledRejection', unhandled);
   onTestFinished(() => {
     process.off('unhandledRejection', unhandled);
   });
+  return unhandled;
+}
+
+test('startEveSignIn swallows a rejected sign-in request', async () => {
+  const unhandled = watchUnhandledRejections();
   client.signInOauth2.mockRejectedValue(new TypeError('Failed to fetch'));
 
   startEveSignIn('/');
@@ -57,4 +62,15 @@ test('startCharacterLink links another EVE character and comes back to the callb
     callbackURL: '/atlas?map=one',
     errorCallbackURL: '/atlas?map=one',
   });
+});
+
+test('startCharacterLink swallows a rejected link request', async () => {
+  const unhandled = watchUnhandledRejections();
+  client.link.mockRejectedValue(new TypeError('Failed to fetch'));
+
+  startCharacterLink('/settings/characters');
+  await settled();
+
+  expect(client.link).toHaveBeenLastCalledWith(expect.objectContaining({ providerId: 'eve' }));
+  expect(unhandled).not.toHaveBeenCalled();
 });

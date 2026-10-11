@@ -11,6 +11,7 @@ import { apiResponse } from '@/transport/api-response';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.revoke-own-sessions',
+    endpoint: sessionsRevokeEndpoint,
     preflight: rateLimitPreflight(
       request,
       { name: 'account-logout-everywhere', perMinute: 10 },
