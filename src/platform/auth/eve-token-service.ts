@@ -5,12 +5,12 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { bestEffort } from '@/lib/best-effort';
 import {
-  EVE_PROVIDER_ID,
   refreshEveToken,
   revokeEveRefreshToken,
   type RefreshFailureClass,
 } from './eve-sso';
 import { account } from '@/db/auth-schema';
+import { accountMatch } from './eve-account-shared';
 import { authorizationRetryAt, successfulAuthorization } from './authorization-policy';
 import { decryptToken, encryptToken } from './token-crypto';
 
@@ -53,9 +53,7 @@ function loadAccountRow(characterId: number) {
       refreshTokenInvalidGrantFirstAt: account.refreshTokenInvalidGrantFirstAt,
     })
     .from(account)
-    .where(
-      and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))),
-    )
+    .where(accountMatch(characterId))
     .limit(1)
     .then((rows) => rows[0]);
 }

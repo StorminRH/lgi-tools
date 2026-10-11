@@ -5,9 +5,9 @@ import { withLockedUsers } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
 import { unresolvedName } from '@/lib/format/names';
 import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
-import { characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
+import { characterProfileJoin, characterProfileJoinOn, eveAccountsForUser, userAccountMatch } from './eve-account-shared';
 import { reconcileAfterCharacterRemoval } from './account-purge';
-import { EVE_PROVIDER_ID } from './eve-sso';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
 import { account, characters, session, user } from '@/db/auth-schema';
@@ -158,7 +158,7 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
     .where(or(
       ilike(user.name, pattern),
       exists(db.select({ one: sql`1` }).from(linkedAccount)
-        .innerJoin(linkedCharacter, eq(sql`${linkedCharacter.characterId}::text`, linkedAccount.accountId))
+        .innerJoin(linkedCharacter, characterProfileJoinOn(linkedAccount.accountId, linkedCharacter.characterId))
         .where(and(
           eq(linkedAccount.userId, user.id),
           eq(linkedAccount.providerId, EVE_PROVIDER_ID),
@@ -205,7 +205,7 @@ export async function deleteLinkedCharacter(
   try {
     deleted = await changeCharacterOwnership([userId], (database) => database
       .delete(account)
-      .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
+      .where(userAccountMatch(userId, characterId))
       .returning({ id: account.id }));
   } catch (error) {
     await runners.runAfterFailedCharacterUnlink(characterId);
@@ -259,13 +259,7 @@ export async function reassignCharacter({
     moved = await changeCharacterOwnership([fromUserId, toUserId], (database) => database
       .update(account)
       .set({ userId: toUserId, updatedAt: new Date() })
-      .where(
-        and(
-          eq(account.providerId, EVE_PROVIDER_ID),
-          eq(account.accountId, String(characterId)),
-          eq(account.userId, fromUserId),
-        ),
-      )
+      .where(userAccountMatch(fromUserId, characterId))
       .returning({ id: account.id }));
   } catch (error) {
     await runners.runAfterFailedCharacterUnlink(characterId);

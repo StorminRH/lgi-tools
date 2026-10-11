@@ -8,9 +8,9 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
 import { EVE_SCOPES } from '@/config/eve-scopes';
 import { readAuthSecret, readEnv } from '@/lib/env';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import {
   EVE_AUTHORIZE_URL,
-  EVE_PROVIDER_ID,
   EVE_TOKEN_URL,
   claimsToCharacter,
   exchangeCodeForToken,

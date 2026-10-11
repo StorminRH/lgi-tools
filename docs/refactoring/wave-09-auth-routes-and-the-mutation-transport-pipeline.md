@@ -23,7 +23,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | ☑ | [P149](#p149) | Generalise loadSection into readOr(message, load, fallback) for app-zone degrade reads and use it in AtlasBound and jobCharacterIds | error-handling | S | low | low | — |
 | ☑ | [P068](#p068) | Add isCurrentReadIdentity and sameReadIdentity to platform/auth/read-identity and replace the hand-written staleness guards | client-data | S | low | low | — |
 | ☑ | [P337](#p337) | Read the EVE SSO client credentials inside eve-sso's token-request builder and drop clientId/clientSecret from the three token inputs | simplification | S | low | low | — |
-| ☐ | [P222](#p222) | Reuse the eve-account-shared predicates, import EVE_PROVIDER_ID only from @/lib/eve-provider, and add signInWithEve beside startCharacterLink | persistence | S | low | low | [P067](wave-08-charts-images-and-board-workspace-adoption.md#p067) |
+| ☑ | [P222](#p222) | Reuse the eve-account-shared predicates, import EVE_PROVIDER_ID only from @/lib/eve-provider, and add signInWithEve beside startCharacterLink | persistence | S | low | low | [P067](wave-08-charts-images-and-board-workspace-adoption.md#p067) |
 | ☐ | [P257](#p257) | Route linked-account-to-characterId conversions through parseLinkedAccountId and one ids helper | contracts-validation | S | low | low | [P222](#p222) |
 | ☐ | [P176](#p176) | Resolve every guard through getFullSession, reuse the get-session response for the background check, and coalesce the opportunistic affiliation drain | server-pipeline | M | medium | medium | [P287](wave-01-quick-wins-delete-dead-code-fix-small.md#p287), [P167](#p167) |
 | ☐ | [P161](#p161) | Route user unlink, admin unlink and reassign through one unlinkCharacter that ends in reconcileAfterCharacterRemoval | server-pipeline | M | medium | high | [P141](#p141), [P146](#p146), [P256](#p256), [P257](#p257) |
@@ -1275,7 +1275,7 @@ export interface RevokeTokenInput { refreshToken: string }
 
 ## P222: Reuse the eve-account-shared predicates, import EVE_PROVIDER_ID only from @/lib/eve-provider, and add signInWithEve beside startCharacterLink
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +20
 - **Depends on:** [P067](wave-08-charts-images-and-board-workspace-adoption.md#p067)

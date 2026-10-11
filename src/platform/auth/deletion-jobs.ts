@@ -4,7 +4,7 @@ import { deletionDatabase } from '@/db/deletion-client';
 import { account, user } from '@/db/auth-schema';
 import { lockUserRows } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
-import { accountMatch, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
+import { accountMatch, eveAccountsForUser, parseLinkedAccountId, userAccountMatch } from './eve-account-shared';
 import { pendingDeletions } from './deletion-schema';
 import type { PendingDeletion } from './purge';
 
@@ -46,8 +46,8 @@ async function requestStillPending(database: AnyPgDb, request: PendingDeletion) 
       .where(and(eq(user.id, request.userId), eq(user.deletionRequestedAt, request.requestedAt)));
   }
   return database.select({ id: account.id }).from(account).where(and(
-    eq(account.id, request.accountRowId), eq(account.userId, request.userId),
-    accountMatch(request.characterId), eq(account.deletionRequestedAt, request.requestedAt),
+    eq(account.id, request.accountRowId), userAccountMatch(request.userId, request.characterId),
+    eq(account.deletionRequestedAt, request.requestedAt),
   ));
 }
 
@@ -75,9 +75,9 @@ export async function requestDeletion(userId: string, characterId?: number): Pro
       return owner?.requestedAt ? { scope: 'user', userId, requestedAt: owner.requestedAt } : null;
     }
     await tx.update(account).set({ deletionRequestedAt: now, updatedAt: now })
-      .where(and(eveAccountsForUser(userId), accountMatch(characterId), isNull(account.deletionRequestedAt)));
+      .where(and(userAccountMatch(userId, characterId), isNull(account.deletionRequestedAt)));
     const [link] = await tx.select({ accountRowId: account.id, requestedAt: account.deletionRequestedAt })
-      .from(account).where(and(eveAccountsForUser(userId), accountMatch(characterId)));
+      .from(account).where(userAccountMatch(userId, characterId));
     return link?.requestedAt ? { scope: 'character', userId, characterId, accountRowId: link.accountRowId, requestedAt: link.requestedAt } : null;
   });
 }
@@ -106,7 +106,7 @@ export async function enqueueTransfer(userId: string, characterId: number, accou
     const existing = await existingJob(tx, userId);
     if (existing !== undefined) return existing;
     const [link] = await tx.select({ id: account.id }).from(account).where(and(
-      eveAccountsForUser(userId), accountMatch(characterId),
+      userAccountMatch(userId, characterId),
       accountRowId === undefined ? undefined : eq(account.id, accountRowId),
     ));
     if (link === undefined) return undefined;

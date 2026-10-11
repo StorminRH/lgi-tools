@@ -14,7 +14,7 @@ import { authorizationFailureCurrent } from './authorization-store';
 import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
-import { EVE_PROVIDER_ID } from './eve-sso';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 
 export interface CachedAffiliation {
   characterId: number;

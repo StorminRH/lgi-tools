@@ -1,7 +1,7 @@
 import { asc, and, eq, exists, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
-import { EVE_PROVIDER_ID } from './eve-sso';
+import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId, userAccountMatch } from './eve-account-shared';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 import { isAuthorizationDelayed } from './authorization-policy';
@@ -188,15 +188,11 @@ export function notLinkedFailure(): AppFailure {
   return validationFailure('not_linked', 'Character not linked to your account');
 }
 
-function ownedEveAccount(userId: string, characterId: number) {
-  return and(eveAccountsForUser(userId), eq(account.accountId, String(characterId)));
-}
-
 export async function accountBelongsToUser(userId: string, characterId: number): Promise<boolean> {
   const [row] = await db
     .select({ id: account.id })
     .from(account)
-    .where(ownedEveAccount(userId, characterId))
+    .where(userAccountMatch(userId, characterId))
     .limit(1);
   return row != null;
 }
@@ -211,7 +207,7 @@ export async function setActiveCharacter(userId: string, characterId: number): P
   const owned = db
     .select({ one: sql`1` })
     .from(account)
-    .where(ownedEveAccount(userId, characterId));
+    .where(userAccountMatch(userId, characterId));
   const [row] = await db
     .update(user)
     .set({ activeCharacterId: characterId, updatedAt: new Date() })

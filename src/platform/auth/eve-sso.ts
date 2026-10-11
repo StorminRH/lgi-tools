@@ -20,7 +20,6 @@ import type { EveJwtClaims, EveTokenResponse } from './types';
 export {
   EVE_AUTHORIZE_URL,
   EVE_AUTHORIZED_APPS_URL,
-  EVE_PROVIDER_ID,
   EVE_REVOKE_URL,
   EVE_TOKEN_URL,
 } from './eve-sso-constants';

@@ -8,7 +8,7 @@ import { problemResponse, seeOther } from '@/transport/api-response';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { characterIdFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { auth } from '@/composition/auth';
-import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,

@@ -15,7 +15,6 @@ vi.mock('./token-crypto', () => ({
 
 const revokeEveRefreshTokenMock = vi.fn();
 vi.mock('./eve-sso', () => ({
-  EVE_PROVIDER_ID: 'eve',
   refreshEveToken: vi.fn(),
   revokeEveRefreshToken: (input: unknown) => revokeEveRefreshTokenMock(input),
 }));

@@ -1,4 +1,4 @@
-import { EVE_PROVIDER_ID } from './eve-sso';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { successfulAuthorization } from './authorization-policy';
 import { TOKEN_CRYPTO_VERSION } from './token-crypto';
 
