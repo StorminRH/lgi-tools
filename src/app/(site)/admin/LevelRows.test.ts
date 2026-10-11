@@ -3,20 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { LevelRows } from './LevelRows';
 import type { StatusLine } from './signals';
-import { levelReadout } from './status-tone';
 
 function render(line: StatusLine): string {
   return renderToStaticMarkup(createElement(LevelRows, { lines: [line] }));
 }
-
-describe('levelReadout', () => {
-  it('pairs each level’s dot with a spoken verdict and keeps healthy values plain', () => {
-    expect(levelReadout('green')).toEqual({ tone: 'green', status: 'Healthy', valueTone: 'default' });
-    expect(levelReadout('amber')).toEqual({ tone: 'orange', status: 'Warning', valueTone: 'orange' });
-    expect(levelReadout('red')).toEqual({ tone: 'red', status: 'Critical', valueTone: 'red' });
-    expect(levelReadout('neutral')).toEqual({ tone: 'neutral', status: 'No verdict', valueTone: 'muted' });
-  });
-});
 
 describe('LevelRows', () => {
   it('says the verdict in words beside the dot', () => {

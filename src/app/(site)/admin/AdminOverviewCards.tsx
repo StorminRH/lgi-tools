@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { levelReadout } from '@/components/status-level-tone';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
@@ -9,7 +10,6 @@ import {
   type AttentionItem,
   type StatusGroupId,
 } from './signals';
-import { levelReadout } from './status-tone';
 
 /** The overview's three status cards: their titles, where they link, and skeleton rows. */
 export const STATUS_CARDS = [
