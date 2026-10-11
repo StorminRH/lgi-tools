@@ -45,17 +45,11 @@ const exemptionHomes = [
     '<button type="button">Log in</button>',
     'No raw <button>',
   ],
-  ...[
-    'src/components/composition/account/AdminForceLogoutForm.tsx',
-    'src/components/composition/account/AdminReassignCharacterForm.tsx',
-    'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
-    'src/components/composition/account/RoleToggleForm.tsx',
-    'src/components/composition/account/UnlinkCharacterForm.tsx',
-  ].map((filePath) => [
-    filePath,
+  [
+    'src/components/ui/action-form.tsx',
     '<Button title="Disabled reason">Action</Button>',
     'No native title forwarded through Button',
-  ]),
+  ],
   [
     'src/features/wormhole-sites/components/SitesTable.tsx',
     '<details><summary>Site</summary></details>',
