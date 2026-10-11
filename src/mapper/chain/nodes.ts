@@ -14,6 +14,7 @@ import type { ConnectionDoorValue, ConnectionTombstone } from '@/data/maps/conne
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { hiddenUnidentifiedSignatures } from '@/data/maps/stub-accounting';
 import type { HaloLink, PlacedHaloSystem } from '../halo/halo-model';
+import { treeLinkClaim } from '../layout/facts';
 import { pairKey } from '../lib/pair-key';
 import type { EdgeMotion } from '../motion/motion-contract';
 import type { ChainPosition } from './intents';
@@ -375,7 +376,7 @@ export function buildEdges(
   foggedSystemIds: ReadonlySet<number> = EMPTY_FOGGED_IDS,
   stubs: readonly PlacedStub[] = [],
 ): ChainEdge[] {
-  const claim = newPairClaim(treeParents);
+  const claim = newEdgeClaim(treeParents);
   const livePairs = livePairKeys(connections, now);
   const edges: ChainEdge[] = [];
   for (const connection of connections.values()) {
@@ -408,17 +409,13 @@ export function buildEdges(
   return edges;
 }
 
-function newPairClaim(treeParents: ReadonlyMap<number, number>) {
-  const claimed = new Set<string>();
+function newEdgeClaim(treeParents: ReadonlyMap<number, number>) {
+  const isSolid = treeLinkClaim(treeParents);
   const rendered = new Set<string>();
   return {
     claimSolid(a: number, b: number): boolean {
-      const key = pairKey(a, b);
-      const isTreeLink = treeParents.get(b) === a || treeParents.get(a) === b;
-      const solid = isTreeLink && !claimed.has(key);
-      if (solid) claimed.add(key);
-      rendered.add(key);
-      return solid;
+      rendered.add(pairKey(a, b));
+      return isSolid(a, b);
     },
     rendered(a: number, b: number): boolean {
       return rendered.has(pairKey(a, b));
@@ -429,7 +426,7 @@ function newPairClaim(treeParents: ReadonlyMap<number, number>) {
 function appendHaloEdges(
   edges: ChainEdge[],
   haloLinks: readonly HaloLink[],
-  claim: ReturnType<typeof newPairClaim>,
+  claim: ReturnType<typeof newEdgeClaim>,
   foggedSystemIds: ReadonlySet<number>,
 ): void {
   for (const link of haloLinks) {
