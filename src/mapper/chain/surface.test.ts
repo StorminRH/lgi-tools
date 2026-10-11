@@ -33,6 +33,7 @@ describe('mapper source contract', () => {
       'authoring/leads-to-origin.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
+      'authoring/system-terminal-search.tsx',
       'authoring/use-wormhole-editor-data.ts',
       'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',

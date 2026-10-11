@@ -26,7 +26,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P217](#p217) | Decode ConvexError payloads in one helper and route every setTracking call through one failure path | error-handling | S | low | medium | — |
 | ☑ | [P028](#p028) | Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker | ui-component | M | low | medium | [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059) |
 | ☑ | [P038](#p038) | Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle | ui-component | S | low | medium | [P028](#p028) |
-| ☐ | [P029](#p029) | Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop | ui-component | S | low | medium | [P028](#p028) |
+| ☑ | [P029](#p029) | Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop | ui-component | S | low | medium | [P028](#p028) |
 | ☐ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
 | ☐ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
 | ☐ | [P033](#p033) | Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics | ui-component | S | low | low | [P032](#p032) |
@@ -999,7 +999,7 @@ Correct copy: TrackingControls, for the label, the filter and the error handling
 
 ## P029: Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -30 across the three call sites, with parseDestinationSystem's 17 lines moved. The new module adds about 35 lines. Net about +5. The value is one picker definition and the self-loop fix.
 - **Depends on:** [P028](#p028)

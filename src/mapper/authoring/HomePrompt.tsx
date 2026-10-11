@@ -11,19 +11,14 @@ import {
 } from '@/components/use-account-characters';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTitle } from '@/components/ui/dialog';
-import { TerminalSearch } from '@/components/ui/terminal-search';
-import {
-  useSystemName,
-  useSystemSearch,
-  type SystemErr,
-  type SystemParams,
-} from '@/components/use-system-search';
+import { useSystemName } from '@/components/use-system-search';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMapTrackingToggle } from '../tracking/TrackingControls';
 import { trackableCharacters, trackingToggleLabel } from '../tracking/tracking-controls-view';
 import { useMapCoverage } from '../tracking/use-map-coverage';
 import { homeCurrentSystem, type HomeCurrentSystem } from './home-prompt-model';
+import { SystemTerminalSearch } from './system-terminal-search';
 
 export interface HomePromptProps {
   readonly mapId: string;
@@ -31,7 +26,6 @@ export interface HomePromptProps {
 }
 
 export function HomePrompt({ mapId, onPick }: HomePromptProps) {
-  const { parse, suggest } = useSystemSearch();
   const titleId = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const characterId = useActiveCharacterId();
@@ -67,16 +61,10 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
         >
           Set your home system
         </DialogTitle>
-        <TerminalSearch<SystemParams, SystemErr>
-          initialValue=""
+        <SystemTerminalSearch
           placeholder="Search systems — type a name"
-          parse={parse}
-          suggest={suggest}
           inputRef={searchInputRef}
-          errorMessage={() => 'No system matches that name.'}
-          onSubmit={(params) => onPick(params.system.id)}
-          onClear={() => undefined}
-          errorLabel="System"
+          onPick={onPick}
         />
         <HomeTrackingToggles
           characters={trackable}

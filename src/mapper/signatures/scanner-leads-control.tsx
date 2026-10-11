@@ -14,10 +14,9 @@ import {
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { UNSET_FIELD } from '../authoring/connection-field-group';
-import {
-  parseDestinationSystem,
-  type ConnectionFieldSetters,
-  type OriginLeadOption,
+import type {
+  ConnectionFieldSetters,
+  OriginLeadOption,
 } from '../authoring/connection-fields';
 import {
   decodeOriginLead,
@@ -25,6 +24,7 @@ import {
   originLeadForSystem,
   originLeadForTypedLabel,
 } from '../authoring/leads-to-origin';
+import { parseDestinationSystem } from '../authoring/system-terminal-search';
 import {
   ScannerComboPanel,
   consumeScannerEnter,

@@ -11,7 +11,7 @@ import {
 import { blankDoor } from '@/data/maps/connection-hallway';
 import { withHostNumberLocale } from '@/lib/__tests__/host-locale';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
-import { ConnectionFields, parseDestinationSystem } from './connection-fields';
+import { ConnectionFields } from './connection-fields';
 
 const selectHandlers = new Map<string, (next: string) => void>();
 
@@ -339,23 +339,4 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   expect(restore).not.toContain('data-select="Mass"');
   expect(restore).toContain('data-map-connection-mass-state-readout');
   expect(restore).toContain('data-map-connection-life-readout');
-});
-
-it('parses a destination identity readout by stripping the class suffix', () => {
-  const parse = (input: string) =>
-    input === 'J120924'
-      ? { ok: true as const, params: { system: { id: 31_000_001, name: 'J120924', security: null } } }
-      : { ok: false as const, error: { kind: 'not_found' as const } };
-  expect(parseDestinationSystem(parse, 'J120924 - C2')).toEqual({
-    ok: true,
-    params: { system: { id: 31_000_001, name: 'J120924', security: null } },
-  });
-  expect(parseDestinationSystem(parse, 'unknown-system')).toEqual({
-    ok: false,
-    error: { kind: 'not_found' },
-  });
-  expect(parseDestinationSystem(parse, 'J120924', 31_000_001)).toEqual({
-    ok: false,
-    error: { kind: 'not_found' },
-  });
 });

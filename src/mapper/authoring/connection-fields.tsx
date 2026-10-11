@@ -4,11 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { Tooltip } from '@/components/ui/tooltip';
-import {
-  useSystemSearch,
-  type SystemErr,
-  type SystemParams,
-} from '@/components/use-system-search';
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import {
   CONNECTION_MASS_STATES,
@@ -45,6 +40,7 @@ import {
   type MassRowDisplay,
 } from './connection-intelligence';
 import { dispatchLeadsToChange, encodeOriginLead } from './leads-to-origin';
+import { SystemTerminalSearch } from './system-terminal-search';
 import {
   wormholeTypeSearch,
   type WormholeTypeErr,
@@ -468,7 +464,6 @@ function LeadsToField({
   readonly onSetDestination: (toSystemId: number | null) => void;
   readonly onLinkOrigin: (resolvedConnectionId: string) => void;
 }) {
-  const search = useSystemSearch();
   const hint = doorHint(connection.from);
   if (readOnly) {
     return (
@@ -489,20 +484,12 @@ function LeadsToField({
   if (destination !== null) {
     return (
       <ConnectionFieldGroup label="Leads to">
-        <TerminalSearch<SystemParams, SystemErr>
+        <SystemTerminalSearch
           key={`${connection.connectionId}:${destination.label}`}
           initialValue={destination.label}
           placeholder="System name — e.g. J120924"
-          parse={(input) =>
-            parseDestinationSystem(
-              search.parse,
-              input,
-              connection.fromSystemId,
-            )
-          }
-          suggest={search.suggest}
-          errorMessage={() => 'No system matches that name.'}
-          onSubmit={(params) => onSetDestination(params.system.id)}
+          excludeSystemId={connection.fromSystemId}
+          onPick={onSetDestination}
           onClear={() => onSetDestination(null)}
           errorLabel="Destination"
         />
@@ -536,24 +523,6 @@ function LeadsToField({
       }
     />
   );
-}
-
-export function parseDestinationSystem<P extends { system: { id: number } }>(
-  parse: (input: string) => { ok: true; params: P } | { ok: false },
-  input: string,
-  originSystemId?: number,
-): { ok: true; params: P } | { ok: false; error: SystemErr } {
-  const direct = parse(input);
-  const parsed = direct.ok
-    ? direct
-    : input.lastIndexOf(' - ') > 0
-      ? parse(input.slice(0, input.lastIndexOf(' - ')))
-      : direct;
-  if (!parsed.ok) return { ok: false, error: { kind: 'not_found' } };
-  if (parsed.params.system.id === originSystemId) {
-    return { ok: false, error: { kind: 'not_found' } };
-  }
-  return parsed;
 }
 
 function ConnectionActions({
