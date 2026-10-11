@@ -1,46 +1,71 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { ProjectionUnavailableError } from './map-access-projection';
 import {
   MapPurgeUnavailableError,
   purgeEligibleMaps,
-  purgeMapChain,
+  purgeOwnedMapChains,
 } from './map-purge';
+
+const ownedMapIds = vi.hoisted(() => vi.fn<(userId: string) => Promise<string[]>>());
+vi.mock('@/data/maps/queries', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/data/maps/queries')>(),
+  getOwnedMapIds: ownedMapIds,
+}));
 
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  ownedMapIds.mockReset();
 });
 
-describe('purgeMapChain', () => {
+describe('purgeOwnedMapChains', () => {
   function configure() {
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');
     vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
   }
 
+  function purgedMapIds(fetchMock: Mock<typeof fetch>): string[] {
+    return fetchMock.mock.calls.map(([, init]) =>
+      (JSON.parse(String(init?.body)) as { mapId: string }).mapId);
+  }
+
   it('requires both Convex transport settings', async () => {
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-    await expect(purgeMapChain('map-a')).rejects.toBeInstanceOf(
+    ownedMapIds.mockResolvedValueOnce(['map-a']);
+    await expect(purgeOwnedMapChains('owner')).rejects.toBeInstanceOf(
       MapPurgeUnavailableError,
     );
   });
 
-  it('returns only a validated clean terminal response', async () => {
+  it('purges each owned chain in order, one at a time, and returns the purged ids', async () => {
     configure();
-    const fetchMock = vi.fn().mockResolvedValue(
-      Response.json({ deleted: 17, remaining: false }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    await expect(purgeMapChain('map-a')).resolves.toEqual({
-      deleted: 17,
-      remaining: false,
+    ownedMapIds.mockResolvedValueOnce(['map-a', 'map-b']);
+    let inFlight = 0;
+    let peak = 0;
+    const fetchMock = vi.fn<typeof fetch>(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
+      return Response.json({ deleted: 17, remaining: false });
     });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(purgeOwnedMapChains('owner')).resolves.toEqual(['map-a', 'map-b']);
+    expect(ownedMapIds).toHaveBeenCalledExactlyOnceWith('owner');
+    expect(purgedMapIds(fetchMock)).toEqual(['map-a', 'map-b']);
+    expect(peak).toBe(1);
     expect(fetchMock).toHaveBeenCalledWith(
       'https://example.convex.site/purge-map-chain',
       expect.objectContaining({ method: 'POST' }),
     );
+
+    ownedMapIds.mockResolvedValueOnce([]);
+    await expect(purgeOwnedMapChains('mapless')).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -51,12 +76,15 @@ describe('purgeMapChain', () => {
       'drifted response',
       () => Promise.resolve(Response.json({ deleted: 1, remaining: true })),
     ],
-  ])('rejects a %s without claiming a clean purge', async (_case, response) => {
+  ])('rejects a %s at the first chain without claiming a clean purge', async (_case, response) => {
     configure();
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(response));
-    await expect(purgeMapChain('map-a')).rejects.toBeInstanceOf(
+    ownedMapIds.mockResolvedValueOnce(['map-a', 'map-b']);
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(response);
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(purgeOwnedMapChains('owner')).rejects.toBeInstanceOf(
       MapPurgeUnavailableError,
     );
+    expect(purgedMapIds(fetchMock)).toEqual(['map-a']);
   });
 });
 

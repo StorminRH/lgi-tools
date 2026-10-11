@@ -14,7 +14,6 @@ const unlinkAccountMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 const reconcileAfterCharacterRemovalMock = vi.fn();
 const logUsageEventMock = vi.fn();
-const getOwnedMapIdsMock = vi.fn();
 const enqueueAffectedMapAccessChangesMock = vi.fn();
 const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
@@ -45,7 +44,6 @@ vi.mock('@/platform/auth/account-purge', () => ({
 }));
 
 vi.mock('@/data/maps/queries', () => ({
-  getOwnedMapIds: (userId: string) => getOwnedMapIdsMock(userId),
   enqueueAffectedMapAccessChanges: (characterId: number) =>
     enqueueAffectedMapAccessChangesMock(characterId),
   getGrantedMapIdsForCharacter: async () => ['map-1'],
@@ -99,7 +97,6 @@ describe('POST /api/account/characters/unlink', () => {
     reconcileAfterCharacterRemovalMock.mockReset().mockResolvedValue({ accountEmptied: false });
     logUsageEventMock.mockReset();
     emitCostMetricMock.mockReset();
-    getOwnedMapIdsMock.mockReset();
     enqueueAffectedMapAccessChangesMock.mockReset();
     projectMapAccessMock.mockReset();
     teardownMapAccessProjectionMock.mockReset();
@@ -108,7 +105,6 @@ describe('POST /api/account/characters/unlink', () => {
     eraseNetWorthHistoryMock.mockReset().mockResolvedValue(undefined);
     teardownLocationTrackingMock.mockReset().mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
-    getOwnedMapIdsMock.mockResolvedValue([]);
     enqueueAffectedMapAccessChangesMock.mockResolvedValue([]);
     projectMapAccessMock.mockResolvedValue({
       inserted: 0,

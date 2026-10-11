@@ -4,6 +4,7 @@ import {
   claimPurgeableMaps,
   tombstonePurgedMap,
 } from '@/data/maps/lifecycle';
+import { getOwnedMapIds } from '@/data/maps/queries';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 
 const MAP_PURGE_WORK_BUDGET_MS = 60_000;
@@ -20,7 +21,7 @@ export class MapPurgeUnavailableError extends Error {
   }
 }
 
-export async function purgeMapChain(
+async function purgeMapChain(
   mapId: string,
 ): Promise<{ readonly deleted: number; readonly remaining: false }> {
   return postConvexHttpDoor({
@@ -30,6 +31,19 @@ export async function purgeMapChain(
     error: MapPurgeUnavailableError,
     label: 'Map purge unavailable',
   });
+}
+
+/**
+ * Purges the Convex chain of every map the user owns, one map at a time so
+ * each call stays inside Convex's batch limits, and returns the purged ids.
+ * The first failure stops the run; the caller keeps the deletion retryable.
+ */
+export async function purgeOwnedMapChains(userId: string): Promise<string[]> {
+  const ownedMapIds = await getOwnedMapIds(userId);
+  for (const mapId of ownedMapIds) {
+    await purgeMapChain(mapId);
+  }
+  return ownedMapIds;
 }
 
 export interface MapPurgeDependencies {

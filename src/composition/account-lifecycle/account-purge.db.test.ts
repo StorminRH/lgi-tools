@@ -27,9 +27,17 @@ const mapPurge = vi.hoisted(() => ({
 vi.mock('@/platform/auth/eve-token-service', () => ({
   revokeStoredCharacterToken: (ciphertext: string | null) => revokeMock(ciphertext),
 }));
-vi.mock('@/composition/map-purge', () => ({
-  purgeMapChain: mapPurge.purgeMapChain,
-}));
+// Stands in for the Convex /purge-map-chain door, so the real owned-map purge runs.
+vi.mock('@/lib/convex-http-door', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
+  return {
+    ...actual,
+    postConvexHttpDoor: async (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
+      options.path === '/purge-map-chain'
+        ? options.schema.parse(await mapPurge.purgeMapChain((options.body as { mapId: string }).mapId))
+        : actual.postConvexHttpDoor(options),
+  };
+});
 
 import { finishPendingDeletion, nukeAccount, purgeOwnCharacter, retryRequestedDeletions } from './account-purge';
 import { enqueueDeletion, requestDeletion, readDeletionJobs, type DeletionJob } from '@/platform/auth/deletion-jobs';
