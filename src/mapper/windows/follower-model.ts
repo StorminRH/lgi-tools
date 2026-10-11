@@ -279,11 +279,10 @@ export function computeFollowerTransform(
   anchorId: string,
   viewport: readonly [number, number, number],
   anchor: FollowerNode | undefined,
-  measured: boolean,
   card: ScreenSize,
   layer: ScreenSize,
 ): FollowerDecision | null {
-  if (!measured || anchor === undefined) return null;
+  if (anchor === undefined) return null;
   const frame = endpointFrame(anchor);
   if (frame === null) return null;
   const center = frameCenter(frame);
@@ -457,18 +456,15 @@ export function createNodeFollower(
     store,
     card,
     NODE_CARD_FALLBACK,
-    (state, baseline, cardSize, layer) => {
-      const anchor = state.nodeLookup.get(anchorId);
-      return computeFollowerTransform(
+    (state, baseline, cardSize, layer) =>
+      computeFollowerTransform(
         baseline,
         anchorId,
         state.transform,
-        anchor,
-        anchor !== undefined,
+        state.nodeLookup.get(anchorId),
         cardSize,
         layer,
-      );
-    },
+      ),
     write,
     scheduler,
     observeSize,

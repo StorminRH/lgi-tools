@@ -620,7 +620,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P307](wave-15-mapper-client-canvas-tracking-scanner-and.md#p307) | Delete dead camera flight state and collapse mapper camera-fit, window and edge pass-throughs | simplification | M | low | low | — |
+| ☑ | [P307](wave-15-mapper-client-canvas-tracking-scanner-and.md#p307) | Delete dead camera flight state and collapse mapper camera-fit, window and edge pass-throughs | simplification | M | low | low | — |
 | ☐ | [P308](wave-15-mapper-client-canvas-tracking-scanner-and.md#p308) | Pass kernel positions straight to reconcileChain and trim stub-layout and syncNodes duplication | simplification | M | low | low | — |
 | ☐ | [P309](wave-15-mapper-client-canvas-tracking-scanner-and.md#p309) | Share one tree-link claim between map edge drawing and the layout crossing report | simplification | S | low | low | — |
 | ☐ | [P310](wave-15-mapper-client-canvas-tracking-scanner-and.md#p310) | Hoist compass ring-slot arithmetic per ring and make compassKernel async | simplification | S | low | low | — |

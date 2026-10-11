@@ -3,16 +3,14 @@ import { ICON_TRACK_CLEARANCE_PX } from './disc-chrome';
 import { SYSTEM_DISC_SIZE, SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 import {
   chainLinkSegment,
-  chainLinkPath,
   connectionLabelBox,
   edgeTaperFraction,
   endpointFrame,
   frameCenter,
-  frameNameBox,
   frameSegment,
-  kspaceCaptionBox,
   pointAlongSegment,
   pointOnRayAtRadius,
+  segmentPath,
   visibleChainLinkSegment,
   type FrameRect,
 } from './edge-geometry';
@@ -99,11 +97,13 @@ test('chainLinkSegment prefers measured frames and nulls incomplete endpoints', 
   expect(chainLinkSegment(node(0, 0, MEASURED), node(CLEAR * 2, 0, MEASURED))).toBeNull();
 });
 
-test('chainLinkPath cuts only the fog side of the shared segment', () => {
+test('the drawn path cuts only the fog side of the shared segment', () => {
   const segment = { startX: 0, startY: 0, endX: 100, endY: 0 };
-  expect(chainLinkPath(segment, undefined, 0.25)).toBe('M 0,0 L 100,0');
-  expect(chainLinkPath(segment, 'target', 0.25)).toBe('M 0,0 L 25,0');
-  expect(chainLinkPath(segment, 'source', 0.25)).toBe('M 75,0 L 100,0');
+  const path = (fogSide: 'source' | 'target' | undefined) =>
+    segmentPath(visibleChainLinkSegment(segment, fogSide, 0.25));
+  expect(path(undefined)).toBe('M 0,0 L 100,0');
+  expect(path('target')).toBe('M 0,0 L 25,0');
+  expect(path('source')).toBe('M 75,0 L 100,0');
 });
 
 test('fog taper uses the rendered segment and preserves a 24px fade', () => {
@@ -140,15 +140,18 @@ test('asymmetric captions remain attached to their endpoint for paths and revers
   );
   expect(segment).toEqual({ startX: 75, startY: 100.5, endX: 75, endY: 183.5 });
   if (segment === null) throw new Error('Expected separated endpoints to render');
-  expect(chainLinkPath(segment, undefined, 0.25)).toBe('M 75,100.5 L 75,183.5');
-  expect(chainLinkPath(segment, 'target', 0.25)).toBe('M 75,100.5 L 75,121.25');
-  expect(chainLinkPath(segment, 'source', 0.25)).toBe('M 75,162.75 L 75,183.5');
+  const path = (fogSide: 'source' | 'target' | undefined) =>
+    segmentPath(visibleChainLinkSegment(segment, fogSide, 0.25));
+  expect(path(undefined)).toBe('M 75,100.5 L 75,183.5');
+  expect(path('target')).toBe('M 75,100.5 L 75,121.25');
+  expect(path('source')).toBe('M 75,162.75 L 75,183.5');
   expect(pointAlongSegment(segment, 0.25, true)).toEqual({ x: 75, y: 121.25, angle: 90 });
   expect(pointAlongSegment(segment, 0.25, false)).toEqual({ x: 75, y: 162.75, angle: -90 });
 });
 
 test('k-space captions push an arriving line out past the text', () => {
-  const caption = kspaceCaptionBox();
+  const caption = connectionLabelBox({ security: 1 });
+  if (caption === null) throw new Error('Expected a k-space caption box');
   const source = frame(0, 0);
   const target = frame(0, 200);
   const from = frameCenter(source);
@@ -163,12 +166,14 @@ test('k-space captions push an arriving line out past the text', () => {
 });
 
 test('wormhole names and derived nodes use the frame label, k-space uses the caption', () => {
+  const caption = { left: -CX, right: CX, top: -71.5, bottom: -33.5 };
+  const frameName = { left: 4 - CX, right: CX - 4, top: 4 - CY, bottom: 4 - CY + 14 * 1.6 };
   expect(connectionLabelBox(undefined)).toBeNull();
-  expect(connectionLabelBox({ security: 1 })).toEqual(kspaceCaptionBox());
-  expect(connectionLabelBox({ whClassId: 2 })).toEqual(frameNameBox());
-  expect(connectionLabelBox({ security: 1, halo: { ring: 1 } })).toEqual(frameNameBox());
-  expect(connectionLabelBox({ stub: { code: 'B274' } })).toEqual(frameNameBox());
-  expect(frameNameBox().top).toBe(4 - FRAME_H / 2);
+  expect(connectionLabelBox({ security: 1 })).toStrictEqual(caption);
+  expect(connectionLabelBox({ security: -0.4 })).toStrictEqual(caption);
+  expect(connectionLabelBox({ whClassId: 2 })).toStrictEqual(frameName);
+  expect(connectionLabelBox({ security: 1, halo: { ring: 1 } })).toStrictEqual(frameName);
+  expect(connectionLabelBox({ stub: { code: 'B274' } })).toStrictEqual(frameName);
 });
 
 test('edge taper is a fixed run that collapses on a short segment', () => {

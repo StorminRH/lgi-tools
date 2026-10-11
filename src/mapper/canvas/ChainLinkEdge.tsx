@@ -15,10 +15,10 @@ import type { EdgeMotion } from '../motion/motion-contract';
 import { useOutboundArrow } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
 import {
-  chainLinkPath,
   chainLinkSegment,
   edgeTaperFraction,
   pointAlongSegment,
+  segmentPath,
   visibleChainLinkSegment,
   type FrameSegment,
 } from './edge-geometry';
@@ -172,7 +172,6 @@ function ChainLinkEdgeComponent({
   }, [gradientId, visible]);
   if (segment === null) return null;
 
-  const path = chainLinkPath(segment, data?.fogSide, FOG_EDGE_CUT_FRACTION);
   const visibleSegment = visibleChainLinkSegment(segment, data?.fogSide, FOG_EDGE_CUT_FRACTION);
 
   const presentation = edgePresentation(data);
@@ -183,7 +182,7 @@ function ChainLinkEdgeComponent({
       </defs>
       <BaseEdge
         id={id}
-        path={path}
+        path={segmentPath(visibleSegment)}
         pathLength={presentation.pathLength}
         className={cn(presentation.className, 'map-edge-taper')}
         interactionWidth={CHAIN_EDGE_INTERACTION_WIDTH}

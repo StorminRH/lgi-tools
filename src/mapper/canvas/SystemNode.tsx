@@ -84,13 +84,6 @@ function nodePresentation(data: ChainNodeData) {
   } as const;
 }
 
-function nodeHeader(data: ChainNodeData): {
-  readonly text: string;
-  readonly toneClass: string;
-} {
-  return { text: data.name, toneClass: 'text-name' };
-}
-
 export function chipFontSizePx(
   scrollWidth: number,
   clientWidth: number,
@@ -242,12 +235,10 @@ function NodeDisc({
 function KnownSpaceCaption({
   systemId,
   text,
-  toneClass,
   chromeClass,
 }: {
   readonly systemId: number;
   readonly text: string;
-  readonly toneClass: string;
   readonly chromeClass: string | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -272,8 +263,7 @@ function KnownSpaceCaption({
       <span
         data-chain-node-name
         className={cn(
-          'min-w-0 truncate px-1 text-center font-ui text-nav font-bold leading-none',
-          toneClass,
+          'min-w-0 truncate px-1 text-center font-ui text-nav font-bold leading-none text-name',
           chromeClass,
         )}
       >
@@ -299,13 +289,11 @@ function NodeHeader({
   readonly data: ChainNodeData;
   readonly chromeClass: string | null;
 }) {
-  const header = nodeHeader(data);
   if (nodeCaptionKind(data) === 'kspace') {
     return (
       <KnownSpaceCaption
         systemId={Number(id)}
-        text={header.text}
-        toneClass={header.toneClass}
+        text={data.name}
         chromeClass={chromeClass}
       />
     );
@@ -314,12 +302,11 @@ function NodeHeader({
     <span
       data-chain-node-name
       className={cn(
-        'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
-        header.toneClass,
+        'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold text-name',
         chromeClass,
       )}
     >
-      {header.text}
+      {data.name}
     </span>
   );
 }

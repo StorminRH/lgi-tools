@@ -3,76 +3,6 @@ import type { PlacedSystem } from '../chain/reconciler';
 import { SETTLE_SPRING, type MotionConfig } from '../motion/motion-contract';
 import { endpointFrame, frameCenter } from './edge-geometry';
 
-export function systemsNeedingFit(
-  intents: readonly MapChainIntent[],
-): readonly number[] {
-  return intents.flatMap((intent) =>
-    intent.kind === 'system-appeared' || intent.kind === 'system-moved'
-      ? [intent.systemId]
-      : [],
-  );
-}
-
-export function nodesReadyForFit(
-  intents: readonly MapChainIntent[],
-  nodeIds: ReadonlySet<number>,
-): boolean {
-  return systemsNeedingFit(intents).every((systemId) => nodeIds.has(systemId));
-}
-
-export function shouldFitView(input: {
-  readonly intents: readonly MapChainIntent[];
-  readonly framed: boolean;
-  readonly follow: boolean;
-}): boolean {
-  const appeared = input.intents.some(
-    (intent) => intent.kind === 'system-appeared' || intent.kind === 'system-moved',
-  );
-  if (!appeared) return false;
-  if (!input.framed) return true;
-  return input.follow;
-}
-
-export type CameraFitAction = 'ignore' | 'wait' | 'skip' | 'fit';
-
-export type CameraFitPlan = {
-  readonly consume: boolean;
-  readonly fit: boolean;
-};
-
-export function decideCameraFit(input: {
-  readonly intents: readonly MapChainIntent[];
-  readonly previousIntents: readonly MapChainIntent[];
-  readonly framed: boolean;
-  readonly follow: boolean;
-  readonly nodeIds: ReadonlySet<number>;
-}): CameraFitAction {
-  if (input.intents === input.previousIntents) return 'ignore';
-  if (
-    !shouldFitView({
-      intents: input.intents,
-      framed: input.framed,
-      follow: input.follow,
-    })
-  ) {
-    return 'skip';
-  }
-  if (!nodesReadyForFit(input.intents, input.nodeIds)) return 'wait';
-  return 'fit';
-}
-
-export function planCameraFit(action: CameraFitAction): CameraFitPlan {
-  switch (action) {
-    case 'ignore':
-    case 'wait':
-      return { consume: false, fit: false };
-    case 'skip':
-      return { consume: true, fit: false };
-    case 'fit':
-      return { consume: true, fit: true };
-  }
-}
-
 export interface CameraEase {
   readonly duration: number;
   readonly ease: (t: number) => number;
@@ -127,40 +57,16 @@ export function chainBounds(
   };
 }
 
-export interface FitExecution {
-  readonly consume: boolean;
-  readonly bounds: CameraBounds | null;
+type FitTarget = Extract<
+  MapChainIntent,
+  { readonly kind: 'system-appeared' | 'system-moved' }
+>;
+
+function movedOrAppeared(intent: MapChainIntent): intent is FitTarget {
+  return intent.kind === 'system-appeared' || intent.kind === 'system-moved';
 }
 
-export function decideFitExecution(input: {
-  readonly intents: readonly MapChainIntent[];
-  readonly previousIntents: readonly MapChainIntent[];
-  readonly framed: boolean;
-  readonly follow: boolean;
-  readonly nodeIds: ReadonlySet<number>;
-  readonly systems: ReadonlyMap<number, PlacedSystem>;
-  readonly frame: NodeFrameSize;
-}): FitExecution {
-  const plan = planCameraFit(
-    decideCameraFit({
-      intents: input.intents,
-      previousIntents: input.previousIntents,
-      framed: input.framed,
-      follow: input.follow,
-      nodeIds: input.nodeIds,
-    }),
-  );
-  return {
-    consume: plan.consume,
-    bounds: plan.fit ? chainBounds(input.systems, input.frame) : null,
-  };
-}
-
-export interface FitTickResult extends FitExecution {
-  readonly framed: boolean;
-}
-
-export function resolveFitTick(input: {
+export interface FitInput {
   readonly viewportReady: boolean;
   readonly intents: readonly MapChainIntent[];
   readonly previousIntents: readonly MapChainIntent[];
@@ -169,15 +75,35 @@ export function resolveFitTick(input: {
   readonly nodeIds: ReadonlySet<number>;
   readonly systems: ReadonlyMap<number, PlacedSystem>;
   readonly frame: NodeFrameSize;
-}): FitTickResult {
-  if (!input.viewportReady) {
-    return { consume: false, bounds: null, framed: input.framed };
+}
+
+export interface FitTickResult {
+  readonly consume: boolean;
+  readonly bounds: CameraBounds | null;
+  readonly framed: boolean;
+}
+
+/**
+ * One camera-fit decision per effect run. A tick that does not consume leaves
+ * the intents to be read again: the viewport is not ready, the intents are the
+ * ones already handled, or a system to frame has no mounted node yet. A tick
+ * with nothing that appeared or moved, or that is already framed while follow
+ * is off, consumes without fitting.
+ */
+export function resolveFitTick(input: FitInput): FitTickResult {
+  const { framed } = input;
+  if (!input.viewportReady || input.intents === input.previousIntents) {
+    return { consume: false, bounds: null, framed };
   }
-  const decision = decideFitExecution(input);
-  return {
-    ...decision,
-    framed: decision.bounds !== null ? true : input.framed,
-  };
+  const targets = input.intents.filter(movedOrAppeared);
+  if (targets.length === 0 || (framed && !input.follow)) {
+    return { consume: true, bounds: null, framed };
+  }
+  if (targets.some((intent) => !input.nodeIds.has(intent.systemId))) {
+    return { consume: false, bounds: null, framed };
+  }
+  const bounds = chainBounds(input.systems, input.frame);
+  return { consume: true, bounds, framed: bounds !== null || framed };
 }
 
 export interface FocusAction {
@@ -224,23 +150,3 @@ export function focusCenter(
   });
   return box === null ? null : frameCenter(box);
 }
-
-export interface CameraFlight {
-  readonly generation: number;
-  readonly active: boolean;
-}
-
-export const IDLE_FLIGHT: CameraFlight = { generation: 0, active: false };
-
-export function beginFlight(flight: CameraFlight): CameraFlight {
-  return { generation: flight.generation + 1, active: true };
-}
-
-export function settleFlight(
-  flight: CameraFlight,
-  generation: number,
-): CameraFlight {
-  if (generation !== flight.generation || !flight.active) return flight;
-  return { generation: flight.generation, active: false };
-}
-

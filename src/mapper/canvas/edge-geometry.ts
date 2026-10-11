@@ -68,32 +68,27 @@ export interface EndpointLabels {
 
 const NO_LABELS: EndpointLabels = { source: null, target: null };
 
-export function kspaceCaptionBox(): LabelBox {
-  const half = SYSTEM_FRAME_WIDTH / 2;
-  const bottom = kspaceCaptionOffset().y;
-  return {
-    left: -half,
-    right: half,
-    top: bottom - KSPACE_CAPTION_BLOCK_PX,
-    bottom,
-  };
-}
+const KSPACE_CAPTION_BOTTOM = kspaceCaptionOffset().y;
 
-export function frameNameBox(): LabelBox {
-  const halfW = SYSTEM_FRAME_WIDTH / 2;
-  const halfH = SYSTEM_FRAME_HEIGHT / 2;
-  const top = FRAME_NAME_TOP_PX - halfH;
-  return {
-    left: FRAME_NAME_INSET_PX - halfW,
-    right: halfW - FRAME_NAME_INSET_PX,
-    top,
-    bottom: top + FRAME_NAME_LINE_PX,
-  };
-}
+const KSPACE_CAPTION_LABEL: LabelBox = {
+  left: -SYSTEM_FRAME_WIDTH / 2,
+  right: SYSTEM_FRAME_WIDTH / 2,
+  top: KSPACE_CAPTION_BOTTOM - KSPACE_CAPTION_BLOCK_PX,
+  bottom: KSPACE_CAPTION_BOTTOM,
+};
+
+const FRAME_NAME_TOP = FRAME_NAME_TOP_PX - SYSTEM_FRAME_HEIGHT / 2;
+
+const FRAME_NAME_LABEL: LabelBox = {
+  left: FRAME_NAME_INSET_PX - SYSTEM_FRAME_WIDTH / 2,
+  right: SYSTEM_FRAME_WIDTH / 2 - FRAME_NAME_INSET_PX,
+  top: FRAME_NAME_TOP,
+  bottom: FRAME_NAME_TOP + FRAME_NAME_LINE_PX,
+};
 
 export function connectionLabelBox(data: NodeCaptionData | undefined): LabelBox | null {
   if (data === undefined) return null;
-  return nodeCaptionKind(data) === 'kspace' ? kspaceCaptionBox() : frameNameBox();
+  return nodeCaptionKind(data) === 'kspace' ? KSPACE_CAPTION_LABEL : FRAME_NAME_LABEL;
 }
 
 function rayFarDistance(dx: number, dy: number, box: LabelBox): number | null {
@@ -212,13 +207,8 @@ export function visibleChainLinkSegment(
     };
 }
 
-export function chainLinkPath(
-  segment: FrameSegment,
-  fogSide: 'source' | 'target' | undefined,
-  cut: number,
-): string {
-  const visible = visibleChainLinkSegment(segment, fogSide, cut);
-  return `M ${visible.startX},${visible.startY} L ${visible.endX},${visible.endY}`;
+export function segmentPath(segment: FrameSegment): string {
+  return `M ${segment.startX},${segment.startY} L ${segment.endX},${segment.endY}`;
 }
 
 export function pointAlongSegment(

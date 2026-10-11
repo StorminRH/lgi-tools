@@ -2,7 +2,6 @@
 
 import { useStore, useStoreApi } from '@xyflow/react';
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -42,34 +41,14 @@ function useSelectedSystemIds(): readonly number[] {
   );
 }
 
-function useSurfacePresence(input: {
-  readonly dockSystemId: number | null;
-  readonly boxSelectActive: boolean;
-  readonly selectedIds: readonly number[];
-}) {
-  const derivation = deriveSurfaces({
-    dockSystemId: input.dockSystemId,
-    selectedIds: input.selectedIds,
-    boxSelectActive: input.boxSelectActive,
-  });
-
-  return {
-    liveIds: derivation.surfaces,
-    summarySystemId: derivation.summarySystemId,
-  };
-}
-
 function useWindowStack(liveIds: readonly MapWindowId[]) {
   const [stack, setStack] = useState<readonly MapWindowId[]>([]);
   const renderedStack = reconcileStack(stack, liveIds);
   if (!sameItems(stack, renderedStack)) setStack(renderedStack);
 
-  const activate = useCallback(
-    (id: MapWindowId) => {
-      setStack((current) => bringToFront(reconcileStack(current, liveIds), id));
-    },
-    [liveIds],
-  );
+  const activate = (id: MapWindowId) => {
+    setStack((current) => bringToFront(reconcileStack(current, liveIds), id));
+  };
 
   return { renderedStack, activate };
 }
@@ -248,10 +227,10 @@ function MountedMapWindowLayer({
   const selectedIds = useSelectedSystemIds();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const leaderRef = useRef<MapWindowLeaderHandle | null>(null);
-  const { liveIds, summarySystemId } = useSurfacePresence({
+  const { surfaces: liveIds, summarySystemId } = deriveSurfaces({
     dockSystemId,
-    boxSelectActive,
     selectedIds,
+    boxSelectActive,
   });
   const { renderedStack, activate } = useWindowStack(liveIds);
   const card = useLingeringCard(summarySystemId);
