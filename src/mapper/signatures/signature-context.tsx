@@ -47,8 +47,3 @@ export type ScannerPanelTarget =
       readonly signatureId: string;
     }
   | null;
-
-export type OpenSignatureEditor = (
-  connectionId: Id<'mapConnections'>,
-  signatureId?: string | null,
-) => void;

@@ -127,7 +127,6 @@ describe('mapper source contract', () => {
       'signatures/scanner-identify-combo.tsx',
       'signatures/scanner-leads-control.tsx',
       'signatures/scanner-optional-select.tsx',
-      'signatures/scanner-panel-body.ts',
       'signatures/scanner-prompt-rail.tsx',
       'signatures/scanner-row-cells.tsx',
       'signatures/scanner-row-open.ts',
