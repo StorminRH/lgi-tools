@@ -5,8 +5,9 @@ import { parseRange, previousRange, rangeFor } from '../period';
 import { ActivityChart } from '../ActivityChart';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
+import { loadActivityView } from '../load-activity';
 import type { RangeSearchParams } from '../RangeControl';
-import { loadTrafficActivity, loadTrafficRankings, loadVisitors, VisitorsBody } from './TrafficCards';
+import { loadTrafficRankings, loadVisitors, VisitorsBody } from './TrafficCards';
 
 // Three cards over one rankings read: each list and the total its shares are of.
 const RANKINGS = [
@@ -53,7 +54,7 @@ async function TrafficContent({ searchParams }: { searchParams: RangeSearchParam
         name="traffic-activity"
         rows={4}
         reveal={1}
-        load={() => loadTrafficActivity(range, previous)}
+        load={() => loadActivityView(range, previous)}
       >
         {(activity) => <ActivityChart activity={activity} />}
       </AdminSection>

@@ -6,9 +6,9 @@ import { getReturningVsNew } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { previousRange, type RangeKey } from './period';
 import { ActivityChart } from './ActivityChart';
-import { deriveActivityView, rangeDayCount } from './activity-view';
-import { loadDeployMarkers } from './deploy-markers';
+import { rangeDayCount } from './activity-view';
 import { KpiGrid } from './KpiGrid';
+import { loadActivityView } from './load-activity';
 import { loadSection } from './load-section';
 import { buildMetricRows, type SearchTotals } from './metric-view';
 import { searchPeriods } from './search/search-period';
@@ -34,10 +34,10 @@ async function loadSearchTotals(rangeKey: RangeKey): Promise<SearchTotals | null
  */
 export async function loadAudience(rangeKey: RangeKey, range: DateRange) {
   const prev = previousRange(rangeKey, range);
-  const [views, users, markers, search] = await Promise.all([
+  const [views, users, activity, search] = await Promise.all([
     getPageViewStatsShared(range, prev),
     getReturningVsNew(range, prev),
-    loadDeployMarkers(),
+    loadActivityView(range, prev),
     loadSection('audience.search', () => loadSearchTotals(rangeKey)),
   ]);
   return {
@@ -49,7 +49,7 @@ export async function loadAudience(rangeKey: RangeKey, range: DateRange) {
       prevUsers: users.previous,
       search,
     }),
-    activity: deriveActivityView({ range, dailyCounts: views.current, prevDailyCounts: views.previous, markers }),
+    activity,
   };
 }
 

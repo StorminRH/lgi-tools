@@ -66,7 +66,7 @@ describe('deriveSliSignals', () => {
       outcome('save-preferences', 'succeeded', 1),
       outcome('save-preferences', 'validation', 5),
     ];
-    expect(deriveSliSignals(outcomes, { p95: 420, slowest: [] })).toEqual({
+    expect(deriveSliSignals({ outcomes, latency: { p95: 420, slowest: [] } })).toEqual({
       readSuccess: 0.75,
       mutationSuccess: 1,
       latencyP95: 420,
@@ -75,13 +75,13 @@ describe('deriveSliSignals', () => {
   });
 
   it('marks only the lines whose read failed', () => {
-    expect(deriveSliSignals(SECTION_LOAD_FAILED, { p95: null, slowest: [] })).toEqual({
+    expect(deriveSliSignals({ outcomes: SECTION_LOAD_FAILED, latency: { p95: null, slowest: [] } })).toEqual({
       readSuccess: SECTION_LOAD_FAILED,
       mutationSuccess: SECTION_LOAD_FAILED,
       latencyP95: null,
       esiSuccess: SECTION_LOAD_FAILED,
     });
-    expect(deriveSliSignals([], SECTION_LOAD_FAILED)).toEqual({
+    expect(deriveSliSignals({ outcomes: [], latency: SECTION_LOAD_FAILED })).toEqual({
       readSuccess: null,
       mutationSuccess: null,
       latencyP95: SECTION_LOAD_FAILED,

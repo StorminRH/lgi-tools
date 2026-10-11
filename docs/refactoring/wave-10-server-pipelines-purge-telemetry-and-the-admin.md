@@ -32,7 +32,7 @@ In order:
 | ☑ | [P316](#p316) | Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin | simplification | M | low | low | [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107) |
 | ☑ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
 | ☑ | [P281](#p281) | Cache degradation and search-total reads per request with one range-keyed helper, and drop dead ESI cost reads | efficiency | S | low | medium | — |
-| ☐ | [P158](#p158) | Share the admin cron, SLI and activity loaders between the overview, health and traffic cards | server-pipeline | S | low | medium | — |
+| ☑ | [P158](#p158) | Share the admin cron, SLI and activity loaders between the overview, health and traffic cards | server-pipeline | S | low | medium | — |
 | ☐ | [P299](#p299) | Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers | simplification | M | low | medium | [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088) |
 | ☐ | [P314](#p314) | Trim admin and corporations view models to rendered fields and show search truncation in the results body | simplification | S | low | low | — |
 | ☐ | [P315](#p315) | Derive admin hrefs, titles and range controls from admin-sections instead of literals | simplification | M | low | low | [P316](#p316) |
@@ -842,7 +842,7 @@ export function deriveCostLensView(input: { prices; history; writeBehind; endpoi
 
 ## P158: Share the admin cron, SLI and activity loaders between the overview, health and traffic cards
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about −55 / +30 (net −25 across 5 files plus 1 new file)
 - **Depends on:** —

@@ -60,11 +60,14 @@ export function mapLoaded<T, U>(value: Loaded<T>, derive: (loaded: T) => U): Loa
   return value === SECTION_LOAD_FAILED ? SECTION_LOAD_FAILED : derive(value);
 }
 
+/** The capability outcome and latency reads every service level is derived from. */
+export interface SliReads {
+  outcomes: Loaded<CapabilityOutcomeStat[]>;
+  latency: Loaded<CapabilityLatency>;
+}
+
 /** The headline service levels from the capability outcome and latency reads. */
-export function deriveSliSignals(
-  outcomes: Loaded<CapabilityOutcomeStat[]>,
-  latency: Loaded<CapabilityLatency>,
-): SliSignals {
+export function deriveSliSignals({ outcomes, latency }: SliReads): SliSignals {
   return {
     readSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'read')),
     mutationSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'mutation')),
