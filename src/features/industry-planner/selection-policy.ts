@@ -6,7 +6,6 @@ export interface ReactionLocationSnapshot {
   systemId: number;
   blueprintTypeId: number;
   costIndex: number | null;
-  adjustedPrices: Map<number, number>;
 }
 
 export function buildSelectionVacatesReaction(

@@ -168,12 +168,15 @@ export function useProfileFactors(
   structureFactors: StructureFactors;
   skillTimeFactors: SkillTimeFactors | null;
   locationPending: boolean;
+  /** The read of the system the product's own job runs in failed. */
+  locationFailed: boolean;
 } {
   const profile = usePlannerProfile(structure, location.availableStructures);
   const locationPending = useProfileLocation(profile.plan, profile.profile?.id ?? null, structure.activityId, location);
   return {
     ...profile,
     locationPending,
+    locationFailed: location.failureSystemId !== null && location.failureSystemId === profile.plan?.top.facility?.systemId,
     structureFactors: profile.plan?.structureFactors ?? location.structureFactors,
     skillTimeFactors: profile.plan?.skillTimeFactors ?? null,
   };

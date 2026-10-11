@@ -50,6 +50,7 @@ const STRUCTURE: BlueprintStructure = {
 
 const pendingPricing = new Promise<null>(() => undefined);
 const pendingHistory = new Promise<never[]>(() => undefined);
+const pendingAdjustedPrices = new Promise<never[]>(() => undefined);
 type PricingProviderProps = Parameters<typeof PricingProvider>[0];
 const TestPricingProvider = PricingProvider as ComponentType<
   Omit<PricingProviderProps, 'children'> & { children?: ReactNode }
@@ -83,6 +84,7 @@ describe('PricingProvider', () => {
           structure: STRUCTURE,
           pricingPromise: pendingPricing,
           historyPromise: pendingHistory,
+          adjustedPricesPromise: pendingAdjustedPrices,
         },
         createElement(ContextProbe),
       ),

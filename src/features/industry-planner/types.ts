@@ -90,18 +90,10 @@ export interface IntermediatePrice extends RowPriceFields {
   bestBuy: number | null;
 }
 
-export interface IndustryStationView {
-  id: number;
-  name: string | null;
-  operationName: string;
-  manufacturingCapable: boolean;
-  researchCapable: boolean;
-}
-
-export interface BuildLocationData {
-  stations: IndustryStationView[];
-  costIndices: { manufacturing: number | null; reaction: number | null };
-  adjustedPrices: { typeId: number; adjustedPrice: number }[];
+/** One type's CCP adjusted price, the value install fees are charged on. */
+export interface TypeAdjustedPrice {
+  typeId: number;
+  adjustedPrice: number;
 }
 
 /** One system's job cost indices; null where the system has none for the activity. */

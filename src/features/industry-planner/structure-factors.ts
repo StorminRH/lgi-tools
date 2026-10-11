@@ -1,5 +1,6 @@
 import { SDE_REFINERY_GROUP_ID } from '@/data/eve-data/constants';
 import { systemSecurityClass } from '@/data/eve-data/security';
+import type { AdjustedPriceOf } from '@/data/industry-math/fees';
 import type { AssembleOptions } from './build-pricing';
 import {
   bestOf,
@@ -196,18 +197,19 @@ export function structureCategoryBonus(
   return bonusFor(structure, activityId, systemSecurity, { filterIds });
 }
 
+/**
+ * The fee inputs for the build: the blueprint's adjusted prices, whichever
+ * system indices are read, and the hosts' taxes. Undefined while no job has a
+ * system to charge it in.
+ */
 export function composeFeeInputs(args: {
-  location: {
-    adjustedPrices: Map<number, number>;
-    costIndices: { manufacturing: number | null; reaction: number | null };
-  } | null;
-  reactionLocation: { costIndex: number | null; adjustedPrices: Map<number, number> } | null;
+  adjustedPriceOf: AdjustedPriceOf;
+  location: { costIndices: { manufacturing: number | null; reaction: number | null } } | null;
+  reactionLocation: { costIndex: number | null } | null;
   buildStructure: AvailableStructure | null;
   reactionStructure: AvailableStructure | null;
   structureCostBonusPct: number;
-  components?: NonNullable<AssembleOptions['fee']>['components'] & {
-    adjustedPriceOf: (typeId: number) => number | null;
-  };
+  components?: NonNullable<AssembleOptions['fee']>['components'];
 }): AssembleOptions['fee'] {
   const { location, reactionLocation, buildStructure, reactionStructure } = args;
   const { reactionHost } = routeHosts(buildStructure, reactionStructure);
@@ -218,12 +220,7 @@ export function composeFeeInputs(args: {
       : undefined;
   if (!location && !reaction && !args.components) return undefined;
   return {
-    adjustedPriceOf: (id: number) => {
-      if (location || reactionLocation) {
-        return location?.adjustedPrices.get(id) ?? reactionLocation?.adjustedPrices.get(id) ?? null;
-      }
-      return args.components?.adjustedPriceOf(id) ?? null;
-    },
+    adjustedPriceOf: args.adjustedPriceOf,
     systemCostIndex: location?.costIndices.manufacturing ?? null,
     structureCostBonusPct: args.structureCostBonusPct,
     facilityTaxPct: buildStructure?.taxPct ?? null,

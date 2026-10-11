@@ -17,8 +17,6 @@ import { planSnapshotWireSchema } from './template-snapshot';
 import type {
   AssetHolding,
   BlueprintIndexEntry,
-  BuildLocationData,
-  IndustryStationView,
   OwnedAssetEntry,
   OwnedAssetsResponse,
   OwnedBlueprintMeEntry,
@@ -41,40 +39,6 @@ export const blueprintsEndpoint = defineEndpoint({
   request: null,
   responses: {
     200: jsonBody(blueprintsResponseSchema),
-  },
-});
-
-export const buildLocationRequestSchema = z.object({
-  // Adjusted prices are global and can be read before choosing an installation system.
-  systemId: int4IdSchema.nullable(),
-  blueprintId: int4IdSchema,
-});
-
-const industryStationViewSchema = z.object({
-  id: z.number(),
-  name: z.string().nullable(),
-  operationName: z.string(),
-  manufacturingCapable: z.boolean(),
-  researchCapable: z.boolean(),
-}) satisfies z.ZodType<IndustryStationView>;
-
-export const buildLocationResponseSchema = z.object({
-  stations: z.array(industryStationViewSchema),
-  costIndices: z.object({
-    manufacturing: z.number().nullable(),
-    reaction: z.number().nullable(),
-  }),
-  adjustedPrices: z.array(
-    z.object({ typeId: z.number(), adjustedPrice: z.number() }),
-  ),
-}) satisfies z.ZodType<BuildLocationData>;
-export const buildLocationEndpoint = defineEndpoint({
-  method: 'POST',
-  path: '/api/industry/build-location',
-  request: buildLocationRequestSchema,
-  responses: {
-    200: jsonBody(buildLocationResponseSchema),
-    400: problem('invalid_json', 'invalid_body'),
   },
 });
 

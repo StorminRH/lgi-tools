@@ -6,7 +6,6 @@ const getSystemCostIndicesBatchMock = vi.fn();
 
 vi.mock('@/data/industry-indices/queries', () => ({
   getAdjustedPrices: vi.fn(),
-  getSystemCostIndices: vi.fn(),
   getSystemCostIndicesBatch: (systemIds: number[]) => getSystemCostIndicesBatchMock(systemIds),
 }));
 

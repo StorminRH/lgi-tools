@@ -15,7 +15,6 @@ vi.mock('@/db', () => ({
 import {
   getAdjustedPrices,
   getAveragePrices,
-  getSystemCostIndices,
   getSystemCostIndicesBatch,
 } from './queries';
 
@@ -39,16 +38,6 @@ describe('getSystemCostIndicesBatch', () => {
   it('short-circuits empty input to an empty map', async () => {
     cannedRows = [{ solarSystemId: 1, activity: 'manufacturing', costIndex: 9 }];
     expect((await getSystemCostIndicesBatch([])).size).toBe(0);
-  });
-});
-
-describe('getSystemCostIndices', () => {
-  it('returns one system’s activity map, or an empty map when absent', async () => {
-    cannedRows = [{ solarSystemId: 30000142, activity: 'manufacturing', costIndex: 0.05 }];
-    expect((await getSystemCostIndices(30000142)).get('manufacturing')).toBe(0.05);
-
-    cannedRows = [];
-    expect((await getSystemCostIndices(99)).size).toBe(0);
   });
 });
 

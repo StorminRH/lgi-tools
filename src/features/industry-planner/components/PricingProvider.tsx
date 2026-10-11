@@ -18,6 +18,7 @@ import {
 } from '@/data/market-prices/use-refresh-on-view';
 import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-view';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
+import type { AdjustedPriceOf } from '@/data/industry-math/fees';
 import { computeMarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { usePreference } from '@/components/PreferencesProvider';
@@ -72,6 +73,7 @@ import type {
   BlueprintStructure,
   OwnedAssetEntry,
   OwnedComponentDetail,
+  TypeAdjustedPrice,
 } from '../types';
 import {
   PlannerContextProviders,
@@ -83,29 +85,13 @@ import {
   type SelectedReactionSystem,
 } from './planner-contexts';
 
-function PricingSeeder({
-  pricingPromise,
-  onSeed,
-}: {
-  pricingPromise: Promise<BlueprintPricing | null>;
-  onSeed: (pricing: BlueprintPricing | null) => void;
-}) {
-  const resolved = use(pricingPromise);
-  useEffect(() => {
-    const t = setTimeout(() => onSeed(resolved), 0);
-    return () => clearTimeout(t);
-  }, [resolved, onSeed]);
-  return null;
-}
-
-function HistorySeeder({
-  historyPromise,
-  onSeed,
-}: {
-  historyPromise: Promise<MarketHistoryInputs[]>;
-  onSeed: (inputs: MarketHistoryInputs[]) => void;
-}) {
-  const resolved = use(historyPromise);
+/**
+ * Hands a server read's value to the planner once it streams in. It renders
+ * inside its own Suspense, so each read lands on its own; `onSeed` must keep
+ * its identity, or the value is seeded again on every render.
+ */
+function PromiseSeeder<T>({ promise, onSeed }: { promise: Promise<T>; onSeed: (value: T) => void }) {
+  const resolved = use(promise);
   useEffect(() => {
     const t = setTimeout(() => onSeed(resolved), 0);
     return () => clearTimeout(t);
@@ -278,6 +264,7 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
 }
 
 interface PriceAssembleMirrors {
+  readonly adjustedPriceOf: AdjustedPriceOf;
   readonly components: ComponentFeeInputs | null;
   readonly costBasis: CostBasis;
   readonly ledger: BatchLedger;
@@ -290,17 +277,32 @@ interface PriceAssembleMirrors {
   readonly structureFactors: StructureFactors;
 }
 
+/**
+ * The blueprint's adjusted prices, which every job's fee is valued on, once
+ * the page's read has streamed in. Null until then.
+ */
+function useSeededAdjustedPrices() {
+  const [adjustedPrices, setAdjustedPrices] = useState<ReadonlyMap<number, number> | null>(null);
+  const seedAdjustedPrices = useCallback((prices: TypeAdjustedPrice[]) => {
+    setAdjustedPrices(new Map(prices.map((price) => [price.typeId, price.adjustedPrice])));
+  }, []);
+  const adjustedPriceOf = useCallback<AdjustedPriceOf>(
+    (typeId) => adjustedPrices?.get(typeId) ?? null,
+    [adjustedPrices],
+  );
+  return { adjustedPriceOf, adjustedPricesPending: adjustedPrices === null, seedAdjustedPrices };
+}
+
 function usePriceClock(
   structure: BlueprintStructure,
-  inputs: Omit<PriceAssembleMirrors, 'components'>,
+  inputs: Omit<PriceAssembleMirrors, 'adjustedPriceOf' | 'components'>,
   plan: ProfilePlan | null,
   locationRead: { refreshKey: number; failed: boolean },
 ) {
   // Pricing owns the per-job fee sources for the profile installing the build.
-  const componentFees = useComponentFeeSources(
-    structure, plan, locationRead.refreshKey, !inputs.location && !inputs.reactionLocation,
-  );
-  const mirrors: PriceAssembleMirrors = { ...inputs, components: componentFees.sources };
+  const componentFees = useComponentFeeSources(structure, plan, locationRead.refreshKey);
+  const { adjustedPriceOf, adjustedPricesPending, seedAdjustedPrices } = useSeededAdjustedPrices();
+  const mirrors: PriceAssembleMirrors = { ...inputs, adjustedPriceOf, components: componentFees.sources };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [priceSnapshot] = useState(() => createPriceSnapshot());
@@ -314,6 +316,7 @@ function usePriceClock(
     const current = mirrorsRef.current;
     const sf = current.structureFactors;
     const fee = composeFeeInputs({
+      adjustedPriceOf: current.adjustedPriceOf,
       location: current.location,
       reactionLocation: current.reactionLocation,
       buildStructure: current.selectedStructure,
@@ -346,6 +349,7 @@ function usePriceClock(
     return () => clearTimeout(t);
   }, [
     mirrors.runs,
+    mirrors.adjustedPriceOf,
     mirrors.components,
     mirrors.location,
     mirrors.reactionLocation,
@@ -363,9 +367,11 @@ function usePriceClock(
     priceSnapshot,
     pricing,
     seed,
+    seedAdjustedPrices,
     seeded,
     locationFailed: locationRead.failed || componentFees.failed,
-    componentFeesPending: componentFees.pending,
+    // Fees wait on the job systems' indices and on the prices they are valued on.
+    componentFeesPending: componentFees.pending || adjustedPricesPending,
   };
 }
 
@@ -486,11 +492,14 @@ export function PricingProvider({
   structure,
   pricingPromise,
   historyPromise,
+  adjustedPricesPromise,
   children,
 }: {
   structure: BlueprintStructure;
   pricingPromise: Promise<BlueprintPricing | null>;
   historyPromise: Promise<MarketHistoryInputs[]>;
+  /** Must not reject: a failed read resolves to no prices. */
+  adjustedPricesPromise: Promise<TypeAdjustedPrice[]>;
   children: ReactNode;
 }) {
   const prefs = usePlannerPrefs();
@@ -509,8 +518,6 @@ export function PricingProvider({
     locationRefreshKey: locationWrites.retry,
     failureSystemId: locationWrites.failureSystemId,
   });
-  const locationFailed = locationWrites.failureSystemId !== null &&
-    locationWrites.failureSystemId === profile.plan?.top.facility?.systemId;
   const { structureFactors } = profile;
   const owned = usePlannerOwnedResources(structure);
   const ledger = usePlannerLedger(
@@ -531,7 +538,7 @@ export function PricingProvider({
     runs: prefs.runs,
     selectedStructure: locationState.selectedStructure,
     structureFactors,
-  }, profile.plan, { refreshKey: locationWrites.retry, failed: locationFailed });
+  }, profile.plan, { refreshKey: locationWrites.retry, failed: profile.locationFailed });
   const market = useMarketRefresh(
     structure,
     clock.seeded,
@@ -661,10 +668,13 @@ export function PricingProvider({
     >
       {children}
       <Suspense fallback={null}>
-        <PricingSeeder pricingPromise={pricingPromise} onSeed={clock.seed} />
+        <PromiseSeeder promise={pricingPromise} onSeed={clock.seed} />
       </Suspense>
       <Suspense fallback={null}>
-        <HistorySeeder historyPromise={historyPromise} onSeed={market.mergeHistory} />
+        <PromiseSeeder promise={historyPromise} onSeed={market.mergeHistory} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <PromiseSeeder promise={adjustedPricesPromise} onSeed={clock.seedAdjustedPrices} />
       </Suspense>
     </PlannerContextProviders>
   );

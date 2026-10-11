@@ -20,7 +20,6 @@ const FETCHED: ReactionLocationSnapshot = {
   systemId: 30_000_142,
   blueprintTypeId: 46157,
   costIndex: 0.04,
-  adjustedPrices: new Map([[34, 5.2]]),
 };
 
 describe('buildSelectionVacatesReaction', () => {

@@ -12,7 +12,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | ☑ | [P025](#p025) | Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line | ui-component | S | low | medium | [P301](#p301) |
 | ☑ | [P026](#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
 | ☑ | [P168](#p168) | Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus | server-pipeline | S | low | low | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
-| ☐ | [P070](#p070) | Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint | client-data | M | medium | high | [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
+| ☑ | [P070](#p070) | Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint | client-data | M | medium | high | [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
 | ☐ | [P291](#p291) | Resolve the batch ledger and marginal demand once per assemblePricing call | efficiency | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076) |
 | ☐ | [P325](#p325) | Share one pricedTypeIds(structure) between server pricing and the client refresh set | simplification | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
 | ☐ | [P326](#p326) | Trim planner-shell glue: one PromiseSeeder, inline TierRow, CockpitKpis owns its margin mode, ownedTe from mapOwnedBlueprints, shared CostBasis and SystemRef | simplification | S | low | low | [P260](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p260), [P025](#p025), [P301](#p301) |
@@ -288,7 +288,7 @@ export function structureFactorsFrom(args: {
 
 ## P070: Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** high · **Size:** About -110 net (use-component-fee-sources -40, location-writes -12, composeFeeInputs -5, the build-location contract, types, route and getBuildLocation -60, stations query -15; plus about 25 for the cached read, seeder generalisation and readCostIndices)
 - **Depends on:** [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098)

@@ -14,7 +14,6 @@ import type { SkillTimeFactors } from '../skill-time';
 import type { StructureFactors } from '../structure-factors';
 import type {
   BlueprintPricing,
-  IndustryStationView,
   OwnedAssetEntry,
   OwnedComponentDetail,
 } from '../types';
@@ -23,9 +22,7 @@ export interface SelectedLocation {
   systemId: number;
   systemName: string;
   security: number | null;
-  stations: IndustryStationView[];
   costIndices: { manufacturing: number | null; reaction: number | null };
-  adjustedPrices: Map<number, number>;
 }
 
 export interface SelectedReactionSystem {

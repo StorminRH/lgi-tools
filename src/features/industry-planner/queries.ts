@@ -10,7 +10,6 @@ import {
   getBlueprintOutput,
   getBlueprintSearchRows,
   getBlueprintTree,
-  getIndustryStationsForSystem,
   getIndustryTargetFilters,
   getTypeAttributesBatch,
   getTypeLabels,
@@ -21,11 +20,7 @@ import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures
 import { computeHeights } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
 import type { TreeNode } from '@/data/eve-data/types';
-import {
-  getAdjustedPrices,
-  getSystemCostIndices,
-  getSystemCostIndicesBatch,
-} from '@/data/industry-indices/queries';
+import { getAdjustedPrices, getSystemCostIndicesBatch } from '@/data/industry-indices/queries';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { toClientPrice } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
@@ -40,8 +35,8 @@ import type {
   BlueprintIndexEntry,
   BlueprintPricing,
   BlueprintStructure,
-  BuildLocationData,
   SystemJobCostIndex,
+  TypeAdjustedPrice,
 } from './types';
 
 function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
@@ -252,31 +247,22 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getBuildLocation(
-  systemId: number | null,
-  blueprintId: number,
-): Promise<BuildLocationData> {
+/**
+ * The adjusted price of every type a job in the build consumes, nested inputs
+ * included, so each job's fee is valued on its own inputs. They depend on the
+ * blueprint alone. cron:industry-indices rewrites them daily without a tag, so
+ * the hourly lifetime bounds how stale they get. Types CCP gives no adjusted
+ * price are left out, and an unknown blueprint has none.
+ */
+export async function getBlueprintAdjustedPrices(blueprintId: number): Promise<TypeAdjustedPrice[]> {
+  'use cache';
+  cacheLife('hours');
+  cacheTag(SDE_CACHE_TAG);
+
   const structure = await getBlueprintStructure(blueprintId);
-  // Every job in the tree is valued on its inputs' adjusted prices, not only the product's own.
-  const baseTypeIds = dedupe(collectTreeTypeIds(structure?.tree ?? []));
-
-  const [stations, costIndices, adjustedMap] = await Promise.all([
-    systemId === null ? [] : getIndustryStationsForSystem(systemId),
-    systemId === null ? new Map<string, number>() : getSystemCostIndices(systemId),
-    getAdjustedPrices(baseTypeIds),
-  ]);
-
-  return {
-    stations,
-    costIndices: {
-      manufacturing: costIndices.get('manufacturing') ?? null,
-      reaction: costIndices.get('reaction') ?? null,
-    },
-    adjustedPrices: [...adjustedMap.entries()].map(([typeId, adjustedPrice]) => ({
-      typeId,
-      adjustedPrice,
-    })),
-  };
+  if (!structure) return [];
+  const adjusted = await withColdStartRetry(() => getAdjustedPrices(dedupe(collectTreeTypeIds(structure.tree))));
+  return [...adjusted].map(([typeId, adjustedPrice]) => ({ typeId, adjustedPrice }));
 }
 
 /** Each system's manufacturing and reaction cost indices, in the order asked. */

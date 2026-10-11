@@ -1,4 +1,4 @@
-import type { BuildLocationData } from './types';
+import type { SystemJobCostIndex } from './types';
 
 export interface BuildSystemRef {
   systemId: number;
@@ -7,7 +7,7 @@ export interface BuildSystemRef {
 }
 
 export type ApplySystemOutcome =
-  | { status: 'applied'; data: BuildLocationData }
+  | { status: 'applied'; data: SystemJobCostIndex }
   | { status: 'failed' }
   | { status: 'superseded' };
 
@@ -17,8 +17,8 @@ export interface ApplySystemOptions {
 }
 
 export function createBuildSystemApplier(deps: {
-  fetchLocation: (systemId: number, signal: AbortSignal) => Promise<BuildLocationData | null>;
-  onApplied: (sys: BuildSystemRef, data: BuildLocationData) => void;
+  fetchLocation: (systemId: number, signal: AbortSignal) => Promise<SystemJobCostIndex | null>;
+  onApplied: (sys: BuildSystemRef, data: SystemJobCostIndex) => void;
   onPersist: (sys: BuildSystemRef) => void;
 }): (sys: BuildSystemRef, opts: ApplySystemOptions) => Promise<ApplySystemOutcome> {
   let gen = 0;

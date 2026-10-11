@@ -610,8 +610,8 @@ describe('assemblePricing component job fees', () => {
 
   it.each([1, 11])('a component-only profile charges known jobs while uncovered activity %i and net remain unknown', (activityId) => {
     const fee = composeFeeInputs({
-      location: null, reactionLocation: null, buildStructure: null, reactionStructure: null,
-      structureCostBonusPct: 0, components: { ...components, adjustedPriceOf: adjusted },
+      adjustedPriceOf: adjusted, location: null, reactionLocation: null, buildStructure: null, reactionStructure: null,
+      structureCostBonusPct: 0, components,
     });
     const net = assemblePricing({ ...CHAIN, activityId }, (t) => NET_PRICES[t], { fee }).net!;
     expect(net.componentJobs!.total).toBeCloseTo(5.11, 9);
