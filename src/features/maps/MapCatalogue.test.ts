@@ -48,7 +48,7 @@ vi.mock('./MapCreationDialog', () => ({
 }));
 
 vi.mock('./MapAccessDialog', () => ({
-  MapAccessDialog: () => createElement('div', { 'data-map-access-dialog-probe': '' }),
+  EditingMapAccessDialog: () => null,
 }));
 
 vi.mock('./TrashWindow', () => ({

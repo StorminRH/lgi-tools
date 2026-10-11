@@ -46,6 +46,7 @@ export function MapChrome({
           corporations={corporations}
           grantsByMapId={grantsByMapId}
           blocksByMapId={blocksByMapId}
+          listingAvailable={listingAvailable}
           focusFallback={switcherFocusFallback}
         />
       </div>

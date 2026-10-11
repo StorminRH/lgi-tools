@@ -19,6 +19,7 @@ import type {
   MapBlockOption,
   MapRole,
 } from '@/data/maps/access-contract';
+import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { AccessListEditor } from './AccessListEditor';
 import { MapBlockList, useMapBlockEditor } from './MapBlockList';
 import { OwnCharacterPicker } from './OwnCharacterPicker';
@@ -198,5 +199,42 @@ export function MapAccessDialog({
         </DialogClose>
       </DialogFooter>
     </Dialog>
+  );
+}
+
+/**
+ * The access editor for the map a host is editing, or nothing. Keyed by map
+ * id, so switching maps starts the editor from that map's server rows.
+ */
+export function EditingMapAccessDialog({
+  editingMap,
+  onClose,
+  finalFocus,
+  corporations,
+  grantsByMapId,
+  blocksByMapId,
+}: {
+  readonly editingMap: AuthorizedMapRow | null;
+  readonly onClose: () => void;
+  readonly finalFocus: () => HTMLElement | null;
+  readonly corporations: readonly CorporationAccessOption[];
+  readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
+  readonly blocksByMapId: Readonly<Record<string, readonly MapBlockOption[]>>;
+}) {
+  if (editingMap === null) return null;
+  return (
+    <MapAccessDialog
+      key={editingMap.id}
+      mapId={editingMap.id}
+      mapName={editingMap.name}
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      finalFocus={finalFocus}
+      corporations={corporations}
+      initialGrants={grantsByMapId[editingMap.id] ?? []}
+      initialBlocks={blocksByMapId[editingMap.id] ?? []}
+    />
   );
 }

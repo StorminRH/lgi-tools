@@ -67,6 +67,7 @@ vi.mock('./AccessListEditor', () => ({
 
 import { dialogProbe } from '@/components/ui/__tests__/static-base-dialog';
 import {
+  EditingMapAccessDialog,
   MapAccessDialog,
   mapAccessGrantRevision,
   reconcileAccessGrantDrafts,
@@ -127,6 +128,43 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('data-own-character-picker');
     expect(markup).toMatch(/aria-pressed="true"[^>]*aria-label="Scout"|aria-label="Scout"[^>]*aria-pressed="true"/);
     expect(markup).toMatch(/aria-pressed="false"[^>]*aria-label="Hauler"|aria-label="Hauler"[^>]*aria-pressed="false"/);
+  });
+
+  it('hosts the editor for the map being edited, seeded from that map\'s rows, and closes through onClose', () => {
+    const editor = {
+      onClose: vi.fn(),
+      finalFocus: () => null,
+      corporations: [],
+      grantsByMapId: {
+        'map-a': [{ ownerType: 'character' as const, ownerId: 42, name: 'Scout', role: 'editor' as const }],
+        'map-b': [{ ownerType: 'character' as const, ownerId: 43, name: 'Hauler', role: 'viewer' as const }],
+      },
+      blocksByMapId: { 'map-b': [{ characterId: 77, name: 'Spy' }] },
+    };
+    expect(renderToStaticMarkup(createElement(EditingMapAccessDialog, { ...editor, editingMap: null }))).toBe('');
+
+    const markup = renderToStaticMarkup(
+      createElement(EditingMapAccessDialog, {
+        ...editor,
+        editingMap: {
+          id: 'map-a',
+          name: 'Alpha',
+          createdAt: new Date('2026-08-12T12:00:00.000Z'),
+          creatorName: 'Mapper',
+          role: 'admin',
+          provenance: { kind: 'created' },
+        },
+      }),
+    );
+    expect(markup).toContain('Manage Alpha');
+    expect(markup).toContain('data-access-grants="42:Scout:editor"');
+    expect(markup).not.toContain('data-map-blocked-character');
+    expect(dialogProbe.root?.open).toBe(true);
+    expect(dialogProbe.popup?.finalFocus).toBe(editor.finalFocus);
+    dialogProbe.root?.onOpenChange?.(true);
+    expect(editor.onClose).not.toHaveBeenCalled();
+    dialogProbe.root?.onOpenChange?.(false);
+    expect(editor.onClose).toHaveBeenCalledOnce();
   });
 
   it('reconciles a refreshed grant snapshot after a concurrent revocation', () => {

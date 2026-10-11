@@ -37,8 +37,12 @@ vi.mock('./MapMenu', () => ({
 }));
 
 vi.mock('@/features/maps/MapSwitcher', () => ({
-  MapSwitcher: ({ maps }: { maps: readonly unknown[] }) =>
-    createElement('div', { 'data-map-switcher': '', 'data-map-count': maps.length }),
+  MapSwitcher: ({ maps, listingAvailable }: { maps: readonly unknown[]; listingAvailable: boolean }) =>
+    createElement('div', {
+      'data-map-switcher': '',
+      'data-map-count': maps.length,
+      'data-map-switcher-listing-available': String(listingAvailable),
+    }),
 }));
 
 describe('MapChrome', () => {
@@ -161,5 +165,7 @@ describe('MapChrome', () => {
   it('disables map actions when the shared listing snapshot is unavailable', () => {
     const markup = renderChrome({ session: null, listingAvailable: false });
     expect(markup).toContain('data-map-actions-available="false"');
+    // The switcher closes its access editor with the listing too.
+    expect(markup).toContain('data-map-switcher-listing-available="false"');
   });
 });

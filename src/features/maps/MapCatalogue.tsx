@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useRef, useState, type RefObject } from 'react';
+import { useMemo, useRef, type RefObject } from 'react';
 import { EntityLogo } from '@/components/entity-logo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,23 +17,16 @@ import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { formatUtcDate } from '@/lib/format/time';
 import { unresolvedName } from '@/lib/format/names';
 import { mapRoleLabel } from './access-editor-model';
-import { MapAccessDialog } from './MapAccessDialog';
+import { EditingMapAccessDialog } from './MapAccessDialog';
 import { MapLifecycleDialogs } from './MapLifecycleDialogs';
 import {
   useMapCatalogueData,
   type MapCatalogueData,
 } from './map-catalogue-data';
-import {
-  closedMapDialogs,
-  connectedDialogFocus,
-  currentAdminMap,
-  dropLostAdminEdit,
-  editingMapRows,
-  mapDialogAuthorityKey,
-  reconcileAuthorityScopedMapDialogs,
-} from './map-dialog-state';
+import { connectedDialogFocus } from './map-dialog-state';
 import { mapLifecycleFailureMessage } from './map-lifecycle-client';
 import { mapSelectionHref } from './map-navigation';
+import { useAuthorityScopedMapDialogs } from './use-authority-scoped-map-dialogs';
 import { useMapDeletion } from './use-map-deletion';
 
 export interface MapCatalogueSection {
@@ -310,18 +303,9 @@ function MapCatalogueSurface({
   );
 }
 
-function useMapCatalogueDialogs(data: MapCatalogueData) {
-  const { maps, corporations, listingAvailable } = data;
+function useMapCatalogueDialogs(corporations: readonly CorporationAccessOption[]) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const authorityKey = mapDialogAuthorityKey(listingAvailable, []);
-  const [storedDialogs, setStoredDialogs] = useState(() =>
-    closedMapDialogs(authorityKey),
-  );
-  const reconciled = reconcileAuthorityScopedMapDialogs(storedDialogs, authorityKey);
-  const currentEditingMap = currentAdminMap(maps, reconciled.editingMapId);
-  const dialogs = dropLostAdminEdit(reconciled, currentEditingMap);
-  if (dialogs !== storedDialogs) setStoredDialogs(dialogs);
   const creationOpenerRef = useRef<HTMLElement | null>(null);
   const trashOpenerRef = useRef<HTMLElement | null>(null);
   const editOpenerRef = useRef<HTMLElement | null>(null);
@@ -337,15 +321,12 @@ function useMapCatalogueDialogs(data: MapCatalogueData) {
     catalogueRef,
     corporationById,
     creationOpenerRef,
-    currentEditingMap,
     deleteGate,
     deleteOpenerRef,
-    dialogs,
     editOpenerRef,
     pathname,
     removeMap,
     searchParams,
-    setStoredDialogs,
     trashOpenerRef,
   };
 }
@@ -364,17 +345,18 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
     catalogueRef,
     corporationById,
     creationOpenerRef,
-    currentEditingMap,
     deleteGate,
     deleteOpenerRef,
-    dialogs,
     editOpenerRef,
     pathname,
     removeMap,
     searchParams,
-    setStoredDialogs,
     trashOpenerRef,
-  } = useMapCatalogueDialogs(data);
+  } = useMapCatalogueDialogs(corporations);
+  const { dialogs, setDialogs, editingMap } = useAuthorityScopedMapDialogs(
+    maps,
+    listingAvailable,
+  );
   const sections = mapCatalogueSections(maps);
 
   const surface = (
@@ -386,7 +368,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
       maps={maps}
       onCreate={(opener) => {
         creationOpenerRef.current = opener;
-        setStoredDialogs((current) => ({ ...current, creationOpen: true }));
+        setDialogs((current) => ({ ...current, creationOpen: true }));
       }}
       onDelete={(map, opener) => {
         deleteOpenerRef.current = opener;
@@ -394,7 +376,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
       }}
       onManage={(map, opener) => {
         editOpenerRef.current = opener;
-        setStoredDialogs((current) => ({
+        setDialogs((current) => ({
           ...current,
           editingMapId: map.id,
         }));
@@ -402,7 +384,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
       onRetry={() => router.refresh()}
       onTrash={(opener) => {
         trashOpenerRef.current = opener;
-        setStoredDialogs((current) => ({ ...current, trashOpen: true }));
+        setDialogs((current) => ({ ...current, trashOpen: true }));
       }}
       pathname={pathname}
       searchParams={searchParams}
@@ -419,30 +401,21 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
 
       <MapLifecycleDialogs
         dialogs={dialogs}
-        onDialogsChange={setStoredDialogs}
+        onDialogsChange={setDialogs}
         corporations={corporations}
         deletedMaps={deletedMaps}
         creationOpenerRef={creationOpenerRef}
         trashOpenerRef={trashOpenerRef}
         hostRef={catalogueRef}
       />
-      {dialogs.editingMapId !== null ? (
-        <MapAccessDialog
-          key={dialogs.editingMapId}
-          mapId={dialogs.editingMapId}
-          mapName={currentEditingMap?.name ?? 'map'}
-          open={currentEditingMap !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              setStoredDialogs((current) => ({ ...current, editingMapId: null }));
-            }
-          }}
-          finalFocus={() => finalFocus(editOpenerRef.current)}
-          corporations={corporations}
-          initialGrants={editingMapRows(grantsByMapId, currentEditingMap)}
-          initialBlocks={editingMapRows(blocksByMapId, currentEditingMap)}
-        />
-      ) : null}
+      <EditingMapAccessDialog
+        editingMap={editingMap}
+        onClose={() => setDialogs((current) => ({ ...current, editingMapId: null }))}
+        finalFocus={() => finalFocus(editOpenerRef.current)}
+        corporations={corporations}
+        grantsByMapId={grantsByMapId}
+        blocksByMapId={blocksByMapId}
+      />
       <ConfirmDialog
         open={deleteGate.open}
         onOpenChange={(open) => {
