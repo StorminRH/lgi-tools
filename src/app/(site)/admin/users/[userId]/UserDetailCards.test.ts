@@ -23,7 +23,7 @@ vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: mocks.characters,
   getStoredActiveCharacterId: mocks.activeId,
 }));
-vi.mock('@/lib/env', () => ({ readEnv: () => '90000009' }));
+vi.mock('@/platform/auth/admin-policy', () => ({ superadminCharacterId: () => 90_000_009 }));
 
 import {
   AccountIdentity,

@@ -27,13 +27,7 @@ import { syntheticEmail } from './synthetic-email';
 import { encryptToken } from './token-crypto';
 import { encryptAccountTokens } from './account-token-encryption';
 import { deriveSessionIdentity } from './session-identity';
-import type { CharacterRole } from './types';
-
-function computeIsAdmin(characterId: number | null, role: CharacterRole): boolean {
-  if (role === 'ADMIN') return true;
-  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  return characterId !== null && characterId === superId;
-}
+import { isAdminIdentity, normalizeCharacterRole } from './admin-policy';
 
 export interface CharacterProof {
   readonly characterId: number;
@@ -185,7 +179,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
           audience: 'convex',
           expirationTime: '7d',
           definePayload: ({ user: u }) => ({
-            role: (u.role as CharacterRole | undefined) ?? 'USER',
+            role: normalizeCharacterRole(u.role),
             name: u.name,
           }),
         },
@@ -201,7 +195,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
       ...options.plugins,
       customSession(async ({ user: u, session: s }) => {
         const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
-        return deriveSessionIdentity({ user: u, session: s, active, isAdmin: computeIsAdmin });
+        return deriveSessionIdentity({ user: u, session: s, active, isAdmin: isAdminIdentity });
       }, options),
     ],
   });

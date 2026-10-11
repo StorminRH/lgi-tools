@@ -17,6 +17,7 @@ import { readAuthSecret, readEnv, isHostedVercel } from '@/lib/env';
 import { isLocalUrl } from '@/lib/url-safety';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
+import { superadminCharacterId } from '@/platform/auth/admin-policy';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
 import { createLocalSession, type LocalSession } from '@/platform/auth/local-session';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
@@ -52,7 +53,7 @@ function assertLocalSyntheticEnvironment(): string {
       'BETTER_AUTH_SECRET or SESSION_SECRET is required to mint the synthetic pilot session',
     );
   }
-  if (Number(readEnv('SUPERADMIN_CHARACTER_ID')) === SYNTHETIC_PILOT.characterId) {
+  if (superadminCharacterId() === SYNTHETIC_PILOT.characterId) {
     throw new Error('The synthetic pilot cannot be the configured superadmin');
   }
   return secret;
