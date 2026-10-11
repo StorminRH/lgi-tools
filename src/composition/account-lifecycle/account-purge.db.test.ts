@@ -696,12 +696,21 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await harness.db.update(pendingDeletions).set({ queuedAt: old }).where(eq(pendingDeletions.id, first!.id));
     revokeMock.mockRejectedValueOnce(new Error('fixture failure'));
     const error = silenceConsolePrefixes('error', ['[account-purge] requested deletion retry failed']);
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
+    const [clock] = await harness.sql`select floor(extract(epoch from clock_timestamp()) * 1000) as ms`;
+    const databaseNow = Number(clock!.ms);
+    // With the JS clock held at `old`, only the database clock can move the job behind newer work.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(old);
+    try {
+      expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
     error.mockRestore();
     const [retained] = await harness.db.select().from(pendingDeletions);
     expect(retained!.id).toBe(first!.id);
     expect(retained!.requestedAt).toEqual(first!.requestedAt);
-    expect(retained!.queuedAt.getTime()).toBeGreaterThan(old.getTime());
+    expect(retained!.queuedAt.getTime()).toBeGreaterThanOrEqual(databaseNow);
     await seedUser(harness.db, 'new-owner');
     await insertEveAccount(harness.db, { id: 'new-link', characterId: 90000099, userId: 'new-owner' });
     const newer = await queueCharacter(90000099, 'new-owner');
