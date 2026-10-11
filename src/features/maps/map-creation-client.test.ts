@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { dependencyUnavailableFailure, validationFailure } from '@/lib/failure';
+import {
+  dependencyUnavailableFailure,
+  rateLimitedFailure,
+  unauthenticatedFailure,
+  validationFailure,
+} from '@/lib/failure';
 import { problemBody, serializeProblem, type ProblemBody } from '@/lib/problem';
 import {
   createMapWithMinimumInterstitial,
@@ -12,6 +17,12 @@ import {
 
 const MAP_ID = '11111111-1111-4111-8111-111111111111';
 const INPUT = { name: 'Home chain', creatorCharacterIds: [7], grants: [] };
+
+/** The create's outcome, which the test expects to have failed. */
+function failed<TOutcome extends { ok: boolean }>(outcome: TOutcome): Extract<TOutcome, { ok: false }> {
+  if (outcome.ok) throw new Error('expected the create to fail');
+  return outcome as Extract<TOutcome, { ok: false }>;
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -82,11 +93,10 @@ describe('createMapWithMinimumInterstitial', () => {
     await vi.advanceTimersByTimeAsync(5_000);
     const outcome = await pending;
 
-    expect(outcome.ok).toBe(false);
-    expect(mapCreationFailureMessage(outcome)).toContain('rolled back');
+    expect(mapCreationFailureMessage(failed(outcome))).toContain('rolled back');
   });
 
-  it('tells a caller naming someone else\'s character to pick their own, not to check the connection', async () => {
+  it('names each refusal by its code and keeps the connection hint for a request that got no answer', async () => {
     vi.useFakeTimers();
     const refusal = (code: string) =>
       serializeProblem(problemBody(validationFailure(code), 'correlation-id'));
@@ -94,20 +104,24 @@ describe('createMapWithMinimumInterstitial', () => {
       'fetch',
       vi.fn()
         .mockResolvedValueOnce(refusal('not_linked'))
-        .mockResolvedValueOnce(refusal('invalid_body')),
+        .mockResolvedValueOnce(refusal('invalid_body'))
+        .mockResolvedValueOnce(serializeProblem(problemBody(unauthenticatedFailure(), 'correlation-id')))
+        .mockResolvedValueOnce(serializeProblem(problemBody(rateLimitedFailure(37), 'correlation-id')))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch')),
     );
+    const settled = async () => {
+      const pending = createMapWithMinimumInterstitial(INPUT);
+      await vi.advanceTimersByTimeAsync(MAP_CREATION_INTERSTITIAL_MIN_MS);
+      return mapCreationFailureMessage(failed(await pending));
+    };
 
-    const unlinked = createMapWithMinimumInterstitial(INPUT);
-    await vi.advanceTimersByTimeAsync(MAP_CREATION_INTERSTITIAL_MIN_MS);
-    const unlinkedOutcome = await unlinked;
-    expect(unlinkedOutcome).toMatchObject({ ok: false, kind: 'api', status: 400 });
-    expect(mapCreationFailureMessage(unlinkedOutcome)).toContain('your own linked characters');
-
-    const malformed = createMapWithMinimumInterstitial(INPUT);
-    await vi.advanceTimersByTimeAsync(MAP_CREATION_INTERSTITIAL_MIN_MS);
-    const malformedOutcome = await malformed;
-    expect(malformedOutcome).toMatchObject({ ok: false, kind: 'api', status: 400 });
-    expect(mapCreationFailureMessage(malformedOutcome)).toContain('Check your connection');
+    // Naming someone else's character is not a connection problem.
+    expect(await settled()).toBe('Choose one of your own linked characters.');
+    expect(await settled()).toBe('The map could not be created.');
+    expect(await settled()).toBe('Your session has ended. Sign in again.');
+    // The wait comes from the server's retry delay, not a fixed minute.
+    expect(await settled()).toBe('Too many attempts. Try again in 37 seconds.');
+    expect(await settled()).toBe('The map could not be created. Check your connection and try again.');
   });
 });
 

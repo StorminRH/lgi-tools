@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { purgeMapNowEndpoint } from '@/data/maps/api-contract';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
 import { settle } from '@/lib/__tests__/hook-runtime';
+import { apiProblem } from '@/transport/__tests__/failed-outcomes';
 
 interface ConfirmProps {
   open: boolean;
@@ -81,8 +82,8 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
     consequence: expect.stringMatching(/^2 selected maps will enter/),
   });
 
-  // The second map is refused: the dialog stays open on the map still to purge.
-  api.apiFetch.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false });
+  // The second map is refused: the dialog stays open on the map still to purge, saying why.
+  api.apiFetch.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce(apiProblem(403, 'map_creator_required'));
   ui.confirm?.onConfirm();
   await settle();
   render();
@@ -93,7 +94,7 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
   expect(ui.confirm).toMatchObject({
     open: true,
     consequence: expect.stringMatching(/^1 selected map will enter/),
-    error: expect.any(String),
+    error: 'Only the map creator can permanently delete the selected maps.',
   });
 
   // The retry purges only that map, and the closing dialog still counts it.

@@ -14,8 +14,19 @@ import {
   updateIndustryProfileEndpoint,
 } from './api-contract';
 import type { ProfileDocument } from './profile-document';
-import { createProfileSync, type ProfileSync, type ProfileSyncState, type ProfilesResult } from './profile-sync';
-import { createFailureMessage, type PendingEdit } from './profile-view';
+import {
+  createProfileSync,
+  type ProfileSync,
+  type ProfileSyncState,
+  type ProfilesResult,
+  type ProfileUpdateResult,
+} from './profile-sync';
+import {
+  createFailureMessage,
+  deleteFailureMessage,
+  duplicateFailureMessage,
+  type PendingEdit,
+} from './profile-view';
 import { isCurrentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 
 export interface IndustryProfilesState extends ProfileSyncState {
@@ -27,9 +38,8 @@ export interface IndustryProfilesState extends ProfileSyncState {
   remove: (id: string) => Promise<boolean>;
 }
 
-type AddOutcome =
-  | { ok: true; data: { profiles: IndustryProfileRow[]; id: string } }
-  | { ok: false; error?: { code: string } };
+/** A create or duplicate that answered with the rows and the new profile's id. */
+type AddedProfile = { ok: true; data: { profiles: IndustryProfileRow[]; id: string } };
 
 async function listProfiles(): Promise<ProfilesResult> {
   const res = await readWithRetries(async () => {
@@ -41,7 +51,7 @@ async function listProfiles(): Promise<ProfilesResult> {
 
 function updateProfile(
   body: { id: string; expectedRevision: number } & PendingEdit,
-): Promise<ProfilesResult> {
+): Promise<ProfileUpdateResult> {
   return apiFetch(updateIndustryProfileEndpoint, { body });
 }
 
@@ -79,15 +89,20 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
     if (enabled && identity !== null) void sync.refresh();
   }, [enabled, identity, sync]);
 
+  // sync.request rejects a call that a session change dropped. It reads as null,
+  // and the identity check after it ends that call before any notice.
   const addProfile = useCallback(
-    async (call: () => Promise<AddOutcome>): Promise<string | null> => {
+    async <TFailure extends { ok: false }>(
+      call: () => Promise<AddedProfile | TFailure>,
+      describe: (failure: TFailure | null) => string,
+    ): Promise<string | null> => {
       if (!isCurrentReadIdentity(identity)) return null;
       setBusyIdentity(identity);
       const res = await sync.request(call).catch(() => null);
       if (!isCurrentReadIdentity(identity)) return null;
       setBusyIdentity(null);
-      if (!res?.ok) {
-        toast.error(createFailureMessage(res?.error?.code));
+      if (res === null || !res.ok) {
+        toast.error(describe(res));
         return null;
       }
       return res.data.id;
@@ -97,13 +112,13 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
 
   const create = useCallback(
     (name: string, document: ProfileDocument) =>
-      addProfile(() => apiFetch(createIndustryProfileEndpoint, { body: { name, document } })),
+      addProfile(() => apiFetch(createIndustryProfileEndpoint, { body: { name, document } }), createFailureMessage),
     [addProfile],
   );
 
   const duplicate = useCallback(
     (id: string, name: string) =>
-      addProfile(() => apiFetch(duplicateIndustryProfileEndpoint, { body: { id, name } })),
+      addProfile(() => apiFetch(duplicateIndustryProfileEndpoint, { body: { id, name } }), duplicateFailureMessage),
     [addProfile],
   );
 
@@ -114,8 +129,8 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
       const res = await sync.request(() => apiFetch(deleteIndustryProfileEndpoint, { body: { id } })).catch(() => null);
       if (!isCurrentReadIdentity(identity)) return false;
       setBusyIdentity(null);
-      if (!res?.ok) {
-        toast.error("Couldn't delete the profile.");
+      if (res === null || !res.ok) {
+        toast.error(deleteFailureMessage(res));
         return false;
       }
       return true;

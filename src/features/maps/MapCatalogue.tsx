@@ -24,7 +24,6 @@ import {
   type MapCatalogueData,
 } from './map-catalogue-data';
 import { connectedDialogFocus } from './map-dialog-state';
-import { mapLifecycleFailureMessage } from './map-lifecycle-client';
 import { mapSelectionHref } from './map-navigation';
 import { useAuthorityScopedMapDialogs } from './use-authority-scoped-map-dialogs';
 import { useMapDeletion } from './use-map-deletion';
@@ -312,7 +311,7 @@ function useMapCatalogueDialogs(corporations: readonly CorporationAccessOption[]
   const deleteOpenerRef = useRef<HTMLElement | null>(null);
   const catalogueRef = useRef<HTMLDivElement | null>(null);
   const deleteGate = useConfirmGate<{ id: string; name: string }>();
-  const removeMap = useMapDeletion();
+  const deletion = useMapDeletion();
   const corporationById = useMemo(
     () => new Map(corporations.map((corporation) => [corporation.corporationId, corporation])),
     [corporations],
@@ -323,9 +322,9 @@ function useMapCatalogueDialogs(corporations: readonly CorporationAccessOption[]
     creationOpenerRef,
     deleteGate,
     deleteOpenerRef,
+    deletion,
     editOpenerRef,
     pathname,
-    removeMap,
     searchParams,
     trashOpenerRef,
   };
@@ -347,9 +346,9 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
     creationOpenerRef,
     deleteGate,
     deleteOpenerRef,
+    deletion,
     editOpenerRef,
     pathname,
-    removeMap,
     searchParams,
     trashOpenerRef,
   } = useMapCatalogueDialogs(corporations);
@@ -428,12 +427,12 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
             : `${deleteGate.target.name} leaves the catalogue. Restore it from Trash within 30 days.`
         }
         busy={deleteGate.busy}
-        error={deleteGate.errored ? mapLifecycleFailureMessage('delete') : null}
+        error={deleteGate.errored ? deletion.error : null}
         confirmLabel="Delete map"
         onConfirm={() => {
           const map = deleteGate.target;
           if (map === null) return;
-          void deleteGate.run(() => removeMap(map.id, deleteGate.reset), (deleted) => !deleted);
+          void deleteGate.run(() => deletion.removeMap(map.id, deleteGate.reset), (deleted) => !deleted);
         }}
         finalFocus={deleteOpenerRef}
       />

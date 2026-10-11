@@ -1,10 +1,14 @@
-import type { IndustryProfileRow } from './api-contract';
+import type { FailedOutcome } from '@/transport/failure-copy';
+import type { IndustryProfileRow, updateIndustryProfileEndpoint } from './api-contract';
 import { overlayPending, type PendingEdit, saveFailureMessage } from './profile-view';
 
-export type ProfilesResult =
+/** A call that answers with the account's rows; a failed one says nothing more to the queue. */
+export type ProfilesResult = { ok: true; data: { profiles: IndustryProfileRow[] } } | { ok: false };
+
+/** A save: the rows after it, or the failure itself, so the notice can say why. */
+export type ProfileUpdateResult =
   | { ok: true; data: { profiles: IndustryProfileRow[] } }
-  // The server's reason, when it refused the call rather than failing to answer.
-  | { ok: false; error?: { code: string } };
+  | FailedOutcome<typeof updateIndustryProfileEndpoint>;
 
 export interface ProfileSyncState {
   profiles: IndustryProfileRow[] | null;
@@ -21,7 +25,7 @@ export function createProfileSync(deps: {
   /** Rows already on screen from an earlier read, so edits work before the next one lands. */
   initial?: IndustryProfileRow[] | null;
   list: () => Promise<ProfilesResult>;
-  update: (body: { id: string; expectedRevision: number } & PendingEdit) => Promise<ProfilesResult>;
+  update: (body: { id: string; expectedRevision: number } & PendingEdit) => Promise<ProfileUpdateResult>;
   publish: (state: ProfileSyncState) => void;
   notify: (message: string) => void;
   /** False after the account or active character owning this queue changes. */
@@ -88,7 +92,7 @@ export function createProfileSync(deps: {
         if (!isCurrent()) return;
         if (!res.ok) {
           pending.delete(id);
-          deps.notify(saveFailureMessage(res.error?.code));
+          deps.notify(saveFailureMessage(res));
           await read();
           return;
         }

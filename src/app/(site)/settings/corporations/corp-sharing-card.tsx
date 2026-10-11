@@ -7,7 +7,16 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { setCorpDataSharingEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/transport/api-client';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
 import type { SharingCorpView } from './corporations-view';
+
+const SHARING_FAILURE_COPY = {
+  fallback: 'Sharing not changed',
+  codes: {
+    not_director: 'Only a Director can change sharing.',
+    not_corp_member: 'None of your characters is in this corporation.',
+  },
+} satisfies FailureCopy<FailedOutcome<typeof setCorpDataSharingEndpoint>>;
 
 export function CorpSharingCard({
   directorCorps,
@@ -46,7 +55,7 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
     });
     setBusy(false);
     if (!res.ok) {
-      toast.error('Sharing not changed');
+      toast.error(failureMessage(res, SHARING_FAILURE_COPY));
       return;
     }
     setEnabled(next);

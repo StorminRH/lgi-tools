@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { conflictFailure, dependencyUnavailableFailure } from '@/lib/failure';
-import { problemBody, type ProblemBody } from '@/lib/problem';
+import { apiProblem, networkDown, protocolFailure } from '@/transport/__tests__/failed-outcomes';
 
 const mocks = vi.hoisted(() => ({ apiFetch: vi.fn() }));
 
@@ -24,30 +23,30 @@ describe('map access client', () => {
       cache: 'no-store',
     });
 
-    expect(
-      mapAccessFailureMessage({
-        ok: false,
-        kind: 'api',
-        status: 503,
-        error: problemBody(
-          dependencyUnavailableFailure('map_projection_unavailable'),
-          'test-correlation',
-        ) as ProblemBody & { code: 'map_projection_unavailable' },
-      }),
-    ).toContain('Retry the same change');
+    expect(mapAccessFailureMessage(apiProblem(503, 'map_projection_unavailable'))).toContain(
+      'Retry the same change',
+    );
   });
 
   it('names each refusal by its code', () => {
-    const conflict = (code: 'map_block_owner' | 'map_block_self' | 'map_creator_character_required') =>
-      mapAccessFailureMessage({
-        ok: false,
-        kind: 'api',
-        status: 409,
-        error: problemBody(conflictFailure(code), 'c') as ProblemBody & { code: typeof code },
-      });
-    expect(conflict('map_block_owner')).toBe('This character belongs to the map owner.');
-    expect(conflict('map_block_self')).toBe("You can't block your own character.");
-    expect(conflict('map_creator_character_required')).toContain('at least one of their own characters');
+    expect(mapAccessFailureMessage(apiProblem(409, 'map_block_owner'))).toBe('This character belongs to the map owner.');
+    expect(mapAccessFailureMessage(apiProblem(409, 'map_block_self'))).toBe("You can't block your own character.");
+    expect(mapAccessFailureMessage(apiProblem(409, 'map_creator_character_required'))).toContain(
+      'at least one of their own characters',
+    );
+    expect(mapAccessFailureMessage(apiProblem(403, 'map_admin_required'))).toBe(
+      'Map admin access is required to change this access list.',
+    );
+  });
+
+  it('keeps the connection hint for a request that got no answer and blames neither admin access nor the connection otherwise', () => {
+    expect(mapAccessFailureMessage(networkDown())).toBe(
+      'Map access could not be updated. Check your connection and try again.',
+    );
+    expect(mapAccessFailureMessage(apiProblem(401, 'unauthenticated'))).toBe('Your session has ended. Sign in again.');
+    // A malformed request, the cross-origin guard and an undeclared answer all get the plain fallback.
+    expect(mapAccessFailureMessage(apiProblem(400, 'invalid_body'))).toBe('Map access could not be updated.');
+    expect(mapAccessFailureMessage(apiProblem(403, 'cross_origin'))).toBe('Map access could not be updated.');
+    expect(mapAccessFailureMessage(protocolFailure())).toBe('Map access could not be updated.');
   });
 });
-
