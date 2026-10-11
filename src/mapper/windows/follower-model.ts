@@ -1,12 +1,8 @@
 import { sameFields } from '@/lib/equality';
 import { clamp } from '@/lib/math';
 import { SYSTEM_DISC_SIZE } from '../canvas/disc-chrome';
-import {
-  endpointFrame,
-  frameCenter,
-  pointOnRayAtRadius,
-  type MeasuredNode,
-} from '../canvas/edge-geometry';
+import { endpointFrame, frameCenter, type MeasuredNode } from '../canvas/edge-geometry';
+import { pointToward } from '../lib/geometry';
 import { roundedLeaderPath } from './leader-path';
 
 export interface FollowerState {
@@ -130,7 +126,7 @@ export function anchoredLeader(input: {
   const elbow: ScreenPoint = { x: anchor.x + sx * diagonal, y: attach.y };
   const bend = Math.abs(rise) >= 1 && diagonal > discRadius;
   const aim = bend ? elbow : attach;
-  const start = pointOnRayAtRadius(anchor, aim, discRadius) ?? anchor;
+  const start = pointToward(anchor, aim, discRadius) ?? anchor;
   const end: ScreenPoint = bend ? attach : { x: attach.x, y: start.y };
   const points = bend ? [start, elbow, end] : [start, end];
   return { d: roundedLeaderPath(points, LEADER_CORNER_RADIUS), start, end };

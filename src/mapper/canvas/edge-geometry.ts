@@ -1,4 +1,5 @@
 import type { ChainPosition } from '../chain/intents';
+import { pointToward, type Box } from '../lib/geometry';
 import {
   ICON_TRACK_CLEARANCE_PX,
   kspaceCaptionOffset,
@@ -36,41 +37,16 @@ export function frameCenter(frame: FrameRect): ChainPosition {
   return { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 };
 }
 
-export interface RayPoint {
-  readonly x: number;
-  readonly y: number;
-}
-
-export function pointOnRayAtRadius(
-  origin: RayPoint,
-  toward: RayPoint,
-  radius: number,
-): RayPoint | null {
-  const dx = toward.x - origin.x;
-  const dy = toward.y - origin.y;
-  const distance = Math.hypot(dx, dy);
-  if (distance === 0) return null;
-  const t = radius / distance;
-  return { x: origin.x + dx * t, y: origin.y + dy * t };
-}
-
-export interface LabelBox {
-  readonly left: number;
-  readonly right: number;
-  readonly top: number;
-  readonly bottom: number;
-}
-
 export interface EndpointLabels {
-  readonly source: LabelBox | null;
-  readonly target: LabelBox | null;
+  readonly source: Box | null;
+  readonly target: Box | null;
 }
 
 const NO_LABELS: EndpointLabels = { source: null, target: null };
 
 const KSPACE_CAPTION_BOTTOM = kspaceCaptionOffset().y;
 
-const KSPACE_CAPTION_LABEL: LabelBox = {
+const KSPACE_CAPTION_LABEL: Box = {
   left: -SYSTEM_FRAME_WIDTH / 2,
   right: SYSTEM_FRAME_WIDTH / 2,
   top: KSPACE_CAPTION_BOTTOM - KSPACE_CAPTION_BLOCK_PX,
@@ -79,19 +55,19 @@ const KSPACE_CAPTION_LABEL: LabelBox = {
 
 const FRAME_NAME_TOP = FRAME_NAME_TOP_PX - SYSTEM_FRAME_HEIGHT / 2;
 
-const FRAME_NAME_LABEL: LabelBox = {
+const FRAME_NAME_LABEL: Box = {
   left: FRAME_NAME_INSET_PX - SYSTEM_FRAME_WIDTH / 2,
   right: SYSTEM_FRAME_WIDTH / 2 - FRAME_NAME_INSET_PX,
   top: FRAME_NAME_TOP,
   bottom: FRAME_NAME_TOP + FRAME_NAME_LINE_PX,
 };
 
-export function connectionLabelBox(data: NodeCaptionData | undefined): LabelBox | null {
+export function connectionLabelBox(data: NodeCaptionData | undefined): Box | null {
   if (data === undefined) return null;
   return nodeCaptionKind(data) === 'kspace' ? KSPACE_CAPTION_LABEL : FRAME_NAME_LABEL;
 }
 
-function rayFarDistance(dx: number, dy: number, box: LabelBox): number | null {
+function rayFarDistance(dx: number, dy: number, box: Box): number | null {
   const length = Math.hypot(dx, dy);
   if (length === 0) return null;
   const ux = dx / length;
@@ -116,7 +92,7 @@ function rayFarDistance(dx: number, dy: number, box: LabelBox): number | null {
   return tMax < 0 ? null : tMax;
 }
 
-function clearanceAlong(dx: number, dy: number, label: LabelBox | null): number {
+function clearanceAlong(dx: number, dy: number, label: Box | null): number {
   const hit = label === null ? null : rayFarDistance(dx, dy, label);
   return Math.max(ICON_TRACK_CLEARANCE_PX, hit ?? 0);
 }
@@ -135,8 +111,8 @@ export function frameSegment(
   const sourceClearance = clearanceAlong(dx, dy, labels.source);
   const targetClearance = clearanceAlong(-dx, -dy, labels.target);
   if (distance <= sourceClearance + targetClearance) return null;
-  const startPt = pointOnRayAtRadius(from, to, sourceClearance);
-  const endPt = pointOnRayAtRadius(to, from, targetClearance);
+  const startPt = pointToward(from, to, sourceClearance);
+  const endPt = pointToward(to, from, targetClearance);
   if (startPt === null || endPt === null) return null;
   return {
     startX: startPt.x,

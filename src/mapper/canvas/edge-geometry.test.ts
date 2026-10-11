@@ -10,7 +10,6 @@ import {
   frameSegment,
   nodeCenter,
   pointAlongSegment,
-  pointOnRayAtRadius,
   segmentPath,
   visibleChainLinkSegment,
   type FrameRect,
@@ -70,11 +69,6 @@ test('frameSegment stops at the icon ring and nulls lines that would cross it', 
   expect(frameSegment(frame(0, 0), frame(30, 10))).toBeNull();
   expect(frameSegment(frame(0, 0), frame(0, 0))).toBeNull();
   expect(frameCenter(frame(10, 20))).toEqual({ x: 10 + CX, y: 20 + CY });
-  expect(pointOnRayAtRadius({ x: 0, y: 0 }, { x: 80, y: 60 }, DISC_R)).toEqual({
-    x: 80 * (DISC_R / 100),
-    y: 60 * (DISC_R / 100),
-  });
-  expect(pointOnRayAtRadius({ x: 0, y: 0 }, { x: 0, y: 0 }, DISC_R)).toBeNull();
 });
 
 test('chainLinkSegment prefers measured frames and nulls incomplete endpoints', () => {

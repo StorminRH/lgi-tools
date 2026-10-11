@@ -1,4 +1,4 @@
-import type { ChainPosition } from '../chain/intents';
+import { samePosition, type ChainPosition } from '../chain/intents';
 import { mulberry32 } from '../lib/prng';
 import { deriveChainTree, treeLinkClaim } from './facts';
 import { segmentsIntersect } from './geometry';
@@ -145,7 +145,7 @@ export function movedSystems(
   const moved: number[] = [];
   for (const [systemId, position] of before) {
     const next = after.get(systemId);
-    if (next === undefined || next.x !== position.x || next.y !== position.y) {
+    if (next === undefined || !samePosition(next, position)) {
       moved.push(systemId);
     }
   }

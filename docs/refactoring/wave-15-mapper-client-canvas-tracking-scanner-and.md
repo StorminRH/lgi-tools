@@ -18,7 +18,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P309](#p309) | Share one tree-link claim between map edge drawing and the layout crossing report | simplification | S | low | low | — |
 | ☑ | [P310](#p310) | Hoist compass ring-slot arithmetic per ring and make compassKernel async | simplification | S | low | low | — |
 | ☑ | [P055](#p055) | Declare the measured-node shape once in edge-geometry and pass React Flow internal nodes to it directly for camera focus | react-hook | S | low | low | — |
-| ☐ | [P109](#p109) | Merge pointOnRayAtRadius and leader-path's toward into one pointToward in src/mapper/lib/geometry.ts, with shared Point and Box types; leave layout trig and coordinate-space types alone | generic-utility | S | low | low | [P055](#p055) |
+| ☑ | [P109](#p109) | Merge pointOnRayAtRadius and leader-path's toward into one pointToward in src/mapper/lib/geometry.ts, with shared Point and Box types; leave layout trig and coordinate-space types alone | generic-utility | S | low | low | [P055](#p055) |
 | ☐ | [P111](#p111) | Extract a frame coalescer and guarded size observer into src/mapper/lib | generic-utility | S | medium | low | [P109](#p109) |
 | ☐ | [P044](#p044) | Add one commit-time style-ref hook for CSS custom properties (ui zone) | react-hook | M | medium | medium | [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277) |
 | ☐ | [P051](#p051) | Move the open-popup check to ui and share one Escape-dismiss hook between the board and the mapper | react-hook | S | low | medium | — |
@@ -410,7 +410,7 @@ export const SYSTEM_FRAME_SIZE = { width: SYSTEM_FRAME_WIDTH, height: SYSTEM_FRA
 
 ## P109: Merge pointOnRayAtRadius and leader-path's toward into one pointToward in src/mapper/lib/geometry.ts, with shared Point and Box types; leave layout trig and coordinate-space types alone
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20 production lines (RayPoint, LeaderPoint, LeaderRect, toward, pointOnRayAtRadius), +15 in mapper/lib/geometry.ts; tests move rather than grow
 - **Depends on:** [P055](#p055)

@@ -94,6 +94,7 @@ describe('mapper source contract', () => {
       'layout/proof-kit.ts',
       'layout/trig.ts',
       'layout/use-layout-kernel.ts',
+      'lib/geometry.ts',
       'lib/pair-key.ts',
       'lib/prng.ts',
       'log/MapEventLog.tsx',
