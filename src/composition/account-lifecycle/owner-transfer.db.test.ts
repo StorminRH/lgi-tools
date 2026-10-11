@@ -31,10 +31,10 @@ vi.mock('@/lib/convex-http-door', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
   return {
     ...actual,
-    postConvexHttpDoor: (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
-      options.path === '/purge-user-map-claims'
-        ? Promise.resolve(options.schema.parse({ deleted: 1 }))
-        : actual.postConvexHttpDoor(options),
+    postConvexHttpDoor: (...[door, body, options]: Parameters<typeof actual.postConvexHttpDoor>) =>
+      door.path === '/purge-user-map-claims'
+        ? Promise.resolve(door.response.parse({ deleted: 1 }))
+        : actual.postConvexHttpDoor(door, body, options),
   };
 });
 

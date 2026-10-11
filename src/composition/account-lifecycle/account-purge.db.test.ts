@@ -35,10 +35,10 @@ vi.mock('@/lib/convex-http-door', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
   return {
     ...actual,
-    postConvexHttpDoor: async (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
-      options.path === '/purge-map-chain'
-        ? options.schema.parse(await mapPurge.purgeMapChain((options.body as { mapId: string }).mapId))
-        : actual.postConvexHttpDoor(options),
+    postConvexHttpDoor: async (...[door, body, options]: Parameters<typeof actual.postConvexHttpDoor>) =>
+      door.path === '/purge-map-chain'
+        ? door.response.parse(await mapPurge.purgeMapChain((body as { mapId: string }).mapId))
+        : actual.postConvexHttpDoor(door, body, options),
   };
 });
 

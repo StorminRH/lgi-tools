@@ -15,7 +15,7 @@ The four items with the widest blast radius or highest risk, landed once everyth
 | ☑ | [P219](#p219) | Enforce per-user row caps with one serializable conditional insert in src/db | persistence | M | medium | medium | — |
 | ☑ | [P138](#p138) | Add typed failureCode/failureMessage to src/transport/failure-copy.ts and route outcome-blind apiFetch failure copy through code tables | error-handling | L | medium | high | [P063](wave-12-market-data-search-and-client-data-reads.md#p063), [P054](wave-12-market-data-search-and-client-data-reads.md#p054), [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154), [P146](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p146) |
 | ☑ | [P046](#p046) | Adopt the eyebrow and title type roles and lock them with a census | css-styling | L | medium | medium | [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001), [P015](wave-07-ui-kit-primitives-src-components-ui.md#p015), [P034](wave-07-ui-kit-primitives-src-components-ui.md#p034) |
-| ☐ | [P246](#p246) | Declare each Convex HTTP door contract once, per operation, and type postConvexHttpDoor by it | contracts-validation | L | medium | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P208](wave-14-convex-backend-helpers.md#p208), [P209](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p209) |
+| ☑ | [P246](#p246) | Declare each Convex HTTP door contract once, per operation, and type postConvexHttpDoor by it | contracts-validation | L | medium | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P208](wave-14-convex-backend-helpers.md#p208), [P209](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p209) |
 
 <a id="p219"></a>
 
@@ -348,7 +348,7 @@ export const panelTitle = cva('font-display tracking-copy uppercase text-name', 
 
 ## P246: Declare each Convex HTTP door contract once, per operation, and type postConvexHttpDoor by it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** L · **Risk:** medium · **Payoff:** medium · **Size:** About -200 / +120. Six error classes go from 6 lines each to 1. The hand-written jump input types (~40 lines), TrackingSelection and TrackingReceiptCandidate, three Convex purge/leave schemas, and duplicate response schemas move into per-owner door modules.
 - **Depends on:** [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P208](wave-14-convex-backend-helpers.md#p208), [P209](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p209)

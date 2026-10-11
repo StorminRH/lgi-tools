@@ -1,10 +1,9 @@
 import { z } from 'zod';
 import { positiveIdSchema } from '@/lib/id-schemas';
 
-// Field shapes shared by the Next merge client and the Convex merge doors.
-// Convex bundles this module, so it imports zod and lib only. Next parses
-// Convex responses with z.strictObject and Convex parses requests with
-// z.object, so each side wraps these fields itself.
+// Field shapes of the merge doors. Convex bundles this module, so it imports
+// zod and lib only. convex-doors.ts wraps them: z.object for the requests
+// Convex parses, z.strictObject for the replies Next parses.
 
 /** One map tracking row a merge snapshots from Convex and later restores. */
 export const trackingSelectionFields = {
@@ -20,5 +19,3 @@ export const trackingReceiptCandidateFields = {
 };
 
 export type TrackingSelection = z.infer<z.ZodObject<typeof trackingSelectionFields>>;
-
-export type TrackingReceiptCandidate = z.infer<z.ZodObject<typeof trackingReceiptCandidateFields>>;

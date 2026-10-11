@@ -1,6 +1,6 @@
-import { z } from 'zod';
 import { isConvexConfigured } from '@/config/public-env';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
+import { purgeLocationTrackingDoor } from './convex-doors';
 import { cancelPendingTracking } from './merge-store';
 import { pendingTrackingMerges } from './schema';
 import type { PurgeContributor } from '@/platform/purge/types';
@@ -9,13 +9,11 @@ export async function purgeLocationTracking(
   userId: string,
   characterId: number | null,
 ): Promise<void> {
-  await postConvexHttpDoor({
-    path: '/purge-location-tracking',
-    body: { userId, characterId },
-    schema: z.unknown(),
-    error: Error,
-    label: 'Location tracking purge',
-  });
+  await postConvexHttpDoor(
+    purgeLocationTrackingDoor,
+    { userId, characterId },
+    { label: 'Location tracking purge' },
+  );
 }
 
 export async function teardownLocationTracking(

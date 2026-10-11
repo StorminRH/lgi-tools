@@ -2,6 +2,12 @@
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MAP_CLAIM_PURGE_BATCH } from '@/data/maps/access-contract';
+import {
+  mapTrackingSnapshotDoor,
+  projectMapAccessDoor,
+  purgeMapAccessDoor,
+  purgeUserMapClaimsDoor,
+} from '@/data/maps/convex-doors';
 import { internal } from './_generated/api';
 import { MAP_PURGE_BATCH } from './mapPurge';
 import schema from './schema';
@@ -26,6 +32,14 @@ describe('POST /project-map-access', () => {
       ).status,
     ).toBe(401);
     expect((await postConvexHttp('/project-map-access', 'not json')).status).toBe(400);
+    expect(
+      (
+        await postConvexHttp(
+          '/project-map-access',
+          JSON.stringify({ mapId: '', revision: 1, claims: [{ userId: 'u1', roles: ['admin'] }] }),
+        )
+      ).status,
+    ).toBe(400);
     expect(
       (
         await postConvexHttp(
@@ -78,13 +92,15 @@ describe('POST /project-map-access', () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
+    const reply = await res.json();
+    expect(reply).toEqual({
       inserted: 1,
       updated: 0,
       deleted: 0,
       unchanged: 0,
       outcome: 'applied',
     });
+    expect(projectMapAccessDoor.response.safeParse(reply).success).toBe(true);
   });
 
   it('stores per-claim characters when the body carries them', async () => {
@@ -206,7 +222,10 @@ describe('POST /purge-map-access', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deleted: 129 });
+    const reply = await res.json();
+    expect(reply).toEqual({ deleted: 129 });
+    expect(purgeMapAccessDoor.response.safeParse(reply).success).toBe(true);
+    expect((await postConvexHttp('/purge-map-access', JSON.stringify({ userId: '' }))).status).toBe(400);
   });
 });
 
@@ -229,7 +248,9 @@ describe('POST /purge-user-map-claims', () => {
       body,
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deleted: 1 });
+    const reply = await res.json();
+    expect(reply).toEqual({ deleted: 1 });
+    expect(purgeUserMapClaimsDoor.response.safeParse(reply).success).toBe(true);
     expect(await t.run((ctx) => ctx.db.query('mapAccess').collect()))
       .toMatchObject([
         { mapId: 'affected', userId: 'neighbor' },
@@ -339,9 +360,11 @@ describe('POST /map-tracking-snapshot', () => {
       body: JSON.stringify({ mapId: 'map-1' }),
     });
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
+    const reply = await response.json();
+    expect(reply).toEqual({
       tracked: [{ userId: 'u1', characterId: 11 }, { userId: 'u2', characterId: 22 }],
     });
+    expect(mapTrackingSnapshotDoor.response.safeParse(reply).success).toBe(true);
     await expect(t.run((ctx) => ctx.db.query('mapAccessProjectionWatermarks').collect()))
       .resolves.toMatchObject([{ mapId: 'map-1', scopingPending: true }]);
   });

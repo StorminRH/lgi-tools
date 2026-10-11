@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import {
   canonicalizeMapRoles,
+  claimsCarryCharacters,
   type MapRole,
 } from '@/data/maps/access-contract';
 import { groupBy, sameItems } from '@/lib/array';
@@ -38,12 +39,6 @@ export type ReconcileResult = ReconcileCounts & {
 };
 
 const NO_COUNTS: ReconcileCounts = { inserted: 0, updated: 0, deleted: 0, unchanged: 0 };
-
-function claimsCarryCharacters(
-  claims: ReadonlyArray<{ readonly characters?: readonly MapClaimCharacter[] }>,
-): boolean {
-  return claims.length > 0 && claims.every((claim) => claim.characters !== undefined);
-}
 
 function scopedMarker(scoped: boolean | undefined): { characterScoped?: true } {
   return scoped === true ? { characterScoped: true } : {};
