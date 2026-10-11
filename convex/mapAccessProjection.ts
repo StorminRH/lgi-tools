@@ -6,6 +6,7 @@ import {
 import { groupBy, sameItems } from '@/lib/array';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { deleteIndexedBatch, type IndexedBatchDeleteResult } from './lib/indexedQuery';
 import {
   currentMapRoleValidator,
   currentRolesFromStored,
@@ -50,11 +51,6 @@ function claimsCarryCharacters(
 
 function scopedMarker(scoped: boolean | undefined): { characterScoped?: true } {
   return scoped === true ? { characterScoped: true } : {};
-}
-
-export interface UserClaimsPurgeResult {
-  readonly deleted: number;
-  readonly hasMore: boolean;
 }
 
 interface DesiredClaim {
@@ -235,17 +231,12 @@ export const reconcileMapClaims = internalMutation({
 
 export const purgeUserClaims = internalMutation({
   args: { userId: v.string() },
-  handler: async (ctx, { userId }): Promise<UserClaimsPurgeResult> => {
-    const rows = await ctx.db
-      .query('mapAccess')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .take(MAP_ACCESS_PURGE_BATCH + 1);
-
-    const doomed = rows.slice(0, MAP_ACCESS_PURGE_BATCH);
-    for (const row of doomed) {
-      await ctx.db.delete(row._id);
-    }
-
+  handler: async (ctx, { userId }): Promise<IndexedBatchDeleteResult> => {
+    const access = await deleteIndexedBatch(
+      ctx.db.query('mapAccess').withIndex('by_user', (q) => q.eq('userId', userId)),
+      MAP_ACCESS_PURGE_BATCH,
+      (row) => ctx.db.delete('mapAccess', row._id),
+    );
     const tracking = await purgeTrackingForUserBatch(
       ctx,
       userId,
@@ -253,8 +244,8 @@ export const purgeUserClaims = internalMutation({
     );
 
     return {
-      deleted: doomed.length + tracking.deleted,
-      hasMore: rows.length > MAP_ACCESS_PURGE_BATCH || tracking.hasMore,
+      deleted: access.deleted + tracking.deleted,
+      hasMore: access.hasMore || tracking.hasMore,
     };
   },
 });

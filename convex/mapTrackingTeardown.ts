@@ -1,5 +1,6 @@
 import type { Doc } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
+import { deleteIndexedBatch, type IndexedBatchDeleteResult } from './lib/indexedQuery';
 import type { MapClaimCharacter } from './lib/mapEntityContracts';
 import { deleteForMapCharacter } from './mapJumpBookkeeping';
 
@@ -72,18 +73,14 @@ export async function deleteAllTrackingForMap(
   }
 }
 
-export async function purgeTrackingForUserBatch(
+export function purgeTrackingForUserBatch(
   ctx: MutationCtx,
   userId: string,
   limit: number,
-): Promise<{ deleted: number; hasMore: boolean }> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_user_character', (q) => q.eq('userId', userId))
-    .take(limit + 1);
-  const doomed = rows.slice(0, limit);
-  for (const row of doomed) {
-    await deleteTrackingRow(ctx, row);
-  }
-  return { deleted: doomed.length, hasMore: rows.length > limit };
+): Promise<IndexedBatchDeleteResult> {
+  return deleteIndexedBatch(
+    ctx.db.query('mapTracking').withIndex('by_user_character', (q) => q.eq('userId', userId)),
+    limit,
+    (row) => deleteTrackingRow(ctx, row),
+  );
 }

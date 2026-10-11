@@ -108,3 +108,26 @@ export async function takeIndexedOrThrow<T>(
   }
   return rows;
 }
+
+export interface IndexedBatchDeleteResult {
+  readonly deleted: number;
+  readonly hasMore: boolean;
+}
+
+/**
+ * Removes up to `limit` rows in index order; `hasMore` is true while rows
+ * remain. Rows go one at a time, so a remover may read what earlier removals
+ * in the batch left behind.
+ */
+export async function deleteIndexedBatch<T>(
+  query: { take: (n: number) => Promise<T[]> },
+  limit: number,
+  remove: (row: T) => Promise<unknown>,
+): Promise<IndexedBatchDeleteResult> {
+  const rows = await query.take(limit + 1);
+  const doomed = rows.slice(0, limit);
+  for (const row of doomed) {
+    await remove(row);
+  }
+  return { deleted: doomed.length, hasMore: rows.length > limit };
+}

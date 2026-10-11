@@ -2,7 +2,7 @@
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { internal } from './_generated/api';
-import { MAP_JUMP_BOOKKEEPING_PURGE_BATCH } from './mapJumpBookkeeping';
+import { MAP_PURGE_BATCH } from './mapPurge';
 import schema from './schema';
 
 import { CONVEX_HTTP_SECRET, postConvexHttp } from './__tests__/http.setup';
@@ -125,7 +125,7 @@ describe('POST /project-map-access', () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
-      for (let index = 0; index <= MAP_JUMP_BOOKKEEPING_PURGE_BATCH; index += 1) {
+      for (let index = 0; index <= MAP_PURGE_BATCH; index += 1) {
         await ctx.db.insert('mapJumpBookkeeping', {
           mapId: 'map-large',
           characterId: 90_000_000 + index,
