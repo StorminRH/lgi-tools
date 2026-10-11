@@ -20,10 +20,6 @@ vi.mock('./eve-sso', () => ({
   revokeEveRefreshToken: (input: unknown) => revokeEveRefreshTokenMock(input),
 }));
 
-vi.mock('@/lib/env', () => ({
-  requireEnv: (k: string) => `env:${k}`,
-  readEnv: (k: string) => `env:${k}`,
-}));
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
 }));
@@ -37,17 +33,13 @@ beforeEach(() => {
 });
 
 describe('revokeStoredCharacterToken', () => {
-  it('revokes the decrypted refresh token at EVE with the confidential-client creds', async () => {
+  it('revokes the decrypted refresh token at EVE', async () => {
     decryptTokenMock.mockReturnValue('plain-refresh');
 
     await revokeStoredCharacterToken('cipher');
 
     expect(decryptTokenMock).toHaveBeenCalledWith('cipher');
-    expect(revokeEveRefreshTokenMock).toHaveBeenCalledWith({
-      refreshToken: 'plain-refresh',
-      clientId: 'env:EVE_CLIENT_ID',
-      clientSecret: 'env:EVE_CLIENT_SECRET',
-    });
+    expect(revokeEveRefreshTokenMock).toHaveBeenCalledWith({ refreshToken: 'plain-refresh' });
   });
 
   it('skips the revoke when there is no plaintext refresh token', async () => {

@@ -7,7 +7,7 @@ import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
 import { EVE_SCOPES } from '@/config/eve-scopes';
-import { readAuthSecret, readEnv, requireEnv } from '@/lib/env';
+import { readAuthSecret, readEnv } from '@/lib/env';
 import {
   EVE_AUTHORIZE_URL,
   EVE_PROVIDER_ID,
@@ -128,8 +128,6 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
               const token = await exchangeCodeForToken({
                 code,
                 codeVerifier: codeVerifier ?? '',
-                clientId: requireEnv('EVE_CLIENT_ID'),
-                clientSecret: requireEnv('EVE_CLIENT_SECRET'),
               });
               return {
                 accessToken: token.access_token,

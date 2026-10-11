@@ -4,7 +4,6 @@ import { db } from '@/db';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { bestEffort } from '@/lib/best-effort';
-import { requireEnv } from '@/lib/env';
 import {
   EVE_PROVIDER_ID,
   refreshEveToken,
@@ -186,11 +185,7 @@ export async function revokeStoredCharacterToken(ciphertext: string | null): Pro
   await bestEffort('eve-token', 'revoke', null, async () => {
     const refreshToken = ciphertext ? decryptToken(ciphertext) : null;
     if (refreshToken === null) return;
-    await revokeEveRefreshToken({
-      refreshToken,
-      clientId: requireEnv('EVE_CLIENT_ID'),
-      clientSecret: requireEnv('EVE_CLIENT_SECRET'),
-    });
+    await revokeEveRefreshToken({ refreshToken });
   });
 }
 
@@ -216,11 +211,7 @@ export async function getFreshAccessTokenForCharacter(
   const cached = readCachedToken(row);
   if (!options.forceRefresh && cached !== null) return cached;
 
-  const result = await refreshEveToken({
-    refreshToken,
-    clientId: requireEnv('EVE_CLIENT_ID'),
-    clientSecret: requireEnv('EVE_CLIENT_SECRET'),
-  });
+  const result = await refreshEveToken({ refreshToken });
 
   if (result.kind !== 'ok') logTokenRefreshFailure(characterId, result.failureClass);
 
