@@ -525,7 +525,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P192](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p192) | Share one nullable-int and HTTP-date header parser inside platform/esi | esi-sync | S | low | low | — |
-| ☐ | [P193](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p193) | Share the scoped-linked-character ESI search loop and its id parse in composition/esi-character-search | esi-sync | S | low | medium | — |
+| ☑ | [P193](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p193) | Share the scoped-linked-character ESI search loop and its id parse in composition/esi-character-search | esi-sync | S | low | medium | — |
 | ☐ | [P150](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p150) | Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling | api-route | M | medium | medium | [P193](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p193) |
 | ☐ | [P191](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p191) | Add platform/esi request-init builders and use one X-Pages parser; keep each public reader's status handling local | esi-sync | S | low | low | [P192](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p192), [P193](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p193) |
 | ☐ | [P194](wave-11-esi-reads-owner-sync-and-owner-dataset.md#p194) | Build ESI paths shared across modules once, and tie the snapshot endpoint's writer and reader to one builder | esi-sync | M | low | medium | — |
