@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#680](https://github.com/StorminRH/lgi-tools/pull/680).
+
 ← [Wave 11: ESI reads, owner-sync and owner-dataset persistence](wave-11-esi-reads-owner-sync-and-owner-dataset.md) · [Index](README.md#roadmap) · [Wave 13: Industry planner and wormhole-sites verticals](wave-13-industry-planner-and-wormhole-sites-verticals.md) →
 
 Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/write-behind with the shared runner, then batched Fuzzwork fallback, then the PriceFigures types. Then consolidate the names clients. Next the client resource (L, medium) and useSlotsLive on useLiveDataset. Search follows: lazy sources load only their search function, every source goes through rankFuzzyResults, and registries become static arrays. Last, the search answer hook and the map access editor/dialog hooks.
