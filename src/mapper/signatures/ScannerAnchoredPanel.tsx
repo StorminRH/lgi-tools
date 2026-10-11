@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { clamp } from '@/lib/math';
+import { createFrameCoalescer, observeSize } from '../lib/frame-coalescer';
 import { CARD_ATTACH_Y } from '../windows/follower-model';
 import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
 import {
@@ -150,27 +151,16 @@ function useEditorLeader(
     measure();
     // Scroll and resize can fire many times a frame; measuring writes the
     // card's position and then reads layout, so coalesce to one per frame.
-    let frame: number | null = null;
-    const schedule = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        measure();
-      });
-    };
-    window.addEventListener('resize', schedule);
-    document.addEventListener('scroll', schedule, true);
+    const frame = createFrameCoalescer(measure);
+    window.addEventListener('resize', frame.request);
+    document.addEventListener('scroll', frame.request, true);
     const panel = panelRef.current;
-    let observer: ResizeObserver | null = null;
-    if (panel !== null && typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(schedule);
-      observer.observe(panel);
-    }
+    const stopObserve = panel === null ? () => undefined : observeSize(panel, frame.request);
     return () => {
-      window.removeEventListener('resize', schedule);
-      document.removeEventListener('scroll', schedule, true);
-      observer?.disconnect();
-      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', frame.request);
+      document.removeEventListener('scroll', frame.request, true);
+      stopObserve();
+      frame.cancel();
     };
   }, [measure, panelRef]);
 

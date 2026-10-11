@@ -2,6 +2,13 @@ import { sameFields } from '@/lib/equality';
 import { clamp } from '@/lib/math';
 import { SYSTEM_DISC_SIZE } from '../canvas/disc-chrome';
 import { endpointFrame, frameCenter, type MeasuredNode } from '../canvas/edge-geometry';
+import {
+  BROWSER_FRAME_SCHEDULER,
+  createFrameCoalescer,
+  observeSize,
+  type FrameScheduler,
+  type SizeObserver,
+} from '../lib/frame-coalescer';
 import { pointToward } from '../lib/geometry';
 import { roundedLeaderPath } from './leader-path';
 
@@ -311,54 +318,29 @@ export function computeFollowerTransform(
   };
 }
 
-export interface FollowerScheduler {
-  readonly schedule: (callback: () => void) => number;
-  readonly cancel: (handle: number) => void;
-}
-
-const BROWSER_SCHEDULER: FollowerScheduler = {
-  schedule: (callback) => requestAnimationFrame(callback),
-  cancel: (handle) => cancelAnimationFrame(handle),
-};
-
-export type SizeObserver = (
-  element: HTMLElement,
-  onSize: () => void,
-) => () => void;
-
-const BROWSER_SIZE_OBSERVER: SizeObserver = (element, onSize) => {
-  if (typeof ResizeObserver === 'undefined') return () => undefined;
-  const observer = new ResizeObserver(() => onSize());
-  observer.observe(element);
-  return () => observer.disconnect();
-};
-
 function armFollower(
   store: NodeFollowerStore,
   evaluate: (state: FollowerState) => void,
-  scheduler: FollowerScheduler,
+  scheduler: FrameScheduler,
 ): () => void {
-  let frame: number | null = null;
   let latest = store.getState();
   let disposed = false;
+  const frame = createFrameCoalescer(() => {
+    if (!disposed) evaluate(latest);
+  }, scheduler);
 
   evaluate(latest);
 
   const unsubscribe = store.subscribe((state) => {
     latest = state;
-    if (frame !== null) return;
-    frame = scheduler.schedule(() => {
-      frame = null;
-      if (!disposed) evaluate(latest);
-    });
+    frame.request();
   });
 
   return () => {
     if (disposed) return;
     disposed = true;
     unsubscribe();
-    if (frame !== null) scheduler.cancel(frame);
-    frame = null;
+    frame.cancel();
   };
 }
 
@@ -366,8 +348,8 @@ function armSizedFollower(
   store: NodeFollowerStore,
   card: HTMLElement,
   evaluate: (state: FollowerState) => void,
-  scheduler: FollowerScheduler,
-  observeSize: SizeObserver,
+  scheduler: FrameScheduler,
+  sizeObserver: SizeObserver,
 ): () => void {
   let layerObserved: HTMLElement | null = null;
   let stopLayerObserve: (() => void) | null = null;
@@ -382,13 +364,13 @@ function armSizedFollower(
       if (state.domNode !== null && state.domNode !== layerObserved) {
         stopLayerObserve?.();
         layerObserved = state.domNode;
-        stopLayerObserve = observeSize(state.domNode, run);
+        stopLayerObserve = sizeObserver(state.domNode, run);
       }
       evaluate(state);
     },
     scheduler,
   );
-  const stopCardObserve = observeSize(card, run);
+  const stopCardObserve = sizeObserver(card, run);
 
   return () => {
     disposeArm();
@@ -408,8 +390,8 @@ function createDecidedFollower<Baseline>(
     layer: ScreenSize,
   ) => { readonly write: FollowerWrite; readonly baseline: Baseline } | null,
   write: (payload: FollowerWrite) => void,
-  scheduler: FollowerScheduler,
-  observeSize: SizeObserver,
+  scheduler: FrameScheduler,
+  sizeObserver: SizeObserver,
 ): () => void {
   let baseline: Baseline | null = null;
   return armSizedFollower(
@@ -428,7 +410,7 @@ function createDecidedFollower<Baseline>(
       write(decision.write);
     },
     scheduler,
-    observeSize,
+    sizeObserver,
   );
 }
 
@@ -437,8 +419,8 @@ export function createNodeFollower(
   anchorId: string,
   card: HTMLElement,
   write: (payload: FollowerWrite) => void,
-  scheduler: FollowerScheduler = BROWSER_SCHEDULER,
-  observeSize: SizeObserver = BROWSER_SIZE_OBSERVER,
+  scheduler: FrameScheduler = BROWSER_FRAME_SCHEDULER,
+  sizeObserver: SizeObserver = observeSize,
 ): () => void {
   return createDecidedFollower<FollowerBaseline>(
     store,
@@ -455,6 +437,6 @@ export function createNodeFollower(
       ),
     write,
     scheduler,
-    observeSize,
+    sizeObserver,
   );
 }

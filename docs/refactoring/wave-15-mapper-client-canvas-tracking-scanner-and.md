@@ -19,7 +19,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P310](#p310) | Hoist compass ring-slot arithmetic per ring and make compassKernel async | simplification | S | low | low | — |
 | ☑ | [P055](#p055) | Declare the measured-node shape once in edge-geometry and pass React Flow internal nodes to it directly for camera focus | react-hook | S | low | low | — |
 | ☑ | [P109](#p109) | Merge pointOnRayAtRadius and leader-path's toward into one pointToward in src/mapper/lib/geometry.ts, with shared Point and Box types; leave layout trig and coordinate-space types alone | generic-utility | S | low | low | [P055](#p055) |
-| ☐ | [P111](#p111) | Extract a frame coalescer and guarded size observer into src/mapper/lib | generic-utility | S | medium | low | [P109](#p109) |
+| ☑ | [P111](#p111) | Extract a frame coalescer and guarded size observer into src/mapper/lib | generic-utility | S | medium | low | [P109](#p109) |
 | ☐ | [P044](#p044) | Add one commit-time style-ref hook for CSS custom properties (ui zone) | react-hook | M | medium | medium | [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277) |
 | ☐ | [P051](#p051) | Move the open-popup check to ui and share one Escape-dismiss hook between the board and the mapper | react-hook | S | low | medium | — |
 | ☐ | [P027](#p027) | Drive the dev dial panel from dial tables with one clamped commit helper | ui-component | M | low | medium | — |
@@ -506,7 +506,7 @@ If P105 lands, leader-path's private round() becomes roundTo(value, 2) from lib/
 
 ## P111: Extract a frame coalescer and guarded size observer into src/mapper/lib
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** medium · **Payoff:** low · **Size:** about -45 at the sites (FogLayer -25, follower -12, scanner -8); about +30 module and +45 test
 - **Depends on:** [P109](#p109)
