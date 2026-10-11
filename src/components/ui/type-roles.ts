@@ -51,19 +51,23 @@ export function dataLabel(options?: Parameters<typeof eyebrow>[0]): string {
 }
 
 /**
- * The page title: display face, bold and set solid. `leading-none` follows the
- * size because cn() lets a later text size drop an earlier leading class.
+ * The page title: display face, bold, tracked and uppercase. Called bare (as
+ * SectionHead does) it sets solid. Through cn() (as PageTitle does) the later
+ * text size drops `leading-none`, so the size token's own line height applies.
  */
-export const pageTitle = cva('font-display font-bold tracking-optical uppercase text-name', {
-  variants: {
-    size: {
-      hero: 'text-display leading-none',
-      page: 'text-title leading-none',
-      compact: 'text-h2 leading-none',
+export const pageTitle = cva(
+  'font-display font-bold leading-none tracking-optical uppercase text-name',
+  {
+    variants: {
+      size: {
+        hero: 'text-display',
+        page: 'text-title',
+        compact: 'text-h2',
+      },
     },
+    defaultVariants: { size: 'page' },
   },
-  defaultVariants: { size: 'page' },
-});
+);
 
 /** The display-face title of a dialog or card: semibold, tracked and uppercase. */
 export const displayTitle = cva('font-display font-semibold tracking-copy uppercase', {

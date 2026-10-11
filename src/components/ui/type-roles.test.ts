@@ -14,17 +14,24 @@ function classOf(markup: string, tag: string): string | undefined {
   return new RegExp(`<${tag}[^>]*class="([^"]*)"`).exec(markup)?.[1];
 }
 
-test('the page title sets every size solid, even after cn merges a caller class', () => {
+test('the page title keeps the classes PageHead and SectionHead rendered before it moved', () => {
   expect(pageTitle({ size: 'compact' })).toBe(
-    'font-display font-bold tracking-optical uppercase text-name text-h2 leading-none',
+    'font-display font-bold leading-none tracking-optical uppercase text-name text-h2',
   );
+  // PageTitle goes through cn(), whose text size drops leading-none: the size
+  // token's line height applies. Setting it solid is a design call, not phase 1.
   for (const size of ['hero', 'page', 'compact'] as const) {
-    expect(classSet(cn(pageTitle({ size }), 'mb-2'))).toContain('leading-none');
+    expect(classSet(cn(pageTitle({ size })))).not.toContain('leading-none');
   }
 
   const page = renderToStaticMarkup(createElement(PageHead, { title: 'Settings' }));
   expect(classSet(classOf(page, 'h1'))).toEqual(
-    classSet('font-display font-bold leading-none tracking-optical uppercase text-name text-title'),
+    classSet('font-display font-bold tracking-optical uppercase text-name text-title'),
+  );
+
+  const hero = renderToStaticMarkup(createElement(PageHead, { title: 'Market', size: 'hero' }));
+  expect(classSet(classOf(hero, 'h1'))).toEqual(
+    classSet('font-display font-bold tracking-optical uppercase text-name text-display'),
   );
 
   const section = renderToStaticMarkup(createElement(SectionHead, { title: 'Characters' }));
