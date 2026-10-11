@@ -6,7 +6,7 @@ import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
 import { getOrInsertComputed } from '@/lib/array';
 import { loadFailureStep, RECONCILE_ONCE, reconcileDelay } from '@/lib/live-dataset';
 import { useNow } from '@/lib/use-now';
-import { currentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { isCurrentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 import { createRememberedRead, type RememberedRead, useRememberedRead } from './remembered-read';
 
 const TICK_MS = 30_000;
@@ -76,7 +76,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
 
     const load = async () => {
       const result = await apiFetch(endpoint);
-      if (cancelled || identity !== currentReadIdentity()) return;
+      if (cancelled || !isCurrentReadIdentity(identity)) return;
       if (!result.ok) {
         onFailure();
         return;
