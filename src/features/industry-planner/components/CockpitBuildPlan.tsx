@@ -14,7 +14,7 @@ import {
   type ConsolidatedItem,
   type ConsolidatedTier,
 } from '../build-consolidate';
-import { nodeFrameState } from '../node-frame-state';
+import { nodeFrameState } from '../efficiency';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
 import { NodeAdjusters } from './MeAdjuster';
 import { NodeCard, type NodeEfficiency } from './NodeCard';

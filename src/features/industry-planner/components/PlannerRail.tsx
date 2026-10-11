@@ -18,11 +18,10 @@ import { formatQuantity } from '@/lib/format/number';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { startEveSignIn } from '@/platform/auth/link-character';
 import { batchedCostOfRows } from '../cost-basis-view';
+import { efficiencyGlyphState } from '../efficiency';
 import { useFavoriteBlueprints } from '../favorite-blueprints';
 import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
-import { nodeMeState } from '../me-overrides';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
-import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { CockpitKpis } from './CockpitKpis';
 import { IndustryGlyph } from './IndustryGlyph';
@@ -170,8 +169,8 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
   const { runs, setRuns } = usePlannerConfig();
   const plan = useBuildPlan();
   const id = structure.blueprintTypeId;
-  const meState = nodeMeState(plan.ownedMe?.get(id), plan.meOverrides.get(id));
-  const teState = nodeTeState(plan.ownedTe?.get(id), plan.teOverrides.get(id));
+  const meState = efficiencyGlyphState(plan.ownedMe?.get(id), plan.meOverrides.get(id));
+  const teState = efficiencyGlyphState(plan.ownedTe?.get(id), plan.teOverrides.get(id));
   const manufacturing = structure.activityId === MANUFACTURING_ACTIVITY;
   return (
     <div className="flex flex-col gap-2.5">

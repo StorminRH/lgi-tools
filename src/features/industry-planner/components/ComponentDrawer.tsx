@@ -19,8 +19,7 @@ import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import { isEfficiencyEligible, unitPriceMap } from '../build-plan-view';
 import { componentSheet, type ComponentInputRow, type ComponentSheet } from '../component-sheet-view';
-import { nodeMeState } from '../me-overrides';
-import { nodeTeState } from '../te-overrides';
+import { efficiencyGlyphState } from '../efficiency';
 import { typeName } from '../type-name';
 import type { BlueprintStructure } from '../types';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
@@ -42,7 +41,7 @@ function Steppers({ sheet }: { sheet: ComponentSheet }) {
   return (
     <div className="flex flex-col gap-2.5">
       {row(
-        <GemIcon state={nodeMeState(plan.ownedMe?.get(bp), plan.meOverrides.get(bp))} />,
+        <GemIcon state={efficiencyGlyphState(plan.ownedMe?.get(bp), plan.meOverrides.get(bp))} />,
         <MeField
           blueprintTypeId={bp}
           name={sheet.name}
@@ -54,7 +53,7 @@ function Steppers({ sheet }: { sheet: ComponentSheet }) {
         />,
       )}
       {row(
-        <HourglassIcon state={nodeTeState(plan.ownedTe?.get(bp), plan.teOverrides.get(bp))} />,
+        <HourglassIcon state={efficiencyGlyphState(plan.ownedTe?.get(bp), plan.teOverrides.get(bp))} />,
         <TeField
           blueprintTypeId={bp}
           name={sheet.name}

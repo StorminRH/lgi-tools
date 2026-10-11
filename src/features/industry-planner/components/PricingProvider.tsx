@@ -30,8 +30,7 @@ import {
   type BatchLedger,
   type MeOptions,
 } from '../build-batch';
-import { clampMe, effectiveMeOf } from '../me-overrides';
-import { clampTe, effectiveTeOf } from '../te-overrides';
+import { clampMe, clampTe, effectiveEfficiencyOf, resetOverride, setOverride } from '../efficiency';
 import type { MarginMode } from '../cockpit-margin';
 import type { CostBasis } from '../cost-basis-view';
 import type { NetMode } from '../multibuy';
@@ -55,7 +54,6 @@ import {
   collectIntermediateTypeIds,
 } from '../build-pricing';
 import { mapOwnedBlueprints, type OwnedBlueprintMaps } from '../owned-blueprint-maps';
-import { resetOverride, setOverride } from '../override-map';
 import { createPriceSnapshot, type PriceSnapshot } from '../price-snapshot';
 import {
   buildSelectionVacatesReaction,
@@ -443,7 +441,7 @@ function usePlannerLedger(
   );
   const ledgerMeOpts = useMemo<MeOptions>(
     () => ({
-      meOf: effectiveMeOf(ownedMe, meOverrides),
+      meOf: effectiveEfficiencyOf(ownedMe, meOverrides),
       topBlueprintTypeId: structure.blueprintTypeId,
       structureMeFactorOf: structureFactors.structureMeFactorOf,
     }),
@@ -462,7 +460,7 @@ function usePlannerLedger(
         nodeJobSeconds: structure.nodeJobSeconds,
         runs,
         builds: ledger.builds,
-        teOf: effectiveTeOf(ownedTe, teOverrides),
+        teOf: effectiveEfficiencyOf(ownedTe, teOverrides),
         nameOf: typeNamer(structure),
         structureTeFactorOf: structureFactors.structureTeFactorOf,
         skillTimeFactorOf: skillTimeFactors.skillTimeFactorOf,

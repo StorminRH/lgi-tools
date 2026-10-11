@@ -4,9 +4,8 @@ import { useCallback, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Stepper } from '@/components/ui/stepper';
-import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
-import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
-import { MAX_TE } from '../te-overrides';
+import { effectiveEfficiencyOf, efficiencyGlyphState, MAX_ME, MAX_TE } from '../efficiency';
+import { EFFICIENCY_TONE_CLASSES, type EfficiencyToneState } from '../industry-styles';
 import type { OwnedComponentDetail } from '../types';
 import { IndustryGlyph } from './IndustryGlyph';
 
@@ -33,16 +32,14 @@ function deriveAdjust(owned: Map<number, number> | null, overrides: Map<number, 
   const override = overrides.get(bp);
   return {
     owned: ownedValue,
-    effective: effectiveMeOf(owned, overrides)(bp) ?? 0,
-    state: nodeMeState(ownedValue, override),
+    effective: effectiveEfficiencyOf(owned, overrides)(bp) ?? 0,
+    state: efficiencyGlyphState(ownedValue, override),
     isOverridden: override !== undefined,
   };
 }
 
-export type IconState = NodeMeState | 'bonus' | 'reaction';
-
 /** CCP's glyph in its efficiency tone. The glow sits on a wrapper because a mask clips its own element's filter. */
-function ToneGlyph({ glyph, state }: { glyph: 'me' | 'te'; state: IconState }) {
+function ToneGlyph({ glyph, state }: { glyph: 'me' | 'te'; state: EfficiencyToneState }) {
   const tone = EFFICIENCY_TONE_CLASSES[state];
   return (
     <span aria-hidden className={cn('block size-full', tone.glow)}>
@@ -51,11 +48,11 @@ function ToneGlyph({ glyph, state }: { glyph: 'me' | 'te'; state: IconState }) {
   );
 }
 
-export function GemIcon({ state }: { state: IconState }) {
+export function GemIcon({ state }: { state: EfficiencyToneState }) {
   return <ToneGlyph glyph="me" state={state} />;
 }
 
-export function HourglassIcon({ state }: { state: IconState }) {
+export function HourglassIcon({ state }: { state: EfficiencyToneState }) {
   return <ToneGlyph glyph="te" state={state} />;
 }
 

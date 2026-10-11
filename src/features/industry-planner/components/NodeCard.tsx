@@ -11,14 +11,14 @@ import { TypeIcon } from '@/components/type-icon';
 import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import { formatQuantity } from '@/lib/format/number';
 import { ProvenanceRows } from './MeAdjuster';
+import type { EfficiencyState } from '../efficiency';
 import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
-import type { NodeMeState } from '../me-overrides';
 import { assetLedgerView, qtyRingView, ringQty, type LedgerCell } from '../node-card-ledger';
 import { nodeCardView } from '../node-card-view';
 import type { AssetHolding, OwnedComponentDetail } from '../types';
 
 export interface NodeEfficiency {
-  state: NodeMeState;
+  state: EfficiencyState;
   adjusters: ReactNode;
 }
 

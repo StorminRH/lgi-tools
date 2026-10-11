@@ -1,5 +1,6 @@
 import type { TreeNode } from '@/data/eve-data/types';
 import { roundTo } from '@/lib/math';
+import { efficiencyFactor } from './efficiency';
 
 interface Recipe {
   blueprintTypeId: number;
@@ -54,12 +55,8 @@ export interface MeOptions {
 
 const UNSET_ME: MeOptions = { meOf: () => undefined, topBlueprintTypeId: 0 };
 
-function meFactor(me: number): number {
-  return me <= 0 ? 1 : 1 - me / 100;
-}
-
 function meAdjust(qty: number, runs: number, me: number, structureMult = 1): number {
-  const mult = meFactor(me) * structureMult;
+  const mult = efficiencyFactor(me) * structureMult;
   if (mult >= 1) return qty * runs;
   return Math.max(runs, Math.ceil(roundTo(qty * runs * mult, 2)));
 }
@@ -164,7 +161,7 @@ function marginalDemand(
   const meOf = opts?.meOf ?? (() => undefined);
   const structureFactorOf = opts?.structureMeFactorOf ?? (() => 1);
   const factorFor = (blueprintTypeId: number) =>
-    meFactor(meOf(blueprintTypeId) ?? 0) * structureFactorOf(blueprintTypeId);
+    efficiencyFactor(meOf(blueprintTypeId) ?? 0) * structureFactorOf(blueprintTypeId);
 
   const topFactor = opts ? factorFor(opts.topBlueprintTypeId) : 1;
   for (const node of tree) addDemand(node.typeId, node.quantity * requestedRuns * topFactor);

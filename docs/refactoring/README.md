@@ -571,7 +571,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P301](wave-13-industry-planner-and-wormhole-sites-verticals.md#p301) | Fold te-overrides, node-frame-state and override-map into one efficiency module and share the ME/TE factor | simplification | S | low | low | — |
+| ☑ | [P301](wave-13-industry-planner-and-wormhole-sites-verticals.md#p301) | Fold te-overrides, node-frame-state and override-map into one efficiency module and share the ME/TE factor | simplification | S | low | low | — |
 | ☐ | [P025](wave-13-industry-planner-and-wormhole-sites-verticals.md#p025) | Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line | ui-component | S | low | medium | [P301](wave-13-industry-planner-and-wormhole-sites-verticals.md#p301) |
 | ☐ | [P026](wave-13-industry-planner-and-wormhole-sites-verticals.md#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
 | ☐ | [P168](wave-13-industry-planner-and-wormhole-sites-verticals.md#p168) | Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus | server-pipeline | S | low | low | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
