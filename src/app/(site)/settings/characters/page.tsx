@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
@@ -8,7 +7,7 @@ import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { ExternalLink, inlineLink } from '@/components/ui/text-link';
-import { getFullSession } from '@/composition/session';
+import { requireSessionPage } from '@/composition/route-guards';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { LinkedCharactersCard } from '@/components/composition/account/LinkedCharactersCard';
@@ -125,10 +124,7 @@ function CharacterRow({
 }
 
 async function CharactersContent({ searchParams }: { searchParams: CharactersSearchParams }) {
-  const session = await getFullSession();
-  if (!session) {
-    redirect('/?auth_error=login_required');
-  }
+  const session = await requireSessionPage();
 
   const [{ error: rawError }, characters] = await Promise.all([
     searchParams,

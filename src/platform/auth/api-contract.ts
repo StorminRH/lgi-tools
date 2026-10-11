@@ -9,6 +9,10 @@ import {
 
 const userIdField = z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/);
 
+/** Why a page guard sent the visitor home: each `?auth_error=` code the home page explains. */
+export const AUTH_ERROR_CODES = ['login_required', 'admin_required'] as const;
+export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
+
 export const eveTokenRequestSchema = z.object({
   userId: userIdField,
   characterId: z.number().int().positive(),

@@ -4,10 +4,11 @@ import { adminSessionFixture, sessionFixture } from '@/composition/__tests__/ses
 const h = vi.hoisted(() => ({
   getSessionMock: vi.fn<() => Promise<BetterAuthSession | null>>(),
   redirectMock: vi.fn(),
+  afterMock: vi.fn(),
 }));
 
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
-vi.mock('next/server', () => ({ after: vi.fn() }));
+vi.mock('next/server', () => ({ after: h.afterMock }));
 vi.mock('next/navigation', () => ({
   redirect: (url: string): never => {
     h.redirectMock(url);
@@ -23,6 +24,7 @@ import {
   checkSession,
   checkUserId,
   requireAdminPage,
+  requireSessionPage,
   type BetterAuthSession,
 } from './route-guards';
 
@@ -32,6 +34,7 @@ const ADMIN = adminSessionFixture({ user: { id: 'admin-1' }, characterId: 900000
 beforeEach(() => {
   h.getSessionMock.mockReset();
   h.redirectMock.mockReset();
+  h.afterMock.mockReset();
 });
 
 test('checkSession and checkUserId return typed unauthenticated failures or the signed-in identity', async () => {
@@ -77,4 +80,18 @@ test('requireAdminPage redirects anonymous and non-admin callers and returns an 
   h.getSessionMock.mockResolvedValue(ADMIN);
   await expect(requireAdminPage()).resolves.toEqual(ADMIN);
   expect(h.redirectMock).not.toHaveBeenCalled();
+});
+
+test('requireSessionPage sends a signed-out visitor home with the login notice and returns any signed-in session', async () => {
+  h.getSessionMock.mockResolvedValue(null);
+  await expect(requireSessionPage()).rejects.toThrow('NEXT_REDIRECT');
+  expect(h.redirectMock).toHaveBeenCalledWith('/?auth_error=login_required');
+  expect(h.afterMock).not.toHaveBeenCalled();
+
+  h.redirectMock.mockClear();
+  h.getSessionMock.mockResolvedValue(MEMBER);
+  await expect(requireSessionPage()).resolves.toEqual(MEMBER);
+  expect(h.redirectMock).not.toHaveBeenCalled();
+  // The page guard reads through getFullSession, so the character-authorization check still runs after the render.
+  expect(h.afterMock).toHaveBeenCalledOnce();
 });

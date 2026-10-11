@@ -6,6 +6,7 @@ import {
   unauthenticatedFailure,
 } from '@/lib/failure';
 import { auth } from '@/composition/auth';
+import { authErrorHref } from '@/composition/auth-error';
 import { getCurrentUserId, getFullSession } from '@/composition/session';
 
 export type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
@@ -42,10 +43,19 @@ export async function checkUserId(): Promise<UserIdCheckResult> {
   return { ok: true, userId };
 }
 
+/** Page guard for signed-in screens: sends a signed-out visitor home with the login notice. */
+export async function requireSessionPage(): Promise<BetterAuthSession> {
+  const session = await getFullSession();
+  if (!session) {
+    redirect(authErrorHref('login_required'));
+  }
+  return session;
+}
+
 export async function requireAdminPage(): Promise<BetterAuthSession> {
   const session = await getFullSession();
   if (!session?.isAdmin) {
-    redirect('/?auth_error=admin_required');
+    redirect(authErrorHref('admin_required'));
   }
   return session;
 }

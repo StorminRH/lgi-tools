@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
@@ -8,7 +7,7 @@ import { Pill } from '@/components/ui/pill';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { inlineLink } from '@/components/ui/text-link';
-import { getFullSession } from '@/composition/session';
+import { requireSessionPage } from '@/composition/route-guards';
 import { formatIsoDay } from '@/lib/format/time';
 import { getActiveSessionCount } from '@/platform/auth/admin-users';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
@@ -24,10 +23,7 @@ function OverviewRow({ label, children }: { label: string; children: ReactNode }
 }
 
 async function AccountContent() {
-  const session = await getFullSession();
-  if (!session) {
-    redirect('/?auth_error=login_required');
-  }
+  const session = await requireSessionPage();
 
   const [characters, sessionCount] = await Promise.all([
     listLinkedCharacters(session.user.id),

@@ -15,6 +15,8 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock('@/composition/session', () => ({ getFullSession: m.getFullSession }));
+// requireSessionPage reads the session above; keep Better Auth itself out of the import graph.
+vi.mock('@/composition/auth', () => ({ auth: {} }));
 vi.mock('@/platform/auth/linked-characters', () => ({ listLinkedCharacters: m.listLinkedCharacters }));
 vi.mock('next/navigation', () => ({ redirect: m.redirect }));
 vi.mock('next/link', () => ({
