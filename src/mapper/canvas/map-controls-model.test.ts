@@ -24,6 +24,28 @@ test('every layout, halo and fog dial clamps, snaps and moves only its own field
   expectDialTable(DEFAULT_FOG_CONFIG, FOG_STEP_DIALS, FOG_CHOICE_DIALS);
 });
 
+test('every layout, halo and fog dial keeps its tuned range', () => {
+  const ranges = (dials: readonly { readonly label: string; readonly range: unknown }[]) =>
+    dials.map((dial) => [dial.label, dial.range]);
+
+  expect(ranges(LAYOUT_STEP_DIALS)).toEqual([
+    ['Ring spacing', { min: 140, max: 480, step: 10 }],
+    ['Separation', { min: 80, max: 240, step: 10 }],
+    ['Sibling fan', { min: 1, max: 6, step: 1 }],
+  ]);
+  expect(ranges(HALO_STEP_DIALS)).toEqual([
+    ['Drawn rings', { min: 0, max: 4, step: 1 }],
+    ['Fogged rings', { min: 0, max: 2, step: 1 }],
+    ['Per exit', { min: 10, max: 120, step: 10 }],
+    ['Total cap', { min: 30, max: 300, step: 30 }],
+  ]);
+  expect(ranges(FOG_STEP_DIALS)).toEqual([
+    ['Reveal', { min: 80, max: 320, step: 10 }],
+    ['Corridor', { min: 20, max: 120, step: 4 }],
+    ['Density %', { min: 40, max: 100, step: 5 }],
+  ]);
+});
+
 test('ring spacing and separation push each other so spacing stays ≥ separation', () => {
   const ringSpacing = dialNamed(LAYOUT_STEP_DIALS, 'Ring spacing');
   const separation = dialNamed(LAYOUT_STEP_DIALS, 'Separation');

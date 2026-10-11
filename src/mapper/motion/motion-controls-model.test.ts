@@ -8,6 +8,15 @@ test('every motion dial clamps, snaps and moves only its own field', () => {
   expectDialTable(DEFAULT_MOTION_CONFIG, MOTION_STEP_DIALS, MOTION_CHOICE_DIALS);
 });
 
+test('every motion dial keeps its tuned range', () => {
+  expect(MOTION_STEP_DIALS.map((dial) => [dial.label, dial.range])).toEqual([
+    ['Fast', { min: 50, max: 500, step: 25 }],
+    ['Mid', { min: 200, max: 1200, step: 50 }],
+    ['Slow', { min: 400, max: 2000, step: 100 }],
+    ['Overshoot', { min: 0, max: 40, step: 2 }],
+  ]);
+});
+
 test('overshoot commits land on whole percents', () => {
   const overshoot = MOTION_STEP_DIALS.find((dial) => dial.label === 'Overshoot');
   if (!overshoot) throw new Error('no Overshoot dial');
