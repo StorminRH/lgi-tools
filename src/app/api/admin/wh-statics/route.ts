@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { capabilityRoute } from '@/app/api/capability-route';
+import { runMutationRoute } from '@/app/api/mutation-route';
+import { checkAdmin } from '@/composition/route-guards';
 import {
   promoteWhStaticsSnapshot,
   refreshWhStaticsOnDemand,
@@ -11,7 +12,6 @@ import {
   WhStaticsSnapshotStateError,
 } from '@/data/wh-statics/queries';
 import { conflictFailure } from '@/lib/failure';
-import { adminMutationGate } from '@/app/api/admin-mutation';
 import { problemResponse } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
@@ -22,43 +22,37 @@ function redirectToReview(request: NextRequest, outcome: string): Response {
 }
 
 // authz: admin
-export const POST = capabilityRoute('admin.wh-statics-review', handlePost);
-
-async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await adminMutationGate(request);
-  if (!gate.ok) return gate.response;
-  return handleAuthorizedPost(request);
-}
-
-async function handleAuthorizedPost(request: NextRequest): Promise<Response> {
-  const parsed = await parseFormBody(request, whStaticsAdminFormSchema, [
-    'action',
-    'snapshotId',
-  ]);
-  if (!parsed.ok) return problemResponse(parsed.failure);
-
-  try {
-    if (parsed.data.action === 'refresh') {
-      const result = await refreshWhStaticsOnDemand();
-      return redirectToReview(request, result.status);
-    }
-    if (parsed.data.action === 'promote') {
-      await promoteWhStaticsSnapshot(parsed.data.snapshotId);
-      return redirectToReview(request, 'promoted');
-    }
-    await rejectWhStaticsSnapshot(parsed.data.snapshotId);
-    return redirectToReview(request, 'rejected');
-  } catch (error) {
-    if (error instanceof WhStaticsEmptySnapshotError) {
-      return problemResponse(
-        conflictFailure('snapshot_empty', error.message),
-      );
-    }
-    if (error instanceof WhStaticsSnapshotStateError) {
-      return problemResponse(
-        conflictFailure('snapshot_not_pending', error.message),
-      );
-    }
-    throw error;
-  }
+export async function POST(request: NextRequest): Promise<Response> {
+  return runMutationRoute(request, {
+    capability: 'admin.wh-statics-review',
+    authorize: checkAdmin,
+    parse: (incoming) =>
+      parseFormBody(incoming, whStaticsAdminFormSchema, ['action', 'snapshotId']),
+    handle: async (_authorization, review) => {
+      try {
+        if (review.action === 'refresh') {
+          const result = await refreshWhStaticsOnDemand();
+          return redirectToReview(request, result.status);
+        }
+        if (review.action === 'promote') {
+          await promoteWhStaticsSnapshot(review.snapshotId);
+          return redirectToReview(request, 'promoted');
+        }
+        await rejectWhStaticsSnapshot(review.snapshotId);
+        return redirectToReview(request, 'rejected');
+      } catch (error) {
+        if (error instanceof WhStaticsEmptySnapshotError) {
+          return problemResponse(
+            conflictFailure('snapshot_empty', error.message),
+          );
+        }
+        if (error instanceof WhStaticsSnapshotStateError) {
+          return problemResponse(
+            conflictFailure('snapshot_not_pending', error.message),
+          );
+        }
+        throw error;
+      }
+    },
+  });
 }

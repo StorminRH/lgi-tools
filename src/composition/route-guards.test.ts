@@ -4,7 +4,6 @@ import { adminSessionFixture, sessionFixture } from '@/composition/__tests__/ses
 const h = vi.hoisted(() => ({
   getSessionMock: vi.fn<() => Promise<BetterAuthSession | null>>(),
   redirectMock: vi.fn(),
-  requireSameOriginMock: vi.fn(),
 }));
 
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
@@ -18,13 +17,9 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: h.getSessionMock } },
 }));
-vi.mock('@/platform/auth/same-origin', () => ({
-  requireSameOrigin: (...args: unknown[]) => h.requireSameOriginMock(...args),
-}));
 
 import {
   checkAdmin,
-  checkAdminMutation,
   checkSession,
   checkUserId,
   requireAdminPage,
@@ -33,12 +28,10 @@ import {
 
 const MEMBER = sessionFixture({ user: { id: 'user-1' }, characterId: 90000001 });
 const ADMIN = adminSessionFixture({ user: { id: 'admin-1' }, characterId: 90000002 });
-const REQUEST = new Request('https://lgi.tools/api/admin/role', { method: 'POST' });
 
 beforeEach(() => {
   h.getSessionMock.mockReset();
   h.redirectMock.mockReset();
-  h.requireSameOriginMock.mockReset();
 });
 
 test('checkSession and checkUserId return typed unauthenticated failures or the signed-in identity', async () => {
@@ -68,33 +61,6 @@ test('checkAdmin uses forbidden for anonymous and non-admin callers and hands ba
     failure: { category: 'forbidden', code: 'forbidden' },
   });
   await expect(checkAdmin()).resolves.toEqual({ ok: true, session: ADMIN });
-});
-
-test('checkAdminMutation refuses non-admins, then applies the same-origin gate', async () => {
-  h.getSessionMock.mockResolvedValueOnce(null).mockResolvedValueOnce(MEMBER);
-  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({
-    ok: false,
-    failure: { category: 'forbidden', code: 'forbidden' },
-  });
-  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({
-    ok: false,
-    failure: { category: 'forbidden', code: 'forbidden' },
-  });
-  expect(h.requireSameOriginMock).not.toHaveBeenCalled();
-
-  h.getSessionMock.mockResolvedValue(ADMIN);
-  h.requireSameOriginMock.mockReturnValueOnce({
-    ok: false,
-    failure: { category: 'forbidden', code: 'cross_origin' },
-  });
-  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({
-    ok: false,
-    failure: { category: 'forbidden', code: 'cross_origin' },
-  });
-  expect(h.requireSameOriginMock).toHaveBeenCalledWith(REQUEST);
-
-  h.requireSameOriginMock.mockReturnValueOnce({ ok: true });
-  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({ ok: true, session: ADMIN });
 });
 
 test('requireAdminPage redirects anonymous and non-admin callers and returns an admin session', async () => {

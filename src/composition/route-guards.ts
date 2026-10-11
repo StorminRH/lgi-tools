@@ -7,7 +7,6 @@ import {
 } from '@/lib/failure';
 import { auth } from '@/composition/auth';
 import { getCurrentUserId, getFullSession } from '@/composition/session';
-import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 export type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 
@@ -29,16 +28,6 @@ export async function checkAdmin(): Promise<SessionCheckResult> {
     return { ok: false, failure: forbiddenFailure() };
   }
   return { ok: true, session };
-}
-
-export async function checkAdminMutation(
-  request: Request,
-): Promise<SessionCheckResult> {
-  const gate = await checkAdmin();
-  if (!gate.ok) return gate;
-  const origin = requireSameOrigin(request);
-  if (!origin.ok) return origin;
-  return gate;
 }
 
 export type UserIdCheckResult =

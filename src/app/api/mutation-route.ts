@@ -12,6 +12,11 @@ type ParseFunction = (
 ) => Promise<{ ok: true; data: unknown } | FailureResult>;
 export type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
 
+/** Authorizes every caller, for a public mutation that still needs the origin gate. */
+export async function allowAnonymous(): Promise<AuthorizationSuccess> {
+  return { ok: true };
+}
+
 export interface CapabilityOption {
   capability: CapabilityId;
   preflight?: () => Promise<Response | null>;

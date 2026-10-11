@@ -14,7 +14,7 @@ vi.mock('@/platform/auth/same-origin', () => ({
   requireSameOrigin: (request: Request) => h.requireSameOriginMock(request),
 }));
 
-import { runMutationRoute } from './mutation-route';
+import { allowAnonymous, runMutationRoute } from './mutation-route';
 
 function request(): Request {
   return new Request('https://lgi.tools/api/example', { method: 'POST' });
@@ -155,6 +155,31 @@ describe('runMutationRoute', () => {
 
     expect(result).toBe(response);
     expect(calls).toEqual(['authorize', 'origin', 'parse', 'handle']);
+  });
+
+  it('lets an anonymous caller reach the handler only through the origin gate', async () => {
+    const handle = vi.fn(() => new Response(null, { status: 204 }));
+    const options = {
+      capability: 'feedback.submit-feedback' as const,
+      authorize: allowAnonymous,
+      handle,
+    };
+
+    const accepted = await runMutationRoute(request(), options);
+    expect(accepted.status).toBe(204);
+    expect(handle).toHaveBeenCalledWith({ ok: true });
+
+    handle.mockClear();
+    h.requireSameOriginMock.mockReturnValue({
+      ok: false,
+      failure: forbiddenFailure('cross_origin', 'Cross-origin requests are not allowed'),
+    });
+    const refused = await runMutationRoute(request(), options);
+    expect(problemBodySchema.parse(await refused.json())).toMatchObject({
+      status: 403,
+      code: 'cross_origin',
+    });
+    expect(handle).not.toHaveBeenCalled();
   });
 
   it('lets unexpected handler errors propagate', async () => {

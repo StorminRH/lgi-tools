@@ -28,7 +28,6 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 vi.mock('@/composition/route-guards', () => ({
   checkAdmin: (...args: unknown[]) => h.checkAdmin(...args),
-  checkAdminMutation: (...args: unknown[]) => h.checkAdmin(...args),
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/composition/session', () => ({
