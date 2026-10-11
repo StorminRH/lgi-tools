@@ -28,7 +28,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P038](#p038) | Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle | ui-component | S | low | medium | [P028](#p028) |
 | ☑ | [P029](#p029) | Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop | ui-component | S | low | medium | [P028](#p028) |
 | ☑ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
-| ☐ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
+| ☑ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
 | ☐ | [P033](#p033) | Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics | ui-component | S | low | low | [P032](#p032) |
 | ☐ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
 | ☐ | [P092](#p092) | Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects | formatting | S | low | medium | [P030](#p030) |
@@ -1135,7 +1135,7 @@ export function homeCurrentSystem(input: {
 
 ## P032: Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +30
 - **Depends on:** [P075](wave-12-market-data-search-and-client-data-reads.md#p075)

@@ -1,10 +1,9 @@
 'use client';
 
-import { CharacterPortrait } from '@/components/character-portrait';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { mapFrostedSurface } from '../map-frosted-surface';
-import { useSystemLabel } from '../windows/use-system-label';
+import { CharacterLocationLabel } from './character-location-label';
 import type { DockCharacter } from './tracked-system';
 import {
   useCharacterIdentities,
@@ -20,7 +19,6 @@ function CandidateButton({
   readonly identity: CharacterIdentity;
   readonly onPick: (characterId: number) => void;
 }) {
-  const systemName = useSystemLabel(candidate.systemId)?.name;
   return (
     <Button
       variant="secondary"
@@ -29,18 +27,12 @@ function CandidateButton({
       className="h-auto justify-start gap-2 py-1.5"
       onClick={() => onPick(candidate.characterId)}
     >
-      <CharacterPortrait
+      <CharacterLocationLabel
         characterId={candidate.characterId}
-        name={identity.name}
-        src={identity.portraitUrl}
-        size={28}
+        identity={identity}
+        systemId={candidate.systemId}
+        sublineTone="muted"
       />
-      <span className="flex min-w-0 flex-col text-left">
-        <span className="truncate text-name">{identity.name}</span>
-        <span className="truncate font-data text-micro text-muted">
-          {systemName ?? String(candidate.systemId)}
-        </span>
-      </span>
     </Button>
   );
 }

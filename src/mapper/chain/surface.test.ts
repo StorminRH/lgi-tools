@@ -159,6 +159,7 @@ describe('mapper source contract', () => {
       'tracking/ScannerCharacterPrompt.tsx',
       'tracking/TrackingControls.tsx',
       'tracking/afk-model.ts',
+      'tracking/character-location-label.tsx',
       'tracking/doorbell-model.ts',
       'tracking/outbound-arrow-context.ts',
       'tracking/pilot-path.ts',
