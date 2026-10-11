@@ -1,19 +1,18 @@
 import { db } from '@/db';
 import { ownerKeyWhere } from '@/lib/db-columns';
-import type { PurgeContributor } from '@/platform/purge/types';
+import { characterCacheContributor } from '@/platform/purge/contributors';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
-export const ownedBlueprintsPurgeContributor: PurgeContributor = {
+export const ownedBlueprintsPurgeContributor = characterCacheContributor(db, {
   name: 'owned-blueprints',
-  tier: 'cache',
-  claims: [ownedBlueprints, ownedBlueprintSyncs],
-  merge: [
-    { table: ownedBlueprints, rule: 'follows-character' },
-    { table: ownedBlueprintSyncs, rule: 'follows-character' },
+  tables: [
+    {
+      table: ownedBlueprints,
+      where: (ownerId) => ownerKeyWhere(ownedBlueprints, { ownerType: 'character', ownerId }),
+    },
+    {
+      table: ownedBlueprintSyncs,
+      where: (ownerId) => ownerKeyWhere(ownedBlueprintSyncs, { ownerType: 'character', ownerId }),
+    },
   ],
-  async purgeCharacter({ characterId }) {
-    const owner = { ownerType: 'character', ownerId: characterId } as const;
-    await db.delete(ownedBlueprints).where(ownerKeyWhere(ownedBlueprints, owner));
-    await db.delete(ownedBlueprintSyncs).where(ownerKeyWhere(ownedBlueprintSyncs, owner));
-  },
-};
+});
