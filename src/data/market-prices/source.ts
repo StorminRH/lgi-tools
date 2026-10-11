@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   BULK_THRESHOLD,
-  ESI_REGION_ID_FORGE,
   JITA_44_STATION_ID,
   PAGE_CONCURRENCY,
   PER_TYPE_CONCURRENCY,
@@ -16,6 +15,7 @@ import {
   esiUrl,
 } from '@/platform/esi';
 import { esiPageCount } from '@/platform/esi/headers';
+import { THE_FORGE_REGION_ID } from '@/data/eve-data/constants';
 import { dedupe, getOrInsertComputed } from '@/lib/array';
 import { mapConcurrent } from '@/lib/fan-out';
 import {
@@ -134,11 +134,11 @@ function bucketsToRawPrices(
 }
 
 function regionDumpPageUrl(page: number): string {
-  return esiUrl(`/markets/${ESI_REGION_ID_FORGE}/orders/?order_type=all&page=${page}`);
+  return esiUrl(`/markets/${THE_FORGE_REGION_ID}/orders/?order_type=all&page=${page}`);
 }
 
 function perTypeUrl(typeId: number): string {
-  return esiUrl(`/markets/${ESI_REGION_ID_FORGE}/orders/?type_id=${typeId}&order_type=all`);
+  return esiUrl(`/markets/${THE_FORGE_REGION_ID}/orders/?type_id=${typeId}&order_type=all`);
 }
 
 async function fetchViaEsiRegionDump(

@@ -3,13 +3,13 @@ import { after } from 'next/server';
 import { db } from '@/db';
 import { dedupe } from '@/lib/array';
 import { isBoundaryStale } from '@/lib/esi-datasets/freshness';
-import { notifyObserver, type WriteBehindResult } from '@/lib/write-behind';
+import { runWriteBehind, type WriteBehindResult } from '@/lib/write-behind';
 import { computeHistoryInputs } from './aggregate';
 import { historyTag } from './constants';
 import { persistHistory } from './ingest';
 import { getHistoryMeta, getStoredHistory } from './queries';
 import { fetchHistoryFromSource } from './source';
-import type { MarketHistoryInputs } from './types';
+import type { MarketHistoryInputs, RawHistory } from './types';
 
 export interface HistoryDegradation {
   fetched: number;
@@ -78,32 +78,28 @@ export async function getLiveHistory(
   }
 
   if (results.length > 0) {
-    after(async () => {
-      const startedAt = Date.now();
-      let succeeded = 0;
-      let written = 0;
-      for (const r of results) {
-        try {
-          const summary = await persistHistory(db, r.typeId, r.rows, r.staleAfter, r.source);
-          succeeded++;
-          written += summary.written;
-          revalidateTag(historyTag(r.typeId), 'max');
-        } catch (err) {
-          console.error(`[${SCOPE}] write-behind failed`, err);
-        }
-      }
-      await notifyObserver(
-        onWriteBehind,
-        {
-          outcome: succeeded === results.length ? 'succeeded' : succeeded === 0 ? 'failed' : 'partial',
-          attempted: results.length,
-          written,
-          durationMs: Date.now() - startedAt,
-        },
-        SCOPE,
-      );
-    });
+    after(() => runWriteBehind(SCOPE, results.length, () => persistEach(results), onWriteBehind));
   }
 
   return { inputs, degraded, metrics };
+}
+
+/**
+ * Persists each fetched series on its own, so one failed type is logged and
+ * skipped while the rest are still written and their cache tags expired.
+ */
+async function persistEach(results: RawHistory[]): Promise<{ succeeded: number; written: number }> {
+  let succeeded = 0;
+  let written = 0;
+  for (const r of results) {
+    try {
+      const summary = await persistHistory(db, r.typeId, r.rows, r.staleAfter, r.source);
+      succeeded++;
+      written += summary.written;
+      revalidateTag(historyTag(r.typeId), 'max');
+    } catch (err) {
+      console.error(`[${SCOPE}] write-behind failed`, err);
+    }
+  }
+  return { succeeded, written };
 }

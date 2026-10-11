@@ -4,7 +4,7 @@ import { db } from '@/db';
 import type { PriceSourceCounts } from '@/lib/alerts';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { mapConcurrent } from '@/lib/fan-out';
-import { notifyObserver, type WriteBehindResult } from '@/lib/write-behind';
+import { runWriteBehind, type WriteBehindResult } from '@/lib/write-behind';
 import { consumeFreshPriceResolution, markFreshPriceResolution } from './cache-resolution';
 import { PER_TYPE_CONCURRENCY } from './constants';
 import { persistPrices } from './ingest';
@@ -121,34 +121,17 @@ export async function getLivePrices(
   });
 
   if (freshRaws.length > 0) {
-    after(async () => {
-      const startedAt = Date.now();
-      try {
-        const summary = await persistPrices(db, freshRaws, { fetchedAtByType });
-        await notifyObserver(
-          onWriteBehind,
-          {
-            outcome: 'succeeded',
-            attempted: freshRaws.length,
-            written: summary.written,
-            durationMs: Date.now() - startedAt,
-          },
-          SCOPE,
-        );
-      } catch (err) {
-        console.error(`[${SCOPE}] write-behind failed`, err);
-        await notifyObserver(
-          onWriteBehind,
-          {
-            outcome: 'failed',
-            attempted: freshRaws.length,
-            written: 0,
-            durationMs: Date.now() - startedAt,
-          },
-          SCOPE,
-        );
-      }
-    });
+    after(() =>
+      runWriteBehind(
+        SCOPE,
+        freshRaws.length,
+        async () => {
+          const { written } = await persistPrices(db, freshRaws, { fetchedAtByType });
+          return { succeeded: freshRaws.length, written };
+        },
+        onWriteBehind,
+      ),
+    );
   }
 
   metrics.returned = prices.size;

@@ -231,6 +231,29 @@ describe('getLivePrices', () => {
     errors.mockRestore();
   });
 
+  it('reports a rejected write-behind as failed with nothing written', async () => {
+    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
+    const failure = new Error('database down');
+    persistPricesMock.mockRejectedValue(failure);
+    const observer = vi.fn();
+    const errors = silenceConsolePrefixes('error', ['[market-prices/refresh-on-view] ']);
+
+    const { prices } = await getLivePrices([34], observer);
+    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
+
+    expect(prices.get(34)?.source).toBe('esi');
+    expect(observer).toHaveBeenCalledWith({
+      outcome: 'failed',
+      attempted: 1,
+      written: 0,
+      durationMs: expect.any(Number),
+    });
+    expect(errors.mock.calls).toEqual([
+      ['[market-prices/refresh-on-view] write-behind failed', failure],
+    ]);
+    errors.mockRestore();
+  });
+
   it('tallies esi vs fuzzwork-fallback and budget exhaustion across items', async () => {
     sourceByTypeId({
       34: { prices: [raw(34, 'esi')] },

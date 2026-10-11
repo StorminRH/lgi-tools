@@ -90,7 +90,11 @@ describe('fetchHistoryFromSource', () => {
     const { results, budgetExhausted } = await fetchHistoryFromSource([34, 35]);
     expect(budgetExhausted).toBe(false);
     expect(results).toHaveLength(2);
-    expect(vi.mocked(esiFetch).mock.calls).toHaveLength(2);
+    // Both reads go to The Forge's daily history.
+    expect(vi.mocked(esiFetch).mock.calls.map(([url]) => url).sort()).toEqual([
+      'https://esi.evetech.net/markets/10000002/history/?type_id=34',
+      'https://esi.evetech.net/markets/10000002/history/?type_id=35',
+    ]);
     const r34 = results.find((r) => r.typeId === 34)!;
     expect(r34.source).toBe('esi');
     expect(r34.rows[0]!.average).toBe(34);

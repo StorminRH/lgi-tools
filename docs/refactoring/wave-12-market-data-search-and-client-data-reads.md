@@ -11,7 +11,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 | ☑ | [P181](#p181) | Run independent reads concurrently in getLivePrices, getLiveHistory and getAvailableCorpStructuresForUser; keep the price write-behind | server-pipeline | S | low | low | — |
 | ☑ | [P052](#p052) | Replace the latest-value refs in both refresh-on-view hooks with useEffectEvent, and drop the history hook's unused return state | react-hook | S | low | low | — |
 | ☑ | [P077](#p077) | Use useEffectEvent in the on-view refresh hooks, drop the history hook's dead state, and share notifyWriteBehind through lib | client-data | S | low | low | [P052](#p052) |
-| ☐ | [P332](#p332) | Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads | simplification | S | low | low | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077) |
+| ☑ | [P332](#p332) | Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads | simplification | S | low | low | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077) |
 | ☐ | [P295](#p295) | Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type | efficiency | S | low | medium | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332) |
 | ☐ | [P076](#p076) | Name the plain price-figure type in data/market-prices and build RefreshedPrice, PriceLite and the planner rows from it | contracts-validation | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
 | ☐ | [P075](#p075) | Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label | client-data | S | low | low | — |
@@ -204,7 +204,7 @@ export function useRefreshHistoryOnView(typeIds: number[], opts: { enabled: bool
 
 ## P332: Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -50 production lines (two result types and notifiers -32, prices after() block -15, private retentionCutoff -4, region constant -2), about +35 in lib, and about +70 test lines. The optional int4 sweep removes about 5 more constants.
 - **Depends on:** [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077)

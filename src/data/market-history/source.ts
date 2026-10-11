@@ -9,10 +9,8 @@ import { httpDateMs } from '@/platform/esi/headers';
 import { dedupe } from '@/lib/array';
 import { mapConcurrent } from '@/lib/fan-out';
 import { DAY_MS } from '@/lib/iso-date';
-import {
-  HISTORY_FETCH_CONCURRENCY,
-  THE_FORGE_REGION_ID,
-} from './constants';
+import { THE_FORGE_REGION_ID } from '@/data/eve-data/constants';
+import { HISTORY_FETCH_CONCURRENCY } from './constants';
 import type { HistoryDailyRow, RawHistory } from './types';
 
 const esiHistoryItemSchema = z.object({

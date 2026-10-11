@@ -146,6 +146,38 @@ describe('getLiveHistory — stale gate', () => {
     errors.mockRestore();
   });
 
+  it('reports partial when one fetched type fails to persist, and still writes the other', async () => {
+    getHistoryMetaMock.mockResolvedValue(new Map());
+    getStoredHistoryMock.mockResolvedValue(new Map());
+    fetchHistoryFromSourceMock.mockResolvedValue({
+      results: [
+        { typeId: 34, rows: series('2026-06-13', 3), staleAfter: new Date(), source: 'esi' },
+        { typeId: 35, rows: series('2026-06-13', 3), staleAfter: new Date(), source: 'esi' },
+      ],
+      budgetExhausted: false,
+    });
+    const failure = new Error('database down');
+    persistHistoryMock.mockRejectedValueOnce(failure).mockResolvedValueOnce({ written: 3 });
+    const observer = vi.fn();
+    const errors = silenceConsolePrefixes('error', ['[market-history/refresh-on-view] ']);
+
+    await getLiveHistory([34, 35], observer);
+    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
+
+    expect(persistHistoryMock.mock.calls.map(([, typeId]) => typeId)).toEqual([34, 35]);
+    expect(revalidateTagMock.mock.calls).toEqual([['market-history-35', 'max']]);
+    expect(observer).toHaveBeenCalledWith({
+      outcome: 'partial',
+      attempted: 2,
+      written: 3,
+      durationMs: expect.any(Number),
+    });
+    expect(errors.mock.calls).toEqual([
+      ['[market-history/refresh-on-view] write-behind failed', failure],
+    ]);
+    errors.mockRestore();
+  });
+
   it('classifies a type with no fresh or stored series as missing', async () => {
     getHistoryMetaMock.mockResolvedValue(new Map());
     getStoredHistoryMock.mockResolvedValue(new Map());

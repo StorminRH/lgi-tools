@@ -279,7 +279,11 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
     expect(r34.bestSell).toBe(110);
     expect(r34.buyVolume).toBe(BigInt(50));
     expect(r34.sellVolume).toBe(BigInt(30));
-    expect(vi.mocked(esiFetch).mock.calls).toHaveLength(2);
+    // Both reads go to The Forge's order book.
+    expect(vi.mocked(esiFetch).mock.calls.map(([url]) => url).sort()).toEqual([
+      'https://esi.evetech.net/markets/10000002/orders/?type_id=34&order_type=all',
+      'https://esi.evetech.net/markets/10000002/orders/?type_id=35&order_type=all',
+    ]);
   });
 
   it('routes individual EsiServerError failures to Fuzzwork fallback (partial)', async () => {
