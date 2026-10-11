@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
-import { chunk } from '@/lib/array';
+import { chunk, dedupe } from '@/lib/array';
 import { refreshPricesEndpoint } from './api-contract';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
 import { toPlainPriceFigures } from './narrow';
@@ -71,18 +71,13 @@ export function useRefreshOnView(
   const [pending, setPending] = useState<Set<number>>(() => new Set());
   const [refreshing, setRefreshing] = useState(false);
 
-  const typeIdsRef = useRef(typeIds);
-  const onBatchRef = useRef(opts.onBatch);
-  useEffect(() => {
-    typeIdsRef.current = typeIds;
-    onBatchRef.current = opts.onBatch;
-  });
-
-  const { enabled, refreshKey } = opts;
+  const { enabled, onBatch, refreshKey } = opts;
+  const readIds = useEffectEvent(() => dedupe(typeIds));
+  const emitBatch = useEffectEvent((snapshot: Map<number, RefreshedPrice>) => onBatch?.(snapshot));
 
   useEffect(() => {
     if (!enabled) return;
-    const wanted = [...new Set(typeIdsRef.current)];
+    const wanted = readIds();
     if (wanted.length === 0) return;
     const map = freshPrices(wanted, Date.now());
     const toRefresh = wanted.filter((typeId) => !map.has(typeId));
@@ -92,7 +87,7 @@ export function useRefreshOnView(
     const publish = () => {
       const snapshot = new Map(map);
       setPrices(snapshot);
-      onBatchRef.current?.(snapshot);
+      emitBatch(snapshot);
     };
 
     const clearBatch = (batch: number[]) =>

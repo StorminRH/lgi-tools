@@ -18,10 +18,7 @@ vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
 }));
 
 vi.mock('@/data/market-history/use-refresh-on-view', () => ({
-  useRefreshHistoryOnView: () => ({
-    inputs: new Map(),
-    refreshing: false,
-  }),
+  useRefreshHistoryOnView: () => undefined,
 }));
 
 vi.mock('../use-resource-read', () => ({

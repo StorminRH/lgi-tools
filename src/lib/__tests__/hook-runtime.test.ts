@@ -89,6 +89,24 @@ test('effects and memos re-run only when deps change by identity or count, or on
   expect(rt.render(() => react.useCallback(latest, [held]))).toBe(latest);
 });
 
+test("an effect event that an earlier render's effect kept calls the latest render's callback", () => {
+  const rt = createHookRuntime();
+  const { react } = rt;
+  const kept: Array<(step: number) => string> = [];
+  const component = (label: string) => {
+    const say = react.useEffectEvent((step: number) => `${label} ${step}`);
+    react.useEffect(() => {
+      kept.push(say);
+    }, []);
+  };
+
+  rt.render(component, 'first');
+  expect(kept[0]?.(1)).toBe('first 1');
+  rt.render(component, 'second');
+  expect(kept).toHaveLength(1);
+  expect(kept[0]?.(2)).toBe('second 2');
+});
+
 test('hide cleans up live effects and keeps state, while unmount drops every slot and leaves old setters inert', () => {
   const rt = createHookRuntime();
   const { react } = rt;
