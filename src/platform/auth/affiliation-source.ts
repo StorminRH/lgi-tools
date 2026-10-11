@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { chunk, dedupe } from '@/lib/array';
 import { isTimeoutError } from '@/lib/error-chain';
 import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
+import { esiJsonPostInit } from '@/platform/esi/request-init';
 import { SYNTHETIC_PILOT } from './synthetic-pilot';
 
 const AFFILIATION_BATCH_MAX = 1000;
@@ -53,11 +54,7 @@ function isTransientFetchFailure(error: unknown): boolean {
 async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchResult> {
   let res: Response;
   try {
-    res = await esiFetch(esiUrl('/characters/affiliation/'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(batch),
-    });
+    res = await esiFetch(esiUrl('/characters/affiliation/'), esiJsonPostInit(batch));
   } catch (error) {
     if (isTransientFetchFailure(error)) {
       return { rows: [], transientFailure: true };

@@ -5,6 +5,7 @@ import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-servi
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveScopeHealth } from '@/platform/auth/scope-health';
 import { esiFetch, esiUrl } from '@/platform/esi';
+import { esiAuthInit } from '@/platform/esi/request-init';
 
 /** ESI answers only the category asked for, so the other key stays absent. */
 const esiSearchBodySchema = z.object({
@@ -38,7 +39,7 @@ async function fetchCharacterSearch(
   const query = new URLSearchParams({ categories: category, search, strict: 'false' });
   const response = await esiFetch(
     esiUrl(`/characters/${characterId}/search/?${query.toString()}`),
-    { headers: { Authorization: `Bearer ${accessToken}` }, ...(signal ? { signal } : {}) },
+    esiAuthInit(accessToken, { signal }),
   );
   if (!response.ok) throw new EsiCharacterSearchError(category, response.status);
   const parsed = esiSearchBodySchema.safeParse(await response.json());

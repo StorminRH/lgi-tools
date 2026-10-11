@@ -3,6 +3,7 @@ import { EVE_CHARACTER_SEARCH_SCOPE, type EveScope } from '@/config/eve-scopes';
 import type { StructureSearchResult } from '@/features/custom-structures/api-contract';
 import { getOrInsertComputed } from '@/lib/array';
 import { EsiBudgetExhaustedError, esiFetch, esiUrl } from '@/platform/esi';
+import { esiAuthInit } from '@/platform/esi/request-init';
 import {
   firstScopedSearch,
   scopedLinkedCharacters,
@@ -28,10 +29,10 @@ async function readStructure(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<StructureSearchResult | null> {
-  const response = await esiFetch(esiUrl(`/universe/structures/${structureId}/`), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    ...(signal ? { signal } : {}),
-  });
+  const response = await esiFetch(
+    esiUrl(`/universe/structures/${structureId}/`),
+    esiAuthInit(accessToken, { signal }),
+  );
   if (!response.ok) return null;
   const parsed = esiStructureSchema.safeParse(await response.json());
   if (!parsed.success) return null;

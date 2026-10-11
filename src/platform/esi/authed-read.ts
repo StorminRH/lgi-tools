@@ -1,5 +1,6 @@
 import { esiPageCount, httpDateMs, intHeader } from './headers';
 import { esiFetch, esiUrl } from './index';
+import { esiAuthInit, esiJsonPostInit } from './request-init';
 import type { EsiPageResponseHeaders, EsiResponseHeaders } from './response-metadata';
 
 export interface RlSnapshot {
@@ -30,9 +31,7 @@ export async function readEsiAuthed(
   heldEtag: string | null,
   rl?: RlSnapshot,
 ): Promise<EsiAuthedRead> {
-  const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
-  if (heldEtag !== null) headers['If-None-Match'] = heldEtag;
-  return toAuthedRead(await esiFetch(esiUrl(path), { headers }), rl);
+  return toAuthedRead(await esiFetch(esiUrl(path), esiAuthInit(accessToken, { etag: heldEtag })), rl);
 }
 
 /**
@@ -41,12 +40,7 @@ export async function readEsiAuthed(
  * an error.
  */
 export async function readEsiAuthedPost(path: string, accessToken: string, body: unknown): Promise<EsiAuthedRead> {
-  const res = await esiFetch(esiUrl(path), {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return toAuthedRead(res);
+  return toAuthedRead(await esiFetch(esiUrl(path), esiJsonPostInit(body, accessToken)));
 }
 
 /**
@@ -98,9 +92,7 @@ async function fetchPage(
   accessToken: string,
   rl?: RlSnapshot,
 ): Promise<PageFetch> {
-  const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
-  if (etag !== null) headers['If-None-Match'] = etag;
-  const res = await esiFetch(esiUrl(pagedPath(basePath, page)), { headers });
+  const res = await esiFetch(esiUrl(pagedPath(basePath, page)), esiAuthInit(accessToken, { etag }));
   if (rl !== undefined) captureRl(res, rl);
   const expiresAt = httpDateMs(res.headers.get('Expires'));
   const xPages = esiPageCount(res.headers);

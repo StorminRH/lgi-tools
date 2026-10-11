@@ -5,6 +5,7 @@ import { resolveEntityNamesStrict } from '@/data/eve-data/entity-names';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { positiveIdSchema } from '@/lib/id-schemas';
 import { esiFetch, esiUrl } from '@/platform/esi';
+import { esiJsonPostInit } from '@/platform/esi/request-init';
 import { firstScopedSearch, scopedLinkedCharacters } from './esi-character-search';
 
 const MAX_TYPEAHEAD_RESULTS = 20;
@@ -40,11 +41,7 @@ async function typeaheadResponse(found: readonly number[]): Promise<SearchCharac
 }
 
 async function searchExactName(search: string): Promise<SearchCharactersResponse> {
-  const response = await esiFetch(esiUrl('/universe/ids/'), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify([search]),
-  });
+  const response = await esiFetch(esiUrl('/universe/ids/'), esiJsonPostInit([search]));
   if (!response.ok) throw new Error(`Exact ESI character search failed (${response.status})`);
 
   const parsed = universeIdsSchema.safeParse(await response.json());
