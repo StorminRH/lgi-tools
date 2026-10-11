@@ -1,8 +1,6 @@
 import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import { breadthFirst, type Neighbours } from '@/lib/graph';
 
-export type PilotsPresent = 'present' | 'absent' | 'unknown';
-
 export interface CollapseSystem {
   readonly id: number;
   readonly isRoot?: boolean;
@@ -18,7 +16,6 @@ export interface CollapseDecisionInput {
   readonly cutConnectionId: string;
   readonly systems: readonly CollapseSystem[];
   readonly connections: readonly CollapseConnection[];
-  readonly pilotsPresent: PilotsPresent;
 }
 
 export type CollapseDecision =
@@ -57,9 +54,7 @@ export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
   );
   const removeSystemIds = new Set<number>();
   for (const component of components) {
-    const retained =
-      [...component].some((systemId) => rootIds.has(systemId))
-      || input.pilotsPresent === 'present';
+    const retained = [...component].some((systemId) => rootIds.has(systemId));
     if (!retained) {
       for (const systemId of component) removeSystemIds.add(systemId);
     }

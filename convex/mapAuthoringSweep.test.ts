@@ -209,6 +209,43 @@ describe('map authoring', () => {
       ]);
     });
 
+    it('removes a branch when the only tracked pilot is on the home side', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [JITA, WH_A, WH_B],
+        [
+          { key: 'cut', fromSystemId: JITA, toSystemId: WH_A },
+          { key: 'a-b', fromSystemId: WH_A, toSystemId: WH_B },
+        ],
+      );
+      await patchConnection(t, ids.cut!, {
+        lifetime: {
+          kind: 'window',
+          earliestAt: EXPIRED - 60_000,
+          latestAt: EXPIRED,
+          lifeStage: null,
+          observedAt: null,
+        },
+      });
+      await trackPilotAt(t, JITA);
+
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
+        .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
+
+      expect(tombstoneDeletedAt(await readConnection(t, ids['a-b']!))).toBe(NOW);
+      expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: NOW });
+      expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW });
+      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });
+      expect(await readEvents(t)).toEqual([
+        expect.objectContaining({
+          kind: 'branch_removed',
+          actor: CEILING_SWEEP_ACTOR,
+          payload: { connectionId: String(ids.cut!), systemIds: [WH_A, WH_B] },
+        }),
+      ]);
+    });
+
     it('tombstones an expired stub, skips tombstoned rows, and repeats without writes', async () => {
       const t = convexTest(schema, modules);
       await seedEmpty(t);
