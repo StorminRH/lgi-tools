@@ -12,7 +12,7 @@ import {
 } from '@/platform/auth/authorization-store';
 import { parseLinkedAccountId } from '@/platform/auth/eve-account-shared';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { reconcileAffiliationAccess } from './map-affiliation-access';
+import { reconcileAffiliationAccess, reconcileAffiliationAccessOnVisit } from './map-affiliation-access';
 
 const AUTHORIZATION_CONCURRENCY = 4;
 
@@ -35,7 +35,7 @@ async function publishAccessChanges(userId: string): Promise<void> {
  */
 export async function checkCharacterAuthorizations(userId: string): Promise<void> {
   if (!await hasAuthorizationWork(userId)) {
-    await reconcileAffiliationAccess();
+    await reconcileAffiliationAccessOnVisit();
     return;
   }
   const deadline = Date.now() + 35_000;

@@ -1,11 +1,10 @@
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
   forbiddenFailure,
   type FailureResult,
   unauthenticatedFailure,
 } from '@/lib/failure';
-import { auth } from '@/composition/auth';
+import type { auth } from '@/composition/auth';
 import { authErrorHref } from '@/composition/auth-error';
 import { getCurrentUserId, getFullSession } from '@/composition/session';
 
@@ -15,8 +14,9 @@ export type SessionCheckResult =
   | { ok: true; session: BetterAuthSession }
   | FailureResult;
 
+// Every guard reads through getFullSession, so each signed-in request schedules the authorization check.
 export async function checkSession(): Promise<SessionCheckResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session) {
     return { ok: false, failure: unauthenticatedFailure() };
   }
@@ -24,7 +24,7 @@ export async function checkSession(): Promise<SessionCheckResult> {
 }
 
 export async function checkAdmin(): Promise<SessionCheckResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session?.isAdmin) {
     return { ok: false, failure: forbiddenFailure() };
   }

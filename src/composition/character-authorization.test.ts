@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   acknowledgeMapAccessChanges: vi.fn(),
   projectMapAccess: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
+  reconcileAffiliationAccessOnVisit: vi.fn(),
 }));
 vi.mock('@/platform/auth/authorization-store', () => ({
   hasAuthorizationWork: mocks.hasAuthorizationWork,
@@ -46,8 +47,14 @@ vi.mock('./map-access-projection', async (importOriginal) => ({
   ...await importOriginal<Record<string, unknown>>(),
   projectMapAccess: mocks.projectMapAccess,
 }));
+// Visit drains coalesce per instance (map-affiliation-access.test.ts pins that); here each visit drains.
+vi.mock('./map-affiliation-access', async (importOriginal) => ({
+  ...await importOriginal<Record<string, unknown>>(),
+  reconcileAffiliationAccessOnVisit: mocks.reconcileAffiliationAccessOnVisit,
+}));
 
 import { checkCharacterAuthorizations, checkUserCharacterAuthorizations } from './character-authorization';
+import { reconcileAffiliationAccess } from './map-affiliation-access';
 
 const change = { id: 'alice-account', characterId: '42', changedAt: new Date('2026-09-28T12:00:00Z') };
 
@@ -59,6 +66,7 @@ beforeEach(() => {
   mocks.readPendingMapAccessChanges.mockResolvedValue([]);
   mocks.claimAuthorization.mockResolvedValue(true);
   mocks.projectMapAccess.mockResolvedValue({ outcome: 'applied' });
+  mocks.reconcileAffiliationAccessOnVisit.mockImplementation(reconcileAffiliationAccess);
 });
 
 afterEach(() => { vi.restoreAllMocks(); });
@@ -74,6 +82,9 @@ it('persists access changes before acknowledging them, then drains the map outbo
   expect(mocks.acknowledgeAuthorizationAccessChange.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.readPendingMapAccessChanges.mock.invocationCallOrder[0]!,
   );
+  // The drain after enqueueing must see the rows it just queued, so it is never the coalesced visit drain.
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledTimes(2);
+  expect(mocks.reconcileAffiliationAccessOnVisit).not.toHaveBeenCalled();
 });
 
 it('retains the access-change marker when persisting the outbox fails', async () => {
@@ -166,6 +177,7 @@ it('logs and absorbs a failed background run so the request that started it is u
 it('checks queued access changes on a healthy visit without refreshing authorization', async () => {
   mocks.hasAuthorizationWork.mockResolvedValue(false);
   await checkCharacterAuthorizations('alice');
+  expect(mocks.reconcileAffiliationAccessOnVisit).toHaveBeenCalledOnce();
   expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
   expect(mocks.projectMapAccess).not.toHaveBeenCalled();
   expect(mocks.suspendOverdueAuthorizations).not.toHaveBeenCalled();

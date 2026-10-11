@@ -32,6 +32,11 @@ vi.mock('@/data/telemetry/cost-metrics', () => ({
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';

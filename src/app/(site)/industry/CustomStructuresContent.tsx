@@ -1,14 +1,13 @@
-import { headers } from 'next/headers';
 import { EveSignInButton } from '@/components/composition/account/LoginButton';
 import { StructuresManager } from '@/components/composition/industry-workspace/StructuresManager';
 import { EmptyState } from '@/components/ui/empty-state';
-import { auth } from '@/composition/auth';
+import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 
 export async function CustomStructuresContent() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session || session.characterId == null) return (
     <div className="flex flex-col items-center gap-4">
       <EmptyState>Sign in to build and manage your structures.</EmptyState>

@@ -1,17 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { SessionCheckResult } from '@/composition/route-guards';
 
 const h = vi.hoisted(() => ({
-  checkUserId: vi.fn(),
+  checkSession: vi.fn<() => Promise<SessionCheckResult>>(),
   getUserAffiliations: vi.fn(),
   probeAndStoreRoles: vi.fn(),
   switches: new Map<number, { enabled: boolean; setBy: number | null }>(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
-  checkUserId: (...args: unknown[]) => h.checkUserId(...args),
-}));
-vi.mock('@/composition/session', () => ({
-  getSessionCharacterId: async () => 90001,
+  checkSession: () => h.checkSession(),
 }));
 vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: vi.fn() }));
 vi.mock('@/platform/auth/affiliation', () => ({
@@ -36,6 +35,8 @@ import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
 const CORP = 98000001;
+// The account's active character, which records the switch; the Director pilot is 90001.
+const ACTIVE_CHARACTER = 90002;
 
 const ROUTE = '/api/account/corp-sharing';
 
@@ -44,7 +45,10 @@ function pilotIn(corporationId: number) {
 }
 
 beforeEach(() => {
-  h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
+  h.checkSession.mockReset().mockResolvedValue({
+    ok: true,
+    session: sessionFixture({ user: { id: 'user-1' }, characterId: ACTIVE_CHARACTER }),
+  });
   h.getUserAffiliations.mockReset().mockResolvedValue(pilotIn(CORP));
   h.probeAndStoreRoles.mockReset().mockResolvedValue(['Director']);
   h.switches.clear();
@@ -74,7 +78,10 @@ describe('POST /api/account/corp-sharing', () => {
     const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ corporationId: CORP, enabled: true });
-    expect(h.switches.get(CORP)).toEqual({ enabled: true, setBy: 90001 });
+    // One session read authorizes the request and names who set the switch.
+    expect(h.checkSession).toHaveBeenCalledOnce();
+    expect(h.getUserAffiliations).toHaveBeenCalledWith('user-1');
+    expect(h.switches.get(CORP)).toEqual({ enabled: true, setBy: ACTIVE_CHARACTER });
   });
 
   it('lands on the same value when the same request repeats', async () => {
@@ -82,6 +89,6 @@ describe('POST /api/account/corp-sharing', () => {
     const second = await POST(postJson(ROUTE, { corporationId: CORP, enabled: false }));
     expect([first.status, second.status]).toEqual([200, 200]);
     expect(await second.json()).toEqual({ corporationId: CORP, enabled: false });
-    expect([...h.switches]).toEqual([[CORP, { enabled: false, setBy: 90001 }]]);
+    expect([...h.switches]).toEqual([[CORP, { enabled: false, setBy: ACTIVE_CHARACTER }]]);
   });
 });

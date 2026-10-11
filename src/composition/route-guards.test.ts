@@ -48,9 +48,14 @@ test('checkSession and checkUserId return typed unauthenticated failures or the 
     failure: { category: 'unauthenticated', code: 'unauthenticated' },
   });
 
+  expect(h.afterMock).not.toHaveBeenCalled();
+
   h.getSessionMock.mockResolvedValue(MEMBER);
   await expect(checkSession()).resolves.toEqual({ ok: true, session: MEMBER });
+  // checkSession reads through getFullSession, so a signed-in request schedules the character-authorization check.
+  expect(h.afterMock).toHaveBeenCalledOnce();
   await expect(checkUserId()).resolves.toEqual({ ok: true, userId: 'user-1' });
+  expect(h.afterMock).toHaveBeenCalledTimes(2);
 });
 
 test('checkAdmin uses forbidden for anonymous and non-admin callers and hands back an admin session', async () => {
@@ -64,6 +69,8 @@ test('checkAdmin uses forbidden for anonymous and non-admin callers and hands ba
     failure: { category: 'forbidden', code: 'forbidden' },
   });
   await expect(checkAdmin()).resolves.toEqual({ ok: true, session: ADMIN });
+  // Through getFullSession, every signed-in caller schedules the check, a forbidden member included.
+  expect(h.afterMock).toHaveBeenCalledTimes(2);
 });
 
 test('requireAdminPage redirects anonymous and non-admin callers and returns an admin session', async () => {
