@@ -8,7 +8,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P181](#p181) | Run independent reads concurrently in getLivePrices, getLiveHistory and getAvailableCorpStructuresForUser; keep the price write-behind | server-pipeline | S | low | low | — |
+| ☑ | [P181](#p181) | Run independent reads concurrently in getLivePrices, getLiveHistory and getAvailableCorpStructuresForUser; keep the price write-behind | server-pipeline | S | low | low | — |
 | ☐ | [P052](#p052) | Replace the latest-value refs in both refresh-on-view hooks with useEffectEvent, and drop the history hook's unused return state | react-hook | S | low | low | — |
 | ☐ | [P077](#p077) | Use useEffectEvent in the on-view refresh hooks, drop the history hook's dead state, and share notifyWriteBehind through lib | client-data | S | low | low | [P052](#p052) |
 | ☐ | [P332](#p332) | Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads | simplification | S | low | low | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077) |
@@ -28,7 +28,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 
 ## P181: Run independent reads concurrently in getLivePrices, getLiveHistory and getAvailableCorpStructuresForUser; keep the price write-behind
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +8
 - **Depends on:** —

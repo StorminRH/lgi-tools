@@ -83,6 +83,29 @@ describe('getLiveHistory — stale gate', () => {
     });
   });
 
+  it('reads the stored series beside the meta and falls back to it when a stale type fails to fetch', async () => {
+    const meta = Promise.withResolvers<Map<number, { staleAfter: Date }>>();
+    getHistoryMetaMock.mockReturnValue(meta.promise);
+    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)], [35, series('2026-06-12', 5)]]));
+    fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
+
+    const pending = getLiveHistory([34, 35]);
+
+    // The stored read starts before the meta read settles and the source fetch begins.
+    expect(getStoredHistoryMock).toHaveBeenCalledWith([34, 35]);
+    expect(fetchHistoryFromSourceMock).not.toHaveBeenCalled();
+    meta.resolve(new Map([[35, { staleAfter: new Date(Date.now() + 60 * 60 * 1000) }]]));
+
+    const { inputs, degraded, metrics } = await pending;
+    expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
+    expect(getStoredHistoryMock).toHaveBeenCalledOnce();
+    expect(degraded.budgetExhausted).toBe(true);
+    expect(afterMock).not.toHaveBeenCalled();
+    expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
+    expect(inputs.get(35)?.latestDate).toBe('2026-06-12');
+    expect(metrics).toEqual({ requested: 2, freshEsi: 0, warmStored: 1, staleStored: 1, missing: 0 });
+  });
+
   it('fetches a missing type (no meta row)', async () => {
     getHistoryMetaMock.mockResolvedValue(new Map());
     getStoredHistoryMock.mockResolvedValue(new Map());
@@ -114,19 +137,6 @@ describe('getLiveHistory — stale gate', () => {
 
     expect(observer).toHaveBeenCalledTimes(1);
     expect(persistHistoryMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('falls back to the stored series when a stale type fails to fetch', async () => {
-    const past = new Date(Date.now() - 1000);
-    getHistoryMetaMock.mockResolvedValue(new Map([[34, { staleAfter: past }]]));
-    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)]]));
-    fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
-
-    const { inputs, degraded, metrics } = await getLiveHistory([34]);
-    expect(degraded.budgetExhausted).toBe(true);
-    expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
-    expect(metrics.staleStored).toBe(1);
-    expect(afterMock).not.toHaveBeenCalled();
   });
 
   it('classifies a type with no fresh or stored series as missing', async () => {

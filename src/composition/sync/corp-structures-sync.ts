@@ -18,7 +18,6 @@ import type {
   CorpStructuresPort,
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
-import type { SecurityClass } from '@/data/eve-data/security';
 import { nameOrUnresolved } from '@/lib/format/names';
 import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
@@ -64,6 +63,14 @@ function visibleStructures(access: StructuresAccess, rows: CorpStructureRow[] | 
   return access === 'none' ? [] : rows ?? [];
 }
 
+function withCompletion(
+  structure: CorpStructureRow,
+  rigsByStructure: ReadonlyMap<number, CorpStructureCompletion>,
+): CorpStructurePageStructure {
+  const completion = rigsByStructure.get(structure.structureId);
+  return { ...structure, rigTypeIds: completion?.rigTypeIds ?? [], taxPct: completion?.taxPct ?? null };
+}
+
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
   const { corporations } = await loadCorpViewer(userId);
   const corporationIds = corporations.map((corp) => corp.corporationId);
@@ -82,43 +89,26 @@ export async function getCorpStructuresForUserOnView(userId: string): Promise<Vi
   };
 }
 
-export interface AvailableCorpStructure {
-  structureId: number;
-  typeId: number;
-  systemId: number;
-  securityClass: SecurityClass;
-  name: string | null;
-  rigTypeIds: number[];
-  taxPct: number | null;
-}
+/**
+ * The corp structures the planner may build in: each one the viewer's grant
+ * shows, completed with its stored rigs and tax. Structures and rigs are read
+ * together, and the refresh is scheduled even when the viewer has no
+ * corporations.
+ */
+export async function getAvailableCorpStructuresForUser(userId: string): Promise<CorpStructurePageStructure[]> {
+  const { corporations } = await loadCorpViewer(userId);
+  const corporationIds = corporations.map((corp) => corp.corporationId);
+  const [structuresByCorp, rigsByStructure] = await Promise.all([
+    getCorpStructures(corporationIds),
+    getCorpStructureRigs(corporationIds),
+  ]);
+  scheduleCorpStructuresRefresh(userId);
 
-export async function getAvailableCorpStructuresForUser(userId: string): Promise<AvailableCorpStructure[]> {
-  const { corporations } = await getCorpStructuresForUserOnView(userId);
-  const rigsByStructure = await getCorpStructureRigs(corporations.map((c) => c.corporationId));
-  const out: AvailableCorpStructure[] = [];
-  for (const corp of corporations) {
-    for (const s of corp.structures) {
-      const completion = rigsByStructure.get(s.structureId);
-      out.push({
-        structureId: s.structureId,
-        typeId: s.typeId,
-        systemId: s.systemId,
-        securityClass: s.securityClass,
-        name: s.name,
-        rigTypeIds: completion?.rigTypeIds ?? [],
-        taxPct: completion?.taxPct ?? null,
-      });
-    }
-  }
-  return out;
-}
-
-function withCompletion(
-  structure: CorpStructureRow,
-  rigsByStructure: ReadonlyMap<number, CorpStructureCompletion>,
-): CorpStructurePageStructure {
-  const completion = rigsByStructure.get(structure.structureId);
-  return { ...structure, rigTypeIds: completion?.rigTypeIds ?? [], taxPct: completion?.taxPct ?? null };
+  return corporations.flatMap(({ corporationId, grant }) =>
+    visibleStructures(grant.structures, structuresByCorp.get(corporationId)).map((s) =>
+      withCompletion(s, rigsByStructure),
+    ),
+  );
 }
 
 /**

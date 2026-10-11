@@ -62,7 +62,9 @@ export async function getLiveHistory(
   };
   if (ids.length === 0) return { inputs: new Map(), degraded, metrics };
 
-  const meta = await getHistoryMeta(ids);
+  // The stored series depends only on ids, so it is read beside the meta
+  // rather than after the source fetch.
+  const [meta, stored] = await Promise.all([getHistoryMeta(ids), getStoredHistory(ids)]);
   const now = new Date();
   const staleIds = ids.filter((id) =>
     isBoundaryStale(meta.get(id)?.staleAfter, now),
@@ -77,7 +79,6 @@ export async function getLiveHistory(
 
   const freshByType = new Map(results.map((r) => [r.typeId, r.rows]));
   const staleSet = new Set(staleIds);
-  const stored = await getStoredHistory(ids);
   const inputs = new Map<number, MarketHistoryInputs>();
   for (const id of ids) {
     const rows = freshByType.get(id) ?? stored.get(id) ?? [];
