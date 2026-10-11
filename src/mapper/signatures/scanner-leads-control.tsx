@@ -40,13 +40,6 @@ import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 const HINT_PREFIX = 'hint:';
 const SYSTEM_PREFIX = 'system:';
 
-export function scannerLeadsSeed(
-  hint: WormholeDestinationHint | null,
-  destination: SystemIdentityReadout | null,
-): string {
-  return leadsToReadout(hint, destination, '');
-}
-
 export function scannerLeadsSuggestionGroups(
   query: string,
   systems: readonly SystemSearchEntry[],
@@ -213,7 +206,7 @@ export function ScannerLeadsControl({
   readonly onSetDestination: ConnectionFieldSetters['setDestination'];
   readonly onLinkOrigin: ConnectionFieldSetters['linkToOrigin'];
 }) {
-  const seed = scannerLeadsSeed(hint, destination);
+  const seed = leadsToReadout(hint, destination, '');
   const [query, setQuery] = useState(seed);
   const { systems, parse } = useSystemSearch();
   const offeredLeads = useMemo(
@@ -279,11 +272,4 @@ export function ScannerLeadsControl({
       />
     </Combobox.Root>
   );
-}
-
-export function scannerLeadsReadout(
-  hint: WormholeDestinationHint | null,
-  destination: SystemIdentityReadout | null,
-): string {
-  return leadsToReadout(hint, destination);
 }

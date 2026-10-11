@@ -3,6 +3,7 @@ import type {
   WormholeDestinationHint,
   WormholeLifeStage,
 } from '@/data/eve-data/wormhole-contract';
+import { UNSET_FIELD } from './connection-field-group';
 
 export const MASS_STATE_LABELS: Readonly<Record<ConnectionMassState, string>> = {
   stable: 'More than 50% remaining',
@@ -40,4 +41,35 @@ export function leadsToReadout(
 ): string {
   if (destination !== null) return destination.label;
   return hint === null ? unset : DESTINATION_HINT_LABELS[hint];
+}
+
+/** The label for `value`, or `empty` when the field is unset. */
+export function labelOr<T extends string>(
+  value: T | null,
+  labels: Readonly<Record<T, string>>,
+  empty: string,
+): string {
+  return value === null ? empty : labels[value];
+}
+
+/**
+ * Select items for an optional field: the unset item first, then one per
+ * value. A value carries a trigger label only when `triggerLabelOf` is given.
+ */
+export function optionalFieldItems<T extends string>(
+  values: readonly T[],
+  labelOf: (value: T) => string,
+  unsetLabel: string,
+  triggerLabelOf?: (value: T) => string,
+): { readonly value: string; readonly label: string; readonly triggerLabel?: string }[] {
+  return [
+    { value: UNSET_FIELD, label: unsetLabel },
+    ...values.map((value) => ({
+      value,
+      label: labelOf(value),
+      ...(triggerLabelOf === undefined
+        ? {}
+        : { triggerLabel: triggerLabelOf(value) }),
+    })),
+  ];
 }

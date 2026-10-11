@@ -31,7 +31,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
 | ☑ | [P033](#p033) | Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics | ui-component | S | low | low | [P032](#p032) |
 | ☑ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
-| ☐ | [P092](#p092) | Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects | formatting | S | low | medium | [P030](#p030) |
+| ☑ | [P092](#p092) | Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects | formatting | S | low | medium | [P030](#p030) |
 | ☐ | [P031](#p031) | Extract a controlled ScannerCombo shell, a shared wormhole combo-item mapper and class chip, and one ScannerOptionalSelect for scanner mass and life | ui-component | M | medium | medium | [P030](#p030), [P092](#p092), [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
 | ☐ | [P139](#p139) | Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it | error-handling | S | low | medium | — |
 | ☐ | [P298](#p298) | Make a scanner row's open action the ScannerPanelTarget and remove the dead trigger/clientX/clientY plumbing | simplification | S | low | medium | [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072) |
@@ -1335,7 +1335,7 @@ export function useWormholeTypeSearch(codes: readonly string[], preferredCodes?:
 
 ## P092: Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +55: three duplicate tables (~28 lines), one select component (~36 lines), four readout functions and the inline readouts removed; one labels module (~35 lines), one generic select (~35 lines) and tests added.
 - **Depends on:** [P030](#p030)

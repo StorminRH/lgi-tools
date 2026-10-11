@@ -31,8 +31,10 @@ import {
 import {
   DESTINATION_HINT_LABELS,
   LIFE_STAGE_LABELS,
+  labelOr,
   leadsToReadout,
   MASS_STATE_LABELS,
+  optionalFieldItems,
 } from './connection-labels';
 import {
   codexPanelFacts,
@@ -52,26 +54,23 @@ import {
   type WormholeTypeParams,
 } from './wormhole-type-search';
 
-const MASS_ITEMS = [
-  { value: UNSET_FIELD, label: 'Unset' },
-  ...CONNECTION_MASS_STATES.map((value) => ({
-    value,
-    label: MASS_STATE_LABELS[value],
-  })),
-];
+const MASS_ITEMS = optionalFieldItems(
+  CONNECTION_MASS_STATES,
+  (value) => MASS_STATE_LABELS[value],
+  'Unset',
+);
 
-const SIZE_ITEMS = [
-  { value: UNSET_FIELD, label: 'Unset' },
-  ...WORMHOLE_SIZE_CLASSES.map((value) => ({ value, label: value })),
-];
+const SIZE_ITEMS = optionalFieldItems(
+  WORMHOLE_SIZE_CLASSES,
+  (value) => value,
+  'Unset',
+);
 
-const LIFE_ITEMS = [
-  { value: UNSET_FIELD, label: 'Unset' },
-  ...WORMHOLE_LIFE_STAGES.map((value) => ({
-    value,
-    label: LIFE_STAGE_LABELS[value],
-  })),
-];
+const LIFE_ITEMS = optionalFieldItems(
+  WORMHOLE_LIFE_STAGES,
+  (value) => LIFE_STAGE_LABELS[value],
+  'Unset',
+);
 
 export interface ConnectionFieldSetters {
   readonly setWormholeType: (value: string | null) => void;
@@ -290,7 +289,7 @@ function MassSection({
       value={massState}
       readOnly={readOnly}
       readoutAttr="data-map-connection-mass-state-readout"
-      readoutText={massState === null ? 'Unset' : MASS_STATE_LABELS[massState]}
+      readoutText={labelOr(massState, MASS_STATE_LABELS, 'Unset')}
       onChange={(value) => onChange(value as ConnectionMassState | null)}
     >
       <MassEstimateView
@@ -354,7 +353,7 @@ function LifetimeSection({
       value={stage}
       readOnly={readOnly}
       readoutAttr="data-map-connection-life-readout"
-      readoutText={stage === null ? 'Unset' : LIFE_STAGE_LABELS[stage]}
+      readoutText={labelOr(stage, LIFE_STAGE_LABELS, 'Unset')}
       onChange={(value) => onChange(value as WormholeLifeStage | null)}
     >
       <LifetimeEstimateView
