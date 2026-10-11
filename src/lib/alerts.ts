@@ -2,7 +2,8 @@ import { APP_VERSION } from '@/config/app-version';
 import { postDiscordWebhook } from '@/lib/discord';
 import { readEnv } from '@/lib/env';
 
-export interface PriceSourceDegradation {
+/** Where a price read's rows came from: priced rows, ESI rows, Fuzzwork fallback rows, and whether ESI's budget ran out. */
+export interface PriceSourceCounts {
   fetched: number;
   esiCount: number;
   fuzzworkFallbackCount: number;
@@ -61,7 +62,7 @@ async function sendOpsAlert(embed: OpsAlertEmbed): Promise<boolean> {
 }
 
 export async function alertPriceSourceDegradation(
-  info: PriceSourceDegradation,
+  info: PriceSourceCounts,
 ): Promise<void> {
   const fallbackPct =
     info.fetched > 0

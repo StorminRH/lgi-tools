@@ -21,7 +21,7 @@ In order:
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P162](#p162) | Share the price-source degradation predicate, payload projection and type | server-pipeline | S | low | low | [P173](wave-03-src-lib-primitives-collections-math-async.md#p173) |
+| ☑ | [P162](#p162) | Share the price-source degradation predicate, payload projection and type | server-pipeline | S | low | low | [P173](wave-03-src-lib-primitives-collections-math-async.md#p173) |
 | ☐ | [P164](#p164) | Make map-access projections reject stale outcomes by default and share the delivery budget constants | server-pipeline | S | low | medium | — |
 | ☐ | [P322](#p322) | Drop the constant projectionPending, the outer teardown currency checks, and the affiliation/transfer pass-through wrappers | simplification | S | low | low | [P164](#p164) |
 | ☐ | [P165](#p165) | Share one sequential deadline runner for the housekeeping retry loops | server-pipeline | S | low | medium | [P164](#p164) |
@@ -42,7 +42,7 @@ In order:
 
 ## P162: Share the price-source degradation predicate, payload projection and type
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +20 (declaration -20/+6, route -6/+3, refresh-on-view -6/+1, new helper ~12)
 - **Depends on:** [P173](wave-03-src-lib-primitives-collections-math-async.md#p173)

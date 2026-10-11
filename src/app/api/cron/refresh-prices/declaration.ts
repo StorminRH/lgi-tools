@@ -5,6 +5,7 @@ import {
   PRICES_FRESHNESS_TAG,
   refreshStalePrices,
 } from '@/data/market-prices/cache';
+import { readPriceSourceHealth } from '@/data/market-prices/source-health';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
 import { bestEffort } from '@/lib/best-effort';
@@ -40,49 +41,28 @@ export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesRes
     revalidateTag(PRICES_FRESHNESS_TAG, 'max');
 
     const { summary } = result;
-    const degraded =
-      summary.fuzzworkFallbackCount > 0 || summary.budgetExhausted;
+    const { counts, degraded } = readPriceSourceHealth(summary);
     emitDomainEvent({
       eventType: 'price_refresh_finished',
       metadata: {
         outcome: degraded ? 'degraded' : 'completed',
-        fetched: summary.fetched,
+        ...counts,
         written: summary.written,
-        esiCount: summary.esiCount,
-        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-        budgetExhausted: summary.budgetExhausted,
         durationMs: summary.durationMs,
       },
     });
 
     if (degraded) {
-      await record('price_source_degraded', {
-        caller: 'cron',
-        fetched: summary.fetched,
-        esiCount: summary.esiCount,
-        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-        budgetExhausted: summary.budgetExhausted,
-      });
+      await record('price_source_degraded', { caller: 'cron', ...counts });
       await bestEffort('cron:prices', 'degradation alert', null, () =>
-        alertPriceSourceDegradation({
-          fetched: summary.fetched,
-          esiCount: summary.esiCount,
-          fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-          budgetExhausted: summary.budgetExhausted,
-        }),
+        alertPriceSourceDegradation(counts),
       );
     }
 
     return {
       outcome: 'refreshed',
       workDone: true,
-      telemetry: {
-        fetched: summary.fetched,
-        written: summary.written,
-        esiCount: summary.esiCount,
-        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-        budgetExhausted: summary.budgetExhausted,
-      },
+      telemetry: { ...counts, written: summary.written },
       body: {
         cached: false,
         lastUpdatedAt: result.lastUpdatedAt.toISOString(),

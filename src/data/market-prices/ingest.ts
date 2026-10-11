@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { PriceSourceCounts } from '@/lib/alerts';
 import { chunk } from '@/lib/array';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -11,14 +12,10 @@ const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
 /** Rows per market_prices insert: 13 binds a row for a priced upsert, far below the bind-parameter cap. */
 const INSERT_BATCH = 1000;
 
-export interface RefreshSummary {
+export interface RefreshSummary extends PriceSourceCounts {
   requested: number;
-  fetched: number;
   written: number;
   durationMs: number;
-  esiCount: number;
-  fuzzworkFallbackCount: number;
-  budgetExhausted: boolean;
 }
 
 export async function refreshPrices(
