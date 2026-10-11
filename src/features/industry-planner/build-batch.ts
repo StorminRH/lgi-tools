@@ -111,8 +111,11 @@ function seedTopDemand(
     );
 }
 
-function rawRows(ledger: BatchLedger): { typeId: number; quantity: number }[] {
-  return [...ledger.raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
+/** A quantity map as the material rows a cost is priced on. */
+export function materialRows(
+  quantities: ReadonlyMap<number, number>,
+): { typeId: number; quantity: number }[] {
+  return [...quantities].map(([typeId, quantity]) => ({ typeId, quantity }));
 }
 
 export function computeBatchLedger(
@@ -138,23 +141,22 @@ export function computeBatchLedger(
   return { raws, builds };
 }
 
-export function computeBatchMaterials(
-  tree: TreeNode[],
-  requestedRuns = 1,
-  opts: MeOptions = UNSET_ME,
-): { typeId: number; quantity: number }[] {
-  return rawRows(computeBatchLedger(tree, requestedRuns, opts));
+export interface MarginalDemand {
+  /** The raw materials one build draws, fractions included. */
+  materials: { typeId: number; quantity: number }[];
+  /** The runs each built item's job counts for one build, fractions included. */
+  runs: Map<number, number>;
 }
 
 /**
  * What one build consumes: every job runs only the fraction of its runs the
  * build draws, so no whole-run excess is counted.
  */
-function marginalDemand(
+export function computeMarginalDemand(
   tree: TreeNode[],
-  requestedRuns: number,
+  requestedRuns = 1,
   opts?: MeOptions,
-): { raws: Map<number, number>; runs: Map<number, number> } {
+): MarginalDemand {
   const recipes = flattenRecipes(tree);
   const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
 
@@ -176,25 +178,7 @@ function marginalDemand(
     for (const input of recipe.inputs) addDemand(input.typeId, input.qty * runs * factor);
   }
 
-  return { raws, runs: runsOf };
-}
-
-export function computeMarginalMaterials(
-  tree: TreeNode[],
-  requestedRuns = 1,
-  opts?: MeOptions,
-): { typeId: number; quantity: number }[] {
-  const { raws } = marginalDemand(tree, requestedRuns, opts);
-  return [...raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
-}
-
-/** The runs each built item's job counts for one build, fractions included. */
-export function computeMarginalRuns(
-  tree: TreeNode[],
-  requestedRuns = 1,
-  opts?: MeOptions,
-): Map<number, number> {
-  return marginalDemand(tree, requestedRuns, opts).runs;
+  return { materials: materialRows(raws), runs: runsOf };
 }
 
 /** A built item's job as its install fee values it. */

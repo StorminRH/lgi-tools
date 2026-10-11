@@ -13,7 +13,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | ☑ | [P026](#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
 | ☑ | [P168](#p168) | Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus | server-pipeline | S | low | low | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
 | ☑ | [P070](#p070) | Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint | client-data | M | medium | high | [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
-| ☐ | [P291](#p291) | Resolve the batch ledger and marginal demand once per assemblePricing call | efficiency | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076) |
+| ☑ | [P291](#p291) | Resolve the batch ledger and marginal demand once per assemblePricing call | efficiency | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076) |
 | ☐ | [P325](#p325) | Share one pricedTypeIds(structure) between server pricing and the client refresh set | simplification | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
 | ☐ | [P326](#p326) | Trim planner-shell glue: one PromiseSeeder, inline TierRow, CockpitKpis owns its margin mode, ownedTe from mapOwnedBlueprints, shared CostBasis and SystemRef | simplification | S | low | low | [P260](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p260), [P025](#p025), [P301](#p301) |
 | ☐ | [P120](#p120) | Give wormhole-sites one site-class range, class rank, class pill and site-type order | generic-utility | M | low | medium | [P042](wave-01-quick-wins-delete-dead-code-fix-small.md#p042) |
@@ -362,7 +362,7 @@ composeFeeInputs(args: { adjustedPriceOf: (id: number) => number | null; locatio
 
 ## P291: Resolve the batch ledger and marginal demand once per assemblePricing call
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +10 in source, plus mechanical test renames
 - **Depends on:** [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076)

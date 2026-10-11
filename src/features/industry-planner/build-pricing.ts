@@ -15,10 +15,9 @@ import {
 import type { PlainPriceFigures, PriceSource } from '@/data/market-prices/types';
 import {
   computeBatchLedger,
-  computeBatchMaterials,
-  computeMarginalMaterials,
-  computeMarginalRuns,
+  computeMarginalDemand,
   feeJobs,
+  materialRows,
   type BatchLedger,
   type MeOptions,
 } from './build-batch';
@@ -131,12 +130,8 @@ function componentJobFees(
   if (!fee.components) return null;
   const runsOf =
     bill.basis === 'marginal'
-      ? computeMarginalRuns(structure.tree, bill.runs, bill.meOpts)
-      : new Map(
-          [...(bill.ledger ?? computeBatchLedger(structure.tree, bill.runs, bill.meOpts)).builds].map(
-            ([typeId, build]) => [typeId, build.runs],
-          ),
-        );
+      ? bill.marginalRuns
+      : new Map([...bill.ledger.builds].map(([typeId, build]) => [typeId, build.runs]));
   return computeComponentJobFees(feeJobs(structure.tree, runsOf), {
     ...fee.components,
     activityOf: (blueprintTypeId) => structure.nodeActivityByBlueprint[blueprintTypeId],
@@ -206,8 +201,10 @@ function computeNet(
 interface CostBill {
   basis: CostBasis;
   runs: number;
-  meOpts: MeOptions;
-  ledger: BatchLedger | undefined;
+  /** The full line: its raw totals price the rows, its whole runs the batched fees. */
+  ledger: BatchLedger;
+  /** The share of each job one build draws, which the marginal fees charge. */
+  marginalRuns: ReadonlyMap<number, number>;
   rowsCost: BuildCost;
   buildCost: BuildCost;
   bases: { batched: number; marginal: number };
@@ -224,21 +221,17 @@ function resolveCostBills(
     topBlueprintTypeId: structure.blueprintTypeId,
     structureMeFactorOf: opts.structureMeFactorOf,
   };
-  const batchedMaterials = opts.ledger
-    ? [...opts.ledger.raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }))
-    : computeBatchMaterials(structure.tree, runs, meOpts);
-  const rowsCost = computeBuildCost(batchedMaterials, buyOf);
-  const marginalCost = computeBuildCost(
-    computeMarginalMaterials(structure.tree, runs, meOpts),
-    buyOf,
-  );
+  const ledger = opts.ledger ?? computeBatchLedger(structure.tree, runs, meOpts);
+  const marginal = computeMarginalDemand(structure.tree, runs, meOpts);
+  const rowsCost = computeBuildCost(materialRows(ledger.raws), buyOf);
+  const marginalCost = computeBuildCost(marginal.materials, buyOf);
   const basis = opts.basis ?? 'batched';
   const buildCost = basis === 'marginal' ? marginalCost : rowsCost;
   return {
     basis,
     runs,
-    meOpts,
-    ledger: opts.ledger,
+    ledger,
+    marginalRuns: marginal.runs,
     rowsCost,
     buildCost,
     bases: { batched: rowsCost.total, marginal: marginalCost.total },

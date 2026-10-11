@@ -651,12 +651,16 @@ describe('assemblePricing component job fees', () => {
     expect(deriveMarginFigures(null, net).missingAdjustedPriceCount).toBe(1);
   });
 
-  it('a precomputed ledger charges the same runs as walking the tree', () => {
-    const walked = price('batched').net!;
+  it.each(['batched', 'marginal'] as const)('a precomputed ledger prices the same %s bill as walking the tree', (basis) => {
+    const walked = price(basis);
     const reused = assemblePricing(CHAIN, (t) => NET_PRICES[t], {
+      basis,
       ledger: computeBatchLedger(CHAIN.tree, 1),
       fee: { adjustedPriceOf: adjusted, systemCostIndex: 0.04, components },
-    }).net!;
+    });
     expect(reused).toEqual(walked);
+    // The rows stay the whole-run line; the plates' job runs follow the basis.
+    expect(reused.rows).toEqual([expect.objectContaining({ typeId: 34, quantity: 7 })]);
+    expect(reused.net!.componentJobs!.jobs[0]!.runs).toBe(basis === 'marginal' ? 0.5 : 1);
   });
 });
