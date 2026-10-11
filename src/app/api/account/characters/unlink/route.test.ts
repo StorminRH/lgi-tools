@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
@@ -17,7 +21,7 @@ const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
 const revokeUserMapClaimsMock = vi.fn();
 const eraseNetWorthHistoryMock = vi.fn();
-const emitCostMetricMock = vi.fn<(action: string, metadata: Record<string, unknown>) => void>();
+const emitCostMetricMock = capabilityOutcomeMock();
 vi.mock('@/features/net-worth/purge', () => ({
   eraseNetWorthHistoryForCharacter: (...args: unknown[]) => eraseNetWorthHistoryMock(...args),
 }));
@@ -87,13 +91,6 @@ function locationOf(res: Response): string {
   return res.headers.get('location') ?? '';
 }
 
-/** The capability outcomes the route recorded, in call order. */
-function recordedOutcomes() {
-  return emitCostMetricMock.mock.calls.flatMap(([action, record]) =>
-    action === 'capability_outcome' ? [{ outcome: record.outcome, code: record.code }] : [],
-  );
-}
-
 describe('POST /api/account/characters/unlink', () => {
   beforeEach(() => {
     getSessionMock.mockReset();
@@ -136,7 +133,7 @@ describe('POST /api/account/characters/unlink', () => {
     const notLinked = await POST(postForm(ROUTE, { characterId: '999' }));
     expect(locationOf(notLinked)).toContain('error=not_linked');
     expect(unlinkAccountMock).not.toHaveBeenCalled();
-    expect(recordedOutcomes()).toEqual([
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
       { outcome: 'unauthenticated', code: 'unauthenticated' },
       { outcome: 'validation', code: 'last_character' },
       { outcome: 'validation', code: 'not_linked' },
@@ -177,7 +174,7 @@ describe('POST /api/account/characters/unlink', () => {
       teardownLocationTrackingMock.mock.invocationCallOrder[0]!,
     );
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-    expect(recordedOutcomes()).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
   });
 
   it('finishes identity and location cleanup before reporting a history-erasure failure', async () => {
@@ -199,7 +196,7 @@ describe('POST /api/account/characters/unlink', () => {
     const res = await POST(postForm(ROUTE, { characterId: '200' }));
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
-    expect(recordedOutcomes()).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
     expect(errorSpy).toHaveBeenCalledWith('[account/unlink] unlinkAccount failed', expect.any(Error));
     expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
     expect(enqueueAffectedMapAccessChangesMock.mock.calls).toEqual([[200], [200]]);
@@ -221,7 +218,7 @@ describe('POST /api/account/characters/unlink', () => {
     const response = await POST(postForm(ROUTE, { characterId: '100' }));
 
     expect(locationOf(response)).toContain('error=unlink_failed');
-    expect(recordedOutcomes()).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
     expect(revokeUserMapClaimsMock).toHaveBeenCalledWith('eve-user-1', ['map-1']);
     expect(errorSpy).toHaveBeenCalledWith('[account/unlink] map access revocation failed', expect.any(Error));
     expect(unlinkAccountMock).not.toHaveBeenCalled();

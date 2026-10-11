@@ -1,4 +1,8 @@
 import { beforeEach, expect, test, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 
@@ -7,7 +11,7 @@ const SESSION = sessionFixture();
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const setActiveCharacterMock = vi.fn<(userId: string, characterId: number) => Promise<boolean>>();
 const logUsageEventMock = vi.fn();
-const emitCostMetricMock = vi.fn<(action: string, metadata: Record<string, unknown>) => void>();
+const emitCostMetricMock = capabilityOutcomeMock();
 const checkRateLimitMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
@@ -46,13 +50,6 @@ import { POST } from './route';
 
 const ROUTE = '/api/account/active-character';
 
-/** The capability outcomes the route recorded, in call order. */
-function recordedOutcomes() {
-  return emitCostMetricMock.mock.calls.flatMap(([action, record]) =>
-    action === 'capability_outcome' ? [{ outcome: record.outcome, code: record.code }] : [],
-  );
-}
-
 beforeEach(() => {
   getSessionMock.mockReset();
   setActiveCharacterMock.mockReset();
@@ -75,7 +72,7 @@ test('refuses anonymous, invalid, and unowned character switches', async () => {
   expect(unowned.headers.get('location')).toBe('http://localhost:3000/settings/characters?error=not_linked');
   expect(setActiveCharacterMock).toHaveBeenCalledExactlyOnceWith('eve-user-1', 999);
   expect(logUsageEventMock).not.toHaveBeenCalled();
-  expect(recordedOutcomes()).toEqual([
+  expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
     { outcome: 'unauthenticated', code: 'unauthenticated' },
     { outcome: 'validation', code: 'invalid_form_field' },
     { outcome: 'validation', code: 'not_linked' },

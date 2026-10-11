@@ -1,5 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 import { postForm } from '@/lib/__tests__/route-requests';
@@ -29,7 +33,7 @@ const refreshMock = vi.fn();
 const promoteMock = vi.fn();
 const rejectMock = vi.fn();
 const logUsageEventMock = vi.fn();
-const emitCostMetricMock = vi.fn<(action: string, metadata: Record<string, unknown>) => void>();
+const emitCostMetricMock = capabilityOutcomeMock();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -67,13 +71,6 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 
 const ROUTE = '/api/admin/wh-statics';
-
-/** The capability outcomes the route recorded, in call order. */
-function recordedOutcomes() {
-  return emitCostMetricMock.mock.calls.flatMap(([action, record]) =>
-    action === 'capability_outcome' ? [{ outcome: record.outcome, code: record.code }] : [],
-  );
-}
 
 describe('POST /api/admin/wh-statics', () => {
   beforeEach(() => {
@@ -136,7 +133,7 @@ describe('POST /api/admin/wh-statics', () => {
     expect(response.headers.get('location')).toBe(
       'http://localhost:3000/admin/statics?outcome=snapshot-pending',
     );
-    expect(recordedOutcomes()).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
   });
 
   it('records an unavailable feed and a busy refresh as failures behind the outcome redirect', async () => {
@@ -155,7 +152,7 @@ describe('POST /api/admin/wh-statics', () => {
     expect(busy.headers.get('location')).toBe(
       'http://localhost:3000/admin/statics?outcome=busy',
     );
-    expect(recordedOutcomes()).toEqual([
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
       { outcome: 'dependency_unavailable', code: 'wh_statics_feed_unavailable' },
       { outcome: 'conflict', code: 'wh_statics_refresh_busy' },
     ]);
@@ -209,7 +206,7 @@ describe('POST /api/admin/wh-statics', () => {
     expect(empty.headers.get('location')).toBe(
       'http://localhost:3000/admin/statics?outcome=snapshot-empty',
     );
-    expect(recordedOutcomes()).toEqual([
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
       { outcome: 'conflict', code: 'snapshot_not_pending' },
       { outcome: 'conflict', code: 'snapshot_empty' },
     ]);

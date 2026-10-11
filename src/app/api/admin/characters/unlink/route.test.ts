@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 
@@ -8,7 +12,7 @@ const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const deleteLinkedCharacterMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 const logUsageEventMock = vi.fn();
-const emitCostMetricMock = vi.fn<(action: string, metadata: Record<string, unknown>) => void>();
+const emitCostMetricMock = capabilityOutcomeMock();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -47,13 +51,6 @@ function locationOf(res: Response): string {
   return res.headers.get('location') ?? '';
 }
 
-/** The capability outcomes the route recorded, in call order. */
-function recordedOutcomes() {
-  return emitCostMetricMock.mock.calls.flatMap(([action, record]) =>
-    action === 'capability_outcome' ? [{ outcome: record.outcome, code: record.code }] : [],
-  );
-}
-
 const TWO_CHARS = [{ characterId: 100 }, { characterId: 200 }];
 
 describe('POST /api/admin/characters/unlink', () => {
@@ -86,7 +83,7 @@ describe('POST /api/admin/characters/unlink', () => {
     expect(last.status).toBe(303);
     expect(locationOf(last)).toContain('error=last_character');
     expect(deleteLinkedCharacterMock).not.toHaveBeenCalled();
-    expect(recordedOutcomes()).toEqual([
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
       { outcome: 'forbidden', code: 'forbidden' },
       { outcome: 'validation', code: 'invalid_form_field' },
       { outcome: 'not_found', code: 'not_linked' },
@@ -114,7 +111,7 @@ describe('POST /api/admin/characters/unlink', () => {
       }),
     );
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-    expect(recordedOutcomes()).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
   });
 
   it('reports a character removed by a concurrent unlink as a conflict', async () => {
@@ -128,7 +125,7 @@ describe('POST /api/admin/characters/unlink', () => {
     expect(locationOf(raced)).toBe(
       'http://localhost:3000/admin/users/eve-user-2?error=unlink_failed',
     );
-    expect(recordedOutcomes()).toEqual([{ outcome: 'conflict', code: 'unlink_failed' }]);
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'conflict', code: 'unlink_failed' }]);
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 });
