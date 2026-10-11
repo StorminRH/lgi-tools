@@ -21,7 +21,7 @@ vi.mock('@/data/market-history/use-refresh-on-view', () => ({
   useRefreshHistoryOnView: () => undefined,
 }));
 
-vi.mock('../use-resource-read', () => ({
+vi.mock('@/lib/use-resource-read', () => ({
   useResourceRead: () => undefined,
 }));
 

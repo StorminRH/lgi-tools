@@ -11,6 +11,9 @@ export function anyEligibleCold(
 /** One reconcile fetch 4s after a cold load: enough for a single on-view refresh. */
 export const RECONCILE_ONCE: readonly number[] = [4_000];
 
+/** For a first sync that can outlast one reconcile: keep checking on a short backoff, then give up. */
+export const RECONCILE_BACKOFF: readonly number[] = [4_000, 8_000, 15_000, 30_000, 60_000];
+
 /**
  * How long to wait before the next reconcile fetch, or null to stop: while
  * the data is still cold, each attempt takes the next step of the schedule.

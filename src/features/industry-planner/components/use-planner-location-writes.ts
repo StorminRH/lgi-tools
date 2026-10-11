@@ -8,7 +8,7 @@ import { createBuildSystemApplier, type ApplySystemOptions, type BuildSystemRef 
 import type { ReactionLocationSnapshot } from '../selection-policy';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import type { BlueprintStructure } from '../types';
-import { useResourceRead } from '../use-resource-read';
+import { useResourceRead } from '@/lib/use-resource-read';
 import type { SelectedLocation } from './planner-contexts';
 
 /**

@@ -38,7 +38,9 @@ function rewound() {
  * in at each commit, so an effect that ran on an earlier render, or an await
  * it started, reaches the newest values. useCallback hands back the callback
  * it is given, unmemoized, so a memo that depends on a callback recomputes
- * each render and a test that changes a mocked input reaches it.
+ * each render and a test that changes a mocked input reaches it. With
+ * `memoizeCallbacks` it keeps a callback in the next useMemo slot while its
+ * deps hold, as React does, for a hook whose effect keys on a callback.
  * useSyncExternalStore reads the snapshot and keeps a subscription in the
  * next effect slot, so a store sees one subscriber per mounted reader until
  * `unmount` or `hide`; a store change does not re-render, so call `render`.
@@ -47,7 +49,7 @@ function rewound() {
  * `vi.mock('react')`:
  * `const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());`
  */
-export function createHookRuntime() {
+export function createHookRuntime(options: { memoizeCallbacks?: boolean } = {}) {
   let slots = mountedSlots();
   let cursor = rewound();
 
@@ -76,13 +78,22 @@ export function createHookRuntime() {
     return (...args) => latest.current(...args);
   }
 
-  function useMemo<T>(make: () => T, deps?: readonly unknown[]): T {
+  /** The value in the next memo slot, made again when its deps change. */
+  function memoized<T>(make: () => T, deps: Deps): T {
     const index = cursor.memo++;
     const held = slots.memos[index];
     if (held && !depsChanged(held.deps, deps)) return held.value as T;
     const value = make();
     slots.memos[index] = { deps, value };
     return value;
+  }
+
+  function useMemo<T>(make: () => T, deps?: readonly unknown[]): T {
+    return memoized(make, deps);
+  }
+
+  function useCallback<T>(callback: T, deps?: readonly unknown[]): T {
+    return options.memoizeCallbacks ? memoized(() => callback, deps) : callback;
   }
 
   function useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void {
@@ -111,7 +122,7 @@ export function createHookRuntime() {
       useReducer,
       useRef,
       useMemo,
-      useCallback: <T>(callback: T, _deps?: readonly unknown[]): T => callback,
+      useCallback,
       useEffect,
       useEffectEvent,
       useLayoutEffect: useEffect,

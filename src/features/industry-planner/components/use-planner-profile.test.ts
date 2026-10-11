@@ -32,7 +32,7 @@ vi.mock('@/lib/retry', async (load) => {
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 vi.mock('../profiles/use-industry-profiles', () => ({ useIndustryProfiles: () => ({ profiles: h.profiles, listFailed: h.profilesFailed, refresh: h.refreshProfiles }) }));
-vi.mock('../use-resource-read', () => ({
+vi.mock('@/lib/use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>) => {
     h.readLevels = read;
   },

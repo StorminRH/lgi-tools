@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
-import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
+import { createRememberedRead, useRememberedResource } from '@/components/remembered-read';
 import { useSystemsById } from '@/components/use-system-search';
 import { lookupSystem } from '@/data/eve-data/systems-search';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
-import { useReadIdentity } from '@/platform/auth/read-identity';
 import { apiFetch } from '@/transport/api-client';
 import { teamSkillLevelsEndpoint } from '../api-contract';
 import type { IndustryProfileRow } from '../profiles/api-contract';
@@ -17,7 +16,6 @@ import type { SkillTimeFactors } from '../skill-time';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import type { StructureFactors } from '../structure-factors';
 import type { AvailableStructure, BlueprintStructure } from '../types';
-import { useResourceRead } from '../use-resource-read';
 import type { SelectedLocation, SelectedReactionSystem } from './planner-contexts';
 import type { ApplySystemOptions, ApplySystemOutcome } from '../build-system-apply';
 
@@ -55,10 +53,7 @@ function usePlannerProfile(
   // The planner and the Profiles tab share the profile last used.
   const [profileId, setProfileId] = usePreference(industryProfile);
   const profile = profiles?.find((p) => p.id === profileId) ?? profiles?.[0] ?? null;
-  const levels = useRememberedRead(levelsMemory) ?? NO_LEVELS;
-  const identity = useReadIdentity();
-  const rememberLevels = useCallback((next: LevelsByCharacter) => levelsMemory.set(next, identity), [identity]);
-  useResourceRead(readTeamSkillLevels, { enabled: profile !== null && identity !== null, onData: rememberLevels });
+  const levels = useRememberedResource(levelsMemory, readTeamSkillLevels, { enabled: profile !== null }) ?? NO_LEVELS;
   const systemsById = useSystemsById();
   const securityOf = useCallback(
     (systemId: number) => lookupSystem(systemsById, systemId)?.security ?? null,

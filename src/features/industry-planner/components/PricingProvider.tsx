@@ -46,7 +46,7 @@ import { useProfileFactors } from './use-planner-profile';
 import type { ProfilePlan } from '../profiles/profile-plan';
 import { usePlannerLocationWrites } from './use-planner-location-writes';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
-import { useResourceRead } from '../use-resource-read';
+import { useResourceRead } from '@/lib/use-resource-read';
 import { useAvailableStructures } from '../use-available-structures';
 import { typeNamer } from '../type-name';
 import { toMarketScoreInputs } from '../market-score-inputs';

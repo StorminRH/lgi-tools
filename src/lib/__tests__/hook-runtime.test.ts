@@ -89,6 +89,24 @@ test('effects and memos re-run only when deps change by identity or count, or on
   expect(rt.render(() => react.useCallback(latest, [held]))).toBe(latest);
 });
 
+test('a runtime that memoizes callbacks keeps one while its deps hold, so an effect keyed on it runs once', () => {
+  const rt = createHookRuntime({ memoizeCallbacks: true });
+  const { react } = rt;
+  const runs: string[] = [];
+  const component = (key: string) => {
+    const read = react.useCallback(() => key, [key]);
+    react.useEffect(() => {
+      runs.push(read());
+    }, [read]);
+    return read;
+  };
+
+  const first = rt.render(component, 'a');
+  expect(rt.render(component, 'a')).toBe(first);
+  expect(rt.render(component, 'b')).not.toBe(first);
+  expect(runs).toEqual(['a', 'b']);
+});
+
 test("an effect event that an earlier render's effect kept calls the latest render's callback", () => {
   const rt = createHookRuntime();
   const { react } = rt;

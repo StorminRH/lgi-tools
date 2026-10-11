@@ -21,6 +21,7 @@ import { industryCharacters, jobCharacterIds } from './industry-characters';
 
 const JOB_SCOPE = 'esi-industry.read_character_jobs.v1';
 const CORP_SCOPES = 'esi-characters.read_corporation_roles.v1 esi-industry.read_corporation_jobs.v1';
+const SKILL_SCOPES = 'esi-skills.read_skills.v1 esi-skills.read_skillqueue.v1';
 
 const linked = (characterId: number, scope: string, hasRefreshToken = true) => ({
   characterId,
@@ -64,28 +65,31 @@ describe('industryCharacters', () => {
     await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
   });
 
-  it('lists every pilot and which of them can sync personal and corporation jobs', async () => {
+  it('lists every pilot and which of them can sync personal and corporation jobs and skills', async () => {
     getSessionMock.mockResolvedValue(sessionFixture());
     listLinkedCharactersMock.mockResolvedValue([
       linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
-      linked(200, JOB_SCOPE, false),
-      linked(300, JOB_SCOPE),
+      linked(200, `${JOB_SCOPE} ${SKILL_SCOPES}`, false),
+      linked(300, `${JOB_SCOPE} ${SKILL_SCOPES}`),
+      linked(400, 'esi-skills.read_skills.v1'),
     ]);
     const found = await industryCharacters();
     expect(found?.characters.map((c) => [c.characterId, c.needsReconnect])).toEqual([
       [100, false],
       [200, true],
       [300, false],
+      [400, true],
     ]);
     expect(found?.jobIds).toEqual([100, 300]);
     expect(found?.corpIds).toEqual([100]);
+    expect(found?.skillIds).toEqual([300]);
   });
 });
 
 describe('jobCharacterIds', () => {
   it('gives none for a signed-out viewer', async () => {
     getSessionMock.mockResolvedValue(null);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [] });
+    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
@@ -93,13 +97,16 @@ describe('jobCharacterIds', () => {
     getSessionMock.mockResolvedValue(sessionFixture());
     const err = new Error('neon: connection terminated');
     listLinkedCharactersMock.mockRejectedValue(err);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [] });
+    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
     expect(errorSpy.mock.calls).toEqual([['[industry/industry-characters] failed to resolve linked characters', err]]);
   });
 
   it('passes the eligible ids through', async () => {
     getSessionMock.mockResolvedValue(sessionFixture());
-    listLinkedCharactersMock.mockResolvedValue([linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`)]);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [100], corpIds: [100] });
+    listLinkedCharactersMock.mockResolvedValue([
+      linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
+      linked(200, SKILL_SCOPES),
+    ]);
+    expect(await jobCharacterIds()).toEqual({ jobIds: [100], corpIds: [100], skillIds: [200] });
   });
 });
