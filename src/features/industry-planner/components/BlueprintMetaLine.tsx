@@ -1,3 +1,4 @@
+import { dataLabel } from '@/components/ui/type-roles';
 import { formatQuantity } from '@/lib/format/number';
 
 function Separator() {
@@ -19,7 +20,7 @@ export function BlueprintMetaLine({
   perRun: number;
 }) {
   return (
-    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-data text-micro uppercase tracking-label text-muted">
+    <p className={dataLabel({ size: 'micro', className: 'flex flex-wrap items-center gap-x-2 gap-y-1' })}>
       {group && (
         <>
           <span>{group}</span>

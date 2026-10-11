@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { displayTitle } from '@/components/ui/type-roles';
+import { dataLabel, displayTitle } from '@/components/ui/type-roles';
 import { MAX_MAP_NAME_LENGTH } from '@/data/maps/api-contract';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
@@ -101,7 +101,7 @@ function CreationInterstitial({
           Try again
         </Button>
       ) : (
-        <span className="font-data text-label tracking-label uppercase text-faint">
+        <span className={dataLabel({ tone: 'faint' })}>
           Neon → access projection → Atlas
         </span>
       )}

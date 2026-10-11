@@ -1,4 +1,5 @@
 import { Collapsible } from '@/components/ui/collapsible';
+import { eyebrow } from '@/components/ui/type-roles';
 import { formatQuantity } from '@/lib/format/number';
 import { waveEwarCounts } from '../ewar';
 import type { Wave } from '../types';
@@ -23,7 +24,15 @@ export function WaveCard({
       headerClassName="bg-bg-deep/60 border-t border-border border-b border-border py-[10px]"
       header={
         <>
-          <span className="text-label font-bold tracking-eyebrow uppercase text-text shrink-0">
+          <span
+            className={eyebrow({
+              font: 'inherit',
+              tone: 'inherit',
+              weight: 'bold',
+              emphasis: 'strong',
+              className: 'text-text shrink-0',
+            })}
+          >
             {displayLabel}
           </span>
           <span className="ml-auto text-micro font-semibold tracking-label text-text">

@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { CheckIcon } from '@/components/ui/icons';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
+import { eyebrow } from '@/components/ui/type-roles';
 import { TypeIcon } from '@/components/type-icon';
 import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import { formatQuantity } from '@/lib/format/number';
@@ -122,7 +123,7 @@ function QtyRingCell({
       >
         <PopoverHeading>Asset Tracking</PopoverHeading>
         <div className="flex flex-col gap-1">
-          <div className="text-label uppercase tracking-wide text-muted">Item held by</div>
+          <div className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Item held by</div>
           <HeldByList heldBy={heldBy} />
         </div>
         <AssetLedger qty={qty} value={value} ownedQty={ownedQty} />

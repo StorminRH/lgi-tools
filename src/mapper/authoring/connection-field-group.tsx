@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Select } from '@/components/ui/select';
+import { dataLabel } from '@/components/ui/type-roles';
 
 export const UNSET_FIELD = '';
 
@@ -25,7 +26,7 @@ export function ConnectionFieldGroup({
 }) {
   return (
     <div className="flex w-full flex-col items-center gap-1 text-center [&_input]:text-center">
-      <span className="font-data text-label uppercase tracking-label text-isk">
+      <span className={dataLabel({ tone: 'isk' })}>
         {label}
       </span>
       <div className="flex w-full flex-col gap-1">{children}</div>

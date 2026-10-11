@@ -16,6 +16,7 @@ import { ChipToggle, ChipToggleGroup, ToggleRow } from '@/components/ui/chip-tog
 import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedControl } from '@/components/ui/segmented';
+import { eyebrow } from '@/components/ui/type-roles';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import { WORMHOLE_CLASSES } from '../site-taxonomy';
@@ -98,11 +99,11 @@ export function SitesFilterLayout({
           <Card className="reveal reveal-1 p-4 split:sticky split:top-24">
             <div className="flex flex-col gap-5">
               <div>
-                <span className="text-label uppercase tracking-wide text-muted">Display</span>
+                <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Display</span>
                 <div className="mt-2">{tools}</div>
               </div>
               <div>
-                <span className="text-label uppercase tracking-wide text-muted">Class</span>
+                <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Class</span>
                 <ChipToggleGroup
                   label="Filter by class"
                   value={cls}
@@ -123,7 +124,7 @@ export function SitesFilterLayout({
               </div>
 
               <div>
-                <span className="text-label uppercase tracking-wide text-muted">Type</span>
+                <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Type</span>
                 <ChipToggleGroup
                   label="Filter by site type"
                   value={types}
@@ -226,7 +227,14 @@ export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: R
           return (
             <section key={type} className="mb-12 last:mb-0">
               <div className="w-full flex items-center gap-3.5 mb-5">
-                <span className="text-label font-semibold tracking-eyebrow uppercase text-muted whitespace-nowrap">
+                <span
+                  className={eyebrow({
+                    font: 'inherit',
+                    weight: 'semibold',
+                    emphasis: 'strong',
+                    className: 'whitespace-nowrap',
+                  })}
+                >
                   {SITE_TYPE_LABEL[type]} Sites
                 </span>
                 <div className="flex-1 h-px bg-border" />

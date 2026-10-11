@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import type { DataAttributes } from '@/components/ui/menu';
+import { dataLabel } from '@/components/ui/type-roles';
 import { mapFrostedSurface } from './map-frosted-surface';
 
 const CARD_CLASS = cn('flex flex-col gap-2 p-3 text-ui', mapFrostedSurface);
@@ -28,7 +29,7 @@ export function MapPromptCard({
   return (
     <div {...data} role="group" aria-label={ariaLabel} className={CARD_CLASS}>
       {eyebrow === undefined ? null : (
-        <span className="font-data text-label uppercase tracking-label text-muted">
+        <span className={dataLabel()}>
           {eyebrow}
         </span>
       )}

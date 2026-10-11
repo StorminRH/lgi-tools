@@ -5,7 +5,10 @@ import { useEffect, type ReactNode } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
+import { eyebrow } from '@/components/ui/type-roles';
 import { StatusPanel } from './StatusPanel';
+
+const INCIDENT_LABEL = eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'strong' });
 
 /** The status card shared by the route error boundaries; logs the error once. */
 export function ErrorPanel({
@@ -35,7 +38,7 @@ export function ErrorPanel({
       meta={
         digest ? (
           <div className="mt-2 inline-flex items-center gap-2">
-            <span className="text-label text-muted tracking-eyebrow uppercase">
+            <span className={INCIDENT_LABEL}>
               Incident
             </span>
             <Pill tone="neutral">{digest}</Pill>

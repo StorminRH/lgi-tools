@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
+import { eyebrow } from '@/components/ui/type-roles';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { loadNumericRouteEntity } from '@/transport/route-id';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
@@ -52,7 +53,7 @@ function DeepLinkMetaView({
       <div className="w-full mb-4">
         <Link
           href={backHref}
-          className="text-label tracking-wide uppercase text-muted"
+          className={eyebrow({ font: 'inherit', weight: 'inherit' })}
         >
           ← Return to full list
         </Link>

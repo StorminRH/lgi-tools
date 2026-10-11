@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { cardSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { dataLabel } from '@/components/ui/type-roles';
 
 /**
  * The centred glass card behind the route error and 404 states. The title
@@ -26,7 +27,7 @@ export function StatusPanel({
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-20">
       <div className={cn(cardSurface, 'reveal flex w-full max-w-[720px] flex-col items-center gap-8 rounded-panel px-6 py-12 text-center sm:px-12')}>
         <div className="flex flex-col items-center gap-3 max-w-[640px]">
-          <div className="font-data text-label text-muted tracking-eyebrow uppercase">
+          <div className={dataLabel({ emphasis: 'strong' })}>
             {eyebrow}
           </div>
           <h1 className="font-display font-bold text-hero leading-none tracking-copy uppercase text-name">

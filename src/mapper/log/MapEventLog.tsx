@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { LoadingLabel } from '@/components/ui/loading-label';
+import { dataLabel } from '@/components/ui/type-roles';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { mapFrostedSurface } from '../map-frosted-surface';
@@ -58,7 +59,7 @@ export function MapEventLog({
             <span className="flex w-[9.75rem] items-center gap-2">
               <span
                 data-map-event-log-toggle
-                className="font-data text-label uppercase tracking-label text-muted"
+                className={dataLabel()}
               >
                 Audit Log
               </span>

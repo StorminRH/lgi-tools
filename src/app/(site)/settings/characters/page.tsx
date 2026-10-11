@@ -19,6 +19,7 @@ import { deriveLinkedCharacterStatus } from '@/platform/auth/scope-health';
 import { resolveNotice } from '@/lib/error-copy';
 import type { BetterAuthLinkError, CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { QuietSectionHead } from '@/components/ui/section-head';
+import { eyebrow } from '@/components/ui/type-roles';
 
 const ERROR_MESSAGES = {
   account_already_linked_to_different_user: 'That character is already linked to another account.',
@@ -109,7 +110,7 @@ function CharacterRow({
           headerClassName="px-3.5 py-[6px]"
           header={
             <span className="flex min-w-0 items-center gap-2">
-              <span className="text-label uppercase tracking-label text-muted">
+              <span className={eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label' })}>
                 Granted access
               </span>
               <Pill tone="neutral">{status.scopes.length}</Pill>

@@ -1,7 +1,18 @@
 import { cva } from 'class-variance-authority';
 
-export const eyebrow = cva('font-ui uppercase', {
+/**
+ * The uppercase tracked label. The defaults are the interface eyebrow: font-ui,
+ * medium weight, tracking-wide. The `inherit` font and weight values emit no
+ * class, so a label set in its parent's face or weight keeps it. Override a
+ * class through cn(eyebrow(), extra): cva appends `className` without merging.
+ */
+export const eyebrow = cva('uppercase', {
   variants: {
+    font: {
+      ui: 'font-ui',
+      data: 'font-data',
+      inherit: '',
+    },
     size: {
       micro: 'text-micro',
       label: 'text-label',
@@ -14,20 +25,44 @@ export const eyebrow = cva('font-ui uppercase', {
       inherit: '',
     },
     weight: {
+      inherit: '',
       medium: 'font-medium',
       semibold: 'font-semibold',
+      bold: 'font-bold',
     },
     emphasis: {
+      label: 'tracking-label',
       normal: 'tracking-wide',
       strong: 'tracking-eyebrow',
     },
   },
   defaultVariants: {
+    font: 'ui',
     size: 'label',
     tone: 'muted',
     weight: 'medium',
     emphasis: 'normal',
   },
+});
+
+/** The data label: an eyebrow in the data face at label tracking, in its parent's weight. */
+export function dataLabel(options?: Parameters<typeof eyebrow>[0]): string {
+  return eyebrow({ font: 'data', weight: 'inherit', emphasis: 'label', ...options });
+}
+
+/**
+ * The page title: display face, bold and set solid. `leading-none` follows the
+ * size because cn() lets a later text size drop an earlier leading class.
+ */
+export const pageTitle = cva('font-display font-bold tracking-optical uppercase text-name', {
+  variants: {
+    size: {
+      hero: 'text-display leading-none',
+      page: 'text-title leading-none',
+      compact: 'text-h2 leading-none',
+    },
+  },
+  defaultVariants: { size: 'page' },
 });
 
 /** The display-face title of a dialog or card: semibold, tracked and uppercase. */

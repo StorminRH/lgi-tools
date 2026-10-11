@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
+import { eyebrow } from '@/components/ui/type-roles';
 import { setCorpDataSharingEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/transport/api-client';
 import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
@@ -81,7 +82,7 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
         label={corp.corporationName}
       >
         <span>{corp.corporationName}</span>
-        <span className="text-label uppercase tracking-wide text-muted">
+        <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>
           {enabled ? 'sharing on' : 'sharing off'}
         </span>
       </Switch>

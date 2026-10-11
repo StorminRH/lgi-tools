@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
 import { Stepper } from '@/components/ui/stepper';
+import { eyebrow } from '@/components/ui/type-roles';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import type { FogConfig } from '../fog/fog-model';
 import type { HaloLimits } from '../halo/halo-model';
@@ -169,5 +170,5 @@ function DialRow({
 }
 
 function DialLabel({ children }: { readonly children: string }) {
-  return <span className="text-label uppercase tracking-label text-muted">{children}</span>;
+  return <span className={eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label' })}>{children}</span>;
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
+import { dataLabel } from '@/components/ui/type-roles';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 import { SiteCardWidget } from '@/features/wormhole-sites/widget';
 import { UniverseAssetsProof } from './universe-assets-proof';
@@ -25,7 +26,7 @@ export default async function WidgetReferencePage() {
       <UniverseAssetsProof />
       <div className="flex flex-wrap items-start gap-8 pb-region">
         <section>
-          <h2 className="mb-3 font-data text-label tracking-label uppercase text-muted">
+          <h2 className={dataLabel({ className: 'mb-3' })}>
             Standard · 360 × 480
           </h2>
           <div className="h-[480px] w-[360px] max-w-full overflow-hidden rounded-card border border-border-idle bg-panel p-2 shadow-card">
@@ -33,7 +34,7 @@ export default async function WidgetReferencePage() {
           </div>
         </section>
         <section>
-          <h2 className="mb-3 font-data text-label tracking-label uppercase text-muted">
+          <h2 className={dataLabel({ className: 'mb-3' })}>
             Compact · 320 × 300
           </h2>
           <div className="h-[300px] w-[320px] max-w-full overflow-hidden rounded-card border border-border-idle bg-panel p-2 shadow-card">

@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Card } from '@/components/ui/card';
+import { eyebrow } from '@/components/ui/type-roles';
 
 export const KPI_FIG = 'mt-2.5 font-data text-stat font-semibold leading-[1.02] tabular-nums';
-const KPI_LABEL = 'text-label font-semibold uppercase tracking-wide text-muted';
+const KPI_LABEL = eyebrow({ font: 'inherit', weight: 'semibold' });
 
 export function KpiTile({
   span2,

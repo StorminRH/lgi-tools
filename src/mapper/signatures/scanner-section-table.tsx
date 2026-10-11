@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
+import { eyebrow } from '@/components/ui/type-roles';
 import { ScannerEstIskCell } from '@/features/wormhole-sites/widget';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
 import { mapNestedSurface } from '../map-frosted-surface';
@@ -120,7 +121,7 @@ function ColumnHeader({
       aria-hidden
       className={cn(
         columnsClassName,
-        'px-2.5 font-ui text-label font-medium uppercase tracking-label text-muted',
+        eyebrow({ emphasis: 'label', className: 'px-2.5' }),
       )}
     >
       {labels.map((label) => (
@@ -165,7 +166,7 @@ function ScannerSectionBlock({
         header={
           <span className="flex w-full items-center gap-2">
             <CollapsibleChevron />
-            <span className="font-ui text-label font-semibold uppercase tracking-label text-muted">
+            <span className={eyebrow({ weight: 'semibold', emphasis: 'label' })}>
               {section.title}
             </span>
             <span

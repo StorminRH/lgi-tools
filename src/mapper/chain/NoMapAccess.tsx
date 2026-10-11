@@ -1,5 +1,7 @@
 'use client';
 
+import { dataLabel } from '@/components/ui/type-roles';
+
 export function NoMapAccess() {
   return (
     <section
@@ -7,7 +9,7 @@ export function NoMapAccess() {
       className="flex h-full w-full items-center justify-center px-6 text-center"
     >
       <div className="flex max-w-xl flex-col items-center gap-3">
-        <div className="font-data text-label uppercase tracking-eyebrow text-muted">
+        <div className={dataLabel({ emphasis: 'strong' })}>
           Atlas · access
         </div>
         <h2 className="font-display text-title font-bold tracking-copy text-name">
