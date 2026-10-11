@@ -95,6 +95,17 @@ const BRAVO: AuthorizedMapRow = {
 };
 const MAPS = [ALPHA, BRAVO];
 
+function renderedEditor(): EditorProps {
+  if (!mocks.editor) throw new Error('MapSwitcher did not render the access editor');
+  return mocks.editor;
+}
+
+function pressManage(mapId: string) {
+  const press = mocks.manage.get(mapId);
+  if (!press) throw new Error(`MapSwitcher rendered no Manage item for ${mapId}`);
+  press();
+}
+
 beforeEach(() => {
   mocks.push.mockClear();
   mocks.refresh.mockClear();
@@ -146,6 +157,7 @@ describe('MapSwitcher', () => {
   it('keeps an open access editor through another map\'s role change and closes it when its own map loses admin', () => {
     rt.unmount();
     mocks.manage.clear();
+    mocks.editor = null;
     mocks.searchParams = new URLSearchParams('map=map-a');
     const fallback = { isConnected: true } as HTMLElement;
     const render = (maps: readonly AuthorizedMapRow[]) =>
@@ -163,27 +175,27 @@ describe('MapSwitcher', () => {
     const bothAdmin = [ALPHA, { ...BRAVO, role: 'admin' as const }];
 
     render(bothAdmin);
-    expect(mocks.editor?.editingMap).toBeNull();
-    mocks.manage.get('map-a')?.();
+    expect(renderedEditor().editingMap).toBeNull();
+    pressManage('map-a');
     render(bothAdmin);
-    expect(mocks.editor?.editingMap).toBe(ALPHA);
+    expect(renderedEditor().editingMap).toBe(ALPHA);
     // Static markup never mounts the trigger, so closing returns focus to the fallback.
-    expect(mocks.editor?.finalFocus()).toBe(fallback);
+    expect(renderedEditor().finalFocus()).toBe(fallback);
 
     // Bravo losing admin used to change the switcher's key and close Alpha's editor.
     render(MAPS);
-    expect(mocks.editor?.editingMap).toBe(ALPHA);
+    expect(renderedEditor().editingMap).toBe(ALPHA);
 
     render([{ ...ALPHA, role: 'editor' }, BRAVO]);
-    expect(mocks.editor?.editingMap).toBeNull();
+    expect(renderedEditor().editingMap).toBeNull();
     render(MAPS);
-    expect(mocks.editor?.editingMap).toBeNull();
+    expect(renderedEditor().editingMap).toBeNull();
 
-    mocks.manage.get('map-a')?.();
+    pressManage('map-a');
     render(MAPS);
-    expect(mocks.editor?.editingMap).toBe(ALPHA);
-    mocks.editor?.onClose();
+    expect(renderedEditor().editingMap).toBe(ALPHA);
+    renderedEditor().onClose();
     render(MAPS);
-    expect(mocks.editor?.editingMap).toBeNull();
+    expect(renderedEditor().editingMap).toBeNull();
   });
 });
