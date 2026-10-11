@@ -5,7 +5,7 @@ import { cn } from '@/components/ui/cn';
 import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
 import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
-import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
+import { useWormholeTypeSearch } from '../authoring/wormhole-type-search';
 import {
   ScannerComboPanel,
   consumeScannerEnter,
@@ -92,10 +92,7 @@ export function ScannerTypeCombo({
     [query, codes, preferredCodes],
   );
   const items = groups.flatMap((group) => [...group.items]);
-  const search = useMemo(
-    () => wormholeTypeSearch(codes, { preferredCodes, lenient: codes.length === 0 }),
-    [codes, preferredCodes],
-  );
+  const search = useWormholeTypeSearch(codes, preferredCodes);
   const popup = useCloseOnScannerScroll();
   const browsing = query.trim().length === 0;
   const panelGroups = typeGroupsAsComboItems(groups, classLabelOf);

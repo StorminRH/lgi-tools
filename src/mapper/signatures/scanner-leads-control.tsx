@@ -19,6 +19,10 @@ import type {
   OriginLeadOption,
 } from '../authoring/connection-fields';
 import {
+  DESTINATION_HINT_LABELS,
+  leadsToReadout,
+} from '../authoring/connection-labels';
+import {
   decodeOriginLead,
   encodeOriginLead,
   originLeadForSystem,
@@ -36,24 +40,11 @@ import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 const HINT_PREFIX = 'hint:';
 const SYSTEM_PREFIX = 'system:';
 
-const HINT_LABELS: Record<WormholeDestinationHint, string> = {
-  hisec: 'High-sec',
-  lowsec: 'Low-sec',
-  nullsec: 'Null-sec',
-  unknown: 'Unknown (C1–C3)',
-  dangerous: 'Dangerous (C4–C5)',
-  deadly: 'Deadly (C6)',
-  thera: 'Thera',
-  pochven: 'Pochven',
-  drifter: 'Drifter',
-};
-
 export function scannerLeadsSeed(
   hint: WormholeDestinationHint | null,
   destination: SystemIdentityReadout | null,
 ): string {
-  if (destination !== null) return destination.label;
-  return hint === null ? '' : HINT_LABELS[hint];
+  return leadsToReadout(hint, destination, '');
 }
 
 export function scannerLeadsSuggestionGroups(
@@ -78,12 +69,12 @@ export function scannerLeadsSuggestionGroups(
   const hintItems = WORMHOLE_DESTINATION_HINTS.filter((value) => {
     if (browsing) return true;
     return (
-      HINT_LABELS[value].toLowerCase().includes(needle)
+      DESTINATION_HINT_LABELS[value].toLowerCase().includes(needle)
       || value.startsWith(needle)
     );
   }).map((value) => ({
     value: `${HINT_PREFIX}${value}`,
-    text: HINT_LABELS[value],
+    text: DESTINATION_HINT_LABELS[value],
     meta: '',
   }));
   const unsetItem = {
@@ -184,7 +175,7 @@ export function commitScannerLeadsQuery(
   }
   const hintMatch = WORMHOLE_DESTINATION_HINTS.find((value) => {
     return (
-      HINT_LABELS[value].toLowerCase() === trimmed.toLowerCase()
+      DESTINATION_HINT_LABELS[value].toLowerCase() === trimmed.toLowerCase()
       || value === trimmed.toLowerCase()
     );
   });
@@ -294,6 +285,5 @@ export function scannerLeadsReadout(
   hint: WormholeDestinationHint | null,
   destination: SystemIdentityReadout | null,
 ): string {
-  if (destination !== null) return destination.label;
-  return hint === null ? 'Unset' : HINT_LABELS[hint];
+  return leadsToReadout(hint, destination);
 }

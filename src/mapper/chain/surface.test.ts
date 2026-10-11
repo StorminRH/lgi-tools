@@ -29,6 +29,7 @@ describe('mapper source contract', () => {
       'authoring/connection-field-setters.ts',
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
+      'authoring/connection-labels.ts',
       'authoring/home-prompt-model.ts',
       'authoring/leads-to-origin.ts',
       'authoring/rights-transition.ts',

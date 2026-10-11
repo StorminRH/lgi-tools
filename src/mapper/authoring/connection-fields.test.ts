@@ -87,6 +87,15 @@ const SETTERS = {
   linkToOrigin: vi.fn(),
 };
 
+function expectInOrder(markup: string, needles: readonly string[]): void {
+  const positions = needles.map((needle) => markup.indexOf(needle));
+  expect(positions.every((position) => position >= 0)).toBe(true);
+  for (const [index, position] of positions.entries()) {
+    if (index === 0) continue;
+    expect(position).toBeGreaterThan(positions[index - 1] as number);
+  }
+}
+
 it('round-trips null through the unset sentinel', () => {
   expect(encodeOptionalField(null)).toBe(UNSET_FIELD);
   expect(decodeOptionalField(UNSET_FIELD)).toBeNull();
@@ -97,7 +106,6 @@ it('renders the six ruling fields with in-game wording and no retired controls',
   const markup = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: { ...CONNECTION, toSystemId: null, shipSize: null },
-      codexReady: true,
       codes: ['B274', 'K162'],
       entry: TYPED,
       now: 1,
@@ -106,7 +114,7 @@ it('renders the six ruling fields with in-game wording and no retired controls',
       onDelete: vi.fn(),
     }),
   );
-  const order = [
+  expectInOrder(markup, [
     'Wormhole type',
     'data-map-connection-codex',
     '>Size<',
@@ -114,13 +122,7 @@ it('renders the six ruling fields with in-game wording and no retired controls',
     'Reliable Lifetime',
     'Leads to',
     'data-map-connection-delete',
-  ];
-  const positions = order.map((needle) => markup.indexOf(needle));
-  expect(positions.every((position) => position >= 0)).toBe(true);
-  for (const [index, position] of positions.entries()) {
-    if (index === 0) continue;
-    expect(position).toBeGreaterThan(positions[index - 1] as number);
-  }
+  ]);
 
   expect(markup).toContain('data-select="Mass"');
   expect(markup).toContain('data-options=",stable,reduced,critical"');
@@ -138,7 +140,6 @@ it('renders the six ruling fields with in-game wording and no retired controls',
   const retired = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: { ...CONNECTION, toSystemId: null },
-      codexReady: true,
       codes: ['B274', 'K162'],
       entry: K162,
       now: 1,
@@ -159,7 +160,6 @@ it('groups codex kilograms in en-US under any host locale', () => {
     renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: { ...CONNECTION, toSystemId: null },
-        codexReady: true,
         codes: ['B274'],
         entry: { ...TYPED, massRegen: 500_000_000 },
         now: 1,
@@ -177,7 +177,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   const typed = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: { ...CONNECTION, toSystemId: null },
-      codexReady: true,
       codes: ['B274'],
       entry: TYPED,
       now: 1,
@@ -204,7 +203,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
         from: { ...blankDoor(), typeCode: 'K162' },
         shipSize: null,
       },
-      codexReady: true,
       codes: ['K162'],
       entry: K162,
       now: 1,
@@ -219,7 +217,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   const regen = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: { ...CONNECTION, toSystemId: null },
-      codexReady: true,
       codes: ['B274'],
       entry: { ...TYPED, massRegen: 500_000_000 },
       now: 1,
@@ -233,7 +230,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   const resolved = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: CONNECTION,
-      codexReady: true,
       codes: ['B274'],
       entry: TYPED,
       now: 1,
@@ -250,7 +246,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   const unresolved = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: { ...CONNECTION, toSystemId: null },
-      codexReady: true,
       codes: ['B274'],
       entry: TYPED,
       now: 1,
@@ -265,7 +260,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   const withOrigin = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: { ...CONNECTION, toSystemId: null },
-      codexReady: true,
       codes: ['B274'],
       entry: TYPED,
       now: 1,
@@ -298,7 +292,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   const live = renderToStaticMarkup(
     createElement(ConnectionFields, {
       connection: { ...CONNECTION, toSystemId: null },
-      codexReady: true,
       codes: ['B274'],
       entry: TYPED,
       now: 1,
@@ -323,7 +316,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
           purgeAfter: 100 + 24 * 60 * 60 * 1000,
         },
       },
-      codexReady: true,
       codes: ['B274'],
       entry: TYPED,
       now: 200,
@@ -339,4 +331,75 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   expect(restore).not.toContain('data-select="Mass"');
   expect(restore).toContain('data-map-connection-mass-state-readout');
   expect(restore).toContain('data-map-connection-life-readout');
+});
+
+it('keeps the mass and lifetime estimates under their select or restore readout', () => {
+  const edit = renderToStaticMarkup(
+    createElement(ConnectionFields, {
+      connection: { ...CONNECTION, toSystemId: null, massState: 'reduced' },
+      codes: ['B274'],
+      entry: TYPED,
+      now: 1,
+      mode: 'edit',
+      setters: SETTERS,
+      destination: null,
+    }),
+  );
+  expectInOrder(edit, [
+    '>Mass<',
+    'data-select="Mass"',
+    'data-map-connection-mass-range',
+    '>Reliable Lifetime<',
+    'data-select="Reliable Lifetime"',
+    'data-map-connection-lifetime',
+    '>Leads to<',
+  ]);
+
+  SETTERS.setMassState.mockClear();
+  SETTERS.setLifeStage.mockClear();
+  selectHandlers.get('Mass')?.(UNSET_FIELD);
+  selectHandlers.get('Mass')?.('critical');
+  expect(SETTERS.setMassState.mock.calls).toEqual([[null], ['critical']]);
+  selectHandlers.get('Reliable Lifetime')?.(UNSET_FIELD);
+  selectHandlers.get('Reliable Lifetime')?.('under_1_hour');
+  expect(SETTERS.setLifeStage.mock.calls).toEqual([[null], ['under_1_hour']]);
+
+  const restore = renderToStaticMarkup(
+    createElement(ConnectionFields, {
+      connection: {
+        ...CONNECTION,
+        massState: 'reduced',
+        tombstone: {
+          kind: 'removed',
+          deletedAt: 100,
+          purgeAfter: 100 + 24 * 60 * 60 * 1000,
+        },
+      },
+      codes: ['B274'],
+      entry: TYPED,
+      now: 200,
+      mode: 'restore',
+      onRestore: vi.fn(),
+      setters: SETTERS,
+      destination: { label: 'J123456 - C4', tone: 'text-wh-c4' },
+    }),
+  );
+  expect(restore).not.toContain('data-select=');
+  expect(restore).not.toContain('data-terminal-search');
+  expect(restore).toMatch(
+    /data-map-connection-mass-state-readout=""[^>]*>Less than 50% remaining</,
+  );
+  expect(restore).toMatch(
+    /data-map-connection-life-readout=""[^>]*>Less than 1 day remaining</,
+  );
+  expect(restore).toMatch(
+    /data-map-connection-leads-readout=""[^>]*>J123456 - C4</,
+  );
+  expectInOrder(restore, [
+    'data-map-connection-mass-state-readout',
+    'data-map-connection-mass-range',
+    'data-map-connection-life-readout',
+    'data-map-connection-lifetime',
+    'data-map-connection-leads-readout',
+  ]);
 });

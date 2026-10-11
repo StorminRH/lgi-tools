@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { wormholeTypeSearch } from './wormhole-type-search';
+import { describe, expect, it, vi } from 'vitest';
+
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
+
+vi.mock('react', () => rt.react);
+
+import { useWormholeTypeSearch, wormholeTypeSearch } from './wormhole-type-search';
 
 const CODES = ['B274', 'C247', 'K162', 'N770'] as const;
 
@@ -78,4 +83,24 @@ describe('wormhole type search', () => {
     const searchOnly = wormholeTypeSearch(CODES, { preferredCodes: [] });
     await expect(searchOnly.suggest('')).resolves.toEqual([...CODES]);
   });
+});
+
+it('keeps one hook search per code list, lenient only while the codex has no codes', async () => {
+  const codes = ['B274', 'K162'];
+  const preferred = ['K162'];
+  const loaded = rt.render(useWormholeTypeSearch, codes, preferred);
+  expect(rt.render(useWormholeTypeSearch, codes, preferred)).toBe(loaded);
+  await expect(loaded.suggest('')).resolves.toEqual(['K162', 'B274']);
+  expect(loaded.parse('Z999')).toEqual({
+    ok: false,
+    error: { kind: 'not_found' },
+  });
+
+  const loading = rt.render(useWormholeTypeSearch, [], preferred);
+  expect(loading).not.toBe(loaded);
+  expect(loading.parse('Z999')).toEqual({
+    ok: true,
+    params: { code: 'Z999' },
+  });
+  rt.unmount();
 });

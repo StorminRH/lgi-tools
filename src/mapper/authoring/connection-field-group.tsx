@@ -56,6 +56,8 @@ export interface OptionalSelectFieldProps {
   readonly readoutAttr: string;
   readonly readoutText: string;
   readonly onChange: (value: string | null) => void;
+  /** Rendered under the control or its readout, inside the field's column. */
+  readonly children?: ReactNode;
 }
 
 export function OptionalSelectField({
@@ -67,6 +69,7 @@ export function OptionalSelectField({
   readoutAttr,
   readoutText,
   onChange,
+  children,
 }: OptionalSelectFieldProps) {
   return (
     <ConnectionFieldGroup label={label}>
@@ -81,6 +84,7 @@ export function OptionalSelectField({
           onValueChange={(next) => onChange(decodeOptionalField(next))}
         />
       )}
+      {children}
     </ConnectionFieldGroup>
   );
 }

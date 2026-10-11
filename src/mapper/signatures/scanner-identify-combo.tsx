@@ -6,7 +6,10 @@ import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
 import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
-import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
+import {
+  useWormholeTypeSearch,
+  type wormholeTypeSearch,
+} from '../authoring/wormhole-type-search';
 import {
   ScannerComboPanel,
   consumeScannerEnter,
@@ -101,10 +104,7 @@ export function ScannerIdentifyCombo({
     [query, codes, preferredCodes, classLabelOf],
   );
   const items = groups.flatMap((group) => group.items.map((item) => item.value));
-  const search = useMemo(
-    () => wormholeTypeSearch(codes, { preferredCodes, lenient: codes.length === 0 }),
-    [codes, preferredCodes],
-  );
+  const search = useWormholeTypeSearch(codes, preferredCodes);
   const commitValue = (value: string) => {
     if (value.startsWith(IDENTIFY_PREFIX)) {
       onIdentify(value.slice(IDENTIFY_PREFIX.length) as SigGroup);

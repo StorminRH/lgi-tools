@@ -26,7 +26,6 @@ vi.mock('../authoring/use-wormhole-editor-data', () => ({
     codes: ['B274'],
     preferredCodes: [],
     entry: null,
-    codexReady: true,
   }),
 }));
 

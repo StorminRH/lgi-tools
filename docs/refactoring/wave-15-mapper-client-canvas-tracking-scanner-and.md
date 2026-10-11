@@ -30,7 +30,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
 | ☑ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
 | ☑ | [P033](#p033) | Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics | ui-component | S | low | low | [P032](#p032) |
-| ☐ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
+| ☑ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
 | ☐ | [P092](#p092) | Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects | formatting | S | low | medium | [P030](#p030) |
 | ☐ | [P031](#p031) | Extract a controlled ScannerCombo shell, a shared wormhole combo-item mapper and class chip, and one ScannerOptionalSelect for scanner mass and life | ui-component | M | medium | medium | [P030](#p030), [P092](#p092), [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
 | ☐ | [P139](#p139) | Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it | error-handling | S | low | medium | — |
@@ -1258,7 +1258,7 @@ export function MapPromptCard(props: DataAttributes & {
 
 ## P030: Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -95 / +45 (three duplicate label maps, two hand-rolled optional selects, the LeadsToField readOnly branch, and the codexReady plumbing removed)
 - **Depends on:** —

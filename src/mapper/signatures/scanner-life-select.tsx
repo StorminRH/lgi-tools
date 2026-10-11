@@ -12,6 +12,7 @@ import {
   UNSET_FIELD,
 } from '../authoring/connection-field-group';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
+import { LIFE_STAGE_LABELS } from '../authoring/connection-labels';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import { scannerSelectedFieldClass } from './scanner-field-class';
 import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
@@ -22,13 +23,6 @@ const LIFE_SHORT: Record<WormholeLifeStage, string> = {
   under_4_hours: '<4h',
   under_1_hour: '<1h',
   expired: 'Exp',
-};
-
-const LIFE_LONG: Record<WormholeLifeStage, string> = {
-  under_1_day: 'Less than 1 day remaining',
-  under_4_hours: 'Less than 4 hours remaining',
-  under_1_hour: 'Less than 1 hour remaining',
-  expired: 'Expired, closure imminent',
 };
 
 export function ScannerLifeSelect({
@@ -68,7 +62,7 @@ export function ScannerLifeSelect({
         { value: UNSET_FIELD, label: '—' },
         ...WORMHOLE_LIFE_STAGES.map((stage) => ({
           value: stage,
-          label: LIFE_LONG[stage],
+          label: LIFE_STAGE_LABELS[stage],
           triggerLabel:
             stage === value && upperBound !== '—'
               ? upperBound
