@@ -21,7 +21,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | ☑ | [P003](#p003) | Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace | ui-component | M | low | medium | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) |
 | ☑ | [P005](#p005) | Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift | ui-component | M | low | medium | — |
 | ☑ | [P062](#p062) | Share one StatusLevel tone module between EveStatusPanel and admin, keeping each surface's plain colour | css-styling | S | low | low | — |
-| ☐ | [P067](#p067) | Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins | client-data | S | low | low | — |
+| ☑ | [P067](#p067) | Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins | client-data | S | low | low | — |
 | ☐ | [P271](#p271) | Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity | feature-skeleton | M | low | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247) |
 
 <a id="p004"></a>
@@ -1029,7 +1029,7 @@ export function statusValueClass(level: StatusLevel, plain = ''): string; // amb
 
 ## P067: Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20 lines at the call sites, +12 in platform/auth, plus about 40 lines of new tests
 - **Depends on:** —

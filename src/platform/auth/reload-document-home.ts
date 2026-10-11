@@ -1,20 +1,26 @@
 import { clearRetiredPreferenceCookies } from '@/lib/preferences';
+import { authClient } from './auth-client';
 import { writeSignedInHint } from './signed-in-hint';
 
 /**
- * Drop what this browser kept from the session that just ended: the
- * signed-in hint, and any retired preference cookies that may hold the
- * account's values. Call before the post sign-out navigation.
+ * Leave with a full document navigation after the session has ended. It first
+ * drops what this browser kept from that session: the signed-in hint, so the
+ * reloaded shell does not start in the signed-in layout, and any retired
+ * preference cookies that may hold the account's values. The navigation is a
+ * full one, not a router push, so that client auth state is wiped too.
  */
-export function forgetSignedInBrowser(): void {
+export function reloadDocumentHome(target = '/'): void {
   writeSignedInHint(false);
   clearRetiredPreferenceCookies();
+  window.location.href = target;
 }
 
-export function reloadDocumentHome(): void {
-  // Every caller has just signed out; the reloaded shell must not start in
-  // the signed-in layout.
-  forgetSignedInBrowser();
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- sign-out must wipe client auth state with a full navigation
-  window.location.href = '/';
+/**
+ * Sign out, then leave for `target` whatever the outcome. The callers' sessions
+ * are already over, or the user asked to go, so a failed or rejected sign-out
+ * still leaves.
+ */
+export function signOutAndLeave(target = '/'): void {
+  const leave = () => reloadDocumentHome(target);
+  void authClient.signOut().then(leave, leave);
 }

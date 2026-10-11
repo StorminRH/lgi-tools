@@ -15,8 +15,8 @@ import { activityLabel } from '@/data/eve-data/constants';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
-import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { startEveSignIn } from '@/platform/auth/link-character';
 import { batchedCostOfRows } from '../cost-basis-view';
 import { useFavoriteBlueprints } from '../favorite-blueprints';
 import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
@@ -116,7 +116,7 @@ function ProfileSwitch() {
       <Button
         variant="primary"
         className={ctaClass}
-        onClick={() => void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: PROFILES_HREF })}
+        onClick={() => startEveSignIn(PROFILES_HREF)}
       >
         Create a profile
       </Button>
