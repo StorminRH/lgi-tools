@@ -5,9 +5,10 @@ import type { IdentityProjectionRunners } from './identity-projection-runners';
  * Removes one linked EVE character from `userId` between the identity
  * projection runners, then settles the account through
  * reconcileAfterCharacterRemoval, which repoints the active character,
- * rewrites a synthetic email that named the removed character, and deletes a
- * user left with no EVE links. Without the email repair a later EVE sign-in
- * as that character would link it back onto this user by email.
+ * rewrites a synthetic email that names a character the user no longer has,
+ * and deletes a user left with no EVE links. A later EVE sign-in as the
+ * removed character repeats the email repair (releaseSyntheticEmail), so a
+ * failed settle cannot strand it.
  *
  * A revocation or removal failure comes back as an outcome, so each caller
  * chooses how to report it; failures after the removal propagate. A

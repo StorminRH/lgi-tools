@@ -11,8 +11,9 @@ import { SITE_URL } from '@/config/site-url';
 import { isAuthErrorCode } from '@/composition/auth-error';
 import { buildDemoBoard, demoVariant } from '@/composition/board/demo-board';
 import { readEnv } from '@/lib/env';
+import { resolveNotice } from '@/lib/error-copy';
 import { buildPageMetadata } from '@/lib/page-metadata';
-import type { AuthErrorCode } from '@/platform/auth/api-contract';
+import type { AuthErrorCode, BetterAuthSignInError } from '@/platform/auth/api-contract';
 
 export const metadata = buildPageMetadata({
   title: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
@@ -50,16 +51,28 @@ const AUTH_ERROR_MESSAGES = {
     'The admin dashboard is only available to authorized characters.',
 } satisfies Record<AuthErrorCode, string>;
 
+const SIGN_IN_ERROR_MESSAGES = {
+  account_not_linked:
+    "That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings → Characters.",
+} satisfies Record<BetterAuthSignInError, string>;
+
+/** A page guard's `?auth_error=` notice, else the copy for a refused sign-in's `?error=`. */
+function authNotice(params: { [key: string]: string | string[] | undefined }): string | null {
+  const code = params.auth_error;
+  if (isAuthErrorCode(code)) return AUTH_ERROR_MESSAGES[code];
+  return resolveNotice(params.error, SIGN_IN_ERROR_MESSAGES);
+}
+
 async function AuthErrorNotice({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const code = (await searchParams).auth_error;
-  if (!isAuthErrorCode(code)) return null;
+  const message = authNotice(await searchParams);
+  if (message === null) return null;
   return (
     <div className="w-full max-w-[640px] mb-8">
-      <Callout label="Auth">{AUTH_ERROR_MESSAGES[code]}</Callout>
+      <Callout label="Auth">{message}</Callout>
     </div>
   );
 }
