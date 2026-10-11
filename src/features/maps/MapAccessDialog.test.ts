@@ -45,29 +45,24 @@ vi.mock('@/components/use-account-characters', () => ({
 }));
 
 vi.mock('./CharacterSearchControl', () => ({
-  CharacterSearchControl: () => createElement('div', { 'data-character-search': '' }),
+  CharacterSearchControl: ({ label }: { label?: string }) =>
+    createElement('div', { 'data-character-search': label ?? '' }),
 }));
 
 vi.mock('./AccessListEditor', () => ({
   AccessListEditor: ({
     mode,
     currentGrants,
-    characterSearch,
   }: {
     mode: string;
     currentGrants: readonly { ownerId: number; name: string; role: string }[];
-    characterSearch: React.ReactNode;
   }) =>
-    createElement(
-      'div',
-      {
-        'data-access-editor-mode': mode,
-        'data-access-grants': currentGrants
-          .map((grant) => `${grant.ownerId}:${grant.name}:${grant.role}`)
-          .join(','),
-      },
-      characterSearch,
-    ),
+    createElement('div', {
+      'data-access-editor-mode': mode,
+      'data-access-grants': currentGrants
+        .map((grant) => `${grant.ownerId}:${grant.name}:${grant.role}`)
+        .join(','),
+    }),
 }));
 
 import { dialogProbe } from '@/components/ui/__tests__/static-base-dialog';
@@ -123,7 +118,9 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('min-w-0');
     expect(markup).toContain('data-access-editor-mode="manage"');
     expect(markup).toContain('data-access-grants="42:Scout:editor"');
-    expect(markup).toContain('data-character-search');
+    // The access list renders its own search, so the dialog itself renders only the block search.
+    expect(markup.match(/data-character-search=/g)).toHaveLength(1);
+    expect(markup).toContain('data-character-search="Block character"');
     expect(dialogProbe.popup?.finalFocus).toBe(finalFocus);
     expect(markup).toContain('Done');
     expect(markup).not.toContain('Delete map');

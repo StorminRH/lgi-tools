@@ -21,7 +21,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 | ☑ | [P069](#p069) | Send every search source through rankFuzzyResults (with a tie-break), declare lazy-source metadata once, and share the all-words name match | client-data | M | low | medium | [P328](#p328) |
 | ☑ | [P276](#p276) | Replace the page-settings and search side-effect registries with static arrays passed explicitly | feature-skeleton | M | low | medium | [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069) |
 | ☑ | [P048](#p048) | Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook | react-hook | M | low | medium | [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
-| ☐ | [P054](#p054) | Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot | react-hook | S | low | low | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048) |
+| ☑ | [P054](#p054) | Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot | react-hook | S | low | low | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048) |
 | ☐ | [P270](#p270) | Extract useAuthorityScopedMapDialogs and an EditingMapAccessDialog host for MapSwitcher and MapCatalogue | feature-skeleton | S | low | low | [P054](#p054) |
 
 <a id="p181"></a>
@@ -996,7 +996,7 @@ export function characterSearchView(search: string, answer: SearchAnswer<Charact
 
 ## P054: Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -45 / +32 (two ref+effect re-seeds, three write sequences, the slot prop and two call-site slot fills removed; one small hook file added)
 - **Depends on:** [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048)
