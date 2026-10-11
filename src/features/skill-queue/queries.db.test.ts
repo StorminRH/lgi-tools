@@ -13,7 +13,7 @@ vi.mock('next/cache', () => ({
   revalidateTag: mocks.revalidateTag,
 }));
 
-import { saveCharacterSkills, skillsTag } from './queries';
+import { readCharacterSkillRow, saveCharacterSkills, skillsTag } from './queries';
 
 const harness = await createDbTestHarness({
   schema: 'test_skill_queue_save',
@@ -179,5 +179,41 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
     });
     expect(sync?.lastRefreshedAt.getTime()).toBeGreaterThan(OLD_STAMP.getTime());
     expect(mocks.revalidateTag).toHaveBeenCalledWith(skillsTag(303), 'max');
+  });
+});
+
+describe.skipIf(!harness.reachable)('readCharacterSkillRow executes against Postgres', () => {
+  it('reads the queue, SP figures and levels from one row and keeps nullable columns apart', async () => {
+    expect(await readCharacterSkillRow(404)).toBeNull();
+
+    await harness.db.insert(characterSkills).values([
+      {
+        characterId: 404,
+        totalSp: 5_000_000,
+        unallocatedSp: 75_000,
+        queue: [{ skill_id: 3300, queue_position: 0, finished_level: 5 }],
+        skillLevels: { '3300': 4, '3327': 5 },
+      },
+      {
+        characterId: 505,
+        totalSp: 1_500_000,
+        unallocatedSp: null,
+        queue: [],
+        skillLevels: null,
+      },
+    ]);
+
+    expect(await readCharacterSkillRow(404)).toStrictEqual({
+      data: {
+        entries: [{ skill_id: 3300, queue_position: 0, finished_level: 5 }],
+        totalSp: 5_000_000,
+        unallocatedSp: 75_000,
+      },
+      levels: { '3300': 4, '3327': 5 },
+    });
+    expect(await readCharacterSkillRow(505)).toStrictEqual({
+      data: { entries: [], totalSp: 1_500_000 },
+      levels: null,
+    });
   });
 });

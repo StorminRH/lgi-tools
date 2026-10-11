@@ -7,6 +7,12 @@ export interface CharacterSkillData {
   unallocatedSp?: number;
 }
 
+/** One character_skills row: the queue and SP figures, plus the trained levels when they are stored. */
+export interface CharacterSkillRow {
+  data: CharacterSkillData;
+  levels: Record<string, number> | null;
+}
+
 export interface CharacterSkillSyncState {
   lastRefreshedAt: Date | null;
   queueEtag: string | null;

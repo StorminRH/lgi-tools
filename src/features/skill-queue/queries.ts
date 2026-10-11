@@ -3,25 +3,31 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { characterSkills, characterSkillSyncs } from './schema';
-import type { CharacterSkillData, CharacterSkillSyncState, SkillsSaveHalves } from './types';
+import type {
+  CharacterSkillData,
+  CharacterSkillRow,
+  CharacterSkillSyncState,
+  SkillsSaveHalves,
+} from './types';
 
 export function skillsTag(characterId: number): string {
   return `skills:${characterId}`;
 }
 
-async function getCharacterSkills(characterId: number): Promise<CharacterSkillData | null> {
+async function getCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
   'use cache';
   cacheLife('minutes');
   cacheTag(skillsTag(characterId));
-  return readCharacterSkills(characterId);
+  return readCharacterSkillRow(characterId);
 }
 
-export async function readCharacterSkills(characterId: number): Promise<CharacterSkillData | null> {
+export async function readCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
   const rows = await db
     .select({
       queue: characterSkills.queue,
       totalSp: characterSkills.totalSp,
       unallocatedSp: characterSkills.unallocatedSp,
+      skillLevels: characterSkills.skillLevels,
     })
     .from(characterSkills)
     .where(eq(characterSkills.characterId, characterId))
@@ -30,13 +36,13 @@ export async function readCharacterSkills(characterId: number): Promise<Characte
   if (row === undefined) return null;
   const data: CharacterSkillData = { entries: row.queue, totalSp: row.totalSp };
   if (row.unallocatedSp !== null) data.unallocatedSp = row.unallocatedSp;
-  return data;
+  return { data, levels: row.skillLevels ?? null };
 }
 
-export async function getSkillsForCharacters(
+export async function getSkillRowsForCharacters(
   characterIds: number[],
-): Promise<Map<number, CharacterSkillData>> {
-  return mapByIdDroppingNulls(characterIds, getCharacterSkills);
+): Promise<Map<number, CharacterSkillRow>> {
+  return mapByIdDroppingNulls(characterIds, getCharacterSkillRow);
 }
 
 export async function getCharacterSkillLevels(
@@ -48,7 +54,7 @@ export async function getCharacterSkillLevels(
   return readCharacterSkillLevels(characterId);
 }
 
-export async function readCharacterSkillLevels(characterId: number): Promise<Record<string, number> | null> {
+async function readCharacterSkillLevels(characterId: number): Promise<Record<string, number> | null> {
   const rows = await db
     .select({ skillLevels: characterSkills.skillLevels })
     .from(characterSkills)
