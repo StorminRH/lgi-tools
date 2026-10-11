@@ -18,6 +18,7 @@ import { pruneWhStaticsSnapshots } from '@/data/wh-statics/queries';
 import { db } from '@/db';
 import type { BatchedDeleteResult } from '@/lib/batched-delete';
 import { errorMessage } from '@/lib/failure';
+import type { DeadlineBatchResult } from '@/lib/fan-out';
 import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
@@ -33,6 +34,7 @@ import { pruneEsiSnapshots } from './esi-snapshot-retention';
 /** Time the deletes share; a delete stopped by it reports unfinished and resumes tomorrow. */
 const DELETE_BUDGET_MS = 60_000;
 const DELETION_RETRY_BUDGET_MS = 30_000;
+const TRACKING_MERGE_BUDGET_MS = 20_000;
 const RECEIPT_CLEANUP_BUDGET_MS = 10_000;
 const CHARACTER_SCOPING_BUDGET_MS = 30_000;
 
@@ -43,10 +45,12 @@ export interface HousekeepingDeleteResult {
   readonly error: string | null;
 }
 
-export interface HousekeepingRetryResult {
+/**
+ * One retry batch. Like an unfinished delete, work its budget left `deferred`
+ * is backlog for tomorrow, not a failure.
+ */
+export interface HousekeepingRetryResult extends DeadlineBatchResult {
   readonly task: string;
-  readonly succeeded: number;
-  readonly failed: number;
   readonly error: string | null;
 }
 
@@ -132,13 +136,14 @@ async function runDelete(
 
 async function runRetry(
   task: string,
-  run: () => Promise<{ succeeded: number; failed: number }>,
+  run: () => Promise<DeadlineBatchResult>,
 ): Promise<HousekeepingRetryResult> {
   try {
-    return { task, ...(await run()), error: null };
+    const { succeeded, failed, deferred } = await run();
+    return { task, succeeded, failed, deferred, error: null };
   } catch (error) {
     console.error(`[housekeeping] ${task} failed`, error);
-    return { task, succeeded: 0, failed: 0, error: errorMessage(error) };
+    return { task, succeeded: 0, failed: 0, deferred: 0, error: errorMessage(error) };
   }
 }
 
@@ -154,14 +159,10 @@ export async function runHousekeeping(now: Date = new Date()): Promise<Housekeep
   }
 
   const retries = [
-    await runRetry('requested_deletions', async () => {
-      const result = await retryRequestedDeletions(Date.now() + DELETION_RETRY_BUDGET_MS);
-      return { succeeded: result.retried, failed: result.failed };
-    }),
-    await runRetry('tracking_merges', async () => {
-      const result = await reconcileTrackingMerges();
-      return { succeeded: result.processed, failed: result.failed };
-    }),
+    await runRetry('requested_deletions', () =>
+      retryRequestedDeletions(Date.now() + DELETION_RETRY_BUDGET_MS)),
+    await runRetry('tracking_merges', () =>
+      reconcileTrackingMerges({ deadline: Date.now() + TRACKING_MERGE_BUDGET_MS })),
     await runRetry('character_scoping', () =>
       scopeLegacyMaps(Date.now() + CHARACTER_SCOPING_BUDGET_MS)),
   ];

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { settle } from '@/lib/__tests__/hook-runtime';
-import { mapByIdDroppingNulls, mapConcurrent } from './fan-out';
+import { mapByIdDroppingNulls, mapConcurrent, runUntilDeadline } from './fan-out';
 
 describe('mapByIdDroppingNulls', () => {
   it('keeps only the ids whose getter returns non-null, keyed by id', async () => {
@@ -149,5 +149,76 @@ describe('mapConcurrent', () => {
       pool.resolve(1);
       expect(await run).toEqual(['done 0', 'done 1']);
     }
+  });
+});
+
+describe('runUntilDeadline', () => {
+  it('works through every item in order, counting each outcome, and calls onError only for a throw', async () => {
+    const started: string[] = [];
+    const onError = vi.fn();
+    const result = await runUntilDeadline(
+      ['ok', 'quiet', 'refused', 'gone', 'boom', 'last'],
+      Date.now() + 60_000,
+      async (item) => {
+        started.push(item);
+        if (item === 'ok') return 'succeeded';
+        if (item === 'refused') return 'failed';
+        if (item === 'gone') return 'skipped';
+        if (item === 'boom') throw new Error('door down');
+      },
+      onError,
+    );
+
+    expect(result).toEqual({ succeeded: 3, failed: 2, deferred: 0 });
+    expect(started).toEqual(['ok', 'quiet', 'refused', 'gone', 'boom', 'last']);
+    expect(onError).toHaveBeenCalledExactlyOnceWith('boom', new Error('door down'));
+  });
+
+  it('starts nothing once the deadline has passed and reports every item deferred', async () => {
+    const work = vi.fn(async () => {});
+    const onError = vi.fn();
+    expect(await runUntilDeadline(['a', 'b'], Date.now() - 1, work, onError))
+      .toEqual({ succeeded: 0, failed: 0, deferred: 2 });
+    expect(await runUntilDeadline([], Date.now() + 60_000, work, onError))
+      .toEqual({ succeeded: 0, failed: 0, deferred: 0 });
+    expect(work).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('lets the item in flight finish and defers the rest from the first check at or past the deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1_000);
+      const started: number[] = [];
+      const result = await runUntilDeadline([1, 2, 3, 4], 1_100, async (item) => {
+        started.push(item);
+        vi.setSystemTime(1_000 + item * 50);
+      }, vi.fn());
+
+      expect(started).toEqual([1, 2]);
+      expect(result).toEqual({ succeeded: 2, failed: 0, deferred: 2 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('awaits onError before the next item starts, and a throw from onError stops the run', async () => {
+    const started: string[] = [];
+    let releaseRotate!: () => void;
+    const onError = vi.fn((item: string) => item === 'a'
+      ? new Promise<void>((resolve) => { releaseRotate = resolve; })
+      : Promise.reject(new Error('rotate failed')));
+    const run = runUntilDeadline(['a', 'b', 'c'], Date.now() + 60_000, async (item) => {
+      started.push(item);
+      throw new Error(`${item} failed`);
+    }, onError);
+
+    await settle();
+    expect(started).toEqual(['a']);
+    releaseRotate();
+
+    await expect(run).rejects.toThrow('rotate failed');
+    expect(started).toEqual(['a', 'b']);
+    expect(onError).toHaveBeenCalledTimes(2);
   });
 });

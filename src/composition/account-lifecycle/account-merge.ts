@@ -118,7 +118,7 @@ export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): P
 export async function settleConvexAfterMerge(committed: CommittedMerge): Promise<void> {
   const { sourceUserId, survivorUserId, captured } = committed;
   await bestEffort('account-merge', 'tracking transfer', sourceUserId, () =>
-    reconcileTrackingMerges(survivorUserId),
+    reconcileTrackingMerges({ userId: survivorUserId }),
   );
   await bestEffort('account-merge', 'reprojection', sourceUserId, () =>
     deliverCapturedMapAccessChanges([...captured]),

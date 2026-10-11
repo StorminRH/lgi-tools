@@ -24,7 +24,7 @@ In order:
 | ☑ | [P162](#p162) | Share the price-source degradation predicate, payload projection and type | server-pipeline | S | low | low | [P173](wave-03-src-lib-primitives-collections-math-async.md#p173) |
 | ☑ | [P164](#p164) | Make map-access projections reject stale outcomes by default and share the delivery budget constants | server-pipeline | S | low | medium | — |
 | ☑ | [P322](#p322) | Drop the constant projectionPending, the outer teardown currency checks, and the affiliation/transfer pass-through wrappers | simplification | S | low | low | [P164](#p164) |
-| ☐ | [P165](#p165) | Share one sequential deadline runner for the housekeeping retry loops | server-pipeline | S | low | medium | [P164](#p164) |
+| ☑ | [P165](#p165) | Share one sequential deadline runner for the housekeeping retry loops | server-pipeline | S | low | medium | [P164](#p164) |
 | ☐ | [P166](#p166) | Route every owned-map chain purge through one composition helper | server-pipeline | S | low | low | — |
 | ☐ | [P240](#p240) | Generate the single-table purge contributors from one table list in src/platform/purge | persistence | S | low | medium | — |
 | ☐ | [P321](#p321) | Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds | simplification | S | low | low | — |
@@ -252,7 +252,7 @@ readonly readAffiliations?: typeof getUsersAffiliations;
 
 ## P165: Share one sequential deadline runner for the housekeeping retry loops
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** +30 lib and +60 test; about -35 across the four loops and the housekeeping adapters
 - **Depends on:** [P164](#p164)

@@ -71,9 +71,9 @@ const NOW = new Date('2026-07-14T12:00:00Z');
 
 beforeEach(() => {
   h.order.length = 0;
-  h.retryRequestedDeletions.mockReset().mockResolvedValue({ retried: 0, failed: 0 });
-  h.reconcileTrackingMerges.mockReset().mockResolvedValue({ processed: 0, failed: 0 });
-  h.scopeLegacyMaps.mockReset().mockResolvedValue({ succeeded: 0, failed: 0 });
+  h.retryRequestedDeletions.mockReset().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 });
+  h.reconcileTrackingMerges.mockReset().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 });
+  h.scopeLegacyMaps.mockReset().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 });
   h.pruneTrackingMergeReceipts.mockReset().mockImplementation(async () => {
     h.order.push('account_merge_tracking_receipts');
     return { deleted: 0, finished: true };
@@ -86,7 +86,7 @@ describe('runHousekeeping', () => {
       h.order.push('session');
       return { deleted: 4, finished: true };
     });
-    h.retryRequestedDeletions.mockResolvedValueOnce({ retried: 1, failed: 0 });
+    h.retryRequestedDeletions.mockResolvedValueOnce({ succeeded: 1, failed: 0, deferred: 0 });
 
     const summary = await runHousekeeping(NOW);
 
@@ -108,18 +108,20 @@ describe('runHousekeeping', () => {
     expect(summary.status).toBe('cleaned');
     expect(summary.deletes).toContainEqual({ task: 'session', deleted: 4, finished: true, error: null });
     expect(summary.retries).toEqual([
-      { task: 'requested_deletions', succeeded: 1, failed: 0, error: null },
-      { task: 'tracking_merges', succeeded: 0, failed: 0, error: null },
-      { task: 'character_scoping', succeeded: 0, failed: 0, error: null },
+      { task: 'requested_deletions', succeeded: 1, failed: 0, deferred: 0, error: null },
+      { task: 'tracking_merges', succeeded: 0, failed: 0, deferred: 0, error: null },
+      { task: 'character_scoping', succeeded: 0, failed: 0, deferred: 0, error: null },
     ]);
+    expect(h.retryRequestedDeletions).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(h.reconcileTrackingMerges).toHaveBeenCalledExactlyOnceWith({ deadline: expect.any(Number) });
   });
 
   it('runs one bounded legacy-map scoping batch and marks a kept map partial', async () => {
-    h.scopeLegacyMaps.mockResolvedValueOnce({ succeeded: 2, failed: 1 });
+    h.scopeLegacyMaps.mockResolvedValueOnce({ succeeded: 2, failed: 1, deferred: 0 });
     const summary = await runHousekeeping(NOW);
     expect(h.scopeLegacyMaps).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
     expect(summary.retries).toContainEqual({
-      task: 'character_scoping', succeeded: 2, failed: 1, error: null,
+      task: 'character_scoping', succeeded: 2, failed: 1, deferred: 0, error: null,
     });
     expect(summary.status).toBe('partial');
   });
@@ -127,7 +129,7 @@ describe('runHousekeeping', () => {
   it('cleans merge receipts after tracking retries and records failures through housekeeping', async () => {
     h.reconcileTrackingMerges.mockImplementationOnce(async () => {
       h.order.push('tracking_merges');
-      return { processed: 1, failed: 0 };
+      return { succeeded: 1, failed: 0, deferred: 0 };
     });
     h.pruneTrackingMergeReceipts.mockImplementationOnce(async () => {
       h.order.push('account_merge_tracking_receipts');
@@ -169,14 +171,19 @@ describe('runHousekeeping', () => {
     errorSpy.mockRestore();
   });
 
-  it('treats an unfinished delete as backlog, not failure', async () => {
+  it('treats an unfinished delete or deferred retry work as backlog, not failure', async () => {
     prunes.pruneEsiSnapshots.mockResolvedValueOnce({ deleted: 5000, finished: false });
-    await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'cleaned' });
+    h.reconcileTrackingMerges.mockResolvedValueOnce({ succeeded: 1, failed: 0, deferred: 4 });
+    const summary = await runHousekeeping(NOW);
+    expect(summary.status).toBe('cleaned');
+    expect(summary.retries).toContainEqual({
+      task: 'tracking_merges', succeeded: 1, failed: 0, deferred: 4, error: null,
+    });
   });
 
   it('marks the run partial when a retry fails or throws', async () => {
     const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
-    h.retryRequestedDeletions.mockResolvedValueOnce({ retried: 0, failed: 1 });
+    h.retryRequestedDeletions.mockResolvedValueOnce({ succeeded: 0, failed: 1, deferred: 0 });
     await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'partial' });
 
     h.reconcileTrackingMerges.mockRejectedValueOnce(new Error('direct endpoint unavailable'));
@@ -186,6 +193,7 @@ describe('runHousekeeping', () => {
       task: 'tracking_merges',
       succeeded: 0,
       failed: 0,
+      deferred: 0,
       error: 'direct endpoint unavailable',
     });
     expect(errorSpy).toHaveBeenCalledExactlyOnceWith('[housekeeping] tracking_merges failed', expect.any(Error));

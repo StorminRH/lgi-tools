@@ -175,7 +175,7 @@ describe('settleConvexAfterMerge', () => {
       captured,
     });
     expect(doors.order).toEqual(['retry', 'deliver', 'backstop']);
-    expect(doors.reconcileTrackingMerges).toHaveBeenCalledWith('surv');
+    expect(doors.reconcileTrackingMerges).toHaveBeenCalledWith({ userId: 'surv' });
     expect(doors.deliverCapturedMapAccessChanges).toHaveBeenCalledWith(captured);
     expect(doors.purgeUserMapAccessProjection).toHaveBeenCalledWith('src');
   });

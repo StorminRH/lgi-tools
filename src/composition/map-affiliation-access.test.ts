@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
-vi.mock('./account-lifecycle/tracking-merge-retry', () => ({ reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }) }));
+vi.mock('./account-lifecycle/tracking-merge-retry', () => ({ reconcileTrackingMerges: vi.fn().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 }) }));
 
 const mocks = vi.hoisted(() => ({
   readPendingMapAccessChanges: vi.fn(),
