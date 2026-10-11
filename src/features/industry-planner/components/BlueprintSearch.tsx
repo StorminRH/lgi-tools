@@ -46,7 +46,7 @@ export function BlueprintSearch() {
           <Combobox.List>
             {hits.map((hit) => (
               <Combobox.Item key={hit.id} value={hit.id} className="flex w-full items-center gap-3 px-2.5 py-2">
-                {hit.icon ? <TypeIcon {...hit.icon} size={32} mono={hit.label.slice(0, 2)} /> : null}
+                {hit.icon ? <TypeIcon {...hit.icon} size={32} mono={hit.label} /> : null}
                 <span className="min-w-0 flex-1 truncate font-ui text-nav text-name">{hit.label}</span>
               </Combobox.Item>
             ))}

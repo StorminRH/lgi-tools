@@ -2,18 +2,17 @@
 
 import { SectionPanel } from '@/components/ui/section-panel';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
-import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
+import type { BoardCharacter, BoardHistoryDay, BoardJournalData } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatSigned } from '@/lib/format/number';
 import { formatUtcDate, stripUtcYear } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
 import { FlowLine } from '../board-bits';
-import { pilotWorthSeries, recentJournal } from '../board-view-model';
+import { pilotWorthSeries, readyData, recentJournal } from '../board-view-model';
 import { SectionBody, SectionNote } from '../SectionBody';
 import { WorthChart, WorthHeadline } from '../WorthChart';
 
-type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
-type JournalRow = Journal['recent'][number];
+type JournalRow = BoardJournalData['recent'][number];
 
 const COLUMNS: readonly StaticTableColumn<JournalRow>[] = [
   {
@@ -58,7 +57,7 @@ export function WalletSection({
   className?: string;
 }) {
   const { wallet, journal } = character;
-  const worth = character.netWorth.state === 'ready' ? character.netWorth.data.total : null;
+  const worth = readyData(character.netWorth)?.total ?? null;
   return (
     <SectionPanel title="Wallet" className={className}>
       <SectionBody section={wallet}>
@@ -81,7 +80,7 @@ export function WalletSection({
   );
 }
 
-function JournalBody({ journal, chart }: { journal: Journal; chart: boolean }) {
+function JournalBody({ journal, chart }: { journal: BoardJournalData; chart: boolean }) {
   const rows = recentJournal(journal.recent);
   return (
     <>

@@ -6,13 +6,11 @@ import { cn } from '@/components/ui/cn';
 import { readoutSurface } from '@/components/ui/section-panel';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { EveSignInButton } from '../account/LoginButton';
+import { FOCUS_OVERVIEW_GRID } from '../board/focus-rail';
 
 export function WorkspaceSkeleton() {
   return (
-    <SkeletonGroup
-      label="Loading production profiles"
-      className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10"
-    >
+    <SkeletonGroup label="Loading production profiles" className={FOCUS_OVERVIEW_GRID}>
       <div className="flex min-w-0 flex-col gap-6">
         <Skeleton className="h-10 w-64 rounded-full" />
         <div className="flex gap-4 lg:flex-col lg:gap-5">

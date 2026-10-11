@@ -15,7 +15,6 @@ export type MapAccessOwnerType = (typeof MAP_ACCESS_OWNER_TYPES)[number];
 export interface CorporationAccessOption {
   readonly corporationId: number;
   readonly name: string;
-  readonly logoUrl?: string;
 }
 
 export interface MapAccessGrantOption {

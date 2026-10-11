@@ -58,13 +58,15 @@ const productionOwners = [
   ['src/components/ui/loading-toast.tsx', ['Do not call toast.loading directly']],
   ['src/components/composition/NavTools.tsx', ['No native title attribute']],
   ['src/components/composition/account/LoginButton.tsx', [rawButton]],
+  ['src/components/ui/action-form.tsx', ['No native title forwarded through Button']],
+  // These forms render ActionForm now, so they hold no exemption of their own.
   ...[
     'src/components/composition/account/AdminForceLogoutForm.tsx',
     'src/components/composition/account/AdminReassignCharacterForm.tsx',
     'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
     'src/components/composition/account/RoleToggleForm.tsx',
     'src/components/composition/account/UnlinkCharacterForm.tsx',
-  ].map((filePath) => [filePath, ['No native title forwarded through Button']]),
+  ].map((filePath) => [filePath, []]),
   ['src/features/wormhole-sites/components/SitesTable.tsx', [rawDetails]],
 ];
 

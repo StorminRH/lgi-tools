@@ -155,13 +155,7 @@ function SearchHints({ active }: { active: boolean }) {
 function SearchRowIcon({ row }: { row: SearchResult }) {
   const image = searchRowImage(row);
   if (image) {
-    return (
-      <TypeIcon
-        {...image}
-        size={22}
-        mono={row.iconText ?? row.label.slice(0, 2)}
-      />
-    );
+    return <TypeIcon {...image} size={22} mono={row.iconText ?? row.label} />;
   }
   return (
     <span

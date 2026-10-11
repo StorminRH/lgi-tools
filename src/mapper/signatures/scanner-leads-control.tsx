@@ -5,10 +5,8 @@ import { cn } from '@/components/ui/cn';
 import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
 import { useSystemSearch } from '@/components/use-system-search';
-import {
-  formatSec,
-  type SystemSearchEntry,
-} from '@/data/eve-data/systems-search';
+import { formatSecurityStatus } from '@/data/eve-data/security';
+import type { SystemSearchEntry } from '@/data/eve-data/systems-search';
 import {
   WORMHOLE_DESTINATION_HINTS,
   type WormholeDestinationHint,
@@ -107,7 +105,7 @@ export function scannerLeadsSuggestionGroups(
     .map((entry) => ({
       value: `${SYSTEM_PREFIX}${entry.id}`,
       text: entry.name,
-      meta: entry.security === null ? '' : formatSec(entry.security),
+      meta: entry.security === null ? '' : formatSecurityStatus(entry.security),
     }));
   const showUnset = 'unset'.startsWith(needle);
   return [

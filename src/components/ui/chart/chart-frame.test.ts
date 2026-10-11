@@ -27,7 +27,7 @@ import { TimeSeriesFrame } from './chart-frame';
 
 interface FocusProps {
   readonly tabIndex: number;
-  readonly onFocus: () => void;
+  readonly onFocus: (event: { currentTarget: { matches: (selector: string) => boolean } }) => void;
   readonly onBlur: () => void;
   readonly onKeyDown: (event: { key: string }) => void;
 }
@@ -37,6 +37,8 @@ const points: Point[] = [
   { x: 2, y: 20, label: 'Tue' },
   { x: 3, y: 30, label: 'Wed' },
 ];
+
+const focusBy = (keyboard: boolean) => ({ currentTarget: { matches: () => keyboard } });
 
 function focusFrame(): FocusProps {
   const frame = TimeSeriesFrame<Point>({
@@ -61,7 +63,7 @@ test('keyboard focus shows the last point, arrows step within the series, and bl
   const idle = focusFrame();
   expect(idle.tabIndex).toBe(0);
 
-  idle.onFocus();
+  idle.onFocus(focusBy(true));
   expect(h.showTooltip).toHaveBeenLastCalledWith({ tooltipData: points[2], tooltipLeft: 300, tooltipTop: 170 });
 
   // With nothing shown yet, arrows start from the last point.
@@ -84,4 +86,18 @@ test('keyboard focus shows the last point, arrows step within the series, and bl
 
   atFirst.onBlur();
   expect(h.hideTooltip).toHaveBeenCalledTimes(1);
+});
+
+test('a click or tap focus keeps the point the pointer showed', () => {
+  h.showTooltip.mockClear();
+  h.tooltipData = points[0];
+  focusFrame().onFocus(focusBy(false));
+  expect(h.showTooltip).not.toHaveBeenCalled();
+});
+
+test('arrows step from the shown point even when the parent rebuilt the points', () => {
+  h.showTooltip.mockClear();
+  h.tooltipData = { ...points[0] };
+  focusFrame().onKeyDown({ key: 'ArrowRight' });
+  expect(h.showTooltip).toHaveBeenLastCalledWith({ tooltipData: points[1], tooltipLeft: 200, tooltipTop: 180 });
 });

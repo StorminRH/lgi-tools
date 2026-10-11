@@ -116,6 +116,12 @@ export interface FacilityOptionGroup {
   options: FacilityOption[];
 }
 
+/** The account's structures by where they come from, in the order the add lists show them. */
+export const STRUCTURE_SOURCE_GROUPS = [
+  { label: 'Corporation structures', source: 'corp' },
+  { label: 'Your structures', source: 'custom' },
+] as const satisfies readonly { label: string; source: AvailableStructure['source'] }[];
+
 const STATION_RESULTS = 8;
 
 function nameMatches(name: string, query: string): boolean {
@@ -133,24 +139,28 @@ export function facilityOptionGroups(args: {
   taken: ReadonlySet<string>;
 }): FacilityOptionGroup[] {
   const query = args.query.trim();
+  const structureKey = (structure: AvailableStructure) => facilityKey({ kind: 'structure', id: structure.id });
+  const stationKey = (station: StationSearchEntry) => facilityKey({ kind: 'station', id: String(station.id) });
   const structureOption = (structure: AvailableStructure): FacilityOption => ({
-    value: `structure:${structure.id}`,
+    value: structureKey(structure),
     label: structure.name,
     pick: { kind: 'structure', structure },
   });
   const open = args.structures.filter(
-    (s) => !args.taken.has(`structure:${s.id}`) && (query === '' || nameMatches(s.name, query)),
+    (s) => !args.taken.has(structureKey(s)) && (query === '' || nameMatches(s.name, query)),
   );
   const groups: FacilityOptionGroup[] = [
-    { label: 'Corporation structures', options: open.filter((s) => s.source === 'corp').map(structureOption) },
-    { label: 'Your structures', options: open.filter((s) => s.source === 'custom').map(structureOption) },
+    ...STRUCTURE_SOURCE_GROUPS.map(({ label, source }) => ({
+      label,
+      options: open.filter((s) => s.source === source).map(structureOption),
+    })),
     {
       label: 'NPC stations',
       options: matchStations(
-        args.stations.filter((s) => !args.taken.has(`station:${s.id}`)),
+        args.stations.filter((s) => !args.taken.has(stationKey(s))),
         query,
         STATION_RESULTS,
-      ).map((station) => ({ value: `station:${station.id}`, label: station.name, pick: { kind: 'station', station } })),
+      ).map((station) => ({ value: stationKey(station), label: station.name, pick: { kind: 'station', station } })),
     },
   ];
   return groups.filter((g) => g.options.length > 0);

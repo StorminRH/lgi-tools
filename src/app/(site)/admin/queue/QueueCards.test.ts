@@ -1,8 +1,10 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contract';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { postedForms } from '@/lib/__tests__/posted-forms';
 
 const mocks = vi.hoisted(() => ({
   jobs: vi.fn(),
@@ -72,6 +74,12 @@ describe('DeadLetterList', () => {
 
     expect(html).toContain('aria-label="Retry owned assets · corporation 98000001"');
     expect(html).toContain('aria-label="Retry owned assets · corporation 98000002"');
+    const retries = postedForms(html);
+    expect(retries.map((form) => form.action)).toEqual(['/api/admin/esi-jobs/retry', '/api/admin/esi-jobs/retry']);
+    expect(retries.map((form) => retryEsiRefreshJobFormSchema.strict().parse(form.fields))).toEqual([
+      { jobId: 1 },
+      { jobId: 2 },
+    ]);
     expect(html).toContain('1 attempt ·');
     expect(html).toContain('5 attempts ·');
   });

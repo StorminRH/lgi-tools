@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
+import { eveSolarSystems } from '@/data/eve-data/schema';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpStructureRigs,
@@ -79,5 +80,34 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       .where(eq(corpStructures.corporationId, corp));
     expect(rows).toEqual([{ structureId: 600004, name: 'Fort' }]);
     expect((await readCorpStructureSyncState(corp))?.pageEtags).toEqual(['"s1"']);
+  });
+
+  it('stores each structure under its system’s security class, high when the system is unknown', async () => {
+    const corp = 9008;
+    await harness.db.insert(eveSolarSystems).values([
+      { id: 30002813, constellationId: 1, regionId: 1, name: 'Tama', securityStatus: 0.282556 },
+      { id: 31000123, constellationId: 1, regionId: 1, name: 'J100820', securityStatus: -0.99, wormholeClassId: 3 },
+    ]);
+    await saveCorpStructures(
+      corp,
+      [
+        { structure_id: 600010, type_id: 35825, system_id: 30002813, name: 'Tama Raitaru' },
+        { structure_id: 600011, type_id: 35825, system_id: 31000123, name: 'Hole Raitaru' },
+        { structure_id: 600012, type_id: 35825, system_id: 30099999, name: 'Unsurveyed Raitaru' },
+        { structure_id: 600013, type_id: 35832, system_id: 30002813, name: 'Tama Azbel' },
+      ],
+      ['"c1"'],
+    );
+    const rows = await harness.db
+      .select({ structureId: corpStructures.structureId, securityClass: corpStructures.securityClass })
+      .from(corpStructures)
+      .where(eq(corpStructures.corporationId, corp))
+      .orderBy(corpStructures.structureId);
+    expect(rows).toEqual([
+      { structureId: 600010, securityClass: 'low' },
+      { structureId: 600011, securityClass: 'wormhole' },
+      { structureId: 600012, securityClass: 'high' },
+      { structureId: 600013, securityClass: 'low' },
+    ]);
   });
 });

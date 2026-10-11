@@ -1,7 +1,7 @@
+import { SecurityStatus } from '@/components/security-status';
 import { cn } from '@/components/ui/cn';
 import { formatIsk } from '@/lib/format/isk';
 import type { SystemRef } from '@/composition/board/api-contract';
-import { roundSecurityStatus, securityStatusTextClass } from '@/data/eve-data/security';
 import type { HealthTone, QueueHealth } from './board-view-model';
 
 const HEALTH_CLASS: Record<HealthTone, string> = {
@@ -21,11 +21,7 @@ export function SystemName({ system }: { system: SystemRef }) {
   return (
     <span className="inline-flex items-baseline gap-1.5 font-data">
       <span className="text-name">{system.name}</span>
-      {showSecurity && (
-        <span className={securityStatusTextClass(security)}>
-          {roundSecurityStatus(security).toFixed(1)}
-        </span>
-      )}
+      {showSecurity && <SecurityStatus security={security} />}
     </span>
   );
 }

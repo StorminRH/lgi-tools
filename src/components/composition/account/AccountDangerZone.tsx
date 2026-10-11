@@ -23,8 +23,7 @@ import {
   runLogoutEverywhere,
   runPurgeCharacter,
 } from '@/platform/auth/account-actions';
-import { authClient } from '@/platform/auth/auth-client';
-import { forgetSignedInBrowser } from '@/platform/auth/reload-document-home';
+import { signOutAndLeave } from '@/platform/auth/reload-document-home';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
 export function AccountDangerZone({
@@ -192,11 +191,7 @@ function LogoutEverywhereControl() {
     if (outcome.kind === 'error') {
       toast.error('Sign-out failed');
     } else if (outcome.kind === 'done') {
-      const target = redirectTargetFor(outcome) ?? '/';
-      void authClient.signOut().finally(() => {
-        forgetSignedInBrowser();
-        window.location.href = target;
-      });
+      signOutAndLeave(redirectTargetFor(outcome) ?? '/');
     }
   }
 

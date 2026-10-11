@@ -78,10 +78,12 @@ const attributesDataSchema = z.object({
   lastRemapDate: z.string().nullable(),
   nextRemapDate: z.string().nullable(),
 });
+export type BoardAttributesData = z.infer<typeof attributesDataSchema>;
 
 const implantsDataSchema = z.object({
   implants: z.array(z.object({ typeId: z.number(), name: z.string(), slot: z.number().nullable() })),
 });
+export type BoardImplantsData = z.infer<typeof implantsDataSchema>;
 
 const clonesDataSchema = z.object({
   home: placeRefSchema.nullable(),
@@ -113,6 +115,7 @@ const journalDataSchema = z.object({
     }),
   ),
 });
+export type BoardJournalData = z.infer<typeof journalDataSchema>;
 
 const industryDataSchema = z.object({
   active: z.number().int(),

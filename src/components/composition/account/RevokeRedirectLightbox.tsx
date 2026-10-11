@@ -4,9 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Dialog, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inlineLink } from '@/components/ui/text-link';
-import { authClient } from '@/platform/auth/auth-client';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
-import { forgetSignedInBrowser } from '@/platform/auth/reload-document-home';
+import { signOutAndLeave } from '@/platform/auth/reload-document-home';
 
 const REDIRECT_SECONDS = 10;
 
@@ -18,10 +17,7 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
   function handoff() {
     if (handedOff.current) return;
     handedOff.current = true;
-    void authClient.signOut().finally(() => {
-      forgetSignedInBrowser();
-      window.location.href = EVE_AUTHORIZED_APPS_URL;
-    });
+    signOutAndLeave(EVE_AUTHORIZED_APPS_URL);
   }
 
   useEffect(() => {

@@ -11,11 +11,10 @@ import type {
 import { boardViewFrom, railOrder, skillNames, tileModel } from './board-view-model';
 import { OVERVIEW_MOTION } from './board-motion';
 import { CharacterDetail } from './CharacterDetail';
+import { FOCUS_OVERVIEW_GRID, FOCUS_SHEET_GRID } from './focus-rail';
 import { OverviewCards } from './OverviewCards';
 import { PilotRail } from './PilotRail';
 import { useFocusView } from './use-focus-view';
-
-const SHEET_GRID = 'grid gap-x-10 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]';
 
 export function HomeBoardView({
   board,
@@ -53,7 +52,7 @@ function SinglePilot({
     <div
       role="article"
       aria-label={`${character.name} character sheet`}
-      className={SHEET_GRID}
+      className={FOCUS_SHEET_GRID}
     >
       <CharacterDetail character={character} history={history} catalog={catalog} names={names} now={now} addCharacter />
     </div>
@@ -85,7 +84,7 @@ function PilotBoard({
         ref={rootRef}
         role="article"
         aria-label={`${selected.name} character sheet`}
-        className={cn('scroll-mt-28', SHEET_GRID)}
+        className={cn('scroll-mt-28', FOCUS_SHEET_GRID)}
       >
         <CharacterDetail
           character={selected}
@@ -101,10 +100,7 @@ function PilotBoard({
   }
   const pilots = railOrder(board.characters, mainId).map((character) => tileModel(character, names, now));
   return (
-    <div
-      ref={rootRef}
-      className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10"
-    >
+    <div ref={rootRef} className={cn('scroll-mt-28', FOCUS_OVERVIEW_GRID)}>
       <ViewTransition {...OVERVIEW_MOTION} default="none">
         <PilotRail pilots={pilots} onSelect={open} />
       </ViewTransition>

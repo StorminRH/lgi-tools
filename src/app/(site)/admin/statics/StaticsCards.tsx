@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/ui/action-form';
 import { cn } from '@/components/ui/cn';
 import { Collapsible } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,8 +17,8 @@ export function StaticsActionForm({
   action,
   snapshotId,
   label,
-  variant = 'secondary',
-  disabled = false,
+  variant,
+  disabled,
 }: {
   action: 'promote' | 'reject' | 'refresh';
   snapshotId?: number;
@@ -27,15 +27,15 @@ export function StaticsActionForm({
   disabled?: boolean;
 }) {
   return (
-    <form action="/api/admin/wh-statics" method="post">
-      <input type="hidden" name="action" value={action} />
-      {snapshotId === undefined ? null : (
-        <input type="hidden" name="snapshotId" value={snapshotId} />
-      )}
-      <Button type="submit" variant={variant} disabled={disabled}>
-        {label}
-      </Button>
-    </form>
+    <ActionForm
+      action="/api/admin/wh-statics"
+      fields={{ action, snapshotId }}
+      variant={variant}
+      size="md"
+      disabled={disabled}
+    >
+      {label}
+    </ActionForm>
   );
 }
 

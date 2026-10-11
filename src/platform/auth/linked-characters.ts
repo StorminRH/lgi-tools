@@ -1,10 +1,11 @@
 import { asc, and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
-import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
+import { EVE_PROVIDER_ID } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 import { isAuthorizationDelayed } from './authorization-policy';
+import { characterPortraitUrl } from '@/lib/eve-image';
 import { unresolvedName } from '@/lib/format/names';
 
 export interface CharacterLoginIdentity {
@@ -86,7 +87,7 @@ function toLinkedCharacter(
   return {
     characterId,
     name: r.name ?? unresolvedName('character', r.accountId),
-    portraitUrl: r.portraitUrl ?? portraitUrl(characterId),
+    portraitUrl: r.portraitUrl ?? characterPortraitUrl(characterId, 128),
     scope: r.scope,
     hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,
     authorizationDelayed: isAuthorizationDelayed(r.authorizationFailureFirstAt),

@@ -4,7 +4,7 @@ import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { useMemo, type ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
-import { EveImage } from '@/components/eve-image';
+import { EntityLogo } from '@/components/entity-logo';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -12,7 +12,6 @@ import { RadioGroup, type RadioOption } from '@/components/ui/radio-group';
 import { displayTitle } from '@/components/ui/type-roles';
 import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { CorporationAccessOption, MapRole } from '@/data/maps/access-contract';
-import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import {
   accessPrincipalKey,
   accessRolesForMode,
@@ -37,19 +36,17 @@ function PrincipalImage({ principal }: { principal: AccessPrincipalOption }) {
         characterId={principal.ownerId}
         name={principal.name}
         size={32}
-        src={principal.imageUrl ?? characterPortraitUrl(principal.ownerId, 64)}
+        src={principal.imageUrl}
       />
     );
   }
   return (
-    <EveImage
-      source="eve"
-      family="corporation-logo"
-      src={principal.imageUrl ?? corporationLogoUrl(principal.ownerId, 64)}
+    <EntityLogo
+      kind="corporation"
+      id={principal.ownerId}
+      size={32}
       alt={principal.name}
-      width={32}
-      height={32}
-      className="size-8 rounded-ctl border border-border-idle object-cover"
+      className="border border-border-idle"
     />
   );
 }

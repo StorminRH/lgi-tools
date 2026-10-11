@@ -1,13 +1,13 @@
-import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { IndustrySection } from '@/components/composition/industry-workspace/IndustryShell';
+import { buildPageMetadata } from '@/lib/page-metadata';
 import { JobsContent, JobsLoading } from './JobsContent';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Active Jobs — Industry Planner',
   description: 'Your Eve Online industry jobs across every linked character and corporation, live as they run.',
-  alternates: { canonical: '/industry/jobs' },
-};
+  canonical: '/industry/jobs',
+});
 
 export default function IndustryJobsPage() {
   return (

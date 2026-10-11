@@ -11,27 +11,11 @@ export const uiAdoptionRegistry = {
       reason: "SortableTable's expandable-row API requires the native details owner.",
     },
   ],
-  hiddenInputs: [
-    'src/app/(site)/admin/queue/RetryJobForm.tsx',
-    'src/app/(site)/admin/statics/StaticsCards.tsx',
-    'src/components/composition/account/AdminForceLogoutForm.tsx',
-    'src/components/composition/account/AdminReassignCharacterForm.tsx',
-    'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
-    'src/components/composition/account/RoleToggleForm.tsx',
-    'src/components/composition/account/SwitchCharacterForm.tsx',
-    'src/components/composition/account/UnlinkCharacterForm.tsx',
-  ],
   nativeTitles: [
     {
       file: 'src/components/composition/NavTools.tsx',
       reason: 'Owned by the deferred Category-dropdown top nav + module expansion backlog item.',
     },
-  ],
-  disabledControlTitles: [
-    'src/components/composition/account/AdminForceLogoutForm.tsx',
-    'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
-    'src/components/composition/account/RoleToggleForm.tsx',
-    'src/components/composition/account/UnlinkCharacterForm.tsx',
   ],
   temporaryCssFamilies: [],
   retainedCssFamilies: [

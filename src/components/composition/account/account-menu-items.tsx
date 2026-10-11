@@ -2,18 +2,12 @@
 
 import Link from 'next/link';
 import { MenuItem, MenuLinkItem, menuRow } from '@/components/ui/menu';
-import { authClient } from '@/platform/auth/auth-client';
-import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
+import { signOutAndLeave } from '@/platform/auth/reload-document-home';
 import { startCharacterLink } from '@/platform/auth/link-character';
 
 export function LogOutMenuItem() {
   return (
-    <MenuItem
-      className={menuRow}
-      onClick={() => {
-        void authClient.signOut().finally(reloadDocumentHome);
-      }}
-    >
+    <MenuItem className={menuRow} onClick={() => signOutAndLeave()}>
       Log out
     </MenuItem>
   );

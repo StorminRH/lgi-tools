@@ -1,6 +1,4 @@
-'use client';
-
-import { Button } from '@/components/ui/button';
+import { ConfirmActionForm } from '@/components/ui/confirm-action-form';
 
 export function AdminUnlinkCharacterForm({
   userId,
@@ -14,27 +12,15 @@ export function AdminUnlinkCharacterForm({
   disabled?: boolean;
 }) {
   return (
-    <form
-      method="POST"
+    <ConfirmActionForm
       action="/api/admin/characters/unlink"
-      onSubmit={(e) => {
-        if (!window.confirm(`Force-unlink ${characterName} (ID ${characterId}) from this account?`)) {
-          e.preventDefault();
-        }
-      }}
+      fields={{ userId, characterId }}
+      confirm={`Force-unlink ${characterName} (ID ${characterId}) from this account?`}
+      disabled={disabled}
+      disabledReason="Can't unlink the user's only character — reassign it instead."
+      className="whitespace-nowrap"
     >
-      <input type="hidden" name="userId" value={userId} />
-      <input type="hidden" name="characterId" value={characterId} />
-      <Button
-        type="submit"
-        variant="secondary"
-        size="sm"
-        disabled={disabled}
-        title={disabled ? "Can't unlink the user's only character — reassign it instead" : undefined}
-        className="whitespace-nowrap"
-      >
-        Unlink
-      </Button>
-    </form>
+      Unlink
+    </ConfirmActionForm>
   );
 }

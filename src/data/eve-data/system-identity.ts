@@ -1,4 +1,4 @@
-import { roundSecurityStatus, securityStatusTextClass } from './security';
+import { formatSecurityStatus, securityStatusTextClass } from './security';
 import {
   destinationHintSoleClassId,
   type WormholeDestinationHint,
@@ -109,7 +109,7 @@ export function systemClassificationReadout(
   }
   if (security === null) return null;
   return {
-    label: roundSecurityStatus(security).toFixed(1),
+    label: formatSecurityStatus(security),
     tone: securityStatusTextClass(security),
   };
 }

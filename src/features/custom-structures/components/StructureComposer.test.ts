@@ -7,9 +7,15 @@ import type { CustomStructureRow } from '../types';
 const SYSTEMS = [
   { id: 30002537, name: 'Amamake', security: 0.4 },
   { id: 30004759, name: '1DQ1-A', security: -0.4 },
+  { id: 30000001, name: 'Highsec', security: 0.5 },
+  { id: 30000002, name: 'Lowsec', security: 0.3 },
+  { id: 30000003, name: 'Nullsec', security: -0.2 },
+  { id: 30000004, name: 'Unsurveyed', security: null },
 ];
+const SYSTEMS_BY_ID = new Map(SYSTEMS.map((system) => [system.id, system]));
 vi.mock('@/components/use-system-search', () => ({
   useSystemSearch: () => ({ systems: SYSTEMS, suggest: async () => [] }),
+  useSystemsById: () => SYSTEMS_BY_ID,
 }));
 vi.mock('../use-structure-search', () => ({
   useStructureSearch: () => [{ structureId: 1035, name: 'Found Fortizar', systemId: 30002537, structureTypeId: 35833 }],
@@ -48,6 +54,11 @@ const render = (editing: CustomStructureRow | null) =>
     }),
   );
 
+/** The pinned system's security pill: its tone variable and its text. */
+const secPill = (html: string) => {
+  const [, tone, text] = /<span class="[^"]*pill-soft[^"]*\[--pill-tone:var\(([^)]+)\)\][^"]*">([^<]*)<\/span>/.exec(html) ?? [];
+  return { tone, text };
+};
 const tabs = (html: string) => [...html.matchAll(/role="tab"[^>]*>([^<]+)</g)].map(([, name]) => name);
 const selectedTab = (html: string) => /role="tab" aria-selected="true"[^>]*>([^<]+)</.exec(html)?.[1];
 
@@ -86,4 +97,14 @@ test('a refinery with typed values offers its reaction bonuses too', () => {
   expect(html).toContain('aria-label="Reaction material bonus"');
   expect(html).toContain('aria-label="Reaction time bonus"');
   expect(html).toContain('>-0.4<');
+});
+
+test.each([
+  [30000001, '0.5', '--color-isk'],
+  [30000002, '0.3', '--color-tone-orange'],
+  [30000003, '-0.2', '--color-alert-red'],
+  // An unknown security reads neutral, not as null-sec.
+  [30000004, '—', '--color-muted'],
+])('a structure pinned to system %i shows security %s in the %s tone', (systemId, text, tone) => {
+  expect(secPill(render(row({ systemId, rigTypeIds: [] })))).toEqual({ tone, text });
 });

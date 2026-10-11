@@ -5,7 +5,7 @@ import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
-import type { BoardCharacter } from '@/composition/board/api-contract';
+import type { BoardAttributesData, BoardCharacter, BoardImplantsData } from '@/composition/board/api-contract';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
@@ -18,9 +18,6 @@ const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   willpower: 'Willpower',
   charisma: 'Charisma',
 };
-
-type Attributes = Extract<BoardCharacter['attributes'], { state: 'ready' }>['data'];
-type Implants = Extract<BoardCharacter['implants'], { state: 'ready' }>['data'];
 
 export function AttributesSection({
   attributes,
@@ -40,7 +37,7 @@ export function AttributesSection({
   );
 }
 
-function AttributeGrid({ attributes }: { attributes: Attributes }) {
+function AttributeGrid({ attributes }: { attributes: BoardAttributesData }) {
   return (
     <div className="@container flex flex-col gap-3 px-3.5 py-3">
       <dl className="grid grid-cols-3 gap-x-4 gap-y-2.5 @xl:grid-cols-5">
@@ -61,7 +58,7 @@ function AttributeGrid({ attributes }: { attributes: Attributes }) {
   );
 }
 
-function ImplantList({ implants }: { implants: Implants }) {
+function ImplantList({ implants }: { implants: BoardImplantsData }) {
   if (implants.implants.length === 0) {
     return <SectionNote>No implants plugged in.</SectionNote>;
   }

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
-import { useSystemSearch } from '@/components/use-system-search';
+import { useSystemsById } from '@/components/use-system-search';
+import { lookupSystem } from '@/data/eve-data/systems-search';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { useReadIdentity } from '@/platform/auth/read-identity';
@@ -58,10 +59,10 @@ function usePlannerProfile(
   const identity = useReadIdentity();
   const rememberLevels = useCallback((next: LevelsByCharacter) => levelsMemory.set(next, identity), [identity]);
   useResourceRead(readTeamSkillLevels, { enabled: profile !== null && identity !== null, onData: rememberLevels });
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   const securityOf = useCallback(
-    (systemId: number) => systems.find((s) => s.id === systemId)?.security ?? null,
-    [systems],
+    (systemId: number) => lookupSystem(systemsById, systemId)?.security ?? null,
+    [systemsById],
   );
   const doc = profile?.document ?? null;
   const plan = useMemo(
@@ -109,9 +110,9 @@ function useProfileLocation(
   activityId: number,
   writers: LocationWriters,
 ): boolean {
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   const facility = plan?.top.facility ?? null;
-  const found = systems.find((s) => s.id === facility?.systemId);
+  const found = lookupSystem(systemsById, facility?.systemId ?? null);
   const system = useMemo(
     () => (found ? { systemId: found.id, systemName: found.name, security: found.security } : null),
     [found],

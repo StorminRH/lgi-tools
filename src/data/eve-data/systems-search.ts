@@ -1,9 +1,10 @@
+import { createClientStore, type ClientStore } from '@/lib/client-store';
 import { apiFetch } from '@/transport/api-client';
 import type { SearchSource } from '@/platform/search';
 import { fuzzyMatch } from '@/platform/search/match';
 import { rankFuzzyResults } from '@/platform/search/rank';
 import { systemsEndpoint } from './api-contract';
-import { roundSecurityStatus } from './security';
+import { formatSecurityStatus } from './security';
 
 export interface SystemSearchEntry {
   id: number;
@@ -15,6 +16,8 @@ const MAX_RESULTS = 20;
 
 let indexPromise: Promise<SystemSearchEntry[]> | null = null;
 let loadedIndex: SystemSearchEntry[] | null = null;
+// Built once per load, so its identity holds for as long as the index does.
+const loadedById = createClientStore<ReadonlyMap<number, SystemSearchEntry> | null>(null);
 
 export function loadSystems(): Promise<SystemSearchEntry[]> {
   if (!indexPromise) {
@@ -25,6 +28,7 @@ export function loadSystems(): Promise<SystemSearchEntry[]> {
           throw new Error(`system index ${reason}`);
         }
         loadedIndex = result.data.systems;
+        loadedById.set(new Map(loadedIndex.map((system) => [system.id, system])));
         return loadedIndex;
       })
       .catch((err) => {
@@ -39,8 +43,22 @@ export function getLoadedSystems(): SystemSearchEntry[] | null {
   return loadedIndex;
 }
 
-export function formatSec(sec: number | null): string {
-  return sec === null ? '—' : roundSecurityStatus(sec).toFixed(1);
+/**
+ * The loaded index keyed by system id, or null until a load succeeds. A store,
+ * so every reader re-renders when any caller's load succeeds.
+ */
+export const loadedSystemsById: Pick<
+  ClientStore<ReadonlyMap<number, SystemSearchEntry> | null>,
+  'get' | 'subscribe' | 'serverValue'
+> = loadedById;
+
+/** The system behind an id, or null with no id, no index yet, or no such system. */
+export function lookupSystem(
+  systemsById: ReadonlyMap<number, SystemSearchEntry> | null,
+  systemId: number | null,
+): SystemSearchEntry | null {
+  if (systemId === null || systemsById === null) return null;
+  return systemsById.get(systemId) ?? null;
 }
 
 export function matchSystem(systems: SystemSearchEntry[], input: string): SystemSearchEntry | null {
@@ -80,7 +98,7 @@ export const systemsSource: SearchSource = {
         kind: 'system',
         id: `system:${entry.id}`,
         label: entry.name,
-        sub: formatSec(entry.security),
+        sub: formatSecurityStatus(entry.security),
         href: '#',
         matchIndices: match.matchIndices,
       }),

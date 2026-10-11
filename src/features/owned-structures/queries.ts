@@ -1,8 +1,8 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
-import { eveSolarSystems } from '@/data/eve-data/schema';
-import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
+import { getSystemFacts } from '@/data/eve-data/character-facts';
+import { systemSecurityClass } from '@/data/eve-data/security';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { ParsedCorpStructure } from './esi-projection';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
@@ -55,36 +55,13 @@ export async function listCorpStructureSyncStates(
     .where(inArray(corpStructureSyncs.corporationId, corporationIds));
 }
 
-async function deriveSecurityClasses(
-  rows: ParsedCorpStructure[],
-): Promise<Map<number, SecurityClass>> {
-  const result = new Map<number, SecurityClass>();
-  const systemIds = [...new Set(rows.map((r) => r.system_id))];
-  if (systemIds.length === 0) return result;
-  const systems = await db
-    .select({
-      id: eveSolarSystems.id,
-      securityStatus: eveSolarSystems.securityStatus,
-      wormholeClassId: eveSolarSystems.wormholeClassId,
-    })
-    .from(eveSolarSystems)
-    .where(inArray(eveSolarSystems.id, systemIds));
-  const bySystem = new Map(
-    systems.map((s) => [s.id, systemSecurityClass(s.securityStatus, s.wormholeClassId)] as const),
-  );
-  for (const r of rows) {
-    result.set(r.structure_id, bySystem.get(r.system_id) ?? systemSecurityClass(null, null));
-  }
-  return result;
-}
-
 export async function saveCorpStructures(
   corporationId: number,
   rows: ParsedCorpStructure[],
   etags: string[],
 ): Promise<void> {
   const now = new Date();
-  const securityByStructure = await deriveSecurityClasses(rows);
+  const systems = await getSystemFacts([...new Set(rows.map((r) => r.system_id))]);
   await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
   if (rows.length > 0) {
     await db.insert(corpStructures).values(
@@ -93,7 +70,7 @@ export async function saveCorpStructures(
         structureId: r.structure_id,
         typeId: r.type_id,
         systemId: r.system_id,
-        securityClass: securityByStructure.get(r.structure_id) ?? systemSecurityClass(null, null),
+        securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
         name: r.name ?? null,
       })),
     );

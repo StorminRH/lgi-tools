@@ -1,12 +1,9 @@
-import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/ui/action-form';
 
 export function SwitchCharacterForm({ characterId }: { characterId: number }) {
   return (
-    <form method="POST" action="/api/account/active-character">
-      <input type="hidden" name="characterId" value={characterId} />
-      <Button type="submit" variant="secondary" size="sm" className="whitespace-nowrap">
-        Make active
-      </Button>
-    </form>
+    <ActionForm action="/api/account/active-character" fields={{ characterId }} className="whitespace-nowrap">
+      Make active
+    </ActionForm>
   );
 }

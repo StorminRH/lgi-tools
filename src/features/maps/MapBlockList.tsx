@@ -11,7 +11,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { displayTitle } from '@/components/ui/type-roles';
 import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { MapBlockOption } from '@/data/maps/access-contract';
-import { characterPortraitUrl } from '@/lib/eve-image';
 import type { AccessPrincipalOption } from './access-editor-model';
 import { CharacterSearchControl } from './CharacterSearchControl';
 import { mapAccessFailureMessage, updateMapAccess } from './map-access-client';
@@ -100,7 +99,6 @@ export function MapBlockList({
                 characterId={block.characterId}
                 name={block.name}
                 size={32}
-                src={characterPortraitUrl(block.characterId, 64)}
               />
               <p className="min-w-0 flex-1 truncate font-ui text-ui text-text">{block.name}</p>
               <Button
