@@ -16,7 +16,8 @@ export async function addsUnlinkedMembers(
   return unlinkedNewMembers(next, previous, linked).length > 0;
 }
 
-export async function insertWithinCap(
+/** Creates the profile under a fresh id: the id, or null when the account already holds the most it may. */
+export async function createProfileWithNewId(
   userId: string,
   input: { name: string; document: ProfileDocument },
 ): Promise<string | null> {

@@ -4,13 +4,8 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import {
   createCustomStructureEndpoint,
   createCustomStructureRequestSchema,
-  MAX_CUSTOM_STRUCTURES_PER_USER,
 } from '@/features/custom-structures/api-contract';
-import {
-  countCustomStructures,
-  createCustomStructure,
-  listCustomStructures,
-} from '@/features/custom-structures/queries';
+import { createCustomStructure, listCustomStructures } from '@/features/custom-structures/queries';
 import { rejectInvalidCustomStructure } from '@/features/custom-structures/save-boundary';
 import { conflictFailure } from '@/lib/failure';
 import { checkUserId } from '@/composition/route-guards';
@@ -28,16 +23,15 @@ export async function POST(request: NextRequest): Promise<Response> {
       const check = await rejectInvalidCustomStructure(body);
       if (!check.ok) return apiResponse(createCustomStructureEndpoint, 400, check.failure);
 
-      if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
+      const createdId = randomUUID();
+      const created = await createCustomStructure(userId, { id: createdId, ...body });
+      if (!created) {
         return apiResponse(
           createCustomStructureEndpoint,
           409,
           conflictFailure('structure_limit', 'structure limit reached'),
         );
       }
-
-      const createdId = randomUUID();
-      await createCustomStructure(userId, { id: createdId, ...body });
       const structures = await listCustomStructures(userId);
       return apiResponse(createCustomStructureEndpoint, 201, { structures, createdId });
     },

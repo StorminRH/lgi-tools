@@ -1,6 +1,7 @@
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { SavedPlanRow } from './api-contract';
+import { insertWithinCap } from '@/db/capped-insert';
+import { MAX_SAVED_PLANS_PER_USER, type SavedPlanRow } from './api-contract';
 import { savedPlans } from './schema';
 import type { PlanSnapshotWire } from './template-snapshot';
 
@@ -22,15 +23,8 @@ export async function listSavedPlans(userId: string): Promise<SavedPlanRow[]> {
   return rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));
 }
 
-export async function countSavedPlans(userId: string): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(savedPlans)
-    .where(eq(savedPlans.userId, userId));
-  return row?.n ?? 0;
-}
-
-export async function createSavedPlan(
+/** Saves a new plan unless the account already holds the most it may. Returns whether it landed. */
+export function createSavedPlan(
   userId: string,
   input: {
     id: string;
@@ -40,8 +34,13 @@ export async function createSavedPlan(
     productName: string;
     snapshot: PlanSnapshotWire;
   },
-): Promise<void> {
-  await db.insert(savedPlans).values({ userId, ...input });
+): Promise<boolean> {
+  return insertWithinCap({
+    table: savedPlans,
+    values: { ...input, userId },
+    scope: eq(savedPlans.userId, userId),
+    cap: MAX_SAVED_PLANS_PER_USER,
+  });
 }
 
 export async function renameSavedPlan(userId: string, id: string, name: string): Promise<void> {

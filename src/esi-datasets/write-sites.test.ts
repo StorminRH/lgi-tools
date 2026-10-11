@@ -119,6 +119,20 @@ describe('findWrittenTables', () => {
     expect(findWrittenTables(CALLER, source, EXPORTS)).toEqual(['owned_assets']);
   });
 
+  it('detects a capped insert through its table option', () => {
+    const source = [
+      "import { ownedAssets } from './schema';",
+      'return insertWithinCap({',
+      '  table: ownedAssets,',
+      '  values: { ...input, userId },',
+      '  scope: eq(ownedAssets.userId, userId),',
+      '  cap: 50,',
+      '});',
+    ].join('\n');
+
+    expect(findWrittenTables(CALLER, source, EXPORTS)).toEqual(['owned_assets']);
+  });
+
   it('detects a multi-line chained write regardless of the receiver name', () => {
     const source = [
       "import { ownedAssets } from './schema';",
