@@ -405,7 +405,7 @@ describe('listSiteDetails', () => {
     expect(result[1]).toEqual({ ...emptyDetail, waves: [], resources: [] });
   });
 
-  it('matches gas class ranges while excluding out-of-range and unknown gas sites', async () => {
+  it('matches gas class ranges while excluding out-of-range, unknown and fixed-class gas sites', async () => {
     const perimeter = siteRow(4, {
       name: 'Barren Perimeter Reservoir',
       siteType: 'gas',
@@ -422,8 +422,13 @@ describe('listSiteDetails', () => {
       wormholeClass: null,
     });
     const exactClass = siteRow(7, { wormholeClass: 'C2' });
+    const classedGas = siteRow(8, {
+      name: 'Barren Perimeter Reservoir',
+      siteType: 'gas',
+      wormholeClass: 'C4',
+    });
     state.results = [
-      [perimeter, frontier, unknown, exactClass],
+      [perimeter, frontier, unknown, exactClass, classedGas],
       [],
       [],
     ];

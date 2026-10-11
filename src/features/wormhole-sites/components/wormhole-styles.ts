@@ -1,5 +1,6 @@
 import type { PillTone, DotTone } from '@/components/ui/tones';
-import type { SiteType, WormholeClass } from '../types';
+import { formatClassRange, siteClassRange } from '../site-class';
+import type { SiteListItem, SiteType, WormholeClass } from '../types';
 
 export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C1: 'green',
@@ -9,6 +10,17 @@ export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C5: 'red',
   C6: 'purple',
 };
+
+/**
+ * A site's class pill: its own class, or a gas site's spawn range toned by
+ * the lowest class in it. Null when the site has neither.
+ */
+export function siteClassPill(
+  site: Pick<SiteListItem, 'wormholeClass' | 'siteType' | 'name'>,
+): { tone: PillTone; label: string } | null {
+  const range = siteClassRange(site);
+  return range ? { tone: CLASS_TONE[range.min], label: formatClassRange(range) } : null;
+}
 
 export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   combat: 'red-soft',

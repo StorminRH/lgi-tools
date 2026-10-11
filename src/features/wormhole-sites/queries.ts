@@ -9,9 +9,9 @@ import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
 import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
-import { classRangeIncludes, gasClassRange } from './gas-classes';
 import { overlayLivePrices } from './live-prices';
 import { liveRecipesForSearch } from './live-recipes-for-search';
+import { siteClassSet } from './site-filter';
 import type { SiteLiveRecipe } from './site-name-lookup';
 import type { Npc, SiteDetail, SiteListItem, SiteResource, Wave, WormholeClass, SiteType } from './types';
 
@@ -128,15 +128,6 @@ function aggregateWave(
   };
 }
 
-function matchesClass(s: Pick<SiteListItem, 'name' | 'siteType' | 'wormholeClass'>, cls: WormholeClass): boolean {
-  if (s.wormholeClass === cls) return true;
-  if (s.siteType === 'gas') {
-    const range = gasClassRange(s.name);
-    return range !== null && classRangeIncludes(range, cls);
-  }
-  return false;
-}
-
 export async function listSites(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
@@ -156,7 +147,7 @@ export async function listSites(filters: {
   );
 
   return filters.wormholeClass
-    ? rows.filter((s) => matchesClass(s, filters.wormholeClass!))
+    ? rows.filter((s) => siteClassSet(s).includes(filters.wormholeClass!))
     : rows;
 }
 
@@ -197,7 +188,7 @@ export async function listSiteDetails(filters: {
       .orderBy(sites.sourceTab, sites.name);
 
     const siteRows = filters.wormholeClass
-      ? allRows.filter((s) => matchesClass(s, filters.wormholeClass!))
+      ? allRows.filter((s) => siteClassSet(s).includes(filters.wormholeClass!))
       : allRows;
 
     if (siteRows.length === 0) return [];

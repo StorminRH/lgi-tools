@@ -78,4 +78,20 @@ describe('sortSitesForTable', () => {
     const asc = sortSitesForTable([c5, noClass, c1], 'class', 'asc').map((s) => s.id);
     expect(asc).toEqual([1, 2, 3]);
   });
+
+  it('sorts a class-less gas site by the lowest class of its spawn range', () => {
+    const c1 = siteDetail({ id: 1, siteType: 'combat', wormholeClass: 'C1' });
+    const frontier = siteDetail({
+      id: 2,
+      siteType: 'gas',
+      wormholeClass: null,
+      name: 'Bountiful Frontier Reservoir',
+    });
+    const c4 = siteDetail({ id: 3, siteType: 'combat', wormholeClass: 'C4' });
+    const unknownGas = siteDetail({ id: 4, siteType: 'gas', wormholeClass: null, name: 'Odd Pocket' });
+    const asc = sortSitesForTable([unknownGas, c4, frontier, c1], 'class', 'asc').map((s) => s.id);
+    const desc = sortSitesForTable([unknownGas, c1, frontier, c4], 'class', 'desc').map((s) => s.id);
+    expect(asc).toEqual([1, 2, 3, 4]);
+    expect(desc).toEqual([3, 2, 1, 4]);
+  });
 });

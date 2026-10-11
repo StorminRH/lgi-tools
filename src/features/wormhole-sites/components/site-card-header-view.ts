@@ -1,15 +1,14 @@
 import type { PillTone } from '@/components/ui/tones';
 import { formatIskShort } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
-import { formatClassRange, gasClassRange } from '../gas-classes';
 import type { SiteDetail, SiteResource } from '../types';
 import {
-  CLASS_TONE,
   EWAR_LABEL,
   EWAR_ORDER,
   EWAR_TONE,
   SITE_TYPE_LABEL,
   SITE_TYPE_TONE,
+  siteClassPill,
   type EwarKey,
 } from './wormhole-styles';
 
@@ -34,17 +33,6 @@ function activeSiteEwar(site: SiteDetail): EwarKey[] {
   return EWAR_ORDER.filter((k) => counts[k] !== 0);
 }
 
-function deriveClassPill(site: SiteDetail): { tone: PillTone; label: string } | null {
-  if (site.wormholeClass) {
-    return { tone: CLASS_TONE[site.wormholeClass], label: site.wormholeClass };
-  }
-  if (site.siteType === 'gas') {
-    const range = gasClassRange(site.name);
-    return range ? { tone: CLASS_TONE[range.min], label: formatClassRange(range) } : null;
-  }
-  return null;
-}
-
 export type SiteCardHeaderView = {
   subLine: string | null;
   waveValue: string;
@@ -65,7 +53,7 @@ export function deriveSiteCardHeaderView(
     waveValue: formatIskShort(site.blueLootIsk),
     showIskUnit: site.blueLootIsk != null,
     isWaveDriven: isCombat || site.siteType === 'relic' || site.siteType === 'data',
-    classPill: deriveClassPill(site),
+    classPill: siteClassPill(site),
     typePill: { tone: SITE_TYPE_TONE[site.siteType], label: SITE_TYPE_LABEL[site.siteType] },
     ewarPills: activeSiteEwar(site).map((key) => ({
       key,

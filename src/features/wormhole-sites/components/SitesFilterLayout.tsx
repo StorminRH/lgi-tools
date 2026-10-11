@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
+import { WORMHOLE_CLASSES } from '../site-taxonomy';
 import type { SiteType, WormholeClass } from '../types';
 import {
   CLASS_TONE,
@@ -26,7 +27,6 @@ import {
 } from './wormhole-styles';
 
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
-const CLASS_CHIPS: WormholeClass[] = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
 const TYPE_ROWS: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 const DETAIL_OPTIONS = [
   { value: 'lightbox', label: 'Lightbox' },
@@ -110,7 +110,7 @@ export function SitesFilterLayout({
                   onValueChange={(next) => setCls(next as WormholeClass[])}
                   className="mt-2 grid grid-cols-3 gap-2"
                 >
-                  {CLASS_CHIPS.map((c) => (
+                  {WORMHOLE_CLASSES.map((c) => (
                     <ChipToggle
                       key={c}
                       value={c}

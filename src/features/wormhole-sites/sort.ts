@@ -1,6 +1,6 @@
-import { gasClassRange } from './gas-classes';
+import { siteClassRange, wormholeClassRank } from './site-class';
 import { primarySiteIsk } from './site-primary-isk';
-import type { SiteDetail, WormholeClass } from './types';
+import type { SiteDetail } from './types';
 
 const SORTABLE_KEYS = [
   'name',
@@ -16,10 +16,6 @@ export type SortDir = 'asc' | 'desc';
 
 const TYPE_ORDER: Record<SiteDetail['siteType'], number> = {
   combat: 0, ore: 1, gas: 2, relic: 3, data: 4,
-};
-
-const CLASS_ORDER: Record<WormholeClass, number> = {
-  C1: 1, C2: 2, C3: 3, C4: 4, C5: 5, C6: 6,
 };
 
 export function parseSortKey(raw: string | undefined): SortableKey | null {
@@ -52,12 +48,8 @@ function valueFor(s: SiteDetail, key: SortableKey): string | number | null {
     case 'blueLoot': return s.blueLootIsk;
     case 'scrams':   return siteScramTotal(s);
     case 'class': {
-      if (s.wormholeClass) return CLASS_ORDER[s.wormholeClass];
-      if (s.siteType === 'gas') {
-        const range = gasClassRange(s.name);
-        if (range) return CLASS_ORDER[range.min];
-      }
-      return null;
+      const range = siteClassRange(s);
+      return range ? wormholeClassRank(range.min) : null;
     }
   }
 }
