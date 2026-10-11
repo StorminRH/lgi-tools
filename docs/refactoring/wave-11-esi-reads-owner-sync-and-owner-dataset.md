@@ -16,7 +16,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | ☑ | [P190](#p190) | Make platform/owner-sync the single home for owner-sync port bases and read-result types | esi-sync | M | low | medium | — |
 | ☑ | [P345](#p345) | Use EnumeratedOwner instead of three local copies, and share the owner fixture and owned-dataset port fake | testing | S | low | medium | [P190](#p190) |
 | ☑ | [P188](#p188) | Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker | esi-sync | S | low | low | [P190](#p190) |
-| ☐ | [P189](#p189) | Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive | esi-sync | S | low | medium | [P188](#p188) |
+| ☑ | [P189](#p189) | Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive | esi-sync | S | low | medium | [P188](#p188) |
 | ☐ | [P292](#p292) | Read each character's sheet row once per direct-section phase by promoting memoizePerRun to src/lib | efficiency | S | low | high | [P188](#p188) |
 | ☐ | [P297](#p297) | Reuse fresh stored corp roles when the sync passes pick a corp credential | efficiency | S | medium | medium | [P186](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p186), [P189](#p189) |
 | ☐ | [P286](#p286) | Read the character_skills row once per character for the board | efficiency | S | low | low | — |
@@ -752,7 +752,7 @@ Keep every exported function name. Routes, board-view, corp-viewer, the worker a
 
 ## P189: Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About +15 for lib and about +35 for tests; about -12 in wh-statics/client.ts; owner-sync-port changes by about 3 lines.
 - **Depends on:** [P188](#p188)

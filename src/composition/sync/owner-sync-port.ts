@@ -1,3 +1,4 @@
+import { singleFlight } from '@/lib/memoize';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { fetchAffiliations } from '@/platform/auth/affiliation-source';
 import { parseCharacterRolesBody } from '@/platform/auth/corp-roles';
@@ -18,10 +19,16 @@ export async function listCharactersWithHealth(userId: string): Promise<Enumerat
   }));
 }
 
-export async function vendTokenFor(characterId: number): Promise<string | null> {
+/**
+ * Vends one character's access token. The datasets a board view refreshes side
+ * by side share one in-flight vend per character, so they never race each
+ * other through the refresh-token rotation. Nothing outlives the vend: the
+ * next call after it settles asks the token service again.
+ */
+export const vendTokenFor = singleFlight(async (characterId: number): Promise<string | null> => {
   const result = await getFreshAccessTokenForCharacter(characterId);
   return result.kind === 'ok' ? result.accessToken : null;
-}
+});
 
 function softEsiFailure(error: unknown): null {
   if (error instanceof EsiBudgetExhaustedError) throw error;

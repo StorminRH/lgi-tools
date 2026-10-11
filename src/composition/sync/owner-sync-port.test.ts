@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FreshTokenResult } from '@/platform/auth/eve-token-service';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 
 const mocks = vi.hoisted(() => ({
@@ -40,6 +41,7 @@ import {
   probeAndStoreRoles,
   readPagedEndpoint,
   readSingleEndpoint,
+  vendTokenFor,
 } from './owner-sync-port';
 
 const fullBody = {
@@ -171,6 +173,23 @@ describe('probeAndStoreRoles', () => {
     mocks.readEsiAuthed.mockRejectedValue(failure);
 
     await expect(probeAndStoreRoles(9001, 'access-token')).rejects.toBe(failure);
+  });
+});
+
+describe('vendTokenFor', () => {
+  it('shares one token-service call between concurrent vends of a character and asks again once it settles', async () => {
+    const vend = Promise.withResolvers<FreshTokenResult>();
+    mocks.getFreshAccessTokenForCharacter.mockReturnValueOnce(vend.promise);
+
+    const first = vendTokenFor(7);
+    const second = vendTokenFor(7);
+    expect(mocks.getFreshAccessTokenForCharacter).toHaveBeenCalledExactlyOnceWith(7);
+    vend.resolve({ kind: 'ok', accessToken: 'vended', expiresAt: 1 });
+    await expect(Promise.all([first, second])).resolves.toEqual(['vended', 'vended']);
+
+    mocks.getFreshAccessTokenForCharacter.mockResolvedValueOnce({ kind: 'reauth_required' });
+    await expect(Promise.all([vendTokenFor(7), vendTokenFor(7)])).resolves.toEqual([null, null]);
+    expect(mocks.getFreshAccessTokenForCharacter).toHaveBeenCalledTimes(2);
   });
 });
 
