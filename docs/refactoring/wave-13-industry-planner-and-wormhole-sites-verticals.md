@@ -9,7 +9,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P301](#p301) | Fold te-overrides, node-frame-state and override-map into one efficiency module and share the ME/TE factor | simplification | S | low | low | — |
-| ☐ | [P025](#p025) | Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line | ui-component | S | low | medium | [P301](#p301) |
+| ☑ | [P025](#p025) | Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line | ui-component | S | low | medium | [P301](#p301) |
 | ☐ | [P026](#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
 | ☐ | [P168](#p168) | Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus | server-pipeline | S | low | low | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
 | ☐ | [P070](#p070) | Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint | client-data | M | medium | high | [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
@@ -100,7 +100,7 @@ export function setOverride(...); export function resetOverride(...); // moved v
 
 ## P025: Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +40 (two six-prop interfaces, ten-prop threading in four places, duplicate row markup and icon-state recomputation, one meta-line copy)
 - **Depends on:** [P301](#p301)

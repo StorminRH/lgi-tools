@@ -172,12 +172,8 @@ export function CockpitBuildPlan({
     ownedDetail,
     ownedAssets,
     meOverrides,
-    setMeOverride,
-    resetMeOverride,
     ownedTe,
     teOverrides,
-    setTeOverride,
-    resetTeOverride,
     ledger,
   } = useBuildPlan();
   const { tiers, descendants } = useMemo(() => consolidateBuild(structure), [structure]);
@@ -191,20 +187,7 @@ export function CockpitBuildPlan({
     }
     return {
       state: nodeFrameState(bp, ownedMe, ownedTe, meOverrides, teOverrides),
-      adjusters: (
-        <NodeAdjusters
-          blueprintTypeId={bp}
-          name={name}
-          ownedMe={ownedMe}
-          meOverrides={meOverrides}
-          setMeOverride={setMeOverride}
-          resetMeOverride={resetMeOverride}
-          ownedTe={ownedTe}
-          teOverrides={teOverrides}
-          setTeOverride={setTeOverride}
-          resetTeOverride={resetTeOverride}
-        />
-      ),
+      adjusters: <NodeAdjusters blueprintTypeId={bp} name={name} />,
     };
   };
   const detailFor = (typeId: number) => {
