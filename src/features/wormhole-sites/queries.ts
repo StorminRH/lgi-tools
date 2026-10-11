@@ -9,6 +9,7 @@ import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
 import { dedupe, groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
+import { waveEwar } from './ewar';
 import { overlayLivePrices } from './live-prices';
 import { liveRecipesForSearch } from './live-recipes-for-search';
 import { siteClassSet } from './site-filter';
@@ -99,10 +100,6 @@ function mergeNpc(base: NpcRow, stats: CombatStats | undefined): Npc {
   };
 }
 
-function nullIfZero(value: number, anyContrib: boolean): number | null {
-  return anyContrib ? value : null;
-}
-
 function aggregateWave(
   row: WaveRow,
   npcRows: NpcRow[],
@@ -115,43 +112,11 @@ function aggregateWave(
     .filter((x): x is { stats: CombatStats; quantity: number } => x.stats !== undefined);
   const totals = summariseWave(contributing);
 
-  let ewScramSum = 0;
-  let ewWebSum = 0;
-  let ewNeutSum = 0;
-  let ewRrepSum = 0;
-  let anyScram = false;
-  let anyWeb = false;
-  let anyNeut = false;
-  let anyRrep = false;
-  for (const n of npcRows) {
-    const stats = statsByType.get(n.typeId);
-    if (!stats) continue;
-    if (stats.ewar.scram > 0) {
-      ewScramSum += stats.ewar.scram;
-      anyScram = true;
-    }
-    if (stats.ewar.web !== 0) {
-      ewWebSum += 1;
-      anyWeb = true;
-    }
-    if (stats.ewar.neutCount > 0) {
-      ewNeutSum += -stats.ewar.neutCount;
-      anyNeut = true;
-    }
-    if (stats.ewar.rrepCount > 0) {
-      ewRrepSum += stats.ewar.rrepCount;
-      anyRrep = true;
-    }
-  }
-
   return {
     id: row.id,
     waveNumber: row.waveNumber,
     waveLabel: row.waveLabel,
-    ewScram: nullIfZero(ewScramSum, anyScram),
-    ewWeb: nullIfZero(ewWebSum, anyWeb),
-    ewNeut: nullIfZero(ewNeutSum, anyNeut),
-    ewRrep: nullIfZero(ewRrepSum, anyRrep),
+    ...waveEwar(enriched),
     dpsTotal: totals.dpsTotal,
     alphaTotal: totals.alphaTotal,
     ehpTotal: totals.ehpTotal,

@@ -1,4 +1,4 @@
-import type { SiteDetail, SiteResource, Wave } from '../types';
+import type { Npc, SiteDetail, SiteResource, Wave } from '../types';
 
 /** An unpriced C5 combat site with no waves or resources. */
 export function siteDetail(over: Partial<SiteDetail> = {}): SiteDetail {
@@ -56,6 +56,30 @@ export function siteWave(over: Partial<Wave> = {}): Wave {
     alphaTotal: 0,
     ehpTotal: 0,
     npcs: [],
+    ...over,
+  };
+}
+
+/** One frigate sleeper with no combat stats (null, as an unmatched type reads). */
+export function siteNpc(over: Partial<Npc> = {}): Npc {
+  return {
+    id: 1,
+    orderInWave: 0,
+    triggerLabel: null,
+    quantity: 1,
+    sleeperName: 'Test Sleeper',
+    sleeperClassCode: 'F',
+    scram: null,
+    web: null,
+    neut: null,
+    rrep: null,
+    sig: null,
+    speed: null,
+    distance: null,
+    velocity: null,
+    dps: null,
+    alpha: null,
+    ehp: null,
     ...over,
   };
 }

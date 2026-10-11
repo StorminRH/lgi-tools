@@ -1,28 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { siteDetail, siteWave } from './__tests__/site-fixtures';
+import { siteDetail, siteNpc, siteWave } from './__tests__/site-fixtures';
 import { summariseSiteShipClasses } from './npc-summary';
 import type { Npc, SiteDetail } from './types';
 
 function mkNpc(code: string, typeId: number, quantity: number, order = 0): Npc {
-  return {
+  return siteNpc({
     id: typeId * 1000 + order,
     orderInWave: order,
-    triggerLabel: null,
     quantity,
     sleeperName: `${code}-${typeId}`,
     sleeperClassCode: code,
-    scram: null,
-    web: null,
-    neut: null,
-    rrep: null,
-    sig: null,
-    speed: null,
-    distance: null,
-    velocity: null,
-    dps: null,
-    alpha: null,
-    ehp: null,
-  };
+  });
 }
 
 /** One site whose waves field the given NPCs, wave by wave. */

@@ -19,7 +19,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | ☑ | [P120](#p120) | Give wormhole-sites one site-class range, class rank, class pill and site-type order | generic-utility | M | low | medium | [P042](wave-01-quick-wins-delete-dead-code-fix-small.md#p042) |
 | ☑ | [P121](#p121) | Centralise wormhole site-type predicates and display order; route class-range logic through siteClassSet | generic-utility | S | low | medium | [P120](#p120) |
 | ☑ | [P227](#p227) | Share one site-detail assembly in wormhole-sites/queries.ts, route class matching through siteClassSet, and drop listSiteDetails' unused filters | persistence | S | low | medium | [P121](#p121) |
-| ☐ | [P169](#p169) | Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals | server-pipeline | M | low | medium | — |
+| ☑ | [P169](#p169) | Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals | server-pipeline | M | low | medium | — |
 | ☐ | [P071](#p071) | Make resourceValueEligible a type guard in live-isk.ts and share the live-price lookup type between the site and scanner contexts | client-data | S | low | low | [P084](wave-04-formatting-dates-and-names-have-one-home.md#p084) |
 | ☐ | [P072](#p072) | Delete the module-global site-name index and make GlobalSearch the only writer of the site search index | client-data | S | low | medium | [P071](#p071) |
 
@@ -847,7 +847,7 @@ export type SiteListItem = Omit<SiteDetail, 'waves' | 'resources'>;
 
 ## P169: Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -70 / +40 (removes the aggregateWave loop and nullIfZero, the dead summariseWave ew* fields and test lines, the mock reduce, and the four reduces in activeSiteEwar)
 - **Depends on:** —

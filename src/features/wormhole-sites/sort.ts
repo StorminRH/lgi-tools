@@ -1,3 +1,4 @@
+import { siteEwarTotals } from './ewar';
 import { siteClassRange, wormholeClassRank } from './site-class';
 import { primarySiteIsk, SITE_TYPE_DISPLAY_ORDER } from './site-type';
 import type { SiteDetail } from './types';
@@ -28,8 +29,9 @@ export function defaultDirFor(key: SortableKey): SortDir {
   return 'desc';
 }
 
+/** The Scrams column value, shared by the table cell and its sort. */
 export function siteScramTotal(s: SiteDetail): number {
-  return s.waves.reduce((n, w) => n + (w.ewScram ?? 0), 0);
+  return siteEwarTotals(s).scram;
 }
 
 function valueFor(s: SiteDetail, key: SortableKey): string | number | null {

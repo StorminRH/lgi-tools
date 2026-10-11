@@ -1,4 +1,5 @@
 import type { PillTone, DotTone } from '@/components/ui/tones';
+import type { EwarKey } from '../ewar';
 import { formatClassRange, siteClassRange } from '../site-class';
 import type { HackingSiteType } from '../site-type';
 import type { SiteListItem, SiteType, WormholeClass } from '../types';
@@ -47,8 +48,6 @@ export const SITE_TYPE_LABEL: Record<SiteType, string> = {
   data:   'Data',
 };
 
-export type EwarKey = 'web' | 'scram' | 'neut' | 'rr';
-
 export const EWAR_TONE: Record<EwarKey, PillTone> = {
   web:   'blue',
   scram: 'red',
@@ -62,8 +61,6 @@ export const EWAR_LABEL: Record<EwarKey, string> = {
   neut:  'NEUT',
   rr:    'RR',
 };
-
-export const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
 
 export const TRIGGER_TONE: PillTone = 'orange';
 
