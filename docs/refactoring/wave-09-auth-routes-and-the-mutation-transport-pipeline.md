@@ -18,7 +18,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | ☑ | [P250](#p250) | Check runMutationRoute stage failures against the endpoint contract, and derive status only where it varies | contracts-validation | S | low | medium | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P141](#p141) |
 | ☑ | [P306](#p306) | Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight) | simplification | S | low | low | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) |
 | ☑ | [P143](#p143) | Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route | api-route | S | low | low | — |
-| ☐ | [P160](#p160) | Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook | server-pipeline | S | low | low | [P143](#p143) |
+| ☑ | [P160](#p160) | Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook | server-pipeline | S | low | low | [P143](#p143) |
 | ☐ | [P153](#p153) | Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell | api-route | S | low | low | — |
 | ☐ | [P149](#p149) | Generalise loadSection into readOr(message, load, fallback) for app-zone degrade reads and use it in AtlasBound and jobCharacterIds | error-handling | S | low | low | — |
 | ☐ | [P068](#p068) | Add isCurrentReadIdentity and sameReadIdentity to platform/auth/read-identity and replace the hand-written staleness guards | client-data | S | low | low | — |
@@ -951,7 +951,7 @@ export async function measureOwnedDataRead<T>(input: MeasuredOwnedDataRead<T>): 
 
 ## P160: Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +12 (owned-data-telemetry.ts 46 to ~20 lines; cost-metrics.ts +6)
 - **Depends on:** [P143](#p143)
