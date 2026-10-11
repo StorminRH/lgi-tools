@@ -2,6 +2,7 @@ import { SDE_REFINERY_GROUP_ID } from '@/data/eve-data/constants';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import type { AssembleOptions } from './build-pricing';
 import {
+  bestOf,
   computeStructureBonus,
   headlineStructureBonus,
   isProductionActivity,
@@ -74,16 +75,6 @@ function bonusFor(
     : computeStructureBonus({ ...input, filterIds: scope.filterIds });
 }
 
-/** The most any one of several jobs gets, metric by metric. */
-export function bestOf(bonuses: readonly StructureBonus[]): StructureBonus | null {
-  if (bonuses.length === 0) return null;
-  return {
-    me: Math.max(...bonuses.map((b) => b.me)),
-    te: Math.max(...bonuses.map((b) => b.te)),
-    costBonus: Math.max(...bonuses.map((b) => b.costBonus)),
-  };
-}
-
 function routeHosts(
   buildStructure: AvailableStructure | null,
   reactionStructure: AvailableStructure | null,
@@ -101,6 +92,38 @@ function routeHosts(
     reactionHost,
     mfgFromReactionSlot: !buildStructure && !!reactionStructure,
     reactionFromBuildSlot: !reactionStructure && buildIsRefinery,
+  };
+}
+
+/**
+ * A build's structure factors from the bonus each job gets: ME and TE apply
+ * job by job, the job cost bonus is the product's own job's, and each readout
+ * is the most any job of that activity gets. The caller memoises bonusOf.
+ */
+export function structureFactorsFrom(args: {
+  bonusOf: (blueprintTypeId: number) => StructureBonus | null;
+  nodeActivityByBlueprint: Record<number, number>;
+  topBlueprintTypeId: number;
+  /** The readout for an activity with no job in the build; null when omitted. */
+  readoutWithoutJobs?: (activity: IndustryActivityId) => StructureBonus | null;
+}): StructureFactors {
+  const { bonusOf, nodeActivityByBlueprint } = args;
+  const readout = (activity: IndustryActivityId) => {
+    const jobs = Object.entries(nodeActivityByBlueprint).filter(([, act]) => act === activity);
+    if (jobs.length === 0) return args.readoutWithoutJobs?.(activity) ?? null;
+    return bestOf(jobs.flatMap(([bp]) => bonusOf(Number(bp)) ?? []));
+  };
+  const manufacturingBonus = readout(MANUFACTURING_ACTIVITY);
+  const reactionBonus = readout(REACTION_ACTIVITY);
+  if (!manufacturingBonus && !reactionBonus) return NO_STRUCTURE_FACTORS;
+
+  return {
+    structureMeFactorOf: (bp) => 1 - (bonusOf(bp)?.me ?? 0) / 100,
+    structureTeFactorOf: (bp) => 1 - (bonusOf(bp)?.te ?? 0) / 100,
+    structureCostBonusPct: bonusOf(args.topBlueprintTypeId)?.costBonus ?? 0,
+    manufacturingBonus,
+    reactionBonus,
+    active: true,
   };
 }
 
@@ -137,25 +160,15 @@ export function structureFactorsFor(args: {
     memo.set(bp, bonus);
     return bonus;
   };
-  // With no job of the activity in this build, the readout falls back to the
-  // structure's best category, as it reads before any job is chosen.
-  const bestFor = (activity: IndustryActivityId) => {
-    const jobs = Object.entries(nodeActivityByBlueprint).filter(([, act]) => act === activity);
-    if (jobs.length === 0) return bonusFor(hosts[activity].structure, activity, hosts[activity].security, 'headline');
-    return bestOf(jobs.flatMap(([bp]) => bonusOf(Number(bp)) ?? []));
-  };
-  const manufacturingBonus = bestFor(MANUFACTURING_ACTIVITY);
-  const reactionBonus = bestFor(REACTION_ACTIVITY);
-  if (!manufacturingBonus && !reactionBonus) return NO_STRUCTURE_FACTORS;
-
-  return {
-    structureMeFactorOf: (bp) => 1 - (bonusOf(bp)?.me ?? 0) / 100,
-    structureTeFactorOf: (bp) => 1 - (bonusOf(bp)?.te ?? 0) / 100,
-    structureCostBonusPct: bonusOf(args.topBlueprintTypeId)?.costBonus ?? 0,
-    manufacturingBonus,
-    reactionBonus,
-    active: true,
-  };
+  return structureFactorsFrom({
+    bonusOf,
+    nodeActivityByBlueprint,
+    topBlueprintTypeId: args.topBlueprintTypeId,
+    // With no job of the activity in this build, the readout falls back to the
+    // structure's best category, as it reads before any job is chosen.
+    readoutWithoutJobs: (activity) =>
+      bonusFor(hosts[activity].structure, activity, hosts[activity].security, 'headline'),
+  });
 }
 
 /**

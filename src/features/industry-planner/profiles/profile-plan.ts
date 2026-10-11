@@ -1,12 +1,11 @@
 import { jobSkillTimeFactor, type NodeTimeSkill, type SkillTimeFactors } from '../skill-time';
+import { type IndustryActivityId, isProductionActivity, REACTION_ACTIVITY, type StructureBonus } from '../structure-bonus';
 import {
-  type IndustryActivityId,
-  isProductionActivity,
-  MANUFACTURING_ACTIVITY,
-  REACTION_ACTIVITY,
-  type StructureBonus,
-} from '../structure-bonus';
-import { bestOf, hostsReactions, structureCategoryBonus, type StructureFactors } from '../structure-factors';
+  hostsReactions,
+  structureCategoryBonus,
+  type StructureFactors,
+  structureFactorsFrom,
+} from '../structure-factors';
 import type { AvailableStructure } from '../types';
 import { CAPITAL_SHIPS_FILTER_ID, type CategoryKey, coveringOwners } from './production-categories';
 import { facilityKey, type ProfileDocument } from './profile-document';
@@ -135,30 +134,20 @@ export function profilePlan(args: {
     const { facility, characterId, bonus } = routeAndFactor(bp);
     return { facility, characterId, bonus };
   };
-  const readout = (activity: IndustryActivityId) =>
-    bestOf(
-      Object.entries(nodeActivityByBlueprint).flatMap(([bp, act]) =>
-        act === activity ? (routeAndFactor(Number(bp)).bonus ?? []) : [],
-      ),
-    );
-  const manufacturingBonus = readout(MANUFACTURING_ACTIVITY);
-  const reactionBonus = readout(REACTION_ACTIVITY);
-  const top = routeOf(args.topBlueprintTypeId);
   return {
-    structureFactors: {
-      structureMeFactorOf: (bp) => 1 - (routeAndFactor(bp).bonus?.me ?? 0) / 100,
-      structureTeFactorOf: (bp) => 1 - (routeAndFactor(bp).bonus?.te ?? 0) / 100,
-      structureCostBonusPct: top.bonus?.costBonus ?? 0,
-      manufacturingBonus,
-      reactionBonus,
-      active: manufacturingBonus !== null || reactionBonus !== null,
-    },
+    // A profile has many facilities and no one headline, so an activity with
+    // no job in the build reads no bonus.
+    structureFactors: structureFactorsFrom({
+      bonusOf: (bp) => routeAndFactor(bp).bonus,
+      nodeActivityByBlueprint,
+      topBlueprintTypeId: args.topBlueprintTypeId,
+    }),
     skillTimeFactors: {
       skillTimeFactorOf: (bp) => routeAndFactor(bp).skillFactor,
       active: members.some((m) => m.levels !== null),
     },
     routeOf,
-    top,
+    top: routeOf(args.topBlueprintTypeId),
   };
 }
 
