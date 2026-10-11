@@ -1,3 +1,4 @@
+import { esiPageCount, httpDateMs, intHeader } from './headers';
 import { esiFetch, esiUrl } from './index';
 import type { EsiPageResponseHeaders, EsiResponseHeaders } from './response-metadata';
 
@@ -15,7 +16,7 @@ export type EsiAuthedRead =
 
 async function toAuthedRead(res: Response, rl?: RlSnapshot): Promise<EsiAuthedRead> {
   if (rl !== undefined) captureRl(res, rl);
-  const expiresAt = parseExpires(res);
+  const expiresAt = httpDateMs(res.headers.get('Expires'));
   if (res.status === 304) return { kind: 'unchanged', expiresAt };
   if (res.status === 200) {
     return { kind: 'fresh', body: (await res.json()) as unknown, etag: res.headers.get('ETag'), expiresAt };
@@ -101,8 +102,8 @@ async function fetchPage(
   if (etag !== null) headers['If-None-Match'] = etag;
   const res = await esiFetch(esiUrl(pagedPath(basePath, page)), { headers });
   if (rl !== undefined) captureRl(res, rl);
-  const expiresAt = parseExpires(res);
-  const xPages = intHeader(res, 'X-Pages') ?? 1;
+  const expiresAt = httpDateMs(res.headers.get('Expires'));
+  const xPages = esiPageCount(res.headers);
   if (res.status === 304) return { kind: 'unchanged', expiresAt, xPages };
   if (res.status === 200) {
     const etagValue = res.headers.get('ETag');
@@ -132,7 +133,7 @@ export async function readEsiPagedAuthed(
 ): Promise<EsiPagedRead> {
   const first = await fetchPage(basePath, 1, heldEtags[0] ?? null, accessToken, rl);
   if (first.kind === 'error') return first;
-  const pageCount = Math.max(1, first.xPages);
+  const pageCount = first.xPages;
 
   if (pageCount === 1) {
     if (first.kind === 'unchanged') {
@@ -175,25 +176,11 @@ function finalizeFresh(pages: PageFetch[]): EsiPagedRead {
   };
 }
 
-function parseExpires(res: Response): number | null {
-  const raw = res.headers.get('Expires');
-  if (raw === null) return null;
-  const parsed = Date.parse(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function captureRl(res: Response, rl: RlSnapshot): void {
   const group = res.headers.get('X-Ratelimit-Group');
   if (group === null) return;
   rl.rlGroup = group;
-  rl.rlLimit = intHeader(res, 'X-Ratelimit-Limit');
-  rl.rlRemaining = intHeader(res, 'X-Ratelimit-Remaining');
-  rl.rlUsed = intHeader(res, 'X-Ratelimit-Used');
-}
-
-function intHeader(res: Response, name: string): number | null {
-  const raw = res.headers.get(name);
-  if (raw === null) return null;
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) ? parsed : null;
+  rl.rlLimit = intHeader(res.headers, 'X-Ratelimit-Limit');
+  rl.rlRemaining = intHeader(res.headers, 'X-Ratelimit-Remaining');
+  rl.rlUsed = intHeader(res.headers, 'X-Ratelimit-Used');
 }

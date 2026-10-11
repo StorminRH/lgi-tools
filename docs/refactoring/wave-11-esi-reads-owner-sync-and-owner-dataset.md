@@ -8,7 +8,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P192](#p192) | Share one nullable-int and HTTP-date header parser inside platform/esi | esi-sync | S | low | low | — |
+| ☑ | [P192](#p192) | Share one nullable-int and HTTP-date header parser inside platform/esi | esi-sync | S | low | low | — |
 | ☐ | [P193](#p193) | Share the scoped-linked-character ESI search loop and its id parse in composition/esi-character-search | esi-sync | S | low | medium | — |
 | ☐ | [P150](#p150) | Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling | api-route | M | medium | medium | [P193](#p193) |
 | ☐ | [P191](#p191) | Add platform/esi request-init builders and use one X-Pages parser; keep each public reader's status handling local | esi-sync | S | low | low | [P192](#p192), [P193](#p193) |
@@ -31,7 +31,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 
 ## P192: Share one nullable-int and HTTP-date header parser inside platform/esi
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +15 lines
 - **Depends on:** —

@@ -1,4 +1,5 @@
 import { createUpstashClient, type UpstashRedis } from '@/lib/upstash';
+import { parseIntOrNull } from '../headers';
 import { isFailedCall, sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
@@ -11,7 +12,6 @@ import {
   keyEtagBody,
   keyEtagMeta,
   normalizeEsiPath,
-  parseStoredInt,
   parseStoredMeta,
   resolveRetryAfter,
   WRITE_IF_LOWER_LUA,
@@ -41,8 +41,8 @@ function queueBudgetReads(pipeline: Pipeline, minute: number): void {
 
 function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'source'> {
   const selfCount =
-    (parseStoredInt(rows[0] ?? null) ?? 0) + (parseStoredInt(rows[1] ?? null) ?? 0);
-  const echo = parseStoredInt(rows[2] ?? null);
+    (parseIntOrNull(rows[0] ?? null) ?? 0) + (parseIntOrNull(rows[1] ?? null) ?? 0);
+  const echo = parseIntOrNull(rows[2] ?? null);
   return {
     effectiveRemaining: effectiveRemaining(echo, selfCount),
     selfCount,
@@ -72,7 +72,7 @@ class RedisScoreboard implements EsiScoreboard {
     const rows = await pipeline.exec<(string | null)[]>();
 
     const budget = budgetFromRows(rows);
-    const blockExpiry = parseStoredInt(rows[3] ?? null);
+    const blockExpiry = parseIntOrNull(rows[3] ?? null);
     const blockRemaining =
       blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
     return {
@@ -100,7 +100,7 @@ class RedisScoreboard implements EsiScoreboard {
       ...minutes.map(keyCallCount),
       ...minutes.map(keyFailureCount),
     );
-    const counts = rows.map((row) => parseStoredInt(row ?? null));
+    const counts = rows.map((row) => parseIntOrNull(row ?? null));
     return {
       calls: sumCounts(counts.slice(0, minutes.length)),
       failures: sumCounts(counts.slice(minutes.length)),
