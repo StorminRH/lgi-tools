@@ -25,7 +25,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | ☑ | [P239](#p239) | Replace owner snapshots in one direct-client transaction that takes the sync-row lock first | persistence | M | medium | medium | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220), [P336](#p336) |
 | ☑ | [P184](#p184) | Expire owner-dataset cache tags immediately after sync writes (keep the snapshot's uncached reads) | server-pipeline | M | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327) |
 | ☑ | [P241](#p241) | Expire a purged character's 'use cache' tags from runPurge through a PurgeContributor.cacheTags hook | persistence | S | low | medium | [P240](wave-10-server-pipelines-purge-telemetry-and-the-admin.md#p240), [P184](#p184) |
-| ☐ | [P273](#p273) | Put Upwell rig-slot helpers (UPWELL_RIG_SLOTS, rigSlotsFrom, fittedRigIds, fittingRigs) in data/eve-data/structures and return the stored row from upsertCorpStructureRigs | feature-skeleton | S | low | low | [P336](#p336) |
+| ☑ | [P273](#p273) | Put Upwell rig-slot helpers (UPWELL_RIG_SLOTS, rigSlotsFrom, fittedRigIds, fittingRigs) in data/eve-data/structures and return the stored row from upsertCorpStructureRigs | feature-skeleton | S | low | low | [P336](#p336) |
 
 <a id="p192"></a>
 
@@ -1459,7 +1459,7 @@ if (subject.kind === 'character') {
 
 ## P273: Put Upwell rig-slot helpers (UPWELL_RIG_SLOTS, rigSlotsFrom, fittedRigIds, fittingRigs) in data/eve-data/structures and return the stored row from upsertCorpStructureRigs
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 removed across 2 contracts, 2 slot helpers, 3 filters, the 2 validator loops and the route re-read; about +25 added in structures.ts and tests. Net about -5 to -10, with one DB round trip fewer per corp rig save.
 - **Depends on:** [P336](#p336)

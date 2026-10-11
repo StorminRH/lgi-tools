@@ -69,7 +69,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
 
   it('upserts authored rigs (replace the set for one structure)', async () => {
     const corp = 9005;
-    await upsertCorpStructureRigs(corp, 600003, [37178]);
+    expect(await upsertCorpStructureRigs(corp, 600003, [37178])).toEqual({ rigTypeIds: [37178], taxPct: null });
     await upsertCorpStructureRigs(corp, 600003, [37180, 37182]);
     const rigs = await getCorpStructureRigs([corp]);
     expect(rigs.get(600003)).toEqual({ rigTypeIds: [37180, 37182], taxPct: null });
@@ -77,15 +77,16 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
 
   it('taxPct is tri-state: a rig-only save leaves the stored tax, null clears it, a number sets it', async () => {
     const corp = 9007;
-    await upsertCorpStructureRigs(corp, 600005, [37178], 2.5);
-    await upsertCorpStructureRigs(corp, 600005, [37180]);
+    expect(await upsertCorpStructureRigs(corp, 600005, [37178], 2.5)).toEqual({ rigTypeIds: [37178], taxPct: 2.5 });
+    // The rig-only save answers with the tax the row kept, as stored.
+    expect(await upsertCorpStructureRigs(corp, 600005, [37180])).toEqual({ rigTypeIds: [37180], taxPct: 2.5 });
     expect((await getCorpStructureRigs([corp])).get(600005)).toEqual({
       rigTypeIds: [37180],
       taxPct: 2.5,
     });
-    await upsertCorpStructureRigs(corp, 600005, [37180], 0);
+    expect(await upsertCorpStructureRigs(corp, 600005, [37180], 0)).toEqual({ rigTypeIds: [37180], taxPct: 0 });
     expect((await getCorpStructureRigs([corp])).get(600005)?.taxPct).toBe(0);
-    await upsertCorpStructureRigs(corp, 600005, [37180], null);
+    expect(await upsertCorpStructureRigs(corp, 600005, [37180], null)).toEqual({ rigTypeIds: [37180], taxPct: null });
     expect((await getCorpStructureRigs([corp])).get(600005)?.taxPct).toBeNull();
   });
 

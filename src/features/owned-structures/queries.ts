@@ -125,20 +125,26 @@ export async function getCorpStructureRigs(
  * exposes neither the rigs nor the profile tax). Untouched by the full-replace pull
  * (saveCorpStructures never references this table), so the authored values survive
  * the hourly refresh. `taxPct` is tri-state: undefined leaves the stored tax as-is
- * (a rig-only save can't clobber it), null clears it, a number sets it.
+ * (a rig-only save can't clobber it), null clears it, a number sets it. Returns the
+ * row as stored, so a rig-only save answers with the tax it kept.
  */
 export async function upsertCorpStructureRigs(
   corporationId: number,
   structureId: number,
   rigTypeIds: number[],
   taxPct?: number | null,
-): Promise<void> {
+): Promise<CorpStructureCompletion> {
   const taxSet = taxPct === undefined ? {} : { taxPct };
-  await db
+  const [stored] = await db
     .insert(corpStructureRigs)
     .values({ corporationId, structureId, rigTypeIds, ...taxSet, setAt: new Date() })
     .onConflictDoUpdate({
       target: [corpStructureRigs.corporationId, corpStructureRigs.structureId],
       set: { rigTypeIds, ...taxSet, setAt: new Date() },
-    });
+    })
+    .returning({ rigTypeIds: corpStructureRigs.rigTypeIds, taxPct: corpStructureRigs.taxPct });
+  if (stored === undefined) {
+    throw new Error(`Corp structure rig upsert returned no row for structure ${structureId}.`);
+  }
+  return stored;
 }
