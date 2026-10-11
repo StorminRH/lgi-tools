@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#683](https://github.com/StorminRH/lgi-tools/pull/683).
+
 ← [Wave 14: Convex backend helpers](wave-14-convex-backend-helpers.md) · [Index](README.md#roadmap) · [Wave 16: Large cross-cutting migrations (last)](wave-16-large-cross-cutting-migrations-last.md) →
 
 Canvas first:
