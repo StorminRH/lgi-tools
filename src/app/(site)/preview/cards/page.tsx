@@ -3,11 +3,10 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-styles';
 import { MOCK_SITES } from '@/features/wormhole-sites/mock-data';
+import { SITE_TYPE_DISPLAY_ORDER } from '@/features/wormhole-sites/site-type';
 import type { SiteDetail, SiteType } from '@/features/wormhole-sites/types';
 
 export const metadata: Metadata = { robots: { index: false } };
-
-const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 
 function bySection(sites: SiteDetail[]): Record<SiteType, SiteDetail[]> {
   const groups: Record<SiteType, SiteDetail[]> = {
@@ -32,7 +31,7 @@ export default function PreviewCardsPage() {
         </div>
       </header>
 
-      {SECTION_ORDER.map((type, i) => {
+      {SITE_TYPE_DISPLAY_ORDER.map((type, i) => {
         const sites = groups[type];
         if (sites.length === 0) return null;
         return (

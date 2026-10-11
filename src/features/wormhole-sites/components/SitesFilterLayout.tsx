@@ -19,6 +19,7 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import { WORMHOLE_CLASSES } from '../site-taxonomy';
+import { SITE_TYPE_DISPLAY_ORDER } from '../site-type';
 import type { SiteType, WormholeClass } from '../types';
 import {
   CLASS_TONE,
@@ -26,8 +27,6 @@ import {
   SITE_TYPE_LABEL,
 } from './wormhole-styles';
 
-const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
-const TYPE_ROWS: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 const DETAIL_OPTIONS = [
   { value: 'lightbox', label: 'Lightbox' },
   { value: 'expand', label: 'Expand' },
@@ -131,7 +130,7 @@ export function SitesFilterLayout({
                   onValueChange={(next) => setTypes(next as SiteType[])}
                   className="mt-2 flex-col items-stretch"
                 >
-                  {TYPE_ROWS.map((t) => (
+                  {SITE_TYPE_DISPLAY_ORDER.map((t) => (
                     <ToggleRow key={t} value={t} className="w-full gap-2">
                       <Dot
                         tone={SITE_TYPE_DOT_TONE[t]}
@@ -219,7 +218,7 @@ export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: R
           </Button>
         </EmptyState>
       ) : view === 'cards' ? (
-        SECTION_ORDER.map((type) => {
+        SITE_TYPE_DISPLAY_ORDER.map((type) => {
           const sectionCards = cards.filter(
             (card) => card.meta.type === type && matches(card.meta),
           );

@@ -1,6 +1,7 @@
 import type { PillTone } from '@/components/ui/tones';
 import { formatIskShort } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
+import { isWaveDrivenSiteType } from '../site-type';
 import type { SiteDetail, SiteResource } from '../types';
 import {
   EWAR_LABEL,
@@ -52,7 +53,7 @@ export function deriveSiteCardHeaderView(
     subLine: isCombat ? combatSubLine(site) : resourceSubLine(liveResources),
     waveValue: formatIskShort(site.blueLootIsk),
     showIskUnit: site.blueLootIsk != null,
-    isWaveDriven: isCombat || site.siteType === 'relic' || site.siteType === 'data',
+    isWaveDriven: isWaveDrivenSiteType(site.siteType),
     classPill: siteClassPill(site),
     typePill: { tone: SITE_TYPE_TONE[site.siteType], label: SITE_TYPE_LABEL[site.siteType] },
     ewarPills: activeSiteEwar(site).map((key) => ({

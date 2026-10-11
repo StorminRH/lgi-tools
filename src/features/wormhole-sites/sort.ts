@@ -1,5 +1,5 @@
 import { siteClassRange, wormholeClassRank } from './site-class';
-import { primarySiteIsk } from './site-primary-isk';
+import { primarySiteIsk, SITE_TYPE_DISPLAY_ORDER } from './site-type';
 import type { SiteDetail } from './types';
 
 const SORTABLE_KEYS = [
@@ -13,10 +13,6 @@ const SORTABLE_KEYS = [
 
 export type SortableKey = (typeof SORTABLE_KEYS)[number];
 export type SortDir = 'asc' | 'desc';
-
-const TYPE_ORDER: Record<SiteDetail['siteType'], number> = {
-  combat: 0, ore: 1, gas: 2, relic: 3, data: 4,
-};
 
 export function parseSortKey(raw: string | undefined): SortableKey | null {
   if (!raw) return null;
@@ -32,10 +28,6 @@ export function defaultDirFor(key: SortableKey): SortDir {
   return 'desc';
 }
 
-function siteIskValue(s: SiteDetail): number | null {
-  return primarySiteIsk(s);
-}
-
 export function siteScramTotal(s: SiteDetail): number {
   return s.waves.reduce((n, w) => n + (w.ewScram ?? 0), 0);
 }
@@ -43,8 +35,8 @@ export function siteScramTotal(s: SiteDetail): number {
 function valueFor(s: SiteDetail, key: SortableKey): string | number | null {
   switch (key) {
     case 'name':     return s.name;
-    case 'type':     return TYPE_ORDER[s.siteType];
-    case 'isk':      return siteIskValue(s);
+    case 'type':     return SITE_TYPE_DISPLAY_ORDER.indexOf(s.siteType);
+    case 'isk':      return primarySiteIsk(s);
     case 'blueLoot': return s.blueLootIsk;
     case 'scrams':   return siteScramTotal(s);
     case 'class': {

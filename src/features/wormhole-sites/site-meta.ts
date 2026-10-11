@@ -1,6 +1,7 @@
 import { formatIskCompact } from '@/lib/format/isk';
 import { formatCount } from '@/lib/format/number';
 import { SITE_TYPE_LABEL } from './components/wormhole-styles';
+import { isWaveDrivenSiteType } from './site-type';
 import type { SiteDetail } from './types';
 
 export function buildSiteDescription(
@@ -9,10 +10,8 @@ export function buildSiteDescription(
   classLabel: string | null,
 ): string {
   const kind = `${classLabel ? `${classLabel} ` : ''}${typeLabel.toLowerCase()} site`;
-  const isWaveDriven =
-    site.siteType === 'combat' || site.siteType === 'relic' || site.siteType === 'data';
 
-  if (isWaveDriven) {
+  if (isWaveDrivenSiteType(site.siteType)) {
     const loot = site.blueLootIsk ?? 0;
     const lootText =
       loot > 0

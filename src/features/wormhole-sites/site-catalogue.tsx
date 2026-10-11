@@ -16,7 +16,7 @@ import {
   siteNameIndexKeys,
   type SiteLiveRecipe,
 } from './site-name-lookup';
-import { primarySiteIsk } from './site-primary-isk';
+import { primarySiteIsk } from './site-type';
 
 export type SiteCatalogueLookups = {
   readonly siteIdForName: (name: string) => number | null;

@@ -17,7 +17,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | ☑ | [P325](#p325) | Share one pricedTypeIds(structure) between server pricing and the client refresh set | simplification | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
 | ☑ | [P326](#p326) | Trim planner-shell glue: one PromiseSeeder, inline TierRow, CockpitKpis owns its margin mode, ownedTe from mapOwnedBlueprints, shared CostBasis and SystemRef | simplification | S | low | low | [P260](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p260), [P025](#p025), [P301](#p301) |
 | ☑ | [P120](#p120) | Give wormhole-sites one site-class range, class rank, class pill and site-type order | generic-utility | M | low | medium | [P042](wave-01-quick-wins-delete-dead-code-fix-small.md#p042) |
-| ☐ | [P121](#p121) | Centralise wormhole site-type predicates and display order; route class-range logic through siteClassSet | generic-utility | S | low | medium | [P120](#p120) |
+| ☑ | [P121](#p121) | Centralise wormhole site-type predicates and display order; route class-range logic through siteClassSet | generic-utility | S | low | medium | [P120](#p120) |
 | ☐ | [P227](#p227) | Share one site-detail assembly in wormhole-sites/queries.ts, route class matching through siteClassSet, and drop listSiteDetails' unused filters | persistence | S | low | medium | [P121](#p121) |
 | ☐ | [P169](#p169) | Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals | server-pipeline | M | low | medium | — |
 | ☐ | [P071](#p071) | Make resourceValueEligible a type guard in live-isk.ts and share the live-price lookup type between the site and scanner contexts | client-data | S | low | low | [P084](wave-04-formatting-dates-and-names-have-one-home.md#p084) |
@@ -658,7 +658,7 @@ Keeping site-class.ts drizzle-free is the point of moving WORMHOLE_CLASSES. I di
 
 ## P121: Centralise wormhole site-type predicates and display order; route class-range logic through siteClassSet
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About 45 lines removed and 30 added (new site-type.ts plus test); net about -15
 - **Depends on:** [P120](#p120)

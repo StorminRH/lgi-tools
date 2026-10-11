@@ -20,7 +20,7 @@ describe('sortSitesForTable', () => {
     expect(desc).toEqual([3, 1, 2]);
   });
 
-  it('sorts by type using TYPE_ORDER (combat→ore→gas→relic→data)', () => {
+  it('sorts by type in display order (combat→ore→gas→relic→data)', () => {
     const sites = [
       siteDetail({ id: 4, siteType: 'relic' }),
       siteDetail({ id: 1, siteType: 'combat' }),

@@ -1,5 +1,6 @@
 import type { PillTone, DotTone } from '@/components/ui/tones';
 import { formatClassRange, siteClassRange } from '../site-class';
+import type { HackingSiteType } from '../site-type';
 import type { SiteListItem, SiteType, WormholeClass } from '../types';
 
 export const CLASS_TONE: Record<WormholeClass, PillTone> = {
@@ -66,7 +67,7 @@ export const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
 
 export const TRIGGER_TONE: PillTone = 'orange';
 
-export const HACKING_DOT_TONE: Record<'relic' | 'data', DotTone> = {
+export const HACKING_DOT_TONE: Record<HackingSiteType, DotTone> = {
   relic: 'orange',
   data:  'blue',
 };

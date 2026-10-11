@@ -5,8 +5,8 @@ import type { SiteSearchEntry } from './queries';
 import { CLASS_TONE, SITE_TYPE_LABEL } from './components/wormhole-styles';
 import { wormholeClassRank } from './site-class';
 import { setSiteNameIndex } from './site-name-lookup';
-import { primarySiteIsk } from './site-primary-isk';
 import { WORMHOLE_CLASSES } from './site-taxonomy';
+import { primarySiteIsk } from './site-type';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
 

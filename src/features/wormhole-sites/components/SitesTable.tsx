@@ -7,7 +7,7 @@ import { formatIskShort } from '@/lib/format/isk';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import { displayableResources } from '../resource-display';
 import { siteClassSet } from '../site-filter';
-import { primarySiteIsk } from '../site-primary-isk';
+import { primarySiteIsk } from '../site-type';
 import type { SiteDetail } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
 import { SiteLiveProvider } from './SiteResourcesLive';
