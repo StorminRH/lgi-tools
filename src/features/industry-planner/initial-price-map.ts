@@ -1,36 +1,28 @@
 import type { PriceLite } from './build-pricing';
-import type { BlueprintPricing } from './types';
+import type { BlueprintPricing, RowPriceFields } from './types';
+
+/** A material or intermediate row's prices, mapped field by field so no row column reaches the map. */
+function seedPrice(bestBuy: number | null, row: RowPriceFields): PriceLite {
+  return {
+    bestBuy,
+    bestSell: row.bestSell,
+    pct5Buy: row.pct5Buy,
+    pct5Sell: row.pct5Sell,
+    buyVolume: row.buyVolume,
+    sellVolume: row.sellVolume,
+    buyDepth: null,
+    sellDepth: null,
+    source: row.source,
+    staleAfterMs: row.staleAfterMs,
+  };
+}
 
 export function initialPriceMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   const map = new Map<number, PriceLite>();
-  for (const r of pricing.rows) {
-    map.set(r.typeId, {
-      bestBuy: r.unitBuy,
-      bestSell: r.bestSell,
-      pct5Buy: r.pct5Buy,
-      pct5Sell: r.pct5Sell,
-      buyVolume: r.buyVolume,
-      sellVolume: r.sellVolume,
-      buyDepth: null,
-      sellDepth: null,
-      source: r.source,
-      staleAfterMs: r.staleAfterMs,
-    });
-  }
-  for (const ip of pricing.intermediatePrices) {
-    map.set(ip.typeId, {
-      bestBuy: ip.bestBuy,
-      bestSell: ip.bestSell,
-      pct5Buy: ip.pct5Buy,
-      pct5Sell: ip.pct5Sell,
-      buyVolume: ip.buyVolume,
-      sellVolume: ip.sellVolume,
-      buyDepth: null,
-      sellDepth: null,
-      source: ip.source,
-      staleAfterMs: ip.staleAfterMs,
-    });
-  }
+  // A material row's buy quote is its unitBuy. Intermediates go second, so
+  // their own bestBuy wins for a typeId that is both.
+  for (const r of pricing.rows) map.set(r.typeId, seedPrice(r.unitBuy, r));
+  for (const ip of pricing.intermediatePrices) map.set(ip.typeId, seedPrice(ip.bestBuy, ip));
   map.set(pricing.product.typeId, {
     bestBuy: map.get(pricing.product.typeId)?.bestBuy ?? null,
     bestSell: pricing.product.bestSell,

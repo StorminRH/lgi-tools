@@ -5,23 +5,9 @@ import { apiFetch } from '@/transport/api-client';
 import { chunk, dedupe } from '@/lib/array';
 import { refreshPricesEndpoint } from './api-contract';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
-import { toPlainPriceFigures } from './narrow';
-import type { DepthBand, PriceSource, RegionalDiscount } from './types';
+import { toClientPrice } from './narrow';
 
-export interface RefreshedPrice {
-  typeId: number;
-  bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  buyDepth: DepthBand[] | null;
-  sellDepth: DepthBand[] | null;
-  regionalDiscount: RegionalDiscount | null;
-  source: PriceSource;
-  staleAfterMs: number;
-}
+export type RefreshedPrice = { typeId: number } & ReturnType<typeof toClientPrice>;
 
 export interface RefreshOnViewResult {
   prices: Map<number, RefreshedPrice>;
@@ -49,9 +35,7 @@ async function readBatch(batch: number[], signal: AbortSignal): Promise<Refreshe
   if (!result.ok) return result.kind === 'network' && result.aborted ? 'aborted' : null;
   return result.data.prices.map((p) => ({
     typeId: p.typeId,
-    ...toPlainPriceFigures(p),
-    source: p.source,
-    staleAfterMs: Date.parse(p.staleAfter),
+    ...toClientPrice(p, Date.parse(p.staleAfter)),
   }));
 }
 
