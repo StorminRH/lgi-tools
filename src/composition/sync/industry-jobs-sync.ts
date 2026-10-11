@@ -7,10 +7,9 @@ import {
 } from '@/features/industry-jobs/queries';
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
+import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeJobsPort(): JobsPort {
   return {
@@ -25,13 +24,10 @@ function makeJobsPort(): JobsPort {
   };
 }
 
-export function refreshJobsOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshJobsForUser(
-    makeJobsPort(),
-    userId,
-    enqueueBudgetDeferral('character_industry_jobs', userId),
-  );
-}
+const jobs = ownerSyncDataset('character_industry_jobs', makeJobsPort, refreshJobsForUser);
+
+export const refreshJobsOnView = jobs.onView;
+export const runCharacterIndustryJobsRefreshJob = jobs.runJob;
 
 export interface ViewerJobs {
   characterId: number;
@@ -52,12 +48,4 @@ export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsRe
     nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
   });
   return { characters: rows, names };
-}
-
-export async function runCharacterIndustryJobsRefreshJob(
-  userId: string,
-  target: OwnerSyncTarget,
-): Promise<OwnerSyncResult> {
-  const results = await refreshJobsForUser(makeJobsPort(), userId, { target });
-  return targetedOwnerResult(target, results);
 }

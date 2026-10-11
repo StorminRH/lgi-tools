@@ -7,8 +7,7 @@ import {
 } from '@/data/corp-holdings/queries';
 import { listLinkedCharacterIdsInCorporation } from '@/platform/auth/affiliation-store';
 import { universeStructurePath } from '@/platform/esi/paths';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
+import { ownerSyncDataset } from './esi-refresh-owner-sync';
 import {
   listCharactersWithHealth,
   postSingleEndpoint,
@@ -41,11 +40,7 @@ function makeCorpContextPort(): CorpContextPort {
   };
 }
 
-export function refreshCorpContextOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshCorpContextForUser(makeCorpContextPort(), userId, enqueueBudgetDeferral('corp_context', userId));
-}
+const corpContext = ownerSyncDataset('corp_context', makeCorpContextPort, refreshCorpContextForUser);
 
-export async function runCorpContextRefreshJob(userId: string, target: OwnerSyncTarget): Promise<OwnerSyncResult> {
-  const results = await refreshCorpContextForUser(makeCorpContextPort(), userId, { target });
-  return targetedOwnerResult(target, results);
-}
+export const refreshCorpContextOnView = corpContext.onView;
+export const runCorpContextRefreshJob = corpContext.runJob;

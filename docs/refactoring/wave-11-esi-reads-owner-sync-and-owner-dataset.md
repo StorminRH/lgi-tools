@@ -15,7 +15,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | ☑ | [P194](#p194) | Build ESI paths shared across modules once, and tie the snapshot endpoint's writer and reader to one builder | esi-sync | M | low | medium | — |
 | ☑ | [P190](#p190) | Make platform/owner-sync the single home for owner-sync port bases and read-result types | esi-sync | M | low | medium | — |
 | ☑ | [P345](#p345) | Use EnumeratedOwner instead of three local copies, and share the owner fixture and owned-dataset port fake | testing | S | low | medium | [P190](#p190) |
-| ☐ | [P188](#p188) | Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker | esi-sync | S | low | low | [P190](#p190) |
+| ☑ | [P188](#p188) | Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker | esi-sync | S | low | low | [P190](#p190) |
 | ☐ | [P189](#p189) | Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive | esi-sync | S | low | medium | [P188](#p188) |
 | ☐ | [P292](#p292) | Read each character's sheet row once per direct-section phase by promoting memoizePerRun to src/lib | efficiency | S | low | high | [P188](#p188) |
 | ☐ | [P297](#p297) | Reuse fresh stored corp roles when the sync passes pick a corp credential | efficiency | S | medium | medium | [P186](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p186), [P189](#p189) |
@@ -654,7 +654,7 @@ export function ownedDatasetPortFake<TRow>(now: Date, overrides?: Partial<OwnedD
 
 ## P188: Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -45/+30. About 7 lines saved per dataset across 7 modules, and the sheet picker plus imports go; the helper and its test add about 30.
 - **Depends on:** [P190](#p190)

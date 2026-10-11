@@ -9,9 +9,8 @@ import {
 } from '@/features/skill-queue/queries';
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
 import type { SkillsPort } from '@/features/skill-queue/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
+import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeSkillsPort(): SkillsPort {
   return {
@@ -28,9 +27,10 @@ function makeSkillsPort(): SkillsPort {
   };
 }
 
-export function refreshSkillsOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId));
-}
+const skills = ownerSyncDataset('skills', makeSkillsPort, refreshSkillsForUser);
+
+export const refreshSkillsOnView = skills.onView;
+export const runSkillsRefreshJob = skills.runJob;
 
 export interface ViewerSkillLevels {
   characterId: number;
@@ -64,12 +64,4 @@ export async function getSkillLevelsForCharacterOnView(
   const levels = await getCharacterSkillLevels(characterId);
   after(() => refreshSkillsOnView(userId));
   return levels;
-}
-
-export async function runSkillsRefreshJob(
-  userId: string,
-  target: OwnerSyncTarget,
-): Promise<OwnerSyncResult> {
-  const results = await refreshSkillsForUser(makeSkillsPort(), userId, { target });
-  return targetedOwnerResult(target, results);
 }
