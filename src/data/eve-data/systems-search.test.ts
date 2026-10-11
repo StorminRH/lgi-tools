@@ -97,21 +97,28 @@ describe('systemsSource', () => {
 
   it('retries after a failed load instead of caching the rejection, and fills the snapshot on success', async () => {
     const m = await freshModule();
+    const listener = vi.fn();
+    const unsubscribe = m.loadedSystemsById.subscribe(listener);
     apiFetchMock.mockClear();
     apiFetchMock.mockRejectedValueOnce(new Error('network down'));
     await expect(m.loadSystems()).rejects.toThrow('network down');
     expect(m.getLoadedSystems()).toBeNull();
-    expect(m.getLoadedSystemsById()).toBeNull();
+    expect(m.loadedSystemsById.get()).toBeNull();
+    expect(listener).not.toHaveBeenCalled();
 
     apiFetchMock.mockResolvedValueOnce({ ok: true, status: 200, data: { systems: SYSTEMS } });
     await expect(m.loadSystems()).resolves.toEqual(SYSTEMS);
     expect(m.getLoadedSystems()).toEqual(SYSTEMS);
-    const byId = m.getLoadedSystemsById();
+    const byId = m.loadedSystemsById.get();
     expect(byId?.size).toBe(SYSTEMS.length);
     expect(byId?.get(30000142)).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
     expect(byId?.get(5)?.security).toBeNull();
     // The map is built once per load, so readers keep one identity.
-    expect(m.getLoadedSystemsById()).toBe(byId);
+    expect(m.loadedSystemsById.get()).toBe(byId);
+    // Every reader hears the load, and the server never has an index.
+    expect(listener).toHaveBeenCalledOnce();
+    expect(m.loadedSystemsById.serverValue).toBeNull();
+    unsubscribe();
   });
 
   it('drops results for a query aborted mid-flight', async () => {

@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getLoadedSystems,
-  getLoadedSystemsById,
+  loadedSystemsById,
   loadSystems,
   lookupSystem,
   matchSystem,
   type SystemSearchEntry,
 } from '@/data/eve-data/systems-search';
+import { useClientStore } from '@/lib/client-store';
 import { searchOneSource } from '@/platform/search';
 
 export type SystemParams = { system: SystemSearchEntry };
@@ -23,24 +24,21 @@ export interface SystemSearch {
 const SYSTEM_INDEX_RETRY_MS = 15_000;
 
 /**
- * The system index keyed by id, or null until it loads. A failed load tries
- * again every 15 seconds while the caller still wants it.
+ * The system index keyed by id, or null until it loads. Any caller's
+ * successful load reaches every reader; a failed load tries again every 15
+ * seconds while the caller still wants it.
  */
 export function useSystemsById(enabled = true): ReadonlyMap<number, SystemSearchEntry> | null {
-  const [systemsById, setSystemsById] = useState(() => getLoadedSystemsById());
+  const systemsById = useClientStore(loadedSystemsById);
   const [attempt, setAttempt] = useState(0);
   const wanted = enabled && systemsById === null;
   useEffect(() => {
     if (!wanted) return;
     let alive = true;
     let retry: ReturnType<typeof setTimeout> | undefined;
-    loadSystems()
-      .then(() => {
-        if (alive) setSystemsById(getLoadedSystemsById());
-      })
-      .catch(() => {
-        if (alive) retry = setTimeout(() => setAttempt((a) => a + 1), SYSTEM_INDEX_RETRY_MS);
-      });
+    loadSystems().catch(() => {
+      if (alive) retry = setTimeout(() => setAttempt((a) => a + 1), SYSTEM_INDEX_RETRY_MS);
+    });
     return () => {
       alive = false;
       clearTimeout(retry);

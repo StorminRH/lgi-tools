@@ -9,8 +9,8 @@ import { HoverCaptureRect, HoverCrosshair } from './hover-layer';
 import { useChartHover } from './use-chart-hover';
 
 /**
- * A focusable wrapper so a chart reads by keyboard too: focus shows the
- * last point, and the arrow keys step through the points.
+ * A focusable wrapper so a chart reads by keyboard too: keyboard focus shows
+ * the last point, and the arrow keys step through the points.
  */
 function ChartFocusFrame({
   count,
@@ -37,7 +37,11 @@ function ChartFocusFrame({
     <div
       tabIndex={0}
       aria-label={`${ariaLabel}; use the arrow keys to read each day`}
-      onFocus={() => onShow(count - 1)}
+      // Only keyboard focus jumps to the last point; a click or tap keeps the
+      // point under the pointer that mousemove already showed.
+      onFocus={(event) => {
+        if (event.currentTarget.matches(':focus-visible')) onShow(count - 1);
+      }}
       onKeyDown={onKey}
       onBlur={onHide}
       className="rounded-ctl outline-none focus-visible:ring-1 focus-visible:ring-isk-sub"
@@ -111,7 +115,8 @@ export function TimeSeriesFrame<P extends { x: number; y: number; label: string 
   return (
     <ChartFocusFrame
       count={points.length}
-      current={hover.tooltipData === undefined ? -1 : points.indexOf(hover.tooltipData)}
+      // By x, not identity: a ticking parent rebuilds the points each render.
+      current={points.findIndex((point) => point.x === hover.tooltipData?.x)}
       onShow={show}
       onHide={hover.hideTooltip}
       ariaLabel={ariaLabel}

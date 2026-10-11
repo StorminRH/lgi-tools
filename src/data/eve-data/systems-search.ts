@@ -1,3 +1,4 @@
+import { createClientStore, type ClientStore } from '@/lib/client-store';
 import { apiFetch } from '@/transport/api-client';
 import type { SearchSource } from '@/platform/search';
 import { fuzzyMatch } from '@/platform/search/match';
@@ -16,7 +17,7 @@ const MAX_RESULTS = 20;
 let indexPromise: Promise<SystemSearchEntry[]> | null = null;
 let loadedIndex: SystemSearchEntry[] | null = null;
 // Built once per load, so its identity holds for as long as the index does.
-let loadedById: ReadonlyMap<number, SystemSearchEntry> | null = null;
+const loadedById = createClientStore<ReadonlyMap<number, SystemSearchEntry> | null>(null);
 
 export function loadSystems(): Promise<SystemSearchEntry[]> {
   if (!indexPromise) {
@@ -27,7 +28,7 @@ export function loadSystems(): Promise<SystemSearchEntry[]> {
           throw new Error(`system index ${reason}`);
         }
         loadedIndex = result.data.systems;
-        loadedById = new Map(loadedIndex.map((system) => [system.id, system]));
+        loadedById.set(new Map(loadedIndex.map((system) => [system.id, system])));
         return loadedIndex;
       })
       .catch((err) => {
@@ -42,10 +43,14 @@ export function getLoadedSystems(): SystemSearchEntry[] | null {
   return loadedIndex;
 }
 
-/** The loaded index keyed by system id, or null until a load succeeds. */
-export function getLoadedSystemsById(): ReadonlyMap<number, SystemSearchEntry> | null {
-  return loadedById;
-}
+/**
+ * The loaded index keyed by system id, or null until a load succeeds. A store,
+ * so every reader re-renders when any caller's load succeeds.
+ */
+export const loadedSystemsById: Pick<
+  ClientStore<ReadonlyMap<number, SystemSearchEntry> | null>,
+  'get' | 'subscribe' | 'serverValue'
+> = loadedById;
 
 /** The system behind an id, or null with no id, no index yet, or no such system. */
 export function lookupSystem(

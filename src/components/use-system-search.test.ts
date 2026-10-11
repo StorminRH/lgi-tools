@@ -15,7 +15,7 @@ vi.mock('react', async (importOriginal) => ({
 vi.mock('@/data/eve-data/systems-search', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/eve-data/systems-search')>()),
   loadSystems: () => h.load(),
-  getLoadedSystemsById: () => h.byId,
+  loadedSystemsById: { get: () => h.byId, subscribe: () => () => {}, serverValue: null },
 }));
 
 import { useSystemName, useSystemsById } from './use-system-search';
@@ -79,6 +79,19 @@ describe('useSystemsById', () => {
     expect(vi.getTimerCount()).toBe(1);
     rt.unmount();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('takes an index another caller loaded, and drops its own retry', async () => {
+    vi.useFakeTimers();
+    h.load.mockRejectedValueOnce(new Error('network down'));
+    expect(rt.render(useSystemsById)).toBeNull();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(1);
+
+    h.byId = LOADED;
+    expect(rt.render(useSystemsById)).toBe(LOADED);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(h.load).toHaveBeenCalledOnce();
   });
 
   it('loads nothing while the caller does not want the index', () => {
