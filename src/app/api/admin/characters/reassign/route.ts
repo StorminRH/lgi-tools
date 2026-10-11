@@ -6,7 +6,6 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse, seeOther } from '@/transport/api-response';
 import { adminReassignFormSchema } from '@/platform/auth/api-contract';
-import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import { reassignCharacter } from '@/platform/auth/admin-users';
 import { parseFormBody } from '@/transport/route-body';
@@ -41,16 +40,6 @@ export async function POST(request: NextRequest): Promise<Response> {
         toUserId,
         runners: identityProjectionRunners,
       });
-      if (!sourceDeleted) {
-        try {
-          await reconcileAfterCharacterRemoval(fromUserId, characterId, identityProjectionRunners);
-        } catch (err) {
-          console.error(
-            '[admin/characters/reassign] source identity rebind failed after the move committed',
-            err,
-          );
-        }
-      }
 
       void logUsageEvent({
         action: 'admin_character_reassign',

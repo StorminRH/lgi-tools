@@ -26,7 +26,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | ☑ | [P222](#p222) | Reuse the eve-account-shared predicates, import EVE_PROVIDER_ID only from @/lib/eve-provider, and add signInWithEve beside startCharacterLink | persistence | S | low | low | [P067](wave-08-charts-images-and-board-workspace-adoption.md#p067) |
 | ☑ | [P257](#p257) | Route linked-account-to-characterId conversions through parseLinkedAccountId and one ids helper | contracts-validation | S | low | low | [P222](#p222) |
 | ☑ | [P176](#p176) | Resolve every guard through getFullSession, reuse the get-session response for the background check, and coalesce the opportunistic affiliation drain | server-pipeline | M | medium | medium | [P287](wave-01-quick-wins-delete-dead-code-fix-small.md#p287), [P167](#p167) |
-| ☐ | [P161](#p161) | Route user unlink, admin unlink and reassign through one unlinkCharacter that ends in reconcileAfterCharacterRemoval | server-pipeline | M | medium | high | [P141](#p141), [P146](#p146), [P256](#p256), [P257](#p257) |
+| ☑ | [P161](#p161) | Route user unlink, admin unlink and reassign through one unlinkCharacter that ends in reconcileAfterCharacterRemoval | server-pipeline | M | medium | high | [P141](#p141), [P146](#p146), [P256](#p256), [P257](#p257) |
 
 <a id="p251"></a>
 
@@ -1571,7 +1571,7 @@ Existing guards: session.test.ts (after scheduling), guard-emissions.test.ts (CO
 
 ## P161: Route user unlink, admin unlink and reassign through one unlinkCharacter that ends in reconcileAfterCharacterRemoval
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** high · **Size:** about -100 / +70 (user route -35/+12, admin-users -45/+22, reassign route -12, admin unlink route -6/+3, new helper +35)
 - **Depends on:** [P141](#p141), [P146](#p146), [P256](#p256), [P257](#p257)

@@ -25,6 +25,8 @@ import {
 } from './admin-users';
 import { pendingDeletions } from './deletion-schema';
 import { PendingDeletionError } from './deletion-jobs';
+import { unlinkCharacter } from './character-unlink';
+import { syntheticEmail } from './synthetic-email';
 import { account, session, user } from '@/db/auth-schema';
 
 const runners = {
@@ -231,6 +233,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       userId: SOURCE_ID,
       characterId: MOVED_CHAR,
     });
+    // The route refuses the last character; reaching here past it (a race) empties the user, as reassign does.
+    expect(runners.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
+    await expect(getUserById(SOURCE_ID)).resolves.toBeNull();
     await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(false);
   });
 
@@ -244,6 +249,42 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     expect(await getStoredActiveCharacterId(SOURCE_ID)).toBe(SURVIVOR_CHAR);
     expect(await getUserOwningCharacter(MOVED_CHAR)).toBeNull();
     expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: SOURCE_ID, characterId: MOVED_CHAR });
+  });
+
+  it('moves a synthetic email off the unlinked character on the admin path and a direct removal', async () => {
+    const NEWEST_CHAR = 90000023;
+    const sourceIdentity = async () => (await harness.db
+      .select({ email: user.email, activeCharacterId: user.activeCharacterId })
+      .from(user)
+      .where(eq(user.id, SOURCE_ID)))[0];
+    await harness.db.update(user)
+      .set({ email: syntheticEmail(MOVED_CHAR), activeCharacterId: MOVED_CHAR })
+      .where(eq(user.id, SOURCE_ID));
+    await seedEveAccount('newest', NEWEST_CHAR, SOURCE_ID, new Date('2026-07-03T00:00:00Z'));
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, new Date('2026-07-01T00:00:00Z'));
+    await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, new Date('2026-07-02T00:00:00Z'));
+
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(true);
+    // Left as it was, the email would let a later sign-in as MOVED_CHAR link it back here.
+    expect(await sourceIdentity()).toEqual({
+      email: syntheticEmail(SURVIVOR_CHAR), activeCharacterId: SURVIVOR_CHAR,
+    });
+
+    // Self-service unlink removes through Better Auth, outside the admin lock.
+    const outcome = await unlinkCharacter({
+      userId: SOURCE_ID,
+      characterId: SURVIVOR_CHAR,
+      runners,
+      remove: async () => (await harness.db
+        .delete(account)
+        .where(eq(account.id, 'survivor'))
+        .returning({ id: account.id })).length > 0,
+    });
+    expect(outcome).toEqual({ removed: true, accountEmptied: false });
+    expect(await sourceIdentity()).toEqual({
+      email: syntheticEmail(NEWEST_CHAR), activeCharacterId: NEWEST_CHAR,
+    });
+    expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
   });
 
   it.each([false, true])('finishes reassignment source cleanup when history erasure fails (survivor: %s)', async (survivor) => {
@@ -332,10 +373,10 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(0);
   });
 
-  it('keeps a surviving source and repoints its moved active character', async () => {
+  it('keeps a surviving source and moves its identity off the moved character', async () => {
     await harness.db
       .update(user)
-      .set({ activeCharacterId: MOVED_CHAR })
+      .set({ email: syntheticEmail(MOVED_CHAR), activeCharacterId: MOVED_CHAR })
       .where(eq(user.id, SOURCE_ID));
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, new Date('2026-07-02T00:00:00Z'));
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, new Date('2026-07-01T00:00:00Z'));
@@ -353,6 +394,8 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       characterId: MOVED_CHAR,
     });
     await expect(getStoredActiveCharacterId(SOURCE_ID)).resolves.toBe(SURVIVOR_CHAR);
+    const [source] = await harness.db.select({ email: user.email }).from(user).where(eq(user.id, SOURCE_ID));
+    expect(source?.email).toBe(syntheticEmail(SURVIVOR_CHAR));
     await expect(getUserById(SOURCE_ID)).resolves.not.toBeNull();
   });
 
