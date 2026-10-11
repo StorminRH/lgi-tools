@@ -20,6 +20,7 @@ import { addsUnlinkedMembers } from '../profile-writes';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.update-industry-profile',
+    endpoint: updateIndustryProfileEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, updateIndustryProfileRequestSchema),
     handle: async ({ userId }, body) => {

@@ -12,6 +12,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.set-corp-data-sharing',
+    endpoint: setCorpDataSharingEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, setCorpDataSharingRequestSchema),
     handle: async ({ userId }, { corporationId, enabled }) => {

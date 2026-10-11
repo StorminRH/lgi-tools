@@ -22,6 +22,7 @@ const CONFLICTS = {
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'maps.update-access',
+    endpoint: updateMapAccessEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, updateMapAccessRequestSchema),
     handle: async ({ userId }, body) => {

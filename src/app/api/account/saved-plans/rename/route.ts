@@ -13,6 +13,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.rename-saved-plan',
+    endpoint: renameSavedPlanEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, renameSavedPlanRequestSchema),
     handle: async ({ userId }, { id, name }) => {

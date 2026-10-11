@@ -25,6 +25,7 @@ export async function GET(): Promise<Response> {
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.create-industry-profile',
+    endpoint: createIndustryProfileEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, createIndustryProfileRequestSchema),
     handle: async ({ userId }, body) => {

@@ -12,6 +12,7 @@ import { apiResponse } from '@/transport/api-response';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.delete-account',
+    endpoint: accountDeleteEndpoint,
     preflight: rateLimitPreflight(
       request,
       { name: 'account-delete', perMinute: 5 },

@@ -29,6 +29,7 @@ const FEEDBACK_LIMIT_PER_MINUTE = 5;
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'feedback.submit-feedback',
+    endpoint: feedbackEndpoint,
     authorize: allowAnonymous,
     parse: (incoming) => readJsonBody(incoming, feedbackRequestSchema),
     handle: async (_authorization, body) => {

@@ -13,6 +13,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.delete-saved-plan',
+    endpoint: deleteSavedPlanEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, deleteSavedPlanRequestSchema),
     handle: async ({ userId }, { id }) => {

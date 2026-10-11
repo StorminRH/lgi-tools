@@ -30,6 +30,7 @@ const PROTECTED_RESPONSE_EXPORTS = new Set([
   'src/transport/api-response.ts:seeOther',
   'src/lib/problem.ts:serializeProblem',
   'src/transport/api-response.ts:apiResponse',
+  'src/transport/api-response.ts:apiFailure',
   'src/transport/api-response.ts:withCacheControl',
 ]);
 

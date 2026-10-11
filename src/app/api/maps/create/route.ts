@@ -29,6 +29,7 @@ export async function POST(request: Request): Promise<Response> {
 
   return runMutationRoute(request, {
     capability: 'maps.create-map',
+    endpoint: createMapEndpoint,
     preflight: async () => {
       const gate = await identity();
       if (!gate.ok) return null;

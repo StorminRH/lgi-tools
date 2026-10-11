@@ -16,6 +16,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.favorite-saved-plan',
+    endpoint: favoriteSavedPlanEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, favoriteSavedPlanRequestSchema),
     handle: async ({ userId }, { id, favorite }) => {

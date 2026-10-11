@@ -1,5 +1,5 @@
 import { isAppFailure, type AppFailure } from '@/lib/failure';
-import { problemBody, serializeProblem } from '@/lib/problem';
+import { problemBody, problemStatus, serializeProblem } from '@/lib/problem';
 import { currentCorrelationId, stashFailure } from './correlation';
 import type {
   DeclaredStatus,
@@ -57,6 +57,10 @@ export function apiResponse(
     return Response.json(value, { status });
   }
 
+  return declaredProblem(codec, status, value);
+}
+
+function declaredProblem(codec: ProblemCodec, status: number, value: unknown): Response {
   if (!isAppFailure(value)) throw new Error(`Status ${status} requires an application failure`);
   if (codec.codes.length > 0 && !codec.codes.includes(value.code)) {
     throw new Error(`Status ${status} does not declare problem code ${value.code}`);
@@ -69,6 +73,22 @@ export function apiResponse(
   }
   stashFailure(value);
   return serializeProblem(mapped);
+}
+
+/**
+ * Serializes a failure whose category is not known statically, such as a
+ * shared pipeline stage's. The status comes from the failure, and the endpoint
+ * must declare a problem there that admits the failure's code.
+ */
+export function apiFailure(endpoint: EndpointContract, failure: AppFailure): Response {
+  const status = problemStatus(failure);
+  const codec = endpoint.responses[status];
+  if (codec?.kind !== 'problem') {
+    throw new Error(
+      `Endpoint ${endpoint.method} ${endpoint.path} does not declare a problem at status ${status}`,
+    );
+  }
+  return declaredProblem(codec, status, failure);
 }
 
 export function problemResponse(failure: AppFailure): Response {

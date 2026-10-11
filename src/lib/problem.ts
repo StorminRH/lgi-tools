@@ -45,7 +45,8 @@ const CATEGORY_TITLE = {
   unexpected: 'Unexpected error',
 } satisfies Record<FailureCategory, string>;
 
-function statusFor(failure: AppFailure): number {
+/** The HTTP status a failure serializes with: its category's, or a dependency failure's own 502/503. */
+export function problemStatus(failure: AppFailure): number {
   if (failure.category === 'dependency_unavailable' && failure.status !== undefined) {
     return failure.status;
   }
@@ -66,7 +67,7 @@ export function problemBody(failure: AppFailure, correlationId: string): Problem
   return {
     type: `${PRODUCTION_SITE_URL}/problems/${failure.category}`,
     title: CATEGORY_TITLE[failure.category],
-    status: statusFor(failure),
+    status: problemStatus(failure),
     code: failure.code,
     correlationId,
     ...(failure.detail === undefined ? {} : { detail: failure.detail }),

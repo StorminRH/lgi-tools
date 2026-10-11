@@ -1,7 +1,8 @@
 import { runCapabilityRoute } from '@/app/api/capability-route';
 import type { CapabilityId } from '@/data/telemetry/capability';
-import type { FailureResult } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import type { AppFailure, FailureResult } from '@/lib/failure';
+import { apiFailure, problemResponse } from '@/transport/api-response';
+import type { EndpointContract } from '@/transport/endpoint';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 export type AuthorizationSuccess = { ok: true };
@@ -19,6 +20,8 @@ export async function allowAnonymous(): Promise<AuthorizationSuccess> {
 
 export interface CapabilityOption {
   capability: CapabilityId;
+  /** The route's contract; stage failures are then checked against its declared problems. */
+  endpoint?: EndpointContract;
   preflight?: () => Promise<Response | null>;
 }
 
@@ -43,6 +46,10 @@ interface RuntimeMutationOptions extends CapabilityOption {
   handle: (authorization: AuthorizationSuccess, body?: unknown) => MaybePromise<Response>;
 }
 
+function stageFailure(endpoint: EndpointContract | undefined, failure: AppFailure): Response {
+  return endpoint ? apiFailure(endpoint, failure) : problemResponse(failure);
+}
+
 async function runStages(
   request: Request,
   runtime: RuntimeMutationOptions,
@@ -53,14 +60,14 @@ async function runStages(
   }
 
   const authorization = await runtime.authorize();
-  if (!authorization.ok) return problemResponse(authorization.failure);
+  if (!authorization.ok) return stageFailure(runtime.endpoint, authorization.failure);
 
   const originCheck = requireSameOrigin(request);
-  if (!originCheck.ok) return problemResponse(originCheck.failure);
+  if (!originCheck.ok) return stageFailure(runtime.endpoint, originCheck.failure);
 
   if (runtime.parse) {
     const parsed = await runtime.parse(request);
-    if (!parsed.ok) return problemResponse(parsed.failure);
+    if (!parsed.ok) return stageFailure(runtime.endpoint, parsed.failure);
     return runtime.handle(authorization, parsed.data);
   }
 

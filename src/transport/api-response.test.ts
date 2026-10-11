@@ -1,14 +1,17 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import {
+  conflictFailure,
   dependencyUnavailableFailure,
   forbiddenFailure,
   rateLimitedFailure,
+  unauthenticatedFailure,
   unexpectedFailure,
   validationFailure,
 } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 import {
+  apiFailure,
   apiResponse,
   problemResponse,
   seeOther,
@@ -106,6 +109,64 @@ describe('apiResponse', () => {
     expectTypeOf<{ id: string }>().not.toExtend<
       ResponseBodyFor<typeof otherEndpoint, 200>
     >();
+  });
+});
+
+describe('apiFailure', () => {
+  const serviceEndpoint = defineEndpoint({
+    method: 'POST',
+    path: '/api/test/service',
+    request: null,
+    responses: {
+      200: jsonBody(z.object({ ok: z.literal(true) })),
+      400: jsonBody(z.object({ reason: z.string() })),
+      401: problem('unauthenticated'),
+      409: textBody(),
+      500: problem('not_configured'),
+    },
+  });
+
+  it('derives the status from the failure and stashes it like apiResponse', async () => {
+    const result = await withCorrelationScope(async () => {
+      const response = apiFailure(
+        serviceEndpoint,
+        unexpectedFailure('not_configured', undefined, 'service authentication is not configured'),
+      );
+      return { response, stashed: currentStashedFailure() };
+    });
+    expect(result.response.status).toBe(500);
+    expect(result.response.headers.get('Content-Type')).toBe('application/problem+json');
+    expect(problemBodySchema.parse(await result.response.json())).toMatchObject({
+      status: 500,
+      code: 'not_configured',
+      detail: 'service authentication is not configured',
+    });
+    expect(result.stashed).toMatchObject({ category: 'unexpected', code: 'not_configured' });
+
+    const unauthenticated = apiFailure(serviceEndpoint, unauthenticatedFailure());
+    expect(unauthenticated.status).toBe(401);
+    expect(problemBodySchema.parse(await unauthenticated.json())).toMatchObject({
+      status: 401,
+      code: 'unauthenticated',
+    });
+  });
+
+  it('throws when the endpoint declares no problem at the derived status or not this code', () => {
+    expect(() => apiFailure(serviceEndpoint, forbiddenFailure())).toThrow(
+      'Endpoint POST /api/test/service does not declare a problem at status 403',
+    );
+    expect(() =>
+      apiFailure(serviceEndpoint, unauthenticatedFailure('session_expired')),
+    ).toThrow('Status 401 does not declare problem code session_expired');
+  });
+
+  it('never serializes a failure through a non-problem codec at its status', () => {
+    expect(() =>
+      apiFailure(serviceEndpoint, validationFailure('invalid_body', 'secret detail')),
+    ).toThrow('Endpoint POST /api/test/service does not declare a problem at status 400');
+    expect(() => apiFailure(serviceEndpoint, conflictFailure())).toThrow(
+      'does not declare a problem at status 409',
+    );
   });
 });
 
