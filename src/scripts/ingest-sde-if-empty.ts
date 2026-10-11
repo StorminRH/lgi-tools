@@ -1,7 +1,4 @@
-import { config } from 'dotenv';
-import { readEnv } from '@/lib/env';
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
-
+import './load-env';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { SDE_META_KEY_VERSION } from '../data/eve-data/constants';
