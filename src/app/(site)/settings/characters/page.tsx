@@ -16,16 +16,16 @@ import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkChar
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveLinkedCharacterStatus } from '@/platform/auth/scope-health';
+import { LINK_ERROR_MESSAGES } from '@/composition/auth-error';
 import { resolveNotice } from '@/lib/error-copy';
 import type { BetterAuthLinkError, CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { QuietSectionHead } from '@/components/ui/section-head';
 
 const ERROR_MESSAGES = {
-  account_already_linked_to_different_user: 'That character is already linked to another account.',
+  ...LINK_ERROR_MESSAGES,
   last_character: "You can't unlink your only character.",
   not_linked: "That character isn't linked to your account.",
   unlink_failed: 'Could not remove that character. Please try again.',
-  "email_doesn't_match": 'Linking failed. Please try again.',
 } satisfies Record<CharacterLinkNotice | BetterAuthLinkError, string>;
 
 type CharactersSearchParams = Promise<{ error?: string | string[] }>;

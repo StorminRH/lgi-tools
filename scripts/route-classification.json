@@ -105,7 +105,6 @@
     "/api/account/industry-profiles/update": "dynamic",
     "/api/account/corp-industry-jobs": "dynamic",
     "/api/account/corp-sharing": "dynamic",
-    "/api/account/corp-structures": "dynamic",
     "/api/account/corp-structures/rigs": "dynamic",
     "/api/account/custom-structures": "dynamic",
     "/api/account/custom-structures/delete": "dynamic",

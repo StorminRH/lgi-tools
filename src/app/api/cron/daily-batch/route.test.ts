@@ -104,9 +104,8 @@ describe('GET /api/cron/daily-batch', () => {
           vi.advanceTimersByTime(6_000);
           return { deleted: 1, remaining: false };
         },
-        teardownAccess: async () => {
+        fenceAccess: async () => {
           vi.advanceTimersByTime(6_000);
-          return { inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'applied' };
         },
         tombstoneMap: async (mapId) => {
           tombstoned.push(mapId);

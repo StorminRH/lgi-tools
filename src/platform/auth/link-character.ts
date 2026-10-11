@@ -8,9 +8,17 @@ import { authClient } from './auth-client';
  */
 const stayOnPage = (): void => {};
 
-/** Start EVE SSO sign-in. */
+/**
+ * Start EVE SSO sign-in. Any failed sign-in comes back to the home page, in
+ * development as in production; the page explains a refused link
+ * (`?error=account_not_linked`).
+ */
 export function startEveSignIn(callbackURL = '/'): void {
-  void authClient.signIn.oauth2({ providerId: EVE_PROVIDER_ID, callbackURL }).catch(stayOnPage);
+  void authClient.signIn.oauth2({
+    providerId: EVE_PROVIDER_ID,
+    callbackURL,
+    errorCallbackURL: '/',
+  }).catch(stayOnPage);
 }
 
 /** Link another EVE character, returning to `callbackURL` whether or not it succeeds. */
