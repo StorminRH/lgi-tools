@@ -167,47 +167,54 @@ async function fetchViaEsiRegionDump(
   return bucketsToRawPrices(typeIds, buckets);
 }
 
-async function fetchViaEsiPerType(
+/**
+ * Reads each type's order book from ESI on its own, with no fallback. A type
+ * whose read failed (non-2xx, a malformed body, a network error or the budget
+ * gate) is listed in `failed` for the caller to send to Fuzzwork, so callers
+ * that read one type at a time can batch the fallback themselves. Once a read
+ * hits the budget gate, the types not yet started fail without a request.
+ */
+export async function fetchPricesFromEsiPerType(
   typeIds: number[],
-): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {
-  const results: RawMarketPrice[] = [];
-  const fallbackNeeded: number[] = [];
+): Promise<{ prices: RawMarketPrice[]; failed: number[]; budgetExhausted: boolean }> {
+  const prices: RawMarketPrice[] = [];
+  const failed: number[] = [];
   let budgetExhausted = false;
 
   await mapConcurrent(typeIds, PER_TYPE_CONCURRENCY, async (typeId) => {
     if (budgetExhausted) {
-      fallbackNeeded.push(typeId);
+      failed.push(typeId);
       return;
     }
     try {
       const res = await esiFetch(perTypeUrl(typeId));
       if (!res.ok) {
-        fallbackNeeded.push(typeId);
+        failed.push(typeId);
         return;
       }
       const orders = parseEsiOrders(await res.json());
       const buckets = new Map<number, OrderBucket>();
       absorbOrders(orders, new Set([typeId]), buckets);
-      results.push(...bucketsToRawPrices([typeId], buckets));
+      prices.push(...bucketsToRawPrices([typeId], buckets));
     } catch (err) {
-      if (err instanceof EsiBudgetExhaustedError) {
-        budgetExhausted = true;
-        fallbackNeeded.push(typeId);
-        return;
-      }
-      fallbackNeeded.push(typeId);
+      if (err instanceof EsiBudgetExhaustedError) budgetExhausted = true;
+      failed.push(typeId);
     }
   });
 
-  if (fallbackNeeded.length > 0) {
-    const fb = await fallbackToFuzzwork(fallbackNeeded);
-    results.push(...fb);
-  }
-
-  return { prices: results, budgetExhausted };
+  return { prices, failed, budgetExhausted };
 }
 
-async function fallbackToFuzzwork(
+async function fetchViaEsiPerType(
+  typeIds: number[],
+): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {
+  const { prices, failed, budgetExhausted } = await fetchPricesFromEsiPerType(typeIds);
+  if (failed.length === 0) return { prices, budgetExhausted };
+  return { prices: [...prices, ...(await fetchFuzzworkFallback(failed))], budgetExhausted };
+}
+
+/** Prices `typeIds` from Fuzzwork in batches, labelled 'fuzzwork-fallback'. */
+export async function fetchFuzzworkFallback(
   typeIds: number[],
 ): Promise<RawMarketPrice[]> {
   const raw = await fetchPricesFromFuzzwork(typeIds);
@@ -238,7 +245,7 @@ export async function fetchPricesFromSource(
         err instanceof EsiServerError ||
         err instanceof EsiContractError
       ) {
-        const prices = await fallbackToFuzzwork(unique);
+        const prices = await fetchFuzzworkFallback(unique);
         return { prices, budgetExhausted: err instanceof EsiBudgetExhaustedError };
       }
       throw err;

@@ -9,10 +9,11 @@ import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 import { apiResponse } from '@/transport/api-response';
 
 /**
- * Worst honest case: 50 typeIds at per-type ESI concurrency 10 → up to 5
- * sequential rounds of 10s-timeout fetches plus the Fuzzwork fallback
- * (observed peak 38.8s). 60 covers that while bounding a hang at well under
- * the 300s platform default.
+ * Worst honest case: 50 typeIds at per-type ESI concurrency 20 → up to 3
+ * sequential rounds of 10s-timeout ESI reads, then one batched Fuzzwork
+ * request (10s timeout) for every type ESI could not price, about 40s. The
+ * write-behind in after() counts against the same budget. 60 covers that
+ * while bounding a hang at well under the 300s platform default.
  */
 export const maxDuration = 60;
 

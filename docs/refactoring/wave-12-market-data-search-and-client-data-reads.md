@@ -12,7 +12,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 | ☑ | [P052](#p052) | Replace the latest-value refs in both refresh-on-view hooks with useEffectEvent, and drop the history hook's unused return state | react-hook | S | low | low | — |
 | ☑ | [P077](#p077) | Use useEffectEvent in the on-view refresh hooks, drop the history hook's dead state, and share notifyWriteBehind through lib | client-data | S | low | low | [P052](#p052) |
 | ☑ | [P332](#p332) | Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads | simplification | S | low | low | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077) |
-| ☐ | [P295](#p295) | Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type | efficiency | S | low | medium | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332) |
+| ☑ | [P295](#p295) | Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type | efficiency | S | low | medium | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332) |
 | ☐ | [P076](#p076) | Name the plain price-figure type in data/market-prices and build RefreshedPrice, PriceLite and the planner rows from it | contracts-validation | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
 | ☐ | [P075](#p075) | Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label | client-data | S | low | low | — |
 | ☐ | [P063](#p063) | Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it | client-data | L | medium | medium | [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075) |
@@ -285,7 +285,7 @@ export const pgInt4IdSchema = z.number().int().positive().max(PG_INT4_MAX);
 
 ## P295: Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about +30 / -8 across source.ts and refresh-on-view.ts, plus tests
 - **Depends on:** [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332)

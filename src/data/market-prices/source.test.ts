@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BULK_THRESHOLD } from './constants';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
-import { computeDepth, computeSide, fetchPricesFromSource } from './source';
+import { computeDepth, computeSide, fetchPricesFromEsiPerType, fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 
 vi.mock('@/platform/esi', async () => {
@@ -368,6 +368,36 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
       sellVolume: null,
       source: 'esi',
     });
+  });
+});
+
+describe('fetchPricesFromEsiPerType', () => {
+  it('returns the types ESI could not price for the caller to send to Fuzzwork', async () => {
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const id = Number(/type_id=(\d+)/.exec(url)![1]);
+      if (id === 99) throw new EsiServerError(503);
+      if (id === 77) return new Response(JSON.stringify({ unexpected: 'shape' }), { status: 200 });
+      if (id === 66) return new Response('not found', { status: 404 });
+      return ordersResponse([{ type_id: id, is_buy_order: false, price: 2, volume_remain: 1 }]);
+    });
+
+    const { prices, failed, budgetExhausted } = await fetchPricesFromEsiPerType([10, 66, 77, 99]);
+
+    expect(prices.map((r) => [r.typeId, r.source, r.bestSell])).toEqual([[10, 'esi', 2]]);
+    expect([...failed].sort((a, b) => a - b)).toEqual([66, 77, 99]);
+    expect(budgetExhausted).toBe(false);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
+  it('reports budget exhaustion and fails every type without calling Fuzzwork', async () => {
+    vi.mocked(esiFetch).mockRejectedValue(new EsiBudgetExhaustedError(5));
+
+    const { prices, failed, budgetExhausted } = await fetchPricesFromEsiPerType([1, 2, 3]);
+
+    expect(prices).toEqual([]);
+    expect([...failed].sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    expect(budgetExhausted).toBe(true);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
   });
 });
 
