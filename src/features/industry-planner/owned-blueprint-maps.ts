@@ -2,14 +2,17 @@ import type { OwnedBlueprintMeEntry, OwnedComponentDetail } from './types';
 
 export interface OwnedBlueprintMaps {
   ownedMe: Map<number, number>;
+  ownedTe: Map<number, number>;
   ownedDetail: Map<number, OwnedComponentDetail>;
 }
 
 export function mapOwnedBlueprints(blueprints: OwnedBlueprintMeEntry[]): OwnedBlueprintMaps {
   const ownedMe = new Map<number, number>();
+  const ownedTe = new Map<number, number>();
   const ownedDetail = new Map<number, OwnedComponentDetail>();
   for (const blueprint of blueprints) {
     ownedMe.set(blueprint.blueprintTypeId, blueprint.me);
+    ownedTe.set(blueprint.blueprintTypeId, blueprint.te);
     ownedDetail.set(blueprint.blueprintTypeId, {
       te: blueprint.te,
       ownerType: blueprint.ownerType,
@@ -19,5 +22,5 @@ export function mapOwnedBlueprints(blueprints: OwnedBlueprintMeEntry[]): OwnedBl
       containerName: blueprint.containerName,
     });
   }
-  return { ownedMe, ownedDetail };
+  return { ownedMe, ownedTe, ownedDetail };
 }

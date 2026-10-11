@@ -205,7 +205,6 @@ export function PlannerRail({
   ledgerShown: boolean;
   onToggleLedger: () => void;
 }) {
-  const { marginMode, setMarginMode } = usePlannerConfig();
   return (
     <aside aria-label="Blueprint" className="reveal flex min-w-0 flex-col gap-5">
       <BlueprintIdentity structure={structure} />
@@ -214,7 +213,7 @@ export function PlannerRail({
         <ProfileSwitch />
       </div>
       <BuildTools structure={structure} ledgerShown={ledgerShown} onToggleLedger={onToggleLedger} />
-      <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
+      <CockpitKpis structure={structure} />
     </aside>
   );
 }

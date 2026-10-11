@@ -6,14 +6,9 @@ import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { isEfficiencyEligible, tierColumnView, unitPriceMap, type TierRowView } from '../build-plan-view';
-import {
-  consolidateBuild,
-  scaleTiersToBatched,
-  type ConsolidatedItem,
-  type ConsolidatedTier,
-} from '../build-consolidate';
+import { consolidateBuild, scaleTiersToBatched, type ConsolidatedTier } from '../build-consolidate';
 import { nodeFrameState } from '../efficiency';
-import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
+import type { BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
 import { LedgerColumnHead } from './ledger-parts';
 import { NodeAdjusters } from './MeAdjuster';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
@@ -38,53 +33,6 @@ const COLS_DESKTOP = [
   'cockpit:grid-cols-[repeat(8,minmax(8rem,1fr))]',
 ];
 
-function TierRow({
-  item,
-  icon,
-  qty,
-  value,
-  efficiency,
-  detail,
-  ownedQty,
-  heldBy,
-  lit,
-  dimmed,
-  onOpen,
-  onHover,
-}: {
-  item: ConsolidatedItem;
-  icon: ReturnType<typeof nodeImage>;
-  qty: number;
-  value: number | null;
-  efficiency?: NodeEfficiency;
-  detail?: OwnedComponentDetail;
-  ownedQty?: number;
-  heldBy?: AssetHolding[];
-  lit: boolean;
-  dimmed: boolean;
-  onOpen?: () => void;
-  onHover?: (entering: boolean) => void;
-}) {
-  return (
-    <NodeCard
-      typeId={item.typeId}
-      icon={icon}
-      name={item.name}
-      label={item.label}
-      qty={qty}
-      value={value}
-      efficiency={efficiency}
-      detail={detail}
-      ownedQty={ownedQty}
-      heldBy={heldBy}
-      lit={lit}
-      dimmed={dimmed}
-      onOpen={onOpen}
-      onHover={onHover}
-    />
-  );
-}
-
 interface RowHandlers {
   iconFor: (typeId: number) => ReturnType<typeof nodeImage>;
   efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
@@ -99,9 +47,11 @@ function TierRowSlot({ row, handlers }: { row: TierRowView; handlers: RowHandler
   const { item } = row;
   const { ownedQty, heldBy } = ownedAssetFor(item.typeId) ?? {};
   return (
-    <TierRow
-      item={item}
+    <NodeCard
+      typeId={item.typeId}
       icon={iconFor(item.typeId)}
+      name={item.name}
+      label={item.label}
       qty={row.qty}
       value={row.value}
       efficiency={efficiencyFor?.(item.typeId, item.name)}

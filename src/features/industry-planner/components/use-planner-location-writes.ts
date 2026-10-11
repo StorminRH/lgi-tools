@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { createBuildSystemApplier, type ApplySystemOptions, type BuildSystemRef } from '../build-system-apply';
+import { createBuildSystemApplier, type ApplySystemOptions } from '../build-system-apply';
 import type { ReactionLocationSnapshot } from '../selection-policy';
 import { REACTION_ACTIVITY } from '../structure-bonus';
-import type { BlueprintStructure } from '../types';
+import type { BlueprintStructure, JobSystemRef } from '../types';
 import { useResourceRead } from '@/lib/use-resource-read';
 import type { SelectedLocation } from './planner-contexts';
 import { readCostIndices } from './read-cost-indices';
@@ -49,7 +49,7 @@ export function usePlannerLocationWrites(
       // The system priced until now stays while the next is read, so the
       // planner does not ask twice; a failed read clears it rather than
       // leaving another system's fees standing.
-      return async (sys: BuildSystemRef, opts: ApplySystemOptions) => {
+      return async (sys: JobSystemRef, opts: ApplySystemOptions) => {
         const outcome = await apply(sys, opts);
         if (outcome.status === 'failed') {
           setLocation(null);

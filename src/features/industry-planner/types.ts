@@ -96,6 +96,13 @@ export interface TypeAdjustedPrice {
   adjustedPrice: number;
 }
 
+/** A solar system a job is priced in, as the planner names and rates it. */
+export interface JobSystemRef {
+  systemId: number;
+  systemName: string;
+  security: number | null;
+}
+
 /** One system's job cost indices; null where the system has none for the activity. */
 export interface SystemJobCostIndex {
   systemId: number;

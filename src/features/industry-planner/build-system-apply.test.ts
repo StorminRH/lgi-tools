@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createBuildSystemApplier, type BuildSystemRef } from './build-system-apply';
-import type { SystemJobCostIndex } from './types';
+import { createBuildSystemApplier } from './build-system-apply';
+import type { JobSystemRef, SystemJobCostIndex } from './types';
 
-const JITA: BuildSystemRef = { systemId: 30000142, systemName: 'Jita', security: 0.9 };
-const AMARR: BuildSystemRef = { systemId: 30002187, systemName: 'Amarr', security: 1.0 };
+const JITA: JobSystemRef = { systemId: 30000142, systemName: 'Jita', security: 0.9 };
+const AMARR: JobSystemRef = { systemId: 30002187, systemName: 'Amarr', security: 1.0 };
 
 const DATA: SystemJobCostIndex = { systemId: 30000142, manufacturing: 0.05, reaction: null };
 
@@ -12,8 +12,8 @@ function makeDeps(
 ) {
   return {
     fetchLocation,
-    onApplied: vi.fn<(sys: BuildSystemRef, data: SystemJobCostIndex) => void>(),
-    onPersist: vi.fn<(sys: BuildSystemRef) => void>(),
+    onApplied: vi.fn<(sys: JobSystemRef, data: SystemJobCostIndex) => void>(),
+    onPersist: vi.fn<(sys: JobSystemRef) => void>(),
   };
 }
 

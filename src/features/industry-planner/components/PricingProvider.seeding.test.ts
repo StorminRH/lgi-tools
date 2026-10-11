@@ -1,9 +1,9 @@
 import type { ReactElement, ReactNode } from 'react';
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { settle } from '@/lib/__tests__/hook-runtime';
 import { assemblePricing } from '../build-pricing';
-import type { BlueprintStructure, TypeAdjustedPrice } from '../types';
-import type { BuildSetupValue, MarketDataValue } from './planner-contexts';
+import type { BlueprintStructure, OwnedBlueprintMeEntry, TypeAdjustedPrice } from '../types';
+import type { BuildPlanValue, BuildSetupValue, MarketDataValue } from './planner-contexts';
 
 const h = vi.hoisted(() => ({
   /** What each promise the provider was handed resolves to, once it has. */
@@ -20,6 +20,9 @@ const h = vi.hoisted(() => ({
     pending: false,
   },
   refresh: { refreshing: false },
+  /** What the account's owned-blueprints read answers; null leaves it failing. */
+  ownedBlueprints: null as OwnedBlueprintMeEntry[] | null,
+  startedReads: new Set<unknown>(),
 }));
 const rt = await vi.hoisted(async () =>
   (await import('@/lib/__tests__/hook-runtime')).createHookRuntime({ memoizeCallbacks: true }),
@@ -34,7 +37,22 @@ vi.mock('@/components/PreferencesProvider', () => ({ usePreference: () => h.cost
 vi.mock('@/components/ui/loading-toast', () => ({ useLoadingToast: () => undefined }));
 vi.mock('@/data/market-prices/use-refresh-on-view', () => ({ useRefreshOnView: () => h.refresh }));
 vi.mock('@/data/market-history/use-refresh-on-view', () => ({ useRefreshHistoryOnView: () => undefined }));
-vi.mock('@/lib/use-resource-read', () => ({ useResourceRead: () => undefined }));
+vi.mock('@/lib/use-resource-read', () => ({
+  // Each read starts once and lands its data, as the real hook does for a read that keeps its identity.
+  useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, opts: { onData: (data: unknown) => void }) => {
+    if (h.startedReads.has(read)) return;
+    h.startedReads.add(read);
+    void read(new AbortController().signal).then((data) => {
+      if (data !== null) opts.onData(data);
+    });
+  },
+}));
+vi.mock('@/transport/api-client', () => ({
+  apiFetch: async (endpoint: { path: string }) =>
+    endpoint.path === '/api/industry/owned-blueprints' && h.ownedBlueprints
+      ? { ok: true, data: { blueprints: h.ownedBlueprints } }
+      : { ok: false },
+}));
 vi.mock('../use-available-structures', () => ({ useAvailableStructures: () => null }));
 vi.mock('./use-planner-location-writes', () => ({ usePlannerLocationWrites: () => h.writes }));
 vi.mock('./use-component-fee-sources', () => ({ useComponentFeeSources: () => h.componentFees }));
@@ -86,6 +104,7 @@ const STRUCTURE: BlueprintStructure = {
 type ProviderTree = ReactElement<{
   marketData: MarketDataValue;
   buildSetup: BuildSetupValue;
+  buildPlan: BuildPlanValue;
   children: ReactNode[];
 }>;
 type SeederElement = ReactElement<{ promise: Promise<unknown> }, (props: { promise: Promise<unknown> }) => null>;
@@ -99,6 +118,13 @@ function renderProvider(props: Parameters<typeof PricingProvider>[0]): ProviderT
   }
   return tree;
 }
+
+afterEach(() => {
+  rt.unmount();
+  h.resolved.clear();
+  h.startedReads.clear();
+  h.ownedBlueprints = null;
+});
 
 test('the build is charged on the seeded adjusted prices before any system cost index is read', async () => {
   const pricingPromise = Promise.resolve(assemblePricing(STRUCTURE, () => undefined, { basis: 'marginal' }));
@@ -135,4 +161,29 @@ test('the build is charged on the seeded adjusted prices before any system cost 
   expect(net.componentJobs!.total).toBeCloseTo(1.68 + 0.175 + 0.7, 9);
   // The widget's own job is valued on the plates too, and waits only on its system's index.
   expect(net.jobFee).toMatchObject({ estimatedItemValue: 200, missingAdjustedPriceTypeIds: [], jobGrossCost: null });
+});
+
+test('owned blueprint maps stay null until their read lands, then the TE read gives the build its time', async () => {
+  h.ownedBlueprints = [
+    { blueprintTypeId: 1000, me: 10, te: 20, ownerType: 'character', ownerName: 'Builder', locationName: 'Jita IV', locationFlag: 'Hangar', containerName: null },
+  ];
+  const props = {
+    structure: { ...STRUCTURE, topJobSeconds: 1_000 },
+    pricingPromise: new Promise<null>(() => undefined),
+    historyPromise: new Promise<never[]>(() => undefined),
+    adjustedPricesPromise: new Promise<never[]>(() => undefined),
+    children: null,
+  };
+
+  let plan = renderProvider(props).props.buildPlan;
+  // Not read yet is not the same as owning none: every map is null, not empty.
+  expect([plan.ownedMe, plan.ownedTe, plan.ownedDetail]).toEqual([null, null, null]);
+  expect(plan.buildTimes.topTe).toBe(0);
+
+  await settle();
+  plan = renderProvider(props).props.buildPlan;
+  expect(plan.ownedMe).toEqual(new Map([[1000, 10]]));
+  expect(plan.ownedTe).toEqual(new Map([[1000, 20]]));
+  expect(plan.ownedDetail?.get(1000)).toMatchObject({ te: 20, ownerName: 'Builder' });
+  expect(plan.buildTimes.topTe).toBe(20);
 });

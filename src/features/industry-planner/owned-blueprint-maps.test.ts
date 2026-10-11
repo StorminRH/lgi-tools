@@ -14,10 +14,11 @@ describe('mapOwnedBlueprints', () => {
     containerName: null,
   };
 
-  it('splits a response row into the compute ME map and the readout detail map', () => {
-    expect(mapOwnedBlueprints([])).toEqual({ ownedMe: new Map(), ownedDetail: new Map() });
+  it('splits a response row into the compute ME and TE maps and the readout detail map', () => {
+    expect(mapOwnedBlueprints([])).toEqual({ ownedMe: new Map(), ownedTe: new Map(), ownedDetail: new Map() });
     expect(mapOwnedBlueprints([BLUEPRINT])).toEqual({
       ownedMe: new Map([[681, 10]]),
+      ownedTe: new Map([[681, 20]]),
       ownedDetail: new Map([
         [
           681,
@@ -32,5 +33,17 @@ describe('mapOwnedBlueprints', () => {
         ],
       ]),
     });
+  });
+
+  it('keys each blueprint TE by its blueprint type, matching the detail it reads out', () => {
+    const { ownedTe, ownedDetail } = mapOwnedBlueprints([
+      BLUEPRINT,
+      { ...BLUEPRINT, blueprintTypeId: 682, me: 4, te: 8 },
+    ]);
+    expect([...ownedTe]).toEqual([
+      [681, 20],
+      [682, 8],
+    ]);
+    expect([...ownedTe]).toEqual([...ownedDetail].map(([bp, detail]) => [bp, detail.te]));
   });
 });

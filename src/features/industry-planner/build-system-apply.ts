@@ -1,10 +1,4 @@
-import type { SystemJobCostIndex } from './types';
-
-export interface BuildSystemRef {
-  systemId: number;
-  systemName: string;
-  security: number | null;
-}
+import type { JobSystemRef, SystemJobCostIndex } from './types';
 
 export type ApplySystemOutcome =
   | { status: 'applied'; data: SystemJobCostIndex }
@@ -18,9 +12,9 @@ export interface ApplySystemOptions {
 
 export function createBuildSystemApplier(deps: {
   fetchLocation: (systemId: number, signal: AbortSignal) => Promise<SystemJobCostIndex | null>;
-  onApplied: (sys: BuildSystemRef, data: SystemJobCostIndex) => void;
-  onPersist: (sys: BuildSystemRef) => void;
-}): (sys: BuildSystemRef, opts: ApplySystemOptions) => Promise<ApplySystemOutcome> {
+  onApplied: (sys: JobSystemRef, data: SystemJobCostIndex) => void;
+  onPersist: (sys: JobSystemRef) => void;
+}): (sys: JobSystemRef, opts: ApplySystemOptions) => Promise<ApplySystemOutcome> {
   let gen = 0;
   let ctrl: AbortController | null = null;
   return async (sys, opts) => {

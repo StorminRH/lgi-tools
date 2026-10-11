@@ -67,8 +67,8 @@ import type {
   AvailableStructure,
   BlueprintPricing,
   BlueprintStructure,
+  JobSystemRef,
   OwnedAssetEntry,
-  OwnedComponentDetail,
   TypeAdjustedPrice,
 } from '../types';
 import {
@@ -78,7 +78,6 @@ import {
   type MarketDataValue,
   type PlannerConfigValue,
   type SelectedLocation,
-  type SelectedReactionSystem,
 } from './planner-contexts';
 
 /**
@@ -147,7 +146,7 @@ function usePlannerLocationState(structure: BlueprintStructure) {
   const availableStructures = useAvailableStructures();
   const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
-  const [reactionSystem, setReactionSystem] = useState<SelectedReactionSystem | null>(null);
+  const [reactionSystem, setReactionSystem] = useState<JobSystemRef | null>(null);
   const [fetchedReactionLocation, setFetchedReactionLocation] =
     useState<ReactionLocationSnapshot | null>(null);
   const reactionSecurity = reactionSystem?.security ?? null;
@@ -205,8 +204,8 @@ function usePlannerLocationState(structure: BlueprintStructure) {
 }
 
 function usePlannerOwnedResources(structure: BlueprintStructure) {
-  const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
-  const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
+  // Null until a read lands, which efficiency readers tell apart from an empty map.
+  const [ownedBlueprints, setOwnedBlueprints] = useState<OwnedBlueprintMaps | null>(null);
   const [ownedAssets, setOwnedAssets] = useState<Map<number, OwnedAssetEntry> | null>(null);
   const toRefresh = useMemo(() => pricedTypeIds(structure), [structure]);
   const ownedBlueprintTypeIds = useMemo(
@@ -224,13 +223,9 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
     },
     [ownedBlueprintTypeIds],
   );
-  const applyOwnedBlueprints = useCallback((maps: OwnedBlueprintMaps) => {
-    setOwnedMe(maps.ownedMe);
-    setOwnedDetail(maps.ownedDetail);
-  }, []);
   useResourceRead(readOwnedBlueprints, {
     enabled: true,
-    onData: applyOwnedBlueprints,
+    onData: setOwnedBlueprints,
   });
   const readOwnedAssets = useCallback(
     async (signal: AbortSignal): Promise<Map<number, OwnedAssetEntry> | null> => {
@@ -247,7 +242,13 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
     enabled: true,
     onData: setOwnedAssets,
   });
-  return { ownedAssets, ownedDetail, ownedMe, toRefresh };
+  return {
+    ownedAssets,
+    ownedDetail: ownedBlueprints?.ownedDetail ?? null,
+    ownedMe: ownedBlueprints?.ownedMe ?? null,
+    ownedTe: ownedBlueprints?.ownedTe ?? null,
+    toRefresh,
+  };
 }
 
 interface PriceAssembleMirrors {
@@ -420,7 +421,7 @@ function usePlannerLedger(
   structure: BlueprintStructure,
   runs: number,
   ownedMe: Map<number, number> | null,
-  ownedDetail: Map<number, OwnedComponentDetail> | null,
+  ownedTe: Map<number, number> | null,
   structureFactors: StructureFactors,
   skillTimeFactors: SkillTimeFactors,
 ) {
@@ -428,10 +429,6 @@ function usePlannerLedger(
   const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
   const { set: setMeOverride, reset: resetMeOverride } = useOverrideSetters(setMeOverrides, clampMe);
   const { set: setTeOverride, reset: resetTeOverride } = useOverrideSetters(setTeOverrides, clampTe);
-  const ownedTe = useMemo<Map<number, number> | null>(
-    () => (ownedDetail ? new Map([...ownedDetail].map(([bp, d]) => [bp, d.te])) : null),
-    [ownedDetail],
-  );
   const ledgerMeOpts = useMemo<MeOptions>(
     () => ({
       meOf: effectiveEfficiencyOf(ownedMe, meOverrides),
@@ -465,7 +462,6 @@ function usePlannerLedger(
     ledger,
     ledgerMeOpts,
     meOverrides,
-    ownedTe,
     resetMeOverride,
     resetTeOverride,
     setMeOverride,
@@ -511,7 +507,7 @@ export function PricingProvider({
     structure,
     prefs.runs,
     owned.ownedMe,
-    owned.ownedDetail,
+    owned.ownedTe,
     structureFactors,
     profile.skillTimeFactors ?? NO_SKILL_FACTORS,
   );
@@ -616,7 +612,7 @@ export function PricingProvider({
       ownedMe: owned.ownedMe,
       ownedDetail: owned.ownedDetail,
       ownedAssets: owned.ownedAssets,
-      ownedTe: ledger.ownedTe,
+      ownedTe: owned.ownedTe,
       meOverrides: ledger.meOverrides,
       setMeOverride: ledger.setMeOverride,
       resetMeOverride: ledger.resetMeOverride,
@@ -632,7 +628,7 @@ export function PricingProvider({
       owned.ownedMe,
       owned.ownedDetail,
       owned.ownedAssets,
-      ledger.ownedTe,
+      owned.ownedTe,
       ledger.meOverrides,
       ledger.setMeOverride,
       ledger.resetMeOverride,
