@@ -39,6 +39,12 @@ export const eveTokenEndpoint = defineEndpoint({
   },
 });
 
+/** The `?error=` codes the unlink and switch-character form routes redirect back with. */
+export type CharacterLinkNotice = 'not_linked' | 'last_character' | 'unlink_failed';
+
+/** The `?error=` codes Better Auth writes to the link page's errorCallbackURL that have their own copy. */
+export type BetterAuthLinkError = 'account_already_linked_to_different_user' | "email_doesn't_match";
+
 export const switchCharacterFormSchema = z.object({
   characterId: z.coerce.number().int().positive(),
 });

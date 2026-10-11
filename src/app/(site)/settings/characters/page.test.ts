@@ -87,6 +87,8 @@ test('keeps the only character linked and explains a failed link', async () => {
   expect(html).toContain('Missing scopes');
   expect(html).toContain('disabled=""');
   expect(await renderContent('something_else')).toContain('Linking was cancelled or failed.');
+  // A prototype key is just another unknown code, not an inherited function in the Callout.
+  expect(await renderContent('constructor')).toContain('Linking was cancelled or failed.');
 
   m.getFullSession.mockResolvedValue(null);
   await expect(renderContent()).rejects.toThrow('NEXT_REDIRECT /?auth_error=login_required');

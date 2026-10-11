@@ -74,9 +74,9 @@ describe('POST /api/admin/characters/unlink', () => {
     expect((await POST(postForm(ROUTE, { userId: 'eve-user-2' }))).status).toBe(400);
 
     accountBelongsToUserMock.mockResolvedValue(false);
-    expect(
-      (await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '999' }))).status,
-    ).toBe(404);
+    const unowned = await POST(postForm(ROUTE, { userId: 'eve-user-2', characterId: '999' }));
+    expect(unowned.status).toBe(303);
+    expect(locationOf(unowned)).toBe('http://localhost:3000/admin/users/eve-user-2?error=not_linked');
 
     accountBelongsToUserMock.mockResolvedValue(true);
     listLinkedCharactersMock.mockResolvedValue([{ characterId: 100 }]);

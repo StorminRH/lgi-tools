@@ -9,6 +9,7 @@ import {
 import {
   whStaticsAdminFormSchema,
   type WhStaticsRefreshResult,
+  type WhStaticsReviewOutcome,
 } from '@/data/wh-statics/api-contract';
 import {
   WhStaticsEmptySnapshotError,
@@ -19,7 +20,7 @@ import {
   dependencyUnavailableFailure,
   type AppFailure,
 } from '@/lib/failure';
-import { problemResponse, seeOther } from '@/transport/api-response';
+import { seeOther } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
 const REVIEW_PAGE = '/admin/statics';
@@ -29,6 +30,11 @@ const REFRESH_FAILURES: Partial<Record<WhStaticsRefreshResult['status'], AppFail
   'feed-unavailable': dependencyUnavailableFailure('wh_statics_feed_unavailable'),
   busy: conflictFailure('wh_statics_refresh_busy'),
 };
+
+/** Back to the review page with the notice for `outcome`, recording `failure` when it is one. */
+function backToReview(request: Request, outcome: WhStaticsReviewOutcome, failure?: AppFailure): Response {
+  return seeOther(request, REVIEW_PAGE, { query: { outcome }, failure });
+}
 
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
@@ -41,25 +47,28 @@ export async function POST(request: NextRequest): Promise<Response> {
       try {
         if (review.action === 'refresh') {
           const { status } = await refreshWhStaticsOnDemand();
-          return seeOther(request, REVIEW_PAGE, {
-            query: { outcome: status },
-            failure: REFRESH_FAILURES[status],
-          });
+          return backToReview(request, status, REFRESH_FAILURES[status]);
         }
         if (review.action === 'promote') {
           await promoteWhStaticsSnapshot(review.snapshotId);
-          return seeOther(request, REVIEW_PAGE, { query: { outcome: 'promoted' } });
+          return backToReview(request, 'promoted');
         }
         await rejectWhStaticsSnapshot(review.snapshotId);
-        return seeOther(request, REVIEW_PAGE, { query: { outcome: 'rejected' } });
+        return backToReview(request, 'rejected');
       } catch (error) {
+        // The review form posts natively, so an empty or no-longer-pending
+        // snapshot (a double-submitted promote, say) gets a notice, not JSON.
         if (error instanceof WhStaticsEmptySnapshotError) {
-          return problemResponse(
+          return backToReview(
+            request,
+            'snapshot-empty',
             conflictFailure('snapshot_empty', error.message),
           );
         }
         if (error instanceof WhStaticsSnapshotStateError) {
-          return problemResponse(
+          return backToReview(
+            request,
+            'snapshot-not-pending',
             conflictFailure('snapshot_not_pending', error.message),
           );
         }

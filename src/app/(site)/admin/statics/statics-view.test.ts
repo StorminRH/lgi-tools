@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { PendingWhStaticsReview } from '@/data/wh-statics/queries';
+import { resolveNotice } from '@/lib/error-copy';
 import {
   differenceLists,
   lineageDifferenceCount,
   lineageLists,
-  outcomeMessage,
+  OUTCOME_LABELS,
   reviewFigures,
 } from './statics-view';
 
@@ -30,12 +31,19 @@ const REVIEW: PendingWhStaticsReview = {
   },
 };
 
-describe('outcomeMessage', () => {
-  it('names known outcomes and ignores anything else', () => {
-    expect(outcomeMessage('promoted')).toBe('The pending statics snapshot was promoted.');
-    expect(outcomeMessage('made-up')).toBeUndefined();
-    expect(outcomeMessage(['promoted'])).toBeUndefined();
-    expect(outcomeMessage(undefined)).toBeUndefined();
+describe('outcome notice', () => {
+  it('names each outcome the route sends, including a double-submitted promote, and shows nothing for anything else', () => {
+    expect(resolveNotice('promoted', OUTCOME_LABELS)).toBe('The pending statics snapshot was promoted.');
+    expect(resolveNotice('snapshot-not-pending', OUTCOME_LABELS)).toBe(
+      'That snapshot is no longer pending review, so nothing changed.',
+    );
+    expect(resolveNotice('snapshot-empty', OUTCOME_LABELS)).toBe(
+      'That snapshot has no static assignments, so it was not promoted.',
+    );
+    expect(resolveNotice('made-up', OUTCOME_LABELS)).toBeNull();
+    expect(resolveNotice('constructor', OUTCOME_LABELS)).toBeNull();
+    expect(resolveNotice(['promoted'], OUTCOME_LABELS)).toBeNull();
+    expect(resolveNotice(undefined, OUTCOME_LABELS)).toBeNull();
   });
 });
 

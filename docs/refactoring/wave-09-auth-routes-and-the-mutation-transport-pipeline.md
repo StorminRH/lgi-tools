@@ -13,7 +13,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | ☑ | [P146](#p146) | Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes | api-route | M | low | medium | [P251](#p251) |
 | ☑ | [P167](#p167) | Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth | server-pipeline | S | low | medium | — |
 | ☑ | [P254](#p254) | Add requireSessionPage and a typed auth_error vocabulary so login_required shows a notice | contracts-validation | S | low | medium | [P167](#p167) |
-| ☐ | [P255](#p255) | Resolve query-string notices with one own-key typed resolver and type each flow's notice codes | contracts-validation | M | low | medium | [P146](#p146), [P254](#p254) |
+| ☑ | [P255](#p255) | Resolve query-string notices with one own-key typed resolver and type each flow's notice codes | contracts-validation | M | low | medium | [P146](#p146), [P254](#p254) |
 | ☐ | [P256](#p256) | Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked | contracts-validation | S | low | low | [P255](#p255) |
 | ☐ | [P250](#p250) | Check runMutationRoute stage failures against the endpoint contract, and derive status only where it varies | contracts-validation | S | low | medium | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P141](#p141) |
 | ☐ | [P306](#p306) | Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight) | simplification | S | low | low | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) |
@@ -410,7 +410,7 @@ const AUTH_ERROR_MESSAGES = { login_required: '...', admin_required: '...' } sat
 
 ## P255: Resolve query-string notices with one own-key typed resolver and type each flow's notice codes
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -40 / +45 across ~14 files (3 local redirect helpers and outcomeMessage deleted; resolver +6; seeOther +8)
 - **Depends on:** [P146](#p146), [P254](#p254)

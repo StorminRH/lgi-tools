@@ -31,6 +31,14 @@ export type WhStaticsRefreshResult =
       readonly disagreementCount: number;
     };
 
+/** The `?outcome=` codes the statics review form route redirects back with. */
+export type WhStaticsReviewOutcome =
+  | WhStaticsRefreshResult['status']
+  | 'promoted'
+  | 'rejected'
+  | 'snapshot-empty'
+  | 'snapshot-not-pending';
+
 export type CronRefreshWhStaticsResponse = WhStaticsRefreshResult;
 
 export const systemStaticsParamsSchema = z.object({

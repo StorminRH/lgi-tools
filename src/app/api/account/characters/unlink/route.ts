@@ -3,10 +3,10 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
-import { unexpectedFailure, validationFailure } from '@/lib/failure';
+import { unexpectedFailure, validationFailure, type AppFailure } from '@/lib/failure';
 import { problemResponse, seeOther } from '@/transport/api-response';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
-import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
+import { unlinkCharacterFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { auth } from '@/composition/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
 import {
@@ -18,6 +18,11 @@ import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 const CHARACTERS_PAGE = '/settings/characters';
+
+/** Back to the characters page with the notice for `error`, recording `failure`. */
+function notice(request: Request, error: CharacterLinkNotice, failure: AppFailure): Response {
+  return seeOther(request, CHARACTERS_PAGE, { query: { error }, failure });
+}
 
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
@@ -34,16 +39,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);
       if (!linked.some((c) => c.characterId === characterId)) {
-        return seeOther(request, CHARACTERS_PAGE, {
-          query: { error: 'not_linked' },
-          failure: validationFailure('not_linked'),
-        });
+        return notice(request, 'not_linked', validationFailure('not_linked'));
       }
       if (linked.length <= 1) {
-        return seeOther(request, CHARACTERS_PAGE, {
-          query: { error: 'last_character' },
-          failure: validationFailure('last_character'),
-        });
+        return notice(request, 'last_character', validationFailure('last_character'));
       }
 
       let mapIds: string[];
@@ -54,10 +53,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
       } catch (err) {
         console.error('[account/unlink] map access revocation failed', err);
-        return seeOther(request, CHARACTERS_PAGE, {
-          query: { error: 'unlink_failed' },
-          failure: unexpectedFailure('unlink_failed', err),
-        });
+        return notice(request, 'unlink_failed', unexpectedFailure('unlink_failed', err));
       }
 
       try {
@@ -68,10 +64,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       } catch (err) {
         console.error('[account/unlink] unlinkAccount failed', err);
         await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
-        return seeOther(request, CHARACTERS_PAGE, {
-          query: { error: 'unlink_failed' },
-          failure: unexpectedFailure('unlink_failed', err),
-        });
+        return notice(request, 'unlink_failed', unexpectedFailure('unlink_failed', err));
       }
 
       try {

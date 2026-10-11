@@ -188,29 +188,25 @@ describe('POST /api/admin/wh-statics', () => {
     );
   });
 
-  it('maps a no-longer-pending snapshot to a conflict', async () => {
-    promoteMock.mockRejectedValue(new SnapshotStateError(7, 'promoted'));
+  it('sends a no-longer-pending or empty snapshot back to the review page with a notice', async () => {
+    promoteMock
+      .mockRejectedValueOnce(new SnapshotStateError(7, 'promoted'))
+      .mockRejectedValueOnce(new EmptySnapshotError(8));
     const { POST } = await import('./route');
-    const response = await POST(
-      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
+    const stale = await POST(postForm(ROUTE, { action: 'promote', snapshotId: '7' }));
+    const empty = await POST(postForm(ROUTE, { action: 'promote', snapshotId: '8' }));
+
+    expect(stale.status).toBe(303);
+    expect(stale.headers.get('location')).toBe(
+      'http://localhost:3000/admin/statics?outcome=snapshot-not-pending',
     );
-
-    expect(response.status).toBe(409);
-    expect(problemBodySchema.parse(await response.json())).toMatchObject({
-      code: 'snapshot_not_pending',
-    });
-  });
-
-  it('maps an empty pending snapshot to a conflict', async () => {
-    promoteMock.mockRejectedValue(new EmptySnapshotError(7));
-    const { POST } = await import('./route');
-    const response = await POST(
-      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
+    expect(empty.status).toBe(303);
+    expect(empty.headers.get('location')).toBe(
+      'http://localhost:3000/admin/statics?outcome=snapshot-empty',
     );
-
-    expect(response.status).toBe(409);
-    expect(problemBodySchema.parse(await response.json())).toMatchObject({
-      code: 'snapshot_empty',
-    });
+    expect(recordedOutcomes()).toEqual([
+      { outcome: 'conflict', code: 'snapshot_not_pending' },
+      { outcome: 'conflict', code: 'snapshot_empty' },
+    ]);
   });
 });
