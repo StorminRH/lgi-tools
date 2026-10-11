@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
+  countJobs,
   deriveAttention,
   deriveBudgetStatus,
   deriveCronStatuses,
@@ -130,6 +131,15 @@ describe('deriveBudgetStatus', () => {
       .toEqual({ level: 'green', value: '20 left', note: 'floor 20 · live' });
     expect(deriveBudgetStatus({ effectiveRemaining: 1_087, selfCount: 0, echo: null, source: 'shared' }).value)
       .toBe('1,087 left');
+  });
+});
+
+describe('countJobs', () => {
+  it('sums the jobs in the given statuses and keeps the oldest of them', () => {
+    const stats = [stat('queued', 3, 2), stat('running', 1, 9), stat('dead_lettered', 2, 30), stat('succeeded', 40, 50)];
+    expect(countJobs(stats, ['queued', 'running'])).toEqual({ count: 4, oldest: hoursAgo(9) });
+    expect(countJobs(stats, ['failed_retryable'])).toEqual({ count: 0, oldest: null });
+    expect(countJobs([], ['queued'])).toEqual({ count: 0, oldest: null });
   });
 });
 

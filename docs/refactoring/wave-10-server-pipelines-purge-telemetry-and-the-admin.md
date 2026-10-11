@@ -33,7 +33,7 @@ In order:
 | ☑ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
 | ☑ | [P281](#p281) | Cache degradation and search-total reads per request with one range-keyed helper, and drop dead ESI cost reads | efficiency | S | low | medium | — |
 | ☑ | [P158](#p158) | Share the admin cron, SLI and activity loaders between the overview, health and traffic cards | server-pipeline | S | low | medium | — |
-| ☐ | [P299](#p299) | Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers | simplification | M | low | medium | [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088) |
+| ☑ | [P299](#p299) | Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers | simplification | M | low | medium | [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088) |
 | ☐ | [P314](#p314) | Trim admin and corporations view models to rendered fields and show search truncation in the results body | simplification | S | low | low | — |
 | ☐ | [P315](#p315) | Derive admin hrefs, titles and range controls from admin-sections instead of literals | simplification | M | low | low | [P316](#p316) |
 | ☐ | [P159](#p159) | Route every usage-telemetry write through one after()-scheduled emitter, sharing the scheduler with domain events | server-pipeline | M | medium | high | [P130](wave-03-src-lib-primitives-collections-math-async.md#p130), [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141) |
@@ -905,7 +905,7 @@ export async function loadActivityView(rangeKey: RangeKey, range: DateRange): Pr
 
 ## P299: Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -60 production lines (deriveBudgetView 38, countOf/ageLabel 16, three inline sums, dead cost-lens fields) and +20 (countJobs, formatAge, queueValueText, deriveBudgetCard details, shared degradation loader); tests about -20 net
 - **Depends on:** [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088)

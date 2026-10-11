@@ -1,4 +1,4 @@
-import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
+import type { EsiRefreshJobStatus, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
   capabilitySuccessRate,
   esiAvailability,
@@ -240,18 +240,28 @@ export interface QueueSummary {
   oldestDueHours: number | null;
 }
 
+/** How many jobs sit in these statuses, and when the oldest of them was queued. */
+export function countJobs(
+  stats: readonly EsiRefreshQueueStat[],
+  statuses: readonly EsiRefreshJobStatus[],
+): { count: number; oldest: Date | null } {
+  const matching = stats.filter((stat) => statuses.includes(stat.status));
+  const count = matching.reduce((total, stat) => total + stat.count, 0);
+  const oldest = matching.reduce<Date | null>(
+    (min, stat) => (min === null || stat.oldestCreatedAt < min ? stat.oldestCreatedAt : min),
+    null,
+  );
+  return { count, oldest };
+}
+
 export function summarizeQueue(stats: EsiRefreshQueueStat[], now: Date): QueueSummary {
-  const live = new Set<string>(LIVE_ESI_REFRESH_JOB_STATUSES);
-  let due = 0;
-  let deadLettered = 0;
-  let oldest: Date | null = null;
-  for (const stat of stats) {
-    if (stat.status === 'dead_lettered') deadLettered += stat.count;
-    if (!live.has(stat.status)) continue;
-    due += stat.count;
-    if (oldest === null || stat.oldestCreatedAt < oldest) oldest = stat.oldestCreatedAt;
-  }
-  return { due, deadLettered, oldestDueHours: oldest === null ? null : elapsedHours(oldest, now) };
+  // Dead letters are counted on their own: they are not due, and their age is not the queue's.
+  const live = countJobs(stats, LIVE_ESI_REFRESH_JOB_STATUSES);
+  return {
+    due: live.count,
+    deadLettered: countJobs(stats, ['dead_lettered']).count,
+    oldestDueHours: live.oldest === null ? null : elapsedHours(live.oldest, now),
+  };
 }
 
 export function queueLevel(queue: QueueSummary): StatusLevel {
@@ -302,9 +312,7 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
 
 /** Refresh jobs waiting for the ESI budget to recover. */
 export function heldForBudget(stats: readonly EsiRefreshQueueStat[]): number {
-  return stats
-    .filter((stat) => stat.status === 'deferred_for_budget')
-    .reduce((total, stat) => total + stat.count, 0);
+  return countJobs(stats, ['deferred_for_budget']).count;
 }
 
 function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
