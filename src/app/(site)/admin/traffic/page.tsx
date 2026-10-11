@@ -1,7 +1,8 @@
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { CardLink } from '@/components/ui/text-link';
-import { parseRange, previousRange, rangeFor } from '../period';
+import { parseRange, previousRange, rangeFor, type RangeKey } from '../period';
+import { adminHref } from '../admin-sections';
 import { ActivityChart } from '../ActivityChart';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
@@ -39,7 +40,10 @@ const RANKINGS = [
     empty: 'No external referrers in this range.',
     ariaLabel: 'Top referrers by page views',
     wide: false,
-    hint: <CardLink href="/admin/search">Search console</CardLink>,
+    // Search opens at the range this page is showing.
+    hint: (rangeKey: RangeKey) => (
+      <CardLink href={adminHref('search', { range: rangeKey })}>Search console</CardLink>
+    ),
   },
 ] as const;
 
@@ -65,7 +69,7 @@ async function TrafficContent({ searchParams }: { searchParams: RangeSearchParam
             key={ranking.name}
             title={ranking.title}
             name={ranking.name}
-            hint={ranking.hint}
+            hint={ranking.hint?.(rangeKey)}
             rows={ranking.wide ? 8 : 5}
             reveal={2}
             slotClassName={ranking.wide ? 'lg:col-span-2' : undefined}
@@ -86,7 +90,7 @@ async function TrafficContent({ searchParams }: { searchParams: RangeSearchParam
         name="visitors"
         rows={4}
         reveal={3}
-        hint={<CardLink href="/admin/users">Users &amp; roles</CardLink>}
+        hint={<CardLink href={adminHref('users')}>Users &amp; roles</CardLink>}
         load={() => loadVisitors(range, previous)}
       >
         {(visitors) => <VisitorsBody visitors={visitors} />}
@@ -97,11 +101,7 @@ async function TrafficContent({ searchParams }: { searchParams: RangeSearchParam
 
 export default function AdminTrafficPage({ searchParams }: { searchParams: RangeSearchParams }) {
   return (
-    <AdminPageFrame
-      title="Traffic"
-      rangeBasePath="/admin/traffic"
-      fallbackLabel="Activity"
-    >
+    <AdminPageFrame section="traffic" fallbackLabel="Activity">
       <TrafficContent searchParams={searchParams} />
     </AdminPageFrame>
   );

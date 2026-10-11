@@ -18,7 +18,7 @@ async function OutcomeBanner({ searchParams }: { searchParams: StaticsSearchPara
 export default function StaticsPage({ searchParams }: { searchParams: StaticsSearchParams }) {
   return (
     <AdminPageFrame
-      title="Wormhole statics"
+      section="statics"
       actions={<StaticsActionForm action="refresh" label="Check feed now" />}
       fallbackLabel="Serving copy"
     >

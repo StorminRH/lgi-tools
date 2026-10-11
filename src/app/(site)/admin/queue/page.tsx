@@ -5,10 +5,7 @@ import { DeadLetterList, loadDeadLetters, QueueSummary } from './QueueCards';
 
 export default function AdminQueuePage() {
   return (
-    <AdminPageFrame
-      title="Refresh queue"
-      fallbackLabel="Queue"
-    >
+    <AdminPageFrame section="queue" fallbackLabel="Queue">
       <AdminSection title="Queue" name="queue" rows={2} reveal={1} load={getEsiRefreshQueueStatsShared}>
         {(stats) => <QueueSummary stats={stats} now={new Date()} />}
       </AdminSection>

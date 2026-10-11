@@ -5,6 +5,7 @@ import { pageViewSources } from '@/data/telemetry/page-view-stats';
 import { getReturningVsNew } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { previousRange, type RangeKey } from './period';
+import { adminHref } from './admin-sections';
 import { ActivityChart } from './ActivityChart';
 import { rangeDayCount } from './activity-view';
 import { KpiGrid } from './KpiGrid';
@@ -53,11 +54,12 @@ export async function loadAudience(rangeKey: RangeKey, range: DateRange) {
   };
 }
 
-export function AudienceLinks() {
+// The detail pages open at the range the overview is showing.
+export function AudienceLinks({ rangeKey }: { rangeKey: RangeKey }) {
   return (
     <span className="flex items-center gap-3">
-      <CardLink href="/admin/traffic">Traffic</CardLink>
-      <CardLink href="/admin/search">Search</CardLink>
+      <CardLink href={adminHref('traffic', { range: rangeKey })}>Traffic</CardLink>
+      <CardLink href={adminHref('search', { range: rangeKey })}>Search</CardLink>
     </span>
   );
 }

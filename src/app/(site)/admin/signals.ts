@@ -30,6 +30,7 @@ import type {
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
+import { adminHref, SCHEDULED_TASKS_ANCHOR } from './admin-sections';
 import { SECTION_LOAD_FAILED } from './load-section';
 import { getOrInsertComputed } from '@/lib/array';
 import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
@@ -88,19 +89,26 @@ export interface AdminSignals {
   releases: Loaded<{ date: string; label: string }[]>;
 }
 
-const HEALTH_PAGE = { label: 'Open health', href: '/admin/health' };
-const ESI_PAGE = { label: 'Open ESI', href: '/admin/esi' };
+// The page each attention item and unread source sends the operator to.
+const PAGE_ACTIONS = {
+  health: { label: 'Open health', href: adminHref('health') },
+  esi: { label: 'Open ESI', href: adminHref('esi') },
+  jobs: { label: 'View jobs', href: adminHref('health', { hash: SCHEDULED_TASKS_ANCHOR }) },
+  queue: { label: 'Open queue', href: adminHref('queue') },
+  statics: { label: 'Open statics', href: adminHref('statics') },
+  staticsReview: { label: 'Review snapshot', href: adminHref('statics') },
+} satisfies Record<string, AttentionItem['action']>;
 
 // Where an operator goes to see a source directly when the overview could not read it.
-const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page: { label: string; href: string } }> = {
-  crons: { label: 'scheduled jobs', page: { label: 'View jobs', href: '/admin/health#scheduled' } },
-  budget: { label: 'ESI error budget', page: ESI_PAGE },
-  fallback: { label: 'price source', page: ESI_PAGE },
-  budgetExhaustions: { label: 'price source', page: ESI_PAGE },
-  sli: { label: 'service levels', page: HEALTH_PAGE },
-  queue: { label: 'refresh queue', page: { label: 'Open queue', href: '/admin/queue' } },
-  statics: { label: 'statics review', page: { label: 'Open statics', href: '/admin/statics' } },
-  releases: { label: 'releases', page: HEALTH_PAGE },
+const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page: AttentionItem['action'] }> = {
+  crons: { label: 'scheduled jobs', page: PAGE_ACTIONS.jobs },
+  budget: { label: 'ESI error budget', page: PAGE_ACTIONS.esi },
+  fallback: { label: 'price source', page: PAGE_ACTIONS.esi },
+  budgetExhaustions: { label: 'price source', page: PAGE_ACTIONS.esi },
+  sli: { label: 'service levels', page: PAGE_ACTIONS.health },
+  queue: { label: 'refresh queue', page: PAGE_ACTIONS.queue },
+  statics: { label: 'statics review', page: PAGE_ACTIONS.statics },
+  releases: { label: 'releases', page: PAGE_ACTIONS.health },
 };
 
 function unavailableLine(id: string, label: string): StatusLine {
@@ -404,7 +412,7 @@ function staticsAttention(statics: AdminSignals['statics']): AttentionItem[] {
       level: 'amber',
       title: `Wormhole statics feed v${statics.feedVersion} is waiting for review`,
       detail: formatCount(statics.totalDifferences, 'assignment difference'),
-      action: { label: 'Review snapshot', href: '/admin/statics' },
+      action: PAGE_ACTIONS.staticsReview,
     },
   ];
 }
@@ -417,7 +425,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
       level: 'red',
       title: `${formatCount(queue.deadLettered, 'refresh job')} dead-lettered`,
       detail: 'Refresh stopped',
-      action: { label: 'Open queue', href: '/admin/queue' },
+      action: PAGE_ACTIONS.queue,
     });
   }
   if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) {
@@ -427,7 +435,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
       level: 'amber',
       title: `Refresh backlog of ${formatCount(queue.due, 'job')}, oldest ${oldest}`,
       detail: `target ≤ ${QUEUE_STALE_HOURS}h`,
-      action: { label: 'Open queue', href: '/admin/queue' },
+      action: PAGE_ACTIONS.queue,
     });
   }
   return items;
@@ -465,9 +473,9 @@ function unavailableAttention(signals: AdminSignals): AttentionItem[] {
 
 export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): AttentionItem[] {
   const actionFor: Record<StatusGroup['id'], AttentionItem['action']> = {
-    app: HEALTH_PAGE,
-    esi: ESI_PAGE,
-    jobs: { label: 'View jobs', href: '/admin/health#scheduled' },
+    app: PAGE_ACTIONS.health,
+    esi: PAGE_ACTIONS.esi,
+    jobs: PAGE_ACTIONS.jobs,
   };
   const statusItems = groups.flatMap((group) =>
     group.lines.flatMap((line) => lineAttention(line, actionFor[group.id])),

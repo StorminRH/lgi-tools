@@ -1,5 +1,6 @@
 import { CardLink } from '@/components/ui/text-link';
 import { parseRange, rangeFor } from '../period';
+import { adminHref } from '../admin-sections';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import { LevelRows } from '../LevelRows';
@@ -39,7 +40,7 @@ async function EsiContent({ searchParams }: { searchParams: RangeSearchParams })
           reveal={2}
           slotClassName="h-full"
           className="h-full"
-          hint={<CardLink href="/admin/queue">Queue</CardLink>}
+          hint={<CardLink href={adminHref('queue')}>Queue</CardLink>}
           load={() => loadPressureLines(range)}
         >
           {(lines) => <LevelRows lines={lines} />}
@@ -81,11 +82,7 @@ async function EsiContent({ searchParams }: { searchParams: RangeSearchParams })
 
 export default function AdminEsiPage({ searchParams }: { searchParams: RangeSearchParams }) {
   return (
-    <AdminPageFrame
-      title="ESI & rate limits"
-      rangeBasePath="/admin/esi"
-      fallbackLabel="Error budget"
-    >
+    <AdminPageFrame section="esi" fallbackLabel="Error budget">
       <EsiContent searchParams={searchParams} />
     </AdminPageFrame>
   );

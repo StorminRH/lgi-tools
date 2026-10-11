@@ -31,8 +31,7 @@ vi.mock('./shared-reads', () => ({
 
 function staticsFrame() {
   return AdminPageFrame({
-    title: 'Wormhole statics',
-    rangeBasePath: '/admin/statics',
+    section: 'statics',
     actions: createElement('button', { type: 'submit' }, 'Check feed now'),
     fallbackLabel: 'Serving copy',
     children: createElement('p', null, 'Pending feed v42'),
@@ -106,5 +105,24 @@ describe('admin console gate', () => {
     ]) {
       expect(markup).toContain(adminText);
     }
+    // Statics reads no range, so its head offers none.
+    expect(markup).not.toContain('Reporting range');
+  });
+
+  it('heads a ranged section with its title and a range control linked to its own page', async () => {
+    mocks.requireAdminPage.mockResolvedValue(adminSessionFixture({ user: { id: 'admin-1' } }));
+
+    const ranged = await render(
+      AdminPageFrame({ section: 'traffic', fallbackLabel: 'Activity', children: createElement('p', null, 'Body') }),
+    );
+    expect(ranged).toContain('>Traffic</h2>');
+    expect(ranged).toContain('Reporting range');
+    expect(ranged).toContain('href="/admin/traffic?range=7d"');
+
+    const named = await render(
+      AdminPageFrame({ title: 'User', fallbackLabel: 'Account', children: createElement('p', null, 'Body') }),
+    );
+    expect(named).toContain('>User</h2>');
+    expect(named).not.toContain('Reporting range');
   });
 });

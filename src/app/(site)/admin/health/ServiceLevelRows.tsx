@@ -15,6 +15,7 @@ import type { DateRange } from '@/data/telemetry/types';
 import { formatQuantity } from '@/lib/format/number';
 import { isoDay } from '@/lib/iso-date';
 import { trendSeries } from '../period';
+import { adminHref } from '../admin-sections';
 import { zeroFillDaily } from '../aggregate';
 import { AdminTrendChart } from '../charts';
 import { SECTION_LOAD_FAILED } from '../load-section';
@@ -252,7 +253,7 @@ function BacklogBody({ details }: { details: ServiceLevelDetails }) {
         </TitledBlock>
       )}
       <div className="font-data text-ui">
-        <CardLink href="/admin/queue">Open queue</CardLink>
+        <CardLink href={adminHref('queue')}>Open queue</CardLink>
       </div>
     </>
   );
