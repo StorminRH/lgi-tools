@@ -9,7 +9,7 @@ import {
   type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
-import { takeIndexedOrThrow } from './lib/indexedQuery';
+import { takeIndexedOrThrow, uniqueByUserCharacter } from './lib/indexedQuery';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 import { findSystem } from './lib/mapSystemLookup';
 
@@ -50,12 +50,7 @@ export async function readTrackedLocation(
   );
   const joined: TrackedLocation[] = [];
   for (const tracking of rows) {
-    const location = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', tracking.userId).eq('characterId', characterId),
-      )
-      .unique();
+    const location = await uniqueByUserCharacter(ctx, 'characterLocation', tracking.userId, characterId);
     if (location !== null) joined.push({ tracking, location });
   }
   if (joined.length !== 1) return null;

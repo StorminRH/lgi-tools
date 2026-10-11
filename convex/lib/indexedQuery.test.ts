@@ -1,10 +1,20 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
-import { expect, test } from 'vitest';
+import { expect, expectTypeOf, test } from 'vitest';
+import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import schema from '../schema';
 import { modules } from '../__tests__/modules.setup';
-import { deleteIndexedBatch } from './indexedQuery';
+import {
+  accessLease,
+  CHAR_A,
+  CHAR_B,
+  GEN,
+  locationDoc,
+  OTHER,
+  USER,
+} from '../__tests__/characterLocation.setup';
+import { deleteIndexedBatch, uniqueByUserCharacter, type UserCharacterTable } from './indexedQuery';
 
 const MAP = 'map-batch';
 const OTHER_MAP = 'map-kept';
@@ -80,4 +90,63 @@ test('deleteIndexedBatch with a zero limit removes nothing and still reports wai
     removed: [],
   });
   expect(await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect())).toHaveLength(1);
+});
+
+const USER_CHARACTER_TABLES = [
+  'characterLocation',
+  'characterLocationCovered',
+  'characterLocationOnline',
+  'characterLocationAccess',
+] as const satisfies readonly UserCharacterTable[];
+const SEEDED_PAIRS = [[USER, CHAR_A], [USER, CHAR_B], [OTHER, CHAR_A], [OTHER, CHAR_B]] as const;
+const ABSENT_PAIRS = [[USER, 90_000_199], ['user-location-absent', CHAR_A]] as const;
+
+async function seedUserCharacterRow(
+  ctx: MutationCtx,
+  table: UserCharacterTable,
+  userId: string,
+  characterId: number,
+): Promise<string> {
+  switch (table) {
+    case 'characterLocation':
+      return ctx.db.insert(table, locationDoc(userId, characterId));
+    case 'characterLocationCovered':
+      return ctx.db.insert(table, { userId, characterId });
+    case 'characterLocationOnline':
+      return ctx.db.insert(table, { userId, characterId, online: true, etagOnline: null, onlineExpiresAt: GEN });
+    case 'characterLocationAccess':
+      return ctx.db.insert(table, accessLease(userId, characterId));
+  }
+}
+
+test('uniqueByUserCharacter returns the one row a user and character hold in each location table, and null for any other pair', async () => {
+  const t = convexTest(schema, modules);
+  const expected = await t.run(async (ctx) => {
+    const ids: Record<string, string | null> = {};
+    for (const table of USER_CHARACTER_TABLES) {
+      for (const [userId, characterId] of SEEDED_PAIRS) {
+        ids[`${table}/${userId}/${characterId}`] = await seedUserCharacterRow(ctx, table, userId, characterId);
+      }
+      for (const [userId, characterId] of ABSENT_PAIRS) {
+        ids[`${table}/${userId}/${characterId}`] = null;
+      }
+    }
+    return ids;
+  });
+
+  const found = await t.run(async (ctx) => {
+    const ids: Record<string, string | null> = {};
+    for (const table of USER_CHARACTER_TABLES) {
+      for (const [userId, characterId] of [...SEEDED_PAIRS, ...ABSENT_PAIRS]) {
+        const row = await uniqueByUserCharacter(ctx, table, userId, characterId);
+        ids[`${table}/${userId}/${characterId}`] = row?._id ?? null;
+      }
+    }
+    return ids;
+  });
+  expect(found).toEqual(expected);
+
+  const lease = await t.run((ctx) => uniqueByUserCharacter(ctx, 'characterLocationAccess', USER, CHAR_B));
+  expectTypeOf(lease).toEqualTypeOf<Doc<'characterLocationAccess'> | null>();
+  expect(lease).toMatchObject({ userId: USER, characterId: CHAR_B, accessToken: `tok-${CHAR_B}` });
 });

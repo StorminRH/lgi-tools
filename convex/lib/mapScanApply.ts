@@ -14,7 +14,7 @@ import {
 } from '@/data/maps/connection-hallway';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
-import { takeIndexedOrThrow } from './indexedQuery';
+import { takeIndexedOrThrow, uniqueByUserCharacter } from './indexedQuery';
 import {
   findLocalSignatureConnection,
   findPasteConnection,
@@ -71,12 +71,7 @@ export async function requireTrackedSystem(
   );
 
   const locations = await Promise.all(tracking.map((row) =>
-    ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', userId).eq('characterId', row.characterId),
-      )
-      .unique()));
+    uniqueByUserCharacter(ctx, 'characterLocation', userId, row.characterId)));
   if (!locations.some((location) => location?.solarSystemId === systemId)) {
     throw new ConvexError({
       code: 'UNTRACKED_SCAN_SYSTEM',

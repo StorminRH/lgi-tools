@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { internalQuery } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
 
 /**
  * Everything one location run reads before calling ESI, in one query. It only
@@ -40,12 +41,9 @@ export const syncInputs = internalQuery({
     const leases: Doc<'characterLocationAccess'>[] = [];
     for (const characterId of trackedIds) {
       const [location, probe, lease] = await Promise.all([
-        ctx.db.query('characterLocation').withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId)).unique(),
-        ctx.db.query('characterLocationOnline').withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId)).unique(),
-        ctx.db.query('characterLocationAccess').withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId)).unique(),
+        uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId),
+        uniqueByUserCharacter(ctx, 'characterLocationOnline', userId, characterId),
+        uniqueByUserCharacter(ctx, 'characterLocationAccess', userId, characterId),
       ]);
       if (location !== null) locations.push(location);
       if (probe !== null) online.push(probe);

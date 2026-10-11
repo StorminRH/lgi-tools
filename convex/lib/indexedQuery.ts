@@ -2,46 +2,28 @@ import { ConvexError } from 'convex/values';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader, QueryCtx } from '../_generated/server';
 
-export type UserCharacterIndexedTable =
+export type UserCharacterTable =
   | 'characterLocation'
-  | 'characterLocationCovered';
+  | 'characterLocationCovered'
+  | 'characterLocationOnline'
+  | 'characterLocationAccess';
 export type PurgeAfterTable = 'mapSystems' | 'mapConnections';
 export type StoredDataset = Doc<'syncPresence'>['dataset'];
 
-export function uniqueByUserCharacter(
+/** The one row a (user, character) pair holds in a single-row location table. */
+export function uniqueByUserCharacter<T extends UserCharacterTable>(
   ctx: Pick<QueryCtx, 'db'>,
-  table: 'characterLocation',
+  table: T,
   userId: string,
   characterId: number,
-): Promise<Doc<'characterLocation'> | null>;
-export function uniqueByUserCharacter(
-  ctx: Pick<QueryCtx, 'db'>,
-  table: 'characterLocationCovered',
-  userId: string,
-  characterId: number,
-): Promise<Doc<'characterLocationCovered'> | null>;
-export function uniqueByUserCharacter(
-  ctx: Pick<QueryCtx, 'db'>,
-  table: UserCharacterIndexedTable,
-  userId: string,
-  characterId: number,
-) {
-  switch (table) {
-    case 'characterLocation':
-      return ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId),
-        )
-        .unique();
-    case 'characterLocationCovered':
-      return ctx.db
-        .query('characterLocationCovered')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId),
-        )
-        .unique();
-  }
+): Promise<Doc<T> | null> {
+  // The query runs over the union so withIndex resolves; the cast narrows the row back to T.
+  return ctx.db
+    .query(table as UserCharacterTable)
+    .withIndex('by_user_character', (q) =>
+      q.eq('userId', userId).eq('characterId', characterId),
+    )
+    .unique() as Promise<Doc<T> | null>;
 }
 
 export function uniqueByUserDataset(

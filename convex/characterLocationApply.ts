@@ -11,6 +11,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { clearAccessLeases, leaseWriteValidator, writeAccessLeases } from './characterLocationAccess';
 import { characterSyncResultFields } from './lib/characterSync';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { dropUnsyncedCharacterCaches } from './lib/locationCaches';
 import { applyCoverageSet, clearCoverageForUser } from './lib/locationCoverage';
 import {
@@ -176,15 +177,11 @@ async function applyCharacterResults(
     }
     // A held probe and a 304 location need no read of their stored documents.
     if (result.online !== null && result.onlineExpiresAt !== null) {
-      const probe = await ctx.db.query('characterLocationOnline')
-        .withIndex('by_user_character', (q) => q.eq('userId', userId).eq('characterId', result.characterId))
-        .unique();
+      const probe = await uniqueByUserCharacter(ctx, 'characterLocationOnline', userId, result.characterId);
       await applyOnlineProbeResult(ctx, userId, result, probe ?? undefined);
     }
     const location = result.error === null && result.solarSystemId !== null
-      ? await ctx.db.query('characterLocation')
-        .withIndex('by_user_character', (q) => q.eq('userId', userId).eq('characterId', result.characterId))
-        .unique()
+      ? await uniqueByUserCharacter(ctx, 'characterLocation', userId, result.characterId)
       : null;
     const window = await applyLocationResult(
       ctx,
