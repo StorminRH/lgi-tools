@@ -13,31 +13,26 @@ const blueprintIndex = createClientResource(
   async (): Promise<BlueprintIndexEntry[]> => (await apiFetchData(blueprintsEndpoint, 'blueprint index')).blueprints,
 );
 
-export const blueprintsSource: SearchSource = {
-  id: 'blueprints',
-  name: 'Blueprints',
-  limit: 6,
-  async search(query, ctx) {
-    if (query.length === 0) return [];
+export const searchBlueprints: SearchSource['search'] = async (query, ctx) => {
+  if (query.length === 0) return [];
 
-    const index = await blueprintIndex.load();
-    if (ctx.signal?.aborted) return [];
+  const index = await blueprintIndex.load();
+  if (ctx.signal?.aborted) return [];
 
-    return rankFuzzyResults(
-      index,
-      query,
-      (entry) => entry.name,
-      (entry, match) => ({
-        kind: 'blueprint',
-        id: `blueprint:${entry.blueprintTypeId}`,
-        label: entry.name,
-        sub: 'Blueprint',
-        href: `/industry/${entry.blueprintTypeId}`,
-        icon: blueprintImage(entry.blueprintTypeId),
-        typeId: entry.productTypeId,
-        matchIndices: match.matchIndices,
-      }),
-      { limit: MAX_RESULTS },
-    );
-  },
+  return rankFuzzyResults(
+    index,
+    query,
+    (entry) => entry.name,
+    (entry, match) => ({
+      kind: 'blueprint',
+      id: `blueprint:${entry.blueprintTypeId}`,
+      label: entry.name,
+      sub: 'Blueprint',
+      href: `/industry/${entry.blueprintTypeId}`,
+      icon: blueprintImage(entry.blueprintTypeId),
+      typeId: entry.productTypeId,
+      matchIndices: match.matchIndices,
+    }),
+    { limit: MAX_RESULTS },
+  );
 };

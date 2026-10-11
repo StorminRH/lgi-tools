@@ -56,30 +56,24 @@ export function matchSystem(systems: SystemSearchEntry[], input: string): System
   return best;
 }
 
-export const systemsSource: SearchSource = {
-  id: 'systems',
-  name: 'Systems',
-  limit: 10,
-  excludeFromDefaultScope: true,
-  async search(query, ctx) {
-    if (query.length === 0) return [];
+export const searchSystems: SearchSource['search'] = async (query, ctx) => {
+  if (query.length === 0) return [];
 
-    const { systems } = await systemsResource.load();
-    if (ctx.signal?.aborted) return [];
+  const { systems } = await systemsResource.load();
+  if (ctx.signal?.aborted) return [];
 
-    return rankFuzzyResults(
-      systems,
-      query,
-      (entry) => entry.name,
-      (entry, match) => ({
-        kind: 'system',
-        id: `system:${entry.id}`,
-        label: entry.name,
-        sub: formatSecurityStatus(entry.security),
-        href: '#',
-        matchIndices: match.matchIndices,
-      }),
-      { limit: MAX_RESULTS },
-    );
-  },
+  return rankFuzzyResults(
+    systems,
+    query,
+    (entry) => entry.name,
+    (entry, match) => ({
+      kind: 'system',
+      id: `system:${entry.id}`,
+      label: entry.name,
+      sub: formatSecurityStatus(entry.security),
+      href: '#',
+      matchIndices: match.matchIndices,
+    }),
+    { limit: MAX_RESULTS },
+  );
 };

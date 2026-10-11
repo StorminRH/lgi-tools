@@ -5,5 +5,5 @@ export const systemsSearchSource: LazySearchSource = {
   name: 'Systems',
   limit: 10,
   excludeFromDefaultScope: true,
-  load: () => import('./systems-search').then((m) => m.systemsSource),
+  load: () => import('./systems-search').then((m) => m.searchSystems),
 };

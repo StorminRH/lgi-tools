@@ -63,18 +63,18 @@ describe('lookupSystem', () => {
   });
 });
 
-describe('systemsSource', () => {
+describe('searchSystems', () => {
   it('returns nothing on an empty query without fetching the index', async () => {
     const m = await freshModule();
     apiFetchMock.mockClear();
-    expect(await m.systemsSource.search('', ctx())).toEqual([]);
+    expect(await m.searchSystems('', ctx())).toEqual([]);
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
   it('fuzzy-matches over the fetched index and maps rows with an inert href', async () => {
     const m = await freshModule();
     apiFetchMock.mockResolvedValue({ ok: true, status: 200, data: { systems: SYSTEMS } });
-    const out = await m.systemsSource.search('jita', ctx());
+    const out = await m.searchSystems('jita', ctx());
     expect(out[0]).toEqual({
       kind: 'system',
       id: 'system:30000142',
@@ -90,8 +90,8 @@ describe('systemsSource', () => {
     const m = await freshModule();
     apiFetchMock.mockClear();
     apiFetchMock.mockResolvedValue({ ok: true, status: 200, data: { systems: SYSTEMS } });
-    await m.systemsSource.search('jita', ctx());
-    await m.systemsSource.search('amarr', ctx());
+    await m.searchSystems('jita', ctx());
+    await m.searchSystems('amarr', ctx());
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -125,6 +125,6 @@ describe('systemsSource', () => {
     apiFetchMock.mockResolvedValue({ ok: true, status: 200, data: { systems: SYSTEMS } });
     const ctrl = new AbortController();
     ctrl.abort();
-    expect(await m.systemsSource.search('jita', ctx(ctrl.signal))).toEqual([]);
+    expect(await m.searchSystems('jita', ctx(ctrl.signal))).toEqual([]);
   });
 });

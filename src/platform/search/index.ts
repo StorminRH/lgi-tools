@@ -49,7 +49,8 @@ export type LazySearchSource = {
   limit?: number;
   showOnEmpty?: boolean;
   excludeFromDefaultScope?: boolean;
-  load: () => Promise<SearchSource>;
+  /** Loads only the search function; the metadata above is the one the registry uses. */
+  load: () => Promise<SearchSource['search']>;
 };
 
 const sources: SearchSource[] = [];
@@ -62,7 +63,7 @@ export function registerSearchSource(source: SearchSource): void {
 }
 
 export function registerLazySearchSource(meta: LazySearchSource): void {
-  let loadPromise: Promise<SearchSource> | null = null;
+  let loadPromise: Promise<SearchSource['search']> | null = null;
 
   registerSearchSource({
     id: meta.id,
@@ -77,11 +78,11 @@ export function registerLazySearchSource(meta: LazySearchSource): void {
           throw err;
         });
       }
-      const resolved = await loadPromise;
+      const search = await loadPromise;
       if (ctx.signal?.aborted) {
         throw new DOMException('Aborted', 'AbortError');
       }
-      return resolved.search(query, ctx);
+      return search(query, ctx);
     },
   });
 }

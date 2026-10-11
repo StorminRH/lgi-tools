@@ -181,14 +181,8 @@ describe('search registry', () => {
 
 describe('registerLazySearchSource', () => {
   it('calls load() at most once across multiple keystrokes', async () => {
-    const realSource: SearchSource = {
-      id: 'lazy',
-      name: 'Lazy',
-      async search() {
-        return [ROW('l', 'lazy-row')];
-      },
-    };
-    const load = vi.fn(async () => realSource);
+    const realSearch: SearchSource['search'] = async () => [ROW('l', 'lazy-row')];
+    const load = vi.fn(async () => realSearch);
     registerLazySearchSource({ id: 'lazy', name: 'Lazy', load });
 
     await searchAll('a', makeCtx());
@@ -199,7 +193,7 @@ describe('registerLazySearchSource', () => {
   });
 
   it('does not invoke load() when the query is empty and showOnEmpty is false', async () => {
-    const load = vi.fn(async () => makeSource('Lazy', []));
+    const load = vi.fn(async () => makeSource('Lazy', []).search);
     registerLazySearchSource({ id: 'lazy', name: 'Lazy', load });
 
     await searchAll('', makeCtx());
@@ -209,17 +203,11 @@ describe('registerLazySearchSource', () => {
 
   it('retries load() on the next keystroke if the first load rejects', async () => {
     let attempts = 0;
-    const realSource: SearchSource = {
-      id: 'lazy',
-      name: 'Lazy',
-      async search() {
-        return [ROW('l', 'lazy-row')];
-      },
-    };
+    const realSearch: SearchSource['search'] = async () => [ROW('l', 'lazy-row')];
     const load = vi.fn(async () => {
       attempts++;
       if (attempts === 1) throw new Error('network blip');
-      return realSource;
+      return realSearch;
     });
     registerLazySearchSource({ id: 'lazy', name: 'Lazy', load });
 
@@ -280,7 +268,7 @@ describe('registerLazySearchSource', () => {
     registerLazySearchSource({
       id: 'lazy',
       name: 'Lazy',
-      load: async () => ({ id: 'lazy', name: 'Lazy', search: realSearch }),
+      load: async () => realSearch,
     });
 
     await expect(
@@ -328,7 +316,7 @@ describe('searchAll scoping', () => {
   });
 
   it('does not load a lazy source that is scoped out', async () => {
-    const load = vi.fn(async () => makeSource('Lazy', [ROW('l', 'lazy-row')]));
+    const load = vi.fn(async () => makeSource('Lazy', [ROW('l', 'lazy-row')]).search);
     registerSearchSource(makeSource('Sites', [ROW('s', 'a-site')]));
     registerLazySearchSource({ id: 'lazy', name: 'Lazy', load });
     await searchAll('a', makeCtx(), ['sites']);
