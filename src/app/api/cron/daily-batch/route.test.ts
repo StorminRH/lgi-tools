@@ -32,7 +32,7 @@ vi.mock('../drain-esi-refresh-jobs/declaration', () => ({
 vi.mock('../revalue-net-worth/declaration', () => ({ revalueNetWorthDeclaration: h.declaration('cron:net-worth') }));
 vi.mock('../refresh-wh-statics/declaration', () => ({ refreshWhStaticsDeclaration: h.declaration('cron:wh-statics') }));
 vi.mock('@/db', () => ({ directClient: {} }));
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 vi.mock('next/server', () => ({
@@ -104,9 +104,8 @@ describe('GET /api/cron/daily-batch', () => {
           vi.advanceTimersByTime(6_000);
           return { deleted: 1, remaining: false };
         },
-        teardownAccess: async () => {
+        fenceAccess: async () => {
           vi.advanceTimersByTime(6_000);
-          return { inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'applied' };
         },
         tombstoneMap: async (mapId) => {
           tombstoned.push(mapId);

@@ -8,7 +8,7 @@ import { snapshotMergeTracking } from '@/data/location-tracking/merge';
 import { enqueueTrackingMerge } from '@/data/location-tracking/merge-store';
 import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import { enqueueMergeReprojection } from '@/data/maps/queries';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { account, user } from '@/db/auth-schema';
 import { directDatabase } from '@/db/direct-database';
 import { lockUserRows } from '@/db/locked-user';
@@ -103,7 +103,7 @@ export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): P
     return 'noop' in pair ? pair : commitMerge(tx, contributors, pair);
   });
   if ('noop' in outcome) return { kind: 'noop', reason: outcome.noop };
-  void logUsageEvent({
+  emitUsageEvent('account-merge', {
     action: 'auth_merge',
     characterId: request.provenCharacterId,
     metadata: {
@@ -111,14 +111,14 @@ export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): P
       survivorUserId: outcome.survivorUserId,
       movedCharacterIds: outcome.movedCharacterIds,
     },
-  }).catch((error) => console.error('[auth] merge telemetry write failed', error));
+  });
   return { kind: 'merged', ...outcome };
 }
 
 export async function settleConvexAfterMerge(committed: CommittedMerge): Promise<void> {
   const { sourceUserId, survivorUserId, captured } = committed;
   await bestEffort('account-merge', 'tracking transfer', sourceUserId, () =>
-    reconcileTrackingMerges(survivorUserId),
+    reconcileTrackingMerges({ userId: survivorUserId }),
   );
   await bestEffort('account-merge', 'reprojection', sourceUserId, () =>
     deliverCapturedMapAccessChanges([...captured]),

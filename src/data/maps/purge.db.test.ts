@@ -11,7 +11,7 @@ import { mapAccess, mapBlockAccounts, mapBlocks, maps, pendingMapAccessChanges }
 
 const hooks = {
   deliverCaptured: vi.fn(),
-  purgeMapChain: vi.fn(),
+  purgeOwnedMapChains: vi.fn(),
   purgeUserClaims: vi.fn(),
 };
 
@@ -64,7 +64,7 @@ const harness = await createDbTestHarness({
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.deliverCaptured.mockResolvedValue(undefined);
-  hooks.purgeMapChain.mockResolvedValue(undefined);
+  hooks.purgeOwnedMapChains.mockResolvedValue(undefined);
   hooks.purgeUserClaims.mockResolvedValue(undefined);
 });
 
@@ -192,6 +192,12 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
       { blockId: otherBlock!.id, userId: 'other' },
     ]);
 
+    let ownedWhileChainsPurged: string[] = [];
+    hooks.purgeOwnedMapChains.mockImplementationOnce(async (userId: string) => {
+      const owned = await harness.db.select({ id: maps.id }).from(maps).where(eq(maps.userId, userId));
+      ownedWhileChainsPurged = owned.map((row) => row.id);
+    });
+
     await mapsPurgeContributor.purgeUser?.({ kind: 'user', userId: 'owner' });
 
     expect(
@@ -208,9 +214,8 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
     ).toMatchObject([
       { ownerId: 43, mapId: '22222222-2222-4222-8222-222222222222' },
     ]);
-    expect(hooks.purgeMapChain).toHaveBeenCalledWith(
-      '11111111-1111-4111-8111-111111111111',
-    );
+    expect(hooks.purgeOwnedMapChains).toHaveBeenCalledExactlyOnceWith('owner');
+    expect(ownedWhileChainsPurged).toEqual(['11111111-1111-4111-8111-111111111111']);
     expect(hooks.purgeUserClaims).toHaveBeenCalledWith('owner');
   });
 
@@ -284,7 +289,7 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
   });
 
   it('keeps owned Neon maps retryable when collaborative purge fails', async () => {
-    hooks.purgeMapChain.mockRejectedValueOnce(new Error('door down'));
+    hooks.purgeOwnedMapChains.mockRejectedValueOnce(new Error('door down'));
     await seedUser(harness.db, 'owner');
     await harness.db.insert(maps).values({
       id: '11111111-1111-4111-8111-111111111111',

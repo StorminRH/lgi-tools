@@ -14,7 +14,7 @@ vi.mock('@/data/market-prices/cache', () => ({
   refreshStalePrices: (...args: unknown[]) => refreshStalePricesMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 

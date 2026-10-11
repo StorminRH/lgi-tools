@@ -22,10 +22,7 @@ vi.mock('@/platform/auth/admin-users', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/platform/auth/admin-users')>()),
   searchUsersByLinkedCharacterName: mocks.search,
 }));
-vi.mock('@/data/telemetry/queries', () => ({
-  getRoleChangeAudit: mocks.audit,
-  lastNDaysRange: (days: number) => ({ days }),
-}));
+vi.mock('@/data/telemetry/queries', () => ({ getRoleChangeAudit: mocks.audit }));
 vi.mock('@/platform/auth/admin-policy', () => ({ superadminCharacterId: mocks.superadmin }));
 
 import {
@@ -77,10 +74,18 @@ describe('access loads', () => {
     expect(mocks.search).toHaveBeenCalledWith('pil');
   });
 
-  it('reads 90 days of role changes', async () => {
-    await loadRoleAudit();
+  it('reads the last 90 days of role changes', async () => {
+    vi.useFakeTimers({ now: new Date('2026-06-09T12:00:00Z'), toFake: ['Date'] });
+    try {
+      await loadRoleAudit();
+    } finally {
+      vi.useRealTimers();
+    }
 
-    expect(mocks.audit).toHaveBeenCalledWith({ days: 90 }, 50);
+    expect(mocks.audit).toHaveBeenCalledWith(
+      { from: new Date('2026-03-11T12:00:00Z'), to: new Date('2026-06-09T12:00:00Z') },
+      50,
+    );
   });
 });
 

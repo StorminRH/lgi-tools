@@ -44,7 +44,7 @@ const IMPL = {
   },
   required: ['status', 'summary', 'filesChanged', 'commitSubject', 'commitBody', 'testsRun', 'deviations', 'followUps', 'blockedReason'],
 }
-const FIXR = { type: 'object', properties: { summary: { type: 'string' }, gaveUp: { type: 'boolean' }, reason: { type: 'string' }, commitSubject: { type: 'string', description: 'Commit subject for these changes: one imperative sentence, at most 72 characters, naming what was fixed (for example "Keep the anchor jump on fragment segment links (P020 review)"), not the process ("Address the review findings", "Fix the verify gate").' }, commitBody: { type: 'string', description: 'Commit message body for these changes: 2-8 lines wrapped at 72 columns, stating what was wrong and what changed, per item id. No process narration, no first person, no claims about committing.' } }, required: ['summary', 'gaveUp', 'reason', 'commitSubject', 'commitBody'] }
+const FIXR = { type: 'object', properties: { summary: { type: 'string' }, gaveUp: { type: 'boolean' }, reason: { type: 'string' }, commitSubject: { type: 'string', description: 'Commit subject for these changes: one imperative sentence, at most 72 characters, naming what was fixed (for example "Keep the anchor jump on fragment segment links (P020 review)"), not the process ("Address the review findings", "Fix the verify gate").' }, commitBody: { type: 'string', description: 'Commit message body for these changes: 2-8 lines wrapped at 72 columns, stating what was wrong and what changed, per item id. No process narration, no first person, no claims about committing, and no trailers (the workflow adds them).' } }, required: ['summary', 'gaveUp', 'reason', 'commitSubject', 'commitBody'] }
 const FINDINGS = {
   type: 'object',
   properties: {

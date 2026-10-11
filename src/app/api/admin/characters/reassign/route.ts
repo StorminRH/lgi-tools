@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { checkAdmin } from '@/composition/route-guards';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse, seeOther } from '@/transport/api-response';
 import { adminReassignFormSchema } from '@/platform/auth/api-contract';
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         runners: identityProjectionRunners,
       });
 
-      void logUsageEvent({
+      emitUsageEvent('admin/characters/reassign', {
         action: 'admin_character_reassign',
         characterId: session.characterId,
         metadata: {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           characterId,
           sourceDeleted,
         },
-      }).catch((err) => console.error('[admin/characters/reassign] telemetry write failed', err));
+      });
 
       return seeOther(request, `/admin/users/${toUserId}`);
     },

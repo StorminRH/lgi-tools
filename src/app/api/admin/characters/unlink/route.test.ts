@@ -11,7 +11,7 @@ const ADMIN_SESSION = adminSessionFixture({ user: { id: 'admin-1' }, characterId
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const deleteLinkedCharacterMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 const emitCostMetricMock = capabilityOutcomeMock();
 
 vi.mock('@/composition/auth', () => ({
@@ -26,8 +26,8 @@ vi.mock('@/platform/auth/admin-users', () => ({
   deleteLinkedCharacter: (...args: unknown[]) => deleteLinkedCharacterMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
 
 vi.mock('@/data/telemetry/cost-metrics', () => ({
@@ -58,8 +58,7 @@ describe('POST /api/admin/characters/unlink', () => {
     getSessionMock.mockReset();
     deleteLinkedCharacterMock.mockReset();
     listLinkedCharactersMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
+    emitUsageEventMock.mockReset();
     emitCostMetricMock.mockReset();
   });
 
@@ -110,7 +109,11 @@ describe('POST /api/admin/characters/unlink', () => {
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     );
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('admin/characters/unlink', {
+      action: 'admin_character_unlink',
+      characterId: ADMIN_SESSION.characterId,
+      metadata: { actorUserId: 'admin-1', targetUserId: 'eve-user-2', characterId: 100 },
+    });
     expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
   });
 
@@ -126,6 +129,6 @@ describe('POST /api/admin/characters/unlink', () => {
       'http://localhost:3000/admin/users/eve-user-2?error=unlink_failed',
     );
     expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'conflict', code: 'unlink_failed' }]);
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(emitUsageEventMock).not.toHaveBeenCalled();
   });
 });

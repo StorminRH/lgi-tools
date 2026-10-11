@@ -2,27 +2,30 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_TIME_FROM,
   computeDelta,
+  lastNDaysRange,
   parseRange,
   previousRange,
   rangeFor,
-} from '@/composition/admin-period';
+} from './period';
 
 const NOW = new Date('2026-06-09T12:00:00Z');
 
 describe('admin period', () => {
   it('parses ranges, mirrors previous windows, and computes deltas', () => {
     expect(parseRange(undefined)).toBe('30d');
-    expect(parseRange(['7d'])).toBe('30d');
+    expect(parseRange(['7d'])).toBe('7d');
+    expect(parseRange(['90d', '7d'])).toBe('90d');
+    expect(parseRange(['bogus', '7d'])).toBe('30d');
+    expect(parseRange([])).toBe('30d');
     expect(parseRange('14d')).toBe('30d');
     expect(parseRange('7d')).toBe('7d');
     expect(parseRange('90d')).toBe('90d');
     expect(parseRange('all')).toBe('all');
 
-    const week = rangeFor('7d', NOW);
-    expect(week.to).toEqual(NOW);
-    expect(NOW.getTime() - week.from.getTime()).toBe(7 * 24 * 3_600_000);
-    for (const key of ['7d', '30d', '90d'] as const) {
+    for (const [key, days] of [['7d', 7], ['30d', 30], ['90d', 90]] as const) {
       const current = rangeFor(key, NOW);
+      expect(current.to).toEqual(NOW);
+      expect(NOW.getTime() - current.from.getTime()).toBe(days * 24 * 3_600_000);
       const prev = previousRange(key, current);
       expect(prev?.to).toEqual(current.from);
       expect(prev!.to.getTime() - prev!.from.getTime()).toBe(
@@ -45,5 +48,15 @@ describe('admin period', () => {
     expect(computeDelta(1002, 1000)).toEqual({ pct: 0, direction: 'flat' });
     expect(computeDelta(998, 1000)).toEqual({ pct: 0, direction: 'flat' });
     expect(computeDelta(0, 40)).toEqual({ pct: -100, direction: 'down' });
+  });
+
+  it('reads the last N days up to the given instant, without rounding it', () => {
+    const now = new Date('2026-05-25T12:00:30.250Z');
+    expect(lastNDaysRange(7, now)).toEqual({
+      from: new Date('2026-05-18T12:00:30.250Z'),
+      to: new Date('2026-05-25T12:00:30.250Z'),
+    });
+    expect(lastNDaysRange(1, now).from).toEqual(new Date('2026-05-24T12:00:30.250Z'));
+    expect(lastNDaysRange(30, now).from).toEqual(new Date('2026-04-25T12:00:30.250Z'));
   });
 });

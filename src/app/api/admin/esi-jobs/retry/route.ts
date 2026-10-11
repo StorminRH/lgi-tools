@@ -3,7 +3,7 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import { checkAdmin } from '@/composition/route-guards';
 import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contract';
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { notFoundFailure } from '@/lib/failure';
 import { problemResponse, seeOther } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
@@ -23,13 +23,11 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
-      void logUsageEvent({
+      emitUsageEvent('admin/esi-jobs/retry', {
         action: 'admin_esi_job_requeued',
         characterId: session.characterId,
         metadata: { jobId, outcome: result.outcome },
-      }).catch((error) =>
-        console.error('[admin/esi-jobs/retry] telemetry write failed', error),
-      );
+      });
 
       return seeOther(request, '/admin/queue');
     },

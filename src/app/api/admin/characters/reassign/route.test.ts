@@ -7,7 +7,7 @@ const ADMIN_SESSION = adminSessionFixture({ user: { id: 'admin-1' }, characterId
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const accountBelongsToUserMock = vi.fn();
 const reassignCharacterMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -21,9 +21,11 @@ vi.mock('@/platform/auth/admin-users', () => ({
   reassignCharacter: (args: unknown) => reassignCharacterMock(args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
+// Capability outcomes also reach emitUsageEvent, through cost-metrics; keep them out of the events under test.
+vi.mock('@/data/telemetry/cost-metrics', () => ({ emitCostMetric: vi.fn() }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 // The guard reads through getFullSession, which schedules the authorization check after the response.
@@ -46,8 +48,7 @@ describe('POST /api/admin/characters/reassign', () => {
     getSessionMock.mockReset();
     accountBelongsToUserMock.mockReset();
     reassignCharacterMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
+    emitUsageEventMock.mockReset();
   });
 
   it('refuses non-admins, a malformed form, a no-op self-move, and an unowned character', async () => {
@@ -88,6 +89,9 @@ describe('POST /api/admin/characters/reassign', () => {
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     });
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith(
+      'admin/characters/reassign',
+      expect.objectContaining({ action: 'admin_character_reassign', characterId: ADMIN_SESSION.characterId }),
+    );
   });
 });

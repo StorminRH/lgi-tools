@@ -9,7 +9,6 @@ const h = vi.hoisted(() => ({
   getDocument: vi.fn(),
   update: vi.fn(),
   remove: vi.fn(),
-  logUsageEvent: vi.fn(),
 }));
 
 vi.mock('@/composition/session', () => ({ getCurrentUserId: h.getCurrentUserId }));
@@ -25,7 +24,6 @@ vi.mock('@/features/industry-planner/profiles/queries', () => ({
   updateIndustryProfile: h.update,
   deleteIndustryProfile: h.remove,
 }));
-vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: h.logUsageEvent }));
 
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { postJson } from '@/lib/__tests__/route-requests';
@@ -50,7 +48,6 @@ beforeEach(() => {
   h.listLinkedCharacters.mockResolvedValue([{ characterId: LINKED.characterId }]);
   h.list.mockResolvedValue([]);
   h.create.mockResolvedValue(true);
-  h.logUsageEvent.mockResolvedValue(undefined);
 });
 
 test('reading profiles is empty when signed out and the account list when signed in', async () => {

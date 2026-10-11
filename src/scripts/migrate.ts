@@ -1,20 +1,16 @@
-import { config } from 'dotenv';
+import './load-env';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { readEnv } from '@/lib/env';
 import { resolveMigrationUrl } from './migrate-url';
-import { runScript } from './script-runtime';
-
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import postgres from 'postgres';
-import { PG_CONNECT_TIMEOUT_SECONDS } from '@/db';
+import { createScriptClient, runScript } from './script-runtime';
 
 const databaseUrl = resolveMigrationUrl({
   DATABASE_MIGRATION_URL: readEnv('DATABASE_MIGRATION_URL'),
   DATABASE_URL: readEnv('DATABASE_URL'),
 });
 
-const client = postgres(databaseUrl, { max: 1, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
+const client = createScriptClient(databaseUrl, { max: 1 });
 
 async function main() {
   await migrate(drizzle(client), { migrationsFolder: './drizzle' });

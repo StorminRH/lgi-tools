@@ -227,7 +227,6 @@ export type CronPurgeMapsResponse =
       readonly selected: number;
       readonly tombstoned: number;
       readonly deletedDocuments: number;
-      readonly projectionPending: number;
     };
 
 export const deleteMapEndpoint = defineEndpoint({

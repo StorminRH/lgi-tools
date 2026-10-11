@@ -25,7 +25,7 @@ vi.mock('@/composition/wh-statics-refresh', () => ({
     recordChangedMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 

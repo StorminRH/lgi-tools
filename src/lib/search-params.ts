@@ -20,3 +20,11 @@ export function withSearchParams(
   const query = params.toString().replace(/=(&|$)/g, '$1');
   return `${pathname}${query === '' ? '' : `?${query}`}${hash}`;
 }
+
+/**
+ * One value of a server `searchParams` entry, taking the first of a repeated
+ * key, so a server read agrees with `URLSearchParams.get` on the client.
+ */
+export function firstSearchParam(raw: string | string[] | undefined): string | undefined {
+  return Array.isArray(raw) ? raw[0] : raw;
+}

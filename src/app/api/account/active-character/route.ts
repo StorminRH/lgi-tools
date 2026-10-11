@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse, seeOther } from '@/transport/api-response';
 import { characterIdFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
@@ -31,11 +31,11 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
       }
 
-      void logUsageEvent({
+      emitUsageEvent('account/active-character', {
         action: 'character_switch',
         characterId: session.characterId,
         metadata: { userId: session.user.id, toCharacterId: characterId },
-      }).catch((err) => console.error('[account/active-character] telemetry write failed', err));
+      });
 
       return seeOther(request, CHARACTERS_PAGE);
     },

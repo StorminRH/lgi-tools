@@ -1,5 +1,6 @@
-import { parseRange, rangeFor } from '@/composition/admin-period';
 import { listRecentDomainEvents } from '@/data/domain-events/queries';
+import { parseRange, rangeFor } from '../period';
+import { SCHEDULED_TASKS_ANCHOR } from '../admin-sections';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import type { RangeSearchParams } from '../RangeControl';
@@ -22,11 +23,11 @@ async function HealthContent({ searchParams }: { searchParams: RangeSearchParams
       >
         {(levels) => <ServiceLevelRows rows={levels.rows} details={levels.details} />}
       </AdminSection>
-      {/* The overview's Jobs card and attention items link here as #scheduled. */}
+      {/* The overview's Jobs card and attention items link here by this anchor. */}
       <AdminSection
         title="Scheduled tasks"
         name="scheduled-tasks"
-        anchor="scheduled"
+        anchor={SCHEDULED_TASKS_ANCHOR}
         rows={4}
         reveal={2}
         load={() => loadScheduledTasks(range)}
@@ -48,11 +49,7 @@ async function HealthContent({ searchParams }: { searchParams: RangeSearchParams
 
 export default function AdminHealthPage({ searchParams }: { searchParams: RangeSearchParams }) {
   return (
-    <AdminPageFrame
-      title="Health"
-      rangeBasePath="/admin/health"
-      fallbackLabel="Service levels"
-    >
+    <AdminPageFrame section="health" fallbackLabel="Service levels">
       <HealthContent searchParams={searchParams} />
     </AdminPageFrame>
   );

@@ -4,9 +4,14 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 
 export const MAP_PURGE_BATCH = 128;
 
+/**
+ * Every map-keyed table except mapAccessProjectionWatermarks. The watermark
+ * outlives the chain: callers fence a map with an empty projection before they
+ * purge it, and the kept watermark keeps refusing any projection reserved
+ * before that fence, so a late delivery cannot re-grant an erased map.
+ */
 export const MAP_PURGE_TABLES = [
   'mapAccess',
-  'mapAccessProjectionWatermarks',
   'mapSystems',
   'mapConnections',
   'mapJumpBookkeeping',

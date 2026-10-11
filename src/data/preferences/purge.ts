@@ -1,14 +1,9 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/platform/purge/types';
+import { userRowsContributor } from '@/platform/purge/contributors';
 import { userPreferences } from './schema';
 
-export const preferencesPurgeContributor: PurgeContributor = {
+export const preferencesPurgeContributor = userRowsContributor(db, {
   name: 'preferences',
-  tier: 'durable',
-  claims: [userPreferences],
-  merge: [{ table: userPreferences, rule: 'survivor-wins', key: [userPreferences.key] }],
-  async purgeUser({ userId }) {
-    await db.delete(userPreferences).where(eq(userPreferences.userId, userId));
-  },
-};
+  table: userPreferences,
+  merge: { rule: 'survivor-wins', key: [userPreferences.key] },
+});

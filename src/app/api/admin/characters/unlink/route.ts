@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import {
   conflictFailure,
   notFoundFailure,
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         return notice('unlink_failed', conflictFailure('unlink_failed'));
       }
 
-      void logUsageEvent({
+      emitUsageEvent('admin/characters/unlink', {
         action: 'admin_character_unlink',
         characterId: session.characterId,
         metadata: {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           targetUserId: userId,
           characterId,
         },
-      }).catch((err) => console.error('[admin/characters/unlink] telemetry write failed', err));
+      });
 
       return seeOther(request, userPage);
     },

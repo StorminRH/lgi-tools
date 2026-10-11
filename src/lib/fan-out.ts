@@ -40,3 +40,44 @@ export async function mapConcurrent<T, R>(
   await Promise.all(Array.from({ length: runners }, run));
   return results;
 }
+
+/** What {@link runUntilDeadline} counted; `deferred` items were never started. */
+export interface DeadlineBatchResult {
+  readonly succeeded: number;
+  readonly failed: number;
+  readonly deferred: number;
+}
+
+/**
+ * Works through `items` one at a time until `deadline` (epoch ms), so one
+ * item's failure never stops the rest. The deadline is checked before each
+ * item starts, so a running item always finishes; the first item checked at
+ * or past the deadline and every item after it are counted deferred. `work`
+ * resolving 'failed' counts a failure without calling `onError`, 'skipped'
+ * counts nothing, and anything else counts a success. A throw counts a
+ * failure and then awaits `onError`; a throw from `onError` (a retry rotate
+ * that could not be written) stops the run.
+ */
+export async function runUntilDeadline<T>(
+  items: readonly T[],
+  deadline: number,
+  work: (item: T) => Promise<'succeeded' | 'failed' | 'skipped' | void>,
+  onError: (item: T, error: unknown) => void | Promise<void>,
+): Promise<DeadlineBatchResult> {
+  let succeeded = 0;
+  let failed = 0;
+  for (const [index, item] of items.entries()) {
+    if (Date.now() >= deadline) return { succeeded, failed, deferred: items.length - index };
+    let outcome;
+    try {
+      outcome = await work(item);
+    } catch (error) {
+      failed += 1;
+      await onError(item, error);
+      continue;
+    }
+    if (outcome === 'failed') failed += 1;
+    else if (outcome !== 'skipped') succeeded += 1;
+  }
+  return { succeeded, failed, deferred: 0 };
+}

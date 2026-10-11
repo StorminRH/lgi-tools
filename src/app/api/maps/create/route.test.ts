@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   createProjectedMap: vi.fn(),
-  logUsageEvent: vi.fn(),
   rateLimit: vi.fn(),
 }));
 
@@ -15,9 +14,6 @@ vi.mock('@/composition/map-creation', () => ({
 }));
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: (...args: unknown[]) => h.rateLimit(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
 import { postJson } from '@/lib/__tests__/route-requests';
@@ -39,7 +35,6 @@ const VALID_BODY = {
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.createProjectedMap.mockReset().mockResolvedValue({ ok: true, mapId: MAP_ID });
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   h.rateLimit.mockReset().mockResolvedValue({ ok: true, remaining: 4 });
 });
 

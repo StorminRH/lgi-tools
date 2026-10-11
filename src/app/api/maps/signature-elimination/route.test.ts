@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   resolveSignatureElimination: vi.fn(),
-  logUsageEvent: vi.fn(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
@@ -12,9 +11,6 @@ vi.mock('@/composition/route-guards', () => ({
 vi.mock('@/composition/signature-elimination/resolver', () => ({
   resolveSignatureElimination: (...args: unknown[]) =>
     h.resolveSignatureElimination(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
 import { postJson } from '@/lib/__tests__/route-requests';
@@ -29,7 +25,6 @@ beforeEach(() => {
   h.resolveSignatureElimination.mockReset().mockResolvedValue({
     results: [{ systemId: 31_000_001, status: 'statics-unavailable' }],
   });
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
 });
 
 describe('POST /api/maps/signature-elimination', () => {

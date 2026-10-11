@@ -1,6 +1,6 @@
 import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { deliverCapturedMapAccessChanges } from '@/composition/map-affiliation-access';
-import { purgeMapChain } from '@/composition/map-purge';
+import { purgeOwnedMapChains } from '@/composition/map-purge';
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import {
   industryProfilesPurgeContributor,
@@ -26,7 +26,7 @@ import type { PurgeContributor } from '@/platform/purge/types';
 
 const mapsPurgeContributor = createMapsPurgeContributor({
   deliverCaptured: deliverCapturedMapAccessChanges,
-  purgeMapChain,
+  purgeOwnedMapChains,
   purgeUserClaims: purgeUserMapAccessProjection,
 });
 

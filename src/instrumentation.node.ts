@@ -1,5 +1,5 @@
-import { after } from 'next/server';
 import { recordCostMetric } from '@/data/telemetry/cost-metrics';
+import { deferAfterResponse } from '@/lib/after-response';
 import { setWorkDeferrer } from '@/lib/deferred-work';
 import { configureNeonColdStartMetricSink } from '@/lib/neon-cold-start-retry';
 
@@ -9,14 +9,7 @@ export function registerNeonColdStartTelemetry(): void {
   );
 }
 
-/** Lets lower layers move bookkeeping past the response; outside a request scope `after` throws and the caller awaits instead. */
+/** Lets lower layers move bookkeeping past the response; outside a request scope the caller awaits it instead. */
 export function registerAfterResponseWork(): void {
-  setWorkDeferrer((task) => {
-    try {
-      after(task);
-      return true;
-    } catch {
-      return false;
-    }
-  });
+  setWorkDeferrer(deferAfterResponse);
 }

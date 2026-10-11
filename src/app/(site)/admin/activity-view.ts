@@ -1,9 +1,9 @@
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
 import { movingAverage, zeroFillDaily } from './aggregate';
-import { computeDelta, type Delta } from '@/composition/admin-period';
 import type { DateRange } from '@/data/telemetry/types';
 import { groupBy } from '@/lib/array';
 import { DAY_MS, isoDay } from '@/lib/iso-date';
+import { computeDelta, type Delta } from './period';
 
 const MA_WINDOW = 7;
 const MARKER_DENSITY_CAP = 120;

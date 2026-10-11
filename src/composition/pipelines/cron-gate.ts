@@ -5,8 +5,8 @@ import {
   type CapabilityId,
   type CapabilityResult,
 } from '@/data/telemetry/capability';
-import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
+import { recordUsageEvent } from '@/data/telemetry/usage-events';
 import { directClient } from '@/db';
 import { requireCronAuth } from '@/transport/cron';
 import { withCorrelationScope } from '@/transport/correlation';
@@ -58,18 +58,6 @@ export type CronRouteDeclaration<Body, Pre = void> = {
   ) => Promise<CronRunOutcome<Body>>;
 };
 
-async function recordUsage(
-  scope: string,
-  action: UsageAction,
-  metadata: Record<string, unknown>,
-): Promise<void> {
-  try {
-    await logUsageEvent({ action, metadata });
-  } catch (err) {
-    console.error(`[${scope}] telemetry write failed`, err);
-  }
-}
-
 function workContext(
   scope: string,
   reserved?: ReservedConnection,
@@ -79,8 +67,7 @@ function workContext(
       return directDatabase();
     },
     reserved,
-    record: (action, metadata) =>
-      recordUsage(scope, action, metadata),
+    record: (action, metadata) => recordUsageEvent(scope, { action, metadata }),
   };
 }
 
@@ -118,7 +105,7 @@ async function emitRun(
       durationMs,
       retry: null,
     });
-    await recordUsage(declaration.name, declaration.action, metadata);
+    await recordUsageEvent(declaration.name, { action: declaration.action, metadata });
   }
 }
 

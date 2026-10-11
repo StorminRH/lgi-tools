@@ -15,7 +15,7 @@ vi.mock('@/composition/map-purge', () => ({
 vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => lock.reserve(...args) },
 }));
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 vi.mock('next/server', () => ({
@@ -32,7 +32,6 @@ beforeEach(() => {
     selected: 2,
     tombstoned: 1,
     deletedDocuments: 300,
-    projectionPending: 0,
   });
   lock.reserve.mockClear();
   lock.reserved.mockClear();
@@ -62,7 +61,6 @@ describe('GET /api/cron/purge-maps', () => {
       selected: 2,
       tombstoned: 1,
       deletedDocuments: 300,
-      projectionPending: 0,
     });
     expect(h.purgeEligibleMaps).toHaveBeenCalledOnce();
     expect(h.logUsageEvent).toHaveBeenCalledWith({

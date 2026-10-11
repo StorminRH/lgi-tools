@@ -8,7 +8,6 @@ const h = vi.hoisted(() => ({
   createSavedPlanMock: vi.fn(),
   deleteSavedPlanMock: vi.fn(),
   listSavedPlansMock: vi.fn(),
-  logUsageEventMock: vi.fn(),
 }));
 
 vi.mock('@/composition/session', () => ({
@@ -25,9 +24,6 @@ vi.mock('@/features/industry-planner/saved-plans-queries', () => ({
   createSavedPlan: (...args: unknown[]) => h.createSavedPlanMock(...args),
   deleteSavedPlan: (...args: unknown[]) => h.deleteSavedPlanMock(...args),
   listSavedPlans: (...args: unknown[]) => h.listSavedPlansMock(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEventMock(...args),
 }));
 
 import { MAX_SAVED_PLANS_PER_USER } from '@/features/industry-planner/api-contract';
@@ -60,7 +56,6 @@ beforeEach(() => {
   h.createSavedPlanMock.mockReset().mockResolvedValue(undefined);
   h.deleteSavedPlanMock.mockReset().mockResolvedValue(undefined);
   h.listSavedPlansMock.mockReset().mockResolvedValue([planRow]);
-  h.logUsageEventMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('GET /api/account/saved-plans', () => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
-vi.mock('./account-lifecycle/tracking-merge-retry', () => ({ reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }) }));
+vi.mock('./account-lifecycle/tracking-merge-retry', () => ({ reconcileTrackingMerges: vi.fn().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 }) }));
 
 const mocks = vi.hoisted(() => ({
   readPendingMapAccessChanges: vi.fn(),
@@ -15,14 +15,12 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
   acknowledgeMapAccessChanges: mocks.acknowledgeMapAccessChanges,
 }));
 vi.mock('@/platform/auth/affiliation', () => ({ refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome }));
-vi.mock('./map-access-projection', () => ({
+vi.mock('./map-access-projection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./map-access-projection')>(),
   projectMapAccess: mocks.projectMapAccess,
-  requireCurrentProjection: (result: { outcome: string }) => {
-    if (result.outcome === 'stale') throw new Error('newer projection won');
-    return result;
-  },
 }));
 
+import { ProjectionUnavailableError } from './map-access-projection';
 import {
   deliverCapturedMapAccessChanges,
   reconcileAffiliationAccess,
@@ -75,7 +73,7 @@ it.each(['throw', 'stale'])('retains failed work (%s) while completing independe
   mocks.projectMapAccess.mockImplementation(async (mapId: string) => {
     if (mapId === 'first-map') {
       if (failure === 'throw') throw new Error('Convex unavailable');
-      return { outcome: 'stale' };
+      throw new ProjectionUnavailableError('Map access projection unavailable: a newer projection already won');
     }
     return { outcome: 'applied' };
   });

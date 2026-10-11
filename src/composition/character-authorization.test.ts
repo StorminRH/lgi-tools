@@ -3,7 +3,7 @@ import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { settle } from '@/lib/__tests__/hook-runtime';
 
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
-  reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
+  reconcileTrackingMerges: vi.fn().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 }),
 }));
 
 const mocks = vi.hoisted(() => ({

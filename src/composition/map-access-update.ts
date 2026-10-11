@@ -1,9 +1,5 @@
 import { resolveMapPrincipals } from '@/composition/map-access';
-import {
-  projectMapAccess,
-  ProjectionUnavailableError,
-  requireCurrentProjection,
-} from '@/composition/map-access-projection';
+import { projectMapAccess, ProjectionUnavailableError } from '@/composition/map-access-projection';
 import type { MapPrincipals } from '@/data/maps/access';
 import type { MapGrantRequest, UpdateMapAccessRequest } from '@/data/maps/api-contract';
 import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
@@ -70,7 +66,7 @@ export async function applyMapAccessUpdate(
     : await writeGrantChange(userId, principals, input, dependencies);
   if (!written.ok) return written;
   try {
-    requireCurrentProjection(await projectAccess(input.mapId));
+    await projectAccess(input.mapId);
     await acknowledgeAccess([written.pending]);
     return { ok: true };
   } catch (cause) {

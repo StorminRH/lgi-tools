@@ -1,9 +1,10 @@
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
-import { parseRange, rangeFor } from '@/composition/admin-period';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { getSitemapStatus } from '@/data/gsc/queries';
 import { formatCount } from '@/lib/format/number';
+import { parseRange, rangeFor } from '../period';
+import { adminSection } from '../admin-sections';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import type { RangeSearchParams } from '../RangeControl';
@@ -93,20 +94,17 @@ async function SearchContent({ searchParams }: { searchParams: RangeSearchParams
 }
 
 export default function AdminSearchPage({ searchParams }: { searchParams: RangeSearchParams }) {
-  // Without Search Console there is nothing for a range to filter.
+  // Without Search Console there is nothing for a range to filter, so the
+  // page keeps the section's title without its range control.
   if (!isGscConfigured()) {
     return (
-      <AdminPageFrame title="Search" fallbackLabel="Search Console">
+      <AdminPageFrame title={adminSection('search').title} fallbackLabel="Search Console">
         <SearchNotConnected />
       </AdminPageFrame>
     );
   }
   return (
-    <AdminPageFrame
-      title="Search"
-      rangeBasePath="/admin/search"
-      fallbackLabel="Performance"
-    >
+    <AdminPageFrame section="search" fallbackLabel="Performance">
       <SearchContent searchParams={searchParams} />
     </AdminPageFrame>
   );

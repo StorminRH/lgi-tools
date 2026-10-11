@@ -181,7 +181,7 @@ describe('scopeLegacyMap', () => {
 });
 
 describe('scopeLegacyMaps', () => {
-  it('counts each map, keeps going past a failure, and stops at the deadline', async () => {
+  it('counts each map, keeps going past a failure, and defers the batch past the deadline', async () => {
     silenceConsolePrefixes('error', ['[map-character-scoping] map kept for retry']);
     const listMapIds = vi.fn().mockResolvedValue(['a', 'b', 'c']);
     const d = deps({
@@ -194,10 +194,10 @@ describe('scopeLegacyMaps', () => {
         .mockResolvedValueOnce({ processed: 0, failed: 1 }),
     });
     await expect(scopeLegacyMaps(Date.now() + 60_000, { ...d, listMapIds }))
-      .resolves.toEqual({ succeeded: 1, failed: 2 });
+      .resolves.toEqual({ succeeded: 1, failed: 2, deferred: 0 });
     expect(listMapIds).toHaveBeenCalledWith(50);
 
     await expect(scopeLegacyMaps(Date.now() - 1, { ...d, listMapIds }))
-      .resolves.toEqual({ succeeded: 0, failed: 0 });
+      .resolves.toEqual({ succeeded: 0, failed: 0, deferred: 3 });
   });
 });

@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { unexpectedFailure, validationFailure, type AppFailure } from '@/lib/failure';
 import { problemResponse, seeOther } from '@/transport/api-response';
@@ -64,11 +64,11 @@ export async function POST(request: NextRequest): Promise<Response> {
         return notice(request, 'unlink_failed', unexpectedFailure('unlink_failed', outcome.error));
       }
 
-      void logUsageEvent({
+      emitUsageEvent('account/characters/unlink', {
         action: 'character_unlink',
         characterId: session.characterId,
         metadata: { userId: session.user.id, unlinkedCharacterId: characterId },
-      }).catch((err) => console.error('[account/unlink] telemetry write failed', err));
+      });
 
       return seeOther(request, CHARACTERS_PAGE);
     },
