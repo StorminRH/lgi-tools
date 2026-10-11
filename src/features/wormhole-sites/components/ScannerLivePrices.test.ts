@@ -1,7 +1,9 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, expect, test, vi } from 'vitest';
-import { setSiteNameIndex } from '../site-name-lookup';
+import { siteSearchEntry } from '../__tests__/site-fixtures';
+import type { SiteSearchEntry } from '../queries';
+import { SiteCatalogueProvider } from '../site-catalogue';
 import {
   ScannerEstIskCell,
   ScannerLivePricesProvider,
@@ -25,27 +27,32 @@ vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
 }));
 
 afterEach(() => {
-  setSiteNameIndex([]);
   refresh.calls = [];
   refresh.isPending = () => false;
   refresh.prices = new Map();
 });
 
-function render(node: ReactNode): string {
-  return renderToStaticMarkup(createElement('div', null, node));
+function render(siteIndex: readonly SiteSearchEntry[], node: ReactNode): string {
+  return renderToStaticMarkup(
+    createElement(SiteCatalogueProvider, { siteIndex }, createElement('div', null, node)),
+  );
 }
 
 test('scanner live prices enable for harvestable recipes, settle LivePrice, and keep combat static', () => {
-  setSiteNameIndex([
-    {
-      id: 49,
-      name: 'Barren Perimeter Reservoir',
-      estIsk: 28_100_000,
-      liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
-    },
-  ]);
+  const barren = siteSearchEntry({
+    id: 49,
+    name: 'Barren Perimeter Reservoir',
+    siteType: 'gas',
+    wormholeClass: null,
+    resourceValueIsk: 28_100_000,
+  });
+  const barrenLive = {
+    ...barren,
+    liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
+  };
 
   render(
+    [barrenLive],
     createElement(
       ScannerLivePricesProvider,
       { harvestableNames: ['Barren Perimeter Reservoir'] },
@@ -61,11 +68,9 @@ test('scanner live prices enable for harvestable recipes, settle LivePrice, and 
     refreshKey: '30370',
   });
 
-  setSiteNameIndex([
-    { id: 49, name: 'Barren Perimeter Reservoir', estIsk: 28_100_000 },
-  ]);
   refresh.calls = [];
   render(
+    [barren],
     createElement(
       ScannerLivePricesProvider,
       { harvestableNames: ['Barren Perimeter Reservoir'] },
@@ -74,16 +79,9 @@ test('scanner live prices enable for harvestable recipes, settle LivePrice, and 
   );
   expect(refresh.calls.at(-1)).toEqual({ typeIds: [], enabled: false, refreshKey: '' });
 
-  setSiteNameIndex([
-    {
-      id: 49,
-      name: 'Barren Perimeter Reservoir',
-      estIsk: 28_100_000,
-      liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
-    },
-  ]);
   refresh.isPending = (typeId) => typeId === 30370;
   const pendingHtml = render(
+    [barrenLive],
     createElement(
       ScannerLivePricesProvider,
       { harvestableNames: ['Barren Perimeter Reservoir'] },
@@ -100,6 +98,7 @@ test('scanner live prices enable for harvestable recipes, settle LivePrice, and 
   refresh.isPending = () => false;
   refresh.prices = new Map([[30370, { bestSell: 25_000 }]]);
   const settledHtml = render(
+    [barrenLive],
     createElement(
       ScannerLivePricesProvider,
       { harvestableNames: ['Barren Perimeter Reservoir'] },
@@ -112,8 +111,8 @@ test('scanner live prices enable for harvestable recipes, settle LivePrice, and 
   expect(settledHtml).toContain('data-price-state="settled"');
   expect(settledHtml).toContain('25.0M');
 
-  setSiteNameIndex([{ id: 1, name: 'Sansha Hideout', estIsk: 12_000_000 }]);
   const combatHtml = render(
+    [siteSearchEntry({ id: 1, name: 'Sansha Hideout', blueLootIsk: 12_000_000 })],
     createElement(
       ScannerLivePricesProvider,
       { harvestableNames: [] },

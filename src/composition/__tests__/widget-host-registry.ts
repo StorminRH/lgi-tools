@@ -7,4 +7,5 @@ export const WIDGET_HOST_FILES = [
   'src/mapper/signatures/ActiveSiteViewer.tsx',
   'src/mapper/signatures/SignatureWindow.tsx',
   'src/mapper/signatures/scanner-section-table.tsx',
+  'src/mapper/windows/SystemIntelligenceBody.tsx',
 ] as const;

@@ -4,22 +4,17 @@ import { formatIskCompact } from '@/lib/format/isk';
 import type { SiteSearchEntry } from './queries';
 import { CLASS_TONE, SITE_TYPE_LABEL } from './components/wormhole-styles';
 import { wormholeClassRank } from './site-class';
-import { setSiteNameIndex } from './site-name-lookup';
 import { WORMHOLE_CLASSES } from './site-taxonomy';
 import { primarySiteIsk } from './site-type';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
 
+/**
+ * GlobalSearch is the only writer: it sends the sheet-priced index on every
+ * route, so search shows the same ISK on /atlas as everywhere else.
+ */
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
-  setSiteNameIndex(
-    entries.map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      estIsk: primarySiteIsk(entry),
-      liveRecipes: entry.liveRecipes ?? [],
-    })),
-  );
 }
 
 function iconTone(entry: SiteSearchEntry): string {

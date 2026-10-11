@@ -1,7 +1,8 @@
-import { afterEach, expect, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
-import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
+import { siteSearchEntry } from '@/features/wormhole-sites/__tests__/site-fixtures';
+import { createSiteNameLookups } from '@/features/wormhole-sites/site-name-lookup';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import {
   applyScannerRowOpenAction,
@@ -9,10 +10,6 @@ import {
   scannerRowShowsOpenAffordance,
 } from './scanner-row-open';
 import type { SignatureWindowRow } from './signature-model';
-
-afterEach(() => {
-  setSiteNameIndex([]);
-});
 
 function row(
   over: Partial<SignatureWindowRow> &
@@ -48,9 +45,9 @@ const WH: SignatureWindowRow = row({
 });
 
 test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
-  setSiteNameIndex([
-    { id: 49, name: 'Barren Perimeter Reservoir' },
-    { id: 17, name: 'Forgotten Frontier Quarantine Outpost' },
+  const { siteIdForName } = createSiteNameLookups([
+    siteSearchEntry({ id: 49, name: 'Barren Perimeter Reservoir' }),
+    siteSearchEntry({ id: 17, name: 'Forgotten Frontier Quarantine Outpost' }),
   ]);
 
   const gas = row({
@@ -81,31 +78,31 @@ test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
     name: 'Forgotten Frontier',
   });
 
-  expect(scannerRowOpenAction(WH, true)).toEqual({
+  expect(scannerRowOpenAction(WH, true, siteIdForName)).toEqual({
     kind: 'connection',
     connectionId: 'connection-1',
     signatureId: 'WHL-001',
   });
-  expect(scannerRowOpenAction(unnamed, true)).toBeNull();
-  expect(scannerRowOpenAction(gas, false)).toEqual({
+  expect(scannerRowOpenAction(unnamed, true, siteIdForName)).toBeNull();
+  expect(scannerRowOpenAction(gas, false, siteIdForName)).toEqual({
     kind: 'site',
     siteId: 49,
     signatureId: 'GAS-001',
   });
-  expect(scannerRowOpenAction(anomaly, false)).toEqual({
+  expect(scannerRowOpenAction(anomaly, false, siteIdForName)).toEqual({
     kind: 'site',
     siteId: 17,
     signatureId: 'ANO-001',
   });
-  expect(scannerRowOpenAction(unknownName, true)).toBeNull();
-  expect(scannerRowOpenAction(partial, true)).toBeNull();
-  expect(scannerRowOpenAction(WH, false)).toBeNull();
-  expect(scannerRowOpenAction(unnamed, false)).toBeNull();
+  expect(scannerRowOpenAction(unknownName, true, siteIdForName)).toBeNull();
+  expect(scannerRowOpenAction(partial, true, siteIdForName)).toBeNull();
+  expect(scannerRowOpenAction(WH, false, siteIdForName)).toBeNull();
+  expect(scannerRowOpenAction(unnamed, false, siteIdForName)).toBeNull();
 
-  expect(scannerRowShowsOpenAffordance(gas, false)).toBe(true);
-  expect(scannerRowShowsOpenAffordance(unknownName, true)).toBe(false);
-  expect(scannerRowShowsOpenAffordance(WH, true)).toBe(true);
-  expect(scannerRowShowsOpenAffordance(WH, false)).toBe(false);
+  expect(scannerRowShowsOpenAffordance(gas, false, siteIdForName)).toBe(true);
+  expect(scannerRowShowsOpenAffordance(unknownName, true, siteIdForName)).toBe(false);
+  expect(scannerRowShowsOpenAffordance(WH, true, siteIdForName)).toBe(true);
+  expect(scannerRowShowsOpenAffordance(WH, false, siteIdForName)).toBe(false);
 
   const far: SignatureWindowRow = {
     ...WH,
@@ -120,7 +117,7 @@ test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
           to: { ...WH.connection.to, signatureId: 'YXX-744' },
         },
   };
-  expect(scannerRowOpenAction(far, true)).toEqual({
+  expect(scannerRowOpenAction(far, true, siteIdForName)).toEqual({
     kind: 'connection',
     connectionId: 'connection-1',
     signatureId: 'YXX-744',

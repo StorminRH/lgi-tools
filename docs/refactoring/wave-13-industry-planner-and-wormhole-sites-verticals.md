@@ -21,7 +21,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | ☑ | [P227](#p227) | Share one site-detail assembly in wormhole-sites/queries.ts, route class matching through siteClassSet, and drop listSiteDetails' unused filters | persistence | S | low | medium | [P121](#p121) |
 | ☑ | [P169](#p169) | Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals | server-pipeline | M | low | medium | — |
 | ☑ | [P071](#p071) | Make resourceValueEligible a type guard in live-isk.ts and share the live-price lookup type between the site and scanner contexts | client-data | S | low | low | [P084](wave-04-formatting-dates-and-names-have-one-home.md#p084) |
-| ☐ | [P072](#p072) | Delete the module-global site-name index and make GlobalSearch the only writer of the site search index | client-data | S | low | medium | [P071](#p071) |
+| ☑ | [P072](#p072) | Delete the module-global site-name index and make GlobalSearch the only writer of the site search index | client-data | S | low | medium | [P071](#p071) |
 
 <a id="p301"></a>
 
@@ -980,7 +980,7 @@ export function useLivePriceLookup(typeIds: number[], opts: { enabled: boolean; 
 
 ## P072: Delete the module-global site-name index and make GlobalSearch the only writer of the site search index
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45 production lines (module index, setter coupling, layout effect, fallback, barrel file) and +20 (pure builder, empty lookups). About 40 test lines rewritten.
 - **Depends on:** [P071](#p071)

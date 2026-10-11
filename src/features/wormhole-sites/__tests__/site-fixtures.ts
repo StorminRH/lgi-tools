@@ -1,3 +1,4 @@
+import type { SiteSearchEntry } from '../queries';
 import type { Npc, SiteDetail, SiteResource, Wave } from '../types';
 
 /** An unpriced C5 combat site with no waves or resources. */
@@ -14,6 +15,19 @@ export function siteDetail(over: Partial<SiteDetail> = {}): SiteDetail {
     resourceValueIsk: null,
     waves: [],
     resources: [],
+    ...over,
+  };
+}
+
+/** An unpriced C5 combat site index entry with no live recipes. */
+export function siteSearchEntry(over: Partial<SiteSearchEntry> = {}): SiteSearchEntry {
+  return {
+    id: 1,
+    name: 'Test Site',
+    siteType: 'combat',
+    wormholeClass: 'C5',
+    blueLootIsk: null,
+    resourceValueIsk: null,
     ...over,
   };
 }

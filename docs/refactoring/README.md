@@ -584,7 +584,7 @@ Planner: one efficiency module, then MeField/TeField reading context, then ledge
 | ☑ | [P227](wave-13-industry-planner-and-wormhole-sites-verticals.md#p227) | Share one site-detail assembly in wormhole-sites/queries.ts, route class matching through siteClassSet, and drop listSiteDetails' unused filters | persistence | S | low | medium | [P121](wave-13-industry-planner-and-wormhole-sites-verticals.md#p121) |
 | ☑ | [P169](wave-13-industry-planner-and-wormhole-sites-verticals.md#p169) | Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals | server-pipeline | M | low | medium | — |
 | ☑ | [P071](wave-13-industry-planner-and-wormhole-sites-verticals.md#p071) | Make resourceValueEligible a type guard in live-isk.ts and share the live-price lookup type between the site and scanner contexts | client-data | S | low | low | [P084](wave-04-formatting-dates-and-names-have-one-home.md#p084) |
-| ☐ | [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072) | Delete the module-global site-name index and make GlobalSearch the only writer of the site search index | client-data | S | low | medium | [P071](wave-13-industry-planner-and-wormhole-sites-verticals.md#p071) |
+| ☑ | [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072) | Delete the module-global site-name index and make GlobalSearch the only writer of the site search index | client-data | S | low | medium | [P071](wave-13-industry-planner-and-wormhole-sites-verticals.md#p071) |
 
 ### [Wave 14: Convex backend helpers](wave-14-convex-backend-helpers.md)
 
