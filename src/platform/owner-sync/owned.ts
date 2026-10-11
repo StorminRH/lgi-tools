@@ -38,7 +38,8 @@ export interface OwnedSave<TRow> {
   source: { endpoint: string; items: unknown[]; responseHeaders: EsiResponseHeaders };
 }
 
-function basePathFor(resource: string, owner: OwnerKey): string {
+/** The owner's ESI path for `resource`; the snapshot reader filters on the same string the sync writes. */
+export function ownedResourcePath(resource: string, owner: OwnerKey): string {
   return owner.ownerType === 'character'
     ? `/characters/${owner.ownerId}/${resource}/`
     : `/corporations/${owner.ownerId}/${resource}/`;
@@ -66,7 +67,7 @@ export function makeOwnedDescriptor<TRow>(
     },
     readState: (owner) => port.readSyncState(owner),
     fetchAndPlan: async (owner, accessToken, state) => {
-      const endpoint = basePathFor(spec.resource, owner);
+      const endpoint = ownedResourcePath(spec.resource, owner);
       const read = await port.read(endpoint, accessToken, state?.pageEtags ?? []);
       return planRead(read, (fresh) => {
         const rows = spec.parse(fresh.items);

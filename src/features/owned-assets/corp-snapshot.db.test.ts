@@ -6,8 +6,11 @@ import { corpHoldingNodes } from '@/data/corp-holdings/schema';
 import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import { insertEsiSnapshot } from '@/data/esi-snapshots/queries';
 import { compileCorpGrant, compileReadScope } from '@/platform/auth/corp-visibility';
-import { getOwnedAssetMap, readOwnerSyncState, saveCorpOwnedAssets } from './queries';
+import { ownedResourcePath } from '@/platform/owner-sync';
+import { getCorpAssetEvidence, getOwnedAssetMap, readOwnerSyncState, saveCorpOwnedAssets } from './queries';
+import { OWNED_ASSETS_RESOURCE, refreshOwnedAssetsForUser } from './refresh';
 import { ownedAssets } from './schema';
+import type { OwnedAssetsPort } from './types';
 
 vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidateTag: vi.fn() }));
 
@@ -32,9 +35,9 @@ function source(division: number, quantity: number) {
 function index(division: number, quantity = 100) {
   return buildHoldingIndex(parseCorpAssetItems(source(division, quantity))!);
 }
-async function snapshot(division: number, quantity: number) {
+async function snapshot(division: number, quantity: number, endpoint = ownedResourcePath(OWNED_ASSETS_RESOURCE, owner)) {
   return insertEsiSnapshot({
-    ...owner, endpoint: `/corporations/${CORP}/assets/`, requestHash: 'test', etag: null,
+    ...owner, endpoint, requestHash: 'test', etag: null,
     responseHeaders: [], fetchedAt: new Date(), sourceVersion: 'test',
     bodyCiphertext: encryptSnapshotBody(source(division, quantity)),
   });
@@ -43,6 +46,23 @@ async function save(division: number, quantity: number, id: number) {
   return saveCorpOwnedAssets(CORP, index(division, quantity), quantity === 0 ? [] : [{
     type_id: 34, quantity, location_id: CAN, location_type: 'item', location_flag: 'Unlocked',
   }], [`division-${division}`], id, { database: harness.db });
+}
+/** The endpoint a Director's corporation assets sync hands to the save, read through the real descriptor. */
+async function syncedEndpoint(): Promise<string> {
+  const saveSource = vi.fn<OwnedAssetsPort['save']>(async () => {});
+  await refreshOwnedAssetsForUser({
+    now: () => new Date(),
+    listCharacters: async () => [{ characterId: 90001, corporationId: CORP, hasRefreshToken: true, missingScopes: [] }],
+    vendToken: async () => 'token',
+    readRoles: async () => ['Director'],
+    read: async () => ({ kind: 'fresh', items: source(1, 25), etags: [], responseHeaders: [] }),
+    readSyncState: async () => null,
+    save: saveSource,
+    stampFresh: async () => {},
+  }, 'user-1');
+  const corpSave = saveSource.mock.calls.find(([saved]) => saved.ownerType === 'corporation');
+  if (corpSave === undefined) throw new Error('the corporation pass saved nothing');
+  return corpSave[3].endpoint;
 }
 function scope(contextDivision: number, allowedDivision: 1 | 2 = 1) {
   const grant = compileCorpGrant({
@@ -109,6 +129,12 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     await save(1, 25, await snapshot(1, 25));
     await harness.sql`UPDATE owned_assets SET snapshot_id = NULL`;
     expect(await getOwnedAssetMap(scope(1), [34])).toEqual(new Map());
+  });
+
+  it('reads back the snapshot stored under the endpoint the corporation sync emits', async () => {
+    await save(1, 25, await snapshot(1, 25, await syncedEndpoint()));
+    expect(await getCorpAssetEvidence(CORP)).toMatchObject({ corporationId: CORP });
+    expect((await getOwnedAssetMap(scope(1), [34])).get(34)?.ownedQty).toBe(25);
   });
 
   it('withholds snapshots belonging to another corporation or endpoint', async () => {

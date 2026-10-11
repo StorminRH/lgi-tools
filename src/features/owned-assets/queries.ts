@@ -19,7 +19,8 @@ import {
   visibleCorpAssetInputs,
 } from './asset-map';
 import type { OwnedAsset } from './esi-projection';
-import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
+import { type OwnerKey, ownedResourcePath, type PagedOwnerSyncState } from '@/platform/owner-sync';
+import { OWNED_ASSETS_RESOURCE } from './refresh';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
 function ownedAssetsTag(owner: OwnerKey): string {
@@ -53,11 +54,11 @@ async function characterInputs(characterId: number): Promise<AssetMapInput[]> {
 async function getCorpAssetSnapshot(corporationId: number) {
   'use cache';
   cacheLife('hours');
-  cacheTag(ownedAssetsTag({ ownerType: 'corporation', ownerId: corporationId }));
-  const rows = await db.select().from(ownedAssets)
-    .where(ownerKeyWhere(ownedAssets, { ownerType: 'corporation', ownerId: corporationId }));
+  const owner: OwnerKey = { ownerType: 'corporation', ownerId: corporationId };
+  cacheTag(ownedAssetsTag(owner));
+  const rows = await db.select().from(ownedAssets).where(ownerKeyWhere(ownedAssets, owner));
   const ids = [...new Set(rows.flatMap((row) => row.snapshotId === null ? [] : [row.snapshotId]))];
-  const snapshots = await readCorpAssetSnapshots(corporationId, ids);
+  const snapshots = await readCorpAssetSnapshots(corporationId, ownedResourcePath(OWNED_ASSETS_RESOURCE, owner), ids);
   return snapshots.flatMap((snapshot) => {
     const body = decryptSnapshotBody(snapshot.bodyCiphertext);
     const items = Array.isArray(body) ? parseCorpAssetItems(body) : null;

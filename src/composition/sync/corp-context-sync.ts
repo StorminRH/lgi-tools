@@ -6,6 +6,7 @@ import {
   stampCorpProfileFresh,
 } from '@/data/corp-holdings/queries';
 import { listLinkedCharacterIdsInCorporation } from '@/platform/auth/affiliation-store';
+import { universeStructurePath } from '@/platform/esi/paths';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 import {
@@ -31,7 +32,7 @@ function makeCorpContextPort(): CorpContextPort {
     readAssetNames: (corporationId, accessToken, itemIds) =>
       postSingleEndpoint(`/corporations/${corporationId}/assets/names/`, accessToken, itemIds),
     readStructure: (structureId, accessToken) =>
-      readSingleEndpoint(`/universe/structures/${structureId}/`, accessToken, null),
+      readSingleEndpoint(universeStructurePath(structureId), accessToken, null),
     currentContext: getCorpHoldingContext,
     listLinkedMemberIds: listLinkedCharacterIdsInCorporation,
     readProfileState: readCorpProfileState,

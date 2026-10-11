@@ -6,6 +6,7 @@ import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed } from '@/platform/esi/authed-read';
+import { characterRolesPath } from '@/platform/esi/paths';
 import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
 
 export interface LinkedCharacterHealth {
@@ -50,7 +51,7 @@ async function probeAndStoreRolesRecord(
     const corporationId = await readRoleCorporationId(characterId);
     if (corporationId === null || (expectedCorporationId !== undefined && corporationId !== expectedCorporationId)) return null;
     if (!await hasMatchingLiveCorporation(characterId, corporationId)) return null;
-    const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
+    const read = await readEsiAuthed(characterRolesPath(characterId), accessToken, null);
     if (read.kind !== 'fresh') return null;
     const record = parseCharacterRolesBody(read.body);
     if (record === null) return null;

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import type { SheetSections } from '@/features/character-sheet/types';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
+import { universeStructurePath } from '@/platform/esi/paths';
 
 const mocks = vi.hoisted(() => ({
   listCharactersWithHealth: vi.fn(),
@@ -34,7 +35,6 @@ import {
   refreshCharacterSheetsOnView,
   runCharacterSheetRefreshJob,
   SHEET_ESI_PATHS,
-  STRUCTURE_ESI_PATH,
 } from './character-sheet-sync';
 
 const TIER_ENTRIES = ['character_sheet_live', 'character_sheet_hourly', 'character_sheet_daily'];
@@ -76,7 +76,7 @@ describe('SHEET_ESI_PATHS', () => {
     const templates = Object.values(SHEET_ESI_PATHS).map((path) =>
       path(123).replace('/characters/123/', '/characters/{character_id}/'),
     );
-    templates.push(STRUCTURE_ESI_PATH(456).replace('/456/', '/{structure_id}/'));
+    templates.push(universeStructurePath(456).replace('/456/', '/{structure_id}/'));
     for (const template of templates) {
       expect(registrySpecPaths.has(template), `${template} missing from the registry`).toBe(true);
     }

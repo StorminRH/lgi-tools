@@ -1,15 +1,21 @@
 import { mergeSheetSection, readSheetRow, stampSheetSection } from '@/features/character-sheet/queries';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import type { SheetEndpoint, SheetPort } from '@/features/character-sheet/types';
+import {
+  characterLocationPath,
+  characterOnlinePath,
+  characterShipPath,
+  universeStructurePath,
+} from '@/platform/esi/paths';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral } from './esi-refresh-owner-sync';
 
 export const SHEET_ESI_PATHS = {
   character: (id: number) => `/characters/${id}/`,
-  location: (id: number) => `/characters/${id}/location/`,
-  ship: (id: number) => `/characters/${id}/ship/`,
-  online: (id: number) => `/characters/${id}/online/`,
+  location: characterLocationPath,
+  ship: characterShipPath,
+  online: characterOnlinePath,
   attributes: (id: number) => `/characters/${id}/attributes/`,
   implants: (id: number) => `/characters/${id}/implants/`,
   clones: (id: number) => `/characters/${id}/clones/`,
@@ -17,8 +23,6 @@ export const SHEET_ESI_PATHS = {
   journal: (id: number) => `/characters/${id}/wallet/journal/`,
   orders: (id: number) => `/characters/${id}/orders/`,
 } as const satisfies Record<SheetEndpoint, (id: number) => string>;
-
-export const STRUCTURE_ESI_PATH = (structureId: number) => `/universe/structures/${structureId}/`;
 
 function memoizePerRun<A, R>(fn: (arg: A) => Promise<R>): (arg: A) => Promise<R> {
   const pending = new Map<A, Promise<R>>();
@@ -39,7 +43,7 @@ export function makeSheetPort(): SheetPort {
     readEndpoint: (characterId, endpoint, accessToken, heldEtag) =>
       readSingleEndpoint(SHEET_ESI_PATHS[endpoint](characterId), accessToken, heldEtag),
     readStructure: (structureId, accessToken) =>
-      readSingleEndpoint(STRUCTURE_ESI_PATH(structureId), accessToken, null),
+      readSingleEndpoint(universeStructurePath(structureId), accessToken, null),
     readSheet: readSheetRow,
     mergeSection: mergeSheetSection,
     stampSection: stampSheetSection,

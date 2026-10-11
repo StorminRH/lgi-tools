@@ -63,7 +63,7 @@ describe('probeAndStoreRoles', () => {
     mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
 
     await expect(probeAndStoreRoles(9001, 'access-token')).resolves.toEqual(['Director', 'Accountant']);
-    expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles', 'access-token', null);
+    expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles/', 'access-token', null);
     expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date), 98001);
     expect(mocks.fetchAffiliations).toHaveBeenCalledTimes(2);
     expect(mocks.fetchAffiliations).toHaveBeenCalledWith([9001]);
@@ -179,7 +179,7 @@ describe('fetchAndStoreCorpRoles', () => {
     mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
 
     await expect(fetchAndStoreCorpRoles(9001)).resolves.toEqual({ ...storedRecord, characterId: 9001, corporationId: 98001, fetchedAt: expect.any(Date) });
-    expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles', 'vended', null);
+    expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles/', 'vended', null);
     expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date), 98001);
   });
 
