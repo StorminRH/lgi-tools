@@ -60,6 +60,7 @@ export const modules = import.meta.glob([
   '../lib/mapAccess.ts',
   '../lib/mapAuthoringEvents.ts',
   '../lib/mapConnectionLookup.ts',
+  '../lib/mapConnectionTombstone.ts',
   '../lib/mapEntityContracts.ts',
   '../lib/mapFixtureHallway.ts',
   '../lib/mapScanApply.ts',

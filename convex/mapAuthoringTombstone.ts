@@ -9,6 +9,7 @@ import { internalMutation, mutation, type MutationCtx } from './_generated/serve
 import { requireMapAccess } from './lib/mapAccess';
 import { gatedAuthoringEdit, writeMapEvent } from './lib/mapAuthoringEvents';
 import { readTouchingConnections, requireConnectionOnMap } from './lib/mapConnectionLookup';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
 import { findSystem, requireLiveSystem, requireSystemId } from './lib/mapSystemLookup';
 import { deleteUnclaimedRespawn } from './lib/mapStaticClaim';
 import { ensureStaticPlaceholders } from './mapStatics';
@@ -62,14 +63,7 @@ async function stampSystemTombstone(
   const stamps = chainTombstoneStamps(Date.now());
   await ctx.db.patch(system._id, stamps);
   for (const connection of incidentConnections) {
-    if (
-      connection.tombstone.kind === 'removed'
-      && connection.tombstone.purgeAfter !== stamps.purgeAfter
-    ) {
-      await ctx.db.patch(connection._id, {
-        tombstone: { ...connection.tombstone, purgeAfter: stamps.purgeAfter },
-      });
-    }
+    await setRemovedPurgeAfter(ctx, connection, stamps.purgeAfter);
   }
   return { tombstoned: true };
 }

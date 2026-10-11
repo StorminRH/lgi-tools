@@ -10,6 +10,7 @@ import {
   queryMapSignatures,
   takeExpiredByPurgeAfter,
 } from './lib/indexedQuery';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
 import { findLiveSystem, findSystem } from './lib/mapSystemLookup';
 import { trackedPilotSystemsByMap, type TrackedPilotSystems } from './lib/mapTrackedPilots';
 import { settleRemovedConnection } from './mapAuthoringCollapse';
@@ -119,9 +120,7 @@ async function settleExpiredConnection(
     );
     if (outcome === 'held') {
       // Check again tomorrow; until then it shows as a restorable removed connection.
-      await ctx.db.patch(connection._id, {
-        tombstone: { ...tombstone, purgeAfter: now + MAP_CHAIN_UNDO_WINDOW_MS },
-      });
+      await setRemovedPurgeAfter(ctx, connection, now + MAP_CHAIN_UNDO_WINDOW_MS);
       return 'held';
     }
     if (outcome === 'branch_removed') {
@@ -136,9 +135,7 @@ async function settleExpiredConnection(
       connectionId: connection._id,
       error: errorCode(error),
     }));
-    await ctx.db.patch(connection._id, {
-      tombstone: { ...tombstone, purgeAfter: now + MAP_CHAIN_UNDO_WINDOW_MS },
-    });
+    await setRemovedPurgeAfter(ctx, connection, now + MAP_CHAIN_UNDO_WINDOW_MS);
     return 'retry';
   }
   await ctx.db.delete(connection._id);
@@ -278,11 +275,11 @@ async function expireKeptConnections(ctx: MutationCtx, now: number): Promise<{ c
     .query('mapConnections')
     .withIndex('by_purge_after', (q) => q.eq('tombstone.purgeAfter', null))
     .take(CHAIN_RETENTION_BACKFILL_BATCH);
+  let changed = 0;
   for (const connection of kept) {
-    if (connection.tombstone.kind !== 'removed') continue;
-    await ctx.db.patch(connection._id, { tombstone: { ...connection.tombstone, purgeAfter: now } });
+    if (await setRemovedPurgeAfter(ctx, connection, now)) changed += 1;
   }
-  return { changed: kept.length, done: kept.length < CHAIN_RETENTION_BACKFILL_BATCH };
+  return { changed, done: kept.length < CHAIN_RETENTION_BACKFILL_BATCH };
 }
 
 /** Signature and activity rows left behind by systems purged before their children were. */

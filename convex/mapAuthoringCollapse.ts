@@ -14,6 +14,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { gatedAuthoringEdit, writeMapEvent } from './lib/mapAuthoringEvents';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
 import { deleteUnclaimedRespawn, respawnAfterTombstone } from './lib/mapStaticClaim';
 import { deleteSignatureActivity } from './lib/mapSignatures';
 
@@ -250,13 +251,7 @@ async function stampRemovedRows(
     await retainRemovedConnection(input.ctx, connection, input.deletedAt);
   }
   for (const connection of skeletonsToRearm) {
-    if (connection.tombstone.kind !== 'removed') continue;
-    await input.ctx.db.patch(connection._id, {
-      tombstone: {
-        ...connection.tombstone,
-        purgeAfter: input.stamps.purgeAfter,
-      },
-    });
+    await setRemovedPurgeAfter(input.ctx, connection, input.stamps.purgeAfter);
   }
 }
 

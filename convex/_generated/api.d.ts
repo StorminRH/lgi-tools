@@ -36,6 +36,7 @@ import type * as lib_locationSchedule from "../lib/locationSchedule.js";
 import type * as lib_mapAccess from "../lib/mapAccess.js";
 import type * as lib_mapAuthoringEvents from "../lib/mapAuthoringEvents.js";
 import type * as lib_mapConnectionLookup from "../lib/mapConnectionLookup.js";
+import type * as lib_mapConnectionTombstone from "../lib/mapConnectionTombstone.js";
 import type * as lib_mapEntityContracts from "../lib/mapEntityContracts.js";
 import type * as lib_mapFixtureHallway from "../lib/mapFixtureHallway.js";
 import type * as lib_mapScanApply from "../lib/mapScanApply.js";
@@ -118,6 +119,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mapAccess": typeof lib_mapAccess;
   "lib/mapAuthoringEvents": typeof lib_mapAuthoringEvents;
   "lib/mapConnectionLookup": typeof lib_mapConnectionLookup;
+  "lib/mapConnectionTombstone": typeof lib_mapConnectionTombstone;
   "lib/mapEntityContracts": typeof lib_mapEntityContracts;
   "lib/mapFixtureHallway": typeof lib_mapFixtureHallway;
   "lib/mapScanApply": typeof lib_mapScanApply;

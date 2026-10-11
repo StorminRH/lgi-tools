@@ -1,7 +1,6 @@
 import { ConvexError } from 'convex/values';
 import {
   chainTombstoneStamps,
-  connectionRemovedTombstone,
   isTombstoned,
   tombstonePurgeAfter,
 } from '@/data/maps/chain-contract';
@@ -10,6 +9,7 @@ import { isConfidentMissingRemoval } from '@/data/maps/signature-lifecycle';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import {
+  retainRemovedConnection,
   runBranchRestore,
   runCollapse,
   type CollapsePilotsPresent,
@@ -286,11 +286,9 @@ function findOriginLifecycleConnection(
 
 async function removeConfidentRow(
   ctx: MutationCtx,
-  state: ScanState,
   connection: Doc<'mapConnections'>,
   input: {
     readonly mapId: string;
-    readonly signatureId: string;
     readonly actor: string;
     readonly now: number;
     readonly pilots: () => Promise<CollapsePilotsPresent>;
@@ -305,10 +303,7 @@ async function removeConfidentRow(
     });
     return;
   }
-  await ctx.db.patch(connection._id, connectionRemovedTombstone(input.now));
-  const activity = state.activities.find((row) => row.signatureId === input.signatureId);
-  if (activity !== undefined) await ctx.db.delete(activity._id);
-  await respawnAfterTombstone(ctx, connection._id);
+  await retainRemovedConnection(ctx, connection, input.now);
 }
 
 export async function removeConfidentRows(
@@ -348,13 +343,7 @@ export async function removeConfidentRows(
         deathLatestAt: lifetimeDeathWindow(connection.lifetime)?.latestAt,
       }, now)
     ) continue;
-    await removeConfidentRow(ctx, state, connection, {
-      mapId,
-      signatureId,
-      actor,
-      now,
-      pilots,
-    });
+    await removeConfidentRow(ctx, connection, { mapId, actor, now, pilots });
     removed.add(signatureId);
     if (connection.toSystemId === null) removedStubIds.push(signatureId);
   }

@@ -6,6 +6,7 @@ import {
   type QueryCtx,
 } from './_generated/server';
 import { requireMapAccessForUser } from './lib/mapAccess';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
 import { advanceJumpStamp, findJumpStamp } from './mapJumpBookkeeping';
@@ -330,10 +331,7 @@ async function supersedeDyingPairConnections(
   for (const row of pairRows) {
     if (row._id === liveId) continue;
     if (chainTombstoneState(row, now) !== 'dying') continue;
-    if (row.tombstone.kind !== 'removed') continue;
-    await ctx.db.patch(row._id, {
-      tombstone: { ...row.tombstone, purgeAfter: now },
-    });
+    await setRemovedPurgeAfter(ctx, row, now);
   }
 }
 

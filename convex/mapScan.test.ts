@@ -1944,6 +1944,10 @@ describe('mapScan paste application and lifecycle', () => {
       });
     });
 
+    const activityIds = async () =>
+      (await readState(t)).activities.map((row) => row.signatureId);
+    expect(await activityIds()).toContain('WHL-001');
+
     expect(await apply(t, [signature('SIG-001')])).toMatchObject({
       removedConfident: 1,
       missing: [],
@@ -1951,6 +1955,7 @@ describe('mapScan paste application and lifecycle', () => {
     expect((await readState(t)).connections[0]).toMatchObject({
       tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
     });
+    expect(await activityIds()).not.toContain('WHL-001');
     const events = await t.run(async (ctx) => await ctx.db
       .query('mapEvents')
       .withIndex('by_map', (q) => q.eq('mapId', MAP))
@@ -2015,6 +2020,52 @@ describe('mapScan paste application and lifecycle', () => {
       .query('mapSystems')
       .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', WH_FAR))
       .unique()))).toMatchObject({ deletedAt: null, purgeAfter: null });
+  });
+
+  it('silently removing a missing claimed static respawns its placeholder', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('AAA-111', { group: 'Wormhole' })]);
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: JITA,
+      codes: ['C247'],
+    });
+    await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{ signatureId: 'AAA-111', typeCode: 'C247', provenance: 'assumed' }],
+    });
+    const claimed = (await readState(t)).connections.find((row) =>
+      row.staticCode === 'C247' && row.from.signatureId === 'AAA-111');
+    if (claimed === undefined) throw new Error('missing claimed static');
+    await t.run(async (ctx) => {
+      await ctx.db.patch(claimed._id, {
+        lifetime: {
+          kind: 'window',
+          earliestAt: NOW - 1000,
+          latestAt: NOW,
+          lifeStage: null,
+          observedAt: null,
+        },
+      });
+    });
+
+    expect(await apply(t, [signature('SIG-001')])).toMatchObject({
+      removedConfident: 1,
+      missing: [],
+    });
+    const after = await readState(t);
+    expect(after.connections.find((row) => row._id === claimed._id)).toMatchObject({
+      tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
+    });
+    const respawned = after.connections.filter((row) =>
+      row.staticCode === 'C247' && row.tombstone.kind === 'live');
+    expect(respawned).toHaveLength(1);
+    expect(respawned[0]?._id).not.toBe(claimed._id);
+    expect(respawned[0]?.from.signatureId).toBeNull();
+    expect(after.activities.map((row) => row.signatureId)).not.toContain('AAA-111');
   });
 
   it('silently collapses a missing resolved wormhole past its ceiling', async () => {
