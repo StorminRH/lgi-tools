@@ -5,7 +5,7 @@ vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => ({
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const doors = vi.hoisted(() => ({
-  logUsageEvent: vi.fn().mockResolvedValue(undefined),
+  emitUsageEvent: vi.fn(),
   snapshotMergeTracking: vi.fn(),
   enqueueTrackingMerge: vi.fn(),
   reconcileTrackingMerges: vi.fn(),
@@ -44,7 +44,7 @@ vi.mock('@/composition/map-access-projection', () => ({
   },
 }));
 vi.mock('@/composition/purge/register-all', () => ({ PURGE_CONTRIBUTORS: [] }));
-vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: doors.logUsageEvent }));
+vi.mock('@/data/telemetry/usage-events', () => ({ emitUsageEvent: doors.emitUsageEvent }));
 vi.mock('@/db', () => ({ directClient: {} }));
 
 import type { PostgresJsDb } from '@/lib/db-types';
@@ -69,7 +69,7 @@ const captured = [{ mapId: 'map-1', version: 'v1' }];
 
 beforeEach(() => {
   doors.order.length = 0;
-  doors.logUsageEvent.mockClear();
+  doors.emitUsageEvent.mockClear();
   reset();
   for (const door of [
     doors.snapshotMergeTracking,
@@ -122,7 +122,7 @@ describe('mergeUsers', () => {
       captured: [],
     });
     expect(state.calls).toMatchObject({ update: 0, delete: 1 });
-    expect(doors.logUsageEvent).toHaveBeenCalledWith({
+    expect(doors.emitUsageEvent).toHaveBeenCalledWith('account-merge', {
       action: 'auth_merge',
       characterId: 100,
       metadata: { sourceUserId: 'linker', survivorUserId: 'other', movedCharacterIds: [200] },
@@ -162,7 +162,7 @@ describe('mergeUsers', () => {
       reason: 'source-gone',
     });
     expect(state.calls).toMatchObject({ update: 0, delete: 0, execute: 0 });
-    expect(doors.logUsageEvent).not.toHaveBeenCalled();
+    expect(doors.emitUsageEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -175,7 +175,7 @@ describe('settleConvexAfterMerge', () => {
       captured,
     });
     expect(doors.order).toEqual(['retry', 'deliver', 'backstop']);
-    expect(doors.reconcileTrackingMerges).toHaveBeenCalledWith('surv');
+    expect(doors.reconcileTrackingMerges).toHaveBeenCalledWith({ userId: 'surv' });
     expect(doors.deliverCapturedMapAccessChanges).toHaveBeenCalledWith(captured);
     expect(doors.purgeUserMapAccessProjection).toHaveBeenCalledWith('src');
   });

@@ -1,12 +1,10 @@
 import { z } from 'zod';
-import {
-  requireCurrentProjection,
-  teardownMapAccessProjection,
-} from '@/composition/map-access-projection';
+import { teardownMapAccessProjection } from '@/composition/map-access-projection';
 import {
   claimPurgeableMaps,
   tombstonePurgedMap,
 } from '@/data/maps/lifecycle';
+import { getOwnedMapIds } from '@/data/maps/queries';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 
 const MAP_PURGE_WORK_BUDGET_MS = 60_000;
@@ -23,7 +21,7 @@ export class MapPurgeUnavailableError extends Error {
   }
 }
 
-export async function purgeMapChain(
+async function purgeMapChain(
   mapId: string,
 ): Promise<{ readonly deleted: number; readonly remaining: false }> {
   return postConvexHttpDoor({
@@ -33,6 +31,19 @@ export async function purgeMapChain(
     error: MapPurgeUnavailableError,
     label: 'Map purge unavailable',
   });
+}
+
+/**
+ * Purges the Convex chain of every map the user owns, one map at a time so
+ * each call stays inside Convex's batch limits, and returns the purged ids.
+ * The first failure stops the run; the caller keeps the deletion retryable.
+ */
+export async function purgeOwnedMapChains(userId: string): Promise<string[]> {
+  const ownedMapIds = await getOwnedMapIds(userId);
+  for (const mapId of ownedMapIds) {
+    await purgeMapChain(mapId);
+  }
+  return ownedMapIds;
 }
 
 export interface MapPurgeDependencies {
@@ -48,7 +59,6 @@ export async function purgeEligibleMaps(
   readonly selected: number;
   readonly tombstoned: number;
   readonly deletedDocuments: number;
-  readonly projectionPending: number;
 }> {
   const deadline = Date.now() + MAP_PURGE_WORK_BUDGET_MS;
   const claimMaps = dependencies.claimMaps ?? claimPurgeableMaps;
@@ -58,7 +68,6 @@ export async function purgeEligibleMaps(
   const due = await claimMaps();
   let tombstoned = 0;
   let deletedDocuments = 0;
-  const projectionPending = 0;
 
   for (const map of due) {
     if (Date.now() >= deadline) break;
@@ -69,7 +78,7 @@ export async function purgeEligibleMaps(
       );
     }
     try {
-      requireCurrentProjection(await teardownAccess(map.id));
+      await teardownAccess(map.id);
     } catch (cause) {
       throw new MapPurgeUnavailableError(
         `Map access projection fence failed for ${map.id}`,
@@ -85,5 +94,5 @@ export async function purgeEligibleMaps(
     tombstoned += 1;
     deletedDocuments += purge.deleted;
   }
-  return { selected: due.length, tombstoned, deletedDocuments, projectionPending };
+  return { selected: due.length, tombstoned, deletedDocuments };
 }

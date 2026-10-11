@@ -1,18 +1,11 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/platform/purge/types';
+import { characterCacheContributor } from '@/platform/purge/contributors';
 import { characterSkills, characterSkillSyncs } from './schema';
 
-export const skillQueuePurgeContributor: PurgeContributor = {
+export const skillQueuePurgeContributor = characterCacheContributor(db, {
   name: 'skill-queue',
-  tier: 'cache',
-  claims: [characterSkills, characterSkillSyncs],
-  merge: [
-    { table: characterSkills, rule: 'follows-character' },
-    { table: characterSkillSyncs, rule: 'follows-character' },
+  tables: [
+    { table: characterSkills, characterId: characterSkills.characterId },
+    { table: characterSkillSyncs, characterId: characterSkillSyncs.characterId },
   ],
-  async purgeCharacter({ characterId }) {
-    await db.delete(characterSkills).where(eq(characterSkills.characterId, characterId));
-    await db.delete(characterSkillSyncs).where(eq(characterSkillSyncs.characterId, characterId));
-  },
-};
+});

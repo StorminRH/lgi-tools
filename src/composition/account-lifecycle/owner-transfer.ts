@@ -99,17 +99,9 @@ export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcom
       await backfillOwnerHash(row, jwtOwnerHash);
       return NONE;
     case 'transfer':
-      await purgeTransferredCharacter(row.userId, proof.characterId, row.id);
+      await transferCharacter(row.userId, proof.characterId, row.id);
       return NONE;
     case 'merge':
       return mergeProvenCharacter({ ...proof, ownerHash: jwtOwnerHash }, decision, row);
   }
-}
-
-export async function purgeTransferredCharacter(
-  priorUserId: string,
-  characterId: number,
-  accountRowId?: string,
-): Promise<void> {
-  await transferCharacter(priorUserId, characterId, accountRowId);
 }

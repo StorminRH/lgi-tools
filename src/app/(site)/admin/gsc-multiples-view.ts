@@ -1,5 +1,5 @@
-import { computeDelta, type Delta } from '@/composition/admin-period';
 import { formatPct, formatQuantity } from '@/lib/format/number';
+import { computeDelta, type Delta } from './period';
 
 export interface GscMetricCell {
   title: string;

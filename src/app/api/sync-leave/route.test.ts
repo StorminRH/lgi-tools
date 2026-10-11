@@ -4,7 +4,6 @@ const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   postLeaveSync: vi.fn(),
   checkRateLimit: vi.fn(),
-  logUsageEvent: vi.fn(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
@@ -22,9 +21,6 @@ vi.mock('@/data/convex/leave-door', () => ({
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (...args: unknown[]) => h.checkRateLimit(...args),
 }));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
-}));
 
 import { LeaveSyncDoorError } from '@/data/convex/leave-door';
 import { rateLimitedFailure } from '@/lib/failure';
@@ -38,7 +34,6 @@ beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.postLeaveSync.mockReset().mockResolvedValue({ retired: true });
   h.checkRateLimit.mockReset().mockResolvedValue({ ok: true, remaining: 29 });
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
 });
 
 describe('POST /api/sync-leave', () => {

@@ -11,6 +11,7 @@ import {
 import { getMapGrants } from '@/data/maps/queries';
 import { groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
+import { runUntilDeadline, type DeadlineBatchResult } from '@/lib/fan-out';
 import { authorizationFailureCutoff } from '@/platform/auth/authorization-policy';
 import {
   computeMapAccessClaims,
@@ -157,18 +158,14 @@ export async function scopeLegacyMap(
 export async function scopeLegacyMaps(
   deadline: number,
   dependencies: MapScopingDependencies & { readonly listMapIds?: typeof listUnscopedMapIds } = {},
-): Promise<{ succeeded: number; failed: number }> {
+): Promise<DeadlineBatchResult> {
   const mapIds = await (dependencies.listMapIds ?? listUnscopedMapIds)(SCOPING_BATCH);
-  const counts = { succeeded: 0, failed: 0 };
-  for (const mapId of mapIds) {
-    if (Date.now() >= deadline) break;
-    try {
-      if (await scopeLegacyMap(mapId, dependencies)) counts.succeeded += 1;
-      else counts.failed += 1;
-    } catch (error) {
+  return runUntilDeadline(
+    mapIds,
+    deadline,
+    async (mapId) => (await scopeLegacyMap(mapId, dependencies)) ? 'succeeded' : 'failed',
+    (mapId, error) => {
       console.error('[map-character-scoping] map kept for retry', mapId, error);
-      counts.failed += 1;
-    }
-  }
-  return counts;
+    },
+  );
 }

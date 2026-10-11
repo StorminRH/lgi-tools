@@ -27,9 +27,17 @@ const mapPurge = vi.hoisted(() => ({
 vi.mock('@/platform/auth/eve-token-service', () => ({
   revokeStoredCharacterToken: (ciphertext: string | null) => revokeMock(ciphertext),
 }));
-vi.mock('@/composition/map-purge', () => ({
-  purgeMapChain: mapPurge.purgeMapChain,
-}));
+// Stands in for the Convex /purge-map-chain door, so the real owned-map purge runs.
+vi.mock('@/lib/convex-http-door', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
+  return {
+    ...actual,
+    postConvexHttpDoor: async (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
+      options.path === '/purge-map-chain'
+        ? options.schema.parse(await mapPurge.purgeMapChain((options.body as { mapId: string }).mapId))
+        : actual.postConvexHttpDoor(options),
+  };
+});
 
 import { finishPendingDeletion, nukeAccount, purgeOwnCharacter, retryRequestedDeletions } from './account-purge';
 import { enqueueDeletion, requestDeletion, readDeletionJobs, type DeletionJob } from '@/platform/auth/deletion-jobs';
@@ -502,7 +510,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     });
     expect(afterLink).toHaveBeenCalledExactlyOnceWith({ userId: USER_ID, characterId: SECOND_CHAR });
     expect(revokeMock).not.toHaveBeenCalled();
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: requested ? 1 : 0, failed: 0 });
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: requested ? 1 : 0, failed: 0, deferred: 0 });
     expect(await harness.db.select().from(user)).toHaveLength(requested ? 0 : 1);
     if (requested) expect(revokeMock).toHaveBeenCalledWith(freshGrant);
     else expect(revokeMock).not.toHaveBeenCalled();
@@ -537,7 +545,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
       email: syntheticEmail(SECOND_CHAR), activeCharacterId: SECOND_CHAR, deletionRequestedAt: null,
     });
     expect(afterLink).toHaveBeenCalledWith({ userId: USER_ID, characterId: SECOND_CHAR });
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 0 });
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: 0, failed: 0, deferred: 0 });
     expect((await harness.db.select().from(account).where(eq(account.userId, USER_ID)))[0]?.refreshToken).toBe(freshGrant);
     expect(revokeMock).not.toHaveBeenCalled();
   });
@@ -689,7 +697,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await insertEveAccount(harness.db, { id: 'fresh', characterId: FIRST_CHAR, userId: USER_ID }, { refreshToken: 'fresh-grant' });
     await seedCharacterCache(FIRST_CHAR);
     resume.release();
-    expect(await cron).toEqual({ retried: 0, failed: 0 });
+    expect(await cron).toEqual({ succeeded: 0, failed: 0, deferred: 0 });
     expect(await harness.db.select().from(account).where(eq(account.id, 'fresh'))).toMatchObject([{ refreshToken: 'fresh-grant', deletionRequestedAt: null }]);
     expect(await countClonedRows('character_skills', `character_id = ${FIRST_CHAR}`)).toBe(1);
     expect(revokeMock).not.toHaveBeenCalledWith('fresh-grant');
@@ -753,7 +761,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await harness.db.update(pendingDeletions).set({ queuedAt: old }).where(eq(pendingDeletions.id, first!.id));
     revokeMock.mockRejectedValueOnce(new Error('fixture failure'));
     const error = silenceConsolePrefixes('error', ['[account-purge] requested deletion retry failed']);
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 1 });
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
     error.mockRestore();
     const [retained] = await harness.db.select().from(pendingDeletions);
     expect(retained!.id).toBe(first!.id);

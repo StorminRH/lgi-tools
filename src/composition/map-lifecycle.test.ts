@@ -17,7 +17,6 @@ const APPLIED = {
   unchanged: 0,
   outcome: 'applied' as const,
 };
-const STALE = { ...APPLIED, deleted: 0, outcome: 'stale' as const };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -100,19 +99,6 @@ describe.each([
     ).resolves.toEqual({ ok: true, projectionPending: true });
     expect(acknowledgeAccess).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(label, { mapId: 'map-1', cause });
-  });
-
-  it('marks projection pending when the projection is stale', async () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const acknowledgeAccess = vi.fn();
-    await expect(
-      run('user', INPUT, dependencies(vi.fn().mockResolvedValue(PENDING), {
-        projectAccess: vi.fn().mockResolvedValue(STALE),
-        acknowledgeAccess,
-      })),
-    ).resolves.toEqual({ ok: true, projectionPending: true });
-    expect(acknowledgeAccess).not.toHaveBeenCalled();
-    expect(error.mock.calls[0]?.[0]).toBe(label);
   });
 
   it('rethrows unexpected projection failures', async () => {

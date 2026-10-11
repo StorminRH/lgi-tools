@@ -21,28 +21,28 @@ In order:
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P162](#p162) | Share the price-source degradation predicate, payload projection and type | server-pipeline | S | low | low | [P173](wave-03-src-lib-primitives-collections-math-async.md#p173) |
-| ☐ | [P164](#p164) | Make map-access projections reject stale outcomes by default and share the delivery budget constants | server-pipeline | S | low | medium | — |
-| ☐ | [P322](#p322) | Drop the constant projectionPending, the outer teardown currency checks, and the affiliation/transfer pass-through wrappers | simplification | S | low | low | [P164](#p164) |
-| ☐ | [P165](#p165) | Share one sequential deadline runner for the housekeeping retry loops | server-pipeline | S | low | medium | [P164](#p164) |
-| ☐ | [P166](#p166) | Route every owned-map chain purge through one composition helper | server-pipeline | S | low | low | — |
-| ☐ | [P240](#p240) | Generate the single-table purge contributors from one table list in src/platform/purge | persistence | S | low | medium | — |
-| ☐ | [P321](#p321) | Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds | simplification | S | low | low | — |
-| ☐ | [P174](#p174) | Give src/scripts one bootstrap: a load-env side-effect import, createScriptClient, client-optional runScript and publicTableExists | server-pipeline | M | low | low | — |
-| ☐ | [P316](#p316) | Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin | simplification | M | low | low | [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107) |
-| ☐ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
-| ☐ | [P281](#p281) | Cache degradation and search-total reads per request with one range-keyed helper, and drop dead ESI cost reads | efficiency | S | low | medium | — |
-| ☐ | [P158](#p158) | Share the admin cron, SLI and activity loaders between the overview, health and traffic cards | server-pipeline | S | low | medium | — |
-| ☐ | [P299](#p299) | Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers | simplification | M | low | medium | [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088) |
-| ☐ | [P314](#p314) | Trim admin and corporations view models to rendered fields and show search truncation in the results body | simplification | S | low | low | — |
-| ☐ | [P315](#p315) | Derive admin hrefs, titles and range controls from admin-sections instead of literals | simplification | M | low | low | [P316](#p316) |
-| ☐ | [P159](#p159) | Route every usage-telemetry write through one after()-scheduled emitter, sharing the scheduler with domain events | server-pipeline | M | medium | high | [P130](wave-03-src-lib-primitives-collections-math-async.md#p130), [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141) |
+| ☑ | [P162](#p162) | Share the price-source degradation predicate, payload projection and type | server-pipeline | S | low | low | [P173](wave-03-src-lib-primitives-collections-math-async.md#p173) |
+| ☑ | [P164](#p164) | Make map-access projections reject stale outcomes by default and share the delivery budget constants | server-pipeline | S | low | medium | — |
+| ☑ | [P322](#p322) | Drop the constant projectionPending, the outer teardown currency checks, and the affiliation/transfer pass-through wrappers | simplification | S | low | low | [P164](#p164) |
+| ☑ | [P165](#p165) | Share one sequential deadline runner for the housekeeping retry loops | server-pipeline | S | low | medium | [P164](#p164) |
+| ☑ | [P166](#p166) | Route every owned-map chain purge through one composition helper | server-pipeline | S | low | low | — |
+| ☑ | [P240](#p240) | Generate the single-table purge contributors from one table list in src/platform/purge | persistence | S | low | medium | — |
+| ☑ | [P321](#p321) | Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds | simplification | S | low | low | — |
+| ☑ | [P174](#p174) | Give src/scripts one bootstrap: a load-env side-effect import, createScriptClient, client-optional runScript and publicTableExists | server-pipeline | M | low | low | — |
+| ☑ | [P316](#p316) | Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin | simplification | M | low | low | [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107) |
+| ☑ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
+| ☑ | [P281](#p281) | Cache degradation and search-total reads per request with one range-keyed helper, and drop dead ESI cost reads | efficiency | S | low | medium | — |
+| ☑ | [P158](#p158) | Share the admin cron, SLI and activity loaders between the overview, health and traffic cards | server-pipeline | S | low | medium | — |
+| ☑ | [P299](#p299) | Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers | simplification | M | low | medium | [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088) |
+| ☑ | [P314](#p314) | Trim admin and corporations view models to rendered fields and show search truncation in the results body | simplification | S | low | low | — |
+| ☑ | [P315](#p315) | Derive admin hrefs, titles and range controls from admin-sections instead of literals | simplification | M | low | low | [P316](#p316) |
+| ☑ | [P159](#p159) | Route every usage-telemetry write through one after()-scheduled emitter, sharing the scheduler with domain events | server-pipeline | M | medium | high | [P130](wave-03-src-lib-primitives-collections-math-async.md#p130), [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141) |
 
 <a id="p162"></a>
 
 ## P162: Share the price-source degradation predicate, payload projection and type
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +20 (declaration -20/+6, route -6/+3, refresh-on-view -6/+1, new helper ~12)
 - **Depends on:** [P173](wave-03-src-lib-primitives-collections-math-async.md#p173)
@@ -101,7 +101,7 @@ export function readPriceSourceHealth(s: PriceSourceDegradation): {
 
 ## P164: Make map-access projections reject stale outcomes by default and share the delivery budget constants
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -12 production lines (6 wraps and imports) plus 4 for constants; about -15 test lines (3 mock re-implementations and stale doubles); +1 new map-creation test
 - **Depends on:** —
@@ -172,7 +172,7 @@ export function teardownMapAccessProjection(mapId: string): Promise<CurrentProje
 
 ## P322: Drop the constant projectionPending, the outer teardown currency checks, and the affiliation/transfer pass-through wrappers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -45 / +8 (production about -20, tests about -30 counting the stale doubles; type narrowing about +4)
 - **Depends on:** [P164](#p164)
@@ -252,7 +252,7 @@ readonly readAffiliations?: typeof getUsersAffiliations;
 
 ## P165: Share one sequential deadline runner for the housekeeping retry loops
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** +30 lib and +60 test; about -35 across the four loops and the housekeeping adapters
 - **Depends on:** [P164](#p164)
@@ -323,7 +323,7 @@ export async function runUntilDeadline<T>(
 
 ## P166: Route every owned-map chain purge through one composition helper
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -14 / +8
 - **Depends on:** —
@@ -386,7 +386,7 @@ export interface MapAccessProjectionPurgeHooks {
 
 ## P240: Generate the single-table purge contributors from one table list in src/platform/purge
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -75 / +45 production; +60 tests
 - **Depends on:** —
@@ -465,7 +465,7 @@ export function userRowsContributor(database: MergeTx, spec: {
 
 ## P321: Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -25 / +10
 - **Depends on:** —
@@ -531,7 +531,7 @@ export async function resolveNameBook(request: NameIdRequest): Promise<NameBook>
 
 ## P174: Give src/scripts one bootstrap: a load-env side-effect import, createScriptClient, client-optional runScript and publicTableExists
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -55/+45 across 12 scripts plus script-runtime; +60 test lines
 - **Depends on:** —
@@ -620,7 +620,7 @@ Update vendor-resilience.test.ts PRODUCTION_POSTGRES_SITES. Its 'states an expli
 
 ## P316: Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -20 / +15, plus 26 mechanical import rewrites
 - **Depends on:** [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107)
@@ -699,7 +699,7 @@ export function firstSearchParam(raw: string | string[] | undefined): string | u
 
 ## P282: Share the range-key day count and keep admin reads from waiting on the GSC report date
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about +20 / -8 lines
 - **Depends on:** [P316](#p316)
@@ -762,7 +762,7 @@ async function SearchPeriodCards({ rangeKey }: { rangeKey: RangeKey }): Promise<
 
 ## P281: Cache degradation and search-total reads per request with one range-keyed helper, and drop dead ESI cost reads
 
-- **Status:** [ ] not started
+- **Status:** [x] already done (see commit)
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -15 / +14 lines; removes 2 DB queries per /admin/esi render and 1 per /admin/search render
 - **Depends on:** —
@@ -842,7 +842,7 @@ export function deriveCostLensView(input: { prices; history; writeBehind; endpoi
 
 ## P158: Share the admin cron, SLI and activity loaders between the overview, health and traffic cards
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about −55 / +30 (net −25 across 5 files plus 1 new file)
 - **Depends on:** —
@@ -905,7 +905,7 @@ export async function loadActivityView(rangeKey: RangeKey, range: DateRange): Pr
 
 ## P299: Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -60 production lines (deriveBudgetView 38, countOf/ageLabel 16, three inline sums, dead cost-lens fields) and +20 (countJobs, formatAge, queueValueText, deriveBudgetCard details, shared degradation loader); tests about -20 net
 - **Depends on:** [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088)
@@ -985,7 +985,7 @@ export function getDegradationByCallerShared(range: DateRange): Promise<Degradat
 
 ## P314: Trim admin and corporations view models to rendered fields and show search truncation in the results body
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +8
 - **Depends on:** —
@@ -1042,7 +1042,7 @@ export type CorporationsView = { directorCorps: SharingCorpView[]; memberCorps: 
 
 ## P315: Derive admin hrefs, titles and range controls from admin-sections instead of literals
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -35 / +25
 - **Depends on:** [P316](#p316)
@@ -1128,7 +1128,7 @@ export function AdminPageFrame(props: { section: AdminSectionId; actions?: React
 
 ## P159: Route every usage-telemetry write through one after()-scheduled emitter, sharing the scheduler with domain events
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** high · **Size:** about −60 / +40 in production (16 inline catches, recordUsage, insertDomainEvent and the cost-metrics bodies shrink; two small modules are added), plus mechanical mock changes in about 25 test files
 - **Depends on:** [P130](wave-03-src-lib-primitives-collections-math-async.md#p130), [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141)

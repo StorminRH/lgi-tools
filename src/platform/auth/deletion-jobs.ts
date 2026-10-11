@@ -93,8 +93,9 @@ export async function jobsForCharacter(characterId: number): Promise<DeletionJob
   )).orderBy(asc(pendingDeletions.queuedAt), asc(pendingDeletions.id));
 }
 
+/** Moves a failed job behind newer work on the database clock, the clock its queued_at default uses. */
 export async function rotateDeletionJob(id: string): Promise<void> {
-  await db.update(pendingDeletions).set({ queuedAt: new Date() }).where(eq(pendingDeletions.id, id));
+  await db.update(pendingDeletions).set({ queuedAt: sql`clock_timestamp()` }).where(eq(pendingDeletions.id, id));
 }
 
 export async function enqueueTransfer(userId: string, characterId: number, accountRowId?: string): Promise<DeletionJob | undefined> {

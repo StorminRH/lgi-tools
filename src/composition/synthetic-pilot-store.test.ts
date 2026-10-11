@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { maps, mapAccess } from '@/data/maps/schema';
+import { mapAccess } from '@/data/maps/schema';
 import { user } from '@/db/auth-schema';
 
 const h = vi.hoisted(() => ({
@@ -54,7 +54,12 @@ vi.mock('@/platform/auth/admin-users', () => ({
   },
 }));
 vi.mock('@/composition/map-purge', () => ({
-  purgeMapChain: (id: string) => cleanup('chain', id),
+  // The pilot owns one map; its chain goes before its access fence.
+  async purgeOwnedMapChains(userId: string) {
+    const owned = userId === 'e2e-pilot' ? ['owned-map'] : [];
+    for (const id of owned) await cleanup('chain', id);
+    return owned;
+  },
 }));
 vi.mock('@/composition/map-access-projection', () => ({
   teardownMapAccessProjection: (id: string) => cleanup('projection', id),
@@ -83,7 +88,7 @@ beforeEach(() => {
   h.userDeleted = false;
   h.remainingAtMint = [];
   h.select.mockImplementation(() => ({
-    from: (table: unknown) => ({ where: async () => table === maps ? [{ id: 'owned-map' }] : [] }),
+    from: () => ({ where: async () => [] }),
   }));
   h.delete.mockImplementation((table: unknown) => ({
     async where() {

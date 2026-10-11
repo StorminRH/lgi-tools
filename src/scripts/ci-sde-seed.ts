@@ -1,19 +1,17 @@
+import './load-env';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { config } from 'dotenv';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
 import { readEnv, requireEnv } from '@/lib/env';
-import { PG_CONNECT_TIMEOUT_SECONDS } from '@/db';
 import { SDE_META_KEY_VERSION } from '../data/eve-data/constants';
 import { getSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import type { PostgresJsDb } from '@/lib/db-types';
-import { runScript } from './script-runtime';
+import { createScriptClient, runScript } from './script-runtime';
 import { hasCompleteSdeData } from './sde-bootstrap';
 import { ingestAndStampSdeVersion, readSdeSentinelCounts } from './sde-ingest-io';
 import {
@@ -28,14 +26,9 @@ import {
   sdeSeedDumpFileName,
 } from './sde-seed-cache';
 
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
-
 const execFileAsync = promisify(execFile);
 const databaseUrl = requireEnv('DATABASE_URL');
-const client = postgres(databaseUrl, {
-  max: 1,
-  connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,
-});
+const client = createScriptClient(databaseUrl, { max: 1 });
 
 async function readSeedSourceContents(): Promise<Record<string, string>> {
   const entries = await Promise.all(

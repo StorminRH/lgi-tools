@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
-  reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
+  reconcileTrackingMerges: vi.fn().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 }),
 }));
 
 const mocks = vi.hoisted(() => ({
-  getOwnedMapIds: vi.fn(),
   projectMapAccess: vi.fn(),
-  purgeMapChain: vi.fn(),
+  purgeOwnedMapChains: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
   revokeUserMapClaims: vi.fn(),
   teardownLocationTracking: vi.fn(),
@@ -30,21 +29,17 @@ vi.mock('@/composition/board/net-worth-link', () => ({
 vi.mock('@/data/maps/queries', () => ({
   enqueueAffectedMapAccessChanges: mocks.enqueueAffectedMapAccessChanges,
   getGrantedMapIdsForCharacter: mocks.getGrantedMapIdsForCharacter,
-  getOwnedMapIds: mocks.getOwnedMapIds,
 }));
 
-vi.mock('@/composition/map-access-projection', () => ({
+vi.mock('@/composition/map-access-projection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/composition/map-access-projection')>(),
   projectMapAccess: mocks.projectMapAccess,
-  requireCurrentProjection: (result: { outcome: string }) => {
-    if (result.outcome === 'stale') throw new Error('newer projection won');
-    return result;
-  },
   purgeUserMapAccessProjection: mocks.purgeUserMapAccessProjection,
   revokeUserMapClaims: mocks.revokeUserMapClaims,
 }));
 
 vi.mock('@/composition/map-purge', () => ({
-  purgeMapChain: mocks.purgeMapChain,
+  purgeOwnedMapChains: mocks.purgeOwnedMapChains,
 }));
 
 vi.mock('@/data/location-tracking/purge', () => ({
@@ -69,7 +64,6 @@ const GRANTED = [...Array.from({ length: 101 }, (_, index) => `map-${index}`), '
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.getOwnedMapIds.mockResolvedValue([]);
   mocks.getGrantedMapIdsForCharacter.mockResolvedValue(GRANTED);
   mocks.projectMapAccess.mockResolvedValue({
     inserted: 0,
@@ -78,7 +72,7 @@ beforeEach(() => {
     unchanged: 0,
     outcome: 'applied',
   });
-  mocks.purgeMapChain.mockResolvedValue({ deleted: 0, remaining: false });
+  mocks.purgeOwnedMapChains.mockResolvedValue([]);
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
   mocks.teardownLocationTracking.mockResolvedValue(undefined);
   mocks.enqueueAffectedMapAccessChanges.mockResolvedValue([]);
@@ -109,12 +103,14 @@ describe('map-access-identity', () => {
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
 
-    mocks.getOwnedMapIds.mockResolvedValue(['owned-1', 'owned-2']);
+    mocks.purgeOwnedMapChains.mockResolvedValue(['owned-1', 'owned-2']);
     await teardownProjectionsForDeletedUser('user-gone');
-    expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-1');
-    expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-2');
+    expect(mocks.purgeOwnedMapChains).toHaveBeenCalledExactlyOnceWith('user-gone');
     expect(mocks.purgeUserMapAccessProjection).toHaveBeenCalledWith('user-gone');
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('user-gone', null);
+    expect(mocks.purgeOwnedMapChains.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.purgeUserMapAccessProjection.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('enqueues affected maps on unlink, bounds immediate delivery, and always cleans location tracking', async () => {
@@ -192,12 +188,10 @@ describe('map-access-identity', () => {
   });
 
   it('propagates a full-chain failure before clearing claims', async () => {
-    mocks.getOwnedMapIds.mockResolvedValue(['owned-1', 'owned-2']);
     const failure = new Error('convex down');
-    mocks.purgeMapChain.mockRejectedValueOnce(failure);
+    mocks.purgeOwnedMapChains.mockRejectedValueOnce(failure);
 
     await expect(teardownProjectionsForDeletedUser('user-gone')).rejects.toBe(failure);
-    expect(mocks.purgeMapChain).toHaveBeenCalledTimes(1);
     expect(mocks.purgeUserMapAccessProjection).not.toHaveBeenCalled();
     expect(mocks.teardownLocationTracking).not.toHaveBeenCalled();
   });

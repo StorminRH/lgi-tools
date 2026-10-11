@@ -19,10 +19,6 @@ vi.mock('./eve-sso', () => ({
   revokeEveRefreshToken: (input: unknown) => revokeEveRefreshTokenMock(input),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: vi.fn().mockResolvedValue(undefined),
-}));
-
 import { revokeStoredCharacterToken } from './eve-token-service';
 
 beforeEach(() => {

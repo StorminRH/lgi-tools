@@ -1,3 +1,4 @@
+import type { PriceSourceCounts } from '@/lib/alerts';
 import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
 
 export const DOMAIN_EVENT_TYPES = [
@@ -11,13 +12,9 @@ export const DOMAIN_EVENT_TYPES = [
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
 
 export interface DomainEventMetadataByType {
-  price_refresh_finished: {
+  price_refresh_finished: PriceSourceCounts & {
     outcome: 'completed' | 'degraded';
-    fetched: number;
     written: number;
-    esiCount: number;
-    fuzzworkFallbackCount: number;
-    budgetExhausted: boolean;
     durationMs: number;
   };
   esi_snapshot_pulled: {

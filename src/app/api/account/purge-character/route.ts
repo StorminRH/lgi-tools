@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import {
   purgeCharacterEndpoint,
   purgeCharacterRequestSchema,
@@ -43,10 +43,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       const result = await purgeOwnCharacter(session.user.id, characterId);
 
-      void logUsageEvent({
+      emitUsageEvent('account/purge-character', {
         action: 'account_purge',
         metadata: { scope: 'character' },
-      }).catch((err) => console.error('[account/purge-character] telemetry write failed', err));
+      });
 
       return apiResponse(purgeCharacterEndpoint, 200, result);
     },

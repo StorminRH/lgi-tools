@@ -19,7 +19,14 @@ import { refreshJobsOnView } from '@/composition/sync/industry-jobs-sync';
 import { refreshCharacterAssetsOnView } from '@/composition/sync/owned-assets-sync';
 import { refreshSkillsOnView } from '@/composition/sync/skills-sync';
 import type { BoardResponse } from './api-contract';
-import { assembleBoard, type BoardRaw, collectNameIds, netWorthSnapshot, toHistoryDay } from './board-assemble';
+import {
+  assembleBoard,
+  type BoardRaw,
+  collectNameIds,
+  collectValuationTypeIds,
+  netWorthSnapshot,
+  toHistoryDay,
+} from './board-assemble';
 import { resolveNameBook } from './name-book';
 import { resolveValuationBook, seedUnpricedTypes } from './price-book';
 
@@ -79,11 +86,8 @@ export async function recordNetWorthSnapshot(userId: string, now = new Date()): 
   if (linked.length === 0) return;
   // SWR caches can still hold the pre-refresh view here; snapshots must read the completed writes.
   const raws = await readRaws(linked, true);
-  const valuation = await resolveValuationBook(collectNameIds(raws).valuationTypeIds);
-  const snapshot = netWorthSnapshot(raws, {
-    prices: valuation.prices,
-    typeCategories: valuation.categories,
-  }, isoDay(now));
+  const valuation = await resolveValuationBook(collectValuationTypeIds(raws));
+  const snapshot = netWorthSnapshot(raws, valuation, isoDay(now));
   if (snapshot.pilotsIncluded > 0) await upsertNetWorthDay(userId, snapshot, now);
   await seedUnpricedTypes(valuation.unseeded);
 }
@@ -106,7 +110,7 @@ export async function getBoardForUserOnView(userId: string): Promise<BoardRespon
   const raws = await readRaws(linked);
   after(() => refreshBoardDatasets(userId));
   const [names, history] = await Promise.all([
-    resolveNameBook({ ...collectNameIds(raws), valuationTypeIds: [] }),
+    resolveNameBook(collectNameIds(raws)),
     getNetWorthHistory(userId),
   ]);
   return assembleBoard(raws, names, Date.now(), history.map(toHistoryDay));

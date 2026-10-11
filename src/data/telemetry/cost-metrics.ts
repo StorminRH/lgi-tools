@@ -1,6 +1,5 @@
-import { after } from 'next/server';
-import { logUsageEvent } from './log';
 import type { UsageAction } from './types';
+import { emitUsageEvent, recordUsageEvent } from './usage-events';
 
 export interface CostTimer {
   startedAt: number;
@@ -14,26 +13,18 @@ export function elapsedCostTimer(timer: CostTimer): number {
   return performance.now() - timer.startedAt;
 }
 
-export async function recordCostMetric(
+export function recordCostMetric(
   action: UsageAction,
   metadata: Record<string, unknown>,
 ): Promise<void> {
-  try {
-    await logUsageEvent({ action, metadata });
-  } catch (error) {
-    console.error('[cost-metrics] telemetry write failed', error);
-  }
+  return recordUsageEvent('cost-metrics', { action, metadata });
 }
 
 export function emitCostMetric(
   action: UsageAction,
   metadata: Record<string, unknown>,
 ): void {
-  try {
-    after(() => recordCostMetric(action, metadata));
-  } catch (error) {
-    console.error('[cost-metrics] telemetry scheduling failed', error);
-  }
+  emitUsageEvent('cost-metrics', { action, metadata });
 }
 
 /**

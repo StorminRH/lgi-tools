@@ -1,16 +1,9 @@
+import './load-env';
 import { deepStrictEqual, strictEqual } from 'node:assert';
-import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
 import { readSystemStatics } from '@/data/wh-statics/queries';
-import {
-  PG_CONNECT_TIMEOUT_SECONDS,
-  resolveLockConnectionUrl,
-} from '@/db';
-import { readEnv } from '@/lib/env';
-import { runScript } from './script-runtime';
-
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
+import { resolveLockConnectionUrl } from '@/db';
+import { createScriptClient, runScript } from './script-runtime';
 
 const SPOT_CHECKS = [
   { name: 'J111613', systemId: 31_002_318, codes: ['E175'] },
@@ -18,10 +11,7 @@ const SPOT_CHECKS = [
   { name: 'J112747', systemId: 31_001_361, codes: ['U210'] },
 ] as const;
 
-const client = postgres(resolveLockConnectionUrl(), {
-  max: 1,
-  connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,
-});
+const client = createScriptClient(resolveLockConnectionUrl(), { max: 1 });
 
 async function main() {
   const promoted = await readSystemStatics(drizzle(client));

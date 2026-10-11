@@ -1,5 +1,5 @@
-import { computeDelta, type Delta } from '@/composition/admin-period';
 import { formatQuantity } from '@/lib/format/number';
+import { computeDelta, type Delta } from './period';
 import { SECTION_LOAD_FAILED } from './load-section';
 import type { Loaded } from './signals';
 

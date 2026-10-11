@@ -4,6 +4,7 @@ import {
 } from '@/data/market-prices/api-contract';
 import { ON_DEMAND_REFRESH_LIMIT_PER_MINUTE } from '@/data/market-prices/constants';
 import { getLivePrices } from '@/data/market-prices/refresh-on-view';
+import { readPriceSourceHealth } from '@/data/market-prices/source-health';
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 import { apiResponse } from '@/transport/api-response';
 
@@ -31,14 +32,9 @@ export const POST = marketRefreshRoute(
       budgetExhausted: degraded.budgetExhausted,
       durationMs,
     });
-    if (degraded.fuzzworkFallbackCount > 0 || degraded.budgetExhausted) {
-      emitCostMetric('price_source_degraded', {
-        caller: 'on-demand',
-        fetched: degraded.fetched,
-        esiCount: degraded.esiCount,
-        fuzzworkFallbackCount: degraded.fuzzworkFallbackCount,
-        budgetExhausted: degraded.budgetExhausted,
-      });
+    const health = readPriceSourceHealth(degraded);
+    if (health.degraded) {
+      emitCostMetric('price_source_degraded', { caller: 'on-demand', ...health.counts });
     }
     return apiResponse(refreshPricesEndpoint, 200, {
       prices: typeIds

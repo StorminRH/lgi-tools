@@ -1,14 +1,9 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/platform/purge/types';
+import { userRowsContributor } from '@/platform/purge/contributors';
 import { customStructures } from './schema';
 
-export const customStructuresPurgeContributor: PurgeContributor = {
+export const customStructuresPurgeContributor = userRowsContributor(db, {
   name: 'custom-structures',
-  tier: 'durable',
-  claims: [customStructures],
-  merge: [{ table: customStructures, rule: 'rekey' }],
-  async purgeUser({ userId }) {
-    await db.delete(customStructures).where(eq(customStructures.userId, userId));
-  },
-};
+  table: customStructures,
+  merge: { rule: 'rekey' },
+});

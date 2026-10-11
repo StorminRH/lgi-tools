@@ -15,6 +15,7 @@ import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { DAY_MS, HOUR_MS, isoDay } from '@/lib/iso-date';
 import { roundIsk } from '@/lib/math';
+import { firstSearchParam } from '@/lib/search-params';
 import type { AssetLine, PriceBook, TypeCategories } from '@/features/net-worth/valuation';
 import type { BoardHistoryDay, BoardResponse, SkillCatalogGroup } from './api-contract';
 import {
@@ -24,6 +25,7 @@ import {
   netWorthSnapshot,
   toHistoryDay,
   type TypeFacts,
+  type Valuation,
 } from './board-assemble';
 
 export const DEMO_VARIANTS = ['full', 'one', 'reconnect', 'empty'] as const;
@@ -80,7 +82,7 @@ const NEW_SCOPES = (['wallet', 'clones', 'implants', 'structures'] as const).fla
 );
 
 export function demoVariant(param: string | string[] | undefined): DemoVariant | null {
-  const value = Array.isArray(param) ? param[0] : param;
+  const value = firstSearchParam(param);
   if (value === undefined) return null;
   if (value === '') return 'full';
   return (DEMO_VARIANTS as readonly string[]).includes(value) ? (value as DemoVariant) : null;
@@ -293,9 +295,9 @@ const DEMO_NAMES: NameBook = {
     [DEMO_ALLIANCE]: 'Halcyon Drift',
   },
   skillCatalog: DEMO_CATALOG,
-  prices: DEMO_PRICES,
-  typeCategories: DEMO_CATEGORIES,
 };
+
+const DEMO_VALUATION: Valuation = { prices: DEMO_PRICES, categories: DEMO_CATEGORIES };
 
 const hangar = (typeId: number, quantity: number, locationFlag = 'Hangar'): AssetLine => ({
   typeId,
@@ -848,7 +850,7 @@ function pastWorth(today: number, daysAgo: number, seed: number): number {
 }
 
 function demoHistory(now: number, raws: readonly BoardRaw[]): BoardHistoryDay[] {
-  const today = netWorthSnapshot(raws, DEMO_NAMES, isoDay(now));
+  const today = netWorthSnapshot(raws, DEMO_VALUATION, isoDay(now));
   if (today.pilotsIncluded === 0) return [];
   const days: BoardHistoryDay[] = [];
   for (let daysAgo = HISTORY_DAYS; daysAgo >= 1; daysAgo -= 1) {

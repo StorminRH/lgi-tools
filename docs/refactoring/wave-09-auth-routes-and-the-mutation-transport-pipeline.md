@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#676](https://github.com/StorminRH/lgi-tools/pull/676).
+
 ← [Wave 8: Charts, images and board/workspace adoption](wave-08-charts-images-and-board-workspace-adoption.md) · [Index](README.md#roadmap) · [Wave 10: Server pipelines, purge, telemetry and the admin console](wave-10-server-pipelines-purge-telemetry-and-the-admin.md) →
 
 parseFormBody gets a field list, admin and form routes move onto runMutationRoute, and seeOther starts stashing failures. Admin policy, then requireSessionPage and auth codes, then resolveNotice and typed codes, then notLinkedFailure. Next, stage failures are checked against contracts and the platform pass-throughs collapse. Owned-data telemetry gets endpoint keys and observeCostPromise, then come the versioned asset route, readOr and read-identity guards. Then the SSO credential builder, eve-account predicates and linked-account ids. Two medium-risk items close the wave: P176 session guards and drain coalescing, then P161 unlinkCharacter on the settled routes.

@@ -3,6 +3,7 @@ import { levelReadout } from '@/components/status-level-tone';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
+import { adminHref, SCHEDULED_TASKS_ANCHOR } from './admin-sections';
 import {
   deriveAttention,
   deriveStatusGroups,
@@ -13,9 +14,9 @@ import {
 
 /** The overview's three status cards: their titles, where they link, and skeleton rows. */
 export const STATUS_CARDS = [
-  { id: 'app', title: 'App', href: '/admin/health', linkLabel: 'Health', rows: 4 },
-  { id: 'esi', title: 'ESI', href: '/admin/esi', linkLabel: 'ESI', rows: 4 },
-  { id: 'jobs', title: 'Jobs', href: '/admin/health#scheduled', linkLabel: 'Jobs', rows: 5 },
+  { id: 'app', title: 'App', href: adminHref('health'), linkLabel: 'Health', rows: 4 },
+  { id: 'esi', title: 'ESI', href: adminHref('esi'), linkLabel: 'ESI', rows: 4 },
+  { id: 'jobs', title: 'Jobs', href: adminHref('health', { hash: SCHEDULED_TASKS_ANCHOR }), linkLabel: 'Jobs', rows: 5 },
 ] as const satisfies readonly { id: StatusGroupId; title: string; href: string; linkLabel: string; rows: number }[];
 
 function AttentionRow({ item }: { item: AttentionItem }) {

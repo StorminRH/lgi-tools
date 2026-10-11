@@ -24,6 +24,11 @@ import type { PurgeContributor } from '@/platform/purge/types';
 import { mergeUsers, type MergeRequest } from './account-merge';
 
 vi.mock('@/data/location-tracking/merge', () => ({ snapshotMergeTracking: vi.fn() }));
+// The merge audit row is scheduled with after(); run it as soon as it is scheduled, as a request would.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: (task: () => unknown) => task(),
+}));
 
 beforeEach(() => {
   vi.mocked(snapshotMergeTracking).mockReset().mockResolvedValue([]);

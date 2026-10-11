@@ -2,6 +2,7 @@ import type { EsiRefreshJobStatus, EsiRefreshQueueStat } from '@/data/esi-refres
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { formatCount, formatQuantity } from '@/lib/format/number';
 import { formatElapsed } from '@/lib/format/time';
+import { countJobs } from '../signals';
 
 export interface QueueCell {
   id: 'waiting' | 'deferred' | 'retrying' | 'dead';
@@ -18,19 +19,9 @@ const CELLS: readonly { id: QueueCell['id']; title: string; statuses: readonly E
   { id: 'dead', title: 'Dead-lettered', statuses: ['dead_lettered'] },
 ];
 
-function countOf(stats: EsiRefreshQueueStat[], statuses: readonly EsiRefreshJobStatus[]) {
-  const matching = stats.filter((stat) => statuses.includes(stat.status));
-  const count = matching.reduce((total, stat) => total + stat.count, 0);
-  const oldest = matching.reduce<Date | null>(
-    (min, stat) => (min === null || stat.oldestCreatedAt < min ? stat.oldestCreatedAt : min),
-    null,
-  );
-  return { count, oldest };
-}
-
 export function deriveQueueCells(stats: EsiRefreshQueueStat[], now: Date): QueueCell[] {
   return CELLS.map((cell) => {
-    const { count, oldest } = countOf(stats, cell.statuses);
+    const { count, oldest } = countJobs(stats, cell.statuses);
     return {
       id: cell.id,
       title: cell.title,
@@ -44,14 +35,14 @@ export function deriveQueueCells(stats: EsiRefreshQueueStat[], now: Date): Queue
 }
 
 export function retainedSummary(stats: EsiRefreshQueueStat[]): string {
-  const succeeded = countOf(stats, ['succeeded']).count;
-  const permanent = countOf(stats, ['failed_permanent']).count;
+  const succeeded = countJobs(stats, ['succeeded']).count;
+  const permanent = countJobs(stats, ['failed_permanent']).count;
   return `${formatQuantity(succeeded)} succeeded · ${formatQuantity(permanent)} failed permanently in the last ${ESI_REFRESH_JOB_RETENTION_DAYS} days`;
 }
 
 /** The dead-letter list stops at `shown` rows; the hint carries the real total. */
 export function deadLetterHint(stats: EsiRefreshQueueStat[], shown: number): string {
-  const total = Math.max(countOf(stats, ['dead_lettered']).count, shown);
+  const total = Math.max(countJobs(stats, ['dead_lettered']).count, shown);
   const jobs = formatCount(total, 'job');
   return total > shown ? `${jobs} · newest ${formatQuantity(shown)} shown` : jobs;
 }

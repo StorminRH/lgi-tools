@@ -2,12 +2,11 @@ import {
   purgeUserMapAccessProjection,
   revokeUserMapClaims,
 } from '@/composition/map-access-projection';
-import { purgeMapChain } from '@/composition/map-purge';
+import { purgeOwnedMapChains } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
 import {
   enqueueAffectedMapAccessChanges,
   getGrantedMapIdsForCharacter,
-  getOwnedMapIds,
 } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
 import { revalueAfterRosterChange } from '@/composition/board/net-worth-link';
@@ -35,10 +34,7 @@ export async function revokeCharacterMapClaims(userId: string, characterId: numb
 }
 
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {
-  const ownedMapIds = await getOwnedMapIds(userId);
-  for (const mapId of ownedMapIds) {
-    await purgeMapChain(mapId);
-  }
+  await purgeOwnedMapChains(userId);
   await bestEffort('map-access-identity', 'user claim purge', userId, () =>
     purgeUserMapAccessProjection(userId),
   );

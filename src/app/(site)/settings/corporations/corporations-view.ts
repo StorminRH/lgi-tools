@@ -1,5 +1,4 @@
 import type { CorpStructurePageView } from '@/features/owned-structures/types';
-import { formatCount } from '@/lib/format/number';
 import type { PageControlModel } from '@/platform/page-settings/controls';
 
 export type CorporationRoleLabel = 'Director' | 'Station Manager' | 'Member';
@@ -22,7 +21,6 @@ export type CorporationsView = {
   directorCorps: SharingCorpView[];
   memberCorps: SharingCorpView[];
   memberships: CorporationMembershipView[];
-  membershipHint: string;
 };
 
 export function settingsNeedsCorpSharing(models: readonly PageControlModel[]): boolean {
@@ -66,6 +64,5 @@ export function deriveCorporationsView(rows: readonly CorpStructurePageView[]): 
     directorCorps: rows.filter((corp) => corp.canManageSharing).map(toSharingCorp),
     memberCorps: rows.filter((corp) => !corp.canManageSharing).map(toSharingCorp),
     memberships: rows.map(toMembership).sort(byRoleThenName),
-    membershipHint: formatCount(rows.length, 'corporation'),
   };
 }

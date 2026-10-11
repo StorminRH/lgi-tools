@@ -2,14 +2,14 @@ import 'server-only';
 
 import { and, eq, ne } from 'drizzle-orm';
 import { auth } from '@/composition/auth';
-import { purgeMapChain } from '@/composition/map-purge';
+import { purgeOwnedMapChains } from '@/composition/map-purge';
 import {
   purgeUserMapAccessProjection,
   teardownMapAccessProjection,
 } from '@/composition/map-access-projection';
 import { isConvexConfigured, publicConvexUrl } from '@/config/public-env';
 import { purgeLocationTracking } from '@/data/location-tracking/purge';
-import { mapAccess, maps } from '@/data/maps/schema';
+import { mapAccess } from '@/data/maps/schema';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { ownerKeyWhere } from '@/lib/db-columns';
@@ -79,13 +79,8 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
   // so it cannot preserve either reset guarantee.
   await revokeUserSessions(SYNTHETIC_PILOT.userId);
   if (isConvexConfigured()) {
-    const ownedMaps = await db
-      .select({ id: maps.id })
-      .from(maps)
-      .where(eq(maps.userId, SYNTHETIC_PILOT.userId));
-    for (const map of ownedMaps) {
-      await purgeMapChain(map.id);
-      await teardownMapAccessProjection(map.id);
+    for (const mapId of await purgeOwnedMapChains(SYNTHETIC_PILOT.userId)) {
+      await teardownMapAccessProjection(mapId);
     }
     await purgeUserMapAccessProjection(SYNTHETIC_PILOT.userId);
     await purgeLocationTracking(SYNTHETIC_PILOT.userId, null);

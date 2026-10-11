@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   resolveJumpRequest: vi.fn(),
-  logUsageEvent: vi.fn(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
@@ -11,9 +10,6 @@ vi.mock('@/composition/route-guards', () => ({
 }));
 vi.mock('@/composition/jump-resolver/resolver', () => ({
   resolveJumpRequest: (...args: unknown[]) => h.resolveJumpRequest(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
 import { postJson } from '@/lib/__tests__/route-requests';
@@ -30,7 +26,6 @@ beforeEach(() => {
     outcome: 'authored',
     emitted: true,
   });
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
 });
 
 describe('POST /api/maps/jump', () => {

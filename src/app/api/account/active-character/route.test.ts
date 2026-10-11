@@ -10,7 +10,7 @@ const SESSION = sessionFixture();
 
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const setActiveCharacterMock = vi.fn<(userId: string, characterId: number) => Promise<boolean>>();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 const emitCostMetricMock = capabilityOutcomeMock();
 const checkRateLimitMock = vi.fn();
 
@@ -23,8 +23,8 @@ vi.mock('@/platform/auth/linked-characters', async (importOriginal) => ({
   setActiveCharacter: (u: string, c: number) => setActiveCharacterMock(u, c),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
 
 vi.mock('@/data/telemetry/cost-metrics', () => ({
@@ -53,8 +53,7 @@ const ROUTE = '/api/account/active-character';
 beforeEach(() => {
   getSessionMock.mockReset();
   setActiveCharacterMock.mockReset();
-  logUsageEventMock.mockReset();
-  logUsageEventMock.mockResolvedValue(undefined);
+  emitUsageEventMock.mockReset();
   emitCostMetricMock.mockReset();
   checkRateLimitMock.mockReset().mockResolvedValue({ ok: true, remaining: 29 });
 });
@@ -71,7 +70,7 @@ test('refuses anonymous, invalid, and unowned character switches', async () => {
   expect(unowned.status).toBe(303);
   expect(unowned.headers.get('location')).toBe('http://localhost:3000/settings/characters?error=not_linked');
   expect(setActiveCharacterMock).toHaveBeenCalledExactlyOnceWith('eve-user-1', 999);
-  expect(logUsageEventMock).not.toHaveBeenCalled();
+  expect(emitUsageEventMock).not.toHaveBeenCalled();
   expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
     { outcome: 'unauthenticated', code: 'unauthenticated' },
     { outcome: 'validation', code: 'invalid_form_field' },
@@ -86,7 +85,11 @@ test('sets the active character and redirects on a valid switch', async () => {
   expect(res.status).toBe(303);
   expect(res.headers.get('location')).toBe('http://localhost:3000/settings/characters');
   expect(setActiveCharacterMock).toHaveBeenCalledWith('eve-user-1', 200);
-  expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+  expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('account/active-character', {
+    action: 'character_switch',
+    characterId: SESSION.characterId,
+    metadata: { userId: 'eve-user-1', toCharacterId: 200 },
+  });
 });
 
 test('throttles a switch before reading the session', async () => {

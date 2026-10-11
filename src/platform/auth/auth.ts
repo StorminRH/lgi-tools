@@ -4,7 +4,7 @@ import { after } from 'next/server';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { db } from '@/db';
 import { EVE_SCOPES } from '@/config/eve-scopes';
 import { readAuthSecret, readEnv } from '@/lib/env';
@@ -165,11 +165,11 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
               });
               await upsertCharacterLoginIdentity(character);
               after(() => refreshCharacterAffiliations([character.characterId]));
-              void logUsageEvent({
+              emitUsageEvent('auth', {
                 action: 'auth_login',
                 characterId: character.characterId,
                 metadata: {},
-              }).catch((err) => console.error('[auth] login telemetry write failed', err));
+              });
               return {
                 id: String(character.characterId),
                 name: character.name,

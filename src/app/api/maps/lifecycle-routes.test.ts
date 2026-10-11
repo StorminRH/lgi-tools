@@ -5,7 +5,6 @@ const h = vi.hoisted(() => ({
   restoreMapForUser: vi.fn(),
   requestMapPurgeForUser: vi.fn(),
   checkUserId: vi.fn(),
-  logUsageEvent: vi.fn(),
 }));
 
 vi.mock('@/composition/map-lifecycle', () => ({
@@ -15,9 +14,6 @@ vi.mock('@/composition/map-lifecycle', () => ({
 }));
 vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 
 import { postJson } from '@/lib/__tests__/route-requests';
@@ -32,7 +28,6 @@ beforeEach(() => {
   h.deleteMapForUser.mockReset().mockResolvedValue({ ok: true, projectionPending: false });
   h.restoreMapForUser.mockReset().mockResolvedValue({ ok: true, projectionPending: false });
   h.requestMapPurgeForUser.mockReset().mockResolvedValue({ ok: true });
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
 });
 
 describe('map lifecycle routes', () => {
