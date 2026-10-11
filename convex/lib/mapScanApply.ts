@@ -1,6 +1,7 @@
 import { ConvexError, type Infer } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
+import { SCAN_REFUSAL_CODE } from '@/data/maps/scan-errors';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { absorbDoorKnowledge } from '@/data/maps/connection-door-destinations';
 import {
@@ -76,12 +77,12 @@ export async function requireTrackedSystem(
     uniqueByUserCharacter(ctx, 'characterLocation', userId, row.characterId)));
   if (!locations.some((location) => location?.solarSystemId === systemId)) {
     throw new ConvexError({
-      code: 'UNTRACKED_SCAN_SYSTEM',
+      code: SCAN_REFUSAL_CODE.untracked,
       detail: `The caller has no tracked character in system ${systemId}.`,
     });
   }
   await requireLiveSystem(ctx, mapId, systemId, {
-    code: 'OFF_MAP_SCAN_SYSTEM',
+    code: SCAN_REFUSAL_CODE.offMap,
     detail: `Tracked system ${systemId} is not live on map ${mapId}.`,
   });
 }

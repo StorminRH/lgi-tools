@@ -11,6 +11,7 @@ import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
+import { readConvexError } from '@/lib/convex-error';
 import { atlasScannerCharacter } from '@/lib/preferences';
 import { AfkDialog, useAfkState } from './AfkGate';
 import {
@@ -34,7 +35,7 @@ interface TrackingControlsViewProps {
   readonly scannerCharacters: readonly TrackingCharacter[];
   readonly emptyLabel: string;
   readonly trackedIds: ReadonlySet<number>;
-  readonly onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
+  readonly onToggle: (characterId: number, tracked: boolean) => Promise<void>;
   readonly reconnectAction: ReactNode;
 }
 
@@ -47,8 +48,26 @@ export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
   return <AfkDialog afk={afk} />;
 }
 
-export function useSetMapTracking() {
-  return useMutation(api.mapTrackingOptIn.setTracking);
+/**
+ * Opt a character into or out of tracking on one map. The returned function
+ * never rejects: a refusal toasts the server's detail, which setTracking
+ * writes for users, or asks the user to try again when there is none.
+ */
+export function useSetMapTracking(): (args: {
+  readonly mapId: string;
+  readonly characterId: number;
+  readonly tracked: boolean;
+}) => Promise<void> {
+  const setTracking = useMutation(api.mapTrackingOptIn.setTracking);
+  return async (args) => {
+    try {
+      await setTracking(args);
+    } catch (error) {
+      toast.error('Tracking was not changed', {
+        description: readConvexError(error)?.detail ?? 'Please try again.',
+      });
+    }
+  };
 }
 
 export function TrackingControls({
@@ -76,18 +95,7 @@ export function TrackingControls({
         ? 'No linked characters'
         : 'None of your characters are on this map\'s access list'}
       trackedIds={new Set(trackedIds)}
-      onToggle={async (characterId, tracked) => {
-        try {
-          await setTracking({ mapId, characterId, tracked });
-        } catch (error) {
-          const data = typeof error === 'object' && error !== null && 'data' in error
-            ? error.data : null;
-          const description = typeof data === 'object' && data !== null
-            && 'detail' in data && typeof data.detail === 'string'
-            ? data.detail : 'Please try again.';
-          toast.error('Tracking was not changed', { description });
-        }
-      }}
+      onToggle={(characterId, tracked) => setTracking({ mapId, characterId, tracked })}
       reconnectAction={reconnectAction}
     />
   );

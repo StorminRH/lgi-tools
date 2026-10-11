@@ -7,10 +7,13 @@ import {
   type ScannedRow,
   type SigGroup,
 } from '@/data/maps/scan-parse';
+import { SCAN_REFUSAL_CODE } from '@/data/maps/scan-errors';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { hallwayDoorTypes, type ConnectionDoorSide } from '@/data/maps/connection-hallway';
 import { getOrInsertComputed, sameItems } from '@/lib/array';
+import { readConvexError } from '@/lib/convex-error';
+import { resolveNotice } from '@/lib/error-copy';
 import { lifetimeUpperBoundLabel } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
@@ -300,6 +303,9 @@ export function scannerPasteDecision(
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
 
+/** The local untracked refusal and the server's untracked code share this copy. */
+const NO_CHARACTER_ONLINE = 'No character online';
+
 export function scannerPasteRefusalToast(
   decision: Exclude<ScannerPasteDecision, { kind: 'apply' | 'choose' }>,
 ): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {
@@ -322,7 +328,18 @@ export function scannerPasteRefusalToast(
     };
   }
   return {
-    message: 'No character online',
+    message: NO_CHARACTER_ONLINE,
     options: { id: 'scanner-paste:untracked' },
   };
+}
+
+/** Toast copy for a scan the server refused, keyed by its refusal code. */
+const SCAN_REFUSAL_COPY = {
+  [SCAN_REFUSAL_CODE.offMap]: 'System not on map',
+  [SCAN_REFUSAL_CODE.untracked]: NO_CHARACTER_ONLINE,
+};
+
+/** The toast message for a scanner paste the server did not apply. */
+export function scanFailureMessage(error: unknown): string {
+  return resolveNotice(readConvexError(error)?.code, SCAN_REFUSAL_COPY) ?? 'Scan not applied';
 }

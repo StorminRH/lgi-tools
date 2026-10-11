@@ -1,11 +1,7 @@
-import { ConvexError } from 'convex/values';
+import { readConvexError } from '@/lib/convex-error';
 import { errorMessage } from '@/lib/failure';
 
 /** The code a ConvexError carries, or the message of any other error, for logs. */
 export function errorCode(error: unknown): string {
-  if (error instanceof ConvexError) {
-    const code = (error.data as { code?: unknown } | null)?.code;
-    if (typeof code === 'string') return code;
-  }
-  return errorMessage(error);
+  return readConvexError(error)?.code ?? errorMessage(error);
 }
