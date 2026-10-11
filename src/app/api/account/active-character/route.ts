@@ -3,7 +3,7 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse, seeOther } from '@/transport/api-response';
-import { switchCharacterFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
+import { characterIdFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { notLinkedFailure, setActiveCharacter } from '@/platform/auth/linked-characters';
 import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     ),
     authorize: checkSession,
     parse: (incoming) =>
-      parseFormBody(incoming, switchCharacterFormSchema, ['characterId']),
+      parseFormBody(incoming, characterIdFormSchema, ['characterId']),
     handle: async ({ session }, { characterId }) => {
       if (!(await setActiveCharacter(session.user.id, characterId))) {
         // The switch form posts natively, so the refusal is a notice on the page.

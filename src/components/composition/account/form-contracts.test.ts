@@ -7,8 +7,7 @@ import {
   adminRevokeSessionsFormSchema,
   adminRoleFormSchema,
   adminUnlinkFormSchema,
-  switchCharacterFormSchema,
-  unlinkCharacterFormSchema,
+  characterIdFormSchema,
 } from '@/platform/auth/api-contract';
 import { AdminForceLogoutForm } from './AdminForceLogoutForm';
 import { AdminReassignCharacterForm } from './AdminReassignCharacterForm';
@@ -26,11 +25,11 @@ function posted(element: ReactElement) {
 test('the character settings forms post what their routes parse', () => {
   const makeActive = posted(createElement(SwitchCharacterForm, { characterId: 9_000_001 }));
   expect(makeActive.action).toBe('/api/account/active-character');
-  expect(switchCharacterFormSchema.strict().parse(makeActive.fields)).toEqual({ characterId: 9_000_001 });
+  expect(characterIdFormSchema.strict().parse(makeActive.fields)).toEqual({ characterId: 9_000_001 });
 
   const unlink = posted(createElement(UnlinkCharacterForm, { characterId: 9_000_002, disabled: true }));
   expect(unlink.action).toBe('/api/account/characters/unlink');
-  expect(unlinkCharacterFormSchema.strict().parse(unlink.fields)).toEqual({ characterId: 9_000_002 });
+  expect(characterIdFormSchema.strict().parse(unlink.fields)).toEqual({ characterId: 9_000_002 });
 });
 
 test('the role toggle posts the next role and carries back only a non-empty search', () => {

@@ -66,7 +66,8 @@ export function makeOwnedDescriptor<TRow>(
     },
     readState: (owner) => port.readSyncState(owner),
     fetchAndPlan: async (owner, accessToken, state) => {
-      const read = await port.read(basePathFor(spec.resource, owner), accessToken, state?.pageEtags ?? []);
+      const endpoint = basePathFor(spec.resource, owner);
+      const read = await port.read(endpoint, accessToken, state?.pageEtags ?? []);
       return planRead(read, (fresh) => {
         const rows = spec.parse(fresh.items);
         return rows === null
@@ -75,7 +76,7 @@ export function makeOwnedDescriptor<TRow>(
               rows,
               etags: fresh.etags,
               source: {
-                endpoint: basePathFor(spec.resource, owner),
+                endpoint,
                 items: fresh.items,
                 responseHeaders: fresh.responseHeaders,
               },

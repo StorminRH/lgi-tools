@@ -92,15 +92,7 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
   if (!row) return { kind: 'not_found' };
   if (row.refreshToken === null) return { kind: 'reauth_required' };
   if (row.refreshTokenInvalidGrantCount === 1) return { kind: 'upstream_error' };
-  if (!row.accessToken || !row.accessTokenExpiresAt) {
-    return { kind: 'reauth_required' };
-  }
-  const access = decryptToken(row.accessToken);
-  if (access === null) return { kind: 'reauth_required' };
-  if (row.accessTokenExpiresAt.getTime() - Date.now() <= ACCESS_TOKEN_REFRESH_SKEW_MS) {
-    return { kind: 'reauth_required' };
-  }
-  return { kind: 'ok', accessToken: access, expiresAt: row.accessTokenExpiresAt.getTime() };
+  return readCachedToken(row) ?? { kind: 'reauth_required' };
 }
 
 async function recordInvalidGrant(

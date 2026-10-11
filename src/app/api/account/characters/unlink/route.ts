@@ -6,7 +6,7 @@ import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { unexpectedFailure, validationFailure, type AppFailure } from '@/lib/failure';
 import { problemResponse, seeOther } from '@/transport/api-response';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
-import { unlinkCharacterFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
+import { characterIdFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { auth } from '@/composition/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
 import {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     ),
     authorize: checkSession,
     parse: (incoming) =>
-      parseFormBody(incoming, unlinkCharacterFormSchema, ['characterId']),
+      parseFormBody(incoming, characterIdFormSchema, ['characterId']),
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);
       if (!linked.some((c) => c.characterId === characterId)) {
