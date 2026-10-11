@@ -13,7 +13,7 @@ import {
 import { readAppOrigin } from './lib/deploymentEnv';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 import { insertStaticPlaceholder } from './lib/mapStaticClaim';
-import { findSystem } from './lib/mapSystemLookup';
+import { findLiveSystem } from './lib/mapSystemLookup';
 
 export const STATIC_BACKFILL_BATCH = 32;
 
@@ -122,8 +122,7 @@ export const applyStaticPlaceholders = internalMutation({
   },
   returns: v.object({ inserted: v.number() }),
   handler: async (ctx, { mapId, systemId, codes }) => {
-    const system = await findSystem(ctx, mapId, systemId);
-    if (system === null || isTombstoned(system)) return { inserted: 0 };
+    if ((await findLiveSystem(ctx, mapId, systemId)) === null) return { inserted: 0 };
     const existing = await readOriginConnections(ctx, mapId, systemId);
     const claimed = new Set<string>();
     for (const row of existing) {

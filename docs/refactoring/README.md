@@ -598,7 +598,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 | ☑ | [P199](wave-14-convex-backend-helpers.md#p199) | Move readTrackedPilotSystemIds into convex/lib and share one per-map tracked-pilot memo | convex | S | low | low | [P198](wave-14-convex-backend-helpers.md#p198) |
 | ☑ | [P200](wave-14-convex-backend-helpers.md#p200) | Move the per-(map, user) tracking cap into lib/mapTrackingCapacity and read caller tracking through one bounded helper | convex | S | low | medium | — |
 | ☑ | [P201](wave-14-convex-backend-helpers.md#p201) | Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points | convex | S | low | low | [P200](wave-14-convex-backend-helpers.md#p200), [P199](wave-14-convex-backend-helpers.md#p199) |
-| ☐ | [P202](wave-14-convex-backend-helpers.md#p202) | Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup | convex | M | low | medium | — |
+| ☑ | [P202](wave-14-convex-backend-helpers.md#p202) | Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup | convex | M | low | medium | — |
 | ☐ | [P203](wave-14-convex-backend-helpers.md#p203) | Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert | convex | S | low | low | — |
 | ☐ | [P204](wave-14-convex-backend-helpers.md#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
 | ☐ | [P205](wave-14-convex-backend-helpers.md#p205) | Fold the location-sync lifecycle steps into locationSchedule and subjects helpers | convex | S | low | medium | — |

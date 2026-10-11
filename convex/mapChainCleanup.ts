@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { MAP_CHAIN_UNDO_WINDOW_MS, isTombstoned } from '@/data/maps/chain-contract';
+import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
@@ -10,6 +10,7 @@ import {
   queryMapSignatures,
   takeExpiredByPurgeAfter,
 } from './lib/indexedQuery';
+import { findLiveSystem, findSystem } from './lib/mapSystemLookup';
 import { trackedPilotSystemsByMap, type TrackedPilotSystems } from './lib/mapTrackedPilots';
 import { settleRemovedConnection } from './mapAuthoringCollapse';
 import { CEILING_SWEEP_ACTOR } from './mapAuthoringSweep';
@@ -41,13 +42,7 @@ async function endpointIsLive(
   const key = `${mapId}:${systemId}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
-  const endpoint = await ctx.db
-    .query('mapSystems')
-    .withIndex('by_map_system', (q) =>
-      q.eq('mapId', mapId).eq('systemId', systemId),
-    )
-    .unique();
-  const live = endpoint !== null && !isTombstoned(endpoint);
+  const live = (await findLiveSystem(ctx, mapId, systemId)) !== null;
   cache.set(key, live);
   return live;
 }
@@ -305,11 +300,8 @@ async function deleteOrphanedChildren(
     const key = `${row.mapId}:${row.systemId}`;
     let exists = systemExists.get(key);
     if (exists === undefined) {
-      const system = await ctx.db
-        .query('mapSystems')
-        .withIndex('by_map_system', (q) => q.eq('mapId', row.mapId).eq('systemId', row.systemId))
-        .unique();
-      exists = system !== null;
+      // Existence, not liveness: a tombstoned system's signatures stay restorable.
+      exists = (await findSystem(ctx, row.mapId, row.systemId)) !== null;
       systemExists.set(key, exists);
     }
     if (!exists) {

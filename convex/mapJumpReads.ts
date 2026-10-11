@@ -11,7 +11,7 @@ import {
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
 import { takeIndexedOrThrow, uniqueByUserCharacter } from './lib/indexedQuery';
 import { readOriginConnections } from './lib/mapConnectionLookup';
-import { findSystem } from './lib/mapSystemLookup';
+import { findLiveSystem } from './lib/mapSystemLookup';
 
 const JUMP_TRACKING_SCAN_CAP = 256;
 export const JUMP_CONNECTION_SCAN_CAP = 64;
@@ -87,8 +87,7 @@ export async function hasAwaitingReturn(
   fromSystemId: number,
   toSystemId: number,
 ): Promise<boolean> {
-  const destination = await findSystem(ctx, mapId, toSystemId);
-  if (destination === null || isTombstoned(destination)) return false;
+  if ((await findLiveSystem(ctx, mapId, toSystemId)) === null) return false;
   const rows = await readConnectionsFrom(ctx, mapId, toSystemId, 'pair');
   return rows.some((row) =>
     !isTombstoned(row)

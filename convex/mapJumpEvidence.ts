@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { internalQuery } from './_generated/server';
 import { tryMapAccessForUser } from './lib/mapAccess';
-import { findSystem } from './lib/mapSystemLookup';
+import { findLiveSystem, findSystem } from './lib/mapSystemLookup';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { hallwayDoorTypes, isStaticPlaceholder } from '@/data/maps/connection-hallway';
 import {
@@ -142,15 +142,10 @@ export const connectionEvidence = internalQuery({
       return { canEdit: true as const, connection: null };
     }
     const [fromSystem, toSystem] = await Promise.all([
-      findSystem(ctx, mapId, connection.fromSystemId),
-      findSystem(ctx, mapId, connection.toSystemId),
+      findLiveSystem(ctx, mapId, connection.fromSystemId),
+      findLiveSystem(ctx, mapId, connection.toSystemId),
     ]);
-    if (
-      fromSystem === null
-      || toSystem === null
-      || isTombstoned(fromSystem)
-      || isTombstoned(toSystem)
-    ) {
+    if (fromSystem === null || toSystem === null) {
       return { canEdit: true as const, connection: null };
     }
     const facts: EmissionFacts = emissionFacts(connection);

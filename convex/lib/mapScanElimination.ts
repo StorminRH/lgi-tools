@@ -28,7 +28,7 @@ import {
 import { connectionProvenanceValidator } from './mapEntityContracts';
 import { claimStaticPlaceholder, mergeSeatFields } from './mapStaticClaim';
 import { stampObservationKey } from './observationKey';
-import { findSystem, requireSystemId } from './mapSystemLookup';
+import { findLiveSystem, requireSystemId } from './mapSystemLookup';
 import {
   MAP_ELIMINATION_CONNECTION_LIMIT,
   MAP_SCAN_ROW_LIMIT,
@@ -112,8 +112,7 @@ export async function collectEliminationEvidence(
   systemId: number,
 ): Promise<EliminationEvidence> {
   requireSystemId(systemId);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
+  if ((await findLiveSystem(ctx, mapId, systemId)) === null) {
     return { canEdit: true, signatures: [], connections: [] };
   }
 
@@ -412,8 +411,7 @@ export async function applyEliminationDeductionBatch(
 ): Promise<EliminationOutcome[]> {
   requireSystemId(systemId);
   requireEliminationDeductions(deductions);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
+  if ((await findLiveSystem(ctx, mapId, systemId)) === null) {
     return deductions.map(({ signatureId }) => ({
       signatureId,
       outcome: 'stale' as const,

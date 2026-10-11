@@ -24,12 +24,12 @@ import {
 import {
   needsTombstoneChange,
   requireBoundedSignatureIds,
-  requireLiveSystem,
   rowMaps,
   tombstoneConnectionRow,
   type ScanState,
 } from './mapScanState';
 import { deleteUnclaimedRespawn, respawnAfterTombstone } from './mapStaticClaim';
+import { requireLiveSystem } from './mapSystemLookup';
 import { trackedPilotSystemsByMap } from './mapTrackedPilots';
 
 /** Lazy: the map's tracked pilots are read only when a resolved connection is actually removed. */

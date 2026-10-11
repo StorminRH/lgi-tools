@@ -9,7 +9,7 @@ import { internalMutation, mutation, type MutationCtx } from './_generated/serve
 import { requireMapAccess } from './lib/mapAccess';
 import { gatedAuthoringEdit, writeMapEvent } from './lib/mapAuthoringEvents';
 import { readTouchingConnections, requireConnectionOnMap } from './lib/mapConnectionLookup';
-import { findSystem, requireSystemId } from './lib/mapSystemLookup';
+import { findSystem, requireLiveSystem, requireSystemId } from './lib/mapSystemLookup';
 import { deleteUnclaimedRespawn } from './lib/mapStaticClaim';
 import { ensureStaticPlaceholders } from './mapStatics';
 
@@ -97,20 +97,6 @@ async function clearSystemTombstone(
   return { restored: true };
 }
 
-async function requireLiveEndpoint(
-  ctx: MutationCtx,
-  mapId: string,
-  endpointId: number,
-): Promise<void> {
-  const endpoint = await findSystem(ctx, mapId, endpointId);
-  if (endpoint === null || isTombstoned(endpoint)) {
-    throw new ConvexError({
-      code: 'ENDPOINT_TOMBSTONED',
-      detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
-    });
-  }
-}
-
 async function clearConnectionTombstone(
   ctx: MutationCtx,
   mapId: string,
@@ -118,9 +104,12 @@ async function clearConnectionTombstone(
 ): Promise<{ restored: true; changed: boolean }> {
   const connection = await requireConnectionOnMap(ctx, mapId, connectionId);
   if (!isTombstoned(connection)) return { restored: true, changed: false };
-  await requireLiveEndpoint(ctx, mapId, connection.fromSystemId);
-  if (connection.toSystemId !== null) {
-    await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
+  for (const endpointId of [connection.fromSystemId, connection.toSystemId]) {
+    if (endpointId === null) continue;
+    await requireLiveSystem(ctx, mapId, endpointId, {
+      code: 'ENDPOINT_TOMBSTONED',
+      detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
+    });
   }
   await deleteUnclaimedRespawn(ctx, connection);
   await ctx.db.patch(connectionId, { tombstone: { kind: 'live' } });

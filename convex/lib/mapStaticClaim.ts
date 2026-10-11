@@ -12,7 +12,7 @@ import {
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { readOriginConnections } from './mapConnectionLookup';
-import { findSystem } from './mapSystemLookup';
+import { findLiveSystem } from './mapSystemLookup';
 
 export function mergeSeatFields(
   surviving: {
@@ -221,8 +221,7 @@ export async function respawnStaticPlaceholder(
   dead: Doc<'mapConnections'>,
 ): Promise<Id<'mapConnections'> | null> {
   if (dead.staticCode === undefined || !isTombstoned(dead)) return null;
-  const system = await findSystem(ctx, dead.mapId, dead.fromSystemId);
-  if (system === null || isTombstoned(system)) return null;
+  if ((await findLiveSystem(ctx, dead.mapId, dead.fromSystemId)) === null) return null;
   const existing = await findLiveStaticCode(
     ctx,
     dead.mapId,

@@ -170,6 +170,32 @@ describe('mapScan paste application and lifecycle', () => {
     await expect(apply(t, [signature('ABC-001')])).resolves.toMatchObject({ inserted: 1 });
   });
 
+  it('refuses a scan from a tracked system that is tombstoned or gone from the map (OFF_MAP_SCAN_SYSTEM)', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const offMap = {
+      code: 'OFF_MAP_SCAN_SYSTEM',
+      detail: `Tracked system ${JITA} is not live on map ${MAP}.`,
+    };
+    const systemId = await t.run(async (ctx) => {
+      const system = await ctx.db
+        .query('mapSystems')
+        .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', JITA))
+        .unique();
+      await ctx.db.patch('mapSystems', system!._id, { deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS });
+      return system!._id;
+    });
+
+    // The client matches this code to explain the refused paste, so its payload is pinned whole.
+    const tombstoned = await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'OFF_MAP_SCAN_SYSTEM');
+    expect(tombstoned.data).toEqual(offMap);
+
+    await t.run(async (ctx) => ctx.db.delete('mapSystems', systemId));
+    const gone = await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'OFF_MAP_SCAN_SYSTEM');
+    expect(gone.data).toEqual(offMap);
+    expect(await readState(t)).toMatchObject({ signatures: [], connections: [], activities: [] });
+  });
+
   it('wormhole rows land in connections while list rows remain signatures', async () => {
     const t = convexTest(schema, modules);
     await seed(t);

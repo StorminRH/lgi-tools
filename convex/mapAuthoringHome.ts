@@ -5,7 +5,12 @@ import type { Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { requireMapAccess } from './lib/mapAccess';
-import { beginSystemEdit, findSystem, requireSystemId } from './lib/mapSystemLookup';
+import {
+  beginSystemEdit,
+  findSystem,
+  requireLiveSystem,
+  requireSystemId,
+} from './lib/mapSystemLookup';
 import { ensureStaticPlaceholders } from './mapStatics';
 
 const HOME_SYSTEM_SCAN_CAP = 128;
@@ -50,20 +55,6 @@ async function insertHomeSystem(
   }
 
   return insertLiveSystem(ctx, mapId, systemId);
-}
-
-async function requireLiveOrigin(
-  ctx: MutationCtx,
-  mapId: string,
-  fromSystemId: number,
-): Promise<void> {
-  const origin = await findSystem(ctx, mapId, fromSystemId);
-  if (origin === null || isTombstoned(origin)) {
-    throw new ConvexError({
-      code: 'UNKNOWN_ORIGIN',
-      detail: `Origin system ${fromSystemId} is not a live system on map ${mapId}.`,
-    });
-  }
 }
 
 export async function upsertLiveDestination(
@@ -112,7 +103,10 @@ async function addFromNode(
       detail: 'A connection must join two distinct systems.',
     });
   }
-  await requireLiveOrigin(ctx, mapId, fromSystemId);
+  await requireLiveSystem(ctx, mapId, fromSystemId, {
+    code: 'UNKNOWN_ORIGIN',
+    detail: `Origin system ${fromSystemId} is not a live system on map ${mapId}.`,
+  });
   const systemId = await upsertLiveDestination(ctx, mapId, toSystemId);
   const connectionId = await ctx.db.insert('mapConnections', {
     ...blankHallway({ mapId, fromSystemId, toSystemId }),

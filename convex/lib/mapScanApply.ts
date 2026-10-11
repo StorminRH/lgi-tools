@@ -32,14 +32,13 @@ import {
   validateSignatureKnowledge,
 } from './mapEntityContracts';
 import { stampObservationKey } from './observationKey';
-import { findSystem, requireSystemId } from './mapSystemLookup';
+import { requireLiveSystem, requireSystemId } from './mapSystemLookup';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingCapacity';
 import {
   endpointSide,
   leadsNotePatch,
   readScanState,
   requireBoundedSignatureIds,
-  requireLiveSystem,
   rowMaps,
   tombstoneConnectionRow,
   type ScanState,
@@ -78,13 +77,10 @@ export async function requireTrackedSystem(
       detail: `The caller has no tracked character in system ${systemId}.`,
     });
   }
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
-    throw new ConvexError({
-      code: 'OFF_MAP_SCAN_SYSTEM',
-      detail: `Tracked system ${systemId} is not live on map ${mapId}.`,
-    });
-  }
+  await requireLiveSystem(ctx, mapId, systemId, {
+    code: 'OFF_MAP_SCAN_SYSTEM',
+    detail: `Tracked system ${systemId} is not live on map ${mapId}.`,
+  });
 }
 
 async function touchScanActivity(
