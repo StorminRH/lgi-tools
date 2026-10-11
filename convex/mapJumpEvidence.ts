@@ -3,6 +3,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalQuery } from './_generated/server';
 import { tryMapAccessForUser } from './lib/mapAccess';
 import { findLiveSystem, findSystem } from './lib/mapSystemLookup';
+import { findJumpStamp } from './mapJumpBookkeeping';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { hallwayDoorTypes, isStaticPlaceholder } from '@/data/maps/connection-hallway';
 import {
@@ -63,12 +64,7 @@ export const jumpEvidence = internalQuery({
         ...NO_ORIGIN,
       };
     }
-    const stamp = await ctx.db
-      .query('mapJumpBookkeeping')
-      .withIndex('by_map_character', (q) =>
-        q.eq('mapId', mapId).eq('characterId', characterId),
-      )
-      .unique();
+    const stamp = await findJumpStamp(ctx, mapId, characterId);
     const lastProcessedTransitionAt = stamp?.lastProcessedTransitionAt ?? null;
     const transition = {
       fromSolarSystemId: location.prevSolarSystemId,

@@ -16,6 +16,7 @@ import {
   requireMapTrackingSpace,
   TRACKED_CHARACTERS_PER_MAP_USER_CAP,
 } from './lib/mapTrackingCapacity';
+import { advanceJumpStamp, findJumpStamp } from './mapJumpBookkeeping';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
 export interface MergeUserStateResult {
@@ -95,9 +96,7 @@ export const snapshotMergeTracking = internalQuery({
       },
     );
     const selections = await Promise.all(rows.map(async ({ mapId, characterId }) => {
-      const stamp = await ctx.db.query('mapJumpBookkeeping')
-        .withIndex('by_map_character', (q) => q.eq('mapId', mapId).eq('characterId', characterId))
-        .unique();
+      const stamp = await findJumpStamp(ctx, mapId, characterId);
       return { mapId, characterId,
         ...(stamp === null ? {} : { lastProcessedTransitionAt: stamp.lastProcessedTransitionAt }),
       };
@@ -228,7 +227,7 @@ async function restoreMapSelections(
     if (outcome === 'inserted') counts.restored += 1;
     else counts.skipped += 1;
     if (lastProcessedTransitionAt !== undefined) {
-      await restoreTransitionStamp(ctx, mapId, characterId, lastProcessedTransitionAt);
+      await advanceJumpStamp(ctx, mapId, characterId, lastProcessedTransitionAt);
     }
   }
   return counts;
@@ -251,17 +250,4 @@ async function restoreTrackingRow(
   slots.tracked.add(characterId);
   slots.count += 1;
   return 'inserted';
-}
-
-async function restoreTransitionStamp(
-  ctx: MutationCtx, mapId: string, characterId: number, lastProcessedTransitionAt: number,
-): Promise<void> {
-  const stamp = await ctx.db.query('mapJumpBookkeeping')
-    .withIndex('by_map_character', (q) => q.eq('mapId', mapId).eq('characterId', characterId))
-    .unique();
-  if (stamp === null) {
-    await ctx.db.insert('mapJumpBookkeeping', { mapId, characterId, lastProcessedTransitionAt });
-  } else if (stamp.lastProcessedTransitionAt < lastProcessedTransitionAt) {
-    await ctx.db.patch(stamp._id, { lastProcessedTransitionAt });
-  }
 }

@@ -8,6 +8,7 @@ import {
 import { requireMapAccessForUser } from './lib/mapAccess';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
+import { advanceJumpStamp, findJumpStamp } from './mapJumpBookkeeping';
 import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
 import {
   blankHallway,
@@ -117,26 +118,6 @@ function validObservedMass(value: number | null): number | null {
   return value;
 }
 
-async function stampTransition(
-  ctx: MutationCtx,
-  mapId: string,
-  characterId: number,
-  transitionObservedAt: number,
-  existing: Doc<'mapJumpBookkeeping'> | null,
-): Promise<void> {
-  if (existing === null) {
-    await ctx.db.insert('mapJumpBookkeeping', {
-      mapId,
-      characterId,
-      lastProcessedTransitionAt: transitionObservedAt,
-    });
-    return;
-  }
-  await ctx.db.patch(existing._id, {
-    lastProcessedTransitionAt: transitionObservedAt,
-  });
-}
-
 function connectionBase(
   mapId: string,
   fromSystemId: number,
@@ -175,18 +156,6 @@ function validateJumpInput(args: ResolveJumpInput): ValidJumpInput | StaleResult
     throw new ConvexError({ code: 'INVALID_JUMP_INPUT' });
   }
   return { observedShipMassKg: validObservedMass(args.observedShipMassKg) };
-}
-
-async function readTransitionStamp(
-  ctx: QueryCtx,
-  args: ResolveJumpInput,
-): Promise<Doc<'mapJumpBookkeeping'> | null> {
-  return await ctx.db
-    .query('mapJumpBookkeeping')
-    .withIndex('by_map_character', (q) =>
-      q.eq('mapId', args.mapId).eq('characterId', args.characterId),
-    )
-    .unique();
 }
 
 function transitionMatches(
@@ -426,7 +395,7 @@ export const resolveJumpAuthoring = internalMutation({
     await requireMapAccessForUser(ctx, args.mapId, args.userId, 'edit');
     const validated = validateJumpInput(args);
     if ('status' in validated) return validated;
-    const stamp = await readTransitionStamp(ctx, args);
+    const stamp = await findJumpStamp(ctx, args.mapId, args.characterId);
     if (
       stamp !== null
       && stamp.lastProcessedTransitionAt >= args.transitionObservedAt
@@ -464,7 +433,7 @@ export const resolveJumpAuthoring = internalMutation({
         );
     if ('status' in topology) return topology;
 
-    await stampTransition(
+    await advanceJumpStamp(
       ctx,
       args.mapId,
       args.characterId,

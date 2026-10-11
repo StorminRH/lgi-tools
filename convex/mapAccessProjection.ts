@@ -7,6 +7,7 @@ import { groupBy, sameItems } from '@/lib/array';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { deleteIndexedBatch, type IndexedBatchDeleteResult } from './lib/indexedQuery';
+import { findProjectionWatermark } from './lib/mapAccess';
 import {
   currentMapRoleValidator,
   currentRolesFromStored,
@@ -207,10 +208,7 @@ export const reconcileMapClaims = internalMutation({
     characterScoped: v.optional(v.literal(true)),
   }),
   handler: async (ctx, { mapId, revision, claims }): Promise<ReconcileResult> => {
-    const watermark = await ctx.db
-      .query('mapAccessProjectionWatermarks')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId))
-      .unique();
+    const watermark = await findProjectionWatermark(ctx, mapId);
     const carried = claimsCarryCharacters(claims);
     const refused = refusedOutcome(watermark, revision, claims.length, carried);
     if (refused !== null) return refused;
@@ -259,10 +257,7 @@ export const purgeUserMapClaims = internalMutation({
   handler: async (ctx, { userId, revision, mapIds }) => {
     let deleted = 0;
     for (const mapId of new Set(mapIds)) {
-      const watermark = await ctx.db
-        .query('mapAccessProjectionWatermarks')
-        .withIndex('by_map', (q) => q.eq('mapId', mapId))
-        .unique();
+      const watermark = await findProjectionWatermark(ctx, mapId);
       if (watermark === null) {
         await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision });
       } else if (watermark.revision < revision) {
@@ -314,8 +309,7 @@ export const freezeMapTrackingForScoping = internalMutation({
   args: { mapId: v.string() },
   returns: v.array(v.object({ userId: v.string(), characterId: v.number() })),
   handler: async (ctx, { mapId }) => {
-    const watermark = await ctx.db.query('mapAccessProjectionWatermarks')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId)).unique();
+    const watermark = await findProjectionWatermark(ctx, mapId);
     if (watermark === null) {
       await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision: 0, scopingPending: true });
     } else if (watermark.characterScoped !== true) {
