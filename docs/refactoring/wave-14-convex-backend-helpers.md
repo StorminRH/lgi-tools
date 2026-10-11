@@ -8,7 +8,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P195](#p195) | Route every capped indexed read through takeIndexedOrThrow | convex | S | low | medium | — |
+| ☑ | [P195](#p195) | Route every capped indexed read through takeIndexedOrThrow | convex | S | low | medium | — |
 | ☐ | [P196](#p196) | Add deleteIndexedBatch to convex/lib/indexedQuery and rebuild Convex batch purges on it | convex | S | low | medium | — |
 | ☐ | [P198](#p198) | Generalize uniqueByUserCharacter to all four single-row location tables and route the inline lookups and cache deletes through it | convex | S | low | medium | — |
 | ☐ | [P199](#p199) | Move readTrackedPilotSystemIds into convex/lib and share one per-map tracked-pilot memo | convex | S | low | low | [P198](#p198) |
@@ -29,7 +29,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 
 ## P195: Route every capped indexed read through takeIndexedOrThrow
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45/+20
 - **Depends on:** —

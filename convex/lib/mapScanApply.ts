@@ -14,6 +14,7 @@ import {
 } from '@/data/maps/connection-hallway';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
+import { takeIndexedOrThrow } from './indexedQuery';
 import {
   findLocalSignatureConnection,
   findPasteConnection,
@@ -58,13 +59,16 @@ export async function requireTrackedSystem(
   userId: string,
 ): Promise<void> {
   requireSystemId(systemId);
-  const tracking = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP + 1);
-  if (tracking.length > TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
-    throw new ConvexError({ code: 'TRACKING_CAP_EXCEEDED' });
-  }
+  const tracking = await takeIndexedOrThrow(
+    ctx.db
+      .query('mapTracking')
+      .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId)),
+    TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+    {
+      code: 'TRACKING_CAP_EXCEEDED',
+      detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
+    },
+  );
 
   const locations = await Promise.all(tracking.map((row) =>
     ctx.db

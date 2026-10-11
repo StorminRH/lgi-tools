@@ -1,4 +1,3 @@
-import { ConvexError } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import { namedDoorType } from '@/data/maps/connection-door-types';
@@ -10,6 +9,7 @@ import {
   type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 import { findSystem } from './lib/mapSystemLookup';
 
@@ -36,18 +36,18 @@ export async function readTrackedLocation(
   mapId: string,
   characterId: number,
 ): Promise<TrackedLocation | null> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_character', (q) =>
-      q.eq('mapId', mapId).eq('characterId', characterId),
-    )
-    .take(JUMP_TRACKING_SCAN_CAP + 1);
-  if (rows.length > JUMP_TRACKING_SCAN_CAP) {
-    throw new ConvexError({
+  const rows = await takeIndexedOrThrow(
+    ctx.db
+      .query('mapTracking')
+      .withIndex('by_map_character', (q) =>
+        q.eq('mapId', mapId).eq('characterId', characterId),
+      ),
+    JUMP_TRACKING_SCAN_CAP,
+    {
       code: 'MAP_TOO_LARGE',
       detail: `Map ${mapId} exceeds the jump-tracking read bound.`,
-    });
-  }
+    },
+  );
   const joined: TrackedLocation[] = [];
   for (const tracking of rows) {
     const location = await ctx.db

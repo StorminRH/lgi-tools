@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MERGE_RECEIPT_BATCH_SIZE } from '@/data/location-tracking/constants';
+import { MERGE_RECEIPT_BATCH_SIZE, MERGE_TRACKING_LIMIT } from '@/data/location-tracking/constants';
 import type { PublicHttpAction } from 'convex/server';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -35,7 +35,7 @@ export const restoreMergeTracking: PublicHttpAction = authorizedJsonAction(
       mapId: z.string().min(1),
       characterId: z.number().int().positive(),
       lastProcessedTransitionAt: z.number().nonnegative().optional(),
-    })).max(1000),
+    })).max(MERGE_TRACKING_LIMIT),
   }),
   async (ctx, body) =>
     Response.json(await ctx.runMutation(internal.accountMerge.restoreMergeTracking, body)),

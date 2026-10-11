@@ -10,6 +10,7 @@ import type { Id } from './_generated/dataModel';
 import { applyLinkDeduction } from './lib/mapScanElimination';
 import { SIGNATURE_PURGE_BATCH } from './lib/mapSignatureCleanup';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -148,6 +149,25 @@ describe('mapScan paste application and lifecycle', () => {
     });
     await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'UNTRACKED_SCAN_SYSTEM');
     expect(await readState(t)).toMatchObject({ signatures: [], connections: [], activities: [] });
+  });
+
+  it('refuses a scan from a caller tracking past the per-map cap, with the cap detail', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const extra = await t.run(async (ctx) => await Promise.all(
+      Array.from({ length: TRACKED_CHARACTERS_PER_MAP_USER_CAP }, (_, index) =>
+        ctx.db.insert('mapTracking', { mapId: MAP, userId: EDITOR, characterId: 2000 + index })),
+    ));
+
+    const refused = await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'TRACKING_CAP_EXCEEDED');
+    expect(refused.data).toEqual({
+      code: 'TRACKING_CAP_EXCEEDED',
+      detail: 'At most 32 tracked characters per map.',
+    });
+    expect(await readState(t)).toMatchObject({ signatures: [], connections: [], activities: [] });
+
+    await t.run(async (ctx) => ctx.db.delete('mapTracking', extra[0]!));
+    await expect(apply(t, [signature('ABC-001')])).resolves.toMatchObject({ inserted: 1 });
   });
 
   it('wormhole rows land in connections while list rows remain signatures', async () => {

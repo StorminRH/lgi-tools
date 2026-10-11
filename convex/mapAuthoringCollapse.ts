@@ -12,6 +12,7 @@ import {
 } from '@/data/maps/chain-collapse';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { requireMapAccess } from './lib/mapAccess';
 import { deleteUnclaimedRespawn, respawnAfterTombstone } from './lib/mapStaticClaim';
 import { deleteSignatureActivity } from './lib/mapSignatures';
@@ -28,23 +29,23 @@ async function readBoundedMapTopology(
   ctx: MutationCtx,
   mapId: string,
 ): Promise<BoundedMapTopology> {
-  const systems = await ctx.db
-    .query('mapSystems')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(COLLAPSE_MAP_SCAN_CAP + 1);
-  const connections = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(COLLAPSE_MAP_SCAN_CAP + 1);
-  if (
-    systems.length > COLLAPSE_MAP_SCAN_CAP ||
-    connections.length > COLLAPSE_MAP_SCAN_CAP
-  ) {
-    throw new ConvexError({
-      code: 'MAP_TOO_LARGE',
-      detail: `Map ${mapId} exceeds the ${COLLAPSE_MAP_SCAN_CAP}-row collapse bound.`,
-    });
-  }
+  // Both reads share one bound, so whichever overflows raises the same error.
+  const bound = {
+    code: 'MAP_TOO_LARGE',
+    detail: `Map ${mapId} exceeds the ${COLLAPSE_MAP_SCAN_CAP}-row collapse bound.`,
+  };
+  const [systems, connections] = await Promise.all([
+    takeIndexedOrThrow(
+      ctx.db.query('mapSystems').withIndex('by_map', (q) => q.eq('mapId', mapId)),
+      COLLAPSE_MAP_SCAN_CAP,
+      bound,
+    ),
+    takeIndexedOrThrow(
+      ctx.db.query('mapConnections').withIndex('by_map', (q) => q.eq('mapId', mapId)),
+      COLLAPSE_MAP_SCAN_CAP,
+      bound,
+    ),
+  ]);
   return { systems, connections };
 }
 

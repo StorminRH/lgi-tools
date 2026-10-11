@@ -2,6 +2,7 @@ import { ConvexError } from 'convex/values';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx } from '../_generated/server';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { takeIndexedOrThrow } from './indexedQuery';
 
 export const MAP_CONNECTION_SIGNATURE_SCAN_LIMIT = 128;
 
@@ -21,18 +22,17 @@ async function readIndexedConnections(
   options: ConnectionScanOptions,
 ): Promise<Doc<'mapConnections'>[]> {
   const limit = options.limit ?? MAP_CONNECTION_SIGNATURE_SCAN_LIMIT;
-  const rows = await ctx.db
-    .query('mapConnections')
-    .withIndex(index, (q) => q.eq('mapId', mapId).eq(field, systemId))
-    .take(limit + 1);
-  if (rows.length > limit) {
-    throw new ConvexError({
+  return await takeIndexedOrThrow(
+    ctx.db
+      .query('mapConnections')
+      .withIndex(index, (q) => q.eq('mapId', mapId).eq(field, systemId)),
+    limit,
+    {
       code: options.errorCode ?? 'MAP_CONNECTION_SCAN_LIMIT',
       detail: options.errorDetail
         ?? `Map ${mapId} exceeds the ${limit}-connection ${boundLabel} scan bound.`,
-    });
-  }
-  return rows;
+    },
+  );
 }
 
 export async function readOriginConnections(

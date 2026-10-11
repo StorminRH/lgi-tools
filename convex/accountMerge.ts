@@ -1,9 +1,14 @@
 import { ConvexError, v, type Infer } from 'convex/values';
-import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
+import {
+  MERGE_RECEIPT_BATCH_SIZE,
+  MERGE_RECEIPT_RETENTION_MS,
+  MERGE_TRACKING_LIMIT,
+} from '@/data/location-tracking/constants';
 import { groupBy } from '@/lib/array';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { characterTrackable, requireMapTrackingOpen, tryMapAccessForUser } from './lib/mapAccess';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
@@ -71,7 +76,6 @@ export const mergeUserState = internalMutation({
   },
 });
 
-const MERGE_TRACKING_LIMIT = 1000;
 const trackingSelectionValidator = v.object({
   mapId: v.string(), characterId: v.number(), lastProcessedTransitionAt: v.optional(v.number()),
 });
@@ -80,12 +84,15 @@ export const snapshotMergeTracking = internalQuery({
   args: { sourceUserId: v.string() },
   returns: v.object({ selections: v.array(trackingSelectionValidator) }),
   handler: async (ctx, { sourceUserId }) => {
-    const rows = await ctx.db.query('mapTracking')
-      .withIndex('by_user_character', (q) => q.eq('userId', sourceUserId))
-      .take(MERGE_TRACKING_LIMIT + 1);
-    if (rows.length > MERGE_TRACKING_LIMIT) {
-      throw new ConvexError('Too many tracking selections to safely snapshot this merge');
-    }
+    const rows = await takeIndexedOrThrow(
+      ctx.db.query('mapTracking')
+        .withIndex('by_user_character', (q) => q.eq('userId', sourceUserId)),
+      MERGE_TRACKING_LIMIT,
+      {
+        code: 'MERGE_TRACKING_LIMIT',
+        detail: 'Too many tracking selections to safely snapshot this merge',
+      },
+    );
     const selections = await Promise.all(rows.map(async ({ mapId, characterId }) => {
       const stamp = await ctx.db.query('mapJumpBookkeeping')
         .withIndex('by_map_character', (q) => q.eq('mapId', mapId).eq('characterId', characterId))
@@ -107,7 +114,10 @@ export const restoreMergeTracking = internalMutation({
   returns: v.object({ restored: v.number(), skipped: v.number(), alreadyApplied: v.boolean() }),
   handler: async (ctx, { operationId, survivorUserId, selections }) => {
     if (selections.length > MERGE_TRACKING_LIMIT) {
-      throw new ConvexError('Too many tracking selections to safely restore this merge');
+      throw new ConvexError({
+        code: 'MERGE_TRACKING_LIMIT',
+        detail: 'Too many tracking selections to safely restore this merge',
+      });
     }
     const receipt = await ctx.db.query('accountMergeTrackingReceipts')
       .withIndex('by_operation', (q) => q.eq('operationId', operationId)).unique();
@@ -158,7 +168,10 @@ export const deleteExpiredTrackingReceipts = internalMutation({
   returns: v.object({ deleted: v.number() }),
   handler: async (ctx, { cutoff, receipts }) => {
     if (receipts.length > MERGE_RECEIPT_BATCH_SIZE) {
-      throw new ConvexError('Too many tracking receipts to delete in one batch');
+      throw new ConvexError({
+        code: 'MERGE_RECEIPT_BATCH_LIMIT',
+        detail: 'Too many tracking receipts to delete in one batch',
+      });
     }
     const expiredBefore = Math.min(cutoff, Date.now() - MERGE_RECEIPT_RETENTION_MS);
     let deleted = 0;

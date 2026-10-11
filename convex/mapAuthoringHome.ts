@@ -3,6 +3,7 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 import { blankHallway } from '@/data/maps/connection-hallway';
 import type { Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { requireMapAccess } from './lib/mapAccess';
 import { beginSystemEdit, findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { ensureStaticPlaceholders } from './mapStatics';
@@ -13,16 +14,14 @@ async function assertMapEmptyOfLiveSystems(
   ctx: MutationCtx,
   mapId: string,
 ): Promise<void> {
-  const existing = await ctx.db
-    .query('mapSystems')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(HOME_SYSTEM_SCAN_CAP + 1);
-  if (existing.length > HOME_SYSTEM_SCAN_CAP) {
-    throw new ConvexError({
+  const existing = await takeIndexedOrThrow(
+    ctx.db.query('mapSystems').withIndex('by_map', (q) => q.eq('mapId', mapId)),
+    HOME_SYSTEM_SCAN_CAP,
+    {
       code: 'MAP_TOO_LARGE',
       detail: `Map ${mapId} exceeds the ${HOME_SYSTEM_SCAN_CAP}-system empty-map proof bound.`,
-    });
-  }
+    },
+  );
   if (existing.some((row) => !isTombstoned(row))) {
     throw new ConvexError({
       code: 'MAP_NOT_EMPTY',

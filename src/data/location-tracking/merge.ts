@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
-import { MERGE_RECEIPT_BATCH_SIZE } from './constants';
+import { MERGE_RECEIPT_BATCH_SIZE, MERGE_TRACKING_LIMIT } from './constants';
 import type { TrackingSelection } from './schema';
 
 export class LocationTrackingMergeError extends Error {
@@ -17,7 +17,7 @@ export async function snapshotMergeTracking(sourceUserId: string): Promise<Track
     schema: z.strictObject({ selections: z.array(z.strictObject({
       mapId: z.string().min(1), characterId: z.number().int().positive(),
       lastProcessedTransitionAt: z.number().optional(),
-    })).max(1000) }),
+    })).max(MERGE_TRACKING_LIMIT) }),
     error: LocationTrackingMergeError,
     label: 'Location tracking snapshot unavailable',
     timeoutMs: 4000,

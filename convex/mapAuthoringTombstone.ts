@@ -6,9 +6,8 @@ import {
 } from '@/data/maps/chain-contract';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
-import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { requireMapAccess } from './lib/mapAccess';
-import { requireConnectionOnMap } from './lib/mapConnectionLookup';
+import { readTouchingConnections, requireConnectionOnMap } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { deleteUnclaimedRespawn } from './lib/mapStaticClaim';
 import { eventActor, writeMapEvent } from './mapAuthoringEvents';
@@ -37,24 +36,13 @@ async function readIncidentConnections(
   mapId: string,
   systemId: number,
 ): Promise<Doc<'mapConnections'>[]> {
-  const incidentBound = {
-    code: 'MAP_TOO_LARGE',
-    detail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
-  };
-  const takeIncident = (
-    index: 'by_map_from' | 'by_map_to',
-    field: 'fromSystemId' | 'toSystemId',
-  ) =>
-    takeIndexedOrThrow(
-      ctx.db
-        .query('mapConnections')
-        .withIndex(index, (q) => q.eq('mapId', mapId).eq(field, systemId)),
-      LIVE_CONNECTION_SCAN_CAP,
-      incidentBound,
-    );
-  const fromRows = await takeIncident('by_map_from', 'fromSystemId');
-  const toRows = await takeIncident('by_map_to', 'toSystemId');
-  return [...new Map([...fromRows, ...toRows].map((row) => [row._id, row])).values()];
+  const rows = await readTouchingConnections(ctx, mapId, systemId, {
+    limit: LIVE_CONNECTION_SCAN_CAP,
+    errorCode: 'MAP_TOO_LARGE',
+    errorDetail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
+  });
+  // Self-loops are rejected upstream; the dedupe only guards a row seen from both doors.
+  return [...new Map(rows.map((row) => [row._id, row])).values()];
 }
 
 async function stampSystemTombstone(
