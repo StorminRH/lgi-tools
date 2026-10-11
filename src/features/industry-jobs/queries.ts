@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
@@ -37,18 +37,32 @@ export async function getJobsForCharacters(
   return mapByIdDroppingNulls(characterIds, getCharacterJobs);
 }
 
+const characterSyncStateColumns = {
+  lastRefreshedAt: characterIndustryJobSyncs.lastRefreshedAt,
+  jobsEtag: characterIndustryJobSyncs.jobsEtag,
+};
+
 export async function readCharacterJobSyncState(
   characterId: number,
 ): Promise<CharacterJobsSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: characterIndustryJobSyncs.lastRefreshedAt,
-      jobsEtag: characterIndustryJobSyncs.jobsEtag,
-    })
+    .select(characterSyncStateColumns)
     .from(characterIndustryJobSyncs)
     .where(eq(characterIndustryJobSyncs.characterId, characterId))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/** Uncached, in one query: each listed character's sync state; a character with no row is absent. */
+export async function listCharacterJobSyncStates(
+  characterIds: number[],
+): Promise<Map<number, CharacterJobsSyncState>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await db
+    .select({ characterId: characterIndustryJobSyncs.characterId, ...characterSyncStateColumns })
+    .from(characterIndustryJobSyncs)
+    .where(inArray(characterIndustryJobSyncs.characterId, characterIds));
+  return new Map(rows.map(({ characterId, ...state }) => [characterId, state]));
 }
 
 export async function saveCharacterJobs(

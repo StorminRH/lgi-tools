@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
@@ -69,19 +69,33 @@ export async function getSkillLevelsForCharacters(
   return mapByIdDroppingNulls(characterIds, getCharacterSkillLevels);
 }
 
+const syncStateColumns = {
+  lastRefreshedAt: characterSkillSyncs.lastRefreshedAt,
+  queueEtag: characterSkillSyncs.queueEtag,
+  skillsEtag: characterSkillSyncs.skillsEtag,
+};
+
 export async function readCharacterSyncState(
   characterId: number,
 ): Promise<CharacterSkillSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: characterSkillSyncs.lastRefreshedAt,
-      queueEtag: characterSkillSyncs.queueEtag,
-      skillsEtag: characterSkillSyncs.skillsEtag,
-    })
+    .select(syncStateColumns)
     .from(characterSkillSyncs)
     .where(eq(characterSkillSyncs.characterId, characterId))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/** Uncached, in one query: each listed character's sync state; a character with no row is absent. */
+export async function listCharacterSkillSyncStates(
+  characterIds: number[],
+): Promise<Map<number, CharacterSkillSyncState>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await db
+    .select({ characterId: characterSkillSyncs.characterId, ...syncStateColumns })
+    .from(characterSkillSyncs)
+    .where(inArray(characterSkillSyncs.characterId, characterIds));
+  return new Map(rows.map(({ characterId, ...state }) => [characterId, state]));
 }
 
 export async function saveCharacterSkills(

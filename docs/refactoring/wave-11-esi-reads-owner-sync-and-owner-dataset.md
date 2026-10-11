@@ -20,7 +20,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | ☑ | [P292](#p292) | Read each character's sheet row once per direct-section phase by promoting memoizePerRun to src/lib | efficiency | S | low | high | [P188](#p188) |
 | ☑ | [P297](#p297) | Reuse fresh stored corp roles when the sync passes pick a corp credential | efficiency | S | medium | medium | [P186](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p186), [P189](#p189) |
 | ☑ | [P286](#p286) | Read the character_skills row once per character for the board | efficiency | S | low | low | — |
-| ☐ | [P178](#p178) | Batch the per-character sync-state reads behind board and jobs views with inArray list readers | server-pipeline | S | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327), [P286](#p286) |
+| ☑ | [P178](#p178) | Batch the per-character sync-state reads behind board and jobs views with inArray list readers | server-pipeline | S | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327), [P286](#p286) |
 | ☐ | [P336](#p336) | Invalidate only in the commit owner: drop the rig-save revalidate and replace the `database === db` mode switch with tx-only writers | simplification | S | low | low | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220) |
 | ☐ | [P239](#p239) | Replace owner snapshots in one direct-client transaction that takes the sync-row lock first | persistence | M | medium | medium | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220), [P336](#p336) |
 | ☐ | [P184](#p184) | Expire owner-dataset cache tags immediately after sync writes (keep the snapshot's uncached reads) | server-pipeline | M | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327) |
@@ -1080,7 +1080,7 @@ Related, not in scope: readRaws also makes 3N uncached sync-state point reads pe
 
 ## P178: Batch the per-character sync-state reads behind board and jobs views with inArray list readers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About +45 (three list readers) / -8 (board-view and live-dataset-view lines); +20 more if the optional readCharacterSkillRows lands
 - **Depends on:** [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327), [P286](#p286)

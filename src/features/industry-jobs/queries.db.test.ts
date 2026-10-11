@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { listCorpJobSyncStates, readCorpJobSyncState } from './queries';
-import { corpIndustryJobSyncs } from './schema';
+import { listCharacterJobSyncStates, listCorpJobSyncStates, readCorpJobSyncState } from './queries';
+import { characterIndustryJobSyncs, corpIndustryJobSyncs } from './schema';
 
 vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
@@ -11,7 +11,7 @@ vi.mock('next/cache', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_industry_jobs_queries',
-  tables: ['corp_industry_job_syncs'],
+  tables: ['corp_industry_job_syncs', 'character_industry_job_syncs'],
   steerDbProxy: true,
 });
 
@@ -38,5 +38,25 @@ test.skipIf(!harness.reachable)(
     });
     expect(await readCorpJobSyncState('user-a', 98_000_000)).toBeNull();
     expect(await listCorpJobSyncStates('user-c')).toEqual([]);
+  },
+);
+
+test.skipIf(!harness.reachable)(
+  'character job sync states map each listed character with a row in one batch and leave the rest absent',
+  async () => {
+    expect(await listCharacterJobSyncStates([])).toEqual(new Map());
+
+    const older = new Date('2026-01-02T03:04:05Z');
+    const newer = new Date('2026-01-03T03:04:05Z');
+    await harness.db.insert(characterIndustryJobSyncs).values([
+      { characterId: 90_000_001, lastRefreshedAt: older, jobsEtag: '"a"' },
+      { characterId: 90_000_002, lastRefreshedAt: newer, jobsEtag: null },
+      { characterId: 90_000_003, lastRefreshedAt: newer, jobsEtag: '"c"' },
+    ]);
+
+    expect(await listCharacterJobSyncStates([90_000_002, 90_000_009, 90_000_001])).toEqual(new Map([
+      [90_000_002, { lastRefreshedAt: newer, jobsEtag: null }],
+      [90_000_001, { lastRefreshedAt: older, jobsEtag: '"a"' }],
+    ]));
   },
 );

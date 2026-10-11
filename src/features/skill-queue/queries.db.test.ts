@@ -13,7 +13,7 @@ vi.mock('next/cache', () => ({
   revalidateTag: mocks.revalidateTag,
 }));
 
-import { readCharacterSkillRow, saveCharacterSkills, skillsTag } from './queries';
+import { listCharacterSkillSyncStates, readCharacterSkillRow, saveCharacterSkills, skillsTag } from './queries';
 
 const harness = await createDbTestHarness({
   schema: 'test_skill_queue_save',
@@ -215,5 +215,23 @@ describe.skipIf(!harness.reachable)('readCharacterSkillRow executes against Post
       data: { entries: [], totalSp: 1_500_000 },
       levels: null,
     });
+  });
+});
+
+describe.skipIf(!harness.reachable)('listCharacterSkillSyncStates executes against Postgres', () => {
+  it('maps each listed character with a sync row to its state in one batch and leaves the rest absent', async () => {
+    expect(await listCharacterSkillSyncStates([])).toEqual(new Map());
+
+    const newer = new Date('2026-09-27T11:58:00Z');
+    await harness.db.insert(characterSkillSyncs).values([
+      { characterId: 606, lastRefreshedAt: OLD_STAMP, queueEtag: '"queue-606"', skillsEtag: null },
+      { characterId: 707, lastRefreshedAt: newer, queueEtag: null, skillsEtag: '"skills-707"' },
+      { characterId: 808, lastRefreshedAt: newer, queueEtag: null, skillsEtag: null },
+    ]);
+
+    expect(await listCharacterSkillSyncStates([707, 909, 606])).toEqual(new Map([
+      [707, { lastRefreshedAt: newer, queueEtag: null, skillsEtag: '"skills-707"' }],
+      [606, { lastRefreshedAt: OLD_STAMP, queueEtag: '"queue-606"', skillsEtag: null }],
+    ]));
   });
 });

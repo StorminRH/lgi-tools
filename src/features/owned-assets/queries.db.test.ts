@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { ownerKeyWhere } from '@/lib/db-columns';
-import { readOwnerSyncState, saveOwnedAssets } from './queries';
-import { ownedAssets } from './schema';
+import { listCharacterAssetSyncStates, readOwnerSyncState, saveOwnedAssets } from './queries';
+import { ownedAssets, ownedAssetSyncs } from './schema';
 import type { OwnedAsset } from './esi-projection';
 
 vi.mock('next/cache', () => ({
@@ -127,5 +127,25 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
     expect(await loser).toBe('superseded');
     expect(await committedRowCount()).toBe(1);
     expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"winner"']);
+  });
+});
+
+describe.skipIf(!harness.reachable)('listCharacterAssetSyncStates against Postgres', () => {
+  it('maps listed characters to their sync state and ignores a corporation sharing a numeric id', async () => {
+    expect(await listCharacterAssetSyncStates([])).toEqual(new Map());
+
+    const characterStamp = new Date('2026-09-27T11:58:00Z');
+    const corpStamp = new Date('2026-09-28T00:00:00Z');
+    await harness.db.insert(ownedAssetSyncs).values([
+      { ownerType: 'character', ownerId: 90001, lastRefreshedAt: characterStamp, pageEtags: ['"p1"', '"p2"'] },
+      { ownerType: 'corporation', ownerId: 90001, lastRefreshedAt: corpStamp, pageEtags: ['"corp"'] },
+      { ownerType: 'corporation', ownerId: 90002, lastRefreshedAt: corpStamp, pageEtags: [] },
+      { ownerType: 'character', ownerId: 90003, lastRefreshedAt: characterStamp, pageEtags: [] },
+    ]);
+
+    expect(await listCharacterAssetSyncStates([90001, 90002, 90003])).toEqual(new Map([
+      [90001, { lastRefreshedAt: characterStamp, pageEtags: ['"p1"', '"p2"'] }],
+      [90003, { lastRefreshedAt: characterStamp, pageEtags: [] }],
+    ]));
   });
 });

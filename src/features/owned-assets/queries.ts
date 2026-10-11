@@ -1,3 +1,4 @@
+import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { directDatabase } from '@/db/direct-database';
@@ -98,16 +99,33 @@ export async function listCharacterAssetRows(characterIds: number[]): Promise<Ma
   return mapByIdDroppingNulls(characterIds, (ownerId) => getOwnerAssetRows({ ownerType: 'character', ownerId }));
 }
 
+const syncStateColumns = {
+  lastRefreshedAt: ownedAssetSyncs.lastRefreshedAt,
+  pageEtags: ownedAssetSyncs.pageEtags,
+};
+
 export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: ownedAssetSyncs.lastRefreshedAt,
-      pageEtags: ownedAssetSyncs.pageEtags,
-    })
+    .select(syncStateColumns)
     .from(ownedAssetSyncs)
     .where(ownerKeyWhere(ownedAssetSyncs, owner))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Uncached, in one query: each listed character's asset sync state; a character with no row is absent.
+ * The owner-type filter keeps a corporation that shares a numeric id out of the result.
+ */
+export async function listCharacterAssetSyncStates(
+  characterIds: number[],
+): Promise<Map<number, PagedOwnerSyncState>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await db
+    .select({ ownerId: ownedAssetSyncs.ownerId, ...syncStateColumns })
+    .from(ownedAssetSyncs)
+    .where(and(eq(ownedAssetSyncs.ownerType, 'character'), inArray(ownedAssetSyncs.ownerId, characterIds)));
+  return new Map(rows.map(({ ownerId, ...state }) => [ownerId, state]));
 }
 
 export async function saveOwnedAssets(

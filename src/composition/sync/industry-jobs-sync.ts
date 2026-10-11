@@ -1,6 +1,7 @@
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
 import {
   getJobsForCharacters,
+  listCharacterJobSyncStates,
   readCharacterJobSyncState,
   saveCharacterJobs,
   stampCharacterJobsFresh,
@@ -42,7 +43,7 @@ export interface ViewerJobsResult {
 
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
-    read: (uid) => readCharacterOwners(uid, getJobsForCharacters, readCharacterJobSyncState),
+    read: (uid) => readCharacterOwners(uid, getJobsForCharacters, listCharacterJobSyncStates),
     refresh: refreshJobsOnView,
     makeRow: characterRow,
     nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
