@@ -11,7 +11,7 @@ import { ownerSyncDataset } from './esi-refresh-owner-sync';
 import {
   listCharactersWithHealth,
   postSingleEndpoint,
-  probeAndStoreRoles,
+  readRolesForSync,
   readSingleEndpoint,
   vendTokenFor,
 } from './owner-sync-port';
@@ -21,7 +21,7 @@ function makeCorpContextPort(): CorpContextPort {
     now: () => new Date(),
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: probeAndStoreRoles,
+    readRoles: readRolesForSync,
     readCorporation: (corporationId, accessToken) =>
       readSingleEndpoint(`/corporations/${corporationId}/`, accessToken, null),
     readDivisions: (corporationId, accessToken) =>

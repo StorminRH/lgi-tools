@@ -11,7 +11,7 @@ import {
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
-import { listCharactersWithHealth, probeAndStoreRoles, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readRolesForSync, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeCorpJobsPort(): CorpJobsPort {
@@ -19,7 +19,7 @@ function makeCorpJobsPort(): CorpJobsPort {
     now: () => new Date(),
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: probeAndStoreRoles,
+    readRoles: readRolesForSync,
     readJobs: (corporationId, accessToken, heldEtag) =>
       readSingleEndpoint(`/corporations/${corporationId}/industry/jobs/`, accessToken, heldEtag),
     readSyncState: (userId, corporationId) => readCorpJobSyncState(userId, corporationId),

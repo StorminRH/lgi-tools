@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import type { StoredCorpRoles } from '@/platform/auth/corp-roles-store';
 import type { FreshTokenResult } from '@/platform/auth/eve-token-service';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 
@@ -9,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   readEsiPagedAuthed: vi.fn(),
   upsertCorpRoles: vi.fn(async () => true),
   readRoleCorporationId: vi.fn(async (): Promise<number | null> => 98001),
+  readCorpRoles: vi.fn(async (): Promise<Map<number, StoredCorpRoles>> => new Map()),
   getFreshAccessTokenForCharacter: vi.fn(),
 }));
 
@@ -27,6 +30,7 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 vi.mock('@/platform/auth/corp-roles-store', () => ({
   upsertCorpRoles: mocks.upsertCorpRoles,
   readRoleCorporationId: mocks.readRoleCorporationId,
+  readCorpRoles: mocks.readCorpRoles,
 }));
 
 vi.mock('@/platform/esi/authed-read', () => ({
@@ -40,6 +44,7 @@ import {
   postSingleEndpoint,
   probeAndStoreRoles,
   readPagedEndpoint,
+  readRolesForSync,
   readSingleEndpoint,
   vendTokenFor,
 } from './owner-sync-port';
@@ -68,6 +73,7 @@ beforeEach(() => {
   mocks.readEsiPagedAuthed.mockReset();
   mocks.upsertCorpRoles.mockReset().mockResolvedValue(true);
   mocks.readRoleCorporationId.mockReset().mockResolvedValue(98001);
+  mocks.readCorpRoles.mockReset().mockResolvedValue(new Map());
   mocks.getFreshAccessTokenForCharacter.mockReset();
 });
 
@@ -173,6 +179,84 @@ describe('probeAndStoreRoles', () => {
     mocks.readEsiAuthed.mockRejectedValue(failure);
 
     await expect(probeAndStoreRoles(9001, 'access-token')).rejects.toBe(failure);
+  });
+});
+
+const ROLES_FRESHNESS = freshnessGate('character_corp_roles');
+
+function staleFetchedAt(): Date {
+  return new Date(Date.now() - ROLES_FRESHNESS.ttlMs - 60_000);
+}
+
+function storedRoles(overrides: Partial<StoredCorpRoles> = {}): StoredCorpRoles {
+  return {
+    roles: ['Accountant'],
+    rolesAtHq: [],
+    rolesAtBase: [],
+    rolesAtOther: [],
+    characterId: 9001,
+    corporationId: 98001,
+    fetchedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function holdStored(row: StoredCorpRoles): void {
+  mocks.readCorpRoles.mockResolvedValue(new Map([[row.characterId, row]]));
+}
+
+describe('readRolesForSync', () => {
+  it('returns fresh same-corporation stored roles without asking ESI', async () => {
+    holdStored(storedRoles());
+
+    await expect(readRolesForSync(9001, 'access-token')).resolves.toEqual(['Accountant']);
+    expect(mocks.readCorpRoles).toHaveBeenCalledExactlyOnceWith([9001]);
+    expect(mocks.fetchAffiliations).not.toHaveBeenCalled();
+    expect(mocks.readEsiAuthed).not.toHaveBeenCalled();
+    expect(mocks.upsertCorpRoles).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'older than the roles TTL', stored: () => [storedRoles({ fetchedAt: staleFetchedAt() })] },
+    { name: 'stored for another corporation', stored: () => [storedRoles({ corporationId: 98002 })] },
+    { name: 'missing', stored: () => [] },
+  ])('probes ESI live and stores the result when the stored row is $name', async ({ stored }) => {
+    mocks.readCorpRoles.mockResolvedValue(new Map(stored().map((row) => [row.characterId, row])));
+    mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
+
+    await expect(readRolesForSync(9001, 'access-token')).resolves.toEqual(['Director', 'Accountant']);
+    expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles/', 'access-token', null);
+    expect(mocks.fetchAffiliations).toHaveBeenCalledTimes(2);
+    expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date), 98001);
+  });
+
+  it('returns null without reading stored roles when the character has no known corporation', async () => {
+    mocks.readRoleCorporationId.mockResolvedValue(null);
+    holdStored(storedRoles());
+
+    await expect(readRolesForSync(9001, 'access-token')).resolves.toBeNull();
+    expect(mocks.readCorpRoles).not.toHaveBeenCalled();
+    expect(mocks.readEsiAuthed).not.toHaveBeenCalled();
+  });
+
+  it('still defers for the ESI budget when it falls back to the live probe', async () => {
+    holdStored(storedRoles({ fetchedAt: staleFetchedAt() }));
+    const budget = new EsiBudgetExhaustedError(19);
+    mocks.readEsiAuthed.mockRejectedValue(budget);
+
+    await expect(readRolesForSync(9001, 'access-token')).rejects.toBe(budget);
+    expect(mocks.upsertCorpRoles).not.toHaveBeenCalled();
+  });
+
+  it('leaves the mutation gates and the viewer fallback on the live probe', async () => {
+    holdStored(storedRoles());
+    mocks.getFreshAccessTokenForCharacter.mockResolvedValue({ kind: 'ok', accessToken: 'vended', expiresAt: 1 });
+    mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
+
+    await expect(probeAndStoreRoles(9001, 'access-token', 98001)).resolves.toEqual(['Director', 'Accountant']);
+    await expect(fetchAndStoreCorpRoles(9001)).resolves.toMatchObject({ roles: ['Director', 'Accountant'] });
+    expect(mocks.readCorpRoles).not.toHaveBeenCalled();
+    expect(mocks.readEsiAuthed).toHaveBeenCalledTimes(2);
   });
 });
 

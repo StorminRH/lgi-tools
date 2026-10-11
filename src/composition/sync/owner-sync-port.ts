@@ -1,8 +1,14 @@
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { singleFlight } from '@/lib/memoize';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { fetchAffiliations } from '@/platform/auth/affiliation-source';
 import { parseCharacterRolesBody } from '@/platform/auth/corp-roles';
-import { readRoleCorporationId, type StoredCorpRoles, upsertCorpRoles } from '@/platform/auth/corp-roles-store';
+import {
+  readCorpRoles,
+  readRoleCorporationId,
+  type StoredCorpRoles,
+  upsertCorpRoles,
+} from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
@@ -42,14 +48,40 @@ async function hasMatchingLiveCorporation(characterId: number, corporationId: nu
     && result.rows.some((row) => row.characterId === characterId && row.corporationId === corporationId);
 }
 
+const ROLES_FRESHNESS = freshnessGate('character_corp_roles');
+
+/** A stored roles row for this corporation that the character_corp_roles TTL still accepts at `now`. */
+export function usableStoredRoles(
+  row: StoredCorpRoles | undefined,
+  corporationId: number,
+  now: Date,
+): row is StoredCorpRoles {
+  return row !== undefined && row.corporationId === corporationId && !ROLES_FRESHNESS.isStale(row.fetchedAt, now);
+}
+
+async function reusableStoredRoles(
+  characterId: number,
+  corporationId: number,
+  reuseFreshAt: Date | undefined,
+): Promise<StoredCorpRoles | null> {
+  if (reuseFreshAt === undefined) return null;
+  const row = (await readCorpRoles([characterId])).get(characterId);
+  return usableStoredRoles(row, corporationId, reuseFreshAt) ? row : null;
+}
+
 async function probeAndStoreRolesRecord(
   characterId: number,
   accessToken: string,
   expectedCorporationId?: number,
+  reuseFreshAt?: Date,
 ): Promise<StoredCorpRoles | null> {
   try {
     const corporationId = await readRoleCorporationId(characterId);
     if (corporationId === null || (expectedCorporationId !== undefined && corporationId !== expectedCorporationId)) return null;
+    // A reused row is trusted on the local affiliation alone, as resolveCorpViewer
+    // trusts it; ESI still authorizes the corp read the credential is picked for.
+    const reused = await reusableStoredRoles(characterId, corporationId, reuseFreshAt);
+    if (reused !== null) return reused;
     if (!await hasMatchingLiveCorporation(characterId, corporationId)) return null;
     const read = await readEsiAuthed(characterRolesPath(characterId), accessToken, null);
     if (read.kind !== 'fresh') return null;
@@ -66,13 +98,26 @@ async function probeAndStoreRolesRecord(
   }
 }
 
+function globalRoles(record: StoredCorpRoles | null): string[] | null {
+  return record === null ? null : [...record.roles];
+}
+
+/** Always asks ESI. The mutation gates bind it to the corporation they guard. */
 export async function probeAndStoreRoles(
   characterId: number,
   accessToken: string,
   expectedCorporationId?: number,
 ): Promise<string[] | null> {
-  const record = await probeAndStoreRolesRecord(characterId, accessToken, expectedCorporationId);
-  return record === null ? null : [...record.roles];
+  return globalRoles(await probeAndStoreRolesRecord(characterId, accessToken, expectedCorporationId));
+}
+
+/**
+ * The corp sync passes' roles read while they pick a credential: a stored
+ * same-corporation row inside the character_corp_roles TTL, else the live
+ * probe, which stores what it reads.
+ */
+export async function readRolesForSync(characterId: number, accessToken: string): Promise<string[] | null> {
+  return globalRoles(await probeAndStoreRolesRecord(characterId, accessToken, undefined, new Date()));
 }
 
 export async function fetchAndStoreCorpRoles(characterId: number): Promise<StoredCorpRoles | null> {

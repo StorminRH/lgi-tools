@@ -14,7 +14,7 @@ import {
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
 import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
-import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
 import { ownerSyncDataset } from './esi-refresh-owner-sync';
 import { saveOwnedAssetsFromSource } from './owned-assets-source-save';
 
@@ -23,7 +23,7 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: probeAndStoreRoles,
+    readRoles: readRolesForSync,
     read: readPagedEndpoint,
     readSyncState: (owner) => readOwnerSyncState(owner),
     save: saveOwnedAssetsFromSource,

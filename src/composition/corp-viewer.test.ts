@@ -24,7 +24,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next/server', () => ({ after: mocks.after }));
 vi.mock('./corp-access', () => ({ resolveUserCorpAccess: mocks.resolveUserCorpAccess }));
-vi.mock('./sync/owner-sync-port', () => ({
+// The real usableStoredRoles judges which stored rows the viewer may trust.
+vi.mock('./sync/owner-sync-port', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./sync/owner-sync-port')>()),
   listCharactersWithHealth: mocks.listCharactersWithHealth,
   fetchAndStoreCorpRoles: mocks.fetchAndStoreCorpRoles,
 }));

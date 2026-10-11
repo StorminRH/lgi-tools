@@ -37,7 +37,7 @@ vi.mock('@/data/eve-data/entity-names', () => ({
 vi.mock('./owner-sync-port', () => ({
   listCharactersWithHealth: vi.fn(),
   readPagedEndpoint: vi.fn(),
-  probeAndStoreRoles: vi.fn(),
+  readRolesForSync: vi.fn(),
   vendTokenFor: vi.fn(),
 }));
 
