@@ -24,6 +24,7 @@ import {
   netWorthSnapshot,
   toHistoryDay,
   type TypeFacts,
+  type Valuation,
 } from './board-assemble';
 
 export const DEMO_VARIANTS = ['full', 'one', 'reconnect', 'empty'] as const;
@@ -293,9 +294,9 @@ const DEMO_NAMES: NameBook = {
     [DEMO_ALLIANCE]: 'Halcyon Drift',
   },
   skillCatalog: DEMO_CATALOG,
-  prices: DEMO_PRICES,
-  typeCategories: DEMO_CATEGORIES,
 };
+
+const DEMO_VALUATION: Valuation = { prices: DEMO_PRICES, categories: DEMO_CATEGORIES };
 
 const hangar = (typeId: number, quantity: number, locationFlag = 'Hangar'): AssetLine => ({
   typeId,
@@ -848,7 +849,7 @@ function pastWorth(today: number, daysAgo: number, seed: number): number {
 }
 
 function demoHistory(now: number, raws: readonly BoardRaw[]): BoardHistoryDay[] {
-  const today = netWorthSnapshot(raws, DEMO_NAMES, isoDay(now));
+  const today = netWorthSnapshot(raws, DEMO_VALUATION, isoDay(now));
   if (today.pilotsIncluded === 0) return [];
   const days: BoardHistoryDay[] = [];
   for (let daysAgo = HISTORY_DAYS; daysAgo >= 1; daysAgo -= 1) {

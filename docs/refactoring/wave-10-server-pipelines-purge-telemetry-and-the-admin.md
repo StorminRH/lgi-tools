@@ -27,7 +27,7 @@ In order:
 | ☑ | [P165](#p165) | Share one sequential deadline runner for the housekeeping retry loops | server-pipeline | S | low | medium | [P164](#p164) |
 | ☑ | [P166](#p166) | Route every owned-map chain purge through one composition helper | server-pipeline | S | low | low | — |
 | ☑ | [P240](#p240) | Generate the single-table purge contributors from one table list in src/platform/purge | persistence | S | low | medium | — |
-| ☐ | [P321](#p321) | Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds | simplification | S | low | low | — |
+| ☑ | [P321](#p321) | Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds | simplification | S | low | low | — |
 | ☐ | [P174](#p174) | Give src/scripts one bootstrap: a load-env side-effect import, createScriptClient, client-optional runScript and publicTableExists | server-pipeline | M | low | low | — |
 | ☐ | [P316](#p316) | Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin | simplification | M | low | low | [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107) |
 | ☐ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
@@ -465,7 +465,7 @@ export function userRowsContributor(database: MergeTx, spec: {
 
 ## P321: Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -25 / +10
 - **Depends on:** —
