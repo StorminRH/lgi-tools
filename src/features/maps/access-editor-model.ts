@@ -48,7 +48,6 @@ export function corporationAccessPrincipal(
     ownerType: 'corporation',
     ownerId: corporation.corporationId,
     name: corporation.name,
-    imageUrl: corporation.logoUrl,
   };
 }
 

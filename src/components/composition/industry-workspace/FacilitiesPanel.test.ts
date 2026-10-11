@@ -12,7 +12,7 @@ vi.mock('@/lib/client-store', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/client-store')>()),
   useClientStore: (store: { get: () => unknown }) => store.get(),
 }));
-vi.mock('@/components/use-system-search', () => ({ useSystemSearch: () => ({ systems: [] }) }));
+vi.mock('@/components/use-system-search', () => ({ useSystemsById: () => null }));
 
 import { FacilitiesPanel } from './FacilitiesPanel';
 import { cancelNewStructure, settleNewStructure, useNewStructureRequest } from './structures-panel';

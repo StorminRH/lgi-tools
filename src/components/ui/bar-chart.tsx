@@ -4,8 +4,8 @@ import type { MouseEvent } from 'react';
 import { Bar } from '@visx/shape';
 import { scaleBand, scaleLinear } from '@visx/scale';
 import { localPoint } from '@visx/event';
-import { type SparklineTone } from './sparkline';
-import { toneHex } from './tones';
+import { toneHex, type ChartTone } from './tones';
+import { formatPlainValue, identityLabel } from './chart/chart-geometry';
 import { useChartHover } from './chart/use-chart-hover';
 import { ChartCanvas } from './chart/chart-canvas';
 import { ValueAxisGrid } from './chart/value-axis';
@@ -13,12 +13,9 @@ import { HoverCaptureRect } from './chart/hover-layer';
 
 export type BarDatum = { label: string; value: number };
 
-const formatNumber = (value: number): string => String(value);
-const identity = (label: string): string => label;
-
 export type BarChartProps = {
   data: BarDatum[];
-  tone?: SparklineTone;
+  tone?: ChartTone;
   width?: number;
   height?: number;
   className?: string;
@@ -37,8 +34,8 @@ export function BarChart({
   width = 320,
   height = 150,
   className,
-  formatValue = formatNumber,
-  formatLabel = identity,
+  formatValue = formatPlainValue,
+  formatLabel = identityLabel,
   ariaLabel = 'Bar chart',
 }: BarChartProps) {
   const hover = useChartHover<BarDatum>();

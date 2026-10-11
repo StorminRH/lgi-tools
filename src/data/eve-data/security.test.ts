@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  roundSecurityStatus,
+  formatSecurityStatus,
   securityBand,
   securityStatusTextClass,
   systemSecurityClass,
@@ -34,11 +34,13 @@ describe('system security classification and CCP display tokens', () => {
     expect(systemSecurityClass(null, null)).toBe('high');
   });
 
-  it('rounds like the in-game display', () => {
-    expect(roundSecurityStatus(0)).toBe(0);
-    expect(roundSecurityStatus(0.04)).toBe(0.1);
-    expect(roundSecurityStatus(0.45)).toBe(0.5);
-    expect(roundSecurityStatus(-0.99)).toBe(-1.0);
+  it('formats one decimal with CCP rounding, with a dash for unknown security', () => {
+    expect(formatSecurityStatus(0.9)).toBe('0.9');
+    expect(formatSecurityStatus(0)).toBe('0.0');
+    expect(formatSecurityStatus(0.04)).toBe('0.1');
+    expect(formatSecurityStatus(0.45)).toBe('0.5');
+    expect(formatSecurityStatus(-0.99)).toBe('-1.0');
+    expect(formatSecurityStatus(null)).toBe('—');
     expect(securityStatusTextClass(null)).toBe('text-muted');
   });
 

@@ -1,6 +1,6 @@
+import { levelReadout } from '@/components/status-level-tone';
 import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
 import type { StatusLine } from './signals';
-import { levelReadout } from './status-tone';
 
 /**
  * Status lines as readout rows: each line's level draws its dot, speaks the

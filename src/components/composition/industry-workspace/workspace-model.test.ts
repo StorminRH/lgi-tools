@@ -3,6 +3,7 @@ import { industryJob } from '@/features/industry-jobs/__tests__/job-fixture';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { setMemberCategories } from '@/features/industry-planner/profiles/assignments';
+import { boardViewHref, characterParam } from '../board/board-view-model';
 import {
   type CapacitySources,
   memberCapacity,
@@ -119,6 +120,12 @@ test('the link picks the profile, the remembered profile fills in, and a dead li
 
   expect(profileHref('/industry', '?profile=rx&character=102&from=nav', 'caps')).toBe('/industry?profile=caps&from=nav');
   expect(profileHref('/industry', '?profile=rx', null)).toBe('/industry');
+  // Switching profiles drops whichever member the focus view put in the link.
+  const focused = boardViewHref('/industry', '?profile=rx&from=nav', { view: 'character', characterId: REACTOR });
+  const switched = new URL(profileHref('/industry', new URL(focused, 'https://lgi.test').search, 'caps'), 'https://lgi.test');
+  expect(characterParam(switched.searchParams)).toBeNull();
+  expect(switched.searchParams.get('profile')).toBe('caps');
+  expect(switched.searchParams.get('from')).toBe('nav');
 });
 
 test('a member on the profile opens on its own; anything else shows the whole profile', () => {

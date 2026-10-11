@@ -26,7 +26,6 @@ describe('map access editor model', () => {
         ownerType: 'corporation',
         ownerId: 99,
         name: 'Signal Cartel',
-        imageUrl: undefined,
         role: null,
       },
     ]);

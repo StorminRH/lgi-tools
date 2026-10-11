@@ -1,7 +1,14 @@
+/** A word from its first letter or digit on, so a quoted 'Moreau' starts at M; a word with neither, such as '→', stays whole. */
+function fromFirstLetterOrDigit(word: string): string {
+  const start = word.search(/[\p{L}\p{N}]/u);
+  return start > 0 ? word.slice(start) : word;
+}
+
+/** A two-character monogram: the first letters of the first two words, or the first two of a single word. */
 export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
+  const words = name.trim().split(/\s+/).filter(Boolean).map(fromFirstLetterOrDigit);
   if (words.length >= 2) return ((words[0]?.[0] ?? '') + (words[1]?.[0] ?? '')).toUpperCase();
-  return name.trim().slice(0, 2).toUpperCase();
+  return (words[0] ?? '').slice(0, 2).toUpperCase();
 }
 
 const UNRESOLVED_KIND_LABEL = {

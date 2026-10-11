@@ -1,4 +1,5 @@
-import { isValidElement, type ReactElement } from 'react';
+import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { StructureTypeOption } from '@/data/eve-data/structures';
 import { settle } from '@/lib/__tests__/hook-runtime';
@@ -7,6 +8,7 @@ import {
   deleteCustomStructureEndpoint,
   parseStructureFitEndpoint,
   updateCustomStructureEndpoint,
+  type StructureSearchResult,
 } from '../api-contract';
 import type { StructureDraft } from '../structure-draft';
 import type { CustomStructureRow } from '../types';
@@ -14,6 +16,11 @@ import type { CustomStructureRow } from '../types';
 const h = vi.hoisted(() => ({
   apiFetch: vi.fn(),
   suggest: vi.fn(async (_query: string): Promise<string[]> => []),
+  hits: [] as StructureSearchResult[],
+  systemsById: new Map([
+    [30002537, { id: 30002537, name: 'Amamake', security: 0.4 }],
+    [30004759, { id: 30004759, name: '1DQ1-A', security: -0.4 }],
+  ]),
 }));
 // The composer runs on a minimal hook store so its handlers can be driven
 // directly: each call re-reads the state its last handlers wrote.
@@ -31,7 +38,9 @@ vi.mock('@/components/use-system-search', () => ({
     ],
     suggest: h.suggest,
   }),
+  useSystemsById: () => h.systemsById,
 }));
+vi.mock('../use-structure-search', () => ({ useStructureSearch: () => h.hits }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
 
 import { StructureComposer } from './StructureComposer';
@@ -124,6 +133,7 @@ const bonuses = (p: Props) => 'onReadFit' in p;
 beforeEach(() => {
   h.apiFetch.mockReset();
   h.suggest.mockClear();
+  h.hits = [];
 });
 
 test('a new structure says what is missing before it saves', () => {
@@ -162,6 +172,25 @@ test('picking a found structure fills its name, system and hull, clearing rigs w
   c.field('Hull', 'onValueChange', '35825');
   c.field('Hull', 'onValueChange', '');
   expect(c.draft().structureTypeId).toBeNull();
+});
+
+test('a found structure reads its hull, then its system with that system’s coloured security', () => {
+  h.hits = [
+    { structureId: 1, name: 'Found Tatara', systemId: 30004759, structureTypeId: 35836 },
+    { structureId: 2, name: 'Unknown hull', systemId: 30002537, structureTypeId: null },
+    { structureId: 3, name: 'Far Raitaru', systemId: 31000005, structureTypeId: 35825 },
+    { structureId: 4, name: 'Nowhere', systemId: 31000005, structureTypeId: null },
+  ];
+  const c = mount(null);
+  const field = c.element(named)!;
+  const drawn = (field.type as (props: Props) => unknown)(field.props as Props);
+  const options = [...walk(drawn)].find((p) => 'options' in p)!.options as { meta?: ReactNode }[];
+  expect(options.map(({ meta }) => (meta ? renderToStaticMarkup(createElement('span', null, meta)) : null))).toEqual([
+    '<span>Tatara · 1DQ1-A <span class="text-sec-null">-0.4</span></span>',
+    '<span>Amamake <span class="text-sec-04">0.4</span></span>',
+    '<span>Raitaru</span>',
+    null,
+  ]);
 });
 
 test('a typed system pins only on an exact name, and suggests the rest', async () => {

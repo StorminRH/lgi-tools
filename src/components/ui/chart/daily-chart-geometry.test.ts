@@ -46,7 +46,7 @@ describe('dailyChartModel', () => {
       plotLeft: 44,
       plotRight: 244,
     });
-    expect(model).toMatchObject({ xs: [], values: [], hover: [], barW: 1, yMax: 1 });
+    expect(model).toMatchObject({ values: [], hover: [], barW: 1, yMax: 1 });
   });
 });
 

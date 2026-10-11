@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { SearchContext } from '@/platform/search';
 import { z } from 'zod';
 import { systemSearchEntrySchema } from './api-contract';
-import { formatSec, matchSystem, type SystemSearchEntry } from './systems-search';
+import { lookupSystem, matchSystem, type SystemSearchEntry } from './systems-search';
 
 const { apiFetchMock } = vi.hoisted(() => ({ apiFetchMock: vi.fn() }));
 
@@ -49,12 +49,17 @@ describe('matchSystem', () => {
   });
 });
 
-describe('formatSec', () => {
-  it('renders one decimal with CCP rounding, with a dash for unknown security', () => {
-    expect(formatSec(0.9)).toBe('0.9');
-    expect(formatSec(-0.99)).toBe('-1.0');
-    expect(formatSec(0.04)).toBe('0.1');
-    expect(formatSec(null)).toBe('—');
+describe('lookupSystem', () => {
+  const byId = new Map(SYSTEMS.map((system) => [system.id, system]));
+
+  it('resolves a known id against the loaded index', () => {
+    expect(lookupSystem(byId, 30000142)).toBe(SYSTEMS[1]);
+  });
+
+  it('is null before the index loads, for a null id, and for an unknown id', () => {
+    expect(lookupSystem(null, 30000142)).toBeNull();
+    expect(lookupSystem(byId, null)).toBeNull();
+    expect(lookupSystem(byId, 99)).toBeNull();
   });
 });
 
@@ -96,10 +101,17 @@ describe('systemsSource', () => {
     apiFetchMock.mockRejectedValueOnce(new Error('network down'));
     await expect(m.loadSystems()).rejects.toThrow('network down');
     expect(m.getLoadedSystems()).toBeNull();
+    expect(m.getLoadedSystemsById()).toBeNull();
 
     apiFetchMock.mockResolvedValueOnce({ ok: true, status: 200, data: { systems: SYSTEMS } });
     await expect(m.loadSystems()).resolves.toEqual(SYSTEMS);
     expect(m.getLoadedSystems()).toEqual(SYSTEMS);
+    const byId = m.getLoadedSystemsById();
+    expect(byId?.size).toBe(SYSTEMS.length);
+    expect(byId?.get(30000142)).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
+    expect(byId?.get(5)?.security).toBeNull();
+    // The map is built once per load, so readers keep one identity.
+    expect(m.getLoadedSystemsById()).toBe(byId);
   });
 
   it('drops results for a query aborted mid-flight', async () => {

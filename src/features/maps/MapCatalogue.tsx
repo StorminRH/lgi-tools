@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useRef, useState, type RefObject } from 'react';
-import { EveImage } from '@/components/eve-image';
+import { EntityLogo } from '@/components/entity-logo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -15,7 +15,6 @@ import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { formatUtcDate } from '@/lib/format/time';
-import { corporationLogoUrl } from '@/lib/eve-image';
 import { unresolvedName } from '@/lib/format/names';
 import { mapRoleLabel } from './access-editor-model';
 import { MapAccessDialog } from './MapAccessDialog';
@@ -99,15 +98,7 @@ function CorporationBadges({
             key={corporationId}
             className="inline-flex items-center gap-2 rounded-full border border-border-soft bg-row-hover px-2.5 py-1 font-data text-micro text-muted"
           >
-            <EveImage
-              source="eve"
-              family="corporation-logo"
-              src={corporation?.logoUrl ?? corporationLogoUrl(corporationId, 64)}
-              alt=""
-              width={24}
-              height={24}
-              className="size-6 rounded-ctl object-cover"
-            />
+            <EntityLogo kind="corporation" id={corporationId} size={24} />
             <span>{name}</span>
           </span>
         );

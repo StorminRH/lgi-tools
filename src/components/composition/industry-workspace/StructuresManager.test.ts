@@ -7,10 +7,10 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
 import type { ReadIdentity } from '@/platform/auth/read-identity';
 
-const SYSTEMS = [
-  { id: 30002537, name: 'Amamake', security: 0.4 },
-  { id: 30004759, name: '1DQ1-A', security: -0.4 },
-];
+const SYSTEMS_BY_ID = new Map([
+  [30002537, { id: 30002537, name: 'Amamake', security: 0.4 }],
+  [30004759, { id: 30004759, name: '1DQ1-A', security: -0.4 }],
+]);
 const live = vi.hoisted(() => ({
   available: [] as AvailableStructure[],
   request: null as symbol | null,
@@ -41,9 +41,7 @@ vi.mock('./structures-panel', () => ({
   useNewStructureRequest: () => live.request,
   settleNewStructure: vi.fn(),
 }));
-vi.mock('@/components/use-system-search', () => ({
-  useSystemSearch: () => ({ systems: SYSTEMS, suggest: async () => [] }),
-}));
+vi.mock('@/components/use-system-search', () => ({ useSystemsById: () => SYSTEMS_BY_ID }));
 vi.mock('@/features/industry-planner/use-available-structures', () => ({
   useAvailableStructures: () => live.available,
   refreshAvailableStructures: vi.fn(),
@@ -148,6 +146,9 @@ test('corporation structures and your own list side by side, with what each can 
   expect(html).toContain('>Tatara<');
   expect(html).toContain('Amamake Raitaru');
   expect(html).toContain('Unpinned Raitaru');
+  // Each row names its hull, then its system by id with that system's coloured security.
+  expect(html).toContain('Raitaru · Amamake <span class="text-sec-04">0.4</span>');
+  expect(html).toContain('Tatara · 1DQ1-A <span class="text-sec-null">-0.4</span>');
   expect(html).not.toContain('No structures yet.');
 });
 

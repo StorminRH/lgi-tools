@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getLoadedSystems, loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import {
+  getLoadedSystems,
+  getLoadedSystemsById,
+  loadSystems,
+  lookupSystem,
+  matchSystem,
+  type SystemSearchEntry,
+} from '@/data/eve-data/systems-search';
 import { searchOneSource } from '@/platform/search';
 
 export type SystemParams = { system: SystemSearchEntry };
@@ -13,37 +20,38 @@ export interface SystemSearch {
   suggest: (input: string) => Promise<string[]>;
 }
 
-export function systemNameFrom(
-  systems: SystemSearchEntry[] | null,
-  systemId: number | null,
-): string | null {
-  if (systemId === null || systems === null) return null;
-  return systems.find((s) => s.id === systemId)?.name ?? null;
-}
+const SYSTEM_INDEX_RETRY_MS = 15_000;
 
-const SYSTEM_NAME_RETRY_MS = 15_000;
-
-export function useSystemName(systemId: number | null): string | null {
-  const [systems, setSystems] = useState<SystemSearchEntry[] | null>(() => getLoadedSystems());
+/**
+ * The system index keyed by id, or null until it loads. A failed load tries
+ * again every 15 seconds while the caller still wants it.
+ */
+export function useSystemsById(enabled = true): ReadonlyMap<number, SystemSearchEntry> | null {
+  const [systemsById, setSystemsById] = useState(() => getLoadedSystemsById());
   const [attempt, setAttempt] = useState(0);
-  const wanted = systemId !== null && systems === null;
+  const wanted = enabled && systemsById === null;
   useEffect(() => {
     if (!wanted) return;
     let alive = true;
     let retry: ReturnType<typeof setTimeout> | undefined;
     loadSystems()
-      .then((s) => {
-        if (alive) setSystems(s);
+      .then(() => {
+        if (alive) setSystemsById(getLoadedSystemsById());
       })
       .catch(() => {
-        if (alive) retry = setTimeout(() => setAttempt((a) => a + 1), SYSTEM_NAME_RETRY_MS);
+        if (alive) retry = setTimeout(() => setAttempt((a) => a + 1), SYSTEM_INDEX_RETRY_MS);
       });
     return () => {
       alive = false;
       clearTimeout(retry);
     };
   }, [wanted, attempt]);
-  return systemNameFrom(systems, systemId);
+  return systemsById;
+}
+
+export function useSystemName(systemId: number | null): string | null {
+  const systemsById = useSystemsById(systemId !== null);
+  return lookupSystem(systemsById, systemId)?.name ?? null;
 }
 
 export function useSystemSearch(): SystemSearch {

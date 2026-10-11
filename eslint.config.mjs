@@ -1285,13 +1285,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: [
-      "src/components/composition/account/AdminForceLogoutForm.tsx",
-      "src/components/composition/account/AdminReassignCharacterForm.tsx",
-      "src/components/composition/account/AdminUnlinkCharacterForm.tsx",
-      "src/components/composition/account/RoleToggleForm.tsx",
-      "src/components/composition/account/UnlinkCharacterForm.tsx",
-    ],
+    files: ["src/components/ui/action-form.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",

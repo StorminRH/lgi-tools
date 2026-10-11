@@ -39,7 +39,7 @@ export function deriveScopeHealth(
   };
 }
 
-export function deriveCharacterHealth(input: {
+function deriveCharacterHealth(input: {
   scope: string | null | undefined;
   hasRefreshToken: boolean;
 }): CharacterHealth {
@@ -95,7 +95,7 @@ function describeLegacyScope(id: string): GrantedScope {
   return gloss ? { id, gloss, status: 'legacy' } : { id, status: 'legacy' };
 }
 
-export function listGrantedScopes(scope: string | null | undefined): GrantedScope[] {
+function listGrantedScopes(scope: string | null | undefined): GrantedScope[] {
   const granted = tokenizeScopes(scope);
   const grantedSet = new Set(granted);
   const activeSet = new Set<string>(EVE_SCOPES);
@@ -104,4 +104,40 @@ export function listGrantedScopes(scope: string | null | undefined): GrantedScop
   );
   const legacy = granted.filter((id) => !activeSet.has(id)).map(describeLegacyScope);
   return [...active, ...legacy];
+}
+
+/** How a linked character's row reads: its health label, whether it needs a reconnect, and its grants. */
+export type LinkedCharacterStatus = {
+  needsReconnect: boolean;
+  healthLabel: string | null;
+  authorizationDelayed: boolean;
+  scopes: GrantedScope[];
+};
+
+/**
+ * One label per linked character for every page that lists them. A reconnect
+ * outranks a delayed verification, which only counts while the character still
+ * holds a refresh token.
+ */
+export function deriveLinkedCharacterStatus(character: {
+  scope: string | null;
+  hasRefreshToken: boolean;
+  authorizationDelayed?: boolean;
+}): LinkedCharacterStatus {
+  const health = deriveCharacterHealth({
+    scope: character.scope,
+    hasRefreshToken: character.hasRefreshToken,
+  });
+  const authorizationDelayed = character.hasRefreshToken && character.authorizationDelayed === true;
+  const healthLabel = !health.needsReconnect
+    ? authorizationDelayed ? 'Verification delayed' : null
+    : character.hasRefreshToken
+      ? 'Missing scopes'
+      : 'Disconnected';
+  return {
+    needsReconnect: health.needsReconnect,
+    healthLabel,
+    authorizationDelayed,
+    scopes: listGrantedScopes(character.scope),
+  };
 }
