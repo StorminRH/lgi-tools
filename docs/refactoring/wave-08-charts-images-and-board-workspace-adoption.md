@@ -19,7 +19,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | ☑ | [P011](#p011) | Reuse FacilitySubline in StructureRow, share the placeholder tile, export the structure source groups, and build facility keys with facilityKey | ui-component | S | low | low | [P010](#p010) |
 | ☑ | [P183](#p183) | Derive owned-structure security classes through getSystemFacts | server-pipeline | S | low | low | [P010](#p010) |
 | ☑ | [P003](#p003) | Share the focus-board rail, grids and view-model helpers between the home board and the industry workspace | ui-component | M | low | medium | [P018](wave-07-ui-kit-primitives-src-components-ui.md#p018) |
-| ☐ | [P005](#p005) | Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift | ui-component | M | low | medium | — |
+| ☑ | [P005](#p005) | Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift | ui-component | M | low | medium | — |
 | ☐ | [P062](#p062) | Share one StatusLevel tone module between EveStatusPanel and admin, keeping each surface's plain colour | css-styling | S | low | low | — |
 | ☐ | [P067](#p067) | Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins | client-data | S | low | low | — |
 | ☐ | [P271](#p271) | Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity | feature-skeleton | M | low | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247) |
@@ -882,7 +882,7 @@ If P002 lands first, RailEntry's sibling files import readoutSurface/SectionPane
 
 ## P005: Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -150 across the 8 sites (3 'use client' files lose useId and the confirm blocks; RetryJobForm and the local statics ActionForm are deleted) and about +70 for the two ui files. Net about -80 before tests.
 - **Depends on:** —

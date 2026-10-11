@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/ui/action-form';
 import type { CharacterRole } from '@/platform/auth/types';
 import { deriveRoleToggle } from './role-toggle-view';
 
@@ -15,22 +15,15 @@ export function RoleToggleForm({
 }) {
   const view = deriveRoleToggle(currentRole, targetUserId, viewerUserId);
 
+  // An empty search is left out, not posted as q="".
   return (
-    <form method="POST" action="/api/admin/role">
-      <input type="hidden" name="userId" value={targetUserId} />
-      <input type="hidden" name="nextRole" value={view.nextRole} />
-      {currentQuery ? (
-        <input type="hidden" name="q" value={currentQuery} />
-      ) : null}
-      <Button
-        type="submit"
-        variant="secondary"
-        size="sm"
-        disabled={view.isSelf}
-        title={view.isSelf ? "You can't change your own role" : undefined}
-      >
-        {view.label}
-      </Button>
-    </form>
+    <ActionForm
+      action="/api/admin/role"
+      fields={{ userId: targetUserId, nextRole: view.nextRole, q: currentQuery || undefined }}
+      disabled={view.isSelf}
+      disabledReason="You can't change your own role."
+    >
+      {view.label}
+    </ActionForm>
   );
 }

@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/ui/action-form';
 
 export function UnlinkCharacterForm({
   characterId,
@@ -8,18 +8,14 @@ export function UnlinkCharacterForm({
   disabled?: boolean;
 }) {
   return (
-    <form method="POST" action="/api/account/characters/unlink">
-      <input type="hidden" name="characterId" value={characterId} />
-      <Button
-        type="submit"
-        variant="secondary"
-        size="sm"
-        disabled={disabled}
-        title={disabled ? "You can't unlink your only character" : undefined}
-        className="whitespace-nowrap"
-      >
-        Unlink
-      </Button>
-    </form>
+    <ActionForm
+      action="/api/account/characters/unlink"
+      fields={{ characterId }}
+      disabled={disabled}
+      disabledReason="You can't unlink your only character."
+      className="whitespace-nowrap"
+    >
+      Unlink
+    </ActionForm>
   );
 }

@@ -1,3 +1,4 @@
+import { ActionForm } from '@/components/ui/action-form';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
@@ -8,7 +9,6 @@ import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { deriveDeadLetterView } from '../ops-view';
 import { getEsiRefreshQueueStatsShared } from '../shared-reads';
 import { deadLetterHint, deriveQueueCells, retainedSummary } from './queue-view';
-import { RetryJobForm } from './RetryJobForm';
 
 const DEAD_LETTER_LIMIT = 50;
 
@@ -56,7 +56,15 @@ export function DeadLetterList({ rows }: { rows: ReturnType<typeof deriveDeadLet
               {formatCount(row.attempts, 'attempt')} · {row.timing}
             </div>
           </div>
-          <RetryJobForm jobId={row.id} jobLabel={row.title} />
+          {/* The job's name goes in the accessible name, so a list of retries is not all "Retry". */}
+          <ActionForm
+            action="/api/admin/esi-jobs/retry"
+            fields={{ jobId: row.id }}
+            className="text-isk"
+            ariaLabel={`Retry ${row.title}`}
+          >
+            Retry
+          </ActionForm>
         </li>
       ))}
     </ul>
