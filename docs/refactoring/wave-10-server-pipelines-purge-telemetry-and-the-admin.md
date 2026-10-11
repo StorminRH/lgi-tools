@@ -22,7 +22,7 @@ In order:
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P162](#p162) | Share the price-source degradation predicate, payload projection and type | server-pipeline | S | low | low | [P173](wave-03-src-lib-primitives-collections-math-async.md#p173) |
-| ☐ | [P164](#p164) | Make map-access projections reject stale outcomes by default and share the delivery budget constants | server-pipeline | S | low | medium | — |
+| ☑ | [P164](#p164) | Make map-access projections reject stale outcomes by default and share the delivery budget constants | server-pipeline | S | low | medium | — |
 | ☐ | [P322](#p322) | Drop the constant projectionPending, the outer teardown currency checks, and the affiliation/transfer pass-through wrappers | simplification | S | low | low | [P164](#p164) |
 | ☐ | [P165](#p165) | Share one sequential deadline runner for the housekeeping retry loops | server-pipeline | S | low | medium | [P164](#p164) |
 | ☐ | [P166](#p166) | Route every owned-map chain purge through one composition helper | server-pipeline | S | low | low | — |
@@ -101,7 +101,7 @@ export function readPriceSourceHealth(s: PriceSourceDegradation): {
 
 ## P164: Make map-access projections reject stale outcomes by default and share the delivery budget constants
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -12 production lines (6 wraps and imports) plus 4 for constants; about -15 test lines (3 mock re-implementations and stale doubles); +1 new map-creation test
 - **Depends on:** —

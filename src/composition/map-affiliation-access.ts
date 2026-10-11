@@ -7,10 +7,12 @@ import {
   MAX_PENDING_BATCH,
   readPendingMapAccessChanges,
 } from '@/platform/auth/affiliation-store';
-import { projectMapAccess, requireCurrentProjection } from './map-access-projection';
+import {
+  MAP_ACCESS_DELIVERY_TIMEOUT_MS,
+  MAP_ACCESS_RECONCILE_BUDGET_MS,
+  projectMapAccess,
+} from './map-access-projection';
 
-const RECONCILE_BUDGET_MS = 20_000;
-const DELIVERY_TIMEOUT_MS = 4_000;
 const FINALIZE_RESERVE_MS = 1_000;
 const DELIVERY_CONCURRENCY = 4;
 // Visits inside this window share one drain. No cron drains map_access_changes, so keep it
@@ -56,7 +58,7 @@ export async function deliverCapturedMapAccessChanges(
 async function deliverPendingMapAccessChanges(
   pending: PendingMapAccessChange[],
 ): Promise<{ processed: number; failed: number }> {
-  const deadline = Date.now() + RECONCILE_BUDGET_MS;
+  const deadline = Date.now() + MAP_ACCESS_RECONCILE_BUDGET_MS;
   if (pending.length === 0) return { processed: 0, failed: 0 };
   const mapIds = pending.map((row) => row.mapId);
   const succeeded = new Set<string>();
@@ -64,9 +66,9 @@ async function deliverPendingMapAccessChanges(
     const remaining = deadline - Date.now() - FINALIZE_RESERVE_MS;
     if (remaining <= 0) return;
     try {
-      requireCurrentProjection(await projectMapAccess(mapId, {
-        timeoutMs: Math.min(DELIVERY_TIMEOUT_MS, remaining),
-      }));
+      await projectMapAccess(mapId, {
+        timeoutMs: Math.min(MAP_ACCESS_DELIVERY_TIMEOUT_MS, remaining),
+      });
       succeeded.add(mapId);
     } catch (error) {
       console.error('[map-affiliation-access] projection retained for retry', mapId, error);

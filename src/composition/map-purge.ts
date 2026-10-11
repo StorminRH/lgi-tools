@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import {
-  requireCurrentProjection,
-  teardownMapAccessProjection,
-} from '@/composition/map-access-projection';
+import { teardownMapAccessProjection } from '@/composition/map-access-projection';
 import {
   claimPurgeableMaps,
   tombstonePurgedMap,
@@ -69,7 +66,7 @@ export async function purgeEligibleMaps(
       );
     }
     try {
-      requireCurrentProjection(await teardownAccess(map.id));
+      await teardownAccess(map.id);
     } catch (cause) {
       throw new MapPurgeUnavailableError(
         `Map access projection fence failed for ${map.id}`,

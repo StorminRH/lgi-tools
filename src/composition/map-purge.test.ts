@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ProjectionUnavailableError } from './map-access-projection';
 import {
   MapPurgeUnavailableError,
   purgeEligibleMaps,
@@ -205,13 +206,9 @@ describe('purgeEligibleMaps', () => {
         claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
         purgeChain: vi.fn().mockResolvedValue({ deleted: 4, remaining: false }),
         tombstoneMap,
-        teardownAccess: vi.fn().mockResolvedValue({
-          inserted: 0,
-          updated: 0,
-          deleted: 0,
-          unchanged: 0,
-          outcome: 'stale' as const,
-        }),
+        teardownAccess: vi.fn().mockRejectedValue(
+          new ProjectionUnavailableError('Map access projection unavailable: a newer projection already won'),
+        ),
       }),
     ).rejects.toBeInstanceOf(MapPurgeUnavailableError);
     expect(tombstoneMap).not.toHaveBeenCalled();

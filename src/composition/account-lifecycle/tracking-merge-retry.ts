@@ -1,8 +1,9 @@
 import { and, eq } from 'drizzle-orm';
 import {
+  MAP_ACCESS_DELIVERY_TIMEOUT_MS,
+  MAP_ACCESS_RECONCILE_BUDGET_MS,
   projectMapAccess,
   purgeUserMapAccessProjection,
-  requireCurrentProjection,
 } from '@/composition/map-access-projection';
 import { restoreMergeTracking } from '@/data/location-tracking/merge';
 import { readPendingTrackingMerges } from '@/data/location-tracking/merge-store';
@@ -34,7 +35,7 @@ async function deliverTrackingMerge(
     await purgeUserMapAccessProjection(job.sourceUserId);
     await purgeLocationTracking(job.sourceUserId, null);
     for (const mapId of new Set(selections.map((row) => row.mapId))) {
-      requireCurrentProjection(await projectMapAccess(mapId, { timeoutMs: 4000 }));
+      await projectMapAccess(mapId, { timeoutMs: MAP_ACCESS_DELIVERY_TIMEOUT_MS });
     }
     await restoreMergeTracking(job.id, owner.id, selections);
     await tx.delete(pendingTrackingMerges).where(eq(pendingTrackingMerges.id, job.id));
@@ -48,7 +49,7 @@ export async function reconcileTrackingMerges(
   const pending = await readPendingTrackingMerges(userId);
   if (pending.length === 0) return { processed: 0, failed: 0 };
   const writer = database ?? directDatabase();
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + MAP_ACCESS_RECONCILE_BUDGET_MS;
   let processed = 0;
   let failed = 0;
   for (const job of pending) {

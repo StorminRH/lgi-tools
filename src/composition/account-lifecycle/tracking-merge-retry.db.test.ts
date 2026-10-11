@@ -13,10 +13,10 @@ import { reconcileTrackingMerges } from './tracking-merge-retry';
 
 vi.mock('@/data/location-tracking/merge', () => ({ restoreMergeTracking: vi.fn() }));
 vi.mock('@/data/location-tracking/purge', () => ({ purgeLocationTracking: vi.fn() }));
-vi.mock('@/composition/map-access-projection', () => ({
+vi.mock('@/composition/map-access-projection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/composition/map-access-projection')>(),
   projectMapAccess: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
-  requireCurrentProjection: vi.fn(),
 }));
 
 const harness = await createDbTestHarness({

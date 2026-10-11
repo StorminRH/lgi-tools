@@ -33,12 +33,9 @@ vi.mock('@/data/maps/queries', () => ({
   getOwnedMapIds: mocks.getOwnedMapIds,
 }));
 
-vi.mock('@/composition/map-access-projection', () => ({
+vi.mock('@/composition/map-access-projection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/composition/map-access-projection')>(),
   projectMapAccess: mocks.projectMapAccess,
-  requireCurrentProjection: (result: { outcome: string }) => {
-    if (result.outcome === 'stale') throw new Error('newer projection won');
-    return result;
-  },
   purgeUserMapAccessProjection: mocks.purgeUserMapAccessProjection,
   revokeUserMapClaims: mocks.revokeUserMapClaims,
 }));
