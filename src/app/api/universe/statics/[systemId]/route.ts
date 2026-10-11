@@ -1,7 +1,4 @@
-import {
-  systemStaticsEndpoint,
-  systemStaticsParamsSchema,
-} from '@/data/wh-statics/api-contract';
+import { systemStaticsEndpoint } from '@/data/wh-statics/api-contract';
 import { getSystemStatics } from '@/data/wh-statics/queries';
 import { apiResponse } from '@/transport/api-response';
 
@@ -11,7 +8,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ systemId: string }> },
 ): Promise<Response> {
-  const parsed = systemStaticsParamsSchema.safeParse(await params);
+  const parsed = systemStaticsEndpoint.params.safeParse(await params);
   if (!parsed.success) {
     return apiResponse(systemStaticsEndpoint, 200, { statics: [] });
   }

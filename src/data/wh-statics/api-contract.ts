@@ -41,7 +41,7 @@ export type WhStaticsReviewOutcome =
 
 export type CronRefreshWhStaticsResponse = WhStaticsRefreshResult;
 
-export const systemStaticsParamsSchema = z.object({
+const systemStaticsParamsSchema = z.object({
   systemId: z.coerce.number().int().positive().safe(),
 });
 

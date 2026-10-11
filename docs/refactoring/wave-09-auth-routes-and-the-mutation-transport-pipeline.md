@@ -19,7 +19,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | ☑ | [P306](#p306) | Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight) | simplification | S | low | low | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) |
 | ☑ | [P143](#p143) | Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route | api-route | S | low | low | — |
 | ☑ | [P160](#p160) | Rebuild measureOwnedDataRead on observeCostPromise with a result-metadata hook | server-pipeline | S | low | low | [P143](#p143) |
-| ☐ | [P153](#p153) | Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell | api-route | S | low | low | — |
+| ☑ | [P153](#p153) | Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell | api-route | S | low | low | — |
 | ☐ | [P149](#p149) | Generalise loadSection into readOr(message, load, fallback) for app-zone degrade reads and use it in AtlasBound and jobCharacterIds | error-handling | S | low | low | — |
 | ☐ | [P068](#p068) | Add isCurrentReadIdentity and sameReadIdentity to platform/auth/read-identity and replace the hand-written staleness guards | client-data | S | low | low | — |
 | ☐ | [P337](#p337) | Read the EVE SSO client credentials inside eve-sso's token-request builder and drop clientId/clientSecret from the three token inputs | simplification | S | low | low | — |
@@ -1025,7 +1025,7 @@ export function measureOwnedDataRead<T>({ endpoint, requested, read, returned }:
 
 ## P153: Serve the three versioned universe-asset routes from one versionedAssetRoute shell parsed with endpoint.params, and teach the route-contract test the shell
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** -96 across the three route files, +~30 for the stubs, +~30 for the shell, +~8 in api-contracts.test.ts, -4 in the manifest route; net about -30
 - **Depends on:** —
