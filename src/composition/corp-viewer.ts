@@ -17,9 +17,10 @@ import {
   type OwnedReadScope,
   type SharingState,
 } from '@/platform/auth/corp-visibility';
+import type { EnumeratedOwner } from '@/platform/owner-sync';
 import { resolveUserCorpAccess } from './corp-access';
 import { refreshCorpContextOnView } from './sync/corp-context-sync';
-import { fetchAndStoreCorpRoles, type LinkedCharacterHealth, listCharactersWithHealth } from './sync/owner-sync-port';
+import { fetchAndStoreCorpRoles, listCharactersWithHealth } from './sync/owner-sync-port';
 
 export interface CorpViewerCorporation {
   readonly corporationId: number;
@@ -40,7 +41,7 @@ const NO_KNOWN_BASES: ReadonlyMap<number, number | null> = new Map();
 
 interface RoleSources {
   readonly stored: ReadonlyMap<number, StoredCorpRoles>;
-  readonly health: ReadonlyMap<number, LinkedCharacterHealth>;
+  readonly health: ReadonlyMap<number, EnumeratedOwner>;
   readonly now: Date;
 }
 
@@ -52,7 +53,7 @@ function usableStoredRoles(
   return row !== undefined && row.corporationId === corporationId && !ROLES_FRESHNESS.isStale(row.fetchedAt, now);
 }
 
-function canFetchRoles(health: LinkedCharacterHealth | undefined): boolean {
+function canFetchRoles(health: EnumeratedOwner | undefined): boolean {
   return health !== undefined && hasScopes(health, [ROLES_SCOPE]);
 }
 

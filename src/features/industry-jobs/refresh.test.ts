@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
 import { refreshJobsForUser } from './refresh';
-import type { CharacterJobsSyncState, JobsEsiRead, JobsPort } from './types';
+import type { CharacterJobsSyncState, JobsPort } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
@@ -24,7 +24,7 @@ function makePort(overrides: Partial<JobsPort> = {}): JobsPort {
     listCharacters: vi.fn(async () => []),
     vendToken: vi.fn(async () => 'token'),
     readJobs: vi.fn(
-      async (): Promise<JobsEsiRead> => ({ kind: 'fresh', body: [esiJob(5)], etag: '"j"' }),
+      async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: [esiJob(5)], etag: '"j"' }),
     ),
     readSyncState: vi.fn(async () => null),
     saveJobs: vi.fn(async () => {}),
@@ -81,7 +81,7 @@ describe('refreshJobsForUser', () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, jobsEtag: '"jh"' })),
-      readJobs: vi.fn(async (): Promise<JobsEsiRead> => ({ kind: 'unchanged' })),
+      readJobs: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'unchanged' })),
     });
 
     const result = await refreshJobsForUser(port, 'u1');
@@ -95,7 +95,7 @@ describe('refreshJobsForUser', () => {
   it('skips the character on an ESI error without saving or stamping', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
-      readJobs: vi.fn(async (): Promise<JobsEsiRead> => ({ kind: 'error', code: 'esi_500' })),
+      readJobs: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'error', code: 'esi_500' })),
     });
 
     const result = await refreshJobsForUser(port, 'u1');
@@ -111,7 +111,7 @@ describe('refreshJobsForUser', () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readJobs: vi.fn(
-        async (): Promise<JobsEsiRead> => ({ kind: 'fresh', body: { not: 'an array' }, etag: '"bad"' }),
+        async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { not: 'an array' }, etag: '"bad"' }),
       ),
     });
 

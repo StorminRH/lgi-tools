@@ -6,6 +6,7 @@ import {
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
   runOwnerSync,
+  type SingleOwnerRead,
 } from '@/platform/owner-sync';
 import {
   planSectionRead,
@@ -22,7 +23,6 @@ import type {
   PartEtags,
   SectionEnvelope,
   SectionSyncState,
-  SheetEsiRead,
   SheetPart,
   SheetPort,
   SheetSectionKey,
@@ -50,7 +50,7 @@ async function readParts<K extends DirectSectionKey>(
   accessToken: string,
   spec: DirectSectionSpec<K>,
   heldEtags: PartEtags<K>,
-): Promise<Record<SheetPart<K>, SheetEsiRead>> {
+): Promise<Record<SheetPart<K>, SingleOwnerRead>> {
   const parts = Object.keys(spec.parts) as SheetPart<K>[];
   const reads = await Promise.all(
     parts.map((part) =>
@@ -58,7 +58,7 @@ async function readParts<K extends DirectSectionKey>(
       port.readEndpoint(characterId, spec.parts[part].endpoint, accessToken, spec.key === 'journal' ? null : (heldEtags[part] ?? null)),
     ),
   );
-  return Object.fromEntries(parts.map((part, i) => [part, reads[i]])) as Record<SheetPart<K>, SheetEsiRead>;
+  return Object.fromEntries(parts.map((part, i) => [part, reads[i]])) as Record<SheetPart<K>, SingleOwnerRead>;
 }
 
 function sectionDescriptor<K extends DirectSectionKey>(

@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
 import { industryJob } from './__tests__/job-fixture';
 import { refreshCorpJobsForUser } from './corp-refresh';
 import type { IndustryJob } from './esi-projection';
-import type { CorpJobsPort, JobsEsiRead, RefreshCorpMember } from './types';
+import type { CorpJobsPort } from './types';
 
 const SCOPE = 'esi-industry.read_corporation_jobs.v1';
 const ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 
-function member(overrides: Partial<RefreshCorpMember> = {}): RefreshCorpMember {
+function member(overrides: Partial<EnumeratedOwner> = {}): EnumeratedOwner {
   return {
     characterId: 1,
     corporationId: 2000,
@@ -18,11 +19,11 @@ function member(overrides: Partial<RefreshCorpMember> = {}): RefreshCorpMember {
 }
 
 interface FakeOptions {
-  members: RefreshCorpMember[];
+  members: EnumeratedOwner[];
   now?: Date;
   tokens?: Record<number, string | null>;
   roles?: Record<number, string[] | null>;
-  reads?: Record<number, JobsEsiRead>;
+  reads?: Record<number, SingleOwnerRead>;
   syncStates?: Record<number, { lastRefreshedAt: Date | null; jobsEtag: string | null }>;
 }
 

@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
 import { refreshCharacterSheetForUser } from './refresh';
 import { digestJournalBody } from './plan';
 import type {
   SectionEnvelope,
   SheetEndpoint,
-  SheetEsiRead,
   SheetPort,
   SheetSectionKey,
   SheetSections,
@@ -39,8 +38,8 @@ const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOw
   ...extra,
 });
 
-const reader = (answer: (endpoint: SheetEndpoint) => SheetEsiRead) =>
-  vi.fn(async (_id: number, endpoint: SheetEndpoint): Promise<SheetEsiRead> => answer(endpoint));
+const reader = (answer: (endpoint: SheetEndpoint) => SingleOwnerRead) =>
+  vi.fn(async (_id: number, endpoint: SheetEndpoint): Promise<SingleOwnerRead> => answer(endpoint));
 
 interface FakePort extends SheetPort {
   sheets: Map<number, SheetSections>;
@@ -54,7 +53,7 @@ function makePort(overrides: Partial<SheetPort> = {}, sheets = new Map<number, S
     vendToken: vi.fn(async () => 'token'),
     readEndpoint: reader((endpoint) => ({ kind: 'fresh', body: BODIES[endpoint], etag: `"${endpoint}"` })),
     readStructure: vi.fn(
-      async (structureId): Promise<SheetEsiRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
+      async (structureId): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
     ),
     readSheet: vi.fn(async (id) => sheets.get(id) ?? null),
     mergeSection: vi.fn(async (id, key, envelope) => {
@@ -202,7 +201,7 @@ describe('refreshCharacterSheetForUser', () => {
     let now = NOW;
     const port = makePort({
       now: () => now,
-      readStructure: vi.fn(async (id): Promise<SheetEsiRead> =>
+      readStructure: vi.fn(async (id): Promise<SingleOwnerRead> =>
         id === 1099000000001 && now === NOW
           ? { kind: 'error', code: 'esi_403' }
           : { kind: 'fresh', body: { name: `Recovered ${id}` }, etag: null },
@@ -225,7 +224,7 @@ describe('refreshCharacterSheetForUser', () => {
 
   it('reads unseen structures immediately without retrying a still-fresh hidden entry', async () => {
     const port = makePort({
-      readStructure: vi.fn(async (id): Promise<SheetEsiRead> =>
+      readStructure: vi.fn(async (id): Promise<SingleOwnerRead> =>
         id === 1099000000001
           ? { kind: 'error', code: 'esi_403' }
           : { kind: 'fresh', body: { name: `Structure ${id}` }, etag: null },

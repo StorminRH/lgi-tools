@@ -1,4 +1,4 @@
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { CharacterSyncBase, SingleOwnerRead } from '@/platform/owner-sync';
 import type { SkillQueueEntry } from './esi-projection';
 
 export interface CharacterSkillData {
@@ -13,11 +13,6 @@ export interface CharacterSkillSyncState {
   skillsEtag: string | null;
 }
 
-export type SkillsEsiRead =
-  | { kind: 'fresh'; body: unknown; etag: string | null }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
 export interface SkillsSaveHalves {
   queue?: { entries: SkillQueueEntry[]; etag: string | null };
   skills?: {
@@ -28,13 +23,8 @@ export interface SkillsSaveHalves {
   };
 }
 
-export interface SkillsPort {
-  now(): Date;
-  listCharacters(userId: string): Promise<CharacterOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
-  readSkillQueue(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;
-  readSkills(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;
-  readSyncState(characterId: number): Promise<CharacterSkillSyncState | null>;
+export interface SkillsPort extends CharacterSyncBase<CharacterSkillSyncState> {
+  readSkillQueue(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
+  readSkills(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
   saveSkills(characterId: number, halves: SkillsSaveHalves): Promise<void>;
-  stampFresh(characterId: number): Promise<void>;
 }

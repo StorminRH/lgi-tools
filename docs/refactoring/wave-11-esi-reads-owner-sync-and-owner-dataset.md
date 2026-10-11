@@ -13,7 +13,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | ☑ | [P150](#p150) | Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling | api-route | M | medium | medium | [P193](#p193) |
 | ☑ | [P191](#p191) | Add platform/esi request-init builders and use one X-Pages parser; keep each public reader's status handling local | esi-sync | S | low | low | [P192](#p192), [P193](#p193) |
 | ☑ | [P194](#p194) | Build ESI paths shared across modules once, and tie the snapshot endpoint's writer and reader to one builder | esi-sync | M | low | medium | — |
-| ☐ | [P190](#p190) | Make platform/owner-sync the single home for owner-sync port bases and read-result types | esi-sync | M | low | medium | — |
+| ☑ | [P190](#p190) | Make platform/owner-sync the single home for owner-sync port bases and read-result types | esi-sync | M | low | medium | — |
 | ☐ | [P345](#p345) | Use EnumeratedOwner instead of three local copies, and share the owner fixture and owned-dataset port fake | testing | S | low | medium | [P190](#p190) |
 | ☐ | [P188](#p188) | Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker | esi-sync | S | low | low | [P190](#p190) |
 | ☐ | [P189](#p189) | Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive | esi-sync | S | low | medium | [P188](#p188) |
@@ -448,7 +448,7 @@ export const OWNED_ASSETS_RESOURCE = 'assets';
 
 ## P190: Make platform/owner-sync the single home for owner-sync port bases and read-result types
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -90 / +20 lines (5 union copies, 3 owner copies, 1 state copy, about 15 base-member lines and about 30 wrapper lines removed)
 - **Depends on:** —

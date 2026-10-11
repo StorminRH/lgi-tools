@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
 import {
   digestJournalBody,
   planSectionRead,
@@ -8,15 +9,15 @@ import {
   unresolvedStructureIds,
 } from './plan';
 import { SHEET_SECTIONS } from './sections';
-import type { SectionEnvelope, SheetEsiRead, SheetSectionData, SheetSections, StructureName } from './types';
+import type { SectionEnvelope, SheetSectionData, SheetSections, StructureName } from './types';
 
 const NOW = new Date('2026-09-27T12:00:00Z');
 const NOW_ISO = NOW.toISOString();
 const DAY = 24 * 60 * 60 * 1000;
 
-const fresh = (body: unknown, etag: string | null = '"e"'): SheetEsiRead => ({ kind: 'fresh', body, etag });
-const unchanged: SheetEsiRead = { kind: 'unchanged' };
-const error = (code: string): SheetEsiRead => ({ kind: 'error', code });
+const fresh = (body: unknown, etag: string | null = '"e"'): SingleOwnerRead => ({ kind: 'fresh', body, etag });
+const unchanged: SingleOwnerRead = { kind: 'unchanged' };
+const error = (code: string): SingleOwnerRead => ({ kind: 'error', code });
 
 const LOCATION_BODY = { solar_system_id: 30000142, station_id: 60003760 };
 const SHIP_BODY = { ship_type_id: 29984, ship_item_id: 1030000000101, ship_name: 'Quiet Ledger' };
@@ -322,7 +323,7 @@ describe('planStructures', () => {
   const ids = [1099000000001, 1099000000002];
 
   it('stores fresh names and records denied structures as hidden', () => {
-    const reads = new Map<number, SheetEsiRead>([
+    const reads = new Map<number, SingleOwnerRead>([
       [1099000000001, fresh({ name: 'Sobaseki - Driftwood Anchorage', owner_id: 1 })],
       [1099000000002, error('esi_403')],
     ]);
@@ -363,10 +364,10 @@ describe('planStructures', () => {
 
   it('skips on a retryable error when nothing else changed, but saves the rest otherwise', () => {
     const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' } } };
-    const failing = new Map<number, SheetEsiRead>([[1099000000002, error('esi_server_error')]]);
+    const failing = new Map<number, SingleOwnerRead>([[1099000000002, error('esi_server_error')]]);
     expect(planStructures(ids, previous, failing, NOW)).toEqual({ kind: 'skip', code: 'esi_server_error' });
 
-    const mixed = new Map<number, SheetEsiRead>([
+    const mixed = new Map<number, SingleOwnerRead>([
       [1099000000001, fresh({ name: 'Renamed' })],
       [1099000000002, error('esi_server_error')],
     ]);
@@ -378,7 +379,7 @@ describe('planStructures', () => {
 
   it('drops a name whose read came back bodyless', () => {
     const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' } } };
-    const reads = new Map<number, SheetEsiRead>([[1099000000001, { kind: 'unchanged' }]]);
+    const reads = new Map<number, SingleOwnerRead>([[1099000000001, { kind: 'unchanged' }]]);
     expect(planStructures([1099000000001], previous, reads, NOW)).toMatchObject({
       kind: 'save',
       envelope: { data: { names: {} } },
@@ -394,7 +395,7 @@ describe('planStructures', () => {
     const previous: SheetSectionData['structures'] = {
       names: { '1099000000001': { kind: 'hidden' }, '1099000000002': { kind: 'hidden' } },
     };
-    const reads = new Map<number, SheetEsiRead>([
+    const reads = new Map<number, SingleOwnerRead>([
       [1099000000001, error('esi_server_error')],
       [1099000000002, fresh({ name: 'Recovered' })],
     ]);

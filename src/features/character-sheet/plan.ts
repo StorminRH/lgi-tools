@@ -1,5 +1,6 @@
 import { sortedUniqueIds } from '@/lib/array';
 import { roundIsk } from '@/lib/math';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
 import { type EsiJournalEntry, parseJournalNewestFirst, parseStructureBody } from './esi-projection';
 import type {
   DirectSectionKey,
@@ -10,7 +11,6 @@ import type {
   SectionEnvelope,
   SectionPlan,
   SectionSyncState,
-  SheetEsiRead,
   SheetPart,
   SheetSectionData,
   SheetSectionKey,
@@ -43,7 +43,7 @@ function deniedEnvelope<K extends SheetSectionKey>(
 
 export function planSectionRead<K extends DirectSectionKey>(
   spec: DirectSectionSpec<K>,
-  reads: Record<SheetPart<K>, SheetEsiRead>,
+  reads: Record<SheetPart<K>, SingleOwnerRead>,
   previous: SectionEnvelope<K> | null,
   now: Date,
 ): SectionPlan<K> {
@@ -155,7 +155,7 @@ interface StructureResolution {
 
 /** One referenced structure's name after its read; null when the body breaks the contract. */
 function resolveStructure(
-  read: SheetEsiRead | undefined,
+  read: SingleOwnerRead | undefined,
   carried: StructureName | undefined,
 ): StructureResolution | null {
   if (read === undefined) return { name: carried, changed: false, retryCode: null };
@@ -179,7 +179,7 @@ interface StructureNames {
 function collectStructureNames(
   referenced: number[],
   previous: SheetSectionData['structures'] | null,
-  reads: Map<number, SheetEsiRead>,
+  reads: Map<number, SingleOwnerRead>,
 ): StructureNames | null {
   const names: Record<string, StructureName> = {};
   let changed = false;
@@ -198,7 +198,7 @@ function collectStructureNames(
 export function planStructures(
   referenced: number[],
   previous: SheetSectionData['structures'] | null,
-  reads: Map<number, SheetEsiRead>,
+  reads: Map<number, SingleOwnerRead>,
   now: Date,
 ): SectionPlan<'structures'> {
   const collected = collectStructureNames(referenced, previous, reads);

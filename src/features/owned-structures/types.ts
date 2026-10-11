@@ -1,5 +1,6 @@
 import type { SecurityClass } from '@/data/eve-data/security';
 import type { SharingState, StructuresAccess } from '@/platform/auth/corp-visibility';
+import type { CorpSyncBase, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
 
 export interface CorpStructureRow {
@@ -29,39 +30,19 @@ export interface CorpOwner {
   corporationId: number;
 }
 
-export interface RefreshCorpMember {
-  characterId: number;
-  corporationId: number | null;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}
-
-export interface CorpStructuresSyncState {
-  lastRefreshedAt: Date | null;
-  pageEtags: string[];
-}
-
-export type CorpStructuresReadResult =
-  | { kind: 'fresh'; items: unknown[]; etags: string[] }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
 /**
- * The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
- * in-game roles read), the one paged authed ESI gate read per corp, and Neon storage.
- * The real implementations are wired in src/composition/sync/corp-structures-sync.ts.
+ * The injected I/O the corp refresh runs over: the shared corp base (member
+ * enumeration, token vend, in-game roles read), the one paged authed ESI gate read
+ * per corp, and Neon storage. The real implementations are wired in
+ * src/composition/sync/corp-structures-sync.ts.
  */
-export interface CorpStructuresPort {
-  now(): Date;
-  listMembers(userId: string): Promise<RefreshCorpMember[]>;
-  vendToken(characterId: number): Promise<string | null>;
-  readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
+export interface CorpStructuresPort extends CorpSyncBase {
   readStructures(
     corporationId: number,
     accessToken: string,
     heldEtags: string[],
-  ): Promise<CorpStructuresReadResult>;
-  readSyncState(corporationId: number): Promise<CorpStructuresSyncState | null>;
+  ): Promise<PagedOwnerReadResult>;
+  readSyncState(corporationId: number): Promise<PagedOwnerSyncState | null>;
   saveStructures(corporationId: number, rows: ParsedCorpStructure[], etags: string[]): Promise<void>;
   stampFresh(corporationId: number): Promise<void>;
 }

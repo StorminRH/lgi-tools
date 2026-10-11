@@ -1,5 +1,5 @@
 import type { EveScope } from '@/config/eve-scopes';
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import type { LocationBody } from '@/data/location-tracking/esi-projection';
 
@@ -173,11 +173,6 @@ export type SheetSectionSpec<K extends SheetSectionKey> = K extends DirectSectio
   ? DirectSectionSpec<K>
   : StructuresSectionSpec;
 
-export type SheetEsiRead =
-  | { kind: 'fresh'; body: unknown; etag: string | null }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
 export type SectionPlan<K extends SheetSectionKey> =
   | { kind: 'save'; envelope: SectionEnvelope<K> }
   | { kind: 'stamp' }
@@ -192,8 +187,8 @@ export interface SheetPort {
     endpoint: SheetEndpoint,
     accessToken: string,
     heldEtag: string | null,
-  ): Promise<SheetEsiRead>;
-  readStructure(structureId: number, accessToken: string): Promise<SheetEsiRead>;
+  ): Promise<SingleOwnerRead>;
+  readStructure(structureId: number, accessToken: string): Promise<SingleOwnerRead>;
   readSheet(characterId: number): Promise<SheetSections | null>;
   mergeSection<K extends SheetSectionKey>(
     characterId: number,

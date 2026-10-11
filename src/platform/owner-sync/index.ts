@@ -1,5 +1,7 @@
 export { makeCharacterDescriptor } from './character';
+export type { CharacterSyncBase } from './character';
 export { makeCorpDescriptor } from './corp';
+export type { CorpSyncBase } from './corp';
 export { selectCorpCredential } from './credential';
 export { runOwnerSync } from './engine';
 export { makeOwnedDescriptor, ownedResourcePath } from './owned';
@@ -15,4 +17,5 @@ export type {
   OwnerSyncTarget,
   PagedOwnerSyncState,
   PersistVerdict,
+  SingleOwnerRead,
 } from './types';

@@ -4,9 +4,10 @@ import { db } from '@/db';
 import { getSystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import type { PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
-import type { CorpStructureRow, CorpStructuresSyncState } from './types';
+import type { CorpStructureRow } from './types';
 
 function corpStructuresTag(corporationId: number): string {
   return `corp-structures:${corporationId}`;
@@ -36,7 +37,7 @@ export async function getCorpStructures(
 
 export async function readCorpStructureSyncState(
   corporationId: number,
-): Promise<CorpStructuresSyncState | null> {
+): Promise<PagedOwnerSyncState | null> {
   const rows = await db
     .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt, pageEtags: corpStructureSyncs.pageEtags })
     .from(corpStructureSyncs)

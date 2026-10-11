@@ -19,6 +19,12 @@ export interface PagedOwnerSyncState {
   pageEtags: string[];
 }
 
+/** One authed single-endpoint ESI read as a feature port sees it. */
+export type SingleOwnerRead =
+  | { kind: 'fresh'; body: unknown; etag: string | null }
+  | { kind: 'unchanged' }
+  | { kind: 'error'; code: string };
+
 export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)
   | { kind: 'stamp' }

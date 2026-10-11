@@ -4,6 +4,8 @@ import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 const mocks = vi.hoisted(() => ({
   fetchAffiliations: vi.fn(),
   readEsiAuthed: vi.fn(),
+  readEsiAuthedPost: vi.fn(),
+  readEsiPagedAuthed: vi.fn(),
   upsertCorpRoles: vi.fn(async () => true),
   readRoleCorporationId: vi.fn(async (): Promise<number | null> => 98001),
   getFreshAccessTokenForCharacter: vi.fn(),
@@ -28,10 +30,17 @@ vi.mock('@/platform/auth/corp-roles-store', () => ({
 
 vi.mock('@/platform/esi/authed-read', () => ({
   readEsiAuthed: (...args: unknown[]) => mocks.readEsiAuthed(...args),
-  readEsiPagedAuthed: vi.fn(),
+  readEsiAuthedPost: (...args: unknown[]) => mocks.readEsiAuthedPost(...args),
+  readEsiPagedAuthed: (...args: unknown[]) => mocks.readEsiPagedAuthed(...args),
 }));
 
-import { fetchAndStoreCorpRoles, probeAndStoreRoles } from './owner-sync-port';
+import {
+  fetchAndStoreCorpRoles,
+  postSingleEndpoint,
+  probeAndStoreRoles,
+  readPagedEndpoint,
+  readSingleEndpoint,
+} from './owner-sync-port';
 
 const fullBody = {
   roles: ['Director', 'Accountant'],
@@ -53,6 +62,8 @@ beforeEach(() => {
     transientFailure: false,
   });
   mocks.readEsiAuthed.mockReset();
+  mocks.readEsiAuthedPost.mockReset();
+  mocks.readEsiPagedAuthed.mockReset();
   mocks.upsertCorpRoles.mockReset().mockResolvedValue(true);
   mocks.readRoleCorporationId.mockReset().mockResolvedValue(98001);
   mocks.getFreshAccessTokenForCharacter.mockReset();
@@ -203,5 +214,76 @@ describe('fetchAndStoreCorpRoles', () => {
 
     await expect(fetchAndStoreCorpRoles(9001)).resolves.toBeNull();
     expect(mocks.readEsiAuthed).not.toHaveBeenCalled();
+  });
+});
+
+describe('sync-port ESI reads', () => {
+  it('hand fresh, unchanged and error reads to the port as ESI returned them', async () => {
+    mocks.readEsiAuthed
+      .mockResolvedValueOnce({ kind: 'fresh', body: [{ skill_id: 3300 }], etag: '"q"', expiresAt: 1_782_000_000_000 })
+      .mockResolvedValueOnce({ kind: 'unchanged', expiresAt: 1_782_000_000_000 });
+
+    await expect(readSingleEndpoint('/characters/9001/skills/', 'access-token', null)).resolves.toMatchObject({
+      kind: 'fresh',
+      body: [{ skill_id: 3300 }],
+      etag: '"q"',
+    });
+    await expect(readSingleEndpoint('/characters/9001/skills/', 'access-token', '"q"')).resolves.toMatchObject({
+      kind: 'unchanged',
+    });
+    expect(mocks.readEsiAuthed).toHaveBeenNthCalledWith(1, '/characters/9001/skills/', 'access-token', null);
+    expect(mocks.readEsiAuthed).toHaveBeenNthCalledWith(2, '/characters/9001/skills/', 'access-token', '"q"');
+
+    mocks.readEsiAuthedPost.mockResolvedValueOnce({ kind: 'error', code: 'esi_403' });
+    await expect(postSingleEndpoint('/corporations/98001/assets/names/', 'access-token', [3001])).resolves.toEqual({
+      kind: 'error',
+      code: 'esi_403',
+    });
+    expect(mocks.readEsiAuthedPost).toHaveBeenCalledWith('/corporations/98001/assets/names/', 'access-token', [3001]);
+
+    const responseHeaders = [{ page: 1, cacheControl: null, etag: '"p1"', lastModified: null, xPages: 1 }];
+    mocks.readEsiPagedAuthed.mockResolvedValueOnce({
+      kind: 'fresh',
+      items: [{ structure_id: 1001 }],
+      etags: ['"p1"'],
+      expiresAt: null,
+      responseHeaders,
+    });
+    await expect(readPagedEndpoint('/corporations/98001/structures/', 'access-token', [])).resolves.toMatchObject({
+      kind: 'fresh',
+      items: [{ structure_id: 1001 }],
+      etags: ['"p1"'],
+      responseHeaders,
+    });
+    expect(mocks.readEsiPagedAuthed).toHaveBeenCalledWith('/corporations/98001/structures/', 'access-token', []);
+  });
+
+  it.each([
+    {
+      name: 'readSingleEndpoint',
+      esi: () => mocks.readEsiAuthed,
+      read: () => readSingleEndpoint('/characters/9001/skills/', 'access-token', null),
+    },
+    {
+      name: 'postSingleEndpoint',
+      esi: () => mocks.readEsiAuthedPost,
+      read: () => postSingleEndpoint('/corporations/98001/assets/names/', 'access-token', [3001]),
+    },
+    {
+      name: 'readPagedEndpoint',
+      esi: () => mocks.readEsiPagedAuthed,
+      read: () => readPagedEndpoint('/corporations/98001/structures/', 'access-token', []),
+    },
+  ])('$name soft-fails an ESI server error but rethrows budget deferrals and unexpected failures', async ({ esi, read }) => {
+    esi().mockRejectedValueOnce(new EsiServerError(503));
+    await expect(read()).resolves.toEqual({ kind: 'error', code: 'esi_server_error' });
+
+    const budget = new EsiBudgetExhaustedError(19);
+    esi().mockRejectedValueOnce(budget);
+    await expect(read()).rejects.toBe(budget);
+
+    const failure = new Error('unexpected');
+    esi().mockRejectedValueOnce(failure);
+    await expect(read()).rejects.toBe(failure);
   });
 });

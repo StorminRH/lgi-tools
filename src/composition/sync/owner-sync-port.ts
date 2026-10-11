@@ -7,16 +7,9 @@ import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed } from '@/platform/esi/authed-read';
 import { characterRolesPath } from '@/platform/esi/paths';
-import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
+import type { EnumeratedOwner, PagedOwnerReadResult, SingleOwnerRead } from '@/platform/owner-sync';
 
-export interface LinkedCharacterHealth {
-  characterId: number;
-  corporationId: number | null;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}
-
-export async function listCharactersWithHealth(userId: string): Promise<LinkedCharacterHealth[]> {
+export async function listCharactersWithHealth(userId: string): Promise<EnumeratedOwner[]> {
   const linked = await listLinkedCharacters(userId);
   return linked.map((character) => ({
     characterId: character.characterId,
@@ -80,65 +73,35 @@ export async function fetchAndStoreCorpRoles(characterId: number): Promise<Store
   return accessToken === null ? null : probeAndStoreRolesRecord(characterId, accessToken);
 }
 
-export type AuthedSingleRead =
-  | { kind: 'fresh'; body: unknown; etag: string | null }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-export type AuthedPagedRead =
-  | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-function esiThrowToError(error: unknown): { kind: 'error'; code: string } {
-  softEsiFailure(error);
-  return { kind: 'error', code: 'esi_server_error' };
+/**
+ * Runs one authed ESI read for a sync port. An EsiServerError becomes the soft
+ * `esi_server_error` result; a budget deferral or any other failure still throws.
+ */
+async function softRead<T>(read: () => Promise<T>): Promise<T | { kind: 'error'; code: string }> {
+  try {
+    return await read();
+  } catch (error) {
+    softEsiFailure(error);
+    return { kind: 'error', code: 'esi_server_error' };
+  }
 }
 
-export async function readSingleEndpoint(
+export function readSingleEndpoint(
   path: string,
   accessToken: string,
   heldEtag: string | null,
-): Promise<AuthedSingleRead> {
-  try {
-    const read = await readEsiAuthed(path, accessToken, heldEtag);
-    if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
-    if (read.kind === 'unchanged') return { kind: 'unchanged' };
-    return { kind: 'error', code: read.code };
-  } catch (error) {
-    return esiThrowToError(error);
-  }
+): Promise<SingleOwnerRead> {
+  return softRead(() => readEsiAuthed(path, accessToken, heldEtag));
 }
 
-export async function postSingleEndpoint(path: string, accessToken: string, body: unknown): Promise<AuthedSingleRead> {
-  try {
-    const read = await readEsiAuthedPost(path, accessToken, body);
-    if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
-    if (read.kind === 'unchanged') return { kind: 'unchanged' };
-    return { kind: 'error', code: read.code };
-  } catch (error) {
-    return esiThrowToError(error);
-  }
+export function postSingleEndpoint(path: string, accessToken: string, body: unknown): Promise<SingleOwnerRead> {
+  return softRead(() => readEsiAuthedPost(path, accessToken, body));
 }
 
-export async function readPagedEndpoint(
+export function readPagedEndpoint(
   basePath: string,
   accessToken: string,
   heldEtags: string[],
-): Promise<AuthedPagedRead> {
-  try {
-    const read = await readEsiPagedAuthed(basePath, accessToken, heldEtags);
-    if (read.kind === 'fresh') {
-      return {
-        kind: 'fresh',
-        items: read.items,
-        etags: read.etags,
-        responseHeaders: read.responseHeaders,
-      };
-    }
-    if (read.kind === 'unchanged') return { kind: 'unchanged' };
-    return { kind: 'error', code: read.code };
-  } catch (error) {
-    return esiThrowToError(error);
-  }
+): Promise<PagedOwnerReadResult> {
+  return softRead(() => readEsiPagedAuthed(basePath, accessToken, heldEtags));
 }

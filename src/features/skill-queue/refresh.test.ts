@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
 import { planSkillsPersist, refreshSkillsForUser } from './refresh';
-import type { CharacterSkillSyncState, SkillsEsiRead, SkillsPort } from './types';
+import type { CharacterSkillSyncState, SkillsPort } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const QUEUE_SCOPE = 'esi-skills.read_skillqueue.v1';
@@ -22,10 +22,10 @@ function makePort(overrides: Partial<SkillsPort> = {}): SkillsPort {
     listCharacters: vi.fn(async () => []),
     vendToken: vi.fn(async () => 'token'),
     readSkillQueue: vi.fn(
-      async (): Promise<SkillsEsiRead> => ({ kind: 'fresh', body: [esiQueueEntry(34, 0)], etag: '"q"' }),
+      async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: [esiQueueEntry(34, 0)], etag: '"q"' }),
     ),
     readSkills: vi.fn(
-      async (): Promise<SkillsEsiRead> => ({
+      async (): Promise<SingleOwnerRead> => ({
         kind: 'fresh',
         body: { total_sp: 1_000, skills: [{ skill_id: 3380, active_skill_level: 5 }] },
         etag: '"s"',
@@ -89,7 +89,7 @@ describe('refreshSkillsForUser', () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSkills: vi.fn(
-        async (): Promise<SkillsEsiRead> => ({
+        async (): Promise<SingleOwnerRead> => ({
           kind: 'fresh',
           body: { total_sp: 2_000, unallocated_sp: 50, skills: [] },
           etag: '"s"',
@@ -111,8 +111,8 @@ describe('refreshSkillsForUser', () => {
         queueEtag: '"qh"',
         skillsEtag: '"sh"',
       })),
-      readSkillQueue: vi.fn(async (): Promise<SkillsEsiRead> => ({ kind: 'unchanged' })),
-      readSkills: vi.fn(async (): Promise<SkillsEsiRead> => ({ kind: 'unchanged' })),
+      readSkillQueue: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'unchanged' })),
+      readSkills: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'unchanged' })),
     });
 
     await refreshSkillsForUser(port, 'u1');
@@ -128,9 +128,9 @@ describe('refreshSkillsForUser', () => {
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, queueEtag: '"qh"', skillsEtag: '"sh"' })),
       readSkillQueue: vi.fn(
-        async (): Promise<SkillsEsiRead> => ({ kind: 'fresh', body: [esiQueueEntry(99, 0)], etag: '"q2"' }),
+        async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: [esiQueueEntry(99, 0)], etag: '"q2"' }),
       ),
-      readSkills: vi.fn(async (): Promise<SkillsEsiRead> => ({ kind: 'unchanged' })),
+      readSkills: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'unchanged' })),
     });
 
     await refreshSkillsForUser(port, 'u1');
@@ -145,7 +145,7 @@ describe('refreshSkillsForUser', () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSkillQueue: vi.fn(
-        async (): Promise<SkillsEsiRead> => ({ kind: 'error', code: 'esi_500' }),
+        async (): Promise<SingleOwnerRead> => ({ kind: 'error', code: 'esi_500' }),
       ),
     });
 
@@ -195,8 +195,8 @@ describe('refreshSkillsForUser', () => {
 });
 
 describe('planSkillsPersist', () => {
-  const fresh = (body: unknown, etag: string | null): SkillsEsiRead => ({ kind: 'fresh', body, etag });
-  const unchanged: SkillsEsiRead = { kind: 'unchanged' };
+  const fresh = (body: unknown, etag: string | null): SingleOwnerRead => ({ kind: 'fresh', body, etag });
+  const unchanged: SingleOwnerRead = { kind: 'unchanged' };
 
   it('skips on a contract mismatch in a fresh body', () => {
     expect(planSkillsPersist(fresh({ not: 'an array' }, '"q"'), unchanged)).toEqual({ kind: 'skip', code: 'contract_error' });
