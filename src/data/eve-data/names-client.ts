@@ -1,16 +1,29 @@
 import { chunk, sortedUniqueIds } from '@/lib/array';
 import { apiFetch } from '@/transport/api-client';
-import type { entityNamesEndpoint, typeNamesEndpoint } from './api-contract';
+import {
+  ENTITY_NAMES_MAX_IDS,
+  TYPE_NAMES_MAX_IDS,
+  entityNamesEndpoint,
+  typeNamesEndpoint,
+} from './api-contract';
 
 interface NamesOutcome {
   names: Record<string, string>;
   pending: number[];
 }
 
-/** Entity names are mutable and capped per view; type names are static and batched. */
-export function createNamesClient(
+interface NamesPolicy {
+  /** Names the endpoint in a failed lookup's error, as `<label> names <reason>`. */
+  label: 'type' | 'entity';
+  maxIds: number;
+  cache: boolean;
+  retryMs?: number;
+}
+
+/** One names endpoint behind a policy: a cached client batches and keeps every answer, an uncached one asks again on each load for at most `maxIds` ids. */
+function createNamesClient(
   endpoint: typeof entityNamesEndpoint | typeof typeNamesEndpoint,
-  policy: { maxIds: number; cache: boolean; retryMs?: number },
+  policy: NamesPolicy,
 ) {
   const namesById = new Map<number, Promise<string | undefined>>();
   // The endpoint's own id schema, so an id its server would refuse never sinks the rest of a batch.
@@ -23,7 +36,7 @@ export function createNamesClient(
     const result = await apiFetch(endpoint, { body: { ids } });
     if (!result.ok) {
       const reason = 'status' in result ? result.status : result.kind;
-      throw new Error(`${endpoint.path.includes('type-names') ? 'type' : 'entity'} names ${reason}`);
+      throw new Error(`${policy.label} names ${reason}`);
     }
     return { names: result.data.names, pending: result.data.pending ?? [] };
   }
@@ -58,3 +71,20 @@ export function createNamesClient(
   }
   return { normalize, load, loadOutcome, retryMs: policy.retryMs };
 }
+
+/** Type names come from the SDE and never change, so each id is asked for once, in batches of the request cap. */
+export const typeNamesClient = createNamesClient(typeNamesEndpoint, {
+  label: 'type',
+  maxIds: TYPE_NAMES_MAX_IDS,
+  cache: true,
+  retryMs: 15_000,
+});
+
+/** Character, corporation and alliance names can change, so every load asks again. */
+export const entityNamesClient = createNamesClient(entityNamesEndpoint, {
+  label: 'entity',
+  maxIds: ENTITY_NAMES_MAX_IDS,
+  cache: false,
+  // A rate-limited or failed lookup tries again rather than leaving names blank.
+  retryMs: 30_000,
+});

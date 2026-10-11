@@ -14,7 +14,7 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 | ☑ | [P332](#p332) | Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads | simplification | S | low | low | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077) |
 | ☑ | [P295](#p295) | Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type | efficiency | S | low | medium | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332) |
 | ☑ | [P076](#p076) | Name the plain price-figure type in data/market-prices and build RefreshedPrice, PriceLite and the planner rows from it | contracts-validation | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
-| ☐ | [P075](#p075) | Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label | client-data | S | low | low | — |
+| ☑ | [P075](#p075) | Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label | client-data | S | low | low | — |
 | ☐ | [P063](#p063) | Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it | client-data | L | medium | medium | [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075) |
 | ☐ | [P065](#p065) | Rebuild useSlotsLive on useLiveDataset with skill-eligible coldness, promote readWithRetries and the latest-wins read to src/lib, and add useRememberedResource for the three remembered per-identity reads | client-data | M | medium | medium | [P140](wave-03-src-lib-primitives-collections-math-async.md#p140), [P068](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p068), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154) |
 | ☐ | [P328](#p328) | Make lazy search sources load only their search function | simplification | S | low | low | — |
@@ -423,7 +423,7 @@ function pricedRows(pricing: BlueprintPricing): Iterable<IntermediatePrice>; // 
 
 ## P075: Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +12 (three files deleted; label and filter folded into one normalize)
 - **Depends on:** —
