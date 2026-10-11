@@ -72,6 +72,7 @@ export function SignatureProvider({
     pasteTarget,
     scannerSystemId,
     onScannerChosen,
+    authoring,
   });
   const identifyRow = useIdentifySignature(mapId);
   const { jumpResolution, pickJumpCandidate } = useSignatureJumpFlow(

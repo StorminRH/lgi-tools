@@ -33,7 +33,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
 | ☑ | [P092](#p092) | Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects | formatting | S | low | medium | [P030](#p030) |
 | ☑ | [P031](#p031) | Extract a controlled ScannerCombo shell, a shared wormhole combo-item mapper and class chip, and one ScannerOptionalSelect for scanner mass and life | ui-component | M | medium | medium | [P030](#p030), [P092](#p092), [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
-| ☐ | [P139](#p139) | Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it | error-handling | S | low | medium | — |
+| ☑ | [P139](#p139) | Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it | error-handling | S | low | medium | — |
 | ☐ | [P298](#p298) | Make a scanner row's open action the ScannerPanelTarget and remove the dead trigger/clientX/clientY plumbing | simplification | S | low | medium | [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072) |
 | ☐ | [P218](#p218) | Factor the connection-query and loaded-page helpers inside optimistic-authoring.ts, and make branch restore patch unresolved holes too | client-data | S | low | low | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082), [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329), [P262](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p262), [P139](#p139) |
 
@@ -1512,7 +1512,7 @@ export function ScannerOptionalSelect<T extends string>(props: {
 
 ## P139: Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -45 (missing-flow restore wiring 30, stub flow body 25, SignatureWindow catch 6, duplicate interface fields 10) and +40 in signature-removal.ts; tests about +40
 - **Depends on:** —

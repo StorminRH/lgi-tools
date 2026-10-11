@@ -7,11 +7,11 @@ import { useMutation } from '@/data/convex/use-mutation';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { pasteSemanticWrite, pasteWriteDigest } from '@/data/maps/semantic-write';
 import type { PasteTarget } from '../tracking/tracked-system';
+import { followUpElimination } from './signature-elimination-client';
 import {
-  followUpElimination,
-  invalidateSignatureElimination,
-} from './signature-elimination-client';
-import { announceSignatureRemoval } from './signature-toast';
+  removeSignaturesWithUndo,
+  type SignatureSelectionMutations,
+} from './signature-removal';
 import {
   applyScannerRows,
   useScannerPaste,
@@ -63,44 +63,6 @@ function useApplySignatureScan(
   );
 }
 
-function useRemoveMissingSignatures(
-  mapId: string,
-  clearAllMissing: MissingSignatures['clearAll'],
-) {
-  const removeSignatures = useMutation(api.mapScan.removeSignatures);
-  const restoreSignatures = useMutation(api.mapScan.restoreSignatures);
-  return useCallback(
-    async (systemId: number, signatureIds: readonly string[]): Promise<void> => {
-      if (signatureIds.length === 0) return;
-      await removeSignatures({
-        mapId,
-        systemId,
-        signatureIds: [...signatureIds],
-      });
-      invalidateSignatureElimination(mapId, systemId);
-      clearAllMissing(systemId);
-      announceSignatureRemoval({
-        systemId,
-        signatureIds,
-        onUndo: () => {
-          void restoreSignatures({
-            mapId,
-            systemId,
-            signatureIds: [...signatureIds],
-          }).then(() => {
-            invalidateSignatureElimination(mapId, systemId);
-          }).catch(() => {
-            toast.error('Restore failed', {
-              id: `signature-restore:${systemId}:batch`,
-            });
-          });
-        },
-      });
-    },
-    [clearAllMissing, mapId, removeSignatures, restoreSignatures],
-  );
-}
-
 function missingIdsForSystem(
   bySystem: ReadonlyMap<number, ReadonlySet<string>>,
   systemId: number | null,
@@ -116,6 +78,7 @@ export function useSignatureMissingFlow(input: {
   readonly pasteTarget: PasteTarget;
   readonly scannerSystemId: number | null;
   readonly onScannerChosen: (characterId: number) => void;
+  readonly authoring: SignatureSelectionMutations;
 }) {
   const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
   const [pasteTargetSystemId, setPasteTargetSystemId] = useState<number | null>(
@@ -150,7 +113,6 @@ export function useSignatureMissingFlow(input: {
     [applyRows, onScannerChosen, pendingPaste],
   );
   const cancelPendingPaste = useCallback(() => setPendingPaste(null), []);
-  const removeMissing = useRemoveMissingSignatures(input.mapId, clearAll);
   const dismissMissing = useCallback(() => {
     if (pasteTargetSystemId !== null) clearAll(pasteTargetSystemId);
   }, [pasteTargetSystemId, clearAll]);
@@ -160,10 +122,17 @@ export function useSignatureMissingFlow(input: {
     input.scannerSystemId,
     missingBySystem,
   );
+  const { mapId, authoring } = input;
   const removeMissingRows = useCallback(async () => {
-    if (pasteTargetSystemId === null || missingIds.size === 0) return;
-    await removeMissing(pasteTargetSystemId, [...missingIds]);
-  }, [missingIds, removeMissing, pasteTargetSystemId]);
+    if (pasteTargetSystemId === null) return;
+    const removed = await removeSignaturesWithUndo({
+      mapId,
+      systemId: pasteTargetSystemId,
+      signatureIds: [...missingIds],
+      mutations: authoring,
+    });
+    if (removed) clearAll(pasteTargetSystemId);
+  }, [authoring, clearAll, mapId, missingIds, pasteTargetSystemId]);
   return {
     cancelPendingPaste,
     chooseScanner,

@@ -19,15 +19,18 @@ const postJump = vi.hoisted(() =>
   })),
 );
 const toastError = vi.hoisted(() => vi.fn());
+const toastSuccess = vi.hoisted(() => vi.fn());
+const invalidate = vi.hoisted(() => vi.fn());
 
 vi.mock('../authoring/sever-toast', () => ({
   announceSeverOutcome: announce,
 }));
 vi.mock('@/components/ui/toast', () => ({
-  toast: { error: toastError, success: vi.fn() },
+  toast: { error: toastError, success: toastSuccess },
 }));
-vi.mock('./signature-toast', () => ({
-  announceSignatureRemoval: vi.fn(),
+vi.mock('./signature-elimination-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./signature-elimination-client')>()),
+  invalidateSignatureElimination: invalidate,
 }));
 vi.mock('../jump-client', () => ({
   postJumpRequest: postJump,
@@ -195,7 +198,11 @@ it('announces successful severs, skips swallowed refusals, and deletes unresolve
 
   const stubApi = authoring();
   stubApi.removeSignatures.mockResolvedValueOnce({ changed: 1 });
+  stubApi.restoreSignatures.mockResolvedValueOnce(undefined);
   const stubDone = vi.fn();
+  invalidate.mockClear();
+  toastError.mockClear();
+  toastSuccess.mockClear();
   connectionLifecycleActions({
     mapId: 'map-a',
     connectionId: 'stub-1' as Id<'mapConnections'>,
@@ -203,14 +210,29 @@ it('announces successful severs, skips swallowed refusals, and deletes unresolve
     onDone: stubDone,
     stub: { systemId: 7, signatureId: 'ABC-123' },
   }).remove();
-  await vi.waitFor(() => expect(stubApi.removeSignatures).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(stubDone).toHaveBeenCalledOnce());
   expect(stubApi.severConnection).not.toHaveBeenCalled();
   expect(stubApi.removeSignatures).toHaveBeenCalledWith({
     mapId: 'map-a',
     systemId: 7,
     signatureIds: ['ABC-123'],
   });
-  expect(stubDone).toHaveBeenCalledOnce();
+  expect(invalidate).toHaveBeenCalledWith('map-a', 7);
+  // Undo reports a swallowed restore failure instead of dropping it.
+  invalidate.mockClear();
+  const undo = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+  undo.action.onClick();
+  await vi.waitFor(() =>
+    expect(toastError).toHaveBeenCalledWith('Restore failed', {
+      id: 'signature-restore:7:ABC-123',
+    }),
+  );
+  expect(stubApi.restoreSignatures).toHaveBeenCalledWith({
+    mapId: 'map-a',
+    systemId: 7,
+    signatureIds: ['ABC-123'],
+  });
+  expect(invalidate).not.toHaveBeenCalled();
 
   stubApi.removeSignatures.mockResolvedValueOnce(undefined);
   toastError.mockClear();
@@ -221,7 +243,12 @@ it('announces successful severs, skips swallowed refusals, and deletes unresolve
     onDone: vi.fn(),
     stub: { systemId: 7, signatureId: 'ABC-123' },
   }).remove();
-  await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
+  await vi.waitFor(() =>
+    expect(toastError).toHaveBeenCalledExactlyOnceWith('Remove failed', {
+      id: 'signature-remove:7:ABC-123',
+    }),
+  );
+  expect(invalidate).not.toHaveBeenCalled();
 });
 
 it('binds resolved holes through applyWormholeType and stubs through a raw type write', async () => {

@@ -82,11 +82,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
     [props.rows, props.scannerSystemId],
   );
   const removeMissing = () => {
-    void props.onRemoveMissing().catch(() => {
-      toast.error('Remove failed', {
-        id: 'signature-remove:batch',
-      });
-    });
+    void props.onRemoveMissing();
   };
   const identifyRow = (
     row: SignatureWindowRow,

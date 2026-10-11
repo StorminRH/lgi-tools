@@ -13,9 +13,13 @@ import {
 } from '../authoring/connection-field-setters';
 import { postJumpRequest } from '../jump-client';
 import { announceSeverOutcome } from '../authoring/sever-toast';
-import { announceSignatureRemoval } from './signature-toast';
+import {
+  removeSignaturesWithUndo,
+  type SignatureSelectionMutations,
+} from './signature-removal';
 
-export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
+export interface ConnectionAuthoringApi
+  extends ConnectionFieldAuthoringApi, SignatureSelectionMutations {
   readonly severConnection: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
@@ -32,16 +36,6 @@ export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
   readonly restoreConnection: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
-  }) => Promise<unknown>;
-  readonly removeSignatures: (args: {
-    mapId: string;
-    systemId: number;
-    signatureIds: string[];
-  }) => Promise<unknown>;
-  readonly restoreSignatures: (args: {
-    mapId: string;
-    systemId: number;
-    signatureIds: string[];
   }) => Promise<unknown>;
 }
 
@@ -153,12 +147,12 @@ export function connectionLifecycleActions(input: {
   return {
     remove: () => {
       if (input.stub != null) {
-        void removeStubAndAnnounce({
+        void removeSignaturesWithUndo({
           mapId: input.mapId,
           systemId: input.stub.systemId,
-          signatureId: input.stub.signatureId,
-          authoring: input.authoring,
-          onDone: input.onDone,
+          signatureIds: [input.stub.signatureId],
+          mutations: input.authoring,
+          onRemoved: input.onDone,
         });
         return;
       }
@@ -183,44 +177,6 @@ export function connectionLifecycleActions(input: {
       input.onDone();
     },
   };
-}
-
-async function removeStubAndAnnounce(input: {
-  readonly mapId: string;
-  readonly systemId: number;
-  readonly signatureId: string;
-  readonly authoring: ConnectionAuthoringApi;
-  readonly onDone: () => void;
-}): Promise<void> {
-  const result = await input.authoring.removeSignatures({
-    mapId: input.mapId,
-    systemId: input.systemId,
-    signatureIds: [input.signatureId],
-  });
-  if (result === undefined) {
-    toast.error('Remove failed', {
-      id: `signature-remove:${input.systemId}:${input.signatureId}`,
-    });
-    return;
-  }
-  input.onDone();
-  announceSignatureRemoval({
-    systemId: input.systemId,
-    signatureIds: [input.signatureId],
-    onUndo: () => {
-      void input.authoring
-        .restoreSignatures({
-          mapId: input.mapId,
-          systemId: input.systemId,
-          signatureIds: [input.signatureId],
-        })
-        .catch(() => {
-          toast.error('Restore failed', {
-            id: `signature-restore:${input.systemId}:${input.signatureId}`,
-          });
-        });
-    },
-  });
 }
 
 export async function severAndAnnounce(input: {

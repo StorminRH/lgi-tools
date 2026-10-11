@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import type { Id } from '@/data/convex/data-model';
 import { useNow } from '@/lib/use-now';
 import type { ConnectionAuthoringApi } from '../signatures/connection-authoring-api';
+import { restoreSignaturesAndInvalidate } from '../signatures/signature-removal';
 import { MapEventLog } from '../log/MapEventLog';
 import type { MapEventRestoreAction } from '../log/map-event-copy';
 
@@ -28,10 +29,11 @@ export function MapAuthoringOverlay({
   const restoreFromEvent = useCallback(
     (action: MapEventRestoreAction) => {
       if (action.kind === 'signatures') {
-        void authoring.restoreSignatures({
+        void restoreSignaturesAndInvalidate({
           mapId,
           systemId: action.systemId,
-          signatureIds: [...action.signatureIds],
+          signatureIds: action.signatureIds,
+          restore: authoring.restoreSignatures,
         });
         return;
       }

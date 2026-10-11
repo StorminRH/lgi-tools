@@ -139,7 +139,7 @@ describe('mapper source contract', () => {
       'signatures/signature-context.tsx',
       'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
-      'signatures/signature-toast.ts',
+      'signatures/signature-removal.ts',
       'signatures/signature-update-flash.ts',
       'signatures/system-readout.ts',
       'signatures/type-setter-follow-up.ts',
