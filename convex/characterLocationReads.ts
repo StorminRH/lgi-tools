@@ -36,15 +36,16 @@ export const syncInputs = internalQuery({
     if (trackedIds.length === 0) {
       return { trackedIds, locations: [], online: [], leases: [] };
     }
+    // One read set per pilot, all in flight together; trackedIds order is kept.
+    const perPilot = await Promise.all(trackedIds.map((characterId) => Promise.all([
+      uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId),
+      uniqueByUserCharacter(ctx, 'characterLocationOnline', userId, characterId),
+      uniqueByUserCharacter(ctx, 'characterLocationAccess', userId, characterId),
+    ])));
     const locations: Doc<'characterLocation'>[] = [];
     const online: Doc<'characterLocationOnline'>[] = [];
     const leases: Doc<'characterLocationAccess'>[] = [];
-    for (const characterId of trackedIds) {
-      const [location, probe, lease] = await Promise.all([
-        uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId),
-        uniqueByUserCharacter(ctx, 'characterLocationOnline', userId, characterId),
-        uniqueByUserCharacter(ctx, 'characterLocationAccess', userId, characterId),
-      ]);
+    for (const [location, probe, lease] of perPilot) {
       if (location !== null) locations.push(location);
       if (probe !== null) online.push(probe);
       if (lease !== null) leases.push(lease);

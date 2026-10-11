@@ -504,16 +504,14 @@ async function stampIdentifiedWormholeType(
     && connection.observationKey !== undefined
     && connection.resolution.kind === resolution.kind
   ) {
-    return await claimStaticOrKeepId(ctx, connection, 'from');
+    return await claimStaticOrKeepId(ctx, connectionId, 'from');
   }
   await ctx.db.patch(connectionId, {
     ...typePatch,
     resolution,
     ...stampObservationKey(connection.observationKey).patch,
   });
-  const typed = await ctx.db.get(connectionId);
-  if (typed === null) return undefined;
-  return await claimStaticOrKeepId(ctx, typed, 'from');
+  return await claimStaticOrKeepId(ctx, connectionId, 'from');
 }
 
 async function identifyWormholeRow(

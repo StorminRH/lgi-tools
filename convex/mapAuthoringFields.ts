@@ -168,7 +168,7 @@ async function applyConnectionWormholeType(
     && sameDeathWindow(connection, window)
   ) {
     const claimed = input.value !== null
-      && (await claimStaticPlaceholder(ctx, connection, door)) === 'claimed';
+      && (await claimStaticPlaceholder(ctx, connection._id, door)) === 'claimed';
     return typeSetterSemanticWrite({ changed: false, claimed });
   }
   await ctx.db.patch(input.connectionId, {
@@ -179,10 +179,7 @@ async function applyConnectionWormholeType(
       ? {}
       : stampObservationKey(connection.observationKey).patch),
   });
-  if (input.value !== null) {
-    const typed = await ctx.db.get(input.connectionId);
-    if (typed !== null) await claimStaticPlaceholder(ctx, typed, door);
-  }
+  if (input.value !== null) await claimStaticPlaceholder(ctx, input.connectionId, door);
   return typeSetterSemanticWrite({ changed: true, claimed: false });
 }
 

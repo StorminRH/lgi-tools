@@ -168,15 +168,16 @@ async function rebindAwaitingCandidates(
 
 async function runClaim(
   ctx: MutationCtx,
-  row: Doc<'mapConnections'>,
+  connectionId: Id<'mapConnections'>,
   side: ConnectionDoorSide,
 ): Promise<ClaimRun> {
   if (side === 'to') {
-    return { outcome: 'none', survivorId: row._id };
+    return { outcome: 'none', survivorId: connectionId };
   }
-  const claimant = await ctx.db.get(row._id);
+  // The claim reads the row itself, so callers pass the id straight after a patch.
+  const claimant = await ctx.db.get('mapConnections', connectionId);
   if (claimant === null || isTombstoned(claimant) || claimant.staticCode !== undefined) {
-    return { outcome: 'none', survivorId: row._id };
+    return { outcome: 'none', survivorId: connectionId };
   }
   const typeCode = hallwayDoor(claimant, side).typeCode;
   const systemId = claimSystemId(claimant, side);
@@ -202,18 +203,18 @@ async function runClaim(
 
 export async function claimStaticPlaceholder(
   ctx: MutationCtx,
-  row: Doc<'mapConnections'>,
+  connectionId: Id<'mapConnections'>,
   side: ConnectionDoorSide,
 ): Promise<'claimed' | 'none'> {
-  return (await runClaim(ctx, row, side)).outcome;
+  return (await runClaim(ctx, connectionId, side)).outcome;
 }
 
 export async function claimStaticOrKeepId(
   ctx: MutationCtx,
-  row: Doc<'mapConnections'>,
+  connectionId: Id<'mapConnections'>,
   side: ConnectionDoorSide,
 ): Promise<Id<'mapConnections'>> {
-  return (await runClaim(ctx, row, side)).survivorId;
+  return (await runClaim(ctx, connectionId, side)).survivorId;
 }
 
 export async function respawnStaticPlaceholder(

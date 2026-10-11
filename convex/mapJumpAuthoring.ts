@@ -86,8 +86,10 @@ async function readPairRows(
   readonly pairRows: Doc<'mapConnections'>[];
   readonly forward: Doc<'mapConnections'>[];
 }> {
-  const forward = await readConnectionsFrom(ctx, mapId, fromSystemId, 'pair');
-  const reverse = await readConnectionsFrom(ctx, mapId, toSystemId, 'pair');
+  const [forward, reverse] = await Promise.all([
+    readConnectionsFrom(ctx, mapId, fromSystemId, 'pair'),
+    readConnectionsFrom(ctx, mapId, toSystemId, 'pair'),
+  ]);
   return {
     forward,
     pairRows: [

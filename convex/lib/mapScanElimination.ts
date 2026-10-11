@@ -190,7 +190,7 @@ async function applyTypeDeduction(
     && source.identity.kind === 'typed'
     && source.identity.provenance === 'assumed'
   ) {
-    await claimStaticPlaceholder(ctx, source, 'from');
+    await claimStaticPlaceholder(ctx, source._id, 'from');
     return { signatureId, outcome: 'unchanged', observationKey };
   }
   if (
@@ -204,8 +204,7 @@ async function applyTypeDeduction(
     ...connectionTypePatch(source, 'from', typeCode, 'assumed'),
     ...stamped.patch,
   });
-  const typed = await ctx.db.get(source._id);
-  if (typed !== null) await claimStaticPlaceholder(ctx, typed, 'from');
+  await claimStaticPlaceholder(ctx, source._id, 'from');
   return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 

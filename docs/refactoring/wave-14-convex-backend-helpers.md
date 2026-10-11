@@ -18,7 +18,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 | ☑ | [P203](#p203) | Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert | convex | S | low | low | — |
 | ☑ | [P204](#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
 | ☑ | [P205](#p205) | Fold the location-sync lifecycle steps into locationSchedule and subjects helpers | convex | S | low | medium | — |
-| ☐ | [P289](#p289) | Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id | efficiency | S | low | low | — |
+| ☑ | [P289](#p289) | Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id | efficiency | S | low | low | — |
 | ☐ | [P206](#p206) | Share the stamp-patch-claim tail of door-type writes and drop the redundant re-reads | convex | S | low | low | [P289](#p289) |
 | ☐ | [P207](#p207) | Route scan stub removal through retainRemovedConnection and share the removed-connection purgeAfter re-stamp | convex | S | low | low | — |
 | ☐ | [P215](#p215) | Prune map tracking with one by_map read per claim-set apply instead of one query per claimant | efficiency | S | medium | medium | [P196](#p196), [P200](#p200) |
@@ -763,7 +763,7 @@ export async function isLocationWatcherCold(db: DatabaseReader, userId: string, 
 
 ## P289: Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +8
 - **Depends on:** —
