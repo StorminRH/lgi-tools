@@ -16,7 +16,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 | ☑ | [P201](#p201) | Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points | convex | S | low | low | [P200](#p200), [P199](#p199) |
 | ☑ | [P202](#p202) | Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup | convex | M | low | medium | — |
 | ☑ | [P203](#p203) | Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert | convex | S | low | low | — |
-| ☐ | [P204](#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
+| ☑ | [P204](#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
 | ☐ | [P205](#p205) | Fold the location-sync lifecycle steps into locationSchedule and subjects helpers | convex | S | low | medium | — |
 | ☐ | [P289](#p289) | Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id | efficiency | S | low | low | — |
 | ☐ | [P206](#p206) | Share the stamp-patch-claim tail of door-type writes and drop the redundant re-reads | convex | S | low | low | [P289](#p289) |
@@ -630,7 +630,7 @@ export function findProjectionWatermark(ctx: Pick<QueryCtx, 'db'>, mapId: string
 
 ## P204: Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -12 / +3 (plus one-line edits in two tests and modules.setup.ts)
 - **Depends on:** —

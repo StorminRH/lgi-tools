@@ -7,7 +7,7 @@ import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { tryMapAccess } from './lib/mapAccess';
-import { clampPageSize, deniedPage } from './mapChainPage';
+import { clampPageSize, deniedPage, MAP_CHAIN_MAX_PAGE_SIZE } from './lib/pagination';
 
 async function readSystemPage(
   ctx: QueryCtx,
@@ -19,7 +19,7 @@ async function readSystemPage(
   return await ctx.db
     .query('mapSystems')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .paginate(clampPageSize(paginationOpts));
+    .paginate(clampPageSize(paginationOpts, MAP_CHAIN_MAX_PAGE_SIZE));
 }
 
 export const watchMapSystems = query({

@@ -60,6 +60,7 @@ import {
   removeConfidentRows,
   type SignatureSelectionMode,
 } from './lib/mapScanSelection';
+import { clampPageSize, deniedPage } from './lib/pagination';
 
 export {
   MAP_ELIMINATION_CONNECTION_LIMIT,
@@ -74,17 +75,6 @@ const scanRowValidator = v.object({
   name: v.union(v.string(), v.null()),
   signalPct: v.union(v.number(), v.null()),
 });
-
-function deniedPage<Row>(): PaginationResult<Row> {
-  return { page: [], isDone: true, continueCursor: '' };
-}
-
-function boundedPageOptions(options: PaginationOptions): PaginationOptions {
-  return {
-    ...options,
-    numItems: Math.max(1, Math.min(options.numItems, MAP_SIGNATURE_PAGE_SIZE)),
-  };
-}
 
 export const eliminationEvidence = internalQuery({
   args: { userId: v.string(), mapId: v.string(), systemId: v.number() },
@@ -238,7 +228,7 @@ async function viewableSignaturePage(
 ): Promise<PaginationResult<Doc<'mapSignatures'>> | null> {
   const principal = await tryMapAccess(ctx, mapId, 'view');
   if (principal === null) return null;
-  return await indexed(ctx.db.query('mapSignatures')).paginate(boundedPageOptions(paginationOpts));
+  return await indexed(ctx.db.query('mapSignatures')).paginate(clampPageSize(paginationOpts, MAP_SIGNATURE_PAGE_SIZE));
 }
 
 async function readSignaturePage(

@@ -7,7 +7,7 @@ import { stripComments } from '@/lib/__tests__/source-scan';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { MAP_EVENT_READ_LIMIT } from './mapChainEvents';
-import { MAP_CHAIN_MAX_PAGE_SIZE } from './mapChainPage';
+import { MAP_CHAIN_MAX_PAGE_SIZE } from './lib/pagination';
 import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import schema from './schema';
 
