@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { cache, Suspense } from 'react';
+import { Suspense } from 'react';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
-import { SITE_URL } from '@/config/site-url';
-import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
+import { loadNumericRouteEntity } from '@/transport/route-id';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
 import { RelatedSites } from '@/features/wormhole-sites/components/RelatedSites';
@@ -17,10 +16,9 @@ import {
 } from '@/features/wormhole-sites/queries';
 import { deriveSiteMeta } from '@/features/wormhole-sites/site-meta';
 import { selectRelatedSites } from '@/features/wormhole-sites/related-sites';
+import { buildPageMetadata } from '@/lib/page-metadata';
 import { withSearchParams } from '@/lib/search-params';
 import { buildBreadcrumbList } from '@/lib/structured-data';
-
-const loadSite = cache(getPricedSiteDetail);
 
 export async function generateStaticParams(): Promise<{ id: string }[]> {
   const sites = await getSiteSearchIndex();
@@ -32,29 +30,12 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const result = await loadNumericRouteEntity(params, loadSite);
+  const result = await loadNumericRouteEntity(params, getPricedSiteDetail);
   if (!result) notFound();
   const { id, entity: site } = result;
 
   const { title, description } = deriveSiteMeta(site);
-  const canonicalUrl = `${SITE_URL}/sites/${id}`;
-
-  return {
-    title,
-    description,
-    alternates: { canonical: `/sites/${id}` },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      type: 'website',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-    },
-  };
+  return buildPageMetadata({ title, description, canonical: `/sites/${id}`, socialImage: 'route' });
 }
 
 function DeepLinkMetaView({
@@ -124,18 +105,14 @@ export async function SiteDetailContent({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id: rawId } = await params;
-  const id = parseNumericRouteId(rawId);
-  if (id === null) notFound();
-
-  const site = await loadSite(id);
-  if (!site) notFound();
+  const result = await loadNumericRouteEntity(params, getPricedSiteDetail);
+  if (!result) notFound();
+  const { id, entity: site } = result;
   const relatedSites = selectRelatedSites(await getSiteSearchIndex(), id);
 
   const breadcrumbJsonLd = buildBreadcrumbList([
-    { name: 'Home', url: `${SITE_URL}/` },
-    { name: 'Wormhole Sites', url: `${SITE_URL}/sites` },
-    { name: site.name, url: `${SITE_URL}/sites/${id}` },
+    { name: 'Wormhole Sites', path: '/sites' },
+    { name: site.name, path: `/sites/${id}` },
   ]);
 
   return (

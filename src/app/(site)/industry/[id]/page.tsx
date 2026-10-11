@@ -7,8 +7,8 @@ import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { observeCostPromise, startCostTimer } from '@/data/telemetry/cost-metrics';
-import { SITE_URL } from '@/config/site-url';
-import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
+import { loadNumericRouteEntity } from '@/transport/route-id';
+import { buildPageMetadata } from '@/lib/page-metadata';
 import { buildBreadcrumbList } from '@/lib/structured-data';
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
@@ -24,31 +24,14 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const result = await loadNumericRouteEntity(params, getBlueprintStructure);
-  if (!result) return {};
+  if (!result) notFound();
   const { id, entity: structure } = result;
 
-  const title = `${structure.product.name} — Industry Planner`;
-  const description = `Live Jita build cost and profit margin for ${structure.product.name} in Eve Online — full recursive material tree with hourly-updated prices.`;
-  const canonicalUrl = `${SITE_URL}/industry/${id}`;
-
-  return {
-    title,
-    description,
-    alternates: { canonical: `/industry/${id}` },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      type: 'website',
-      images: ['/logo.png'],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: ['/logo.png'],
-    },
-  };
+  return buildPageMetadata({
+    title: `${structure.product.name} — Industry Planner`,
+    description: `Live Jita build cost and profit margin for ${structure.product.name} in Eve Online — full recursive material tree with hourly-updated prices.`,
+    canonical: `/industry/${id}`,
+  });
 }
 
 /**
@@ -73,19 +56,15 @@ async function PlannerOpenMetrics({
 }
 
 async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id: rawId } = await params;
-  const id = parseNumericRouteId(rawId);
-  if (id === null) notFound();
-
-  const structure = await getBlueprintStructure(id);
-  if (!structure) notFound();
+  const result = await loadNumericRouteEntity(params, getBlueprintStructure);
+  if (!result) notFound();
+  const { id, entity: structure } = result;
 
   const pricingPromise = getBlueprintPricing(id);
   const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
   const breadcrumbJsonLd = buildBreadcrumbList([
-    { name: 'Home', url: `${SITE_URL}/` },
-    { name: 'Industry Planner', url: `${SITE_URL}/industry` },
-    { name: structure.product.name, url: `${SITE_URL}/industry/${id}` },
+    { name: 'Industry Planner', path: '/industry' },
+    { name: structure.product.name, path: `/industry/${id}` },
   ]);
 
   return (

@@ -22,7 +22,7 @@ Collapse the chart stack onto TimeSeriesFrame, then BandSeries, then retire the 
 | ☑ | [P005](#p005) | Extract a ui ActionForm (plus a client ConfirmActionForm) for hidden-field POST buttons and fix the disabled-reason drift | ui-component | M | low | medium | — |
 | ☑ | [P062](#p062) | Share one StatusLevel tone module between EveStatusPanel and admin, keeping each surface's plain colour | css-styling | S | low | low | — |
 | ☑ | [P067](#p067) | Add signOutAndLeave(target) and startEveSignIn(callbackURL) in platform/auth; migrate the four finally-style sign-outs and three EVE sign-ins | client-data | S | low | low | — |
-| ☐ | [P271](#p271) | Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity | feature-skeleton | M | low | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247) |
+| ☑ | [P271](#p271) | Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity | feature-skeleton | M | low | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247) |
 
 <a id="p004"></a>
 
@@ -1092,7 +1092,7 @@ export function startCharacterLink(callbackURL = '/settings/characters'): void /
 
 ## P271: Route the industry and site detail pages through buildPageMetadata (with a route-image mode) and loadNumericRouteEntity
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -50 removed across five pages and the OG image, about +12 in page-metadata.ts and its test; net about -38.
 - **Depends on:** [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247)

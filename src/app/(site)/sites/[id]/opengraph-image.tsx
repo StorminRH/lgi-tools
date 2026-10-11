@@ -4,19 +4,16 @@ import { toneHex } from '@/components/ui/tones';
 import { socialCardFonts } from '@/app/_social-card/fonts';
 import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { deriveSiteSocialCardContent } from '@/features/wormhole-sites/site-social-card';
-import { parseNumericRouteId } from '@/transport/route-id';
+import { loadNumericRouteEntity } from '@/transport/route-id';
 
 export const alt = 'LGI.tools wormhole site overview';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const id = parseNumericRouteId((await params).id);
-  if (id === null) notFound();
-
-  const site = await getPricedSiteDetail(id);
-  if (!site) notFound();
-  const card = deriveSiteSocialCardContent(site);
+  const result = await loadNumericRouteEntity(params, getPricedSiteDetail);
+  if (!result) notFound();
+  const card = deriveSiteSocialCardContent(result.entity);
   const fonts = socialCardFonts();
 
   return new ImageResponse(
