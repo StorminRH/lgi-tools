@@ -1,7 +1,9 @@
 import { eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
+import { user } from '@/db/auth-schema';
 import {
   createDbTestHarness,
+  seedEveAccount,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
 import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
@@ -10,6 +12,7 @@ import {
   claimPurgeableMaps,
   MAP_STAGED_PURGE_HOLD_MS,
   requestAuthorizedMapPurge,
+  reopenOwnedMaps,
   restoreAuthorizedMap,
   tombstoneOwnedMaps,
   tombstonePurgedMap,
@@ -427,5 +430,74 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     // A projection computed from here on finds no subject, so it carries no claims.
     await expect(getMapAccessSubject(MAP_ID, harness.db)).resolves.toBeNull();
     await expect(getMapAccessSubject(ids.foreign, harness.db)).resolves.not.toBeNull();
+  });
+
+  it('reopens a deletion\'s tombstones once the user is linked again, and leaves the purge cron\'s alone', async () => {
+    await seedManagedMap();
+    const earlier = new Date(NOW.getTime() - 60_000);
+    const ids = {
+      queued: '40000000-0000-4000-8000-000000000006',
+      cron: '40000000-0000-4000-8000-000000000007',
+    };
+    await harness.db.insert(maps).values([
+      {
+        id: ids.queued,
+        userId: CREATOR,
+        name: 'Queued',
+        archivedAt: earlier,
+        purgeRequestedAt: earlier,
+        lifecycleStatus: 'purge_queued',
+      },
+      {
+        id: ids.cron,
+        userId: CREATOR,
+        name: 'Cron tombstone',
+        archivedAt: earlier,
+        purgeClaimedAt: earlier,
+        tombstonedAt: earlier,
+        lifecycleStatus: 'tombstoned',
+      },
+    ]);
+    await tombstoneOwnedMaps(CREATOR, NOW, harness.db);
+    const cronBefore = (await harness.db.select().from(maps).where(eq(maps.id, ids.cron)))[0];
+    const reopenAt = new Date(NOW.getTime() + 1_000);
+    const tombstonedIds = async () => (await harness.db.select().from(maps))
+      .filter((row) => row.tombstonedAt !== null).map((row) => row.id).sort();
+    const closed = [MAP_ID, ids.queued, ids.cron].sort();
+
+    // Still unlinked: the deletion is still meant to finish.
+    await reopenOwnedMaps(CREATOR, reopenAt, harness.db);
+    expect(await tombstonedIds()).toEqual(closed);
+    // Linked again, but the user asked for deletion.
+    await seedEveAccount(harness.db, { id: 'creator-eve', characterId: 9_001, userId: CREATOR });
+    await harness.db.update(user).set({ deletionRequestedAt: NOW }).where(eq(user.id, CREATOR));
+    await reopenOwnedMaps(CREATOR, reopenAt, harness.db);
+    expect(await tombstonedIds()).toEqual(closed);
+
+    await harness.db.update(user).set({ deletionRequestedAt: null }).where(eq(user.id, CREATOR));
+    await reopenOwnedMaps(CREATOR, reopenAt, harness.db);
+
+    const after = new Map((await harness.db.select().from(maps)).map((row) => [row.id, row]));
+    expect(after.get(MAP_ID)).toMatchObject({
+      lifecycleStatus: 'archived',
+      lifecycleEnteredAt: reopenAt,
+      archivedAt: NOW,
+      tombstonedAt: null,
+      updatedAt: reopenAt,
+    });
+    expect(after.get(ids.queued)).toMatchObject({
+      lifecycleStatus: 'purge_queued',
+      tombstonedAt: null,
+      purgeRequestedAt: earlier,
+      archivedAt: earlier,
+    });
+    expect(after.get(ids.cron)).toEqual(cronBefore);
+    // The reopened map is deleted, not live: restorable inside the grace period.
+    await expect(
+      listDeletedRestorableMapsForPrincipals(ADMIN, ADMIN_PRINCIPALS, harness.db, reopenAt),
+    ).resolves.toEqual([expect.objectContaining({ id: MAP_ID })]);
+    await expect(
+      listAuthorizedMapsForPrincipals(ADMIN, ADMIN_PRINCIPALS, harness.db),
+    ).resolves.toEqual([]);
   });
 });

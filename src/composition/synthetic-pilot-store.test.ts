@@ -54,12 +54,12 @@ vi.mock('@/platform/auth/admin-users', () => ({
   },
 }));
 vi.mock('@/composition/map-purge', () => ({
-  // The pilot owns one map; its chain goes before its access fence.
+  // The pilot owns one map; its access fence goes before its chain.
   async purgeOwnedMapChains(userId: string) {
     const owned = userId === 'e2e-pilot' ? ['owned-map'] : [];
     for (const id of owned) {
-      await cleanup('chain', id);
       await cleanup('projection', id);
+      await cleanup('chain', id);
     }
     return owned;
   },

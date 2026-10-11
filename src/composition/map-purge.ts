@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { teardownMapAccessProjection } from '@/composition/map-access-projection';
+import { fenceMapAccessProjection } from '@/composition/map-access-projection';
 import {
   claimPurgeableMaps,
   tombstoneOwnedMaps,
@@ -35,16 +35,16 @@ async function purgeMapChain(
 }
 
 /**
- * An empty projection at a fresh revision. The chain purge deletes the map's
- * projection watermark, which leaves Convex accepting any revision; the fence
- * restores one above every projection reserved before it.
+ * Fences the map with an empty projection before its chain is purged. The
+ * purge keeps the watermark the fence leaves, so no projection reserved before
+ * the fence can land afterwards and re-grant the erased map.
  */
 async function fenceMapAccess(
   mapId: string,
-  teardownAccess: typeof teardownMapAccessProjection = teardownMapAccessProjection,
+  fenceAccess: typeof fenceMapAccessProjection = fenceMapAccessProjection,
 ): Promise<void> {
   try {
-    await teardownAccess(mapId);
+    await fenceAccess(mapId);
   } catch (cause) {
     throw new MapPurgeUnavailableError(
       `Map access projection fence failed for ${mapId}`,
@@ -56,19 +56,17 @@ async function fenceMapAccess(
 /**
  * Erases every map the user owns for an account deletion and returns their
  * ids. The maps are tombstoned first, so any projection computed from then on
- * carries no claims. Each chain is then purged, one map at a time so each call
- * stays inside Convex's batch limits, and fenced at once: a projection computed
- * before the tombstone that lands after the purge is either wiped by the fence
- * or refused as stale, instead of re-granting access to the erased map. The
- * first failure stops the run; the rows stay listed, so the caller's retry
- * repeats every step.
+ * carries no claims. Each map is then fenced and its chain purged, one map at
+ * a time so each call stays inside Convex's batch limits. The first failure
+ * stops the run; the rows stay listed, so the caller's retry repeats every
+ * step.
  */
 export async function purgeOwnedMapChains(userId: string): Promise<string[]> {
   await tombstoneOwnedMaps(userId);
   const ownedMapIds = await getOwnedMapIds(userId);
   for (const mapId of ownedMapIds) {
-    await purgeMapChain(mapId);
     await fenceMapAccess(mapId);
+    await purgeMapChain(mapId);
   }
   return ownedMapIds;
 }
@@ -77,7 +75,7 @@ export interface MapPurgeDependencies {
   readonly claimMaps?: typeof claimPurgeableMaps;
   readonly purgeChain?: typeof purgeMapChain;
   readonly tombstoneMap?: typeof tombstonePurgedMap;
-  readonly teardownAccess?: typeof teardownMapAccessProjection;
+  readonly fenceAccess?: typeof fenceMapAccessProjection;
 }
 
 export async function purgeEligibleMaps(
@@ -91,20 +89,20 @@ export async function purgeEligibleMaps(
   const claimMaps = dependencies.claimMaps ?? claimPurgeableMaps;
   const purgeChain = dependencies.purgeChain ?? purgeMapChain;
   const tombstoneMap = dependencies.tombstoneMap ?? tombstonePurgedMap;
-  const teardownAccess = dependencies.teardownAccess ?? teardownMapAccessProjection;
+  const fenceAccess = dependencies.fenceAccess ?? fenceMapAccessProjection;
   const due = await claimMaps();
   let tombstoned = 0;
   let deletedDocuments = 0;
 
   for (const map of due) {
     if (Date.now() >= deadline) break;
+    await fenceMapAccess(map.id, fenceAccess);
     const purge = await purgeChain(map.id);
     if (purge.remaining) {
       throw new MapPurgeUnavailableError(
         `Map purge did not finish for ${map.id}`,
       );
     }
-    await fenceMapAccess(map.id, teardownAccess);
     const marked = await tombstoneMap(map.id);
     if (!marked) {
       throw new MapPurgeUnavailableError(

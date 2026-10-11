@@ -11,7 +11,9 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { db } from '@/db';
+import { account, user } from '@/db/auth-schema';
 import { executeRows } from '@/lib/db-execute';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import {
@@ -182,6 +184,43 @@ export async function tombstoneOwnedMaps(
       updatedAt: now,
     })
     .where(and(eq(maps.userId, userId), isNull(maps.tombstonedAt), isNull(maps.purgeClaimedAt)));
+}
+
+/**
+ * Undoes the tombstones an account deletion left on a user who has an EVE
+ * link again and no requested deletion: the deletion was called off because a
+ * character was linked meanwhile, or failed part-way before one was. Each map
+ * comes back as deleted: archived and restorable within the grace period, or
+ * still queued for purge. A no-op otherwise, so callers can run it on every
+ * link change. The purge cron only tombstones maps it claimed, so its
+ * tombstones are left alone.
+ */
+export async function reopenOwnedMaps(
+  userId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<void> {
+  await database
+    .update(maps)
+    .set({
+      lifecycleStatus: sql`(CASE WHEN ${maps.purgeRequestedAt} IS NULL THEN 'archived' ELSE 'purge_queued' END)::"public"."map_lifecycle_status"`,
+      lifecycleEnteredAt: now,
+      tombstonedAt: null,
+      updatedAt: now,
+    })
+    .where(and(
+      eq(maps.userId, userId),
+      isNotNull(maps.tombstonedAt),
+      isNull(maps.purgeClaimedAt),
+      sql`EXISTS (
+        SELECT 1 FROM ${account}
+        WHERE ${account.userId} = ${userId} AND ${account.providerId} = ${EVE_PROVIDER_ID}
+      )`,
+      sql`NOT EXISTS (
+        SELECT 1 FROM ${user}
+        WHERE ${user.id} = ${userId} AND ${user.deletionRequestedAt} IS NOT NULL
+      )`,
+    ));
 }
 
 export async function tombstonePurgedMap(

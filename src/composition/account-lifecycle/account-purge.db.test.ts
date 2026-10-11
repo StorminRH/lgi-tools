@@ -414,13 +414,13 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(mapPurge.purgeMapChain).toHaveBeenCalledWith(
       '11111111-1111-4111-8111-111111111111',
     );
-    // The erased chain is fenced at once with an empty projection, so a late delivery cannot re-grant it.
+    // The map is fenced with an empty projection before its chain is purged, so a late delivery cannot re-grant it.
     expect(mapPurge.fenceMapAccess).toHaveBeenCalledWith({
       mapId: '11111111-1111-4111-8111-111111111111',
       revision: expect.any(Number),
       claims: [],
     });
-    expect(mapPurge.purgeMapChain).toHaveBeenCalledBefore(mapPurge.fenceMapAccess);
+    expect(mapPurge.fenceMapAccess).toHaveBeenCalledBefore(mapPurge.purgeMapChain);
     expect(revokeMock.mock.calls).toEqual([[`grant-${FIRST_CHAR}`], [`grant-${SECOND_CHAR}`]]);
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);
@@ -748,9 +748,9 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await seedUserData();
     mapPurge.purgeMapChain.mockRejectedValueOnce(new Error('Convex unavailable'));
     await expect(purgeOwnCharacter(USER_ID, FIRST_CHAR)).rejects.toThrow('Convex unavailable');
-    // The failed attempt already closed the map; its row stays listed for the retry.
+    // The failed attempt already closed and fenced the map; its row stays listed for the retry.
     expect((await harness.db.select().from(maps))[0]?.tombstonedAt).not.toBeNull();
-    expect(mapPurge.fenceMapAccess).not.toHaveBeenCalled();
+    expect(mapPurge.fenceMapAccess).toHaveBeenCalledOnce();
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await harness.db.select().from(pendingDeletions)).toHaveLength(1);
     expect((await harness.db.select().from(user))[0]?.deletionRequestedAt).toBeNull();
