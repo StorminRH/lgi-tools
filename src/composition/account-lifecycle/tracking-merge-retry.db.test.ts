@@ -61,10 +61,19 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
     vi.mocked(restoreMergeTracking).mockRejectedValueOnce(new Error('response lost'));
     const error = silenceConsolePrefixes('error', ['[account-merge] tracking transfer retained for retry']);
     try {
-      expect(await reconcile()).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
+      const [clock] = await harness.sql`select floor(extract(epoch from clock_timestamp()) * 1000) as ms`;
+      const databaseNow = Number(clock!.ms);
+      // With the JS clock held at `old`, only the database clock can move the job behind newer work.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(old);
+      try {
+        expect(await reconcile()).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
+      } finally {
+        vi.useRealTimers();
+      }
       const retained = await queued();
       expect(retained).toEqual([expect.objectContaining({ id: job!.id, selections: [selection] })]);
-      expect(retained[0]!.queuedAt.getTime()).toBeGreaterThan(old.getTime());
+      expect(retained[0]!.queuedAt.getTime()).toBeGreaterThanOrEqual(databaseNow);
       expect(await reconcile()).toEqual({ succeeded: 1, failed: 0, deferred: 0 });
       expect(restoreMergeTracking).toHaveBeenNthCalledWith(1, job!.id, SURVIVOR, [selection]);
       expect(restoreMergeTracking).toHaveBeenNthCalledWith(2, job!.id, SURVIVOR, [selection]);
