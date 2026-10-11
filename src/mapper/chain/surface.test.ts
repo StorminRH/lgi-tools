@@ -98,6 +98,7 @@ describe('mapper source contract', () => {
       'lib/geometry.ts',
       'lib/pair-key.ts',
       'lib/prng.ts',
+      'lib/step-dial.ts',
       'log/MapEventLog.tsx',
       'log/map-event-copy.ts',
       'map-frosted-surface.ts',

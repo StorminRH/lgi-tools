@@ -22,7 +22,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P111](#p111) | Extract a frame coalescer and guarded size observer into src/mapper/lib | generic-utility | S | medium | low | [P109](#p109) |
 | ☑ | [P044](#p044) | Add one commit-time style-ref hook for CSS custom properties (ui zone) | react-hook | M | medium | medium | [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277) |
 | ☑ | [P051](#p051) | Move the open-popup check to ui and share one Escape-dismiss hook between the board and the mapper | react-hook | S | low | medium | — |
-| ☐ | [P027](#p027) | Drive the dev dial panel from dial tables with one clamped commit helper | ui-component | M | low | medium | — |
+| ☑ | [P027](#p027) | Drive the dev dial panel from dial tables with one clamped commit helper | ui-component | M | low | medium | — |
 | ☐ | [P217](#p217) | Decode ConvexError payloads in one helper and route every setTracking call through one failure path | error-handling | S | low | medium | — |
 | ☐ | [P028](#p028) | Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker | ui-component | M | low | medium | [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059) |
 | ☐ | [P038](#p038) | Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle | ui-component | S | low | medium | [P028](#p028) |
@@ -710,7 +710,7 @@ export function useEscapeDismiss(onDismiss: () => void, opts?: { enabled?: boole
 
 ## P027: Drive the dev dial panel from dial tables with one clamped commit helper
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** MapControls.tsx goes from about 418 to about 170 lines, map-controls-model.ts from 187 to about 130, and motion-controls-model.ts from 101 to about 55. step-dial.ts adds about 60 lines plus a test. Net about -280/+150.
 - **Depends on:** —
