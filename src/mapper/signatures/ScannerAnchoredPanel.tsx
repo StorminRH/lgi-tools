@@ -8,13 +8,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { isPopupOpen, useEscapeDismiss } from '@/components/ui/popup-open';
 import { clamp } from '@/lib/math';
 import { createFrameCoalescer, observeSize } from '../lib/frame-coalescer';
 import { CARD_ATTACH_Y } from '../windows/follower-model';
-import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
+import { MapWindow } from '../windows/MapWindow';
 import {
   isOutsideClickGesture,
-  keydownAction,
   outsideDismissAction,
   type ScannerAnchoredMeasure,
 } from '../windows/window-model';
@@ -189,7 +189,7 @@ function useOutsideDismiss(
           panel !== null && target instanceof Node && panel.contains(target),
         insideOpenPopup:
           target instanceof Element && target.closest('[data-open]') !== null,
-        popupOpen: isAdoptedPopupOpen(),
+        popupOpen: isPopupOpen(),
       };
     };
 
@@ -219,25 +219,13 @@ function useOutsideDismiss(
       if (action === 'dismiss-card') onClose();
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const action = keydownAction({
-        key: event.key,
-        surfaceKind: 'card',
-        popupOpen: isAdoptedPopupOpen(),
-        defaultPrevented: event.defaultPrevented,
-      });
-      if (action === 'dismiss-card') onClose();
-    };
-
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('pointerup', handlePointerUp);
     document.addEventListener('pointercancel', clearDown);
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('pointerup', handlePointerUp);
       document.removeEventListener('pointercancel', clearDown);
-      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [panelRef, onClose]);
 }
@@ -299,6 +287,7 @@ export function ScannerAnchoredPanel({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const leader = useEditorLeader(signatureId, layerRef, panelRef);
   useOutsideDismiss(panelRef, onClose);
+  useEscapeDismiss(onClose);
 
   return (
     <div

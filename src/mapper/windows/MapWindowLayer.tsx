@@ -9,11 +9,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useEscapeDismiss } from '@/components/ui/popup-open';
 import { sameItems } from '@/lib/array';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import type { ChainNode } from '../canvas/SystemNode';
 import { createNodeFollower, type NodeFollowerStore } from './follower-model';
-import { isAdoptedPopupOpen, MapWindow } from './MapWindow';
+import { MapWindow } from './MapWindow';
 import {
   MapWindowLeader,
   type MapWindowLeaderHandle,
@@ -21,7 +22,6 @@ import {
 import {
   bringToFront,
   deriveSurfaces,
-  keydownAction,
   reconcileStack,
   type MapWindowId,
 } from './window-model';
@@ -106,23 +106,6 @@ function useNodeFollower(
       leader?.hide();
     };
   }, [cardRef, leaderRef, store, summaryId]);
-}
-
-function useCardDismissal(cardOpen: boolean, onDeselect: () => void): void {
-  useEffect(() => {
-    const handleDocumentKeyDown = (event: KeyboardEvent) => {
-      if (!cardOpen) return;
-      const action = keydownAction({
-        key: event.key,
-        surfaceKind: 'card',
-        popupOpen: isAdoptedPopupOpen(),
-        defaultPrevented: event.defaultPrevented,
-      });
-      if (action === 'dismiss-card') onDeselect();
-    };
-    document.addEventListener('keydown', handleDocumentKeyDown);
-    return () => document.removeEventListener('keydown', handleDocumentKeyDown);
-  }, [cardOpen, onDeselect]);
 }
 
 function dockTitle(title: string | undefined, dockSystemId: number): string {
@@ -244,7 +227,7 @@ function MountedMapWindowLayer({
     [store],
   );
   useNodeFollower(followerStore, card.id, cardRef, leaderRef);
-  useCardDismissal(summarySystemId !== null, onDeselect);
+  useEscapeDismiss(onDeselect, { enabled: summarySystemId !== null });
 
   const zIndex = (id: MapWindowId) => renderedStack.indexOf(id) + 1;
 

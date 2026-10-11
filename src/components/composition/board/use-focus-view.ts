@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useEscapeDismiss } from '@/components/ui/popup-open';
 import { type BoardView, boardTransitionType, boardViewHref, characterParam, OVERVIEW } from './board-view-model';
 
 // Marks the history entry a character was focused from the overview, so going
@@ -93,19 +94,11 @@ export function useFocusView(resolve: (param: string | null) => BoardView, tileA
   );
 
   // On the always-mounted board, not on the sheet: an Escape pressed while
-  // the sheet is still animating in was missed when the sheet owned it.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      // An open drawer or dialog owns Escape: it closes first, the sheet stays.
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (document.querySelector('[data-drawer-popup]:not([hidden]), [role="dialog"]:not([hidden])') !== null) return;
-      toOverview();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [toOverview]);
+  // the sheet is still animating in was missed when the sheet owned it. An
+  // open drawer, dialog or menu owns Escape: it closes first, the sheet stays.
+  // On the window the key arrives after Base UI's document listener, so the
+  // Escape that closes a popup comes already taken.
+  useEscapeDismiss(toOverview, { target: 'window' });
 
   const shownId = view.view === 'character' ? view.characterId : null;
   const shownBefore = useRef(shownId);

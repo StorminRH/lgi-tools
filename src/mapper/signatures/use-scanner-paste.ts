@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
+import { isPopupOpen } from '@/components/ui/popup-open';
 import { toast } from '@/components/ui/toast';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
-import { isAdoptedPopupOpen } from '../windows/MapWindow';
 import {
   isEditablePasteTarget,
   scannerPasteDecision,
@@ -28,7 +28,7 @@ function yieldsToFocusedSurface(event: ClipboardEvent): boolean {
     event.defaultPrevented,
     isEditablePasteTarget(event.target),
     isEditablePasteTarget(document.activeElement),
-    isAdoptedPopupOpen(),
+    isPopupOpen(),
   ].some(Boolean);
 }
 

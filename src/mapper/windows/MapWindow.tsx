@@ -4,6 +4,7 @@ import { forwardRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { CloseIcon } from '@/components/ui/icons';
+import { isPopupOpen } from '@/components/ui/popup-open';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { mapFrostedSurface, mapOverlaySurface } from '../map-frosted-surface';
@@ -12,15 +13,6 @@ import {
   surfaceKindOf,
   type WindowPlacement,
 } from './window-model';
-
-const ADOPTED_POPUP_SELECTOR = [
-  '[data-open][role="dialog"]',
-  '[data-open][role="listbox"]',
-  '[data-open][role="menu"]',
-  '[data-open] [role="dialog"]',
-  '[data-open] [role="listbox"]',
-  '[data-open] [role="menu"]',
-].join(',');
 
 // The scanner grows with its rows up to half the viewport height, so it
 // never takes more than half the map at any resolution or window size.
@@ -45,10 +37,6 @@ const MAP_SCANNER_EDITOR_CLASS =
 
 const MAP_SCANNER_SITE_VIEWER_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-max`;
-
-export function isAdoptedPopupOpen(): boolean {
-  return typeof document !== 'undefined' && document.querySelector(ADOPTED_POPUP_SELECTOR) !== null;
-}
 
 interface MapWindowProps {
   readonly windowId: string;
@@ -194,7 +182,7 @@ function windowKeyDownHandler(
     const action = keydownAction({
       key: event.key,
       surfaceKind,
-      popupOpen: isAdoptedPopupOpen(),
+      popupOpen: isPopupOpen(),
       defaultPrevented: event.defaultPrevented,
     });
     if (action === 'dismiss-card') onClose();
