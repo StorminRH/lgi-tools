@@ -15,12 +15,7 @@ import {
   type MapClaimCharacter,
 } from './lib/mapEntityContracts';
 import { readMapTracking } from './lib/mapTrackingCapacity';
-import {
-  deleteAllTrackingForMap,
-  deleteTrackingForUser,
-  deleteTrackingOutsideCharacters,
-  purgeTrackingForUserBatch,
-} from './mapTrackingTeardown';
+import { pruneMapTracking, purgeTrackingForUserBatch } from './mapTrackingTeardown';
 
 export const MAP_ACCESS_PURGE_BATCH = 128;
 
@@ -128,6 +123,23 @@ async function deleteClaimRows(
   return deleted;
 }
 
+/**
+ * Tracking survives only for a desired claimant, and on a scoped claim only
+ * for an eligible character. Keying on the desired set, not on the claim rows
+ * being deleted, also revokes a tracker whose claim an unlink already purged.
+ */
+function keepsDesiredTracking(
+  desired: ReadonlyMap<string, DesiredClaim>,
+): (row: Doc<'mapTracking'>) => boolean {
+  const eligible = new Map<string, ReadonlySet<number>>();
+  for (const [userId, { characters }] of desired) {
+    if (characters === undefined) continue;
+    eligible.set(userId, new Set(characters.map(({ characterId }) => characterId)));
+  }
+  return (row) =>
+    desired.has(row.userId) && (eligible.get(row.userId)?.has(row.characterId) ?? true);
+}
+
 function refusedOutcome(
   watermark: Doc<'mapAccessProjectionWatermarks'> | null,
   revision: number,
@@ -165,20 +177,10 @@ async function applyClaimSet(
     counts.updated += delta.updated;
     counts.deleted += delta.deleted;
     counts.unchanged += delta.unchanged;
-    if (claim.characters !== undefined) {
-      await deleteTrackingOutsideCharacters(ctx, mapId, userId, claim.characters);
-    }
   }
 
-  const revokedUserIds = [...byUser.keys()];
   counts.deleted += await deleteClaimRows(ctx, byUser.values());
-  if (desired.size === 0) {
-    await deleteAllTrackingForMap(ctx, mapId);
-  } else {
-    for (const userId of revokedUserIds) {
-      await deleteTrackingForUser(ctx, mapId, userId);
-    }
-  }
+  await pruneMapTracking(ctx, mapId, keepsDesiredTracking(desired));
   return counts;
 }
 
