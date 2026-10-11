@@ -30,7 +30,7 @@ In order:
 | ☑ | [P321](#p321) | Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds | simplification | S | low | low | — |
 | ☑ | [P174](#p174) | Give src/scripts one bootstrap: a load-env side-effect import, createScriptClient, client-optional runScript and publicTableExists | server-pipeline | M | low | low | — |
 | ☑ | [P316](#p316) | Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin | simplification | M | low | low | [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107) |
-| ☐ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
+| ☑ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
 | ☐ | [P281](#p281) | Cache degradation and search-total reads per request with one range-keyed helper, and drop dead ESI cost reads | efficiency | S | low | medium | — |
 | ☐ | [P158](#p158) | Share the admin cron, SLI and activity loaders between the overview, health and traffic cards | server-pipeline | S | low | medium | — |
 | ☐ | [P299](#p299) | Build the ESI budget card on deriveBudgetStatus, drop the dead cost-lens inputs, and share admin job-count and age helpers | simplification | M | low | medium | [P281](#p281), [P091](wave-04-formatting-dates-and-names-have-one-home.md#p091), [P085](wave-04-formatting-dates-and-names-have-one-home.md#p085), [P088](wave-04-formatting-dates-and-names-have-one-home.md#p088) |
@@ -699,7 +699,7 @@ export function firstSearchParam(raw: string | string[] | undefined): string | u
 
 ## P282: Share the range-key day count and keep admin reads from waiting on the GSC report date
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about +20 / -8 lines
 - **Depends on:** [P316](#p316)

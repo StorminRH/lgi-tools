@@ -4,7 +4,6 @@ import { getLatestReportDate, getSearchTotals } from '@/data/gsc/queries';
 import { pageViewSources } from '@/data/telemetry/page-view-stats';
 import { getReturningVsNew } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
-import { DAY_MS } from '@/lib/iso-date';
 import { previousRange, type RangeKey } from './period';
 import { ActivityChart } from './ActivityChart';
 import { deriveActivityView, rangeDayCount } from './activity-view';
@@ -26,8 +25,7 @@ async function loadSearchTotals(rangeKey: RangeKey): Promise<SearchTotals | null
     getSearchTotals(periods.range),
     periods.previous === null ? null : getSearchTotals(periods.previous),
   ]);
-  const rangeDays = Math.round((periods.range.to.getTime() - periods.range.from.getTime()) / DAY_MS) + 1;
-  return { current, previous, rangeDays };
+  return { current, previous, rangeDays: periods.days };
 }
 
 /**
