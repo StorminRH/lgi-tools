@@ -152,16 +152,20 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
     expect((await readCorpMemberContext(CORP, []))?.bases).toEqual(new Map());
   });
 
-  it('rolls the profile and member snapshot back together when a base write fails', async () => {
+  it('rolls the profile and member snapshot back together when a base write fails, expiring the profile tag only on commit', async () => {
+    vi.mocked(revalidateTag).mockClear();
     await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('corp-profile:98000001', { expire: 0 });
     await harness.sql`ALTER TABLE corp_member_bases ADD CONSTRAINT reject_test_base CHECK (base_id <> 60008494)`;
     try {
+      vi.mocked(revalidateTag).mockClear();
       await expect(saveCorpProfile(
         CORP,
         { ...profile, hqStationId: 60008494, divisionNames: { 2: 'Changed' } },
         [{ characterId: 90002, baseId: 60008494 }],
         new Date('2026-09-28T11:00:00.000Z'),
       )).rejects.toThrow();
+      expect(revalidateTag).not.toHaveBeenCalled();
       expect(await readCorpMemberContext(CORP, [90001, 90002])).toEqual({
         lastRefreshedAt: NOW,
         hqStationId: STATION,

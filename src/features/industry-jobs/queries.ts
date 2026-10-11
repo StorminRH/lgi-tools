@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryJob } from './esi-projection';
 import {
@@ -82,7 +83,7 @@ export async function saveCharacterJobs(
       target: characterIndustryJobSyncs.characterId,
       set: { lastRefreshedAt: now, jobsEtag: etag },
     });
-  revalidateTag(industryJobsTag(characterId), 'max');
+  expireNow(industryJobsTag(characterId));
 }
 
 export async function stampCharacterJobsFresh(characterId: number): Promise<void> {
@@ -169,7 +170,7 @@ export async function saveCorpJobs(
       target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
       set: { lastRefreshedAt: now, jobsEtag: etag, syncError: null },
     });
-  revalidateTag(corpIndustryJobsTag(userId, corporationId), 'max');
+  expireNow(corpIndustryJobsTag(userId, corporationId));
 }
 
 export async function saveCorpNeedsRole(userId: string, corporationId: number): Promise<void> {
@@ -184,7 +185,7 @@ export async function saveCorpNeedsRole(userId: string, corporationId: number): 
       target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
       set: { lastRefreshedAt: now, jobsEtag: null, syncError: 'needs_role' },
     });
-  revalidateTag(corpIndustryJobsTag(userId, corporationId), 'max');
+  expireNow(corpIndustryJobsTag(userId, corporationId));
 }
 
 export async function stampCorpJobsFresh(userId: string, corporationId: number): Promise<void> {

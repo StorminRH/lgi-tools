@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
@@ -108,11 +109,15 @@ describe.skipIf(!harness.reachable)('blueprint identity and immutable asset plac
     expect(await read()).toEqual(new Map());
   });
 
-  it('rolls back identity, metadata and sync state when replacement fails', async () => {
+  it('rolls back identity, metadata and sync state when replacement fails, expiring the tag only on commit', async () => {
+    vi.mocked(revalidateTag).mockClear();
     await save();
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-blueprints:corporation:98000001', { expire: 0 });
     await harness.sql`ALTER TABLE owned_blueprints ADD CONSTRAINT reject_me CHECK (material_efficiency <> 99)`;
     try {
+      vi.mocked(revalidateTag).mockClear();
       await expect(save([{ ...blueprint, item_id: BLUEPRINT + 1, material_efficiency: 99 }], ['after'])).rejects.toThrow();
+      expect(revalidateTag).not.toHaveBeenCalled();
       expect((await harness.db.select().from(ownedBlueprints)).map((row) => [row.itemId, row.materialEfficiency])).toEqual([[BLUEPRINT, 10]]);
       expect((await readBlueprintSyncState(owner))?.pageEtags).toEqual(['before']);
     } finally {

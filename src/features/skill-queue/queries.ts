@@ -1,6 +1,7 @@
 import { eq, inArray } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { characterSkills, characterSkillSyncs } from './schema';
 import type {
@@ -148,7 +149,7 @@ export async function saveCharacterSkills(
       .where(eq(characterSkillSyncs.characterId, characterId));
   }
 
-  revalidateTag(skillsTag(characterId), 'max');
+  expireNow(skillsTag(characterId));
 }
 
 export async function stampCharacterFresh(characterId: number): Promise<void> {

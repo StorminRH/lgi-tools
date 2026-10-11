@@ -1,7 +1,18 @@
+import { and, eq } from 'drizzle-orm';
+import { revalidateTag } from 'next/cache';
 import { expect, test, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { listCharacterJobSyncStates, listCorpJobSyncStates, readCorpJobSyncState } from './queries';
-import { characterIndustryJobSyncs, corpIndustryJobSyncs } from './schema';
+import { industryJob } from './__tests__/job-fixture';
+import {
+  listCharacterJobSyncStates,
+  listCorpJobSyncStates,
+  readCharacterJobs,
+  readCorpJobSyncState,
+  saveCharacterJobs,
+  saveCorpJobs,
+  saveCorpNeedsRole,
+} from './queries';
+import { characterIndustryJobSyncs, corpIndustryJobs, corpIndustryJobSyncs } from './schema';
 
 vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
@@ -11,7 +22,7 @@ vi.mock('next/cache', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_industry_jobs_queries',
-  tables: ['corp_industry_job_syncs', 'character_industry_job_syncs'],
+  tables: ['corp_industry_jobs', 'corp_industry_job_syncs', 'character_industry_jobs', 'character_industry_job_syncs'],
   steerDbProxy: true,
 });
 
@@ -58,5 +69,32 @@ test.skipIf(!harness.reachable)(
       [90_000_002, { lastRefreshedAt: newer, jobsEtag: null }],
       [90_000_001, { lastRefreshedAt: older, jobsEtag: '"a"' }],
     ]));
+  },
+);
+
+test.skipIf(!harness.reachable)(
+  'job saves store the feed and expire its tag at once, and a needs-role save clears the corporation jobs',
+  async () => {
+    vi.mocked(revalidateTag).mockClear();
+    await saveCharacterJobs(90_000_010, [industryJob({ job_id: 7 })], '"char"');
+    expect(await readCharacterJobs(90_000_010)).toEqual({ jobs: [industryJob({ job_id: 7 })] });
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('industry-jobs:90000010', { expire: 0 });
+
+    const corpJobs = () => harness.db
+      .select({ jobs: corpIndustryJobs.jobs })
+      .from(corpIndustryJobs)
+      .where(and(eq(corpIndustryJobs.userId, 'user-d'), eq(corpIndustryJobs.corporationId, 98_000_010)));
+    vi.mocked(revalidateTag).mockClear();
+    await saveCorpJobs('user-d', 98_000_010, [industryJob({ job_id: 8 })], '"corp"');
+    expect(await corpJobs()).toEqual([{ jobs: [industryJob({ job_id: 8 })] }]);
+    expect(await readCorpJobSyncState('user-d', 98_000_010)).toMatchObject({ jobsEtag: '"corp"', syncError: null });
+
+    await saveCorpNeedsRole('user-d', 98_000_010);
+    expect(await corpJobs()).toEqual([]);
+    expect(await readCorpJobSyncState('user-d', 98_000_010)).toMatchObject({ jobsEtag: null, syncError: 'needs_role' });
+    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
+      ['corp-industry-jobs:user-d:98000010', { expire: 0 }],
+      ['corp-industry-jobs:user-d:98000010', { expire: 0 }],
+    ]);
   },
 );

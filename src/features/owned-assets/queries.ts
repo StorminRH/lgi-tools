@@ -1,7 +1,8 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
+import { expireNow } from '@/lib/cache-expiry';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
@@ -168,7 +169,7 @@ export async function saveOwnedAssets(
     lock: upsertAssetSync(owner, etags, new Date()),
     replace: (tx) => replaceOwnerAssetRows(tx, owner, rows, null),
   });
-  if (outcome === 'saved') revalidateTag(ownedAssetsTag(owner), 'max');
+  if (outcome === 'saved') expireNow(ownedAssetsTag(owner));
   return outcome;
 }
 
@@ -199,7 +200,7 @@ export async function saveCorpOwnedAssets(
   }, options.database);
   if (outcome === 'saved') {
     invalidateHoldingNodes(corporationId);
-    revalidateTag(ownedAssetsTag(owner), 'max');
+    expireNow(ownedAssetsTag(owner));
   }
   return outcome;
 }

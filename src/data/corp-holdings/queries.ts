@@ -1,7 +1,8 @@
 import { and, eq, inArray, notInArray } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
+import { expireNow } from '@/lib/cache-expiry';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { excluded } from '@/lib/db-upsert';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
@@ -72,7 +73,7 @@ export async function replaceHoldingNodes(
 }
 
 export function invalidateHoldingNodes(corporationId: number): void {
-  revalidateTag(holdingsTag(corporationId), 'max');
+  expireNow(holdingsTag(corporationId));
 }
 
 /**
@@ -109,7 +110,7 @@ export async function saveCorpProfile(
         });
     },
   }, options.database);
-  if (outcome === 'saved') revalidateTag(profileTag(corporationId), 'max');
+  if (outcome === 'saved') expireNow(profileTag(corporationId));
 }
 
 export async function readCorpProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null> {

@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
@@ -86,13 +87,21 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     expect(await getOwnedAssetMap(scope(2, 2), [34])).toEqual(new Map());
   });
 
-  it('rolls back nodes, contents and sync state if the content insert fails', async () => {
+  it('rolls back nodes, contents and sync state if the content insert fails, and expires the corp tags only on commit', async () => {
     const before = await snapshot(2, 100);
+    vi.mocked(revalidateTag).mockClear();
     await save(2, 100, before);
+    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
+      ['corp-holdings:98000001', { expire: 0 }],
+      ['owned-assets:corporation:98000001', { expire: 0 }],
+    ]);
     const oldNodes = await harness.db.select().from(corpHoldingNodes);
     await harness.sql`ALTER TABLE owned_assets ADD CONSTRAINT reject_quantity CHECK (quantity <> 999)`;
     try {
-      await expect(save(1, 999, await snapshot(1, 999))).rejects.toThrow();
+      const failed = await snapshot(1, 999);
+      vi.mocked(revalidateTag).mockClear();
+      await expect(save(1, 999, failed)).rejects.toThrow();
+      expect(revalidateTag).not.toHaveBeenCalled();
       expect(await harness.db.select().from(corpHoldingNodes)).toEqual(oldNodes);
       expect((await harness.db.select().from(ownedAssets)).map((row) => [row.quantity, row.snapshotId])).toEqual([[100, before]]);
       expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['division-2']);

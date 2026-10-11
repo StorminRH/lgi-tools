@@ -57,7 +57,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
     await upsertCorpStructureRigs(corp, 600002, [37178, 37180], 1.5);
     expect(revalidateTag).not.toHaveBeenCalled();
     await saveCorpStructures(corp, [], ['"e1"']);
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('corp-structures:9004', 'max');
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('corp-structures:9004', { expire: 0 });
 
     const remaining = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(remaining).toHaveLength(0);

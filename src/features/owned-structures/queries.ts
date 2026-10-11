@@ -1,9 +1,10 @@
 import { eq, inArray } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import { getSystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
+import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
@@ -89,7 +90,7 @@ export async function saveCorpStructures(
       await insertInBatches(tx, corpStructures, records);
     },
   });
-  if (outcome === 'saved') revalidateTag(corpStructuresTag(corporationId), 'max');
+  if (outcome === 'saved') expireNow(corpStructuresTag(corporationId));
 }
 
 export async function stampCorpStructuresFresh(corporationId: number): Promise<void> {

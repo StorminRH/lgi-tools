@@ -98,8 +98,8 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
         skillsEtag: 'skills-second',
       },
     });
-    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(1, skillsTag(101), 'max');
-    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(2, skillsTag(101), 'max');
+    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(1, skillsTag(101), { expire: 0 });
+    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(2, skillsTag(101), { expire: 0 });
   });
 
   it('updates only the queue half and advances freshness', async () => {
@@ -138,7 +138,7 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
       skillsEtag: 'skills-held',
     });
     expect(sync?.lastRefreshedAt.getTime()).toBeGreaterThan(OLD_STAMP.getTime());
-    expect(mocks.revalidateTag).toHaveBeenCalledWith(skillsTag(202), 'max');
+    expect(mocks.revalidateTag).toHaveBeenCalledWith(skillsTag(202), { expire: 0 });
   });
 
   it('updates only the skills half and preserves the queue contract', async () => {
@@ -178,7 +178,7 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
       skillsEtag: 'skills-new',
     });
     expect(sync?.lastRefreshedAt.getTime()).toBeGreaterThan(OLD_STAMP.getTime());
-    expect(mocks.revalidateTag).toHaveBeenCalledWith(skillsTag(303), 'max');
+    expect(mocks.revalidateTag).toHaveBeenCalledWith(skillsTag(303), { expire: 0 });
   });
 });
 

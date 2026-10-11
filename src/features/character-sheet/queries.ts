@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { expireNow } from '@/lib/cache-expiry';
 import { excluded } from '@/lib/db-upsert';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { characterSheets } from './schema';
@@ -47,7 +48,7 @@ export async function mergeSheetSection<K extends SheetSectionKey>(
         lastRefreshedAt: now,
       },
     });
-  revalidateTag(sheetTag(characterId), 'max');
+  expireNow(sheetTag(characterId));
 }
 
 export async function stampSheetSection(characterId: number, key: SheetSectionKey): Promise<void> {
@@ -59,5 +60,5 @@ export async function stampSheetSection(characterId: number, key: SheetSectionKe
       lastRefreshedAt: now,
     })
     .where(sql`${characterSheets.characterId} = ${characterId} AND ${characterSheets.sections} ? ${key}`);
-  revalidateTag(sheetTag(characterId), 'max');
+  expireNow(sheetTag(characterId));
 }

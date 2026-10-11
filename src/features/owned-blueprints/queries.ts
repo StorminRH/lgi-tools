@@ -1,7 +1,8 @@
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
+import { expireNow } from '@/lib/cache-expiry';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import type { PostgresJsDb } from '@/lib/db-types';
 import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
@@ -108,7 +109,7 @@ export async function saveOwnedBlueprints(
       })));
     },
   }, options.database);
-  if (outcome === 'saved') revalidateTag(ownedBlueprintsTag(owner), 'max');
+  if (outcome === 'saved') expireNow(ownedBlueprintsTag(owner));
 }
 
 export async function stampBlueprintFresh(owner: OwnerKey): Promise<void> {

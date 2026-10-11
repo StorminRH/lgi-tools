@@ -70,7 +70,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
     expect(outcome).toBe('saved');
     expect(await committedRowCount()).toBe(2);
     expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"etag"']);
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', 'max');
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', { expire: 0 });
   });
 
   it('rejects a direct duplicate of the natural key as a unique violation', async () => {
@@ -134,7 +134,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
       expect(await loser).toBe('saved');
       expect(await committedRows()).toEqual([{ typeId: 34, quantity: 5 }]);
       expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"loser"']);
-      expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', 'max');
+      expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', { expire: 0 });
     } finally {
       await blocker`ROLLBACK`;
       blocker.release();
