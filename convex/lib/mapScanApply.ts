@@ -3,7 +3,11 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { absorbDoorKnowledge } from '@/data/maps/connection-door-destinations';
-import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door-types';
+import {
+  connectionTypePatch,
+  sameDoorTyping,
+  typedDoorsFrom,
+} from '@/data/maps/connection-door-types';
 import {
   blankHallway,
   clearPendingResolution,
@@ -19,7 +23,7 @@ import {
   findLocalSignatureConnection,
   findPasteConnection,
 } from './mapConnectionLookup';
-import { claimStaticOrKeepId } from './mapStaticClaim';
+import { claimStaticOrKeepId, writeDoorTypeAndClaim } from './mapStaticClaim';
 import {
   applyKnownSignatureTombstone,
   findMapSignature,
@@ -31,7 +35,6 @@ import {
   sigGroupValidator,
   validateSignatureKnowledge,
 } from './mapEntityContracts';
-import { stampObservationKey } from './observationKey';
 import { requireLiveSystem, requireSystemId } from './mapSystemLookup';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingCapacity';
 import {
@@ -497,21 +500,17 @@ async function stampIdentifiedWormholeType(
   const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode, 'human');
   const resolution = clearPendingResolution(connection.resolution);
   if (
-    connection.from.typeCode === typePatch.from.typeCode
-    && connection.to.typeCode === typePatch.to.typeCode
-    && connection.identity.kind === 'typed'
-    && connection.identity.provenance === 'human'
+    sameDoorTyping(connection, typePatch)
     && connection.observationKey !== undefined
     && connection.resolution.kind === resolution.kind
   ) {
     return await claimStaticOrKeepId(ctx, connectionId, 'from');
   }
-  await ctx.db.patch(connectionId, {
+  const written = await writeDoorTypeAndClaim(ctx, connection, 'from', {
     ...typePatch,
     resolution,
-    ...stampObservationKey(connection.observationKey).patch,
   });
-  return await claimStaticOrKeepId(ctx, connectionId, 'from');
+  return written.survivorId;
 }
 
 async function identifyWormholeRow(

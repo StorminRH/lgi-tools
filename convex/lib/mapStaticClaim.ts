@@ -13,6 +13,7 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { readOriginConnections } from './mapConnectionLookup';
 import { findLiveSystem } from './mapSystemLookup';
+import { stampObservationKey } from './observationKey';
 
 export function mergeSeatFields(
   surviving: {
@@ -215,6 +216,24 @@ export async function claimStaticOrKeepId(
   side: ConnectionDoorSide,
 ): Promise<Id<'mapConnections'>> {
   return (await runClaim(ctx, connectionId, side)).survivorId;
+}
+
+export async function writeDoorTypeAndClaim(
+  ctx: MutationCtx,
+  row: Pick<Doc<'mapConnections'>, '_id' | 'observationKey'>,
+  side: ConnectionDoorSide,
+  patch: Partial<Doc<'mapConnections'>>,
+): Promise<{
+  readonly observationKey: string;
+  readonly outcome: 'claimed' | 'none';
+  readonly survivorId: Id<'mapConnections'>;
+}> {
+  // A sig claim copies the claimant's observationKey onto the placeholder,
+  // so the key must be stamped before the claim runs.
+  const stamped = stampObservationKey(row.observationKey);
+  await ctx.db.patch('mapConnections', row._id, { ...patch, ...stamped.patch });
+  const run = await runClaim(ctx, row._id, side);
+  return { observationKey: stamped.observationKey, ...run };
 }
 
 export async function respawnStaticPlaceholder(

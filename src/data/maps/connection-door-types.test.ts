@@ -6,6 +6,7 @@ import {
   connectionTypePatch,
   namedDoorType,
   returnDoorTypePatch,
+  sameDoorTyping,
   typedDoorsFrom,
 } from './connection-door-types';
 
@@ -102,5 +103,24 @@ describe('connection door types', () => {
       to: { ...blankDoor(), typeCode: 'K162' },
       identity: { kind: 'typed', provenance: 'human' },
     });
+  });
+
+  it('compares both door types and the identity a type patch would write', () => {
+    const typed = {
+      ...empty,
+      ...typedDoorsFrom('from', 'C247'),
+      identity: identityFromDoors('C247', 'K162', 'human'),
+    };
+    expect(sameDoorTyping(typed, connectionTypePatch(typed, 'from', 'C247', 'human'))).toBe(true);
+    expect(sameDoorTyping(typed, connectionTypePatch(typed, 'from', 'C247', 'assumed'))).toBe(false);
+    expect(sameDoorTyping(typed, connectionTypePatch(typed, 'from', 'B274', 'human'))).toBe(false);
+
+    const missingFarSide = { ...typed, to: blankDoor() };
+    const repaired = connectionTypePatch(missingFarSide, 'from', 'C247', 'human');
+    expect(repaired.to.typeCode).toBe('K162');
+    expect(sameDoorTyping(missingFarSide, repaired)).toBe(false);
+
+    expect(sameDoorTyping(empty, connectionTypePatch(empty, 'from', null, null))).toBe(true);
+    expect(sameDoorTyping(empty, connectionTypePatch(empty, 'from', 'C247', 'human'))).toBe(false);
   });
 });

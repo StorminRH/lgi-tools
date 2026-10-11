@@ -478,6 +478,72 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
+  it('hands the stamped elimination key to the static placeholder the deduction claims', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('AAA-111', { group: 'Wormhole' })]);
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: JITA,
+      codes: ['C247'],
+    });
+    const before = await readState(t);
+    const placeholder = before.connections.find((row) => row.staticCode === 'C247');
+    const stub = before.connections.find((row) => row.from.signatureId === 'AAA-111');
+    if (placeholder === undefined || stub === undefined) throw new Error('missing seeded rows');
+    expect(stub.observationKey).toBeUndefined();
+
+    const applied = await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{ signatureId: 'AAA-111', typeCode: 'C247', provenance: 'assumed' }],
+    });
+    const observationKey = applied[0]?.observationKey ?? null;
+    expect(applied).toEqual([{ signatureId: 'AAA-111', outcome: 'applied', observationKey }]);
+    expect(observationKey).toEqual(expect.any(String));
+    expect(await t.run(async (ctx) => await ctx.db.get(stub._id))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(placeholder._id))).toMatchObject({
+      staticCode: 'C247',
+      observationKey,
+      identity: { kind: 'typed', provenance: 'assumed' },
+      from: expect.objectContaining({ signatureId: 'AAA-111', typeCode: 'C247' }),
+    });
+  });
+
+  it('applies a type deduction that restores the K162 a matching assumed stub is missing', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('AAA-111', { group: 'Wormhole' })]);
+    const stub = (await readState(t)).connections.find(
+      (row) => row.from.signatureId === 'AAA-111',
+    );
+    if (stub === undefined) throw new Error('missing scanned stub');
+    await t.run(async (ctx) => {
+      await ctx.db.patch(stub._id, {
+        from: { ...stub.from, typeCode: 'B274' },
+        to: { ...stub.to, typeCode: null },
+        identity: { kind: 'typed', provenance: 'assumed' },
+      });
+    });
+
+    const applied = await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{ signatureId: 'AAA-111', typeCode: 'B274', provenance: 'assumed' }],
+    });
+    const observationKey = applied[0]?.observationKey ?? null;
+    expect(applied).toEqual([{ signatureId: 'AAA-111', outcome: 'applied', observationKey }]);
+    expect(observationKey).toEqual(expect.any(String));
+    expect(await t.run(async (ctx) => await ctx.db.get(stub._id))).toMatchObject({
+      from: expect.objectContaining({ typeCode: 'B274' }),
+      to: expect.objectContaining({ typeCode: 'K162' }),
+      identity: { kind: 'typed', provenance: 'assumed' },
+      observationKey,
+    });
+  });
+
   it('links a far-side signature with mass carry and refuses stale type races', async () => {
     const linked = convexTest(schema, modules);
     await seed(linked);

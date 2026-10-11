@@ -24,6 +24,7 @@ import {
   claimStaticPlaceholder,
   deleteUnclaimedRespawn,
   respawnStaticPlaceholder,
+  writeDoorTypeAndClaim,
 } from './mapStaticClaim';
 
 beforeEach(() => {
@@ -294,6 +295,71 @@ describe('claimStaticOrKeepId', () => {
     expect(await livePlaceholder(t)).toMatchObject({
       _id: placeholder!._id,
       from: expect.objectContaining({ signatureId: null }),
+    });
+  });
+});
+
+describe('writeDoorTypeAndClaim', () => {
+  it('stamps a fresh key before the claim so the placeholder keeps it, and keeps an existing key', async () => {
+    const t = convexTest(schema, modules);
+    await applyC247(t);
+    const placeholder = await livePlaceholder(t);
+    expect(placeholder).toBeDefined();
+    const ids = await t.run(async (ctx) => ({
+      fresh: await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP_A,
+        fromSystemId: WH_ROOT,
+        toSystemId: null,
+        fromSignatureId: 'ABC-123',
+      })),
+      keyed: await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP_A,
+        fromSystemId: WH_ROOT,
+        toSystemId: null,
+        fromSignatureId: 'DEF-456',
+        observationKey: 'obs-kept',
+      })),
+    }));
+
+    const fresh = await t.run(async (ctx) => {
+      const sig = await ctx.db.get(ids.fresh);
+      if (sig === null) throw new Error('missing fresh sig row');
+      expect(sig.observationKey).toBeUndefined();
+      return writeDoorTypeAndClaim(
+        ctx,
+        sig,
+        'from',
+        connectionTypePatch(sig, 'from', 'C247', 'assumed'),
+      );
+    });
+    expect(fresh).toEqual({
+      observationKey: expect.any(String),
+      outcome: 'claimed',
+      survivorId: placeholder!._id,
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.fresh))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(placeholder!._id))).toMatchObject({
+      staticCode: 'C247',
+      observationKey: fresh.observationKey,
+      identity: { kind: 'typed', provenance: 'assumed' },
+      from: expect.objectContaining({ signatureId: 'ABC-123', typeCode: 'C247' }),
+    });
+
+    const keyed = await t.run(async (ctx) => {
+      const sig = await ctx.db.get(ids.keyed);
+      if (sig === null) throw new Error('missing keyed sig row');
+      return writeDoorTypeAndClaim(
+        ctx,
+        sig,
+        'from',
+        connectionTypePatch(sig, 'from', 'H296', 'human'),
+      );
+    });
+    expect(keyed).toEqual({ observationKey: 'obs-kept', outcome: 'none', survivorId: ids.keyed });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.keyed))).toMatchObject({
+      observationKey: 'obs-kept',
+      identity: { kind: 'typed', provenance: 'human' },
+      from: expect.objectContaining({ signatureId: 'DEF-456', typeCode: 'H296' }),
     });
   });
 });
