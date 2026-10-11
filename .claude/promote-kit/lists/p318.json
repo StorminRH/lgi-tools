@@ -1,0 +1,41 @@
+{
+  "out": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots",
+  "defaults": {
+    "viewport": { "width": 1440, "height": 900 },
+    "teardown": ["../worktree-patch.sh revert"]
+  },
+  "shots": [
+    {
+      "name": "p318-all-zero-chart",
+      "path": "/?demo=one",
+      "auth": "signed-out",
+      "setup": ["../worktree-patch.sh apply ../mocks/p318-zero-isk.patch"],
+      "waitFor": "svg[aria-label=\"Estimated net worth over time\"] text",
+      "settleMs": 500,
+      "steps": "note.ticks = await page.locator('svg[aria-label=\"Estimated net worth over time\"] text').allTextContents();",
+      "region": {
+        "union": [
+          "section.glass-surface:has(svg[aria-label=\"Estimated net worth over time\"]) > :first-child",
+          { "selector": "svg[aria-label=\"Estimated net worth over time\"]", "ancestor": "div[contains(concat(' ', @class, ' '), ' px-2 ')]" }
+        ],
+        "pad": 8
+      }
+    },
+    {
+      "name": "p318-all-zero-balance-trend",
+      "path": "/?demo=one",
+      "auth": "signed-out",
+      "setup": ["../worktree-patch.sh apply ../mocks/p318-zero-balance.patch"],
+      "waitFor": "svg[aria-label=\"Wallet balance over time\"] text",
+      "settleMs": 500,
+      "steps": "note.ticks = await page.locator('svg[aria-label=\"Wallet balance over time\"] text').allTextContents();",
+      "region": {
+        "union": [
+          "section.glass-surface:has(svg[aria-label=\"Wallet balance over time\"]) > :first-child",
+          { "selector": "svg[aria-label=\"Wallet balance over time\"]", "ancestor": "div[contains(concat(' ', @class, ' '), ' px-2 ')]" }
+        ],
+        "pad": 8
+      }
+    }
+  ]
+}

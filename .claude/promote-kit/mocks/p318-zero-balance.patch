@@ -1,0 +1,37 @@
+# P318 (second chart): Aurel holds 0 ISK and has no asset rows, so net worth stays pending and the
+# Wallet card falls back to the "Wallet balance over time" trend of an all-zero journal balance.
+# Apply identically to both kit worktrees: git -C wt-<side> apply ../mocks/p318-zero-balance.patch
+# Revert: git -C wt-<side> checkout -- .
+diff --git a/src/composition/board/demo-board.ts b/src/composition/board/demo-board.ts
+index 6f0b44d2..adefe484 100644
+--- a/src/composition/board/demo-board.ts
++++ b/src/composition/board/demo-board.ts
+@@ -514,7 +514,7 @@ function aurel(now: number): BoardRaw {
+       ),
+       implants: envelope<'implants'>({ implants: [...IMPROVED_IMPLANTS] }, now - 90_000),
+       clones: envelope<'clones'>({ clones }, now - 90_000),
+-      ...walletSections(now, { scale: 1, closing: 3_204_115_882.15, idBase: 1_900_000_000 }),
++      ...walletSections(now, { scale: 0, closing: 0, idBase: 1_900_000_000 }),
+       structures: envelope<'structures'>(
+         { names: { [DRIFTWOOD_ANCHORAGE]: { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' } } },
+         now - 40 * 60_000,
+@@ -533,18 +533,7 @@ function aurel(now: number): BoardRaw {
+       ),
+     },
+     assets: {
+-      rows: [
+-        hangar(TRITANIUM, 4_000_000),
+-        hangar(PYERITE, 1_500_000),
+-        hangar(PLEX, 60),
+-        hangar(TENGU, 1),
+-        hangar(CARACAL, 3),
+-        hangar(DRAKE, 1),
+-        hangar(LARGE_SKILL_INJECTOR, 2),
+-        hangar(RIFTER_BLUEPRINT, 1),
+-        hangar(TENGU_SKIN, 1),
+-        hangar(CALDARI_CRUISER_SKILLBOOK, 1, 'Skill'),
+-      ],
++      rows: null,
+       refreshedAt: now - 50 * 60_000,
+     },
+     skills: {

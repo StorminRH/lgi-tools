@@ -1,0 +1,11 @@
+#!/bin/bash
+# usage: waitbot <pr> <since-iso> [max_minutes=25] — waits for a greptile review or comment after since
+pr=$1; since=$2; max=${3:-25}; R=repos/StorminRH/lgi-tools
+for i in $(seq 1 $((max*2))); do
+  r=$(gh api "$R/pulls/$pr/reviews?per_page=100" --jq "[.[] | select((.user.login|test(\"greptile\";\"i\")) and .submitted_at > \"$since\") | {id, state, submitted_at, commit_id}]" 2>/dev/null)
+  c=$(gh api "$R/issues/$pr/comments?per_page=100&since=$since" --jq "[.[] | select(.user.login|test(\"greptile\";\"i\")) | {id, created_at, updated_at}]" 2>/dev/null)
+  if [ -n "$r" ] && [ "$r" != "[]" ]; then echo "REVIEW $r"; echo "COMMENTS $c"; exit 0; fi
+  if [ -n "$c" ] && [ "$c" != "[]" ] && [ $i -gt 6 ]; then echo "COMMENT-ONLY $c"; exit 0; fi
+  sleep 30
+done
+echo "TIMEOUT"; exit 1

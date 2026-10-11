@@ -1,0 +1,10 @@
+#!/bin/bash
+# usage: prstat <pr>...  — REST-only PR head/base/mergeable and check runs on the head
+R=repos/StorminRH/lgi-tools
+for n in "$@"; do
+  j=$(gh api $R/pulls/$n)
+  sha=$(jq -r .head.sha <<<"$j")
+  jq -r '"#\(.number) \(.state) merged=\(.merged) draft=\(.draft) base=\(.base.ref) head=\(.head.ref)@\(.head.sha[0:8]) mergeable=\(.mergeable) state=\(.mergeable_state)"' <<<"$j"
+  gh api "$R/commits/$sha/check-runs?per_page=50" --jq '.check_runs[] | "   check: \(.name) \(.status) \(.conclusion // "-") id=\(.id)"'
+  gh api "$R/commits/$sha/status" --jq '.statuses[] | "   status: \(.context) \(.state)"'
+done

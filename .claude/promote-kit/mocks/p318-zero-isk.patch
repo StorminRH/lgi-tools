@@ -1,0 +1,16 @@
+# P318: Aurel (the demo=one pilot) holds 0 ISK on every day, so the ISK series is all zero.
+# Apply identically to both kit worktrees: git -C wt-<side> apply ../mocks/p318-zero-isk.patch
+# Revert: git -C wt-<side> checkout -- .
+diff --git a/src/composition/board/demo-board.ts b/src/composition/board/demo-board.ts
+index 6f0b44d2..3a4818d5 100644
+--- a/src/composition/board/demo-board.ts
++++ b/src/composition/board/demo-board.ts
+@@ -514,7 +514,7 @@ function aurel(now: number): BoardRaw {
+       ),
+       implants: envelope<'implants'>({ implants: [...IMPROVED_IMPLANTS] }, now - 90_000),
+       clones: envelope<'clones'>({ clones }, now - 90_000),
+-      ...walletSections(now, { scale: 1, closing: 3_204_115_882.15, idBase: 1_900_000_000 }),
++      ...walletSections(now, { scale: 0, closing: 0, idBase: 1_900_000_000 }),
+       structures: envelope<'structures'>(
+         { names: { [DRIFTWOOD_ANCHORAGE]: { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' } } },
+         now - 40 * 60_000,

@@ -1,0 +1,95 @@
+{
+ "walkthrough": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/walkthrough.json",
+ "shots": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots",
+ "out": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/review",
+ "title": "Promote 9 Review",
+ "eyebrow": "Wave 9 (PR #676) + account-takeover fix \u00b7 development \u2192 staging",
+ "intro_html": "<p>This promote moves <strong>wave 9</strong> of the shared-building-blocks refactor onto staging: sign-in and admin access, the save and redirect pipeline behind every button form, character ownership and unlinking, and how page sections load. It also carries the <strong>account-takeover fix</strong> you approved, so a character that was unlinked or sold can never be signed into someone else's account.</p><p>Screens compare staging today with the same screen after this promote. Most of wave 9 is behind the scenes; those items are marked and explained in plain words.</p>",
+ "status_html": "<h4>Where it stands</h4><ul><li>Wave 9 head <span class=\"mono\">b5102b80</span>, fixes on <span class=\"mono\">claude/promote-handoff-wave-09</span> (<span class=\"mono\">dc44367f</span>)</li><li>Full local verify passed: 6,960 tests, coverage and complexity gates clean</li><li>Review round 1 done; Greptile and the hosted Verify run happen on the promote pull request</li><li>Nothing merged yet</li></ul>",
+ "next_html": "<h2>What happens when you are happy</h2><p>Answer the questions marked on this page (or say \"as is\"), and say go. Then wave 9 merges into development with its fixes, the promote to staging opens, Greptile and Verify run, and it merges once they are green.</p>",
+ "sections": [
+  {
+   "title": "Account security",
+   "lede": "The account-takeover fix and the shared unlink path it builds on.",
+   "items": [
+    "TAKEOVER (dc44367f + P161 address repair)",
+    "dc44367f-signin-relink",
+    "dc44367f-failed-signin",
+    "MIG-0083 (dc44367f)",
+    "UNLINK-ENDPOINT (dc44367f)",
+    "P161",
+    "bbbec30d"
+   ]
+  },
+  {
+   "title": "Sign-in and admin access",
+   "lede": "Who gets sent where, and why they are told.",
+   "items": [
+    "P254",
+    "P167",
+    "P176",
+    "P222",
+    "P337",
+    "P306"
+   ]
+  },
+  {
+   "title": "Button forms and notices",
+   "lede": "Every one-button form now answers through one pipeline, and refusals come back as notices.",
+   "items": [
+    "P255-form-refusals",
+    "P255-crafted-codes",
+    "P146",
+    "P251",
+    "P141",
+    "P250"
+   ]
+  },
+  {
+   "title": "Characters and ownership",
+   "lede": "Checking that a character really belongs to you.",
+   "items": [
+    "P256 (map creation)",
+    "P256 (switch character)",
+    "P257"
+   ]
+  },
+  {
+   "title": "Loading and telemetry",
+   "lede": "How pages fetch data and how the admin console measures it.",
+   "items": [
+    "P143",
+    "P160",
+    "P153",
+    "P149",
+    "P068"
+   ]
+  },
+  {
+   "title": "Tooling and docs",
+   "lede": "No effect on the site.",
+   "items": [
+    "defc5b5e",
+    "33b317a6"
+   ]
+  }
+ ],
+ "overrides": {
+  "TAKEOVER (dc44367f + P161 address repair)": {
+   "settled": "This is the behaviour you described: a character signed in on its own after being unlinked starts its own account; joining an account only happens through Add character while signed in.",
+   "owner_question": "Should Settings \u203a Characters say this near the Unlink button? For example: \"Signing in with an unlinked character later starts a new account. Use Add character to bring it back.\""
+  },
+  "dc44367f-signin-relink": {
+   "owner_question": "",
+   "settled": "Matches what you described, and you chose not to check production."
+  },
+  "MIG-0083 (dc44367f)": {
+   "owner_question": "",
+   "settled": "You chose not to check production first; the repair runs as part of the normal deploy."
+  }
+ },
+ "hide_shots": [
+  "takeover-signin-refused-notice"
+ ],
+ "captions": {}
+}

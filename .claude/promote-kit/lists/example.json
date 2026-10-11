@@ -1,0 +1,57 @@
+{
+  "out": "../shots-example",
+  "shots": [
+    {
+      "name": "example-industry-head",
+      "kind": "head",
+      "path": "/industry",
+      "userAgent": "Twitterbot/1.0"
+    },
+    {
+      "name": "example-board-skeleton-phone",
+      "path": "/",
+      "auth": "pilot",
+      "device": "Pixel 7",
+      "stubs": [
+        {
+          "url": "**/api/account/board**",
+          "hold": true
+        }
+      ],
+      "steps": [
+        {
+          "wait": 1500
+        }
+      ],
+      "region": "viewport"
+    },
+    {
+      "name": "example-primitives-trend-focus",
+      "path": "/preview/primitives",
+      "waitFor": "svg[aria-label=\"Trend sample\"]",
+      "steps": [
+        {
+          "click": "h3:text-is(\"TrendChart\")"
+        },
+        {
+          "mouseAway": true
+        },
+        {
+          "press": "Tab"
+        },
+        {
+          "press": "ArrowLeft",
+          "times": 3
+        },
+        {
+          "wait": 300
+        }
+      ],
+      "region": {
+        "selector": "h3:text-is(\"TrendChart\")",
+        "xpath": "ancestor::header[1]/.."
+      },
+      "auth": "admin"
+    }
+  ]
+}

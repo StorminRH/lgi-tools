@@ -1,0 +1,10 @@
+#!/bin/bash
+# usage: waitchecks <sha> [min_checks=2] [max_minutes=40] — waits until >= min check runs exist on sha and all are completed
+sha=$1; min=${2:-2}; max=${3:-40}; R=repos/StorminRH/lgi-tools
+for i in $(seq 1 $((max*2))); do
+  j=$(gh api "$R/commits/$sha/check-runs?per_page=50" 2>/dev/null) || { sleep 30; continue; }
+  n=$(jq '.check_runs|length' <<<"$j"); pending=$(jq '[.check_runs[]|select(.status!="completed")]|length' <<<"$j")
+  if [ "$n" -ge "$min" ] && [ "$pending" -eq 0 ]; then jq -r '.check_runs[]|"\(.name): \(.conclusion) id=\(.id)"' <<<"$j"; exit 0; fi
+  sleep 30
+done
+echo "TIMEOUT after $max min"; jq -r '.check_runs[]|"\(.name): \(.status) \(.conclusion)"' <<<"$j"; exit 1

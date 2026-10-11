@@ -1,0 +1,36 @@
+{
+  "out": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots",
+  "setup": [
+    "[ -f ../mocks/p012-account-before.csv ] || ../db.sh snapshot account id \"user_id = 'e2e-pilot'\" ../mocks/p012-account-before.csv",
+    "../db.sh -f ../mocks/p012-delayed.sql"
+  ],
+  "teardown": [
+    "../db.sh restore account id ../mocks/p012-account-before.csv"
+  ],
+  "defaults": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  },
+  "shots": [
+    {
+      "name": "p012-admin-user-delayed",
+      "path": "/admin/users/e2e-pilot",
+      "auth": "admin",
+      "waitFor": "[data-admin-card=\"linked-characters\"] li",
+      "region": "[data-admin-card=\"linked-characters\"]"
+    },
+    {
+      "name": "p012-settings-delayed",
+      "path": "/settings/characters",
+      "auth": "pilot",
+      "waitFor": "text=ID 9000001",
+      "region": {
+        "selector": "div.border-t.border-border-soft",
+        "hasText": "ID 9000001",
+        "pad": 12
+      }
+    }
+  ]
+}

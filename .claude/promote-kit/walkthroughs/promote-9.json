@@ -1,0 +1,740 @@
+{
+ "verify": {
+  "passed": false,
+  "report": "Servers stopped first. The kit's down.sh reported both :3101/:3102 process groups (14737, 14752) already not running. Main Next dev on :3000 was PIDs 371 (sh), 372 (next dev) and 407 (next-server). All three had cwd /home/user/lgi-tools, so I killed them with `kill 407 372 371`. I used `pgrep -af` and `readlink /proc/<pid>/cwd` instead of piped greps.\n\nGate status: verify (3) exited 0 but ran with 1 skipped test, and your rule says any skip means the suite is not green. Hence passed=false. The skipped test was most likely the one in (4), which only runs with DATABASE_URL set. That is my inference, because the verify log does not name it. The same test passed in (4), with Postgres up and no Next server running.\n\n(1) Test result:\n- Command: .claude/cloud/stack.sh wait\n- Exit: 1 (fail). It ran past the 120s tool timeout, went to the background, and finally exited 1. The failure was only `next down`, which you said is fine.\n- Failure: output was \"bootstrap ok / postgres ready :5433 / convex ready :3210 / next down / convex-auth ready\".\n- Artifacts: None\n- Skipped: None\n- Next action: None. Postgres is up.\n\n(2) Test result:\n- Command: git fetch origin development\n- Exit: reported as success (no error). Output: \"From https://github.com/StorminRH/lgi-tools * branch development -> FETCH_HEAD\".\n- Failure: None\n- Artifacts: None\n- Skipped: None\n- Next action: None\n\n(3) Test result:\n- Command: FALLOW_TYPE_AWARE_TIMEOUT_SECS=300 pnpm verify\n- Exit: 0 (pass). The tool reported \"completed (exit code 0)\". `pnpm verify` ran `pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm fallow`.\n- Failure: None.\n- Tests: Test Files 965 passed | 1 skipped (966); Tests 6960 passed | 1 skipped (6961). Duration was 280.72s.\n- Coverage (istanbul): Statements 86.53% (26027/30077); Branches 83.65% (15357/18357); Functions 82.22% (7531/9159); Lines 87.73% (23030/26249).\n- Fallow static: dead-code \"No issues found\"; dupes ran with no findings; health reported 0 untested files, 0 untested exports, 100.0% file coverage, and \"0 above threshold, 24315 analyzed\".\n- Fallow coverage gate (`fallow:coverage`, CRAP): dead-code --production \"No issues found (143.58s)\"; health \"0 above threshold, 24315 analyzed\", 0 untested files and 0 untested exports.\n- Artifacts: coverage/ directory regenerated.\n- Skipped: 1 test file and 1 test. See the note above.\n- Next action: The caller must confirm the skip is the advisory-lock concurrency test. Postgres was up, so this was not a Postgres-down skip. If it is that test, the skip stands unless the caller accepts the (4) run as covering it.\n\n(4) Test result:\n- Command: DATABASE_URL=postgres://lgi:lgi@localhost:5433/lgi_tools pnpm exec vitest run src/db/advisory-lock.concurrency.test.ts\n- Exit: Unknown (the tool exposed no numeric code). It passed: Test Files 1 passed (1), Tests 1 passed (1), duration 1.26s.\n- Failure: None. Only the UNDICI-EHPA experimental warnings appeared.\n- Artifacts: None\n- Skipped: None\n- Next action: None"
+ },
+ "items": [
+  {
+   "id": "P251",
+   "title": "Button forms read their fields in one shared way",
+   "where_users_meet_it": "The one-button forms: Make active and Remove on Settings \u2192 Characters, plus the admin buttons (Unlink, Reassign, Force logout, the role toggle, Retry on a dead-lettered ESI job, and the statics Check feed now, Promote and Reject).",
+   "before": "Each of these eight routes picked its fields out of the form in its own way and wrote its own error wording. A request whose body wasn't a readable form crashed the route, and the answer was a server error. Only a hand-made or broken request does that; the buttons always send a proper form.",
+   "after": "Nothing changes for anyone using the buttons. A request that isn't a readable form now gets a plain 'bad request' refusal instead of a server error. A bad field is reported as 'Invalid' plus the field's name.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "There is now one shared form reader. Each route lists the fields it expects. The reader picks out only those fields, checks them, and writes the refusal itself. The eight hand-written pickers, each with its own error wording, are gone. The reader also catches a body it can't read, so a garbled request no longer crashes the route.",
+   "risk_notes": "Low. A missing field is still rejected exactly as before. The wording inside the raw refusal changes (for example 'Invalid characterId'), but no page, client or test depends on it. A garbled post is now counted on the health dashboard as a rejected request, not an unexpected error. Rejected requests stay out of the success rate.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P141",
+   "title": "Admin forms, Delete account and Feedback move onto the shared save pipeline",
+   "where_users_meet_it": "The admin role toggle, statics review buttons, Reassign and ESI job Retry; the Delete account dialog; the Feedback dialog.",
+   "before": "These six routes wired up their own checks by hand, and the four admin forms went through a separate admin-only gate. Feedback read the message and counted it against the five-a-minute allowance before it checked that the post came from our own site.",
+   "after": "Real users see the same results: the same redirects, the same messages, and the same order of checks for the admin routes and Delete account. Feedback now refuses a post from another website first, before reading it and before it counts against the allowance. A junk post from another site now gets 'not allowed' instead of 'bad request'. Feedback from the site itself, signed in or not, works as before.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Most save routes already went through one shared pipeline. Its steps are: an optional rate limit, the sign-in or admin check, the same-site check, reading the body, then the work. These six routes now use it too. The separate admin gate did the same thing, so it is deleted. Feedback is public, so it gets an 'anyone may post' pass, but it still goes through the same-site check, which now runs before the body is read.",
+   "risk_notes": "Low. Reviewers checked each route's order of checks. The admin routes still run the admin check, then the same-site check, then the form, as before. Delete account still applies its rate limit first. The admin routes had no rate limit before and still have none. Nothing still refers to the deleted gate. The capability names the dashboard groups by are unchanged.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P146",
+   "title": "Failed button actions now count as failures on the health dashboard",
+   "where_users_meet_it": "The admin health dashboard: the 'Mutations' success line and the failed-operations breakdown under it.",
+   "before": "Some button actions fail and send you back with a notice: Remove character can't finish, an admin unlink can't complete, or Check feed now finds a refresh already running or the community feed down. The dashboard logged each of these as a success, so it overstated how well actions were going.",
+   "after": "Each failure is now logged with its real kind:\n- Remove character failing is an unexpected error.\n- An admin unlink that can't complete, or a 'refresh already running', is a conflict.\n- 'Feed unavailable' is a service being down.\n\nThe 'not your character' and 'only character' refusals count as rejected requests. Those stay out of the success rate and only add to the rejected count. People see the same pages and notices. Only the dashboard numbers change, and the Mutations rate may read a little lower.",
+   "user_visible": true,
+   "visual": false,
+   "behind_the_scenes": "One helper now builds the 'go back to this page' redirect that every button form answers with. When the redirect reports a problem, the helper also tells telemetry what kind of problem it was. Four home-made copies of the redirect and four inline ones are gone. The redirect addresses are unchanged.",
+   "risk_notes": "Users see no change. The Mutations line turns amber below 99% and red below 95%. On a quiet day, a few 'refresh already running' or 'feed unavailable' presses could be enough to turn it amber. Successful redirects record nothing extra. Not screenshot-able: both test servers share one database, so their dashboards would show the same totals.",
+   "owner_question": "Should pressing Check feed now while another statics refresh is already running count as a failed action on the health dashboard? It now counts as a conflict, which can tip the Mutations line amber on a quiet day. It could instead be treated like a rejected request and left out of the rate.",
+   "shots": []
+  },
+  {
+   "id": "P250",
+   "title": "Early refusals are checked against each route's written list of answers",
+   "where_users_meet_it": "Nowhere visible. It covers the JSON save routes behind settings, the planner, structures, maps, preferences, feedback and location sharing.",
+   "before": "Sometimes the shared pipeline refuses a request early: not signed in, from another site, or a body it can't read. It sent those answers without checking them against the route's written list of the answers it may give.",
+   "after": "The same answers go out, because every route's list already includes them. If a later change adds an early refusal that a route doesn't list, tests now fail loudly instead of the route quietly answering something undocumented.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "A route can now hand its written contract to the shared pipeline. The pipeline then sends its early refusals through the same checked path the route's own answers use. Two routes that worked out their error status by hand now go through the contract as well: the internal token route and the location-sharing 'leave' call.",
+   "risk_notes": "Low. The new check throws if a contract doesn't list a refusal. Reviewers compared each contracted route's refusals with its contract, and all match. The admin and form routes pass no contract, so nothing changes for them.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P255-crafted-codes",
+   "title": "An edited notice code in the address bar no longer crashes the page",
+   "where_users_meet_it": "Settings \u2192 Characters, an admin user's page, and admin Wormhole statics. It only happens when someone opens a hand-edited link.",
+   "before": "These pages pick a notice from a code in the address (?error= or ?outcome=). Some codes, such as 'constructor' or 'toString', broke the page: instead of the page, you got the 'Pod malfunction / This page couldn't load' error panel.",
+   "after": "Unknown codes are now just unknown. The Characters page shows its usual general notice, 'Linking was cancelled or failed.' The admin user page shows 'That action could not be completed.' The statics page shows no banner. Real codes show the same messages as before.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "One small function now turns an address-bar code into notice text, and it accepts only codes that are really on that page's list. Before, each page looked the code up in a plain table. Every table quietly carries a few built-in names such as 'constructor', which matched a hidden function instead of text, and the page fell over trying to show it. Each page's list is now also tied to the exact codes its buttons send, so a missing message is caught when the code is built.",
+   "risk_notes": "Very low. A missing code or a repeated one still shows nothing, as before. The new home-page notice for a refused sign-in (?error=account_not_linked) from the account-takeover fix uses this same function; it is described with that fix.",
+   "owner_question": "",
+   "shots": [
+    {
+     "name": "p255-settings-crafted-error",
+     "path": "/settings/characters?error=constructor",
+     "auth": "pilot",
+     "steps": "await settle(); await sleep(1500); note.landed = page.url();",
+     "region": "viewport",
+     "mocking": "None.",
+     "expect_difference": "Before: the page area is replaced by the '500 \u00b7 Containment breach / Pod malfunction / This page couldn't load' error panel. After: the Characters page loads normally, with a 'Heads up: Linking was cancelled or failed.' notice at the top."
+    },
+    {
+     "name": "p255-statics-crafted-outcome",
+     "path": "/admin/statics?outcome=constructor",
+     "auth": "admin",
+     "steps": "await settle(); await sleep(1500); note.landed = page.url();",
+     "region": "viewport",
+     "mocking": "None.",
+     "expect_difference": "Before: the Wormhole statics page fails with the 'Pod malfunction / This page couldn't load' error panel. After: the statics page loads normally with no banner, showing the Serving copy and Pending review cards."
+    }
+   ]
+  },
+  {
+   "id": "P255-form-refusals",
+   "title": "Three refusals now return to the page with a notice instead of raw error text",
+   "where_users_meet_it": "Make active on Settings \u2192 Characters; Unlink on an admin user's page; Promote and Reject on admin Wormhole statics.",
+   "before": "In three cases the browser left the site and showed a bare block of JSON error text:\n- Pressing Make active for a character that is no longer on your account, for example from an old tab after removing it.\n- An admin pressing Unlink for a character that has already left that user.\n- Pressing Promote or Reject on a statics snapshot that is no longer pending (double-clicking Promote is the easiest way), or pressing Promote on one with nothing in it.",
+   "after": "Each now returns to the page you were on with a notice:\n- On Characters: 'That character isn't linked to your account.'\n- On the admin user page: 'That character isn't linked to this user.' This message is new.\n- On statics: 'That snapshot is no longer pending review, so nothing changed.' or 'That snapshot has no static assignments, so it was not promoted.' Both messages are new.\n\nNothing else on these pages changes.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "These three refusals now use the same 'back to the page with a notice' redirect as the other refusals on these forms. The admin user page and the statics page got the new messages to show.",
+   "risk_notes": "Low. Telemetry records the same failure kinds as the old error answers. The redirects go to fixed pages. The admin one includes the user's id, which is checked to be plain letters, digits, dashes and underscores, so it can't send anyone off-site.\n\nOne wording quirk: after a double-click on Promote, the second click's answer is what you see. So the admin reads 'That snapshot is no longer pending review, so nothing changed' even though the first click did promote it. The Serving copy card on the same page shows the new version.",
+   "owner_question": "Four admin buttons still answer a refusal with raw JSON error text instead of a notice:\n- Reassign, when the character is already yours or has left that user.\n- The role toggle, on your own role or for a user who is gone.\n- Force logout, on yourself or for a user who is gone.\n- Retry on an ESI job that is no longer dead-lettered, for example after a double-click.\n\nShould those be converted in a later wave? Also, is the 'nothing changed' wording after a double-clicked Promote acceptable, or should it say the snapshot was already handled?",
+   "shots": [
+    {
+     "name": "p255-make-active-not-linked",
+     "path": "/settings/characters",
+     "auth": "pilot",
+     "steps": "const start = page.url(); const posts = []; page.on('response', (r) => { if (r.request().method() === 'POST') posts.push({ path: new URL(r.url()).pathname, status: r.status() }); }); await page.evaluate(({ action, fields }) => { const f = document.createElement('form'); f.method = 'post'; f.action = action; for (const [k, v] of Object.entries(fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.append(i); } document.body.append(f); f.submit(); }, { action: '/api/account/active-character', fields: { characterId: '9000099' } }); await page.waitForURL((u) => u.href !== start, { timeout: 90000, waitUntil: 'load' }); await settle(); await sleep(1000); note.posts = posts; note.landed = page.url();",
+     "region": "viewport",
+     "mocking": "No data changes. The post copies what the Make active button sends, but for character 9000099, which must not be linked to anyone. Check with db.sh: select user_id from account where provider_id = 'eve' and account_id = '9000099' should return no rows. The refusal happens before any write. Only local telemetry rows are added. Rate limiting is unconfigured locally, so no external call is made.",
+     "expect_difference": "Before: the browser lands on /api/account/active-character and shows bare JSON (status 400, code not_linked, 'Character not linked to your account'). After: it lands back on Settings \u2192 Characters (?error=not_linked) with a 'Heads up: That character isn't linked to your account.' notice at the top."
+    },
+    {
+     "name": "p255-admin-unlink-not-linked",
+     "path": "/admin/users/e2e-pilot",
+     "auth": "admin",
+     "steps": "const start = page.url(); const posts = []; page.on('response', (r) => { if (r.request().method() === 'POST') posts.push({ path: new URL(r.url()).pathname, status: r.status() }); }); await page.evaluate(({ action, fields }) => { const f = document.createElement('form'); f.method = 'post'; f.action = action; for (const [k, v] of Object.entries(fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.append(i); } document.body.append(f); f.submit(); }, { action: '/api/admin/characters/unlink', fields: { userId: 'e2e-pilot', characterId: '9000099' } }); await page.waitForURL((u) => u.href !== start, { timeout: 90000, waitUntil: 'load' }); await settle(); await sleep(1000); note.posts = posts; note.landed = page.url();",
+     "region": "viewport",
+     "mocking": "No data changes. The post copies the admin Unlink button for the pilot's own user page, with character 9000099, which is not on e2e-pilot. The same check applies: no account row with account_id '9000099'. The route refuses before any write, and the pilot's real character 9000001 is never touched.",
+     "expect_difference": "Before: the browser lands on /api/admin/characters/unlink and shows bare JSON (status 404, code not_linked, 'Character not linked to that user'). After: it lands back on the pilot's admin user page (?error=not_linked) with a 'Heads up: That character isn't linked to this user.' notice above the Account card."
+    },
+    {
+     "name": "p255-statics-not-pending",
+     "path": "/admin/statics",
+     "auth": "admin",
+     "steps": "const start = page.url(); const posts = []; page.on('response', (r) => { if (r.request().method() === 'POST') posts.push({ path: new URL(r.url()).pathname, status: r.status() }); }); await page.evaluate(({ action, fields }) => { const f = document.createElement('form'); f.method = 'post'; f.action = action; for (const [k, v] of Object.entries(fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.append(i); } document.body.append(f); f.submit(); }, { action: '/api/admin/wh-statics', fields: { action: 'promote', snapshotId: '999999' } }); await page.waitForURL((u) => u.href !== start, { timeout: 90000, waitUntil: 'load' }); await settle(); await sleep(1000); note.posts = posts; note.landed = page.url();",
+     "region": "viewport",
+     "mocking": "No data changes. The post copies the Promote button for snapshot 999999, which must not exist. Check with db.sh: select id from wh_statics_snapshots where id = 999999 should return no rows. The promote stops at its pending-snapshot check, inside a transaction that rolls back, so the served statics are untouched. This stands in for the second click of a double-click.",
+     "expect_difference": "Before: the browser lands on /api/admin/wh-statics and shows bare JSON (status 409, code snapshot_not_pending). After: it lands back on Wormhole statics (?outcome=snapshot-not-pending) with an info banner: 'That snapshot is no longer pending review, so nothing changed.'"
+    }
+   ]
+  },
+  {
+   "id": "P254",
+   "title": "Logged-out visits to Settings now explain why you were sent home",
+   "where_users_meet_it": "Opening any Settings page (Account, Characters, Corporations or Preferences) while logged out, for example from a bookmark or an old tab. Also anyone who follows an odd hand-made link to the home page.",
+   "before": "If you open a Settings page while logged out, the site sends you to the home page with no message, so it looks as if the link did nothing. The home page still has messages for three sign-in error codes that nothing sends any more. One more problem: a home page link with an odd value in the address, such as auth_error=constructor, makes the home page fail with the 'Pod malfunction, this page couldn't load' error.",
+   "after": "You still land on the home page, but a notice labelled 'Auth' now says: 'Log in with EVE to open your settings.' The three unused messages are gone, which you approved. Odd values in the address are ignored and the home page loads normally. The admin-only notice ('The admin dashboard is only available to authorized characters.') is unchanged.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "Each of the four Settings pages had its own copy of the 'are you logged in?' check. They now share one guard, the way the admin pages already did. The reasons the site can send someone home with a notice are listed once. The home page shows a message only when the reason in the address is on that list, so odd values can no longer reach the message table.",
+   "risk_notes": "Low risk. Logged-out visitors go to the same address as before; only the message on the home page is new. Nothing in the app sends the three removed codes. An old bookmark or outside link that still carries one now shows no notice, which you approved. For signed-in users the Settings pages behave as before, including the background check of their characters.",
+   "owner_question": "",
+   "shots": [
+    {
+     "name": "p254-settings-signed-out-notice",
+     "path": "/settings/characters",
+     "auth": "signed-out",
+     "steps": "await page.waitForURL(/auth_error=login_required/, { timeout: 90000 }); await settle(); note.url = page.url();",
+     "region": "viewport",
+     "mocking": "None.",
+     "expect_difference": "Both sides end on /?auth_error=login_required. Before: the home page with no notice at the top. After: an 'Auth' callout reading 'Log in with EVE to open your settings.' above the home dashboard. Ignore other home-page differences that come from other items in this promote."
+    },
+    {
+     "name": "p254-auth-error-prototype-key",
+     "path": "/?auth_error=constructor",
+     "auth": "signed-out",
+     "steps": "await sleep(2000); await settle(); note.url = page.url(); note.text = (await page.locator('body').innerText()).slice(0, 300);",
+     "region": "viewport",
+     "mocking": "None.",
+     "expect_difference": "Before: the site error panel ('500 \u00b7 Containment breach', 'Pod malfunction', 'This page couldn't load'), or at least a broken empty 'Auth' box if the old side renders without crashing. After: the normal home page with no notice."
+    },
+    {
+     "name": "p254-removed-auth-error-code",
+     "path": "/?auth_error=state_mismatch",
+     "auth": "signed-out",
+     "steps": "await settle(); note.url = page.url();",
+     "region": "viewport",
+     "mocking": "None.",
+     "expect_difference": "Before: an 'Auth' callout reading 'Sign-in could not be verified. Try clicking \"Log in with EVE\" again.' After: no callout (the code was removed with owner approval)."
+    }
+   ]
+  },
+  {
+   "id": "P167",
+   "title": "The UI primitives page uses the same admin check as the admin pages",
+   "where_users_meet_it": "The admin-only UI primitives reference page (/preview/primitives). Elsewhere the change only affects how the site decides who counts as an admin.",
+   "before": "The primitives page had its own admin check. An account marked ADMIN that had no active character at that moment was turned away to the home page with 'The admin dashboard is only available to authorized characters.'",
+   "after": "The page uses the same check as every admin page, so that account now sees the primitives reference. In practice every account has an active character, so admins and players will see no difference. Non-admins are still sent home with the same notice.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "The admin rule is: an account with the ADMIN role, or the one superadmin character named in the server settings. That rule now lives in one place. Before, there were two copies, and the primitives page used the copy that also needed an active character. The superadmin setting is now read and checked the same strict way everywhere: it must be a whole positive number. Before, only the admin list checked it. An unknown role value now counts as an ordinary user. The database only allows USER and ADMIN anyway.",
+   "risk_notes": "Low risk. Real admin decisions are the same, and the check before the admin actions is unchanged. The only case that changes is ADMIN-role accounts with no active character, which in practice don't exist.",
+   "owner_question": "",
+   "shots": [
+    {
+     "name": "p167-preview-admin-no-active-character",
+     "path": "/preview/primitives",
+     "auth": "pilot",
+     "steps": "await page.waitForFunction(() => location.search.includes('auth_error') || document.body.innerText.includes('TrendChart'), null, { timeout: 90000 }); await settle(); note.url = page.url();",
+     "region": "viewport",
+     "mocking": "Run `node ../pilot.mjs` first so the pilot state is fresh. Shot setup, from lists/: `[ -f ../mocks/p9-p167-user.csv ] || ../db.sh snapshot user id \"id = 'e2e-pilot'\" ../mocks/p9-p167-user.csv`; `[ -f ../mocks/p9-p167-account.csv ] || ../db.sh snapshot account id \"user_id = 'e2e-pilot'\" ../mocks/p9-p167-account.csv`; `../db.sh -c \"update \\\"user\\\" set role = 'ADMIN' where id = 'e2e-pilot'; update account set provider_id = 'kit-hidden-eve' where user_id = 'e2e-pilot' and provider_id = 'eve';\"`. This gives the pilot the ADMIN role and hides its EVE link, so its session has no active character and the superadmin match no longer applies. get-session still returns the e2e-pilot user, so capture.mjs will not mint a new pilot. Teardown: `../db.sh restore account id ../mocks/p9-p167-account.csv`; `../db.sh restore user id ../mocks/p9-p167-user.csv`. Restore promptly, because the database is shared with :3000.",
+     "expect_difference": "Before: redirected to /?auth_error=admin_required, the home page with an 'Auth' callout reading 'The admin dashboard is only available to authorized characters.' After: the 'UI primitives' reference page renders, including the TrendChart section."
+    }
+   ]
+  },
+  {
+   "id": "P176",
+   "title": "Background character checks run on more requests; map-access deliveries are shared across visits",
+   "where_users_meet_it": "Nowhere on screen. It runs in the background while a signed-in player uses the site.",
+   "before": "While a player is on the site, it re-checks each of their characters' EVE access in the background, at most once a day per character, and delivers any queued updates to who can see which shared maps. Page views started this, but many actions did not: switching the active character, removing a character, deleting the account, revoking sessions, the corporation sharing toggle, the admin actions, the Atlas page and the Industry structures panel. Each visit also started its own delivery of queued map-access updates, so at busy moments many identical deliveries ran at once.",
+   "after": "Those actions and pages now start the same background check. It runs after the response is sent, so nothing gets slower. On each server, visits now share one delivery of queued map-access updates every 15 seconds, and a failed delivery is tried again on the next visit. Updates the site has just queued itself are still delivered straight away. Nothing changes on screen. At most, a map-access update that waits for a visit to deliver it can arrive up to 15 seconds later.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "There were two ways to read who is logged in, and only one of them started the background check. Every guard now uses that one shared session read. The delivery of queued map-access updates started by visits goes through a small gate that lets one run through every 15 seconds per server. The Industry structures panel and the corporation-sharing action also stop reading the session twice.",
+   "risk_notes": "Low risk. EVE traffic doesn't grow, because each character is still checked at most once a day. No scheduled job empties the map-access queue, so it still depends on visits. That is why the window is kept short. The optional lease that would stop two servers delivering the same update was skipped, because it needs a database migration. Duplicate deliveries are harmless.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P222",
+   "title": "One shared definition of 'this character belongs to this account'",
+   "where_users_meet_it": "Nowhere a player would notice. The only visible effect is on the 'Add character' button when the connection drops.",
+   "before": "About five places had their own hand-written copy of the rule for 'this character belongs to this account'. If the request behind 'Add character' failed, for example because the connection dropped, the browser logged an uncaught error. On a development server Next.js showed its red error overlay. For players the button simply did nothing.",
+   "after": "Every place uses one shared rule, which finds exactly the same characters as before. A failed 'Add character' request is now caught quietly. The button still does nothing, as players already saw, but there is no uncaught error.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "The ownership rule and the join that links an account to its character profile now come from one shared module. The internal name for EVE as a login provider now comes from one place, instead of three, one of which pulled in server-only code. The admin search by character name now joins on the character number rather than comparing text, with the same results. 'Add character' handles a failed start the same way 'Log in' already did.",
+   "risk_notes": "Low risk. Reviewers checked that every rewritten rule finds the same rows as before. Nothing changes for players.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P337",
+   "title": "The EVE login app's credentials are read in one place",
+   "where_users_meet_it": "Nowhere on screen.",
+   "before": "The site's EVE app ID and secret were looked up separately by the three pieces that talk to EVE's login service: finishing a login, refreshing a character's access, and revoking it when a character or account is removed. Each one passed them along.",
+   "after": "The one piece that builds the request to EVE reads them itself. Logging in, refreshing and revoking work exactly as before.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "The ID and secret are read when each request is built, not passed in by every caller. The failure cases are kept: a missing credential still fails loudly at login and on refresh, and is not mistaken for an EVE outage on that character's record. A revoke during account or character removal still never blocks the removal.",
+   "risk_notes": "Low risk. It only matters if the server is missing its EVE credentials, and that case behaves as before.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P306",
+   "title": "Removed helpers that only passed calls along (including the live-map login token)",
+   "where_users_meet_it": "Nowhere visibly. The affected areas are the Delete account dialog, live maps (the Convex connection) and character access refreshes.",
+   "before": "Several small helpers did nothing but forward to another function. One handed the live-map service its login token. One checked whether the 'I understand' box in Delete account was ticked. Two forms had identical copies of the same input rule. One read the EVE request budget, and one re-checked a stored EVE token.",
+   "after": "Callers use the underlying functions directly. Live maps get their login token the same way. In Delete account, the Confirm button still stays disabled until the box is ticked. Switching or removing a character checks the posted character the same way, and a character's stored EVE access is judged the same way.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "These pass-through layers were deleted, and their callers now call the real function. The two identical character form rules became one. The stored-token check now reuses the normal cached-token check, after the same three early checks it had before.",
+   "risk_notes": "Low risk. The PR lists two things nobody has checked by eye yet: the Delete account dialog (the checkbox still gates Confirm) and the live-map login in a real browser. The screenshot kit can't check the live-map login on its review servers (a known limit). Open a live map while signed in on staging after the promote to confirm it.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "dc44367f-signin-relink",
+   "title": "Logging in with a character removed from an account no longer opens that old account",
+   "where_users_meet_it": "Logging in with EVE from the home page or any Log in button, with a character that used to be on an account, for example after a character sale, or after someone removed one of their own characters.",
+   "before": "Behind the scenes, each account carries a hidden address named after the character it last logged in with. Removing that character, whether by the player in Settings, Characters or by an admin, didn't update the address. The next person to log in with that character, such as its buyer, was matched to the old account by that address. They were signed straight into it, with its other characters, maps and settings, and the character was quietly added back. A related bug: a character moved to a new owner's account through 'Add character' could fail to log in on its own, because the old account still held its address.",
+   "after": "A login with a character that isn't on any account always gets its own new account holding just that character. The old account is untouched and keeps its other characters. A character that was moved with 'Add character' logs in to its new account normally. If the clean-up at login ever fails, the login is refused rather than risk the wrong account. The player lands on the home page with a short explanation (see the next item). One side effect: a player who removes one of their own characters and later logs in with it directly now gets a separate new account, rather than going back into their old one. Logging in with their main character and using 'Add character' merges it back, as the site already does for a player's own characters.",
+   "user_visible": true,
+   "visual": false,
+   "behind_the_scenes": "There are three safeguards. First, the login library is told never to join a login to an account by that hidden address. A character joins an account only through 'Add character' while logged in. Second, the address is repaired at three points: when a character is removed, when that character next logs in (before the account lookup), and once for all existing accounts by a database update that runs with this deploy. That update first moves every outdated address to a per-account placeholder that no login can match. Then it gives each account the address of its oldest remaining character. No account is deleted. Third, the login library's own 'unlink' entry point is switched off, so every removal goes through the site's path, which repairs the address.",
+   "risk_notes": "This can't be screenshotted, because it needs a real EVE login. Tests against a real database cover it with the real login library: unlink then log in as the owner or a buyer, an outdated address left by older code, a failed repair (refused, nothing changes), 'Add character' while an old address still names the character, and the raw unlink being refused. Migration 0083 rewrites only the hidden addresses, which are never shown anywhere. Each login now runs one extra small database lookup. This fix stops new cases only: any character already pulled into the wrong account before this ships stays there until an admin moves it.",
+   "owner_question": "Two decisions. (1) Is it acceptable that a player who removes their own character and later logs in with it directly gets a separate new account? They can merge it back with 'Add character' from their main. (2) Do you want a one-off check of staging and production for accounts that may already have taken in a character this way, so an admin can move any back?",
+   "shots": []
+  },
+  {
+   "id": "dc44367f-failed-signin",
+   "title": "A failed EVE login returns to the home page, with a notice when the login was refused",
+   "where_users_meet_it": "The home page after an EVE login fails once EVE has sent the player back to the site.",
+   "before": "On staging and production, a failed login ends on the home page with nothing explaining what happened. On a local development server the player instead saw the login library's plain 'Error' page.",
+   "after": "Failed logins go straight to the home page in every environment. If the site refused the login because the character couldn't be safely joined to an account (the rare fallback in the item above), an 'Auth' notice reads: 'That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings \u2192 Characters.' Any other failure, such as a hiccup at EVE's login service, still lands on the home page with no message, as today. If both a Settings 'login required' reason and a login error are in the address, the 'login required' notice wins.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "The Log in button now tells the login library to send any failure back to the home page. The home page now has copy for the one login error code the site expects. It looks codes up the same safe way as other notices, so odd values show nothing.",
+   "risk_notes": "Low risk. In practice the notice should almost never appear, because the login itself first repairs the cause of the refusal. A real refused login can't be produced locally without EVE, so the shot opens the address the player would land on. Errors from 'Add character' still return to Settings, Characters as before.",
+   "owner_question": "Other failed logins, such as a problem at EVE's login service, still land on the home page with no message. Do you want a general 'Your login didn't finish, please try again' notice for those too?",
+   "shots": [
+    {
+     "name": "signin-account-not-linked-notice",
+     "path": "/?error=account_not_linked",
+     "auth": "signed-out",
+     "steps": "await settle(); note.url = page.url();",
+     "region": "viewport",
+     "mocking": "None. This is the address a refused login lands on, opened directly.",
+     "expect_difference": "Before: the home page with no notice (staging ignores ?error=). After: an 'Auth' callout at the top reading 'That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings \u2192 Characters.' Ignore other home-page differences that come from other items in this promote."
+    }
+   ]
+  },
+  {
+   "id": "TAKEOVER (dc44367f + P161 address repair)",
+   "title": "Signing in with a character can no longer drop you into someone else's account",
+   "where_users_meet_it": "The 'Log in with EVE Online' button (and the command palette and planner sign-in), Settings \u2192 Characters (Unlink and Add character), admins unlinking or reassigning characters, and the home page after a refused sign-in.",
+   "before": "Every account carries a hidden sign-in address. It is named after the character the account last signed in with directly. When that character was unlinked in Settings \u2192 Characters, or by an admin, the address still pointed at it. The next time anyone signed in directly with that character, the sign-in system matched the address, quietly attached the character back onto the old account, and signed them in to it. Here are the four cases on staging today. One: you unlink your main, then sign in with it later. You land back in your old account and the main reappears in your list, so the unlink didn't stick. Two: you buy a character whose seller had unlinked it. If it was the character the seller last signed in with, you land in the seller's account, with their other characters, maps, plans and settings, and admin rights if they had them. Three: you buy a character the seller never unlinked. EVE reports a new owner, so the site moves the character out of the seller's account and gives you a fresh account. That case already worked. Four: you add a character while signed in, under Settings \u2192 Characters \u2192 Add character. It joins your account. But if an old account's hidden address still named that character, signing in directly with it later failed with a server error.",
+   "after": "Characters now join an account only through Add character while you are signed in. A direct sign-in never attaches a character to an account by its hidden address. One: unlink your main, then sign in with it. You get a separate, brand-new account that holds just that character, and your old account keeps everything else. To bring the character back, sign in with a character still on the old account and use Add character. The site's existing account merge then folds the two accounts together. Two: buy a character someone unlinked. You get a brand-new account with only that character, and the seller's account is untouched. Three: buy a character that was sold without unlinking. Same as before: you get a fresh account and the seller loses that character. If it was the seller's only character, their empty account is removed, as it is today. Four: add a character while signed in. It works as before, and signing in directly with it afterwards also works, because sign-in now clears any stale address before it looks anything up. If that clean-up itself fails, for example during a database hiccup, the sign-in is refused rather than risk the wrong account. You land on the home page with a notice: 'That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings \u2192 Characters.' Other failed sign-ins, such as cancelling on EVE's login page, still land on the home page with no message, as they already do in production.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "Three changes work together. First, the sign-in library's 'link by matching address' feature is switched off. A direct sign-in now either finds the character's own link or creates a new account. Second, whenever a character leaves an account, its hidden address is moved to the account's oldest remaining character while the account is locked. That covers a Settings unlink, an admin unlink, a reassign, and a sale detected at sign-in. If another account already holds that address, this account gets a private placeholder that no sign-in can ever match, instead of an error. Third, every direct sign-in first checks whether some other account's address still names the character, and repairs it before the lookup. So leftovers from older code, or from a failed clean-up, can't strand anyone or cause a collision. The sign-in buttons now ask for any failure to come back to the home page, and the home page explains the one refusal a user can act on.",
+   "risk_notes": "A new end-to-end test drives the real sign-in and the real Settings unlink against Postgres, with only EVE's token exchange faked. It covers: an unlink followed by a sign-in from the owner and from a buyer; a stale address left by old code; a repair that cannot run (the sign-in is refused and nothing is linked); a sale without an unlink; Add character while a stale address exists; and freeing a stale holder. The real behaviour change is for people who used to unlink a character and sign back in with it: they now get a second account until they use Add character. This relies on Better Auth 1.6.30's disableImplicitLinking switch. The sign-in-time repair runs on every EVE sign-in: it is one extra indexed lookup, plus a locked write only when a stale holder exists. The notice copy says 'isn't linked to an account here any more', which is slightly off when the cause was a database error, but it still gives the right next step. In local dev on staging, a failed sign-in showed Better Auth's own error page. Production already redirected home, so the only production difference is the new notice. The unlink half of the fix is listed under P161, and the one-off repair of existing accounts under migration 0083.",
+   "owner_question": "Signing in directly with a character you previously unlinked now always opens a separate new account, instead of putting you back in your old one. Is that what you want? If so, should Settings \u2192 Characters say it near the Unlink button (for example: 'Signing in with an unlinked character later starts a new account; use Add character to bring it back')?",
+   "shots": [
+    {
+     "name": "takeover-signin-as-unlinked-character",
+     "path": "/",
+     "auth": "signed-out",
+     "steps": "const { execSync } = await import('node:child_process'); const KIT = '/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit'; execSync(`${KIT}/db.sh -f ${KIT}/mocks/takeover-seed.sql`, { stdio: 'inherit' }); await page.goto(base + '/'); const start = await page.evaluate(async () => (await fetch('/api/auth/sign-in/oauth2', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ providerId: 'eve', callbackURL: '/', errorCallbackURL: '/' }) })).json()); const state = new URL(start.url).searchParams.get('state'); const code = 'kit.' + Buffer.from(JSON.stringify({ characterId: 9100001, owner: 'kit-buyer-hash', name: 'Kit Seller Main' })).toString('base64url'); const res = await page.goto(`${base}/api/auth/oauth2/callback/eve?code=${code}&state=${encodeURIComponent(state)}`); note.callbackStatus = res?.status(); note.landedAt = page.url(); await page.goto(base + '/settings/characters'); await settle();",
+     "region": "section:has(:text-is(\"Your characters\"))",
+     "mocking": "Run the kit as up.sh origin/staging p9-round1. (1) A temporary, identical patch in both worktrees (mocks/fake-eve-sso.patch: apply it in the shot setup with worktree-patch.sh and revert it in teardown). In the shared fetch-with-timeout helper, which is byte-identical on both refs, a request to https://login.eveonline.com/v2/oauth/token whose form 'code' starts with 'kit.' gets a local JSON answer: {access_token, token_type:'Bearer', expires_in:1200, refresh_token:'kit-refresh'}. The access_token is an unsigned JWT '<header>.<payload>.kit', where payload = {sub:'CHARACTER:EVE:<id>', name, owner, scp:['publicData'], iss:'https://login.eveonline.com', aud:[<EVE_CLIENT_ID>,'EVE Online'], exp} decoded from the code. verifyEveJwt, whose first line and three lines of context match on both refs, returns the decoded payload when the token ends in '.kit'. Nothing reaches EVE. (2) SQL seed mocks/takeover-seed.sql. The steps run it at the start of EACH side, because the OLD run re-links the character onto the seller. It first deletes any user that owns an EVE account 9100001\u20139100005, any user whose id is like 'kit-%' or whose email is like '91000%@eve.invalid', and the characters rows 9100001\u20139100005. It then inserts user 'kit-seller' (name 'Kit Seller Alt', email '9100001@eve.invalid', email_verified true, role USER, active_character_id 9100002, created 30 days ago), one account row (provider 'eve', account_id '9100002', user 'kit-seller', owner_hash 'kit-seller-hash', created 30 days ago), and characters rows 9100001 'Kit Seller Main' and 9100002 'Kit Seller Alt'. This is the state that unlinking the main on staging leaves behind. On NEW, the unlink would already have moved the address, so this shot exercises the sign-in-time backstop and the switched-off implicit linking. Shot teardown: revert the patch and run the same cleanup deletes; the cascade removes sessions and accounts.",
+     "expect_difference": "OLD: a buyer (a different owner hash) who signs in as Kit Seller Main lands inside the seller's account. The 'Your characters' panel lists both Kit Seller Main and Kit Seller Alt. NEW: the buyer gets a brand-new account, and the panel lists only Kit Seller Main. Kit Seller Alt stays on the seller's account."
+    },
+    {
+     "name": "takeover-signin-refused-notice",
+     "path": "/?error=account_not_linked",
+     "auth": "signed-out",
+     "steps": "[{\"settle\": true}]",
+     "region": "viewport",
+     "mocking": "None. The URL is the one Better Auth sends a refused sign-in back to on NEW.",
+     "expect_difference": "OLD: the plain home page with no message, because staging's home page ignores ?error=. NEW: an 'Auth' callout above the hero reads: 'That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings \u2192 Characters.'"
+    },
+    {
+     "name": "takeover-signin-after-add-character-stale-holder",
+     "path": "/",
+     "auth": "signed-out",
+     "steps": "const { execSync } = await import('node:child_process'); const KIT = '/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit'; execSync(`${KIT}/db.sh -f ${KIT}/mocks/stale-holder-seed.sql`, { stdio: 'inherit' }); await page.goto(base + '/'); const start = await page.evaluate(async () => (await fetch('/api/auth/sign-in/oauth2', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ providerId: 'eve', callbackURL: '/', errorCallbackURL: '/' }) })).json()); const state = new URL(start.url).searchParams.get('state'); const code = 'kit.' + Buffer.from(JSON.stringify({ characterId: 9100003, owner: 'kit-buyer-hash', name: 'Kit Bought Char' })).toString('base64url'); const res = await page.goto(`${base}/api/auth/oauth2/callback/eve?code=${code}&state=${encodeURIComponent(state)}`); note.callbackStatus = res?.status(); note.landedAt = page.url(); await settle();",
+     "region": "viewport",
+     "mocking": "The same fake EVE SSO patch as the first shot. SQL seed mocks/stale-holder-seed.sql, run at the start of each side. It does the same cleanup as the takeover seed, then inserts: user 'kit-stale' (email '9100003@eve.invalid', email_verified true, active_character_id 9100005) with one account, 9100005 'Kit Stale Other'; and user 'kit-buyer' (email '9100004@eve.invalid', email_verified true, active_character_id 9100004) with accounts 9100004 'Kit Buyer Main' (older) and 9100003 'Kit Bought Char' (newer, owner_hash 'kit-buyer-hash'). It also inserts characters rows 9100003\u20139100005. This models a seller who unlinked Kit Bought Char on staging, leaving the address behind, and a buyer who then added it under Settings while signed in. Teardown: revert the patch and run the cleanup deletes.",
+     "expect_difference": "OLD: the direct sign-in as Kit Bought Char fails with a server error at the sign-in callback. Signing in tries to write that character's address onto the buyer's account, and the stale account still holds it. NEW: the sign-in succeeds and lands on the home page signed in as Kit Bought Char. The stale account is quietly moved to Kit Stale Other's address."
+    }
+   ]
+  },
+  {
+   "id": "P161",
+   "title": "One shared unlink path for Settings unlink, admin unlink and admin reassign",
+   "where_users_meet_it": "Settings \u2192 Characters \u2192 Unlink, and on an admin's view of a user, Unlink and 'Reassign to me'.",
+   "before": "The three ways a character leaves an account each did their own clean-up. Settings unlink and admin unlink revoked map access, removed the character, and moved the active character when needed. They never touched the account's hidden sign-in address, and that gap is what made the takeover possible. Reassign repaired the address in a separate second step. If that step failed, the failure was only written to the logs, and the admin was sent back to their own user page as if everything had worked.",
+   "after": "All three now run the same steps in the same order and finish with the same account tidy-up. If you removed the active character, the active character moves to the oldest remaining one. The hidden address moves off the removed character. An account left with no characters is removed, which can only happen when two unlinks race, because removing your last character is still refused. In normal use nothing on screen changes: you land on the same page, the character is gone, and the notices are the same. There is one visible difference for admins. If the final tidy-up fails after a reassign has already moved the character, which takes a rare database error, the admin now sees a plain server error page instead of being returned to their user page. The character has still moved.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "One 'unlink a character' routine now owns the whole sequence. It revokes the character's map access, removes or moves the account link, restores access if the removal failed, finishes the map clean-up, and then settles the account. Each caller supplies only how to remove the link and how to report a failure. Settings uses the sign-in library's own unlink, admin unlink deletes the link, and reassign moves it to the admin. The reassign page has lost its own second, error-swallowing tidy-up. Admin unlink also reads the user's character list once instead of twice.",
+   "risk_notes": "New Postgres tests fail on the old code: the address was left on the removed character on the admin and direct-removal paths, and on a reassign where the source keeps other characters. The first draft skipped the map and tracking refresh when the tidy-up failed; bbbec30d fixes that, and it is listed as its own item. Since the takeover fix, the address repair no longer errors when the new address is taken; it falls back to a placeholder. A database outage is now the realistic way to reach the reassign error page. The not_linked notice change on admin unlink belongs to P255, not this item.",
+   "owner_question": "When the tidy-up after a reassign fails, the admin now sees a plain server error page, even though the character did move. Is that acceptable? Or would you rather they were redirected back to the admin page with a notice such as 'Moved, but the source account could not be tidied up; try again'?",
+   "shots": [
+    {
+     "name": "p161-reassign-tidy-up-failure",
+     "path": "/admin/users/kit-source",
+     "auth": "admin",
+     "steps": "const { execSync } = await import('node:child_process'); const KIT = '/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit'; execSync(`${KIT}/db.sh -f ${KIT}/mocks/reassign-seed.sql`, { stdio: 'inherit' }); await page.goto(base + '/admin/users/kit-source'); page.once('dialog', (d) => d.accept()); const row = page.locator('form:has(button:has-text(\"Reassign to me\"))').filter({ has: page.locator('input[name=\"characterId\"][value=\"9100012\"]') }); const [res] = await Promise.all([page.waitForNavigation(), row.getByRole('button', { name: 'Reassign to me' }).click()]); note.status = res?.status(); note.url = page.url(); await settle();",
+     "region": "viewport",
+     "mocking": "SQL seed mocks/reassign-seed.sql, run at the start of EACH side, because the OLD run moves the character onto the pilot. It first deletes the EVE account rows '9100011' and '9100012' wherever they are (one ends up on e2e-pilot), user 'kit-source', and characters 9100011\u20139100012. It then inserts user 'kit-source' (name 'Kit Source Main', email '9100012@eve.invalid', email_verified true, active_character_id 9100011), accounts 'kit-source-main' (9100011, created 30 days ago) and 'kit-source-moved' (9100012, created 20 days ago), and characters rows 'Kit Source Main' and 'Kit Source Moved'. If they do not already exist, it creates a function and a trigger, kit_refuse_source_update: BEFORE UPDATE ON \"user\" FOR EACH ROW WHEN (OLD.id = 'kit-source'), which raises an exception. This stands in for a database error during the tidy-up. It touches only kit-source; the account move itself writes to the account table and is unaffected. Shot teardown drops the trigger and the function, deletes account rows 9100011 and 9100012, user kit-source and the two characters rows. Both sides need the local Convex to accept the server-side map-claim revocation. If that fails, both sides show the same error and the shot is void.",
+     "expect_difference": "OLD: the move commits and the failed address repair is only logged. The admin lands on their own user page (/admin/users/e2e-pilot), with Kit Source Moved in their character list. NEW: the move commits the same way, but the failed tidy-up shows up as a bare HTTP 500 error page at /api/admin/characters/reassign."
+    }
+   ]
+  },
+  {
+   "id": "bbbec30d",
+   "title": "A failed account tidy-up after an unlink still finishes the map and tracking refresh",
+   "where_users_meet_it": "Only after an unlink or reassign whose final account tidy-up fails: Settings \u2192 Characters \u2192 Unlink, admin Unlink, and admin 'Reassign to me'.",
+   "before": "On staging, after a character leaves an account, the site always refreshes the maps that involve that character, stops location tracking for it on the old account, and recalculates the account's roster value, even when a later step fails. The first wave 9 version of the shared unlink routine would have skipped those follow-ups if the account tidy-up failed.",
+   "after": "The follow-ups always run once the character has actually been removed or moved, and only then is the error reported. On a reassign that includes refreshing the receiving admin's roster. Compared with staging there is no visible change. This keeps staging's behaviour. A new database test also confirms that unlinking a character which is not your active one leaves your active character and hidden address exactly as they were.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "The routine's last step is now wrapped so that the 'character changed accounts' follow-ups run whether or not the tidy-up succeeds, and the original error is passed on afterwards. The unit test that used to expect the follow-ups to be skipped now expects them to run.",
+   "risk_notes": "This fixes promote review round 1, finding F2. The only effect is on a failure path. A user who hits the failure still sees an error, as on staging.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "MIG-0083 (dc44367f)",
+   "title": "One-off repair of hidden sign-in addresses left behind by earlier unlinks",
+   "where_users_meet_it": "Nowhere on screen. It runs once when this release's database migration is applied to staging, and later to production.",
+   "before": "Wherever someone unlinked the character they last signed in with, or an admin removed it, the account's hidden address still names a character the account no longer holds. Each of those characters is one a new owner could have used to land in that account.",
+   "after": "The migration first parks every such account on a private placeholder address that no sign-in can ever match. It then gives each parked account that still has characters the address of its oldest remaining character, unless another account already uses that address, in which case the account keeps the placeholder. No account is deleted and nothing visible changes. An account left on the placeholder repairs itself the next time it signs in.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Two database statements. Parking every stale account first frees all the stale addresses at once, so the second statement can't collide even when stale accounts point at each other in a chain or a loop. Accounts whose address is already correct are not touched.",
+   "risk_notes": "This is a pure data repair. A dedicated Postgres test covers correct accounts left alone, chains and cycles of stale accounts, accounts with no links or only malformed links, links on another provider, and a no-op on empty tables. It overwrites the only record of which accounts were exposed. The runtime sign-in repair would catch these accounts anyway; the migration just closes them all at deploy rather than one at a time.",
+   "owner_question": "Before this runs on production, do you want a read-only count or list of the accounts whose hidden address names a character they no longer hold? Those are the accounts that were exposed to the takeover, and the migration erases that evidence.",
+   "shots": []
+  },
+  {
+   "id": "UNLINK-ENDPOINT (dc44367f)",
+   "title": "The sign-in library's own 'unlink' web address is switched off",
+   "where_users_meet_it": "Nowhere in the UI. No page ever used this address.",
+   "before": "Besides the Settings button, the sign-in library published its own unlink address. A signed-in person could call it by hand to unlink one of their own characters. That skipped all of the site's clean-up: map access revocation, moving the active character, stopping location tracking, and the hidden-address repair.",
+   "after": "That address now answers 'not found'. Settings \u2192 Characters \u2192 Unlink and the admin tools work exactly as before, because they call the library from the server, which is unaffected.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "The sign-in library's configuration now lists that one path as disabled. Every unlink therefore goes through the site's own shared unlink routine.",
+   "risk_notes": "The end-to-end test checks that the raw address returns 404 and leaves the character linked, and that the Settings unlink still works afterwards. Only a person's own characters were ever reachable this way.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P256 (map creation)",
+   "title": "Map creation names the real problem when a chosen character is no longer yours",
+   "where_users_meet_it": "The Create map dialog (Atlas \u2192 Create new map, or New map in the map menu), when you press Create map.",
+   "before": "Suppose a character you had ticked under 'Your characters' was no longer on your account when you pressed Create map, for example because it was unlinked in another tab or moved away after a sale. The dialog then showed 'Map creation paused \u2014 The map could not be created. Check your connection and try again.'",
+   "after": "The dialog now says 'Map creation paused \u2014 Choose one of your own linked characters.' As before, no map is created.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "The map-creation service now answers this case with the same 'not linked' error code the account pages use. The map service's published list of errors includes it, and the dialog has a message for it. One shared builder for the 'not linked' error replaces five hand-written copies.",
+   "risk_notes": "Rarely reached, because the picker only offers your own characters. The ownership check runs before anything is written, so the refused request leaves no partial map. A test covers the new message.",
+   "owner_question": "",
+   "shots": [
+    {
+     "name": "p256-map-create-unlinked-creator",
+     "path": "/atlas",
+     "auth": "pilot",
+     "steps": "await page.route('**/api/maps/create', async (route) => { if (route.request().method() !== 'POST') return route.continue(); const body = JSON.parse(route.request().postData() ?? '{}'); body.creatorCharacterIds = [9100099]; await route.continue({ postData: JSON.stringify(body) }); }); await page.click('[data-map-catalogue-create]'); await page.waitForSelector('[data-map-creation-dialog]'); await page.locator('[data-map-creation-dialog] input').first().fill('Review shot'); await page.locator('[data-own-character-picker] button, [data-own-character-picker] [role=checkbox]').first().click(); await page.getByRole('button', { name: 'Create map' }).click(); await page.waitForSelector('[data-map-creation-interstitial=\"error\"]', { timeout: 30000 }); await settle();",
+     "region": "[data-map-creation-interstitial]",
+     "mocking": "A Playwright request rewrite in the steps: the create-map POST still goes to the real server, but with creatorCharacterIds replaced by 9100099, a character not linked to the pilot. Both servers refuse it at the ownership check, before anything is written, so no map is created and nothing needs cleaning up. The dialog holds the 'creating' screen for at least 5 seconds. If /atlas can't show its catalogue on the kit servers (Convex auth), open the dialog from the map menu's New map item instead. Check the picker's toggle selector with inspect.mjs.",
+     "expect_difference": "OLD: 'Map creation paused' with 'The map could not be created. Check your connection and try again.' NEW: 'Map creation paused' with 'Choose one of your own linked characters.'"
+    }
+   ]
+  },
+  {
+   "id": "P256 (switch character)",
+   "title": "Switching your active character checks ownership in the same step as the switch",
+   "where_users_meet_it": "Settings \u2192 Characters, the button that makes a non-active character your active one.",
+   "before": "The site first checked that the character was yours, then made the switch in a separate step. If an unlink landed between the two, your active character could in principle end up pointing at a character no longer on your account.",
+   "after": "The switch happens only if the character is still yours, checked and applied in a single step. Normal switching looks and behaves exactly the same. If the character turns out not to be yours, you are returned to Settings \u2192 Characters with 'That character isn't linked to your account.' That redirect with a notice belongs to the notices change, P255; on staging this case showed a raw error.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "The database update that sets the active character now includes the 'is this character linked to you' condition and reports whether anything changed. The separate pre-check is gone. The character-skills lookup also now uses the existing single-character ownership check instead of reading the whole roster.",
+   "risk_notes": "A database test covers a character that isn't yours and one that doesn't exist. The active-character route is the only caller.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P257",
+   "title": "Character ids read from linked accounts are checked strictly everywhere",
+   "where_users_meet_it": "Nowhere visible. It affects how the site reads which characters belong to an account.",
+   "before": "In several places, the stored id of a linked character was turned into a number loosely. An empty value became character zero, ' 12 ' became 12, and a broken id could have produced a hidden sign-in address of 'NaN@eve.invalid'.",
+   "after": "Every place now uses one strict reader that accepts digits only, within the safe number range, and skips anything else. Real EVE character ids always pass, so nothing visible changes.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Two small helpers, 'map linked rows' and 'linked character ids', send every conversion from an account link to a character through the one strict reader. They replace loose number conversions and six copy-pasted loops in the account merge, account clean-up, admin user list, background authorization checks, affiliation reads and deletion jobs.",
+   "risk_notes": "A malformed id is now skipped. A background access change for it is acknowledged without doing any work, and a scheduled token check for it is claimed but never run. No real account row is malformed, so this is defensive only.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P143",
+   "title": "Corporation-structures reads now show up on the ESI dashboard",
+   "where_users_meet_it": "Only admins see this, on Admin \u2192 ESI & rate limits, in the 'Busiest owned-data endpoints' card. Even there it only shows up if something calls the corporation-structures data route directly. No page in the app calls that route today: Settings \u2192 Corporations and the industry Custom Structures section build their structure lists on the server instead.",
+   "before": "The card times eight of the nine routes that load a signed-in user's own data: the board, industry slots, industry jobs, corporation industry jobs, skill levels, team skill levels, owned blueprints and owned assets. The ninth route, the one that lists your corporations' structures, answers requests but is never timed, so it never appears on the card.",
+   "after": "The ninth route is now timed as well. If anything requests it, the card shows a bar with its address and average time, next to the others. The eight existing bars keep exactly the same labels, so their history carries straight on. Nothing else changes for anyone, and the route sends back the same data as before.",
+   "user_visible": false,
+   "visual": true,
+   "behind_the_scenes": "Before, each route passed a hand-typed web address to the timing helper, checked against a hand-kept list of eight. Now each route passes its own contract and the helper reads the address from it, so the label always matches the real route. The corporation-structures route is now wrapped in the same helper. A new automated check looks at every route that reads a user's own data and fails the build if one of them is not timed.",
+   "risk_notes": "Low. The labels for the existing eight routes are exactly the same as before, so the dashboard groups old and new records together. The card shows the eight busiest routes, and nine are now timed. In theory a busy corporation-structures route could push the least-used route off the card, but nothing in the app calls it, so that can't happen today. The route's response is unchanged.",
+   "owner_question": "Nothing in the app calls the corporation-structures read route any more, because both places that show corporation structures build the list on the server. Do you want to keep the route (it is now timed) or remove it in a later wave?",
+   "shots": [
+    {
+     "name": "p143-esi-busiest-endpoints",
+     "path": "/admin/esi",
+     "auth": "admin",
+     "steps": "const res = await context.request.get(new URL('/api/account/corp-structures', base).href); note.corpStructuresStatus = res.status(); await sleep(4000); await page.reload({ waitUntil: 'domcontentloaded' }); await settle(); await page.locator('[data-admin-card=\"endpoints\"]').getByText('ms avg').first().waitFor({ timeout: 60000 });",
+     "region": "[data-admin-card=\"endpoints\"]",
+     "mocking": "Bring the kit up with OLD=origin/staging and NEW=p9-round1 first (pids show it is still serving origin/staging vs origin/development). Shot-level setup AND teardown, run from lists/: ../db.sh -c \"delete from usage_logs where action = 'owned_data_read' and metadata->>'endpoint' = '/api/account/corp-structures'\". Only this shot's after side ever writes those rows, so deleting them is safe. Setup runs once before both sides, and capture.mjs runs before then after, so the before side starts with no such row. Do not capture the sides in separate runs (--side): the usage table is shared, so a row written by after would also show on a later before. The call has to be signed in, because the route skips timing for signed-out callers; the pilot is admin on the kit servers. The call also schedules a background corporation-structures refresh for the pilot. That is local only and harmless with the synthetic pilot. The local table already holds four other endpoints (industry-slots 68, corp-industry-jobs 14, industry-jobs 14, board 12), which appear on both sides, so the new row easily makes the top-8 list.",
+     "expect_difference": "Before: the card lists the existing local endpoints (industry-slots, corp-industry-jobs, industry-jobs, board) with their counts and 'N ms avg' labels. After: the same bars plus one more at the bottom, '/api/account/corp-structures \u00b7 N ms avg' with a count of 1. note.corpStructuresStatus should read 200 on both sides, so the route answered the same way and only the timing record differs. If staging still lacks wave 8, any small styling difference outside the bars comes from wave 8, not P143."
+    }
+   ]
+  },
+  {
+   "id": "P160",
+   "title": "More precise timing for owned-data reads",
+   "where_users_meet_it": "Nowhere visible. These timings feed the 'Busiest owned-data endpoints' card on the admin ESI page, and that card rounds the average to whole milliseconds.",
+   "before": "Each read of a signed-in user's own data (board, jobs, slots, skills, blueprints, assets) is timed with the server's wall clock in whole milliseconds. The admin card shows the average, rounded.",
+   "after": "The same reads are timed with the server's high-precision steady clock, in fractions of a millisecond, like every other cost figure in the app. The admin card still rounds to whole milliseconds, so the numbers look the same. A server clock adjustment can no longer distort a timing. You won't notice any difference.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "The owned-data timer had its own copy of the start-clock, record-success, record-failure routine. It now hands each read to the shared cost-measuring helper the rest of the app already uses. That helper gained an optional extra: a small function that adds fields to the success record, which here is the number of items returned. If that function ever breaks, the helper drops those fields and logs it, instead of crashing in the background.",
+   "risk_notes": "Low. Stored durations in the usage log change from whole numbers to decimals. The only reader, the admin card, averages them as decimals and rounds the result, and nothing else reads them. Old whole-number rows and new decimal rows average together without trouble. Two edge cases changed, and today's code can hit neither. A read that failed before it even started used to be recorded and now is not. A broken item counter used to fail the request and now only drops the count. P143's write-up said to keep whole milliseconds; P160 deliberately switched to the shared clock.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P153",
+   "title": "Universe map data files turn away bad version labels up front",
+   "where_users_meet_it": "Not in normal use. These are the three background downloads the map pages use: the solar-system list, the jump connections and the wormhole reference. The app always asks for the current version, which it reads from a small manifest first.",
+   "before": "A request for one of these three files with a malformed version label (one longer than 64 characters) loaded the whole file and then answered 'not found'. If the load itself failed at that moment, for example because the universe data was not yet loaded into the database, the answer was a server error instead.",
+   "after": "A malformed version label gets 'not found' straight away, without loading anything. A well-formed request gets exactly what it got before: the same data, the same year-long browser caching, and the same 'not found' for an out-of-date version. The manifest still tells browsers not to cache it.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "The three routes were near-identical copies. They now share one small builder that checks the version label, loads the file, compares versions and applies the caching rule. The manifest route sets its 'don't cache' rule once instead of in two places. The wormhole-statics lookup now validates its system id with the rule from its own contract, which is the same rule as before.",
+   "risk_notes": "Low. Responses and headers for valid requests are unchanged. The only difference is for overlong version labels, which now always get 'not found' and never a server error, and skip a pointless load. The map never sends such labels.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P149",
+   "title": "One shared fallback for page sections that are allowed to fail on their own",
+   "where_users_meet_it": "No visible change. It covers the admin dashboard cards, the map page (Atlas) and the job feeds in the industry Profiles section.",
+   "before": "When one of these background reads fails, the page falls back quietly. An admin card says 'Unable to load this section.' The map page shows without the site-search list, or with the map list marked unavailable. The Profiles job feeds show no characters. Each place had its own hand-written copy of this logic.",
+   "after": "The fallbacks and log messages are exactly the same. Redirects and 'not found' pages still pass through untouched, and one failing section still never takes down the rest of the page. The map still tries the full scanner site list first and only uses the lightweight list if that fails.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Six hand-written blocks that each read, logged on failure and fell back are now one small shared helper. It runs the read, lets the framework's own redirect and not-found signals through, logs any other failure with the same message as before, and returns the fallback. The map's 'listing unavailable' placeholder is now defined once instead of twice.",
+   "risk_notes": "Very low. Log text is byte-for-byte the same, so any log-based alerting still matches. The reviewer checked every fallback value and the map's three-way sign-in logic (unknown, guest, signed in), and all are unchanged.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "P068",
+   "title": "One shared check that drops stale data after you switch account or character",
+   "where_users_meet_it": "No visible change. It protects the data that refreshes in the background: live board and industry data, industry slots, industry profiles and the structures manager. Data fetched for one account or character never shows up after you switch to another.",
+   "before": "If you switch character or account, or sign out, while a background refresh is still running, the late answer is thrown away so it can't show the previous character's data. Each of these places wrote that check by hand, in slightly different ways.",
+   "after": "The protection and behaviour are the same, but the check is now written once. Switching back to an account you used earlier still counts as a fresh session, so a request left over from before is still thrown away.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Thirteen hand-written checks in five areas became two named helpers. The first asks: is this still the session that is signed in right now? The second asks: are these the same account and the same character? The structures manager uses the second to compare the page's server-rendered owner with whoever is signed in, and the app uses it to skip republishing an unchanged identity.",
+   "risk_notes": "Very low. The reviewer confirmed that all thirteen replacements give the same results, including when signed out and in the two places that used to skip the signed-out check (they already return earlier in that case).",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "defc5b5e",
+   "title": "Refactoring kit notes updated for what wave 8 changed",
+   "where_users_meet_it": "Nowhere; internal notes for the refactoring agents.",
+   "before": "Wave 9's working notes still described wave 8 as not started.",
+   "after": "The notes now record what wave 8 landed, and remind agents to run the lint-rule tests when they edit the lint config. Docs only; the app is unchanged.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Two notes files in the refactoring kit were updated: no code changed.",
+   "risk_notes": "None.",
+   "owner_question": "",
+   "shots": []
+  },
+  {
+   "id": "33b317a6",
+   "title": "Wave 8 guide page links its pull request",
+   "where_users_meet_it": "Nowhere; refactoring documentation only.",
+   "before": "The wave 8 guide page did not link its pull request.",
+   "after": "It links the wave 8 pull request. Docs only; the app is unchanged.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Two lines added to one guide page.",
+   "risk_notes": "None.",
+   "owner_question": "",
+   "shots": []
+  }
+ ],
+ "shotRun": {
+  "captured": [
+   {
+    "name": "p255-settings-crafted-error",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-settings-crafted-error-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-settings-crafted-error-after.png",
+    "notes": "As expected. OLD shows the '500 \u00b7 Containment breach / Pod malfunction' panel; its console logs 'Functions are not valid as a child of Client Components'. NEW shows Settings \u2192 Characters with 'HEADS UP Linking was cancelled or failed.' Both sides stay on ?error=constructor."
+   },
+   {
+    "name": "p255-statics-crafted-outcome",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-statics-crafted-outcome-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-statics-crafted-outcome-after.png",
+    "notes": "As expected. OLD shows the Pod malfunction panel. NEW shows the statics page with no banner and the Serving copy and Pending review cards, both empty locally ('No promoted snapshot.' / 'No pending snapshot.')."
+   },
+   {
+    "name": "p255-make-active-not-linked",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-make-active-not-linked-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-make-active-not-linked-after.png",
+    "notes": "As expected. A setup check confirmed 9000099 is not linked to anyone. OLD: POST answered 400 and the browser shows bare JSON at /api/account/active-character (code not_linked, 'Character not linked to your account'). NEW: POST answered 303 and the browser lands on /settings/characters?error=not_linked with 'HEADS UP That character isn't linked to your account.'"
+   },
+   {
+    "name": "p255-admin-unlink-not-linked",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-admin-unlink-not-linked-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-admin-unlink-not-linked-after.png",
+    "notes": "As expected. OLD: POST answered 404 and the browser shows bare JSON at /api/admin/characters/unlink. NEW: POST answered 303 and the browser lands on /admin/users/e2e-pilot?error=not_linked with 'HEADS UP That character isn't linked to this user.' above the Account card. The pilot's 9000001 was untouched."
+   },
+   {
+    "name": "p255-statics-not-pending",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-statics-not-pending-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p255-statics-not-pending-after.png",
+    "notes": "As expected. A setup check confirmed snapshot 999999 does not exist. OLD: POST answered 409 and the browser shows bare JSON at /api/admin/wh-statics. NEW: POST answered 303 and the browser lands on /admin/statics?outcome=snapshot-not-pending with the info banner 'That snapshot is no longer pending review, so nothing changed.'"
+   },
+   {
+    "name": "p254-settings-signed-out-notice",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p254-settings-signed-out-notice-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p254-settings-signed-out-notice-after.png",
+    "notes": "As expected. Both sides end on /?auth_error=login_required. OLD has no notice. NEW shows 'AUTH Log in with EVE to open your settings.' The home hero layout also differs between sides; that comes from other items in this promote."
+   },
+   {
+    "name": "p254-auth-error-prototype-key",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p254-auth-error-prototype-key-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p254-auth-error-prototype-key-after.png",
+    "notes": "As expected. OLD renders the full '500 \u00b7 Containment breach / Pod malfunction' error panel (note.text confirms it). NEW renders the normal home page with no notice."
+   },
+   {
+    "name": "p254-removed-auth-error-code",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p254-removed-auth-error-code-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p254-removed-auth-error-code-after.png",
+    "notes": "As expected. OLD shows 'AUTH Sign-in could not be verified. Try clicking \"Log in with EVE\" again.' NEW shows no callout."
+   },
+   {
+    "name": "p167-preview-admin-no-active-character",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p167-preview-admin-no-active-character-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p167-preview-admin-no-active-character-after.png",
+    "notes": "As expected. Setup ran `pilot.mjs --check`, snapshotted the pilot's user and account rows (mocks/p9-p167-*.csv), set role ADMIN and hid the EVE link. Teardown restored both rows; I checked afterwards that the pilot is back to USER with active character 9000001 and provider eve. OLD redirects to /?auth_error=admin_required with 'AUTH The admin dashboard is only available to authorized characters.' NEW renders the 'UI primitives' page. On both sides the header looks signed out (LOG IN with EVE, Reset and continue as E2E Pilot) because the mock leaves no active character."
+   },
+   {
+    "name": "signin-account-not-linked-notice",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/signin-account-not-linked-notice-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/signin-account-not-linked-notice-after.png",
+    "notes": "As expected. OLD shows the home page with no notice. NEW shows the 'AUTH That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings \u2192 Characters.' callout."
+   },
+   {
+    "name": "takeover-signin-as-unlinked-character",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/takeover-signin-as-unlinked-character-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/takeover-signin-as-unlinked-character-after.png",
+    "notes": "As expected. The callback ended on / on both sides. OLD: the 'Your characters' panel lists Kit Seller Alt (Active) and Kit Seller Main, so the buyer is inside the seller's account. NEW: it lists only Kit Seller Main (Active). The mock files did not exist, so I created them in review-kit/mocks: fake-eve-sso.patch, takeover-seed.sql, kit-auth-cleanup.sql. The patch was applied in shot setup and reverted in teardown, and both worktrees were confirmed clean afterwards. Two deviations from the spec, both to keep every SSO call local: the fake token answer returns refresh_token 'kit-refresh.<seed>' rather than 'kit-refresh', so a background authorization refresh can be answered locally; and revoke calls for kit-refresh tokens also get a local 200. Seeded accounts get authorization_next_check_at = now + 7 days."
+   },
+   {
+    "name": "takeover-signin-refused-notice",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/takeover-signin-refused-notice-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/takeover-signin-refused-notice-after.png",
+    "notes": "As expected. OLD shows the plain home page. NEW shows the 'AUTH That character isn't linked to an account here any more\u2026' callout above the hero. The spec's steps string \"[{\\\"settle\\\": true}]\" was translated to the action list [{\"settle\": 20000}]."
+   },
+   {
+    "name": "takeover-signin-after-add-character-stale-holder",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/takeover-signin-after-add-character-stale-holder-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/takeover-signin-after-add-character-stale-holder-after.png",
+    "notes": "Captured on the retry. The first run's OLD side failed because page.goto throws on a 500 with an empty body (ERR_HTTP_RESPONSE_CODE_FAILURE). I wrapped the callback goto in try/catch and recorded the status from a response listener. OLD: the callback answered 500 (dev-old.log shows duplicate key on user_email_unique) and the shot shows Chrome's 'This page isn't working / HTTP ERROR 500'. NEW: the callback answered 302 and the browser lands on / signed in to the buyer's account. The home board's main pilot is Kit Buyer Main, because active_character_id stays 9100004, and Kit Bought Char is listed beneath. The shot does not show Kit Bought Char as the active pilot. Uses the new mocks/stale-holder-seed.sql. The patch and cleanup ran in setup and teardown."
+   },
+   {
+    "name": "p161-reassign-tidy-up-failure",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p161-reassign-tidy-up-failure-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p161-reassign-tidy-up-failure-after.png",
+    "notes": "As expected; re-captured once so its notes would be recorded (the first run's teardown hit Postgres 'too many clients' and aborted the run). OLD: the POST answered 303, the trigger refusal was only logged, and the admin lands on /admin/users/e2e-pilot with Kit Source Moved in Linked characters. The OLD Account card heading also reads 'Kit Source Moved \u00b7 Character ID 9100012', apparently because the seeded account (created 20 days ago) is older than the pilot's own. The pilot's user row itself was not modified, which I checked. NEW: the POST answered 500 (dev-new.log shows 'review kit: refusing UPDATE of user kit-source') and the shot shows Chrome's HTTP ERROR 500 page. New files: mocks/reassign-seed.sql and mocks/reassign-cleanup.sql. Setup also snapshots the pilot user row to mocks/p9-p161-pilot-user.csv, and teardown restores it."
+   },
+   {
+    "name": "p256-map-create-unlinked-creator",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p256-map-create-unlinked-creator-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p256-map-create-unlinked-creator-after.png",
+    "notes": "As expected; captured in a second run after the first was aborted. The /atlas catalogue rendered on both kit servers. The picker toggle is the first button in [data-own-character-picker], which I confirmed. OLD: 'Map creation paused' with 'The map could not be created. Check your connection and try again.' NEW: 'Map creation paused' with 'Choose one of your own linked characters.' No map was created."
+   },
+   {
+    "name": "p143-esi-busiest-endpoints",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p143-esi-busiest-endpoints-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/p143-esi-busiest-endpoints-after.png",
+    "notes": "As expected; captured in a second run after the first was aborted, with both sides in the same run. corpStructuresStatus was 200 on both sides. OLD lists four bars: industry-slots 68, board 14, corp-industry-jobs 14, industry-jobs 14, each with 'ms avg'. NEW lists the same four plus '/api/account/corp-structures \u00b7 25 ms avg' with 1 \u00b7 0.9%. The board count reads 14 rather than 12 because page views from these shots share the database. Setup and teardown deleted the corp-structures rows; the count is 0 afterwards."
+   }
+  ],
+  "failed": [],
+  "restored": "The pilot's role and EVE link (p167) and its user row (p161) are back to how they were. All kit rows, the kit_refuse_source_update trigger and function, and the corp-structures usage rows are gone. Both worktrees are clean, the main checkout is unchanged, and the kit servers are running on :3101 and :3102.\n\n- **Migration 0083:** up.sh warned that drizzle/ differs. I applied NEW's pending migration to the local DB by running `tsx src/scripts/migrate.ts` from wt-new, with the database URLs set to localhost:5433. It changed no rows: no stale synthetic emails existed locally (the only user was e2e-pilot), and the migrations table went from 83 to 84 rows. origin/staging moved to 3c89c0fc when up.sh fetched, so OLD is 3c89c0fc and NEW is p9-round1 (dc44367f).\n- **OLD server 404s:** on the first start, OLD returned 404 for every route except `/`, including /api/auth/get-session. I traced it to a stale Turbopack cache, stopped OLD, deleted `wt-old/.next` and ran up.sh again, which fixed it. The pilot sessions were reused with no new mint.\n- **Mocks:** the shot list named mock files that did not exist, so I wrote them in review-kit/mocks: fake-eve-sso.patch, takeover-seed.sql, stale-holder-seed.sql, kit-auth-cleanup.sql, reassign-seed.sql and reassign-cleanup.sql. Row snapshots are in mocks/p9-p167-user.csv, p9-p167-account.csv and p9-p161-pilot-user.csv.\n- **Postgres connections:** the shared Postgres (max_connections 100) ran out of connections during the first run. The kit's dev servers gained about 100 idle postgres.js connections as they recompiled, mostly after the patch was applied and reverted. That made the p161 teardown fail and aborted the run, before p256 and p143 and before p161's notes were saved. I stopped the kit servers to free the connections and ran the cleanup and restore by hand. I then restarted the servers and captured p256, p143, the stale-holder retry and p161 again in separate runs, then restarted the servers once more to free connections again. 13 connections were open when I last checked.\n- **Leftovers:**\n  - Telemetry rows from these shots, such as auth_login and page views, remain in the shared database. Their character_id became NULL when the kit character rows were deleted.\n  - Local Convex may still hold link-change side effects for the deleted kit characters, from runAfterCharacterLinkChanged and the map-claim revocation.\n\nThe shot list is /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots.json, generated by make-shots.py in the same folder. Notes are in /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p9/shots/capture-notes.json."
+ },
+ "checked": {
+  "pairs": [
+   {
+    "name": "p255-settings-crafted-error",
+    "ok": true,
+    "caption": "Settings \u2192 Characters opened with a made-up error code in the address. Before: the whole page is replaced by the '500 \u00b7 Containment breach / Pod malfunction' error panel. After: the Characters page loads normally, with the generic 'Heads up: Linking was cancelled or failed.' notice above Your characters.",
+    "problem": ""
+   },
+   {
+    "name": "p255-statics-crafted-outcome",
+    "ok": true,
+    "caption": "Admin \u2192 Wormhole statics opened with a made-up outcome code in the address. Before: the page fails with the 'Pod malfunction / This page couldn't load' error panel. After: the statics page loads normally with no banner, showing the Serving copy and Pending review cards.",
+    "problem": ""
+   },
+   {
+    "name": "p255-make-active-not-linked",
+    "ok": true,
+    "caption": "Make active sent for a character that isn't on the pilot's account. Before: the browser is left on a bare JSON error (400, not_linked, 'Character not linked to your account'). After: it returns to Settings \u2192 Characters with a 'Heads up: That character isn't linked to your account.' notice at the top.",
+    "problem": ""
+   },
+   {
+    "name": "p255-admin-unlink-not-linked",
+    "ok": true,
+    "caption": "Admin Unlink sent for a character that isn't on this user. Before: the browser is left on a bare JSON error (404, not_linked, 'Character not linked to that user'). After: it returns to the pilot's admin user page with a 'Heads up: That character isn't linked to this user.' notice above the Account card, and the real linked character is still there.",
+    "problem": ""
+   },
+   {
+    "name": "p255-statics-not-pending",
+    "ok": true,
+    "caption": "Promote clicked for a statics snapshot that is no longer pending, as on the second click of a double-click. Before: the browser is left on a bare JSON 409 error (snapshot_not_pending). After: it returns to Wormhole statics with an info banner reading 'That snapshot is no longer pending review, so nothing changed.'",
+    "problem": ""
+   },
+   {
+    "name": "p254-settings-signed-out-notice",
+    "ok": true,
+    "caption": "A signed-out visitor opens Settings and is sent to the home page. Before: the home page shows no explanation. After: an 'Auth' callout at the top reads 'Log in with EVE to open your settings.' The hero sits lower only because the callout takes up space.",
+    "problem": ""
+   },
+   {
+    "name": "p254-auth-error-prototype-key",
+    "ok": true,
+    "caption": "The home page opened with a made-up sign-in error code in the address. Before: the whole page crashes to the '500 \u00b7 Containment breach / Pod malfunction' error panel. After: the normal home page renders with no notice.",
+    "problem": ""
+   },
+   {
+    "name": "p254-removed-auth-error-code",
+    "ok": true,
+    "caption": "The home page opened with the retired 'state_mismatch' sign-in error code. Before: an 'Auth' callout reads 'Sign-in could not be verified. Try clicking \"Log in with EVE\" again.' After: no callout appears, because that message has been removed.",
+    "problem": ""
+   },
+   {
+    "name": "p167-preview-admin-no-active-character",
+    "ok": true,
+    "caption": "An admin with no active character opens the UI primitives preview. Before: they are bounced to the home page with an 'Auth' callout reading 'The admin dashboard is only available to authorized characters.' After: the 'UI Primitives' reference page opens (Actions section shown). In both shots the header looks signed out because no character is active.",
+    "problem": "Minor: the TrendChart section the spec mentions is below the fold and not in the screenshot. The page clearly rendered, and the capture waited for TrendChart text before taking the shot."
+   },
+   {
+    "name": "signin-account-not-linked-notice",
+    "ok": true,
+    "caption": "The home page as a refused sign-in lands on it. Before: no message, so the visitor has no idea why they aren't signed in. After: an 'Auth' callout at the top reads 'That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings \u2192 Characters.'",
+    "problem": ""
+   },
+   {
+    "name": "takeover-signin-as-unlinked-character",
+    "ok": true,
+    "caption": "The 'Your characters' panel after a buyer signs in as a character the seller had unlinked. Before: the buyer is inside the seller's account, which lists Kit Seller Alt (Active) plus Kit Seller Main. After: the buyer gets a fresh account that lists only Kit Seller Main, so the seller's other character stays private.",
+    "problem": ""
+   },
+   {
+    "name": "takeover-signin-refused-notice",
+    "ok": true,
+    "caption": "The home page as a refused sign-in comes back to it. Before: the plain home page with no message. After: an 'Auth' callout above the hero explains that the character isn't linked to an account here any more and points to Settings \u2192 Characters.",
+    "problem": "Not a defect: this pair shows the same thing as signin-account-not-linked-notice, so one of the two could be dropped."
+   },
+   {
+    "name": "takeover-signin-after-add-character-stale-holder",
+    "ok": true,
+    "caption": "Signing in directly as a character the buyer had just added under Settings, while an old account still holds its address. Before: sign-in dies on the browser's 'This page isn't working / HTTP ERROR 500' screen. After: sign-in succeeds and lands on the buyer's home board, with Kit Buyer Main as the main pilot and Kit Bought Char listed beneath.",
+    "problem": "Small mismatch with the spec. The spec says NEW signs in 'as Kit Bought Char', but the shot shows the buyer's account with Kit Buyer Main still the active pilot and Kit Bought Char listed second. The fix this pair proves (sign-in no longer fails with a 500) is shown clearly. The quiet move of the stale account's address cannot be seen in the shot."
+   },
+   {
+    "name": "p161-reassign-tidy-up-failure",
+    "ok": true,
+    "caption": "An admin clicks 'Reassign to me' and the tidy-up step after the move fails. Before: the failure is hidden and the admin lands on their own user page with Kit Source Moved in Linked characters, as if all went well. After: the same failure appears as an HTTP ERROR 500 page, so it can't go unnoticed.",
+    "problem": "Not a capture fault: on the Before side the Account card heading reads 'Kit Source Moved \u00b7 Character ID 9100012' instead of E2E Pilot. That is old-version behaviour after the move. Reviewers may also notice that the After side is a bare browser 500 page, which is the expected result but not a friendly one."
+   },
+   {
+    "name": "p256-map-create-unlinked-creator",
+    "ok": true,
+    "caption": "Creating a map with a creator character that isn't linked to the user. Both versions show 'Map creation paused'. Before: the misleading message 'The map could not be created. Check your connection and try again.' After: the real reason, 'Choose one of your own linked characters.'",
+    "problem": ""
+   },
+   {
+    "name": "p143-esi-busiest-endpoints",
+    "ok": true,
+    "caption": "The Busiest owned-data endpoints card on Admin \u2192 ESI after one signed-in call to the corporation structures endpoint. Before: four bars (industry-slots, board, corp-industry-jobs, industry-jobs). After: the same four plus a new bottom bar, '/api/account/corp-structures \u00b7 25 ms avg', with a count of 1, so that endpoint's timing is now recorded.",
+    "problem": ""
+   }
+  ]
+ }
+}

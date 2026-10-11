@@ -1,0 +1,106 @@
+{
+ "walkthrough": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/walkthrough.json",
+ "shots": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots",
+ "out": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/review",
+ "title": "Promote 8 Review",
+ "eyebrow": "PR #675 \u00b7 development \u2192 staging \u00b7 wave 8 + review fix",
+ "intro_html": "<p>This promote moves <strong>wave 8</strong> of the shared-building-blocks refactor (PR #674) and one review-fix commit onto staging. Most of it reorganises code so charts, EVE images, systems, account forms and page metadata each have one home. A handful of those changes are visible, and they are shown below with screenshots of staging today next to the same screen after this promote.</p><p>Screens come from two local servers running the old and new code against the same local data. Where a change only shows with live EVE data, the local data was mocked (blocked image server, stubbed responses, a seeded character state). Each caption says so.</p>",
+ "status_html": "<h4>Ready to merge</h4><ul><li>Head <span class=\"mono\">3a8e28c3</span></li><li>Greptile 5/5, Verify, Coverage health, build, e2e and Semgrep all green</li><li>Local <span class=\"mono\">pnpm verify</span> passed</li><li>Settled with you: default share card for industry pages (approved); the grey unknown-security pill (never shows with current data)</li></ul>",
+ "next_html": "<h2>What happens when you are happy</h2><p>Tell me if anything here should change first. Once you say go, I merge PR #675 into staging with a merge commit (all checks are already green on its head), then start the same write-up for wave 9.</p>",
+ "sections": [
+  {
+   "title": "Charts",
+   "lede": "Trend and daily charts join the net-worth chart in being readable by keyboard, and a click or tap no longer jumps the readout.",
+   "items": [
+    "P004",
+    "3a8e28c3",
+    "P318",
+    "P037",
+    "P317"
+   ]
+  },
+  {
+   "title": "EVE images and the board",
+   "lede": "Logos, item icons and the portrait rail now come from shared pieces, with a few small visible fixes.",
+   "items": [
+    "P008",
+    "P009",
+    "P003"
+   ]
+  },
+  {
+   "title": "Systems and industry",
+   "lede": "Security status gets one look everywhere, and system names recover by themselves when the system list fails to load.",
+   "items": [
+    "P010 (security display)",
+    "P010 + 3a8e28c3 (system index)",
+    "P010 (unknown-security pill)",
+    "P011",
+    "P183"
+   ]
+  },
+  {
+   "title": "Account, admin and sign-in",
+   "lede": "Shared form and status pieces. One visible change on the admin user page; the rest is invisible or for screen readers.",
+   "items": [
+    "P012",
+    "P005",
+    "P067",
+    "P062"
+   ]
+  },
+  {
+   "title": "Page metadata and link previews",
+   "lede": "What Discord, X and search engines see when someone shares an industry or site link.",
+   "items": [
+    "P271a",
+    "P271b",
+    "P271c"
+   ]
+  },
+  {
+   "title": "Tooling and docs",
+   "lede": "No effect on the site.",
+   "items": [
+    "306988c1",
+    "15db1013"
+   ]
+  }
+ ],
+ "overrides": {
+  "P010 (unknown-security pill)": {
+   "title": "The composer's security pill shows grey instead of red when a system's security is unknown",
+   "settled": "No system in the current EVE data has unknown security (all 8,089 have a value), so this never shows today. The screenshot fakes an unknown value to show what it would look like."
+  },
+  "P271a": {
+   "settled": "You approved the standard share card for industry pages."
+  }
+ },
+ "extra_shots": {
+  "P012": [
+   {
+    "name": "p012-admin-user-delayed"
+   },
+   {
+    "name": "p012-settings-delayed"
+   }
+  ],
+  "P318": [
+   {
+    "name": "p318-all-zero-balance-trend"
+   },
+   {
+    "name": "p318-all-zero-chart"
+   }
+  ]
+ },
+ "hide_shots": [
+  "p012-admin-linked-characters"
+ ],
+ "captions": {
+  "p012-admin-user-delayed": "Admin user page, Linked characters card, for a character whose EVE verification has been failing for over a day. Before: no status tag. After: the orange 'Verification delayed' tag, matching Settings. (Local data mocked.)",
+  "p012-settings-delayed": "Settings \u203a Characters with the same mocked state. Identical before and after: Settings already showed 'Verification delayed' and its warning box, and the new shared rule gives the same result. (Local data mocked: the test character's EVE verification marked as failing for two days.)",
+  "p318-all-zero-chart": "Net-worth chart for a pilot holding 0 ISK: the lower ISK axis now reads -1.00 / 0.00 / 1.00 instead of fractions of an ISK (-0.10 / 0.10). The flat line and everything else are unchanged. (Demo board data edited to 0 ISK in a throwaway copy of the code.)",
+  "p318-all-zero-balance-trend": "Wallet balance chart for an all-zero balance: the y-axis now shows -1.00 / 0.00 / 1.00 gridlines where it used to show a single 0.00 label. The flat line sits in the same place. (Demo board data edited to an all-zero balance in a throwaway copy of the code.)"
+ }
+}

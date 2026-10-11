@@ -1,0 +1,173 @@
+{
+  "out": "shots",
+  "shots": [
+    {
+      "name": "p255-settings-crafted-error",
+      "path": "/settings/characters?error=constructor",
+      "auth": "pilot",
+      "steps": "await settle(); await sleep(1500); note.landed = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "p255-statics-crafted-outcome",
+      "path": "/admin/statics?outcome=constructor",
+      "auth": "admin",
+      "steps": "await settle(); await sleep(1500); note.landed = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "p255-make-active-not-linked",
+      "path": "/settings/characters",
+      "auth": "pilot",
+      "setup": [
+        "test -z \"$(/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -tAc \"select user_id from account where provider_id = 'eve' and account_id = '9000099'\")\""
+      ],
+      "steps": "const start = page.url(); const posts = []; page.on('response', (r) => { if (r.request().method() === 'POST') posts.push({ path: new URL(r.url()).pathname, status: r.status() }); }); await page.evaluate(({ action, fields }) => { const f = document.createElement('form'); f.method = 'post'; f.action = action; for (const [k, v] of Object.entries(fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.append(i); } document.body.append(f); f.submit(); }, {action: \"/api/account/active-character\", fields: {\"characterId\": \"9000099\"}}); await page.waitForURL((u) => u.href !== start, { timeout: 90000, waitUntil: 'load' }); await settle(); await sleep(1000); note.posts = posts; note.landed = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "p255-admin-unlink-not-linked",
+      "path": "/admin/users/e2e-pilot",
+      "auth": "admin",
+      "setup": [
+        "test -z \"$(/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -tAc \"select user_id from account where provider_id = 'eve' and account_id = '9000099'\")\""
+      ],
+      "steps": "const start = page.url(); const posts = []; page.on('response', (r) => { if (r.request().method() === 'POST') posts.push({ path: new URL(r.url()).pathname, status: r.status() }); }); await page.evaluate(({ action, fields }) => { const f = document.createElement('form'); f.method = 'post'; f.action = action; for (const [k, v] of Object.entries(fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.append(i); } document.body.append(f); f.submit(); }, {action: \"/api/admin/characters/unlink\", fields: {\"userId\": \"e2e-pilot\", \"characterId\": \"9000099\"}}); await page.waitForURL((u) => u.href !== start, { timeout: 90000, waitUntil: 'load' }); await settle(); await sleep(1000); note.posts = posts; note.landed = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "p255-statics-not-pending",
+      "path": "/admin/statics",
+      "auth": "admin",
+      "setup": [
+        "test -z \"$(/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -tAc \"select id from wh_statics_snapshots where id = 999999\")\""
+      ],
+      "steps": "const start = page.url(); const posts = []; page.on('response', (r) => { if (r.request().method() === 'POST') posts.push({ path: new URL(r.url()).pathname, status: r.status() }); }); await page.evaluate(({ action, fields }) => { const f = document.createElement('form'); f.method = 'post'; f.action = action; for (const [k, v] of Object.entries(fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.append(i); } document.body.append(f); f.submit(); }, {action: \"/api/admin/wh-statics\", fields: {action: \"promote\", \"snapshotId\": \"999999\"}}); await page.waitForURL((u) => u.href !== start, { timeout: 90000, waitUntil: 'load' }); await settle(); await sleep(1000); note.posts = posts; note.landed = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "p254-settings-signed-out-notice",
+      "path": "/settings/characters",
+      "auth": "signed-out",
+      "steps": "await page.waitForURL(/auth_error=login_required/, { timeout: 90000 }); await settle(); note.url = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "p254-auth-error-prototype-key",
+      "path": "/?auth_error=constructor",
+      "auth": "signed-out",
+      "steps": "await sleep(2000); await settle(); note.url = page.url(); note.text = (await page.locator('body').innerText()).slice(0, 300);",
+      "region": "viewport"
+    },
+    {
+      "name": "p254-removed-auth-error-code",
+      "path": "/?auth_error=state_mismatch",
+      "auth": "signed-out",
+      "steps": "await settle(); note.url = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "p167-preview-admin-no-active-character",
+      "path": "/preview/primitives",
+      "auth": "pilot",
+      "setup": [
+        "node /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/pilot.mjs --check",
+        "[ -f /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p167-user.csv ] || /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh snapshot user id \"id = 'e2e-pilot'\" /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p167-user.csv",
+        "[ -f /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p167-account.csv ] || /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh snapshot account id \"user_id = 'e2e-pilot'\" /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p167-account.csv",
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -q -c \"update \\\"user\\\" set role = 'ADMIN' where id = 'e2e-pilot'; update account set provider_id = 'kit-hidden-eve' where user_id = 'e2e-pilot' and provider_id = 'eve';\""
+      ],
+      "teardown": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh restore account id /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p167-account.csv",
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh restore user id /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p167-user.csv"
+      ],
+      "steps": "await page.waitForFunction(() => location.search.includes('auth_error') || document.body.innerText.includes('TrendChart'), null, { timeout: 90000 }); await settle(); note.url = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "signin-account-not-linked-notice",
+      "path": "/?error=account_not_linked",
+      "auth": "signed-out",
+      "steps": "await settle(); note.url = page.url();",
+      "region": "viewport"
+    },
+    {
+      "name": "takeover-signin-as-unlinked-character",
+      "path": "/",
+      "auth": "signed-out",
+      "setup": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/worktree-patch.sh apply /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/fake-eve-sso.patch"
+      ],
+      "teardown": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/worktree-patch.sh revert",
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -q -f /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/kit-auth-cleanup.sql"
+      ],
+      "steps": "const { execSync } = await import('node:child_process'); const KIT = '/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit'; execSync(`${KIT}/db.sh -q -f ${KIT}/mocks/takeover-seed.sql`, { stdio: 'inherit' }); await page.goto(base + '/'); const start = await page.evaluate(async () => (await fetch('/api/auth/sign-in/oauth2', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ providerId: 'eve', callbackURL: '/', errorCallbackURL: '/' }) })).json()); const state = new URL(start.url).searchParams.get('state'); const code = 'kit.' + Buffer.from(JSON.stringify({ characterId: 9100001, owner: 'kit-buyer-hash', name: 'Kit Seller Main' })).toString('base64url'); const res = await page.goto(`${base}/api/auth/oauth2/callback/eve?code=${code}&state=${encodeURIComponent(state)}`); note.callbackStatus = res?.status(); note.landedAt = page.url(); await page.goto(base + '/settings/characters'); await settle();",
+      "region": "section:has(:text-is(\"Your characters\"))",
+      "timeout": 120000
+    },
+    {
+      "name": "takeover-signin-refused-notice",
+      "path": "/?error=account_not_linked",
+      "auth": "signed-out",
+      "steps": [
+        {
+          "settle": 20000
+        }
+      ],
+      "region": "viewport"
+    },
+    {
+      "name": "takeover-signin-after-add-character-stale-holder",
+      "path": "/",
+      "auth": "signed-out",
+      "setup": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/worktree-patch.sh apply /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/fake-eve-sso.patch"
+      ],
+      "teardown": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/worktree-patch.sh revert",
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -q -f /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/kit-auth-cleanup.sql"
+      ],
+      "steps": "const { execSync } = await import('node:child_process'); const KIT = '/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit'; execSync(`${KIT}/db.sh -q -f ${KIT}/mocks/stale-holder-seed.sql`, { stdio: 'inherit' }); await page.goto(base + '/'); const start = await page.evaluate(async () => (await fetch('/api/auth/sign-in/oauth2', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ providerId: 'eve', callbackURL: '/', errorCallbackURL: '/' }) })).json()); const state = new URL(start.url).searchParams.get('state'); const code = 'kit.' + Buffer.from(JSON.stringify({ characterId: 9100003, owner: 'kit-buyer-hash', name: 'Kit Bought Char' })).toString('base64url'); const seen = []; page.on('response', (r) => { if (r.url().includes('/api/auth/oauth2/callback/')) seen.push(r.status()); }); let res = null; try { res = await page.goto(`${base}/api/auth/oauth2/callback/eve?code=${code}&state=${encodeURIComponent(state)}`); } catch (error) { note.callbackError = String(error?.message ?? error).split('\\n')[0].slice(0, 160); } note.callbackStatus = seen.at(-1) ?? res?.status(); note.landedStatus = res?.status(); note.landedAt = page.url(); await settle();",
+      "region": "viewport",
+      "timeout": 120000
+    },
+    {
+      "name": "p161-reassign-tidy-up-failure",
+      "path": "/admin/users/kit-source",
+      "auth": "admin",
+      "setup": [
+        "[ -f /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p161-pilot-user.csv ] || /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh snapshot user id \"id = 'e2e-pilot'\" /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p161-pilot-user.csv"
+      ],
+      "teardown": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -q -f /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/reassign-cleanup.sql",
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh restore user id /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/mocks/p9-p161-pilot-user.csv"
+      ],
+      "steps": "const { execSync } = await import('node:child_process'); const KIT = '/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit'; execSync(`${KIT}/db.sh -q -f ${KIT}/mocks/reassign-seed.sql`, { stdio: 'inherit' }); await page.goto(base + '/admin/users/kit-source'); page.once('dialog', (d) => d.accept()); const row = page.locator('form:has(button:has-text(\"Reassign to me\"))').filter({ has: page.locator('input[name=\"characterId\"][value=\"9100012\"]') }); const [res] = await Promise.all([page.waitForNavigation(), row.getByRole('button', { name: 'Reassign to me' }).click()]); note.status = res?.status(); note.url = page.url(); await settle();",
+      "region": "viewport",
+      "timeout": 120000
+    },
+    {
+      "name": "p256-map-create-unlinked-creator",
+      "path": "/atlas",
+      "auth": "pilot",
+      "setup": [
+        "test -z \"$(/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -tAc \"select user_id from account where provider_id = 'eve' and account_id = '9100099'\")\""
+      ],
+      "steps": "await page.route('**/api/maps/create', async (route) => { if (route.request().method() !== 'POST') return route.continue(); const body = JSON.parse(route.request().postData() ?? '{}'); body.creatorCharacterIds = [9100099]; await route.continue({ postData: JSON.stringify(body) }); }); await page.click('[data-map-catalogue-create]'); await page.waitForSelector('[data-map-creation-dialog]'); await page.locator('[data-map-creation-dialog] input').first().fill('Review shot'); await page.locator('[data-own-character-picker] button, [data-own-character-picker] [role=checkbox]').first().click(); await page.getByRole('button', { name: 'Create map' }).click(); await page.waitForSelector('[data-map-creation-interstitial=\"error\"]', { timeout: 30000 }); await settle();",
+      "region": "[data-map-creation-interstitial]"
+    },
+    {
+      "name": "p143-esi-busiest-endpoints",
+      "path": "/admin/esi",
+      "auth": "admin",
+      "setup": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -q -c \"delete from usage_logs where action = 'owned_data_read' and metadata->>'endpoint' = '/api/account/corp-structures'\""
+      ],
+      "teardown": [
+        "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/review-kit/db.sh -q -c \"delete from usage_logs where action = 'owned_data_read' and metadata->>'endpoint' = '/api/account/corp-structures'\""
+      ],
+      "steps": "const res = await context.request.get(new URL('/api/account/corp-structures', base).href); note.corpStructuresStatus = res.status(); await sleep(4000); await page.reload({ waitUntil: 'domcontentloaded' }); await settle(); await page.locator('[data-admin-card=\"endpoints\"]').getByText('ms avg').first().waitFor({ timeout: 60000 });",
+      "region": "[data-admin-card=\"endpoints\"]"
+    }
+  ]
+}

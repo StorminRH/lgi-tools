@@ -1,0 +1,53 @@
+diff --git a/src/lib/fetch-with-timeout.ts b/src/lib/fetch-with-timeout.ts
+index 72e3ecc4..b8842205 100644
+--- a/src/lib/fetch-with-timeout.ts
++++ b/src/lib/fetch-with-timeout.ts
+@@ -22,6 +22,33 @@ export function fetchWithTimeout(
+   init?: RequestInit,
+   timeoutMs: number = OUTBOUND_FETCH_TIMEOUT_MS,
+ ): Promise<Response> {
++  // REVIEW-KIT MOCK (temporary, never committed): a local fake of EVE SSO for 'kit.' codes, so nothing reaches EVE.
++  const kitUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : '';
++  if (kitUrl.startsWith('https://login.eveonline.com/v2/oauth/') && typeof init?.body === 'string') {
++    const kitForm = new URLSearchParams(init.body);
++    const kitCode = kitForm.get('code');
++    const kitRefresh = kitForm.get('refresh_token') ?? kitForm.get('token') ?? '';
++    const kitJson = (status: number, body: unknown) =>
++      Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
++    if (kitUrl.endsWith('/revoke') && kitRefresh.startsWith('kit-refresh')) return kitJson(200, {});
++    const kitSeed = kitCode?.startsWith('kit.') ? kitCode.slice(4) : kitRefresh.startsWith('kit-refresh.') ? kitRefresh.slice(12) : null;
++    if (kitUrl.endsWith('/token') && kitRefresh === 'kit-refresh') return kitJson(400, { error: 'invalid_grant' });
++    if (kitUrl.endsWith('/token') && kitSeed) {
++      const kit = JSON.parse(Buffer.from(kitSeed, 'base64url').toString('utf8'));
++      const enc = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
++      const payload = {
++        sub: `CHARACTER:EVE:${kit.characterId}`,
++        name: kit.name,
++        owner: kit.owner,
++        scp: ['publicData'],
++        iss: 'https://login.eveonline.com',
++        aud: [process.env.EVE_CLIENT_ID ?? '', 'EVE Online'],
++        exp: Math.floor(Date.now() / 1000) + 1200,
++      };
++      const accessToken = `${enc({ alg: 'none', typ: 'JWT' })}.${enc(payload)}.kit`;
++      return kitJson(200, { access_token: accessToken, token_type: 'Bearer', expires_in: 1200, refresh_token: `kit-refresh.${kitSeed}` });
++    }
++  }
+   const controller = new AbortController();
+   const timer = setTimeout(() => {
+     controller.abort(new DOMException('signal timed out', 'TimeoutError'));
+diff --git a/src/platform/auth/eve-sso.ts b/src/platform/auth/eve-sso.ts
+index 1290657f..ad7c8c46 100644
+--- a/src/platform/auth/eve-sso.ts
++++ b/src/platform/auth/eve-sso.ts
+@@ -213,6 +213,10 @@ export async function revokeEveRefreshToken({
+ }
+ 
+ export async function verifyEveJwt(accessToken: string): Promise<EveJwtClaims> {
++  // REVIEW-KIT MOCK (temporary, never committed): accept the fake SSO's unsigned '.kit' tokens.
++  if (accessToken.endsWith('.kit')) {
++    return JSON.parse(Buffer.from(accessToken.split('.')[1] ?? '', 'base64url').toString('utf8')) as EveJwtClaims;
++  }
+   const { payload } = await jwtVerify(accessToken, jwks(), {
+     issuer: EVE_ISSUER,
+     audience: EVE_AUDIENCE,

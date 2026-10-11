@@ -1,0 +1,772 @@
+{
+ "items": [
+  {
+   "id": "P004",
+   "title": "The wallet balance chart and the admin trend and daily charts can now be read with the keyboard",
+   "where_users_meet_it": "1) Board (signed-in home page /): on a pilot's sheet, the Wallet card's 'Wallet balance over time' line chart. It only appears when that pilot has no net-worth figure yet: the assets scope was not granted, or the first net-worth value has not been recorded. Otherwise the Wallet card shows the net-worth chart instead. 2) Admin console: /admin (Audience card, page views per day); /admin/traffic (Activity, page views per day with a 7-day average); /admin/health (price cron 'Rows fetched by day', service-level 'Failures by day'); /admin/search (each '... by day' chart, plus Index coverage 'Indexed' and 'Not indexed'); /admin/esi ('Scheduled Fuzzwork share by day'). 3) /preview/primitives: the TrendChart and AnnotatedDailyChart specimens, including the 'one day of data' variant. Not affected: the bar charts, such as /admin/esi 'Degradation events by caller' and the BarChart specimen. They stay mouse-only.",
+   "before": "These charts worked only with a mouse or touch. Hovering or tapping showed a small tooltip with the value and date, plus a dashed vertical line with a dot on the line or bar. The keyboard could not reach them: Tab went straight past every one. A screen reader heard only the chart's name as a picture, for example 'Wallet balance over time'. The board's net-worth chart could already be read with the keyboard; these charts could not.",
+   "after": "Each of these charts is now a Tab stop and works like the net-worth chart. When you Tab onto a chart, three things happen. A thin muted-green rounded outline appears around it. The dashed line and dot jump to the most recent point. The tooltip shows that point, for example '1.23B \u00b7 9 Oct 2026' on the balance chart or '412 \u00b7 2026-10-11 \u00b7 7d avg 380' on a page-views chart. The Left and Right arrow keys step one point back or forward and stop at the first and last points, with no wrap-around. Up, Down, Home and End do nothing. Tabbing away or clicking elsewhere hides the tooltip. Screen readers now announce '<chart name>; use the arrow keys to read each day', but they do not read out the values you step to, because the tooltip is hidden from assistive tech. The net-worth chart already had this gap, and Greptile logged it as a follow-up. Mouse users see no difference: hover works as before, and clicking a chart shows no outline and does not move the tooltip (see 3a8e28c3). Small side effects: after clicking a chart, the arrow keys step from the point you were hovering. Keyboard users on admin pages also get one more Tab stop per chart, which adds up on /admin/search. On the wallet balance chart, one arrow press is one journal sample (up to 48 across about 30 days), so the same date can show on two presses in a row despite the 'each day' wording. Hover already did this. At rest the charts look the same as before: same axes, up to five date labels under the plot with the first and last tucked inward, whole-number value gridlines, and the same colours, sizes, tooltip text and tooltip placement.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "TrendChart and AnnotatedDailyChart are now built on the shared TimeSeriesFrame. That is the shell the net-worth chart already used: focus outline and arrow keys, canvas and tooltip, date labels, crosshair and hover area. The old chart/line-chart.tsx is deleted, along with the daily chart's hand-built date axis and hover layer. A small ChartBaseline draws the bottom edge line, and all five chart types share default number and label formatters. Unused options (className, xTicks), the tickIndices re-export, SparklinePoint and the daily model's xs were removed.",
+   "risk_notes": "Low. Tests check that the at-rest output matches: tick positions, tick labels, layer order, the tab stop and both labels. The wallet balance chart cannot be shown locally. The E2E Pilot has no ESI data, and every demo-board pilot has a net-worth figure, so they all show the net-worth chart instead. The primitives page renders the same TrendChart component and stands in for it. The admin Activity chart needs at least one local page view, so browse a couple of pages first. The other admin charts depend on cron, Search Console or ESI data that a local stack probably lacks. Accessibility: the label sits on a plain focusable div with no role, so some screen readers may not speak it, and stepped values are silent. Both gaps already exist on the net-worth chart and are logged as follow-ups, not fixed in this promote.",
+   "shots": [
+    {
+     "name": "p004-primitives-trend-tab-focus",
+     "path": "/preview/primitives",
+     "auth": "admin",
+     "steps": "Wait for svg[aria-label=\"Trend sample\"] to render. Move the mouse away from all charts. Click once on the card heading text 'TrendChart' (the h3; it is not focusable and only sets where Tab starts). Press Tab once. Do not move the mouse over a chart. If the page scrolled, capture the card by element, which scrolls it back into view without changing focus.",
+     "region": "The TrendChart specimen card (h3 'TrendChart' and the 'Trend sample' chart under it)",
+     "expect_difference": "NEW: a thin muted-green rounded outline around the Trend sample chart, a dashed vertical line with a dot on the last (right-most) point, and the tooltip '105 \u00b7 2026-09-21'. OLD: the chart sits unchanged with no outline and no tooltip. Tab skips the trend and daily charts and lands further down the page on the StackedAreaChart sample."
+    },
+    {
+     "name": "p004-primitives-trend-arrowleft",
+     "path": "/preview/primitives",
+     "auth": "admin",
+     "steps": "Same as p004-primitives-trend-tab-focus: click the h3 text 'TrendChart', press Tab once, then press ArrowLeft three times. Keep the mouse off the charts.",
+     "region": "The TrendChart specimen card",
+     "expect_difference": "NEW: the tooltip reads '82 \u00b7 2026-09-18', and the dashed line and dot sit three points left of the right end, with the outline still showing. OLD: the Trend sample still shows no outline, tooltip or crosshair. The arrow presses went to the StackedAreaChart sample further down."
+    },
+    {
+     "name": "p004-primitives-daily-tab-focus",
+     "path": "/preview/primitives",
+     "auth": "admin",
+     "steps": "Wait for svg[aria-label=\"Daily sample\"] to render. Click once on the card heading text 'AnnotatedDailyChart' (h3). Press Tab once. Keep the mouse off the charts.",
+     "region": "The top chart in the AnnotatedDailyChart specimen card ('Daily sample': green bars, average line, 'target' reference line, 'v4.1' marker, end label '128 +6%')",
+     "expect_difference": "NEW: an outline around the Daily sample chart, a dashed line and dot on the last bar, and the tooltip '101 \u00b7 2026-09-21 \u00b7 7d avg 127'. OLD: no outline and no tooltip. Focus has moved past both daily charts."
+    },
+    {
+     "name": "p004-admin-traffic-activity-focus",
+     "path": "/admin/traffic",
+     "auth": "admin",
+     "steps": "First, as the E2E Pilot, open /, /industry and /settings/characters once each so the local database logs some page views. Then open /admin/traffic and wait for the Activity card's chart, svg[aria-label^=\"Page views per day\"]. If the card says 'No page views in this range.', skip this shot. Click once on the small 'page views' caption beside the total above the chart, then press Tab once. Keep the mouse off the chart.",
+     "region": "The Activity card (total, 'page views' caption and the daily bar chart)",
+     "expect_difference": "NEW: an outline around the daily chart, a dashed line and dot on the most recent day's bar, and a tooltip like '<count> \u00b7 <today as YYYY-MM-DD> \u00b7 7d avg <n>'. OLD: the chart has no outline and no tooltip, because Tab moved past it to the next control below."
+    }
+   ]
+  },
+  {
+   "id": "3a8e28c3",
+   "title": "Clicking or tapping a chart keeps the day you pointed at, and the arrow-key position survives the board's 30-second refresh",
+   "where_users_meet_it": "Net-worth charts on the board: the Overview 'Wealth' card and each pilot's Wallet card ('Estimated net worth over time'), on the signed-in home page / and on the demo board at /?demo. Also the StackedAreaChart and SplitAxisChart samples on /preview/primitives. The same rule covers every chart that P004 makes focusable (wallet balance, admin trend and daily charts).",
+   "before": "On staging the net-worth chart already had a Tab stop, but it treated any focus, including a mouse click or a finger tap, as a keyboard Tab. On desktop, if you hovered a day two months back and clicked, the tooltip and dot jumped to today's value at the right-hand end while the pointer was still on the older day. They stayed there until the mouse moved. On phones (Android Chrome and similar), the first tap on the chart read out the newest day instead of the tapped one; only a second tap showed the tapped day. The signed-in board also refreshes its clock every 30 seconds. A keyboard user who had arrowed back ten days lost their place at that refresh, and the next arrow press restarted from the newest day.",
+   "after": "Only keyboard focus (Tab or Shift+Tab) jumps the readout to the newest day and shows the outline. A click or tap keeps the day under the pointer, so the first tap on a phone reads the day you tapped. The arrow keys carry on from the day currently shown, even after the 30-second refresh. For the wallet balance and admin charts that P004 makes focusable, mouse and touch behave exactly as they do on staging today. Without this fix they would have picked up the same jump.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "The chart's focus handler in chart-frame.tsx seeds the last point only when the browser reports keyboard-style focus (:focus-visible). The arrow-key handler finds the shown point by its x value rather than by object identity, so a parent that rebuilds its data on every render no longer resets it. The same commit's system-index change belongs to the structure composer and is outside this chart area.",
+   "risk_notes": "Low. The fix relies on the browsers' :focus-visible rules: focusing a div by mouse or touch does not count as focus-visible. This was checked in Chromium only; Safari and Firefox follow the same rule. Programmatic focus (as in tests) may not jump to the last day, but the arrow keys still start from the end. The 30-second refresh fix cannot be screenshotted locally. It needs a signed-in board with net-worth history, the E2E Pilot has no ESI data, and the /?demo board renders once and does not refresh. Unit tests cover both halves. The touch shot depends on Playwright's tap emulation firing the browser's usual mouse events. If neither ref shows a tooltip after the tap, drop that shot.",
+   "shots": [
+    {
+     "name": "fix-demo-worth-click",
+     "path": "/?demo",
+     "auth": "signed-out",
+     "steps": "Open /?demo (the demo board only renders with the ?demo query). Wait for the Overview 'Wealth' card's chart, svg[aria-label=\"Estimated net worth over time\"], to render, and scroll it into view. Read its bounding box. Move the mouse to x = left + 30% of the width, y = vertical middle, and wait for the tooltip to appear. Then press and release the mouse button at the same spot (a click with no movement). Wait 300 ms and capture without moving the mouse.",
+     "region": "The Wealth card (headline, net-worth chart and its tooltip)",
+     "expect_difference": "OLD: after the click, the tooltip (date, Net worth, ISK, Assets) and the dot jump to the right-hand end, showing today's date, although the pointer is still at 30%. NEW: the tooltip and dot stay on the hovered day under the pointer, about two months back. Neither ref shows a focus outline."
+    },
+    {
+     "name": "fix-demo-worth-tap",
+     "path": "/?demo",
+     "auth": "signed-out",
+     "steps": "Use a touch-enabled phone context (for example Playwright devices['Pixel 7'], hasTouch true). Open /?demo and wait for svg[aria-label=\"Estimated net worth over time\"] in the Wealth card. Scroll it into view. Tap once (page.touchscreen.tap) at x = left + 30% of the chart width, y = vertical middle. Wait 300 ms and capture.",
+     "region": "The Wealth card on the phone layout",
+     "expect_difference": "OLD: the first tap shows the newest day (dot at the right-hand end) instead of the tapped day. NEW: the tooltip and dot show the tapped day, about 30% along the chart."
+    }
+   ]
+  },
+  {
+   "id": "P037",
+   "title": "Both net-worth chart modes draw their bands with one shared piece",
+   "where_users_meet_it": "The board's net-worth charts (Overview 'Wealth' card and each pilot's Wallet card) in both modes. Stacked mode shows ISK with assets on top. Split mode shows net worth above a dashed break and ISK below it. It also covers the StackedAreaChart and SplitAxisChart samples on /preview/primitives.",
+   "before": "Each mode had its own copy of the band drawing: a filled area, a line along its top, and a 3px dot for a lone point with no neighbours, so a band that has just started still shows. In stacked mode, a value left out entirely was drawn at zero height by the area and line, while the dot logic treated it as missing.",
+   "after": "It looks and behaves the same. Both modes keep the same margins, so the plot does not shift when a pilot's chart switches mode. Opacities, line widths, colours and dots are unchanged. A value left out entirely is now a gap everywhere, the same as a value marked 'no data'. No current chart sends a left-out value: the net-worth chart always sends both ISK and assets, and a missing asset value arrives as an explicit 'no data', which was already a gap. So nothing visible changes. Days when the account never opened the board still join up as before, and days with no asset value still break the assets band as before.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "A new BandSeries component and a shared BAND_CHART_MARGIN in ui/chart/band-series.tsx replace the duplicated area, line and lone-point dot code in StackedAreaChart and SplitAxisChart.",
+   "risk_notes": "Low. Tests compare the markup: missing values and 'no data' render the same, lone points get their dots, and the margins are unchanged. No screenshot is planned because there is nothing to see. For a sanity check, the Wealth chart on /?demo should look identical on both refs.",
+   "shots": []
+  },
+  {
+   "id": "P317",
+   "title": "The leftover 'sparkline' module is removed and the chart colour list is renamed ChartTone",
+   "where_users_meet_it": "Nowhere on screen. The code is shared by every chart: board, admin and preview.",
+   "before": "A file named sparkline.tsx held no chart. It contained only the list of six colours a chart may use and a few re-exports for its own test. The tooltip-positioning hook sat outside the chart folder.",
+   "after": "Nothing changes on screen. The colour list is now called ChartTone and sits beside the other colour lists. The sparkline file is gone, and the tooltip-positioning hook moved, unchanged, into the chart folder.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "SparklineTone is renamed ChartTone in ui/tones.ts, sparkline.tsx and its test are deleted, use-cssom-tooltip moves to ui/chart/, and its geometry tests move to chart-geometry.test.ts. nearestIndex is now private.",
+   "risk_notes": "None for users. Nothing still imports the old paths.",
+   "shots": []
+  },
+  {
+   "id": "P318",
+   "title": "Board charts where every value is zero now span -1 to 1 ISK",
+   "where_users_meet_it": "Board (signed-in home page /): the Wallet card's 'Wallet balance over time' chart, and the ISK segment (the lower part) of the split-axis net-worth chart on a pilot's Wallet card or on the Overview Wealth card.",
+   "before": "When every value in the series was exactly zero, the chart padded its range by a tenth of an ISK. The wallet balance chart showed a flat line in the middle with a single gridline, '0.00'. In the split net-worth chart, the ISK segment showed a flat blue line in the middle of the lower band, labelled '-0.10', '0.00', '0.10'. The likeliest real case is the second one: an alt that has held 0 ISK the whole time but owns assets. That puts its chart in split mode with an all-zero ISK band.",
+   "after": "The range is padded by 1 ISK instead. The wallet balance chart still shows a flat line in the middle, now with three gridlines: '-1.00', '0.00', '1.00'. The split chart's ISK segment is labelled '-1.00', '0.00', '1.00', and the line stays in the same place. Any series that is not all zeros (rising, falling, flat at a non-zero value, or negative) gets exactly the same range as before.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "The board's private fittedDomain is replaced by the shared paddedDomain. The same commit exports readyData and uses it in place of five inline 'is this section ready' checks, and it exports the journal, attributes and implants data types from the board API contract. Those parts have no visible effect.",
+   "risk_notes": "Very low, and rare: an all-zero wallet balance chart practically never happens, and the zero-ISK alt is the realistic case. It cannot be shown with local data. The demo pilots all hold positive ISK, the E2E Pilot has no ESI data, and no preview specimen has an all-zero series, so no shot is planned. It could be staged by intercepting GET /api/account/board, as e2e/home-board.spec.ts does, with a pilot whose wallet is 0 ISK on every history day and whose assets are above 0. Negative ISK labels on a zero-ISK band look a little odd both before and after. If that bothers you, the follow-up would be to keep the ISK band from going below zero.",
+   "shots": []
+  },
+  {
+   "id": "P008",
+   "title": "EVE corporation and alliance logos share one component, and every EVE image address comes from one place",
+   "where_users_meet_it": "Corporation and alliance logos beside a character's name on character sheets: the signed-in home board (/?character=<id>), the demo board (/?demo=full&character=9900000002) and a member's sheet in the industry workspace (/industry, after opening a member). The corporation avatar on corp cards in Industry Jobs (/industry/jobs). Corporation badges on the maps list in Atlas (/atlas). Corporation rows in a map's access editor (the Access dialog on a map). Character portraits in the map block list and access editor. Item and blueprint icons everywhere TypeIcon is used (see P009).",
+   "before": "When images load normally, logos and portraits look exactly the same before and after this change. The differences are in two other situations.\n\n1. A logo fails to load. On a character sheet, the 20px corporation or alliance logo disappeared completely, and the name slid left into the empty space. In the map access editor, the 32px corporation box was a broken <img> that the browser drew in its own way, which could include a small broken-image icon. On the corp jobs card and the Atlas badges, the browser left an empty box.\n\n2. A screen reader reads the sheet. Each logo was announced as \"Federation Navy logo\", followed by the name itself, so the corporation was heard twice. An unnamed corporation was announced as \"Corporation logo\".\n\nIn code, each screen built its own image-server address: the board logo, the item icons, and three hand-made corporation-logo images in Corp Jobs, the Atlas catalogue and the access editor.",
+   "after": "With images loading normally, there is no visible change. Every picture is fetched from exactly the same address as before, because the image loader always rewrites the size. Stored portrait links still end in size=128.\n\nWhen a logo fails to load, every screen now leaves an empty box of the same size, and the same border where the screen has one. Nothing shifts. On a character sheet this means a blank 20px gap before \"Federation Navy\" or \"Halcyon Drift\" (about 26px including the spacing), where the name used to slide left. In the access editor, the broken-image placeholder becomes a clean, empty bordered square.\n\nScreen readers no longer announce logos beside a name, so the corporation or alliance name is read once. The access editor still labels its corporation logo with the corporation name while the logo loads.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "src/lib/eve-image.ts gains eveImageSrc(family, id, size), one builder with a path table for all seven image families. characterPortraitUrl now calls it, and corporationLogoUrl and eve-sso's portraitUrl are deleted. EntityLogo moves from components/composition/board/sections to src/components/entity-logo.tsx, as the logo counterpart of CharacterPortrait: typed sizes 20, 24, 32 and 36, alt defaults to '', and a failed logo leaves a same-size aria-hidden span. CorpJobsBoard, MapCatalogue and AccessListEditor now use it. Also removed: a never-set logoUrl field on map access options, and the redundant portrait src props in MapBlockList and AccessListEditor, since CharacterPortrait builds that URL itself. TypeIcon's src goes through eveImageSrc.",
+   "risk_notes": "Low risk. The review found every final image URL byte-identical: the loader rewrites ?size=, and stored portrait URLs keep size=128.\n\nOne design call for the owner. When a logo fails on a character sheet, a blank 20px slot now stays in place of the old collapse. The wave guide flagged this as \"confirm with design, or keep returning null for 20px only\".\n\nThe change only shows when an image fails. images.evetech.net is reachable from the sandbox, and even the demo board's fake alliance id (99900000001) returns a default logo with HTTP 200. So the shot has to block images.evetech.net in the browser.\n\nThe Corp Jobs avatar, Atlas corp badges and access-editor corp rows can't be shown locally. The E2E Pilot has no corporation and no ESI tokens, so only live EVE data shows them. The demo board's sheet header is the representative shot.\n\nLogos that load normally need no shot: nothing changes there.",
+   "shots": [
+    {
+     "name": "p008-board-logos-failed",
+     "path": "/?demo=full&character=9900000002",
+     "auth": "signed-out",
+     "steps": "Viewport 1440x900. Before navigating, block every request to the EVE image server so all images fail: in Playwright, await page.route('**://images.evetech.net/**', r => r.abort()). Go to the path, which is Kessa Draymoor's demo sheet. Wait for the element with aria-label \"Kessa Draymoor character sheet\" to be visible. Scroll the text \"Halcyon Drift\" into view. Then wait 1500 ms so the lazy logo images try to load, fail and re-render.",
+     "region": "The sheet's identity header: the block holding the portrait, the name \"Kessa Draymoor\" and the affiliation line with \"Federation Navy\" and \"Halcyon Drift\". At minimum, crop to the affiliation row, the nearest div ancestor of the text \"Halcyon Drift\", with about 40px of padding.",
+     "expect_difference": "OLD: no logo at all. \"Federation Navy\" and \"Halcyon Drift\" start flush at the left of their spans, where the logos would be. NEW: a blank 20px square is kept before each name, so both names sit about 26px further right, exactly where they sit when the logos load. The rest of the header (the broken portrait, the age and security line) is the same in both."
+    }
+   ]
+  },
+  {
+   "id": "P009",
+   "title": "Item icon fallback letters use real initials, and the 30px icon fallback is really 30px",
+   "where_users_meet_it": "Only when an item, blueprint or ship picture fails to load from the EVE image server. Places it shows:\n- Blueprint pages /industry/<blueprintId>: the big 112px blueprint tile, the build-plan node icons, the Raw ledger rows, and the component drawer.\n- The planner search and its Recents/Favorites shelves at /industry/planner.\n- Item and blueprint results in the site search in the header.\n- Industry job rows at /industry/jobs.\n- The ship icon on a character sheet (board and workspace).\n- Structure hull tiles in the Structures drawer (/industry?panel=structures).",
+   "before": "When an item picture failed, the tile showed two letters, usually the first two letters of the whole name: \"Heavy Water\" showed HE and \"Damage Control II\" showed DA. Industry job rows were the exception, since they already used initials (HW), so the same item could read differently on different screens.\n\nNames with odd starts gave odd letters: \"R.A.M.- Armor/Hull Tech\" showed R., and a quoted name like \"'Moreau' Fortizar\" showed 'M or 'F.\n\nIn the planner, the 30px icons (build-plan nodes and the Raw ledger) fell back to a 32px tile. In the Raw ledger, whose icon column is exactly 30px, the failed tile poked 2px past its column.",
+   "after": "The fallback shows the first letter of each of the first two words, the same rule on every screen. For example:\n- Heavy Water HW\n- Damage Control II DC\n- Oscillator Capacitor Unit OC\n- Mechanical Parts MP\n- Liquid Ozone LO\n- Helium Isotopes HI\n- R.A.M.- Armor/Hull Tech RA\n- 'Moreau' Fortizar MF (quote marks are skipped)\n\nSingle-word names are unchanged (Tritanium TR, Morphite MO), and so are short labels such as BP, C3, Ra or the \u2192 arrow. An empty name still shows ?.\n\nThe 30px fallback tile is now exactly 30px, so it fits the Raw ledger column and is 2px smaller inside the build-plan node frame. All other fallback sizes are pixel-identical: 22, 26, 32, 40, 64 and 112.\n\nWhen the picture loads normally, nothing changes.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "TypeIcon's fallback text is now initials(mono || alt) || '?'. The ten call sites that passed name.slice(0, 2) now pass the full name. PlannerRail and ComponentDrawer drop mono and let alt feed it. JobRow no longer calls initials() itself. TypeIcon's size is a closed type, 22, 26, 30, 32, 40, 64 or 112, with a size-[30px] class added. The unused 88 is gone, and so is the silent 'unknown size means 32' default, so the compiler rejects unsupported sizes. initials() in lib/format/names.ts now starts each word at its first letter or digit.",
+   "risk_notes": "Low risk, and the change is visible only when an image fails: the image server has no picture for that type, or is down. Local shots need images.evetech.net blocked in the browser.\n\nA judgment call for the owner. Single-word names followed by a Roman numeral now take the numeral as their second word: Hammerhead II reads HI (was HA), Warrior II reads WI (was WA). Digit-led names read like \"125mm Gatling AutoCannon II\" giving 1G (was 12). The wave declared this as intended.\n\nThe ship tile on a character sheet and the structure hull tiles change only for multi-word or quoted names. The demo board's ships are single words (Tengu, Ishtar and so on), and the E2E Pilot owns no structures, so those can't be shown locally. Blueprint 2049 (Damage Control II) has enough multi-word inputs to show the rule, and local SDE and market prices exist for it: 5,639 market_prices rows, and its tree and flat materials include Heavy Water. Reviewers found no defects in this lens.",
+   "shots": [
+    {
+     "name": "p009-planner-blueprint-monograms",
+     "path": "/industry/2049",
+     "auth": "signed-out",
+     "steps": "Viewport 1440x900. Before navigating, block the EVE image server: await page.route('**://images.evetech.net/**', r => r.abort()). Go to /industry/2049 (Damage Control II). Wait for the h2 \"Damage Control II\" inside aside[aria-label=\"Blueprint\"] and for the build plan to render its node cards. Then wait 1500 ms so every icon tries to load, fails and swaps to its letter tile. Do not scroll.",
+     "region": "The viewport at the top of the page: the Blueprint rail on the left, with the big 112px tile under the name, and the first build-plan node cards on the right.",
+     "expect_difference": "The big blueprint tile reads DA on OLD and DC on NEW. Node tiles change from the first two letters to initials, for example Oscillator Capacitor Unit OS to OC, Mechanical Parts ME to MP, Construction Blocks CO to CB, R.A.M.- Armor/Hull Tech R. to RA, Quantum Microprocessor QU to QM, Plasma Pulse Generator PL to PP, and Damage Control I DA to DC. Morphite stays MO. The node letter tiles are also 2px smaller on NEW (30px instead of 32px) inside their 40px frames."
+    },
+    {
+     "name": "p009-raw-ledger-monograms",
+     "path": "/industry/2049",
+     "auth": "signed-out",
+     "steps": "Viewport 1440x900. Block the EVE image server before navigating: page.route('**://images.evetech.net/**', r => r.abort()). Go to /industry/2049 and wait for the h2 \"Damage Control II\". Click the button whose text is \"Raw ledger\" (it has aria-pressed). Wait for rows such as \"Heavy Water\" and \"Tritanium\" to show, then wait 1500 ms for the icons to fail.",
+     "region": "The Raw ledger columns to the right of the Blueprint rail: the multi-column container holding the material rows, where each row is an icon, a name and a price. Include at least the rows for Heavy Water, Liquid Ozone, Helium Isotopes and Tritanium.",
+     "expect_difference": "Letter tiles change from the first two letters to initials: Heavy Water HE to HW, Liquid Ozone LI to LO, Helium Isotopes HE to HI, Hydrogen Isotopes HY to HI, Oxygen Isotopes OX to OI, Evaporite Deposits EV to ED. Tritanium (TR), Pyerite (PY), Morphite (MO) and Nitrogen Isotopes (NI) are the same in both. On OLD each tile is 32px and sticks 2px out of its 30px icon column into the gap. On NEW it is exactly 30px and fits."
+    },
+    {
+     "name": "p009-blueprint-search-monograms",
+     "path": "/industry/planner",
+     "auth": "signed-out",
+     "steps": "Viewport 1440x900. Block the EVE image server before navigating: page.route('**://images.evetech.net/**', r => r.abort()). Go to /industry/planner. Click the field with aria-label \"Search for a blueprint\" and type \"Damage Control\". Wait for the results list (role=listbox) to show at least two options, then wait 1500 ms for the 32px icons to fail.",
+     "region": "The open results dropdown under the search field: the role=listbox panel.",
+     "expect_difference": "Multi-word results read DA on OLD and DC on NEW, for example the Damage Control I and Damage Control II blueprints. Any single-word results are the same in both. Tile size (32px) is unchanged."
+    }
+   ]
+  },
+  {
+   "id": "P003",
+   "title": "Home board and industry workspace share one portrait rail, and the board's loading skeleton matches the real board",
+   "where_users_meet_it": "- The signed-in home page /: the pilot rail on the left of the board, the loading skeleton shown while your characters load, the \"Add character\" disc at the bottom of the rail, and \"\u2190 All characters\" on a character sheet (/?character=<id>).\n- The demo board /?demo=full shows the same rail.\n- The industry workspace /industry: the profile-member rail, the \"Add a character to this profile\" disc and \"\u2190 All members\".\n- The blueprint page /industry/<id>: \"\u2190 Back to search\".",
+   "before": "Loading skeleton: on a desktop-width screen, the signed-in board briefly showed an outline while your characters loaded. Its rail column was 240px wide, but the real board's rail is 17rem (272px). When the board arrived, the cards jumped about 32px to the right and got narrower.\n\nBetween 1024px and 1279px wide, the skeleton's main portrait circle was 112px and the other pilot circles 64px, while the real rail shows 56px circles at that width. So the circles also shrank when the board loaded.\n\nAdd character: the disc at the bottom of the board's pilot rail kept its grey \"+\" and \"Add character\" text on keyboard focus, with only the thin focus ring. It showed the normal arrow cursor.\n\nThe workspace's matching \"Add a character to this profile\" disc already turned gold on keyboard focus and showed a hand cursor.\n\nPilot entries, member entries and the back links looked as they do today.",
+   "after": "Loading skeleton: the rail column is 272px, the same as the real board, so the cards no longer jump sideways. Between 1024px and 1279px the main and pilot circles are 56px. From 1280px up they stay 112px and 64px, matching the real rail. Phones are unchanged.\n\nAdd character: the board's disc now behaves like the workspace's. On keyboard focus the \"+\" and the \"Add character\" label turn gold as well as showing the ring, and the mouse cursor is a pointing hand.\n\nEverything else looks the same, though it is now built from one shared rail: pilot entries (portrait size, the name, the online dot, the training, health and system lines, the Reconnect pill), the workspace member entries (dimmed and greyed when not linked, with the \"Not linked\" pill), the portrait morph when you open a character, and the \"\u2190 All characters\", \"\u2190 All members\" and \"\u2190 Back to search\" links.\n\nSwitching production profiles produces exactly the same addresses as before.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "New file: src/components/composition/board/focus-rail.tsx, holding PortraitRail (the nav strip), RailEntry (the portrait button with its view-transition morph), RailAddDisc, railAddTrigger, and the FOCUS_OVERVIEW_GRID and FOCUS_SHEET_GRID layout constants. Its users are PilotRail, MemberRail, AddCharacter, HomeBoardView, ProfileWorkspace, BoardSkeleton and WorkspaceSkeleton. board-view-model gains focusedView, which reads ?character= and checks membership. The board's boardViewFrom and the workspace's memberView both use it, and profileHref clears the focus key through boardViewHref instead of a hard-coded 'character' string. ui/button.tsx gains a backAction class, used by the three back links.",
+   "risk_notes": "Low risk. The code keeps the hooks focus restore and the e2e tests rely on: the data-pilot-id and data-member-id attributes, and the ViewTransition inside each rail button. Tests pin the skeleton's rail track to the live board's.\n\nThe skeleton only shows briefly on a signed-in home load, and only the first load in a session, since later loads reuse the remembered board. A one-character account still changes layout when the board loads, because a lone pilot gets the full-width sheet rather than the rail.\n\nThe hand cursor on Add character doesn't show in a screenshot. Pilot entries keep the default arrow, which is a small inconsistency but matches the workspace.\n\nThe workspace member rail and the back links render identically. No shot is planned for them, and the E2E Pilot has no production-profile members to show.\n\nTo capture the skeleton, the shots hold the /api/account/board request open.",
+   "shots": [
+    {
+     "name": "p003-board-skeleton-lg",
+     "path": "/",
+     "auth": "pilot",
+     "steps": "Sign in as the E2E Pilot: POST /api/dev/synthetic-pilot, or click \"Reset and continue as E2E Pilot\". Set the viewport to 1100x900, so the lg layout applies but not xl. Before navigating, hold the board data request so it never answers: await page.route('**/api/account/board**', () => {}) (never fulfil). Go to /, wait for the element with role=status and aria-label \"Loading your characters\" to be visible, then wait 500 ms.",
+     "region": "The skeleton element [aria-label=\"Loading your characters\"].",
+     "expect_difference": "OLD: the left rail column is 240px. The big top circle is 112px and the three pilot circles are 64px. The grey card blocks start about 32px further left. NEW: the rail column is 272px, so the card blocks start about 32px further right and are a little narrower. The top circle and the three pilot circles are all 56px, matching what the loaded board shows at this width."
+    },
+    {
+     "name": "p003-board-skeleton-xl",
+     "path": "/",
+     "auth": "pilot",
+     "steps": "Same as p003-board-skeleton-lg, but with the viewport at 1440x900: sign in as the E2E Pilot, hold '**/api/account/board**' unanswered with page.route, go to /, wait for [aria-label=\"Loading your characters\"], then wait 500 ms.",
+     "region": "The skeleton element [aria-label=\"Loading your characters\"].",
+     "expect_difference": "Only the column width differs. On NEW the rail column is 32px wider (272px instead of 240px), so the card blocks start further right and are narrower. The circles are the same in both: 112px main and 64px pilots."
+    },
+    {
+     "name": "p003-add-character-focus",
+     "path": "/?demo=full",
+     "auth": "signed-out",
+     "steps": "Viewport 1440x900. Go to /?demo=full and wait for nav[aria-label=\"Pilots\"]. Put focus on the last pilot entry with page.locator('[data-pilot-id=\"9900000005\"]').focus() (Bram Oskarsen), then press Tab once, so keyboard focus (:focus-visible) lands on the button with aria-label \"Add character\". Do not click it, because it starts EVE sign-in. Wait 300 ms, and keep the mouse away from the rail.",
+     "region": "The bottom of nav[aria-label=\"Pilots\"]: the \"Add character\" button with its dashed \"+\" disc and label, plus the last pilot entry above it for context.",
+     "expect_difference": "OLD: the focused button shows a thin focus ring, but the \"+\" and \"Add character\" text stay grey. NEW: the same ring, and the \"+\" and \"Add character\" turn gold, the same colour as on hover. The dashed disc border and the size are unchanged."
+    }
+   ]
+  },
+  {
+   "id": "P010 (security display)",
+   "title": "Security numbers share one look, and structure search results now show security in colour",
+   "where_users_meet_it": "Mainly the custom structure composer: /industry?panel=structures, click '+ Add structure', then type in the 'Structure' field. The search lists structures your characters can dock at. The same shared display also draws every other security number, all unchanged: the home board and character sheet (system plus security under each pilot, in clones and in the sheet header; the signed-out demo board on / too), the Facilities panel and its add-facility list on /industry, the rows in the Structures drawer (/industry?panel=structures), the 'where this job runs' line in the component drawer on /industry/{id}, the composer's System suggestions, the mapper's scanner-leads suggestions, the map's system labels, and the security shown under systems in the site's system search.",
+   "before": "Almost everywhere, a system's security showed as the game shows it (one decimal, CCP rounding) in its band colour: 0.9 light blue, 0.4 orange, and so on, with a grey dash when unknown. One place broke the pattern. In the composer's Structure field, each search result had a grey sub-line such as 'Raitaru \u00b7 Amamake 0.4', and the 0.4 was grey like the rest of the line. The System field's own suggestions just below were already coloured, so the same composer showed the same system's security two ways.",
+   "after": "The structure search results now colour the security number like everywhere else. In 'Raitaru \u00b7 Amamake 0.4', the 0.4 is orange and Jita's 0.9 is light blue. The hull and system name stay grey, and the text is exactly the same. Nothing else changes visibly. The board, facility rows, Structures drawer rows, component drawer, System suggestions, map labels and system search show the same text in the same colours as today. Mapper scanner leads still show a plain, uncoloured number, and nothing when security is unknown, which was kept on purpose. One wording note: the PR body says 'the composer's suggestions colour security like every other site'. That means these structure-name results only. The System field's suggestions were already coloured.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "The security formatter (formatSec) moved out of the system search module into security.ts, next to the colour bands, as formatSecurityStatus. The rounding helper is now private. Two small shared components, SecurityStatus (the coloured number) and SystemWithSecurity ('Name 0.4'), replace four hand-written copies: Facilities panel, Structures drawer row, component drawer and composer. The board's SystemName and the map's classification readout use the same formatter. The board still hides security for wormholes, as before.",
+   "risk_notes": "Low. The output was checked to be identical to the old formatter: 0.45 shows as 0.5, tiny positive values as 0.1, about -0.04 as 0.0 and never -0.0, unknown as a dash. The colour bands are unchanged. The one visible change needs live ESI: structure search asks ESI which structures your characters can dock at. The local E2E Pilot has no ESI tokens, so the search returns nothing locally and the list never opens. The planned shot therefore fakes that one search response in the browser. The page, the hull list and the system list stay real.",
+   "shots": [
+    {
+     "name": "p010-found-structure-security-colour",
+     "path": "/industry?panel=structures",
+     "auth": "pilot",
+     "steps": "Before navigating, stub the browser request POST **/api/account/custom-structures/search with Playwright page.route. Reply 200, content-type application/json, body {\"results\":[{\"structureId\":1035466617946,\"name\":\"Amamake - LGI Test Raitaru\",\"systemId\":30002537,\"structureTypeId\":35825},{\"structureId\":1035466617947,\"name\":\"Jita IV - LGI Test Fortizar\",\"systemId\":30000142,\"structureTypeId\":35833}]} (no extra keys; the schema is strict). Navigate to the path and wait for the Structures drawer. Click the '+ Add structure' button. In the 'New structure' card (section[aria-label=\"New structure\"]), click the input labelled exactly 'Structure' and type 'LGI Test'. Wait about 1.5 s for the 250 ms debounce and the stubbed reply, until the suggestion list (role=listbox) shows both names. Do not pick an option.",
+     "region": "The 'Structure' field plus its open suggestion list (role=listbox) inside section[aria-label=\"New structure\"]",
+     "expect_difference": "Each result's grey sub-line reads 'Raitaru \u00b7 Amamake 0.4' and 'Fortizar \u00b7 Jita 0.9' (or just 'Jita 0.9' if Fortizar is not in the hull list). OLD: the whole sub-line is grey, numbers included. NEW: the same text, but 0.4 is orange (#dc6c06) and 0.9 is light blue (#399aeb). Names, order and layout are identical."
+    }
+   ]
+  },
+  {
+   "id": "P010 (unknown-security pill)",
+   "title": "The composer's security pill shows grey instead of red when a system's security is unknown (needs your sign-off)",
+   "where_users_meet_it": "The custom structure composer: /industry?panel=structures, then '+ Add structure' (or 'Edit' on one of your structures). It is the small pill at the right end of the 'System' field once a system is picked.",
+   "before": "Once you picked a system, the pill showed its security: green at 0.45 and above, orange above 0, red otherwise (null-sec and wormholes, e.g. '-1.0'). If the system had no security value, the pill showed a dash in red, so 'unknown' looked like null-sec.",
+   "after": "The same thresholds and colours for every real value: green, orange or red, wormholes still red. Only an unknown security changes: the dash now sits in a neutral grey pill, matching the grey dash that unknown security gets everywhere else on the site, including the System suggestions in the same form.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "SecPill now takes its colour from the shared systemSecurityClass bands through a small class-to-colour map, instead of repeating the 0.45 and 0 thresholds inline. An unknown value is handled first and set to neutral.",
+   "risk_notes": "In practice nobody will see this today. Every one of the 8,089 systems in the local SDE has a security value (0 are missing), so a picked system always has a number. The grey dash would only appear if a future SDE import left a system without one. So the sign-off is about intent: should 'unknown' look neutral or alarming? It does not affect anything users meet now. The screenshot can only be made by faking the system list in the browser.",
+   "shots": [
+    {
+     "name": "p010-secpill-unknown-security",
+     "path": "/industry?panel=structures",
+     "auth": "pilot",
+     "steps": "Install the stub before navigating, because the page fetches the system list once and keeps it in memory. Use Playwright page.route on GET **/api/industry/systems: res = await route.fetch(); body = await res.json(); set security to null on the entry whose name is 'Amamake' (body.systems = body.systems.map(s => s.name === 'Amamake' ? {...s, security: null} : s)); route.fulfill({ response: res, json: body }). Navigate to the path and wait for the Structures drawer. Click '+ Add structure'. In section[aria-label=\"New structure\"], click the input labelled exactly 'System' and type 'Amama'. When the suggestion list opens, click the option 'Amamake'; its own sub-line shows a grey dash on both builds. Wait 300 ms and make sure the list has closed (press Escape if it has not).",
+     "region": "The 'System' field row inside section[aria-label=\"New structure\"], including the pill at its right edge",
+     "expect_difference": "The field reads 'Amamake' with a pill holding a dash. OLD: the pill is red, styled like null-sec. NEW: the pill is neutral grey. Everything else is identical."
+    }
+   ]
+  },
+  {
+   "id": "P010 + 3a8e28c3 (system index)",
+   "title": "System names, security and dependent numbers recover by themselves if the system list fails to load",
+   "where_users_meet_it": "Only after the request for the system list (/api/industry/systems) fails, e.g. a network blip, a 5xx or a database cold start. Then: the Facilities panel and its add-facility list on /industry (the 'Raitaru \u00b7 Amamake 0.4' sub-lines); the Structures drawer at /industry?panel=structures (each row's system and security, and the bonus figures of custom structures without typed bonuses); the composer (a picked system, its security pill, the system in structure search results); and the build planner at /industry/{id}: the component drawer's 'where this job runs' line, structure bonuses for custom structures, and the build's pricing location taken from the profile's facility. The planner's headline callout and the mapper's home-system prompt already retried before; they now share the same single copy.",
+   "before": "Most of these screens loaded the system list once, when they opened. If that request failed, they never tried again. For the rest of the visit, facility and structure rows showed only the hull ('Raitaru'), without '\u00b7 Amamake 0.4'. Your custom structures showed no bonus figures. The planner could not set the build's location from the profile's facility, so the build was priced at baseline, with no system cost index. In the composer, a structure you were editing showed an empty System field until you typed in it. Each screen also kept its own copy of the list, so one screen loading it later did not help the others. Only a page reload, or closing and reopening the panel, fixed it. When the load works, which is nearly always, everything appeared as soon as the list arrived.",
+   "after": "There is one shared copy of the system list. When any screen loads it, every open screen fills in at once. A screen that is still waiting tries again every 15 seconds for as long as it is open. Within about 15 seconds of the service recovering, names, coloured security, custom-structure bonus figures and the planner's pricing location appear without a reload. When the load works first time, the screens look and behave exactly as today.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "A new useSystemsById hook replaces useSystemName's private loader and the five places that mounted the full system-search hook only to find a system by id. It reads one shared map from id to system (a lookup instead of scanning all ~8,000 systems), and the 15 s retry useSystemName already had now applies to all of them. useSystemName is rebuilt on top of it. The review fix 3a8e28c3 made that map an app-wide client store (createClientStore/useClientStore). A load by any caller now reaches every reader, and a reader waiting to retry cancels its retry. That fixed a wave-internal slip: after its own first load failed, the composer showed a picked system blank for up to 15 s. That slip was never on staging, so compared with staging the composer shows a picked system at once, as it does today. The System suggestions and the exact-name match still use the full search hook, unchanged.",
+   "risk_notes": "Visible only when the system list request fails, so the shot forces a failure in the browser. Round 1 of the review says 3a8e28c3's store fix was never checked in a browser, so this shot is also its first real-browser check. While the endpoint is down, each open screen retries every 15 s. That is a handful of requests per 15 s per tab, all to a cached, public endpoint, which is cheap. Because the store renders with the server's empty value during hydration, it also removes a rare timing case: a late-hydrating panel could have disagreed with the server HTML if the list had already loaded. Saved data, rounding and colours do not change. The planned shot saves one custom structure for the E2E Pilot in the local database. Resetting the pilot deletes it, so create it after any 'Reset and continue as E2E Pilot'.",
+   "shots": [
+    {
+     "name": "p010-structures-row-retry",
+     "path": "/industry?panel=structures",
+     "auth": "pilot",
+     "steps": "Setup, once per database and after any pilot reset: open the path, click '+ Add structure'. Type 'Retry Test' in the 'Structure' field and do not pick a suggestion (there are none). Type 'Amama' in the 'System' field and click 'Amamake'. Choose 'Raitaru' in the 'Hull' select. Leave the Bonuses grid blank and click 'Save'. The row 'Retry Test' should appear under 'Yours' as 'Raitaru \u00b7 Amamake 0.4' with bonus figures. Load the path once more without stubs so the dev server has compiled the page and /api/industry/systems. Shot: in a fresh page, set a flag failSystems = true and install page.route on GET **/api/industry/systems that replies 500 while failSystems is true and calls route.continue() otherwise. Navigate to the path. Wait until the 'Retry Test' row under 'Yours' is visible, then 3 more seconds (optionally capture here; both builds should show the row without a system, which proves the stub worked). Set failSystems = false. Do NOT close or reopen the drawer or reload. Wait 22 seconds, then capture.",
+     "region": "The 'Yours' group in the Structures drawer, i.e. the 'Retry Test' row with its sub-line and the bonus columns on the right",
+     "expect_difference": "OLD: the row still shows only 'Raitaru' as its sub-line, with no '\u00b7 Amamake 0.4', and the bonus columns are empty because staging never retries the failed load. NEW: the row has recovered to 'Raitaru \u00b7 Amamake 0.4', with 0.4 in orange, and shows the Raitaru hull's bonus figures."
+    }
+   ]
+  },
+  {
+   "id": "P011",
+   "title": "Facility sub-lines, placeholder tiles, structure groups and facility keys come from one place (no visible change)",
+   "where_users_meet_it": "The Facilities panel and its 'Add a structure' / add-facility lists on /industry; the rows in the Structures drawer (/industry?panel=structures); the hull tile at the top of the composer card.",
+   "before": "Facility rows showed '<hull or NPC station> \u00b7 <system> <coloured security>' under the name. NPC stations had a 40px 'NPC' tile; a structure with no known hull had a 40px '?' tile. The add lists grouped 'Corporation structures', then 'Your structures', then 'NPC stations', and hid facilities already on the profile.",
+   "after": "The same markup, classes, text, group labels and order, and the same hiding of facilities already added. Nothing changes on screen.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "FacilitySubline moved into its own file, facility-subline.tsx, and the Structures drawer row now uses it instead of a hand-copied sub-line. A shared PlaceholderTile draws the 40px frame for both the '?' and 'NPC' tiles; each keeps its own text size ('?' larger, 'NPC' small with letter spacing). One STRUCTURE_SOURCE_GROUPS list feeds both the picker menu and the add-facility search groups. Every 'already on the profile' key is built with facilityKey, which gives the same 'structure:<id>' / 'station:<id>' strings as before. The hull name is now looked up once per row instead of twice.",
+   "risk_notes": "None visible. The tile classes resolve to the same set, since the project's class merger knows the custom text-size and letter-spacing names, and the key format is unchanged, so de-duplication behaves the same. One related change that belongs to P009, not here: the '?' / hull tile now hands its full hull name to the image fallback. If the EVE image server fails to load a hull icon, the fallback letters become initials, e.g. ''Moreau' Fortizar' shows 'MF' instead of ''M'. Single-word hulls such as Raitaru still show 'RA'. This only appears when an image fails.",
+   "shots": []
+  },
+  {
+   "id": "P183",
+   "title": "Owned (corporation) structures get their security class through the shared system lookup (no visible change)",
+   "where_users_meet_it": "Nowhere directly. It runs in the background when a corporation's structures sync from ESI, which needs a character with the Director role. The stored class (high, low, null or wormhole) then drives the rig-bonus maths for those structures in the Structures drawer's Corporation group and in the build planner.",
+   "before": "Saving a corporation's structures ran its own database query on solar systems to work out each structure's security class. Unknown systems fell back to 'high'.",
+   "after": "The same classes are stored, worked out by the shared getSystemFacts lookup that the board already uses. Unknown systems still fall back to 'high'. Bonus numbers are identical.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "A private deriveSecurityClasses helper in owned-structures/queries.ts was deleted. saveCorpStructures calls getSystemFacts (same columns, same empty-list guard, same systemSecurityClass rule) and reads secClass per system. A new database test pins low-sec, wormhole, unknown-as-high and two structures sharing one system.",
+   "risk_notes": "Low. The query and rule are the same, so stored classes do not change. It can't be exercised locally: the E2E Pilot has no ESI tokens and no corporation structures, so nothing syncs. The pill step that the wave guide filed under P183 shipped in P010 (see the unknown-security pill item).",
+   "shots": []
+  },
+  {
+   "id": "P005",
+   "title": "One-button account and admin forms share one building block, and greyed-out buttons now tell screen readers why",
+   "where_users_meet_it": "/settings/characters: 'Make active' and 'Unlink' on each character. /admin/users: 'Grant admin' / 'Revoke admin' on each user. /admin/users/{userId}: 'Force logout' in Sessions, plus 'Unlink' and 'Reassign to me' on each linked character; all three ask 'Are you sure?' with the browser's own prompt. /admin/queue: 'Retry' on each dead-lettered ESI job. /admin/statics: 'Check feed now', 'Promote' and 'Reject snapshot'. Local dev only: 'Reset and continue as E2E Pilot' in the signed-out header. /preview/primitives (admin reference page): the Actions section.",
+   "before": "Each of these buttons was its own hand-built form. Three of them explained a greyed-out state only through a mouse-hover tooltip:\n- Unlink on /settings/characters: \"You can't unlink your only character\".\n- Admin Unlink: \"Can't unlink the user's only character \u2014 reassign it instead\".\n- Your own row's Grant/Revoke admin: \"You can't change your own role\".\n\nScreen readers don't read a disabled button's tooltip, and phones never show one, so those users got a dimmed 'Unlink' with no reason. Force logout did have a hidden screen-reader sentence, but it was on the page even when the button worked. A screen reader read \"Use the normal sign-out for your own session.\" next to every usable Force logout button too. The Actions section of /preview/primitives had no entry for these forms.",
+   "after": "For users, the forms are unchanged. Look, labels, sizes, colours and confirmation prompts (word for word) are the same, and they send the same data to the same addresses.\n\nThe changes are small:\n- Every greyed-out button that has a reason now has a hidden sentence linked to it. A screen reader now reads, for example, \"Unlink, dimmed, You can't unlink your only character.\"\n- The hover tooltips say the same thing but now end with a full stop.\n- Force logout's hidden sentence is only there when the button is actually greyed out.\n- /preview/primitives gains two specimens in Actions, between 'Button' and 'CopyButton'. 'ActionForm' shows a 'Post back' button and a greyed 'Unavailable' button. 'ConfirmActionForm' shows a red 'Ask first' button that asks before posting.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "New src/components/ui/action-form.tsx (ActionForm) and src/components/ui/confirm-action-form.tsx (ConfirmActionForm). ConfirmActionForm is the only client piece and holds the browser confirm(). Nine forms now use them: SwitchCharacter, UnlinkCharacter, RoleToggle, AdminUnlink, AdminForceLogout, AdminReassign, the statics buttons, Retry and the dev E2E Pilot button. RetryJobForm.tsx is deleted and inlined into QueueCards. The three admin forms are no longer client components themselves. ESLint's one allowance for a native title on Button moved from five account forms to action-form.tsx; 07c7e1f7 points the two rail tests at the new owner. New contract tests check each form's hidden fields against the server route's schema. The UI census now pins zero hand-built POST forms or hidden inputs outside ui/.",
+   "risk_notes": "Low risk. Field names and order, action URLs and confirm wording are identical and pinned by tests, and no API route changed. The prompts still use the browser's plain confirm() box; moving them to the app's ConfirmDialog is follow-up F356. The prompt still needs the page's JavaScript to have loaded, as before. A screenshot can't show the screen-reader text or the extra full stop, because native hover tooltips don't appear in captures. To check by hand: sign in as E2E Pilot (one character) and hover the greyed 'Unlink' on /settings/characters. The real forms look identical, so the only planned shot is the new preview specimens. Don't click them during capture: they post back to the preview page, which is harmless but reloads it.",
+   "shots": [
+    {
+     "name": "p005-primitives-action-form",
+     "path": "/preview/primitives",
+     "auth": "admin",
+     "steps": "Load the page and wait for it to settle. Scroll to the 'Actions' group (element id 'actions'). Do not click any button in it.",
+     "region": "Inside #actions: from the end of the 'Button' specimen to the start of the 'CopyButton' specimen. On NEW that covers the 'ActionForm' and 'ConfirmActionForm' specimens.",
+     "expect_difference": "OLD: 'Button' is followed directly by 'CopyButton'. NEW: two specimens sit between them. 'ActionForm' has a grey 'Post back' button and a dimmed, disabled 'Unavailable' button. 'ConfirmActionForm' has a red 'Ask first' button."
+    }
+   ]
+  },
+  {
+   "id": "P067",
+   "title": "Sign-out and EVE sign-in run through two shared helpers, and a failed request no longer throws an uncaught error",
+   "where_users_meet_it": "Sign-in:\n- the 'Sign in with EVE' button in the header and on the home page\n- 'Create a profile' in the Industry Planner rail when signed out (/industry)\n- the command palette's 'Sign in' command\n\nSign-out:\n- 'Log out' in the header account menu\n- 'Log out' in the mobile nav menu\n- 'Log out everywhere' on /settings/account\n- the automatic hand-off to EVE's authorized-apps page after the account is emptied on /settings/account",
+   "before": "Sign-out: the app asked the server to end the session, then, whatever the answer, forgot the browser's 'signed in' hint, cleared old preference cookies and fully reloaded to the destination: home, the chosen target, or EVE's authorized-apps page. If the request itself failed (offline, server unreachable), the browser console also logged an 'Uncaught (in promise)' error. Sign-in: the button asked the auth server for the EVE login address and went there. If that request failed outright, nothing happened on screen, and the console logged an uncaught error; in local dev, Next's error indicator popped up. The command palette's sign-in already swallowed that error.",
+   "after": "Users see no difference. Every sign-out goes to the same place in the same way, on success or failure, and still forgets the signed-in hint first. Every sign-in goes to EVE in the same way. When a request fails outright, nothing is logged as an uncaught error any more. A failed sign-in still leaves you on the page with no message, the same as before. The command palette's 'Log out' still leaves only when sign-out succeeds; it was left alone on purpose.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "src/platform/auth/reload-document-home.ts gains signOutAndLeave(target), and reloadDocumentHome takes an optional target. src/platform/auth/link-character.ts gains startEveSignIn(callbackURL), and sign-in and character linking use the shared EVE_PROVIDER_ID instead of the literal 'eve'. Four sign-out sites and three sign-in sites now call the helpers. forgetSignedInBrowser is folded into reloadDocumentHome, and an unneeded lint suppression is gone. New tests cover success, failure and rejection for both helpers.",
+   "risk_notes": "Not visible in screenshots, so no shots are planned. It only matters when the network request itself fails. It could be shown in local dev by blocking /api/auth/sign-in/oauth2 and clicking 'Sign in with EVE': OLD shows Next's dev error indicator and NEW shows nothing. That only happens in dev, so it is not planned. Two existing gaps are unchanged and are product calls for the owner. A failed sign-in gives no feedback. The palette's 'Log out' (leaves only on success) differs from the menu's 'Log out' (always leaves).",
+   "shots": []
+  },
+  {
+   "id": "P012",
+   "title": "The admin user page shows 'Verification delayed' the way Settings does",
+   "where_users_meet_it": "/admin/users/{userId}: the 'Linked characters' card, in the chips beside each character. /settings/characters uses the same rule and looks unchanged.",
+   "before": "Settings showed one orange chip per character:\n- 'Disconnected': no refresh token.\n- 'Missing scopes': token, but not all permissions.\n- 'Verification delayed': otherwise fine, but EVE has failed to verify the character for 24+ hours. Settings also shows an explanation box for this one.\n\nThe admin user page worked out its own chip and only knew the first two. For a character whose verification was stuck, an admin saw no chip, so the character looked healthy.",
+   "after": "The admin page uses the same rule as Settings, so a stuck character now shows an orange 'Verification delayed' chip. The admin page gets only the chip, not Settings' explanation box. 'Disconnected' and 'Missing scopes' look as before on both pages, and Settings is unchanged.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "Settings' label rule (characters-view.ts) moves to src/platform/auth/scope-health.ts as deriveLinkedCharacterStatus, and both pages call it. characters-view.ts and its test are deleted, and the cases move to scope-health.test.ts. A new admin test pins the 'Verification delayed' chip. deriveCharacterHealth and listGrantedScopes become private.",
+   "risk_notes": "Local data can't show this. The chip needs a character with a refresh token, every scope granted, and an EVE verification failure more than 24 hours old, which only live EVE accounts have. E2E Pilot has no tokens, so OLD and NEW both show 'Disconnected'. The one shot below is for orientation only: it shows the chip slot where 'Verification delayed' will now appear. It also shows the P005 buttons (greyed 'Unlink', 'Force logout'), which look the same. Low risk: the rule's code is the same as Settings' existing, tested rule.",
+   "shots": [
+    {
+     "name": "p012-admin-linked-characters",
+     "path": "/admin/users/e2e-pilot",
+     "auth": "admin",
+     "steps": "Load the page as the E2E Pilot admin and wait until the 'Linked characters' card has finished loading (its skeleton is gone).",
+     "region": "The 'Linked characters' card",
+     "expect_difference": "No difference expected with local data: both show the orange 'Disconnected' chip next to E2E Pilot. This is the slot where 'Verification delayed' now appears for a stuck character on staging and production."
+    }
+   ]
+  },
+  {
+   "id": "P062",
+   "title": "The EVE status popover and the admin status screens share one table of status colours",
+   "where_users_meet_it": "The EVE status indicator in the site header, whose popover has the Tranquility, ESI and static-data rows. Also /admin overview status cards, /admin/health status rows and the error-budget number on /admin/esi.",
+   "before": "Two separate copies said which colour each status level gets: warning orange, problem red, unknown grey, healthy plain. The header popover's healthy values take the popover's normal text colour, and admin's healthy values are bright white.",
+   "after": "Exactly the same colours everywhere, now from one shared module. The ESI error-budget number is still red when low and white otherwise.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "src/app/(site)/admin/status-tone.ts moves to src/components/status-level-tone.ts and gains levelValueClass(level, plain). The header's EveStatusPanel drops its own copy. ui/readout.tsx owns the severity classes once through valueToneClass. The ESI budget's inline red check uses the shared helper.",
+   "risk_notes": "None. The rendered markup is unchanged, which is checked by the moved tests and by the review. No shots, because nothing differs.",
+   "shots": []
+  },
+  {
+   "id": "P271a",
+   "title": "Industry pages get their own share titles and descriptions, and use the standard LGI.tools share card",
+   "where_users_meet_it": "Link previews when someone pastes an industry link into Discord, Slack, X or similar, and in search results: /industry, /industry/jobs, /industry/planner and /industry/{blueprint id}, for example /industry/691. Browser tab titles and canonical links don't change.",
+   "before": "/industry: the preview title was 'Industry Planner \u2014 LGI.tools' and the description was the Planner's blueprint-search text, not the workspace. The X/Twitter preview said just 'LGI.tools' with the generic site blurb. The picture was /logo.png, the wide 'LO-GANG INDUSTRIES.TOOLS' wordmark.\n\n/industry/jobs and /industry/planner had no preview tags of their own, so a shared link looked like the home page: title 'LGI.tools', the generic 'Lo-Gang Industries \u2014 Eve Online tools for wormhole pilots\u2026' blurb, and a link (og:url) pointing at the home page. Their picture was the standard card.\n\n/industry/{id}: the title and description were already right, for example 'Rifter \u2014 Industry Planner', but the picture was the /logo.png wordmark.",
+   "after": "Every industry page previews with its own title and description, and its og:url is its own address:\n- /industry: 'Industry Planner', 'Your Eve Online industry workspace \u2014 set up production profiles\u2026'.\n- /industry/jobs: 'Active Jobs \u2014 Industry Planner', 'Your Eve Online industry jobs across every linked character and corporation, live as they run.'\n- /industry/planner: 'Planner \u2014 Industry Planner', 'Search any Eve Online blueprint to plan its build: cost, profit margin and build time at live Jita prices.'\n- /industry/{id}: unchanged text.\n\nX/Twitter previews match. The picture on all four is the standard 1200\u00d7630 LGI.tools card that /, /sites and the other pages use: '[ LGI.tools ]', 'EVE ONLINE TOOLS', 'WORMHOLE SITES \u00b7 LIVE PRICES \u00b7 INDUSTRY PLANNING'. The page in the browser looks identical.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "The four industry pages build their metadata with the shared buildPageMetadata (src/lib/page-metadata.ts) instead of hand-writing it. The detail page and its content load the blueprint through the shared loadNumericRouteEntity. scripts/verify-seo-metadata.py now also checks the three industry list pages.",
+   "risk_notes": "This is one of the two choices waiting on your sign-off: industry share cards change from the /logo.png wordmark to the standard card. Neither old nor new has a per-blueprint picture. Discord and X cache previews, so links shared before won't change until those sites fetch them again. For the shots: run curl with a link-preview user agent (Twitterbot) so Next puts the tags in <head> the way preview bots see them. Absolute URLs use NEXT_PUBLIC_SITE_URL if it is set locally, otherwise https://lgi.tools. If /industry/691 returns 404 locally because the local database has no blueprint data, use any blueprint id that opens from the Planner search.",
+   "shots": [
+    {
+     "name": "p271-industry-head",
+     "path": "/industry",
+     "auth": "signed-out",
+     "steps": "Run: curl -s -D - -A 'Twitterbot/1.0' http://localhost:<port>/industry. Keep the HTTP status line, then from the HTML keep <title>, <link rel=\"canonical\">, and every <meta property=\"og:*\"> and <meta name=\"twitter:*\"> tag.",
+     "region": "head-tags",
+     "expect_difference": "OLD: og:title 'Industry Planner \u2014 LGI.tools'; og:description 'Search any Eve Online blueprint to plan its build \u2014 cost, profit margin, and price confidence at live Jita rates.'; og:image \u2026/logo.png; no og:site_name; twitter:title 'LGI.tools' with the generic site description; twitter:image \u2026/logo.png. NEW: og:title and twitter:title 'Industry Planner'; og and twitter description 'Your Eve Online industry workspace \u2014 set up production profiles\u2026'; og:site_name 'LGI.tools'; og:image \u2026/opengraph-image with width 1200, height 630 and alt 'LGI.tools'; twitter:image \u2026/opengraph-image. <title> and canonical are the same on both."
+    },
+    {
+     "name": "p271-industry-jobs-head",
+     "path": "/industry/jobs",
+     "auth": "signed-out",
+     "steps": "Run: curl -s -D - -A 'Twitterbot/1.0' http://localhost:<port>/industry/jobs. Keep the status line, <title>, canonical, and every og:* and twitter:* meta tag.",
+     "region": "head-tags",
+     "expect_difference": "OLD: the inherited home-page tags. og:title and twitter:title 'LGI.tools'; description 'Lo-Gang Industries \u2014 Eve Online tools for wormhole pilots\u2026'; og:url is the site home; og:image \u2026/opengraph-image?<hash> with alt 'LGI.tools \u2014 Eve Online tools for wormhole pilots'. NEW: og:title and twitter:title 'Active Jobs \u2014 Industry Planner'; description 'Your Eve Online industry jobs across every linked character and corporation, live as they run.'; og:url \u2026/industry/jobs; og:image \u2026/opengraph-image with alt 'LGI.tools'. The picture itself is the same. <title> 'Active Jobs \u2014 Industry Planner | LGI.tools' is the same on both. /industry/planner changes the same way."
+    },
+    {
+     "name": "p271-industry-blueprint-head",
+     "path": "/industry/691",
+     "auth": "signed-out",
+     "steps": "Run: curl -s -D - -A 'Twitterbot/1.0' http://localhost:<port>/industry/691. Keep the status line, <title>, canonical, every og:* and twitter:* meta tag, and the application/ld+json breadcrumb script.",
+     "region": "head-tags",
+     "expect_difference": "OLD: og:image and twitter:image \u2026/logo.png, no image size or alt, no og:site_name. NEW: og:image \u2026/opengraph-image with width 1200, height 630 and alt 'LGI.tools'; twitter:image \u2026/opengraph-image; og:site_name 'LGI.tools'. Title, description, og:url, canonical and the breadcrumb JSON-LD (Home \u203a Industry Planner \u203a Rifter) are the same."
+    },
+    {
+     "name": "p271-industry-share-card",
+     "path": "/industry",
+     "auth": "signed-out",
+     "steps": "Run curl -s -A 'Twitterbot/1.0' http://localhost:<port>/industry and read the content of <meta property=\"og:image\">. Replace that URL's origin (https://lgi.tools or the local NEXT_PUBLIC_SITE_URL) with the local server origin. Open the resulting image URL in the browser and capture it at its natural size.",
+     "region": "The og:image picture, full image",
+     "expect_difference": "OLD: /logo.png, the wide 'LO-GANG / INDUSTRIES.TOOLS' wordmark on dark navy with green brackets. NEW: /opengraph-image, the standard 1200\u00d7630 black card with '[ LGI.tools ]', 'EVE ONLINE TOOLS', 'WORMHOLE SITES \u00b7 LIVE PRICES \u00b7 INDUSTRY PLANNING' and 'LO-GANG INDUSTRIES'. This is what a Discord or X preview of an industry link will show."
+    }
+   ]
+  },
+  {
+   "id": "P271b",
+   "title": "Link previews name the site ('LGI.tools') on every page built with the shared metadata helper",
+   "where_users_meet_it": "Link previews and search for /, /atlas, /changelog, /changelog/{slug}, /contact, /legal, /sites, /sites/{id} and the four industry pages. Discord and Slack show og:site_name as a small line above the preview title.",
+   "before": "These pages set their own preview tags without a site name. A shared /sites/3 or home-page link therefore had no 'LGI.tools' line above the title in Discord or Slack. Pages without their own tags, such as /settings, already inherited it.",
+   "after": "Each of these pages emits og:site_name 'LGI.tools', so previews show the site name line. Everything else in their tags stays the same, including /sites/{id}'s own generated site picture.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "buildPageMetadata sets openGraph.siteName. It also gains a socialImage: 'route' option that leaves the picture keys out, so /sites/{id} keeps its own generated card while using the shared builder. /sites/{id} also drops a redundant per-request cache() wrapper; its loader is already cached. buildBreadcrumbList adds the Home crumb itself, and the JSON-LD output is the same.",
+   "risk_notes": "Very low. Only one tag is added. The tag changes nothing in the page itself, so the capture is the head tags. Draft PR #646 (Codex) still calls the old breadcrumb shape and will fail its typecheck until it is updated when it resumes. That does not affect this promote.",
+   "shots": [
+    {
+     "name": "p271-site-detail-head",
+     "path": "/sites/3",
+     "auth": "signed-out",
+     "steps": "Run: curl -s -D - -A 'Twitterbot/1.0' http://localhost:<port>/sites/3. Keep the status line, <title>, canonical, and every og:* and twitter:* meta tag.",
+     "region": "head-tags",
+     "expect_difference": "OLD: no og:site_name tag. NEW: og:site_name 'LGI.tools'. Every other tag is the same, including og:image pointing at /sites/3/opengraph-image\u2026, the site's own generated card."
+    }
+   ]
+  },
+  {
+   "id": "P271c",
+   "title": "An unknown /industry/{id} is treated as 'not found' already in its page metadata",
+   "where_users_meet_it": "A broken or mistyped blueprint link such as /industry/99999999, as seen by link-preview bots, search engines and the browser tab.",
+   "before": "For an id that isn't a blueprint, the page metadata returned nothing and the page body later showed 'Not found'. Until then, the head carried the generic home tags: title 'LGI.tools' and an og:url pointing at the home page. A preview bot could get a normal-looking 'LGI.tools' preview for a dead link.",
+   "after": "The metadata step itself says 'not found', the same way /sites/{id} already does. Preview bots, which wait for the metadata, should get a real 404 with the not-found page's no-index tags instead of a home-page-looking preview. In a browser the page still ends on the same 'Not found' screen.",
+   "user_visible": true,
+   "visual": true,
+   "behind_the_scenes": "generateMetadata in src/app/(site)/industry/[id]/page.tsx calls notFound() on a miss instead of returning {}. The page body uses loadNumericRouteEntity. A new page test pins the behaviour.",
+   "risk_notes": "Low risk; this is the pattern /sites/{id} already ships. The exact HTTP status and head for a browser user agent depend on Next's metadata streaming, so the shot records both user agents. The page screen itself should look the same.",
+   "shots": [
+    {
+     "name": "p271-unknown-blueprint-head",
+     "path": "/industry/99999999",
+     "auth": "signed-out",
+     "steps": "Run curl twice and record each HTTP status code. First: curl -s -D - -A 'Twitterbot/1.0' http://localhost:<port>/industry/99999999. Second: the same with a normal desktop Chrome user agent. For each, keep <title>, any <meta name=\"robots\">, canonical, and the og:* and twitter:* tags.",
+     "region": "head-tags",
+     "expect_difference": "OLD (Twitterbot): generic tags, with title 'LGI.tools', og:url the home page and the generic description; the status may be 200. NEW (Twitterbot): a 404 status with the not-found head (noindex robots) and no home-page og:url. The Chrome user agent may differ less; record what it returns."
+    }
+   ]
+  },
+  {
+   "id": "306988c1",
+   "title": "Refactor-automation kit: quoted file paths and a guard against iCloud duplicate files",
+   "where_users_meet_it": "Nowhere on the site. These are the scripts in docs/refactoring/kit that the refactor sessions run.",
+   "before": "The kit broke on a checkout path with a space and could commit iCloud's 'name 2.ext' duplicate files.",
+   "after": "Paths are quoted, and a wave commit stops if iCloud duplicates are present. The reviewer models and effort are adjusted, and the completeness review now checks that new tests can fail.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Edits docs/refactoring/kit/implement-wave.js and docs/refactoring/kit/tools/cleanup.sh only.",
+   "risk_notes": "None for the site. Reviewed: it adds nothing destructive.",
+   "shots": []
+  },
+  {
+   "id": "15db1013",
+   "title": "The wave 7 guide page links its pull request",
+   "where_users_meet_it": "Nowhere on the site: docs/refactoring/wave-07-ui-kit-primitives-src-components-ui.md.",
+   "before": "The wave 7 guide didn't link its PR.",
+   "after": "It links the wave 7 PR.",
+   "user_visible": false,
+   "visual": false,
+   "behind_the_scenes": "Adds two lines to one docs file.",
+   "risk_notes": "None.",
+   "shots": []
+  }
+ ],
+ "shotRun": {
+  "servers": "Both worktrees were created outside the repo with `git worktree add --detach`. OLD is origin/staging at 17841eec (\"Merge pull request #673\") in p8/wt-old, served on http://localhost:3101. NEW is origin/development at 3a8e28c3 (\"Fix promote review round 1\") in p8/wt-new, served on http://localhost:3102. Each worktree got `pnpm install --frozen-lockfile --prefer-offline` (7s from the store; no symlink fallback needed) and a copy of .env.local, which was never printed. Each ran `pnpm exec next dev -p <port>` with DATABASE_URL, DATABASE_URL_UNPOOLED and DATABASE_MIGRATION_URL set to local Postgres :5433, CONVEX_AGENT_MODE=anonymous, SUPERADMIN_CHARACTER_ID=9000001, and BETTER_AUTH_URL, SITE_URL and AUTH_ISSUER_URL set to http://localhost:<port>. Logs are p8/dev-old.log and p8/dev-new.log. Both answered 200 on / straight away. There are no schema or convex/ differences between the two refs, so sharing the database and Convex was safe.\n\nAuth deviation: POST /api/dev/synthetic-pilot returns 500 on both refs when SUPERADMIN_CHARACTER_ID=9000001. The guard in synthetic-pilot-store.ts throws \"The synthetic pilot cannot be the configured superadmin\". So I minted the pilot once with `pnpm e2e:seed --out=p8/auth.json`, run from wt-new with SUPERADMIN unset, as .env.local has it. Both servers then used the resulting better-auth.session_token cookie (domain localhost, so it works on both ports). Because the servers run with SUPERADMIN=9000001, that one session is the E2E Pilot and is also admin. I confirmed /admin/traffic returned 200 on both. This reset the E2E Pilot once, which revokes any earlier pilot session, including one on :3000.\n\nConvex logged \"No auth provider found\" errors in the console on 3101/3102 because its issuer is localhost:3000. None of the shots depend on Convex auth.\n\nAll paths here are under /tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/. The Playwright script is shots.cjs, which loads playwright via createRequire from the worktree, so nothing was copied into the repo. heads.py does the curl head-tag capture, and notes.json records which element had focus, plus the options and pointer coordinates for each side.",
+  "captured": [
+   {
+    "name": "p004-primitives-trend-tab-focus",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-primitives-trend-tab-focus-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-primitives-trend-tab-focus-after.png",
+    "notes": "Matches the expectation. NEW: muted-green rounded outline, dashed line and dot on the last point, tooltip '105 \u00b7 2026-09-21'; focus is on div[aria-label='Trend sample; use the arrow keys to read each day']. OLD: no outline or tooltip; Tab landed on div[aria-label='Stacked sample; \u2026'] further down the page. Captured the card by element (506x370)."
+   },
+   {
+    "name": "p004-primitives-trend-arrowleft",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-primitives-trend-arrowleft-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-primitives-trend-arrowleft-after.png",
+    "notes": "Matches. NEW: tooltip '82 \u00b7 2026-09-18', dashed line and dot three points from the right end, outline still showing. OLD: Trend sample unchanged; focus and the arrow presses went to the Stacked sample."
+   },
+   {
+    "name": "p004-primitives-daily-tab-focus",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-primitives-daily-tab-focus-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-primitives-daily-tab-focus-after.png",
+    "notes": "Matches. NEW: outline around the Daily sample chart, dashed line and dot on the last bar, tooltip '101 \u00b7 2026-09-21 \u00b7 7d avg 127'. OLD: no outline or tooltip; focus went to the Stacked sample. The capture is the whole AnnotatedDailyChart card, so the 'One day of data' chart below is included; the card is centred so the sticky header does not cover it."
+   },
+   {
+    "name": "p004-admin-traffic-activity-focus",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-admin-traffic-activity-focus-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p004-admin-traffic-activity-focus-after.png",
+    "notes": "The chart had data (page views were seeded by visiting /, /industry and /settings/characters first). NEW: outline, dashed line and dot on today's bar, tooltip '22 \u00b7 2026-10-11 \u00b7 7d avg 22'; focus is on the 'Page views per day\u2026' chart div. OLD: no outline or tooltip; Tab moved focus to the link 'Search console \u2192'. The totals differ (16 OLD, 22 NEW) only because views pile up in the shared database between runs."
+   },
+   {
+    "name": "fix-demo-worth-click",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/fix-demo-worth-click-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/fix-demo-worth-click-after.png",
+    "notes": "Matches. The pointer was at 30% of the chart (697,450) with no movement between hover and click. OLD: after the click, the tooltip and dot jumped to the right end ('11 Oct 2026', Net worth 7.75B, ISK 4.11B, Assets 3.64B). NEW: they stay on the hovered day ('5 Aug 2026', Net worth 5.84B, ISK 3.11B, Assets 2.73B). Neither side shows a focus outline, although document.activeElement is the chart div on both."
+   },
+   {
+    "name": "fix-demo-worth-tap",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/fix-demo-worth-tap-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/fix-demo-worth-tap-after.png",
+    "notes": "Used Playwright devices['Pixel 7'] (touch, deviceScaleFactor 2.625, so the images are 977x1268). Tapped at 30% of the chart. OLD: the first tap shows the newest day ('11 Oct 2026', dot at the right end). NEW: the tooltip shows the tapped day ('29 Jul 2026', Net worth 5.70B) with the dot and crosshair at about 30% along."
+   },
+   {
+    "name": "p008-board-logos-failed",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p008-board-logos-failed-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p008-board-logos-failed-after.png",
+    "notes": "images.evetech.net was blocked. The crop covers the identity block (empty portrait ring, 'Kessa Draymoor', the affiliation row and the Sec line) with 40px padding. OLD: 'Federation Navy' and 'Halcyon Drift' sit flush left with no logo space; the row is 189px wide. NEW: a blank 20px slot before each name, so the names sit about 26px further right; the row is 241px wide. Tighter crops of just the affiliation row are in p008-board-logos-failed-before-row.png and p008-board-logos-failed-after-row.png in the same folder."
+   },
+   {
+    "name": "p009-planner-blueprint-monograms",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p009-planner-blueprint-monograms-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p009-planner-blueprint-monograms-after.png",
+    "notes": "Viewport at the top of /industry/2049 with images blocked. The big tile reads DA on OLD and DC on NEW. Node tiles change as expected: FE\u2192FC, OS\u2192OC, PL\u2192PP, QU\u2192QM, DA\u2192DC, R.\u2192RA, CR\u2192CC, HE\u2192HF, HY\u2192HF, NI\u2192NF, OX\u2192OF, NO\u2192NM, PH\u2192PC, CA\u2192CC or CP, Heavy Water HE\u2192HW, Helium/Hydrogen Isotopes\u2192HI, Liquid Ozone LI\u2192LO. Single-word names (OX Oxygen, FU, NA, NI Nitrogen Isotopes) are unchanged. Both sides show the same 'Syncing\u2026' toast, 0.00 prices and the dev 'Compiling' badge."
+   },
+   {
+    "name": "p009-raw-ledger-monograms",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p009-raw-ledger-monograms-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p009-raw-ledger-monograms-after.png",
+    "notes": "The ledger container is about 1092px tall, more than the 900px viewport, so I took a full-page capture clipped to it from scroll 0, which keeps the sticky header off it. It shows the Minerals, Ice products, Moon materials and Planetary columns. Changes: Heavy Water HE\u2192HW, Liquid Ozone LI\u2192LO, Helium Isotopes HE\u2192HI, Hydrogen Isotopes HY\u2192HI, Oxygen Isotopes OX\u2192OI, Evaporite Deposits EV\u2192ED, Strontium Clathrates ST\u2192SC, Enriched Uranium EN\u2192EU, Mechanical Parts ME\u2192MP, Construction Blocks CO\u2192CB, Atmospheric Gases AT\u2192AG. Tritanium, Pyerite, Morphite and Nitrogen Isotopes are unchanged. The 2px tile-size difference is too small to judge by eye at this scale."
+   },
+   {
+    "name": "p009-blueprint-search-monograms",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p009-blueprint-search-monograms-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p009-blueprint-search-monograms-after.png",
+    "notes": "Search field plus the open listbox. Both sides list six options in the same order. OLD: DA, DA, CI, AS, 'R, AS. NEW: DC, DC, CD, AD, RD, AD (Damage Control I/II, Civilian Damage Control, Assault Damage Control I, 'Radical' Damage Control, Assault Damage Control II). Tile size is unchanged."
+   },
+   {
+    "name": "p003-board-skeleton-lg",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p003-board-skeleton-lg-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p003-board-skeleton-lg-after.png",
+    "notes": "Viewport 1100x900; /api/account/board was held unanswered. Matches. OLD: big top circle about 112px, three 64px pilot circles, cards start about 280px in. NEW: all circles 56px, and the cards start about 312px in and are narrower."
+   },
+   {
+    "name": "p003-board-skeleton-xl",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p003-board-skeleton-xl-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p003-board-skeleton-xl-after.png",
+    "notes": "Viewport 1440x900; board request held. Circles are the same on both (112px main, 64px pilots). On NEW the card blocks start about 32px further right."
+   },
+   {
+    "name": "p003-add-character-focus",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p003-add-character-focus-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p003-add-character-focus-after.png",
+    "notes": "Focus is on button[aria-label='Add character'] on both sides. The crop shows the Bram Oskarsen entry plus the Add character button. OLD: focus ring, with grey '+' and grey label. NEW: same ring, with a gold or green '+' and 'Add character' text; the dashed disc is unchanged."
+   },
+   {
+    "name": "p010-found-structure-security-colour",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p010-found-structure-security-colour-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p010-found-structure-security-colour-after.png",
+    "notes": "The search POST was stubbed. Both sides show 'Raitaru \u00b7 Amamake 0.4' and 'Fortizar \u00b7 Jita 0.9' with the same names and order. OLD: the whole sub-line is grey. NEW: 0.4 is orange and 0.9 is light blue."
+   },
+   {
+    "name": "p010-secpill-unknown-security",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p010-secpill-unknown-security-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p010-secpill-unknown-security-after.png",
+    "notes": "Amamake's security was stubbed to null. The crop is the System and Hull grid row; the field reads 'Amamake' and the list closed on its own, so no Escape was needed. OLD: the dash pill is red, styled like null-sec. NEW: the dash pill is neutral grey."
+   },
+   {
+    "name": "p010-structures-row-retry",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p010-structures-row-retry-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p010-structures-row-retry-after.png",
+    "notes": "Setup: I created the custom structure 'Retry Test' (Raitaru, Amamake, bonuses blank) once through the UI on NEW; it shows on both because the database is shared. In the shot, /api/industry/systems returned 500 until it was released. OLD made 1 failed request and none after release, so the row still reads 'Raitaru' with no bonus figures. NEW made 1 failed request and 1 successful retry, and recovered to 'Raitaru \u00b7 Amamake 0.4' (0.4 orange) with -1.0% material, -15.0% time and cost -3.0%. Proof captures from before release (both show only 'Raitaru') are p010-structures-row-retry-before-stubbed.png and p010-structures-row-retry-after-stubbed.png."
+   },
+   {
+    "name": "p005-primitives-action-form",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p005-primitives-action-form-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p005-primitives-action-form-after.png",
+    "notes": "Captured the whole #actions section with a full-page clip. At 1440 the grid has two columns. OLD: Button, then CopyButton and Kbd side by side, then Icons. NEW: Button, then ActionForm (grey 'Post back' and dimmed 'Unavailable') next to ConfirmActionForm (red 'Ask first'), then CopyButton, Kbd and Icons."
+   },
+   {
+    "name": "p012-admin-linked-characters",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p012-admin-linked-characters-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p012-admin-linked-characters-after.png",
+    "notes": "Identical on both sides, as expected: E2E Pilot, Character ID 9000001, linked 2026-10-11, Selected, and an orange 'Disconnected' chip."
+   },
+   {
+    "name": "p271-industry-head",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-head-before.txt",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-head-after.txt",
+    "notes": "Matches; 200 on both. OLD: og:title 'Industry Planner \u2014 LGI.tools', the Jita-rates description, og:image /logo.png, no og:site_name, twitter:title 'LGI.tools' with the generic description. NEW: og:title and twitter:title 'Industry Planner', the workspace description, og:site_name 'LGI.tools', og:image /opengraph-image (1200x630, alt 'LGI.tools'), twitter:image /opengraph-image. <title> and canonical are the same. Image URLs use https://lgi.tools."
+   },
+   {
+    "name": "p271-industry-jobs-head",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-jobs-head-before.txt",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-jobs-head-after.txt",
+    "notes": "Matches. OLD inherits the home tags: og and twitter title 'LGI.tools', the Lo-Gang description, og:url https://lgi.tools, image http://localhost:3101/opengraph-image?c56293b7d02bdc19 with alt 'LGI.tools \u2014 Eve Online tools for wormhole pilots'. NEW: 'Active Jobs \u2014 Industry Planner', the 'Your Eve Online industry jobs\u2026' description, og:url \u2026/industry/jobs, image https://lgi.tools/opengraph-image with alt 'LGI.tools'. NEW drops the twitter:image:alt, type, width and height tags."
+   },
+   {
+    "name": "p271-industry-blueprint-head",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-blueprint-head-before.txt",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-blueprint-head-after.txt",
+    "notes": "Matches. OLD: og:image and twitter:image /logo.png, with no size, alt or og:site_name. NEW: og:site_name 'LGI.tools', og:image /opengraph-image (1200x630, alt 'LGI.tools'), twitter:image /opengraph-image. Title, description, og:url, canonical and the breadcrumb JSON-LD are identical; the JSON-LD is in both files."
+   },
+   {
+    "name": "p271-industry-share-card",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-share-card-before.png",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-industry-share-card-after.png",
+    "notes": "Matches. OLD opened http://localhost:3101/logo.png (natural size 2400x1202, not 1200x630): the 'LO-GANG / INDUSTRIES.TOOLS' wordmark on navy with green brackets. NEW opened http://localhost:3102/opengraph-image (1200x630, image/png): the black card with '[ LGI.tools ]', 'EVE ONLINE TOOLS', 'WORMHOLE SITES \u00b7 LIVE PRICES \u00b7 INDUSTRY PLANNING' and 'LO-GANG INDUSTRIES'."
+   },
+   {
+    "name": "p271-site-detail-head",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-site-detail-head-before.txt",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-site-detail-head-after.txt",
+    "notes": "Matches. The only real difference is that NEW adds og:site_name 'LGI.tools'. og:image is the site's own /sites/3/opengraph-image-38dcjp on both; only the host port and cache hash differ."
+   },
+   {
+    "name": "p271-unknown-blueprint-head",
+    "before_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-unknown-blueprint-head-before.txt",
+    "after_file": "/tmp/claude-0/-home-user-lgi-tools/028cfc65-51f4-569e-b16e-f40cd797311d/scratchpad/p8/shots/p271-unknown-blueprint-head-after.txt",
+    "notes": "Partly differs from the expectation. With the Twitterbot user agent, OLD returns 200 with the generic home tags and a robots noindex that only appears late, streamed into the body. NEW returns 404 with robots noindex first in the <head>. However, NEW still carries the home-page og:url https://lgi.tools inside the <head> (I checked the raw HTML), along with title 'LGI.tools', the generic description and the root opengraph-image. So 'no home-page og:url' does NOT hold in dev. With the Chrome user agent, both return 200 with the same generic tags; OLD has noindex at the end, NEW at the top."
+   }
+  ],
+  "failed": [],
+  "cleanup": "Both worktree dev servers are stopped. The saved PIDs (5397/5398) were wrapper processes, so the first kill missed. I then killed only their process groups: 5399 (old, :3101) and 5400 (new, :3102). Both ports now refuse connections. Both worktrees were removed with `git -C /home/user/lgi-tools worktree remove --force`; `git worktree list` shows only the repo and the pre-existing /home/user/wt-6xx worktrees. /home/user/lgi-tools has a clean `git status`, and nothing was checked out, committed or copied into it. The stack is untouched: stack.sh status shows postgres :5433, convex :3210, next :3000 and convex-auth all ready, and :3000 answers 200. Side effects left in the shared local database: the E2E Pilot was reset once by e2e:seed, which revokes any earlier pilot session, including on :3000. The pilot now owns a custom structure 'Retry Test' (Raitaru, Amamake). A few page-view rows were logged. Scratch files kept in the p8 folder: shots/ (52 files: 19 PNG pairs, 2 affiliation-row crops, 2 stubbed retry captures, 5 head-tag TXT pairs), shots.cjs, heads.py, dbg.cjs, auth.json (a live pilot session cookie), notes.json, the dev and install logs, and debug-*.png from the first failed setup attempt."
+ },
+ "checked": {
+  "pairs": [
+   {
+    "name": "p004-primitives-trend-tab-focus",
+    "ok": true,
+    "caption": "Tab into the TrendChart sample. Before: nothing happens on this chart, because Tab skips past it. After: the chart gets a green focus outline and shows the latest point, a dot on the right end with '105 \u00b7 2026-09-21'.",
+    "problem": ""
+   },
+   {
+    "name": "p004-primitives-trend-arrowleft",
+    "ok": true,
+    "caption": "Same chart after three Left-arrow presses. Before: still nothing, because the keys went to another chart further down. After: the readout steps back three days to '82 \u00b7 2026-09-18', with the dot and dashed line following.",
+    "problem": ""
+   },
+   {
+    "name": "p004-primitives-daily-tab-focus",
+    "ok": true,
+    "caption": "Tab into the daily bar chart (top chart). Before: no reaction. After: a green outline and a readout on the last bar, '101 \u00b7 2026-09-21 \u00b7 7d avg 127'. The 'One day of data' chart below is unchanged and is there for context.",
+    "problem": ""
+   },
+   {
+    "name": "p004-admin-traffic-activity-focus",
+    "ok": true,
+    "caption": "Admin traffic page: Tab onto the 'page views per day' chart. Before: Tab skips it. After: the chart is outlined and reads out today's bar, '22 \u00b7 2026-10-11 \u00b7 7d avg 22'. The 16 vs 22 totals differ only because views piled up between the two runs.",
+    "problem": ""
+   },
+   {
+    "name": "fix-demo-worth-click",
+    "ok": true,
+    "caption": "Wealth chart, hover at about 30% across and then click without moving. Before: the click makes the tooltip jump to today (11 Oct, 7.75B), away from the pointer. After: it stays on the hovered day (5 Aug, 5.84B).",
+    "problem": ""
+   },
+   {
+    "name": "fix-demo-worth-tap",
+    "ok": true,
+    "caption": "Same chart on a phone, one tap at about 30% across. Before: the first tap shows today (11 Oct, dot at the far right). After: it shows the day you tapped (29 Jul, 5.70B), with the crosshair under your finger.",
+    "problem": ""
+   },
+   {
+    "name": "p008-board-logos-failed",
+    "ok": true,
+    "caption": "Character header with the EVE image server blocked. Before: 'Federation Navy' and 'Halcyon Drift' sit flush left, as if they never had logos. After: each keeps an empty logo-sized slot, so the text stays where it sits when the logos load and does not jump.",
+    "problem": "Minor: the crop cuts the '\u2190 All characters' link at the top edge. The tighter row-only crops (p008-board-logos-failed-before-row.png / -after-row.png) show the same shift more clearly and can be used instead."
+   },
+   {
+    "name": "p009-planner-blueprint-monograms",
+    "ok": true,
+    "caption": "Build plan with icons blocked, so letter tiles show instead. Before: the first two letters (big tile 'DA', 'OS', 'QU', 'HE' for Heavy Water). After: initials ('DC' for Damage Control II, 'OC', 'QM', 'HW'), which tell similar names apart. Single-word items like Oxygen stay 'OX'.",
+    "problem": ""
+   },
+   {
+    "name": "p009-raw-ledger-monograms",
+    "ok": true,
+    "caption": "Raw ledger with icons blocked. Before: tiles show the first two letters, so Heavy Water and Helium Isotopes both read 'HE'. After: initials ('HW', 'HI', 'LO', 'OI', 'ED', 'MP', 'CB'). One-word materials (Tritanium, Pyerite, Morphite) are unchanged.",
+    "problem": "The 2px tile-size fix (32px to 30px) is not visible at this scale; only the letter change can be judged."
+   },
+   {
+    "name": "p009-blueprint-search-monograms",
+    "ok": true,
+    "caption": "Blueprint search for 'Damage Control', icons blocked. Before: tiles read DA, DA, CI, AS, 'R, AS (with a stray quote mark). After: DC, DC, CD, AD, RD, AD, one letter per word, with the quote dropped.",
+    "problem": ""
+   },
+   {
+    "name": "p003-board-skeleton-lg",
+    "ok": true,
+    "caption": "Loading placeholder of the home board on a laptop-width screen. Before: a big top circle and 64px pilot circles, with the cards starting further left. After: all circles are smaller (56px) and the left column is wider, matching the real board so the page doesn't jump when it loads.",
+    "problem": ""
+   },
+   {
+    "name": "p003-board-skeleton-xl",
+    "ok": true,
+    "caption": "Same loading placeholder on a wide screen. The circles are the same on both. Only the left column is wider on After, so the grey card blocks start about 32px further right, matching the loaded board.",
+    "problem": ""
+   },
+   {
+    "name": "p003-add-character-focus",
+    "ok": true,
+    "caption": "'Add character' button reached with the keyboard. Before: focus ring only, with grey '+' and grey text. After: the same ring, and the '+' and label turn green, as they already do on mouse hover.",
+    "problem": "The plan said 'gold', but the colour is green, and green is correct: the button uses the same text-isk (#3dd68c) for both hover and focus-visible. Describe it as green in the write-up."
+   },
+   {
+    "name": "p010-found-structure-security-colour",
+    "ok": true,
+    "caption": "Structure search results. Names and order are identical. Before: the security numbers are grey like the rest of the line. After: they are coloured by security, 0.4 orange (low-sec) and 0.9 blue (high-sec).",
+    "problem": ""
+   },
+   {
+    "name": "p010-secpill-unknown-security",
+    "ok": true,
+    "caption": "System field when a system's security is unknown. Before: the dash pill is red, which looks like null-sec. After: the pill is neutral grey, meaning unknown.",
+    "problem": ""
+   },
+   {
+    "name": "p010-structures-row-retry",
+    "ok": true,
+    "caption": "Saved structure after the system list failed once and then came back. Before: the row stays stuck on 'Raitaru' with no bonuses until a reload. After: it retries by itself and recovers to 'Raitaru \u00b7 Amamake 0.4' with the bonus figures (-1.0%, -15.0%, cost -3.0%).",
+    "problem": ""
+   },
+   {
+    "name": "p005-primitives-action-form",
+    "ok": true,
+    "caption": "Preview page, Actions section. After adds two new specimen cards between Button and CopyButton: ActionForm ('Post back' plus a dimmed 'Unavailable') and ConfirmActionForm (a red 'Ask first'). Everything else is unchanged.",
+    "problem": ""
+   },
+   {
+    "name": "p012-admin-linked-characters",
+    "ok": true,
+    "caption": "Admin user page, Linked characters card. Identical on both, as expected locally. This orange chip slot is where the new 'Verification delayed' label will appear for a stuck character on staging and production.",
+    "problem": ""
+   },
+   {
+    "name": "p271-industry-head",
+    "ok": true,
+    "caption": "Link-preview tags for /industry. Before: an old Jita-rates description, the wide logo.png image, and a Twitter title of just 'LGI.tools'. After: 'Industry Planner' everywhere, the current workspace description, a site name tag, and the standard 1200x630 share card.",
+    "problem": ""
+   },
+   {
+    "name": "p271-industry-jobs-head",
+    "ok": true,
+    "caption": "Link-preview tags for /industry/jobs. Before: it borrows the home page's preview (title 'LGI.tools', the wormhole description, link pointing at the home page). After: its own title 'Active Jobs \u2014 Industry Planner', its own description and the correct link.",
+    "problem": "Not in the plan: NEW drops the twitter:image:alt/type/width/height tags that OLD inherited, and the image alt text shortens to 'LGI.tools'. This is harmless for unfurling but worth one line in the write-up."
+   },
+   {
+    "name": "p271-industry-blueprint-head",
+    "ok": true,
+    "caption": "Link-preview tags for a blueprint page (Rifter). Title, description, link and breadcrumbs are the same. Only the image changes, from logo.png to the standard 1200x630 share card with size and alt text, plus a new site name tag.",
+    "problem": ""
+   },
+   {
+    "name": "p271-industry-share-card",
+    "ok": true,
+    "caption": "The picture Discord or X shows for an industry link. Before: the wide 'LO-GANG INDUSTRIES.TOOLS' logo (2400x1202, the wrong shape for a preview). After: the standard 1200x630 black card '[ LGI.tools ] EVE ONLINE TOOLS'.",
+    "problem": ""
+   },
+   {
+    "name": "p271-site-detail-head",
+    "ok": true,
+    "caption": "Link-preview tags for a wormhole site page. The only change is one new tag, og:site_name 'LGI.tools'. The site's own generated preview image is unchanged.",
+    "problem": ""
+   },
+   {
+    "name": "p271-unknown-blueprint-head",
+    "ok": false,
+    "caption": "A blueprint ID that doesn't exist, as fetched by a link-preview bot. Before: 200 OK with the home page's preview tags, and the noindex tag only arrives late. After: a real 404 with noindex at the top of the page. In a normal browser, both still return 200.",
+    "problem": "The capture is sound and needs no re-shoot, but the plan's claim 'no home-page og:url' is wrong. On NEW the 404 still carries the home page's og:url (https://lgi.tools), title 'LGI.tools', generic description and root image, because the not-found page inherits the root layout's metadata. The code change is generateMetadata calling notFound() instead of returning {}. Fix the write-up to say 'now 404 with noindex first; preview tags are still the generic home ones'. Bots generally do not unfurl 404s."
+   }
+  ]
+ }
+}
