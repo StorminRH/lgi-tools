@@ -32,7 +32,8 @@ vi.mock('@/composition/auth', () => ({
   },
 }));
 
-vi.mock('@/platform/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/auth/linked-characters')>()),
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
   getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),

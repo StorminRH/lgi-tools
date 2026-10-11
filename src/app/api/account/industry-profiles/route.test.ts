@@ -14,7 +14,8 @@ const h = vi.hoisted(() => ({
 
 vi.mock('@/composition/session', () => ({ getCurrentUserId: h.getCurrentUserId }));
 vi.mock('@/composition/route-guards', () => ({ checkUserId: h.checkUserId }));
-vi.mock('@/platform/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/auth/linked-characters')>()),
   listLinkedCharacters: h.listLinkedCharacters,
 }));
 vi.mock('@/features/industry-planner/profiles/queries', () => ({

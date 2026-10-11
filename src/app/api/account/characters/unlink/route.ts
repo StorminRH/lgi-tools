@@ -12,6 +12,7 @@ import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
+  notLinkedFailure,
   repointActiveToOldest,
 } from '@/platform/auth/linked-characters';
 import { checkSession } from '@/composition/route-guards';
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);
       if (!linked.some((c) => c.characterId === characterId)) {
-        return notice(request, 'not_linked', validationFailure('not_linked'));
+        return notice(request, 'not_linked', notLinkedFailure());
       }
       if (linked.length <= 1) {
         return notice(request, 'last_character', validationFailure('last_character'));

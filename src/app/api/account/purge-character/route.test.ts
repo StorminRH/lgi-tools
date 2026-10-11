@@ -13,7 +13,8 @@ vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/platform/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/auth/linked-characters')>()),
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
 }));
 
@@ -48,7 +49,9 @@ test('refuses anonymous, invalid, and unowned character purges', async () => {
   expect((await POST(postJson(ROUTE, { characterId: 'not-a-number' }))).status).toBe(400);
 
   accountBelongsToUserMock.mockResolvedValue(false);
-  expect((await POST(postJson(ROUTE, { characterId: 999 }))).status).toBe(400);
+  const unowned = await POST(postJson(ROUTE, { characterId: 999 }));
+  expect(unowned.status).toBe(400);
+  expect(await unowned.json()).toMatchObject({ code: 'not_linked' });
   expect(purgeOwnCharacterMock).not.toHaveBeenCalled();
 });
 

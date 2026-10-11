@@ -12,10 +12,7 @@ import { seeOther } from '@/transport/api-response';
 import { adminUnlinkFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
-import {
-  accountBelongsToUser,
-  listLinkedCharacters,
-} from '@/platform/auth/linked-characters';
+import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deleteLinkedCharacter } from '@/platform/auth/admin-users';
 
 // authz: admin
@@ -30,10 +27,10 @@ export async function POST(request: NextRequest): Promise<Response> {
       const notice = (error: CharacterLinkNotice, failure: AppFailure) =>
         seeOther(request, userPage, { query: { error }, failure });
 
-      if (!(await accountBelongsToUser(userId, characterId))) {
+      const linked = await listLinkedCharacters(userId);
+      if (!linked.some((c) => c.characterId === characterId)) {
         return notice('not_linked', notFoundFailure('not_linked', 'Character not linked to that user'));
       }
-      const linked = await listLinkedCharacters(userId);
       if (linked.length <= 1) {
         return notice('last_character', validationFailure('last_character'));
       }

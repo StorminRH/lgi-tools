@@ -8,7 +8,8 @@ import {
   industryProfilesEndpoint,
 } from '@/features/industry-planner/profiles/api-contract';
 import { listIndustryProfiles } from '@/features/industry-planner/profiles/queries';
-import { conflictFailure, validationFailure } from '@/lib/failure';
+import { conflictFailure } from '@/lib/failure';
+import { notLinkedFailure } from '@/platform/auth/linked-characters';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 import { addsUnlinkedMembers, insertWithinCap } from './profile-writes';
@@ -28,11 +29,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     parse: (incoming) => readJsonBody(incoming, createIndustryProfileRequestSchema),
     handle: async ({ userId }, body) => {
       if (await addsUnlinkedMembers(userId, body.document, null)) {
-        return apiResponse(
-          createIndustryProfileEndpoint,
-          400,
-          validationFailure('not_linked', 'Character not linked to your account'),
-        );
+        return apiResponse(createIndustryProfileEndpoint, 400, notLinkedFailure());
       }
       const id = await insertWithinCap(userId, body);
       if (id === null) {

@@ -14,7 +14,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | ☑ | [P167](#p167) | Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth | server-pipeline | S | low | medium | — |
 | ☑ | [P254](#p254) | Add requireSessionPage and a typed auth_error vocabulary so login_required shows a notice | contracts-validation | S | low | medium | [P167](#p167) |
 | ☑ | [P255](#p255) | Resolve query-string notices with one own-key typed resolver and type each flow's notice codes | contracts-validation | M | low | medium | [P146](#p146), [P254](#p254) |
-| ☐ | [P256](#p256) | Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked | contracts-validation | S | low | low | [P255](#p255) |
+| ☑ | [P256](#p256) | Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked | contracts-validation | S | low | low | [P255](#p255) |
 | ☐ | [P250](#p250) | Check runMutationRoute stage failures against the endpoint contract, and derive status only where it varies | contracts-validation | S | low | medium | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P141](#p141) |
 | ☐ | [P306](#p306) | Collapse pass-through helpers in platform (scoreboard dispatch, token reflection, auth form schemas, rate-limit preflight) | simplification | S | low | low | [P142](wave-01-quick-wins-delete-dead-code-fix-small.md#p142), [P136](wave-01-quick-wins-delete-dead-code-fix-small.md#p136) |
 | ☐ | [P143](#p143) | Key measureOwnedDataRead by the endpoint contract, measure corp-structures, and guard every OnView route | api-route | S | low | low | — |
@@ -576,7 +576,7 @@ Follow-up lead: admin reassign (already_linked, not_linked), admin role (self_ro
 
 ## P256: Share the not_linked failure, make setActiveCharacter ownership-checked, and use accountBelongsToUser where only membership is asked
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +15
 - **Depends on:** [P255](#p255)

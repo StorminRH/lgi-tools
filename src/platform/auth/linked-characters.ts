@@ -1,4 +1,4 @@
-import { asc, and, eq } from 'drizzle-orm';
+import { asc, and, eq, exists, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
@@ -6,6 +6,7 @@ import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 import { isAuthorizationDelayed } from './authorization-policy';
 import { characterPortraitUrl } from '@/lib/eve-image';
+import { validationFailure, type AppFailure } from '@/lib/failure';
 import { unresolvedName } from '@/lib/format/names';
 
 export interface CharacterLoginIdentity {
@@ -182,20 +183,41 @@ function scheduleStaleActiveCharacterRepair(userId: string, characterId: number)
     .catch((err) => console.error('[auth] active-character backfill failed', err));
 }
 
+/** The self-service refusal for a character the caller's account does not hold. */
+export function notLinkedFailure(): AppFailure {
+  return validationFailure('not_linked', 'Character not linked to your account');
+}
+
+function ownedEveAccount(userId: string, characterId: number) {
+  return and(eveAccountsForUser(userId), eq(account.accountId, String(characterId)));
+}
+
 export async function accountBelongsToUser(userId: string, characterId: number): Promise<boolean> {
   const [row] = await db
     .select({ id: account.id })
     .from(account)
-    .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
+    .where(ownedEveAccount(userId, characterId))
     .limit(1);
   return row != null;
 }
 
-export async function setActiveCharacter(userId: string, characterId: number): Promise<void> {
-  await db
+/**
+ * Makes `characterId` the user's active character, but only when the user
+ * holds it. The ownership check runs inside the UPDATE, so callers need no
+ * separate pre-check to race against an unlink. False means no row changed:
+ * the character is not linked to this user.
+ */
+export async function setActiveCharacter(userId: string, characterId: number): Promise<boolean> {
+  const owned = db
+    .select({ one: sql`1` })
+    .from(account)
+    .where(ownedEveAccount(userId, characterId));
+  const [row] = await db
     .update(user)
     .set({ activeCharacterId: characterId, updatedAt: new Date() })
-    .where(eq(user.id, userId));
+    .where(and(eq(user.id, userId), exists(owned)))
+    .returning({ id: user.id });
+  return row != null;
 }
 
 export async function repointActiveToOldest(userId: string): Promise<number | null> {

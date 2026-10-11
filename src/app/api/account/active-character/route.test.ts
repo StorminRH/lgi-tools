@@ -5,8 +5,7 @@ import type { BetterAuthSession } from '@/composition/route-guards';
 const SESSION = sessionFixture();
 
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
-const accountBelongsToUserMock = vi.fn();
-const setActiveCharacterMock = vi.fn();
+const setActiveCharacterMock = vi.fn<(userId: string, characterId: number) => Promise<boolean>>();
 const logUsageEventMock = vi.fn();
 const emitCostMetricMock = vi.fn<(action: string, metadata: Record<string, unknown>) => void>();
 
@@ -14,8 +13,8 @@ vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/platform/auth/linked-characters', () => ({
-  accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
+vi.mock('@/platform/auth/linked-characters', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/auth/linked-characters')>()),
   setActiveCharacter: (u: string, c: number) => setActiveCharacterMock(u, c),
 }));
 
@@ -44,7 +43,6 @@ function recordedOutcomes() {
 
 beforeEach(() => {
   getSessionMock.mockReset();
-  accountBelongsToUserMock.mockReset();
   setActiveCharacterMock.mockReset();
   logUsageEventMock.mockReset();
   logUsageEventMock.mockResolvedValue(undefined);
@@ -58,11 +56,12 @@ test('refuses anonymous, invalid, and unowned character switches', async () => {
   getSessionMock.mockResolvedValue(SESSION);
   expect((await POST(postForm(ROUTE, { characterId: 'not-a-number' }))).status).toBe(400);
 
-  accountBelongsToUserMock.mockResolvedValue(false);
+  setActiveCharacterMock.mockResolvedValue(false);
   const unowned = await POST(postForm(ROUTE, { characterId: '999' }));
   expect(unowned.status).toBe(303);
   expect(unowned.headers.get('location')).toBe('http://localhost:3000/settings/characters?error=not_linked');
-  expect(setActiveCharacterMock).not.toHaveBeenCalled();
+  expect(setActiveCharacterMock).toHaveBeenCalledExactlyOnceWith('eve-user-1', 999);
+  expect(logUsageEventMock).not.toHaveBeenCalled();
   expect(recordedOutcomes()).toEqual([
     { outcome: 'unauthenticated', code: 'unauthenticated' },
     { outcome: 'validation', code: 'invalid_form_field' },
@@ -72,8 +71,7 @@ test('refuses anonymous, invalid, and unowned character switches', async () => {
 
 test('sets the active character and redirects on a valid switch', async () => {
   getSessionMock.mockResolvedValue(SESSION);
-  accountBelongsToUserMock.mockResolvedValue(true);
-  setActiveCharacterMock.mockResolvedValue(undefined);
+  setActiveCharacterMock.mockResolvedValue(true);
   const res = await POST(postForm(ROUTE, { characterId: '200' }));
   expect(res.status).toBe(303);
   expect(res.headers.get('location')).toBe('http://localhost:3000/settings/characters');

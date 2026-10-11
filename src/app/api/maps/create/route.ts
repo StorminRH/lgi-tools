@@ -7,9 +7,9 @@ import {
 import {
   dependencyUnavailableFailure,
   rateLimitedFailure,
-  validationFailure,
 } from '@/lib/failure';
 import { rateLimit } from '@/lib/rate-limit';
+import { notLinkedFailure } from '@/platform/auth/linked-characters';
 import {
   checkUserId,
   type UserIdCheckResult,
@@ -49,11 +49,7 @@ export async function POST(request: Request): Promise<Response> {
     handle: async ({ userId }, body) => {
       const result = await createProjectedMap(userId, body);
       if (!result.ok && 'reason' in result) {
-        return apiResponse(
-          createMapEndpoint,
-          400,
-          validationFailure('invalid_body', 'Choose at least one of your own linked characters'),
-        );
+        return apiResponse(createMapEndpoint, 400, notLinkedFailure());
       }
       if (!result.ok) {
         console.error('[map] create projection failed', result.cause);
