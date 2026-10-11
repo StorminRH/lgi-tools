@@ -64,7 +64,7 @@ vi.mock('../authoring/MapAuthoringOverlay', () => ({
 
 vi.mock('../tracking/TrackingControls', () => ({
   TrackingHeartbeat: () => null,
-  useSetMapTracking: () => vi.fn(),
+  useMapTrackingToggle: () => vi.fn(),
 }));
 
 vi.mock('../tracking/PresenceProvider', () => ({

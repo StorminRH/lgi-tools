@@ -24,7 +24,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P051](#p051) | Move the open-popup check to ui and share one Escape-dismiss hook between the board and the mapper | react-hook | S | low | medium | — |
 | ☑ | [P027](#p027) | Drive the dev dial panel from dial tables with one clamped commit helper | ui-component | M | low | medium | — |
 | ☑ | [P217](#p217) | Decode ConvexError payloads in one helper and route every setTracking call through one failure path | error-handling | S | low | medium | — |
-| ☐ | [P028](#p028) | Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker | ui-component | M | low | medium | [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059) |
+| ☑ | [P028](#p028) | Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker | ui-component | M | low | medium | [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059) |
 | ☐ | [P038](#p038) | Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle | ui-component | S | low | medium | [P028](#p028) |
 | ☐ | [P029](#p029) | Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop | ui-component | S | low | medium | [P028](#p028) |
 | ☐ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
@@ -847,7 +847,7 @@ export function useSetMapTracking(): (args: { mapId: string; characterId: number
 
 ## P028: Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** HomePrompt about -45/+20. TrackingControls about -10/+12. Picker and toggle +6. View helper +10. Net about -10.
 - **Depends on:** [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059)

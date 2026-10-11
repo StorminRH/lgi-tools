@@ -53,15 +53,13 @@ export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
  * never rejects: a refusal toasts the server's detail, which setTracking
  * writes for users, or asks the user to try again when there is none.
  */
-export function useSetMapTracking(): (args: {
-  readonly mapId: string;
-  readonly characterId: number;
-  readonly tracked: boolean;
-}) => Promise<void> {
+export function useMapTrackingToggle(
+  mapId: string,
+): (characterId: number, tracked: boolean) => Promise<void> {
   const setTracking = useMutation(api.mapTrackingOptIn.setTracking);
-  return async (args) => {
+  return async (characterId, tracked) => {
     try {
-      await setTracking(args);
+      await setTracking({ mapId, characterId, tracked });
     } catch (error) {
       toast.error('Tracking was not changed', {
         description: readConvexError(error)?.detail ?? 'Please try again.',
@@ -80,7 +78,7 @@ export function TrackingControls({
   const characters = useAccountCharacters();
   const access = useLiveValue(api.mapChainAccess.watchMapAccess, { mapId });
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
-  const setTracking = useSetMapTracking();
+  const toggleTracking = useMapTrackingToggle(mapId);
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
 
   if (access?.granted !== true || characters === null || tracking === undefined) {
@@ -95,7 +93,7 @@ export function TrackingControls({
         ? 'No linked characters'
         : 'None of your characters are on this map\'s access list'}
       trackedIds={new Set(trackedIds)}
-      onToggle={(characterId, tracked) => setTracking({ mapId, characterId, tracked })}
+      onToggle={toggleTracking}
       reconnectAction={reconnectAction}
     />
   );
@@ -123,11 +121,7 @@ function TrackingControlsView({
           onToggle={({ characterId, selected }) => {
             void onToggle(characterId, selected);
           }}
-          itemLabel={(character, checked) => trackingToggleLabel({
-            name: character.name,
-            tracked: checked,
-            needsLocationReconnect: character.needsLocationReconnect === true,
-          })}
+          itemLabel={trackingToggleLabel}
         />
       )}
       {scannerCharacters.length > 1 ? <DefaultScannerRow characters={scannerCharacters} /> : null}

@@ -6,7 +6,7 @@ import {
 } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TrackingControls, TrackingHeartbeat, useSetMapTracking } from './TrackingControls';
+import { TrackingControls, TrackingHeartbeat, useMapTrackingToggle } from './TrackingControls';
 
 const mocks = vi.hoisted(() => ({
   heartbeat: vi.fn(),
@@ -190,30 +190,30 @@ describe('TrackingControls', () => {
 
   it('explains a refused tracking change instead of rejecting, for every setTracking caller', async () => {
     mocks.toastError.mockClear();
-    const setTracking = useSetMapTracking();
+    const toggleTracking = useMapTrackingToggle('map-a');
     const change = { mapId: 'map-a', characterId: 202, tracked: true };
 
     const detail = 'This map has reached its tracking limit.';
     mocks.mutate.mockRejectedValueOnce({ data: { code: 'TRACKING_MAP_CAP_EXCEEDED', detail } });
-    await expect(setTracking(change)).resolves.toBeUndefined();
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
     expect(mocks.mutate).toHaveBeenLastCalledWith(change);
     expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking was not changed', {
       description: detail,
     });
 
     mocks.mutate.mockRejectedValueOnce({ data: { code: 'FORBIDDEN' } });
-    await expect(setTracking(change)).resolves.toBeUndefined();
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
     expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking was not changed', {
       description: 'Please try again.',
     });
 
     mocks.mutate.mockRejectedValueOnce(new Error('Connection lost'));
-    await expect(setTracking(change)).resolves.toBeUndefined();
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
     expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking was not changed', {
       description: 'Please try again.',
     });
 
-    await expect(setTracking(change)).resolves.toBeUndefined();
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
     expect(mocks.toastError).toHaveBeenCalledTimes(3);
   });
 

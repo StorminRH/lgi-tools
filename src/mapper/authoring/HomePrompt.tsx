@@ -1,13 +1,15 @@
 'use client';
 
 import { useId, useRef } from 'react';
-import { CharacterPortrait } from '@/components/character-portrait';
+import {
+  CharacterPortraitPicker,
+  type PickerCharacter,
+} from '@/components/character-portrait-picker';
 import {
   useAccountCharacters,
   useActiveCharacterId,
 } from '@/components/use-account-characters';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/components/ui/cn';
 import { Dialog, DialogTitle } from '@/components/ui/dialog';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import {
@@ -18,7 +20,8 @@ import {
 } from '@/components/use-system-search';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
-import { useSetMapTracking } from '../tracking/TrackingControls';
+import { useMapTrackingToggle } from '../tracking/TrackingControls';
+import { trackableCharacters, trackingToggleLabel } from '../tracking/tracking-controls-view';
 import { useMapCoverage } from '../tracking/use-map-coverage';
 import { homeCurrentSystem, type HomeCurrentSystem } from './home-prompt-model';
 
@@ -33,13 +36,18 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const characterId = useActiveCharacterId();
   const characters = useAccountCharacters();
+  const access = useLiveValue(api.mapChainAccess.watchMapAccess, { mapId });
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const coverage = useMapCoverage(mapId, tracking);
-  const setTracking = useSetMapTracking();
+  const toggleTracking = useMapTrackingToggle(mapId);
   const current = homeCurrentSystem({ characterId, tracking, coverage });
   const currentSystemId = current.kind === 'ready' ? current.systemId : null;
   const currentSystemName = useSystemName(currentSystemId);
-  const trackedIds = new Set(tracking?.ownTrackedCharacterIds ?? []);
+  // Wait for access and tracking, as TrackingControls does, so a scoped map
+  // never flashes the whole roster and no portrait flips once tracking loads.
+  const trackable = access?.granted === true && characters !== null && tracking !== undefined
+    ? trackableCharacters(characters, access.trackableCharacterIds)
+    : [];
 
   return (
     <Dialog
@@ -70,64 +78,49 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
           onClear={() => undefined}
           errorLabel="System"
         />
-        {characters !== null && characters.length > 0 ? (
-          <div
-            data-map-home-tracking
-            className="flex flex-col gap-2"
-            role="group"
-            aria-label="Tracking"
-          >
-            <span className="font-ui text-micro text-muted">
-              Track a character in space
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {characters.map((character) => {
-                const pressed = trackedIds.has(character.characterId);
-                return (
-                  <Button
-                    key={character.characterId}
-                    type="button"
-                    variant="bare"
-                    aria-pressed={pressed}
-                    aria-label={`${pressed ? 'Stop tracking' : 'Track'} ${character.name}`}
-                    data-map-home-track-character={character.characterId}
-                    className={cn(
-                      'box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 p-0.5 leading-none outline-none transition-[border-color,opacity,filter] motion-reduce:transition-none',
-                      pressed
-                        ? 'border-isk opacity-100 grayscale-0'
-                        : 'border-transparent opacity-35 grayscale',
-                    )}
-                    onClick={() => {
-                      void setTracking({
-                        mapId,
-                        characterId: character.characterId,
-                        tracked: !pressed,
-                      });
-                    }}
-                  >
-                    <CharacterPortrait
-                      characterId={character.characterId}
-                      name={character.name}
-                      size={32}
-                      src={character.portraitUrl}
-                    />
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
+        <HomeTrackingToggles
+          characters={trackable}
+          trackedIds={new Set(tracking?.ownTrackedCharacterIds)}
+          onToggle={toggleTracking}
+        />
         <CurrentSystemControl
           current={current}
           currentSystemName={currentSystemName}
           onPick={onPick}
           onStartTracking={() => {
             if (characterId === null) return;
-            void setTracking({ mapId, characterId, tracked: true });
+            void toggleTracking(characterId, true);
           }}
         />
       </div>
     </Dialog>
+  );
+}
+
+function HomeTrackingToggles({
+  characters,
+  trackedIds,
+  onToggle,
+}: {
+  readonly characters: readonly PickerCharacter[];
+  readonly trackedIds: ReadonlySet<number>;
+  readonly onToggle: (characterId: number, tracked: boolean) => Promise<void>;
+}) {
+  if (characters.length === 0) return null;
+  return (
+    <div data-map-home-tracking className="flex flex-col gap-2">
+      <span className="font-ui text-micro text-muted">Track a character in space</span>
+      <CharacterPortraitPicker
+        label="Tracking"
+        characters={characters}
+        selectedIds={trackedIds}
+        onToggle={({ characterId, selected }) => {
+          void onToggle(characterId, selected);
+        }}
+        itemLabel={trackingToggleLabel}
+        markLocationReconnect
+      />
+    </div>
   );
 }
 
