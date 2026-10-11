@@ -152,15 +152,23 @@ export function edgeTaperFraction(segment: FrameSegment): number {
   return Math.min(0.5, EDGE_TAPER_PX / length);
 }
 
-export interface EdgeEndpointNode {
+/**
+ * The parts of a React Flow internal node that place it on the canvas. It stays
+ * structural so useInternalNode() and getInternalNode() results pass straight in.
+ */
+export interface MeasuredNode {
   readonly internals: { readonly positionAbsolute: { readonly x: number; readonly y: number } };
   readonly measured: { readonly width?: number; readonly height?: number };
   readonly width?: number;
   readonly height?: number;
+}
+
+export interface EdgeEndpointNode extends MeasuredNode {
   readonly data?: NodeCaptionData;
 }
 
-export function endpointFrame(node: EdgeEndpointNode | undefined): FrameRect | null {
+/** The node's frame, sized by its measured size and else its declared size. */
+export function endpointFrame(node: MeasuredNode | undefined): FrameRect | null {
   if (node === undefined) return null;
   const width = node.measured.width ?? node.width;
   const height = node.measured.height ?? node.height;
@@ -171,6 +179,11 @@ export function endpointFrame(node: EdgeEndpointNode | undefined): FrameRect | n
     width,
     height,
   };
+}
+
+export function nodeCenter(node: MeasuredNode | undefined): ChainPosition | null {
+  const frame = endpointFrame(node);
+  return frame === null ? null : frameCenter(frame);
 }
 
 export function chainLinkSegment(

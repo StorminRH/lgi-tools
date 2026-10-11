@@ -15,16 +15,11 @@ import {
   CAMERA_FIT_PADDING,
   cameraEaseOf,
   decideFocus,
-  focusCenter,
   newFocusRequest,
   resolveFitTick,
 } from './camera-follow-model';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
-
-const SYSTEM_FRAME_SIZE = {
-  width: SYSTEM_FRAME_WIDTH,
-  height: SYSTEM_FRAME_HEIGHT,
-} as const;
+import { SYSTEM_FRAME_SIZE } from './disc-chrome';
+import { nodeCenter } from './edge-geometry';
 
 function isViewportReady(
   viewportInitialized: boolean,
@@ -158,10 +153,7 @@ function useCameraFollow({
     focusTokenRef.current = request.token;
     const action = decideFocus({
       enabled: focusEnabled,
-      center: focusCenter(
-        internalNodeSummary(getInternalNode(request.nodeId)),
-        SYSTEM_FRAME_SIZE,
-      ),
+      center: nodeCenter(getInternalNode(request.nodeId)),
       zoom: getViewport().zoom,
     });
     if (action === null) return;
@@ -177,30 +169,6 @@ function useCameraFollow({
     setCenter,
     viewportInitialized,
   ]);
-}
-
-function internalNodeSummary(
-  internal:
-    | {
-        readonly internals: {
-          readonly positionAbsolute: { readonly x: number; readonly y: number };
-        };
-        readonly measured?: { readonly width?: number; readonly height?: number };
-      }
-    | undefined,
-): {
-  readonly x: number;
-  readonly y: number;
-  readonly width?: number;
-  readonly height?: number;
-} | null {
-  if (internal === undefined) return null;
-  return {
-    x: internal.internals.positionAbsolute.x,
-    y: internal.internals.positionAbsolute.y,
-    width: internal.measured?.width,
-    height: internal.measured?.height,
-  };
 }
 
 function CameraFollowHostComponent(props: CameraFollowProps) {

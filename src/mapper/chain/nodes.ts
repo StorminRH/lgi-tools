@@ -1,5 +1,5 @@
 import { CHAIN_NODE_TYPE, type ChainNode } from '../canvas/SystemNode';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
+import { SYSTEM_FRAME_SIZE } from '../canvas/disc-chrome';
 import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import {
   chainTombstoneState,
@@ -246,8 +246,7 @@ function systemNodeBase(
     ...(local === undefined ? undefined : stripDerivedControls(local)),
     id,
     type: CHAIN_NODE_TYPE,
-    width: SYSTEM_FRAME_WIDTH,
-    height: SYSTEM_FRAME_HEIGHT,
+    ...SYSTEM_FRAME_SIZE,
     position: placed.position,
     style: INERT_NODE_STYLE,
     data: {
@@ -300,8 +299,7 @@ export function syncNodes(
         ...(local === undefined ? undefined : local),
         id,
         type: CHAIN_NODE_TYPE,
-        width: SYSTEM_FRAME_WIDTH,
-        height: SYSTEM_FRAME_HEIGHT,
+        ...SYSTEM_FRAME_SIZE,
         position: stub.position,
         draggable: false,
         selectable: false,

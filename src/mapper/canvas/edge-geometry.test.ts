@@ -8,6 +8,7 @@ import {
   endpointFrame,
   frameCenter,
   frameSegment,
+  nodeCenter,
   pointAlongSegment,
   pointOnRayAtRadius,
   segmentPath,
@@ -95,6 +96,18 @@ test('chainLinkSegment prefers measured frames and nulls incomplete endpoints', 
   expect(chainLinkSegment(node(0, 0, MEASURED), node(300, 0))).toBeNull();
   expect(chainLinkSegment(node(0, 0, MEASURED), node(DISC_R * 2, 0, MEASURED))).toBeNull();
   expect(chainLinkSegment(node(0, 0, MEASURED), node(CLEAR * 2, 0, MEASURED))).toBeNull();
+});
+
+test('nodeCenter centers the measured frame, else the declared one, and nulls unsized nodes', () => {
+  const measured = { measured: { width: 80, height: 60 }, width: FRAME_W, height: FRAME_H };
+  expect(nodeCenter(node(100, 200, measured))).toEqual({ x: 140, y: 230 });
+  expect(nodeCenter(node(100, 200, { width: FRAME_W, height: FRAME_H }))).toEqual({
+    x: 100 + CX,
+    y: 200 + CY,
+  });
+  expect(nodeCenter(node(100, 200))).toBeNull();
+  expect(nodeCenter(node(100, 200, { measured: { width: 80 } }))).toBeNull();
+  expect(nodeCenter(undefined)).toBeNull();
 });
 
 test('the drawn path cuts only the fog side of the shared segment', () => {

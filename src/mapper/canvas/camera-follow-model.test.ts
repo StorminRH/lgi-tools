@@ -2,13 +2,12 @@ import { expect, test } from 'vitest';
 import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
 import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_SIZE, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 import {
   CAMERA_FIT_MAX_ZOOM,
   cameraEaseOf,
   chainBounds,
   decideFocus,
-  focusCenter,
   newFocusRequest,
   resolveFitTick,
   type FitInput,
@@ -21,7 +20,6 @@ const MOVED: readonly MapChainIntent[] = [
   { kind: 'system-moved', systemId: 1, from: { x: 0, y: 0 }, to: { x: 1, y: 1 } },
 ];
 
-const FRAME = { width: SYSTEM_FRAME_WIDTH, height: SYSTEM_FRAME_HEIGHT };
 const DEPARTED: readonly MapChainIntent[] = [{ kind: 'system-departed', systemId: 1 }];
 
 const placed = (systemId: number, x: number, y: number): [number, PlacedSystem] => [
@@ -40,7 +38,7 @@ test('a fit tick ignores, waits, skips, or fits, and only a real fit marks the c
       follow: false,
       nodeIds: new Set([1]),
       systems,
-      frame: FRAME,
+      frame: SYSTEM_FRAME_SIZE,
       ...input,
     });
   const FIT = {
@@ -83,7 +81,7 @@ test('a fit tick ignores, waits, skips, or fits, and only a real fit marks the c
   expect(tick({ systems: new Map() })).toStrictEqual({ consume: true, bounds: null, framed: false });
 });
 
-test('focus gating centers measured or declared frames only when allowed', () => {
+test('focus gating centers only when allowed and only for a new request', () => {
   const center = { x: 10, y: 20 };
   expect(decideFocus({ enabled: true, center, zoom: 0.7 })).toEqual({
     x: 10,
@@ -98,16 +96,6 @@ test('focus gating centers measured or declared frames only when allowed', () =>
   expect(newFocusRequest(request, 3, true)).toBeNull();
   expect(newFocusRequest(request, 2, false)).toBeNull();
   expect(newFocusRequest(null, 2, true)).toBeNull();
-
-  expect(focusCenter({ x: 100, y: 200, width: 80, height: 60 }, FRAME)).toEqual({
-    x: 140,
-    y: 230,
-  });
-  expect(focusCenter({ x: 100, y: 200 }, FRAME)).toEqual({
-    x: 100 + SYSTEM_FRAME_WIDTH / 2,
-    y: 200 + SYSTEM_FRAME_HEIGHT / 2,
-  });
-  expect(focusCenter(null, FRAME)).toBeNull();
 });
 
 test('camera easing and chain bounds keep product pins', () => {
@@ -122,8 +110,9 @@ test('camera easing and chain bounds keep product pins', () => {
   expect(cameraEaseOf(config, true).duration).toBe(0);
   expect(cameraEaseOf(config, false).duration).toBeGreaterThan(0);
 
-  expect(chainBounds(new Map(), FRAME)).toBeNull();
-  expect(chainBounds(new Map([placed(1, 0, 0), placed(2, 300, -150)]), FRAME)).toEqual({
+  expect(chainBounds(new Map(), SYSTEM_FRAME_SIZE)).toBeNull();
+  const spread = new Map([placed(1, 0, 0), placed(2, 300, -150)]);
+  expect(chainBounds(spread, SYSTEM_FRAME_SIZE)).toEqual({
     x: 0,
     y: -150,
     width: 300 + SYSTEM_FRAME_WIDTH,

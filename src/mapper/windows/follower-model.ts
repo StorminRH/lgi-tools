@@ -1,25 +1,18 @@
 import { sameFields } from '@/lib/equality';
 import { clamp } from '@/lib/math';
 import { SYSTEM_DISC_SIZE } from '../canvas/disc-chrome';
-import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
+import {
+  endpointFrame,
+  frameCenter,
+  pointOnRayAtRadius,
+  type MeasuredNode,
+} from '../canvas/edge-geometry';
 import { roundedLeaderPath } from './leader-path';
-
-export interface FollowerNode {
-  readonly measured: {
-    readonly width?: number;
-    readonly height?: number;
-  };
-  readonly internals: {
-    readonly positionAbsolute: { readonly x: number; readonly y: number };
-  };
-  readonly width?: number;
-  readonly height?: number;
-}
 
 export interface FollowerState {
   readonly domNode: HTMLElement | null;
   readonly transform: readonly [number, number, number];
-  readonly nodeLookup: ReadonlyMap<string, FollowerNode>;
+  readonly nodeLookup: ReadonlyMap<string, MeasuredNode>;
 }
 
 export interface NodeFollowerStore {
@@ -278,11 +271,10 @@ export function computeFollowerTransform(
   baseline: FollowerBaseline | null,
   anchorId: string,
   viewport: readonly [number, number, number],
-  anchor: FollowerNode | undefined,
+  anchor: MeasuredNode | undefined,
   card: ScreenSize,
   layer: ScreenSize,
 ): FollowerDecision | null {
-  if (anchor === undefined) return null;
   const frame = endpointFrame(anchor);
   if (frame === null) return null;
   const center = frameCenter(frame);

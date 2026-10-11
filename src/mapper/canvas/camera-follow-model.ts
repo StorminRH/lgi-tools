@@ -1,7 +1,6 @@
 import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
 import { SETTLE_SPRING, type MotionConfig } from '../motion/motion-contract';
-import { endpointFrame, frameCenter } from './edge-geometry';
 
 export interface CameraEase {
   readonly duration: number;
@@ -130,23 +129,4 @@ export function newFocusRequest<Request extends { readonly token: number }>(
     return null;
   }
   return request;
-}
-
-export function focusCenter(
-  node: {
-    readonly x: number;
-    readonly y: number;
-    readonly width?: number;
-    readonly height?: number;
-  } | null,
-  frame: NodeFrameSize,
-): { readonly x: number; readonly y: number } | null {
-  if (node === null) return null;
-  const box = endpointFrame({
-    internals: { positionAbsolute: { x: node.x, y: node.y } },
-    measured: { width: node.width, height: node.height },
-    width: frame.width,
-    height: frame.height,
-  });
-  return box === null ? null : frameCenter(box);
 }
