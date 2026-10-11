@@ -462,7 +462,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P251](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p251) | Make parseFormBody take a field list and own the form-field failure | contracts-validation | S | low | low | — |
+| ☑ | [P251](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p251) | Make parseFormBody take a field list and own the form-field failure | contracts-validation | S | low | low | — |
 | ☐ | [P141](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p141) | Move the four admin form routes, account/delete and feedback onto runMutationRoute; delete adminMutationGate and checkAdminMutation | api-route | M | low | medium | — |
 | ☐ | [P146](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p146) | Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes | api-route | M | low | medium | [P251](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p251) |
 | ☐ | [P167](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p167) | Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth | server-pipeline | S | low | medium | — |

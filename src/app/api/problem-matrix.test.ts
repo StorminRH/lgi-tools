@@ -203,6 +203,13 @@ describe('route-level problem status matrix', () => {
       400,
       'path_invalid',
     );
+    await expectProblem(
+      await postAdminRole(
+        postJson('/api/admin/role', { userId: 'target-user', nextRole: 'ADMIN' }),
+      ),
+      400,
+      'invalid_form',
+    );
   });
 
   it('covers 401 guard and internal-service failures', async () => {

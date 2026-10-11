@@ -14,12 +14,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     capability: 'admin.revoke-user-sessions',
     authorize: checkAdmin,
     parse: (incoming) =>
-      parseFormBody(
-        incoming,
-        adminRevokeSessionsFormSchema,
-        (form) => ({ userId: form.get('userId') }),
-        () => validationFailure('invalid_form_field', 'Invalid form'),
-      ),
+      parseFormBody(incoming, adminRevokeSessionsFormSchema, ['userId']),
     handle: async ({ session }, { userId }) => {
       if (userId === session.user.id) {
         return problemResponse(

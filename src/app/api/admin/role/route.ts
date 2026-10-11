@@ -26,20 +26,11 @@ async function handlePost(request: NextRequest): Promise<Response> {
   const viewerUserId = gate.session.user.id;
   const actorCharacterId = gate.session.characterId;
 
-  const parsed = await parseFormBody(
-    request,
-    adminRoleFormSchema,
-    (form) => ({
-      userId: form.get('userId'),
-      nextRole: form.get('nextRole'),
-      q: form.get('q') ?? undefined,
-    }),
-    (error) => {
-      const issue = error.issues[0];
-      const detail = issue ? `Invalid ${issue.path.join('.') || 'field'}` : 'Invalid form';
-      return validationFailure('invalid_form_field', detail);
-    },
-  );
+  const parsed = await parseFormBody(request, adminRoleFormSchema, [
+    'userId',
+    'nextRole',
+    'q',
+  ]);
   if (!parsed.ok) return problemResponse(parsed.failure);
   const { userId, nextRole } = parsed.data;
 

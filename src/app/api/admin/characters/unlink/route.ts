@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { notFoundFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
 import { checkAdmin } from '@/composition/route-guards';
@@ -25,12 +25,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     capability: 'admin.unlink-character',
     authorize: checkAdmin,
     parse: (incoming) =>
-      parseFormBody(
-        incoming,
-        adminUnlinkFormSchema,
-        (form) => ({ userId: form.get('userId'), characterId: form.get('characterId') }),
-        () => validationFailure('invalid_form_field', 'Invalid form'),
-      ),
+      parseFormBody(incoming, adminUnlinkFormSchema, ['userId', 'characterId']),
     handle: async ({ session }, { userId, characterId }) => {
       if (!(await accountBelongsToUser(userId, characterId))) {
         return problemResponse(

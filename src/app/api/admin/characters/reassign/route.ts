@@ -20,12 +20,10 @@ async function handlePost(request: NextRequest): Promise<Response> {
   const session = gate.session;
   const toUserId = session.user.id;
 
-  const parsed = await parseFormBody(
-    request,
-    adminReassignFormSchema,
-    (form) => ({ characterId: form.get('characterId'), fromUserId: form.get('fromUserId') }),
-    () => validationFailure('invalid_form_field', 'Invalid form'),
-  );
+  const parsed = await parseFormBody(request, adminReassignFormSchema, [
+    'characterId',
+    'fromUserId',
+  ]);
   if (!parsed.ok) return problemResponse(parsed.failure);
   const { characterId, fromUserId } = parsed.data;
 

@@ -2,7 +2,6 @@ import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { validationFailure } from '@/lib/failure';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse } from '@/transport/api-response';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
@@ -33,12 +32,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       problemResponse,
     ),
     authorize: checkSession,
-    parse: (incoming) => parseFormBody(
-      incoming,
-      unlinkCharacterFormSchema,
-      (form) => ({ characterId: form.get('characterId') }),
-      () => validationFailure('invalid_form_field', 'Invalid character'),
-    ),
+    parse: (incoming) =>
+      parseFormBody(incoming, unlinkCharacterFormSchema, ['characterId']),
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);
       if (!linked.some((c) => c.characterId === characterId)) {

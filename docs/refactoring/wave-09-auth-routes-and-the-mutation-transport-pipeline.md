@@ -8,7 +8,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P251](#p251) | Make parseFormBody take a field list and own the form-field failure | contracts-validation | S | low | low | — |
+| ☑ | [P251](#p251) | Make parseFormBody take a field list and own the form-field failure | contracts-validation | S | low | low | — |
 | ☐ | [P141](#p141) | Move the four admin form routes, account/delete and feedback onto runMutationRoute; delete adminMutationGate and checkAdminMutation | api-route | M | low | medium | — |
 | ☐ | [P146](#p146) | Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes | api-route | M | low | medium | [P251](#p251) |
 | ☐ | [P167](#p167) | Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth | server-pipeline | S | low | medium | — |
@@ -32,7 +32,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 
 ## P251: Make parseFormBody take a field list and own the form-field failure
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +10
 - **Depends on:** —

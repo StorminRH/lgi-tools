@@ -19,12 +19,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       problemResponse,
     ),
     authorize: checkSession,
-    parse: (incoming) => parseFormBody(
-      incoming,
-      switchCharacterFormSchema,
-      (form) => ({ characterId: form.get('characterId') }),
-      () => validationFailure('invalid_form_field', 'Invalid character'),
-    ),
+    parse: (incoming) =>
+      parseFormBody(incoming, switchCharacterFormSchema, ['characterId']),
     handle: async ({ session }, { characterId }) => {
       if (!(await accountBelongsToUser(session.user.id, characterId))) {
         return problemResponse(

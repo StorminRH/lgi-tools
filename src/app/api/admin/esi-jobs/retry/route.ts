@@ -3,7 +3,7 @@ import { capabilityRoute } from '@/app/api/capability-route';
 import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contract';
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { notFoundFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
@@ -15,12 +15,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
   const gate = await adminMutationGate(request);
   if (!gate.ok) return gate.response;
 
-  const parsed = await parseFormBody(
-    request,
-    retryEsiRefreshJobFormSchema,
-    (form) => ({ jobId: form.get('jobId') }),
-    () => validationFailure('invalid_form_field', 'Invalid form'),
-  );
+  const parsed = await parseFormBody(request, retryEsiRefreshJobFormSchema, ['jobId']);
   if (!parsed.ok) return problemResponse(parsed.failure);
 
   const result = await requeueDeadLetteredJob(parsed.data.jobId);

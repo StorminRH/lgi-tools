@@ -10,7 +10,7 @@ import {
   WhStaticsEmptySnapshotError,
   WhStaticsSnapshotStateError,
 } from '@/data/wh-statics/queries';
-import { conflictFailure, validationFailure } from '@/lib/failure';
+import { conflictFailure } from '@/lib/failure';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { problemResponse } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
@@ -31,15 +31,10 @@ async function handlePost(request: NextRequest): Promise<Response> {
 }
 
 async function handleAuthorizedPost(request: NextRequest): Promise<Response> {
-  const parsed = await parseFormBody(
-    request,
-    whStaticsAdminFormSchema,
-    (form) => ({
-      action: form.get('action'),
-      snapshotId: form.get('snapshotId') ?? undefined,
-    }),
-    () => validationFailure('invalid_form_field', 'Invalid statics review form'),
-  );
+  const parsed = await parseFormBody(request, whStaticsAdminFormSchema, [
+    'action',
+    'snapshotId',
+  ]);
   if (!parsed.ok) return problemResponse(parsed.failure);
 
   try {
