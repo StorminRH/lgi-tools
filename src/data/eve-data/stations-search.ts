@@ -1,5 +1,6 @@
 import { createClientResource } from '@/lib/client-resource';
 import { apiFetchData } from '@/transport/api-fetch-data';
+import { matchesAllWords } from '@/platform/search/match';
 import { stationsEndpoint } from './api-contract';
 
 export interface StationSearchEntry {
@@ -25,12 +26,8 @@ export function matchStations(
   limit: number,
 ): StationSearchEntry[] {
   const q = query.trim().toLowerCase();
-  const words = q.split(/\s+/).filter((w) => w.length > 0);
-  if (words.length === 0) return [];
-  const hits = stations.filter((s) => {
-    const name = s.name.toLowerCase();
-    return words.every((w) => name.includes(w));
-  });
+  if (q.length === 0) return [];
+  const hits = stations.filter((s) => matchesAllWords(s.name, q));
   const leads = (s: StationSearchEntry) => (s.name.toLowerCase().startsWith(q) ? 0 : 1);
   return hits.sort((a, b) => leads(a) - leads(b)).slice(0, limit);
 }

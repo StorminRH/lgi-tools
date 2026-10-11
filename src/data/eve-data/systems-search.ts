@@ -1,8 +1,7 @@
 import { createClientResource } from '@/lib/client-resource';
 import { apiFetchData } from '@/transport/api-fetch-data';
-import type { SearchSource } from '@/platform/search';
 import { fuzzyMatch } from '@/platform/search/match';
-import { rankFuzzyResults } from '@/platform/search/rank';
+import { indexedFuzzySearch } from '@/platform/search/rank';
 import { systemsEndpoint } from './api-contract';
 import { formatSecurityStatus } from './security';
 
@@ -11,8 +10,6 @@ export interface SystemSearchEntry {
   name: string;
   security: number | null;
 }
-
-const MAX_RESULTS = 20;
 
 async function readSystemIndex(): Promise<{
   readonly systems: SystemSearchEntry[];
@@ -56,24 +53,15 @@ export function matchSystem(systems: SystemSearchEntry[], input: string): System
   return best;
 }
 
-export const searchSystems: SearchSource['search'] = async (query, ctx) => {
-  if (query.length === 0) return [];
-
-  const { systems } = await systemsResource.load();
-  if (ctx.signal?.aborted) return [];
-
-  return rankFuzzyResults(
-    systems,
-    query,
-    (entry) => entry.name,
-    (entry, match) => ({
-      kind: 'system',
-      id: `system:${entry.id}`,
-      label: entry.name,
-      sub: formatSecurityStatus(entry.security),
-      href: '#',
-      matchIndices: match.matchIndices,
-    }),
-    { limit: MAX_RESULTS },
-  );
-};
+export const searchSystems = indexedFuzzySearch({
+  load: async () => (await systemsResource.load()).systems,
+  label: (entry) => entry.name,
+  toResult: (entry, match) => ({
+    kind: 'system',
+    id: `system:${entry.id}`,
+    label: entry.name,
+    sub: formatSecurityStatus(entry.security),
+    href: '#',
+    matchIndices: match.matchIndices,
+  }),
+});
