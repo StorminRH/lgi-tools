@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import {
   adminRoleFormSchema,
   sanitiseAdminAccessQuery,
@@ -10,12 +10,6 @@ import { getUserById, setUserRole } from '@/platform/auth/admin-users';
 import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
-
-function buildRedirect(request: NextRequest, query: string | undefined): URL {
-  const url = new URL('/admin/users', request.url);
-  if (query) url.searchParams.set('q', query);
-  return url;
-}
 
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
@@ -54,8 +48,9 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       }).catch((err) => console.error('[admin/role] telemetry write failed', err));
 
-      const query = sanitiseAdminAccessQuery(q);
-      return Response.redirect(buildRedirect(request, query), 303);
+      return seeOther(request, '/admin/users', {
+        query: { q: sanitiseAdminAccessQuery(q) },
+      });
     },
   });
 }

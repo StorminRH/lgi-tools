@@ -10,7 +10,7 @@ parseFormBody gets a field list, admin and form routes move onto runMutationRout
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☑ | [P251](#p251) | Make parseFormBody take a field list and own the form-field failure | contracts-validation | S | low | low | — |
 | ☑ | [P141](#p141) | Move the four admin form routes, account/delete and feedback onto runMutationRoute; delete adminMutationGate and checkAdminMutation | api-route | M | low | medium | — |
-| ☐ | [P146](#p146) | Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes | api-route | M | low | medium | [P251](#p251) |
+| ☑ | [P146](#p146) | Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes | api-route | M | low | medium | [P251](#p251) |
 | ☐ | [P167](#p167) | Parse SUPERADMIN_CHARACTER_ID once and keep one admin predicate in platform/auth | server-pipeline | S | low | medium | — |
 | ☐ | [P254](#p254) | Add requireSessionPage and a typed auth_error vocabulary so login_required shows a notice | contracts-validation | S | low | medium | [P167](#p167) |
 | ☐ | [P255](#p255) | Resolve query-string notices with one own-key typed resolver and type each flow's notice codes | contracts-validation | M | low | medium | [P146](#p146), [P254](#p254) |
@@ -195,7 +195,7 @@ runMutationRoute(request, { capability: 'feedback.submit-feedback', authorize: a
 
 ## P146: Add a seeOther 303 helper in transport that stashes the failure for capability telemetry, and use it in all eight form-post routes
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -30/+25 in routes and helpers, plus around 40 lines of tests
 - **Depends on:** [P251](#p251)

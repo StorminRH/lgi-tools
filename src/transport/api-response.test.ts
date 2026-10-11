@@ -8,7 +8,13 @@ import {
   validationFailure,
 } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
-import { apiResponse, problemResponse, type ResponseArgsFor } from './api-response';
+import {
+  apiResponse,
+  problemResponse,
+  seeOther,
+  type ResponseArgsFor,
+} from './api-response';
+import { currentStashedFailure, withCorrelationScope } from './correlation';
 import {
   defineEndpoint,
   emptyBody,
@@ -133,5 +139,42 @@ describe('problemResponse', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('14');
     expect(body.retryAfterSeconds).toBe(14);
+  });
+});
+
+describe('seeOther', () => {
+  const formPost = new Request('https://lgi.tools/api/admin/role', { method: 'POST' });
+
+  it('answers a form post with a 303 to the path on the request origin', () => {
+    const plain = seeOther(formPost, '/admin/queue');
+    expect(plain.status).toBe(303);
+    expect(plain.headers.get('location')).toBe('https://lgi.tools/admin/queue');
+
+    const queried = seeOther(formPost, '/admin/users', {
+      query: { q: 'Pilot One', error: undefined, outcome: '' },
+    });
+    expect(queried.headers.get('location')).toBe(
+      'https://lgi.tools/admin/users?q=Pilot+One&outcome=',
+    );
+  });
+
+  it('stashes a failure reported through the redirect, and nothing for a success', async () => {
+    const failed = await withCorrelationScope(async () => {
+      const response = seeOther(formPost, '/settings/characters', {
+        query: { error: 'unlink_failed' },
+        failure: unexpectedFailure('unlink_failed', new Error('boom')),
+      });
+      return { location: response.headers.get('location'), stashed: currentStashedFailure() };
+    });
+    expect(failed).toEqual({
+      location: 'https://lgi.tools/settings/characters?error=unlink_failed',
+      stashed: { category: 'unexpected', code: 'unlink_failed' },
+    });
+
+    const succeeded = await withCorrelationScope(async () => {
+      seeOther(formPost, '/settings/characters');
+      return currentStashedFailure();
+    });
+    expect(succeeded).toBeNull();
   });
 });

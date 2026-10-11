@@ -3,7 +3,8 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
-import { problemResponse } from '@/transport/api-response';
+import { unexpectedFailure, validationFailure } from '@/lib/failure';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
 import { auth } from '@/composition/auth';
@@ -16,11 +17,7 @@ import {
 import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
-function redirectWithError(request: NextRequest, code: string): Response {
-  const url = new URL('/settings/characters', request.url);
-  url.searchParams.set('error', code);
-  return Response.redirect(url, 303);
-}
+const CHARACTERS_PAGE = '/settings/characters';
 
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
@@ -37,10 +34,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);
       if (!linked.some((c) => c.characterId === characterId)) {
-        return redirectWithError(request, 'not_linked');
+        return seeOther(request, CHARACTERS_PAGE, {
+          query: { error: 'not_linked' },
+          failure: validationFailure('not_linked'),
+        });
       }
       if (linked.length <= 1) {
-        return redirectWithError(request, 'last_character');
+        return seeOther(request, CHARACTERS_PAGE, {
+          query: { error: 'last_character' },
+          failure: validationFailure('last_character'),
+        });
       }
 
       let mapIds: string[];
@@ -51,7 +54,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
       } catch (err) {
         console.error('[account/unlink] map access revocation failed', err);
-        return redirectWithError(request, 'unlink_failed');
+        return seeOther(request, CHARACTERS_PAGE, {
+          query: { error: 'unlink_failed' },
+          failure: unexpectedFailure('unlink_failed', err),
+        });
       }
 
       try {
@@ -62,7 +68,10 @@ export async function POST(request: NextRequest): Promise<Response> {
       } catch (err) {
         console.error('[account/unlink] unlinkAccount failed', err);
         await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
-        return redirectWithError(request, 'unlink_failed');
+        return seeOther(request, CHARACTERS_PAGE, {
+          query: { error: 'unlink_failed' },
+          failure: unexpectedFailure('unlink_failed', err),
+        });
       }
 
       try {
@@ -88,7 +97,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         metadata: { userId: session.user.id, unlinkedCharacterId: characterId },
       }).catch((err) => console.error('[account/unlink] telemetry write failed', err));
 
-      return Response.redirect(new URL('/settings/characters', request.url), 303);
+      return seeOther(request, CHARACTERS_PAGE);
     },
   });
 }

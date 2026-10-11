@@ -2,8 +2,8 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { notFoundFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import { conflictFailure, notFoundFailure, validationFailure } from '@/lib/failure';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
 import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
@@ -12,12 +12,6 @@ import {
   listLinkedCharacters,
 } from '@/platform/auth/linked-characters';
 import { deleteLinkedCharacter } from '@/platform/auth/admin-users';
-
-function redirectTo(request: NextRequest, userId: string, error?: string): Response {
-  const url = new URL(`/admin/users/${userId}`, request.url);
-  if (error) url.searchParams.set('error', error);
-  return Response.redirect(url, 303);
-}
 
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
@@ -36,14 +30,21 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
+      const userPage = `/admin/users/${userId}`;
       const linked = await listLinkedCharacters(userId);
       if (linked.length <= 1) {
-        return redirectTo(request, userId, 'last_character');
+        return seeOther(request, userPage, {
+          query: { error: 'last_character' },
+          failure: validationFailure('last_character'),
+        });
       }
 
       const removed = await deleteLinkedCharacter(userId, characterId, identityProjectionRunners);
       if (!removed) {
-        return redirectTo(request, userId, 'unlink_failed');
+        return seeOther(request, userPage, {
+          query: { error: 'unlink_failed' },
+          failure: conflictFailure('unlink_failed'),
+        });
       }
 
       void logUsageEvent({
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       }).catch((err) => console.error('[admin/characters/unlink] telemetry write failed', err));
 
-      return redirectTo(request, userId);
+      return seeOther(request, userPage);
     },
   });
 }

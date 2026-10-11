@@ -29,6 +29,7 @@ const refreshMock = vi.fn();
 const promoteMock = vi.fn();
 const rejectMock = vi.fn();
 const logUsageEventMock = vi.fn();
+const emitCostMetricMock = vi.fn<(action: string, metadata: Record<string, unknown>) => void>();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -53,9 +54,21 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (action: string, metadata: Record<string, unknown>) =>
+    emitCostMetricMock(action, metadata),
+}));
+
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
 const ROUTE = '/api/admin/wh-statics';
+
+/** The capability outcomes the route recorded, in call order. */
+function recordedOutcomes() {
+  return emitCostMetricMock.mock.calls.flatMap(([action, record]) =>
+    action === 'capability_outcome' ? [{ outcome: record.outcome, code: record.code }] : [],
+  );
+}
 
 describe('POST /api/admin/wh-statics', () => {
   beforeEach(() => {
@@ -66,6 +79,7 @@ describe('POST /api/admin/wh-statics', () => {
     promoteMock.mockReset();
     rejectMock.mockReset();
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
+    emitCostMetricMock.mockReset();
   });
 
   it('refuses a caller without admin authority before the origin check', async () => {
@@ -117,6 +131,29 @@ describe('POST /api/admin/wh-statics', () => {
     expect(response.headers.get('location')).toBe(
       'http://localhost:3000/admin/statics?outcome=snapshot-pending',
     );
+    expect(recordedOutcomes()).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
+  });
+
+  it('records an unavailable feed and a busy refresh as failures behind the outcome redirect', async () => {
+    refreshMock
+      .mockResolvedValueOnce({ status: 'feed-unavailable', reason: 'HTTP 503' })
+      .mockResolvedValueOnce({ status: 'busy' });
+    const { POST } = await import('./route');
+    const unavailable = await POST(postForm(ROUTE, { action: 'refresh' }));
+    const busy = await POST(postForm(ROUTE, { action: 'refresh' }));
+
+    expect(unavailable.status).toBe(303);
+    expect(unavailable.headers.get('location')).toBe(
+      'http://localhost:3000/admin/statics?outcome=feed-unavailable',
+    );
+    expect(busy.status).toBe(303);
+    expect(busy.headers.get('location')).toBe(
+      'http://localhost:3000/admin/statics?outcome=busy',
+    );
+    expect(recordedOutcomes()).toEqual([
+      { outcome: 'dependency_unavailable', code: 'wh_statics_feed_unavailable' },
+      { outcome: 'conflict', code: 'wh_statics_refresh_busy' },
+    ]);
   });
 
   it('promotes the named pending snapshot and redirects', async () => {

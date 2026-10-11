@@ -4,7 +4,7 @@ import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { checkAdmin } from '@/composition/route-guards';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { adminReassignFormSchema } from '@/platform/auth/api-contract';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       }).catch((err) => console.error('[admin/characters/reassign] telemetry write failed', err));
 
-      return Response.redirect(new URL(`/admin/users/${toUserId}`, request.url), 303);
+      return seeOther(request, `/admin/users/${toUserId}`);
     },
   });
 }

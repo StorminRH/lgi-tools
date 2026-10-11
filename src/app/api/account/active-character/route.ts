@@ -3,7 +3,7 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
-import { problemResponse } from '@/transport/api-response';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
 import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
 import { checkSession } from '@/composition/route-guards';
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         metadata: { userId: session.user.id, toCharacterId: characterId },
       }).catch((err) => console.error('[account/active-character] telemetry write failed', err));
 
-      return Response.redirect(new URL('/settings/characters', request.url), 303);
+      return seeOther(request, '/settings/characters');
     },
   });
 }

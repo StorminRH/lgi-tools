@@ -76,6 +76,27 @@ export function problemResponse(failure: AppFailure): Response {
   return serializeProblem(problemBody(failure, currentCorrelationId()));
 }
 
+/**
+ * The Post/Redirect/Get 303 a browser form post answers with. `path` resolves
+ * against the request, undefined query values are left out, and a failure
+ * reported through the redirect is stashed so capability telemetry records it.
+ */
+export function seeOther(
+  request: Request,
+  path: string,
+  options: {
+    query?: Readonly<Record<string, string | undefined>>;
+    failure?: AppFailure;
+  } = {},
+): Response {
+  const url = new URL(path, request.url);
+  for (const [key, value] of Object.entries(options.query ?? {})) {
+    if (value !== undefined) url.searchParams.set(key, value);
+  }
+  if (options.failure) stashFailure(options.failure);
+  return Response.redirect(url, 303);
+}
+
 export function withCacheControl(response: Response, value: string): Response {
   response.headers.set('Cache-Control', value);
   return response;

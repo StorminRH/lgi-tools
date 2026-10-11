@@ -18,6 +18,7 @@ const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
 const revokeUserMapClaimsMock = vi.fn();
 const eraseNetWorthHistoryMock = vi.fn();
+const emitCostMetricMock = vi.fn<(action: string, metadata: Record<string, unknown>) => void>();
 vi.mock('@/features/net-worth/purge', () => ({
   eraseNetWorthHistoryForCharacter: (...args: unknown[]) => eraseNetWorthHistoryMock(...args),
 }));
@@ -55,6 +56,11 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (action: string, metadata: Record<string, unknown>) =>
+    emitCostMetricMock(action, metadata),
+}));
+
 const teardownLocationTrackingMock = vi.hoisted(() => vi.fn());
 vi.mock('@/data/location-tracking/purge', () => ({
   teardownLocationTracking: (...args: unknown[]) => teardownLocationTrackingMock(...args),
@@ -73,6 +79,13 @@ function locationOf(res: Response): string {
   return res.headers.get('location') ?? '';
 }
 
+/** The capability outcomes the route recorded, in call order. */
+function recordedOutcomes() {
+  return emitCostMetricMock.mock.calls.flatMap(([action, record]) =>
+    action === 'capability_outcome' ? [{ outcome: record.outcome, code: record.code }] : [],
+  );
+}
+
 describe('POST /api/account/characters/unlink', () => {
   beforeEach(() => {
     getSessionMock.mockReset();
@@ -81,6 +94,7 @@ describe('POST /api/account/characters/unlink', () => {
     repointActiveToOldestMock.mockReset();
     getStoredActiveCharacterIdMock.mockReset();
     logUsageEventMock.mockReset();
+    emitCostMetricMock.mockReset();
     getOwnedMapIdsMock.mockReset();
     enqueueAffectedMapAccessChangesMock.mockReset();
     projectMapAccessMock.mockReset();
@@ -115,6 +129,11 @@ describe('POST /api/account/characters/unlink', () => {
     const notLinked = await POST(postForm(ROUTE, { characterId: '999' }));
     expect(locationOf(notLinked)).toContain('error=not_linked');
     expect(unlinkAccountMock).not.toHaveBeenCalled();
+    expect(recordedOutcomes()).toEqual([
+      { outcome: 'unauthenticated', code: 'unauthenticated' },
+      { outcome: 'validation', code: 'last_character' },
+      { outcome: 'validation', code: 'not_linked' },
+    ]);
   });
 
   it('unlinks and re-points only when the removed character was active', async () => {
@@ -142,6 +161,7 @@ describe('POST /api/account/characters/unlink', () => {
     expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(recordedOutcomes()).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
 
     unlinkAccountMock.mockClear();
     repointActiveToOldestMock.mockClear();
@@ -172,6 +192,7 @@ describe('POST /api/account/characters/unlink', () => {
     const res = await POST(postForm(ROUTE, { characterId: '200' }));
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
+    expect(recordedOutcomes()).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
     expect(enqueueAffectedMapAccessChangesMock.mock.calls).toEqual([[200], [200]]);
     expect(enqueueAffectedMapAccessChangesMock.mock.invocationCallOrder[1]).toBeGreaterThan(
@@ -186,12 +207,12 @@ describe('POST /api/account/characters/unlink', () => {
     revokeUserMapClaimsMock.mockRejectedValue(new Error('Convex unavailable'));
     const errorSpy = silenceConsolePrefixes('error', [
       '[account/unlink] map access revocation failed',
-      '[cost-metrics] telemetry scheduling failed',
     ]);
 
     const response = await POST(postForm(ROUTE, { characterId: '100' }));
 
     expect(locationOf(response)).toContain('error=unlink_failed');
+    expect(recordedOutcomes()).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
     expect(revokeUserMapClaimsMock).toHaveBeenCalledWith('eve-user-1', ['map-1']);
     expect(unlinkAccountMock).not.toHaveBeenCalled();
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();

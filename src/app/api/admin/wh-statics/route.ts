@@ -6,20 +6,29 @@ import {
   refreshWhStaticsOnDemand,
   rejectWhStaticsSnapshot,
 } from '@/composition/wh-statics-refresh';
-import { whStaticsAdminFormSchema } from '@/data/wh-statics/api-contract';
+import {
+  whStaticsAdminFormSchema,
+  type WhStaticsRefreshResult,
+} from '@/data/wh-statics/api-contract';
 import {
   WhStaticsEmptySnapshotError,
   WhStaticsSnapshotStateError,
 } from '@/data/wh-statics/queries';
-import { conflictFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import {
+  conflictFailure,
+  dependencyUnavailableFailure,
+  type AppFailure,
+} from '@/lib/failure';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
-function redirectToReview(request: NextRequest, outcome: string): Response {
-  const destination = new URL('/admin/statics', request.url);
-  destination.searchParams.set('outcome', outcome);
-  return Response.redirect(destination, 303);
-}
+const REVIEW_PAGE = '/admin/statics';
+
+/** Refresh outcomes that report a failure through the review page's notice. */
+const REFRESH_FAILURES: Partial<Record<WhStaticsRefreshResult['status'], AppFailure>> = {
+  'feed-unavailable': dependencyUnavailableFailure('wh_statics_feed_unavailable'),
+  busy: conflictFailure('wh_statics_refresh_busy'),
+};
 
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
@@ -31,15 +40,18 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async (_authorization, review) => {
       try {
         if (review.action === 'refresh') {
-          const result = await refreshWhStaticsOnDemand();
-          return redirectToReview(request, result.status);
+          const { status } = await refreshWhStaticsOnDemand();
+          return seeOther(request, REVIEW_PAGE, {
+            query: { outcome: status },
+            failure: REFRESH_FAILURES[status],
+          });
         }
         if (review.action === 'promote') {
           await promoteWhStaticsSnapshot(review.snapshotId);
-          return redirectToReview(request, 'promoted');
+          return seeOther(request, REVIEW_PAGE, { query: { outcome: 'promoted' } });
         }
         await rejectWhStaticsSnapshot(review.snapshotId);
-        return redirectToReview(request, 'rejected');
+        return seeOther(request, REVIEW_PAGE, { query: { outcome: 'rejected' } });
       } catch (error) {
         if (error instanceof WhStaticsEmptySnapshotError) {
           return problemResponse(

@@ -5,7 +5,7 @@ import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contra
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
 // authz: admin
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         console.error('[admin/esi-jobs/retry] telemetry write failed', error),
       );
 
-      return Response.redirect(new URL('/admin/queue', request.url), 303);
+      return seeOther(request, '/admin/queue');
     },
   });
 }
