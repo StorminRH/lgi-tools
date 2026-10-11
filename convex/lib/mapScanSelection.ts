@@ -15,7 +15,6 @@ import {
   type CollapsePilotsPresent,
 } from '../mapAuthoringCollapse';
 import { eventActor, writeMapEvent } from '../mapAuthoringEvents';
-import { readTrackedPilotSystemIds } from '../mapTrackingLive';
 import { findLocalSignatureConnection, readTouchingConnections } from './mapConnectionLookup';
 import {
   applyKnownSignatureTombstone,
@@ -31,16 +30,15 @@ import {
   type ScanState,
 } from './mapScanState';
 import { deleteUnclaimedRespawn, respawnAfterTombstone } from './mapStaticClaim';
+import { trackedPilotSystemsByMap } from './mapTrackedPilots';
 
+/** Lazy: the map's tracked pilots are read only when a resolved connection is actually removed. */
 function trackedPresenceReader(
   ctx: MutationCtx,
   mapId: string,
 ): () => Promise<CollapsePilotsPresent> {
-  let held: CollapsePilotsPresent | undefined;
-  return async () => {
-    held ??= { trackedInSystemIds: await readTrackedPilotSystemIds(ctx, mapId) };
-    return held;
-  };
+  const tracked = trackedPilotSystemsByMap(ctx);
+  return async () => ({ trackedInSystemIds: await tracked(mapId) });
 }
 
 export type SignatureSelectionMode = 'remove' | 'restore';

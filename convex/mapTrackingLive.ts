@@ -128,18 +128,3 @@ export const coverage = query({
     };
   },
 });
-
-export async function readTrackedPilotSystemIds(
-  ctx: QueryCtx,
-  mapId: string,
-): Promise<ReadonlySet<number>> {
-  const rows = await readMapTracking(ctx, mapId);
-  const locations = await Promise.all(
-    rows.map((row) => uniqueByUserCharacter(ctx, 'characterLocation', row.userId, row.characterId)),
-  );
-  const systemIds = new Set<number>();
-  for (const location of locations) {
-    if (location !== null) systemIds.add(location.solarSystemId);
-  }
-  return systemIds;
-}

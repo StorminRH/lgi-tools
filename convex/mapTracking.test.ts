@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
-import { readTrackedPilotSystemIds } from './mapTrackingLive';
 import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
+import { trackedPilotSystemsByMap } from './lib/mapTrackedPilots';
 
 import { claimReconciler, expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
@@ -320,7 +320,7 @@ describe('mapTracking.setTracking', () => {
       mapId: MAP_A, userId: 'legacy-overflow', characterId: CHAR,
     }));
     await expectConvexErrorCode(caller.query(tracking.forMap, { mapId: MAP_A }), 'TRACKING_SCAN_LIMIT');
-    await expectConvexErrorCode(t.run((ctx) => readTrackedPilotSystemIds(ctx, MAP_A)), 'TRACKING_SCAN_LIMIT');
+    await expectConvexErrorCode(t.run((ctx) => trackedPilotSystemsByMap(ctx)(MAP_A)), 'TRACKING_SCAN_LIMIT');
   });
 
   it('refuses setTracking without a map-access claim', async () => {

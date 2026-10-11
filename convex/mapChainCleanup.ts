@@ -10,9 +10,9 @@ import {
   queryMapSignatures,
   takeExpiredByPurgeAfter,
 } from './lib/indexedQuery';
+import { trackedPilotSystemsByMap, type TrackedPilotSystems } from './lib/mapTrackedPilots';
 import { settleRemovedConnection } from './mapAuthoringCollapse';
 import { CEILING_SWEEP_ACTOR } from './mapAuthoringSweep';
-import { readTrackedPilotSystemIds } from './mapTrackingLive';
 
 export const CHAIN_PURGE_BATCH = 128;
 /** Signature and activity rows one pass may delete along with purged systems. */
@@ -99,19 +99,7 @@ async function purgeExpiredSystems(
 
 interface SettleState {
   readonly liveness: Map<string, boolean>;
-  readonly tracked: Map<string, ReadonlySet<number>>;
-}
-
-async function trackedFor(
-  ctx: MutationCtx,
-  state: SettleState,
-  mapId: string,
-): Promise<ReadonlySet<number>> {
-  const cached = state.tracked.get(mapId);
-  if (cached !== undefined) return cached;
-  const tracked = await readTrackedPilotSystemIds(ctx, mapId);
-  state.tracked.set(mapId, tracked);
-  return tracked;
+  readonly tracked: TrackedPilotSystems;
 }
 
 type ConnectionFate = 'deleted' | 'branch_removed' | 'held' | 'retry' | 'deferred';
@@ -131,7 +119,7 @@ async function settleExpiredConnection(
     const outcome = await settleRemovedConnection(
       ctx,
       { ...connection, toSystemId },
-      await trackedFor(ctx, state, connection.mapId),
+      await state.tracked(connection.mapId),
       CEILING_SWEEP_ACTOR,
     );
     if (outcome === 'held') {
@@ -178,7 +166,7 @@ async function purgeExpiredConnections(
   hasMore: boolean;
 }> {
   const expired = await takeExpiredByPurgeAfter(ctx, 'mapConnections', now, CHAIN_PURGE_BATCH + 1);
-  const state: SettleState = { liveness: new Map(), tracked: new Map() };
+  const state: SettleState = { liveness: new Map(), tracked: trackedPilotSystemsByMap(ctx) };
   const fates: Record<ConnectionFate, number> = { deleted: 0, branch_removed: 0, held: 0, retry: 0, deferred: 0 };
   let settled = 0;
   for (const candidate of expired.slice(0, CHAIN_PURGE_BATCH)) {
