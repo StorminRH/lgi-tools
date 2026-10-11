@@ -36,14 +36,15 @@ import { enqueueDeletion, requestDeletion, readDeletionJobs, type DeletionJob } 
 import { pendingDeletions } from '@/platform/auth/deletion-schema';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { account, characters, corpAccessAudit, session, user } from '@/db/auth-schema';
-import { syntheticEmail } from '@/platform/auth/synthetic-email';
-import { deleteUserIfUnlinked, reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
+import { syntheticEmail, unlinkedEmail } from '@/platform/auth/synthetic-email';
+import { deleteUserIfUnlinked, reconcileAfterCharacterRemoval, releaseSyntheticEmail } from '@/platform/auth/account-purge';
 import { reassignCharacter } from '@/platform/auth/admin-users';
 
 const SCHEMA = 'test_auth_account_purge';
 const USER_ID = 'purge-user';
 const FIRST_CHAR = 90000041;
 const SECOND_CHAR = 90000042;
+const THIRD_CHAR = 90000043;
 
 const TABLE_NAMES = [
   'user',
@@ -578,25 +579,89 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(revokeMock).not.toHaveBeenCalled();
   });
 
-  it('repairs the identity from the oldest parseable link and never mints NaN@eve.invalid from a malformed one', async () => {
-    const runners = {
+  function identityRunners() {
+    return {
       runBeforeUserDelete: vi.fn(),
       runBeforeCharacterUnlink: async () => [],
       runAfterFailedCharacterUnlink: async () => {},
       runAfterCharacterUnlink: async () => {},
       runAfterCharacterLinkChanged: vi.fn(),
     };
+  }
+
+  async function emailOf(userId: string) {
+    return (await harness.db.select({ email: user.email }).from(user).where(eq(user.id, userId)))[0]?.email;
+  }
+
+  it('repairs the identity from the oldest parseable link, skipping a malformed older one', async () => {
+    const runners = identityRunners();
+    await seedEveAccount('malformed', FIRST_CHAR, new Date('2026-01-01T00:00:00Z'));
+    await harness.db.update(account).set({ accountId: 'not-a-character' }).where(eq(account.id, 'malformed'));
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+    await seedEveAccount('third', THIRD_CHAR, new Date('2026-03-01T00:00:00Z'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, runners)).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(SECOND_CHAR));
+    expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
+    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+  });
+
+  it('leaves an email that names a character still on the account', async () => {
+    await harness.db.update(user).set({ email: syntheticEmail(THIRD_CHAR) }).where(eq(user.id, USER_ID));
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+    await seedEveAccount('third', THIRD_CHAR, new Date('2026-03-01T00:00:00Z'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, identityRunners())).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(THIRD_CHAR));
+  });
+
+  it('parks the email on the user placeholder when only a malformed link is left, never minting NaN@eve.invalid', async () => {
+    const runners = identityRunners();
     await seedEveAccount('malformed', FIRST_CHAR, new Date('2026-01-01T00:00:00Z'));
     await harness.db.update(account).set({ accountId: 'not-a-character' }).where(eq(account.id, 'malformed'));
 
     expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, runners)).toEqual({ accountEmptied: false });
-    expect((await harness.db.select().from(user))[0]).toMatchObject({ email: syntheticEmail(FIRST_CHAR) });
-
-    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
-    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, runners)).toEqual({ accountEmptied: false });
-    expect((await harness.db.select().from(user))[0]).toMatchObject({ email: syntheticEmail(SECOND_CHAR) });
+    expect(await emailOf(USER_ID)).toBe(unlinkedEmail(USER_ID));
     expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
-    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+  });
+
+  it('parks the email on the user placeholder when another user holds the replacement address, until a sign-in frees it', async () => {
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+    await seedUser(harness.db, 'stale-holder', { email: syntheticEmail(SECOND_CHAR) });
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, identityRunners())).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(unlinkedEmail(USER_ID));
+    expect(await emailOf('stale-holder')).toBe(syntheticEmail(SECOND_CHAR));
+    expect((await harness.db.select().from(user).where(eq(user.id, USER_ID)))[0]?.activeCharacterId).toBe(SECOND_CHAR);
+
+    // An EVE sign-in as SECOND_CHAR runs this first; overrideUserInfo then gives its owner the address.
+    await releaseSyntheticEmail(SECOND_CHAR);
+    expect(await emailOf('stale-holder')).toBe(unlinkedEmail('stale-holder'));
+    expect(await emailOf(USER_ID)).toBe(unlinkedEmail(USER_ID));
+  });
+
+  it('rewrites an email naming any character the account no longer has, not only the one just removed', async () => {
+    await harness.db.update(user).set({ email: syntheticEmail(THIRD_CHAR) }).where(eq(user.id, USER_ID));
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, identityRunners())).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(SECOND_CHAR));
+  });
+
+  it('releases a synthetic email only from a user that does not own its character', async () => {
+    const OLD_OWNER_CHAR = 90000044;
+    await seedEveAccount('first', FIRST_CHAR, new Date('2026-01-01T00:00:00Z'));
+    await seedUser(harness.db, 'old-owner', { email: syntheticEmail(SECOND_CHAR) });
+    await insertEveAccount(harness.db, { id: 'old-owner-link', characterId: OLD_OWNER_CHAR, userId: 'old-owner' });
+
+    await releaseSyntheticEmail(FIRST_CHAR);
+    await releaseSyntheticEmail(THIRD_CHAR);
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(FIRST_CHAR));
+    expect(await emailOf('old-owner')).toBe(syntheticEmail(SECOND_CHAR));
+
+    await releaseSyntheticEmail(SECOND_CHAR);
+    expect(await emailOf('old-owner')).toBe(syntheticEmail(OLD_OWNER_CHAR));
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(FIRST_CHAR));
   });
 
   async function queueCharacter(characterId: number, userId = USER_ID) {

@@ -27,6 +27,7 @@ const merge = vi.hoisted(() => ({
 }));
 
 vi.mock('@/db', () => ({ db: chain }));
+vi.mock('@/db/direct-database', () => ({ directDatabase: () => chain }));
 vi.mock('next/server', () => ({ after: merge.after }));
 vi.mock('./account-merge', () => ({
   mergeUsers: merge.mergeUsers,
@@ -114,6 +115,10 @@ describe('purgeTransferredCharacter', () => {
       undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(CHAR), activeCharacterId: OTHER_CHAR }],
+      // The email repair locks the user, then re-reads its email and links before it writes.
+      [{ id: USER }],
+      [{ email: syntheticEmail(CHAR) }],
+      [{ accountId: String(OTHER_CHAR) }],
       undefined,
     ];
     const failure = new Error('history deletion failed');

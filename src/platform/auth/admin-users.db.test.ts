@@ -65,6 +65,11 @@ const TARGET_ID = 'target-user';
 const MOVED_CHAR = 90000021;
 const SURVIVOR_CHAR = 90000022;
 
+const sourceIdentity = async () => (await harness.db
+  .select({ email: user.email, activeCharacterId: user.activeCharacterId })
+  .from(user)
+  .where(eq(user.id, SOURCE_ID)))[0];
+
 describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => {
   beforeEach(async () => {
     runners.runAfterFailedCharacterUnlink.mockReset().mockResolvedValue(undefined);
@@ -253,10 +258,6 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
 
   it('moves a synthetic email off the unlinked character on the admin path and a direct removal', async () => {
     const NEWEST_CHAR = 90000023;
-    const sourceIdentity = async () => (await harness.db
-      .select({ email: user.email, activeCharacterId: user.activeCharacterId })
-      .from(user)
-      .where(eq(user.id, SOURCE_ID)))[0];
     await harness.db.update(user)
       .set({ email: syntheticEmail(MOVED_CHAR), activeCharacterId: MOVED_CHAR })
       .where(eq(user.id, SOURCE_ID));
@@ -285,6 +286,21 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       email: syntheticEmail(NEWEST_CHAR), activeCharacterId: NEWEST_CHAR,
     });
     expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
+  });
+
+  it('leaves the active character and email alone when an inactive character is unlinked', async () => {
+    const OLDEST_CHAR = 90000023;
+    await harness.db.update(user)
+      .set({ email: syntheticEmail(SURVIVOR_CHAR), activeCharacterId: SURVIVOR_CHAR })
+      .where(eq(user.id, SOURCE_ID));
+    await seedEveAccount('oldest', OLDEST_CHAR, SOURCE_ID, new Date('2026-07-01T00:00:00Z'));
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, new Date('2026-07-02T00:00:00Z'));
+    await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, new Date('2026-07-03T00:00:00Z'));
+
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(true);
+    expect(await sourceIdentity()).toEqual({
+      email: syntheticEmail(SURVIVOR_CHAR), activeCharacterId: SURVIVOR_CHAR,
+    });
   });
 
   it.each([false, true])('finishes reassignment source cleanup when history erasure fails (survivor: %s)', async (survivor) => {

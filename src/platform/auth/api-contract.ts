@@ -46,6 +46,9 @@ export type CharacterLinkNotice = 'not_linked' | 'last_character' | 'unlink_fail
 /** The `?error=` codes Better Auth writes to the link page's errorCallbackURL that have their own copy. */
 export type BetterAuthLinkError = 'account_already_linked_to_different_user' | "email_doesn't_match";
 
+/** The `?error=` codes Better Auth writes to the sign-in errorCallbackURL (the home page) that have their own copy. */
+export type BetterAuthSignInError = 'account_not_linked';
+
 /** The switch-character and unlink forms: one posted character id. */
 export const characterIdFormSchema = z.object({
   characterId: characterIdField,
