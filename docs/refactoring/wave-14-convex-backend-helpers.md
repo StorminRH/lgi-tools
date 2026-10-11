@@ -13,7 +13,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 | ☑ | [P198](#p198) | Generalize uniqueByUserCharacter to all four single-row location tables and route the inline lookups and cache deletes through it | convex | S | low | medium | — |
 | ☑ | [P199](#p199) | Move readTrackedPilotSystemIds into convex/lib and share one per-map tracked-pilot memo | convex | S | low | low | [P198](#p198) |
 | ☑ | [P200](#p200) | Move the per-(map, user) tracking cap into lib/mapTrackingCapacity and read caller tracking through one bounded helper | convex | S | low | medium | — |
-| ☐ | [P201](#p201) | Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points | convex | S | low | low | [P200](#p200), [P199](#p199) |
+| ☑ | [P201](#p201) | Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points | convex | S | low | low | [P200](#p200), [P199](#p199) |
 | ☐ | [P202](#p202) | Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup | convex | M | low | medium | — |
 | ☐ | [P203](#p203) | Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert | convex | S | low | low | — |
 | ☐ | [P204](#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
@@ -395,7 +395,7 @@ export function readUserMapTracking(
 
 ## P201: Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +15 (net neutral; removes one claim read per authoring edit)
 - **Depends on:** [P200](#p200), [P199](#p199)

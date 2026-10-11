@@ -13,10 +13,9 @@ import {
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { takeIndexedOrThrow } from './lib/indexedQuery';
-import { requireMapAccess } from './lib/mapAccess';
+import { gatedAuthoringEdit, writeMapEvent } from './lib/mapAuthoringEvents';
 import { deleteUnclaimedRespawn, respawnAfterTombstone } from './lib/mapStaticClaim';
 import { deleteSignatureActivity } from './lib/mapSignatures';
-import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 
 export const COLLAPSE_MAP_SCAN_CAP = 128;
 
@@ -425,15 +424,6 @@ export async function runBranchRestore(
     },
   });
   return { restored: true as const };
-}
-
-async function gatedAuthoringEdit<T>(
-  ctx: MutationCtx,
-  mapId: string,
-  run: (actor: string) => Promise<T>,
-): Promise<T> {
-  await requireMapAccess(ctx, mapId, 'edit');
-  return run(await eventActor(ctx, mapId));
 }
 
 export const severConnection = mutation({

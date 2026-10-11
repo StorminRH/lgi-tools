@@ -7,10 +7,10 @@ import {
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
+import { gatedAuthoringEdit, writeMapEvent } from './lib/mapAuthoringEvents';
 import { readTouchingConnections, requireConnectionOnMap } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { deleteUnclaimedRespawn } from './lib/mapStaticClaim';
-import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 import { ensureStaticPlaceholders } from './mapStatics';
 
 const LIVE_CONNECTION_SCAN_CAP = 32;
@@ -172,8 +172,8 @@ export const restoreSystem = internalMutation({
 
 export const restoreConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    await requireMapAccess(ctx, mapId, 'edit');
-    return restoreLiveConnection(ctx, mapId, connectionId, await eventActor(ctx, mapId));
-  },
+  handler: (ctx, { mapId, connectionId }) =>
+    gatedAuthoringEdit(ctx, mapId, (actor) =>
+      restoreLiveConnection(ctx, mapId, connectionId, actor),
+    ),
 });

@@ -4,8 +4,8 @@ import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { errorCode } from './lib/errorCode';
+import { writeMapEvent } from './lib/mapAuthoringEvents';
 import { trackedPilotSystemsByMap, type TrackedPilotSystems } from './lib/mapTrackedPilots';
-import { writeMapEvent } from './mapAuthoringEvents';
 import {
   retainRemovedConnection,
   runCollapse,

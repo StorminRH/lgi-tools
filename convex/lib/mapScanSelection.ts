@@ -14,7 +14,7 @@ import {
   runCollapse,
   type CollapsePilotsPresent,
 } from '../mapAuthoringCollapse';
-import { eventActor, writeMapEvent } from '../mapAuthoringEvents';
+import { writeMapEvent } from './mapAuthoringEvents';
 import { findLocalSignatureConnection, readTouchingConnections } from './mapConnectionLookup';
 import {
   applyKnownSignatureTombstone,
@@ -254,6 +254,7 @@ export async function changeSignatureSelection(
   systemId: number,
   signatureIds: readonly string[],
   mode: SignatureSelectionMode,
+  actor: string,
 ) {
   await requireLiveSystem(ctx, mapId, systemId);
   const ids = requireBoundedSignatureIds(signatureIds);
@@ -267,7 +268,7 @@ export async function changeSignatureSelection(
     mode,
     deletedAt: stamps.deletedAt,
     purgeAfter: stamps.purgeAfter,
-    actor: await eventActor(ctx, mapId),
+    actor,
     at: now,
   });
 }

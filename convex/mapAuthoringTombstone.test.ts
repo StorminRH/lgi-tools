@@ -10,12 +10,14 @@ import { connectionInsert } from './__tests__/connection-doc.setup';
 import { expectConvexErrorCode } from './__tests__/convexTest.setup';
 import {
   AMARR,
+  EDITOR,
   JITA,
   MAP_A,
   NOW,
   WH_ROOT,
   asUser,
   readConnection,
+  readEvents,
   readSystem,
   seedHome,
   seedJump,
@@ -98,6 +100,36 @@ describe('map authoring', () => {
         connectionId,
       });
       expect(await readConnection(t, connectionId)).toEqual(before);
+    });
+
+    it('signs a connection restore with the caller\'s tracked eligible character', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await t.run(async (ctx) => {
+        const claim = await ctx.db
+          .query('mapAccess')
+          .withIndex('by_map_user', (q) => q.eq('mapId', MAP_A).eq('userId', EDITOR))
+          .unique();
+        await ctx.db.patch('mapAccess', claim!._id, {
+          characters: [
+            { characterId: 90_000_001, name: 'Main Pilot' },
+            { characterId: 90_000_002, name: 'Alt Pilot' },
+          ],
+        });
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: 90_000_002 });
+      });
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
+        mapId: MAP_A,
+        connectionId,
+      });
+
+      await asUser(t).mutation(api.mapAuthoringTombstone.restoreConnection, {
+        mapId: MAP_A,
+        connectionId,
+      });
+      expect((await readEvents(t)).map((event) => [event.kind, event.actor])).toEqual([
+        ['connection_restored', 'Alt Pilot'],
+      ]);
     });
 
     it('refuses to tombstone a system while a live connection references it', async () => {

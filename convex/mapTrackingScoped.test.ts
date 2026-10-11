@@ -1,8 +1,8 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
-import { eventActor } from './mapAuthoringEvents';
+import { gatedAuthoringEdit } from './lib/mapAuthoringEvents';
 import schema from './schema';
 
 import { claimReconciler, expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
@@ -105,9 +105,13 @@ describe('character-scoped tracking', () => {
   });
 });
 
-describe('eventActor', () => {
+describe('gatedAuthoringEdit actor', () => {
   async function actorFor(t: Chain, userId: string, name?: string) {
-    return asUser(t, userId, name).run((ctx) => eventActor(ctx, MAP));
+    return asUser(t, userId, name).run((ctx) =>
+      gatedAuthoringEdit(ctx, MAP, async (actor, principal) => {
+        expect(principal.userId).toBe(userId);
+        return actor;
+      }));
   }
 
   it('signs legacy claims with the account name', async () => {
@@ -116,6 +120,23 @@ describe('eventActor', () => {
     await reconcile(MAP, [{ userId: OWNER, roles: ['admin'] }]);
     expect(await actorFor(t, OWNER, 'Account Name')).toBe('Account Name');
     expect(await actorFor(t, OWNER)).toBe('unknown');
+  });
+
+  it('refuses a caller without edit before running the edit', async () => {
+    const t = convexTest(schema, modules);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP, [scopedMember]);
+    const run = vi.fn(async () => 'ran');
+
+    await expectConvexErrorCode(
+      asUser(t, MEMBER, 'Account Name').run((ctx) => gatedAuthoringEdit(ctx, MAP, run)),
+      'FORBIDDEN',
+    );
+    await expectConvexErrorCode(
+      t.run((ctx) => gatedAuthoringEdit(ctx, MAP, run)),
+      'UNAUTHENTICATED',
+    );
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('signs scoped claims with the earliest tracked eligible character, else the first eligible', async () => {
