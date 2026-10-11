@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { planSkillsPersist, refreshSkillsForUser } from './refresh';
 import type { CharacterSkillSyncState, SkillsPort } from './types';
 
@@ -38,13 +39,6 @@ function makePort(overrides: Partial<SkillsPort> = {}): SkillsPort {
   };
 }
 
-const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
-  characterId: id,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
-
 const fresh = (): CharacterSkillSyncState => ({
   lastRefreshedAt: new Date(NOW.getTime() - 60_000),
   queueEtag: null,
@@ -54,7 +48,7 @@ const fresh = (): CharacterSkillSyncState => ({
 describe('refreshSkillsForUser', () => {
   it('makes no token vend and no ESI call when the character is fresh (the staleness gate)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => fresh()),
     });
 
@@ -68,7 +62,7 @@ describe('refreshSkillsForUser', () => {
 
   it('fetches and saves both halves for a never-synced character', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => null),
     });
 
@@ -87,7 +81,7 @@ describe('refreshSkillsForUser', () => {
 
   it('carries unallocated SP onto the saved skills half when present', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSkills: vi.fn(
         async (): Promise<SingleOwnerRead> => ({
           kind: 'fresh',
@@ -105,7 +99,7 @@ describe('refreshSkillsForUser', () => {
 
   it('replays held etags and only stamps freshness when BOTH halves 304', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => ({
         lastRefreshedAt: null,
         queueEtag: '"qh"',
@@ -125,7 +119,7 @@ describe('refreshSkillsForUser', () => {
 
   it('persists ONLY the fresh half on a partial 304 (queue changed, totals unchanged)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, queueEtag: '"qh"', skillsEtag: '"sh"' })),
       readSkillQueue: vi.fn(
         async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: [esiQueueEntry(99, 0)], etag: '"q2"' }),
@@ -143,7 +137,7 @@ describe('refreshSkillsForUser', () => {
 
   it('skips the character on an ESI error without saving or stamping', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSkillQueue: vi.fn(
         async (): Promise<SingleOwnerRead> => ({ kind: 'error', code: 'esi_500' }),
       ),
@@ -157,7 +151,7 @@ describe('refreshSkillsForUser', () => {
 
   it('refreshes several stale characters in one parallel pass', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2), ownerFixture(3)]),
       readSyncState: vi.fn(async () => null),
     });
 
@@ -172,7 +166,7 @@ describe('refreshSkillsForUser', () => {
 
   it('skips a character missing a skill scope (no sync-state read, no vend)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { missingScopes: [QUEUE_SCOPE] })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: [QUEUE_SCOPE] })]),
     });
 
     await refreshSkillsForUser(port, 'u1');
@@ -183,7 +177,7 @@ describe('refreshSkillsForUser', () => {
 
   it('skips a character whose token cannot be vended', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       vendToken: vi.fn(async () => null),
     });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { buildCorpHoldingContext, type CorpProfile } from './context';
 import { type CorpContextPort, refreshCorpContextForUser } from './context-sync';
 import { buildHoldingIndex, type CorpAssetItem, toHoldingNodes } from './placement';
@@ -72,13 +73,8 @@ function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
   };
 }
 
-const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner => ({
-  characterId: id,
-  corporationId: CORP,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
+const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner =>
+  ownerFixture(id, { corporationId: CORP, ...extra });
 
 describe('refreshCorpContextForUser', () => {
   it('saves the HQ, renamed divisions, linked members\' bases, and only the names it did not have', async () => {

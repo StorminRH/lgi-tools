@@ -6,6 +6,7 @@ import type { UserCorpAccess } from '@/platform/auth/corp-access';
 import type { StoredCorpRoles } from '@/platform/auth/corp-roles-store';
 import { canSeeHolding } from '@/platform/auth/corp-visibility';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 
 const mocks = vi.hoisted(() => ({
   after: vi.fn((fn: () => unknown) => {
@@ -87,12 +88,8 @@ function stored(
   ];
 }
 
-const health = (characterId: number, missingScopes: string[] = []) => ({
-  characterId,
-  corporationId: CORP,
-  hasRefreshToken: true,
-  missingScopes,
-});
+const health = (characterId: number, missingScopes: string[] = []) =>
+  ownerFixture(characterId, { corporationId: CORP, missingScopes });
 
 const record = (roles: string[], rolesAtBase: string[] = []) => ({
   corporationId: CORP,

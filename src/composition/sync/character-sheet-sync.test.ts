@@ -3,6 +3,7 @@ import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import type { SheetSections } from '@/features/character-sheet/types';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { universeStructurePath } from '@/platform/esi/paths';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 
 const mocks = vi.hoisted(() => ({
   listCharactersWithHealth: vi.fn(),
@@ -86,10 +87,7 @@ describe('SHEET_ESI_PATHS', () => {
 
 describe('makeSheetPort', () => {
   it('reads the roster once and vends once per character per run so concurrent sections never race the refresh-token rotation', async () => {
-    mocks.listCharactersWithHealth.mockResolvedValue([
-      { characterId: 1, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-      { characterId: 2, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-    ]);
+    mocks.listCharactersWithHealth.mockResolvedValue([ownerFixture(1), ownerFixture(2)]);
     mocks.vendTokenFor.mockImplementation(async (characterId: number) => `token-${characterId}`);
 
     await refreshCharacterSheetsOnView('user-1');
@@ -131,10 +129,7 @@ describe('character sheet budget recovery', () => {
   const budget = new EsiBudgetExhaustedError(12, 'rate_limited', 900, '/characters/1/wallet/');
 
   beforeEach(() => {
-    mocks.listCharactersWithHealth.mockResolvedValue([
-      { characterId: 1, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-      { characterId: 2, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-    ]);
+    mocks.listCharactersWithHealth.mockResolvedValue([ownerFixture(1), ownerFixture(2)]);
     mocks.vendTokenFor.mockResolvedValue('token');
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EnumeratedOwner, PagedOwnerReadResult } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCorpStructuresForUser } from './refresh';
 import type { CorpStructuresPort } from './types';
 
@@ -34,13 +35,8 @@ function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPo
   };
 }
 
-const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner => ({
-  characterId: id,
-  corporationId: 5000,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
+const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner =>
+  ownerFixture(id, { corporationId: 5000, ...extra });
 
 const freshState = () => ({ lastRefreshedAt: new Date('2026-06-28T11:30:00Z'), pageEtags: [] });
 

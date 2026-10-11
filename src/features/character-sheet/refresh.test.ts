@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCharacterSheetForUser } from './refresh';
 import { digestJournalBody } from './plan';
 import type {
@@ -31,13 +32,6 @@ const BODIES: Record<SheetEndpoint, unknown> = {
   orders: [],
 };
 
-const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
-  characterId: id,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
-
 const reader = (answer: (endpoint: SheetEndpoint) => SingleOwnerRead) =>
   vi.fn(async (_id: number, endpoint: SheetEndpoint): Promise<SingleOwnerRead> => answer(endpoint));
 
@@ -49,7 +43,7 @@ function makePort(overrides: Partial<SheetPort> = {}, sheets = new Map<number, S
   const port: FakePort = {
     sheets,
     now: () => NOW,
-    listCharacters: vi.fn(async () => [character(1)]),
+    listCharacters: vi.fn(async () => [ownerFixture(1)]),
     vendToken: vi.fn(async () => 'token'),
     readEndpoint: reader((endpoint) => ({ kind: 'fresh', body: BODIES[endpoint], etag: `"${endpoint}"` })),
     readStructure: vi.fn(
@@ -148,8 +142,8 @@ describe('refreshCharacterSheetForUser', () => {
   it('skips the sections behind a missing scope and a character without a token', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [
-        character(1, { missingScopes: ['esi-wallet.read_character_wallet.v1'] }),
-        character(2, { hasRefreshToken: false }),
+        ownerFixture(1, { missingScopes: ['esi-wallet.read_character_wallet.v1'] }),
+        ownerFixture(2, { hasRefreshToken: false }),
       ]),
     });
 
@@ -167,7 +161,7 @@ describe('refreshCharacterSheetForUser', () => {
     };
     const port = makePort(
       {
-        listCharacters: vi.fn(async () => [character(1, { missingScopes: ['esi-location.read_online.v1', 'esi-skills.read_skills.v1', 'esi-clones.read_implants.v1', 'esi-clones.read_clones.v1', 'esi-universe.read_structures.v1', 'esi-markets.read_character_orders.v1'] })]),
+        listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: ['esi-location.read_online.v1', 'esi-skills.read_skills.v1', 'esi-clones.read_implants.v1', 'esi-clones.read_clones.v1', 'esi-universe.read_structures.v1', 'esi-markets.read_character_orders.v1'] })]),
         readEndpoint: reader((endpoint) =>
           endpoint === 'wallet' ? { kind: 'unchanged' } : { kind: 'fresh', body: BODIES[endpoint], etag: null },
         ),
@@ -295,7 +289,7 @@ describe('refreshCharacterSheetForUser', () => {
   });
 
   it('honours a single-owner target', async () => {
-    const port = makePort({ listCharacters: vi.fn(async () => [character(1), character(2)]) });
+    const port = makePort({ listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]) });
 
     await refreshCharacterSheetForUser(port, 'u1', { target: { ownerType: 'character', ownerId: 2 } });
 

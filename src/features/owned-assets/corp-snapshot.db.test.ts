@@ -7,6 +7,7 @@ import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import { insertEsiSnapshot } from '@/data/esi-snapshots/queries';
 import { compileCorpGrant, compileReadScope } from '@/platform/auth/corp-visibility';
 import { ownedResourcePath } from '@/platform/owner-sync';
+import { ownedDatasetPortFake, ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { getCorpAssetEvidence, getOwnedAssetMap, readOwnerSyncState, saveCorpOwnedAssets } from './queries';
 import { OWNED_ASSETS_RESOURCE, refreshOwnedAssetsForUser } from './refresh';
 import { ownedAssets } from './schema';
@@ -50,16 +51,12 @@ async function save(division: number, quantity: number, id: number) {
 /** The endpoint a Director's corporation assets sync hands to the save, read through the real descriptor. */
 async function syncedEndpoint(): Promise<string> {
   const saveSource = vi.fn<OwnedAssetsPort['save']>(async () => {});
-  await refreshOwnedAssetsForUser({
-    now: () => new Date(),
-    listCharacters: async () => [{ characterId: 90001, corporationId: CORP, hasRefreshToken: true, missingScopes: [] }],
-    vendToken: async () => 'token',
+  await refreshOwnedAssetsForUser(ownedDatasetPortFake(new Date(), {
+    listCharacters: async () => [ownerFixture(90001, { corporationId: CORP })],
     readRoles: async () => ['Director'],
     read: async () => ({ kind: 'fresh', items: source(1, 25), etags: [], responseHeaders: [] }),
-    readSyncState: async () => null,
     save: saveSource,
-    stampFresh: async () => {},
-  }, 'user-1');
+  }), 'user-1');
   const corpSave = saveSource.mock.calls.find(([saved]) => saved.ownerType === 'corporation');
   if (corpSave === undefined) throw new Error('the corporation pass saved nothing');
   return corpSave[3].endpoint;
