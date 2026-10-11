@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
+
+const emitCostMetricMock = capabilityOutcomeMock();
 
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
@@ -13,6 +19,11 @@ vi.mock('@/composition/signature-elimination/resolver', () => ({
     h.resolveSignatureElimination(...args),
 }));
 
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (action: string, metadata: Record<string, unknown>) =>
+    emitCostMetricMock(action, metadata),
+}));
+
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
@@ -21,6 +32,7 @@ const MAP_ID = '11111111-1111-4111-8111-111111111111';
 const ROUTE = '/api/maps/signature-elimination';
 
 beforeEach(() => {
+  emitCostMetricMock.mockReset();
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.resolveSignatureElimination.mockReset().mockResolvedValue({
     results: [{ systemId: 31_000_001, status: 'statics-unavailable' }],
@@ -81,4 +93,19 @@ describe('POST /api/maps/signature-elimination', () => {
       );
     },
   );
+
+  it('records a failure the client gave up on, since its timer showed it to the user', async () => {
+    const controller = new AbortController();
+    h.resolveSignatureElimination.mockImplementationOnce(async () => {
+      controller.abort();
+      throw new Error('resolver timed out');
+    });
+
+    const request = postJson(ROUTE, { mapId: MAP_ID, systemIds: [31_000_001] }, { signal: controller.signal });
+
+    await expect(POST(request)).rejects.toThrow('resolver timed out');
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
+      expect.objectContaining({ outcome: 'unexpected' }),
+    ]);
+  });
 });
