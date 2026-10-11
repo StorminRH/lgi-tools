@@ -27,7 +27,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P028](#p028) | Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker | ui-component | M | low | medium | [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059) |
 | ☑ | [P038](#p038) | Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle | ui-component | S | low | medium | [P028](#p028) |
 | ☑ | [P029](#p029) | Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop | ui-component | S | low | medium | [P028](#p028) |
-| ☐ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
+| ☑ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
 | ☐ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
 | ☐ | [P033](#p033) | Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics | ui-component | S | low | low | [P032](#p032) |
 | ☐ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
@@ -1059,7 +1059,7 @@ export function SystemTerminalSearch(props: { placeholder: string; onPick: (syst
 
 ## P269: Derive HomePrompt's current system from dockCharacters and resolvePasteTarget
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -35 in home-prompt-model.ts, +3 in tracked-system.ts, +10 in test fixtures
 - **Depends on:** [P028](#p028)
