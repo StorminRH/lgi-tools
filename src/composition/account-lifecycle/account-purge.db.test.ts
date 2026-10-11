@@ -20,6 +20,9 @@ vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => {
   return { ...actual, readDeletionJobs: discovery.read };
 });
 
+// The character purge expires its slices' cache tags, which needs a Next request store.
+vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidateTag: vi.fn() }));
+
 const revokeMock = vi.hoisted(() => vi.fn());
 const mapPurge = vi.hoisted(() => ({
   purgeMapChain: vi.fn().mockResolvedValue({ deleted: 0, remaining: false }),

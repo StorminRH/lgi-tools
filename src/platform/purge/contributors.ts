@@ -1,7 +1,7 @@
 import { eq, type SQL } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { requireUserKeyColumn } from './merge';
-import type { MergeTx, PurgeContributor, TableMergeRule } from './types';
+import type { MergeTx, PurgeCharacterSubject, PurgeContributor, TableMergeRule } from './types';
 
 /**
  * A cache-tier contributor for tables whose rows belong to one character.
@@ -9,6 +9,9 @@ import type { MergeTx, PurgeContributor, TableMergeRule } from './types';
  * claimed table cannot miss its delete; deletes run in list order (rows before
  * their sync table). A table keys on a character id column, or on a predicate
  * its slice builds, such as lib's ownerKeyWhere, which this zone cannot import.
+ * `cacheTags` names the 'use cache' tags those rows are served under; it is
+ * forwarded only when given, so a slice that leaves it out still reads as
+ * undeclared.
  */
 export function characterCacheContributor(
   database: MergeTx,
@@ -18,8 +21,10 @@ export function characterCacheContributor(
       | { readonly table: PgTable; readonly characterId: PgColumn }
       | { readonly table: PgTable; readonly where: (characterId: number) => SQL }
     )[];
+    readonly cacheTags?: (characterId: number) => readonly string[];
   },
 ): PurgeContributor {
+  const { cacheTags } = spec;
   return {
     name: spec.name,
     tier: 'cache',
@@ -34,6 +39,9 @@ export function characterCacheContributor(
         await database.delete(rows.table).where(where);
       }
     },
+    ...(cacheTags === undefined
+      ? {}
+      : { cacheTags: ({ characterId }: PurgeCharacterSubject) => cacheTags(characterId) }),
   };
 }
 

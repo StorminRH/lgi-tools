@@ -1,6 +1,7 @@
 import { db } from '@/db';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import { characterCacheContributor } from '@/platform/purge/contributors';
+import { ownedAssetsTag } from './queries';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
 export const ownedAssetsPurgeContributor = characterCacheContributor(db, {
@@ -15,4 +16,5 @@ export const ownedAssetsPurgeContributor = characterCacheContributor(db, {
       where: (ownerId) => ownerKeyWhere(ownedAssetSyncs, { ownerType: 'character', ownerId }),
     },
   ],
+  cacheTags: (ownerId) => [ownedAssetsTag({ ownerType: 'character', ownerId })],
 });

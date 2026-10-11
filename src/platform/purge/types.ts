@@ -42,4 +42,10 @@ export interface PurgeContributor {
   readonly merge: readonly TableMergeRule[];
   purgeCharacter?(subject: PurgeCharacterSubject): Promise<void>;
   purgeUser?(subject: PurgeUserSubject): Promise<void>;
+  /**
+   * Tags of the 'use cache' entries built from rows purgeCharacter deletes.
+   * The orchestrator expires them once that purge resolves, so a re-linked
+   * character never reads the deleted rows back from the cache.
+   */
+  cacheTags?(subject: PurgeCharacterSubject): readonly string[];
 }

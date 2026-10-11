@@ -24,7 +24,7 @@ import { type OwnerKey, ownedResourcePath, type PagedOwnerSyncState } from '@/pl
 import { OWNED_ASSETS_RESOURCE } from './refresh';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
-function ownedAssetsTag(owner: OwnerKey): string {
+export function ownedAssetsTag(owner: OwnerKey): string {
   return `owned-assets:${owner.ownerType}:${owner.ownerId}`;
 }
 

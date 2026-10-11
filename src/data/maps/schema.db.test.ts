@@ -175,12 +175,14 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
       ]),
     );
 
+    // Resolve this suite's own table first. pg_indexes deparses every
+    // map_access index in the database before its schema filter, so another
+    // suite dropping its cloned schema mid-scan fails the read.
     const [index] = await harness.sql<{ indexdef: string }[]>`
-      SELECT indexdef
-      FROM pg_indexes
-      WHERE schemaname = ${SCHEMA}
-        AND tablename = 'map_access'
-        AND indexdef LIKE 'CREATE UNIQUE INDEX%'
+      SELECT pg_get_indexdef(x.indexrelid) AS indexdef
+      FROM pg_index x
+      WHERE x.indrelid = ${`${SCHEMA}.map_access`}::regclass
+        AND x.indisunique
     `;
     expect(index?.indexdef).toMatch(/\(map_id, owner_type, owner_id\)$/);
   });

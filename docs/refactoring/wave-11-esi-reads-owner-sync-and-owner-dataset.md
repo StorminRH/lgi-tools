@@ -24,7 +24,7 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 | ☑ | [P336](#p336) | Invalidate only in the commit owner: drop the rig-save revalidate and replace the `database === db` mode switch with tx-only writers | simplification | S | low | low | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220) |
 | ☑ | [P239](#p239) | Replace owner snapshots in one direct-client transaction that takes the sync-row lock first | persistence | M | medium | medium | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220), [P336](#p336) |
 | ☑ | [P184](#p184) | Expire owner-dataset cache tags immediately after sync writes (keep the snapshot's uncached reads) | server-pipeline | M | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327) |
-| ☐ | [P241](#p241) | Expire a purged character's 'use cache' tags from runPurge through a PurgeContributor.cacheTags hook | persistence | S | low | medium | [P240](wave-10-server-pipelines-purge-telemetry-and-the-admin.md#p240), [P184](#p184) |
+| ☑ | [P241](#p241) | Expire a purged character's 'use cache' tags from runPurge through a PurgeContributor.cacheTags hook | persistence | S | low | medium | [P240](wave-10-server-pipelines-purge-telemetry-and-the-admin.md#p240), [P184](#p184) |
 | ☐ | [P273](#p273) | Put Upwell rig-slot helpers (UPWELL_RIG_SLOTS, rigSlotsFrom, fittedRigIds, fittingRigs) in data/eve-data/structures and return the stored row from upsertCorpStructureRigs | feature-skeleton | S | low | low | [P336](#p336) |
 
 <a id="p192"></a>
@@ -1374,7 +1374,7 @@ export function expireNow(tag: string): void { revalidateTag(tag, { expire: 0 })
 
 ## P241: Expire a purged character's 'use cache' tags from runPurge through a PurgeContributor.cacheTags hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** +~15 production (1 type member, 5 one-line declarations, 3 `export` keywords, ~4 orchestrator lines), +~40 test lines; 0 removed
 - **Depends on:** [P240](wave-10-server-pipelines-purge-telemetry-and-the-admin.md#p240), [P184](#p184)

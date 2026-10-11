@@ -12,7 +12,7 @@ import {
 } from './schema';
 import type { CharacterJobsData, CharacterJobsSyncState, CorpJobsSyncState } from './types';
 
-function industryJobsTag(characterId: number): string {
+export function industryJobsTag(characterId: number): string {
   return `industry-jobs:${characterId}`;
 }
 

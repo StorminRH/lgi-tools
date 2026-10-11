@@ -18,7 +18,7 @@ import type { OwnedBlueprint } from './esi-projection';
 import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
-function ownedBlueprintsTag(owner: OwnerKey): string {
+export function ownedBlueprintsTag(owner: OwnerKey): string {
   return `owned-blueprints:${owner.ownerType}:${owner.ownerId}`;
 }
 
