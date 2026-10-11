@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import type { HistoryDailyRow } from './types';
 
 const fetchHistoryFromSourceMock = vi.fn();
@@ -128,15 +129,21 @@ describe('getLiveHistory — stale gate', () => {
       ],
       budgetExhausted: false,
     });
+    const failure = new Error('observer failed');
     const observer = vi.fn(() => {
-      throw new Error('observer failed');
+      throw failure;
     });
+    const errors = silenceConsolePrefixes('error', ['[market-history/refresh-on-view] ']);
 
     await getLiveHistory([34], observer);
     await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
 
     expect(observer).toHaveBeenCalledTimes(1);
     expect(persistHistoryMock).toHaveBeenCalledTimes(1);
+    expect(errors.mock.calls).toEqual([
+      ['[market-history/refresh-on-view] write-behind observer failed', failure],
+    ]);
+    errors.mockRestore();
   });
 
   it('classifies a type with no fresh or stored series as missing', async () => {

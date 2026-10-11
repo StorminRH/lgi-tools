@@ -3,6 +3,7 @@ import { after } from 'next/server';
 import { db } from '@/db';
 import { dedupe } from '@/lib/array';
 import { isBoundaryStale } from '@/lib/esi-datasets/freshness';
+import { notifyObserver, type WriteBehindResult } from '@/lib/write-behind';
 import { computeHistoryInputs } from './aggregate';
 import { historyTag } from './constants';
 import { persistHistory } from './ingest';
@@ -23,23 +24,7 @@ export interface LiveHistoryMetrics {
   missing: number;
 }
 
-export interface HistoryWriteBehindResult {
-  outcome: 'succeeded' | 'partial' | 'failed';
-  attempted: number;
-  written: number;
-  durationMs: number;
-}
-
-function notifyWriteBehind(
-  observer: ((result: HistoryWriteBehindResult) => void) | undefined,
-  result: HistoryWriteBehindResult,
-): void {
-  try {
-    observer?.(result);
-  } catch (err) {
-    console.error('[market-history/refresh-on-view] write-behind observer failed', err);
-  }
-}
+const SCOPE = 'market-history/refresh-on-view';
 
 export interface LiveHistoryResult {
   inputs: Map<number, MarketHistoryInputs>;
@@ -49,7 +34,7 @@ export interface LiveHistoryResult {
 
 export async function getLiveHistory(
   typeIds: number[],
-  onWriteBehind?: (result: HistoryWriteBehindResult) => void,
+  onWriteBehind?: (result: WriteBehindResult) => void,
 ): Promise<LiveHistoryResult> {
   const ids = dedupe(typeIds);
   const degraded: HistoryDegradation = { fetched: 0, budgetExhausted: false };
@@ -104,15 +89,19 @@ export async function getLiveHistory(
           written += summary.written;
           revalidateTag(historyTag(r.typeId), 'max');
         } catch (err) {
-          console.error('[market-history/refresh-on-view] write-behind failed', err);
+          console.error(`[${SCOPE}] write-behind failed`, err);
         }
       }
-      notifyWriteBehind(onWriteBehind, {
-        outcome: succeeded === results.length ? 'succeeded' : succeeded === 0 ? 'failed' : 'partial',
-        attempted: results.length,
-        written,
-        durationMs: Date.now() - startedAt,
-      });
+      await notifyObserver(
+        onWriteBehind,
+        {
+          outcome: succeeded === results.length ? 'succeeded' : succeeded === 0 ? 'failed' : 'partial',
+          attempted: results.length,
+          written,
+          durationMs: Date.now() - startedAt,
+        },
+        SCOPE,
+      );
     });
   }
 

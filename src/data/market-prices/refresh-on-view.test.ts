@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { MarketPrice, RawMarketPrice } from './types';
 
@@ -213,15 +214,21 @@ describe('getLivePrices', () => {
   it('does not turn an observer failure into a write-behind failure', async () => {
     sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
     persistPricesMock.mockResolvedValue({ written: 1 });
+    const failure = new Error('observer failed');
     const observer = vi.fn(() => {
-      throw new Error('observer failed');
+      throw failure;
     });
+    const errors = silenceConsolePrefixes('error', ['[market-prices/refresh-on-view] ']);
 
     await getLivePrices([34], observer);
     await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
 
     expect(observer).toHaveBeenCalledTimes(1);
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
+    expect(errors.mock.calls).toEqual([
+      ['[market-prices/refresh-on-view] write-behind observer failed', failure],
+    ]);
+    errors.mockRestore();
   });
 
   it('tallies esi vs fuzzwork-fallback and budget exhaustion across items', async () => {

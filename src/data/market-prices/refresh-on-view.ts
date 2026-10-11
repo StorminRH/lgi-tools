@@ -4,6 +4,7 @@ import { db } from '@/db';
 import type { PriceSourceCounts } from '@/lib/alerts';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { mapConcurrent } from '@/lib/fan-out';
+import { notifyObserver, type WriteBehindResult } from '@/lib/write-behind';
 import { consumeFreshPriceResolution, markFreshPriceResolution } from './cache-resolution';
 import { PER_TYPE_CONCURRENCY } from './constants';
 import { persistPrices } from './ingest';
@@ -23,23 +24,7 @@ export interface LivePricesMetrics {
   fuzzworkFallbackCount: number;
 }
 
-export interface PriceWriteBehindResult {
-  outcome: 'succeeded' | 'failed';
-  attempted: number;
-  written: number;
-  durationMs: number;
-}
-
-function notifyWriteBehind(
-  observer: ((result: PriceWriteBehindResult) => void) | undefined,
-  result: PriceWriteBehindResult,
-): void {
-  try {
-    observer?.(result);
-  } catch (err) {
-    console.error('[market-prices/refresh-on-view] write-behind observer failed', err);
-  }
-}
+const SCOPE = 'market-prices/refresh-on-view';
 
 export interface LivePricesResult {
   prices: Map<number, MarketPrice>;
@@ -63,7 +48,7 @@ async function fetchLivePrice(
 
 export async function getLivePrices(
   typeIds: number[],
-  onWriteBehind?: (result: PriceWriteBehindResult) => void,
+  onWriteBehind?: (result: WriteBehindResult) => void,
 ): Promise<LivePricesResult> {
   const ids = [...new Set(typeIds)];
   const degraded: PriceSourceCounts = {
@@ -140,20 +125,28 @@ export async function getLivePrices(
       const startedAt = Date.now();
       try {
         const summary = await persistPrices(db, freshRaws, { fetchedAtByType });
-        notifyWriteBehind(onWriteBehind, {
-          outcome: 'succeeded',
-          attempted: freshRaws.length,
-          written: summary.written,
-          durationMs: Date.now() - startedAt,
-        });
+        await notifyObserver(
+          onWriteBehind,
+          {
+            outcome: 'succeeded',
+            attempted: freshRaws.length,
+            written: summary.written,
+            durationMs: Date.now() - startedAt,
+          },
+          SCOPE,
+        );
       } catch (err) {
-        console.error('[market-prices/refresh-on-view] write-behind failed', err);
-        notifyWriteBehind(onWriteBehind, {
-          outcome: 'failed',
-          attempted: freshRaws.length,
-          written: 0,
-          durationMs: Date.now() - startedAt,
-        });
+        console.error(`[${SCOPE}] write-behind failed`, err);
+        await notifyObserver(
+          onWriteBehind,
+          {
+            outcome: 'failed',
+            attempted: freshRaws.length,
+            written: 0,
+            durationMs: Date.now() - startedAt,
+          },
+          SCOPE,
+        );
       }
     });
   }
