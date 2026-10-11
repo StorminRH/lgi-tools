@@ -1,8 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/components/ui/cn';
-import { mapFrostedSurface } from '../map-frosted-surface';
+import { MapPromptCard } from '../map-prompt-card';
 import { CharacterLocationLabel } from './character-location-label';
 import type { DockCharacter } from './tracked-system';
 import {
@@ -54,19 +53,17 @@ export function ScannerCharacterPrompt({
     candidates.map((candidate) => candidate.characterId),
   );
   return (
-    <div
+    <MapPromptCard
       data-scanner-character-prompt
-      role="group"
-      aria-label="Choose scanning character"
-      className={cn('flex flex-col gap-2 p-3 text-ui', mapFrostedSurface)}
+      ariaLabel="Choose scanning character"
+      eyebrow="Which character scanned this?"
+      body={
+        <>
+          Your logged-in characters are in different systems. Your pick becomes
+          the default scanner; change it under Tracking in the map menu.
+        </>
+      }
     >
-      <span className="font-data text-label uppercase tracking-label text-muted">
-        Which character scanned this?
-      </span>
-      <p className="font-data text-micro text-name">
-        Your logged-in characters are in different systems. Your pick becomes
-        the default scanner; change it under Tracking in the map menu.
-      </p>
       <div className="flex flex-col gap-1">
         {candidates.map((candidate) => (
           <CandidateButton
@@ -82,6 +79,6 @@ export function ScannerCharacterPrompt({
           Cancel
         </Button>
       </div>
-    </div>
+    </MapPromptCard>
   );
 }

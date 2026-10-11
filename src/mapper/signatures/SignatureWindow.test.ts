@@ -263,6 +263,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     const singular = render(1, new Set(['ABC-123']));
     expect(singular).toContain('data-signature-missing="true"');
     expect(singular).toContain('data-signature-missing-prompt');
+    expect(singular).toContain('role="group" aria-label="Missing signatures"');
     expect(singular).toContain('1 signature missing from scan');
     expect(singular).toContain('Dismiss');
     expect(singular).toContain('Remove');

@@ -103,6 +103,7 @@ describe('mapper source contract', () => {
       'log/MapEventLog.tsx',
       'log/map-event-copy.ts',
       'map-frosted-surface.ts',
+      'map-prompt-card.tsx',
       'motion/motion-contract.ts',
       'motion/motion-controls-model.ts',
       'motion/motion-host-model.ts',

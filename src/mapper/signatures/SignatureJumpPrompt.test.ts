@@ -48,6 +48,9 @@ it('shows ordered matcher survivors and dispatches the exact picked button', () 
   );
 
   expect(markup).toContain('data-signature-jump-prompt');
+  expect(markup).toContain(
+    'role="group" aria-label="Choose the signature you jumped through"',
+  );
   expect(markup).toContain('data-identity-readout');
   expect(markup).toContain('J123456 - C4');
   expect(markup).toContain('Which signature did you jump through?');
