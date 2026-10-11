@@ -1,12 +1,8 @@
 import { z } from 'zod';
 import { defineEndpoint, emptyBody, problem } from '@/transport/endpoint';
+import { leaveSyncTabFields } from './leave-contract';
 
-const leaveSyncDatasetSchema = z.literal('characterLocation');
-
-export const leaveSyncRequestSchema = z.strictObject({
-  dataset: leaveSyncDatasetSchema,
-  tabId: z.string().min(8).max(64),
-});
+export const leaveSyncRequestSchema = z.strictObject(leaveSyncTabFields);
 
 export const leaveSyncEndpoint = defineEndpoint({
   method: 'POST',

@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { leaveSyncRequestSchema } from '@/data/convex/api-contract';
 import { internal } from './_generated/api';
 import schema from './schema';
 
@@ -31,6 +32,28 @@ describe('POST /leave-sync', () => {
       ).status,
     ).toBe(401);
     expect((await postConvexHttp('/leave-sync', 'not json')).status).toBe(400);
+  });
+
+  it('accepts every tab the Next route accepts, plus the user Next adds, and refuses the rest', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    const t = convexTest(schema, modules);
+    const tabs = [
+      { dataset: 'characterLocation', tabId: 'a'.repeat(7) },
+      { dataset: 'characterLocation', tabId: 'a'.repeat(8) },
+      { dataset: 'characterLocation', tabId: 'a'.repeat(64) },
+      { dataset: 'characterLocation', tabId: 'a'.repeat(65) },
+      { dataset: 'characterOnline', tabId: 'a'.repeat(8) },
+    ];
+    const nextAccepts = tabs.map((tab) => leaveSyncRequestSchema.safeParse(tab).success);
+    expect(nextAccepts).toEqual([false, true, true, false, false]);
+    for (const [index, tab] of tabs.entries()) {
+      const res = await t.fetch('/leave-sync', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+        body: JSON.stringify({ userId: 'user-1', ...tab }),
+      });
+      expect(res.status, `${tab.dataset} tab of ${tab.tabId.length}`).toBe(nextAccepts[index] ? 200 : 400);
+    }
   });
 
   it('retires a matching tab and ignores a stale close', async () => {

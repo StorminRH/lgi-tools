@@ -2,12 +2,7 @@ import { sql } from 'drizzle-orm';
 import { bigint, check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
 import { RECEIPT_CLEANUP_TASK } from './constants';
-
-export interface TrackingSelection {
-  readonly mapId: string;
-  readonly characterId: number;
-  readonly lastProcessedTransitionAt?: number;
-}
+import type { TrackingSelection } from './merge-contract';
 
 export const pendingTrackingMerges = pgTable('pending_tracking_merges', {
   id: uuid('id').defaultRandom().primaryKey(),

@@ -1,14 +1,8 @@
-import { z } from 'zod';
 import type { PublicHttpAction } from 'convex/server';
 import { internal } from './_generated/api';
-import { authorizedJsonAction } from './lib/httpAuth';
+import { authorizedJsonAction, userPurgeBodySchema } from './lib/httpAuth';
 
-const purgeOnlineBodySchema = z.object({
-  userId: z.string(),
-  characterId: z.number().nullable(),
-});
-
-export const purgeOnline: PublicHttpAction = authorizedJsonAction(purgeOnlineBodySchema, async (ctx, body) => {
+export const purgeOnline: PublicHttpAction = authorizedJsonAction(userPurgeBodySchema, async (ctx, body) => {
   const counts = await ctx.runMutation(internal.onlineStatus.purgeForUser, body);
   return Response.json(counts);
 });

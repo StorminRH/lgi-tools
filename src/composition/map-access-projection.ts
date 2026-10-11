@@ -5,7 +5,7 @@ import {
   type DatedMapGrant,
   type MapPrincipals,
 } from '@/data/maps/access';
-import type { MapRole } from '@/data/maps/access-contract';
+import { MAP_CLAIM_PURGE_BATCH, type MapRole } from '@/data/maps/access-contract';
 import { getBlockedMapUserIds } from '@/data/maps/blocks';
 import {
   getCharacterNames,
@@ -286,9 +286,6 @@ export async function purgeUserMapAccessProjection(
     label: 'Map access projection unavailable',
   });
 }
-
-/** Maps per claim-revocation mutation, sized to stay below Convex's per-mutation read and write limits. */
-const MAP_CLAIM_PURGE_BATCH = 32;
 
 export async function revokeUserMapClaims(
   userId: string,

@@ -607,7 +607,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 | ☑ | [P207](wave-14-convex-backend-helpers.md#p207) | Route scan stub removal through retainRemovedConnection and share the removed-connection purgeAfter re-stamp | convex | S | low | low | — |
 | ☑ | [P215](wave-14-convex-backend-helpers.md#p215) | Prune map tracking with one by_map read per claim-set apply instead of one query per claimant | efficiency | S | medium | medium | [P196](wave-14-convex-backend-helpers.md#p196), [P200](wave-14-convex-backend-helpers.md#p200) |
 | ☑ | [P311](wave-14-convex-backend-helpers.md#p311) | Drop decideCollapse's pilotsPresent and decide pilot retention once in mapAuthoringCollapse | simplification | S | low | low | — |
-| ☐ | [P208](wave-14-convex-backend-helpers.md#p208) | Share each Convex door's request shape with its Next caller, per data area | contracts-validation | M | low | medium | — |
+| ☑ | [P208](wave-14-convex-backend-helpers.md#p208) | Share each Convex door's request shape with its Next caller, per data area | contracts-validation | M | low | medium | — |
 
 ### [Wave 15: Mapper client: canvas, tracking, scanner and authoring](wave-15-mapper-client-canvas-tracking-scanner-and.md)
 

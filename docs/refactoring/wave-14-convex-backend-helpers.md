@@ -23,7 +23,7 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 | ☑ | [P207](#p207) | Route scan stub removal through retainRemovedConnection and share the removed-connection purgeAfter re-stamp | convex | S | low | low | — |
 | ☑ | [P215](#p215) | Prune map tracking with one by_map read per claim-set apply instead of one query per claimant | efficiency | S | medium | medium | [P196](#p196), [P200](#p200) |
 | ☑ | [P311](#p311) | Drop decideCollapse's pilotsPresent and decide pilot retention once in mapAuthoringCollapse | simplification | S | low | low | — |
-| ☐ | [P208](#p208) | Share each Convex door's request shape with its Next caller, per data area | contracts-validation | M | low | medium | — |
+| ☑ | [P208](#p208) | Share each Convex door's request shape with its Next caller, per data area | contracts-validation | M | low | medium | — |
 
 <a id="p195"></a>
 
@@ -1123,7 +1123,7 @@ function collapseOutcome(topology, cut, pilots: CollapsePilotsPresent): Collapse
 
 ## P208: Share each Convex door's request shape with its Next caller, per data area
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -35 / +30
 - **Depends on:** —
