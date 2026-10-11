@@ -33,7 +33,3 @@ export function deriveResourceRowView(resource: SiteResource, siteType: SiteType
       : formatM3(resource.volumeM3);
   return { colsClass: 'grid-cols-[1fr_auto_auto]', meta: gasMeta, dotTone: null };
 }
-
-export function resourceValueEligible(resource: SiteResource): boolean {
-  return resource.liveEligible && resource.typeId != null;
-}

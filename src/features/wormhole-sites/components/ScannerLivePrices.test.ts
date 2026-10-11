@@ -8,14 +8,14 @@ import {
 } from './ScannerLivePrices';
 
 const refresh = vi.hoisted(() => ({
-  calls: [] as { typeIds: number[]; enabled: boolean }[],
+  calls: [] as { typeIds: number[]; enabled: boolean; refreshKey?: string }[],
   isPending: (_typeId: number) => false as boolean,
   prices: new Map<number, { bestSell: number | null }>(),
 }));
 
 vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
-  useRefreshOnView: (typeIds: number[], opts: { enabled: boolean }) => {
-    refresh.calls.push({ typeIds: [...typeIds], enabled: opts.enabled });
+  useRefreshOnView: (typeIds: number[], opts: { enabled: boolean; refreshKey?: string }) => {
+    refresh.calls.push({ typeIds: [...typeIds], enabled: opts.enabled, refreshKey: opts.refreshKey });
     return {
       prices: refresh.prices,
       isPending: (typeId: number) => refresh.isPending(typeId),
@@ -58,6 +58,7 @@ test('scanner live prices enable for harvestable recipes, settle LivePrice, and 
   expect(refresh.calls.at(-1)).toEqual({
     typeIds: [30370],
     enabled: true,
+    refreshKey: '30370',
   });
 
   setSiteNameIndex([
@@ -71,7 +72,7 @@ test('scanner live prices enable for harvestable recipes, settle LivePrice, and 
       null,
     ),
   );
-  expect(refresh.calls.at(-1)).toEqual({ typeIds: [], enabled: false });
+  expect(refresh.calls.at(-1)).toEqual({ typeIds: [], enabled: false, refreshKey: '' });
 
   setSiteNameIndex([
     {
