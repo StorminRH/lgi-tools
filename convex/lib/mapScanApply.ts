@@ -33,7 +33,7 @@ import {
 } from './mapEntityContracts';
 import { stampObservationKey } from './observationKey';
 import { findSystem, requireSystemId } from './mapSystemLookup';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from '../mapTrackingOptIn';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingCapacity';
 import {
   endpointSide,
   leadsNotePatch,

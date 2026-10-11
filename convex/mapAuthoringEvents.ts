@@ -4,6 +4,7 @@ import {
   type MapEventKind,
   type MapEventPayloadByKind,
 } from '@/data/maps/chain-events';
+import { readUserMapTracking } from './lib/mapTrackingCapacity';
 
 function accountName(identity: { name?: string } | null): string {
   return typeof identity?.name === 'string' ? identity.name : 'unknown';
@@ -25,10 +26,7 @@ export async function eventActor(ctx: MutationCtx, mapId: string): Promise<strin
   const [first] = characters;
   if (first === undefined) return accountName(identity);
   const eligible = new Map(characters.map((character) => [character.characterId, character.name]));
-  const tracked = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', identity.subject))
-    .collect();
+  const tracked = await readUserMapTracking(ctx, mapId, identity.subject);
   return tracked.map((row) => eligible.get(row.characterId)).find((name) => name !== undefined)
     ?? first.name;
 }

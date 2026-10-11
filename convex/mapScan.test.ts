@@ -10,7 +10,7 @@ import type { Id } from './_generated/dataModel';
 import { applyLinkDeduction } from './lib/mapScanElimination';
 import { SIGNATURE_PURGE_BATCH } from './lib/mapSignatureCleanup';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './lib/mapTrackingCapacity';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';

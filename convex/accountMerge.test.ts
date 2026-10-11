@@ -3,9 +3,11 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import { api, internal } from './_generated/api';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
-import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
+import {
+  TRACKED_CHARACTERS_PER_MAP_CAP,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './lib/mapTrackingCapacity';
 
 import { expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';

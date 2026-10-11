@@ -10,8 +10,12 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
 import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { characterTrackable, requireMapTrackingOpen, tryMapAccessForUser } from './lib/mapAccess';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
-import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
+import {
+  readMapTracking,
+  readUserMapTracking,
+  requireMapTrackingSpace,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './lib/mapTrackingCapacity';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
 export interface MergeUserStateResult {
@@ -25,10 +29,7 @@ async function moveTrackingRow(
   row: Doc<'mapTracking'>,
   survivorUserId: string,
 ): Promise<'moved' | 'duplicate' | 'dropped'> {
-  const survivorRows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', row.mapId).eq('userId', survivorUserId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
+  const survivorRows = await readUserMapTracking(ctx, row.mapId, survivorUserId);
   if (survivorRows.some((survivorRow) => survivorRow.characterId === row.characterId)) {
     await ctx.db.delete(row._id);
     return 'duplicate';
@@ -209,9 +210,7 @@ async function restoreMapSelections(
   if (principal === null) {
     return { restored: 0, skipped: selections.length };
   }
-  const existing = await ctx.db.query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', survivorUserId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
+  const existing = await readUserMapTracking(ctx, mapId, survivorUserId);
   const slots: SurvivorTrackingSlots = {
     tracked: new Set(existing.map((row) => row.characterId)),
     count: existing.length,
