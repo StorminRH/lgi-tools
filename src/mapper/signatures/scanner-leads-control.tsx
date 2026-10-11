@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { cn } from '@/components/ui/cn';
-import * as Combobox from '@/components/ui/combobox';
-import { pickOrType } from '@/components/ui/combobox-pick';
 import { useSystemSearch } from '@/components/use-system-search';
 import { formatSecurityStatus } from '@/data/eve-data/security';
 import type { SystemSearchEntry } from '@/data/eve-data/systems-search';
@@ -29,13 +27,8 @@ import {
   originLeadForTypedLabel,
 } from '../authoring/leads-to-origin';
 import { parseDestinationSystem } from '../authoring/system-terminal-search';
-import {
-  ScannerComboPanel,
-  consumeScannerEnter,
-  type ScannerComboGroup,
-} from './scanner-combo-panel';
+import { ScannerCombo, type ScannerComboGroup } from './scanner-combo-panel';
 import { scannerSelectedFieldClass } from './scanner-field-class';
-import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 
 const HINT_PREFIX = 'hint:';
 const SYSTEM_PREFIX = 'system:';
@@ -191,7 +184,6 @@ export function ScannerLeadsControl({
   originLeads,
   originSystemId,
   rowId,
-  disabled,
   onChange,
   onSetDestination,
   onLinkOrigin,
@@ -201,7 +193,6 @@ export function ScannerLeadsControl({
   readonly originLeads: readonly OriginLeadOption[];
   readonly originSystemId: number;
   readonly rowId: string;
-  readonly disabled: boolean;
   readonly onChange: ConnectionFieldSetters['setLeadsTo'];
   readonly onSetDestination: ConnectionFieldSetters['setDestination'];
   readonly onLinkOrigin: ConnectionFieldSetters['linkToOrigin'];
@@ -224,10 +215,7 @@ export function ScannerLeadsControl({
       ),
     [query, systems, seed, offeredLeads, originSystemId],
   );
-  const items = groups.flatMap((group) => group.items.map((item) => item.value));
   const resolved = destination !== null || hint !== null;
-  const popup = useCloseOnScannerScroll();
-  const browsing = query.trim().length === 0 || query === seed;
   const setters = {
     setLeadsTo: onChange,
     setDestination: onSetDestination,
@@ -236,40 +224,19 @@ export function ScannerLeadsControl({
     originLeads,
   };
   return (
-    <Combobox.Root
-      open={popup.open}
-      onOpenChange={popup.onOpenChange}
-      value={query}
-      onValueChange={(next, details) =>
-        pickOrType(next, details, {
-          onType: setQuery,
-          onPick: (picked) => commitScannerLeadsValue(picked, setters),
-        })
-      }
-      items={items}
-      filter={null}
-      openOnInputClick
-    >
-      <Combobox.Field
-        size="sm"
-        placeholder="Unresolved"
-        disabled={disabled}
-        aria-label={`Destination ${rowId}`}
-        className={cn(
-          scannerSelectedFieldClass(resolved),
-          resolved ? destination?.tone : 'font-normal',
-        )}
-        onKeyDown={(event) => {
-          if (!consumeScannerEnter(event)) return;
-          commitScannerLeadsQuery(query, parse, setters);
-        }}
-      />
-      <ScannerComboPanel
-        groups={groups}
-        itemValues={items}
-        showLabels={browsing}
-        footer={browsing ? 'Type to search systems…' : null}
-      />
-    </Combobox.Root>
+    <ScannerCombo
+      query={query}
+      onQueryChange={setQuery}
+      groups={groups}
+      browsing={query.trim().length === 0 || query === seed}
+      browseFooter="Type to search systems…"
+      ariaLabel={`Destination ${rowId}`}
+      fieldClassName={cn(
+        scannerSelectedFieldClass(resolved),
+        resolved ? destination?.tone : 'font-normal',
+      )}
+      onCommitValue={(picked) => commitScannerLeadsValue(picked, setters)}
+      onCommitQuery={(text) => commitScannerLeadsQuery(text, parse, setters)}
+    />
   );
 }

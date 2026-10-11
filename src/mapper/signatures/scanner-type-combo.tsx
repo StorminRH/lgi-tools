@@ -2,17 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { cn } from '@/components/ui/cn';
-import * as Combobox from '@/components/ui/combobox';
-import { pickOrType } from '@/components/ui/combobox-pick';
 import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
 import { useWormholeTypeSearch } from '../authoring/wormhole-type-search';
-import {
-  ScannerComboPanel,
-  consumeScannerEnter,
-  type ScannerComboGroup,
-} from './scanner-combo-panel';
+import { ScannerCombo, type ScannerComboGroup } from './scanner-combo-panel';
 import { scannerSelectedFieldClass } from './scanner-field-class';
-import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
+import { SignatureClassChip } from './scanner-row-cells';
 
 export interface ScannerTypeSuggestionGroup {
   readonly label: string;
@@ -53,17 +47,19 @@ export function scannerTypeSuggestionGroups(
   return [{ label: 'Matches', items: matches }];
 }
 
-function typeGroupsAsComboItems(
-  groups: readonly ScannerTypeSuggestionGroup[],
+/**
+ * Combo items for wormhole codes: the code as text and its class as meta,
+ * except the far-side code, which has no class of its own.
+ */
+export function wormholeComboItems(
+  codes: readonly string[],
   classLabelOf: (code: string) => string | null,
-): readonly ScannerComboGroup[] {
-  return groups.map((group) => ({
-    label: group.label,
-    items: group.items.map((code) => ({
-      value: code,
-      text: code,
-      meta: code === FAR_SIDE_WORMHOLE_CODE ? '' : (classLabelOf(code) ?? ''),
-    })),
+  valuePrefix = '',
+): ScannerComboGroup['items'] {
+  return codes.map((code) => ({
+    value: `${valuePrefix}${code}`,
+    text: code,
+    meta: code === FAR_SIDE_WORMHOLE_CODE ? '' : (classLabelOf(code) ?? ''),
   }));
 }
 
@@ -74,7 +70,6 @@ export function ScannerTypeCombo({
   preferredCodes,
   classLabelOf,
   rowId,
-  disabled,
   onCommit,
 }: {
   readonly code: string | null;
@@ -83,69 +78,42 @@ export function ScannerTypeCombo({
   readonly preferredCodes: readonly string[];
   readonly classLabelOf: (code: string) => string | null;
   readonly rowId: string;
-  readonly disabled: boolean;
   readonly onCommit: (value: string | null) => void;
 }) {
   const [query, setQuery] = useState(code ?? '');
   const groups = useMemo(
-    () => scannerTypeSuggestionGroups(query, codes, preferredCodes),
-    [query, codes, preferredCodes],
+    () =>
+      scannerTypeSuggestionGroups(query, codes, preferredCodes).map((group) => ({
+        label: group.label,
+        items: wormholeComboItems(group.items, classLabelOf),
+      })),
+    [query, codes, preferredCodes, classLabelOf],
   );
-  const items = groups.flatMap((group) => [...group.items]);
   const search = useWormholeTypeSearch(codes, preferredCodes);
-  const popup = useCloseOnScannerScroll();
-  const browsing = query.trim().length === 0;
-  const panelGroups = typeGroupsAsComboItems(groups, classLabelOf);
+  // A pressed or entered code that does not parse commits nothing.
+  const commit = (text: string) => {
+    const parsed = search.parse(text);
+    if (parsed.ok) onCommit(parsed.params.code);
+  };
   return (
-    <Combobox.Root
-      open={popup.open}
-      onOpenChange={popup.onOpenChange}
-      value={query}
-      onValueChange={(next, details) =>
-        pickOrType(next, details, {
-          onType: setQuery,
-          // A pressed code that does not parse commits nothing.
-          onPick: (picked) => {
-            const parsed = search.parse(picked);
-            if (parsed.ok) onCommit(parsed.params.code);
-          },
-        })
+    <ScannerCombo
+      query={query}
+      onQueryChange={setQuery}
+      groups={groups}
+      browsing={query.trim().length === 0}
+      browseFooter="Type to search other holes…"
+      ariaLabel={`Type ${rowId}`}
+      fieldClassName={cn(
+        scannerSelectedFieldClass(code !== null),
+        code === null && 'font-normal',
+      )}
+      onCommitValue={commit}
+      onCommitQuery={commit}
+      aside={
+        className !== null && query === code ? (
+          <SignatureClassChip label={className} />
+        ) : null
       }
-      items={items}
-      filter={null}
-      openOnInputClick
-    >
-      <div className="flex w-full min-w-0 max-w-full items-center gap-1">
-        <Combobox.Field
-          size="sm"
-          placeholder="Unresolved"
-          disabled={disabled}
-          aria-label={`Type ${rowId}`}
-          className={cn(
-            scannerSelectedFieldClass(code !== null),
-            code === null && 'font-normal',
-          )}
-          onKeyDown={(event) => {
-            if (!consumeScannerEnter(event)) return;
-            const parsed = search.parse(query);
-            if (parsed.ok) onCommit(parsed.params.code);
-          }}
-        />
-        {code !== null && className !== null && query === code ? (
-          <span
-            data-signature-class
-            className="shrink-0 font-ui text-micro uppercase tracking-label text-muted"
-          >
-            {className}
-          </span>
-        ) : null}
-      </div>
-      <ScannerComboPanel
-        groups={panelGroups}
-        itemValues={items}
-        showLabels={browsing}
-        footer={browsing ? 'Type to search other holes…' : null}
-      />
-    </Combobox.Root>
+    />
   );
 }

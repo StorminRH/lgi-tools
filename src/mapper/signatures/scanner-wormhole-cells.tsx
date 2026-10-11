@@ -27,7 +27,7 @@ import {
   type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import { originLeadOptions } from './origin-leads';
-import { IdCell, NameCell } from './scanner-row-cells';
+import { IdCell, NameCell, SignatureClassChip } from './scanner-row-cells';
 import { ScannerLeadsControl } from './scanner-leads-control';
 import {
   ScannerOptionalSelect,
@@ -194,12 +194,7 @@ function ReadOnlyWormholeCells({
       <span className="flex min-w-0 items-baseline gap-1.5">
         <NameCell row={row} />
         {row.className !== null ? (
-          <span
-            data-signature-class
-            className="shrink-0 font-ui text-micro uppercase tracking-label text-muted"
-          >
-            {row.className}
-          </span>
+          <SignatureClassChip label={row.className} />
         ) : null}
       </span>
       <span className="truncate text-muted">
@@ -259,7 +254,6 @@ export function wormholeCells(
         preferredCodes={ctx.preferredCodes}
         classLabelOf={ctx.classLabelOf}
         rowId={row.signatureId}
-        disabled={false}
         onCommit={setters.setWormholeType}
       />
       <ScannerOptionalSelect
@@ -268,7 +262,6 @@ export function wormholeCells(
         options={CONNECTION_MASS_STATES}
         labels={MASS_STATE_LABELS}
         triggerLabelOf={scannerMassReadout}
-        disabled={false}
         onChange={setters.setMassState}
       />
       <ScannerOptionalSelect
@@ -277,7 +270,6 @@ export function wormholeCells(
         options={WORMHOLE_LIFE_STAGES}
         labels={LIFE_STAGE_LABELS}
         triggerLabelOf={scannerLifeTriggerLabel(lifeStage, lifeEstimate)}
-        disabled={false}
         onChange={setters.setLifeStage}
       />
       <ScannerLeadsControl
@@ -295,7 +287,6 @@ export function wormholeCells(
             : connection.fromSystemId
         }
         rowId={row.signatureId}
-        disabled={false}
         onChange={setters.setLeadsTo}
         onSetDestination={setters.setDestination}
         onLinkOrigin={setters.linkToOrigin}

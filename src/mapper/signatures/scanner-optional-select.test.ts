@@ -64,7 +64,6 @@ it('lists a dash unset item and long labels, shows compact trigger text, and dec
     options: ['stable', 'reduced', 'critical'],
     labels: MASS_STATE_LABELS,
     triggerLabelOf: scannerMassReadout,
-    disabled: false,
     onChange,
   });
   expect(unset.ariaLabel).toBe('Mass WHL-001');
@@ -88,7 +87,6 @@ it('lists a dash unset item and long labels, shows compact trigger text, and dec
     options: ['stable', 'reduced', 'critical'],
     labels: MASS_STATE_LABELS,
     triggerLabelOf: scannerMassReadout,
-    disabled: false,
     onChange,
   });
   expect(chosen.value).toBe('reduced');
@@ -112,7 +110,6 @@ it('shows the codex upper bound on the life trigger only for the selected stage'
       options: stages,
       labels: LIFE_STAGE_LABELS,
       triggerLabelOf: scannerLifeTriggerLabel(selected, upperBound),
-      disabled: false,
       onChange: vi.fn(),
     }).items.map((item) => item.triggerLabel);
 

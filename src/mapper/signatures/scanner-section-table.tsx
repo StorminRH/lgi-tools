@@ -55,7 +55,6 @@ function sectionCells(
               preferredCodes={ctx.preferredCodes}
               classLabelOf={ctx.classLabelOf}
               rowId={row.signatureId}
-              disabled={false}
               onIdentify={(group, code) => ctx.onIdentify?.(row, group, code)}
             />
           ) : (

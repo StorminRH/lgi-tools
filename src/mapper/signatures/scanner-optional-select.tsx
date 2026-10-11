@@ -38,7 +38,6 @@ export function ScannerOptionalSelect<T extends string>({
   options,
   labels,
   triggerLabelOf,
-  disabled,
   onChange,
 }: {
   readonly ariaLabel: string;
@@ -46,7 +45,6 @@ export function ScannerOptionalSelect<T extends string>({
   readonly options: readonly T[];
   readonly labels: Readonly<Record<T, string>>;
   readonly triggerLabelOf: (value: T) => string;
-  readonly disabled: boolean;
   readonly onChange: (value: T | null) => void;
 }) {
   const popup = useCloseOnScannerScroll();
@@ -57,7 +55,6 @@ export function ScannerOptionalSelect<T extends string>({
       onOpenChange={popup.onOpenChange}
       size="sm"
       ariaLabel={ariaLabel}
-      disabled={disabled}
       caret={!selected}
       className={scannerSelectedFieldClass(selected)}
       value={encodeOptionalField(value)}

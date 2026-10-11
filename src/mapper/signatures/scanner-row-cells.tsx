@@ -90,6 +90,18 @@ export function NameCell({ row }: { readonly row: SignatureWindowRow }) {
   );
 }
 
+/** A wormhole signature's class tag (C3, HS, …) beside its name. */
+export function SignatureClassChip({ label }: { readonly label: string }) {
+  return (
+    <span
+      data-signature-class
+      className="shrink-0 font-ui text-micro uppercase tracking-label text-muted"
+    >
+      {label}
+    </span>
+  );
+}
+
 export function SiteTypeCell({ row }: { readonly row: SignatureWindowRow }) {
   const label = scannerGroupTypeLabel(row.group);
   return (

@@ -197,7 +197,6 @@ it('labels the destination combo field and seeds it from the destination, then t
         originLeads: [],
         originSystemId: 31_000_142,
         rowId: 'WHL-001',
-        disabled: false,
         onChange: vi.fn(),
         onSetDestination: vi.fn(),
         onLinkOrigin: vi.fn(),
