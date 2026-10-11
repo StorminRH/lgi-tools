@@ -34,6 +34,7 @@ import { SECTION_LOAD_FAILED } from './load-section';
 import { getOrInsertComputed } from '@/lib/array';
 import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
 import { formatElapsed } from '@/lib/format/time';
+import { DAY_MS } from '@/lib/iso-date';
 
 export interface CronSignals {
   lastRuns: CronLastRun[];
@@ -286,7 +287,7 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
   if (latest === null) {
     return { id: 'release', label: 'Latest release', value: 'none', level: 'neutral' };
   }
-  const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / 86_400_000));
+  const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / DAY_MS));
   return {
     id: 'release',
     label: 'Latest release',

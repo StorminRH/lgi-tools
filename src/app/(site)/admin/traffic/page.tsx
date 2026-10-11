@@ -1,7 +1,7 @@
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { CardLink } from '@/components/ui/text-link';
-import { parseRange, previousRange, rangeFor } from '@/composition/admin-period';
+import { parseRange, previousRange, rangeFor } from '../period';
 import { ActivityChart } from '../ActivityChart';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';

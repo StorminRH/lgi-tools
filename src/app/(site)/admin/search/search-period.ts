@@ -1,6 +1,6 @@
-import { ALL_TIME_FROM, type RangeKey } from '@/composition/admin-period';
 import type { DateRange } from '@/data/telemetry/types';
 import { DAY_MS, isoDayStartMs } from '@/lib/iso-date';
+import { ALL_TIME_FROM, RANGE_DAYS, type RangeKey } from '../period';
 
 /** Google reports whole dates. Both ends are inclusive and windows never overlap. */
 export function searchPeriods(key: RangeKey, latestDay: string): {
@@ -9,7 +9,7 @@ export function searchPeriods(key: RangeKey, latestDay: string): {
 } {
   const to = new Date(isoDayStartMs(latestDay));
   if (key === 'all') return { range: { from: ALL_TIME_FROM, to }, previous: null };
-  const days = key === '7d' ? 7 : key === '30d' ? 30 : 90;
+  const days = RANGE_DAYS[key];
   const from = new Date(to.getTime() - (days - 1) * DAY_MS);
   return {
     range: { from, to },

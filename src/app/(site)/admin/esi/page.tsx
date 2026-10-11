@@ -1,5 +1,5 @@
 import { CardLink } from '@/components/ui/text-link';
-import { parseRange, rangeFor } from '@/composition/admin-period';
+import { parseRange, rangeFor } from '../period';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import { LevelRows } from '../LevelRows';

@@ -6,11 +6,12 @@ import { Pill } from '@/components/ui/pill';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
-import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
+import { getRoleChangeAudit } from '@/data/telemetry/queries';
 import { superadminCharacterId } from '@/platform/auth/admin-policy';
 import { searchUsersByLinkedCharacterName, type AdminUser } from '@/platform/auth/admin-users';
 import { ADMIN_ACCESS_QUERY_MAX_LENGTH } from '@/platform/auth/api-contract';
 import { USERS_HREF } from '../admin-sections';
+import { lastNDaysRange } from '../period';
 import { getUserOwningCharacterShared, listAdminUsersShared } from '../shared-reads';
 import {
   adminRoleBadge,

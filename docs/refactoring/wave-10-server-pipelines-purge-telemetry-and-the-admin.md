@@ -29,7 +29,7 @@ In order:
 | ☑ | [P240](#p240) | Generate the single-table purge contributors from one table list in src/platform/purge | persistence | S | low | medium | — |
 | ☑ | [P321](#p321) | Remove valuation from the board NameBook: netWorthSnapshot takes the ValuationBook and NameIdRequest drops valuationTypeIds | simplification | S | low | low | — |
 | ☑ | [P174](#p174) | Give src/scripts one bootstrap: a load-env side-effect import, createScriptClient, client-optional runScript and publicTableExists | server-pipeline | M | low | low | — |
-| ☐ | [P316](#p316) | Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin | simplification | M | low | low | [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107) |
+| ☑ | [P316](#p316) | Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin | simplification | M | low | low | [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107) |
 | ☐ | [P282](#p282) | Share the range-key day count and keep admin reads from waiting on the GSC report date | efficiency | S | low | low | [P316](#p316) |
 | ☐ | [P281](#p281) | Cache degradation and search-total reads per request with one range-keyed helper, and drop dead ESI cost reads | efficiency | S | low | medium | — |
 | ☐ | [P158](#p158) | Share the admin cron, SLI and activity loaders between the overview, health and traffic cards | server-pipeline | S | low | medium | — |
@@ -620,7 +620,7 @@ Update vendor-resilience.test.ts PRODUCTION_POSTGRES_SITES. Its 'states an expli
 
 ## P316: Move admin period math into app/(site)/admin, absorb lastNDaysRange, and align parseRange with its client twin
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** about -20 / +15, plus 26 mechanical import rewrites
 - **Depends on:** [P107](wave-04-formatting-dates-and-names-have-one-home.md#p107)

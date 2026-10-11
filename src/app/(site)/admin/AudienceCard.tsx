@@ -1,11 +1,11 @@
 import { CardLink } from '@/components/ui/text-link';
-import { previousRange, type RangeKey } from '@/composition/admin-period';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { getLatestReportDate, getSearchTotals } from '@/data/gsc/queries';
 import { pageViewSources } from '@/data/telemetry/page-view-stats';
 import { getReturningVsNew } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { DAY_MS } from '@/lib/iso-date';
+import { previousRange, type RangeKey } from './period';
 import { ActivityChart } from './ActivityChart';
 import { deriveActivityView, rangeDayCount } from './activity-view';
 import { loadDeployMarkers } from './deploy-markers';

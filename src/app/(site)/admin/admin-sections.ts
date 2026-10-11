@@ -1,6 +1,6 @@
 import { longestSectionMatch } from '@/lib/section-path';
-import { parseRange, type RangeKey } from '@/composition/admin-period';
 import { formatQuantity } from '@/lib/format/number';
+import { parseRange, type RangeKey } from './period';
 
 export type AdminSectionId =
   | 'overview'

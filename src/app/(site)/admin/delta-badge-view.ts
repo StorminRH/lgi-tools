@@ -1,4 +1,4 @@
-import type { Delta } from '@/composition/admin-period';
+import type { Delta } from './period';
 
 /**
  * `text` is what the badge shows; `spoken` is what a screen reader says

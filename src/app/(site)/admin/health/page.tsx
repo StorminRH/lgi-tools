@@ -1,5 +1,5 @@
-import { parseRange, rangeFor } from '@/composition/admin-period';
 import { listRecentDomainEvents } from '@/data/domain-events/queries';
+import { parseRange, rangeFor } from '../period';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import type { RangeSearchParams } from '../RangeControl';

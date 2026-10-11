@@ -1,9 +1,9 @@
 import { cache } from 'react';
-import { rangeFor, type RangeKey } from '@/composition/admin-period';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { fallbackRate } from '@/data/telemetry/cron-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
+import { rangeFor, type RangeKey } from './period';
 import { loadDeployMarkers } from './deploy-markers';
 import { getEsiRefreshQueueStatsShared, getLastSyncedAtShared, getStaticsSummaryShared } from './shared-reads';
 import {

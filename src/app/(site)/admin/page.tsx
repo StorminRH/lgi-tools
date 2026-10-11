@@ -1,6 +1,6 @@
 import { CardLink } from '@/components/ui/text-link';
-import { parseRange, rangeFor } from '@/composition/admin-period';
 import { getAccountTotals } from '@/platform/auth/admin-users';
+import { parseRange, rangeFor } from './period';
 import { AccountTotals } from './AccountsCard';
 import { ActionTiles, loadActionRows } from './ActionsCard';
 import { AdminPageFrame } from './AdminFrame';

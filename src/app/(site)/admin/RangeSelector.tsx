@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { SegmentedControl } from '@/components/ui/segmented';
-import { parseRange, RANGES } from '@/composition/admin-period';
+import { parseRange, RANGES } from './period';
 import { rangeHref } from './admin-sections';
 
 function RangeLinks({ basePath, value }: { basePath: `/${string}`; value: string }) {

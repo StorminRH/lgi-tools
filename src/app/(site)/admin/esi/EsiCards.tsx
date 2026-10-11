@@ -4,7 +4,6 @@ import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
-import { trendSeries } from '@/composition/admin-period';
 import { esiAvailability, esiClientErrors } from '@/data/telemetry/capability-stats';
 import { fallbackRate } from '@/data/telemetry/cron-stats';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
@@ -17,6 +16,7 @@ import {
 import type { DateRange } from '@/data/telemetry/types';
 import { formatQuantity } from '@/lib/format/number';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
+import { trendSeries } from '../period';
 import { AdminBarChart, AdminTrendChart } from '../charts';
 import {
   getCapabilityOutcomeStatsShared,

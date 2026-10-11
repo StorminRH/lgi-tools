@@ -1,4 +1,4 @@
-import { withSearchParams } from '@/lib/search-params';
+import { firstSearchParam, withSearchParams } from '@/lib/search-params';
 
 export function atlasMapQueryPresent(
   map: string | string[] | undefined,
@@ -17,7 +17,7 @@ export function mapSelectionHref(
 export function atlasMapHref(
   map: string | string[] | undefined,
 ): string {
-  const mapId = Array.isArray(map) ? map[0] : map;
+  const mapId = firstSearchParam(map);
   if (mapId === undefined || mapId === '') return '/atlas';
   return `/atlas?${new URLSearchParams({ map: mapId }).toString()}`;
 }

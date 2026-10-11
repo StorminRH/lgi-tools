@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { withSearchParams } from './search-params';
+import { firstSearchParam, withSearchParams } from './search-params';
 
 test('a patch sets and deletes keys, keeps the rest in order, and drops an empty query', () => {
   expect(withSearchParams('/industry', '', { profile: 'caps' })).toBe('/industry?profile=caps');
@@ -41,4 +41,12 @@ test('a hash is appended only when one is passed', () => {
   expect(withSearchParams('/industry', '?panel=structures', { panel: null }, '#rail')).toBe('/industry#rail');
   expect(withSearchParams('/industry', '?profile=p1', { panel: null }, '')).toBe('/industry?profile=p1');
   expect(withSearchParams('/industry', '?profile=p1', { panel: null })).toBe('/industry?profile=p1');
+});
+
+test('a repeated server search param reads its first value, as URLSearchParams.get does', () => {
+  expect(firstSearchParam('7d')).toBe('7d');
+  expect(firstSearchParam(['90d', '7d'])).toBe(new URLSearchParams('range=90d&range=7d').get('range'));
+  expect(firstSearchParam('')).toBe('');
+  expect(firstSearchParam([])).toBeUndefined();
+  expect(firstSearchParam(undefined)).toBeUndefined();
 });

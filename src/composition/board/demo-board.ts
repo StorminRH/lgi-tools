@@ -15,6 +15,7 @@ import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { DAY_MS, HOUR_MS, isoDay } from '@/lib/iso-date';
 import { roundIsk } from '@/lib/math';
+import { firstSearchParam } from '@/lib/search-params';
 import type { AssetLine, PriceBook, TypeCategories } from '@/features/net-worth/valuation';
 import type { BoardHistoryDay, BoardResponse, SkillCatalogGroup } from './api-contract';
 import {
@@ -81,7 +82,7 @@ const NEW_SCOPES = (['wallet', 'clones', 'implants', 'structures'] as const).fla
 );
 
 export function demoVariant(param: string | string[] | undefined): DemoVariant | null {
-  const value = Array.isArray(param) ? param[0] : param;
+  const value = firstSearchParam(param);
   if (value === undefined) return null;
   if (value === '') return 'full';
   return (DEMO_VARIANTS as readonly string[]).includes(value) ? (value as DemoVariant) : null;

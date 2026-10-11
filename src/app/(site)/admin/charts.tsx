@@ -7,7 +7,7 @@ import type { ChartTone } from '@/components/ui/tones';
 import type { BarDatum } from '@/components/ui/bar-chart';
 import { formatQuantity } from '@/lib/format/number';
 import { endLabelFor } from './end-label';
-import type { Delta } from '@/composition/admin-period';
+import type { Delta } from './period';
 
 const TrendChart = dynamic(
   () => import('@/components/ui/trend-chart').then((m) => m.TrendChart),

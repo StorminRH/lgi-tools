@@ -1,9 +1,9 @@
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
-import { parseRange, rangeFor } from '@/composition/admin-period';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { getSitemapStatus } from '@/data/gsc/queries';
 import { formatCount } from '@/lib/format/number';
+import { parseRange, rangeFor } from '../period';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import type { RangeSearchParams } from '../RangeControl';

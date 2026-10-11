@@ -12,9 +12,9 @@ import type {
 } from '@/data/telemetry/capability-stats';
 import { formatClientErrorShare } from '@/data/telemetry/health-metrics';
 import type { DateRange } from '@/data/telemetry/types';
-import { trendSeries } from '@/composition/admin-period';
 import { formatQuantity } from '@/lib/format/number';
 import { isoDay } from '@/lib/iso-date';
+import { trendSeries } from '../period';
 import { zeroFillDaily } from '../aggregate';
 import { AdminTrendChart } from '../charts';
 import { SECTION_LOAD_FAILED } from '../load-section';

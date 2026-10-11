@@ -1,5 +1,5 @@
 import type { GscCoverageDailyPoint, GscUrlStatus } from '@/data/gsc/types';
-import { trendSeries } from '@/composition/admin-period';
+import { trendSeries } from './period';
 
 export interface GscCoverageRow extends GscUrlStatus {
   indexed: boolean;
