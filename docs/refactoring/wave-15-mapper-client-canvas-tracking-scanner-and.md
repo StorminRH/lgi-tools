@@ -35,7 +35,7 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 | ☑ | [P031](#p031) | Extract a controlled ScannerCombo shell, a shared wormhole combo-item mapper and class chip, and one ScannerOptionalSelect for scanner mass and life | ui-component | M | medium | medium | [P030](#p030), [P092](#p092), [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
 | ☑ | [P139](#p139) | Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it | error-handling | S | low | medium | — |
 | ☑ | [P298](#p298) | Make a scanner row's open action the ScannerPanelTarget and remove the dead trigger/clientX/clientY plumbing | simplification | S | low | medium | [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072) |
-| ☐ | [P218](#p218) | Factor the connection-query and loaded-page helpers inside optimistic-authoring.ts, and make branch restore patch unresolved holes too | client-data | S | low | low | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082), [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329), [P262](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p262), [P139](#p139) |
+| ☑ | [P218](#p218) | Factor the connection-query and loaded-page helpers inside optimistic-authoring.ts, and make branch restore patch unresolved holes too | client-data | S | low | low | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082), [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329), [P262](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p262), [P139](#p139) |
 
 <a id="p307"></a>
 
@@ -1681,7 +1681,7 @@ onOpenTarget: (target: ScannerPanelTarget) => void
 
 ## P218: Factor the connection-query and loaded-page helpers inside optimistic-authoring.ts, and make branch restore patch unresolved holes too
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -40 / +28
 - **Depends on:** [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082), [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329), [P262](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p262), [P139](#p139)
