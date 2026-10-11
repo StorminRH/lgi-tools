@@ -1,5 +1,6 @@
 import { freshnessGate, type FreshnessGate } from '@/lib/esi-datasets/freshness';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { memoizeAsync } from '@/lib/memoize';
 import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
@@ -134,8 +135,11 @@ async function refreshDirectSections(
   userId: string,
   options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
+  // Each direct section reads and writes only its own key, so one row snapshot per
+  // character serves the whole phase. The structures phase reads the merged row afresh.
+  const phasePort: SheetPort = { ...port, readSheet: memoizeAsync((characterId) => port.readSheet(characterId)) };
   const results = await Promise.all(
-    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(port, SHEET_SECTIONS[key]), userId, options)),
+    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(phasePort, SHEET_SECTIONS[key]), userId, options)),
   );
   return results.flat();
 }

@@ -1,6 +1,7 @@
 import { mergeSheetSection, readSheetRow, stampSheetSection } from '@/features/character-sheet/queries';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import type { SheetEndpoint, SheetPort } from '@/features/character-sheet/types';
+import { memoizeAsync } from '@/lib/memoize';
 import {
   characterLocationPath,
   characterOnlinePath,
@@ -23,22 +24,11 @@ export const SHEET_ESI_PATHS = {
   orders: (id: number) => `/characters/${id}/orders/`,
 } as const satisfies Record<SheetEndpoint, (id: number) => string>;
 
-function memoizePerRun<A, R>(fn: (arg: A) => Promise<R>): (arg: A) => Promise<R> {
-  const pending = new Map<A, Promise<R>>();
-  return (arg) => {
-    const hit = pending.get(arg);
-    if (hit !== undefined) return hit;
-    const result = fn(arg);
-    pending.set(arg, result);
-    return result;
-  };
-}
-
 export function makeSheetPort(): SheetPort {
   return {
     now: () => new Date(),
-    listCharacters: memoizePerRun(listCharactersWithHealth),
-    vendToken: memoizePerRun(vendTokenFor),
+    listCharacters: memoizeAsync(listCharactersWithHealth),
+    vendToken: memoizeAsync(vendTokenFor),
     readEndpoint: (characterId, endpoint, accessToken, heldEtag) =>
       readSingleEndpoint(SHEET_ESI_PATHS[endpoint](characterId), accessToken, heldEtag),
     readStructure: (structureId, accessToken) =>

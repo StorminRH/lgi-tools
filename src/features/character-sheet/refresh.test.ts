@@ -115,6 +115,24 @@ describe('refreshCharacterSheetForUser', () => {
     });
   });
 
+  it('reads the sheet once for the direct phase and once for structures', async () => {
+    const sheetReads = (port: SheetPort) => vi.mocked(port.readSheet).mock.calls.map(([id]) => id).sort();
+
+    const neverSynced = makePort();
+    await refreshCharacterSheetForUser(neverSynced, 'u1');
+    expect(sheetReads(neverSynced)).toEqual([1, 1]);
+    expect(neverSynced.sheets.get(1)?.structures?.data?.names).toHaveProperty('1099000000001');
+
+    const twoPilots = makePort({ listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]) });
+    await refreshCharacterSheetForUser(twoPilots, 'u1');
+    expect(sheetReads(twoPilots)).toEqual([1, 1, 2, 2]);
+
+    const allFresh = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]));
+    await refreshCharacterSheetForUser(allFresh, 'u1');
+    expect(sheetReads(allFresh)).toEqual([1, 1]);
+    expect(allFresh.readEndpoint).not.toHaveBeenCalled();
+  });
+
   it('makes no vend and no read when every section is inside its tier', async () => {
     const port = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]));
 

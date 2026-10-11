@@ -15,3 +15,19 @@ export function singleFlight<K, V>(load: (key: K) => Promise<V>): (key: K) => Pr
     return request;
   };
 }
+
+/**
+ * One call per argument for the life of the returned function. The promise is
+ * kept before it settles and never evicted, so a rejection is shared too. Build
+ * a fresh wrapper for each run or phase that should read again.
+ */
+export function memoizeAsync<A, R>(fn: (arg: A) => Promise<R>): (arg: A) => Promise<R> {
+  const pending = new Map<A, Promise<R>>();
+  return (arg) => {
+    const hit = pending.get(arg);
+    if (hit !== undefined) return hit;
+    const result = fn(arg);
+    pending.set(arg, result);
+    return result;
+  };
+}

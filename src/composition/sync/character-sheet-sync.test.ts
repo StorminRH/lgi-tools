@@ -115,6 +115,8 @@ describe('makeSheetPort', () => {
 
     await port.readStructure(1099000000001, 'token');
     await expect(port.readSheet(7)).resolves.toBe(sheet);
+    await expect(port.readSheet(7)).resolves.toBe(sheet);
+    expect(mocks.readSheetRow).toHaveBeenCalledTimes(2);
     await port.mergeSection(7, 'wallet', sheet.wallet!);
     await port.stampSection(7, 'wallet');
 
