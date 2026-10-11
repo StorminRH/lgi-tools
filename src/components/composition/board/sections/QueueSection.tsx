@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Drawer } from '@/components/ui/drawer';
 import { SectionPanel } from '@/components/ui/section-panel';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import type { BoardSection, BoardSkillsData } from '@/composition/board/api-contract';
 import { SkillQueueRows } from '@/features/skill-queue/components/SkillQueueRows';
 import { formatUtcDate, formatUtcTime } from '@/lib/format/time';
@@ -99,10 +99,7 @@ function Timeline({ queue, now }: { queue: BoardSkillsData['queue']; now: number
 }
 
 function Segment({ segment }: { segment: TimelineSegment }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.style.setProperty('flex-grow', String(segment.weight));
-  }, [segment.weight]);
+  const ref = useStyleProperty<HTMLDivElement>('flex-grow', String(segment.weight));
   return (
     <div
       ref={ref}

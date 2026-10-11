@@ -9,7 +9,8 @@ import {
   type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useStyleProperties } from '@/components/ui/use-style-ref';
 import { motionCssProperties, type MotionConfig } from '../motion/motion-contract';
 import { CHAIN_EDGE_TYPE, ChainLinkEdge } from './ChainLinkEdge';
 import { ChainViewportContext } from './ChainViewportContext';
@@ -52,16 +53,12 @@ export function ChainSurface({
   motion,
   children,
 }: ChainSurfaceProps) {
-  const scopeRef = useRef<HTMLDivElement>(null);
+  const motionProperties = useMemo(
+    () => (motion === undefined ? null : motionCssProperties(motion)),
+    [motion],
+  );
+  const scopeRef = useStyleProperties<HTMLDivElement>(motionProperties);
   const viewportMoveListeners = useMemo(() => new Set<() => void>(), []);
-
-  useEffect(() => {
-    const element = scopeRef.current;
-    if (element === null || motion === undefined) return;
-    for (const [property, value] of Object.entries(motionCssProperties(motion))) {
-      element.style.setProperty(property, value);
-    }
-  }, [motion]);
 
   return (
     <div ref={scopeRef} data-map-motion-scope className="h-full w-full">

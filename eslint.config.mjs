@@ -18,7 +18,7 @@ const inlineStyleSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
     message:
-      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones (inline styles are CSP-permitted but not the default).",
+      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property written by the useStyleProperty / useStyleProperties ref (components/ui/use-style-ref) for runtime-dynamic ones (inline styles are CSP-permitted but not the default).",
   },
 ];
 

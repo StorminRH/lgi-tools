@@ -1,13 +1,9 @@
 import type { ReactElement } from 'react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import type { WindowPlacement } from './window-model';
-
-const h = vi.hoisted(() => ({ root: { current: null as unknown } }));
 
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react')>()),
-  useRef: () => h.root,
-  useEffect: (effect: () => void) => effect(),
   useCallback: <T>(callback: T) => callback,
 }));
 
@@ -40,25 +36,17 @@ function fakeNode() {
   return { style: { setProperty: vi.fn() } };
 }
 
-beforeEach(() => {
-  h.root.current = null;
-});
-
-it('stacks the root through the ref callback and the stack-index effect, forwarding the node', () => {
+it('stacks the root with one write as it attaches, forwarding the node and then null', () => {
   const forwarded = vi.fn();
   const { props } = section({ kind: 'docked' }, { ref: forwarded });
   const node = fakeNode();
   props.ref(node);
-  expect(h.root.current).toBe(node);
-  expect(node.style.setProperty).toHaveBeenCalledWith('--map-window-z', '3');
+  expect(node.style.setProperty.mock.calls).toEqual([['--map-window-z', '3']]);
   expect(forwarded).toHaveBeenCalledWith(node);
-
-  section({ kind: 'docked' });
-  expect(node.style.setProperty).toHaveBeenCalledTimes(2);
 
   props.ref(null);
   expect(forwarded).toHaveBeenLastCalledWith(null);
-  expect(node.style.setProperty).toHaveBeenCalledTimes(2);
+  expect(node.style.setProperty).toHaveBeenCalledTimes(1);
 
   const objectRef = { current: null as unknown };
   const withObject = section({ kind: 'docked' }, { ref: objectRef });

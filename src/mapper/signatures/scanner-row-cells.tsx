@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Tooltip } from '@/components/ui/tooltip';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { formatElapsed } from '@/lib/format/time';
 import { clampPct } from '@/lib/math';
 import { scannerGroupTypeLabel, type SignatureWindowRow } from './signature-model';
@@ -24,13 +25,10 @@ function openRowActionsAtStart(
 }
 
 function SignalFill({ signalPct }: { readonly signalPct: number | null }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    ref.current?.style.setProperty(
-      '--signature-signal',
-      `${clampPct(signalPct ?? 0)}%`,
-    );
-  }, [signalPct]);
+  const ref = useStyleProperty<HTMLDivElement>(
+    '--signature-signal',
+    `${clampPct(signalPct ?? 0)}%`,
+  );
   return <div ref={ref} data-signature-signal-fill aria-hidden />;
 }
 

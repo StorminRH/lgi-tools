@@ -7,8 +7,9 @@ import {
   type Edge,
   type EdgeProps,
 } from '@xyflow/react';
-import { memo, useId, useLayoutEffect, useRef } from 'react';
+import { memo, useId } from 'react';
 import { cn } from '@/components/ui/cn';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import type { ChainEdgeData } from '../chain/nodes';
 import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
 import type { EdgeMotion } from '../motion/motion-contract';
@@ -82,13 +83,11 @@ function OutboundArrowLabel({
   readonly fraction: number;
   readonly live: boolean;
 }) {
-  const arrowRef = useRef<HTMLSpanElement>(null);
   const point = pointAlongSegment(segment, fraction, towardTarget);
-  const transform = `translate(-50%, -50%) translate(${point.x}px, ${point.y}px) rotate(${point.angle}deg)`;
-
-  useLayoutEffect(() => {
-    arrowRef.current?.style.setProperty('--map-pilot-arrow-transform', transform);
-  }, [transform]);
+  const arrowRef = useStyleProperty<HTMLSpanElement>(
+    '--map-pilot-arrow-transform',
+    `translate(-50%, -50%) translate(${point.x}px, ${point.y}px) rotate(${point.angle}deg)`,
+  );
 
   return (
     <EdgeLabelRenderer>
@@ -160,16 +159,12 @@ function ChainLinkEdgeComponent({
   target,
   data,
 }: EdgeProps<Edge<ChainEdgeData, typeof CHAIN_EDGE_TYPE>>) {
-  const hostRef = useRef<SVGGElement>(null);
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
   const arrow = useOutboundArrow(id);
   const segment = chainLinkSegment(sourceNode, targetNode);
-  const visible = segment !== null;
   const gradientId = `map-edge-taper-${useId()}`;
-  useLayoutEffect(() => {
-    hostRef.current?.style.setProperty('--map-edge-taper', `url(#${gradientId})`);
-  }, [gradientId, visible]);
+  const hostRef = useStyleProperty<SVGGElement>('--map-edge-taper', `url(#${gradientId})`);
   if (segment === null) return null;
 
   const visibleSegment = visibleChainLinkSegment(segment, data?.fogSide, FOG_EDGE_CUT_FRACTION);

@@ -5,13 +5,13 @@ import {
   memo,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type RefObject,
 } from 'react';
 import { cn } from '@/components/ui/cn';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   systemClassificationReadout,
@@ -232,6 +232,11 @@ function NodeDisc({
   );
 }
 
+// The caption sits above the disc. The offset is constant, but it stays in
+// disc-chrome rather than CSS, which owns the disc size and gap it is built from.
+const KSPACE_CAPTION_OFFSET = kspaceCaptionOffset();
+const KSPACE_CAPTION_TRANSFORM = `translate(-50%, -100%) translate(${KSPACE_CAPTION_OFFSET.x}px, ${KSPACE_CAPTION_OFFSET.y}px)`;
+
 function KnownSpaceCaption({
   systemId,
   text,
@@ -241,15 +246,10 @@ function KnownSpaceCaption({
   readonly text: string;
   readonly chromeClass: string | null;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useStyleProperty<HTMLDivElement>('--kspace-caption-transform', KSPACE_CAPTION_TRANSFORM);
   const assets = useUniverseAssets();
   const info = assets?.systemInfo(systemId);
   const hub = assets?.hubJumps(systemId)[0];
-  const offset = kspaceCaptionOffset();
-  const transform = `translate(-50%, -100%) translate(${offset.x}px, ${offset.y}px)`;
-  useLayoutEffect(() => {
-    ref.current?.style.setProperty('--kspace-caption-transform', transform);
-  }, [transform]);
   return (
     <div
       ref={ref}
