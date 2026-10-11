@@ -96,6 +96,7 @@ test('deriveAccessView filters admins from search, and says when the list stops 
   const truncated = deriveAccessView({ adminRows: [], searchResults: many });
   expect(truncated.nonAdminMatches).toHaveLength(50);
   expect(truncated.resultsHint).toBe('50 matches · showing first 50, narrow your search');
+  expect(deriveAccessView({ adminRows: [], searchResults: many.slice(0, 50) }).resultsHint).toBe('50 matches');
 
   expect(deriveAccessView({ adminRows, searchResults: [] }).resultsHint).toBe('0 matches');
 });
