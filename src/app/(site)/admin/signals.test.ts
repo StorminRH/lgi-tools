@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
+  countJobs,
   deriveAttention,
   deriveBudgetStatus,
   deriveCronStatuses,
@@ -66,7 +67,7 @@ describe('deriveSliSignals', () => {
       outcome('save-preferences', 'succeeded', 1),
       outcome('save-preferences', 'validation', 5),
     ];
-    expect(deriveSliSignals(outcomes, { p95: 420, slowest: [] })).toEqual({
+    expect(deriveSliSignals({ outcomes, latency: { p95: 420, slowest: [] } })).toEqual({
       readSuccess: 0.75,
       mutationSuccess: 1,
       latencyP95: 420,
@@ -75,13 +76,13 @@ describe('deriveSliSignals', () => {
   });
 
   it('marks only the lines whose read failed', () => {
-    expect(deriveSliSignals(SECTION_LOAD_FAILED, { p95: null, slowest: [] })).toEqual({
+    expect(deriveSliSignals({ outcomes: SECTION_LOAD_FAILED, latency: { p95: null, slowest: [] } })).toEqual({
       readSuccess: SECTION_LOAD_FAILED,
       mutationSuccess: SECTION_LOAD_FAILED,
       latencyP95: null,
       esiSuccess: SECTION_LOAD_FAILED,
     });
-    expect(deriveSliSignals([], SECTION_LOAD_FAILED)).toEqual({
+    expect(deriveSliSignals({ outcomes: [], latency: SECTION_LOAD_FAILED })).toEqual({
       readSuccess: null,
       mutationSuccess: null,
       latencyP95: SECTION_LOAD_FAILED,
@@ -130,6 +131,15 @@ describe('deriveBudgetStatus', () => {
       .toEqual({ level: 'green', value: '20 left', note: 'floor 20 · live' });
     expect(deriveBudgetStatus({ effectiveRemaining: 1_087, selfCount: 0, echo: null, source: 'shared' }).value)
       .toBe('1,087 left');
+  });
+});
+
+describe('countJobs', () => {
+  it('sums the jobs in the given statuses and keeps the oldest of them', () => {
+    const stats = [stat('queued', 3, 2), stat('running', 1, 9), stat('dead_lettered', 2, 30), stat('succeeded', 40, 50)];
+    expect(countJobs(stats, ['queued', 'running'])).toEqual({ count: 4, oldest: hoursAgo(9) });
+    expect(countJobs(stats, ['failed_retryable'])).toEqual({ count: 0, oldest: null });
+    expect(countJobs([], ['queued'])).toEqual({ count: 0, oldest: null });
   });
 });
 

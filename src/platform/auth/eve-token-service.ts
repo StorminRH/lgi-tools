@@ -1,17 +1,16 @@
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import { db } from '@/db';
-import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { bestEffort } from '@/lib/best-effort';
-import { requireEnv } from '@/lib/env';
 import {
-  EVE_PROVIDER_ID,
   refreshEveToken,
   revokeEveRefreshToken,
   type RefreshFailureClass,
 } from './eve-sso';
 import { account } from '@/db/auth-schema';
+import { accountMatch } from './eve-account-shared';
 import { authorizationRetryAt, successfulAuthorization } from './authorization-policy';
 import { decryptToken, encryptToken } from './token-crypto';
 
@@ -33,11 +32,11 @@ export type FreshTokenResult =
   | { kind: 'upstream_error' };
 
 function logTokenRefreshFailure(characterId: number, failureClass: RefreshFailureClass): void {
-  void logUsageEvent({
+  emitUsageEvent('eve-token', {
     action: TOKEN_REFRESH_FAILURE_ACTIONS[failureClass],
     characterId,
     metadata: { failureClass },
-  }).catch((err) => console.error('[eve-token] telemetry write failed', err));
+  });
 }
 
 function loadAccountRow(characterId: number) {
@@ -54,9 +53,7 @@ function loadAccountRow(characterId: number) {
       refreshTokenInvalidGrantFirstAt: account.refreshTokenInvalidGrantFirstAt,
     })
     .from(account)
-    .where(
-      and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))),
-    )
+    .where(accountMatch(characterId))
     .limit(1)
     .then((rows) => rows[0]);
 }
@@ -92,15 +89,7 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
   if (!row) return { kind: 'not_found' };
   if (row.refreshToken === null) return { kind: 'reauth_required' };
   if (row.refreshTokenInvalidGrantCount === 1) return { kind: 'upstream_error' };
-  if (!row.accessToken || !row.accessTokenExpiresAt) {
-    return { kind: 'reauth_required' };
-  }
-  const access = decryptToken(row.accessToken);
-  if (access === null) return { kind: 'reauth_required' };
-  if (row.accessTokenExpiresAt.getTime() - Date.now() <= ACCESS_TOKEN_REFRESH_SKEW_MS) {
-    return { kind: 'reauth_required' };
-  }
-  return { kind: 'ok', accessToken: access, expiresAt: row.accessTokenExpiresAt.getTime() };
+  return readCachedToken(row) ?? { kind: 'reauth_required' };
 }
 
 async function recordInvalidGrant(
@@ -151,11 +140,11 @@ async function recordInvalidGrant(
     });
     return confirming ? { kind: 'reauth_required' } : { kind: 'upstream_error' };
   }
-  void logUsageEvent({
+  emitUsageEvent('eve-token', {
     action: 'eve_token_refresh_race',
     characterId,
     metadata: { signal: 'concurrent_invalid_grant' },
-  }).catch((err) => console.error('[eve-token] telemetry write failed', err));
+  });
   return reflectStoredToken(characterId);
 }
 
@@ -194,11 +183,7 @@ export async function revokeStoredCharacterToken(ciphertext: string | null): Pro
   await bestEffort('eve-token', 'revoke', null, async () => {
     const refreshToken = ciphertext ? decryptToken(ciphertext) : null;
     if (refreshToken === null) return;
-    await revokeEveRefreshToken({
-      refreshToken,
-      clientId: requireEnv('EVE_CLIENT_ID'),
-      clientSecret: requireEnv('EVE_CLIENT_SECRET'),
-    });
+    await revokeEveRefreshToken({ refreshToken });
   });
 }
 
@@ -224,11 +209,7 @@ export async function getFreshAccessTokenForCharacter(
   const cached = readCachedToken(row);
   if (!options.forceRefresh && cached !== null) return cached;
 
-  const result = await refreshEveToken({
-    refreshToken,
-    clientId: requireEnv('EVE_CLIENT_ID'),
-    clientSecret: requireEnv('EVE_CLIENT_SECRET'),
-  });
+  const result = await refreshEveToken({ refreshToken });
 
   if (result.kind !== 'ok') logTokenRefreshFailure(characterId, result.failureClass);
 

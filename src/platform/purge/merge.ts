@@ -19,12 +19,16 @@ export class MergeIncompleteError extends Error {
   }
 }
 
-function requireUserKey(table: PgTable): SQLWrapper {
+export function requireUserKeyColumn(table: PgTable): PgColumn {
   const column = userKeyColumn(table);
   if (column === null) {
     throw new Error(`${getTableConfig(table).name} has no ${USER_KEY_COLUMN} column`);
   }
-  return sql.identifier(column.name);
+  return column;
+}
+
+function requireUserKey(table: PgTable): SQLWrapper {
+  return sql.identifier(requireUserKeyColumn(table).name);
 }
 
 async function rekey(tx: MergeTx, table: PgTable, subject: MergeSubject): Promise<void> {

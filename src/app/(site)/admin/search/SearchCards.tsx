@@ -1,12 +1,12 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
-import type { RangeKey } from '@/composition/admin-period';
 import { getTopGscPages, getTopQueries } from '@/data/gsc/queries';
 import type { GscSitemapStatus } from '@/data/gsc/types';
 import type { DateRange } from '@/data/telemetry/types';
 import { formatQuantity } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
+import type { RangeKey } from '../period';
 import { AdminCard } from '../AdminSection';
 import { AdminTrendChart } from '../charts';
 import { DeltaBadge } from '../DeltaBadge';

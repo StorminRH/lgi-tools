@@ -8,6 +8,11 @@ import {
 } from '@/transport/endpoint';
 
 const userIdField = z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/);
+const characterIdField = z.coerce.number().int().positive();
+
+/** Why a page guard sent the visitor home: each `?auth_error=` code the home page explains. */
+export const AUTH_ERROR_CODES = ['login_required', 'admin_required'] as const;
+export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
 
 export const eveTokenRequestSchema = z.object({
   userId: userIdField,
@@ -35,12 +40,18 @@ export const eveTokenEndpoint = defineEndpoint({
   },
 });
 
-export const switchCharacterFormSchema = z.object({
-  characterId: z.coerce.number().int().positive(),
-});
+/** The `?error=` codes the unlink and switch-character form routes redirect back with. */
+export type CharacterLinkNotice = 'not_linked' | 'last_character' | 'unlink_failed';
 
-export const unlinkCharacterFormSchema = z.object({
-  characterId: z.coerce.number().int().positive(),
+/** The `?error=` codes Better Auth writes to the link page's errorCallbackURL that have their own copy. */
+export type BetterAuthLinkError = 'account_already_linked_to_different_user' | "email_doesn't_match";
+
+/** The `?error=` codes Better Auth writes to the sign-in errorCallbackURL (the home page) that have their own copy. */
+export type BetterAuthSignInError = 'account_not_linked';
+
+/** The switch-character and unlink forms: one posted character id. */
+export const characterIdFormSchema = z.object({
+  characterId: characterIdField,
 });
 
 export const ADMIN_ACCESS_QUERY_MAX_LENGTH = 200;
@@ -60,11 +71,11 @@ export const adminRoleFormSchema = z.object({
 
 export const adminUnlinkFormSchema = z.object({
   userId: userIdField,
-  characterId: z.coerce.number().int().positive(),
+  characterId: characterIdField,
 });
 
 export const adminReassignFormSchema = z.object({
-  characterId: z.coerce.number().int().positive(),
+  characterId: characterIdField,
   fromUserId: userIdField,
 });
 

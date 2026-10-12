@@ -14,8 +14,7 @@ import {
   sum,
   type SQL,
 } from 'drizzle-orm';
-import { EVE_SSO_HOST } from '@/lib/eve-provider';
-import { daysBefore } from '@/lib/iso-date';
+import { EVE_PROVIDER_ID, EVE_SSO_HOST } from '@/lib/eve-provider';
 import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
 import { CRON_ACTIONS, splitCronOutcomes, type CronOutcomes, type PriceRefreshDay } from './cron-stats';
@@ -50,7 +49,6 @@ import type {
 export {
   claimPublicEsiBudgetAlert,
   completePublicEsiBudgetAlertClaim,
-  logUsageEvent,
   pruneUsageLogs,
 } from './log';
 
@@ -291,7 +289,7 @@ export async function getLastCronRuns(): Promise<CronLastRun[]> {
 
 // Resolve recorded characters to their current human account, once per EVE account.
 const activityAccount = and(
-  eq(account.providerId, 'eve'),
+  eq(account.providerId, EVE_PROVIDER_ID),
   eq(account.accountId, sql<string>`${usageLogs.characterId}::text`),
 );
 const audienceActions = ['page_view', 'auth_login'] as const;
@@ -330,7 +328,7 @@ export async function getReturningVsNew(
       previousReturning: users(sql`${active.inPrevious}`, lt(user.createdAt, previousFrom)),
     })
     .from(active)
-    .innerJoin(account, and(eq(account.providerId, 'eve'), eq(account.accountId, sql<string>`${active.characterId}::text`)))
+    .innerJoin(account, and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, sql<string>`${active.characterId}::text`)))
     .innerJoin(user, eq(user.id, account.userId));
   return splitAudience(row, previous !== null);
 }
@@ -341,10 +339,6 @@ export async function getLoginCountsPerUser(range: DateRange): Promise<number[]>
     .where(and(inRange(range), eq(usageLogs.action, 'auth_login')))
     .groupBy(account.userId);
   return rows.map((r) => Number(r.c));
-}
-
-export function lastNDaysRange(days: number, now: Date = new Date()): DateRange {
-  return { from: daysBefore(now, days), to: now };
 }
 
 export interface PriceSourceSplit {

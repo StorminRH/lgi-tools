@@ -21,6 +21,9 @@ export function mapCreationFailureMessage(
   outcome: Awaited<ReturnType<typeof createMapWithMinimumInterstitial>>,
 ): string {
   if (outcome.ok) return '';
+  if (outcome.kind === 'api' && outcome.status === 400 && outcome.error.code === 'not_linked') {
+    return 'Choose one of your own linked characters.';
+  }
   if (outcome.kind === 'api' && outcome.status === 429) {
     return 'Map creation is moving too quickly. Try again in a minute.';
   }

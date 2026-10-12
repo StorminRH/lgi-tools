@@ -62,7 +62,7 @@ export const createMapEndpoint = defineEndpoint({
   request: createMapRequestSchema,
   responses: {
     201: jsonBody(createMapResponseSchema),
-    400: problem('invalid_json', 'invalid_body'),
+    400: problem('invalid_json', 'invalid_body', 'not_linked'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
     429: problem('rate_limited'),
@@ -227,7 +227,6 @@ export type CronPurgeMapsResponse =
       readonly selected: number;
       readonly tombstoned: number;
       readonly deletedDocuments: number;
-      readonly projectionPending: number;
     };
 
 export const deleteMapEndpoint = defineEndpoint({

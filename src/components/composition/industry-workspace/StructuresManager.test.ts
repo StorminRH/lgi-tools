@@ -23,9 +23,11 @@ const live = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: live.refresh }) }));
 vi.mock('@/lib/use-client-committed', () => ({ useClientCommitted: () => live.committed }));
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => ({ loading: false }) }));
-vi.mock('@/platform/auth/read-identity', () => ({
+// Currency follows the hoisted identity; sameReadIdentity is pure, so the test keeps the real one.
+vi.mock('@/platform/auth/read-identity', async (importOriginal) => ({
   useReadIdentity: () => live.identity,
-  currentReadIdentity: () => live.identity,
+  isCurrentReadIdentity: (identity: ReadIdentity | null) => identity !== null && identity === live.identity,
+  sameReadIdentity: (await importOriginal<typeof import('@/platform/auth/read-identity')>()).sameReadIdentity,
 }));
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react')>()),

@@ -8,34 +8,19 @@ import {
   enqueuePendingMapAccessSelection,
   type PendingMapAccessChange,
 } from './authorization-sql';
-import {
-  affectedMapIdsSelection,
-  characterGrantCondition,
-  getOwnedMapIds,
-} from './queries';
+import { affectedMapIdsSelection, characterGrantCondition } from './queries';
 import { mapAccess, mapBlockAccounts, mapBlocks, maps } from './schema';
 
 export interface MapAccessProjectionPurgeHooks {
   readonly deliverCaptured: (
     changes: PendingMapAccessChange[],
   ) => Promise<unknown>;
-  readonly purgeMapChain: (mapId: string) => Promise<unknown>;
+  readonly purgeOwnedMapChains: (userId: string) => Promise<unknown>;
   readonly purgeUserClaims: (userId: string) => Promise<unknown>;
 }
 
 async function deleteOwnedMaps(userId: string): Promise<void> {
   await db.delete(maps).where(eq(maps.userId, userId));
-}
-
-async function purgeOwnedMapChainsThenDeleteMaps(
-  userId: string,
-  purgeMapChain: MapAccessProjectionPurgeHooks['purgeMapChain'],
-): Promise<void> {
-  const ownedMapIds = await getOwnedMapIds(userId);
-  for (const mapId of ownedMapIds) {
-    await purgeMapChain(mapId);
-  }
-  await deleteOwnedMaps(userId);
 }
 
 /**
@@ -121,7 +106,8 @@ export function createMapsPurgeContributor(
       // Convex is unconfigured: an owned map's chain lives in Convex, so its
       // purge throws and the deletion stays requested for the daily retry
       // rather than dropping the map row over an unpurged chain.
-      await purgeOwnedMapChainsThenDeleteMaps(userId, hooks.purgeMapChain);
+      await hooks.purgeOwnedMapChains(userId);
+      await deleteOwnedMaps(userId);
       await forgetMapBlockAccounts(userId);
       await bestEffort('maps/purge', 'user claim purge', userId, () =>
         hooks.purgeUserClaims(userId),

@@ -23,27 +23,45 @@ vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => {
 const revokeMock = vi.hoisted(() => vi.fn());
 const mapPurge = vi.hoisted(() => ({
   purgeMapChain: vi.fn().mockResolvedValue({ deleted: 0, remaining: false }),
+  fenceMapAccess: vi.fn(),
 }));
 vi.mock('@/platform/auth/eve-token-service', () => ({
   revokeStoredCharacterToken: (ciphertext: string | null) => revokeMock(ciphertext),
 }));
-vi.mock('@/composition/map-purge', () => ({
-  purgeMapChain: mapPurge.purgeMapChain,
-}));
+// Stands in for the Convex /purge-map-chain door and for the empty-claim /project-map-access
+// fence, so the real owned-map purge and its fence run. Other projections still reach the
+// unconfigured door and fail as before.
+vi.mock('@/lib/convex-http-door', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
+  return {
+    ...actual,
+    postConvexHttpDoor: async (options: Parameters<typeof actual.postConvexHttpDoor>[0]) => {
+      if (options.path === '/purge-map-chain') {
+        return options.schema.parse(await mapPurge.purgeMapChain((options.body as { mapId: string }).mapId));
+      }
+      if (options.path === '/project-map-access' && (options.body as { claims: unknown[] }).claims.length === 0) {
+        mapPurge.fenceMapAccess(options.body);
+        return options.schema.parse({ outcome: 'applied', inserted: 0, updated: 0, deleted: 0, unchanged: 0 });
+      }
+      return actual.postConvexHttpDoor(options);
+    },
+  };
+});
 
 import { finishPendingDeletion, nukeAccount, purgeOwnCharacter, retryRequestedDeletions } from './account-purge';
 import { enqueueDeletion, requestDeletion, readDeletionJobs, type DeletionJob } from '@/platform/auth/deletion-jobs';
 import { pendingDeletions } from '@/platform/auth/deletion-schema';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { account, characters, corpAccessAudit, session, user } from '@/db/auth-schema';
-import { syntheticEmail } from '@/platform/auth/synthetic-email';
-import { deleteUserIfUnlinked, reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
+import { syntheticEmail, unlinkedEmail } from '@/platform/auth/synthetic-email';
+import { deleteUserIfUnlinked, reconcileAfterCharacterRemoval, releaseSyntheticEmail } from '@/platform/auth/account-purge';
 import { reassignCharacter } from '@/platform/auth/admin-users';
 
 const SCHEMA = 'test_auth_account_purge';
 const USER_ID = 'purge-user';
 const FIRST_CHAR = 90000041;
 const SECOND_CHAR = 90000042;
+const THIRD_CHAR = 90000043;
 
 const TABLE_NAMES = [
   'user',
@@ -166,6 +184,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
       deleted: 0,
       remaining: false,
     });
+    mapPurge.fenceMapAccess.mockReset();
     await seedUser(harness.db, USER_ID, {
       name: 'Purge Pilot',
       email: syntheticEmail(FIRST_CHAR),
@@ -395,6 +414,13 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(mapPurge.purgeMapChain).toHaveBeenCalledWith(
       '11111111-1111-4111-8111-111111111111',
     );
+    // The map is fenced with an empty projection before its chain is purged, so a late delivery cannot re-grant it.
+    expect(mapPurge.fenceMapAccess).toHaveBeenCalledWith({
+      mapId: '11111111-1111-4111-8111-111111111111',
+      revision: expect.any(Number),
+      claims: [],
+    });
+    expect(mapPurge.fenceMapAccess).toHaveBeenCalledBefore(mapPurge.purgeMapChain);
     expect(revokeMock.mock.calls).toEqual([[`grant-${FIRST_CHAR}`], [`grant-${SECOND_CHAR}`]]);
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);
@@ -501,7 +527,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     });
     expect(afterLink).toHaveBeenCalledExactlyOnceWith({ userId: USER_ID, characterId: SECOND_CHAR });
     expect(revokeMock).not.toHaveBeenCalled();
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: requested ? 1 : 0, failed: 0 });
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: requested ? 1 : 0, failed: 0, deferred: 0 });
     expect(await harness.db.select().from(user)).toHaveLength(requested ? 0 : 1);
     if (requested) expect(revokeMock).toHaveBeenCalledWith(freshGrant);
     else expect(revokeMock).not.toHaveBeenCalled();
@@ -536,7 +562,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
       email: syntheticEmail(SECOND_CHAR), activeCharacterId: SECOND_CHAR, deletionRequestedAt: null,
     });
     expect(afterLink).toHaveBeenCalledWith({ userId: USER_ID, characterId: SECOND_CHAR });
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 0 });
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: 0, failed: 0, deferred: 0 });
     expect((await harness.db.select().from(account).where(eq(account.userId, USER_ID)))[0]?.refreshToken).toBe(freshGrant);
     expect(revokeMock).not.toHaveBeenCalled();
   });
@@ -578,6 +604,91 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(revokeMock).not.toHaveBeenCalled();
   });
 
+  function identityRunners() {
+    return {
+      runBeforeUserDelete: vi.fn(),
+      runBeforeCharacterUnlink: async () => [],
+      runAfterFailedCharacterUnlink: async () => {},
+      runAfterCharacterUnlink: async () => {},
+      runAfterCharacterLinkChanged: vi.fn(),
+    };
+  }
+
+  async function emailOf(userId: string) {
+    return (await harness.db.select({ email: user.email }).from(user).where(eq(user.id, userId)))[0]?.email;
+  }
+
+  it('repairs the identity from the oldest parseable link, skipping a malformed older one', async () => {
+    const runners = identityRunners();
+    await seedEveAccount('malformed', FIRST_CHAR, new Date('2026-01-01T00:00:00Z'));
+    await harness.db.update(account).set({ accountId: 'not-a-character' }).where(eq(account.id, 'malformed'));
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+    await seedEveAccount('third', THIRD_CHAR, new Date('2026-03-01T00:00:00Z'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, runners)).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(SECOND_CHAR));
+    expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
+    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+  });
+
+  it('leaves an email that names a character still on the account', async () => {
+    await harness.db.update(user).set({ email: syntheticEmail(THIRD_CHAR) }).where(eq(user.id, USER_ID));
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+    await seedEveAccount('third', THIRD_CHAR, new Date('2026-03-01T00:00:00Z'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, identityRunners())).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(THIRD_CHAR));
+  });
+
+  it('parks the email on the user placeholder when only a malformed link is left, never minting NaN@eve.invalid', async () => {
+    const runners = identityRunners();
+    await seedEveAccount('malformed', FIRST_CHAR, new Date('2026-01-01T00:00:00Z'));
+    await harness.db.update(account).set({ accountId: 'not-a-character' }).where(eq(account.id, 'malformed'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, runners)).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(unlinkedEmail(USER_ID));
+    expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
+  });
+
+  it('parks the email on the user placeholder when another user holds the replacement address, until a sign-in frees it', async () => {
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+    await seedUser(harness.db, 'stale-holder', { email: syntheticEmail(SECOND_CHAR) });
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, identityRunners())).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(unlinkedEmail(USER_ID));
+    expect(await emailOf('stale-holder')).toBe(syntheticEmail(SECOND_CHAR));
+    expect((await harness.db.select().from(user).where(eq(user.id, USER_ID)))[0]?.activeCharacterId).toBe(SECOND_CHAR);
+
+    // An EVE sign-in as SECOND_CHAR runs this first; overrideUserInfo then gives its owner the address.
+    await releaseSyntheticEmail(SECOND_CHAR);
+    expect(await emailOf('stale-holder')).toBe(unlinkedEmail('stale-holder'));
+    expect(await emailOf(USER_ID)).toBe(unlinkedEmail(USER_ID));
+  });
+
+  it('rewrites an email naming any character the account no longer has, not only the one just removed', async () => {
+    await harness.db.update(user).set({ email: syntheticEmail(THIRD_CHAR) }).where(eq(user.id, USER_ID));
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-02-01T00:00:00Z'));
+
+    expect(await reconcileAfterCharacterRemoval(USER_ID, FIRST_CHAR, identityRunners())).toEqual({ accountEmptied: false });
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(SECOND_CHAR));
+  });
+
+  it('releases a synthetic email only from a user that does not own its character', async () => {
+    const OLD_OWNER_CHAR = 90000044;
+    await seedEveAccount('first', FIRST_CHAR, new Date('2026-01-01T00:00:00Z'));
+    await seedUser(harness.db, 'old-owner', { email: syntheticEmail(SECOND_CHAR) });
+    await insertEveAccount(harness.db, { id: 'old-owner-link', characterId: OLD_OWNER_CHAR, userId: 'old-owner' });
+
+    await releaseSyntheticEmail(FIRST_CHAR);
+    await releaseSyntheticEmail(THIRD_CHAR);
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(FIRST_CHAR));
+    expect(await emailOf('old-owner')).toBe(syntheticEmail(SECOND_CHAR));
+
+    await releaseSyntheticEmail(SECOND_CHAR);
+    expect(await emailOf('old-owner')).toBe(syntheticEmail(OLD_OWNER_CHAR));
+    expect(await emailOf(USER_ID)).toBe(syntheticEmail(FIRST_CHAR));
+  });
+
   async function queueCharacter(characterId: number, userId = USER_ID) {
     const request = await requestDeletion(userId, characterId);
     expect(request).not.toBeNull();
@@ -603,7 +714,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await insertEveAccount(harness.db, { id: 'fresh', characterId: FIRST_CHAR, userId: USER_ID }, { refreshToken: 'fresh-grant' });
     await seedCharacterCache(FIRST_CHAR);
     resume.release();
-    expect(await cron).toEqual({ retried: 0, failed: 0 });
+    expect(await cron).toEqual({ succeeded: 0, failed: 0, deferred: 0 });
     expect(await harness.db.select().from(account).where(eq(account.id, 'fresh'))).toMatchObject([{ refreshToken: 'fresh-grant', deletionRequestedAt: null }]);
     expect(await countClonedRows('character_skills', `character_id = ${FIRST_CHAR}`)).toBe(1);
     expect(revokeMock).not.toHaveBeenCalledWith('fresh-grant');
@@ -637,6 +748,9 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await seedUserData();
     mapPurge.purgeMapChain.mockRejectedValueOnce(new Error('Convex unavailable'));
     await expect(purgeOwnCharacter(USER_ID, FIRST_CHAR)).rejects.toThrow('Convex unavailable');
+    // The failed attempt already closed and fenced the map; its row stays listed for the retry.
+    expect((await harness.db.select().from(maps))[0]?.tombstonedAt).not.toBeNull();
+    expect(mapPurge.fenceMapAccess).toHaveBeenCalledOnce();
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await harness.db.select().from(pendingDeletions)).toHaveLength(1);
     expect((await harness.db.select().from(user))[0]?.deletionRequestedAt).toBeNull();
@@ -667,12 +781,21 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await harness.db.update(pendingDeletions).set({ queuedAt: old }).where(eq(pendingDeletions.id, first!.id));
     revokeMock.mockRejectedValueOnce(new Error('fixture failure'));
     const error = silenceConsolePrefixes('error', ['[account-purge] requested deletion retry failed']);
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 1 });
+    const [clock] = await harness.sql`select floor(extract(epoch from clock_timestamp()) * 1000) as ms`;
+    const databaseNow = Number(clock!.ms);
+    // With the JS clock held at `old`, only the database clock can move the job behind newer work.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(old);
+    try {
+      expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
     error.mockRestore();
     const [retained] = await harness.db.select().from(pendingDeletions);
     expect(retained!.id).toBe(first!.id);
     expect(retained!.requestedAt).toEqual(first!.requestedAt);
-    expect(retained!.queuedAt.getTime()).toBeGreaterThan(old.getTime());
+    expect(retained!.queuedAt.getTime()).toBeGreaterThanOrEqual(databaseNow);
     await seedUser(harness.db, 'new-owner');
     await insertEveAccount(harness.db, { id: 'new-link', characterId: 90000099, userId: 'new-owner' });
     const newer = await queueCharacter(90000099, 'new-owner');

@@ -10,7 +10,7 @@ const ADMIN = adminSessionFixture({ user: { id: 'user-admin' }, characterId: 90_
 
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const requeueMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 const sameOriginMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
@@ -21,15 +21,22 @@ vi.mock('@/data/esi-refresh-jobs/queries', () => ({
   requeueDeadLetteredJob: (id: number) => requeueMock(id),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
+// Capability outcomes also reach emitUsageEvent, through cost-metrics; keep them out of the events under test.
+vi.mock('@/data/telemetry/cost-metrics', () => ({ emitCostMetric: vi.fn() }));
 
 vi.mock('@/platform/auth/same-origin', () => ({
   requireSameOrigin: (request: NextRequest) => sameOriginMock(request),
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 const ROUTE = '/api/admin/esi-jobs/retry';
 
@@ -38,8 +45,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     vi.resetModules();
     getSessionMock.mockReset();
     requeueMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
+    emitUsageEventMock.mockReset();
     sameOriginMock.mockReset().mockReturnValue({ ok: true });
   });
 
@@ -99,7 +105,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     const { POST } = await import('./route');
     const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(404);
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(emitUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('requeues, records one admin audit event, and redirects to the queue', async () => {
@@ -110,7 +116,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
     expect(requeueMock).toHaveBeenCalledWith(7);
-    expect(logUsageEventMock).toHaveBeenCalledWith({
+    expect(emitUsageEventMock).toHaveBeenCalledWith('admin/esi-jobs/retry', {
       action: 'admin_esi_job_requeued',
       characterId: ADMIN.characterId,
       metadata: { jobId: 7, outcome: 'requeued' },
@@ -124,6 +130,6 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     const response = await POST(postForm(ROUTE, { jobId: '7' }));
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
-    expect(logUsageEventMock).toHaveBeenCalledOnce();
+    expect(emitUsageEventMock).toHaveBeenCalledOnce();
   });
 });

@@ -1,13 +1,8 @@
+import './load-env';
 import { deepStrictEqual, strictEqual } from 'node:assert';
 import { gzipSync } from 'node:zlib';
-import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import {
-  PG_CONNECT_TIMEOUT_SECONDS,
-  resolveLockConnectionUrl,
-} from '@/db';
-import { readEnv } from '@/lib/env';
+import { resolveLockConnectionUrl } from '@/db';
 import {
   composeUniverseAssetVersion,
   readAdjacencyGraph,
@@ -20,9 +15,7 @@ import {
   type WormholeCodexAsset,
 } from '@/data/eve-data/universe-assets';
 import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
-import { runScript } from './script-runtime';
-
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
+import { createScriptClient, runScript } from './script-runtime';
 
 const JITA_ID = 30_000_142;
 const PERIMETER_ID = 30_000_144;
@@ -39,10 +32,7 @@ const CLASS_LABELS = [
   ['Thera', 12],
 ] as const;
 
-const client = postgres(resolveLockConnectionUrl(), {
-  max: 1,
-  connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,
-});
+const client = createScriptClient(resolveLockConnectionUrl(), { max: 1 });
 
 function sizeOf(value: unknown): { rawBytes: number; gzipBytes: number } {
   const raw = Buffer.from(JSON.stringify(value));

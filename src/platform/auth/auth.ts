@@ -4,13 +4,13 @@ import { after } from 'next/server';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { db } from '@/db';
 import { EVE_SCOPES } from '@/config/eve-scopes';
-import { readAuthSecret, readEnv, requireEnv } from '@/lib/env';
+import { readAuthSecret, readEnv } from '@/lib/env';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import {
   EVE_AUTHORIZE_URL,
-  EVE_PROVIDER_ID,
   EVE_TOKEN_URL,
   claimsToCharacter,
   exchangeCodeForToken,
@@ -24,16 +24,12 @@ import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
+import { releaseSyntheticEmail } from './account-purge';
 import { encryptToken } from './token-crypto';
 import { encryptAccountTokens } from './account-token-encryption';
+import { parseLinkedAccountId } from './eve-account-shared';
 import { deriveSessionIdentity } from './session-identity';
-import type { CharacterRole } from './types';
-
-function computeIsAdmin(characterId: number | null, role: CharacterRole): boolean {
-  if (role === 'ADMIN') return true;
-  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  return characterId !== null && characterId === superId;
-}
+import { isAdminIdentity, normalizeCharacterRole } from './admin-policy';
 
 export interface CharacterProof {
   readonly characterId: number;
@@ -59,6 +55,9 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
     }),
     secret: readAuthSecret(),
     baseURL: readEnv('BETTER_AUTH_URL'),
+    // Unlinks go through unlinkCharacter; the raw endpoint would skip its runners and email
+    // repair. Only HTTP requests are refused, so the server-side auth.api.unlinkAccount still works.
+    disabledPaths: ['/unlink-account'],
     databaseHooks: {
       account: {
         create: {
@@ -67,8 +66,8 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
           }),
           after: async (acct) => {
             if (acct.providerId !== EVE_PROVIDER_ID) return;
-            const characterId = Number(acct.accountId);
-            if (!Number.isFinite(characterId)) return;
+            const characterId = parseLinkedAccountId(acct.accountId);
+            if (characterId === null) return;
             await runners.runAfterCharacterLinkChanged({ userId: acct.userId, characterId });
           },
         },
@@ -99,7 +98,8 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
         ownerHash: { type: 'string', required: false, input: false, returned: false },
         deletionRequestedAt: { type: 'date', required: false, input: false, returned: false },
       },
-      accountLinking: { allowDifferentEmails: true },
+      // Implicit linking would match a signing-in character to whichever user's email still names it.
+      accountLinking: { allowDifferentEmails: true, disableImplicitLinking: true },
     },
     user: {
       additionalFields: {
@@ -134,8 +134,6 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
               const token = await exchangeCodeForToken({
                 code,
                 codeVerifier: codeVerifier ?? '',
-                clientId: requireEnv('EVE_CLIENT_ID'),
-                clientSecret: requireEnv('EVE_CLIENT_SECRET'),
               });
               return {
                 accessToken: token.access_token,
@@ -160,13 +158,18 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
                 await rebindLinkTarget(outcome.survivorUserId);
                 recordMerge();
               }
+              // A user whose stale email names this character would refuse the sign-in, or make
+              // overrideUserInfo collide. If this repair fails, Better Auth still refuses: never a takeover.
+              await releaseSyntheticEmail(character.characterId).catch((error: unknown) => {
+                console.error('[auth] stale synthetic email repair failed', error);
+              });
               await upsertCharacterLoginIdentity(character);
               after(() => refreshCharacterAffiliations([character.characterId]));
-              void logUsageEvent({
+              emitUsageEvent('auth', {
                 action: 'auth_login',
                 characterId: character.characterId,
                 metadata: {},
-              }).catch((err) => console.error('[auth] login telemetry write failed', err));
+              });
               return {
                 id: String(character.characterId),
                 name: character.name,
@@ -185,7 +188,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
           audience: 'convex',
           expirationTime: '7d',
           definePayload: ({ user: u }) => ({
-            role: (u.role as CharacterRole | undefined) ?? 'USER',
+            role: normalizeCharacterRole(u.role),
             name: u.name,
           }),
         },
@@ -201,7 +204,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
       ...options.plugins,
       customSession(async ({ user: u, session: s }) => {
         const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
-        return deriveSessionIdentity({ user: u, session: s, active, isAdmin: computeIsAdmin });
+        return deriveSessionIdentity({ user: u, session: s, active, isAdmin: isAdminIdentity });
       }, options),
     ],
   });

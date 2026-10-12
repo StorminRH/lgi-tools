@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import { accountBelongsToUser, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import {
   getCharacterSkillLevels,
   getSkillLevelsForCharacters,
@@ -60,8 +60,7 @@ export async function getSkillLevelsForCharacterOnView(
   userId: string,
   characterId: number,
 ): Promise<Record<string, number> | null> {
-  const linked = await listLinkedCharacters(userId);
-  if (!linked.some((character) => character.characterId === characterId)) return null;
+  if (!(await accountBelongsToUser(userId, characterId))) return null;
   const levels = await getCharacterSkillLevels(characterId);
   after(() => refreshSkillsOnView(userId));
   return levels;

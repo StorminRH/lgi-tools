@@ -13,10 +13,10 @@ import { reconcileTrackingMerges } from './tracking-merge-retry';
 
 vi.mock('@/data/location-tracking/merge', () => ({ restoreMergeTracking: vi.fn() }));
 vi.mock('@/data/location-tracking/purge', () => ({ purgeLocationTracking: vi.fn() }));
-vi.mock('@/composition/map-access-projection', () => ({
+vi.mock('@/composition/map-access-projection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/composition/map-access-projection')>(),
   projectMapAccess: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
-  requireCurrentProjection: vi.fn(),
 }));
 
 const harness = await createDbTestHarness({
@@ -49,23 +49,36 @@ async function seedOwner() {
 }
 
 const queued = () => harness.db.select().from(pendingTrackingMerges);
-const reconcile = () => reconcileTrackingMerges(SURVIVOR, harness.db);
+const reconcile = () => reconcileTrackingMerges({ userId: SURVIVOR, database: harness.db });
 
 describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', () => {
-  it('retains a failed delivery durably, then restores it using the same operation id and removes the job', async () => {
+  it('retains a failed delivery durably behind newer work, then restores it using the same operation id and removes the job', async () => {
     await seedOwner();
     await enqueueTrackingMerge(harness.db, SOURCE, SURVIVOR, [selection]);
     const [job] = await queued();
+    const old = new Date('2026-01-01T00:00:00Z');
+    await harness.db.update(pendingTrackingMerges).set({ queuedAt: old }).where(eq(pendingTrackingMerges.id, job!.id));
     vi.mocked(restoreMergeTracking).mockRejectedValueOnce(new Error('response lost'));
     const error = silenceConsolePrefixes('error', ['[account-merge] tracking transfer retained for retry']);
     try {
-      expect(await reconcile()).toEqual({ processed: 0, failed: 1 });
-      expect(await queued()).toEqual([expect.objectContaining({ id: job!.id, selections: [selection] })]);
-      expect(await reconcile()).toEqual({ processed: 1, failed: 0 });
+      const [clock] = await harness.sql`select floor(extract(epoch from clock_timestamp()) * 1000) as ms`;
+      const databaseNow = Number(clock!.ms);
+      // With the JS clock held at `old`, only the database clock can move the job behind newer work.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(old);
+      try {
+        expect(await reconcile()).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
+      } finally {
+        vi.useRealTimers();
+      }
+      const retained = await queued();
+      expect(retained).toEqual([expect.objectContaining({ id: job!.id, selections: [selection] })]);
+      expect(retained[0]!.queuedAt.getTime()).toBeGreaterThanOrEqual(databaseNow);
+      expect(await reconcile()).toEqual({ succeeded: 1, failed: 0, deferred: 0 });
       expect(restoreMergeTracking).toHaveBeenNthCalledWith(1, job!.id, SURVIVOR, [selection]);
       expect(restoreMergeTracking).toHaveBeenNthCalledWith(2, job!.id, SURVIVOR, [selection]);
       expect(await queued()).toEqual([]);
-      expect(await reconcile()).toEqual({ processed: 0, failed: 0 });
+      expect(await reconcile()).toEqual({ succeeded: 0, failed: 0, deferred: 0 });
       expect(restoreMergeTracking).toHaveBeenCalledTimes(2);
     } finally {
       error.mockRestore();
@@ -97,7 +110,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
     vi.mocked(purgeLocationTracking).mockRejectedValueOnce(new Error('purge unavailable'));
     const error = silenceConsolePrefixes('error', ['[account-merge] tracking transfer retained for retry']);
     try {
-      expect(await reconcile()).toEqual({ processed: 0, failed: 1 });
+      expect(await reconcile()).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
       expect(restoreMergeTracking).not.toHaveBeenCalled();
       expect(await queued()).toHaveLength(1);
     } finally {
@@ -165,7 +178,7 @@ describe.skipIf(!harness.reachable)('tracking merge recovery (real Postgres)', (
       await reconcile();
       expect(restoreMergeTracking).not.toHaveBeenCalled();
       expect(await queued()).toEqual([expect.objectContaining({ userId: 'final-survivor' })]);
-      await reconcileTrackingMerges('final-survivor', harness.db);
+      await reconcileTrackingMerges({ userId: 'final-survivor', database: harness.db });
       expect(restoreMergeTracking).toHaveBeenCalledWith(expect.any(String), 'final-survivor', [selection]);
       expect(await queued()).toEqual([]);
     } finally {

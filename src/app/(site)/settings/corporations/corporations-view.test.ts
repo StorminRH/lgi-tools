@@ -66,13 +66,10 @@ test('the corporations section gates on the registry feature control and separat
     { corporationId: 5, corporationName: 'Delta', roleLabel: 'Member', sharingLabel: 'sharing off', structureCount: null },
     { corporationId: 2, corporationName: 'Zeta', roleLabel: 'Member', sharingLabel: 'sharing on', structureCount: 2 },
   ]);
-  expect(view.membershipHint).toBe('5 corporations');
 
   const single = deriveCorporationsView([row({ canManageSharing: false })]);
   expect(single.directorCorps).toEqual([]);
-  expect(single.membershipHint).toBe('1 corporation');
 
   const empty = deriveCorporationsView([]);
   expect(empty.memberships).toEqual([]);
-  expect(empty.membershipHint).toBe('0 corporations');
 });

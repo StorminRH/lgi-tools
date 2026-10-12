@@ -23,6 +23,11 @@ vi.mock('@/lib/rate-limit', () => ({
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 import { POST } from './route';
 

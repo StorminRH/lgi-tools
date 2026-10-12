@@ -4,17 +4,18 @@ import { leaveSyncEndpoint, leaveSyncRequestSchema } from '@/data/convex/api-con
 import { LeaveSyncDoorError, postLeaveSync } from '@/data/convex/leave-door';
 import { dependencyUnavailableFailure } from '@/lib/failure';
 import { checkUserId } from '@/composition/route-guards';
-import { apiResponse, problemResponse } from '@/transport/api-response';
+import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
 // authz: auth
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'sync.leave-location',
+    endpoint: leaveSyncEndpoint,
     preflight: rateLimitPreflight(
       request,
       { name: 'sync-leave', perMinute: 30 },
-      problemResponse,
+      (failure) => apiResponse(leaveSyncEndpoint, 429, failure),
     ),
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, leaveSyncRequestSchema),

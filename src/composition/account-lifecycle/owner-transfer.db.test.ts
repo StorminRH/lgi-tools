@@ -39,7 +39,8 @@ vi.mock('@/lib/convex-http-door', async (importOriginal) => {
 });
 
 import { encryptToken } from '@/platform/auth/token-crypto';
-import { proveCharacter, purgeTransferredCharacter } from './owner-transfer';
+import { transferCharacter } from './account-purge';
+import { proveCharacter } from './owner-transfer';
 import { account, characters, session, user } from '@/db/auth-schema';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
@@ -232,7 +233,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
         pilots: { [SURVIVOR_CHAR]: { netWorth: 200, liquidIsk: 200 } }, recordedAt: new Date() },
     ]);
 
-    await purgeTransferredCharacter(SOURCE_ID, MOVED_CHAR);
+    await transferCharacter(SOURCE_ID, MOVED_CHAR);
 
     expect((await harness.db.select().from(netWorthDays)).map((row) => row.day)).toEqual(['2026-09-27']);
 
@@ -257,17 +258,17 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
 
     expect(await readAccount(MOVED_CHAR)).toEqual({ ownerHash: H1, userId: TARGET_ID });
     expect(await userIds()).toEqual([TARGET_ID]);
-    expect(after).toHaveBeenCalledTimes(1);
-    await vi.waitFor(async () => {
-      const [event] = await harness.db
-        .select()
-        .from(usageLogs)
-        .where(eq(usageLogs.action, 'auth_merge'))
-        .limit(1);
-      expect(event).toMatchObject({
-        characterId: MOVED_CHAR,
-        metadata: { sourceUserId: SOURCE_ID, survivorUserId: TARGET_ID, movedCharacterIds: [MOVED_CHAR] },
-      });
+    // The merge schedules its audit row, then the Convex settle; run only the audit write.
+    expect(after).toHaveBeenCalledTimes(2);
+    await after.mock.calls[0]![0]();
+    const [event] = await harness.db
+      .select()
+      .from(usageLogs)
+      .where(eq(usageLogs.action, 'auth_merge'))
+      .limit(1);
+    expect(event).toMatchObject({
+      characterId: MOVED_CHAR,
+      metadata: { sourceUserId: SOURCE_ID, survivorUserId: TARGET_ID, movedCharacterIds: [MOVED_CHAR] },
     });
   });
 

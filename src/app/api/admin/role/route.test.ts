@@ -22,7 +22,7 @@ const TARGET_USER: AdminUser = {
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const getUserByIdMock = vi.fn();
 const setUserRoleMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -33,11 +33,18 @@ vi.mock('@/platform/auth/admin-users', () => ({
   setUserRole: (id: string, role: string) => setUserRoleMock(id, role),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
+// Capability outcomes also reach emitUsageEvent, through cost-metrics; keep them out of the events under test.
+vi.mock('@/data/telemetry/cost-metrics', () => ({ emitCostMetric: vi.fn() }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 const ROUTE = '/api/admin/role';
 
@@ -47,8 +54,7 @@ describe('POST /api/admin/role', () => {
     getSessionMock.mockReset();
     getUserByIdMock.mockReset();
     setUserRoleMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
+    emitUsageEventMock.mockReset();
   });
 
   afterEach(() => {
@@ -94,7 +100,17 @@ describe('POST /api/admin/role', () => {
     expect(res.status).toBe(303);
     expect(new URL(res.headers.get('location')!).pathname).toBe('/admin/users');
     expect(setUserRoleMock).toHaveBeenCalledWith(TARGET_USER.userId, 'ADMIN');
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('admin/role', {
+      action: 'role_change',
+      characterId: ADMIN_VIEWER.characterId,
+      metadata: {
+        actorUserId: ADMIN_VIEWER.user.id,
+        targetUserId: TARGET_USER.userId,
+        targetCharacterId: TARGET_USER.characterId,
+        from: 'USER',
+        to: 'ADMIN',
+      },
+    });
   });
 
   it('carries the sanitised search back to the users page, and drops a blank one', async () => {

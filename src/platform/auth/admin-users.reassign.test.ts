@@ -59,7 +59,7 @@ it('restores claims when admin unlink delete fails', async () => {
 
 describe('reassignCharacter', () => {
   it('deletes the source user when moving its last character', async () => {
-    state.results = [lockedPair, [{ id: 'moved' }], [], [], lockedSource, [], undefined];
+    state.results = [lockedPair, [{ id: 'moved' }], [], lockedSource, [], undefined];
     const out = await reassignCharacter({
       characterId: 100,
       fromUserId: 'eve-user-2',
@@ -81,10 +81,10 @@ describe('reassignCharacter', () => {
     ]);
   });
 
-  it('keeps the source user when required collaborative purge fails', async () => {
+  it('keeps the source user when required collaborative purge fails, still reprojecting both users', async () => {
     const failure = new Error('map purge unavailable');
     runners.runBeforeUserDelete.mockRejectedValueOnce(failure);
-    state.results = [lockedPair, [{ id: 'moved' }], [], []];
+    state.results = [lockedPair, [{ id: 'moved' }], []];
 
     await expect(
       reassignCharacter({
@@ -95,7 +95,11 @@ describe('reassignCharacter', () => {
       }),
     ).rejects.toBe(failure);
     expect(state.calls.delete).toBe(0);
-    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+    // The move committed, so the failed settle still runs both link-changed projections before it rethrows.
+    expect(runners.runAfterCharacterLinkChanged.mock.calls).toEqual([
+      [{ userId: 'eve-user-2', characterId: 100 }],
+      [{ userId: 'admin-1', characterId: 100 }],
+    ]);
   });
 
   it('does not move a character if its former map claims cannot be revoked', async () => {
@@ -119,7 +123,7 @@ describe('reassignCharacter', () => {
   });
 
   it('restores claims when the compare-and-swap matches no account', async () => {
-    state.results = [lockedPair, [], [], [], lockedSource, [], undefined];
+    state.results = [lockedPair, [], [], lockedSource, [], undefined];
     await expect(reassignCharacter({
       characterId: 100, fromUserId: 'eve-user-2', toUserId: 'admin-1', runners,
     })).resolves.toEqual({ sourceDeleted: true });

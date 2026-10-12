@@ -13,8 +13,8 @@ import { authorizationFailureCutoff } from './authorization-policy';
 import { authorizationFailureCurrent } from './authorization-store';
 import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 import type { AffiliationRow } from './affiliation-source';
-import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
-import { EVE_PROVIDER_ID } from './eve-sso';
+import { characterProfileJoin, linkedCharacterIds, mapLinkedRows } from './eve-account-shared';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 
 export interface CachedAffiliation {
   characterId: number;
@@ -73,10 +73,7 @@ export async function getUsersAffiliations(
     .where(and(inArray(account.userId, [...userIds]), eq(account.providerId, EVE_PROVIDER_ID)))
     .orderBy(asc(account.userId), asc(account.accountId));
 
-  return rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null ? [] : [{ userId: r.userId, ...rowToCachedAffiliation(characterId, r) }];
-  });
+  return mapLinkedRows(rows, (characterId, r) => ({ userId: r.userId, ...rowToCachedAffiliation(characterId, r) }));
 }
 
 export async function listStaleLinkedCharacterIds(): Promise<number[]> {
@@ -94,10 +91,7 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
         ),
       ),
     );
-  return rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null ? [] : [characterId];
-  });
+  return linkedCharacterIds(rows);
 }
 
 export async function listLinkedCharacterIdsInCorporation(corporationId: number): Promise<number[]> {
@@ -106,10 +100,7 @@ export async function listLinkedCharacterIdsInCorporation(corporationId: number)
     .from(account)
     .innerJoin(characters, characterProfileJoin)
     .where(and(eq(account.providerId, EVE_PROVIDER_ID), eq(characters.corporationId, corporationId)));
-  return rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null ? [] : [characterId];
-  });
+  return linkedCharacterIds(rows);
 }
 
 function formatAffiliationObservedAt(observedAt: Date | string): string {

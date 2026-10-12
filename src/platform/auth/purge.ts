@@ -1,13 +1,9 @@
 import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
-import { accountMatch, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
+import { accountMatch, parseLinkedAccountId, userAccountMatch } from './eve-account-shared';
 import { account, characters, corpAccessAudit, session, user } from '@/db/auth-schema';
 import { pendingDeletions } from './deletion-schema';
-
-function characterLink(userId: string, characterId: number) {
-  return and(eveAccountsForUser(userId), eq(account.accountId, String(characterId)));
-}
 
 export const authPurgeContributor: PurgeContributor = {
   name: 'auth',
@@ -53,7 +49,7 @@ export const authPurgeContributor: PurgeContributor = {
         refreshTokenExpiresAt: null,
         updatedAt: new Date(),
       })
-      .where(characterLink(userId, characterId));
+      .where(userAccountMatch(userId, characterId));
   },
 };
 

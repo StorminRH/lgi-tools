@@ -9,8 +9,7 @@ const reads = vi.hoisted(() => ({
   corps: vi.fn(),
 }));
 
-vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
-vi.mock('@/composition/auth', () => ({ auth: { api: { getSession: reads.session } } }));
+vi.mock('@/composition/session', () => ({ getFullSession: reads.session }));
 vi.mock('@/components/composition/industry-workspace/StructuresManager', () => ({ StructuresManager: vi.fn() }));
 vi.mock('@/components/composition/account/LoginButton', () => ({ EveSignInButton: vi.fn() }));
 vi.mock('@/composition/sync/corp-structures-sync', () => ({ getCorpStructuresPageData: reads.corps }));

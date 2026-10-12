@@ -2,14 +2,11 @@ import 'server-only';
 
 import { and, eq, ne } from 'drizzle-orm';
 import { auth } from '@/composition/auth';
-import { purgeMapChain } from '@/composition/map-purge';
-import {
-  purgeUserMapAccessProjection,
-  teardownMapAccessProjection,
-} from '@/composition/map-access-projection';
+import { purgeOwnedMapChains } from '@/composition/map-purge';
+import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { isConvexConfigured, publicConvexUrl } from '@/config/public-env';
 import { purgeLocationTracking } from '@/data/location-tracking/purge';
-import { mapAccess, maps } from '@/data/maps/schema';
+import { mapAccess } from '@/data/maps/schema';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { ownerKeyWhere } from '@/lib/db-columns';
@@ -17,7 +14,9 @@ import { readAuthSecret, readEnv, isHostedVercel } from '@/lib/env';
 import { isLocalUrl } from '@/lib/url-safety';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
+import { superadminCharacterId } from '@/platform/auth/admin-policy';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
+import { accountMatch } from '@/platform/auth/eve-account-shared';
 import { createLocalSession, type LocalSession } from '@/platform/auth/local-session';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { SYNTHETIC_PILOT } from '@/platform/auth/synthetic-pilot';
@@ -52,7 +51,7 @@ function assertLocalSyntheticEnvironment(): string {
       'BETTER_AUTH_SECRET or SESSION_SECRET is required to mint the synthetic pilot session',
     );
   }
-  if (Number(readEnv('SUPERADMIN_CHARACTER_ID')) === SYNTHETIC_PILOT.characterId) {
+  if (superadminCharacterId() === SYNTHETIC_PILOT.characterId) {
     throw new Error('The synthetic pilot cannot be the configured superadmin');
   }
   return secret;
@@ -67,13 +66,7 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
   const [foreignOwner] = await db
     .select({ id: account.id })
     .from(account)
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        eq(account.accountId, String(SYNTHETIC_PILOT.characterId)),
-        ne(account.userId, SYNTHETIC_PILOT.userId),
-      ),
-    );
+    .where(and(accountMatch(SYNTHETIC_PILOT.characterId), ne(account.userId, SYNTHETIC_PILOT.userId)));
   if (foreignOwner) {
     throw new Error('The synthetic character belongs to another user');
   }
@@ -83,14 +76,7 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
   // so it cannot preserve either reset guarantee.
   await revokeUserSessions(SYNTHETIC_PILOT.userId);
   if (isConvexConfigured()) {
-    const ownedMaps = await db
-      .select({ id: maps.id })
-      .from(maps)
-      .where(eq(maps.userId, SYNTHETIC_PILOT.userId));
-    for (const map of ownedMaps) {
-      await purgeMapChain(map.id);
-      await teardownMapAccessProjection(map.id);
-    }
+    await purgeOwnedMapChains(SYNTHETIC_PILOT.userId);
     await purgeUserMapAccessProjection(SYNTHETIC_PILOT.userId);
     await purgeLocationTracking(SYNTHETIC_PILOT.userId, null);
   }

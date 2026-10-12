@@ -1,4 +1,5 @@
-import { expect, test, vi } from 'vitest';
+import { expect, expectTypeOf, test, vi } from 'vitest';
+import { createProjectedMap } from './map-creation';
 import { deleteMapForUser, restoreMapForUser } from './map-lifecycle';
 
 const mocks = vi.hoisted(() => ({
@@ -47,7 +48,7 @@ import {
   projectMapAccess,
   projectStagedMapAccess,
   ProjectionUnavailableError,
-  requireCurrentProjection,
+  fenceMapAccessProjection,
   purgeUserMapAccessProjection,
   revokeUserMapClaims,
   teardownMapAccessProjection,
@@ -282,6 +283,9 @@ test('posts computed claims, refuses door/env/stale/purge failures, and does not
   await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
     ProjectionUnavailableError,
   );
+  expectTypeOf<Awaited<ReturnType<typeof teardownMapAccessProjection>>['outcome']>()
+    .extract<'stale'>()
+    .toBeNever();
 
   mocks.fetchWithTimeout.mockResolvedValue(Response.json({ deleted: 'nope' }));
   await expect(purgeUserMapAccessProjection('user-1')).rejects.toBeInstanceOf(
@@ -303,6 +307,23 @@ test('posts computed claims, refuses door/env/stale/purge failures, and does not
 
   await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
   expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
+});
+
+test('the pre-purge fence posts an empty claim set at a fresh revision and accepts a newer watermark', async () => {
+  resetProjectionMocks();
+  const result = (outcome: string) => Response.json({ inserted: 0, updated: 0, deleted: 2, unchanged: 0, outcome });
+  for (const outcome of ['applied', 'duplicate', 'stale']) {
+    mocks.fetchWithTimeout.mockResolvedValueOnce(result(outcome));
+    await expect(fenceMapAccessProjection('map-1')).resolves.toBeUndefined();
+  }
+  expect(mocks.fetchWithTimeout).toHaveBeenLastCalledWith(
+    'http://127.0.0.1:3211/project-map-access',
+    expect.objectContaining({ body: JSON.stringify({ mapId: 'map-1', revision: 41, claims: [] }) }),
+  );
+  expect(mocks.getMapAccessSubject).not.toHaveBeenCalled();
+
+  mocks.fetchWithTimeout.mockResolvedValueOnce(new Response('nope', { status: 503 }));
+  await expect(fenceMapAccessProjection('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
 });
 
 test('ordinary reprojection empties archived maps; the creation seam still projects the hidden staging row', async () => {
@@ -355,22 +376,47 @@ test('ordinary reprojection empties archived maps; the creation seam still proje
   );
 });
 
-test('requireCurrentProjection throws when a newer projection already won', () => {
-  try {
-    requireCurrentProjection({
-      inserted: 0,
-      updated: 0,
-      deleted: 0,
-      unchanged: 0,
-      outcome: 'stale',
-    });
-    expect.unreachable('expected stale projection to throw');
-  } catch (error) {
-    expect(error).toBeInstanceOf(ProjectionUnavailableError);
-    expect(error).toEqual(
-      expect.objectContaining({ message: expect.stringMatching(/newer projection already won/) }),
-    );
-  }
+test('project and staged project reject a delivery that a newer projection already overrode', async () => {
+  resetProjectionMocks();
+  mocks.fetchWithTimeout.mockImplementation(async () => Response.json({
+    inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'stale',
+  }));
+
+  await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+  await expect(projectStagedMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+  expect(mocks.fetchWithTimeout).toHaveBeenCalledTimes(2);
+});
+
+test('creation retries a staged projection a newer one overrode and publishes only after one applies', async () => {
+  resetProjectionMocks();
+  mocks.getMapAccessSubject.mockResolvedValue({
+    userId: 'creator', archivedAt: new Date('2026-09-01T00:00:00.000Z'), characterScopedAt: null,
+  });
+  const counts = { inserted: 0, updated: 0, deleted: 0, unchanged: 0 };
+  mocks.fetchWithTimeout
+    .mockResolvedValueOnce(Response.json({ ...counts, outcome: 'stale' }))
+    .mockResolvedValueOnce(Response.json({ ...counts, inserted: 1, outcome: 'applied' }));
+  const publish = vi.fn().mockResolvedValue(undefined);
+  const teardown = vi.fn();
+  const compensate = vi.fn();
+
+  await expect(createProjectedMap('creator', { name: 'Home chain', creatorCharacterIds: [], grants: [] }, {
+    listLinkedCharacterIds: async () => [],
+    createMap: async () => 'map-1',
+    publish,
+    teardown,
+    compensate,
+    now: () => 0,
+    pause: async () => {},
+  })).resolves.toEqual({ ok: true, mapId: 'map-1' });
+
+  expect(mocks.fetchWithTimeout).toHaveBeenCalledTimes(2);
+  expect(publish).toHaveBeenCalledExactlyOnceWith('map-1');
+  expect(publish.mock.invocationCallOrder[0]).toBeGreaterThan(
+    mocks.fetchWithTimeout.mock.invocationCallOrder[1]!,
+  );
+  expect(teardown).not.toHaveBeenCalled();
+  expect(compensate).not.toHaveBeenCalled();
 });
 
 test('a delayed archive preserves access after restore has projected and acknowledged its generation', async () => {
@@ -497,7 +543,7 @@ test('a character-scoped projection counts only once Convex confirms the charact
   respond({ ...counts, outcome: 'duplicate', characterScoped: true });
   await expect(projectMapAccess('map-1')).resolves.toMatchObject({ outcome: 'duplicate' });
   respond({ ...counts, outcome: 'stale' });
-  await expect(projectMapAccess('map-1')).resolves.toMatchObject({ outcome: 'stale' });
+  await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
 
   mocks.getMapAccessSubject.mockResolvedValue({ userId: 'creator', archivedAt: null, characterScopedAt: null });
   respond({ ...counts, outcome: 'applied' });

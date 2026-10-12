@@ -5,11 +5,13 @@ import type { AnyPgDb } from '@/lib/db-types';
 import { usageLogs } from './schema';
 import type { UsageAction } from './types';
 
-export async function logUsageEvent(input: {
+export interface UsageEventInput {
   action: UsageAction;
   characterId?: number | null;
   metadata?: Record<string, unknown>;
-}): Promise<void> {
+}
+
+export async function logUsageEvent(input: UsageEventInput): Promise<void> {
   await db.insert(usageLogs).values({
     action: input.action,
     characterId: input.characterId ?? null,

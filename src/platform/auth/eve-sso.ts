@@ -3,6 +3,7 @@ import 'server-only';
 import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { requireEnv } from '@/lib/env';
 import { isTimeoutError } from '@/lib/error-chain';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { timeDependency } from '@/lib/dependency-timing';
@@ -19,7 +20,6 @@ import type { EveJwtClaims, EveTokenResponse } from './types';
 export {
   EVE_AUTHORIZE_URL,
   EVE_AUTHORIZED_APPS_URL,
-  EVE_PROVIDER_ID,
   EVE_REVOKE_URL,
   EVE_TOKEN_URL,
 } from './eve-sso-constants';
@@ -50,11 +50,15 @@ function jwks() {
   return jwksCache;
 }
 
-function buildTokenRequestInit(
-  body: URLSearchParams,
-  clientId: string,
-  clientSecret: string,
-): RequestInit {
+/**
+ * The confidential-client form POST shared by the token and revoke endpoints. It reads the
+ * client credentials itself and throws when either is unset, so callers build it before any
+ * try that classifies request failures: a missing credential is a configuration error, not
+ * an SSO outage.
+ */
+function buildTokenRequestInit(body: URLSearchParams): RequestInit {
+  const clientId = requireEnv('EVE_CLIENT_ID');
+  const clientSecret = requireEnv('EVE_CLIENT_SECRET');
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   return {
     method: 'POST',
@@ -71,25 +75,21 @@ function buildTokenRequestInit(
 export interface ExchangeCodeInput {
   code: string;
   codeVerifier: string;
-  clientId: string;
-  clientSecret: string;
 }
 
 export async function exchangeCodeForToken({
   code,
   codeVerifier,
-  clientId,
-  clientSecret,
 }: ExchangeCodeInput): Promise<EveTokenResponse> {
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    code_verifier: codeVerifier,
-  });
-
-  const res = await timeDependency('sso', () =>
-    fetchWithTimeout(EVE_TOKEN_URL, buildTokenRequestInit(body, clientId, clientSecret)),
+  const init = buildTokenRequestInit(
+    new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      code_verifier: codeVerifier,
+    }),
   );
+
+  const res = await timeDependency('sso', () => fetchWithTimeout(EVE_TOKEN_URL, init));
 
   if (!res.ok) {
     const text = await res.text();
@@ -105,8 +105,6 @@ export async function exchangeCodeForToken({
 
 export interface RefreshTokenInput {
   refreshToken: string;
-  clientId: string;
-  clientSecret: string;
 }
 
 export type RefreshFailureClass =
@@ -129,19 +127,19 @@ function readRetryAfter(value: string | null): number {
 
 export async function refreshEveToken({
   refreshToken,
-  clientId,
-  clientSecret,
 }: RefreshTokenInput): Promise<RefreshResult> {
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-  });
+  // Built outside the try: a missing credential throws instead of becoming a retryable
+  // 'connection' result that would record a backoff against the character's row.
+  const init = buildTokenRequestInit(
+    new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
+  );
 
   let res: Response;
   try {
-    res = await timeDependency('sso', () =>
-      fetchWithTimeout(EVE_TOKEN_URL, buildTokenRequestInit(body, clientId, clientSecret)),
-    );
+    res = await timeDependency('sso', () => fetchWithTimeout(EVE_TOKEN_URL, init));
   } catch (error) {
     return {
       kind: 'retryable',
@@ -178,17 +176,18 @@ export async function refreshEveToken({
 
 export interface RevokeTokenInput {
   refreshToken: string;
-  clientId: string;
-  clientSecret: string;
 }
 
 /**
  * Revoke a stored refresh token at EVE's SSO revocation endpoint (RFC 7009). Pure
  * HTTP — no DB, no crypto — so it stays unit-testable with a `fetch` spy, like
  * refreshEveToken. BEST-EFFORT by contract: a purge that revokes a pilot's grant
- * must never be aborted by a revoke failure, so this never throws and reports only
- * a boolean. Reuses the shared Basic-auth form request shape (the revoke endpoint
- * authenticates a confidential client exactly like the token endpoint).
+ * must never be aborted by a revoke failure, so a network, timeout or HTTP failure
+ * never throws and reports only a boolean. A missing client credential is a
+ * configuration error, not a revoke failure: it throws before the request, and
+ * revokeStoredCharacterToken's bestEffort logs it. Reuses the shared Basic-auth form
+ * request shape (the revoke endpoint authenticates a confidential client exactly
+ * like the token endpoint).
  *
  * NOTE: EVE returns 200 for an unknown/already-invalid token too (RFC 7009 §2.2),
  * so `ok` means "the renewal path is closed", NOT "the token existed". Revoking
@@ -197,18 +196,16 @@ export interface RevokeTokenInput {
  */
 export async function revokeEveRefreshToken({
   refreshToken,
-  clientId,
-  clientSecret,
 }: RevokeTokenInput): Promise<{ ok: boolean }> {
-  const body = new URLSearchParams({
-    token: refreshToken,
-    token_type_hint: 'refresh_token',
-  });
+  const init = buildTokenRequestInit(
+    new URLSearchParams({
+      token: refreshToken,
+      token_type_hint: 'refresh_token',
+    }),
+  );
 
   try {
-    const res = await timeDependency('sso', () =>
-      fetchWithTimeout(EVE_REVOKE_URL, buildTokenRequestInit(body, clientId, clientSecret)),
-    );
+    const res = await timeDependency('sso', () => fetchWithTimeout(EVE_REVOKE_URL, init));
     return { ok: res.ok };
   } catch {
     return { ok: false };

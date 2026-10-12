@@ -1,14 +1,25 @@
 import type { DateRange } from '@/data/telemetry/types';
 import { daysBefore } from '@/lib/iso-date';
+import { firstSearchParam } from '@/lib/search-params';
 
 export const RANGES = ['7d', '30d', '90d', 'all'] as const;
 export type RangeKey = (typeof RANGES)[number];
 
+export const RANGE_DAYS = { '7d': 7, '30d': 30, '90d': 90 } as const satisfies Record<
+  Exclude<RangeKey, 'all'>,
+  number
+>;
+
 export const ALL_TIME_FROM = new Date('2025-01-01T00:00:00Z');
 
+/** A repeated `?range` reads its first value, as the client selector and rail do. */
 export function parseRange(raw: string | string[] | undefined): RangeKey {
-  if (typeof raw !== 'string') return '30d';
-  return (RANGES as readonly string[]).includes(raw) ? (raw as RangeKey) : '30d';
+  const value = firstSearchParam(raw);
+  return RANGES.find((key) => key === value) ?? '30d';
+}
+
+export function lastNDaysRange(days: number, now: Date = new Date()): DateRange {
+  return { from: daysBefore(now, days), to: now };
 }
 
 const MINUTE_MS = 60_000;
@@ -18,8 +29,7 @@ const MINUTE_MS = 60_000;
 export function rangeFor(key: RangeKey, now: Date = new Date()): DateRange {
   const to = new Date(Math.ceil(now.getTime() / MINUTE_MS) * MINUTE_MS);
   if (key === 'all') return { from: ALL_TIME_FROM, to };
-  const days = key === '7d' ? 7 : key === '30d' ? 30 : 90;
-  return { from: daysBefore(to, days), to };
+  return lastNDaysRange(RANGE_DAYS[key], to);
 }
 
 export function previousRange(key: RangeKey, range: DateRange): DateRange | null {

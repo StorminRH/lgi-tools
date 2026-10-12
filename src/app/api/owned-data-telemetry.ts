@@ -1,46 +1,26 @@
-import { emitCostMetric } from '@/data/telemetry/cost-metrics';
-
-export type OwnedDataEndpoint =
-  | '/api/account/board'
-  | '/api/account/industry-slots'
-  | '/api/account/industry-jobs'
-  | '/api/account/corp-industry-jobs'
-  | '/api/industry/skill-levels'
-  | '/api/industry/team-skill-levels'
-  | '/api/industry/owned-blueprints'
-  | '/api/industry/owned-assets';
+import { observeCostPromise, startCostTimer } from '@/data/telemetry/cost-metrics';
+import type { EndpointContract } from '@/transport/endpoint';
 
 export interface MeasuredOwnedDataRead<T> {
-  endpoint: OwnedDataEndpoint;
+  endpoint: Pick<EndpointContract, 'path'>;
   requested?: number;
   read: () => Promise<T>;
   returned: (result: T) => number;
 }
 
-export async function measureOwnedDataRead<T>({
+export function measureOwnedDataRead<T>({
   endpoint,
   requested,
   read,
   returned,
 }: MeasuredOwnedDataRead<T>): Promise<T> {
-  const startedAt = Date.now();
-  try {
-    const result = await read();
-    emitCostMetric('owned_data_read', {
-      endpoint,
-      ...(requested === undefined ? {} : { requested }),
-      returned: returned(result),
-      outcome: 'succeeded',
-      durationMs: Date.now() - startedAt,
-    });
-    return result;
-  } catch (error) {
-    emitCostMetric('owned_data_read', {
-      endpoint,
-      ...(requested === undefined ? {} : { requested }),
-      outcome: 'failed',
-      durationMs: Date.now() - startedAt,
-    });
-    throw error;
-  }
+  // Started before read() so the timer also covers its synchronous part.
+  const timer = startCostTimer();
+  return observeCostPromise(
+    read(),
+    'owned_data_read',
+    { endpoint: endpoint.path, ...(requested === undefined ? {} : { requested }) },
+    timer,
+    (value) => ({ returned: returned(value) }),
+  );
 }

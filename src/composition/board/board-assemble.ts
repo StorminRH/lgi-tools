@@ -22,12 +22,7 @@ import type { CharacterJobsData } from '@/features/industry-jobs/types';
 import { canSyncSkillQueue, SKILL_SYNC_SCOPES } from '@/features/skill-queue/sync-eligibility';
 import { canSyncAssets, ASSETS_SYNC_SCOPES } from '@/features/owned-assets/sync-eligibility';
 import type { NetWorthDay, PilotWorth } from '@/features/net-worth/types';
-import {
-  type AssetLine,
-  type PriceBook,
-  type TypeCategories,
-  valueCharacter,
-} from '@/features/net-worth/valuation';
+import { type AssetLine, valueCharacter } from '@/features/net-worth/valuation';
 import type { CharacterSkillData } from '@/features/skill-queue/types';
 import { sortedUniqueIds } from '@/lib/array';
 import { isoDayStartMs } from '@/lib/iso-date';
@@ -47,6 +42,7 @@ import {
   type SkillCatalogGroup,
   type SystemRef,
 } from './api-contract';
+import type { ValuationBook } from './price-book';
 
 export interface BoardIdentity {
   characterId: number;
@@ -83,8 +79,6 @@ export interface NameBook {
   npcStations: Map<number, PlaceFacts>;
   entities: Record<string, string>;
   skillCatalog: SkillCatalogGroup[];
-  prices: PriceBook;
-  typeCategories: TypeCategories;
 }
 
 export interface NameIdRequest {
@@ -92,9 +86,10 @@ export interface NameIdRequest {
   systemIds: number[];
   stationIds: number[];
   entityIds: number[];
-  /** Every type the valuation prices: asset rows, implants and open orders. */
-  valuationTypeIds: number[];
 }
+
+/** The stored prices and categories a net-worth snapshot values holdings at. */
+export type Valuation = Pick<ValuationBook, 'prices' | 'categories'>;
 
 const GAP_SCOPES: Record<BoardGap, readonly EveScope[]> = {
   skills: SKILL_SYNC_SCOPES,
@@ -150,14 +145,17 @@ function valuationTypeIdsOf(raw: BoardRaw): number[] {
   ];
 }
 
+/** Every type a net-worth snapshot prices (asset rows, implants and open orders), sorted and de-duplicated. */
+export function collectValuationTypeIds(raws: readonly BoardRaw[]): number[] {
+  return sortedUniqueIds(raws.flatMap(valuationTypeIdsOf));
+}
+
 export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
   const typeIds: number[] = [];
   const systemIds: number[] = [];
   const stationIds: number[] = [];
   const entityIds: number[] = [];
-  const valuationTypeIds: number[] = [];
   for (const raw of raws) {
-    valuationTypeIds.push(...valuationTypeIdsOf(raw));
     if (raw.identity.corporationId !== null) entityIds.push(raw.identity.corporationId);
     if (raw.identity.allianceId !== null) entityIds.push(raw.identity.allianceId);
     const status = raw.sheet?.status?.data;
@@ -176,7 +174,6 @@ export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
     systemIds: sortedUniqueIds(systemIds),
     stationIds: sortedUniqueIds(stationIds),
     entityIds: sortedUniqueIds(entityIds),
-    valuationTypeIds: sortedUniqueIds(valuationTypeIds),
   };
 }
 
@@ -357,7 +354,7 @@ function worthEligible(raw: BoardRaw): boolean {
 }
 
 /** Values the stored holdings at stored prices; null until the wallet and the assets have both synced. */
-function pilotWorthOf(raw: BoardRaw, names: Pick<NameBook, 'prices' | 'typeCategories'>): PilotWorth | null {
+function pilotWorthOf(raw: BoardRaw, valuation: Valuation): PilotWorth | null {
   const wallet = raw.sheet?.wallet;
   if (!worthEligible(raw) || wallet === undefined || wallet.denied === true || raw.assets.rows === null) return null;
   const implants = implantIdsOf(raw);
@@ -369,8 +366,8 @@ function pilotWorthOf(raw: BoardRaw, names: Pick<NameBook, 'prices' | 'typeCateg
       jumpCloneImplants: implants.jumpClones,
       orders: openOrdersOf(raw),
     },
-    names.prices,
-    names.typeCategories,
+    valuation.prices,
+    valuation.categories,
   );
   return { netWorth: total, liquidIsk: liquid };
 }
@@ -467,12 +464,12 @@ export function toHistoryDay(day: NetWorthDay): BoardHistoryDay {
 }
 
 /** The account's day valued from stored holdings and prices: only pilots with a computable worth count. */
-export function netWorthSnapshot(raws: readonly BoardRaw[], names: Pick<NameBook, 'prices' | 'typeCategories'>, day: string): NetWorthDay {
+export function netWorthSnapshot(raws: readonly BoardRaw[], valuation: Valuation, day: string): NetWorthDay {
   const pilots: NetWorthDay['pilots'] = {};
   let netWorth = 0;
   let liquidIsk = 0;
   for (const raw of raws) {
-    const worth = pilotWorthOf(raw, names);
+    const worth = pilotWorthOf(raw, valuation);
     if (worth === null) continue;
     pilots[String(raw.identity.characterId)] = worth;
     netWorth += worth.netWorth;

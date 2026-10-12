@@ -1,12 +1,15 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
+import { rateLimitedFailure } from '@/lib/failure';
+import { problemBodySchema } from '@/lib/problem';
 
 const SESSION = sessionFixture();
 
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const nukeAccountMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
+const checkRateLimitMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -16,11 +19,23 @@ vi.mock('@/composition/account-lifecycle/account-purge', () => ({
   nukeAccount: (u: string) => nukeAccountMock(u),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
+}));
+// Capability outcomes also reach emitUsageEvent, through cost-metrics; keep them out of the events under test.
+vi.mock('@/data/telemetry/cost-metrics', () => ({ emitCostMetric: vi.fn() }));
+
+vi.mock('@/lib/rate-limit', () => ({
+  checkRateLimit: (request: Request, options: unknown) =>
+    checkRateLimitMock(request, options),
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 import { postEmpty } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
@@ -31,8 +46,9 @@ beforeEach(() => {
   getSessionMock.mockReset();
   nukeAccountMock.mockReset();
   nukeAccountMock.mockResolvedValue(undefined);
-  logUsageEventMock.mockReset();
-  logUsageEventMock.mockResolvedValue(undefined);
+  emitUsageEventMock.mockReset();
+  checkRateLimitMock.mockReset();
+  checkRateLimitMock.mockResolvedValue({ ok: true });
 });
 
 test('refuses anonymous callers and nukes the signed-in account with an identity-free counter', async () => {
@@ -46,8 +62,38 @@ test('refuses anonymous callers and nukes the signed-in account with an identity
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual({ ok: true });
   expect(nukeAccountMock).toHaveBeenCalledWith('eve-user-1');
-  expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-  const logged = logUsageEventMock.mock.calls[0]![0];
+  expect(emitUsageEventMock).toHaveBeenCalledTimes(1);
+  const [scope, logged] = emitUsageEventMock.mock.calls[0]!;
+  expect(scope).toBe('account/delete');
   expect(logged).toEqual({ action: 'account_purge', metadata: { scope: 'account' } });
   expect(logged).not.toHaveProperty('characterId');
+});
+
+test('throttles before reading the session, then checks origin only after authorizing', async () => {
+  getSessionMock.mockResolvedValue(SESSION);
+  checkRateLimitMock.mockResolvedValueOnce({ ok: false, failure: rateLimitedFailure(11) });
+  const throttled = await POST(postEmpty(ROUTE));
+  expect(throttled.status).toBe(429);
+  expect(throttled.headers.get('Retry-After')).toBe('11');
+  expect(problemBodySchema.parse(await throttled.json())).toMatchObject({ code: 'rate_limited' });
+  expect(checkRateLimitMock).toHaveBeenCalledWith(expect.any(Request), {
+    name: 'account-delete',
+    perMinute: 5,
+  });
+  expect(getSessionMock).not.toHaveBeenCalled();
+
+  getSessionMock.mockResolvedValueOnce(null);
+  const anonymous = await POST(postEmpty(ROUTE, { origin: 'https://foreign.example' }));
+  expect(problemBodySchema.parse(await anonymous.json())).toMatchObject({
+    status: 401,
+    code: 'unauthenticated',
+  });
+
+  const crossOrigin = await POST(postEmpty(ROUTE, { origin: 'https://foreign.example' }));
+  expect(problemBodySchema.parse(await crossOrigin.json())).toMatchObject({
+    status: 403,
+    code: 'cross_origin',
+  });
+  expect(getSessionMock).toHaveBeenCalledTimes(2);
+  expect(nukeAccountMock).not.toHaveBeenCalled();
 });

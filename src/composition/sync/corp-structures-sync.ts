@@ -36,13 +36,13 @@ function makeCorpStructuresPort(): CorpStructuresPort {
   };
 }
 
-export interface ViewerCorpStructures {
+interface ViewerCorpStructures {
   corporationId: number;
   structures: CorpStructureRow[];
   lastRefreshedAt: number | null;
 }
 
-export interface ViewerCorpStructuresResult {
+interface ViewerCorpStructuresResult {
   corporations: ViewerCorpStructures[];
 }
 
@@ -64,7 +64,7 @@ function visibleStructures(access: StructuresAccess, rows: CorpStructureRow[] | 
   return access === 'none' ? [] : rows ?? [];
 }
 
-export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
+async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
   const { corporations } = await loadCorpViewer(userId);
   const corporationIds = corporations.map((corp) => corp.corporationId);
   const [structuresByCorp, freshnessByCorp] = await Promise.all([

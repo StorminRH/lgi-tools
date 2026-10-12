@@ -27,6 +27,7 @@ const merge = vi.hoisted(() => ({
 }));
 
 vi.mock('@/db', () => ({ db: chain }));
+vi.mock('@/db/direct-database', () => ({ directDatabase: () => chain }));
 vi.mock('next/server', () => ({ after: merge.after }));
 vi.mock('./account-merge', () => ({
   mergeUsers: merge.mergeUsers,
@@ -36,9 +37,9 @@ vi.mock('@/platform/auth/token-crypto', () => ({ decryptToken: merge.decryptToke
 const finishPendingDeletion = vi.hoisted(() => vi.fn());
 vi.mock('./account-purge', async () => ({
   finishPendingDeletion,
-  transferCharacter: async (userId: string, characterId: number, accountRowId?: string) => {
+  transferCharacter: async (userId: string, characterId: number, accountRowId: string) => {
     const { finishCharacterTransfer } = await import('./character-transfer');
-    await finishCharacterTransfer(userId, characterId, accountRowId ?? 'acc-1');
+    await finishCharacterTransfer(userId, characterId, accountRowId);
   },
 }));
 
@@ -68,7 +69,8 @@ vi.mock('@/composition/map-access-projection', () => ({
   purgeUserMapAccessProjection: vi.fn().mockResolvedValue({ deleted: 0 }),
 }));
 
-import { proveCharacter, purgeTransferredCharacter } from './owner-transfer';
+import { finishCharacterTransfer } from './character-transfer';
+import { proveCharacter } from './owner-transfer';
 
 const USER = 'eve-user-1';
 const LINKER = 'eve-user-2';
@@ -98,12 +100,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('purgeTransferredCharacter', () => {
+describe('finishCharacterTransfer', () => {
   it('keeps the prior link when revocation cannot be confirmed', async () => {
     state.results = [[{ id: 'acc-1' }]];
     const failure = new Error('Convex unavailable');
     hooks.runBeforeCharacterUnlink.mockRejectedValueOnce(failure);
-    await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
+    await expect(finishCharacterTransfer(USER, CHAR, 'acc-1')).rejects.toBe(failure);
     expect(state.calls).toMatchObject({ delete: 0, update: 0, execute: 0 });
   });
 
@@ -114,11 +116,15 @@ describe('purgeTransferredCharacter', () => {
       undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(CHAR), activeCharacterId: OTHER_CHAR }],
+      // The email repair locks the user, then re-reads its email and links before it writes.
+      [{ id: USER }],
+      [{ email: syntheticEmail(CHAR) }],
+      [{ accountId: String(OTHER_CHAR) }],
       undefined,
     ];
     const failure = new Error('history deletion failed');
     hooks.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
-    await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
+    await expect(finishCharacterTransfer(USER, CHAR, 'acc-1')).rejects.toBe(failure);
     expect(state.calls.update).toBe(2);
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
   });
@@ -131,7 +137,7 @@ describe('purgeTransferredCharacter', () => {
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
-    await purgeTransferredCharacter(USER, CHAR);
+    await finishCharacterTransfer(USER, CHAR, 'acc-1');
     expect(hooks.runBeforeCharacterUnlink).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
     expect(hooks.runAfterCharacterUnlink).toHaveBeenCalledWith({
       userId: USER, characterId: CHAR, mapIds: ['map-pre-removal'],

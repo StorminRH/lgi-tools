@@ -1,6 +1,7 @@
 import { cacheLife } from 'next/cache';
 import { after } from 'next/server';
 import { db } from '@/db';
+import type { PriceSourceCounts } from '@/lib/alerts';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { mapConcurrent } from '@/lib/fan-out';
 import { consumeFreshPriceResolution, markFreshPriceResolution } from './cache-resolution';
@@ -13,13 +14,6 @@ import type { MarketPrice, RawMarketPrice } from './types';
 const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
 
 const LIVE_CACHE_LIFE = { stale: 30, revalidate: 30, expire: 60 };
-
-export interface LivePricesDegradation {
-  fetched: number;
-  esiCount: number;
-  fuzzworkFallbackCount: number;
-  budgetExhausted: boolean;
-}
 
 export interface LivePricesMetrics {
   requested: number;
@@ -49,7 +43,7 @@ function notifyWriteBehind(
 
 export interface LivePricesResult {
   prices: Map<number, MarketPrice>;
-  degraded: LivePricesDegradation;
+  degraded: PriceSourceCounts;
   metrics: LivePricesMetrics;
 }
 
@@ -72,7 +66,7 @@ export async function getLivePrices(
   onWriteBehind?: (result: PriceWriteBehindResult) => void,
 ): Promise<LivePricesResult> {
   const ids = [...new Set(typeIds)];
-  const degraded: LivePricesDegradation = {
+  const degraded: PriceSourceCounts = {
     fetched: 0,
     esiCount: 0,
     fuzzworkFallbackCount: 0,

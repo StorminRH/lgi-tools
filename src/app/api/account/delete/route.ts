@@ -1,42 +1,33 @@
 import type { NextRequest } from 'next/server';
-import { capabilityRoute } from '@/app/api/capability-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { runMutationRoute } from '@/app/api/mutation-route';
+import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { accountDeleteEndpoint } from '@/platform/auth/api-contract';
 import { nukeAccount } from '@/composition/account-lifecycle/account-purge';
 import { checkSession } from '@/composition/route-guards';
-import { requireSameOrigin } from '@/platform/auth/same-origin';
-import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
 
 // authz: auth
 // input: none
-export const POST = capabilityRoute('account.delete-account', handlePost);
+export async function POST(request: NextRequest): Promise<Response> {
+  return runMutationRoute(request, {
+    capability: 'account.delete-account',
+    endpoint: accountDeleteEndpoint,
+    preflight: rateLimitPreflight(
+      request,
+      { name: 'account-delete', perMinute: 5 },
+      (failure) => apiResponse(accountDeleteEndpoint, 429, failure),
+    ),
+    authorize: checkSession,
+    handle: async ({ session }) => {
+      await nukeAccount(session.user.id);
 
-async function handlePost(request: NextRequest): Promise<Response> {
-  const limit = await checkRateLimit(request, {
-    name: 'account-delete',
-    perMinute: 5,
+      emitUsageEvent('account/delete', {
+        action: 'account_purge',
+        metadata: { scope: 'account' },
+      });
+
+      return apiResponse(accountDeleteEndpoint, 200, { ok: true });
+    },
   });
-  if (!limit.ok) {
-    return apiResponse(accountDeleteEndpoint, 429, limit.failure);
-  }
-
-  const gate = await checkSession();
-  if (!gate.ok) {
-    return apiResponse(accountDeleteEndpoint, 401, gate.failure);
-  }
-  const originCheck = requireSameOrigin(request);
-  if (!originCheck.ok) {
-    return apiResponse(accountDeleteEndpoint, 403, originCheck.failure);
-  }
-  const session = gate.session;
-
-  await nukeAccount(session.user.id);
-
-  void logUsageEvent({
-    action: 'account_purge',
-    metadata: { scope: 'account' },
-  }).catch((err) => console.error('[account/delete] telemetry write failed', err));
-
-  return apiResponse(accountDeleteEndpoint, 200, { ok: true });
 }

@@ -38,8 +38,12 @@ export interface ProjectionCounts {
   readonly unchanged: number;
 }
 
-export type ProjectionResult = ProjectionCounts & {
-  readonly outcome: 'applied' | 'duplicate' | 'stale';
+/**
+ * A delivery that counts. One a newer projection already overrode, or one
+ * Convex refused, rejects with ProjectionUnavailableError instead.
+ */
+export type CurrentProjectionResult = ProjectionCounts & {
+  readonly outcome: 'applied' | 'duplicate';
   readonly characterScoped?: true;
 };
 
@@ -60,15 +64,6 @@ const projectionResultSchema = z.discriminatedUnion('outcome', [
 const userPurgeResultSchema = z.strictObject({
   deleted: z.number().int().nonnegative(),
 });
-
-export function requireCurrentProjection(result: ProjectionResult): ProjectionResult {
-  if (result.outcome === 'stale') {
-    throw new ProjectionUnavailableError(
-      'Map access projection unavailable: a newer projection already won',
-    );
-  }
-  return result;
-}
 
 export class ProjectionUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -91,7 +86,11 @@ function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrin
 
 export type AccountAffiliation = CachedAffiliation & { readonly userId: string };
 
-/** Every linked character of these accounts, read as the projection reads them. */
+/**
+ * Every linked character of these accounts, read as the projection reads them.
+ * Map scoping reads through here because the corp-access lint boundary keeps
+ * raw affiliation reads inside access resolution.
+ */
 export function readAccountAffiliations(userIds: readonly string[]): Promise<AccountAffiliation[]> {
   return getUsersAffiliations(userIds);
 }
@@ -182,6 +181,11 @@ export interface ProjectMapAccessOptions {
   readonly signal?: AbortSignal;
 }
 
+/** Per-map delivery timeout for background reprojection runs. */
+export const MAP_ACCESS_DELIVERY_TIMEOUT_MS = 4_000;
+/** Total time one background reprojection run may spend delivering. */
+export const MAP_ACCESS_RECONCILE_BUDGET_MS = 20_000;
+
 function postMapAccessProjection(
   body: unknown,
   options: ProjectMapAccessOptions = {},
@@ -202,19 +206,26 @@ function claimsCarryCharacters(claims: readonly MapAccessClaim[]): boolean {
 }
 
 /**
- * A character-scoped claim set only counts once Convex confirms it kept the
- * characters; an older Convex drops them silently, so the change stays queued.
+ * A delivery only counts when it is current: a newer projection may already
+ * have won. A character-scoped claim set also only counts once Convex confirms
+ * it kept the characters; an older Convex drops them silently, so the change
+ * stays queued.
  */
-function requireScopedDelivery(
+function requireCurrentDelivery(
   claims: readonly MapAccessClaim[],
   result: z.infer<typeof projectionResultSchema>,
-): ProjectionResult {
+): CurrentProjectionResult {
   if (result.outcome === 'unscoped-refused') {
     throw new ProjectionUnavailableError(
       'Map access projection unavailable: Convex refused account-level claims for a character-scoped map',
     );
   }
-  if (claimsCarryCharacters(claims) && result.outcome !== 'stale' && result.characterScoped !== true) {
+  if (result.outcome === 'stale') {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: a newer projection already won',
+    );
+  }
+  if (claimsCarryCharacters(claims) && result.characterScoped !== true) {
     throw new ProjectionUnavailableError(
       'Map access projection unavailable: Convex did not confirm character-scoped claims',
     );
@@ -226,7 +237,7 @@ async function projectMapAccessState(
   mapId: string,
   options: ProjectMapAccessOptions,
   allowArchived: boolean,
-): Promise<ProjectionResult> {
+): Promise<CurrentProjectionResult> {
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before computation');
   }
@@ -235,7 +246,7 @@ async function projectMapAccessState(
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
-  return requireScopedDelivery(
+  return requireCurrentDelivery(
     claims,
     await postMapAccessProjection({ mapId, revision, claims }, options),
   );
@@ -244,24 +255,36 @@ async function projectMapAccessState(
 export function projectMapAccess(
   mapId: string,
   options: ProjectMapAccessOptions = {},
-): Promise<ProjectionResult> {
+): Promise<CurrentProjectionResult> {
   return projectMapAccessState(mapId, options, false);
 }
 
 export function projectStagedMapAccess(
   mapId: string,
   options: ProjectMapAccessOptions = {},
-): Promise<ProjectionResult> {
+): Promise<CurrentProjectionResult> {
   return projectMapAccessState(mapId, options, true);
 }
 
-export async function teardownMapAccessProjection(mapId: string): Promise<ProjectionResult> {
+export async function teardownMapAccessProjection(mapId: string): Promise<CurrentProjectionResult> {
   const revision = await reserveMapAccessProjectionRevision();
-  return requireCurrentProjection(requireScopedDelivery([], await postMapAccessProjection({
+  return requireCurrentDelivery([], await postMapAccessProjection({
     mapId,
     revision,
     claims: [],
-  })));
+  }));
+}
+
+/**
+ * The empty projection a map gets before its chain is purged. A stale outcome
+ * is fine here: a newer revision already holds the watermark, which the purge
+ * keeps, so nothing older can land, and the purge deletes whatever claims are
+ * left.
+ */
+export async function fenceMapAccessProjection(mapId: string): Promise<void> {
+  const revision = await reserveMapAccessProjectionRevision();
+  const result = await postMapAccessProjection({ mapId, revision, claims: [] });
+  if (result.outcome !== 'stale') requireCurrentDelivery([], result);
 }
 
 export async function purgeUserMapAccessProjection(

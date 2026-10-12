@@ -1,11 +1,11 @@
 import type { DistributionInput } from '@/components/ui/distribution-bars';
-import { trendSeries } from '@/composition/admin-period';
 import { searchTotalsFromTrend } from '@/data/gsc/queries';
 import type { GscDailyPoint, GscRange, GscSitemapStatus, GscTermStat, GscTotals } from '@/data/gsc/types';
 import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
 import { isoDay } from '@/lib/iso-date';
 import { roundTo } from '@/lib/math';
+import { trendSeries } from '../period';
 
 /**
  * The one window the search cards read: the previous period ends the day

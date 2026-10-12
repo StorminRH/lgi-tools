@@ -1,69 +1,79 @@
 import type { NextRequest } from 'next/server';
-import { capabilityRoute } from '@/app/api/capability-route';
+import { runMutationRoute } from '@/app/api/mutation-route';
+import { checkAdmin } from '@/composition/route-guards';
 import {
   promoteWhStaticsSnapshot,
   refreshWhStaticsOnDemand,
   rejectWhStaticsSnapshot,
 } from '@/composition/wh-statics-refresh';
-import { whStaticsAdminFormSchema } from '@/data/wh-statics/api-contract';
+import {
+  whStaticsAdminFormSchema,
+  type WhStaticsRefreshResult,
+  type WhStaticsReviewOutcome,
+} from '@/data/wh-statics/api-contract';
 import {
   WhStaticsEmptySnapshotError,
   WhStaticsSnapshotStateError,
 } from '@/data/wh-statics/queries';
-import { conflictFailure, validationFailure } from '@/lib/failure';
-import { adminMutationGate } from '@/app/api/admin-mutation';
-import { problemResponse } from '@/transport/api-response';
+import {
+  conflictFailure,
+  dependencyUnavailableFailure,
+  type AppFailure,
+} from '@/lib/failure';
+import { seeOther } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
-function redirectToReview(request: NextRequest, outcome: string): Response {
-  const destination = new URL('/admin/statics', request.url);
-  destination.searchParams.set('outcome', outcome);
-  return Response.redirect(destination, 303);
+const REVIEW_PAGE = '/admin/statics';
+
+/** Refresh outcomes that report a failure through the review page's notice. */
+const REFRESH_FAILURES: Partial<Record<WhStaticsRefreshResult['status'], AppFailure>> = {
+  'feed-unavailable': dependencyUnavailableFailure('wh_statics_feed_unavailable'),
+  busy: conflictFailure('wh_statics_refresh_busy'),
+};
+
+/** Back to the review page with the notice for `outcome`, recording `failure` when it is one. */
+function backToReview(request: Request, outcome: WhStaticsReviewOutcome, failure?: AppFailure): Response {
+  return seeOther(request, REVIEW_PAGE, { query: { outcome }, failure });
 }
 
 // authz: admin
-export const POST = capabilityRoute('admin.wh-statics-review', handlePost);
-
-async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await adminMutationGate(request);
-  if (!gate.ok) return gate.response;
-  return handleAuthorizedPost(request);
-}
-
-async function handleAuthorizedPost(request: NextRequest): Promise<Response> {
-  const parsed = await parseFormBody(
-    request,
-    whStaticsAdminFormSchema,
-    (form) => ({
-      action: form.get('action'),
-      snapshotId: form.get('snapshotId') ?? undefined,
-    }),
-    () => validationFailure('invalid_form_field', 'Invalid statics review form'),
-  );
-  if (!parsed.ok) return problemResponse(parsed.failure);
-
-  try {
-    if (parsed.data.action === 'refresh') {
-      const result = await refreshWhStaticsOnDemand();
-      return redirectToReview(request, result.status);
-    }
-    if (parsed.data.action === 'promote') {
-      await promoteWhStaticsSnapshot(parsed.data.snapshotId);
-      return redirectToReview(request, 'promoted');
-    }
-    await rejectWhStaticsSnapshot(parsed.data.snapshotId);
-    return redirectToReview(request, 'rejected');
-  } catch (error) {
-    if (error instanceof WhStaticsEmptySnapshotError) {
-      return problemResponse(
-        conflictFailure('snapshot_empty', error.message),
-      );
-    }
-    if (error instanceof WhStaticsSnapshotStateError) {
-      return problemResponse(
-        conflictFailure('snapshot_not_pending', error.message),
-      );
-    }
-    throw error;
-  }
+export async function POST(request: NextRequest): Promise<Response> {
+  return runMutationRoute(request, {
+    capability: 'admin.wh-statics-review',
+    authorize: checkAdmin,
+    parse: (incoming) =>
+      parseFormBody(incoming, whStaticsAdminFormSchema, ['action', 'snapshotId']),
+    handle: async (_authorization, review) => {
+      try {
+        if (review.action === 'refresh') {
+          const { status } = await refreshWhStaticsOnDemand();
+          return backToReview(request, status, REFRESH_FAILURES[status]);
+        }
+        if (review.action === 'promote') {
+          await promoteWhStaticsSnapshot(review.snapshotId);
+          return backToReview(request, 'promoted');
+        }
+        await rejectWhStaticsSnapshot(review.snapshotId);
+        return backToReview(request, 'rejected');
+      } catch (error) {
+        // The review form posts natively, so an empty or no-longer-pending
+        // snapshot (a double-submitted promote, say) gets a notice, not JSON.
+        if (error instanceof WhStaticsEmptySnapshotError) {
+          return backToReview(
+            request,
+            'snapshot-empty',
+            conflictFailure('snapshot_empty', error.message),
+          );
+        }
+        if (error instanceof WhStaticsSnapshotStateError) {
+          return backToReview(
+            request,
+            'snapshot-not-pending',
+            conflictFailure('snapshot_not_pending', error.message),
+          );
+        }
+        throw error;
+      }
+    },
+  });
 }

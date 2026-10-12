@@ -13,6 +13,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'maps.resolve-jump',
+    endpoint: jumpResolverEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, jumpResolverRequestSchema),
     handle: async ({ userId }, body) =>

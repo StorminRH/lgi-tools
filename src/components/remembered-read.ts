@@ -2,7 +2,7 @@
 
 import { type ClientStore, createClientStore, useClientStore } from '@/lib/client-store';
 import {
-  currentReadIdentity,
+  isCurrentReadIdentity,
   type ReadIdentity,
   subscribeReadIdentity,
 } from '@/platform/auth/read-identity';
@@ -29,9 +29,9 @@ export function createRememberedRead<T>(): RememberedRead<T> {
   });
   return {
     ...store,
-    get: () => owner !== null && owner === currentReadIdentity() ? store.get() : null,
+    get: () => isCurrentReadIdentity(owner) ? store.get() : null,
     set(next, identity) {
-      if (identity === null || identity !== currentReadIdentity()) return;
+      if (!isCurrentReadIdentity(identity)) return;
       owner = identity;
       store.set(next);
     },

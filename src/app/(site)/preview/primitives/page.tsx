@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getSession, isAdmin } from '@/composition/session';
+import { requireAdminPage } from '@/composition/route-guards';
 import { PrimitivesDemo } from './PrimitivesDemo';
 
 export const metadata: Metadata = {
@@ -13,8 +12,7 @@ export const metadata: Metadata = {
 };
 
 async function AdminPrimitiveReference() {
-  const session = await getSession();
-  if (!isAdmin(session)) redirect('/?auth_error=admin_required');
+  await requireAdminPage();
   return <PrimitivesDemo />;
 }
 

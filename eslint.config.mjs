@@ -858,7 +858,13 @@ const eslintConfig = defineConfig([
                 "Cron work receives the shared client from CronWorkContext; do not import directClient.",
             },
             {
-              name: "@/data/telemetry/queries",
+              name: "@/data/telemetry/usage-events",
+              importNames: ["emitUsageEvent", "recordUsageEvent"],
+              message:
+                "Cron outcome telemetry belongs to defineCronRoute or CronWorkContext.record.",
+            },
+            {
+              name: "@/data/telemetry/log",
               importNames: ["logUsageEvent"],
               message:
                 "Cron outcome telemetry belongs to defineCronRoute or CronWorkContext.record.",

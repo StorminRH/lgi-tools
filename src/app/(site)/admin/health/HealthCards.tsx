@@ -8,20 +8,14 @@ import {
   capabilityFailureDetail,
   esiClientErrors,
   esiFailureGroups,
-  type CapabilityLatency,
-  type CapabilityOutcomeStat,
   type EsiClientErrorGroup,
 } from '@/data/telemetry/capability-stats';
 import type { DateRange } from '@/data/telemetry/types';
 import { loadSection } from '../load-section';
+import { loadSliReads } from '../load-signals';
 import { summarizeDomainEvent } from '../ops-view';
-import {
-  getCapabilityLatencyShared,
-  getCapabilityOutcomeStatsShared,
-  getEsiClientErrorsShared,
-  getEsiRefreshQueueStatsShared,
-} from '../shared-reads';
-import { deriveSliSignals, mapLoaded, summarizeQueue, type Loaded } from '../signals';
+import { getEsiClientErrorsShared, getEsiRefreshQueueStatsShared } from '../shared-reads';
+import { deriveSliSignals, mapLoaded, summarizeQueue, type Loaded, type SliReads } from '../signals';
 import { deriveServiceLevels } from './health-view';
 import { DEAD_LETTER_PREVIEW, type ServiceLevelDetails } from './ServiceLevelRows';
 import { formatUtcMinute } from '@/lib/format/time';
@@ -32,24 +26,21 @@ import { formatUtcMinute } from '@/lib/format/time';
  * the rows cannot do without.
  */
 export async function loadServiceLevels(range: DateRange) {
-  const [outcomes, latency, queue, deadLetters, clientErrors] = await Promise.all([
-    loadSection('capability-outcomes', () => getCapabilityOutcomeStatsShared(range)),
-    loadSection('capability-latency', () => getCapabilityLatencyShared(range)),
+  const [sliReads, queue, deadLetters, clientErrors] = await Promise.all([
+    loadSliReads(range),
     getEsiRefreshQueueStatsShared(),
     loadSection('sli-details.dead-letters', () => listDeadLetteredJobs(DEAD_LETTER_PREVIEW)),
     loadSection('sli-details.esi-4xx', () => getEsiClientErrorsShared(range)),
   ]);
   return {
-    rows: deriveServiceLevels(deriveSliSignals(outcomes, latency), summarizeQueue(queue, range.to)),
-    details: serviceLevelDetails(range, { outcomes, latency, queue, deadLetters, clientErrors }),
+    rows: deriveServiceLevels(deriveSliSignals(sliReads), summarizeQueue(queue, range.to)),
+    details: serviceLevelDetails(range, { ...sliReads, queue, deadLetters, clientErrors }),
   };
 }
 
 function serviceLevelDetails(
   range: DateRange,
-  reads: {
-    outcomes: Loaded<CapabilityOutcomeStat[]>;
-    latency: Loaded<CapabilityLatency>;
+  reads: SliReads & {
     queue: EsiRefreshQueueStat[];
     deadLetters: Loaded<DeadLetterRow[]>;
     clientErrors: Loaded<EsiClientErrorGroup[]>;

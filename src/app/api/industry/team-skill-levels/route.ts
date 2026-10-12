@@ -10,7 +10,7 @@ export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) return apiResponse(teamSkillLevelsEndpoint, 200, { characters: [] });
   const characters = await measureOwnedDataRead({
-    endpoint: '/api/industry/team-skill-levels',
+    endpoint: teamSkillLevelsEndpoint,
     read: () => getSkillLevelsForUserOnView(userId),
     returned: (value) => value.length,
   });

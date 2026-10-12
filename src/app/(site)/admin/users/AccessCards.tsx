@@ -6,11 +6,12 @@ import { Pill } from '@/components/ui/pill';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
-import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
-import { readEnv } from '@/lib/env';
+import { getRoleChangeAudit } from '@/data/telemetry/queries';
+import { superadminCharacterId } from '@/platform/auth/admin-policy';
 import { searchUsersByLinkedCharacterName, type AdminUser } from '@/platform/auth/admin-users';
 import { ADMIN_ACCESS_QUERY_MAX_LENGTH } from '@/platform/auth/api-contract';
-import { USERS_HREF } from '../admin-sections';
+import { adminHref } from '../admin-sections';
+import { lastNDaysRange } from '../period';
 import { getUserOwningCharacterShared, listAdminUsersShared } from '../shared-reads';
 import {
   adminRoleBadge,
@@ -25,10 +26,10 @@ const AUDIT_WINDOW_DAYS = 90;
 
 /** Every admin, with the env superadmin added or flagged. Request-cached, so search reuses it. */
 export async function loadAdminRows(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
-  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
+  const superId = superadminCharacterId();
   const [dbAdmins, superUser] = await Promise.all([
     listAdminUsersShared(),
-    Number.isFinite(superId) && superId > 0 ? getUserOwningCharacterShared(superId) : Promise.resolve(null),
+    superId === null ? null : getUserOwningCharacterShared(superId),
   ]);
   return mergeAdminRows(dbAdmins, superUser);
 }
@@ -44,7 +45,7 @@ export function loadRoleAudit(): Promise<AuditRow[]> {
 
 export function AccessSearchForm({ query }: { query: string | undefined }) {
   return (
-    <form method="GET" action={USERS_HREF} role="search" className="flex items-center gap-2">
+    <form method="GET" action={adminHref('users')} role="search" className="flex items-center gap-2">
       <Input
         type="text"
         name="q"
@@ -58,7 +59,7 @@ export function AccessSearchForm({ query }: { query: string | undefined }) {
         Search
       </Button>
       {query ? (
-        <Link href={USERS_HREF} className="px-2 py-1 text-ui uppercase tracking-wide text-muted">
+        <Link href={adminHref('users')} className="px-2 py-1 text-ui uppercase tracking-wide text-muted">
           Clear
         </Link>
       ) : null}
@@ -83,7 +84,7 @@ function UserRow({
       name={user.name}
       characterId={user.characterId}
       portraitUrl={user.portraitUrl}
-      href={`${USERS_HREF}/${user.userId}`}
+      href={`${adminHref('users')}/${user.userId}`}
       chips={<Pill tone={badge.tone}>{badge.label}</Pill>}
       actions={
         isSuperadmin ? (

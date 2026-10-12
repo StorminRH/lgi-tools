@@ -1,15 +1,11 @@
-import { config } from 'dotenv';
-import { readEnv } from '@/lib/env';
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
-
+import './load-env';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
 import { SDE_META_KEY_VERSION } from '../data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { ADVISORY_LOCKS, withAdvisoryLock } from '@/db/advisory-lock';
-import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
-import { runScript } from './script-runtime';
+import { resolveLockConnectionUrl } from '@/db';
+import { createScriptClient, runScript } from './script-runtime';
 import { formatSdeVersions, shouldReingestSde } from './sde-bootstrap';
 import {
   runSdePipeline,
@@ -18,7 +14,7 @@ import {
 
 const force = process.argv.includes('--force');
 
-const client = postgres(resolveLockConnectionUrl(), { max: 2, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
+const client = createScriptClient(resolveLockConnectionUrl(), { max: 2 });
 
 async function main() {
   const db = drizzle(client);

@@ -7,7 +7,7 @@ const ADMIN_SESSION = adminSessionFixture({ user: { id: 'admin-1' }, characterId
 const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const getUserByIdMock = vi.fn();
 const revokeUserSessionsMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitUsageEventMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -18,11 +18,18 @@ vi.mock('@/platform/auth/admin-users', () => ({
   revokeUserSessions: (u: string) => revokeUserSessionsMock(u),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
+// Capability outcomes also reach emitUsageEvent, through cost-metrics; keep them out of the events under test.
+vi.mock('@/data/telemetry/cost-metrics', () => ({ emitCostMetric: vi.fn() }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
 import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
@@ -38,8 +45,7 @@ describe('POST /api/admin/sessions/revoke', () => {
     getSessionMock.mockReset();
     getUserByIdMock.mockReset();
     revokeUserSessionsMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
+    emitUsageEventMock.mockReset();
   });
 
   it('refuses non-admins, a malformed form, self-logout, and a missing user', async () => {
@@ -63,6 +69,10 @@ describe('POST /api/admin/sessions/revoke', () => {
     expect(res.status).toBe(303);
     expect(locationOf(res)).toBe('http://localhost:3000/admin/users/eve-user-2');
     expect(revokeUserSessionsMock).toHaveBeenCalledWith('eve-user-2');
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('admin/sessions/revoke', {
+      action: 'admin_force_logout',
+      characterId: ADMIN_SESSION.characterId,
+      metadata: { actorUserId: 'admin-1', targetUserId: 'eve-user-2', targetCharacterId: 200, sessionsRevoked: 3 },
+    });
   });
 });

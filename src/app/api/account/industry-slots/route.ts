@@ -29,7 +29,7 @@ export async function GET(): Promise<Response> {
     return apiResponse(industrySlotsEndpoint, 200, { characters: [] });
   }
   const perCharacter = await measureOwnedDataRead({
-    endpoint: '/api/account/industry-slots',
+    endpoint: industrySlotsEndpoint,
     read: () => getSkillLevelsForUserOnView(userId),
     returned: (value) => value.length,
   });

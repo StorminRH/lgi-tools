@@ -18,9 +18,8 @@ vi.mock('@/data/telemetry/queries', () => ({
   getLoginCountsPerUser: mocks.logins,
   getReturningVsNew: mocks.audience,
 }));
-vi.mock('../deploy-markers', () => ({ loadDeployMarkers: async () => [] }));
 
-import { loadTrafficActivity, loadTrafficRankings, loadVisitors, VisitorsBody } from './TrafficCards';
+import { loadTrafficRankings, loadVisitors, VisitorsBody } from './TrafficCards';
 
 const range: DateRange = { from: new Date('2026-10-01T00:00:00Z'), to: new Date('2026-10-03T00:00:00Z') };
 const previous: DateRange = { from: new Date('2026-09-29T00:00:00Z'), to: range.from };
@@ -51,13 +50,6 @@ describe('traffic loads', () => {
     expect(lists.topReferrers).toEqual([{ key: 'google.com', label: 'google.com', count: 1 }]);
     expect(totals).toEqual({ views: 10, entries: 3, referrals: 1 });
     expect(mocks.stats).toHaveBeenCalledWith(range, previous);
-  });
-
-  it('builds the activity chart from the same page-view read', async () => {
-    const activity = await loadTrafficActivity(range, previous);
-
-    expect(activity.hasData).toBe(true);
-    expect(activity.totalValue).toBe(10);
   });
 
   it('splits visitors by source, novelty and sign-in count', async () => {

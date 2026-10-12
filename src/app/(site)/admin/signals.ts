@@ -1,4 +1,4 @@
-import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
+import type { EsiRefreshJobStatus, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
   capabilitySuccessRate,
   esiAvailability,
@@ -30,10 +30,12 @@ import type {
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
+import { adminHref, SCHEDULED_TASKS_ANCHOR } from './admin-sections';
 import { SECTION_LOAD_FAILED } from './load-section';
 import { getOrInsertComputed } from '@/lib/array';
 import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
 import { formatElapsed } from '@/lib/format/time';
+import { DAY_MS } from '@/lib/iso-date';
 
 export interface CronSignals {
   lastRuns: CronLastRun[];
@@ -59,11 +61,14 @@ export function mapLoaded<T, U>(value: Loaded<T>, derive: (loaded: T) => U): Loa
   return value === SECTION_LOAD_FAILED ? SECTION_LOAD_FAILED : derive(value);
 }
 
+/** The capability outcome and latency reads every service level is derived from. */
+export interface SliReads {
+  outcomes: Loaded<CapabilityOutcomeStat[]>;
+  latency: Loaded<CapabilityLatency>;
+}
+
 /** The headline service levels from the capability outcome and latency reads. */
-export function deriveSliSignals(
-  outcomes: Loaded<CapabilityOutcomeStat[]>,
-  latency: Loaded<CapabilityLatency>,
-): SliSignals {
+export function deriveSliSignals({ outcomes, latency }: SliReads): SliSignals {
   return {
     readSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'read')),
     mutationSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'mutation')),
@@ -84,19 +89,26 @@ export interface AdminSignals {
   releases: Loaded<{ date: string; label: string }[]>;
 }
 
-const HEALTH_PAGE = { label: 'Open health', href: '/admin/health' };
-const ESI_PAGE = { label: 'Open ESI', href: '/admin/esi' };
+// The page each attention item and unread source sends the operator to.
+const PAGE_ACTIONS = {
+  health: { label: 'Open health', href: adminHref('health') },
+  esi: { label: 'Open ESI', href: adminHref('esi') },
+  jobs: { label: 'View jobs', href: adminHref('health', { hash: SCHEDULED_TASKS_ANCHOR }) },
+  queue: { label: 'Open queue', href: adminHref('queue') },
+  statics: { label: 'Open statics', href: adminHref('statics') },
+  staticsReview: { label: 'Review snapshot', href: adminHref('statics') },
+} satisfies Record<string, AttentionItem['action']>;
 
 // Where an operator goes to see a source directly when the overview could not read it.
-const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page: { label: string; href: string } }> = {
-  crons: { label: 'scheduled jobs', page: { label: 'View jobs', href: '/admin/health#scheduled' } },
-  budget: { label: 'ESI error budget', page: ESI_PAGE },
-  fallback: { label: 'price source', page: ESI_PAGE },
-  budgetExhaustions: { label: 'price source', page: ESI_PAGE },
-  sli: { label: 'service levels', page: HEALTH_PAGE },
-  queue: { label: 'refresh queue', page: { label: 'Open queue', href: '/admin/queue' } },
-  statics: { label: 'statics review', page: { label: 'Open statics', href: '/admin/statics' } },
-  releases: { label: 'releases', page: HEALTH_PAGE },
+const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page: AttentionItem['action'] }> = {
+  crons: { label: 'scheduled jobs', page: PAGE_ACTIONS.jobs },
+  budget: { label: 'ESI error budget', page: PAGE_ACTIONS.esi },
+  fallback: { label: 'price source', page: PAGE_ACTIONS.esi },
+  budgetExhaustions: { label: 'price source', page: PAGE_ACTIONS.esi },
+  sli: { label: 'service levels', page: PAGE_ACTIONS.health },
+  queue: { label: 'refresh queue', page: PAGE_ACTIONS.queue },
+  statics: { label: 'statics review', page: PAGE_ACTIONS.statics },
+  releases: { label: 'releases', page: PAGE_ACTIONS.health },
 };
 
 function unavailableLine(id: string, label: string): StatusLine {
@@ -236,18 +248,28 @@ export interface QueueSummary {
   oldestDueHours: number | null;
 }
 
+/** How many jobs sit in these statuses, and when the oldest of them was queued. */
+export function countJobs(
+  stats: readonly EsiRefreshQueueStat[],
+  statuses: readonly EsiRefreshJobStatus[],
+): { count: number; oldest: Date | null } {
+  const matching = stats.filter((stat) => statuses.includes(stat.status));
+  const count = matching.reduce((total, stat) => total + stat.count, 0);
+  const oldest = matching.reduce<Date | null>(
+    (min, stat) => (min === null || stat.oldestCreatedAt < min ? stat.oldestCreatedAt : min),
+    null,
+  );
+  return { count, oldest };
+}
+
 export function summarizeQueue(stats: EsiRefreshQueueStat[], now: Date): QueueSummary {
-  const live = new Set<string>(LIVE_ESI_REFRESH_JOB_STATUSES);
-  let due = 0;
-  let deadLettered = 0;
-  let oldest: Date | null = null;
-  for (const stat of stats) {
-    if (stat.status === 'dead_lettered') deadLettered += stat.count;
-    if (!live.has(stat.status)) continue;
-    due += stat.count;
-    if (oldest === null || stat.oldestCreatedAt < oldest) oldest = stat.oldestCreatedAt;
-  }
-  return { due, deadLettered, oldestDueHours: oldest === null ? null : elapsedHours(oldest, now) };
+  // Dead letters are counted on their own: they are not due, and their age is not the queue's.
+  const live = countJobs(stats, LIVE_ESI_REFRESH_JOB_STATUSES);
+  return {
+    due: live.count,
+    deadLettered: countJobs(stats, ['dead_lettered']).count,
+    oldestDueHours: live.oldest === null ? null : elapsedHours(live.oldest, now),
+  };
 }
 
 export function queueLevel(queue: QueueSummary): StatusLevel {
@@ -286,7 +308,7 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
   if (latest === null) {
     return { id: 'release', label: 'Latest release', value: 'none', level: 'neutral' };
   }
-  const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / 86_400_000));
+  const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / DAY_MS));
   return {
     id: 'release',
     label: 'Latest release',
@@ -298,9 +320,7 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
 
 /** Refresh jobs waiting for the ESI budget to recover. */
 export function heldForBudget(stats: readonly EsiRefreshQueueStat[]): number {
-  return stats
-    .filter((stat) => stat.status === 'deferred_for_budget')
-    .reduce((total, stat) => total + stat.count, 0);
+  return countJobs(stats, ['deferred_for_budget']).count;
 }
 
 function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
@@ -392,7 +412,7 @@ function staticsAttention(statics: AdminSignals['statics']): AttentionItem[] {
       level: 'amber',
       title: `Wormhole statics feed v${statics.feedVersion} is waiting for review`,
       detail: formatCount(statics.totalDifferences, 'assignment difference'),
-      action: { label: 'Review snapshot', href: '/admin/statics' },
+      action: PAGE_ACTIONS.staticsReview,
     },
   ];
 }
@@ -405,7 +425,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
       level: 'red',
       title: `${formatCount(queue.deadLettered, 'refresh job')} dead-lettered`,
       detail: 'Refresh stopped',
-      action: { label: 'Open queue', href: '/admin/queue' },
+      action: PAGE_ACTIONS.queue,
     });
   }
   if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) {
@@ -415,7 +435,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
       level: 'amber',
       title: `Refresh backlog of ${formatCount(queue.due, 'job')}, oldest ${oldest}`,
       detail: `target ≤ ${QUEUE_STALE_HOURS}h`,
-      action: { label: 'Open queue', href: '/admin/queue' },
+      action: PAGE_ACTIONS.queue,
     });
   }
   return items;
@@ -453,9 +473,9 @@ function unavailableAttention(signals: AdminSignals): AttentionItem[] {
 
 export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): AttentionItem[] {
   const actionFor: Record<StatusGroup['id'], AttentionItem['action']> = {
-    app: HEALTH_PAGE,
-    esi: ESI_PAGE,
-    jobs: { label: 'View jobs', href: '/admin/health#scheduled' },
+    app: PAGE_ACTIONS.health,
+    esi: PAGE_ACTIONS.esi,
+    jobs: PAGE_ACTIONS.jobs,
   };
   const statusItems = groups.flatMap((group) =>
     group.lines.flatMap((line) => lineAttention(line, actionFor[group.id])),

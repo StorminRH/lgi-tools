@@ -50,7 +50,7 @@ export default function AdminUsersPage({
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
   return (
-    <AdminPageFrame title="Users & roles" fallbackLabel="Admins">
+    <AdminPageFrame section="users" fallbackLabel="Admins">
       <AccessContent searchParams={searchParams} />
     </AdminPageFrame>
   );

@@ -12,7 +12,7 @@ export async function GET(): Promise<Response> {
     return apiResponse(corpIndustryJobsEndpoint, 200, { corporations: [], names: {} });
   }
   const result = await measureOwnedDataRead({
-    endpoint: '/api/account/corp-industry-jobs',
+    endpoint: corpIndustryJobsEndpoint,
     read: () => getCorpJobsForUserOnView(userId),
     returned: (value) => value.corporations.length,
   });
