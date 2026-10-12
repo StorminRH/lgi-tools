@@ -90,6 +90,12 @@ describe('cron schedule registry', () => {
     expect(sdeMinute).toBeLessThan(batchMinute);
   });
 
+  it('fires the daily batch off the hour and the half hour, where CCP asks clients not to spike', () => {
+    const batchMinute = dailyMinuteOf(scheduleOf('/api/cron/daily-batch'));
+    expect(batchMinute).toBe(12 * 60 + 7);
+    expect(batchMinute % 30).not.toBe(0);
+  });
+
   it('rejects a sub-daily schedule as a daily minute', () => {
     expect(() => dailyMinuteOf('*/15 11 * * *')).toThrow('fixed daily cron schedule');
   });

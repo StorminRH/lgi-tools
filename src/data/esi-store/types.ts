@@ -70,6 +70,18 @@ export interface StoredFetchInit {
   readonly interactive?: boolean;
 }
 
+export interface StoredManyInit extends StoredFetchInit {
+  /** How many ESI calls the batch keeps in flight: the route's share of CCP's limits, set by the caller. */
+  readonly concurrency: number;
+}
+
+/**
+ * One key's answer in a batched read: what `fetchStored` answers, or the
+ * error that key's call threw (a budget refusal, a 5xx), kept to that key
+ * so the rest of the batch still answers.
+ */
+export type StoredManyAnswer = StoredFetch | { readonly kind: 'failed'; readonly error: unknown };
+
 export interface StoredAuthedInit {
   readonly rl?: RlSnapshot;
   /**

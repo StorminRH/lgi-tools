@@ -121,9 +121,10 @@ function refreshCostIndices(db: AnyPgDb, updatedAt: Date): Promise<DatasetResult
 }
 
 /**
- * The cost indices once a view finds them due. The store's single-flight
- * lock keeps two instances from both calling, and the cron backstop below
- * runs the same code, so an overlap is a 304 or the same changed rows.
+ * The cost indices once a view finds them due. No lock: two instances that
+ * both find them due both call, and the second gets CCP's shared copy or
+ * a 304; the cron backstop below runs the same code, so an overlap is a
+ * 304 or the same changed rows.
  */
 export function refreshCostIndicesOnView(): Promise<DatasetResult> {
   return refreshCostIndices(defaultDb, new Date());

@@ -61,9 +61,9 @@ export type SourceRead<T> =
   | { readonly kind: 'fresh'; readonly rows: T[]; readonly meta: EsiResponseMeta };
 
 /**
- * One global dataset through the store: unexpired, a 304 and a busy
- * single-flight lock all come back unchanged, and a status that is neither
- * 200 nor 304 is the error it always was.
+ * One global dataset through the store: unexpired, a 304 and the downtime
+ * halt all come back unchanged, and a status that is neither 200 nor 304
+ * is the error it always was.
  */
 async function readDataset<T>(key: EsiStoreKey, parse: (body: unknown) => T[]): Promise<SourceRead<T>> {
   const result = await fetchStored(key);

@@ -1,3 +1,4 @@
+import { mapConcurrent } from '@/lib/fan-out';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { corpCredentials } from './credential';
 import type {
@@ -15,6 +16,9 @@ type CredentialsEnd = { kind: 'denied' } | { kind: 'unavailable'; retryable: boo
 
 /** The access tokens an owner's refresh may try, in order, and why there are no more. */
 type Credentials = AsyncGenerator<string, CredentialsEnd>;
+
+/** Owners (characters or corporations) refreshed at once in one pass; each owner's sections still run in parallel inside it. */
+export const OWNER_SYNC_CONCURRENCY = 8;
 
 export async function runOwnerSync<TOwner, TState, TSave, TSession extends ReadSession>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
@@ -36,13 +40,12 @@ async function runCharacterPass<TOwner, TState, TSave, TSession extends ReadSess
   axis: OwnerAxis<TOwner>,
   owners: EnumeratedOwner[],
 ): Promise<OwnerSyncResult[]> {
-  return Promise.all(
-    owners
-      .filter((owner) => axis.eligible(owner))
-      .map((owner) =>
-        syncOwner(descriptor, axis.ownerOf(owner.characterId), () =>
-          characterCredentials(descriptor, owner.characterId),
-        ),
+  return mapConcurrent(
+    owners.filter((owner) => axis.eligible(owner)),
+    OWNER_SYNC_CONCURRENCY,
+    (owner) =>
+      syncOwner(descriptor, axis.ownerOf(owner.characterId), () =>
+        characterCredentials(descriptor, owner.characterId),
       ),
   );
 }
@@ -71,12 +74,13 @@ async function runCorpPass<TOwner, TState, TSave, TSession extends ReadSession>(
   userId: string,
   owners: EnumeratedOwner[],
 ): Promise<OwnerSyncResult[]> {
-  return Promise.all(
-    [...corporationsOf(owners, (owner) => axis.eligible(owner))].map(([corporationId, members]) =>
+  return mapConcurrent(
+    [...corporationsOf(owners, (owner) => axis.eligible(owner))],
+    OWNER_SYNC_CONCURRENCY,
+    ([corporationId, members]) =>
       syncOwner(descriptor, axis.ownerOf(userId, corporationId), () =>
         corpTokens(descriptor, axis, members),
       ),
-    ),
   );
 }
 

@@ -1,10 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchStoredMock = vi.fn();
+const batchInits: { concurrency: number }[] = [];
 
-vi.mock('@/data/esi-store', () => ({ fetchStored: (...args: unknown[]) => fetchStoredMock(...args) }));
+/** The batched read as one call per key, a thrown call kept to its key the way the store keeps it. */
+vi.mock('@/data/esi-store', () => ({
+  fetchStoredMany: (keys: unknown[], init: { concurrency: number }) => {
+    batchInits.push(init);
+    return Promise.all(keys.map((key) => Promise.resolve(fetchStoredMock(key)).catch((error: unknown) => ({ kind: 'failed', error }))));
+  },
+}));
 
 import { EsiBudgetExhaustedError } from '@/platform/esi';
+import { HISTORY_FETCH_CONCURRENCY } from './constants';
 import { historyKey } from './keys';
 import { fetchHistoryFromSource, parseEsiHistory } from './source';
 
@@ -33,6 +41,7 @@ function fresh(typeId: number, items: unknown[]) {
 
 beforeEach(() => {
   fetchStoredMock.mockReset();
+  batchInits.length = 0;
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -65,13 +74,15 @@ describe('parseEsiHistory', () => {
 });
 
 describe('fetchHistoryFromSource', () => {
-  it('reads one key per type through the store and carries each answer\'s meta', async () => {
+  it('reads one key per type through one batched store read at HISTORY_FETCH_CONCURRENCY and carries each answer\'s meta', async () => {
     fetchStoredMock.mockImplementation((key) => Promise.resolve(fresh(typeIdOf(key), [{ ...sampleItem, average: typeIdOf(key) }])));
 
     const { results, budgetExhausted } = await fetchHistoryFromSource([34, 35, 34]);
     expect(budgetExhausted).toBe(false);
     expect(results).toHaveLength(2);
     expect(fetchStoredMock.mock.calls.map(([key]) => key)).toEqual([historyKey(34), historyKey(35)]);
+    expect(batchInits).toEqual([{ concurrency: HISTORY_FETCH_CONCURRENCY }]);
+    expect(HISTORY_FETCH_CONCURRENCY).toBe(20);
     const r34 = results.find((r) => r.typeId === 34)!;
     expect(r34.source).toBe('esi');
     expect(r34.rows[0]!.average).toBe(34);
@@ -91,10 +102,12 @@ describe('fetchHistoryFromSource', () => {
     expect(results.map((r) => r.typeId)).toEqual([34]);
   });
 
-  it('flags budget exhaustion and stops dispatching', async () => {
-    fetchStoredMock.mockRejectedValue(new EsiBudgetExhaustedError(0));
+  it('flags budget exhaustion and keeps the other answers of the batch', async () => {
+    fetchStoredMock.mockImplementation((key) =>
+      typeIdOf(key) === 2 ? Promise.reject(new EsiBudgetExhaustedError(0)) : Promise.resolve(fresh(typeIdOf(key), [sampleItem])),
+    );
     const { results, budgetExhausted } = await fetchHistoryFromSource([1, 2, 3]);
-    expect(results).toHaveLength(0);
+    expect(results.map((r) => r.typeId)).toEqual([1, 3]);
     expect(budgetExhausted).toBe(true);
   });
 });

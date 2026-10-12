@@ -47,9 +47,9 @@ const eveEsi = policy({
   retryableErrors:
     'None at the dispatch layer. A 304 whose cached body has been evicted triggers one unconditional re-request — a cache repair, not an error retry.',
   backoff:
-    'No client backoff. CCP 429s and 420s become a Redis-recorded block on the normalized path, and the pre-dispatch gate refuses calls until it expires.',
+    'No client backoff. A CCP 429 becomes a Redis-recorded block on the rate-limit group it names (the normalized path when it names none), a 420 zeroes the error budget, and the pre-dispatch gate refuses calls until the block expires.',
   rateLimit:
-    "The shared Redis scoreboard owns CCP's per-IP error budget: two-minute-bucket self counts plus the server's error-limit echo, evaluated before dispatch.",
+    "The shared Redis scoreboard owns CCP's per-IP error budget (two-minute-bucket self counts plus the server's error-limit echo), a lowest-wins 60s echo of each rate-limit group's Remaining that refuses non-interactive calls below a tenth of the group's limit and interactive ones below a twentieth, and a per-minute market-history counter capped at 250 across instances; all counters, never locks, evaluated before dispatch. Fan-outs are bounded per instance (prices 32, dump pages 16, history 20, paged reads 8, owner syncs 8, structure lookups 8).",
   idempotency:
     'Read-only ESI operations only: GET queries plus public POST resolvers whose JSON bodies name lookup inputs and perform no mutation, so a repeat is safe.',
   degradation:

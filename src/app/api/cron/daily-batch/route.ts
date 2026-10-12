@@ -11,9 +11,10 @@ import { refreshWhStaticsDeclaration } from '../refresh-wh-statics/declaration';
 import { revalueNetWorthDeclaration } from '../revalue-net-worth/declaration';
 
 /**
- * The daily Vercel cron. Pro fires it on the minute, at 12:00 UTC, after
- * CCP's 11:00 downtime and the 11:30 SDE refresh; running the steps in one
- * invocation keeps their order fixed. Net worth is revalued after the price
+ * The daily Vercel cron. Pro fires it on the minute, at 12:07 UTC, after
+ * CCP's 11:00 downtime and the 11:30 SDE refresh, and off the hour, where
+ * CCP asks clients not to spike; running the steps in one invocation keeps
+ * their order fixed. Net worth is revalued after the price
  * sweep so it carries the new prices; without new prices there is no revalue,
  * and the board carries yesterday's day. Housekeeping runs last under its own
  * time budget, so a backlog never delays the refreshes. The SDE refresh keeps

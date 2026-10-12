@@ -1,7 +1,11 @@
+import { mapConcurrent } from '@/lib/fan-out';
 import { esiPageCount, httpDateMs, intHeader } from './headers';
 import { esiFetch, esiUrl } from './index';
 import { esiAuthInit, esiJsonPostInit } from './request-init';
 import type { EsiPageResponseHeaders, EsiResponseHeaders } from './response-metadata';
+
+/** Pages of one paged read in flight at once, after page 1 has said how many there are. */
+export const PAGED_READ_CONCURRENCY = 8;
 
 export interface RlSnapshot {
   rlGroup: string | null;
@@ -158,9 +162,8 @@ export async function readEsiPagedAuthed(
   }
 
   const firstFresh = first.kind === 'fresh' ? first : await fetchPage(basePath, 1, null, accessToken, rl);
-  const rest = await Promise.all(
-    Array.from({ length: pageCount - 1 }, (_unused, i) => fetchPage(basePath, i + 2, null, accessToken, rl)),
-  );
+  const pages = Array.from({ length: pageCount - 1 }, (_unused, i) => i + 2);
+  const rest = await mapConcurrent(pages, PAGED_READ_CONCURRENCY, (page) => fetchPage(basePath, page, null, accessToken, rl));
   return finalizeFresh([firstFresh, ...rest]);
 }
 

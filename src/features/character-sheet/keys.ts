@@ -22,6 +22,9 @@ export const SHEET_ROUTES = {
 /** The structure name lookup the structures section and the corp context both make, pass-through and never stored. */
 export const STRUCTURE_LOOKUP_ROUTE = '/universe/structures/{structure_id}/' satisfies EsiRoute;
 
+/** Structure lookups in flight at once, for a sheet's referenced structures and the structure search alike. */
+export const STRUCTURE_LOOKUP_CONCURRENCY = 8;
+
 export function sheetEndpointKey(characterId: number, endpoint: SheetEndpoint): EsiStoreKey {
   return { route: SHEET_ROUTES[endpoint], holder: { kind: 'character', id: characterId } };
 }

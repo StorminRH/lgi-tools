@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { EVE_CHARACTER_SEARCH_SCOPE, type EveScope } from '@/config/eve-scopes';
 import type { StructureSearchResult } from '@/features/custom-structures/api-contract';
 import { getOrInsertComputed } from '@/lib/array';
+import { mapConcurrent } from '@/lib/fan-out';
 import { esiPassThrough } from '@/data/esi-store';
-import { STRUCTURE_LOOKUP_ROUTE } from '@/features/character-sheet/keys';
+import { STRUCTURE_LOOKUP_CONCURRENCY, STRUCTURE_LOOKUP_ROUTE } from '@/features/character-sheet/keys';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { esiAuthInit } from '@/platform/esi/request-init';
 import {
@@ -84,8 +85,10 @@ export async function searchUpwellStructures(
   for (const { accessToken, ids } of searched) {
     for (const id of ids) getOrInsertComputed(seenBy, id, () => []).push(accessToken);
   }
-  const read = await Promise.all(
-    [...seenBy].slice(0, MAX_STRUCTURE_RESULTS).map(([id, accessTokens]) => readWithAny(id, accessTokens, signal)),
+  const read = await mapConcurrent(
+    [...seenBy].slice(0, MAX_STRUCTURE_RESULTS),
+    STRUCTURE_LOOKUP_CONCURRENCY,
+    ([id, accessTokens]) => readWithAny(id, accessTokens, signal),
   );
   return read.filter((structure): structure is StructureSearchResult => structure !== null);
 }

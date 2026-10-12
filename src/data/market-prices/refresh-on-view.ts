@@ -6,7 +6,7 @@ import { dedupe } from '@/lib/array';
 import { persistPrices } from './ingest';
 import { MARKET_PRICES_TAG, priceKey } from './keys';
 import { getPrices } from './queries';
-import { fetchPricesFromSource, type SourcePrices } from './source';
+import { fetchPricesPerType, type SourcePrices } from './source';
 import type { MarketPrice, RawMarketPrice } from './types';
 
 export interface LivePricesMetrics {
@@ -79,8 +79,10 @@ function writeBehind(
 /**
  * The prices a view asks for: every type whose stored copy is unexpired is
  * served from Neon without a call; the rest are asked of ESI through the
- * store (or Fuzzwork when ESI cannot answer) and written behind the
- * response, with CCP's expiry committed in the same after().
+ * store, one order-book call per type however many there are (or Fuzzwork
+ * when ESI cannot answer), and written behind the response, with CCP's
+ * expiry committed in the same after(). A view never reads the region
+ * dump; that is the cron sweep's alone.
  */
 export async function getLivePrices(
   typeIds: number[],
@@ -107,7 +109,7 @@ export async function getLivePrices(
     else dueIds.push(id);
   });
 
-  const live = dueIds.length > 0 ? await fetchPricesFromSource(dueIds) : NOTHING_FETCHED;
+  const live = dueIds.length > 0 ? await fetchPricesPerType(dueIds) : NOTHING_FETCHED;
   degraded.budgetExhausted = live.budgetExhausted;
   const fetchedAtByType = new Map<number, Date>();
   const staleAfterByType = new Map<number, Date>();

@@ -9,7 +9,7 @@
 import { expireNow } from '@/lib/cache-expiry';
 import { eveTag, routeDataset, routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
 import type { EsiHolder, EsiRouteDeclaration } from '@/lib/esi-datasets/types';
-import { EsiServerError, esiFetch, esiUrl, type EsiFetchOptions } from '@/platform/esi';
+import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl, type EsiFetchOptions } from '@/platform/esi';
 import {
   readEsiAuthed,
   readEsiAuthedPost,
@@ -19,11 +19,11 @@ import {
 } from '@/platform/esi/authed-read';
 import { httpDateMs } from '@/platform/esi/headers';
 import { esiJsonPostInit } from '@/platform/esi/request-init';
+import { mapConcurrent } from '@/lib/fan-out';
 import { earliestExpiry, expiryFor, isExpired } from './expiry';
 import { esiHalted } from './halt';
-import { identityText, resolvePath, rowIdentity } from './key';
-import { readRouteExpiry, readStoredRows, recordResponse, recordUnchanged } from './rows';
-import { withGlobalSingleFlight } from './single-flight';
+import { resolvePath } from './key';
+import { readRouteExpiry, readStoredRows, recordResponses, recordUnchangedMany, type UnchangedRecord } from './rows';
 import type {
   EsiAnswerStamp,
   EsiParams,
@@ -34,6 +34,8 @@ import type {
   StoredBatchAnswer,
   StoredFetch,
   StoredFetchInit,
+  StoredManyAnswer,
+  StoredManyInit,
   StoredPagedRead,
   StoredRow,
   StoredUnchanged,
@@ -53,6 +55,8 @@ export type {
   StoredBatchAnswer,
   StoredFetch,
   StoredFetchInit,
+  StoredManyAnswer,
+  StoredManyInit,
   StoredPagedRead,
   StoredRow,
 } from './types';
@@ -126,9 +130,24 @@ async function settleUnchanged(
   answer: AnswerHeaders,
   checkedAt: number,
 ): Promise<StoredUnchanged> {
-  const expiresAt = expiryFor(answer.expiresAt, declaration.specCacheSeconds, checkedAt);
-  await recordUnchanged(key, { expiresAt, lastModified: httpDateMs(answer.lastModified ?? null), checkedAt });
-  return unchanged(expiresAt);
+  const record = unchangedRecord(key, declaration, answer, checkedAt);
+  await recordUnchangedMany([record]);
+  return unchanged(record.expiresAt);
+}
+
+/** What a 304 records for its key: the new expiry and check time, and Last-Modified when the answer carried one. */
+function unchangedRecord(
+  key: EsiStoreKey,
+  declaration: EsiRouteDeclaration,
+  answer: AnswerHeaders,
+  checkedAt: number,
+): UnchangedRecord {
+  return {
+    key,
+    expiresAt: expiryFor(answer.expiresAt, declaration.specCacheSeconds, checkedAt),
+    lastModified: httpDateMs(answer.lastModified ?? null),
+    checkedAt,
+  };
 }
 
 function responseAnswer(res: Response): AnswerHeaders {
@@ -139,35 +158,89 @@ function etagsOf(etag: string | null): string[] {
   return etag === null ? [] : [etag];
 }
 
-async function callPublic(key: EsiStoreKey, declaration: EsiRouteDeclaration, init: StoredFetchInit): Promise<StoredFetch> {
-  const row = await readStoredRow(key);
-  const checkedAt = Date.now();
-  if (!isExpired(row?.expiresAt ?? null, checkedAt) || (await esiHalted(key, checkedAt))) return unchangedRow(row);
+/** One key of a batch: the declaration it follows and the row it holds, read before the fan-out. */
+interface PublicCall {
+  readonly key: EsiStoreKey;
+  readonly declaration: EsiRouteDeclaration;
+  readonly row: StoredRow | null;
+}
+
+/** A call's answer, with the 304 record the batch writes once every call is done. */
+interface PublicAnswer {
+  readonly answer: StoredManyAnswer;
+  readonly unchanged?: UnchangedRecord;
+}
+
+async function callPublic(call: PublicCall, init: StoredFetchInit, checkedAt: number): Promise<PublicAnswer> {
+  const { key, declaration, row } = call;
   const [etag] = heldEtags(declaration, row, init.conditional);
   const headers: Record<string, string> = etag === undefined ? {} : { 'If-None-Match': etag };
   const opts: EsiFetchOptions | undefined = init.interactive === true ? { interactive: true } : undefined;
   const res = await esiFetch(esiUrl(resolvePath(key)), { headers }, opts);
   logAnswer(key, res.status, res.headers.get('x-esi-cache-status'));
   const answer = responseAnswer(res);
-  if (res.status === 304) return settleUnchanged(key, declaration, answer, checkedAt);
-  if (res.status !== 200) return { kind: 'error', status: res.status };
+  if (res.status === 304) {
+    const record = unchangedRecord(key, declaration, answer, checkedAt);
+    return { answer: unchanged(record.expiresAt), unchanged: record };
+  }
+  if (res.status !== 200) return { answer: { kind: 'error', status: res.status } };
   const body: unknown = declaration.keepBody === true ? await res.clone().json() : undefined;
-  return { kind: 'fresh', res, meta: metaOf(key, declaration, answer, etagsOf(res.headers.get('ETag')), checkedAt, body) };
+  const meta = metaOf(key, declaration, answer, etagsOf(res.headers.get('ETag')), checkedAt, body);
+  return { answer: { kind: 'fresh', res, meta } };
 }
 
 /**
- * A public GET through the store. Global keys refresh one at a time across
- * instances: a caller that finds the lock busy serves the stored copy.
- * Owner keys take no lock; a duplicate call for one owner is just a 304.
+ * The ESI calls of a batch, at most `concurrency` in flight, each failure
+ * kept to its own key. Once the gate refuses one call for budget, the keys
+ * not yet started take that refusal without calling: the gate would refuse
+ * them the same way.
  */
+async function fanOut(calls: readonly PublicCall[], init: StoredManyInit, checkedAt: number): Promise<PublicAnswer[]> {
+  let refused: EsiBudgetExhaustedError | null = null;
+  return mapConcurrent(calls, init.concurrency, async (call) => {
+    if (refused !== null) return { answer: { kind: 'failed', error: refused } };
+    try {
+      return await callPublic(call, init, checkedAt);
+    } catch (error) {
+      if (error instanceof EsiBudgetExhaustedError) refused = error;
+      return { answer: { kind: 'failed', error } };
+    }
+  });
+}
+
+/**
+ * Many public GETs as one batch, the way a page with hundreds of due
+ * prices or history series asks: one row read for every key, the expired
+ * ones called with at most `concurrency` in flight, and every 304 recorded
+ * in one write once the fan-out is done. Answers come back in key order.
+ * No key takes a lock, global or owner: duplicates right after an expiry
+ * are accepted, since CCP serves its shared copy or a 304 and the writes
+ * behind them are idempotent. Under the downtime halt nothing is called
+ * and every key serves its stored copy.
+ */
+export async function fetchStoredMany(keys: readonly EsiStoreKey[], init: StoredManyInit): Promise<StoredManyAnswer[]> {
+  if (keys.length === 0) return [];
+  const declarations = keys.map(storedDeclaration);
+  const rows = await readStoredRows(keys);
+  const checkedAt = Date.now();
+  const due = keys.flatMap((_key, i) => (isExpired(rows[i]?.expiresAt ?? null, checkedAt) ? [i] : []));
+  const answers: StoredManyAnswer[] = rows.map(unchangedRow);
+  if (due.length === 0 || (await esiHalted(keys[due[0]!]!, checkedAt))) return answers;
+  const calls = due.map((i) => ({ key: keys[i]!, declaration: declarations[i]!, row: rows[i] ?? null }));
+  const settled = await fanOut(calls, init, checkedAt);
+  due.forEach((i, n) => {
+    answers[i] = settled[n]!.answer;
+  });
+  const unchangedRecords = settled.flatMap((call) => (call.unchanged === undefined ? [] : [call.unchanged]));
+  if (unchangedRecords.length > 0) await recordUnchangedMany(unchangedRecords);
+  return answers;
+}
+
+/** A public GET through the store: `fetchStoredMany` for one key, whose thrown call throws here as it always did. */
 export async function fetchStored(key: EsiStoreKey, init: StoredFetchInit = {}): Promise<StoredFetch> {
-  const declaration = storedDeclaration(key);
-  if (key.holder.kind !== 'global') return callPublic(key, declaration, init);
-  const row = await readStoredRow(key);
-  if (!isExpired(row?.expiresAt ?? null, Date.now())) return unchangedRow(row);
-  // The lock holder reads the row again: another instance may have just refreshed it.
-  const outcome = await withGlobalSingleFlight(identityText(rowIdentity(key)), () => callPublic(key, declaration, init));
-  return outcome.busy ? unchangedRow(row) : outcome.result;
+  const answer = (await fetchStoredMany([key], { ...init, concurrency: 1 }))[0]!;
+  if (answer.kind === 'failed') throw answer.error;
+  return answer;
 }
 
 /**
@@ -343,11 +416,12 @@ export function serverErrorMeta(key: EsiStoreKey, error: EsiServerError, checked
 }
 
 /**
- * Records what committed 200s said without touching the cache: for a cron
- * or script outside a request, which clears its own tag when it has one.
+ * Records what committed 200s said, many rows a statement, without touching
+ * the cache: for a cron or script outside a request, which clears its own
+ * tag when it has one.
  */
-export async function recordMetas(metas: readonly EsiResponseMeta[]): Promise<void> {
-  for (const meta of metas) await recordResponse(meta);
+export function recordMetas(metas: readonly EsiResponseMeta[]): Promise<void> {
+  return recordResponses(metas);
 }
 
 /**
@@ -369,8 +443,8 @@ export async function commit(metas: readonly EsiResponseMeta[], opts: { readonly
  * body belong to the request that was made, not to the keys, so neither is
  * carried over.
  */
-export async function recordExpiryFor(keys: readonly EsiStoreKey[], stamp: EsiAnswerStamp): Promise<void> {
-  for (const key of keys) {
-    await recordResponse({ key, expiresAt: stamp.expiresAt, etags: [], lastModified: stamp.lastModified, checkedAt: stamp.checkedAt });
-  }
+export function recordExpiryFor(keys: readonly EsiStoreKey[], stamp: EsiAnswerStamp): Promise<void> {
+  return recordResponses(
+    keys.map((key) => ({ key, expiresAt: stamp.expiresAt, etags: [], lastModified: stamp.lastModified, checkedAt: stamp.checkedAt })),
+  );
 }

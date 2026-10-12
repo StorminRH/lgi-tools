@@ -260,7 +260,7 @@
           "config"
         ]
       },
-      { "from": "platform/owner-sync", "allow": ["platform/esi"] },
+      { "from": "platform/owner-sync", "allow": ["platform/esi", "lib"] },
       { "from": "platform/esi", "allow": ["lib", "config"] },
       { "from": "platform/search", "allow": [] },
       { "from": "platform/purge", "allow": [] },

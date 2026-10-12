@@ -45,7 +45,7 @@ export function rowIdentity(key: EsiStoreKey): RowIdentity {
   return { route: key.route, ...holderColumns(key.holder), params: canonicalParams(key.params) };
 }
 
-/** One string per row identity: the map key for batched reads and the text the advisory-lock hash is taken over. */
+/** One string per row identity: the map key for batched reads and writes. */
 export function identityText(identity: RowIdentity): string {
   return [identity.route, identity.holderType, identity.holderId, identity.userId, identity.params].join('|');
 }

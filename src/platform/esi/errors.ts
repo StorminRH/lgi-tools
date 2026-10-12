@@ -9,6 +9,8 @@ export const ESI_BUDGET_FLOOR = 20;
 export type EsiBudgetExhaustedReason =
   | 'error_budget'
   | 'esi_420'
+  | 'group_budget'
+  | 'history_cap'
   | 'rate_limited'
   | 'scoreboard_unavailable'
   | 'trickle_capped';

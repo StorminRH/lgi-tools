@@ -1,6 +1,8 @@
 import { and, eq, or, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
+import { chunk } from '@/lib/array';
+import { excluded, excludedSet } from '@/lib/db-upsert';
 import type { EsiRoute } from '@/lib/esi-datasets/routes';
 import type { EsiHolder } from '@/lib/esi-datasets/types';
 import { holderColumns, identityText, rowIdentity, type EsiResponseHolderType, type RowIdentity } from './key';
@@ -93,40 +95,74 @@ const IDENTITY_COLUMNS = [
   esiResponses.params,
 ];
 
-/** Records a 200: the new expiry, ETag(s), Last-Modified and, for keepBody routes, the document itself. */
-export async function recordResponse(meta: EsiResponseMeta): Promise<void> {
-  const values = {
+/** Rows per esi_responses statement: ten binds a row at most, far below the driver's parameter cap. */
+const UPSERT_CHUNK_SIZE = 1000;
+
+/**
+ * One record per row identity, the last one for a repeated key winning: a
+ * multi-row upsert may not touch the same row twice in one statement.
+ */
+function dedupeByIdentity<T extends { readonly key: EsiStoreKey }>(records: readonly T[]): T[] {
+  const byIdentity = new Map<string, T>();
+  for (const record of records) byIdentity.set(identityText(rowIdentity(record.key)), record);
+  return [...byIdentity.values()];
+}
+
+/**
+ * Records committed 200s, many rows a statement: each row's new expiry,
+ * ETag(s), Last-Modified and, for keepBody routes, the document itself,
+ * every value taken from the row proposed rather than from any one meta.
+ */
+export async function recordResponses(metas: readonly EsiResponseMeta[]): Promise<void> {
+  const rows = dedupeByIdentity(metas).map((meta) => ({
+    ...rowIdentity(meta.key),
     expiresAt: toDate(meta.expiresAt),
     etags: [...meta.etags],
     lastModified: toDate(meta.lastModified),
     checkedAt: new Date(meta.checkedAt),
     body: meta.body ?? null,
-  };
-  await db
-    .insert(esiResponses)
-    .values({ ...rowIdentity(meta.key), ...values })
-    .onConflictDoUpdate({ target: IDENTITY_COLUMNS, set: values });
+  }));
+  for (const batch of chunk(rows, UPSERT_CHUNK_SIZE)) {
+    await db
+      .insert(esiResponses)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: IDENTITY_COLUMNS,
+        set: excludedSet(esiResponses, ['expiresAt', 'etags', 'lastModified', 'checkedAt', 'body']),
+      });
+  }
 }
 
 export interface UnchangedRecord {
+  readonly key: EsiStoreKey;
   readonly expiresAt: number | null;
   readonly lastModified: number | null;
   readonly checkedAt: number;
 }
 
-/** Records a 304: the new expiry and check time; the ETags and body stand, and Last-Modified only moves when the answer carried one. */
-export async function recordUnchanged(key: EsiStoreKey, record: UnchangedRecord): Promise<void> {
-  const expiresAt = toDate(record.expiresAt);
-  const checkedAt = new Date(record.checkedAt);
-  await db
-    .insert(esiResponses)
-    .values({ ...rowIdentity(key), expiresAt, lastModified: toDate(record.lastModified), checkedAt })
-    .onConflictDoUpdate({
-      target: IDENTITY_COLUMNS,
-      set: {
-        expiresAt,
-        lastModified: sql`coalesce(excluded.last_modified, ${esiResponses.lastModified})`,
-        checkedAt,
-      },
-    });
+/**
+ * Records 304s, many rows a statement: each row's new expiry and check
+ * time; the ETags and body stand, and Last-Modified only moves where the
+ * answer carried one. Nothing to record is no statement at all.
+ */
+export async function recordUnchangedMany(records: readonly UnchangedRecord[]): Promise<void> {
+  const rows = dedupeByIdentity(records).map((record) => ({
+    ...rowIdentity(record.key),
+    expiresAt: toDate(record.expiresAt),
+    lastModified: toDate(record.lastModified),
+    checkedAt: new Date(record.checkedAt),
+  }));
+  for (const batch of chunk(rows, UPSERT_CHUNK_SIZE)) {
+    await db
+      .insert(esiResponses)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: IDENTITY_COLUMNS,
+        set: {
+          expiresAt: excluded(esiResponses.expiresAt),
+          lastModified: sql`coalesce(${excluded(esiResponses.lastModified)}, ${esiResponses.lastModified})`,
+          checkedAt: excluded(esiResponses.checkedAt),
+        },
+      });
+  }
 }

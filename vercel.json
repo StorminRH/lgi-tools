@@ -14,7 +14,7 @@
   "crons": [
     {
       "path": "/api/cron/daily-batch",
-      "schedule": "0 12 * * *"
+      "schedule": "7 12 * * *"
     },
     {
       "path": "/api/cron/refresh-gsc",

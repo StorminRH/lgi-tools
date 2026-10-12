@@ -324,6 +324,86 @@ describe('esiFetch', () => {
     expect(after.status).toBe(200);
   });
 
+  describe('CCP rate-limit groups and the history cap', () => {
+    const HISTORY_URL = 'https://esi.evetech.net/markets/10000002/history/?type_id=34';
+    const groupHeaders = (remaining: string) => ({
+      'X-Ratelimit-Group': 'industry',
+      'X-Ratelimit-Limit': '150/15m',
+      'X-Ratelimit-Remaining': remaining,
+    });
+
+    it('reports the group headers to the scoreboard, the limit read as its leading integer', async () => {
+      const report = vi.fn().mockResolvedValue(undefined);
+      __setScoreboardForTests({
+        preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null }),
+        budgetSnapshot: vi.fn(),
+        availabilitySnapshot: vi.fn(),
+        report,
+      });
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, groupHeaders('149')));
+
+      await esiFetch(TEST_URL);
+
+      expect(report).toHaveBeenCalledWith(
+        expect.objectContaining({ rlGroup: 'industry', rlLimit: 150, rlRemaining: 149 }),
+      );
+    });
+
+    it("refuses non-interactive calls below a tenth of the group's limit and interactive ones below a twentieth", async () => {
+      fetchSpy.mockResolvedValue(mockResponse(200, groupHeaders('14')));
+      await esiFetch(TEST_URL);
+
+      const refused = await esiFetch(TEST_URL).catch((e: unknown) => e);
+      expect(refused).toBeInstanceOf(EsiBudgetExhaustedError);
+      expect(refused).toMatchObject({ reason: 'group_budget', remaining: 14, resource: '/markets/{n}/orders' });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      fetchSpy.mockResolvedValue(mockResponse(200, groupHeaders('7')));
+      const interactive = await esiFetch(TEST_URL, undefined, { interactive: true });
+      expect(interactive.status).toBe(200);
+      const interactiveRefused = await esiFetch(TEST_URL, undefined, { interactive: true }).catch((e: unknown) => e);
+      expect(interactiveRefused).toMatchObject({ reason: 'group_budget', remaining: 7 });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('lets a call through once a fresh answer shows the group recovered', async () => {
+      vi.useFakeTimers();
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, groupHeaders('10')));
+      await esiFetch(TEST_URL);
+      await expect(esiFetch(TEST_URL)).rejects.toMatchObject({ reason: 'group_budget' });
+
+      vi.advanceTimersByTime(61_000);
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, groupHeaders('140')));
+      expect((await esiFetch(TEST_URL)).status).toBe(200);
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, groupHeaders('139')));
+      expect((await esiFetch(TEST_URL)).status).toBe(200);
+    });
+
+    it('refuses market-history calls once the shared count reaches the cap, and counts its own calls until the next reading', async () => {
+      const preDispatch = vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 249 });
+      __setScoreboardForTests({
+        preDispatch,
+        budgetSnapshot: vi.fn(),
+        availabilitySnapshot: vi.fn(),
+        report: vi.fn().mockResolvedValue(undefined),
+      });
+      fetchSpy.mockResolvedValue(mockResponse(200));
+
+      expect((await esiFetch(HISTORY_URL)).status).toBe(200);
+      const capped = await esiFetch(HISTORY_URL).catch((e: unknown) => e);
+      expect(capped).toBeInstanceOf(EsiBudgetExhaustedError);
+      expect(capped).toMatchObject({ reason: 'history_cap', remaining: 0, resource: '/markets/{n}/history' });
+      expect(preDispatch).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      preDispatch.mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 250 });
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(1_001);
+      await expect(esiFetch(HISTORY_URL)).rejects.toMatchObject({ reason: 'history_cap' });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('conditional requests', () => {
     it('passes a caller If-None-Match through and returns the 304 as ESI sent it', async () => {
       fetchSpy.mockResolvedValueOnce(
@@ -357,6 +437,9 @@ describe('esiFetch', () => {
         errorLimitRemain: 95,
         errorLimitReset: null,
         retryAfter: null,
+        rlGroup: null,
+        rlLimit: null,
+        rlRemaining: null,
       });
     });
 

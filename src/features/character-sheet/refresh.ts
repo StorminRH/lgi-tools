@@ -10,7 +10,7 @@ import {
   runOwnerSync,
   type SingleOwnerRead,
 } from '@/platform/owner-sync';
-import { STRUCTURE_LOOKUP_ROUTE } from './keys';
+import { STRUCTURE_LOOKUP_CONCURRENCY, STRUCTURE_LOOKUP_ROUTE } from './keys';
 import {
   planSectionRead,
   planStructures,
@@ -133,7 +133,7 @@ function structuresDescriptor(
         const readIds = (state?.referenced ?? []).filter((id) =>
           unresolved.has(id) || (retryHidden && previous?.data?.names[String(id)]?.kind === 'hidden'),
         );
-        const reads = await mapByIdDroppingNulls(readIds, (id) => port.readStructure(session, id, accessToken));
+        const reads = await mapByIdDroppingNulls(readIds, (id) => port.readStructure(session, id, accessToken), STRUCTURE_LOOKUP_CONCURRENCY);
         return planStructures(state?.referenced ?? [], previous?.data ?? null, reads, port.now());
       },
       save: (characterId, payload) => port.mergeSection(characterId, 'structures', payload.envelope),

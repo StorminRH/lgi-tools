@@ -60,7 +60,7 @@ describe('withAdvisoryLock', () => {
 });
 
 it('registers each advisory-lock key once, as a safe integer outside the retired and test keys', () => {
-  const retiredKeys = [8_273_619_012, 8_273_619_016, 8_419_273_051];
+  const retiredKeys = [8_273_619_012, 8_273_619_014, 8_273_619_016, 8_273_619_017, 8_419_273_051];
   const concurrencyTestKey = 918_273_645;
   const keys = Object.values(ADVISORY_LOCKS);
 
@@ -77,22 +77,8 @@ it('keeps every advisory-lock key at its deployed value', () => {
   // "the same" lock at once, so each value is pinned to what production uses.
   expect(ADVISORY_LOCKS).toEqual({
     sdeIngest: 8_273_619_013,
-    industryIndices: 8_273_619_014,
     gscSync: 8_273_619_015,
     whStaticsRefresh: 8_273_619_018,
     mapPurge: 8_273_619_019,
-  });
-});
-
-describe('withAdvisoryLock key spelling', () => {
-  it('sends a bigint key as text under an explicit cast, so a 64-bit hash keeps its high bits', async () => {
-    const params: unknown[][] = [];
-    const { client } = createReservedConnectionMock((strings, ...values) => {
-      params.push(values);
-      return Promise.resolve(strings.join('?').includes('pg_try_advisory_lock') ? [{ got: true }] : []);
-    });
-    await withAdvisoryLock(client, 9_223_372_036_854_775_807n, async () => 'ok');
-    expect(params).toEqual([['9223372036854775807'], ['9223372036854775807']]);
-    expect(ADVISORY_LOCKS.sdeIngest).toBeTypeOf('number');
   });
 });

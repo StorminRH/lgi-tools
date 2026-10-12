@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { corporationsOf, runOwnerSync } from './engine';
+import { corporationsOf, OWNER_SYNC_CONCURRENCY, runOwnerSync } from './engine';
 import type { CorpOwnerAxis, OwnerSyncDescriptor, PersistVerdict, ReadSession } from './types';
 import { ownerFixture, readSessionFake } from './__tests__/owner-fixtures';
 
@@ -189,6 +189,31 @@ describe('runOwnerSync — the per-owner dance', () => {
     await runOwnerSync(d, 'u');
 
     expect(d.save).toHaveBeenCalledTimes(3);
+  });
+
+  it('refreshes at most OWNER_SYNC_CONCURRENCY owners at once, in enumeration order', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const started: string[] = [];
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => Array.from({ length: 20 }, (_, i) => ownerFixture(i + 1))),
+      fetchAndPlan: vi.fn(async (owner: string): Promise<PersistVerdict<Save>> => {
+        started.push(owner);
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight -= 1;
+        return { kind: 'save', value: 1 };
+      }),
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(results).toHaveLength(20);
+    expect(d.save).toHaveBeenCalledTimes(20);
+    expect(started.slice(0, 3)).toEqual(['char:1', 'char:2', 'char:3']);
+    expect(peak).toBe(OWNER_SYNC_CONCURRENCY);
+    expect(OWNER_SYNC_CONCURRENCY).toBe(8);
   });
 
   it('reports a budget refusal for the owner, discards its session and leaves the next view to retry', async () => {

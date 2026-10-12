@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed, type RlSnapshot } from './authed-read';
+import { PAGED_READ_CONCURRENCY, readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed, type RlSnapshot } from './authed-read';
 import { __resetEsiGateForTests } from './index';
 
 const TOKEN = 'access-token-xyz';
@@ -237,6 +237,30 @@ describe('readEsiPagedAuthed', () => {
     expect(read.responseHeaders.map((headers) => headers.page)).toEqual([1, 2]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(String(fetchSpy.mock.calls[1][0])).toContain('page=2');
+  });
+
+  it('keeps at most PAGED_READ_CONCURRENCY pages in flight after page 1', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) => {
+      const page = Number(/page=(\d+)/.exec(String(input))?.[1] ?? '1');
+      if (page === 1) return mockResponse(200, { 'X-Pages': '21' }, [{ page }]);
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight -= 1;
+      return mockResponse(200, {}, [{ page }]);
+    });
+
+    const read = await readEsiPagedAuthed('/corporations/9/assets/', TOKEN, []);
+
+    expect(read.kind).toBe('fresh');
+    if (read.kind !== 'fresh') return;
+    expect(read.items).toHaveLength(21);
+    expect(read.responseHeaders.map((headers) => headers.page)).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
+    expect(fetchSpy).toHaveBeenCalledTimes(21);
+    expect(peak).toBe(PAGED_READ_CONCURRENCY);
+    expect(PAGED_READ_CONCURRENCY).toBe(8);
   });
 
   it('propagates a page-1 4xx as an error', async () => {

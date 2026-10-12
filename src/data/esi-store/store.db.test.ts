@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { __resetEsiGateForTests } from '@/platform/esi';
-import { fetchStored, isDue, readStoredAuthed, recordExpiryFor, storedExpiry, storedRouteExpiry, commit } from './index';
+import { fetchStored, fetchStoredMany, isDue, readStoredAuthed, recordExpiryFor, storedExpiry, storedRouteExpiry, commit } from './index';
 import { esiResponses } from './schema';
 import { esiStorePurgeContributor } from './purge';
 import { identityText, rowIdentity } from './key';
@@ -124,26 +124,54 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     await expect(storedRouteExpiry(PRICE_KEY.route)).resolves.toBeNull();
   });
 
-  it('serves the stored copy while another session holds the key\'s advisory lock', async () => {
-    await commit([{ key: PRICE_KEY, expiresAt: NOW - 1, etags: [], lastModified: null, checkedAt: NOW - 1000 }], { tag: 'eve:market_prices' });
-    const holder = await harness.sql.reserve();
-    try {
-      const [hashed] = await holder<{ key: string }[]>`select hashtextextended(${identityText(rowIdentity(PRICE_KEY))}, 0)::text as key`;
-      const key = hashed?.key ?? '';
-      const [lock] = await holder<{ got: boolean }[]>`select pg_try_advisory_lock(${key}::bigint) as got`;
-      expect(lock?.got).toBe(true);
+  it('reads a batch in one row read, calls only the due keys under no lock, and records every 304 in one write', async () => {
+    const third: EsiStoreKey = { ...PRICE_KEY, params: { region_id: 10000002, type_id: 36 } };
+    await commit(
+      [
+        { key: PRICE_KEY, expiresAt: NOW + 300_000, etags: ['"a"'], lastModified: null, checkedAt: NOW - 1000 },
+        { key: OTHER_PRICE_KEY, expiresAt: NOW - 1, etags: ['"b"'], lastModified: NOW - 5000, checkedAt: NOW - 1000 },
+      ],
+      { tag: 'eve:market_prices' },
+    );
+    fetchSpy.mockImplementation(async (url: RequestInfo | URL) =>
+      String(url).includes('type_id=35')
+        ? response(304, { Expires: EXPIRES })
+        : response(200, { ETag: '"c"', Expires: EXPIRES }, [3]),
+    );
 
-      await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW - 1 });
-      expect(fetchSpy).not.toHaveBeenCalled();
+    // The due key appears twice: both calls are made, and the one write dedupes the row.
+    const answers = await fetchStoredMany([PRICE_KEY, OTHER_PRICE_KEY, third, OTHER_PRICE_KEY], { concurrency: 8 });
 
-      await holder`select pg_advisory_unlock(${key}::bigint)`;
-    } finally {
-      holder.release();
-    }
+    expect(answers.map((answer) => answer.kind)).toEqual(['unchanged', 'unchanged', 'fresh', 'unchanged']);
+    expect(answers[0]).toEqual({ kind: 'unchanged', expiresAt: NOW + 300_000 });
+    expect(answers[1]).toEqual({ kind: 'unchanged', expiresAt: Date.parse(EXPIRES) });
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(new Headers((fetchSpy.mock.calls[0]?.[1] as RequestInit).headers).get('If-None-Match')).toBe('"b"');
 
-    fetchSpy.mockResolvedValueOnce(response(200, { ETag: '"v2"', Expires: EXPIRES }, [2]));
-    await expect(fetchStored(PRICE_KEY)).resolves.toMatchObject({ kind: 'fresh' });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const moved = await rowOf(OTHER_PRICE_KEY);
+    expect(moved).toMatchObject({ etags: ['"b"'] });
+    expect(moved?.expiresAt?.getTime()).toBe(Date.parse(EXPIRES));
+    expect(moved?.lastModified?.getTime()).toBe(NOW - 5000);
+    expect((await rowOf(PRICE_KEY))?.expiresAt?.getTime()).toBe(NOW + 300_000);
+    expect(await rowOf(third)).toBeUndefined();
+    expect(await allRows()).toHaveLength(2);
+  });
+
+  it('records many committed metas in one write, the last meta for a repeated key winning', async () => {
+    await commit(
+      [
+        { key: PRICE_KEY, expiresAt: NOW + 1000, etags: ['"old"'], lastModified: null, checkedAt: NOW - 1000 },
+        { key: OTHER_PRICE_KEY, expiresAt: NOW + 2000, etags: ['"b"'], lastModified: NOW, checkedAt: NOW },
+        { key: PRICE_KEY, expiresAt: NOW + 3000, etags: ['"new"'], lastModified: NOW, checkedAt: NOW },
+      ],
+      { tag: 'eve:market_prices' },
+    );
+    const rows = await allRows();
+    expect(rows).toHaveLength(2);
+    expect(await rowOf(PRICE_KEY)).toMatchObject({ etags: ['"new"'] });
+    expect((await rowOf(PRICE_KEY))?.expiresAt?.getTime()).toBe(NOW + 3000);
+    await recordExpiryFor([PRICE_KEY, OTHER_PRICE_KEY, PRICE_KEY], { expiresAt: NOW + 9000, lastModified: null, checkedAt: NOW });
+    expect((await allRows()).every((row) => row.expiresAt?.getTime() === NOW + 9000 && row.etags.length === 0)).toBe(true);
   });
 
   it('keys an authed owner read by its holder and records its 304', async () => {

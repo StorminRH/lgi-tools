@@ -89,9 +89,9 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     workKind: 'http-route',
     module: 'src/app/api/cron/refresh-industry-indices/declaration.ts',
     redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
-    verdict: 'key-protected',
+    verdict: 'inherently-idempotent',
     evidence:
-      'Guarded by the ADVISORY_LOCKS.industryIndices session advisory lock; the index upserts are replace-shaped besides.',
+      'Declares lock mode none, as no ESI call may take a lock: both datasets read through the ESI store and upsert changed rows only, so a repeat or an overlap with an on-view cost-index refresh is a 304 or the same rows written again.',
   },
   {
     id: 'cron/refresh-sde',

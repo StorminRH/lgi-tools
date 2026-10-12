@@ -9,18 +9,21 @@ import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 import { apiResponse } from '@/transport/api-response';
 
 /**
- * Worst honest case: 50 typeIds at per-type ESI concurrency 10 → up to 5
- * sequential rounds of 10s-timeout fetches plus the Fuzzwork fallback
- * (observed peak 38.8s). 60 covers that while bounding a hang at well under
- * the 300s platform default.
+ * A page sends every due type id in one request, up to the contract's
+ * 2000-id ceiling, and the server makes one order-book call per type at
+ * PER_TYPE_CONCURRENCY (32) with one Neon read and one batched write.
+ * Worst honest case: 2000 ids in rounds of 32 calls against the 10s
+ * fetch timeout, then the Fuzzwork fallback, needs the platform's full
+ * 300s; a typical page of a few hundred ids finishes in seconds. The
+ * per-client limit counts type ids a minute, not requests.
  */
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // authz: public
 export const POST = marketRefreshRoute(
   'market.refresh-market-prices',
   refreshPricesEndpoint,
-  { name: 'market-prices-refresh', perMinute: ON_DEMAND_REFRESH_LIMIT_PER_MINUTE },
+  { name: 'market-prices-refresh', perMinute: ON_DEMAND_REFRESH_LIMIT_PER_MINUTE, unit: 'type-ids' },
   (typeIds) =>
     getLivePrices(typeIds, (result) => {
       emitCostMetric('market_price_write_behind', { ...result });

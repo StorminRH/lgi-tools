@@ -7,7 +7,7 @@ import {
   REGIONAL_DISCOUNT_MIN_PCT,
   REGIONAL_DISCOUNT_MIN_UNITS,
 } from './constants';
-import { fetchStored, type EsiResponseMeta } from '@/data/esi-store';
+import { fetchStored, fetchStoredMany, type EsiResponseMeta, type StoredManyAnswer } from '@/data/esi-store';
 import {
   EsiBudgetExhaustedError,
   EsiContractError,
@@ -139,7 +139,7 @@ export interface SourcePrices {
   metaByType: ReadonlyMap<number, EsiResponseMeta>;
 }
 
-/** A dump page another run holds the lock on: the dump cannot be read whole this time. */
+/** A dump page the store answered without calling (the downtime halt): the dump cannot be read whole this time. */
 class DumpUnavailable extends Error {
   constructor() {
     super('region order dump unavailable');
@@ -194,35 +194,39 @@ type TypeRead =
   | { kind: 'fallback'; budgetExhausted: boolean };
 
 /**
- * One type's order book through the store. Unexpired, a 304 and a busy
- * lock all mean the stored price stands; an error status, a malformed body
- * or a refused call sends the type to Fuzzwork, as before.
+ * One type's answer from the batched store read. Unexpired, a 304 and the
+ * downtime halt all mean the stored price stands; an error status, a
+ * malformed body or a refused call sends the type to Fuzzwork, as before.
  */
-async function readOneType(typeId: number): Promise<TypeRead> {
+async function readOneType(typeId: number, answer: StoredManyAnswer): Promise<TypeRead> {
+  if (answer.kind === 'unchanged') return { kind: 'unchanged' };
+  if (answer.kind === 'failed') return { kind: 'fallback', budgetExhausted: answer.error instanceof EsiBudgetExhaustedError };
+  if (answer.kind === 'error') return { kind: 'fallback', budgetExhausted: false };
   try {
-    const result = await fetchStored(priceKey(typeId));
-    if (result.kind === 'unchanged') return { kind: 'unchanged' };
-    if (result.kind === 'error') return { kind: 'fallback', budgetExhausted: false };
     const buckets = new Map<number, OrderBucket>();
-    absorbOrders(parseEsiOrders(await result.res.json()), new Set([typeId]), buckets);
-    return { kind: 'priced', price: bucketsToRawPrices([typeId], buckets)[0]!, meta: result.meta };
-  } catch (err) {
-    return { kind: 'fallback', budgetExhausted: err instanceof EsiBudgetExhaustedError };
+    absorbOrders(parseEsiOrders(await answer.res.json()), new Set([typeId]), buckets);
+    return { kind: 'priced', price: bucketsToRawPrices([typeId], buckets)[0]!, meta: answer.meta };
+  } catch {
+    return { kind: 'fallback', budgetExhausted: false };
   }
 }
 
-async function fetchViaEsiPerType(typeIds: number[]): Promise<SourcePrices> {
+/**
+ * Every type through its own order-book call: one store read for all of
+ * them, PER_TYPE_CONCURRENCY calls in flight, one write for the 304s. This
+ * is the only path a page view takes, whatever the count: the region dump
+ * belongs to the cron sweep alone.
+ */
+export async function fetchPricesPerType(typeIds: number[]): Promise<SourcePrices> {
+  const unique = dedupe(typeIds);
+  const answers = await fetchStoredMany(unique.map(priceKey), { concurrency: PER_TYPE_CONCURRENCY });
   const results: RawMarketPrice[] = [];
   const metaByType = new Map<number, EsiResponseMeta>();
   const fallbackNeeded: number[] = [];
   let budgetExhausted = false;
 
-  await mapConcurrent(typeIds, PER_TYPE_CONCURRENCY, async (typeId) => {
-    if (budgetExhausted) {
-      fallbackNeeded.push(typeId);
-      return;
-    }
-    const read = await readOneType(typeId);
+  for (const [i, typeId] of unique.entries()) {
+    const read = await readOneType(typeId, answers[i]!);
     if (read.kind === 'priced') {
       results.push(read.price);
       metaByType.set(typeId, read.meta);
@@ -230,7 +234,7 @@ async function fetchViaEsiPerType(typeIds: number[]): Promise<SourcePrices> {
       budgetExhausted ||= read.budgetExhausted;
       fallbackNeeded.push(typeId);
     }
-  });
+  }
 
   if (fallbackNeeded.length > 0) {
     const fb = await fallbackToFuzzwork(fallbackNeeded);
@@ -266,18 +270,20 @@ async function fetchViaBulk(unique: number[]): Promise<SourcePrices> {
 }
 
 /**
- * Returns the priced rows plus a `budgetExhausted` flag — true when ESI's
- * error budget was hit (either the pre-dispatch gate or a 420), which forced
- * the Fuzzwork fallback. The flag is the one degradation fact callers can't
- * reconstruct from the row `source` values alone (a fallback row reads the
- * same whether it came from an ESI 5xx or budget exhaustion); the route
- * handlers thread it into the O-1 telemetry. The data slice itself never
- * imports telemetry — the boundary stays sealed. A type whose stored copy
- * is still current comes back in neither list; Fuzzwork rows carry no meta.
+ * The cron sweep's (and the operator script's) read: per type below
+ * BULK_THRESHOLD, the whole region dump from it. Returns the priced rows
+ * plus a `budgetExhausted` flag — true when ESI's error budget was hit
+ * (either the pre-dispatch gate or a 420), which forced the Fuzzwork
+ * fallback. The flag is the one degradation fact callers can't reconstruct
+ * from the row `source` values alone (a fallback row reads the same whether
+ * it came from an ESI 5xx or budget exhaustion); the route handlers thread
+ * it into the O-1 telemetry. The data slice itself never imports telemetry
+ * — the boundary stays sealed. A type whose stored copy is still current
+ * comes back in neither list; Fuzzwork rows carry no meta.
  */
 export async function fetchPricesFromSource(typeIds: number[]): Promise<SourcePrices> {
   if (typeIds.length === 0) return { prices: [], budgetExhausted: false, metaByType: new Map() };
   const unique = dedupe(typeIds);
   if (unique.length >= BULK_THRESHOLD) return fetchViaBulk(unique);
-  return fetchViaEsiPerType(unique);
+  return fetchPricesPerType(unique);
 }

@@ -11,11 +11,15 @@ import {
 } from './errors';
 import { intHeader } from './headers';
 import {
+  GROUP_FLOOR_SHARE,
+  GROUP_FLOOR_SHARE_INTERACTIVE,
+  HISTORY_CALLS_PER_MINUTE,
   NO_RESPONSE_STATUS,
   resolveScoreboard,
   __resetScoreboardForTests,
   type EsiReport,
   type EsiScoreboard,
+  type GroupBudget,
   type PreDispatchState,
   normalizeEsiPath,
   resolveRetryAfter,
@@ -55,8 +59,18 @@ interface LocalBudget {
 }
 
 let localBudget: LocalBudget | null = null;
-/** Per normalized path: when the shared block was last read, until when it holds, and in what order. */
-const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null; seq: number }>();
+
+/** The shared state of one path as this process last read it: its block, its group's budget and its history count. */
+interface LocalPath {
+  readAt: number;
+  blockedUntil: number | null;
+  seq: number;
+  groupBudget?: GroupBudget;
+  historyCalls?: number;
+}
+
+/** Per normalized path: when the shared state was last read, what it said, and in what order. */
+const localBlocks = new Map<string, LocalPath>();
 /** ESI's newest count of errors left, which already includes every error up to that answer. */
 let latestRemain: { value: number; seq: number } | null = null;
 
@@ -107,6 +121,10 @@ function buildReport(url: string, res: Response): EsiReport {
     errorLimitRemain: intHeader(res.headers, 'X-ESI-Error-Limit-Remain'),
     errorLimitReset: intHeader(res.headers, 'X-ESI-Error-Limit-Reset'),
     retryAfter: intHeader(res.headers, 'Retry-After'),
+    rlGroup: res.headers.get('X-Ratelimit-Group'),
+    // "150/15m": the leading integer is the limit the Remaining is a share of.
+    rlLimit: intHeader(res.headers, 'X-Ratelimit-Limit'),
+    rlRemaining: intHeader(res.headers, 'X-Ratelimit-Remaining'),
   };
 }
 
@@ -118,6 +136,9 @@ function noResponseReport(url: string): EsiReport {
     errorLimitRemain: null,
     errorLimitReset: null,
     retryAfter: null,
+    rlGroup: null,
+    rlLimit: null,
+    rlRemaining: null,
   };
 }
 
@@ -168,18 +189,25 @@ async function reportAnswer(sb: EsiScoreboard, report: EsiReport): Promise<void>
   await deferWork(() => safeReport(sb, report));
 }
 
-/** The shared state from this process's recent reading, when both budget and block are fresh. */
-function localPreDispatch(url: string, now: number): PreDispatchState | null {
-  if (localBudget === null || now - localBudget.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
-  const block = localBlocks.get(normalizeEsiPath(url));
-  if (block === undefined || now - block.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
-  return {
-    effectiveRemaining: localBudget.remaining - localBudget.errorsSince,
+/** The path's state as this process holds it, read back the way a shared reading comes. */
+function pathState(path: LocalPath, now: number): Omit<PreDispatchState, 'effectiveRemaining'> {
+  const state: Omit<PreDispatchState, 'effectiveRemaining'> = {
     blockedRetryAfter:
-      block.blockedUntil !== null && block.blockedUntil > now
-        ? Math.ceil((block.blockedUntil - now) / 1000)
+      path.blockedUntil !== null && path.blockedUntil > now
+        ? Math.ceil((path.blockedUntil - now) / 1000)
         : null,
   };
+  if (path.groupBudget !== undefined) state.groupBudget = path.groupBudget;
+  if (path.historyCalls !== undefined) state.historyCalls = path.historyCalls;
+  return state;
+}
+
+/** The shared state from this process's recent reading, when both budget and path are fresh. */
+function localPreDispatch(url: string, now: number): PreDispatchState | null {
+  if (localBudget === null || now - localBudget.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
+  const path = localBlocks.get(normalizeEsiPath(url));
+  if (path === undefined || now - path.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
+  return { effectiveRemaining: localBudget.remaining - localBudget.errorsSince, ...pathState(path, now) };
 }
 
 /**
@@ -199,26 +227,40 @@ function rememberBudget(pre: PreDispatchState, readSeq: number, now: number): nu
   return remaining;
 }
 
-/** The block this call obeys on its path, by the same newest-wins rule. */
-function rememberBlock(url: string, pre: PreDispatchState, readSeq: number, now: number): number | null {
+/** The block, group budget and history count this call obeys on its path, by the same newest-wins rule. */
+function rememberPath(url: string, pre: PreDispatchState, readSeq: number, now: number): Omit<PreDispatchState, 'effectiveRemaining'> {
   const path = normalizeEsiPath(url);
   const previous = localBlocks.get(path);
-  if (previous !== undefined && previous.seq > readSeq) {
-    return previous.blockedUntil !== null && previous.blockedUntil > now
-      ? Math.ceil((previous.blockedUntil - now) / 1000)
-      : null;
-  }
-  const blockedUntil = pre.blockedRetryAfter === null ? null : now + pre.blockedRetryAfter * 1000;
-  localBlocks.set(path, { readAt: now, blockedUntil, seq: readSeq });
-  return pre.blockedRetryAfter;
+  if (previous !== undefined && previous.seq > readSeq) return pathState(previous, now);
+  const entry: LocalPath = {
+    readAt: now,
+    blockedUntil: pre.blockedRetryAfter === null ? null : now + pre.blockedRetryAfter * 1000,
+    seq: readSeq,
+  };
+  if (pre.groupBudget !== undefined) entry.groupBudget = pre.groupBudget;
+  if (pre.historyCalls !== undefined) entry.historyCalls = pre.historyCalls;
+  localBlocks.set(path, entry);
+  return pathState(entry, now);
 }
 
 /** Keeps a shared reading for reuse and returns what this call should obey. */
 function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number, now: number): PreDispatchState {
-  return {
-    effectiveRemaining: rememberBudget(pre, readSeq, now),
-    blockedRetryAfter: rememberBlock(url, pre, readSeq, now),
-  };
+  return { effectiveRemaining: rememberBudget(pre, readSeq, now), ...rememberPath(url, pre, readSeq, now) };
+}
+
+/**
+ * Folds an answer's rate-limit headers and a history call into the path's
+ * local reading: the group's Remaining on the answer is the newest truth
+ * for its bucket, and each history call counts until the next shared read.
+ */
+function noteLocalPath(path: string, res: Response): void {
+  const entry = localBlocks.get(path);
+  if (entry === undefined) return;
+  const group = res.headers.get('X-Ratelimit-Group');
+  const remaining = intHeader(res.headers, 'X-Ratelimit-Remaining');
+  const limit = intHeader(res.headers, 'X-Ratelimit-Limit');
+  if (group !== null && remaining !== null && limit !== null) entry.groupBudget = { group, remaining, limit };
+  if (entry.historyCalls !== undefined) entry.historyCalls += 1;
 }
 
 /**
@@ -229,6 +271,7 @@ function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number
 function noteLocalAnswer(url: string, res: Response): void {
   const now = Date.now();
   const seq = ++localSeq;
+  const path = normalizeEsiPath(url);
   const remain = intHeader(res.headers, 'X-ESI-Error-Limit-Remain');
   if (remain !== null) latestRemain = { value: remain, seq };
   if (res.status === 420) {
@@ -239,9 +282,10 @@ function noteLocalAnswer(url: string, res: Response): void {
       localBudget.remaining = Math.min(localBudget.remaining, remain + localBudget.errorsSince);
     }
   }
+  noteLocalPath(path, res);
   if (res.status === 429) {
     const retryAfter = resolveRetryAfter(intHeader(res.headers, 'Retry-After'));
-    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000, seq });
+    localBlocks.set(path, { ...localBlocks.get(path), readAt: now, blockedUntil: now + retryAfter * 1000, seq });
   }
 }
 
@@ -314,6 +358,28 @@ export function enforceBudget(
       resource,
     );
   }
+  enforceGroupBudget(pre, resource, opts?.interactive === true);
+  enforceHistoryCap(pre, resource);
+}
+
+/**
+ * CCP asks clients to slow down as a group's Remaining nears zero. Below a
+ * tenth of the group's limit only interactive calls go on, and below a
+ * twentieth nothing does; the echo is lowest-wins across instances, so one
+ * instance's low bucket slows every other.
+ */
+function enforceGroupBudget(pre: PreDispatchState, resource: string, interactive: boolean): void {
+  if (pre.groupBudget === undefined) return;
+  const floor = pre.groupBudget.limit * (interactive ? GROUP_FLOOR_SHARE_INTERACTIVE : GROUP_FLOOR_SHARE);
+  if (pre.groupBudget.remaining < floor) {
+    throwBudgetExhausted(pre.groupBudget.remaining, 'group_budget', null, resource);
+  }
+}
+
+/** Market history stays under its per-minute cap across every instance: a counter, never a lock. */
+function enforceHistoryCap(pre: PreDispatchState, resource: string): void {
+  if (pre.historyCalls === undefined || pre.historyCalls < HISTORY_CALLS_PER_MINUTE) return;
+  throwBudgetExhausted(Math.max(0, HISTORY_CALLS_PER_MINUTE - pre.historyCalls), 'history_cap', null, resource);
 }
 
 /** Every `x-esi-*` header on an answer, and its Expires, by lower-case name. */

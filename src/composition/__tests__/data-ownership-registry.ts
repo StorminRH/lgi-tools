@@ -1005,7 +1005,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['pk(route,holder_type,holder_id,user_id,params)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One keyed `insert … on conflict do update` per stored answer. A 304 records its new expiry at once; a 200 is recorded only when the caller commits it after its own domain write has stood, so an ETag can never outlive the data it describes. Global keys refresh under a per-key advisory lock; owner keys need none, a duplicate call is a 304.',
+      note: 'Keyed multi-row `insert … on conflict do update` statements, one per batch of stored answers, chunked at 1000 rows. A 304 records its new expiry at once; a 200 is recorded only when the caller commits it after its own domain write has stood, so an ETag can never outlive the data it describes. No key takes a lock: a duplicate call is a shared copy or a 304, and the writes are the same values again.',
     },
     dataClass: 'operational',
   },

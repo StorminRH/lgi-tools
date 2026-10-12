@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EsiResponseMeta } from '@/data/esi-store';
 import type { MarketPrice, RawMarketPrice } from './types';
 
+const fetchPricesPerTypeMock = vi.fn();
 const fetchPricesFromSourceMock = vi.fn();
 const getPricesMock = vi.fn();
 const persistPricesMock = vi.fn();
@@ -10,6 +11,7 @@ const commitMock = vi.fn();
 const afterMock = vi.fn();
 
 vi.mock('./source', () => ({
+  fetchPricesPerType: (...args: unknown[]) => fetchPricesPerTypeMock(...args),
   fetchPricesFromSource: (...args: unknown[]) => fetchPricesFromSourceMock(...args),
 }));
 vi.mock('./queries', () => ({
@@ -78,7 +80,7 @@ function expiries(byId: Record<number, number | null>) {
 }
 
 function source(prices: RawMarketPrice[], opts: { budgetExhausted?: boolean; metas?: EsiResponseMeta[] } = {}) {
-  fetchPricesFromSourceMock.mockResolvedValue({
+  fetchPricesPerTypeMock.mockResolvedValue({
     prices,
     budgetExhausted: opts.budgetExhausted ?? false,
     metaByType: new Map((opts.metas ?? prices.filter((p) => p.source === 'esi').map((p) => meta(p.typeId))).map((m) => [m.key.params!.type_id as number, m])),
@@ -88,6 +90,7 @@ function source(prices: RawMarketPrice[], opts: { budgetExhausted?: boolean; met
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
+  fetchPricesPerTypeMock.mockReset();
   fetchPricesFromSourceMock.mockReset();
   getPricesMock.mockReset().mockResolvedValue(new Map());
   persistPricesMock.mockReset().mockResolvedValue({ written: 1 });
@@ -109,7 +112,7 @@ describe('getLivePrices', () => {
     expect(row.bestBuy).toBe(10);
     expect(row.updatedAt.getTime()).toBe(NOW - 1000);
     expect(row.staleAfter?.getTime()).toBe(EXPIRES);
-    expect(fetchPricesFromSourceMock).toHaveBeenCalledWith([34]);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([34]);
     expect(degraded).toMatchObject({ fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
     expect(metrics).toEqual({ requested: 1, returned: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
   });
@@ -122,7 +125,7 @@ describe('getLivePrices', () => {
 
     expect(prices.get(34)).toEqual({ ...seed(34), staleAfter: new Date(NOW + 240_000) });
     expect(metrics).toEqual({ requested: 1, returned: 1, esiCount: 0, fuzzworkFallbackCount: 0 });
-    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
+    expect(fetchPricesPerTypeMock).not.toHaveBeenCalled();
     expect(afterMock).not.toHaveBeenCalled();
   });
 
@@ -133,7 +136,7 @@ describe('getLivePrices', () => {
 
     const { prices } = await getLivePrices([34, 35, 36]);
 
-    expect(fetchPricesFromSourceMock).toHaveBeenCalledWith([35, 36]);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([35, 36]);
     expect(prices.get(34)?.source).toBe('fuzzwork');
     expect(prices.get(35)?.source).toBe('esi');
     expect(prices.size).toBe(3);
@@ -223,7 +226,19 @@ describe('getLivePrices', () => {
     await getLivePrices([34, 34]);
     expect(getPricesMock).toHaveBeenCalledWith([34]);
     expect(storedExpiriesMock).toHaveBeenCalledWith([priceKey(34)]);
-    expect(fetchPricesFromSourceMock).toHaveBeenCalledWith([34]);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([34]);
+  });
+
+  it('asks for hundreds of due types per type in one call and never through the threshold that reaches the region dump', async () => {
+    const ids = Array.from({ length: 500 }, (_, i) => 1000 + i);
+    source(ids.map((id) => raw(id, 'esi')));
+
+    const { prices } = await getLivePrices(ids);
+
+    expect(prices.size).toBe(500);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledTimes(1);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith(ids);
+    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
   });
 
   it('returns empty without touching seed, store, source, or write-behind on empty input', async () => {
@@ -233,7 +248,7 @@ describe('getLivePrices', () => {
     expect(metrics).toEqual({ requested: 0, returned: 0, esiCount: 0, fuzzworkFallbackCount: 0 });
     expect(getPricesMock).not.toHaveBeenCalled();
     expect(storedExpiriesMock).not.toHaveBeenCalled();
-    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
+    expect(fetchPricesPerTypeMock).not.toHaveBeenCalled();
     expect(afterMock).not.toHaveBeenCalled();
   });
 });

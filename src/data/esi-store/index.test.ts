@@ -3,9 +3,8 @@ import type { EsiStoreKey, StoredRow } from './types';
 
 const readStoredRowsMock = vi.fn();
 const readRouteExpiryMock = vi.fn();
-const recordResponseMock = vi.fn();
-const recordUnchangedMock = vi.fn();
-const singleFlightMock = vi.fn();
+const recordResponsesMock = vi.fn();
+const recordUnchangedManyMock = vi.fn();
 const esiFetchMock = vi.fn();
 const readEsiAuthedMock = vi.fn();
 const readEsiAuthedPostMock = vi.fn();
@@ -15,11 +14,8 @@ const expireNowMock = vi.fn();
 vi.mock('./rows', () => ({
   readStoredRows: (...args: unknown[]) => readStoredRowsMock(...args),
   readRouteExpiry: (...args: unknown[]) => readRouteExpiryMock(...args),
-  recordResponse: (...args: unknown[]) => recordResponseMock(...args),
-  recordUnchanged: (...args: unknown[]) => recordUnchangedMock(...args),
-}));
-vi.mock('./single-flight', () => ({
-  withGlobalSingleFlight: (...args: unknown[]) => singleFlightMock(...args),
+  recordResponses: (...args: unknown[]) => recordResponsesMock(...args),
+  recordUnchangedMany: (...args: unknown[]) => recordUnchangedManyMock(...args),
 }));
 vi.mock('@/platform/esi', async () => ({
   ...(await vi.importActual<typeof import('@/platform/esi/errors')>('@/platform/esi/errors')),
@@ -38,6 +34,7 @@ import {
   datasetTag,
   esiPassThrough,
   fetchStored,
+  fetchStoredMany,
   isDue,
   postPassThroughAuthed,
   postStored,
@@ -54,7 +51,7 @@ import {
   storedRow,
   untilExpires,
 } from './index';
-import { EsiServerError } from '@/platform/esi';
+import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 
 const NOW = Date.parse('2026-10-12T12:00:00Z');
 const EXPIRES = 'Mon, 12 Oct 2026 12:05:00 GMT';
@@ -92,9 +89,6 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   vi.spyOn(console, 'info').mockImplementation(() => {});
-  singleFlightMock.mockImplementation((_text: string, work: () => Promise<unknown>) =>
-    work().then((result) => ({ busy: false, result })),
-  );
 });
 
 afterEach(() => {
@@ -108,7 +102,7 @@ describe('fetchStored', () => {
     rows(stored(NOW + 60_000));
     await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW + 60_000 });
     expect(esiFetchMock).not.toHaveBeenCalled();
-    expect(singleFlightMock).not.toHaveBeenCalled();
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
   });
 
   it('calls with If-None-Match once due and records a 304 at once', async () => {
@@ -123,12 +117,10 @@ describe('fetchStored', () => {
       { headers: { 'If-None-Match': '"held"' } },
       undefined,
     );
-    expect(recordUnchangedMock).toHaveBeenCalledWith(PRICE_KEY, {
-      expiresAt: Date.parse(EXPIRES),
-      lastModified: Date.parse(MODIFIED),
-      checkedAt: NOW,
-    });
-    expect(recordResponseMock).not.toHaveBeenCalled();
+    expect(recordUnchangedManyMock).toHaveBeenCalledWith([
+      { key: PRICE_KEY, expiresAt: Date.parse(EXPIRES), lastModified: Date.parse(MODIFIED), checkedAt: NOW },
+    ]);
+    expect(recordResponsesMock).not.toHaveBeenCalled();
     expect(console.info).toHaveBeenCalledWith('[esi-store]', {
       route: PRICE_KEY.route,
       holder: 'global',
@@ -154,11 +146,11 @@ describe('fetchStored', () => {
       checkedAt: NOW,
     });
     expect(fetchHeaders().has('If-None-Match')).toBe(false);
-    expect(recordResponseMock).not.toHaveBeenCalled();
-    expect(recordUnchangedMock).not.toHaveBeenCalled();
+    expect(recordResponsesMock).not.toHaveBeenCalled();
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
 
     await commit([result.meta], { tag: 'eve:market_prices' });
-    expect(recordResponseMock).toHaveBeenCalledWith(result.meta);
+    expect(recordResponsesMock).toHaveBeenCalledWith([result.meta]);
     expect(expireNowMock).toHaveBeenCalledWith('eve:market_prices');
   });
 
@@ -188,8 +180,15 @@ describe('fetchStored', () => {
     rows(stored(NOW - 1));
     esiFetchMock.mockResolvedValueOnce(response(404));
     await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'error', status: 404 });
-    expect(recordResponseMock).not.toHaveBeenCalled();
-    expect(recordUnchangedMock).not.toHaveBeenCalled();
+    expect(recordResponsesMock).not.toHaveBeenCalled();
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
+  });
+
+  it('throws what its one call threw, as the budget gate or a 5xx always did', async () => {
+    rows(stored(NOW - 1));
+    esiFetchMock.mockRejectedValueOnce(new EsiServerError(502));
+    await expect(fetchStored(PRICE_KEY)).rejects.toBeInstanceOf(EsiServerError);
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
   });
 
   it('sends no If-None-Match when the call is declared unconditional', async () => {
@@ -200,20 +199,12 @@ describe('fetchStored', () => {
     expect(esiFetchMock.mock.calls[0]?.[2]).toEqual({ interactive: true });
   });
 
-  it('serves the stored copy when another instance holds the global key', async () => {
+  it('calls a due global key at once, under no lock, however many instances find it due together', async () => {
     rows(stored(NOW - 1));
-    singleFlightMock.mockResolvedValueOnce({ busy: true });
-    await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW - 1 });
-    expect(singleFlightMock).toHaveBeenCalledWith('/markets/{region_id}/orders/|global|0||region_id=10000002&type_id=34', expect.any(Function));
-    expect(esiFetchMock).not.toHaveBeenCalled();
-  });
-
-  it('takes no lock for an owner key', async () => {
-    rows(stored(NOW - 1));
-    esiFetchMock.mockResolvedValueOnce(response(304, { Expires: EXPIRES }));
-    await fetchStored(SKILLS_KEY);
-    expect(singleFlightMock).not.toHaveBeenCalled();
-    expect(esiFetchMock).toHaveBeenCalledTimes(1);
+    esiFetchMock.mockResolvedValue(response(304, { Expires: EXPIRES }));
+    await Promise.all([fetchStored(PRICE_KEY), fetchStored(PRICE_KEY)]);
+    expect(esiFetchMock).toHaveBeenCalledTimes(2);
+    expect(readStoredRowsMock).toHaveBeenCalledTimes(2);
   });
 
   it('refuses a route declared for the map tracker alone, a pass-through route, and a holder the route is not held by', async () => {
@@ -230,6 +221,105 @@ describe('fetchStored', () => {
   });
 });
 
+const priceKeyOf = (typeId: number): EsiStoreKey => ({ ...PRICE_KEY, params: { region_id: 10000002, type_id: typeId } });
+
+describe('fetchStoredMany', () => {
+  it('reads every key in one row read, calls only the expired ones, and answers in key order', async () => {
+    const keys = [priceKeyOf(34), priceKeyOf(35), priceKeyOf(36), priceKeyOf(37)];
+    rows(stored(NOW + 60_000), stored(NOW - 1, ['"e35"']), null, stored(NOW - 1));
+    esiFetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('type_id=35')) return response(304, { Expires: EXPIRES, 'Last-Modified': MODIFIED });
+      if (url.includes('type_id=36')) return response(200, { ETag: '"new"', Expires: EXPIRES }, [1]);
+      return response(404);
+    });
+
+    const answers = await fetchStoredMany(keys, { concurrency: 8 });
+
+    expect(readStoredRowsMock).toHaveBeenCalledTimes(1);
+    expect(readStoredRowsMock).toHaveBeenCalledWith(keys);
+    expect(esiFetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchHeaders(0).get('If-None-Match')).toBe('"e35"');
+    expect(answers.map((answer) => answer.kind)).toEqual(['unchanged', 'unchanged', 'fresh', 'error']);
+    expect(answers[0]).toEqual({ kind: 'unchanged', expiresAt: NOW + 60_000 });
+    expect(answers[1]).toEqual({ kind: 'unchanged', expiresAt: Date.parse(EXPIRES) });
+    expect(answers[2]).toMatchObject({ kind: 'fresh', meta: { key: keys[2], etags: ['"new"'], expiresAt: Date.parse(EXPIRES) } });
+    expect(answers[3]).toEqual({ kind: 'error', status: 404 });
+  });
+
+  it('records every 304 in one write once the fan-out is done, and none when there was none', async () => {
+    const keys = [priceKeyOf(34), priceKeyOf(35), priceKeyOf(36)];
+    rows(stored(NOW - 1), stored(NOW - 1), stored(NOW - 1));
+    esiFetchMock.mockImplementation(async (url: string) =>
+      url.includes('type_id=36') ? response(200, { Expires: EXPIRES }) : response(304, { Expires: EXPIRES }),
+    );
+
+    await fetchStoredMany(keys, { concurrency: 8 });
+
+    expect(recordUnchangedManyMock).toHaveBeenCalledTimes(1);
+    expect(recordUnchangedManyMock).toHaveBeenCalledWith([
+      { key: keys[0], expiresAt: Date.parse(EXPIRES), lastModified: null, checkedAt: NOW },
+      { key: keys[1], expiresAt: Date.parse(EXPIRES), lastModified: null, checkedAt: NOW },
+    ]);
+    expect(recordResponsesMock).not.toHaveBeenCalled();
+
+    recordUnchangedManyMock.mockClear();
+    esiFetchMock.mockResolvedValue(response(200, { Expires: EXPIRES }));
+    await fetchStoredMany(keys, { concurrency: 8 });
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps at most `concurrency` calls in flight', async () => {
+    const keys = Array.from({ length: 10 }, (_unused, i) => priceKeyOf(100 + i));
+    rows(...keys.map(() => stored(NOW - 1)));
+    let inFlight = 0;
+    let peak = 0;
+    esiFetchMock.mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight -= 1;
+      return response(304, { Expires: EXPIRES });
+    });
+
+    const run = fetchStoredMany(keys, { concurrency: 3 });
+    await vi.runAllTimersAsync();
+    await run;
+
+    expect(esiFetchMock).toHaveBeenCalledTimes(10);
+    expect(peak).toBe(3);
+  });
+
+  it('keeps a thrown call to its own key, and once the budget refuses one spares the rest the call', async () => {
+    const keys = [priceKeyOf(34), priceKeyOf(35), priceKeyOf(36), priceKeyOf(37)];
+    rows(stored(NOW - 1), stored(NOW - 1), stored(NOW - 1), stored(NOW - 1));
+    const refusal = new EsiBudgetExhaustedError(0);
+    esiFetchMock
+      .mockRejectedValueOnce(new EsiServerError(503))
+      .mockResolvedValueOnce(response(304, { Expires: EXPIRES }))
+      .mockRejectedValueOnce(refusal);
+
+    const answers = await fetchStoredMany(keys, { concurrency: 1 });
+
+    expect(esiFetchMock).toHaveBeenCalledTimes(3);
+    expect(answers[0]).toMatchObject({ kind: 'failed', error: expect.any(EsiServerError) });
+    expect(answers[1]).toEqual({ kind: 'unchanged', expiresAt: Date.parse(EXPIRES) });
+    expect(answers[2]).toEqual({ kind: 'failed', error: refusal });
+    expect(answers[3]).toEqual({ kind: 'failed', error: refusal });
+    expect(recordUnchangedManyMock).toHaveBeenCalledWith([
+      { key: keys[1], expiresAt: Date.parse(EXPIRES), lastModified: null, checkedAt: NOW },
+    ]);
+  });
+
+  it('answers nothing for no keys without reading, and refuses an undeclared holder before reading', async () => {
+    await expect(fetchStoredMany([], { concurrency: 8 })).resolves.toEqual([]);
+    expect(readStoredRowsMock).not.toHaveBeenCalled();
+    await expect(fetchStoredMany([{ ...SKILLS_KEY, holder: { kind: 'global' } }], { concurrency: 8 })).rejects.toThrow(
+      'is held by character, not global',
+    );
+    expect(readStoredRowsMock).not.toHaveBeenCalled();
+  });
+});
+
 describe('esiPassThrough', () => {
   it('always calls and records nothing', async () => {
     esiFetchMock.mockResolvedValue(response(200, { Expires: EXPIRES, ETag: '"x"' }));
@@ -238,8 +328,8 @@ describe('esiPassThrough', () => {
     expect(esiFetchMock).toHaveBeenNthCalledWith(1, 'https://esi.evetech.net/universe/structures/1000000000001/', undefined, undefined);
     expect(esiFetchMock).toHaveBeenNthCalledWith(2, 'https://esi.evetech.net/universe/structures/1000000000001/', { method: 'GET' }, { interactive: true });
     expect(readStoredRowsMock).not.toHaveBeenCalled();
-    expect(recordResponseMock).not.toHaveBeenCalled();
-    expect(recordUnchangedMock).not.toHaveBeenCalled();
+    expect(recordResponsesMock).not.toHaveBeenCalled();
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
   });
 });
 
@@ -258,7 +348,7 @@ describe('readStoredAuthed', () => {
     await expect(readStoredAuthed(SKILLS_KEY, TOKEN, { rl })).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW + 120_000 });
 
     expect(readEsiAuthedMock).toHaveBeenCalledWith('/characters/91/skills/', TOKEN, '"held"', rl);
-    expect(recordUnchangedMock).toHaveBeenCalledWith(SKILLS_KEY, { expiresAt: NOW + 120_000, lastModified: Date.parse(MODIFIED), checkedAt: NOW });
+    expect(recordUnchangedManyMock).toHaveBeenCalledWith([{ key: SKILLS_KEY, expiresAt: NOW + 120_000, lastModified: Date.parse(MODIFIED), checkedAt: NOW }]);
     expect(console.info).toHaveBeenCalledWith('[esi-store]', { route: SKILLS_KEY.route, holder: 'character', status: 'unchanged', cacheStatus: 'HIT' });
   });
 
@@ -275,7 +365,7 @@ describe('readStoredAuthed', () => {
       etag: '"new"',
       meta: { key: SKILLS_KEY, expiresAt: NOW + 60_000, etags: ['"new"'], lastModified: null, checkedAt: NOW },
     });
-    expect(recordResponseMock).not.toHaveBeenCalled();
+    expect(recordResponsesMock).not.toHaveBeenCalled();
   });
 
   it('calls even while unexpired for a live read, still conditionally, and records a 304 like any other', async () => {
@@ -285,7 +375,7 @@ describe('readStoredAuthed', () => {
     await expect(readStoredAuthed(SKILLS_KEY, TOKEN, { live: true })).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW + 120_000 });
 
     expect(readEsiAuthedMock).toHaveBeenCalledWith('/characters/91/skills/', TOKEN, '"held"', undefined);
-    expect(recordUnchangedMock).toHaveBeenCalledWith(SKILLS_KEY, { expiresAt: NOW + 120_000, lastModified: null, checkedAt: NOW });
+    expect(recordUnchangedManyMock).toHaveBeenCalledWith([{ key: SKILLS_KEY, expiresAt: NOW + 120_000, lastModified: null, checkedAt: NOW }]);
   });
 
   it('never sends If-None-Match for the journal and passes an error through unrecorded', async () => {
@@ -293,7 +383,7 @@ describe('readStoredAuthed', () => {
     readEsiAuthedMock.mockResolvedValueOnce({ kind: 'error', code: 'esi_403' });
     await expect(readStoredAuthed(JOURNAL_KEY, TOKEN)).resolves.toEqual({ kind: 'error', code: 'esi_403' });
     expect(readEsiAuthedMock).toHaveBeenCalledWith('/characters/91/wallet/journal/', TOKEN, null, undefined);
-    expect(recordUnchangedMock).not.toHaveBeenCalled();
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
     expect(console.info).toHaveBeenCalledWith('[esi-store]', { route: JOURNAL_KEY.route, holder: 'character', status: 'esi_403', cacheStatus: null });
   });
 });
@@ -323,7 +413,7 @@ describe('readStoredPaged', () => {
     readEsiPagedAuthedMock.mockResolvedValueOnce({ kind: 'unchanged', expiresAt: NOW + 3_600_000, cacheStatus: 'HIT' });
     await expect(readStoredPaged(ASSETS_KEY, TOKEN)).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW + 3_600_000 });
     expect(readEsiPagedAuthedMock).toHaveBeenCalledWith('/corporations/98/assets/', TOKEN, ['"p1"', '"p2"'], undefined);
-    expect(recordUnchangedMock).toHaveBeenCalledWith(ASSETS_KEY, { expiresAt: NOW + 3_600_000, lastModified: null, checkedAt: NOW });
+    expect(recordUnchangedManyMock).toHaveBeenCalledWith([{ key: ASSETS_KEY, expiresAt: NOW + 3_600_000, lastModified: null, checkedAt: NOW }]);
   });
 
   it('keeps every page ETag in the meta of a fresh read', async () => {
@@ -371,8 +461,8 @@ describe('pass-through authed reads', () => {
     expect(readEsiAuthedMock).toHaveBeenCalledWith('/universe/structures/7/', TOKEN, null);
     expect(readEsiAuthedPostMock).toHaveBeenCalledWith('/corporations/98/assets/names/', TOKEN, [1]);
     expect(readStoredRowsMock).not.toHaveBeenCalled();
-    expect(recordResponseMock).not.toHaveBeenCalled();
-    expect(recordUnchangedMock).not.toHaveBeenCalled();
+    expect(recordResponsesMock).not.toHaveBeenCalled();
+    expect(recordUnchangedManyMock).not.toHaveBeenCalled();
   });
 
   it('refuses a route that is not declared pass-through', async () => {
@@ -397,7 +487,7 @@ describe('postStoredBatch', () => {
     const bare = await postStoredBatch('/characters/affiliation/', [92]);
     expect(bare.res.status).toBe(404);
     expect(bare.stamp).toEqual({ expiresAt: NOW + 3_600_000, lastModified: null, checkedAt: NOW });
-    expect(recordResponseMock).not.toHaveBeenCalled();
+    expect(recordResponsesMock).not.toHaveBeenCalled();
   });
 
   it('refuses a route that is not a stored POST', async () => {
@@ -457,15 +547,16 @@ describe('untilExpires', () => {
 describe('commit and recordExpiryFor', () => {
   it('records nothing and clears nothing when no 200 was committed', async () => {
     await commit([], { tag: 'eve:skills:character:91' });
-    expect(recordResponseMock).not.toHaveBeenCalled();
+    expect(recordResponsesMock).not.toHaveBeenCalled();
     expect(expireNowMock).not.toHaveBeenCalled();
   });
 
-  it('fans one answer\'s expiry out to every key without its ETag or body', async () => {
+  it('fans one answer\'s expiry out to every key in one write, without its ETag or body', async () => {
     const meta = { key: PRICE_KEY, expiresAt: NOW + 300_000, etags: ['"dump"'], lastModified: NOW, checkedAt: NOW, body: { x: 1 } };
     const other: EsiStoreKey = { ...PRICE_KEY, params: { region_id: 10000002, type_id: 35 } };
     await recordExpiryFor([PRICE_KEY, other], meta);
-    expect(recordResponseMock.mock.calls.map((call) => call[0])).toEqual([
+    expect(recordResponsesMock).toHaveBeenCalledTimes(1);
+    expect(recordResponsesMock).toHaveBeenCalledWith([
       { key: PRICE_KEY, expiresAt: NOW + 300_000, etags: [], lastModified: NOW, checkedAt: NOW },
       { key: other, expiresAt: NOW + 300_000, etags: [], lastModified: NOW, checkedAt: NOW },
     ]);
@@ -539,7 +630,7 @@ describe('storedExpiries, storedRow, recordMetas and serverErrorMeta', () => {
   it('records metas without touching the cache', async () => {
     const meta = { key: PRICE_KEY, expiresAt: NOW + 1, etags: ['"a"'], lastModified: null, checkedAt: NOW };
     await recordMetas([meta]);
-    expect(recordResponseMock).toHaveBeenCalledWith(meta);
+    expect(recordResponsesMock).toHaveBeenCalledWith([meta]);
     expect(expireNowMock).not.toHaveBeenCalled();
   });
 

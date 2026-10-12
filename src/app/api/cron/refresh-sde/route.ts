@@ -7,7 +7,7 @@ type SdePreLockState = Parameters<typeof refreshSdeDeclaration.work>[1];
 /**
  * Vercel cron endpoint. Wired to "30 11 * * *" in vercel.json. Pro fires it
  * on the minute, at 11:30 UTC: after CCP's daily downtime, in its own
- * invocation, and before the 12:00 daily batch, so types a new build seeds
+ * invocation, and before the 12:07 daily batch, so types a new build seeds
  * get priced the same day. Vercel dispatches GET with
  * `Authorization: Bearer ${CRON_SECRET}`.
  *
