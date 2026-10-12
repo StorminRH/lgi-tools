@@ -3,8 +3,14 @@ import { EVE_SCOPES } from '@/config/eve-scopes';
 import { ATTRIBUTE_KEYS, ATTRIBUTE_BONUS_DOGMA_NAMES } from '@/data/eve-data/character-attributes';
 import { LOCATION_SYNC_SCOPES } from '@/data/location-tracking/sync-eligibility';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
-import { effectiveTtlMs } from '@/lib/esi-datasets/types';
+import type { EsiDatasetEntry } from '@/lib/esi-datasets/types';
 import { SHEET_SECTION_KEYS, SHEET_SECTIONS, TIER_ENTRY } from './sections';
+
+function tierEntry(tier: keyof typeof TIER_ENTRY): EsiDatasetEntry {
+  const entry = ESI_DATASET_ENTRIES.find((candidate) => candidate.name === TIER_ENTRY[tier]);
+  if (entry === undefined) throw new Error(`Unregistered sheet tier ${tier}`);
+  return entry;
+}
 
 describe('SHEET_SECTIONS', () => {
   it('covers the table once and routes every section to a registered sheet refresh tier', () => {
@@ -13,9 +19,9 @@ describe('SHEET_SECTIONS', () => {
     for (const key of SHEET_SECTION_KEYS) {
       const spec = SHEET_SECTIONS[key];
       expect(spec.key).toBe(key);
-      const entry = ESI_DATASET_ENTRIES.find((candidate) => candidate.name === TIER_ENTRY[spec.tier]);
-      expect(entry?.refreshOwner).toEqual({ kind: 'entry-point', name: 'refreshCharacterSheetsOnView' });
-      expect(entry?.mirrorTables).toContain('character_sheets');
+      const entry = tierEntry(spec.tier);
+      expect(entry.shape === 'personal-on-view' && entry.refreshOwner).toEqual({ kind: 'entry-point', name: 'refreshCharacterSheetsOnView' });
+      expect(entry.mirrorTables).toContain('character_sheets');
     }
   });
 
@@ -29,13 +35,14 @@ describe('SHEET_SECTIONS', () => {
   });
 
   it('keeps rapidly changing sections fresher than journal history and public profile', () => {
-    const ttl = (key: keyof typeof SHEET_SECTIONS) => {
-      const entry = ESI_DATASET_ENTRIES.find((candidate) => candidate.name === TIER_ENTRY[SHEET_SECTIONS[key].tier]);
-      return effectiveTtlMs(entry!);
+    // CCP's published cache time of the quickest stored route in a section's tier: what the tier is due by at most.
+    const tierCacheSeconds = (key: keyof typeof SHEET_SECTIONS) => {
+      const stored = tierEntry(SHEET_SECTIONS[key].tier).routes.filter((route) => route.mode === undefined);
+      return Math.min(...stored.map((route) => route.specCacheSeconds ?? Number.POSITIVE_INFINITY));
     };
-    expect(ttl('status')).toBe(ttl('wallet'));
-    expect(ttl('wallet')).toBeLessThan(ttl('journal')!);
-    expect(ttl('journal')).toBeLessThan(ttl('profile')!);
+    expect(tierCacheSeconds('status')).toBe(tierCacheSeconds('wallet'));
+    expect(tierCacheSeconds('wallet')).toBeLessThan(tierCacheSeconds('journal'));
+    expect(tierCacheSeconds('journal')).toBeLessThan(tierCacheSeconds('profile'));
   });
 
   it('parses wallet and attribute payloads through the table used by refresh', () => {

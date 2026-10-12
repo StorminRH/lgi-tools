@@ -22,13 +22,12 @@ import {
 } from '@/db/__tests__/support/schema-reflection';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import { routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
-import {
-  effectiveTtlMs,
-  type EsiDatasetEntry,
-  type EsiRouteDeclaration,
-  type EsiRouteHolder,
+import type {
+  EsiDatasetEntry,
+  EsiRouteDeclaration,
+  EsiRouteHolder,
 } from '@/lib/esi-datasets/types';
-import { LOCATION_CADENCE_FLOOR_MS, SYNC_DATASETS } from '@/lib/sync-engine';
+import { SYNC_DATASETS } from '@/lib/sync-engine';
 import {
   checkEntries,
   CONVEX_ESI_HOMES,
@@ -67,19 +66,10 @@ const liveContext = {
   engineDatasets: new Set<string>(SYNC_DATASETS),
 };
 
-function entryNamed(name: string): EsiDatasetEntry {
-  const entry = ESI_DATASET_ENTRIES.find((candidate) => candidate.name === name);
-  if (entry === undefined) throw new Error(`Missing test registry entry: ${name}`);
-  return entry;
-}
+const ESI = { kind: 'esi' } as const;
 
-function staticEsi(cacheSeconds: number) {
-  return {
-    kind: 'esi' as const,
-    specPaths: ['/synthetic/'],
-    verifiedCacheSeconds: cacheSeconds,
-  };
-}
+const SYNTHETIC_STORED: EsiRouteDeclaration = { route: '/synthetic/', method: 'GET', holder: 'global', specCacheSeconds: 300 };
+const SYNTHETIC_LOOKUP: EsiRouteDeclaration = { ...SYNTHETIC_STORED, route: '/synthetic/lookup/', mode: 'pass-through' };
 
 describe('ESI dataset registry pure checks', () => {
   it('recognizes only the declared freshness-column patterns', () => {
@@ -105,43 +95,16 @@ describe('ESI dataset registry pure checks', () => {
     expect(isEsiMirrorTable(fetched)).toBe(true);
     expect(isEsiMirrorTable(ordinary)).toBe(false);
   });
-
-  it('derives default, override, and non-static effective TTLs', () => {
-    expect(effectiveTtlMs(entryNamed('skills'))).toBe(120_000);
-    expect(effectiveTtlMs(entryNamed('market_prices'))).toBe(
-      5 * 60 * 1000,
-    );
-    expect(effectiveTtlMs(entryNamed('market_history'))).toBeNull();
-    expect(effectiveTtlMs(entryNamed('sde'))).toBeNull();
-  });
 });
 
 describe('ESI dataset registry seeded rule failures', () => {
-  it('rejects Convex data cached above 120 seconds without collaboration', () => {
-    const entry: EsiDatasetEntry = {
-      name: 'bad_convex_placement',
-      store: 'convex',
-      shape: 'live',
-      freshnessModel: 'engine-cadence',
-      refreshOwner: { kind: 'engine', dataset: 'characterLocation' },
-      upstream: staticEsi(3600),
-      routes: [],
-      mirrorTables: [],
-    };
-
-    expect(checkEntries([entry], liveContext)).toEqual([
-      'bad_convex_placement: Convex requires verified ESI cache <= 120s or collaborative data',
-    ]);
-  });
-
   it('rejects missing and null global cron routes', () => {
     const missing: EsiDatasetEntry = {
       name: 'missing_cron',
       store: 'neon',
       shape: 'global-cron',
-      freshnessModel: 'row-stale-after',
       refreshOwner: { kind: 'cron', route: '/api/cron/not-live' },
-      upstream: staticEsi(300),
+      upstream: ESI,
       routes: [],
       mirrorTables: [],
     };
@@ -164,9 +127,8 @@ describe('ESI dataset registry seeded rule failures', () => {
       name: 'missing_personal_owner',
       store: 'neon',
       shape: 'personal-on-view',
-      freshnessModel: 'caller-ttl',
       refreshOwner: { kind: 'entry-point', name: 'refreshNothingOnView' },
-      upstream: staticEsi(300),
+      upstream: ESI,
       routes: [],
       mirrorTables: [],
     };
@@ -181,10 +143,9 @@ describe('ESI dataset registry seeded rule failures', () => {
       name: 'missing_personal_backstop',
       store: 'neon',
       shape: 'personal-on-view',
-      freshnessModel: 'caller-ttl',
       refreshOwner: { kind: 'entry-point', name: 'refreshSkillsOnView' },
       cronBackstopRoute: '/api/cron/not-live',
-      upstream: staticEsi(300),
+      upstream: ESI,
       routes: [],
       mirrorTables: [],
     };
@@ -203,25 +164,52 @@ describe('ESI dataset registry seeded rule failures', () => {
     expect(checkEntries([waived], liveContext)).toEqual([]);
   });
 
-  it('rejects an effective TTL below the verified upstream cache', () => {
+  it('rejects an engine owner outside the live sync datasets', () => {
     const entry: EsiDatasetEntry = {
-      name: 'too_fast',
-      store: 'neon',
-      shape: 'global-cron',
-      freshnessModel: 'row-stale-after',
-      refreshOwner: { kind: 'cron', route: '/api/cron/daily-batch' },
-      upstream: staticEsi(300),
+      name: 'missing_engine',
+      store: 'convex',
+      shape: 'live',
+      refreshOwner: { kind: 'engine', dataset: 'nothingLive' },
+      upstream: ESI,
       routes: [],
-      ttlOverride: {
-        milliseconds: 60_000,
-        rationale: 'Synthetic seeded violation.',
-      },
       mirrorTables: [],
     };
 
-    expect(checkEntries([entry], liveContext)).toEqual([
-      'too_fast: effective TTL 60000ms is below upstream 300000ms',
+    expect(checkEntries([entry], liveContext)).toEqual(['missing_engine: unknown engine dataset nothingLive']);
+  });
+
+  it('rejects a lookup that stores a route or claims a mirror table', () => {
+    const stored: EsiDatasetEntry = {
+      name: 'storing_lookup',
+      store: 'none',
+      shape: 'lookup',
+      upstream: ESI,
+      routes: [SYNTHETIC_LOOKUP, SYNTHETIC_STORED],
+      mirrorTables: [],
+    };
+    const mirrored: EsiDatasetEntry = { ...stored, name: 'mirrored_lookup', routes: [SYNTHETIC_LOOKUP], mirrorTables: ['market_prices'] };
+
+    expect(checkEntries([stored], liveContext)).toEqual([
+      'storing_lookup: lookup route /synthetic/ must be pass-through',
+      'storing_lookup: stored routes need a mirror table or keepBody',
     ]);
+    expect(checkEntries([mirrored], liveContext)).toEqual(['mirrored_lookup: lookup dataset declares mirror tables']);
+  });
+
+  it('rejects a stored route whose answer has nowhere to land, and accepts a kept body', () => {
+    const homeless: EsiDatasetEntry = {
+      name: 'homeless_store',
+      store: 'neon',
+      shape: 'global-cron',
+      refreshOwner: { kind: 'cron', route: '/api/cron/daily-batch' },
+      upstream: ESI,
+      routes: [SYNTHETIC_STORED, SYNTHETIC_LOOKUP],
+      mirrorTables: [],
+    };
+    const kept: EsiDatasetEntry = { ...homeless, name: 'kept_body', routes: [{ ...SYNTHETIC_STORED, keepBody: true }] };
+
+    expect(checkEntries([homeless], liveContext)).toEqual(['homeless_store: stored routes need a mirror table or keepBody']);
+    expect(checkEntries([kept], liveContext)).toEqual([]);
   });
 
   it('accepts only a rationale-bearing waiver for its named violation', () => {
@@ -229,13 +217,8 @@ describe('ESI dataset registry seeded rule failures', () => {
       name: 'waived_cron',
       store: 'neon',
       shape: 'global-cron',
-      freshnessModel: 'expires-boundary',
       refreshOwner: { kind: 'cron', route: null },
-      upstream: {
-        kind: 'esi',
-        specPaths: ['/synthetic/expires/'],
-        verifiedCacheSeconds: null,
-      },
+      upstream: ESI,
       routes: [],
       waiver: {
         rule: 'global-cron-names-route',
@@ -260,7 +243,7 @@ describe('ESI dataset registry seeded rule failures', () => {
 });
 
 describe('ESI dataset registry live gate', () => {
-  it('passes every placement, owner, route, and freshness rule', () => {
+  it('passes every placement, owner, route and mirror rule', () => {
     expect(checkEntries(ESI_DATASET_ENTRIES, liveContext)).toEqual([]);
   });
 
@@ -364,33 +347,15 @@ describe('ESI dataset registry live gate', () => {
     for (const waiver of waivers) expect(waiver.rationale.trim(), waiver.name).not.toBe('');
   });
 
-  it('pins every effective runtime TTL to its verified value', () => {
-    expect(effectiveTtlMs(entryNamed('skills'))).toBe(120_000);
-    expect(effectiveTtlMs(entryNamed('character_industry_jobs'))).toBe(
-      300_000,
-    );
-    expect(effectiveTtlMs(entryNamed('corporation_industry_jobs'))).toBe(
-      300_000,
-    );
-    expect(effectiveTtlMs(entryNamed('owned_assets'))).toBe(3_600_000);
-    expect(effectiveTtlMs(entryNamed('owned_blueprints'))).toBe(
-      3_600_000,
-    );
-    expect(effectiveTtlMs(entryNamed('owned_structures'))).toBe(
-      3_600_000,
-    );
-    expect(effectiveTtlMs(entryNamed('corp_context'))).toBe(3_600_000);
-    expect(effectiveTtlMs(entryNamed('character_corp_roles'))).toBe(3_600_000);
-    expect(effectiveTtlMs(entryNamed('affiliations'))).toBe(
-      3_600_000,
-    );
-    expect(effectiveTtlMs(entryNamed('market_prices'))).toBe(
-      300_000,
-    );
-    expect(effectiveTtlMs(entryNamed('character_location'))).toBe(LOCATION_CADENCE_FLOOR_MS);
-    expect(effectiveTtlMs(entryNamed('character_sheet_live'))).toBe(120_000);
-    expect(effectiveTtlMs(entryNamed('character_sheet_hourly'))).toBe(3_600_000);
-    expect(effectiveTtlMs(entryNamed('character_sheet_daily'))).toBe(86_400_000);
+  it('pins the one lookup entry to the searches and resolvers', () => {
+    const lookups = ESI_DATASET_ENTRIES.filter((entry) => entry.shape === 'lookup');
+    expect(lookups.map((entry) => entry.name)).toEqual(['esi_lookups']);
+    expect(lookups[0]?.routes.map((route) => `${route.method} ${route.route}`)).toEqual([
+      'GET /characters/{character_id}/search/',
+      'POST /universe/ids/',
+      'POST /universe/names/',
+      'GET /universe/structures/{structure_id}/',
+    ]);
   });
 });
 
@@ -405,13 +370,23 @@ describe('ESI route declarations', () => {
   const entries: readonly EsiDatasetEntry[] = ESI_DATASET_ENTRIES;
   const esiEntries = entries.filter((entry) => entry.upstream.kind === 'esi');
 
-  it('declares every spec path of an ESI entry as a route, and nothing else', () => {
-    for (const entry of esiEntries) {
-      const specPaths = entry.upstream.kind === 'esi' ? [...entry.upstream.specPaths].sort() : [];
-      expect([...new Set(entry.routes.map((route) => route.route))].sort(), entry.name).toEqual(specPaths);
-    }
+  it('declares routes on every ESI entry and on nothing else', () => {
     for (const entry of entries) {
-      if (entry.upstream.kind !== 'esi') expect(entry.routes, entry.name).toEqual([]);
+      if (entry.upstream.kind === 'esi') {
+        expect(entry.routes.length, entry.name).toBeGreaterThan(0);
+      } else {
+        expect(entry.routes, entry.name).toEqual([]);
+      }
+    }
+  });
+
+  it('claims only mirror tables the schema defines, and a home for every stored route', () => {
+    for (const entry of esiEntries) {
+      for (const table of entry.mirrorTables) expect(tableNames, `${entry.name} claims ${table}`).toContain(table);
+      const stored = entry.routes.filter((route) => (route.mode ?? 'stored') === 'stored');
+      if (stored.length > 0 && entry.mirrorTables.length === 0) {
+        expect(stored.every((route) => route.keepBody === true), entry.name).toBe(true);
+      }
     }
   });
 

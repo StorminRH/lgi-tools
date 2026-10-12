@@ -13,10 +13,10 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
 vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(),
 }));
-vi.mock('@/platform/esi', () => ({
-  esiFetch: (...args: unknown[]) => h.esiFetch(...args),
-  esiUrl: (path: string) => `https://esi.test${path}`,
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
+});
 
 const pilot = (characterId: number): LinkedCharacter => ({
   characterId,

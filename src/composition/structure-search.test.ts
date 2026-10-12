@@ -14,11 +14,10 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: (...args: unknown[]) => h.getFreshAccessTokenForCharacter(...args),
 }));
-vi.mock('@/platform/esi', async (importOriginal) => ({
-  ...await importOriginal<Record<string, unknown>>(),
-  esiUrl: (path: string) => `https://esi.test${path}`,
-  esiFetch: (...args: unknown[]) => h.esiFetch(...args),
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
+});
 
 const BOTH_SCOPES = 'esi-search.search_structures.v1 esi-universe.read_structures.v1';
 const pilot = (characterId: number, scope: string, corporationId: number | null = null) => ({
