@@ -12,13 +12,13 @@ import { refreshWhStaticsDeclaration } from '../refresh-wh-statics/declaration';
 import { revalueNetWorthDeclaration } from '../revalue-net-worth/declaration';
 
 /**
- * The daily Vercel cron. Hobby fires it anywhere in the 12:00 UTC hour, after
- * CCP's 11:00 downtime; running the steps in one invocation keeps their order
- * fixed. The ESI refresh queue drains after the price sweeps so deferred
- * holdings land before net worth is revalued at the new prices; without new
- * prices there is no revalue, and the board carries yesterday's day. Housekeeping
- * runs last under its own time budget, so a backlog never delays the
- * refreshes. The SDE refresh keeps its own later window and invocation.
+ * The daily Vercel cron. Pro fires it on the minute, at 12:00 UTC, after
+ * CCP's 11:00 downtime and the 11:30 SDE refresh; running the steps in one
+ * invocation keeps their order fixed. Net worth is revalued after the price
+ * sweep so it carries the new prices; without new prices there is no revalue,
+ * and the board carries yesterday's day. Housekeeping runs last under its own
+ * time budget, so a backlog never delays the refreshes. The SDE refresh keeps
+ * its own invocation.
  */
 export const maxDuration = 300;
 

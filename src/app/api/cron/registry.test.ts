@@ -64,7 +64,36 @@ function scheduleFindings(
   return findings;
 }
 
+/** Minutes past midnight UTC for a fixed daily schedule; throws for anything else. */
+function dailyMinuteOf(schedule: string): number {
+  const [minute, hour] = schedule.trim().split(/\s+/);
+  if (isSubDaily(schedule) || !minute || !hour) {
+    throw new Error(`Expected a fixed daily cron schedule: ${schedule}`);
+  }
+  return Number(hour) * 60 + Number(minute);
+}
+
+function scheduleOf(path: string): string {
+  const cron = vercelConfig.crons.find((entry) => entry.path === path);
+  if (!cron) throw new Error(`No Vercel cron for ${path}`);
+  return cron.schedule;
+}
+
+/** CCP's published daily downtime ends at 11:30 UTC (starts 11:00, ESI off from ~10:55). */
+const DOWNTIME_END_MINUTE = 11 * 60 + 30;
+
 describe('cron schedule registry', () => {
+  it('fires the SDE refresh once downtime ends and before the daily batch', () => {
+    const sdeMinute = dailyMinuteOf(scheduleOf('/api/cron/refresh-sde'));
+    const batchMinute = dailyMinuteOf(scheduleOf('/api/cron/daily-batch'));
+    expect(sdeMinute).toBeGreaterThanOrEqual(DOWNTIME_END_MINUTE);
+    expect(sdeMinute).toBeLessThan(batchMinute);
+  });
+
+  it('rejects a sub-daily schedule as a daily minute', () => {
+    expect(() => dailyMinuteOf('*/15 11 * * *')).toThrow('fixed daily cron schedule');
+  });
+
   it('maps every live Vercel cron and satisfies the wake-class gate', () => {
     expect(new Set(Object.keys(cronRegistry))).toEqual(
       new Set(vercelConfig.crons.map((cron) => cron.path)),

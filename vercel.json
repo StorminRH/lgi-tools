@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/refresh-sde",
-      "schedule": "0 14 * * *"
+      "schedule": "30 11 * * *"
     }
   ]
 }
