@@ -1,5 +1,5 @@
 import { planRead } from './plan';
-import type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState } from './types';
+import type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState, ReadSession } from './types';
 import type { EsiResponseHeaders } from '../esi/response-metadata';
 
 export type PagedOwnerReadResult =
@@ -7,12 +7,14 @@ export type PagedOwnerReadResult =
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
-export interface OwnedDatasetPort<TRow> {
+export interface OwnedDatasetPort<TRow, TSession extends ReadSession> {
   now(): Date;
   listCharacters(userId: string): Promise<EnumeratedOwner[]>;
   vendToken(characterId: number): Promise<string | null>;
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-  read(basePath: string, accessToken: string, heldEtags: string[]): Promise<PagedOwnerReadResult>;
+  isDue(owner: OwnerKey): Promise<boolean>;
+  openSession(): TSession;
+  read(session: TSession, owner: OwnerKey, accessToken: string): Promise<PagedOwnerReadResult>;
   readSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null>;
   save(
     owner: OwnerKey,
@@ -25,7 +27,6 @@ export interface OwnedDatasetPort<TRow> {
 
 export interface OwnedDatasetSpec<TRow> {
   resource: string;
-  isStale(lastRefreshedAt: Date | null, now: Date): boolean;
   eligibleCharacter(owner: EnumeratedOwner): boolean;
   eligibleCorp(owner: EnumeratedOwner): boolean;
   requiredRoles: readonly string[];
@@ -45,16 +46,17 @@ export function ownedResourcePath(resource: string, owner: OwnerKey): string {
     : `/corporations/${owner.ownerId}/${resource}/`;
 }
 
-export function makeOwnedDescriptor<TRow>(
-  port: OwnedDatasetPort<TRow>,
+export function makeOwnedDescriptor<TRow, TSession extends ReadSession>(
+  port: OwnedDatasetPort<TRow, TSession>,
   spec: OwnedDatasetSpec<TRow>,
-): OwnerSyncDescriptor<OwnerKey, PagedOwnerSyncState, OwnedSave<TRow>> {
+): OwnerSyncDescriptor<OwnerKey, PagedOwnerSyncState, OwnedSave<TRow>, TSession> {
   return {
     now: () => port.now(),
     enumerate: (userId) => port.listCharacters(userId),
     identityOf: (owner) => owner,
     vendToken: (characterId) => port.vendToken(characterId),
-    isStale: (state, now) => spec.isStale(state?.lastRefreshedAt ?? null, now),
+    isDue: (owner) => port.isDue(owner),
+    openSession: () => port.openSession(),
     characterAxis: {
       eligible: (owner) => spec.eligibleCharacter(owner),
       ownerOf: (characterId) => ({ ownerType: 'character', ownerId: characterId }),
@@ -66,9 +68,9 @@ export function makeOwnedDescriptor<TRow>(
       readRoles: (characterId, accessToken) => port.readRoles(characterId, accessToken),
     },
     readState: (owner) => port.readSyncState(owner),
-    fetchAndPlan: async (owner, accessToken, state) => {
+    fetchAndPlan: async (owner, accessToken, _state, session) => {
       const endpoint = ownedResourcePath(spec.resource, owner);
-      const read = await port.read(endpoint, accessToken, state?.pageEtags ?? []);
+      const read = await port.read(session, owner, accessToken);
       return planRead(read, (fresh) => {
         const rows = spec.parse(fresh.items);
         return rows === null

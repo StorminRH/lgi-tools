@@ -41,7 +41,7 @@ export async function readCorpStructureSyncState(
   corporationId: number,
 ): Promise<PagedOwnerSyncState | null> {
   const rows = await db
-    .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt, pageEtags: corpStructureSyncs.pageEtags })
+    .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt })
     .from(corpStructureSyncs)
     .where(eq(corpStructureSyncs.corporationId, corporationId))
     .limit(1);

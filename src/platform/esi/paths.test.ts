@@ -3,7 +3,6 @@ import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   characterLocationPath,
   characterOnlinePath,
-  characterRolesPath,
   characterShipPath,
   universeStructurePath,
 } from './paths';
@@ -16,7 +15,6 @@ const BUILDERS = [
   { name: 'characterLocationPath', builder: characterLocationPath, placeholder: '{character_id}' },
   { name: 'characterShipPath', builder: characterShipPath, placeholder: '{character_id}' },
   { name: 'characterOnlinePath', builder: characterOnlinePath, placeholder: '{character_id}' },
-  { name: 'characterRolesPath', builder: characterRolesPath, placeholder: '{character_id}' },
   { name: 'universeStructurePath', builder: universeStructurePath, placeholder: '{structure_id}' },
 ];
 

@@ -35,13 +35,11 @@ const T1 = '2026-09-27T11:05:00.000Z';
 const wallet = (balance: number, refreshedAt = T0): SectionEnvelope<'wallet'> => ({
   data: { balance },
   refreshedAt,
-  etags: { balance: `"w-${balance}"` },
 });
 
 const profile: SectionEnvelope<'profile'> = {
   data: { character: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.3 } },
   refreshedAt: T0,
-  etags: { character: '"p"' },
 };
 
 async function readRow(characterId: number) {
@@ -107,7 +105,7 @@ describe.skipIf(!harness.reachable)('character sheet queries execute against Pos
 
     const sections = (await readRow(505))!.sections;
     expect(sections.profile).toEqual(profile);
-    expect(sections.wallet).toMatchObject({ data: { balance: 50 }, etags: { balance: '"w-50"' } });
+    expect(sections.wallet).toMatchObject({ data: { balance: 50 } });
     expect(Date.parse(sections.wallet!.refreshedAt)).toBeGreaterThan(Date.parse(T0));
     expect(mocks.revalidateTag).toHaveBeenCalledWith(sheetTag(505), { expire: 0 });
   });

@@ -7,7 +7,7 @@
  * floors, no jitter and no delays.
  */
 import { expireNow } from '@/lib/cache-expiry';
-import { routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
+import { eveTag, routeDataset, routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
 import type { EsiRouteDeclaration } from '@/lib/esi-datasets/types';
 import { EsiServerError, esiFetch, esiUrl, type EsiFetchOptions } from '@/platform/esi';
 import {
@@ -16,19 +16,22 @@ import {
   readEsiPagedAuthed,
   type EsiAuthedRead,
   type EsiPagedRead,
-  type RlSnapshot,
 } from '@/platform/esi/authed-read';
 import { httpDateMs } from '@/platform/esi/headers';
+import { esiJsonPostInit } from '@/platform/esi/request-init';
 import { earliestExpiry, expiryFor, isExpired } from './expiry';
 import { esiHalted } from './halt';
 import { identityText, resolvePath, rowIdentity } from './key';
 import { readStoredRows, recordResponse, recordUnchanged } from './rows';
 import { withGlobalSingleFlight } from './single-flight';
 import type {
+  EsiAnswerStamp,
   EsiParams,
   EsiResponseMeta,
   EsiStoreKey,
+  StoredAuthedInit,
   StoredAuthedRead,
+  StoredBatchAnswer,
   StoredFetch,
   StoredFetchInit,
   StoredPagedRead,
@@ -38,17 +41,26 @@ import type {
 
 export { haltOf, noteStatusOutcome, STATUS_KEY } from './downtime';
 export type { DowntimeHalt } from './downtime';
-export { isExpired, untilExpires } from './expiry';
+export { expiryFor, isExpired, untilExpires } from './expiry';
+export { storedRowJoin } from './rows';
 export type {
+  EsiAnswerStamp,
   EsiParams,
   EsiResponseMeta,
   EsiStoreKey,
+  StoredAuthedInit,
   StoredAuthedRead,
+  StoredBatchAnswer,
   StoredFetch,
   StoredFetchInit,
   StoredPagedRead,
   StoredRow,
 } from './types';
+
+/** The 'use cache' tag of the dataset a stored key feeds, for its holder: derived from the declaration, never spelled by a caller. */
+export function datasetTag(key: EsiStoreKey): string {
+  return eveTag(routeDataset(key.route), key.holder);
+}
 
 /** The declaration a stored read follows; a pass-through, tracker-only or wrongly held route is a programming error. */
 function storedDeclaration(key: EsiStoreKey): EsiRouteDeclaration {
@@ -169,11 +181,59 @@ export async function esiPassThrough(
   init?: RequestInit,
   opts?: EsiFetchOptions,
 ): Promise<Response> {
+  return esiFetch(esiUrl(await passThroughPath(route, params)), init, opts);
+}
+
+/** The concrete path of a pass-through call, once its declaration is checked and the downtime halt has let it through. */
+async function passThroughPath(route: EsiRoute, params: EsiParams | undefined): Promise<string> {
   const declaration = routeDeclaration(route);
   if (declaration.mode !== 'pass-through') throw new Error(`ESI route ${route} is not declared pass-through`);
   const key: EsiStoreKey = { route, holder: { kind: 'global' }, params };
   if (await esiHalted(key, Date.now())) throw new EsiServerError(503, 'halted for daily downtime');
-  return esiFetch(esiUrl(resolvePath(key)), init, opts);
+  return resolvePath(key);
+}
+
+/** A declared pass-through GET with a token (a structure lookup): always calls, never conditional, records nothing. */
+export async function readPassThroughAuthed(route: EsiRoute, params: EsiParams, accessToken: string): Promise<EsiAuthedRead> {
+  return readEsiAuthed(await passThroughPath(route, params), accessToken, null);
+}
+
+/** A declared pass-through POST-as-read with a token (assets/names): always calls and records nothing. */
+export async function postPassThroughAuthed(
+  route: EsiRoute,
+  params: EsiParams,
+  accessToken: string,
+  body: unknown,
+): Promise<EsiAuthedRead> {
+  return readEsiAuthedPost(await passThroughPath(route, params), accessToken, body);
+}
+
+/**
+ * A public POST whose one answer is fanned out over many keys (the
+ * affiliation batch): the caller has already picked the due ids, so it
+ * always calls, and hands back the response with the stamp every key in
+ * the batch takes through `recordExpiryFor`. Under the downtime halt it
+ * fails the way ESI itself would.
+ */
+export async function postStoredBatch(route: EsiRoute, body: unknown): Promise<StoredBatchAnswer> {
+  const declaration = routeDeclaration(route);
+  if (declaration.method !== 'POST' || (declaration.mode ?? 'stored') !== 'stored') {
+    throw new Error(`ESI route ${route} is not a stored POST`);
+  }
+  const key: EsiStoreKey = { route, holder: { kind: 'global' } };
+  const checkedAt = Date.now();
+  if (await esiHalted(key, checkedAt)) throw new EsiServerError(503, 'halted for daily downtime');
+  const res = await esiFetch(esiUrl(resolvePath(key)), esiJsonPostInit(body));
+  logAnswer(key, res.status, res.headers.get('x-esi-cache-status'));
+  const answer = responseAnswer(res);
+  return {
+    res,
+    stamp: {
+      expiresAt: expiryFor(answer.expiresAt, declaration.specCacheSeconds, checkedAt),
+      lastModified: httpDateMs(answer.lastModified ?? null),
+      checkedAt,
+    },
+  };
 }
 
 interface Prepared {
@@ -182,11 +242,12 @@ interface Prepared {
   readonly checkedAt: number;
 }
 
-async function prepareAuthed(key: EsiStoreKey): Promise<Prepared | StoredUnchanged> {
+async function prepareAuthed(key: EsiStoreKey, live = false): Promise<Prepared | StoredUnchanged> {
   const declaration = storedDeclaration(key);
   const row = await readStoredRow(key);
   const checkedAt = Date.now();
-  if (!isExpired(row?.expiresAt ?? null, checkedAt) || (await esiHalted(key, checkedAt))) return unchangedRow(row);
+  const unexpired = !live && !isExpired(row?.expiresAt ?? null, checkedAt);
+  if (unexpired || (await esiHalted(key, checkedAt))) return unchangedRow(row);
   return { declaration, row, checkedAt };
 }
 
@@ -204,12 +265,16 @@ async function settleAuthed(
   return { kind: 'fresh', body: read.body, etag: read.etag, meta };
 }
 
-/** An authed single-endpoint GET: `readEsiAuthed` behind the decision rule. */
-export async function readStoredAuthed(key: EsiStoreKey, accessToken: string, rl?: RlSnapshot): Promise<StoredAuthedRead> {
-  const prepared = await prepareAuthed(key);
+/** An authed single-endpoint GET: `readEsiAuthed` behind the decision rule, or past it when the caller must see ESI live. */
+export async function readStoredAuthed(
+  key: EsiStoreKey,
+  accessToken: string,
+  init: StoredAuthedInit = {},
+): Promise<StoredAuthedRead> {
+  const prepared = await prepareAuthed(key, init.live === true);
   if (isUnchanged(prepared)) return prepared;
   const [etag] = heldEtags(prepared.declaration, prepared.row, undefined);
-  return settleAuthed(key, prepared, await readEsiAuthed(resolvePath(key), accessToken, etag ?? null, rl));
+  return settleAuthed(key, prepared, await readEsiAuthed(resolvePath(key), accessToken, etag ?? null, init.rl));
 }
 
 /** An authed POST-as-read (the affiliation batch, assets/names): never conditional, same rule otherwise. */
@@ -228,11 +293,11 @@ async function settlePaged(key: EsiStoreKey, prepared: Prepared, read: EsiPagedR
 }
 
 /** An authed paged GET: every page's ETag goes back, and the earliest page Expires is the key's. */
-export async function readStoredPaged(key: EsiStoreKey, accessToken: string, rl?: RlSnapshot): Promise<StoredPagedRead> {
+export async function readStoredPaged(key: EsiStoreKey, accessToken: string, init: StoredAuthedInit = {}): Promise<StoredPagedRead> {
   const prepared = await prepareAuthed(key);
   if (isUnchanged(prepared)) return prepared;
   const etags = heldEtags(prepared.declaration, prepared.row, undefined);
-  return settlePaged(key, prepared, await readEsiPagedAuthed(resolvePath(key), accessToken, etags, rl));
+  return settlePaged(key, prepared, await readEsiPagedAuthed(resolvePath(key), accessToken, etags, init.rl));
 }
 
 /** Whether any of `keys` has no stored answer or an expired one. Nothing to refresh is never due. */
@@ -295,8 +360,8 @@ export async function commit(metas: readonly EsiResponseMeta[], opts: { readonly
  * body belong to the request that was made, not to the keys, so neither is
  * carried over.
  */
-export async function recordExpiryFor(keys: readonly EsiStoreKey[], meta: EsiResponseMeta): Promise<void> {
+export async function recordExpiryFor(keys: readonly EsiStoreKey[], stamp: EsiAnswerStamp): Promise<void> {
   for (const key of keys) {
-    await recordResponse({ key, expiresAt: meta.expiresAt, etags: [], lastModified: meta.lastModified, checkedAt: meta.checkedAt });
+    await recordResponse({ key, expiresAt: stamp.expiresAt, etags: [], lastModified: stamp.lastModified, checkedAt: stamp.checkedAt });
   }
 }

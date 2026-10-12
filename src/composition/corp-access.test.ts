@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 const mocks = vi.hoisted(() => ({
@@ -19,29 +18,35 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
   recordCorpAccessDecision: mocks.recordCorpAccessDecision,
 }));
 vi.mock('next/server', () => ({ after: mocks.after }));
+vi.mock('@/data/esi-store', async () => ({
+  ...(await vi.importActual<typeof import('@/data/esi-store/expiry')>('@/data/esi-store/expiry')),
+  recordExpiryFor: vi.fn(async () => {}),
+}));
 vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: mocks.reconcile }));
 
 import { authorizeCorpMutation } from '@/platform/auth/corp-access';
 import { resolveUserCorpAccess } from '@/composition/corp-access';
 
 const NOW = new Date('2026-09-15T12:00:00Z');
-const STALE = new Date(NOW.getTime() - freshnessGate('affiliations').ttlMs - 1);
-function row(characterId: number, corporationId: number | null, refreshedAt: Date | null = NOW): CachedAffiliation {
-  return { sharedAccessEligible: true, characterId, corporationId, allianceId: null, factionId: null, refreshedAt };
+const UNEXPIRED = new Date(NOW.getTime() + 60 * 60_000);
+const STALE = new Date(NOW.getTime() - 1);
+/** A stored affiliation whose answer CCP's expiry still covers unless `expiresAt` says otherwise; null means never recorded. */
+function row(characterId: number, corporationId: number | null, expiresAt: Date | null = UNEXPIRED): CachedAffiliation {
+  return { sharedAccessEligible: true, characterId, corporationId, allianceId: null, factionId: null, refreshedAt: NOW, expiresAt };
 }
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   vi.resetAllMocks();
-  mocks.fetchAffiliations.mockResolvedValue({ rows: [], transientFailure: false });
+  mocks.fetchAffiliations.mockResolvedValue({ rows: [], transientFailure: false, answers: [] });
   mocks.updateAffiliations.mockResolvedValue({ refreshed: 0, accessChanged: false });
   mocks.captureAffiliationObservedAt.mockResolvedValue('2026-09-15 12:00:00.000001');
   mocks.getUserAffiliations.mockResolvedValue([]);
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
-test('reads once without refresh writes, rereads after a stale refresh, and reevaluates freshness after a partial failure', async () => {
+test('reads once without refresh writes, rereads after an expired refresh, and reevaluates expiry after a partial failure', async () => {
   mocks.getUserAffiliations.mockResolvedValue([row(101, 2000), row(102, 2000), row(103, null)]);
   const fresh = await resolveUserCorpAccess('u1');
   expect(fresh.corporationIds).toEqual([2000]);
@@ -55,7 +60,7 @@ test('reads once without refresh writes, rereads after a stale refresh, and reev
     .mockResolvedValueOnce([row(101, 2000, STALE), row(102, 2000, null), row(103, 4000)])
     .mockResolvedValueOnce([row(101, 3000), row(102, null, null)]);
   const fetched = [row(101, 3000), row(102, 3000), row(999, 5000)];
-  mocks.fetchAffiliations.mockResolvedValue({ rows: fetched, transientFailure: false });
+  mocks.fetchAffiliations.mockResolvedValue({ rows: fetched, transientFailure: false, answers: [] });
   mocks.updateAffiliations.mockResolvedValueOnce({ refreshed: 2, accessChanged: true });
   const refreshed = await resolveUserCorpAccess('u1');
   expect(mocks.fetchAffiliations).toHaveBeenCalledWith([101, 102]);
@@ -67,11 +72,11 @@ test('reads once without refresh writes, rereads after a stale refresh, and reev
 
   mocks.getUserAffiliations.mockResolvedValue([
     row(101, 2000, STALE), row(102, 3000),
-    row(103, 4000, new Date(NOW.getTime() - freshnessGate('affiliations').ttlMs + 500)),
+    row(103, 4000, new Date(NOW.getTime() + 500)),
   ]);
   mocks.fetchAffiliations.mockImplementation(async () => {
     vi.setSystemTime(NOW.getTime() + 1000);
-    return { rows: [], transientFailure: true };
+    return { rows: [], transientFailure: true, answers: [] };
   });
   const partial = await resolveUserCorpAccess('u1');
   expect(partial.allCharacterIds).toEqual([101, 102, 103]);

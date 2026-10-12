@@ -53,6 +53,8 @@ function affiliation(
     allianceId: null,
     factionId: null,
     refreshedAt,
+    // CCP's affiliation answers live an hour, so a row observed longer ago than that has expired.
+    expiresAt: new Date(refreshedAt.getTime() + 60 * 60_000),
   };
 }
 

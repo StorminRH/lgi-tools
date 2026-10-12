@@ -1,6 +1,8 @@
 import { and, eq, or, sql, type SQL } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
-import { identityText, rowIdentity, type RowIdentity } from './key';
+import type { EsiRoute } from '@/lib/esi-datasets/routes';
+import { identityText, rowIdentity, type EsiResponseHolderType, type RowIdentity } from './key';
 import { esiResponses } from './schema';
 import type { EsiResponseMeta, EsiStoreKey, StoredRow } from './types';
 
@@ -11,6 +13,21 @@ function identityWhere(identity: RowIdentity): SQL {
     eq(esiResponses.holderId, identity.holderId),
     eq(esiResponses.userId, identity.userId),
     eq(esiResponses.params, identity.params),
+  )})`;
+}
+
+/**
+ * The ON clause that joins a holder-keyed table to its stored answer for
+ * `route`: one row per holder, with no parameters and no user, so a reader
+ * (stored roles, affiliations) can select the expiry beside its own columns.
+ */
+export function storedRowJoin(route: EsiRoute, holderType: EsiResponseHolderType, holderId: PgColumn): SQL {
+  return sql`(${and(
+    eq(esiResponses.route, route),
+    eq(esiResponses.holderType, holderType),
+    eq(esiResponses.holderId, holderId),
+    eq(esiResponses.userId, ''),
+    eq(esiResponses.params, ''),
   )})`;
 }
 

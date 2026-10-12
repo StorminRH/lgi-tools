@@ -33,10 +33,14 @@ vi.mock('@/lib/cache-expiry', () => ({ expireNow: (tag: string) => expireNowMock
 
 import {
   commit,
+  datasetTag,
   esiPassThrough,
   fetchStored,
   isDue,
+  postPassThroughAuthed,
   postStored,
+  postStoredBatch,
+  readPassThroughAuthed,
   readStoredAuthed,
   readStoredPaged,
   recordExpiryFor,
@@ -248,7 +252,7 @@ describe('readStoredAuthed', () => {
     const rl = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
     readEsiAuthedMock.mockResolvedValueOnce({ kind: 'unchanged', expiresAt: NOW + 120_000, lastModified: MODIFIED, cacheStatus: 'HIT' });
 
-    await expect(readStoredAuthed(SKILLS_KEY, TOKEN, rl)).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW + 120_000 });
+    await expect(readStoredAuthed(SKILLS_KEY, TOKEN, { rl })).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW + 120_000 });
 
     expect(readEsiAuthedMock).toHaveBeenCalledWith('/characters/91/skills/', TOKEN, '"held"', rl);
     expect(recordUnchangedMock).toHaveBeenCalledWith(SKILLS_KEY, { expiresAt: NOW + 120_000, lastModified: Date.parse(MODIFIED), checkedAt: NOW });
@@ -269,6 +273,16 @@ describe('readStoredAuthed', () => {
       meta: { key: SKILLS_KEY, expiresAt: NOW + 60_000, etags: ['"new"'], lastModified: null, checkedAt: NOW },
     });
     expect(recordResponseMock).not.toHaveBeenCalled();
+  });
+
+  it('calls even while unexpired for a live read, still conditionally, and records a 304 like any other', async () => {
+    rows(stored(NOW + 60_000));
+    readEsiAuthedMock.mockResolvedValueOnce({ kind: 'unchanged', expiresAt: NOW + 120_000 });
+
+    await expect(readStoredAuthed(SKILLS_KEY, TOKEN, { live: true })).resolves.toEqual({ kind: 'unchanged', expiresAt: NOW + 120_000 });
+
+    expect(readEsiAuthedMock).toHaveBeenCalledWith('/characters/91/skills/', TOKEN, '"held"', undefined);
+    expect(recordUnchangedMock).toHaveBeenCalledWith(SKILLS_KEY, { expiresAt: NOW + 120_000, lastModified: null, checkedAt: NOW });
   });
 
   it('never sends If-None-Match for the journal and passes an error through unrecorded', async () => {
@@ -339,6 +353,66 @@ describe('readStoredPaged', () => {
   });
 });
 
+describe('pass-through authed reads', () => {
+  const STRUCTURE_ROUTE = '/universe/structures/{structure_id}/';
+  const NAMES_ROUTE = '/corporations/{corporation_id}/assets/names/';
+
+  it('always calls without an ETag and records nothing', async () => {
+    rows(stored(NOW + 60_000));
+    readEsiAuthedMock.mockResolvedValueOnce({ kind: 'fresh', body: { name: 'Fort' }, etag: null, expiresAt: null });
+    readEsiAuthedPostMock.mockResolvedValueOnce({ kind: 'fresh', body: [{ item_id: 1 }], etag: null, expiresAt: null });
+
+    await expect(readPassThroughAuthed(STRUCTURE_ROUTE, { structure_id: 7 }, TOKEN)).resolves.toMatchObject({ kind: 'fresh', body: { name: 'Fort' } });
+    await expect(postPassThroughAuthed(NAMES_ROUTE, { corporation_id: 98 }, TOKEN, [1])).resolves.toMatchObject({ kind: 'fresh' });
+
+    expect(readEsiAuthedMock).toHaveBeenCalledWith('/universe/structures/7/', TOKEN, null);
+    expect(readEsiAuthedPostMock).toHaveBeenCalledWith('/corporations/98/assets/names/', TOKEN, [1]);
+    expect(readStoredRowsMock).not.toHaveBeenCalled();
+    expect(recordResponseMock).not.toHaveBeenCalled();
+    expect(recordUnchangedMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a route that is not declared pass-through', async () => {
+    await expect(readPassThroughAuthed(SKILLS_KEY.route, { character_id: 91 }, TOKEN)).rejects.toThrow('not declared pass-through');
+    expect(readEsiAuthedMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('postStoredBatch', () => {
+  it('always posts the batch and stamps the answer with its Expires, else the route\'s spec cache time', async () => {
+    esiFetchMock.mockResolvedValueOnce(response(200, { Expires: EXPIRES, 'Last-Modified': MODIFIED }, [{ character_id: 91 }]));
+    const withExpires = await postStoredBatch('/characters/affiliation/', [91]);
+    expect(withExpires.res.status).toBe(200);
+    expect(withExpires.stamp).toEqual({ expiresAt: Date.parse(EXPIRES), lastModified: Date.parse(MODIFIED), checkedAt: NOW });
+    expect(esiFetchMock).toHaveBeenCalledWith(
+      'https://esi.evetech.net/characters/affiliation/',
+      expect.objectContaining({ method: 'POST', body: '[91]' }),
+    );
+    expect(readStoredRowsMock).not.toHaveBeenCalled();
+
+    esiFetchMock.mockResolvedValueOnce(response(404, {}, {}));
+    const bare = await postStoredBatch('/characters/affiliation/', [92]);
+    expect(bare.res.status).toBe(404);
+    expect(bare.stamp).toEqual({ expiresAt: NOW + 3_600_000, lastModified: null, checkedAt: NOW });
+    expect(recordResponseMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a route that is not a stored POST', async () => {
+    await expect(postStoredBatch(PRICE_KEY.route, [])).rejects.toThrow('not a stored POST');
+    expect(esiFetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('datasetTag', () => {
+  it('derives the tag from the stored declaration\'s dataset and the holder', () => {
+    expect(datasetTag(SKILLS_KEY)).toBe('eve:skills:character:91');
+    expect(datasetTag({ route: '/characters/{character_id}/location/', holder: { kind: 'character', id: 91 } })).toBe('eve:character_sheet_live:character:91');
+    expect(datasetTag({ route: '/corporations/{corporation_id}/industry/jobs/', holder: { kind: 'user-corporation', id: 98, userId: 'u1' } }))
+      .toBe('eve:corporation_industry_jobs:user-corporation:u1:98');
+    expect(datasetTag(PRICE_KEY)).toBe('eve:market_prices');
+  });
+});
+
 describe('isDue and storedExpiry', () => {
   it('is due when any key is missing, unset or past, and never when nothing is asked', async () => {
     rows(stored(NOW + 1), null);
@@ -405,6 +479,8 @@ describe('the daily downtime halt', () => {
     await expect(readStoredPaged(ASSETS_KEY, TOKEN)).resolves.toEqual({ kind: 'unchanged', expiresAt: IN_WINDOW - 1 });
     await expect(postStored(AFFILIATION_KEY, TOKEN, [91])).resolves.toEqual({ kind: 'unchanged', expiresAt: IN_WINDOW - 1 });
     await expect(esiPassThrough('/universe/structures/{structure_id}/', { structure_id: 1 })).rejects.toBeInstanceOf(EsiServerError);
+    await expect(readPassThroughAuthed('/universe/structures/{structure_id}/', { structure_id: 1 }, TOKEN)).rejects.toBeInstanceOf(EsiServerError);
+    await expect(postStoredBatch('/characters/affiliation/', [91])).rejects.toBeInstanceOf(EsiServerError);
     expect(esiFetchMock).not.toHaveBeenCalled();
     expect(readEsiAuthedMock).not.toHaveBeenCalled();
     expect(readEsiPagedAuthedMock).not.toHaveBeenCalled();

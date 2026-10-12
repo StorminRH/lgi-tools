@@ -68,10 +68,7 @@ export async function getOwnedBlueprintMap(
 
 export async function readBlueprintSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: ownedBlueprintSyncs.lastRefreshedAt,
-      pageEtags: ownedBlueprintSyncs.pageEtags,
-    })
+    .select({ lastRefreshedAt: ownedBlueprintSyncs.lastRefreshedAt })
     .from(ownedBlueprintSyncs)
     .where(ownerKeyWhere(ownedBlueprintSyncs, owner))
     .limit(1);

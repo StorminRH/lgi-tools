@@ -10,7 +10,7 @@ import { OWNED_ASSETS_RESOURCE } from '@/features/owned-assets/refresh';
 import { compileCorpGrant, compileReadScope } from '@/platform/auth/corp-visibility';
 import type { CorpRole } from '@/platform/auth/corp-roles';
 import { ownedResourcePath } from '@/platform/owner-sync';
-import { getOwnedBlueprintMap, readBlueprintSyncState, saveOwnedBlueprints } from '@/features/owned-blueprints/queries';
+import { getOwnedBlueprintMap, saveOwnedBlueprints } from '@/features/owned-blueprints/queries';
 import { ownedBlueprints } from '@/features/owned-blueprints/schema';
 import type { OwnedBlueprint } from '@/features/owned-blueprints/esi-projection';
 
@@ -27,6 +27,13 @@ const STATION = 60003760;
 const CAN = 3001;
 const BLUEPRINT = 4001;
 const owner = { ownerType: 'corporation', ownerId: CORP } as const;
+
+/** The ETags the save still writes beside the sync stamp; the response store, not this column, decides freshness. */
+async function storedPageEtags(): Promise<string[] | undefined> {
+  const [row] = await harness.sql<{ page_etags: string[] }[]>`
+    SELECT page_etags FROM owned_blueprint_syncs WHERE owner_type = 'corporation' AND owner_id = ${CORP}`;
+  return row?.page_etags;
+}
 const blueprint: OwnedBlueprint = {
   item_id: BLUEPRINT, type_id: 34, material_efficiency: 10, time_efficiency: 20,
   quantity: -1, runs: -1, location_id: CAN, location_flag: 'Unlocked',
@@ -119,7 +126,7 @@ describe.skipIf(!harness.reachable)('blueprint identity and immutable asset plac
       await expect(save([{ ...blueprint, item_id: BLUEPRINT + 1, material_efficiency: 99 }], ['after'])).rejects.toThrow();
       expect(revalidateTag).not.toHaveBeenCalled();
       expect((await harness.db.select().from(ownedBlueprints)).map((row) => [row.itemId, row.materialEfficiency])).toEqual([[BLUEPRINT, 10]]);
-      expect((await readBlueprintSyncState(owner))?.pageEtags).toEqual(['before']);
+      expect(await storedPageEtags()).toEqual(['before']);
     } finally {
       await harness.sql`ALTER TABLE owned_blueprints DROP CONSTRAINT reject_me`;
     }
@@ -133,6 +140,6 @@ describe.skipIf(!harness.reachable)('blueprint identity and immutable asset plac
     const rows = await harness.db.select().from(ownedBlueprints);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.itemId).toBe(5000 + rows[0]!.materialEfficiency);
-    expect((await readBlueprintSyncState(owner))?.pageEtags).toEqual([rows[0]!.itemId === 5001 ? 'one' : 'two']);
+    expect(await storedPageEtags()).toEqual([rows[0]!.itemId === 5001 ? 'one' : 'two']);
   });
 });

@@ -230,8 +230,8 @@ describe.skipIf(!harness.reachable)('listCharacterSkillSyncStates executes again
     ]);
 
     expect(await listCharacterSkillSyncStates([707, 909, 606])).toEqual(new Map([
-      [707, { lastRefreshedAt: newer, queueEtag: null, skillsEtag: '"skills-707"' }],
-      [606, { lastRefreshedAt: OLD_STAMP, queueEtag: '"queue-606"', skillsEtag: null }],
+      [707, { lastRefreshedAt: newer }],
+      [606, { lastRefreshedAt: OLD_STAMP }],
     ]));
   });
 });

@@ -38,13 +38,12 @@ test.skipIf(!harness.reachable)(
     ]);
 
     expect(await listCorpJobSyncStates('user-a')).toEqual([
-      { corporationId: 98_000_001, lastRefreshedAt: stamp, jobsEtag: null, syncError: 'needs_role' },
-      { corporationId: 98_000_002, lastRefreshedAt: stamp, jobsEtag: '"b"', syncError: null },
-      { corporationId: 98_000_003, lastRefreshedAt: stamp, jobsEtag: '"c"', syncError: null },
+      { corporationId: 98_000_001, lastRefreshedAt: stamp, syncError: 'needs_role' },
+      { corporationId: 98_000_002, lastRefreshedAt: stamp, syncError: null },
+      { corporationId: 98_000_003, lastRefreshedAt: stamp, syncError: null },
     ]);
     expect(await readCorpJobSyncState('user-a', 98_000_002)).toEqual({
       lastRefreshedAt: stamp,
-      jobsEtag: '"b"',
       syncError: null,
     });
     expect(await readCorpJobSyncState('user-a', 98_000_000)).toBeNull();
@@ -66,8 +65,8 @@ test.skipIf(!harness.reachable)(
     ]);
 
     expect(await listCharacterJobSyncStates([90_000_002, 90_000_009, 90_000_001])).toEqual(new Map([
-      [90_000_002, { lastRefreshedAt: newer, jobsEtag: null }],
-      [90_000_001, { lastRefreshedAt: older, jobsEtag: '"a"' }],
+      [90_000_002, { lastRefreshedAt: newer }],
+      [90_000_001, { lastRefreshedAt: older }],
     ]));
   },
 );
@@ -87,11 +86,11 @@ test.skipIf(!harness.reachable)(
     vi.mocked(revalidateTag).mockClear();
     await saveCorpJobs('user-d', 98_000_010, [industryJob({ job_id: 8 })], '"corp"');
     expect(await corpJobs()).toEqual([{ jobs: [industryJob({ job_id: 8 })] }]);
-    expect(await readCorpJobSyncState('user-d', 98_000_010)).toMatchObject({ jobsEtag: '"corp"', syncError: null });
+    expect(await readCorpJobSyncState('user-d', 98_000_010)).toMatchObject({ syncError: null });
 
     await saveCorpNeedsRole('user-d', 98_000_010);
     expect(await corpJobs()).toEqual([]);
-    expect(await readCorpJobSyncState('user-d', 98_000_010)).toMatchObject({ jobsEtag: null, syncError: 'needs_role' });
+    expect(await readCorpJobSyncState('user-d', 98_000_010)).toMatchObject({ syncError: 'needs_role' });
     expect(vi.mocked(revalidateTag).mock.calls).toEqual([
       ['corp-industry-jobs:user-d:98000010', { expire: 0 }],
       ['corp-industry-jobs:user-d:98000010', { expire: 0 }],

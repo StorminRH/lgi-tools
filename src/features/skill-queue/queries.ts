@@ -72,8 +72,6 @@ export async function getSkillLevelsForCharacters(
 
 const syncStateColumns = {
   lastRefreshedAt: characterSkillSyncs.lastRefreshedAt,
-  queueEtag: characterSkillSyncs.queueEtag,
-  skillsEtag: characterSkillSyncs.skillsEtag,
 };
 
 export async function readCharacterSyncState(

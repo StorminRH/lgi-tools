@@ -101,7 +101,6 @@ export async function listCharacterAssetRows(characterIds: number[]): Promise<Ma
 
 const syncStateColumns = {
   lastRefreshedAt: ownedAssetSyncs.lastRefreshedAt,
-  pageEtags: ownedAssetSyncs.pageEtags,
 };
 
 export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {

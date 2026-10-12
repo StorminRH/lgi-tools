@@ -79,12 +79,12 @@ export function invalidateHoldingNodes(corporationId: number): void {
 /**
  * The profile upsert takes the corporation's lock before its member bases are
  * replaced, so freshness, HQ, and bases commit together as one authorization
- * snapshot.
+ * snapshot. Null bases keep the stored ones: the tracking answer was unchanged.
  */
 export async function saveCorpProfile(
   corporationId: number,
   profile: CorpProfile,
-  bases: readonly MemberBase[],
+  bases: readonly MemberBase[] | null,
   refreshedAt: Date,
   options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
@@ -94,6 +94,7 @@ export async function saveCorpProfile(
       .values({ corporationId, ...profile, lastRefreshedAt: refreshedAt })
       .onConflictDoUpdate({ target: corpProfiles.corporationId, set: { ...profile, lastRefreshedAt: refreshedAt } }),
     replace: async (tx) => {
+      if (bases === null) return;
       await tx
         .delete(corpMemberBases)
         .where(and(

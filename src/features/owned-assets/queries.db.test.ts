@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { countSessionsWaitingOn, createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { ownerKeyWhere } from '@/lib/db-columns';
-import { listCharacterAssetSyncStates, readOwnerSyncState, saveOwnedAssets } from './queries';
+import { listCharacterAssetSyncStates, saveOwnedAssets } from './queries';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 import type { OwnedAsset } from './esi-projection';
 
@@ -21,6 +21,15 @@ const harness = await createDbTestHarness({
 });
 
 const owner = { ownerType: 'character', ownerId: 90001 } as const;
+
+/** The ETags the save still writes beside the sync stamp; the response store, not this column, decides freshness. */
+async function storedPageEtags(): Promise<string[] | undefined> {
+  const [row] = await harness.db
+    .select({ pageEtags: ownedAssetSyncs.pageEtags })
+    .from(ownedAssetSyncs)
+    .where(ownerKeyWhere(ownedAssetSyncs, owner));
+  return row?.pageEtags;
+}
 
 function asset(overrides: Partial<OwnedAsset> = {}): OwnedAsset {
   return {
@@ -69,7 +78,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
 
     expect(outcome).toBe('saved');
     expect(await committedRowCount()).toBe(2);
-    expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"etag"']);
+    expect(await storedPageEtags()).toEqual(['"etag"']);
     expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', { expire: 0 });
   });
 
@@ -133,7 +142,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
 
       expect(await loser).toBe('saved');
       expect(await committedRows()).toEqual([{ typeId: 34, quantity: 5 }]);
-      expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"loser"']);
+      expect(await storedPageEtags()).toEqual(['"loser"']);
       expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', { expire: 0 });
     } finally {
       await blocker`ROLLBACK`;
@@ -148,7 +157,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
 
     expect(await saveOwnedAssets(owner, [asset(), asset()], ['"lost"'])).toBe('superseded');
     expect(await committedRows()).toEqual([{ typeId: 35, quantity: 100 }]);
-    expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"kept"']);
+    expect(await storedPageEtags()).toEqual(['"kept"']);
     expect(revalidateTag).not.toHaveBeenCalled();
   });
 
@@ -157,7 +166,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
 
     expect(await saveOwnedAssets(owner, rows, ['"large"'])).toBe('saved');
     expect(await committedRowCount()).toBe(9_000);
-    expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"large"']);
+    expect(await storedPageEtags()).toEqual(['"large"']);
   });
 });
 
@@ -175,8 +184,8 @@ describe.skipIf(!harness.reachable)('listCharacterAssetSyncStates against Postgr
     ]);
 
     expect(await listCharacterAssetSyncStates([90001, 90002, 90003])).toEqual(new Map([
-      [90001, { lastRefreshedAt: characterStamp, pageEtags: ['"p1"', '"p2"'] }],
-      [90003, { lastRefreshedAt: characterStamp, pageEtags: [] }],
+      [90001, { lastRefreshedAt: characterStamp }],
+      [90003, { lastRefreshedAt: characterStamp }],
     ]));
   });
 });

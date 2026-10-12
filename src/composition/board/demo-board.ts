@@ -382,7 +382,7 @@ const ILYANA_LEVELS = levelsOf([
 ]);
 
 function envelope<K extends SheetSectionKey>(data: SheetSectionData[K], refreshedAt: number): SectionEnvelope<K> {
-  return { data, refreshedAt: new Date(refreshedAt).toISOString(), etags: {} };
+  return { data, refreshedAt: new Date(refreshedAt).toISOString() };
 }
 
 function attributes(

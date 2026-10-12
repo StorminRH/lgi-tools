@@ -5,20 +5,16 @@ import {
   runOwnerSync,
   type OwnerSyncResult,
 } from '@/platform/owner-sync';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { CORP_ASSETS_REQUIRED_ROLES, canSyncCorpAssets } from './corp-sync-eligibility';
 import { type OwnedAsset, parseAssetsBody } from './esi-projection';
 import { canSyncAssets } from './sync-eligibility';
 import type { OwnedAssetsPort } from './types';
-
-const ASSETS_FRESHNESS = freshnessGate('owned_assets');
 
 export const OWNED_ASSETS_RESOURCE = 'assets';
 
 function assetsSpec(eligibleCorp: (owner: EnumeratedOwner) => boolean): OwnedDatasetSpec<OwnedAsset> {
   return {
     resource: OWNED_ASSETS_RESOURCE,
-    isStale: ASSETS_FRESHNESS.isStale,
     eligibleCharacter: canSyncAssets,
     eligibleCorp,
     requiredRoles: CORP_ASSETS_REQUIRED_ROLES,

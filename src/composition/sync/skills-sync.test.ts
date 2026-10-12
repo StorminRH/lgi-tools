@@ -22,9 +22,10 @@ vi.mock('@/features/skill-queue/queries', () => ({
 vi.mock('@/features/skill-queue/refresh', () => ({ refreshSkillsForUser: vi.fn() }));
 vi.mock('./owner-sync-port', () => ({
   listCharactersWithHealth: vi.fn(),
-  readSingleEndpoint: vi.fn(),
   vendTokenFor: vi.fn(),
 }));
+vi.mock('@/data/esi-store', () => ({ isDue: vi.fn() }));
+vi.mock('@/data/esi-store/session', () => ({ openReadSession: vi.fn() }));
 
 import { getSkillLevelsForCharacterOnView } from './skills-sync';
 

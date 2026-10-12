@@ -4,12 +4,10 @@ import {
   planRead,
   runOwnerSync,
 } from '@/platform/owner-sync';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import type { EsiReadSession } from '@/data/esi-store/session';
 import { CORP_INDUSTRY_JOBS_REQUIRED_ROLES, canSyncCorpIndustryJobs } from './corp-sync-eligibility';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';
 import type { CorpJobsPort, CorpJobsSyncState } from './types';
-
-const CORP_JOBS_FRESHNESS = freshnessGate('corporation_industry_jobs');
 
 interface CorpOwner {
   userId: string;
@@ -22,22 +20,18 @@ interface CorpJobsSave {
 }
 
 function makeDescriptor(port: CorpJobsPort) {
-  return makeCorpDescriptor<CorpOwner, CorpJobsSyncState, CorpJobsSave>(port, {
+  return makeCorpDescriptor<CorpOwner, CorpJobsSyncState, CorpJobsSave, EsiReadSession>(port, {
     ownerOf: (userId, corporationId) => ({ userId, corporationId }),
     eligible: canSyncCorpIndustryJobs,
     requiredRoles: CORP_INDUSTRY_JOBS_REQUIRED_ROLES,
-    isStale: CORP_JOBS_FRESHNESS.isStale,
+    isDue: (owner) => port.isDue(owner.userId, owner.corporationId),
     readState: (owner) => port.readSyncState(owner.userId, owner.corporationId),
-    fetchAndPlan: async (owner, accessToken, state) => {
-      const read = await port.readJobs(owner.corporationId, accessToken, state?.jobsEtag ?? null);
-      return planRead(
-        read,
-        (fresh) => {
-          const jobs = parseIndustryJobsBody(fresh.body);
-          return jobs === null ? null : { jobs, etag: fresh.etag };
-        },
-        (code) => (code === 'esi_403' ? { kind: 'needs_role' } : { kind: 'skip', code }),
-      );
+    fetchAndPlan: async (owner, accessToken, _state, session) => {
+      const read = await port.readJobs(session, owner.userId, owner.corporationId, accessToken);
+      return planRead(read, (fresh) => {
+        const jobs = parseIndustryJobsBody(fresh.body);
+        return jobs === null ? null : { jobs, etag: fresh.etag };
+      });
     },
     save: (owner, payload) => port.saveJobs(owner.userId, owner.corporationId, payload.jobs, payload.etag),
     stampFresh: (owner) => port.stampFresh(owner.userId, owner.corporationId),

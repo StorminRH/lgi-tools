@@ -1,4 +1,7 @@
+import { isDue } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
+import { characterJobsKey } from '@/features/industry-jobs/keys';
 import {
   getJobsForCharacters,
   listCharacterJobSyncStates,
@@ -9,15 +12,16 @@ import {
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
-import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, vendTokenFor } from './owner-sync-port';
 
 function makeJobsPort(): JobsPort {
   return {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readJobs: (characterId, accessToken, heldEtag) =>
-      readSingleEndpoint(`/characters/${characterId}/industry/jobs/`, accessToken, heldEtag),
+    isDue: (characterId) => isDue([characterJobsKey(characterId)]),
+    openSession: openReadSession,
+    readJobs: (session, characterId, accessToken) => session.readAuthed(characterJobsKey(characterId), accessToken),
     readSyncState: (characterId) => readCharacterJobSyncState(characterId),
     saveJobs: (characterId, jobs, etag) => saveCharacterJobs(characterId, jobs, etag),
     stampFresh: (characterId) => stampCharacterJobsFresh(characterId),

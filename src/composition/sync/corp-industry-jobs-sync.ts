@@ -1,6 +1,9 @@
 import { resolveUserCorpAccess } from '@/composition/corp-access';
+import { isDue } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
+import { corpJobsKey } from '@/features/industry-jobs/keys';
 import {
   getCorpJobsForUser,
   listCorpJobSyncStates,
@@ -11,7 +14,7 @@ import {
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
-import { listCharactersWithHealth, readRolesForSync, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
 function makeCorpJobsPort(): CorpJobsPort {
   return {
@@ -19,8 +22,10 @@ function makeCorpJobsPort(): CorpJobsPort {
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesForSync,
-    readJobs: (corporationId, accessToken, heldEtag) =>
-      readSingleEndpoint(`/corporations/${corporationId}/industry/jobs/`, accessToken, heldEtag),
+    isDue: (userId, corporationId) => isDue([corpJobsKey(userId, corporationId)]),
+    openSession: openReadSession,
+    readJobs: (session, userId, corporationId, accessToken) =>
+      session.readAuthed(corpJobsKey(userId, corporationId), accessToken),
     readSyncState: (userId, corporationId) => readCorpJobSyncState(userId, corporationId),
     saveJobs: (userId, corporationId, jobs, etag) => saveCorpJobs(userId, corporationId, jobs, etag),
     saveNeedsRole: (userId, corporationId) => saveCorpNeedsRole(userId, corporationId),

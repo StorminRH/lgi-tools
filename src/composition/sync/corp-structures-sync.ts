@@ -1,5 +1,8 @@
 import { after, connection } from 'next/server';
 import { type CorpViewer, resolveCorpViewer } from '@/composition/corp-viewer';
+import { isDue } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
+import { corpStructuresKey } from '@/features/owned-structures/keys';
 import type { StructuresAccess } from '@/platform/auth/corp-visibility';
 import {
   type CorpStructureCompletion,
@@ -20,7 +23,7 @@ import type {
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { SecurityClass } from '@/data/eve-data/security';
 import { nameOrUnresolved } from '@/lib/format/names';
-import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
 function makeCorpStructuresPort(): CorpStructuresPort {
   return {
@@ -28,8 +31,9 @@ function makeCorpStructuresPort(): CorpStructuresPort {
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesForSync,
-    readStructures: (corporationId, accessToken, heldEtags) =>
-      readPagedEndpoint(`/corporations/${corporationId}/structures/`, accessToken, heldEtags),
+    isDue: (corporationId) => isDue([corpStructuresKey(corporationId)]),
+    openSession: openReadSession,
+    readStructures: (session, corporationId, accessToken) => session.readPaged(corpStructuresKey(corporationId), accessToken),
     readSyncState: (corporationId) => readCorpStructureSyncState(corporationId),
     saveStructures: (corporationId, rows, etags) => saveCorpStructures(corporationId, rows, etags),
     stampFresh: (corporationId) => stampCorpStructuresFresh(corporationId),

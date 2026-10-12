@@ -16,7 +16,6 @@ export interface OwnerKey {
 
 export interface PagedOwnerSyncState {
   lastRefreshedAt: Date | null;
-  pageEtags: string[];
 }
 
 /** One authed single-endpoint ESI read as a feature port sees it. */
@@ -24,6 +23,15 @@ export type SingleOwnerRead =
   | { kind: 'fresh'; body: unknown; etag: string | null }
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
+
+/**
+ * The ESI reads of one try at one owner. What they learned about expiry
+ * and ETags is committed only once the owner's write has stood; a try
+ * that ends any other way drops it, and the next view reads again.
+ */
+export interface ReadSession {
+  commit(): Promise<void>;
+}
 
 export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)
@@ -53,17 +61,19 @@ export interface CorpOwnerAxis<TOwner> {
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
 }
 
-export interface OwnerSyncDescriptor<TOwner, TState, TSave> {
+export interface OwnerSyncDescriptor<TOwner, TState, TSave, TSession extends ReadSession = ReadSession> {
   now(): Date;
   enumerate(userId: string): Promise<EnumeratedOwner[]>;
   identityOf(owner: TOwner): OwnerKey;
   precondition?(owner: TOwner): Promise<boolean>;
   vendToken(characterId: number): Promise<string | null>;
-  isStale(state: TState | null, now: Date): boolean;
+  /** Whether any of the owner's stored ESI answers has expired; an owner that is not due costs no vend and no read. */
+  isDue(owner: TOwner): Promise<boolean>;
+  openSession(): TSession;
   characterAxis?: OwnerAxis<TOwner>;
   corpAxis?: CorpOwnerAxis<TOwner>;
   readState(owner: TOwner): Promise<TState | null>;
-  fetchAndPlan(owner: TOwner, accessToken: string, state: TState | null): Promise<PersistVerdict<TSave>>;
+  fetchAndPlan(owner: TOwner, accessToken: string, state: TState | null, session: TSession): Promise<PersistVerdict<TSave>>;
   save(owner: TOwner, payload: TSave): Promise<void>;
   stampFresh(owner: TOwner): Promise<void>;
   saveGateState?(owner: TOwner): Promise<void>;

@@ -36,10 +36,11 @@ vi.mock('@/data/eve-data/entity-names', () => ({
 
 vi.mock('./owner-sync-port', () => ({
   listCharactersWithHealth: vi.fn(),
-  readPagedEndpoint: vi.fn(),
   readRolesForSync: vi.fn(),
   vendTokenFor: vi.fn(),
 }));
+vi.mock('@/data/esi-store', () => ({ isDue: vi.fn() }));
+vi.mock('@/data/esi-store/session', () => ({ openReadSession: vi.fn() }));
 
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
 import { narrowCorpRoles } from '@/platform/auth/corp-roles';

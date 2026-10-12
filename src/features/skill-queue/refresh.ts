@@ -1,3 +1,4 @@
+import type { EsiReadSession } from '@/data/esi-store/session';
 import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
@@ -5,12 +6,9 @@ import {
   runOwnerSync,
   type SingleOwnerRead,
 } from '@/platform/owner-sync';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { parseSkillQueueBody, parseSkillsBody } from './esi-projection';
 import { canSyncSkillQueue } from './sync-eligibility';
 import type { CharacterSkillSyncState, SkillsPort, SkillsSaveHalves } from './types';
-
-const SKILLS_FRESHNESS = freshnessGate('skills');
 
 export type SkillsPersistPlan =
   | { kind: 'save'; halves: SkillsSaveHalves }
@@ -45,14 +43,13 @@ interface SkillsSave {
   halves: SkillsSaveHalves;
 }
 
-function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, CharacterSkillSyncState, SkillsSave> {
+function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, CharacterSkillSyncState, SkillsSave, EsiReadSession> {
   return makeCharacterDescriptor(port, {
-    isStale: SKILLS_FRESHNESS.isStale,
     eligible: canSyncSkillQueue,
-    fetchAndPlan: async (characterId, accessToken, state) => {
+    fetchAndPlan: async (characterId, accessToken, _state, session) => {
       const [queueRead, skillsRead] = await Promise.all([
-        port.readSkillQueue(characterId, accessToken, state?.queueEtag ?? null),
-        port.readSkills(characterId, accessToken, state?.skillsEtag ?? null),
+        port.readSkillQueue(session, characterId, accessToken),
+        port.readSkills(session, characterId, accessToken),
       ]);
       return planSkillsPersist(queueRead, skillsRead);
     },

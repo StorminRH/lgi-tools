@@ -1,5 +1,6 @@
 import type { EsiRoute } from '@/lib/esi-datasets/routes';
 import type { EsiHolder } from '@/lib/esi-datasets/types';
+import type { RlSnapshot } from '@/platform/esi/authed-read';
 import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
 
 export type EsiParams = Readonly<Record<string, string | number>>;
@@ -32,6 +33,18 @@ export interface EsiResponseMeta {
   readonly body?: unknown;
 }
 
+/**
+ * What one answer said about its own lifetime: the stamp a response's keys
+ * are recorded under. Every `EsiResponseMeta` carries one; a fanned-out
+ * answer (the affiliation batch) carries only this, since the request made
+ * belongs to no single key.
+ */
+export interface EsiAnswerStamp {
+  readonly expiresAt: number | null;
+  readonly lastModified: number | null;
+  readonly checkedAt: number;
+}
+
 /** One esi_responses row as the store reads it. */
 export interface StoredRow {
   readonly expiresAt: number | null;
@@ -55,6 +68,22 @@ export interface StoredFetchInit {
   /** False never sends If-None-Match for this call, whatever the route declares (the cron region dump). */
   readonly conditional?: boolean;
   readonly interactive?: boolean;
+}
+
+export interface StoredAuthedInit {
+  readonly rl?: RlSnapshot;
+  /**
+   * Calls ESI even while the stored copy is unexpired: the corp mutation
+   * gates re-check roles live. The call is still conditional, so an
+   * unchanged answer costs a 304 and records the new expiry.
+   */
+  readonly live?: true;
+}
+
+/** A public POST answered once for many keys: the response as ESI sent it, with the stamp its keys take. */
+export interface StoredBatchAnswer {
+  readonly res: Response;
+  readonly stamp: EsiAnswerStamp;
 }
 
 /** `SingleOwnerRead` plus the meta a port commits after its save. */

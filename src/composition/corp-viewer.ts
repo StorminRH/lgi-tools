@@ -34,7 +34,6 @@ export interface CorpViewer {
 
 const ROLES_SCOPE: EveScope = 'esi-characters.read_corporation_roles.v1';
 const UNKNOWN: MemberRoles = { kind: 'unknown' };
-const CONTEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const NO_KNOWN_BASES: ReadonlyMap<number, number | null> = new Map();
 
 interface RoleSources {
@@ -64,10 +63,6 @@ function memberRoles(characterId: number, corporationId: number, sources: RoleSo
   return canFetchRoles(sources.health.get(characterId)) ? fetchedRolesOrUnknown(characterId, corporationId) : Promise.resolve(UNKNOWN);
 }
 
-function contextIsFresh(profile: { lastRefreshedAt: Date } | null, now: Date): boolean {
-  return profile !== null && now.getTime() - profile.lastRefreshedAt.getTime() <= CONTEXT_MAX_AGE_MS;
-}
-
 function baseOf(bases: ReadonlyMap<number, number | null>, characterId: number): Knowable<number | null> {
   return bases.has(characterId) ? { kind: 'known', value: bases.get(characterId) ?? null } : { kind: 'unknown' };
 }
@@ -83,9 +78,10 @@ async function resolveCorporation(
     readCorpMemberContext(corporationId, characterIds),
     Promise.all(characterIds.map((characterId) => memberRoles(characterId, corporationId, sources))),
   ]);
-  const fresh = contextIsFresh(profile, sources.now);
-  const knownBases = fresh && profile !== null ? profile.bases : NO_KNOWN_BASES;
-  const hq: Knowable<number> = fresh && profile?.hqStationId != null
+  // Stored HQ and bases count as current until a Director's visit refreshes them;
+  // the members' own roles, expiring at CCP's time, are the permission check.
+  const knownBases = profile?.bases ?? NO_KNOWN_BASES;
+  const hq: Knowable<number> = profile?.hqStationId != null
     ? { kind: 'known', value: profile.hqStationId }
     : { kind: 'unknown' };
   const context = { ...cachedContext, hq };

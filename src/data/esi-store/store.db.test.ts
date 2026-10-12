@@ -104,7 +104,7 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
   });
 
   it('fans one answer out to many keys and lets isDue read across them', async () => {
-    await recordExpiryFor([PRICE_KEY, OTHER_PRICE_KEY], { key: PRICE_KEY, expiresAt: NOW + 60_000, etags: ['"dump"'], lastModified: null, checkedAt: NOW });
+    await recordExpiryFor([PRICE_KEY, OTHER_PRICE_KEY], { expiresAt: NOW + 60_000, lastModified: null, checkedAt: NOW });
     const rows = await allRows();
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.etags.length === 0 && row.expiresAt?.getTime() === NOW + 60_000)).toBe(true);

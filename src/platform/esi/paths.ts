@@ -16,10 +16,6 @@ export function characterOnlinePath(characterId: number): string {
   return `/characters/${characterId}/online/`;
 }
 
-export function characterRolesPath(characterId: number): string {
-  return `/characters/${characterId}/roles/`;
-}
-
 export function universeStructurePath(structureId: number): string {
   return `/universe/structures/${structureId}/`;
 }

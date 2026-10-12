@@ -28,17 +28,30 @@ export function routeDeclarations(route: string): readonly DeclaredRoute[] {
   return DECLARATIONS.get(route) ?? [];
 }
 
+const MODE_PRECEDENCE: Record<NonNullable<EsiRouteDeclaration['mode']>, number> = { stored: 0, 'pass-through': 1, convex: 2 };
+
+function owningDeclaration(route: EsiRoute): DeclaredRoute {
+  const declared = routeDeclarations(route);
+  const owned = [...declared].sort(
+    (a, b) => MODE_PRECEDENCE[a.declaration.mode ?? 'stored'] - MODE_PRECEDENCE[b.declaration.mode ?? 'stored'],
+  )[0];
+  if (owned === undefined) throw new Error(`Undeclared ESI route: ${route}`);
+  return owned;
+}
+
 /**
  * The declaration the response store follows for `route`. A route the map
  * tracker also reads (location, ship, online) carries a `convex` declaration
- * beside the stored one; the stored one wins, and only a route declared
- * nowhere else as stored or pass-through is the tracker's alone.
+ * beside the stored one; the stored one wins, then a pass-through one, and
+ * only a route declared nowhere else is the tracker's alone.
  */
 export function routeDeclaration(route: EsiRoute): EsiRouteDeclaration {
-  const declared = routeDeclarations(route);
-  const owned = declared.find((candidate) => candidate.declaration.mode !== 'convex') ?? declared[0];
-  if (owned === undefined) throw new Error(`Undeclared ESI route: ${route}`);
-  return owned.declaration;
+  return owningDeclaration(route).declaration;
+}
+
+/** The dataset whose stored copy `route` feeds: the one the store's declaration belongs to. */
+export function routeDataset(route: EsiRoute): string {
+  return owningDeclaration(route).dataset;
 }
 
 /** The identity part of a holder's cache tag; global holders add nothing. */

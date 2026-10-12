@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planRead } from './plan';
+import { errorVerdict, planRead } from './plan';
 
 type Read =
   | { kind: 'fresh'; items: number[] }
@@ -19,13 +19,11 @@ describe('planRead', () => {
   });
 
   it.each([
-    ['maps a corp-jobs 403 to needs_role', 'esi_403', { kind: 'needs_role' }],
+    ['maps a 403 to needs_role for every planner', 'esi_403', { kind: 'needs_role' }],
     ['preserves a non-role error code', 'esi_500', { kind: 'skip', code: 'esi_500' }],
   ] as const)('%s', (_label, code, expected) => {
-    const verdict = planRead<Read, { rows: number[] }>({ kind: 'error', code }, project, (errorCode) =>
-      errorCode === 'esi_403' ? { kind: 'needs_role' } : { kind: 'skip', code: errorCode },
-    );
-    expect(verdict).toEqual(expected);
+    expect(planRead<Read, { rows: number[] }>({ kind: 'error', code }, project)).toEqual(expected);
+    expect(errorVerdict(code)).toEqual(expected);
   });
 
   it('skips a fresh body that fails projection (contract mismatch)', () => {

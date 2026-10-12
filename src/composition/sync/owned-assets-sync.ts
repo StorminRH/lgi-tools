@@ -1,11 +1,14 @@
 import { after } from 'next/server';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
+import { isDue } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import {
   buildOwnedAssetDetail,
   collectAssetNameIds,
   type OwnedAssetDetailEntry,
 } from '@/features/owned-assets/detail';
+import { ownedAssetsKey } from '@/features/owned-assets/keys';
 import { getOwnedAssetMap, readOwnerSyncState, stampOwnerFresh } from '@/features/owned-assets/queries';
 import {
   refreshCharacterOwnedAssetsForUser,
@@ -14,7 +17,7 @@ import {
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
 import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
-import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 import { saveOwnedAssetsFromSource } from './owned-assets-source-save';
 
 function makeOwnedAssetsPort(): OwnedAssetsPort {
@@ -23,7 +26,9 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesForSync,
-    read: readPagedEndpoint,
+    isDue: (owner) => isDue([ownedAssetsKey(owner)]),
+    openSession: openReadSession,
+    read: (session, owner, accessToken) => session.readPaged(ownedAssetsKey(owner), accessToken),
     readSyncState: (owner) => readOwnerSyncState(owner),
     save: saveOwnedAssetsFromSource,
     stampFresh: (owner) => stampOwnerFresh(owner),

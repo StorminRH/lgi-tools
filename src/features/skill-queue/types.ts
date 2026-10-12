@@ -1,3 +1,4 @@
+import type { EsiReadSession } from '@/data/esi-store/session';
 import type { CharacterSyncBase, SingleOwnerRead } from '@/platform/owner-sync';
 import type { SkillQueueEntry } from './esi-projection';
 
@@ -15,8 +16,6 @@ export interface CharacterSkillRow {
 
 export interface CharacterSkillSyncState {
   lastRefreshedAt: Date | null;
-  queueEtag: string | null;
-  skillsEtag: string | null;
 }
 
 export interface SkillsSaveHalves {
@@ -29,8 +28,8 @@ export interface SkillsSaveHalves {
   };
 }
 
-export interface SkillsPort extends CharacterSyncBase<CharacterSkillSyncState> {
-  readSkillQueue(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
-  readSkills(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
+export interface SkillsPort extends CharacterSyncBase<CharacterSkillSyncState, EsiReadSession> {
+  readSkillQueue(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readSkills(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
   saveSkills(characterId: number, halves: SkillsSaveHalves): Promise<void>;
 }

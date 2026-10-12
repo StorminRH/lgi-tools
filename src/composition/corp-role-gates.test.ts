@@ -34,6 +34,7 @@ function linked(characterIds: number[], corporationId = CORP) {
     allianceId: null,
     factionId: null,
     refreshedAt: new Date(),
+    expiresAt: new Date(Date.now() + 3_600_000),
   }));
 }
 

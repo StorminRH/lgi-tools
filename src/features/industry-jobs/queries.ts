@@ -40,7 +40,6 @@ export async function getJobsForCharacters(
 
 const characterSyncStateColumns = {
   lastRefreshedAt: characterIndustryJobSyncs.lastRefreshedAt,
-  jobsEtag: characterIndustryJobSyncs.jobsEtag,
 };
 
 export async function readCharacterJobSyncState(
@@ -123,7 +122,6 @@ export async function listCorpJobSyncStates(
     .select({
       corporationId: corpIndustryJobSyncs.corporationId,
       lastRefreshedAt: corpIndustryJobSyncs.lastRefreshedAt,
-      jobsEtag: corpIndustryJobSyncs.jobsEtag,
       syncError: corpIndustryJobSyncs.syncError,
     })
     .from(corpIndustryJobSyncs)
@@ -138,7 +136,6 @@ export async function readCorpJobSyncState(
   const rows = await db
     .select({
       lastRefreshedAt: corpIndustryJobSyncs.lastRefreshedAt,
-      jobsEtag: corpIndustryJobSyncs.jobsEtag,
       syncError: corpIndustryJobSyncs.syncError,
     })
     .from(corpIndustryJobSyncs)
