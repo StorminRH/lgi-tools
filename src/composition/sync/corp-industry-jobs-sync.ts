@@ -1,6 +1,9 @@
 import { resolveUserCorpAccess } from '@/composition/corp-access';
+import { isDue } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
+import { corpJobsDueKeys, corpJobsKey } from '@/features/industry-jobs/keys';
 import {
   getCorpJobsForUser,
   listCorpJobSyncStates,
@@ -11,8 +14,7 @@ import {
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
-import { listCharactersWithHealth, readRolesForSync, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
+import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
 function makeCorpJobsPort(): CorpJobsPort {
   return {
@@ -20,8 +22,10 @@ function makeCorpJobsPort(): CorpJobsPort {
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesForSync,
-    readJobs: (corporationId, accessToken, heldEtag) =>
-      readSingleEndpoint(`/corporations/${corporationId}/industry/jobs/`, accessToken, heldEtag),
+    isDue: (userId, corporationId) => isDue([corpJobsKey(userId, corporationId)]),
+    openSession: openReadSession,
+    readJobs: (session, userId, corporationId, accessToken) =>
+      session.readAuthed(corpJobsKey(userId, corporationId), accessToken),
     readSyncState: (userId, corporationId) => readCorpJobSyncState(userId, corporationId),
     saveJobs: (userId, corporationId, jobs, etag) => saveCorpJobs(userId, corporationId, jobs, etag),
     saveNeedsRole: (userId, corporationId) => saveCorpNeedsRole(userId, corporationId),
@@ -29,9 +33,7 @@ function makeCorpJobsPort(): CorpJobsPort {
   };
 }
 
-const corpJobs = ownerSyncDataset('corporation_industry_jobs', makeCorpJobsPort, refreshCorpJobsForUser);
-
-export const runCorporationIndustryJobsRefreshJob = corpJobs.runJob;
+export const refreshCorpJobsOnView = (userId: string) => refreshCorpJobsForUser(makeCorpJobsPort(), userId);
 
 export interface ViewerCorpJobs {
   corporationId: number;
@@ -43,10 +45,11 @@ export interface ViewerCorpJobs {
 export interface ViewerCorpJobsResult {
   corporations: ViewerCorpJobs[];
   names: Record<string, string>;
+  refreshing: boolean;
 }
 
 export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCorpJobsResult> {
-  const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
+  const { rows, names, refreshing } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
     read: async (uid) => {
       const [access, syncStates] = await Promise.all([
         resolveUserCorpAccess(uid),
@@ -65,7 +68,8 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
       );
       return { owners, data };
     },
-    refresh: corpJobs.onView,
+    refresh: refreshCorpJobsOnView,
+    dueKeys: corpJobsDueKeys,
     makeRow: (owner, data) => ({
       corporationId: owner.id,
       data,
@@ -74,5 +78,5 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
     }),
     nameIds: (viewerCorpJobs) => jobTypeIds(viewerCorpJobs),
   });
-  return { corporations: rows, names };
+  return { corporations: rows, names, refreshing };
 }

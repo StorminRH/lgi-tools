@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { EVE_CHARACTER_SEARCH_SCOPE } from '@/config/eve-scopes';
 import type { SearchCharactersResponse } from '@/data/maps/api-contract';
+import { esiPassThrough } from '@/data/esi-store';
 import { resolveEntityNamesStrict } from '@/data/eve-data/entity-names';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { positiveIdSchema } from '@/lib/id-schemas';
-import { esiFetch, esiUrl } from '@/platform/esi';
 import { esiJsonPostInit } from '@/platform/esi/request-init';
 import { firstScopedSearch, scopedLinkedCharacters } from './esi-character-search';
 
@@ -41,7 +41,7 @@ async function typeaheadResponse(found: readonly number[]): Promise<SearchCharac
 }
 
 async function searchExactName(search: string): Promise<SearchCharactersResponse> {
-  const response = await esiFetch(esiUrl('/universe/ids/'), esiJsonPostInit([search]));
+  const response = await esiPassThrough('/universe/ids/', undefined, esiJsonPostInit([search]));
   if (!response.ok) throw new Error(`Exact ESI character search failed (${response.status})`);
 
   const parsed = universeIdsSchema.safeParse(await response.json());

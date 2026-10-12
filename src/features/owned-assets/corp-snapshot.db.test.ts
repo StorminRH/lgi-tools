@@ -18,7 +18,7 @@ vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidate
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_asset_snapshot',
-  tables: ['esi_snapshots', 'corp_holding_nodes', 'owned_assets', 'owned_asset_syncs'],
+  tables: ['esi_snapshots', 'corp_holding_nodes', 'owned_assets', 'owned_asset_syncs', 'esi_responses'],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
   env: { ESI_SNAPSHOT_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64') },
@@ -27,6 +27,13 @@ const CORP = 98000001;
 const STATION = 60003760;
 const CAN = 3001;
 const owner = { ownerType: 'corporation', ownerId: CORP } as const;
+
+/** The ETags the save still writes beside the sync stamp; the response store, not this column, decides freshness. */
+async function storedPageEtags(): Promise<string[] | undefined> {
+  const [row] = await harness.sql<{ page_etags: string[] }[]>`
+    SELECT page_etags FROM owned_asset_syncs WHERE owner_type = 'corporation' AND owner_id = ${CORP}`;
+  return row?.page_etags;
+}
 
 function source(division: number, quantity: number) {
   return [
@@ -87,14 +94,11 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     expect(await getOwnedAssetMap(scope(2, 2), [34])).toEqual(new Map());
   });
 
-  it('rolls back nodes, contents and sync state if the content insert fails, and expires the corp tags only on commit', async () => {
+  it('rolls back nodes, contents and sync state if the content insert fails, leaving the tag to the sync\'s commit', async () => {
     const before = await snapshot(2, 100);
     vi.mocked(revalidateTag).mockClear();
     await save(2, 100, before);
-    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
-      ['corp-holdings:98000001', { expire: 0 }],
-      ['owned-assets:corporation:98000001', { expire: 0 }],
-    ]);
+    expect(revalidateTag).not.toHaveBeenCalled();
     const oldNodes = await harness.db.select().from(corpHoldingNodes);
     await harness.sql`ALTER TABLE owned_assets ADD CONSTRAINT reject_quantity CHECK (quantity <> 999)`;
     try {
@@ -104,7 +108,7 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
       expect(revalidateTag).not.toHaveBeenCalled();
       expect(await harness.db.select().from(corpHoldingNodes)).toEqual(oldNodes);
       expect((await harness.db.select().from(ownedAssets)).map((row) => [row.quantity, row.snapshotId])).toEqual([[100, before]]);
-      expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['division-2']);
+      expect(await storedPageEtags()).toEqual(['division-2']);
       expect(await getOwnedAssetMap(scope(1), [34])).toEqual(new Map());
     } finally {
       await harness.sql`ALTER TABLE owned_assets DROP CONSTRAINT reject_quantity`;
@@ -120,7 +124,7 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     const division = rows[0]!.snapshotId === first ? 1 : 2;
     const nodes = await harness.db.select().from(corpHoldingNodes);
     expect(nodes.find((node) => node.itemId === CAN)?.division).toBe(division);
-    expect((await readOwnerSyncState(owner))?.pageEtags).toEqual([`division-${division}`]);
+    expect(await storedPageEtags()).toEqual([`division-${division}`]);
     expect(rows[0]!.quantity).toBe(division * 11);
   });
 
@@ -129,9 +133,8 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     await harness.sql`UPDATE owned_asset_syncs SET last_refreshed_at = '2000-01-01T00:00:00Z'`;
     const before = Date.now();
     await save(1, 25, await snapshot(1, 25));
-    const state = await readOwnerSyncState(owner);
-    expect(state?.pageEtags).toEqual(['division-1']);
-    expect(state?.lastRefreshedAt?.getTime()).toBeGreaterThanOrEqual(before);
+    expect(await storedPageEtags()).toEqual(['division-1']);
+    expect((await readOwnerSyncState(owner))?.lastRefreshedAt?.getTime()).toBeGreaterThanOrEqual(before);
   });
 
   it('publishes an empty content set together with the moved container', async () => {

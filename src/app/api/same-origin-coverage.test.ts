@@ -28,7 +28,6 @@ const PIPELINE_MUTATIONS = [
   'account/sessions/revoke/route.ts',
   'admin/characters/reassign/route.ts',
   'admin/characters/unlink/route.ts',
-  'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/sessions/revoke/route.ts',
   'admin/wh-statics/route.ts',

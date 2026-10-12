@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EsiReadSession } from '@/data/esi-store/session';
 import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
-import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { buildCorpHoldingContext, type CorpProfile } from './context';
 import { type CorpContextPort, refreshCorpContextForUser } from './context-sync';
 import { buildHoldingIndex, type CorpAssetItem, toHoldingNodes } from './placement';
@@ -44,6 +45,7 @@ const priorProfile: CorpProfile = {
 
 const fresh = (body: unknown): SingleOwnerRead => ({ kind: 'fresh', body, etag: null });
 const failed = (code: string): SingleOwnerRead => ({ kind: 'error', code });
+const unchanged: SingleOwnerRead = { kind: 'unchanged' };
 
 function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
   return {
@@ -51,6 +53,8 @@ function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
     listMembers: vi.fn(async () => [member(1)]),
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => ['Director']),
+    isDue: vi.fn(async () => true),
+    openSession: () => readSessionFake<EsiReadSession>(),
     readCorporation: vi.fn(async () => fresh({ name: 'Corp', home_station_id: STATION })),
     readDivisions: vi.fn(async () => fresh({ hangar: [{ division: 2, name: 'Minerals' }] })),
     readMemberTracking: vi.fn(async () =>
@@ -60,7 +64,7 @@ function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
         { character_id: 90003, base_id: STATION },
       ]),
     ),
-    readAssetNames: vi.fn(async (_corp: number, _token: string, ids: readonly number[]) =>
+    readAssetNames: vi.fn(async (_session: EsiReadSession, _corp: number, _token: string, ids: readonly number[]) =>
       fresh(ids.map((id) => ({ item_id: id, name: `Can ${id}` }))),
     ),
     readStructure: vi.fn(async () => fresh({ name: 'Jita Fort', solar_system_id: SYSTEM, owner_id: CORP })),
@@ -84,8 +88,8 @@ describe('refreshCorpContextForUser', () => {
 
     expect(results).toEqual([{ kind: 'succeeded', target: { ownerType: 'corporation', ownerId: CORP } }]);
     expect(port.readAssetNames).toHaveBeenCalledTimes(1);
-    expect(port.readAssetNames).toHaveBeenCalledWith(CORP, 'token', [NEW_CAN]);
-    expect(port.readStructure).toHaveBeenCalledWith(STRUCTURE, 'token');
+    expect(port.readAssetNames).toHaveBeenCalledWith(expect.anything(), CORP, 'token', [NEW_CAN]);
+    expect(port.readStructure).toHaveBeenCalledWith(expect.anything(), STRUCTURE, 'token');
     expect(port.saveProfile).toHaveBeenCalledWith(
       CORP,
       {
@@ -112,7 +116,7 @@ describe('refreshCorpContextForUser', () => {
 
     await refreshCorpContextForUser(port, 'u1');
 
-    const batches = vi.mocked(port.readAssetNames).mock.calls.map(([, , ids]) => ids.length);
+    const batches = vi.mocked(port.readAssetNames).mock.calls.map(([, , , ids]) => ids.length);
     expect(batches).toEqual([1000, 500]);
     const saved = vi.mocked(port.saveProfile).mock.calls[0]![1];
     expect(Object.keys(saved.containerNames)).toHaveLength(1500);
@@ -146,7 +150,7 @@ describe('refreshCorpContextForUser', () => {
 
     await refreshCorpContextForUser(port, 'u1');
 
-    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual(expected);
+    expect(vi.mocked(port.readStructure).mock.calls.map(([, id]) => id)).toEqual(expected);
   });
 
   it('skips the pass and keeps the prior profile when a required read fails', async () => {
@@ -163,13 +167,57 @@ describe('refreshCorpContextForUser', () => {
     expect(port.stampFresh).not.toHaveBeenCalled();
   });
 
-  it('skips the pass when a names batch fails', async () => {
+  it('reports needs_role when a names batch is refused, so the next Director is tried before the gate state is recorded', async () => {
     const port = makePort({ readAssetNames: vi.fn(async () => failed('esi_403')) });
 
     const results = await refreshCorpContextForUser(port, 'u1');
 
-    expect(results[0]).toMatchObject({ kind: 'failed_permanent', code: 'esi_403' });
+    expect(results[0]).toMatchObject({ kind: 'failed_permanent', code: 'needs_role' });
     expect(port.saveProfile).not.toHaveBeenCalled();
+  });
+
+  it('carries the stored HQ, divisions and bases through answers ESI left unchanged', async () => {
+    const port = makePort({
+      readCorporation: vi.fn(async () => unchanged),
+      readDivisions: vi.fn(async () => unchanged),
+      readMemberTracking: vi.fn(async () => unchanged),
+      currentContext: vi.fn(async () =>
+        buildCorpHoldingContext(CORP, toHoldingNodes(tree), { ...priorProfile, hqStationId: STATION, divisionNames: { 3: 'Ships' } }),
+      ),
+    });
+
+    await refreshCorpContextForUser(port, 'u1');
+
+    expect(port.saveProfile).toHaveBeenCalledWith(
+      CORP,
+      {
+        hqStationId: STATION,
+        divisionNames: { 3: 'Ships' },
+        containerNames: { [CAN]: 'Ore Can', [NEW_CAN]: `Can ${NEW_CAN}` },
+        structureNames: { [STRUCTURE]: 'Jita Fort' },
+      },
+      null,
+      NOW,
+    );
+  });
+
+  it('stamps instead of saving when every answer is unchanged and nothing new was named', async () => {
+    const port = makePort({
+      readCorporation: vi.fn(async () => unchanged),
+      readDivisions: vi.fn(async () => unchanged),
+      readMemberTracking: vi.fn(async () => unchanged),
+      currentContext: vi.fn(async () =>
+        buildCorpHoldingContext(CORP, toHoldingNodes(tree), {
+          ...priorProfile, containerNames: { [CAN]: 'Ore Can', [NEW_CAN]: 'New Can' }, structureNames: { [STRUCTURE]: 'Jita Fort' },
+        }),
+      ),
+    });
+
+    const results = await refreshCorpContextForUser(port, 'u1');
+
+    expect(results).toEqual([{ kind: 'succeeded', target: { ownerType: 'corporation', ownerId: CORP } }]);
+    expect(port.saveProfile).not.toHaveBeenCalled();
+    expect(port.stampFresh).toHaveBeenCalledWith(CORP, NOW);
   });
 
   it('still saves when a structure name is refused, leaving that structure unnamed', async () => {
@@ -182,10 +230,8 @@ describe('refreshCorpContextForUser', () => {
     expect(saved.hqStationId).toBe(STATION);
   });
 
-  it('makes no ESI call when the profile is fresh', async () => {
-    const port = makePort({
-      readProfileState: vi.fn(async () => ({ lastRefreshedAt: new Date('2026-09-28T11:30:00Z') })),
-    });
+  it('makes no ESI call while the stored answers are unexpired', async () => {
+    const port = makePort({ isDue: vi.fn(async () => false) });
 
     await refreshCorpContextForUser(port, 'u1');
 

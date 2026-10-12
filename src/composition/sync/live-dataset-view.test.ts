@@ -22,12 +22,36 @@ vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(async (userId: string) => linkedByUser[userId] ?? []),
 }));
 
-import { characterRow, getLiveDatasetOnView, type OwnerRow, readCharacterOwners } from './live-dataset-view';
+const store = vi.hoisted(() => ({
+  isDue: vi.fn(async (_keys: unknown[]) => false),
+  health: vi.fn(async (_userId: string) => [] as unknown[]),
+}));
+vi.mock('@/data/esi-store', () => ({ isDue: store.isDue }));
+vi.mock('./owner-sync-port', () => ({ listCharactersWithHealth: store.health }));
+
+import type { EsiStoreKey } from '@/data/esi-store';
+import { characterRow, getLiveDatasetOnView, type OwnerRow, readCharacterOwners, refreshDue } from './live-dataset-view';
+
+const KEY: EsiStoreKey = { route: '/characters/{character_id}/industry/jobs/', holder: { kind: 'character', id: 10 } };
 
 beforeEach(() => {
   afterCalls.length = 0;
   nameRecordArgs.length = 0;
   for (const key of Object.keys(linkedByUser)) delete linkedByUser[key];
+  store.isDue.mockReset().mockResolvedValue(false);
+  store.health.mockReset().mockResolvedValue([]);
+});
+
+describe('refreshDue', () => {
+  it('asks the store about the keys the refresh would check for the linked characters', async () => {
+    const owners = [{ characterId: 10, corporationId: null, hasRefreshToken: true, missingScopes: [] }];
+    store.health.mockResolvedValue(owners);
+    store.isDue.mockResolvedValue(true);
+    const dueKeys = vi.fn(() => [KEY]);
+    await expect(refreshDue('u1', dueKeys)).resolves.toBe(true);
+    expect(dueKeys).toHaveBeenCalledExactlyOnceWith(owners);
+    expect(store.isDue).toHaveBeenCalledExactlyOnceWith([KEY]);
+  });
 });
 
 describe('characterRow', () => {
@@ -81,8 +105,12 @@ describe('readCharacterOwners', () => {
 });
 
 describe('getLiveDatasetOnView', () => {
-  it('builds rows from owners+data, schedules the refresh, and resolves the name ids the rows reference', async () => {
+  it('builds rows from owners+data, schedules the refresh, says whether it will reach ESI, and resolves the name ids the rows reference', async () => {
     const refresh = vi.fn();
+    const owners = [{ characterId: 10, corporationId: null, hasRefreshToken: true, missingScopes: [] }];
+    store.health.mockResolvedValue(owners);
+    store.isDue.mockResolvedValue(true);
+    const dueKeys = vi.fn(() => [KEY]);
     const result = await getLiveDatasetOnView<{ ids: number[] }, { key: number; data: { ids: number[] } | null }>(
       'u1',
       {
@@ -96,6 +124,7 @@ describe('getLiveDatasetOnView', () => {
           ]),
         }),
         refresh,
+        dueKeys,
         makeRow: (owner, data) => ({ key: owner.id, data }),
         nameIds: (rows) => rows.flatMap((row) => row.data?.ids ?? []).concat(100),
       },
@@ -105,20 +134,25 @@ describe('getLiveDatasetOnView', () => {
       { key: 10, data: { ids: [100, 200] } },
       { key: 20, data: null },
     ]);
+    expect(result.refreshing).toBe(true);
+    expect(dueKeys).toHaveBeenCalledExactlyOnceWith('u1', owners);
+    expect(store.isDue).toHaveBeenCalledExactlyOnceWith([KEY]);
     expect(afterCalls).toHaveLength(1);
     expect(refresh).toHaveBeenCalledWith('u1');
     expect(nameRecordArgs).toEqual([[100, 200, 100]]);
     expect(result.names).toEqual({ '100': 'Type #100', '200': 'Type #200' });
   });
 
-  it('resolves no names when the built rows reference none', async () => {
+  it('resolves no names when the built rows reference none, and is not refreshing while every answer stands', async () => {
     const result = await getLiveDatasetOnView<unknown, { id: number }>('u1', {
       read: async () => ({ owners: [{ id: 1, lastRefreshedAt: null }], data: new Map() }),
       refresh: vi.fn(),
+      dueKeys: () => [],
       makeRow: (owner) => ({ id: owner.id }),
       nameIds: () => [],
     });
     expect(result.names).toEqual({});
+    expect(result.refreshing).toBe(false);
     expect(nameRecordArgs).toEqual([[]]);
   });
 });

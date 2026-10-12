@@ -14,12 +14,17 @@ const rawButton = 'No raw <button>';
 const liveRegion = 'No hand-built alert/status region';
 const toneToken = 'No pill/chip tone token';
 const rawDetails = 'No raw <details>';
-const datasetTtl = 'Dataset TTL constants';
 const imageVariant = 'EVE type-image';
+const cacheLifeExpiry = 'cacheLife on EVE data takes untilExpires';
+const esiHeader = 'Expires, ETag and Last-Modified are read only by';
 
 const productionOwners = [
   ['src/components/ui/card.tsx', []],
-  ['src/platform/esi/index.ts', ["Don't hand-write ESI URLs"]],
+  ['src/platform/esi/index.ts', ["Don't hand-write ESI URLs", esiHeader]],
+  ['src/data/esi-store/index.ts', [esiHeader]],
+  ['src/data/wh-statics/source.ts', [esiHeader]],
+  ['src/app/(site)/industry/industry-characters.ts', [cacheLifeExpiry]],
+  ['src/composition/esi-health.ts', [cacheLifeExpiry]],
   ['src/lib/env.ts', ['readEnv()']],
   ['src/components/ui/tones.ts', ['No raw hex']],
   [
@@ -27,7 +32,7 @@ const productionOwners = [
     ['No raw hex', 'No raw arbitrary font sizes', 'No raw arbitrary radii'],
   ],
   ['src/app/opengraph-image.tsx', ['No inline `style` attributes']],
-  ['src/lib/esi-datasets/entries.ts', [datasetTtl]],
+  ['src/lib/esi-datasets/entries.ts', []],
   ['src/data/eve-data/type-images.ts', [imageVariant]],
   ['src/lib/fetch-with-timeout.ts', [bareFetch]],
   ['src/transport/api-client.ts', [bareFetch]],
@@ -71,7 +76,7 @@ const productionOwners = [
 ];
 
 const testOwners = [
-  ['src/lib/esi-datasets/freshness.test.ts', [datasetTtl]],
+  ['src/lib/esi-datasets/routes.test.ts', []],
   ['src/data/eve-data/type-images.test.ts', [imageVariant]],
 ];
 

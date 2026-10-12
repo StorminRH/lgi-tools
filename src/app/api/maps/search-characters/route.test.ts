@@ -18,10 +18,10 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: (...args: unknown[]) =>
     h.getFreshAccessTokenForCharacter(...args),
 }));
-vi.mock('@/platform/esi', () => ({
-  esiFetch: (...args: unknown[]) => h.esiFetch(...args),
-  esiUrl: (path: string) => `https://esi.test${path}`,
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
+});
 vi.mock('@/data/eve-data/entity-names', () => ({
   resolveEntityNamesStrict: (...args: unknown[]) => h.resolveEntityNamesStrict(...args),
 }));

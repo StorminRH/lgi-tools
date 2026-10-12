@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EsiReadSession } from '@/data/esi-store/session';
 import type { EnumeratedOwner, PagedOwnerReadResult } from '@/platform/owner-sync';
-import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCorpStructuresForUser } from './refresh';
 import type { CorpStructuresPort } from './types';
 
@@ -25,6 +26,8 @@ function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPo
     listMembers: vi.fn(async () => []),
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => ['Station_Manager']),
+    isDue: vi.fn(async () => true),
+    openSession: () => readSessionFake<EsiReadSession>(),
     readStructures: vi.fn(
       async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [], etags: [], responseHeaders: [] }),
     ),
@@ -38,13 +41,11 @@ function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPo
 const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner =>
   ownerFixture(id, { corporationId: 5000, ...extra });
 
-const freshState = () => ({ lastRefreshedAt: new Date('2026-06-28T11:30:00Z'), pageEtags: [] });
-
 describe('refreshCorpStructuresForUser', () => {
-  it('makes no vend, roles read, or ESI call when the corp is fresh (the shared staleness gate)', async () => {
+  it('makes no vend, roles read, or ESI call while the corp answer is unexpired (the store is the shared gate)', async () => {
     const port = makePort({
       listMembers: vi.fn(async () => [member(1)]),
-      readSyncState: vi.fn(async () => freshState()),
+      isDue: vi.fn(async () => false),
     });
 
     await refreshCorpStructuresForUser(port, 'u1');
@@ -73,7 +74,7 @@ describe('refreshCorpStructuresForUser', () => {
 
     await refreshCorpStructuresForUser(port, 'u1');
 
-    expect(port.readStructures).toHaveBeenCalledWith(5000, 'director-token', []);
+    expect(port.readStructures).toHaveBeenCalledWith(expect.anything(), 5000, 'director-token');
     expect(port.saveStructures).toHaveBeenCalledWith(
       5000,
       [{ structure_id: 1001, type_id: 35832, system_id: 30000142, name: 'Struct 1001' }],
@@ -99,7 +100,7 @@ describe('refreshCorpStructuresForUser', () => {
 
     await refreshCorpStructuresForUser(port, 'u1');
 
-    expect(port.readStructures).toHaveBeenCalledWith(5000, 'token-2', []);
+    expect(port.readStructures).toHaveBeenCalledWith(expect.anything(), 5000, 'token-2');
     const save = vi.mocked(port.saveStructures).mock.calls[0]!;
     expect(save[0]).toBe(5000);
     expect(save[1]).toEqual([
@@ -123,24 +124,25 @@ describe('refreshCorpStructuresForUser', () => {
     expect(port.stampFresh).not.toHaveBeenCalled();
   });
 
-  it('replays held etags and only stamps freshness on a 304 (no row rewrite)', async () => {
+  it('only stamps freshness on an unchanged answer (no row rewrite)', async () => {
     const port = makePort({
       listMembers: vi.fn(async () => [member(1)]),
-      readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, pageEtags: ['"held"'] })),
+      readSyncState: vi.fn(async () => ({ lastRefreshedAt: null })),
       readStructures: vi.fn(async (): Promise<PagedOwnerReadResult> => ({ kind: 'unchanged' })),
     });
 
     await refreshCorpStructuresForUser(port, 'u1');
 
-    expect(port.readStructures).toHaveBeenCalledWith(5000, 'token', ['"held"']);
+    expect(port.readStructures).toHaveBeenCalledWith(expect.anything(), 5000, 'token');
     expect(port.stampFresh).toHaveBeenCalledWith(5000);
     expect(port.saveStructures).not.toHaveBeenCalled();
   });
 
-  it('treats a mid-read 403 as a non-destructive skip', async () => {
+  it('treats a mid-read 403 as needs_role: the next role-holder is tried and the board is never clobbered', async () => {
     const port = makePort({
-      listMembers: vi.fn(async () => [member(1)]),
+      listMembers: vi.fn(async () => [member(1), member(2)]),
       readSyncState: vi.fn(async () => null),
+      vendToken: vi.fn(async (id: number) => `token-${id}`),
       readStructures: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({ kind: 'error', code: 'esi_403' }),
       ),
@@ -148,7 +150,9 @@ describe('refreshCorpStructuresForUser', () => {
 
     await refreshCorpStructuresForUser(port, 'u1');
 
-    expect(port.readStructures).toHaveBeenCalledWith(5000, 'token', []);
+    expect(port.readStructures).toHaveBeenCalledWith(expect.anything(), 5000, 'token-1');
+    expect(port.readStructures).toHaveBeenCalledWith(expect.anything(), 5000, 'token-2');
+    expect(port.readStructures).toHaveBeenCalledTimes(2);
     expect(port.saveStructures).not.toHaveBeenCalled();
     expect(port.stampFresh).not.toHaveBeenCalled();
   });
@@ -206,6 +210,7 @@ describe('refreshCorpStructuresForUser', () => {
 
     await refreshCorpStructuresForUser(port, 'u1');
 
+    expect(port.isDue).not.toHaveBeenCalled();
     expect(port.readSyncState).not.toHaveBeenCalled();
     expect(port.readStructures).not.toHaveBeenCalled();
   });

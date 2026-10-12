@@ -7,15 +7,14 @@ import {
   parseCostIndices,
 } from './source';
 
-vi.mock('@/platform/esi', async () => {
-  const actual = await vi.importActual<typeof import('@/platform/esi')>('@/platform/esi');
-  return { ...actual, esiFetch: vi.fn() };
-});
+const fetchStoredMock = vi.fn();
 
-import { esiFetch } from '@/platform/esi';
+vi.mock('@/data/esi-store', () => ({ fetchStored: (...args: unknown[]) => fetchStoredMock(...args) }));
+
+const META = { key: { route: '/industry/systems/', holder: { kind: 'global' } }, expiresAt: 1, etags: [], lastModified: null, checkedAt: 0 };
 
 beforeEach(() => {
-  vi.mocked(esiFetch).mockReset();
+  fetchStoredMock.mockReset();
 });
 
 afterEach(() => {
@@ -99,18 +98,25 @@ describe('parseAdjustedPrices', () => {
   });
 });
 
-describe('fetch* — gate failure handling', () => {
-  it('turns a non-ok ESI response into EsiServerError', async () => {
-    vi.mocked(esiFetch).mockResolvedValue(Response.json({ error: 'bad' }, { status: 400 }));
+describe('fetch* — through the response store', () => {
+  it('turns an error status into EsiServerError', async () => {
+    fetchStoredMock.mockResolvedValue({ kind: 'error', status: 400 });
     await expect(fetchCostIndices()).rejects.toBeInstanceOf(EsiServerError);
+    expect(fetchStoredMock).toHaveBeenCalledWith({ route: '/industry/systems/', holder: { kind: 'global' } });
   });
 
-  it('parses a successful adjusted-prices response', async () => {
-    vi.mocked(esiFetch).mockResolvedValue(
-      Response.json([{ type_id: 34, adjusted_price: 2.9 }]),
-    );
-    await expect(fetchAdjustedPrices()).resolves.toEqual([
-      { typeId: 34, adjustedPrice: 2.9, averagePrice: null },
-    ]);
+  it('parses a fresh adjusted-prices answer and hands back its meta', async () => {
+    fetchStoredMock.mockResolvedValue({ kind: 'fresh', res: Response.json([{ type_id: 34, adjusted_price: 2.9 }]), meta: META });
+    await expect(fetchAdjustedPrices()).resolves.toEqual({
+      kind: 'fresh',
+      rows: [{ typeId: 34, adjustedPrice: 2.9, averagePrice: null }],
+      meta: META,
+    });
+    expect(fetchStoredMock).toHaveBeenCalledWith({ route: '/markets/prices/', holder: { kind: 'global' } });
+  });
+
+  it('passes an unchanged answer through as nothing to write', async () => {
+    fetchStoredMock.mockResolvedValue({ kind: 'unchanged', expiresAt: 1 });
+    await expect(fetchCostIndices()).resolves.toEqual({ kind: 'unchanged' });
   });
 });

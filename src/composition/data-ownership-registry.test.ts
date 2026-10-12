@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
-import { check, integer, pgTable, primaryKey, text, unique } from 'drizzle-orm/pg-core';
+import { inArray } from 'drizzle-orm';
+import { check, integer, pgTable, primaryKey, text, unique, uniqueIndex } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
   describeDbInvariants,
@@ -7,7 +8,6 @@ import {
 } from './__tests__/data-ownership-census';
 import { DATA_CLASS_DECISIONS } from './__tests__/data-ownership-registry';
 import { user } from '@/db/auth-schema';
-import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { ownedAssets } from '@/features/owned-assets/schema';
 
 describe('sliceOfPath', () => {
@@ -43,8 +43,17 @@ describe('describeDbInvariants', () => {
   });
 
   it('renders a partial unique index with its normalized predicate', () => {
-    expect(describeDbInvariants(esiRefreshJobs)).toContain(
-      'partial-unique(idempotency_key) where("status" in (\'queued\', \'running\', \'deferred_for_budget\', \'failed_retryable\'))',
+    const synthetic = pgTable(
+      'synthetic_partial_unique',
+      { key: text('key').notNull(), status: text('status').notNull() },
+      (t) => [
+        uniqueIndex('synthetic_live_key_unique')
+          .on(t.key)
+          .where(inArray(t.status, ['queued', 'running']).inlineParams()),
+      ],
+    );
+    expect(describeDbInvariants(synthetic)).toContain(
+      'partial-unique(key) where("status" in (\'queued\', \'running\'))',
     );
   });
 

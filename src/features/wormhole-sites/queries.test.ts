@@ -13,12 +13,18 @@ const h = vi.hoisted(() => ({
   cacheTag: vi.fn(),
   getCombatStatsBatch: vi.fn(),
   overlayLivePrices: vi.fn(),
+  storedExpiry: vi.fn(),
   withColdStartRetry: vi.fn(),
 }));
 
 vi.mock('next/cache', () => ({
   cacheLife: h.cacheLife,
   cacheTag: h.cacheTag,
+}));
+
+vi.mock('@/data/esi-store', async () => ({
+  ...(await vi.importActual<typeof import('@/data/esi-store/expiry')>('@/data/esi-store/expiry')),
+  storedExpiry: h.storedExpiry,
 }));
 
 vi.mock('@/db', () => ({ db: chain }));
@@ -31,7 +37,8 @@ vi.mock('@/lib/neon-cold-start-retry', () => ({
   withColdStartRetry: h.withColdStartRetry,
 }));
 
-vi.mock('./live-prices', () => ({
+vi.mock('./live-prices', async () => ({
+  ...(await vi.importActual<typeof import('./live-prices')>('./live-prices')),
   overlayLivePrices: h.overlayLivePrices,
 }));
 
@@ -104,13 +111,19 @@ function combatStats(values: {
   };
 }
 
+const NOW = Date.parse('2026-10-12T12:00:00Z');
+
 beforeEach(() => {
   reset();
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
   h.cacheLife.mockReset();
   h.cacheTag.mockReset();
   h.getCombatStatsBatch.mockReset();
   h.overlayLivePrices.mockReset();
   h.overlayLivePrices.mockImplementation(async (sites: unknown[]) => sites);
+  h.storedExpiry.mockReset();
+  h.storedExpiry.mockResolvedValue(NOW + 240_000);
   h.withColdStartRetry.mockReset();
   h.withColdStartRetry.mockImplementation(
     (read: () => Promise<unknown>) => read(),
@@ -118,18 +131,35 @@ beforeEach(() => {
 });
 
 describe('listPricedSiteDetails', () => {
-  it('caches the complete price-overlaid catalogue at hourly freshness over the SDE-tagged catalogue', async () => {
+  it('caches the price-overlaid catalogue under the prices tag until its order books expire, over the SDE-tagged catalogue', async () => {
+    const site = siteRow(1);
+    const resource = { id: 501, siteId: 1, orderInSite: 1, resourceKind: 'gas', resourceName: 'A', units: 1, volumeM3: 1, iskPerM3: 1, totalIsk: 1, typeId: 1_001 };
+    state.results = [[site], [], [resource]];
+    h.getCombatStatsBatch.mockResolvedValue(new Map());
+
+    const priced = await listPricedSiteDetails();
+
+    expect(priced).toHaveLength(1);
+    expect(h.overlayLivePrices).toHaveBeenCalledWith(priced);
+    expect(h.storedExpiry).toHaveBeenCalledWith([
+      { route: '/markets/{region_id}/orders/', holder: { kind: 'global' }, params: { region_id: 10000002, order_type: 'all', type_id: 1_001 } },
+    ]);
+    expect(h.cacheTag.mock.calls).toEqual([
+      ['eve:market_prices'],
+      [SDE_CACHE_TAG],
+    ]);
+    expect(h.cacheLife.mock.calls).toEqual([['max'], [{ stale: 240, revalidate: 240, expire: 240 }]]);
+    expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
+  });
+
+  it('lives one second when a resource\'s order book has no stored answer', async () => {
     state.results = [[]];
+    h.storedExpiry.mockResolvedValue(null);
 
     await expect(listPricedSiteDetails()).resolves.toEqual([]);
 
-    expect(h.overlayLivePrices).toHaveBeenCalledWith([]);
-    expect(h.cacheLife.mock.calls).toEqual([['hours'], ['max']]);
-    expect(h.cacheTag.mock.calls).toEqual([
-      ['market-prices-freshness'],
-      [SDE_CACHE_TAG],
-    ]);
-    expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
+    expect(h.storedExpiry).toHaveBeenCalledWith([]);
+    expect(h.cacheLife.mock.calls).toEqual([['max'], [{ stale: 1, revalidate: 1, expire: 1 }]]);
   });
 });
 
@@ -149,18 +179,20 @@ describe('getPricedSiteDetail', () => {
     expect(h.overlayLivePrices).toHaveBeenCalledWith([
       { ...site, waves: [], resources: [] },
     ]);
-    expect(h.cacheLife.mock.calls).toEqual([['hours'], ['max']]);
     expect(h.cacheTag.mock.calls).toEqual([
-      ['market-prices-freshness'],
+      ['eve:market_prices'],
       [SDE_CACHE_TAG],
     ]);
+    expect(h.cacheLife.mock.calls).toEqual([['max'], [{ stale: 240, revalidate: 240, expire: 240 }]]);
 
     h.overlayLivePrices.mockClear();
+    h.cacheLife.mockClear();
     state.results = [[]];
 
     await expect(getPricedSiteDetail(10)).resolves.toBeNull();
 
     expect(h.overlayLivePrices).not.toHaveBeenCalled();
+    expect(h.cacheLife.mock.calls).toEqual([['max'], [{ stale: 1, revalidate: 1, expire: 1 }]]);
   });
 });
 

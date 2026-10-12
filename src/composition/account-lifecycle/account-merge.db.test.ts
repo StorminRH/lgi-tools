@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
 import { snapshotMergeTracking } from '@/data/location-tracking/merge';
 import { pendingTrackingMerges } from '@/data/location-tracking/schema';
-import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
 import { userPreferences } from '@/data/preferences/schema';
 import { usageLogs } from '@/data/telemetry/schema';
@@ -51,10 +50,10 @@ const harness = await createDbTestHarness({
     'net_worth_days',
     'corp_industry_jobs',
     'corp_industry_job_syncs',
+    'esi_responses',
     'saved_plans',
     'industry_profiles',
     'custom_structures',
-    'esi_refresh_jobs',
     'usage_logs',
     'pending_tracking_merges',
     'pending_deletions',
@@ -190,14 +189,6 @@ async function seedUserData() {
     name: 'Fort',
     structureTypeId: 3,
   });
-  await harness.db.insert(esiRefreshJobs).values({
-    dataset: 'skills',
-    userId: NEW,
-    ownerType: 'character',
-    ownerId: NEW_CHAR,
-    resource: 'skills',
-    idempotencyKey: `skills|${NEW}|character|${NEW_CHAR}|skills`,
-  });
   await harness.db.insert(maps).values([
     { id: OLD_MAP, userId: OLD, name: 'Old map' },
     { id: NEW_MAP, userId: NEW, name: 'New map' },
@@ -284,7 +275,6 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
     expect(await ownersOf(harness.db.select().from(savedPlans))).toEqual([OLD]);
     expect(await ownersOf(harness.db.select().from(industryProfiles))).toEqual([OLD]);
     expect(await ownersOf(harness.db.select().from(customStructures))).toEqual([OLD]);
-    expect(await harness.db.select().from(esiRefreshJobs)).toEqual([]);
     expect(
       await harness.db.select({ id: maps.id, userId: maps.userId }).from(maps).orderBy(asc(maps.id)),
     ).toEqual([
@@ -394,7 +384,6 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
     expect(await userIds()).toEqual([NEW, OLD].sort());
     expect(await ownersOf(harness.db.select().from(account).orderBy(asc(account.accountId)))).toEqual([OLD, NEW, NEW]);
     expect(await ownersOf(harness.db.select().from(userPreferences).orderBy(asc(userPreferences.userId)))).toEqual([NEW, NEW, OLD]);
-    expect(await harness.db.select().from(esiRefreshJobs)).toHaveLength(1);
     expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
     expect(await harness.db.select().from(usageLogs)).toEqual([]);
   });

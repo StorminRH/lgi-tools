@@ -14,10 +14,7 @@ export const HISTORY_STABILITY_WINDOW_DAYS = 30;
 
 export const ON_DEMAND_HISTORY_MAX_TYPE_IDS = 50;
 
-export const HISTORY_FETCH_CONCURRENCY = 10;
+/** History calls in flight at once; the gate keeps the whole app under its per-minute cap. */
+export const HISTORY_FETCH_CONCURRENCY = 20;
 
 export const ON_DEMAND_HISTORY_LIMIT_PER_MINUTE = 20;
-
-export function historyTag(typeId: number): string {
-  return `market-history-${typeId}`;
-}

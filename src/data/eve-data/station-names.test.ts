@@ -3,10 +3,10 @@ import type { AnyPgDb } from '@/lib/db-types';
 
 const esiFetchMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/platform/esi', () => ({
-  esiFetch: (...args: unknown[]) => esiFetchMock(...args),
-  esiUrl: (path: string) => `https://esi.example${path}`,
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => esiFetchMock(...args), 'https://esi.example');
+});
 
 import { resolveNpcStationNames } from './station-names';
 

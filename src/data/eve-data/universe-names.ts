@@ -1,4 +1,4 @@
-import { esiFetch, esiUrl } from '@/platform/esi';
+import { esiPassThrough } from '@/data/esi-store';
 import { esiJsonPostInit } from '@/platform/esi/request-init';
 
 export type UniverseNameRow = {
@@ -12,7 +12,7 @@ export async function postUniverseNames(
 ): Promise<
   { readonly ok: true; readonly data: UniverseNameRow[] } | { readonly ok: false; readonly status: number }
 > {
-  const res = await esiFetch(esiUrl('/universe/names/'), esiJsonPostInit(ids));
+  const res = await esiPassThrough('/universe/names/', undefined, esiJsonPostInit(ids));
   if (!res.ok) return { ok: false, status: res.status };
   const data: unknown = await res.json();
   if (!Array.isArray(data)) throw new Error('ESI /universe/names/ response was malformed');

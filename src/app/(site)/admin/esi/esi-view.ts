@@ -1,4 +1,3 @@
-import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import type { EsiClientErrorSummary } from '@/data/telemetry/capability-stats';
 import {
   deriveEsiSourceStatus,
@@ -16,7 +15,6 @@ import type { OpsMetricRow } from '../ops-view';
 import {
   deriveBudgetStatus,
   formatSliValue,
-  heldForBudget,
   sliLevel,
   sliTargetLabel,
   type StatusLine,
@@ -88,7 +86,6 @@ export function derivePressureLines(input: {
   budgetExhaustions: number;
   fallback: FallbackRateData;
   degradation: DegradationCallerCount[];
-  queue: EsiRefreshQueueStat[];
   clientErrors: EsiClientErrorSummary;
 }): StatusLine[] {
   const source = deriveEsiSourceStatus({
@@ -98,7 +95,6 @@ export function derivePressureLines(input: {
   });
   const priced = input.fallback.esi + input.fallback.fallback;
   const degradationTotal = input.degradation.reduce((total, row) => total + row.count, 0);
-  const deferred = heldForBudget(input.queue);
   return [
     {
       id: 'esi-success',
@@ -124,6 +120,5 @@ export function derivePressureLines(input: {
         ? undefined
         : input.degradation.map((row) => `${row.caller} ${formatQuantity(row.count)}`).join(' · '),
     ),
-    countLine('deferred', 'Jobs held for budget', deferred),
   ];
 }

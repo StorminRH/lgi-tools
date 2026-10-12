@@ -21,13 +21,14 @@ import { CustomStructuresContent } from './CustomStructuresContent';
 beforeEach(() => {
   reads.session.mockReset();
   reads.custom.mockReset().mockResolvedValue([]);
-  reads.corps.mockReset().mockResolvedValue([]);
+  reads.corps.mockReset().mockResolvedValue({ corporations: [], refreshing: false });
 });
 
 test('server rows carry the account and active character that authorized their read', async () => {
   reads.session.mockResolvedValue(sessionFixture({ user: { id: 'account-a' }, characterId: 101 }));
-  const result = await CustomStructuresContent() as ReactElement<{ owner: unknown }>;
+  const result = await CustomStructuresContent() as ReactElement<{ owner: unknown; initialCorps: unknown }>;
   expect(result.props.owner).toEqual({ userId: 'account-a', characterId: 101 });
+  expect(result.props.initialCorps).toEqual([]);
   expect(reads.custom).toHaveBeenCalledExactlyOnceWith('account-a');
   expect(reads.corps).toHaveBeenCalledExactlyOnceWith('account-a');
 });

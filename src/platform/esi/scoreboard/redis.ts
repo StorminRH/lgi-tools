@@ -4,15 +4,18 @@ import { isFailedCall, sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
   epochMinute,
+  isHistoryPath,
   keyBlock,
   keyCallCount,
   keyErrorCount,
   keyFailureCount,
+  keyGroupBlock,
+  keyGroupLimit,
+  keyGroupOfPath,
+  keyGroupRemaining,
+  keyHistoryCount,
   KEY_ERROR_ECHO,
-  keyEtagBody,
-  keyEtagMeta,
   normalizeEsiPath,
-  parseStoredMeta,
   resolveRetryAfter,
   WRITE_IF_LOWER_LUA,
 } from './keys';
@@ -20,11 +23,14 @@ import { effectiveRemaining } from './budget';
 import {
   CALL_COUNT_TTL_SECONDS,
   ERROR_COUNT_TTL_SECONDS,
-  ETAG_TTL_SECONDS,
+  GROUP_ECHO_TTL_SECONDS,
+  GROUP_OF_PATH_TTL_SECONDS,
+  HISTORY_COUNT_TTL_SECONDS,
   type EsiAvailabilitySnapshot,
   type EsiReport,
   type EsiBudgetSnapshot,
   type EsiScoreboard,
+  type GroupBudget,
   type PreDispatchState,
 } from './types';
 
@@ -32,6 +38,7 @@ const REDIS_TIMEOUT_MS = 1500;
 const REDIS_RETRIES = 0;
 
 type Pipeline = ReturnType<UpstashRedis['pipeline']>;
+type Rows = (string | null)[];
 
 function queueBudgetReads(pipeline: Pipeline, minute: number): void {
   pipeline.get(keyErrorCount(minute));
@@ -39,7 +46,14 @@ function queueBudgetReads(pipeline: Pipeline, minute: number): void {
   pipeline.get(KEY_ERROR_ECHO);
 }
 
-function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'source'> {
+/** The group's echoed Remaining, its limit and its 429 block, in that order. */
+function queueGroupReads(pipeline: Pipeline, group: string): void {
+  pipeline.get(keyGroupRemaining(group));
+  pipeline.get(keyGroupLimit(group));
+  pipeline.get(keyGroupBlock(group));
+}
+
+function budgetFromRows(rows: Rows): Omit<EsiBudgetSnapshot, 'source'> {
   const selfCount =
     (parseIntOrNull(rows[0] ?? null) ?? 0) + (parseIntOrNull(rows[1] ?? null) ?? 0);
   const echo = parseIntOrNull(rows[2] ?? null);
@@ -50,8 +64,30 @@ function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'sourc
   };
 }
 
+/** The seconds a stored block (its expiry in epoch seconds) still holds, or null once it has passed. */
+function blockRemaining(row: string | null | undefined): number | null {
+  const expiry = parseIntOrNull(row ?? null);
+  const remaining = expiry === null ? null : expiry - Math.floor(Date.now() / 1000);
+  return remaining !== null && remaining > 0 ? remaining : null;
+}
+
+function longestBlock(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.max(a, b);
+}
+
+function groupBudgetFrom(group: string | null, rows: Rows | null): GroupBudget | undefined {
+  if (group === null || rows === null) return undefined;
+  const remaining = parseIntOrNull(rows[0] ?? null);
+  const limit = parseIntOrNull(rows[1] ?? null);
+  return remaining === null || limit === null ? undefined : { group, remaining, limit };
+}
+
 class RedisScoreboard implements EsiScoreboard {
   private readonly redis: UpstashRedis;
+  /** The rate-limit group each normalized path answered under, as this process has seen or read it. */
+  private readonly groupOfPath = new Map<string, string>();
 
   constructor(url: string, token: string) {
     this.redis = createUpstashClient({
@@ -63,31 +99,53 @@ class RedisScoreboard implements EsiScoreboard {
     });
   }
 
-  async preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState> {
+  /**
+   * One round trip in the steady state. The group's keys can only be read
+   * once the path's group is known, so a path this process has never seen
+   * reads the shared mapping here and the group's state in a second trip,
+   * once; every call after it reads both together.
+   */
+  async preDispatch(url: string): Promise<PreDispatchState> {
+    const path = normalizeEsiPath(url);
     const minute = epochMinute();
+    const known = this.groupOfPath.get(path) ?? null;
     const pipeline = this.redis.pipeline();
     queueBudgetReads(pipeline, minute);
-    pipeline.get(keyBlock(normalizeEsiPath(url)));
-    if (wantEtag) pipeline.get(keyEtagMeta(url));
-    const rows = await pipeline.exec<(string | null)[]>();
+    pipeline.get(keyBlock(path));
+    pipeline.get(keyHistoryCount(minute));
+    pipeline.get(keyGroupOfPath(path));
+    if (known !== null) queueGroupReads(pipeline, known);
+    const rows = await pipeline.exec<Rows>();
 
-    const budget = budgetFromRows(rows);
-    const blockExpiry = parseIntOrNull(rows[3] ?? null);
-    const blockRemaining =
-      blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
-    return {
-      effectiveRemaining: budget.effectiveRemaining,
-      blockedRetryAfter:
-        blockRemaining !== null && blockRemaining > 0 ? blockRemaining : null,
-      etag: wantEtag ? parseStoredMeta(rows[4] ?? null) : null,
+    const group = known ?? this.learnGroup(path, rows[5] ?? null);
+    const groupRows = known !== null ? rows.slice(6) : await this.readGroupState(group);
+    const state: PreDispatchState = {
+      effectiveRemaining: budgetFromRows(rows).effectiveRemaining,
+      blockedRetryAfter: longestBlock(blockRemaining(rows[3]), blockRemaining(groupRows?.[2])),
     };
+    const groupBudget = groupBudgetFrom(group, groupRows);
+    if (groupBudget !== undefined) state.groupBudget = groupBudget;
+    if (isHistoryPath(path)) state.historyCalls = parseIntOrNull(rows[4] ?? null) ?? 0;
+    return state;
+  }
+
+  private learnGroup(path: string, row: string | null): string | null {
+    if (row !== null) this.groupOfPath.set(path, row);
+    return row;
+  }
+
+  private async readGroupState(group: string | null): Promise<Rows | null> {
+    if (group === null) return null;
+    const pipeline = this.redis.pipeline();
+    queueGroupReads(pipeline, group);
+    return pipeline.exec<Rows>();
   }
 
   async budgetSnapshot(): Promise<EsiBudgetSnapshot> {
     const minute = epochMinute();
     const pipeline = this.redis.pipeline();
     queueBudgetReads(pipeline, minute);
-    const rows = await pipeline.exec<(string | null)[]>();
+    const rows = await pipeline.exec<Rows>();
     return {
       ...budgetFromRows(rows),
       source: 'shared',
@@ -96,7 +154,7 @@ class RedisScoreboard implements EsiScoreboard {
 
   async availabilitySnapshot(): Promise<EsiAvailabilitySnapshot> {
     const minutes = windowMinutes(epochMinute());
-    const rows = await this.redis.mget<(string | null)[]>(
+    const rows = await this.redis.mget<Rows>(
       ...minutes.map(keyCallCount),
       ...minutes.map(keyFailureCount),
     );
@@ -109,13 +167,15 @@ class RedisScoreboard implements EsiScoreboard {
   }
 
   async report(report: EsiReport): Promise<void> {
+    const path = normalizeEsiPath(report.url);
     const pipeline = this.redis.pipeline();
     const queued = [
       this.queueCallCount(pipeline, report),
+      this.queueHistoryCount(pipeline, path),
       this.queueErrorCount(pipeline, report),
       this.queueErrorEcho(pipeline, report),
-      this.queueRetryBlock(pipeline, report),
-      this.queueEtag(pipeline, report),
+      this.queueGroupEcho(pipeline, path, report),
+      this.queueRetryBlock(pipeline, path, report),
     ];
     if (queued.some(Boolean)) await pipeline.exec();
   }
@@ -128,6 +188,15 @@ class RedisScoreboard implements EsiScoreboard {
       pipeline.incr(key);
       pipeline.expire(key, CALL_COUNT_TTL_SECONDS);
     }
+    return true;
+  }
+
+  /** Every market-history dispatch counts, answered or not: the cap is on calls made. */
+  private queueHistoryCount(pipeline: Pipeline, path: string): boolean {
+    if (!isHistoryPath(path)) return false;
+    const key = keyHistoryCount(epochMinute());
+    pipeline.incr(key);
+    pipeline.expire(key, HISTORY_COUNT_TTL_SECONDS);
     return true;
   }
 
@@ -157,39 +226,35 @@ class RedisScoreboard implements EsiScoreboard {
     return false;
   }
 
-  private queueRetryBlock(pipeline: Pipeline, report: EsiReport): boolean {
+  /**
+   * What the answer's rate-limit headers say: the path's group, kept a
+   * day, and the group's Remaining, lowest wins for the echo window, next
+   * to the limit it is a share of.
+   */
+  private queueGroupEcho(pipeline: Pipeline, path: string, report: EsiReport): boolean {
+    if (report.rlGroup === null) return false;
+    this.groupOfPath.set(path, report.rlGroup);
+    pipeline.set(keyGroupOfPath(path), report.rlGroup, { ex: GROUP_OF_PATH_TTL_SECONDS });
+    if (report.rlRemaining !== null && report.rlLimit !== null) {
+      pipeline.eval(WRITE_IF_LOWER_LUA, [keyGroupRemaining(report.rlGroup)], [
+        String(report.rlRemaining),
+        String(GROUP_ECHO_TTL_SECONDS),
+      ]);
+      pipeline.set(keyGroupLimit(report.rlGroup), String(report.rlLimit), { ex: GROUP_ECHO_TTL_SECONDS });
+    }
+    return true;
+  }
+
+  /** A 429 blocks the group it names, since every route in it shares the bucket; without a group, the path. */
+  private queueRetryBlock(pipeline: Pipeline, path: string, report: EsiReport): boolean {
     if (report.status !== 429) return false;
     const retryAfter = resolveRetryAfter(report.retryAfter);
     pipeline.set(
-      keyBlock(normalizeEsiPath(report.url)),
+      report.rlGroup === null ? keyBlock(path) : keyGroupBlock(report.rlGroup),
       String(Math.floor(Date.now() / 1000) + retryAfter),
       { ex: retryAfter },
     );
     return true;
-  }
-
-  private queueEtag(pipeline: Pipeline, report: EsiReport): boolean {
-    let queued = false;
-    if (report.etagToStore !== null) {
-      const { body, ...meta } = report.etagToStore;
-      pipeline.set(keyEtagMeta(report.url), JSON.stringify(meta), {
-        ex: ETAG_TTL_SECONDS,
-      });
-      pipeline.set(keyEtagBody(report.url), body, { ex: ETAG_TTL_SECONDS });
-      queued = true;
-    }
-    if (report.refreshEtag !== null) {
-      pipeline.set(keyEtagMeta(report.url), JSON.stringify(report.refreshEtag), {
-        ex: ETAG_TTL_SECONDS,
-      });
-      pipeline.expire(keyEtagBody(report.url), ETAG_TTL_SECONDS);
-      queued = true;
-    }
-    return queued;
-  }
-
-  async getCachedBody(url: string): Promise<string | null> {
-    return await this.redis.get<string>(keyEtagBody(url));
   }
 }
 

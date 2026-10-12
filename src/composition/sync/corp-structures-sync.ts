@@ -1,5 +1,8 @@
 import { after, connection } from 'next/server';
 import { type CorpViewer, resolveCorpViewer } from '@/composition/corp-viewer';
+import { isDue } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
+import { corpStructuresDueKeys, corpStructuresKey } from '@/features/owned-structures/keys';
 import type { StructuresAccess } from '@/platform/auth/corp-visibility';
 import {
   type CorpStructureCompletion,
@@ -14,13 +17,15 @@ import { refreshCorpStructuresForUser } from '@/features/owned-structures/refres
 import type {
   CorpStructurePageStructure,
   CorpStructurePageView,
+  CorpStructuresPageResult,
   CorpStructureRow,
   CorpStructuresPort,
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { SecurityClass } from '@/data/eve-data/security';
 import { nameOrUnresolved } from '@/lib/format/names';
-import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
+import { refreshDue } from './live-dataset-view';
+import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
 function makeCorpStructuresPort(): CorpStructuresPort {
   return {
@@ -28,8 +33,9 @@ function makeCorpStructuresPort(): CorpStructuresPort {
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesForSync,
-    readStructures: (corporationId, accessToken, heldEtags) =>
-      readPagedEndpoint(`/corporations/${corporationId}/structures/`, accessToken, heldEtags),
+    isDue: (corporationId) => isDue([corpStructuresKey(corporationId)]),
+    openSession: openReadSession,
+    readStructures: (session, corporationId, accessToken) => session.readPaged(corpStructuresKey(corporationId), accessToken),
     readSyncState: (corporationId) => readCorpStructureSyncState(corporationId),
     saveStructures: (corporationId, rows, etags) => saveCorpStructures(corporationId, rows, etags),
     stampFresh: (corporationId) => stampCorpStructuresFresh(corporationId),
@@ -44,10 +50,13 @@ interface ViewerCorpStructures {
 
 interface ViewerCorpStructuresResult {
   corporations: ViewerCorpStructures[];
+  refreshing: boolean;
 }
 
-function scheduleCorpStructuresRefresh(userId: string): void {
+/** Schedules the refresh, and says whether it will reach ESI. */
+function scheduleCorpStructuresRefresh(userId: string): Promise<boolean> {
   after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
+  return refreshDue(userId, corpStructuresDueKeys);
 }
 
 async function loadCorpViewer(userId: string): Promise<CorpViewer> {
@@ -67,11 +76,11 @@ function visibleStructures(access: StructuresAccess, rows: CorpStructureRow[] | 
 async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
   const { corporations } = await loadCorpViewer(userId);
   const corporationIds = corporations.map((corp) => corp.corporationId);
-  const [structuresByCorp, freshnessByCorp] = await Promise.all([
+  const [structuresByCorp, freshnessByCorp, refreshing] = await Promise.all([
     getCorpStructures(corporationIds),
     loadFreshness(corporationIds),
+    scheduleCorpStructuresRefresh(userId),
   ]);
-  scheduleCorpStructuresRefresh(userId);
 
   return {
     corporations: corporations.map(({ corporationId, grant }) => ({
@@ -79,6 +88,7 @@ async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCor
       structures: visibleStructures(grant.structures, structuresByCorp.get(corporationId)),
       lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
     })),
+    refreshing,
   };
 }
 
@@ -92,14 +102,16 @@ export interface AvailableCorpStructure {
   taxPct: number | null;
 }
 
-export async function getAvailableCorpStructuresForUser(userId: string): Promise<AvailableCorpStructure[]> {
-  const { corporations } = await getCorpStructuresForUserOnView(userId);
+export async function getAvailableCorpStructuresForUser(
+  userId: string,
+): Promise<{ structures: AvailableCorpStructure[]; refreshing: boolean }> {
+  const { corporations, refreshing } = await getCorpStructuresForUserOnView(userId);
   const rigsByStructure = await getCorpStructureRigs(corporations.map((c) => c.corporationId));
-  const out: AvailableCorpStructure[] = [];
+  const structures: AvailableCorpStructure[] = [];
   for (const corp of corporations) {
     for (const s of corp.structures) {
       const completion = rigsByStructure.get(s.structureId);
-      out.push({
+      structures.push({
         structureId: s.structureId,
         typeId: s.typeId,
         systemId: s.systemId,
@@ -110,7 +122,7 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
       });
     }
   }
-  return out;
+  return { structures, refreshing };
 }
 
 function withCompletion(
@@ -127,20 +139,20 @@ function withCompletion(
  * 'manage', the sharing switch needs a Director. Grants come from stored
  * roles; the mutations re-check live.
  */
-export async function getCorpStructuresPageData(userId: string): Promise<CorpStructurePageView[]> {
+export async function getCorpStructuresPageData(userId: string): Promise<CorpStructuresPageResult> {
   const { corporations } = await loadCorpViewer(userId);
   const corporationIds = corporations.map((corp) => corp.corporationId);
-  if (corporationIds.length === 0) return [];
+  if (corporationIds.length === 0) return { corporations: [], refreshing: false };
 
-  const [structuresByCorp, freshnessByCorp, rigsByStructure, names] = await Promise.all([
+  const [structuresByCorp, freshnessByCorp, rigsByStructure, names, refreshing] = await Promise.all([
     getCorpStructures(corporationIds),
     loadFreshness(corporationIds),
     getCorpStructureRigs(corporationIds),
     resolveEntityNames(corporationIds),
+    scheduleCorpStructuresRefresh(userId),
   ]);
-  scheduleCorpStructuresRefresh(userId);
 
-  return corporations.map(({ corporationId, sharing, grant }) => ({
+  const rows: CorpStructurePageView[] = corporations.map(({ corporationId, sharing, grant }) => ({
     corporationId,
     corporationName: nameOrUnresolved(names, corporationId, 'corporation'),
     structureAccess: grant.structures,
@@ -151,4 +163,5 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
     ),
     lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
   }));
+  return { corporations: rows, refreshing };
 }

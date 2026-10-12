@@ -1,21 +1,24 @@
 import { eq, sql } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
+import { storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
-import { expireNow } from '@/lib/cache-expiry';
 import { excluded } from '@/lib/db-upsert';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { heldSectionKeys, sheetTags } from './keys';
 import { characterSheets } from './schema';
 import type { SectionEnvelope, SheetSectionKey, SheetSections } from './types';
 
-export function sheetTag(characterId: number): string {
-  return `character-sheet:${characterId}`;
-}
-
+/**
+ * One character's sheet, cached across instances until the earliest of the
+ * answers behind its sections expires. Each tier's sync clears its own tag,
+ * so the sheet carries all three.
+ */
 async function getCharacterSheet(characterId: number): Promise<SheetSections | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(sheetTag(characterId));
-  return readSheetRow(characterId);
+  'use cache: remote';
+  cacheTag(...sheetTags(characterId));
+  const sections = await readSheetRow(characterId);
+  cacheLife(untilExpires(await storedExpiry(heldSectionKeys(characterId, sections ?? {}))));
+  return sections;
 }
 
 export async function getCharacterSheets(characterIds: number[]): Promise<Map<number, SheetSections>> {
@@ -48,7 +51,6 @@ export async function mergeSheetSection<K extends SheetSectionKey>(
         lastRefreshedAt: now,
       },
     });
-  expireNow(sheetTag(characterId));
 }
 
 export async function stampSheetSection(characterId: number, key: SheetSectionKey): Promise<void> {
@@ -60,5 +62,4 @@ export async function stampSheetSection(characterId: number, key: SheetSectionKe
       lastRefreshedAt: now,
     })
     .where(sql`${characterSheets.characterId} = ${characterId} AND ${characterSheets.sections} ? ${key}`);
-  expireNow(sheetTag(characterId));
 }

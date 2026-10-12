@@ -24,8 +24,8 @@ vi.mock('@/data/market-history/use-refresh-on-view', () => ({
   }),
 }));
 
-vi.mock('../use-resource-read', () => ({
-  useResourceRead: () => undefined,
+vi.mock('@/components/use-live-dataset', () => ({
+  useLiveDataset: () => ({ response: null, now: 0, loading: true, failed: false, retry: () => undefined }),
 }));
 
 const STRUCTURE: BlueprintStructure = {

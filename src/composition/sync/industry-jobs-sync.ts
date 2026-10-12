@@ -1,4 +1,7 @@
+import { isDue } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
+import { characterJobsKey, jobsDueKeys } from '@/features/industry-jobs/keys';
 import {
   getJobsForCharacters,
   listCharacterJobSyncStates,
@@ -9,26 +12,23 @@ import {
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
-import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
+import { listCharactersWithHealth, vendTokenFor } from './owner-sync-port';
 
 function makeJobsPort(): JobsPort {
   return {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readJobs: (characterId, accessToken, heldEtag) =>
-      readSingleEndpoint(`/characters/${characterId}/industry/jobs/`, accessToken, heldEtag),
+    isDue: (characterId) => isDue([characterJobsKey(characterId)]),
+    openSession: openReadSession,
+    readJobs: (session, characterId, accessToken) => session.readAuthed(characterJobsKey(characterId), accessToken),
     readSyncState: (characterId) => readCharacterJobSyncState(characterId),
     saveJobs: (characterId, jobs, etag) => saveCharacterJobs(characterId, jobs, etag),
     stampFresh: (characterId) => stampCharacterJobsFresh(characterId),
   };
 }
 
-const jobs = ownerSyncDataset('character_industry_jobs', makeJobsPort, refreshJobsForUser);
-
-export const refreshJobsOnView = jobs.onView;
-export const runCharacterIndustryJobsRefreshJob = jobs.runJob;
+export const refreshJobsOnView = (userId: string) => refreshJobsForUser(makeJobsPort(), userId);
 
 export interface ViewerJobs {
   characterId: number;
@@ -39,14 +39,16 @@ export interface ViewerJobs {
 export interface ViewerJobsResult {
   characters: ViewerJobs[];
   names: Record<string, string>;
+  refreshing: boolean;
 }
 
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
-  const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
+  const { rows, names, refreshing } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
     read: (uid) => readCharacterOwners(uid, getJobsForCharacters, listCharacterJobSyncStates),
     refresh: refreshJobsOnView,
+    dueKeys: (_uid, owners) => jobsDueKeys(owners),
     makeRow: characterRow,
     nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
   });
-  return { characters: rows, names };
+  return { characters: rows, names, refreshing };
 }

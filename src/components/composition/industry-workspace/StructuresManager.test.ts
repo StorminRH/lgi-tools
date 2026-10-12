@@ -13,6 +13,9 @@ const SYSTEMS_BY_ID = new Map([
 ]);
 const live = vi.hoisted(() => ({
   available: [] as AvailableStructure[],
+  // What the live corp structures read last answered; null before it lands.
+  corps: null as CorpStructurePageView[] | null,
+  refreshCorps: vi.fn(),
   request: null as symbol | null,
   identity: { userId: 'account-a', characterId: 101 } as ReadIdentity | null,
   committed: false,
@@ -48,8 +51,16 @@ vi.mock('@/features/industry-planner/use-available-structures', () => ({
   useAvailableStructures: () => live.available,
   refreshAvailableStructures: vi.fn(),
 }));
+vi.mock('@/features/owned-structures/use-corp-structures-live', () => ({
+  useCorpStructuresLive: (initial: CorpStructurePageView[]) => ({
+    corporations: live.corps ?? initial,
+    failed: false,
+    retry: vi.fn(),
+  }),
+  refreshCorpStructures: live.refreshCorps,
+}));
 
-import { savedStructure, StructuresManager } from './StructuresManager';
+import { savedStructure, StructuresManager, withRigEdits } from './StructuresManager';
 import { settleNewStructure } from './structures-panel';
 
 const TYPES: StructureTypeOption[] = [
@@ -63,6 +74,7 @@ beforeEach(() => {
   live.identity = OWNER;
   live.committed = false;
   live.runEffects = false;
+  live.corps = null;
   live.request = null;
   live.refresh.mockClear();
   live.save = null;
@@ -152,6 +164,27 @@ test('corporation structures and your own list side by side, with what each can 
   expect(html).toContain('Raitaru · Amamake <span class="text-sec-04">0.4</span>');
   expect(html).toContain('Tatara · 1DQ1-A <span class="text-sec-null">-0.4</span>');
   expect(html).not.toContain('No structures yet.');
+});
+
+test('newer corp structures stream in over the server render, and a rig save shows at once', () => {
+  live.available = [];
+  const initial = [corp(98000001, 'manage', [corpStructure(7)])];
+  expect(render([], initial)).toContain('Tatara 7');
+
+  // The live read answered with a structure the server render did not have, and without the old one.
+  live.corps = [corp(98000001, 'manage', [corpStructure(8, { name: 'Tatara 8' })]), corp(98000002, 'use', [corpStructure(9)])];
+  const html = render([], initial);
+  expect(html).not.toContain('Tatara 7');
+  expect(html).toContain('Tatara 8');
+  expect(html).toContain('Corp 98000002');
+  expect(html).toContain('>Set rigs<');
+
+  // The rigs saved in the drawer are drawn over the live rows until the re-read carries them.
+  const edited = live.corps.map(withRigEdits(new Map([[8, { rigTypeIds: [46486], taxPct: 0.25 }]])));
+  expect(edited[0]!.structures[0]).toMatchObject({ structureId: 8, rigTypeIds: [46486], taxPct: 0.25 });
+  expect(edited[1]!.structures[0]).toMatchObject({ structureId: 9, rigTypeIds: [], taxPct: 0.5 });
+  live.corps = edited;
+  expect(render([], initial)).not.toContain('>Set rigs<');
 });
 
 test('with nothing saved or shared there is nothing to filter', () => {

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
 import type { Placement } from '@/data/corp-holdings/placement';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { UserCorpAccess } from '@/platform/auth/corp-access';
 import type { StoredCorpRoles } from '@/platform/auth/corp-roles-store';
 import { canSeeHolding } from '@/platform/auth/corp-visibility';
@@ -41,7 +40,8 @@ vi.mock('@/data/corp-holdings/queries', () => ({
 import { resolveCorpViewer } from './corp-viewer';
 
 const NOW = new Date('2026-09-28T12:00:00Z');
-const STALE = new Date(NOW.getTime() - freshnessGate('character_corp_roles').ttlMs - 1);
+const UNEXPIRED = new Date(NOW.getTime() + 30 * 60_000);
+const EXPIRED = new Date(NOW.getTime() - 1);
 const CORP = 98000001;
 const OTHER_CORP = 98000002;
 const HQ = 60003760;
@@ -85,6 +85,7 @@ function stored(
       rolesAtBase: [],
       rolesAtOther: [],
       fetchedAt: NOW,
+      expiresAt: UNEXPIRED,
       ...extra,
     },
   ];
@@ -131,8 +132,8 @@ describe('resolveCorpViewer', () => {
     expect(canSeeHolding(corp!.grant.holdings, hangar(ELSEWHERE, 3))).toBe(false);
   });
 
-  it('refetches roles inline past the ESI window and uses what came back', async () => {
-    mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, ['Hangar_Query_2'], { fetchedAt: STALE })]));
+  it('refetches roles inline past CCP\'s expiry and uses what came back', async () => {
+    mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, ['Hangar_Query_2'], { expiresAt: EXPIRED })]));
     mocks.fetchAndStoreCorpRoles.mockResolvedValue(record(['Director']));
 
     const viewer = await resolveCorpViewer('u1');
@@ -164,15 +165,24 @@ describe('resolveCorpViewer', () => {
     expect(viewer.corporations[0]?.grant.structures).toBe('none');
   });
 
-  it.each([null, new Date('2026-09-27T11:00:00Z')])('does not authorize from stale cached HQ data (%s)', async (lastRefreshedAt) => {
+  it('does not authorize an HQ-tier role without a stored corp profile', async () => {
     mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, [], { rolesAtHq: ['Hangar_Query_1'] })]));
-    mocks.readCorpMemberContext.mockResolvedValue(lastRefreshedAt === null ? null : {
-      lastRefreshedAt, hqStationId: HQ, bases: new Map([[ALICE, null]]),
-    });
+    mocks.readCorpMemberContext.mockResolvedValue(null);
 
     const viewer = await resolveCorpViewer('u1');
 
     expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(HQ, 1))).toBe(false);
+  });
+
+  it('trusts the stored HQ whatever its age: the member\'s own roles, expiring at CCP\'s time, are the check', async () => {
+    mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, [], { rolesAtHq: ['Hangar_Query_1'] })]));
+    mocks.readCorpMemberContext.mockResolvedValue({
+      lastRefreshedAt: new Date('2026-09-20T11:00:00Z'), hqStationId: HQ, bases: new Map([[ALICE, null]]),
+    });
+
+    const viewer = await resolveCorpViewer('u1');
+
+    expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(HQ, 1))).toBe(true);
   });
 
   it('uses the fresh snapshot HQ instead of the independently cached label context', async () => {
@@ -256,28 +266,17 @@ describe('resolveCorpViewer', () => {
     expect(canSeeHolding(rule, hangar(HQ, 4))).toBe(false);
   });
 
-  it('treats every base as unknown once the corp profile is over a day old', async () => {
+  it('keeps stored bases known until a Director\'s visit refreshes them, however old the profile is', async () => {
     mocks.readCorpRoles.mockResolvedValue(
       new Map([stored(ALICE, [], { rolesAtBase: ['Hangar_Query_4'] })]),
     );
-    mocks.readCorpMemberContext.mockResolvedValue({ lastRefreshedAt: new Date('2026-09-27T11:00:00Z'), hqStationId: HQ, bases: new Map([[ALICE, BASE]]) });
+    mocks.readCorpMemberContext.mockResolvedValue({ lastRefreshedAt: new Date('2026-09-20T11:00:00Z'), hqStationId: HQ, bases: new Map([[ALICE, BASE]]) });
 
     const viewer = await resolveCorpViewer('u1');
 
     const rule = viewer.corporations[0]!.grant.holdings;
-    expect(canSeeHolding(rule, hangar(BASE, 4))).toBe(false);
+    expect(canSeeHolding(rule, hangar(BASE, 4))).toBe(true);
     expect(canSeeHolding(rule, hangar(HQ, 4))).toBe(false);
-  });
-
-  it('keeps bases known when the corp profile is just under a day old', async () => {
-    mocks.readCorpRoles.mockResolvedValue(
-      new Map([stored(ALICE, [], { rolesAtBase: ['Hangar_Query_4'] })]),
-    );
-    mocks.readCorpMemberContext.mockResolvedValue({ lastRefreshedAt: new Date('2026-09-27T13:00:00Z'), hqStationId: HQ, bases: new Map([[ALICE, BASE]]) });
-
-    const viewer = await resolveCorpViewer('u1');
-
-    expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(BASE, 4))).toBe(true);
   });
 
   it('treats every base as unknown when the corp has no profile row', async () => {

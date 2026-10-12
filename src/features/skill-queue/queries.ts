@@ -1,8 +1,9 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
-import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { skillsKey, skillsKeys } from './keys';
 import { characterSkills, characterSkillSyncs } from './schema';
 import type {
   CharacterSkillData,
@@ -11,15 +12,17 @@ import type {
   SkillsSaveHalves,
 } from './types';
 
-export function skillsTag(characterId: number): string {
-  return `skills:${characterId}`;
-}
-
+/**
+ * One character's skills row, cached across instances until the earlier of
+ * its two stored answers expires; the sync's commit clears the tag when a
+ * 200 lands, so nothing here decides freshness.
+ */
 async function getCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(skillsTag(characterId));
-  return readCharacterSkillRow(characterId);
+  'use cache: remote';
+  cacheTag(datasetTag(skillsKey(characterId)));
+  const [row, expiresAt] = await Promise.all([readCharacterSkillRow(characterId), storedExpiry(skillsKeys(characterId))]);
+  cacheLife(untilExpires(expiresAt));
+  return row;
 }
 
 export async function readCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
@@ -49,10 +52,11 @@ export async function getSkillRowsForCharacters(
 export async function getCharacterSkillLevels(
   characterId: number,
 ): Promise<Record<string, number> | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(skillsTag(characterId));
-  return readCharacterSkillLevels(characterId);
+  'use cache: remote';
+  cacheTag(datasetTag(skillsKey(characterId)));
+  const [levels, expiresAt] = await Promise.all([readCharacterSkillLevels(characterId), storedExpiry(skillsKeys(characterId))]);
+  cacheLife(untilExpires(expiresAt));
+  return levels;
 }
 
 async function readCharacterSkillLevels(characterId: number): Promise<Record<string, number> | null> {
@@ -72,8 +76,6 @@ export async function getSkillLevelsForCharacters(
 
 const syncStateColumns = {
   lastRefreshedAt: characterSkillSyncs.lastRefreshedAt,
-  queueEtag: characterSkillSyncs.queueEtag,
-  skillsEtag: characterSkillSyncs.skillsEtag,
 };
 
 export async function readCharacterSyncState(
@@ -148,8 +150,6 @@ export async function saveCharacterSkills(
       .set({ lastRefreshedAt: now, skillsEtag: skills.etag })
       .where(eq(characterSkillSyncs.characterId, characterId));
   }
-
-  expireNow(skillsTag(characterId));
 }
 
 export async function stampCharacterFresh(characterId: number): Promise<void> {

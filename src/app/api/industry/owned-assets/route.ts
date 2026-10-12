@@ -19,16 +19,16 @@ async function handlePost(request: NextRequest): Promise<Response> {
 
   const userId = await getCurrentUserId();
   if (!userId) {
-    return apiResponse(ownedAssetsEndpoint, 200, { assets: [] });
+    return apiResponse(ownedAssetsEndpoint, 200, { assets: [], refreshing: false });
   }
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
-  const assets = await measureOwnedDataRead({
+  const result = await measureOwnedDataRead({
     endpoint: ownedAssetsEndpoint,
     requested: typeIds.length,
     read: () => getOwnedAssetDetailOnView(userId, typeIds),
-    returned: (value) => value.length,
+    returned: (value) => value.assets.length,
   });
 
-  return apiResponse(ownedAssetsEndpoint, 200, { assets });
+  return apiResponse(ownedAssetsEndpoint, 200, result);
 }

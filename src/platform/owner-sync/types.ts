@@ -16,7 +16,6 @@ export interface OwnerKey {
 
 export interface PagedOwnerSyncState {
   lastRefreshedAt: Date | null;
-  pageEtags: string[];
 }
 
 /** One authed single-endpoint ESI read as a feature port sees it. */
@@ -25,31 +24,30 @@ export type SingleOwnerRead =
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
+/**
+ * The ESI reads of one try at one owner. What they learned about expiry
+ * and ETags is committed only once the owner's write has stood; a try
+ * that ends any other way drops it, and the next view reads again.
+ */
+export interface ReadSession {
+  commit(): Promise<void>;
+}
+
 export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)
   | { kind: 'stamp' }
   | { kind: 'needs_role' }
   | { kind: 'skip'; code?: string };
 
-export type OwnerSyncTarget = OwnerKey;
-
 export type OwnerSyncResult =
-  | { kind: 'succeeded'; target: OwnerSyncTarget }
+  | { kind: 'succeeded'; target: OwnerKey }
   | {
       kind: 'deferred_for_budget';
-      target: OwnerSyncTarget;
+      target: OwnerKey;
       error: import('../esi').EsiBudgetExhaustedError;
     }
-  | { kind: 'failed_retryable'; target: OwnerSyncTarget; code: string }
-  | { kind: 'failed_permanent'; target: OwnerSyncTarget; code: string };
-
-export interface OwnerSyncRunOptions {
-  target?: OwnerSyncTarget;
-  onBudgetDeferred?(
-    target: OwnerSyncTarget,
-    error: import('../esi').EsiBudgetExhaustedError,
-  ): Promise<void>;
-}
+  | { kind: 'failed_retryable'; target: OwnerKey; code: string }
+  | { kind: 'failed_permanent'; target: OwnerKey; code: string };
 
 export interface OwnerAxis<TOwner> {
   eligible(owner: EnumeratedOwner): boolean;
@@ -63,17 +61,19 @@ export interface CorpOwnerAxis<TOwner> {
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
 }
 
-export interface OwnerSyncDescriptor<TOwner, TState, TSave> {
+export interface OwnerSyncDescriptor<TOwner, TState, TSave, TSession extends ReadSession = ReadSession> {
   now(): Date;
   enumerate(userId: string): Promise<EnumeratedOwner[]>;
-  identityOf(owner: TOwner): OwnerSyncTarget;
+  identityOf(owner: TOwner): OwnerKey;
   precondition?(owner: TOwner): Promise<boolean>;
   vendToken(characterId: number): Promise<string | null>;
-  isStale(state: TState | null, now: Date): boolean;
+  /** Whether any of the owner's stored ESI answers has expired; an owner that is not due costs no vend and no read. */
+  isDue(owner: TOwner): Promise<boolean>;
+  openSession(): TSession;
   characterAxis?: OwnerAxis<TOwner>;
   corpAxis?: CorpOwnerAxis<TOwner>;
   readState(owner: TOwner): Promise<TState | null>;
-  fetchAndPlan(owner: TOwner, accessToken: string, state: TState | null): Promise<PersistVerdict<TSave>>;
+  fetchAndPlan(owner: TOwner, accessToken: string, state: TState | null, session: TSession): Promise<PersistVerdict<TSave>>;
   save(owner: TOwner, payload: TSave): Promise<void>;
   stampFresh(owner: TOwner): Promise<void>;
   saveGateState?(owner: TOwner): Promise<void>;

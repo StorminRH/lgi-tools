@@ -1,5 +1,6 @@
 import type { SecurityClass } from '@/data/eve-data/security';
 import type { SharingState, StructuresAccess } from '@/platform/auth/corp-visibility';
+import type { EsiReadSession } from '@/data/esi-store/session';
 import type { CorpSyncBase, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
 
@@ -26,6 +27,12 @@ export interface CorpStructurePageView {
   lastRefreshedAt: number | null;
 }
 
+/** What the structures drawer and the corporation settings page are served: every member corp, and whether a refresh is under way. */
+export interface CorpStructuresPageResult {
+  corporations: CorpStructurePageView[];
+  refreshing: boolean;
+}
+
 export interface CorpOwner {
   corporationId: number;
 }
@@ -36,12 +43,9 @@ export interface CorpOwner {
  * per corp, and Neon storage. The real implementations are wired in
  * src/composition/sync/corp-structures-sync.ts.
  */
-export interface CorpStructuresPort extends CorpSyncBase {
-  readStructures(
-    corporationId: number,
-    accessToken: string,
-    heldEtags: string[],
-  ): Promise<PagedOwnerReadResult>;
+export interface CorpStructuresPort extends CorpSyncBase<EsiReadSession> {
+  isDue(corporationId: number): Promise<boolean>;
+  readStructures(session: EsiReadSession, corporationId: number, accessToken: string): Promise<PagedOwnerReadResult>;
   readSyncState(corporationId: number): Promise<PagedOwnerSyncState | null>;
   saveStructures(corporationId: number, rows: ParsedCorpStructure[], etags: string[]): Promise<void>;
   stampFresh(corporationId: number): Promise<void>;

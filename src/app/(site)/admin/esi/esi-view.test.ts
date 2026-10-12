@@ -7,7 +7,6 @@ const quiet = {
   budgetExhaustions: 0,
   fallback: { esi: 200, fallback: 0, perDay: [] },
   degradation: [],
-  queue: [],
   clientErrors: { errors: 0, calls: 500, rate: 0, groups: [] },
 };
 
@@ -65,18 +64,17 @@ describe('deriveBudgetCard', () => {
 describe('derivePressureLines', () => {
   it('is all green on a quiet period', () => {
     const lines = derivePressureLines(quiet);
-    expect(lines.map((line) => line.level)).toEqual(['green', 'green', 'green', 'green', 'green', 'green']);
+    expect(lines.map((line) => line.level)).toEqual(['green', 'green', 'green', 'green', 'green']);
     expect(lines[1]).toMatchObject({ id: 'esi-4xx', value: '0.0%', note: '0 of 500 calls' });
     expect(lines[3]).toMatchObject({ value: '0%', note: '0 of 200 priced items' });
     // Counts with nothing to add carry no note at all, not an empty one.
     expect(lines.filter((line) => line.note === undefined).map((line) => line.id)).toEqual([
       'exhaustions',
       'degradation',
-      'deferred',
     ]);
   });
 
-  it('flags budget pressure, fallback, degradation, and held jobs', () => {
+  it('flags budget pressure, fallback and degradation', () => {
     const lines = derivePressureLines({
       esiSuccess: 0.9,
       budgetExhaustions: 3,
@@ -84,10 +82,6 @@ describe('derivePressureLines', () => {
       degradation: [
         { caller: 'prices', count: 4 },
         { caller: 'history', count: 1 },
-      ],
-      queue: [
-        { status: 'deferred_for_budget', count: 6, oldestCreatedAt: new Date() },
-        { status: 'queued', count: 2, oldestCreatedAt: new Date() },
       ],
       clientErrors: {
         errors: 3,
@@ -102,7 +96,6 @@ describe('derivePressureLines', () => {
       ['3', 'amber'],
       ['60%', 'red'],
       ['5', 'amber'],
-      ['6', 'amber'],
     ]);
     expect(lines[1]!.note).toBe('3 of 100 calls · most from maps · search-characters');
     expect(lines[4]!.note).toBe('prices 4 · history 1');

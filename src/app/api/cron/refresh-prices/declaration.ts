@@ -1,14 +1,12 @@
-import { revalidateTag } from 'next/cache';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import type { CronRefreshPricesResponse } from '@/data/market-prices/api-contract';
-import {
-  PRICES_FRESHNESS_TAG,
-  refreshStalePrices,
-} from '@/data/market-prices/cache';
+import { refreshStalePrices } from '@/data/market-prices/cache';
+import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
 import { readPriceSourceHealth } from '@/data/market-prices/source-health';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
 import { bestEffort } from '@/lib/best-effort';
+import { expireNow } from '@/lib/cache-expiry';
 
 export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesResponse> = {
   name: 'cron:prices',
@@ -38,7 +36,8 @@ export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesRes
       };
     }
 
-    revalidateTag(PRICES_FRESHNESS_TAG, 'max');
+    // Outside a request, so the sweep clears the dataset's tag itself once its rows and metas are written.
+    expireNow(MARKET_PRICES_TAG);
 
     const { summary } = result;
     const { counts, degraded } = readPriceSourceHealth(summary);

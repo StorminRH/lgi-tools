@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import type { EveScope } from '@/config/eve-scopes';
+import { esiPassThrough } from '@/data/esi-store';
 import { positiveIdSchema } from '@/lib/id-schemas';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveScopeHealth } from '@/platform/auth/scope-health';
-import { esiFetch, esiUrl } from '@/platform/esi';
 import { esiAuthInit } from '@/platform/esi/request-init';
 
 /** ESI answers only the category asked for, so the other key stays absent. */
@@ -36,9 +36,9 @@ async function fetchCharacterSearch(
   search: string,
   signal?: AbortSignal,
 ): Promise<number[]> {
-  const query = new URLSearchParams({ categories: category, search, strict: 'false' });
-  const response = await esiFetch(
-    esiUrl(`/characters/${characterId}/search/?${query.toString()}`),
+  const response = await esiPassThrough(
+    '/characters/{character_id}/search/',
+    { character_id: characterId, categories: category, search, strict: 'false' },
     esiAuthInit(accessToken, { signal }),
   );
   if (!response.ok) throw new EsiCharacterSearchError(category, response.status);

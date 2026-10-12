@@ -5,7 +5,6 @@ import { eveSolarSystems } from '@/data/eve-data/schema';
 import { countSessionsWaitingOn, createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpStructureRigs,
-  readCorpStructureSyncState,
   saveCorpStructures,
   upsertCorpStructureRigs,
 } from './queries';
@@ -33,6 +32,13 @@ function structure(structureId: number, typeId = 35825): ParsedCorpStructure {
   return { structure_id: structureId, type_id: typeId, system_id: 30000142, name: `Structure ${structureId}` };
 }
 
+/** The ETags the save still writes beside the sync stamp; the response store, not this column, decides freshness. */
+async function storedPageEtags(corporationId: number): Promise<string[] | undefined> {
+  const [row] = await harness.sql<{ page_etags: string[] }[]>`
+    SELECT page_etags FROM corp_structure_syncs WHERE corporation_id = ${corporationId}`;
+  return row?.page_etags;
+}
+
 async function storedStructureIds(corporationId: number): Promise<number[]> {
   const rows = await harness.db
     .select({ structureId: corpStructures.structureId })
@@ -57,7 +63,8 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
     await upsertCorpStructureRigs(corp, 600002, [37178, 37180], 1.5);
     expect(revalidateTag).not.toHaveBeenCalled();
     await saveCorpStructures(corp, [], ['"e1"']);
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('corp-structures:9004', { expire: 0 });
+    // The sync's commit clears the structures tag once the answer is recorded; the write itself clears nothing.
+    expect(revalidateTag).not.toHaveBeenCalled();
 
     const remaining = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(remaining).toHaveLength(0);
@@ -98,7 +105,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       .from(corpStructures)
       .where(eq(corpStructures.corporationId, corp));
     expect(rows).toEqual([{ structureId: 600004, name: 'Fort' }]);
-    expect((await readCorpStructureSyncState(corp))?.pageEtags).toEqual(['"s1"']);
+    expect(await storedPageEtags(corp)).toEqual(['"s1"']);
   });
 
   it('stores each structure under its system’s security class, high when the system is unknown', async () => {
@@ -150,7 +157,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       await saves;
       const [finalId, ...rest] = await storedStructureIds(corp);
       expect(rest).toEqual([]);
-      expect((await readCorpStructureSyncState(corp))?.pageEtags).toEqual([finalId === 600021 ? '"one"' : '"two"']);
+      expect(await storedPageEtags(corp)).toEqual([finalId === 600021 ? '"one"' : '"two"']);
     } finally {
       await blocker`ROLLBACK`;
       blocker.release();
@@ -158,7 +165,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
     }
   });
 
-  it('rolls a failed insert back, so the prior rows and etags survive and nothing is invalidated', async () => {
+  it('rolls a failed insert back, so the prior rows and etags survive', async () => {
     const corp = 9010;
     await saveCorpStructures(corp, [structure(600030)], ['"kept"']);
     await harness.sql`ALTER TABLE corp_structures ADD CONSTRAINT reject_test_type CHECK (type_id <> 99)`;
@@ -166,7 +173,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       vi.mocked(revalidateTag).mockClear();
       await expect(saveCorpStructures(corp, [structure(600031, 99)], ['"lost"'])).rejects.toThrow();
       expect(await storedStructureIds(corp)).toEqual([600030]);
-      expect((await readCorpStructureSyncState(corp))?.pageEtags).toEqual(['"kept"']);
+      expect(await storedPageEtags(corp)).toEqual(['"kept"']);
       expect(revalidateTag).not.toHaveBeenCalled();
     } finally {
       await harness.sql`ALTER TABLE corp_structures DROP CONSTRAINT reject_test_type`;

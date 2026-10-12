@@ -1,3 +1,4 @@
+import type { EsiReadSession } from '@/data/esi-store/session';
 import type { CharacterSyncBase, CorpSyncBase, SingleOwnerRead } from '@/platform/owner-sync';
 import type { IndustryJob } from './esi-projection';
 
@@ -7,17 +8,15 @@ export interface CharacterJobsData {
 
 export interface CharacterJobsSyncState {
   lastRefreshedAt: Date | null;
-  jobsEtag: string | null;
 }
 
-export interface JobsPort extends CharacterSyncBase<CharacterJobsSyncState> {
-  readJobs(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
+export interface JobsPort extends CharacterSyncBase<CharacterJobsSyncState, EsiReadSession> {
+  readJobs(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
   saveJobs(characterId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
 }
 
 export interface CorpJobsSyncState {
   lastRefreshedAt: Date | null;
-  jobsEtag: string | null;
   syncError: string | null;
 }
 
@@ -28,8 +27,9 @@ export interface CorpJobsSyncState {
  * src/composition/sync/corp-industry-jobs-sync.ts. The corp board read has the same
  * single-endpoint shape as the character one.
  */
-export interface CorpJobsPort extends CorpSyncBase {
-  readJobs(corporationId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
+export interface CorpJobsPort extends CorpSyncBase<EsiReadSession> {
+  isDue(userId: string, corporationId: number): Promise<boolean>;
+  readJobs(session: EsiReadSession, userId: string, corporationId: number, accessToken: string): Promise<SingleOwnerRead>;
   readSyncState(userId: string, corporationId: number): Promise<CorpJobsSyncState | null>;
   saveJobs(userId: string, corporationId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
   saveNeedsRole(userId: string, corporationId: number): Promise<void>;

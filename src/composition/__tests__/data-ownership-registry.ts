@@ -4,8 +4,8 @@ import * as schema from '../drizzle-schema';
 export type SliceId =
   | 'data/corp-holdings'
   | 'data/domain-events'
-  | 'data/esi-refresh-jobs'
   | 'data/esi-snapshots'
+  | 'data/esi-store'
   | 'data/eve-data'
   | 'data/gsc'
   | 'data/industry-indices'
@@ -999,16 +999,13 @@ export const DATA_OWNERSHIP = [
     dataClass: 'operational',
   },
   {
-    table: schema.esiRefreshJobs,
-    owner: 'data/esi-refresh-jobs',
+    table: schema.esiResponses,
+    owner: 'data/esi-store',
     reads: [],
-    invariants: [
-      'partial-unique(idempotency_key) where("status" in (\'queued\', \'running\', \'deferred_for_budget\', \'failed_retryable\'))',
-      'pk(id)',
-    ],
+    invariants: ['pk(route,holder_type,holder_id,user_id,params)'],
     boundary: {
       kind: 'single-statement',
-      note: 'Enqueue and claim are single statements; the partial unique index over live statuses is the race authority that makes enqueue idempotent, and the loser of a claim race is coalesced from its unique violation rather than retried.',
+      note: 'Keyed multi-row `insert … on conflict do update` statements, one per batch of stored answers, chunked at 1000 rows. A 304 records its new expiry at once; a 200 is recorded only when the caller commits it after its own domain write has stood, so an ETag can never outlive the data it describes. No key takes a lock: a duplicate call is a shared copy or a 304, and the writes are the same values again.',
     },
     dataClass: 'operational',
   },

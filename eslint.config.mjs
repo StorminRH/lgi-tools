@@ -306,7 +306,34 @@ const datasetTtlSelectors = [
   {
     selector: "VariableDeclarator[id.name=/_TTL_MS$/]",
     message:
-      "Dataset TTL constants belong in the ESI dataset registry; bind a gate from @/lib/esi-datasets/freshness instead.",
+      "Dataset TTL constants are not a freshness source — CCP's Expires is, kept per declared route by the ESI response store (@/data/esi-store: isDue, storedExpiry, untilExpires).",
+  },
+];
+
+// cacheLife on EVE data takes untilExpires(…) from the response store; 'max'
+// is for SDE and other static data. Anything else is a hand-picked window.
+const cacheLifeSelectors = [
+  {
+    selector:
+      "CallExpression[callee.name='cacheLife']:not([arguments.0.value='max']):not([arguments.0.callee.name='untilExpires'])",
+    message:
+      "cacheLife on EVE data takes untilExpires(…) from the ESI response store (@/data/esi-store), so the entry ends when CCP's copy does; 'max' is for SDE and static data. No hand-picked window.",
+  },
+];
+
+// Expires, ETag and Last-Modified are the store's to read: a caller takes
+// its expiry from the store's meta, never from a response header.
+const esiHeaderSelectors = [
+  {
+    selector: "CallExpression[callee.property.name='get'][arguments.0.value=/^(expires|etag|last-modified)$/i]",
+    message:
+      "Expires, ETag and Last-Modified are read only by @/platform/esi and the ESI response store (@/data/esi-store); take expiry from the store's meta instead of the response header.",
+  },
+  {
+    selector:
+      "CallExpression[callee.property.name='get'][arguments.0.quasis.0.value.raw=/^(expires|etag|last-modified)$/i]",
+    message:
+      "Expires, ETag and Last-Modified are read only by @/platform/esi and the ESI response store (@/data/esi-store) (template literal); take expiry from the store's meta instead of the response header.",
   },
 ];
 
@@ -367,7 +394,7 @@ const stalenessImportPatterns = [
   {
     group: ["**/staleness"],
     message:
-      "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+      "Freshness comes from the ESI response store (@/data/esi-store: isDue, storedExpiry, untilExpires), keyed by declared route; feature-local staleness modules duplicate the one expiry rule.",
   },
 ];
 
@@ -388,7 +415,7 @@ const upstashRedisImportPatterns = [
   {
     group: ["@upstash/redis"],
     message:
-      "Construct Upstash Redis clients through createUpstashClient / resolveUpstashClient (@/lib/upstash), the single construction owner; import the `UpstashRedis` type from there instead of the package.",
+      "Construct Upstash Redis clients through createUpstashClient (@/lib/upstash), the single construction owner; import the `UpstashRedis` type from there instead of the package.",
   },
 ];
 
@@ -520,6 +547,8 @@ const productionSyntaxSelectors = [
   ...inputClassSelectors,
   ...uiAdoptionSelectors,
   ...datasetTtlSelectors,
+  ...cacheLifeSelectors,
+  ...esiHeaderSelectors,
   ...imageVariantSelectors,
 ];
 
@@ -533,52 +562,81 @@ const srcImportPatterns = [
 
 const clientImportPatterns = [...srcImportPatterns, ...serverRootImportPatterns];
 
-const corpAccessBoundary = {
-  meta: {
-    type: "problem",
-    schema: [],
-    messages: { raw: "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution." },
-  },
-  create(context) {
-    const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations"];
-    const isAffiliationStoreSource = (source) => /platform\/auth\/affiliation-store$/.test(source);
-    const isBoundarySource = (node) => {
-      const source = node.source?.value;
-      return typeof source === "string" && isAffiliationStoreSource(source);
-    };
-    const reportIfBoundarySource = (node) => {
-      if (isBoundarySource(node)) {
-        context.report({ node, messageId: "raw" });
-      }
-    };
-    const isRawImportSpecifier = (specifier) =>
-      specifier.type === "ImportNamespaceSpecifier" ||
-      (specifier.type === "ImportSpecifier" && RAW_READERS.includes(specifier.imported.name));
-    const isRawExportSpecifier = (specifier) =>
-      specifier.type === "ExportSpecifier" && RAW_READERS.includes(specifier.local.name);
-    const reportRawSpecifiers = (node, isRawSpecifier) => {
-      if (!isBoundarySource(node)) return;
-      for (const specifier of node.specifiers.filter(isRawSpecifier)) {
-        context.report({ node: specifier, messageId: "raw" });
-      }
-    };
-    return {
-      ImportDeclaration(node) {
-        reportRawSpecifiers(node, isRawImportSpecifier);
-      },
-      // Dynamic import() and export * cannot narrow to named readers; prefer static named imports for allowed persistence APIs.
-      ImportExpression(node) {
-        reportIfBoundarySource(node);
-      },
-      ExportNamedDeclaration(node) {
-        reportRawSpecifiers(node, isRawExportSpecifier);
-      },
-      ExportAllDeclaration(node) {
-        reportIfBoundarySource(node);
-      },
-    };
-  },
+// A boundary on named imports. `restricted(source)` names what a module may
+// not read from a matching import source, or null when the source is not
+// guarded. Namespace imports, dynamic import() and `export *` of a guarded
+// source cannot narrow to the allowed names, so they are reported outright.
+function namedImportBoundary(restricted, message) {
+  return {
+    meta: {
+      type: "problem",
+      schema: [],
+      messages: { raw: message },
+    },
+    create(context) {
+      const guarded = (node) => {
+        const source = node.source?.value;
+        return typeof source === "string" ? restricted(source) : null;
+      };
+      const reportIfGuarded = (node) => {
+        if (guarded(node) !== null) {
+          context.report({ node, messageId: "raw" });
+        }
+      };
+      const isRawImportSpecifier = (names) => (specifier) =>
+        specifier.type === "ImportNamespaceSpecifier" ||
+        (specifier.type === "ImportSpecifier" &&
+          specifier.importKind !== "type" &&
+          names.includes(specifier.imported.name));
+      const isRawExportSpecifier = (names) => (specifier) =>
+        specifier.type === "ExportSpecifier" && names.includes(specifier.local.name);
+      const reportRawSpecifiers = (node, isRawSpecifier) => {
+        const names = guarded(node);
+        if (names === null || node.importKind === "type" || node.exportKind === "type") return;
+        for (const specifier of node.specifiers.filter(isRawSpecifier(names))) {
+          context.report({ node: specifier, messageId: "raw" });
+        }
+      };
+      return {
+        ImportDeclaration(node) {
+          reportRawSpecifiers(node, isRawImportSpecifier);
+        },
+        ImportExpression(node) {
+          reportIfGuarded(node);
+        },
+        ExportNamedDeclaration(node) {
+          reportRawSpecifiers(node, isRawExportSpecifier);
+        },
+        ExportAllDeclaration(node) {
+          reportIfGuarded(node);
+        },
+      };
+    },
+  };
+}
+
+const corpAccessBoundary = namedImportBoundary(
+  (source) =>
+    /platform\/auth\/affiliation-store$/.test(source) ? ["getUserAffiliations", "getUsersAffiliations"] : null,
+  "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution.",
+);
+
+// ESI is read through the response store, which keys every call to its
+// declared route and CCP's Expires. Only the store calls the gate's fetch
+// and the authed reads; convex/ bundles platform/esi and is outside this
+// boundary by design.
+const ESI_READ_IMPORTS = {
+  "platform/esi": ["esiFetch"],
+  "platform/esi/authed-read": ["readEsiAuthed", "readEsiAuthedPost", "readEsiPagedAuthed"],
 };
+
+const esiStoreBoundary = namedImportBoundary(
+  (source) => {
+    const host = /(?:^|\/)(platform\/esi(?:\/authed-read)?)$/.exec(source)?.[1];
+    return host === undefined ? null : ESI_READ_IMPORTS[host];
+  },
+  "ESI is read through the response store (@/data/esi-store: fetchStored, readStoredAuthed, readStoredPaged, postStored, esiPassThrough), which keys every call to its declared route and CCP's Expires; only the store calls esiFetch and the authed reads.",
+);
 
 const UI_ROOT = "src/components/ui";
 const UI_REFERENCE_DIR = "src/app/(site)/preview/primitives";
@@ -1002,7 +1060,6 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/**/*.test.{ts,tsx}"],
-    ignores: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": ["error", ...testSyntaxSelectors],
     },
@@ -1031,7 +1088,37 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...except(productionSyntaxSelectors, ...esiHostSelectors),
+        ...except(productionSyntaxSelectors, ...esiHostSelectors, ...esiHeaderSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/data/esi-store/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...except(productionSyntaxSelectors, ...esiHeaderSelectors),
+      ],
+    },
+  },
+  {
+    // anoik.is, not ESI: its ETag and Last-Modified drive the weekly conditional statics refresh.
+    files: ["src/data/wh-statics/source.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...except(productionSyntaxSelectors, ...esiHeaderSelectors),
+      ],
+    },
+  },
+  {
+    // Not EVE data: the linked-character list (per session) and the ESI health scoreboard keep their own cache profiles.
+    files: ["src/app/(site)/industry/industry-characters.ts", "src/composition/esi-health.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...except(productionSyntaxSelectors, ...cacheLifeSelectors),
       ],
     },
   },
@@ -1073,25 +1160,6 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": [
         "error",
         ...except(productionSyntaxSelectors, ...inlineStyleSelectors),
-      ],
-    },
-  },
-  {
-    files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
-    ignores: ["**/*.test.{ts,tsx}"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...except(productionSyntaxSelectors, ...datasetTtlSelectors),
-      ],
-    },
-  },
-  {
-    files: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...except(testSyntaxSelectors, ...datasetTtlSelectors),
       ],
     },
   },
@@ -1333,6 +1401,13 @@ const eslintConfig = defineConfig([
     ],
     plugins: { "corp-access": { rules: { "boundary": corpAccessBoundary } } },
     rules: { "corp-access/boundary": "error" },
+  },
+
+  {
+    files: ["src/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}", "src/data/esi-store/**", "src/platform/esi/**"],
+    plugins: { "esi-store": { rules: { "boundary": esiStoreBoundary } } },
+    rules: { "esi-store/boundary": "error" },
   },
 
   {

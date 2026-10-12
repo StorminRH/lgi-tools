@@ -9,6 +9,8 @@ export const ESI_BUDGET_FLOOR = 20;
 export type EsiBudgetExhaustedReason =
   | 'error_budget'
   | 'esi_420'
+  | 'group_budget'
+  | 'history_cap'
   | 'rate_limited'
   | 'scoreboard_unavailable'
   | 'trickle_capped';
@@ -27,8 +29,17 @@ export class EsiBudgetExhaustedError extends Error {
   }
 }
 
+/**
+ * A 5xx from ESI. The gate keeps what ESI sent with it, its body text,
+ * every `x-esi-*` header and its Expires, so a 503 during downtime shows
+ * CCP's real answer and the status row can expire when CCP says.
+ */
 export class EsiServerError extends Error {
-  constructor(public readonly status: number) {
+  constructor(
+    public readonly status: number,
+    public readonly body: string | null = null,
+    public readonly esiHeaders: Readonly<Record<string, string>> = {},
+  ) {
     super(`ESI server error: ${status}`);
     this.name = 'EsiServerError';
   }

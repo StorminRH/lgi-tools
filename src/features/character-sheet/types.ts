@@ -1,4 +1,5 @@
 import type { EveScope } from '@/config/eve-scopes';
+import type { EsiReadSession } from '@/data/esi-store/session';
 import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import type { LocationBody } from '@/data/location-tracking/esi-projection';
@@ -111,19 +112,17 @@ export interface SheetSectionData {
 
 export type SheetPart<K extends SheetSectionKey> = keyof SheetSectionData[K] & string;
 
-export type PartEtags<K extends SheetSectionKey> = Partial<Record<SheetPart<K>, string | null>>;
-
-export interface EnvelopeStamp<K extends SheetSectionKey> {
+/** When the section was last written. Rows written before the response store also carry a `etags` key, which is ignored. */
+export interface EnvelopeStamp {
   refreshedAt: string;
-  etags: PartEtags<K>;
 }
 
-export interface DataEnvelope<K extends SheetSectionKey> extends EnvelopeStamp<K> {
+export interface DataEnvelope<K extends SheetSectionKey> extends EnvelopeStamp {
   data: SheetSectionData[K];
   denied?: never;
 }
 
-export interface DeniedEnvelope<K extends SheetSectionKey> extends EnvelopeStamp<K> {
+export interface DeniedEnvelope<K extends SheetSectionKey> extends EnvelopeStamp {
   data: SheetSectionData[K] | null;
   denied: true;
 }
@@ -133,9 +132,7 @@ export type SectionEnvelope<K extends SheetSectionKey> = DataEnvelope<K> | Denie
 export type SheetSections = { [K in SheetSectionKey]?: SectionEnvelope<K> };
 
 export interface SectionSyncState<K extends SheetSectionKey> {
-  lastRefreshedAt: Date | null;
   previous: SectionEnvelope<K> | null;
-  heldEtags: PartEtags<K>;
 }
 
 export type SheetEndpoint =
@@ -182,13 +179,16 @@ export interface SheetPort {
   now(): Date;
   listCharacters(userId: string): Promise<CharacterOwner[]>;
   vendToken(characterId: number): Promise<string | null>;
+  /** Whether any stored answer the section is built from has expired. */
+  isSectionDue(characterId: number, key: DirectSectionKey): Promise<boolean>;
+  openSession(): EsiReadSession;
   readEndpoint(
+    session: EsiReadSession,
     characterId: number,
     endpoint: SheetEndpoint,
     accessToken: string,
-    heldEtag: string | null,
   ): Promise<SingleOwnerRead>;
-  readStructure(structureId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readStructure(session: EsiReadSession, structureId: number, accessToken: string): Promise<SingleOwnerRead>;
   readSheet(characterId: number): Promise<SheetSections | null>;
   mergeSection<K extends SheetSectionKey>(
     characterId: number,

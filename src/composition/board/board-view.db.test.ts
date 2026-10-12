@@ -63,6 +63,7 @@ const harness = await createDbTestHarness({
     'market_prices',
     'adjusted_prices',
     'net_worth_days',
+    'esi_responses',
   ],
   foreignKeys: [
     { table: 'net_worth_days', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -109,7 +110,7 @@ const ENTITY_NAMES: Record<string, string> = {
   [AMARR_ORIS]: 'Amarr VIII (Oris) - Emperor Family Academy',
 };
 
-const envelope = <T>(data: T) => ({ data, refreshedAt: STAMP, etags: {} });
+const envelope = <T>(data: T) => ({ data, refreshedAt: STAMP });
 
 const AUREL_SHEET: SheetSections = {
   profile: envelope({ character: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.31 } }),
@@ -516,13 +517,13 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     });
     await harness.db.insert(ownedAssetSyncs).values({ ownerType: 'character', ownerId: characterId, lastRefreshedAt: new Date(STAMP) });
     if (!firstView) await sheetQueries.mergeSheetSection(characterId, 'wallet', {
-      data: { balance: 100 }, refreshedAt: STAMP, etags: {},
+      data: { balance: 100 }, refreshedAt: STAMP,
     });
     const staleSheets = await sheetQueries.getCharacterSheets([characterId]);
     const cachedRead = vi.spyOn(sheetQueries, 'getCharacterSheets').mockResolvedValue(staleSheets);
     mocks.refreshSheets.mockImplementationOnce(async () => {
       await sheetQueries.mergeSheetSection(characterId, 'wallet', {
-        data: { balance: 750 }, refreshedAt: STAMP, etags: {},
+        data: { balance: 750 }, refreshedAt: STAMP,
       });
     });
     try {
