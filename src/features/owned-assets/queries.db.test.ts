@@ -72,14 +72,14 @@ async function committedRowCount(): Promise<number> {
 }
 
 describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () => {
-  it('returns saved, stores the aggregated set for a single writer and invalidates its tag', async () => {
+  it('returns saved and stores the aggregated set for a single writer, leaving the tag to the sync\'s commit', async () => {
     vi.mocked(revalidateTag).mockClear();
     const outcome = await saveOwnedAssets(owner, [asset(), asset({ type_id: 35 })], ['"etag"']);
 
     expect(outcome).toBe('saved');
     expect(await committedRowCount()).toBe(2);
     expect(await storedPageEtags()).toEqual(['"etag"']);
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', { expire: 0 });
+    expect(revalidateTag).not.toHaveBeenCalled();
   });
 
   it('rejects a direct duplicate of the natural key as a unique violation', async () => {
@@ -143,7 +143,7 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
       expect(await loser).toBe('saved');
       expect(await committedRows()).toEqual([{ typeId: 34, quantity: 5 }]);
       expect(await storedPageEtags()).toEqual(['"loser"']);
-      expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-assets:character:90001', { expire: 0 });
+      expect(revalidateTag).not.toHaveBeenCalled();
     } finally {
       await blocker`ROLLBACK`;
       blocker.release();

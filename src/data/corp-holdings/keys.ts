@@ -22,3 +22,8 @@ export function divisionsKey(corporationId: number): EsiStoreKey {
 export function memberTrackingKey(corporationId: number): EsiStoreKey {
   return corpContextKeys(corporationId)[2]!;
 }
+
+/** The stored paged answer behind a corporation's asset rows, whose placement tree the holdings are built from. */
+export function corpAssetsKey(corporationId: number): EsiStoreKey {
+  return { route: '/corporations/{corporation_id}/assets/', holder: corporation(corporationId) };
+}

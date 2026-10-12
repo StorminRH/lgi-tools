@@ -1,9 +1,10 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
-import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryJob } from './esi-projection';
+import { characterJobsKey, corpJobsKey } from './keys';
 import {
   characterIndustryJobs,
   characterIndustryJobSyncs,
@@ -12,15 +13,14 @@ import {
 } from './schema';
 import type { CharacterJobsData, CharacterJobsSyncState, CorpJobsSyncState } from './types';
 
-export function industryJobsTag(characterId: number): string {
-  return `industry-jobs:${characterId}`;
-}
-
+/** One character's jobs feed, cached across instances until its stored answer expires. */
 async function getCharacterJobs(characterId: number): Promise<CharacterJobsData | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(industryJobsTag(characterId));
-  return readCharacterJobs(characterId);
+  'use cache: remote';
+  const key = characterJobsKey(characterId);
+  cacheTag(datasetTag(key));
+  const [jobs, expiresAt] = await Promise.all([readCharacterJobs(characterId), storedExpiry([key])]);
+  cacheLife(untilExpires(expiresAt));
+  return jobs;
 }
 
 export async function readCharacterJobs(characterId: number): Promise<CharacterJobsData | null> {
@@ -82,7 +82,6 @@ export async function saveCharacterJobs(
       target: characterIndustryJobSyncs.characterId,
       set: { lastRefreshedAt: now, jobsEtag: etag },
     });
-  expireNow(industryJobsTag(characterId));
 }
 
 export async function stampCharacterJobsFresh(characterId: number): Promise<void> {
@@ -92,19 +91,20 @@ export async function stampCharacterJobsFresh(characterId: number): Promise<void
     .where(eq(characterIndustryJobSyncs.characterId, characterId));
 }
 
-function corpIndustryJobsTag(userId: string, corporationId: number): string {
-  return `corp-industry-jobs:${userId}:${corporationId}`;
-}
-
+/** One user's view of a corporation's jobs: held per user, so it is cached and cleared per user too. */
 async function getCorpJobs(userId: string, corporationId: number): Promise<CharacterJobsData | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(corpIndustryJobsTag(userId, corporationId));
-  const rows = await db
-    .select({ jobs: corpIndustryJobs.jobs })
-    .from(corpIndustryJobs)
-    .where(and(eq(corpIndustryJobs.userId, userId), eq(corpIndustryJobs.corporationId, corporationId)))
-    .limit(1);
+  'use cache: remote';
+  const key = corpJobsKey(userId, corporationId);
+  cacheTag(datasetTag(key));
+  const [rows, expiresAt] = await Promise.all([
+    db
+      .select({ jobs: corpIndustryJobs.jobs })
+      .from(corpIndustryJobs)
+      .where(and(eq(corpIndustryJobs.userId, userId), eq(corpIndustryJobs.corporationId, corporationId)))
+      .limit(1),
+    storedExpiry([key]),
+  ]);
+  cacheLife(untilExpires(expiresAt));
   return rows[0] ?? null;
 }
 
@@ -167,7 +167,6 @@ export async function saveCorpJobs(
       target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
       set: { lastRefreshedAt: now, jobsEtag: etag, syncError: null },
     });
-  expireNow(corpIndustryJobsTag(userId, corporationId));
 }
 
 export async function saveCorpNeedsRole(userId: string, corporationId: number): Promise<void> {
@@ -182,7 +181,6 @@ export async function saveCorpNeedsRole(userId: string, corporationId: number): 
       target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
       set: { lastRefreshedAt: now, jobsEtag: null, syncError: 'needs_role' },
     });
-  expireNow(corpIndustryJobsTag(userId, corporationId));
 }
 
 export async function stampCorpJobsFresh(userId: string, corporationId: number): Promise<void> {

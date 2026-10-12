@@ -17,7 +17,7 @@ import type { OwnedBlueprint } from '@/features/owned-blueprints/esi-projection'
 vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidateTag: vi.fn() }));
 const harness = await createDbTestHarness({
   schema: 'test_blueprint_asset_evidence',
-  tables: ['esi_snapshots', 'corp_holding_nodes', 'owned_assets', 'owned_asset_syncs', 'owned_blueprints', 'owned_blueprint_syncs'],
+  tables: ['esi_snapshots', 'corp_holding_nodes', 'owned_assets', 'owned_asset_syncs', 'owned_blueprints', 'owned_blueprint_syncs', 'esi_responses'],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
   env: { ESI_SNAPSHOT_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64') },
@@ -116,10 +116,10 @@ describe.skipIf(!harness.reachable)('blueprint identity and immutable asset plac
     expect(await read()).toEqual(new Map());
   });
 
-  it('rolls back identity, metadata and sync state when replacement fails, expiring the tag only on commit', async () => {
+  it('rolls back identity, metadata and sync state when replacement fails, leaving the tag to the sync\'s commit', async () => {
     vi.mocked(revalidateTag).mockClear();
     await save();
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-blueprints:corporation:98000001', { expire: 0 });
+    expect(revalidateTag).not.toHaveBeenCalled();
     await harness.sql`ALTER TABLE owned_blueprints ADD CONSTRAINT reject_me CHECK (material_efficiency <> 99)`;
     try {
       vi.mocked(revalidateTag).mockClear();

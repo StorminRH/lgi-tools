@@ -63,7 +63,8 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
     await upsertCorpStructureRigs(corp, 600002, [37178, 37180], 1.5);
     expect(revalidateTag).not.toHaveBeenCalled();
     await saveCorpStructures(corp, [], ['"e1"']);
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('corp-structures:9004', { expire: 0 });
+    // The sync's commit clears the structures tag once the answer is recorded; the write itself clears nothing.
+    expect(revalidateTag).not.toHaveBeenCalled();
 
     const remaining = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(remaining).toHaveLength(0);
@@ -164,7 +165,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
     }
   });
 
-  it('rolls a failed insert back, so the prior rows and etags survive and nothing is invalidated', async () => {
+  it('rolls a failed insert back, so the prior rows and etags survive', async () => {
     const corp = 9010;
     await saveCorpStructures(corp, [structure(600030)], ['"kept"']);
     await harness.sql`ALTER TABLE corp_structures ADD CONSTRAINT reject_test_type CHECK (type_id <> 99)`;

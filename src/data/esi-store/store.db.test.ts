@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { __resetEsiGateForTests } from '@/platform/esi';
-import { fetchStored, isDue, readStoredAuthed, recordExpiryFor, storedExpiry, commit } from './index';
+import { fetchStored, isDue, readStoredAuthed, recordExpiryFor, storedExpiry, storedRouteExpiry, commit } from './index';
 import { esiResponses } from './schema';
 import { esiStorePurgeContributor } from './purge';
 import { identityText, rowIdentity } from './key';
@@ -110,6 +110,18 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     expect(rows.every((row) => row.etags.length === 0 && row.expiresAt?.getTime() === NOW + 60_000)).toBe(true);
     await expect(isDue([PRICE_KEY, OTHER_PRICE_KEY])).resolves.toBe(false);
     await expect(storedExpiry([PRICE_KEY, OTHER_PRICE_KEY, SKILLS_KEY])).resolves.toBeNull();
+  });
+
+  it('reads the earliest expiry across every answer of a route, and none once any of them is unset', async () => {
+    await expect(storedRouteExpiry(PRICE_KEY.route)).resolves.toBeNull();
+    await recordExpiryFor([PRICE_KEY], { expiresAt: NOW + 60_000, lastModified: null, checkedAt: NOW });
+    await recordExpiryFor([OTHER_PRICE_KEY], { expiresAt: NOW + 30_000, lastModified: null, checkedAt: NOW });
+    await recordExpiryFor([SKILLS_KEY], { expiresAt: NOW + 1_000, lastModified: null, checkedAt: NOW });
+    await expect(storedRouteExpiry(PRICE_KEY.route)).resolves.toBe(NOW + 30_000);
+    await expect(storedRouteExpiry(SKILLS_KEY.route, SKILLS_KEY.holder)).resolves.toBe(NOW + 1_000);
+    await expect(storedRouteExpiry(SKILLS_KEY.route)).resolves.toBeNull();
+    await recordExpiryFor([{ ...PRICE_KEY, params: { region_id: 10000002, type_id: 36 } }], { expiresAt: null, lastModified: null, checkedAt: NOW });
+    await expect(storedRouteExpiry(PRICE_KEY.route)).resolves.toBeNull();
   });
 
   it('serves the stored copy while another session holds the key\'s advisory lock', async () => {

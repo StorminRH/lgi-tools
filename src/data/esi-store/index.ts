@@ -8,7 +8,7 @@
  */
 import { expireNow } from '@/lib/cache-expiry';
 import { eveTag, routeDataset, routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
-import type { EsiRouteDeclaration } from '@/lib/esi-datasets/types';
+import type { EsiHolder, EsiRouteDeclaration } from '@/lib/esi-datasets/types';
 import { EsiServerError, esiFetch, esiUrl, type EsiFetchOptions } from '@/platform/esi';
 import {
   readEsiAuthed,
@@ -22,7 +22,7 @@ import { esiJsonPostInit } from '@/platform/esi/request-init';
 import { earliestExpiry, expiryFor, isExpired } from './expiry';
 import { esiHalted } from './halt';
 import { identityText, resolvePath, rowIdentity } from './key';
-import { readStoredRows, recordResponse, recordUnchanged } from './rows';
+import { readRouteExpiry, readStoredRows, recordResponse, recordUnchanged } from './rows';
 import { withGlobalSingleFlight } from './single-flight';
 import type {
   EsiAnswerStamp,
@@ -310,6 +310,15 @@ export async function isDue(keys: readonly EsiStoreKey[], now: number = Date.now
 export async function storedExpiry(keys: readonly EsiStoreKey[]): Promise<number | null> {
   if (keys.length === 0) return null;
   return earliestExpiry(await readStoredRows(keys));
+}
+
+/**
+ * The earliest stored expiry over every answer of a route for one holder,
+ * however it was parameterised: what a reader that aggregates a whole
+ * route (the prices freshness stamp) lives until. Null when any is due.
+ */
+export function storedRouteExpiry(route: EsiRoute, holder: EsiHolder = { kind: 'global' }): Promise<number | null> {
+  return readRouteExpiry(route, holder);
 }
 
 /** Each key's stored expiry in key order, in epoch ms; null where the key is due. */

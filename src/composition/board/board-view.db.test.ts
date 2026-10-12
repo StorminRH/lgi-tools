@@ -63,6 +63,7 @@ const harness = await createDbTestHarness({
     'market_prices',
     'adjusted_prices',
     'net_worth_days',
+    'esi_responses',
   ],
   foreignKeys: [
     { table: 'net_worth_days', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },

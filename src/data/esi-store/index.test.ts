@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EsiStoreKey, StoredRow } from './types';
 
 const readStoredRowsMock = vi.fn();
+const readRouteExpiryMock = vi.fn();
 const recordResponseMock = vi.fn();
 const recordUnchangedMock = vi.fn();
 const singleFlightMock = vi.fn();
@@ -13,6 +14,7 @@ const expireNowMock = vi.fn();
 
 vi.mock('./rows', () => ({
   readStoredRows: (...args: unknown[]) => readStoredRowsMock(...args),
+  readRouteExpiry: (...args: unknown[]) => readRouteExpiryMock(...args),
   recordResponse: (...args: unknown[]) => recordResponseMock(...args),
   recordUnchanged: (...args: unknown[]) => recordUnchangedMock(...args),
 }));
@@ -48,6 +50,7 @@ import {
   serverErrorMeta,
   storedExpiries,
   storedExpiry,
+  storedRouteExpiry,
   storedRow,
   untilExpires,
 } from './index';
@@ -432,6 +435,16 @@ describe('isDue and storedExpiry', () => {
     await expect(storedExpiry([SKILLS_KEY, ASSETS_KEY])).resolves.toBeNull();
     await expect(storedExpiry([])).resolves.toBeNull();
     expect(readStoredRowsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads a whole route\'s earliest expiry for its global holder unless told otherwise', async () => {
+    readRouteExpiryMock.mockResolvedValueOnce(NOW + 7000).mockResolvedValueOnce(null);
+    await expect(storedRouteExpiry('/markets/{region_id}/orders/')).resolves.toBe(NOW + 7000);
+    await expect(storedRouteExpiry('/characters/{character_id}/skills/', { kind: 'character', id: 91 })).resolves.toBeNull();
+    expect(readRouteExpiryMock.mock.calls).toEqual([
+      ['/markets/{region_id}/orders/', { kind: 'global' }],
+      ['/characters/{character_id}/skills/', { kind: 'character', id: 91 }],
+    ]);
   });
 });
 

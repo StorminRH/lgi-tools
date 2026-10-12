@@ -2,15 +2,16 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from './schema';
+import { storedExpiry, untilExpires } from '@/data/esi-store';
 import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
-import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
+import { MARKET_PRICES_TAG, priceKey } from '@/data/market-prices/keys';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
 import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { classRangeIncludes, gasClassRange } from './gas-classes';
-import { overlayLivePrices } from './live-prices';
+import { overlayLivePrices, siteResourceTypeIds } from './live-prices';
 import { liveRecipesForSearch } from './live-recipes-for-search';
 import type { SiteLiveRecipe } from './site-name-lookup';
 import type { Npc, SiteDetail, SiteListItem, SiteResource, Wave, WormholeClass, SiteType } from './types';
@@ -298,11 +299,16 @@ export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   );
 }
 
+/** When the stored order books behind the sites' resources first expire: the lifetime of anything priced from them. */
+function pricedSiteExpiry(priced: readonly SiteDetail[]): Promise<number | null> {
+  return storedExpiry(siteResourceTypeIds(priced).map(priceKey));
+}
+
 export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheTag(MARKET_PRICES_TAG);
   const priced = await listPricedSiteDetails();
+  cacheLife(untilExpires(await pricedSiteExpiry(priced)));
   return priced.map((site) => ({
     id: site.id,
     name: site.name,
@@ -374,20 +380,30 @@ async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   });
 }
 
+/**
+ * The whole catalogue priced from the stored Forge order books, cached
+ * across instances until the earliest of them expires; a price commit
+ * clears the tag sooner.
+ */
 export async function listPricedSiteDetails(): Promise<SiteDetail[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheTag(MARKET_PRICES_TAG);
   const raw = await listSiteDetails({});
-  return withColdStartRetry(() => overlayLivePrices(raw));
+  const [priced, expiresAt] = await Promise.all([withColdStartRetry(() => overlayLivePrices(raw)), pricedSiteExpiry(raw)]);
+  cacheLife(untilExpires(expiresAt));
+  return priced;
 }
 
+/** One site priced the same way; a site the catalogue lacks lives one second. */
 export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheTag(MARKET_PRICES_TAG);
   const raw = await getSiteDetail(id);
-  if (!raw) return null;
-  const [priced] = await withColdStartRetry(() => overlayLivePrices([raw]));
+  if (!raw) {
+    cacheLife(untilExpires(null));
+    return null;
+  }
+  const [[priced], expiresAt] = await Promise.all([withColdStartRetry(() => overlayLivePrices([raw])), pricedSiteExpiry([raw])]);
+  cacheLife(untilExpires(expiresAt));
   return priced ?? null;
 }

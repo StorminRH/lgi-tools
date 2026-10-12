@@ -17,7 +17,3 @@ export const ON_DEMAND_HISTORY_MAX_TYPE_IDS = 50;
 export const HISTORY_FETCH_CONCURRENCY = 10;
 
 export const ON_DEMAND_HISTORY_LIMIT_PER_MINUTE = 20;
-
-export function historyTag(typeId: number): string {
-  return `market-history-${typeId}`;
-}

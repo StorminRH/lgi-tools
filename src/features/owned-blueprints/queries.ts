@@ -2,7 +2,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
-import { expireNow } from '@/lib/cache-expiry';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import type { PostgresJsDb } from '@/lib/db-types';
 import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
@@ -15,29 +15,32 @@ import {
   visibleCorpBlueprintInputs,
 } from './blueprint-map';
 import type { OwnedBlueprint } from './esi-projection';
+import { ownedBlueprintsKey } from './keys';
 import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
-export function ownedBlueprintsTag(owner: OwnerKey): string {
-  return `owned-blueprints:${owner.ownerType}:${owner.ownerId}`;
-}
-
+/** One owner's blueprint rows, cached across instances until the stored paged answer behind them expires. */
 async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintRow[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(ownedBlueprintsTag(owner));
-  return db
-    .select({
-      itemId: ownedBlueprints.itemId,
-      typeId: ownedBlueprints.typeId,
-      materialEfficiency: ownedBlueprints.materialEfficiency,
-      timeEfficiency: ownedBlueprints.timeEfficiency,
-      runs: ownedBlueprints.runs,
-      locationId: ownedBlueprints.locationId,
-      locationFlag: ownedBlueprints.locationFlag,
-    })
-    .from(ownedBlueprints)
-    .where(ownerKeyWhere(ownedBlueprints, owner));
+  'use cache: remote';
+  const key = ownedBlueprintsKey(owner);
+  cacheTag(datasetTag(key));
+  const [rows, expiresAt] = await Promise.all([
+    db
+      .select({
+        itemId: ownedBlueprints.itemId,
+        typeId: ownedBlueprints.typeId,
+        materialEfficiency: ownedBlueprints.materialEfficiency,
+        timeEfficiency: ownedBlueprints.timeEfficiency,
+        runs: ownedBlueprints.runs,
+        locationId: ownedBlueprints.locationId,
+        locationFlag: ownedBlueprints.locationFlag,
+      })
+      .from(ownedBlueprints)
+      .where(ownerKeyWhere(ownedBlueprints, owner)),
+    storedExpiry([key]),
+  ]);
+  cacheLife(untilExpires(expiresAt));
+  return rows;
 }
 
 async function characterInputs(characterId: number): Promise<BlueprintMapInput[]> {
@@ -75,6 +78,7 @@ export async function readBlueprintSyncState(owner: OwnerKey): Promise<PagedOwne
   return rows[0] ?? null;
 }
 
+/** Replace an owner's blueprints under its sync-row lock; the sync's commit clears the cache tag afterwards. */
 export async function saveOwnedBlueprints(
   owner: OwnerKey,
   rows: OwnedBlueprint[],
@@ -82,7 +86,7 @@ export async function saveOwnedBlueprints(
   options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
   const now = new Date();
-  const outcome = await replaceOwnerSnapshot({
+  await replaceOwnerSnapshot({
     lock: (tx) => tx
       .insert(ownedBlueprintSyncs)
       .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })
@@ -106,7 +110,6 @@ export async function saveOwnedBlueprints(
       })));
     },
   }, options.database);
-  if (outcome === 'saved') expireNow(ownedBlueprintsTag(owner));
 }
 
 export async function stampBlueprintFresh(owner: OwnerKey): Promise<void> {

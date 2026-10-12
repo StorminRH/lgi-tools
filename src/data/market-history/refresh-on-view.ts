@@ -1,10 +1,8 @@
-import { revalidateTag } from 'next/cache';
 import { after } from 'next/server';
 import { commit, isExpired, storedExpiries, type EsiResponseMeta } from '@/data/esi-store';
 import { db } from '@/db';
 import { dedupe } from '@/lib/array';
 import { computeHistoryInputs } from './aggregate';
-import { historyTag } from './constants';
 import { persistHistory } from './ingest';
 import { historyKey, MARKET_HISTORY_TAG } from './keys';
 import { getStoredHistory } from './queries';
@@ -117,10 +115,13 @@ export async function getLiveHistory(
   return { inputs, degraded, metrics };
 }
 
-/** One type's rows, stamped stale at CCP's expiry (the fetch time when ESI sent none, so it is due again at once). */
+/**
+ * One type's rows, stamped stale at CCP's expiry (the fetch time when ESI
+ * sent none, so it is due again at once). The commit that follows clears
+ * the dataset's tag for every type written.
+ */
 async function persistOne(r: RawHistory): Promise<number> {
   const staleAfter = new Date(r.meta.expiresAt ?? r.meta.checkedAt);
   const summary = await persistHistory(db, r.typeId, r.rows, staleAfter, r.source);
-  revalidateTag(historyTag(r.typeId), 'max');
   return summary.written;
 }

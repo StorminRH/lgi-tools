@@ -45,4 +45,12 @@ describe('eveTag', () => {
   it('keeps a global holder tagless', () => {
     expect(holderTag({ kind: 'global' })).toBeNull();
   });
+
+  it('refuses a tag Next would silently drop', () => {
+    const userId = 'u'.repeat(240);
+    expect(() => eveTag('corporation_industry_jobs', { kind: 'user-corporation', id: 98, userId })).toThrow(
+      'ESI cache tag exceeds 256 characters',
+    );
+    expect(eveTag('corporation_industry_jobs', { kind: 'user-corporation', id: 98, userId: 'u'.repeat(200) })).toHaveLength(250);
+  });
 });

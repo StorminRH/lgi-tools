@@ -3,15 +3,13 @@ import { commit } from '@/data/esi-store';
 import { db as defaultDb } from '@/db';
 import { chunk } from '@/lib/array';
 import { excluded, excludedSet } from '@/lib/db-upsert';
-import { eveTag } from '@/lib/esi-datasets/routes';
 import { UPSERT_CHUNK_SIZE } from './constants';
+import { INDUSTRY_INDICES_TAG } from './keys';
 import { adjustedPrices, industryCostIndices } from './schema';
 import { fetchAdjustedPrices, fetchCostIndices, type SourceRead } from './source';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
-
-const INDICES_TAG = eveTag('industry_indices');
 
 /**
  * Per-dataset outcome. The two datasets refresh independently — one failing
@@ -107,7 +105,7 @@ async function refreshDataset<T>(
     const source = await read();
     if (source.kind === 'unchanged') return { ok: true, written: 0 };
     const written = await persist(source.rows);
-    await commit([source.meta], { tag: INDICES_TAG });
+    await commit([source.meta], { tag: INDUSTRY_INDICES_TAG });
     return { ok: true, written };
   } catch (err) {
     return {

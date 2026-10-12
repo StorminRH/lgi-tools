@@ -18,7 +18,7 @@ vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidate
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_asset_snapshot',
-  tables: ['esi_snapshots', 'corp_holding_nodes', 'owned_assets', 'owned_asset_syncs'],
+  tables: ['esi_snapshots', 'corp_holding_nodes', 'owned_assets', 'owned_asset_syncs', 'esi_responses'],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
   env: { ESI_SNAPSHOT_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64') },
@@ -94,14 +94,11 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     expect(await getOwnedAssetMap(scope(2, 2), [34])).toEqual(new Map());
   });
 
-  it('rolls back nodes, contents and sync state if the content insert fails, and expires the corp tags only on commit', async () => {
+  it('rolls back nodes, contents and sync state if the content insert fails, leaving the tag to the sync\'s commit', async () => {
     const before = await snapshot(2, 100);
     vi.mocked(revalidateTag).mockClear();
     await save(2, 100, before);
-    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
-      ['corp-holdings:98000001', { expire: 0 }],
-      ['owned-assets:corporation:98000001', { expire: 0 }],
-    ]);
+    expect(revalidateTag).not.toHaveBeenCalled();
     const oldNodes = await harness.db.select().from(corpHoldingNodes);
     await harness.sql`ALTER TABLE owned_assets ADD CONSTRAINT reject_quantity CHECK (quantity <> 999)`;
     try {

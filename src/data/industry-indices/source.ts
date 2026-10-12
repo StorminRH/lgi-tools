@@ -2,10 +2,8 @@ import { z } from 'zod';
 import { fetchStored, type EsiResponseMeta, type EsiStoreKey } from '@/data/esi-store';
 import { EsiContractError, EsiServerError } from '@/platform/esi';
 import { INDUSTRY_ACTIVITIES, type IndustryActivity } from './constants';
+import { ADJUSTED_PRICES_KEY, COST_INDICES_KEY } from './keys';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
-
-export const COST_INDICES_KEY: EsiStoreKey = { route: '/industry/systems/', holder: { kind: 'global' } };
-const ADJUSTED_PRICES_KEY: EsiStoreKey = { route: '/markets/prices/', holder: { kind: 'global' } };
 
 const KNOWN_ACTIVITIES = new Set<string>(INDUSTRY_ACTIVITIES);
 

@@ -1,7 +1,7 @@
 import type { EsiStoreKey } from '@/data/esi-store';
-import type { EsiRoute } from '@/lib/esi-datasets/routes';
-import { SHEET_SECTIONS } from './sections';
-import type { DirectSectionKey, DirectSectionSpec, SheetEndpoint, SheetPart } from './types';
+import { eveTag, type EsiRoute } from '@/lib/esi-datasets/routes';
+import { SHEET_SECTION_KEYS, SHEET_SECTIONS, TIER_ENTRY } from './sections';
+import type { DirectSectionKey, DirectSectionSpec, SheetEndpoint, SheetPart, SheetSections } from './types';
 
 /** The declared route each sheet endpoint reads, spelled once so the registry test can check every one. */
 export const SHEET_ROUTES = {
@@ -33,4 +33,23 @@ function partEndpoints<K extends DirectSectionKey>(spec: DirectSectionSpec<K>): 
 export function sectionKeys(characterId: number, key: DirectSectionKey): EsiStoreKey[] {
   const spec = SHEET_SECTIONS[key] as DirectSectionSpec<DirectSectionKey>;
   return partEndpoints(spec).map((endpoint) => sheetEndpointKey(characterId, endpoint));
+}
+
+/** The cache tags one character's sheet is served under: one per tier, since each tier's refresh clears its own. */
+export function sheetTags(characterId: number): string[] {
+  return Object.values(TIER_ENTRY).map((dataset) => eveTag(dataset, { kind: 'character', id: characterId }));
+}
+
+/**
+ * The stored answers behind the sections a sheet holds data for. A denied
+ * section made no read and the structures section is built from pass-through
+ * lookups, so neither has an answer to expire; the sheet lives until the
+ * earliest of the rest.
+ */
+export function heldSectionKeys(characterId: number, sections: SheetSections): EsiStoreKey[] {
+  return SHEET_SECTION_KEYS.flatMap((key) => {
+    if (key === 'structures') return [];
+    const envelope = sections[key];
+    return envelope === undefined || envelope.denied === true ? [] : sectionKeys(characterId, key);
+  });
 }

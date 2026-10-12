@@ -7,7 +7,6 @@ const commitMock = vi.fn();
 const getStoredHistoryMock = vi.fn();
 const persistHistoryMock = vi.fn();
 const afterMock = vi.fn();
-const revalidateTagMock = vi.fn();
 
 vi.mock('./source', () => ({
   fetchHistoryFromSource: (...args: unknown[]) => fetchHistoryFromSourceMock(...args),
@@ -24,9 +23,6 @@ vi.mock('@/data/esi-store', async () => ({
   commit: (...args: unknown[]) => commitMock(...args),
 }));
 vi.mock('next/server', () => ({ after: (cb: () => unknown) => afterMock(cb) }));
-vi.mock('next/cache', () => ({
-  revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
-}));
 vi.mock('@/db', () => ({ db: {} }));
 
 import { historyKey } from './keys';
@@ -92,7 +88,6 @@ describe('getLiveHistory — stale gate', () => {
     expect(afterMock).toHaveBeenCalledOnce();
     await afterMock.mock.calls[0]![0]();
     expect(persistHistoryMock).toHaveBeenCalledWith({}, 34, fresh, new Date(EXPIRES), 'esi');
-    expect(revalidateTagMock).toHaveBeenCalledWith('market-history-34', 'max');
     expect(commitMock).toHaveBeenCalledWith([meta(34)], { tag: 'eve:market_history' });
     expect(metrics).toEqual({ requested: 1, freshEsi: 1, warmStored: 0, staleStored: 0, missing: 0 });
     expect(observer).toHaveBeenCalledWith({

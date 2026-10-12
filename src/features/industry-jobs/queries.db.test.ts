@@ -72,12 +72,12 @@ test.skipIf(!harness.reachable)(
 );
 
 test.skipIf(!harness.reachable)(
-  'job saves store the feed and expire its tag at once, and a needs-role save clears the corporation jobs',
+  'job saves store the feed and leave the tag to the sync\'s commit, and a needs-role save clears the corporation jobs',
   async () => {
     vi.mocked(revalidateTag).mockClear();
     await saveCharacterJobs(90_000_010, [industryJob({ job_id: 7 })], '"char"');
     expect(await readCharacterJobs(90_000_010)).toEqual({ jobs: [industryJob({ job_id: 7 })] });
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('industry-jobs:90000010', { expire: 0 });
+    expect(revalidateTag).not.toHaveBeenCalled();
 
     const corpJobs = () => harness.db
       .select({ jobs: corpIndustryJobs.jobs })
@@ -91,9 +91,6 @@ test.skipIf(!harness.reachable)(
     await saveCorpNeedsRole('user-d', 98_000_010);
     expect(await corpJobs()).toEqual([]);
     expect(await readCorpJobSyncState('user-d', 98_000_010)).toMatchObject({ syncError: 'needs_role' });
-    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
-      ['corp-industry-jobs:user-d:98000010', { expire: 0 }],
-      ['corp-industry-jobs:user-d:98000010', { expire: 0 }],
-    ]);
+    expect(revalidateTag).not.toHaveBeenCalled();
   },
 );

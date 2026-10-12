@@ -1,8 +1,8 @@
 import { isDue } from '@/data/esi-store';
 import { runAfterResponse } from '@/lib/after-response';
 import { refreshCostIndicesOnView } from './ingest';
+import { COST_INDICES_KEY } from './keys';
 import { getSystemCostIndicesBatch } from './queries';
-import { COST_INDICES_KEY } from './source';
 import type { SystemCostIndices } from './types';
 
 /**

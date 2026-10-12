@@ -1,27 +1,25 @@
 import { and, eq, inArray, notInArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
-import { expireNow } from '@/lib/cache-expiry';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { excluded } from '@/lib/db-upsert';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
+import { corpAssetsKey, corpContextKeys, corporationKey } from './keys';
 import { type CorpHoldingContext, type HoldingIndex, toHoldingNodes } from './placement';
 import { corpHoldingNodes, corpMemberBases, corpProfiles } from './schema';
 
-function holdingsTag(corporationId: number): string {
-  return `corp-holdings:${corporationId}`;
-}
-
-function profileTag(corporationId: number): string {
-  return `corp-profile:${corporationId}`;
-}
-
+/**
+ * The placement tree and profile behind one corporation's holdings. The
+ * tree is written with the corp assets and the profile by the context pass,
+ * so the entry carries both datasets' tags and lives until the earliest of
+ * their stored answers expires.
+ */
 async function readCorpHoldingRows(corporationId: number) {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(holdingsTag(corporationId), profileTag(corporationId));
-  const [nodes, profiles] = await Promise.all([
+  'use cache: remote';
+  cacheTag(datasetTag(corpAssetsKey(corporationId)), datasetTag(corporationKey(corporationId)));
+  const [nodes, profiles, expiresAt] = await Promise.all([
     db
       .select({
         itemId: corpHoldingNodes.itemId,
@@ -43,7 +41,9 @@ async function readCorpHoldingRows(corporationId: number) {
       .from(corpProfiles)
       .where(eq(corpProfiles.corporationId, corporationId))
       .limit(1),
+    storedExpiry([corpAssetsKey(corporationId), ...corpContextKeys(corporationId)]),
   ]);
+  cacheLife(untilExpires(expiresAt));
   return { nodes, profile: profiles[0] ?? null };
 }
 
@@ -55,7 +55,7 @@ export async function getCorpHoldingContext(corporationId: number): Promise<Corp
 /**
  * Replace a corporation's placement tree on the caller's transaction. It
  * neither swallows a unique violation nor invalidates: the transaction owner
- * maps a lost race to 'superseded' and calls invalidateHoldingNodes after commit.
+ * maps a lost race to 'superseded', and the sync's commit clears the tag.
  */
 export async function replaceHoldingNodes(
   tx: AnyPgDb,
@@ -72,14 +72,11 @@ export async function replaceHoldingNodes(
   })));
 }
 
-export function invalidateHoldingNodes(corporationId: number): void {
-  expireNow(holdingsTag(corporationId));
-}
-
 /**
  * The profile upsert takes the corporation's lock before its member bases are
  * replaced, so freshness, HQ, and bases commit together as one authorization
  * snapshot. Null bases keep the stored ones: the tracking answer was unchanged.
+ * The context sync's commit clears the cache tag once the answers are recorded.
  */
 export async function saveCorpProfile(
   corporationId: number,
@@ -88,7 +85,7 @@ export async function saveCorpProfile(
   refreshedAt: Date,
   options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
-  const outcome = await replaceOwnerSnapshot({
+  await replaceOwnerSnapshot({
     lock: (tx) => tx
       .insert(corpProfiles)
       .values({ corporationId, ...profile, lastRefreshedAt: refreshedAt })
@@ -111,7 +108,6 @@ export async function saveCorpProfile(
         });
     },
   }, options.database);
-  if (outcome === 'saved') expireNow(profileTag(corporationId));
 }
 
 export async function readCorpProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null> {

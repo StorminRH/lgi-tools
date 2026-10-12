@@ -67,6 +67,9 @@ export function holderTag(holder: EsiHolder): string | null {
   }
 }
 
+/** Next drops a longer tag with only a console warning, so a reader would never be cleared. */
+const MAX_TAG_LENGTH = 256;
+
 /**
  * The 'use cache' tag of a dataset's stored copy, `eve:<dataset>[:<holder>]`.
  * It is derived, never hand-written, so a reader and the write that clears
@@ -74,5 +77,7 @@ export function holderTag(holder: EsiHolder): string | null {
  */
 export function eveTag(dataset: string, holder: EsiHolder = { kind: 'global' }): string {
   const suffix = holderTag(holder);
-  return suffix === null ? `eve:${dataset}` : `eve:${dataset}:${suffix}`;
+  const tag = suffix === null ? `eve:${dataset}` : `eve:${dataset}:${suffix}`;
+  if (tag.length > MAX_TAG_LENGTH) throw new Error(`ESI cache tag exceeds ${MAX_TAG_LENGTH} characters: ${tag}`);
+  return tag;
 }
