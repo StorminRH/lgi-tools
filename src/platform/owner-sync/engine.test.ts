@@ -142,48 +142,33 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(d.save).toHaveBeenCalledTimes(3);
   });
 
-  it('runs only the requested deferred owner', async () => {
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]) });
-
-    const results = await runOwnerSync(d, 'u', {
-      target: { ownerType: 'character', ownerId: 2 },
-    });
-
-    expect(d.fetchAndPlan).toHaveBeenCalledTimes(1);
-    expect(d.fetchAndPlan).toHaveBeenCalledWith('char:2', 'tok-2', null);
-    expect(results).toEqual([
-      { kind: 'succeeded', target: { ownerType: 'character', ownerId: 2 } },
-    ]);
-  });
-
-  it('reports budget metadata and enqueues the exact owner through the callback', async () => {
+  it('reports a budget refusal for the owner and leaves the next view to retry', async () => {
     const error = new EsiBudgetExhaustedError(
       17,
       'rate_limited',
       900,
       '/characters/1/skills/',
     );
-    const onBudgetDeferred = vi.fn(async () => {});
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [ownerFixture(1)]),
-      fetchAndPlan: vi.fn(async () => {
-        throw error;
+      enumerate: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]),
+      fetchAndPlan: vi.fn(async (owner: string): Promise<PersistVerdict<Save>> => {
+        if (owner === 'char:1') throw error;
+        return { kind: 'save', value: 2 };
       }),
     });
 
-    const results = await runOwnerSync(d, 'u', { onBudgetDeferred });
+    const results = await runOwnerSync(d, 'u');
 
-    expect(onBudgetDeferred).toHaveBeenCalledWith(
-      { ownerType: 'character', ownerId: 1 },
-      error,
-    );
     expect(results).toEqual([
       {
         kind: 'deferred_for_budget',
         target: { ownerType: 'character', ownerId: 1 },
         error,
       },
+      { kind: 'succeeded', target: { ownerType: 'character', ownerId: 2 } },
     ]);
+    expect(d.save).toHaveBeenCalledExactlyOnceWith('char:2', { kind: 'save', value: 2 });
+    expect(d.stampFresh).not.toHaveBeenCalled();
   });
 
   it('records the gate state on a needs_role verdict when saveGateState is defined', async () => {

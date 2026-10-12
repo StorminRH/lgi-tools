@@ -388,7 +388,7 @@ const upstashRedisImportPatterns = [
   {
     group: ["@upstash/redis"],
     message:
-      "Construct Upstash Redis clients through createUpstashClient / resolveUpstashClient (@/lib/upstash), the single construction owner; import the `UpstashRedis` type from there instead of the package.",
+      "Construct Upstash Redis clients through createUpstashClient (@/lib/upstash), the single construction owner; import the `UpstashRedis` type from there instead of the package.",
   },
 ];
 

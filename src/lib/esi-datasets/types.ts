@@ -57,15 +57,10 @@ export type PersonalOnViewDataset = EsiDatasetCommon & {
   store: 'neon';
   shape: 'personal-on-view';
   freshnessModel: 'caller-ttl';
-  refreshOwner:
-    | {
-        kind: 'deferred-queue';
-        dataset: string;
-      }
-    | {
-        kind: 'entry-point';
-        name: string;
-      };
+  refreshOwner: {
+    kind: 'entry-point';
+    name: string;
+  };
   cronBackstopRoute?: string;
 };
 

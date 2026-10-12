@@ -66,7 +66,6 @@ const harness = await createDbTestHarness({
     'saved_plans',
     'industry_profiles',
     'custom_structures',
-    'esi_refresh_jobs',
     'pending_tracking_merges',
     'pending_deletions',
   ],

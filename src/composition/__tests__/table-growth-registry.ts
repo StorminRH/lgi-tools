@@ -3,7 +3,6 @@ import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { ENTITY_NAME_RETENTION_DAYS } from '@/data/eve-data/entity-names-store';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
-import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
 import { NET_WORTH_HISTORY_DAYS } from '@/features/net-worth/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
@@ -128,15 +127,6 @@ export const TABLE_GROWTH_STORIES = [
     retentionConstant: 'SNAPSHOT_RETENTION_DAYS',
     prunedBy: 'daily /api/cron/daily-batch housekeeping, preserving latest and referenced',
     alsoPurgeManagedBy: 'esi-snapshots',
-  },
-  {
-    kind: 'pruned',
-    table: schema.esiRefreshJobs,
-    retentionDays: ESI_REFRESH_JOB_RETENTION_DAYS,
-    retentionConstant: 'ESI_REFRESH_JOB_RETENTION_DAYS',
-    prunedBy:
-      'daily /api/cron/daily-batch housekeeping; dead letters kept ESI_DEAD_LETTER_RETENTION_DAYS (30) for operator requeue',
-    alsoPurgeManagedBy: 'esi-refresh-jobs',
   },
   {
     kind: 'pruned',

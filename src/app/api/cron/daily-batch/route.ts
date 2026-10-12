@@ -3,7 +3,6 @@ import {
   cronBatchStep,
   defineCronBatchRoute,
 } from '@/composition/pipelines/cron-gate';
-import { drainEsiRefreshJobsDeclaration } from '../drain-esi-refresh-jobs/declaration';
 import { housekeepingDeclaration } from '../housekeeping/declaration';
 import { purgeMapsDeclaration } from '../purge-maps/declaration';
 import { refreshIndustryIndicesDeclaration } from '../refresh-industry-indices/declaration';
@@ -30,7 +29,6 @@ export const GET = defineCronBatchRoute<CronBatchResponse>([
   cronBatchStep(purgeMapsDeclaration),
   cronBatchStep(refreshPricesDeclaration),
   cronBatchStep(refreshIndustryIndicesDeclaration),
-  cronBatchStep(drainEsiRefreshJobsDeclaration),
   cronBatchStep(revalueNetWorthDeclaration, undefined, refreshPricesDeclaration),
   cronBatchStep(refreshWhStaticsDeclaration, isMonday),
   cronBatchStep(housekeepingDeclaration),

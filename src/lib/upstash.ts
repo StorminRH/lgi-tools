@@ -72,13 +72,3 @@ export function createUpstashClient(config: UpstashClientConfig): UpstashRedis {
     }),
   );
 }
-
-export function resolveUpstashClient(options: {
-  timeoutMs: number;
-  retries: number;
-  automaticDeserialization?: boolean;
-}): UpstashRedis | null {
-  const upstash = resolveUpstashRest();
-  if (!upstash) return null;
-  return createUpstashClient({ ...upstash, ...options });
-}

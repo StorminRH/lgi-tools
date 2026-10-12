@@ -10,7 +10,6 @@ import {
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
 import type { SkillsPort } from '@/features/skill-queue/types';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeSkillsPort(): SkillsPort {
   return {
@@ -27,10 +26,7 @@ function makeSkillsPort(): SkillsPort {
   };
 }
 
-const skills = ownerSyncDataset('skills', makeSkillsPort, refreshSkillsForUser);
-
-export const refreshSkillsOnView = skills.onView;
-export const runSkillsRefreshJob = skills.runJob;
+export const refreshSkillsOnView = (userId: string) => refreshSkillsForUser(makeSkillsPort(), userId);
 
 export interface ViewerSkillLevels {
   characterId: number;

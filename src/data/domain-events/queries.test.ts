@@ -57,27 +57,6 @@ const events = [
       reason: 'invalid_grant',
     },
   },
-  {
-    eventType: 'esi_refresh_job_status_changed',
-    metadata: {
-      jobId: 7,
-      dataset: 'skills',
-      ownerType: 'character',
-      ownerId: 90_000_001,
-      status: 'failed_retryable',
-      attemptCount: 2,
-      failureCode: 'timeout',
-    },
-  },
-  {
-    eventType: 'esi_budget_guard_exhausted',
-    metadata: {
-      count: 3,
-      windowMinutes: 15,
-      windowStartedAt: '2026-07-14T12:00:00.000Z',
-      windowEndedAt: '2026-07-14T12:15:00.000Z',
-    },
-  },
 ] as const satisfies readonly DomainEventInput[];
 
 describe('domain event ledger', () => {

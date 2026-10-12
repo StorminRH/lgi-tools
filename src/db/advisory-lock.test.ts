@@ -79,7 +79,6 @@ it('keeps every advisory-lock key at its deployed value', () => {
     sdeIngest: 8_273_619_013,
     industryIndices: 8_273_619_014,
     gscSync: 8_273_619_015,
-    esiRefreshQueue: 8_273_619_017,
     whStaticsRefresh: 8_273_619_018,
     mapPurge: 8_273_619_019,
   });

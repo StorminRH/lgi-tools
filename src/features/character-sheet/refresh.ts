@@ -5,7 +5,6 @@ import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
   type OwnerSyncResult,
-  type OwnerSyncRunOptions,
   runOwnerSync,
   type SingleOwnerRead,
 } from '@/platform/owner-sync';
@@ -133,13 +132,12 @@ function structuresDescriptor(
 async function refreshDirectSections(
   port: SheetPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
   // Each direct section reads and writes only its own key, so one row snapshot per
   // character serves the whole phase. The structures phase reads the merged row afresh.
   const phasePort: SheetPort = { ...port, readSheet: memoizeAsync((characterId) => port.readSheet(characterId)) };
   const results = await Promise.all(
-    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(phasePort, SHEET_SECTIONS[key]), userId, options)),
+    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(phasePort, SHEET_SECTIONS[key]), userId)),
   );
   return results.flat();
 }
@@ -147,17 +145,15 @@ async function refreshDirectSections(
 function refreshStructureNames(
   port: SheetPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  return runOwnerSync(structuresDescriptor(port), userId, options);
+  return runOwnerSync(structuresDescriptor(port), userId);
 }
 
 export async function refreshCharacterSheetForUser(
   port: SheetPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  const direct = await refreshDirectSections(port, userId, options);
-  const structures = await refreshStructureNames(port, userId, options);
+  const direct = await refreshDirectSections(port, userId);
+  const structures = await refreshStructureNames(port, userId);
   return [...direct, ...structures];
 }

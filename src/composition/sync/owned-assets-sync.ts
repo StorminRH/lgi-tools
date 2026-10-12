@@ -15,7 +15,6 @@ import type { OwnedAssetsPort } from '@/features/owned-assets/types';
 import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
 import { saveOwnedAssetsFromSource } from './owned-assets-source-save';
 
 function makeOwnedAssetsPort(): OwnedAssetsPort {
@@ -31,19 +30,12 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
   };
 }
 
-const assets = ownerSyncDataset('owned_assets', makeOwnedAssetsPort, refreshOwnedAssetsForUser);
-// Personal assets only, under the same key: a deferred character target is
-// replayed by the full runner, which refreshes that character alone.
-const characterAssets = ownerSyncDataset(
-  'owned_assets',
-  makeOwnedAssetsPort,
-  refreshCharacterOwnedAssetsForUser,
-);
+export const refreshOwnedAssetsOnView = (userId: string) =>
+  refreshOwnedAssetsForUser(makeOwnedAssetsPort(), userId);
 
-export const runOwnedAssetsRefreshJob = assets.runJob;
-
-/** The board's write-behind: personal assets only, budget-deferred like the planner's refresh. */
-export const refreshCharacterAssetsOnView = characterAssets.onView;
+/** The board's write-behind: personal assets only, never a Director's corporation pass. */
+export const refreshCharacterAssetsOnView = (userId: string) =>
+  refreshCharacterOwnedAssetsForUser(makeOwnedAssetsPort(), userId);
 
 export async function getOwnedAssetDetailOnView(
   userId: string,
@@ -51,7 +43,7 @@ export async function getOwnedAssetDetailOnView(
 ): Promise<OwnedAssetDetailEntry[]> {
   const viewer = await resolveCorpViewer(userId);
   const map = await getOwnedAssetMap(viewer.scope, requestedTypeIds);
-  after(() => assets.onView(userId));
+  after(() => refreshOwnedAssetsOnView(userId));
   const contexts = contextsByCorp(viewer.scope);
   const names = await resolveEntityNames(collectAssetNameIds(map, contexts));
   return buildOwnedAssetDetail(map, names, formatStationName, contexts);

@@ -7,7 +7,6 @@ import {
 } from '@/data/corp-holdings/queries';
 import { listLinkedCharacterIdsInCorporation } from '@/platform/auth/affiliation-store';
 import { universeStructurePath } from '@/platform/esi/paths';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
 import {
   listCharactersWithHealth,
   postSingleEndpoint,
@@ -40,7 +39,5 @@ function makeCorpContextPort(): CorpContextPort {
   };
 }
 
-const corpContext = ownerSyncDataset('corp_context', makeCorpContextPort, refreshCorpContextForUser);
-
-export const refreshCorpContextOnView = corpContext.onView;
-export const runCorpContextRefreshJob = corpContext.runJob;
+export const refreshCorpContextOnView = (userId: string) =>
+  refreshCorpContextForUser(makeCorpContextPort(), userId);

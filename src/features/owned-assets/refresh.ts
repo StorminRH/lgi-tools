@@ -4,7 +4,6 @@ import {
   type OwnedDatasetSpec,
   runOwnerSync,
   type OwnerSyncResult,
-  type OwnerSyncRunOptions,
 } from '@/platform/owner-sync';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { CORP_ASSETS_REQUIRED_ROLES, canSyncCorpAssets } from './corp-sync-eligibility';
@@ -30,16 +29,14 @@ function assetsSpec(eligibleCorp: (owner: EnumeratedOwner) => boolean): OwnedDat
 export function refreshOwnedAssetsForUser(
   port: OwnedAssetsPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  return runOwnerSync(makeOwnedDescriptor(port, assetsSpec(canSyncCorpAssets)), userId, options);
+  return runOwnerSync(makeOwnedDescriptor(port, assetsSpec(canSyncCorpAssets)), userId);
 }
 
 /** The home board's variant: personal hangars only, never a Director's corporation pass. */
 export function refreshCharacterOwnedAssetsForUser(
   port: OwnedAssetsPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  return runOwnerSync(makeOwnedDescriptor(port, assetsSpec(() => false)), userId, options);
+  return runOwnerSync(makeOwnedDescriptor(port, assetsSpec(() => false)), userId);
 }

@@ -12,7 +12,6 @@ import {
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesForSync, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeCorpJobsPort(): CorpJobsPort {
   return {
@@ -29,9 +28,7 @@ function makeCorpJobsPort(): CorpJobsPort {
   };
 }
 
-const corpJobs = ownerSyncDataset('corporation_industry_jobs', makeCorpJobsPort, refreshCorpJobsForUser);
-
-export const runCorporationIndustryJobsRefreshJob = corpJobs.runJob;
+export const refreshCorpJobsOnView = (userId: string) => refreshCorpJobsForUser(makeCorpJobsPort(), userId);
 
 export interface ViewerCorpJobs {
   corporationId: number;
@@ -65,7 +62,7 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
       );
       return { owners, data };
     },
-    refresh: corpJobs.onView,
+    refresh: refreshCorpJobsOnView,
     makeRow: (owner, data) => ({
       corporationId: owner.id,
       data,

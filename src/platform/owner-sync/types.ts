@@ -31,25 +31,15 @@ export type PersistVerdict<TSave> =
   | { kind: 'needs_role' }
   | { kind: 'skip'; code?: string };
 
-export type OwnerSyncTarget = OwnerKey;
-
 export type OwnerSyncResult =
-  | { kind: 'succeeded'; target: OwnerSyncTarget }
+  | { kind: 'succeeded'; target: OwnerKey }
   | {
       kind: 'deferred_for_budget';
-      target: OwnerSyncTarget;
+      target: OwnerKey;
       error: import('../esi').EsiBudgetExhaustedError;
     }
-  | { kind: 'failed_retryable'; target: OwnerSyncTarget; code: string }
-  | { kind: 'failed_permanent'; target: OwnerSyncTarget; code: string };
-
-export interface OwnerSyncRunOptions {
-  target?: OwnerSyncTarget;
-  onBudgetDeferred?(
-    target: OwnerSyncTarget,
-    error: import('../esi').EsiBudgetExhaustedError,
-  ): Promise<void>;
-}
+  | { kind: 'failed_retryable'; target: OwnerKey; code: string }
+  | { kind: 'failed_permanent'; target: OwnerKey; code: string };
 
 export interface OwnerAxis<TOwner> {
   eligible(owner: EnumeratedOwner): boolean;
@@ -66,7 +56,7 @@ export interface CorpOwnerAxis<TOwner> {
 export interface OwnerSyncDescriptor<TOwner, TState, TSave> {
   now(): Date;
   enumerate(userId: string): Promise<EnumeratedOwner[]>;
-  identityOf(owner: TOwner): OwnerSyncTarget;
+  identityOf(owner: TOwner): OwnerKey;
   precondition?(owner: TOwner): Promise<boolean>;
   vendToken(characterId: number): Promise<string | null>;
   isStale(state: TState | null, now: Date): boolean;

@@ -9,7 +9,6 @@ import {
   ESI_BUDGET_FLOOR,
   type EsiBudgetExhaustedReason,
 } from './errors';
-import { markRecentBudgetExhaustion } from './exhaustion-marker';
 import { httpDateMs, intHeader } from './headers';
 import {
   BODY_CACHE_MAX_BYTES,
@@ -356,7 +355,6 @@ function throwBudgetExhausted(
   retryAfterSeconds: number | null,
   resource: string,
 ): never {
-  markRecentBudgetExhaustion();
   throw new EsiBudgetExhaustedError(
     remaining,
     reason,

@@ -6,11 +6,16 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
-import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
+import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
+import { refreshCorpContextOnView } from '@/composition/sync/corp-context-sync';
+import { refreshCorpJobsOnView } from '@/composition/sync/corp-industry-jobs-sync';
+import { refreshJobsOnView } from '@/composition/sync/industry-jobs-sync';
+import { refreshOwnedAssetsOnView } from '@/composition/sync/owned-assets-sync';
+import { refreshOwnedBlueprintsOnView } from '@/composition/sync/owned-blueprints-sync';
+import { refreshSkillsOnView } from '@/composition/sync/skills-sync';
 import {
   reflectedSchemaTables,
   registryCoverageDiff,
@@ -44,12 +49,17 @@ const vercelConfig = JSON.parse(
 
 const liveContext = {
   cronRoutes: new Set(vercelConfig.crons.map((cron) => cron.path)),
-  deferredDatasets: new Set<string>(ESI_REFRESH_DATASETS),
   personalEntryPoints: new Set([
     refreshAffiliationsWithOutcome.name,
     refreshCorpStructuresForUser.name,
-    refreshCharacterSheetForUser.name,
     resolveCorpViewer.name,
+    refreshSkillsOnView.name,
+    refreshJobsOnView.name,
+    refreshCorpJobsOnView.name,
+    refreshOwnedAssetsOnView.name,
+    refreshOwnedBlueprintsOnView.name,
+    refreshCorpContextOnView.name,
+    refreshCharacterSheetsOnView.name,
   ]),
   engineDatasets: new Set<string>(SYNC_DATASETS),
 };
@@ -150,13 +160,13 @@ describe('ESI dataset registry seeded rule failures', () => {
       store: 'neon',
       shape: 'personal-on-view',
       freshnessModel: 'caller-ttl',
-      refreshOwner: { kind: 'deferred-queue', dataset: 'not_live' },
+      refreshOwner: { kind: 'entry-point', name: 'refreshNothingOnView' },
       upstream: staticEsi(300),
       mirrorTables: [],
     };
 
     expect(checkEntries([entry], liveContext)).toEqual([
-      'missing_personal_owner: unknown personal refresh owner not_live',
+      'missing_personal_owner: unknown personal refresh owner refreshNothingOnView',
     ]);
   });
 
@@ -166,7 +176,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       store: 'neon',
       shape: 'personal-on-view',
       freshnessModel: 'caller-ttl',
-      refreshOwner: { kind: 'deferred-queue', dataset: 'skills' },
+      refreshOwner: { kind: 'entry-point', name: 'refreshSkillsOnView' },
       cronBackstopRoute: '/api/cron/not-live',
       upstream: staticEsi(300),
       mirrorTables: [],
@@ -281,25 +291,23 @@ describe('ESI dataset registry live gate', () => {
     }
   });
 
-  it('declares unique entry names and the explicit owners for every queue dataset', () => {
+  it('declares unique entry names and one on-view entry point per personal dataset', () => {
     const names = ESI_DATASET_ENTRIES.map((entry) => entry.name);
     expect(new Set(names).size).toBe(names.length);
 
-    for (const dataset of ESI_REFRESH_DATASETS) {
-      const owners = ESI_DATASET_ENTRIES.filter(
-        (entry) =>
-          entry.shape === 'personal-on-view'
-          && entry.refreshOwner.kind === 'deferred-queue'
-          && entry.refreshOwner.dataset === dataset,
-      );
-      if (dataset === 'character_sheet') {
-        // One dispatcher retries the sheet; its three entries retain their distinct TTLs.
-        expect(owners.map((owner) => owner.name).sort()).toEqual([
-          'character_sheet_daily', 'character_sheet_hourly', 'character_sheet_live',
-        ]);
-      } else {
-        expect(owners, dataset).toHaveLength(1);
-      }
+    const ownersByEntryPoint = new Map<string, string[]>();
+    for (const entry of ESI_DATASET_ENTRIES) {
+      if (entry.shape !== 'personal-on-view') continue;
+      const owners = ownersByEntryPoint.get(entry.refreshOwner.name) ?? [];
+      owners.push(entry.name);
+      ownersByEntryPoint.set(entry.refreshOwner.name, owners);
+    }
+    // One sheet refresh serves its three tiers; every other entry point owns one dataset.
+    expect(ownersByEntryPoint.get(refreshCharacterSheetsOnView.name)?.sort()).toEqual([
+      'character_sheet_daily', 'character_sheet_hourly', 'character_sheet_live',
+    ]);
+    for (const [entryPoint, owners] of ownersByEntryPoint) {
+      if (entryPoint !== refreshCharacterSheetsOnView.name) expect(owners, entryPoint).toHaveLength(1);
     }
   });
 

@@ -9,7 +9,6 @@ import {
   isNotNull,
   lt,
   lte,
-  or,
   sql,
   sum,
   type SQL,
@@ -46,11 +45,7 @@ import type {
   UsageAction,
 } from './types';
 
-export {
-  claimPublicEsiBudgetAlert,
-  completePublicEsiBudgetAlertClaim,
-  pruneUsageLogs,
-} from './log';
+export { pruneUsageLogs } from './log';
 
 const pagePath = sql<string | null>`${usageLogs.metadata} ->> 'path'`;
 const pageReferrer = sql<string | null>`${usageLogs.metadata} ->> 'referrer'`;
@@ -188,48 +183,6 @@ export async function getPriceRefreshDays(range: DateRange): Promise<PriceRefres
     fetched: Number(r.fetched),
     written: Number(r.written),
   }));
-}
-
-export async function countPublicEsiBudgetExhaustionsInWindow(
-  from: Date,
-  to: Date,
-): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(usageLogs)
-    .where(
-      and(
-        gte(usageLogs.timestamp, from),
-        lt(usageLogs.timestamp, to),
-        or(
-          and(
-            eq(usageLogs.action, 'price_source_degraded'),
-            eq(priceCaller, 'on-demand'),
-            budgetExhausted,
-          ),
-          and(eq(usageLogs.action, 'market_history_refresh'), budgetExhausted),
-        ),
-      ),
-    );
-  return Number(row?.n ?? 0);
-}
-
-export async function hasPublicEsiBudgetAlertForWindow(
-  windowStartedAt: string,
-): Promise<boolean> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(usageLogs)
-    .where(
-      and(
-        inArray(usageLogs.action, [
-          'public_esi_budget_alert_claimed',
-          'public_esi_budget_alerted',
-        ]),
-        eq(sql`${usageLogs.metadata} ->> 'windowStartedAt'`, windowStartedAt),
-      ),
-    );
-  return Number(row?.n ?? 0) > 0;
 }
 
 /**

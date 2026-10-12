@@ -7,7 +7,6 @@ import {
 
 export type EsiDatasetCheckContext = {
   cronRoutes: ReadonlySet<string>;
-  deferredDatasets: ReadonlySet<string>;
   personalEntryPoints: ReadonlySet<string>;
   engineDatasets: ReadonlySet<string>;
 };
@@ -72,16 +71,8 @@ function personalOwnerViolation(
   context: EsiDatasetCheckContext,
 ): string | null {
   if (entry.shape !== 'personal-on-view') return null;
-  const ownerExists =
-    entry.refreshOwner.kind === 'deferred-queue'
-      ? context.deferredDatasets.has(entry.refreshOwner.dataset)
-      : context.personalEntryPoints.has(entry.refreshOwner.name);
-  if (ownerExists) return null;
-  const owner =
-    entry.refreshOwner.kind === 'deferred-queue'
-      ? entry.refreshOwner.dataset
-      : entry.refreshOwner.name;
-  return `unknown personal refresh owner ${owner}`;
+  if (context.personalEntryPoints.has(entry.refreshOwner.name)) return null;
+  return `unknown personal refresh owner ${entry.refreshOwner.name}`;
 }
 
 function cronBackstopViolation(
@@ -167,8 +158,8 @@ function entryFindings(
 /**
  * Validates placement and freshness over entries plus live-world name sets.
  * Convex is limited to ≤120-second ESI data unless collaborative; global
- * datasets name a live cron; personal datasets name a queue handle or entry
- * point and any cron backstop names a live route; engine owners name a live
+ * datasets name a live cron; personal datasets name a live entry point and
+ * any cron backstop names a live route; engine owners name a live
  * sync dataset; and static TTLs never undercut upstream. A waiver suppresses
  * only its named rule and must retain a non-empty rationale.
  */

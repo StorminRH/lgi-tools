@@ -14,7 +14,7 @@ describe('SHEET_SECTIONS', () => {
       const spec = SHEET_SECTIONS[key];
       expect(spec.key).toBe(key);
       const entry = ESI_DATASET_ENTRIES.find((candidate) => candidate.name === TIER_ENTRY[spec.tier]);
-      expect(entry?.refreshOwner).toEqual({ kind: 'deferred-queue', dataset: 'character_sheet' });
+      expect(entry?.refreshOwner).toEqual({ kind: 'entry-point', name: 'refreshCharacterSheetsOnView' });
       expect(entry?.mirrorTables).toContain('character_sheets');
     }
   });

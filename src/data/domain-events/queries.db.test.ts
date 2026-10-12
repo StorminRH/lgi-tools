@@ -17,12 +17,12 @@ describe.skipIf(!harness.reachable)('domain event ledger reads against Postgres'
     // Out-of-order inserts, shared timestamps and an id gap, so the order has
     // to come from both keys rather than from insertion order.
     await harness.db.insert(domainEvents).values([
-      { id: 5, occurredAt: new Date('2026-07-10T08:00:00Z'), eventType: 'esi_budget_guard_exhausted', metadata: budget(1) },
-      { id: 2, occurredAt: TIED_AT, eventType: 'esi_budget_guard_exhausted', metadata: budget(2) },
-      { id: 9, occurredAt: TIED_AT, eventType: 'esi_budget_guard_exhausted', metadata: budget(3) },
-      { id: 4, occurredAt: new Date('2026-07-15T00:00:00Z'), eventType: 'esi_budget_guard_exhausted', metadata: budget(4) },
-      { id: 7, occurredAt: TIED_AT, eventType: 'esi_budget_guard_exhausted', metadata: budget(5) },
-      { id: 1, occurredAt: new Date('2025-01-01T00:00:00Z'), eventType: 'esi_budget_guard_exhausted', metadata: budget(6) },
+      { id: 5, occurredAt: new Date('2026-07-10T08:00:00Z'), eventType: 'eve_token_state_changed', metadata: tokenChange(1) },
+      { id: 2, occurredAt: TIED_AT, eventType: 'eve_token_state_changed', metadata: tokenChange(2) },
+      { id: 9, occurredAt: TIED_AT, eventType: 'eve_token_state_changed', metadata: tokenChange(3) },
+      { id: 4, occurredAt: new Date('2026-07-15T00:00:00Z'), eventType: 'eve_token_state_changed', metadata: tokenChange(4) },
+      { id: 7, occurredAt: TIED_AT, eventType: 'eve_token_state_changed', metadata: tokenChange(5) },
+      { id: 1, occurredAt: new Date('2025-01-01T00:00:00Z'), eventType: 'eve_token_state_changed', metadata: tokenChange(6) },
     ]);
   });
 
@@ -39,11 +39,11 @@ describe.skipIf(!harness.reachable)('domain event ledger reads against Postgres'
   });
 });
 
-function budget(count: number) {
+function tokenChange(characterId: number) {
   return {
-    count,
-    windowMinutes: 15,
-    windowStartedAt: '2026-07-14T12:00:00.000Z',
-    windowEndedAt: '2026-07-14T12:15:00.000Z',
+    characterId,
+    from: 'usable' as const,
+    to: 'suspect' as const,
+    reason: 'invalid_grant' as const,
   };
 }

@@ -14,7 +14,6 @@ import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
   return {
@@ -29,9 +28,8 @@ function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
   };
 }
 
-const blueprints = ownerSyncDataset('owned_blueprints', makeOwnedBlueprintsPort, refreshOwnedBlueprintsForUser);
-
-export const runOwnedBlueprintsRefreshJob = blueprints.runJob;
+export const refreshOwnedBlueprintsOnView = (userId: string) =>
+  refreshOwnedBlueprintsForUser(makeOwnedBlueprintsPort(), userId);
 
 export async function getOwnedBlueprintDetailOnView(
   userId: string,
@@ -43,7 +41,7 @@ export async function getOwnedBlueprintDetailOnView(
     getCorpAssetEvidence,
   );
   const map = await getOwnedBlueprintMap(viewer.scope, evidence);
-  after(() => blueprints.onView(userId));
+  after(() => refreshOwnedBlueprintsOnView(userId));
   const contexts = contextsByCorp(viewer.scope);
   const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds, contexts));
   return buildOwnedDetail(map, requestedTypeIds, names, formatStationName, contexts);

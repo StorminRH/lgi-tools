@@ -9,7 +9,6 @@ import {
   universeStructurePath,
 } from '@/platform/esi/paths';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 export const SHEET_ESI_PATHS = {
   character: (id: number) => `/characters/${id}/`,
@@ -39,9 +38,5 @@ export function makeSheetPort(): SheetPort {
   };
 }
 
-const sheet = ownerSyncDataset('character_sheet', makeSheetPort, refreshCharacterSheetForUser);
-
-export const refreshCharacterSheetsOnView = sheet.onView;
-
-/** Retry all stale sections for this pilot; one completed section cannot settle the whole sheet. */
-export const runCharacterSheetRefreshJob = sheet.runJob;
+export const refreshCharacterSheetsOnView = (userId: string) =>
+  refreshCharacterSheetForUser(makeSheetPort(), userId);

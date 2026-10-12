@@ -13,8 +13,6 @@ export type {
   OwnerKey,
   OwnerSyncDescriptor,
   OwnerSyncResult,
-  OwnerSyncRunOptions,
-  OwnerSyncTarget,
   PagedOwnerSyncState,
   PersistVerdict,
   SingleOwnerRead,

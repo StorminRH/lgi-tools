@@ -4,7 +4,6 @@ import * as schema from '../drizzle-schema';
 export type SliceId =
   | 'data/corp-holdings'
   | 'data/domain-events'
-  | 'data/esi-refresh-jobs'
   | 'data/esi-snapshots'
   | 'data/eve-data'
   | 'data/gsc'
@@ -995,20 +994,6 @@ export const DATA_OWNERSHIP = [
     boundary: {
       kind: 'single-statement',
       note: 'One insert per retained raw ESI response, and one delete on the orphan-cleanup or retention path. The snapshot insert and the projection write it accompanies are NOT atomic — the caller compensates by deleting its own snapshot when the projection write does not stand.',
-    },
-    dataClass: 'operational',
-  },
-  {
-    table: schema.esiRefreshJobs,
-    owner: 'data/esi-refresh-jobs',
-    reads: [],
-    invariants: [
-      'partial-unique(idempotency_key) where("status" in (\'queued\', \'running\', \'deferred_for_budget\', \'failed_retryable\'))',
-      'pk(id)',
-    ],
-    boundary: {
-      kind: 'single-statement',
-      note: 'Enqueue and claim are single statements; the partial unique index over live statuses is the race authority that makes enqueue idempotent, and the loser of a claim race is coalesced from its unique violation rather than retried.',
     },
     dataClass: 'operational',
   },

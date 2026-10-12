@@ -10,7 +10,6 @@ import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeJobsPort(): JobsPort {
   return {
@@ -25,10 +24,7 @@ function makeJobsPort(): JobsPort {
   };
 }
 
-const jobs = ownerSyncDataset('character_industry_jobs', makeJobsPort, refreshJobsForUser);
-
-export const refreshJobsOnView = jobs.onView;
-export const runCharacterIndustryJobsRefreshJob = jobs.runJob;
+export const refreshJobsOnView = (userId: string) => refreshJobsForUser(makeJobsPort(), userId);
 
 export interface ViewerJobs {
   characterId: number;

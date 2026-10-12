@@ -3,13 +3,6 @@ import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 
-const mocks = vi.hoisted(() => ({
-  markRecentBudgetExhaustion: vi.fn(),
-}));
-vi.mock('./exhaustion-marker', () => ({
-  markRecentBudgetExhaustion: mocks.markRecentBudgetExhaustion,
-}));
-
 import {
   __resetEsiGateForTests,
   __setScoreboardForTests,
@@ -62,7 +55,6 @@ describe('esiFetch', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    mocks.markRecentBudgetExhaustion.mockClear();
     __resetEsiGateForTests();
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
@@ -188,7 +180,6 @@ describe('esiFetch', () => {
     const err = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((err as EsiBudgetExhaustedError).reason).toBe('error_budget');
-    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
@@ -223,12 +214,10 @@ describe('esiFetch', () => {
     const first = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(first).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((first as EsiBudgetExhaustedError).reason).toBe('esi_420');
-    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
 
     const second = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(second).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((second as EsiBudgetExhaustedError).reason).toBe('error_budget');
-    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledTimes(2);
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
@@ -289,7 +278,6 @@ describe('esiFetch', () => {
       retryAfterSeconds: 30,
       resource: '/markets/{n}/orders',
     });
-    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
 
     const blocked = await esiFetch(
       'https://esi.evetech.net/markets/10000002/orders/?type_id=35',
@@ -297,7 +285,6 @@ describe('esiFetch', () => {
     expect(blocked).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((blocked as EsiBudgetExhaustedError).reason).toBe('rate_limited');
     expect((blocked as EsiBudgetExhaustedError).retryAfterSeconds).toBe(30);
-    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledTimes(2);
 
     fetchSpy.mockResolvedValueOnce(mockResponse(200));
     const other = await esiFetch('https://esi.evetech.net/universe/types/34/');
@@ -574,7 +561,6 @@ describe('esiFetch', () => {
       expect((err as EsiBudgetExhaustedError).reason).toBe(
         'scoreboard_unavailable',
       );
-      expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
@@ -593,7 +579,6 @@ describe('esiFetch', () => {
       }).catch((e: unknown) => e);
       expect(capped).toBeInstanceOf(EsiBudgetExhaustedError);
       expect((capped as EsiBudgetExhaustedError).reason).toBe('trickle_capped');
-      expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
       expect(fetchSpy).toHaveBeenCalledTimes(10);
 
       vi.advanceTimersByTime(60_001);

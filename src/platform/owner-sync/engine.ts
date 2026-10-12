@@ -6,8 +6,6 @@ import type {
   OwnerAxis,
   OwnerSyncDescriptor,
   OwnerSyncResult,
-  OwnerSyncRunOptions,
-  OwnerSyncTarget,
 } from './types';
 
 type TokenOutcome =
@@ -18,47 +16,29 @@ type TokenOutcome =
 export async function runOwnerSync<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   userId: string,
-  options: OwnerSyncRunOptions = {},
 ): Promise<OwnerSyncResult[]> {
   const owners = await descriptor.enumerate(userId);
   const results: OwnerSyncResult[] = [];
   if (descriptor.characterAxis !== undefined) {
-    results.push(
-      ...(await runCharacterPass(descriptor, descriptor.characterAxis, owners, options)),
-    );
+    results.push(...(await runCharacterPass(descriptor, descriptor.characterAxis, owners)));
   }
   if (descriptor.corpAxis !== undefined) {
-    results.push(
-      ...(await runCorpPass(descriptor, descriptor.corpAxis, userId, owners, options)),
-    );
+    results.push(...(await runCorpPass(descriptor, descriptor.corpAxis, userId, owners)));
   }
   return results;
-}
-
-function targetMatches(candidate: OwnerSyncTarget, requested: OwnerSyncTarget | undefined): boolean {
-  return (
-    requested === undefined ||
-    (candidate.ownerType === requested.ownerType && candidate.ownerId === requested.ownerId)
-  );
 }
 
 async function runCharacterPass<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   axis: OwnerAxis<TOwner>,
   owners: EnumeratedOwner[],
-  options: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
   return Promise.all(
     owners
       .filter((owner) => axis.eligible(owner))
-      .map((owner) => ({ owner, key: axis.ownerOf(owner.characterId) }))
-      .filter(({ key }) => targetMatches(descriptor.identityOf(key), options.target))
-      .map(({ owner, key }) =>
-        syncOwner(
-          descriptor,
-          key,
-          () => resolveCharacterToken(descriptor, owner.characterId),
-          options,
+      .map((owner) =>
+        syncOwner(descriptor, axis.ownerOf(owner.characterId), () =>
+          resolveCharacterToken(descriptor, owner.characterId),
         ),
       ),
   );
@@ -69,7 +49,6 @@ async function runCorpPass<TOwner, TState, TSave>(
   axis: CorpOwnerAxis<TOwner>,
   userId: string,
   owners: EnumeratedOwner[],
-  options: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
   const byCorp = new Map<number, EnumeratedOwner[]>();
   for (const owner of owners) {
@@ -80,20 +59,11 @@ async function runCorpPass<TOwner, TState, TSave>(
   }
 
   return Promise.all(
-    [...byCorp]
-      .map(([corporationId, members]) => ({
-        members,
-        key: axis.ownerOf(userId, corporationId),
-      }))
-      .filter(({ key }) => targetMatches(descriptor.identityOf(key), options.target))
-      .map(({ key, members }) =>
-        syncOwner(
-          descriptor,
-          key,
-          () => resolveCorpToken(descriptor, axis, members),
-          options,
-        ),
+    [...byCorp].map(([corporationId, members]) =>
+      syncOwner(descriptor, axis.ownerOf(userId, corporationId), () =>
+        resolveCorpToken(descriptor, axis, members),
       ),
+    ),
   );
 }
 
@@ -101,7 +71,6 @@ async function syncOwner<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   owner: TOwner,
   resolveToken: () => Promise<TokenOutcome>,
-  options: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult> {
   const target = descriptor.identityOf(owner);
   try {
@@ -145,7 +114,7 @@ async function syncOwner<TOwner, TState, TSave>(
     }
   } catch (error) {
     if (!(error instanceof EsiBudgetExhaustedError)) throw error;
-    await options.onBudgetDeferred?.(target, error);
+    // Nothing is queued: the next view asks the engine again.
     return { kind: 'deferred_for_budget', target, error };
   }
 }

@@ -589,6 +589,13 @@
       "when": 1791739763039,
       "tag": "0083_repair_stale_synthetic_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1791825098189,
+      "tag": "0084_drop_esi_refresh_jobs",
+      "breakpoints": true
     }
   ]
 }

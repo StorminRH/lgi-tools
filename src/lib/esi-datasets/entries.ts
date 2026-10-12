@@ -12,7 +12,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'deferred-queue', dataset: 'skills' },
+    refreshOwner: { kind: 'entry-point', name: 'refreshSkillsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -28,10 +28,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: {
-      kind: 'deferred-queue',
-      dataset: 'character_industry_jobs',
-    },
+    refreshOwner: { kind: 'entry-point', name: 'refreshJobsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: ['/characters/{character_id}/industry/jobs/'],
@@ -47,10 +44,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: {
-      kind: 'deferred-queue',
-      dataset: 'corporation_industry_jobs',
-    },
+    refreshOwner: { kind: 'entry-point', name: 'refreshCorpJobsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: ['/corporations/{corporation_id}/industry/jobs/'],
@@ -63,7 +57,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'deferred-queue', dataset: 'owned_assets' },
+    refreshOwner: { kind: 'entry-point', name: 'refreshOwnedAssetsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -79,10 +73,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: {
-      kind: 'deferred-queue',
-      dataset: 'owned_blueprints',
-    },
+    refreshOwner: { kind: 'entry-point', name: 'refreshOwnedBlueprintsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -114,7 +105,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'deferred-queue', dataset: 'corp_context' },
+    refreshOwner: { kind: 'entry-point', name: 'refreshCorpContextOnView' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -293,7 +284,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'deferred-queue', dataset: 'character_sheet' },
+    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -316,7 +307,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'deferred-queue', dataset: 'character_sheet' },
+    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -335,7 +326,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'deferred-queue', dataset: 'character_sheet' },
+    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetsOnView' },
     upstream: {
       kind: 'esi',
       specPaths: ['/characters/{character_id}/'],

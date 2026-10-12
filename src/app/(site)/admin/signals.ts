@@ -1,4 +1,3 @@
-import type { EsiRefreshJobStatus, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
   capabilitySuccessRate,
   esiAvailability,
@@ -29,12 +28,10 @@ import type {
 } from '@/data/telemetry/types';
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
-import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
 import { adminHref, SCHEDULED_TASKS_ANCHOR } from './admin-sections';
 import { SECTION_LOAD_FAILED } from './load-section';
 import { getOrInsertComputed } from '@/lib/array';
 import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
-import { formatElapsed } from '@/lib/format/time';
 import { DAY_MS } from '@/lib/iso-date';
 
 export interface CronSignals {
@@ -84,7 +81,6 @@ export interface AdminSignals {
   fallback: Loaded<FallbackRateData>;
   budgetExhaustions: Loaded<number>;
   sli: Loaded<SliSignals>;
-  queue: Loaded<EsiRefreshQueueStat[]>;
   statics: Loaded<{ feedVersion: string; totalDifferences: number } | null>;
   releases: Loaded<{ date: string; label: string }[]>;
 }
@@ -94,7 +90,6 @@ const PAGE_ACTIONS = {
   health: { label: 'Open health', href: adminHref('health') },
   esi: { label: 'Open ESI', href: adminHref('esi') },
   jobs: { label: 'View jobs', href: adminHref('health', { hash: SCHEDULED_TASKS_ANCHOR }) },
-  queue: { label: 'Open queue', href: adminHref('queue') },
   statics: { label: 'Open statics', href: adminHref('statics') },
   staticsReview: { label: 'Review snapshot', href: adminHref('statics') },
 } satisfies Record<string, AttentionItem['action']>;
@@ -106,7 +101,6 @@ const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page:
   fallback: { label: 'price source', page: PAGE_ACTIONS.esi },
   budgetExhaustions: { label: 'price source', page: PAGE_ACTIONS.esi },
   sli: { label: 'service levels', page: PAGE_ACTIONS.health },
-  queue: { label: 'refresh queue', page: PAGE_ACTIONS.queue },
   statics: { label: 'statics review', page: PAGE_ACTIONS.statics },
   releases: { label: 'releases', page: PAGE_ACTIONS.health },
 };
@@ -235,68 +229,6 @@ export function deriveBudgetStatus(budget: EsiBudgetSnapshot | null): SubsystemS
   };
 }
 
-function elapsedHours(from: Date, now: Date): number {
-  return Math.max(0, (now.getTime() - from.getTime()) / 3_600_000);
-}
-
-// A live job older than this means owner data is going stale.
-const QUEUE_STALE_HOURS = 6;
-
-export interface QueueSummary {
-  due: number;
-  deadLettered: number;
-  oldestDueHours: number | null;
-}
-
-/** How many jobs sit in these statuses, and when the oldest of them was queued. */
-export function countJobs(
-  stats: readonly EsiRefreshQueueStat[],
-  statuses: readonly EsiRefreshJobStatus[],
-): { count: number; oldest: Date | null } {
-  const matching = stats.filter((stat) => statuses.includes(stat.status));
-  const count = matching.reduce((total, stat) => total + stat.count, 0);
-  const oldest = matching.reduce<Date | null>(
-    (min, stat) => (min === null || stat.oldestCreatedAt < min ? stat.oldestCreatedAt : min),
-    null,
-  );
-  return { count, oldest };
-}
-
-export function summarizeQueue(stats: EsiRefreshQueueStat[], now: Date): QueueSummary {
-  // Dead letters are counted on their own: they are not due, and their age is not the queue's.
-  const live = countJobs(stats, LIVE_ESI_REFRESH_JOB_STATUSES);
-  return {
-    due: live.count,
-    deadLettered: countJobs(stats, ['dead_lettered']).count,
-    oldestDueHours: live.oldest === null ? null : elapsedHours(live.oldest, now),
-  };
-}
-
-export function queueLevel(queue: QueueSummary): StatusLevel {
-  if (queue.deadLettered > 0) return 'red';
-  if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) return 'amber';
-  return 'green';
-}
-
-/** The queue's live and dead-lettered counts, as the overview and health pages show them. */
-export function queueCounts(queue: QueueSummary): string {
-  return `${formatQuantity(queue.due)} active · ${formatQuantity(queue.deadLettered)} dead`;
-}
-
-function queueLine(queue: QueueSummary): StatusLine {
-  return {
-    id: 'queue',
-    label: 'Refresh queue',
-    value: queueCounts(queue),
-    note:
-      queue.oldestDueHours === null
-        ? undefined
-        : `oldest job ${formatElapsed(Math.round(queue.oldestDueHours * 3_600_000), { dayAfterHours: 48 })}`,
-    level: queueLevel(queue),
-    quiet: true,
-  };
-}
-
 type Release = { date: string; label: string };
 
 function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
@@ -315,23 +247,6 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
     value: latest.label,
     note: `${latest.date} · ${days === 0 ? 'today' : `${days}d ago`}`,
     level: 'neutral',
-  };
-}
-
-/** Refresh jobs waiting for the ESI budget to recover. */
-export function heldForBudget(stats: readonly EsiRefreshQueueStat[]): number {
-  return countJobs(stats, ['deferred_for_budget']).count;
-}
-
-function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
-  if (stats === SECTION_LOAD_FAILED) return unavailableLine('held-for-budget', 'Held for budget');
-  const held = heldForBudget(stats);
-  return {
-    id: 'held-for-budget',
-    label: 'Held for budget',
-    value: formatCount(held, 'job'),
-    level: held > 0 ? 'amber' : 'green',
-    quiet: true,
   };
 }
 
@@ -362,11 +277,6 @@ function cronLines(signals: AdminSignals): StatusLine[] {
   return rows.map(([id, label, key]) => ({ id, label, ...crons[key] }));
 }
 
-function queueStatusLine(signals: AdminSignals): StatusLine {
-  if (signals.queue === SECTION_LOAD_FAILED) return unavailableLine('queue', 'Refresh queue');
-  return queueLine(summarizeQueue(signals.queue, signals.now));
-}
-
 const STATUS_GROUP_LINES: Record<StatusGroupId, (signals: AdminSignals) => StatusLine[]> = {
   app: (signals) => [
     sliLine('readSuccess', 'Page & tool reads', signals.sli),
@@ -378,9 +288,8 @@ const STATUS_GROUP_LINES: Record<StatusGroupId, (signals: AdminSignals) => Statu
     budgetLine(signals.budget),
     sliLine('esiSuccess', 'ESI availability', signals.sli),
     priceSourceLine(signals),
-    heldForBudgetLine(signals.queue),
   ],
-  jobs: (signals) => [...cronLines(signals), queueStatusLine(signals)],
+  jobs: cronLines,
 };
 
 /** One status card's lines; each card reads the same request-cached signals. */
@@ -415,30 +324,6 @@ function staticsAttention(statics: AdminSignals['statics']): AttentionItem[] {
       action: PAGE_ACTIONS.staticsReview,
     },
   ];
-}
-
-function queueAttention(queue: QueueSummary): AttentionItem[] {
-  const items: AttentionItem[] = [];
-  if (queue.deadLettered > 0) {
-    items.push({
-      id: 'dead-letters',
-      level: 'red',
-      title: `${formatCount(queue.deadLettered, 'refresh job')} dead-lettered`,
-      detail: 'Refresh stopped',
-      action: PAGE_ACTIONS.queue,
-    });
-  }
-  if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) {
-    const oldest = formatElapsed(Math.round(queue.oldestDueHours * 3_600_000), { dayAfterHours: 48 });
-    items.push({
-      id: 'queue-backlog',
-      level: 'amber',
-      title: `Refresh backlog of ${formatCount(queue.due, 'job')}, oldest ${oldest}`,
-      detail: `target ≤ ${QUEUE_STALE_HOURS}h`,
-      action: PAGE_ACTIONS.queue,
-    });
-  }
-  return items;
 }
 
 function lineAttention(line: StatusLine, action: AttentionItem['action']): AttentionItem[] {
@@ -482,7 +367,6 @@ export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): A
   );
   const items = [
     ...statusItems,
-    ...(signals.queue === SECTION_LOAD_FAILED ? [] : queueAttention(summarizeQueue(signals.queue, signals.now))),
     ...staticsAttention(signals.statics),
     ...unavailableAttention(signals),
   ];

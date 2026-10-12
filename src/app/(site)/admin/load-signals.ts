@@ -9,7 +9,6 @@ import {
   getCapabilityLatencyShared,
   getCapabilityOutcomeStatsShared,
   getCronOutcomesShared,
-  getEsiRefreshQueueStatsShared,
   getLastCronRunsShared,
   getLastSyncedAtShared,
   getPriceRefreshDaysShared,
@@ -55,15 +54,14 @@ export async function loadSliReads(range: DateRange): Promise<SliReads> {
 // Each source is its own section, so one failed read leaves the rest intact.
 export const loadAdminSignals = cache(async (rangeKey: RangeKey): Promise<AdminSignals> => {
   const range = rangeFor(rangeKey);
-  const [crons, budget, fallback, budgetExhaustions, sli, queue, statics, releases] = await Promise.all([
+  const [crons, budget, fallback, budgetExhaustions, sli, statics, releases] = await Promise.all([
     loadSection('admin-signals.crons', () => loadCronSignals(range)),
     loadSection('admin-signals.budget', readEsiBudgetSnapshot),
     loadSection('admin-signals.fallback', async () => fallbackRate(await getPriceRefreshDaysShared(range))),
     loadSection('admin-signals.budget-exhaustions', async () => (await getPriceSourceDegradationShared(range)).budgetExhaustions),
     loadSection('admin-signals.sli', async () => deriveSliSignals(await loadSliReads(range))),
-    loadSection('admin-signals.queue', getEsiRefreshQueueStatsShared),
     loadSection('admin-signals.statics', getStaticsSummaryShared),
     loadSection('admin-signals.releases', loadDeployMarkers),
   ]);
-  return { now: range.to, crons, budget, fallback, budgetExhaustions, sli, queue, statics, releases };
+  return { now: range.to, crons, budget, fallback, budgetExhaustions, sli, statics, releases };
 });

@@ -49,13 +49,13 @@ const eveEsi = policy({
   backoff:
     'No client backoff. CCP 429s and 420s become a Redis-recorded block on the normalized path, and the pre-dispatch gate refuses calls until it expires.',
   rateLimit:
-    "The shared Redis scoreboard owns CCP's per-IP error budget: two-minute-bucket self counts plus the server's error-limit echo, evaluated before dispatch. Refusals are recorded by markRecentBudgetExhaustion.",
+    "The shared Redis scoreboard owns CCP's per-IP error budget: two-minute-bucket self counts plus the server's error-limit echo, evaluated before dispatch.",
   idempotency:
     'Read-only ESI operations only: GET queries plus public POST resolvers whose JSON bodies name lookup inputs and perform no mutation, so a repeat is safe.',
   degradation:
     'Per caller: background and price reads fall back to stored data or Fuzzwork; interactive character search returns its declared unavailable problem when scoped or exact live resolution cannot complete.',
   telemetryFields:
-    "'price_source_degraded', 'public_esi_budget_alert_claimed', 'public_esi_budget_alerted'.",
+    "'price_source_degraded'.",
 });
 const eveSso = policy({
   wrapper: {
@@ -107,7 +107,7 @@ const convexLive = policy({
 const upstashRedis = policy({
   wrapper: { module: 'src/lib/upstash.ts', symbol: 'createUpstashClient' },
   timeout:
-    'Explicit per client: 1500ms for the ESI scoreboard (on the go/no-go path of every ESI call), 2000ms for the rate limiter and the two hint writers. Enforced by a portable AbortController signal the SDK invokes once per request.',
+    'Explicit per client: 1500ms for the ESI scoreboard (on the go/no-go path of every ESI call), 2000ms for the rate limiter. Enforced by a portable AbortController signal the SDK invokes once per request.',
   retryableErrors:
     'Transient non-abort network errors only. A timeout abort is rethrown immediately by SDK design, so the bound is never multiplied by the retry count.',
   backoff:
@@ -115,11 +115,11 @@ const upstashRedis = policy({
   rateLimit:
     'This integration is itself the rate-limit backend (sliding window via @upstash/ratelimit) and the ESI budget store.',
   idempotency:
-    'The hint writes are idempotent (a set, and an eval that only lowers a stored timestamp). Rate-limit counters are intentionally incrementing, so a retried increment would over-count — which is why a timeout is never retried.',
+    'The scoreboard writes are idempotent (an eval that only lowers a stored timestamp). Rate-limit counters are intentionally incrementing, so a retried increment would over-count — which is why a timeout is never retried.',
   degradation:
-    "Per call site and unchanged by this policy: unconfigured or failed hint writes are swallowed (the durable Neon queue stays authoritative), the exhaustion marker answers 'unknown' so callers keep their Neon fallback, the scoreboard falls back to its local budget, and the rate limiter bypasses in non-production but fails closed in production.",
+    'Per call site and unchanged by this policy: the scoreboard falls back to its local budget, and the rate limiter bypasses in non-production but fails closed in production.',
   telemetryFields:
-    "None of its own; it appears in consumers' outcomes ('price_source_degraded', 'cron_esi_refresh_jobs').",
+    "None of its own; it appears in consumers' outcomes ('price_source_degraded').",
 });
 const neonPostgres = policy({
   wrapper: { module: 'src/db/index.ts', symbol: 'db' },
@@ -182,7 +182,7 @@ const discordWebhooks = policy({
     'Non-idempotent — a retry would post a duplicate message, which is why none is attempted.',
   degradation:
     'Best-effort: an unset DISCORD_ALERT_WEBHOOK_URL skips delivery silently while telemetry still records. A non-2xx webhook response rejects, and the caller logs it through bestEffort without changing its own outcome.',
-  telemetryFields: "'public_esi_budget_alerted'.",
+  telemetryFields: "'price_source_degraded'.",
 });
 const fuzzworkPrices = policy({
   wrapper: {

@@ -2,7 +2,6 @@ import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
   type OwnerSyncResult,
-  type OwnerSyncRunOptions,
   runOwnerSync,
   type SingleOwnerRead,
 } from '@/platform/owner-sync';
@@ -64,7 +63,6 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
 export function refreshSkillsForUser(
   port: SkillsPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  return runOwnerSync(makeDescriptor(port), userId, options);
+  return runOwnerSync(makeDescriptor(port), userId);
 }

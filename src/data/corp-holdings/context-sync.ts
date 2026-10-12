@@ -7,7 +7,6 @@ import {
   type CorpSyncBase,
   makeCorpDescriptor,
   type OwnerSyncResult,
-  type OwnerSyncRunOptions,
   type PersistVerdict,
   runOwnerSync,
   type SingleOwnerRead,
@@ -168,7 +167,6 @@ function makeDescriptor(port: CorpContextPort) {
 export function refreshCorpContextForUser(
   port: CorpContextPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  return runOwnerSync(makeDescriptor(port), userId, options);
+  return runOwnerSync(makeDescriptor(port), userId);
 }
