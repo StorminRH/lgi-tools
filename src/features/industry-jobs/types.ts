@@ -1,4 +1,4 @@
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { CharacterSyncBase, CorpSyncBase, SingleOwnerRead } from '@/platform/owner-sync';
 import type { IndustryJob } from './esi-projection';
 
 export interface CharacterJobsData {
@@ -10,26 +10,9 @@ export interface CharacterJobsSyncState {
   jobsEtag: string | null;
 }
 
-export type JobsEsiRead =
-  | { kind: 'fresh'; body: unknown; etag: string | null }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-export interface JobsPort {
-  now(): Date;
-  listCharacters(userId: string): Promise<CharacterOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
-  readJobs(characterId: number, accessToken: string, heldEtag: string | null): Promise<JobsEsiRead>;
-  readSyncState(characterId: number): Promise<CharacterJobsSyncState | null>;
+export interface JobsPort extends CharacterSyncBase<CharacterJobsSyncState> {
+  readJobs(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
   saveJobs(characterId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
-  stampFresh(characterId: number): Promise<void>;
-}
-
-export interface RefreshCorpMember {
-  characterId: number;
-  corporationId: number | null;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
 }
 
 export interface CorpJobsSyncState {
@@ -39,17 +22,14 @@ export interface CorpJobsSyncState {
 }
 
 /**
- * The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
- * in-game roles read), the one authed ESI gate read per corp, and Neon storage. The
- * real implementations are wired in src/composition/sync/corp-industry-jobs-sync.ts. Reuses
- * JobsEsiRead (the corp board is the same single endpoint shape as the character one).
+ * The injected I/O the corp refresh runs over: the shared corp base (member
+ * enumeration, token vend, in-game roles read), the one authed ESI gate read per
+ * corp, and Neon storage. The real implementations are wired in
+ * src/composition/sync/corp-industry-jobs-sync.ts. The corp board read has the same
+ * single-endpoint shape as the character one.
  */
-export interface CorpJobsPort {
-  now(): Date;
-  listMembers(userId: string): Promise<RefreshCorpMember[]>;
-  vendToken(characterId: number): Promise<string | null>;
-  readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-  readJobs(corporationId: number, accessToken: string, heldEtag: string | null): Promise<JobsEsiRead>;
+export interface CorpJobsPort extends CorpSyncBase {
+  readJobs(corporationId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
   readSyncState(userId: string, corporationId: number): Promise<CorpJobsSyncState | null>;
   saveJobs(userId: string, corporationId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
   saveNeedsRole(userId: string, corporationId: number): Promise<void>;

@@ -4,17 +4,11 @@ import type { SearchCharactersResponse } from '@/data/maps/api-contract';
 import { resolveEntityNamesStrict } from '@/data/eve-data/entity-names';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { positiveIdSchema } from '@/lib/id-schemas';
-import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { deriveScopeHealth } from '@/platform/auth/scope-health';
 import { esiFetch, esiUrl } from '@/platform/esi';
-import { fetchCharacterSearch } from './esi-character-search';
+import { esiJsonPostInit } from '@/platform/esi/request-init';
+import { firstScopedSearch, scopedLinkedCharacters } from './esi-character-search';
 
 const MAX_TYPEAHEAD_RESULTS = 20;
-
-const esiCharacterSearchSchema = z.object({
-  character: z.array(positiveIdSchema).optional(),
-});
 
 const universeIdsSchema = z.object({
   characters: z
@@ -31,16 +25,9 @@ function uniqueIds(ids: readonly number[]): number[] {
   return [...new Set(ids)].slice(0, MAX_TYPEAHEAD_RESULTS);
 }
 
-async function searchWithScopedToken(
-  characterId: number,
-  accessToken: string,
-  search: string,
-): Promise<SearchCharactersResponse> {
-  const body = await fetchCharacterSearch(characterId, accessToken, 'character', search);
-  const parsed = esiCharacterSearchSchema.safeParse(body);
-  if (!parsed.success) throw new Error('Scoped ESI character search returned an invalid body');
-
-  const ids = uniqueIds(parsed.data.character ?? []);
+/** The typeahead results for a scoped search's first hits, with their names. */
+async function typeaheadResponse(found: readonly number[]): Promise<SearchCharactersResponse> {
+  const ids = uniqueIds(found);
   const names = await resolveEntityNamesStrict(ids);
   return {
     mode: 'typeahead',
@@ -54,11 +41,7 @@ async function searchWithScopedToken(
 }
 
 async function searchExactName(search: string): Promise<SearchCharactersResponse> {
-  const response = await esiFetch(esiUrl('/universe/ids/'), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify([search]),
-  });
+  const response = await esiFetch(esiUrl('/universe/ids/'), esiJsonPostInit([search]));
   if (!response.ok) throw new Error(`Exact ESI character search failed (${response.status})`);
 
   const parsed = universeIdsSchema.safeParse(await response.json());
@@ -75,19 +58,11 @@ async function searchExactName(search: string): Promise<SearchCharactersResponse
 export async function searchMapCharacters(
   userId: string,
   search: string,
+  signal?: AbortSignal,
 ): Promise<SearchCharactersResponse> {
-  const linked = await listLinkedCharacters(userId);
-  const scoped = linked.filter(
-    (character) =>
-      !deriveScopeHealth(character, [EVE_CHARACTER_SEARCH_SCOPE]).needsReconnect,
-  );
+  const scoped = await scopedLinkedCharacters(userId, [EVE_CHARACTER_SEARCH_SCOPE]);
   if (scoped.length === 0) return searchExactName(search);
 
-  for (const character of scoped) {
-    const token = await getFreshAccessTokenForCharacter(character.characterId);
-    if (token.kind === 'ok') {
-      return searchWithScopedToken(character.characterId, token.accessToken, search);
-    }
-  }
-  throw new Error('No scoped linked character has a usable ESI access token');
+  const { first } = await firstScopedSearch(scoped, 'character', search, signal);
+  return typeaheadResponse(first.ids);
 }

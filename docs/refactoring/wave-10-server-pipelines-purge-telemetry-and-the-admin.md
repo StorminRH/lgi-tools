@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#677](https://github.com/StorminRH/lgi-tools/pull/677).
+
 ← [Wave 9: Auth, routes and the mutation/transport pipeline](wave-09-auth-routes-and-the-mutation-transport-pipeline.md) · [Index](README.md#roadmap) · [Wave 11: ESI reads, owner-sync and owner-dataset persistence](wave-11-esi-reads-owner-sync-and-owner-dataset.md) →
 
 In order:

@@ -1,8 +1,8 @@
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
-import { makeCorpDescriptor, planRead, runOwnerSync } from '@/platform/owner-sync';
+import { makeCorpDescriptor, type PagedOwnerSyncState, planRead, runOwnerSync } from '@/platform/owner-sync';
 import { CORP_STRUCTURES_REQUIRED_ROLES, canSyncCorpStructures } from './corp-sync-eligibility';
 import { type ParsedCorpStructure, parseCorpStructuresBody } from './esi-projection';
-import type { CorpOwner, CorpStructuresPort, CorpStructuresSyncState } from './types';
+import type { CorpOwner, CorpStructuresPort } from './types';
 
 const STRUCTURES_FRESHNESS = freshnessGate('owned_structures');
 
@@ -12,7 +12,7 @@ interface StructuresSave {
 }
 
 function makeDescriptor(port: CorpStructuresPort) {
-  return makeCorpDescriptor<CorpOwner, CorpStructuresSyncState, StructuresSave>(port, {
+  return makeCorpDescriptor<CorpOwner, PagedOwnerSyncState, StructuresSave>(port, {
     ownerOf: (_userId, corporationId) => ({ corporationId }),
     eligible: canSyncCorpStructures,
     requiredRoles: CORP_STRUCTURES_REQUIRED_ROLES,

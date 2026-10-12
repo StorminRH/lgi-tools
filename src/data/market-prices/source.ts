@@ -15,6 +15,7 @@ import {
   esiFetch,
   esiUrl,
 } from '@/platform/esi';
+import { esiPageCount } from '@/platform/esi/headers';
 import { dedupe, getOrInsertComputed } from '@/lib/array';
 import { mapConcurrent } from '@/lib/fan-out';
 import {
@@ -148,7 +149,7 @@ async function fetchViaEsiRegionDump(
 
   const firstRes = await esiFetch(regionDumpPageUrl(1));
   if (!firstRes.ok) throw new EsiServerError(firstRes.status);
-  const totalPages = Number(firstRes.headers.get('X-Pages') ?? '1');
+  const totalPages = esiPageCount(firstRes.headers);
   const firstOrders = parseEsiOrders(await firstRes.json());
   absorbOrders(firstOrders, wanted, buckets);
 

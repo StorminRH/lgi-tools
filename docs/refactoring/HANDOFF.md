@@ -89,6 +89,7 @@ The kit's workflow does a wave end to end:
 4. **Build the args** right after the link commit, since `base` defaults to HEAD: `python3 docs/refactoring/kit/tools/make_args.py N --trailers .git/wave-trailers.txt > .git/wave-NN-args.json`.
    - Add `--fallow-env 'FALLOW_TYPE_AWARE_TIMEOUT_SECS=300 '` only if Fallow warns that its type-aware sidecar timed out (see gotchas).
    - Leave `--kill-next` off on the owner's machine.
+   - Add `--host-guard` on the owner's machine. Then run `env_guard.sh` and `cleanup.sh snapshot .git/wave-kit` yourself just before launching, and `cleanup.sh sweep .git/wave-kit` after the run ends. In waves 9 to 11 the auto-mode classifier blocked these repo scripts when a workflow agent ran them, which aborted two launches at Prepare and skipped the sweeps; from the main session they ran.
    - The briefs, cautions and possibly-done hints come from `kit/waves/wave-NN.json`. Edit them there if a wave needs different documentation lookups.
 5. **Run.** Call `Workflow({ scriptPath: 'docs/refactoring/kit/implement-wave.js', args: <the JSON object from that file> })`. Pass `args` as an object, not a string.
 6. **While it runs.**

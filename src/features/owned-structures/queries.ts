@@ -1,12 +1,15 @@
 import { eq, inArray } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import { getSystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
+import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import type { PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
-import type { CorpStructureRow, CorpStructuresSyncState } from './types';
+import type { CorpStructureRow } from './types';
 
 function corpStructuresTag(corporationId: number): string {
   return `corp-structures:${corporationId}`;
@@ -36,7 +39,7 @@ export async function getCorpStructures(
 
 export async function readCorpStructureSyncState(
   corporationId: number,
-): Promise<CorpStructuresSyncState | null> {
+): Promise<PagedOwnerSyncState | null> {
   const rows = await db
     .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt, pageEtags: corpStructureSyncs.pageEtags })
     .from(corpStructureSyncs)
@@ -55,6 +58,10 @@ export async function listCorpStructureSyncStates(
     .where(inArray(corpStructureSyncs.corporationId, corporationIds));
 }
 
+/**
+ * Replace a corporation's structures under its sync-row lock. The port keeps
+ * Promise<void>: a superseded save changed nothing and invalidates nothing.
+ */
 export async function saveCorpStructures(
   corporationId: number,
   rows: ParsedCorpStructure[],
@@ -62,27 +69,28 @@ export async function saveCorpStructures(
 ): Promise<void> {
   const now = new Date();
   const systems = await getSystemFacts([...new Set(rows.map((r) => r.system_id))]);
-  await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
-  if (rows.length > 0) {
-    await db.insert(corpStructures).values(
-      rows.map((r) => ({
-        corporationId,
-        structureId: r.structure_id,
-        typeId: r.type_id,
-        systemId: r.system_id,
-        securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
-        name: r.name ?? null,
-      })),
-    );
-  }
-  await db
-    .insert(corpStructureSyncs)
-    .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
-    .onConflictDoUpdate({
-      target: corpStructureSyncs.corporationId,
-      set: { lastRefreshedAt: now, pageEtags: etags },
-    });
-  revalidateTag(corpStructuresTag(corporationId), 'max');
+  const records = rows.map((r) => ({
+    corporationId,
+    structureId: r.structure_id,
+    typeId: r.type_id,
+    systemId: r.system_id,
+    securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
+    name: r.name ?? null,
+  }));
+  const outcome = await replaceOwnerSnapshot({
+    lock: (tx) => tx
+      .insert(corpStructureSyncs)
+      .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
+      .onConflictDoUpdate({
+        target: corpStructureSyncs.corporationId,
+        set: { lastRefreshedAt: now, pageEtags: etags },
+      }),
+    replace: async (tx) => {
+      await tx.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
+      await insertInBatches(tx, corpStructures, records);
+    },
+  });
+  if (outcome === 'saved') expireNow(corpStructuresTag(corporationId));
 }
 
 export async function stampCorpStructuresFresh(corporationId: number): Promise<void> {
@@ -117,21 +125,26 @@ export async function getCorpStructureRigs(
  * exposes neither the rigs nor the profile tax). Untouched by the full-replace pull
  * (saveCorpStructures never references this table), so the authored values survive
  * the hourly refresh. `taxPct` is tri-state: undefined leaves the stored tax as-is
- * (a rig-only save can't clobber it), null clears it, a number sets it.
+ * (a rig-only save can't clobber it), null clears it, a number sets it. Returns the
+ * row as stored, so a rig-only save answers with the tax it kept.
  */
 export async function upsertCorpStructureRigs(
   corporationId: number,
   structureId: number,
   rigTypeIds: number[],
   taxPct?: number | null,
-): Promise<void> {
+): Promise<CorpStructureCompletion> {
   const taxSet = taxPct === undefined ? {} : { taxPct };
-  await db
+  const [stored] = await db
     .insert(corpStructureRigs)
     .values({ corporationId, structureId, rigTypeIds, ...taxSet, setAt: new Date() })
     .onConflictDoUpdate({
       target: [corpStructureRigs.corporationId, corpStructureRigs.structureId],
       set: { rigTypeIds, ...taxSet, setAt: new Date() },
-    });
-  revalidateTag(corpStructuresTag(corporationId), 'max');
+    })
+    .returning({ rigTypeIds: corpStructureRigs.rigTypeIds, taxPct: corpStructureRigs.taxPct });
+  if (stored === undefined) {
+    throw new Error(`Corp structure rig upsert returned no row for structure ${structureId}.`);
+  }
+  return stored;
 }

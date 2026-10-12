@@ -5,12 +5,7 @@ const mocks = vi.hoisted(() => ({
   insertEsiSnapshotMock: vi.fn(async (_input: unknown) => 44),
   deleteEsiSnapshotMock: vi.fn(async (_id: number) => {}),
   saveOwnedAssetsMock: vi.fn(
-    async (
-      _owner: unknown,
-      _rows: unknown,
-      _etags: unknown,
-      _snapshotId?: unknown,
-    ): Promise<'saved' | 'superseded'> => 'saved',
+    async (_owner: unknown, _rows: unknown, _etags: unknown): Promise<'saved' | 'superseded'> => 'saved',
   ),
   emitDomainEventMock: vi.fn(),
   saveCorpOwnedAssetsMock: vi.fn(async (..._args: unknown[]): Promise<'saved' | 'superseded'> => 'saved'),
@@ -33,10 +28,7 @@ vi.mock('@/features/owned-assets/queries', () => ({
   getOwnedAssetMap: vi.fn(),
   saveCorpOwnedAssets: (...args: unknown[]) => mocks.saveCorpOwnedAssetsMock(...args),
   readOwnerSyncState: vi.fn(),
-  saveOwnedAssets: (owner: unknown, rows: unknown, etags: unknown, snapshotId?: unknown) =>
-    snapshotId === undefined
-      ? mocks.saveOwnedAssetsMock(owner, rows, etags)
-      : mocks.saveOwnedAssetsMock(owner, rows, etags, snapshotId),
+  saveOwnedAssets: (owner: unknown, rows: unknown, etags: unknown) => mocks.saveOwnedAssetsMock(owner, rows, etags),
   stampOwnerFresh: vi.fn(),
 }));
 

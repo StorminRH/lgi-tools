@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { refreshOwnedBlueprintsForUser } from './refresh';
-import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
+import type { PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
+import { ownedDatasetPortFake, ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import type { OwnedBlueprintsPort } from './types';
 
 const NOW = new Date('2026-06-27T12:00:00Z');
@@ -19,41 +20,15 @@ function esiBlueprint(typeId: number) {
   };
 }
 
-function makePort(overrides: Partial<OwnedBlueprintsPort> = {}): OwnedBlueprintsPort {
-  return {
-    now: () => NOW,
-    listCharacters: vi.fn(async () => []),
-    vendToken: vi.fn(async () => 'token'),
-    readRoles: vi.fn(async () => []),
-    read: vi.fn(
-      async (): Promise<PagedOwnerReadResult> => ({
-        kind: 'fresh',
-        items: [],
-        etags: [],
-        responseHeaders: [],
-      }),
-    ),
-    readSyncState: vi.fn(async () => null),
-    save: vi.fn(async () => {}),
-    stampFresh: vi.fn(async () => {}),
-    ...overrides,
-  };
-}
-
-const character = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner => ({
-  characterId: id,
-  corporationId: null,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
+const makePort = (overrides: Partial<OwnedBlueprintsPort> = {}): OwnedBlueprintsPort =>
+  ownedDatasetPortFake(NOW, overrides);
 
 const fresh = (): PagedOwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-27T11:30:00Z'), pageEtags: [] });
 
 describe('refreshOwnedBlueprintsForUser — character path', () => {
   it('makes no token vend and no ESI call when the owner is fresh (the staleness gate)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => fresh()),
     });
 
@@ -66,7 +41,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
 
   it('fetches and saves a stale owner, retaining item_id in the projection', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
@@ -100,7 +75,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
 
   it('replays held etags and only stamps freshness on a 304 (no row rewrite)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, pageEtags: ['"held"'] })),
       read: vi.fn(async (): Promise<PagedOwnerReadResult> => ({ kind: 'unchanged' })),
     });
@@ -114,7 +89,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
 
   it('refreshes several stale character owners (the parallel pass saves each one)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2), ownerFixture(3)]),
       readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
@@ -137,7 +112,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
 
   it('skips a character missing the blueprints scope', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { missingScopes: [CHAR_BP_SCOPE] })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: [CHAR_BP_SCOPE] })]),
     });
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
@@ -149,7 +124,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
 
 describe('refreshOwnedBlueprintsForUser — corporation path', () => {
   it('reads corp blueprints once, with a Director member token (preferred vend)', async () => {
-    const members = [character(1, { corporationId: 5000 }), character(2, { corporationId: 5000 })];
+    const members = [ownerFixture(1, { corporationId: 5000 }), ownerFixture(2, { corporationId: 5000 })];
     const port = makePort({
       listCharacters: vi.fn(async () => members),
       readSyncState: vi.fn(async () => null),
@@ -176,7 +151,7 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
 
   it('skips a corp gracefully when no member holds the Director role', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       readSyncState: vi.fn(async () => null),
       readRoles: vi.fn(async () => ['Accountant']),
     });
@@ -191,7 +166,7 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
 
   it('reads no corp roles when the corp is fresh (the corp staleness gate)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       readSyncState: vi.fn(async () => fresh()),
       readRoles: vi.fn(async () => ['Director']),
     });

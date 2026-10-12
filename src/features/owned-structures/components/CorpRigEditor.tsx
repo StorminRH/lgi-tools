@@ -9,14 +9,11 @@ import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { Field } from '@/components/ui/field';
 import { eyebrow } from '@/components/ui/type-roles';
-import type { StructureRigOption } from '@/data/eve-data/structures';
+import { fittedRigIds, rigSlotsFrom, type StructureRigOption } from '@/data/eve-data/structures';
 import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
-import { MAX_CORP_STRUCTURE_RIGS, setCorpStructureRigsEndpoint } from '../api-contract';
+import { setCorpStructureRigsEndpoint } from '../api-contract';
 import type { CorpStructurePageStructure } from '../types';
-
-const slotsFrom = (rigTypeIds: number[]): (number | null)[] =>
-  Array.from({ length: MAX_CORP_STRUCTURE_RIGS }, (_, i) => rigTypeIds[i] ?? null);
 
 /** Rigs and tax for a synced corporation structure; ESI gives neither, a manager sets them. */
 export function CorpRigEditor({
@@ -32,7 +29,7 @@ export function CorpRigEditor({
   onSaved: (saved: { rigTypeIds: number[]; taxPct: number | null }) => void;
   onClose: () => void;
 }) {
-  const [slots, setSlots] = useState(() => slotsFrom(structure.rigTypeIds));
+  const [slots, setSlots] = useState(() => rigSlotsFrom(structure.rigTypeIds));
   const [taxDraft, setTaxDraft] = useState(() => taxDraftFromStored(structure.taxPct));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +38,7 @@ export function CorpRigEditor({
     const tax = parseFacilityTaxDraft(taxDraft);
     if (!tax.ok) return setError(`Tax must be 0–${MAX_FACILITY_TAX_PCT}%.`);
     setBusy(true);
-    const rigTypeIds = slots.filter((x): x is number => x !== null);
+    const rigTypeIds = fittedRigIds(slots);
     const res = await apiFetch(setCorpStructureRigsEndpoint, {
       body: { corporationId, structureId: structure.structureId, rigTypeIds, taxPct: tax.value },
       cache: 'no-store',
@@ -56,7 +53,6 @@ export function CorpRigEditor({
       <span className={eyebrow({ size: 'micro' })}>Rigs</span>
       <RigSupply
         validRigs={validRigs}
-        maxSlots={MAX_CORP_STRUCTURE_RIGS}
         slots={slots}
         onSlotsChange={setSlots}
         disabled={busy}

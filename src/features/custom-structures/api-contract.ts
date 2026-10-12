@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { UPWELL_RIG_SLOTS } from '@/data/eve-data/structures';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import { int4IdSchema, ownedRowIdSchema, positiveIdSchema } from '@/lib/id-schemas';
@@ -11,7 +12,6 @@ import type { ParsedStructureFit } from './structure-fit-parse';
 import type { CustomStructureRow } from './types';
 
 export const MAX_CUSTOM_STRUCTURE_NAME_LEN = 80;
-export const MAX_CUSTOM_STRUCTURE_RIGS = 3;
 export const MAX_CUSTOM_STRUCTURES_PER_USER = 50;
 const MAX_STRUCTURE_FIT_LEN = 8000;
 
@@ -33,7 +33,7 @@ const customStructuresResponseSchema = z.object({
 const customStructureFields = {
   name: z.string().trim().min(1).max(MAX_CUSTOM_STRUCTURE_NAME_LEN),
   structureTypeId: int4IdSchema,
-  rigTypeIds: z.array(int4IdSchema).max(MAX_CUSTOM_STRUCTURE_RIGS),
+  rigTypeIds: z.array(int4IdSchema).max(UPWELL_RIG_SLOTS),
   systemId: int4IdSchema.nullable().default(null),
   taxPct: facilityTaxPct.nullable().default(null),
   bonuses: enteredBonusesSchema.nullable().default(null),
@@ -141,6 +141,7 @@ export const searchStructuresEndpoint = defineEndpoint({
     200: jsonBody(searchStructuresResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
     503: problem('structure_search_unavailable'),
   },
 });

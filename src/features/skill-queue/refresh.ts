@@ -4,11 +4,12 @@ import {
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
   runOwnerSync,
+  type SingleOwnerRead,
 } from '@/platform/owner-sync';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { parseSkillQueueBody, parseSkillsBody } from './esi-projection';
 import { canSyncSkillQueue } from './sync-eligibility';
-import type { CharacterSkillSyncState, SkillsEsiRead, SkillsPort, SkillsSaveHalves } from './types';
+import type { CharacterSkillSyncState, SkillsPort, SkillsSaveHalves } from './types';
 
 const SKILLS_FRESHNESS = freshnessGate('skills');
 
@@ -18,8 +19,8 @@ export type SkillsPersistPlan =
   | { kind: 'skip'; code?: string };
 
 export function planSkillsPersist(
-  queueRead: SkillsEsiRead,
-  skillsRead: SkillsEsiRead,
+  queueRead: SingleOwnerRead,
+  skillsRead: SingleOwnerRead,
 ): SkillsPersistPlan {
   if (queueRead.kind === 'error') return { kind: 'skip', code: queueRead.code };
   if (skillsRead.kind === 'error') return { kind: 'skip', code: skillsRead.code };

@@ -8,30 +8,30 @@ Share the ESI header parsers and the scoped search loop. The search routes are a
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P192](#p192) | Share one nullable-int and HTTP-date header parser inside platform/esi | esi-sync | S | low | low | — |
-| ☐ | [P193](#p193) | Share the scoped-linked-character ESI search loop and its id parse in composition/esi-character-search | esi-sync | S | low | medium | — |
-| ☐ | [P150](#p150) | Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling | api-route | M | medium | medium | [P193](#p193) |
-| ☐ | [P191](#p191) | Add platform/esi request-init builders and use one X-Pages parser; keep each public reader's status handling local | esi-sync | S | low | low | [P192](#p192), [P193](#p193) |
-| ☐ | [P194](#p194) | Build ESI paths shared across modules once, and tie the snapshot endpoint's writer and reader to one builder | esi-sync | M | low | medium | — |
-| ☐ | [P190](#p190) | Make platform/owner-sync the single home for owner-sync port bases and read-result types | esi-sync | M | low | medium | — |
-| ☐ | [P345](#p345) | Use EnumeratedOwner instead of three local copies, and share the owner fixture and owned-dataset port fake | testing | S | low | medium | [P190](#p190) |
-| ☐ | [P188](#p188) | Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker | esi-sync | S | low | low | [P190](#p190) |
-| ☐ | [P189](#p189) | Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive | esi-sync | S | low | medium | [P188](#p188) |
-| ☐ | [P292](#p292) | Read each character's sheet row once per direct-section phase by promoting memoizePerRun to src/lib | efficiency | S | low | high | [P188](#p188) |
-| ☐ | [P297](#p297) | Reuse fresh stored corp roles when the sync passes pick a corp credential | efficiency | S | medium | medium | [P186](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p186), [P189](#p189) |
-| ☐ | [P286](#p286) | Read the character_skills row once per character for the board | efficiency | S | low | low | — |
-| ☐ | [P178](#p178) | Batch the per-character sync-state reads behind board and jobs views with inArray list readers | server-pipeline | S | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327), [P286](#p286) |
-| ☐ | [P336](#p336) | Invalidate only in the commit owner: drop the rig-save revalidate and replace the `database === db` mode switch with tx-only writers | simplification | S | low | low | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220) |
-| ☐ | [P239](#p239) | Replace owner snapshots in one direct-client transaction that takes the sync-row lock first | persistence | M | medium | medium | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220), [P336](#p336) |
-| ☐ | [P184](#p184) | Expire owner-dataset cache tags immediately after sync writes (keep the snapshot's uncached reads) | server-pipeline | M | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327) |
-| ☐ | [P241](#p241) | Expire a purged character's 'use cache' tags from runPurge through a PurgeContributor.cacheTags hook | persistence | S | low | medium | [P240](wave-10-server-pipelines-purge-telemetry-and-the-admin.md#p240), [P184](#p184) |
-| ☐ | [P273](#p273) | Put Upwell rig-slot helpers (UPWELL_RIG_SLOTS, rigSlotsFrom, fittedRigIds, fittingRigs) in data/eve-data/structures and return the stored row from upsertCorpStructureRigs | feature-skeleton | S | low | low | [P336](#p336) |
+| ☑ | [P192](#p192) | Share one nullable-int and HTTP-date header parser inside platform/esi | esi-sync | S | low | low | — |
+| ☑ | [P193](#p193) | Share the scoped-linked-character ESI search loop and its id parse in composition/esi-character-search | esi-sync | S | low | medium | — |
+| ☑ | [P150](#p150) | Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling | api-route | M | medium | medium | [P193](#p193) |
+| ☑ | [P191](#p191) | Add platform/esi request-init builders and use one X-Pages parser; keep each public reader's status handling local | esi-sync | S | low | low | [P192](#p192), [P193](#p193) |
+| ☑ | [P194](#p194) | Build ESI paths shared across modules once, and tie the snapshot endpoint's writer and reader to one builder | esi-sync | M | low | medium | — |
+| ☑ | [P190](#p190) | Make platform/owner-sync the single home for owner-sync port bases and read-result types | esi-sync | M | low | medium | — |
+| ☑ | [P345](#p345) | Use EnumeratedOwner instead of three local copies, and share the owner fixture and owned-dataset port fake | testing | S | low | medium | [P190](#p190) |
+| ☑ | [P188](#p188) | Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker | esi-sync | S | low | low | [P190](#p190) |
+| ☑ | [P189](#p189) | Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive | esi-sync | S | low | medium | [P188](#p188) |
+| ☑ | [P292](#p292) | Read each character's sheet row once per direct-section phase by promoting memoizePerRun to src/lib | efficiency | S | low | high | [P188](#p188) |
+| ☑ | [P297](#p297) | Reuse fresh stored corp roles when the sync passes pick a corp credential | efficiency | S | medium | medium | [P186](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p186), [P189](#p189) |
+| ☑ | [P286](#p286) | Read the character_skills row once per character for the board | efficiency | S | low | low | — |
+| ☑ | [P178](#p178) | Batch the per-character sync-state reads behind board and jobs views with inArray list readers | server-pipeline | S | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327), [P286](#p286) |
+| ☑ | [P336](#p336) | Invalidate only in the commit owner: drop the rig-save revalidate and replace the `database === db` mode switch with tx-only writers | simplification | S | low | low | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220) |
+| ☑ | [P239](#p239) | Replace owner snapshots in one direct-client transaction that takes the sync-row lock first | persistence | M | medium | medium | [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220), [P336](#p336) |
+| ☑ | [P184](#p184) | Expire owner-dataset cache tags immediately after sync writes (keep the snapshot's uncached reads) | server-pipeline | M | low | medium | [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327) |
+| ☑ | [P241](#p241) | Expire a purged character's 'use cache' tags from runPurge through a PurgeContributor.cacheTags hook | persistence | S | low | medium | [P240](wave-10-server-pipelines-purge-telemetry-and-the-admin.md#p240), [P184](#p184) |
+| ☑ | [P273](#p273) | Put Upwell rig-slot helpers (UPWELL_RIG_SLOTS, rigSlotsFrom, fittedRigIds, fittingRigs) in data/eve-data/structures and return the stored row from upsertCorpStructureRigs | feature-skeleton | S | low | low | [P336](#p336) |
 
 <a id="p192"></a>
 
 ## P192: Share one nullable-int and HTTP-date header parser inside platform/esi
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +15 lines
 - **Depends on:** —
@@ -113,7 +113,7 @@ Existing tests that guard the change:
 
 ## P193: Share the scoped-linked-character ESI search loop and its id parse in composition/esi-character-search
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -35 / +25 lines
 - **Depends on:** —
@@ -193,7 +193,7 @@ Preserve these behaviors:
 
 ## P150: Share the scoped-character ESI search loop between map character search and structure search, and align the two routes' same-origin and abort handling
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** api-route · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** About -30/+35 for the loop, routes and contract, plus tests; the abort-recording step adds about 15
 - **Depends on:** [P193](#p193)
@@ -256,7 +256,7 @@ export async function searchMapCharacters(userId: string, search: string, signal
 
 ## P191: Add platform/esi request-init builders and use one X-Pages parser; keep each public reader's status handling local
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +25 lines including the new test
 - **Depends on:** [P192](#p192), [P193](#p193)
@@ -362,7 +362,7 @@ Leads found while verifying, not acted on here:
 
 ## P194: Build ESI paths shared across modules once, and tie the snapshot endpoint's writer and reader to one builder
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -15/+40 (new ~10-line paths.ts and ~20-line conformance test; one-line swaps at 9 sites)
 - **Depends on:** —
@@ -448,7 +448,7 @@ export const OWNED_ASSETS_RESOURCE = 'assets';
 
 ## P190: Make platform/owner-sync the single home for owner-sync port bases and read-result types
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -90 / +20 lines (5 union copies, 3 owner copies, 1 state copy, about 15 base-member lines and about 30 wrapper lines removed)
 - **Depends on:** —
@@ -583,7 +583,7 @@ Adjacent lead, not part of this change: canSyncIndustryJobs (features/industry-j
 
 ## P345: Use EnumeratedOwner instead of three local copies, and share the owner fixture and owned-dataset port fake
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** testing · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -18 production lines (three interfaces), -70 test lines (10 builders) and -20 (one duplicate port fake), +35 for the fixture module: net about -70
 - **Depends on:** [P190](#p190)
@@ -654,7 +654,7 @@ export function ownedDatasetPortFake<TRow>(now: Date, overrides?: Partial<OwnedD
 
 ## P188: Define each deferred-queue dataset once with ownerSyncDataset(dataset, makePort, refresh) and one target-filtered priority picker
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -45/+30. About 7 lines saved per dataset across 7 modules, and the sheet picker plus imports go; the helper and its test add about 30.
 - **Depends on:** [P190](#p190)
@@ -752,7 +752,7 @@ Keep every exported function name. Routes, board-view, corp-viewer, the worker a
 
 ## P189: Single-flight owner-sync token vending in vendTokenFor via a shared lib/single-flight primitive
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** esi-sync · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About +15 for lib and about +35 for tests; about -12 in wh-statics/client.ts; owner-sync-port changes by about 3 lines.
 - **Depends on:** [P188](#p188)
@@ -869,7 +869,7 @@ The dependency on P188 is removed.
 
 ## P292: Read each character's sheet row once per direct-section phase by promoting memoizePerRun to src/lib
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** high · **Size:** about -10 / +25 (helper, test, and phase wrapper)
 - **Depends on:** [P188](#p188)
@@ -937,7 +937,7 @@ async function refreshDirectSections(port: SheetPort, userId: string, options?: 
 
 ## P297: Reuse fresh stored corp roles when the sync passes pick a corp credential
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** medium · **Payoff:** medium · **Size:** about +25 / -10 in owner-sync-port.ts and corp-viewer.ts, 5 one-line rewires, test mock updates
 - **Depends on:** [P186](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p186), [P189](#p189)
@@ -1008,7 +1008,7 @@ export async function probeAndStoreRoles(characterId: number, accessToken: strin
 
 ## P286: Read the character_skills row once per character for the board
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +12 (two readers, one cached getter and one batch helper become one each; board imports go from 4 to 1)
 - **Depends on:** —
@@ -1080,7 +1080,7 @@ Related, not in scope: readRaws also makes 3N uncached sync-state point reads pe
 
 ## P178: Batch the per-character sync-state reads behind board and jobs views with inArray list readers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About +45 (three list readers) / -8 (board-view and live-dataset-view lines); +20 more if the optional readCharacterSkillRows lands
 - **Depends on:** [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327), [P286](#p286)
@@ -1159,7 +1159,7 @@ export function readCharacterOwners<TData>(
 
 ## P336: Invalidate only in the commit owner: drop the rig-save revalidate and replace the `database === db` mode switch with tx-only writers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +12 in production, plus about -28 lines of the obsolete standalone race test
 - **Depends on:** [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220)
@@ -1224,7 +1224,7 @@ export async function saveOwnedAssets(owner: OwnerKey, rows: OwnedAsset[], etags
 
 ## P239: Replace owner snapshots in one direct-client transaction that takes the sync-row lock first
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** about -45 / +40 production (direct-database default removed in 6 places; supersede/try-catch removed in 3); +80 tests
 - **Depends on:** [P220](wave-05-persistence-primitives-and-data-layer-sql.md#p220), [P336](#p336)
@@ -1303,7 +1303,7 @@ export async function replaceOwnerSnapshot(
 
 ## P184: Expire owner-dataset cache tags immediately after sync writes (keep the snapshot's uncached reads)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about +12 (helper + test) / -1 net across call sites; 13 call-site edits, 1 deletion
 - **Depends on:** [P327](wave-05-persistence-primitives-and-data-layer-sql.md#p327)
@@ -1374,7 +1374,7 @@ export function expireNow(tag: string): void { revalidateTag(tag, { expire: 0 })
 
 ## P241: Expire a purged character's 'use cache' tags from runPurge through a PurgeContributor.cacheTags hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** +~15 production (1 type member, 5 one-line declarations, 3 `export` keywords, ~4 orchestrator lines), +~40 test lines; 0 removed
 - **Depends on:** [P240](wave-10-server-pipelines-purge-telemetry-and-the-admin.md#p240), [P184](#p184)
@@ -1459,7 +1459,7 @@ if (subject.kind === 'character') {
 
 ## P273: Put Upwell rig-slot helpers (UPWELL_RIG_SLOTS, rigSlotsFrom, fittedRigIds, fittingRigs) in data/eve-data/structures and return the stored row from upsertCorpStructureRigs
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 removed across 2 contracts, 2 slot helpers, 3 filters, the 2 validator loops and the route re-read; about +25 added in structures.ts and tests. Net about -5 to -10, with one DB round trip fewer per corp rig save.
 - **Depends on:** [P336](#p336)

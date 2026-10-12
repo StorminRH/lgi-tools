@@ -12,6 +12,7 @@ import {
 import { errorMessage } from '@/lib/failure';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
+import { characterLocationPath, characterOnlinePath, characterShipPath } from '@/platform/esi/paths';
 import { internal } from './_generated/api';
 import { internalAction, type ActionCtx } from './_generated/server';
 import type { LeaseWrite } from './characterLocationAccess';
@@ -238,7 +239,7 @@ async function resolveOnlineProbe(
     };
   }
 
-  const read = await readEsiAuthed(`/characters/${characterId}/online`, accessToken, decision.etagOnline, rl);
+  const read = await readEsiAuthed(characterOnlinePath(characterId), accessToken, decision.etagOnline, rl);
   if (read.kind === 'error') return read.code;
 
   const windowExpiresAt = resolveExpiresAt([read.expiresAt], ONLINE_FALLBACK_TTL_MS, Date.now());
@@ -264,7 +265,7 @@ async function readLocationCharacter(
   rl: RlSnapshot,
 ): Promise<LocationReadResult> {
   const locationRead = await readEsiAuthed(
-    `/characters/${characterId}/location`,
+    characterLocationPath(characterId),
     accessToken,
     held.etagLocation,
     rl,
@@ -321,7 +322,7 @@ async function finishWithOptionalShip(
   }
 
   const shipRead = await readEsiAuthed(
-    `/characters/${characterId}/ship`,
+    characterShipPath(characterId),
     accessToken,
     held.etagShip,
     rl,

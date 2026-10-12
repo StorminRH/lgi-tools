@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EnumeratedOwner, PagedOwnerReadResult } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCorpStructuresForUser } from './refresh';
-import type { CorpStructuresPort, CorpStructuresReadResult, RefreshCorpMember } from './types';
+import type { CorpStructuresPort } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const STRUCTURES_SCOPE = 'esi-corporations.read_structures.v1';
@@ -24,7 +26,7 @@ function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPo
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => ['Station_Manager']),
     readStructures: vi.fn(
-      async (): Promise<CorpStructuresReadResult> => ({ kind: 'fresh', items: [], etags: [] }),
+      async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [], etags: [], responseHeaders: [] }),
     ),
     readSyncState: vi.fn(async () => null),
     saveStructures: vi.fn(async () => {}),
@@ -33,13 +35,8 @@ function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPo
   };
 }
 
-const member = (id: number, extra: Partial<RefreshCorpMember> = {}): RefreshCorpMember => ({
-  characterId: id,
-  corporationId: 5000,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
+const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner =>
+  ownerFixture(id, { corporationId: 5000, ...extra });
 
 const freshState = () => ({ lastRefreshedAt: new Date('2026-06-28T11:30:00Z'), pageEtags: [] });
 
@@ -65,7 +62,12 @@ describe('refreshCorpStructuresForUser', () => {
       vendToken: vi.fn(async () => 'director-token'),
       readRoles: vi.fn(async () => ['Director']),
       readStructures: vi.fn(
-        async (): Promise<CorpStructuresReadResult> => ({ kind: 'fresh', items: [esiStructure(1001)], etags: ['"d1"'] }),
+        async (): Promise<PagedOwnerReadResult> => ({
+          kind: 'fresh',
+          items: [esiStructure(1001)],
+          etags: ['"d1"'],
+          responseHeaders: [],
+        }),
       ),
     });
 
@@ -86,10 +88,11 @@ describe('refreshCorpStructuresForUser', () => {
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async (id: number) => (id === 2 ? ['Station_Manager'] : ['Accountant'])),
       readStructures: vi.fn(
-        async (): Promise<CorpStructuresReadResult> => ({
+        async (): Promise<PagedOwnerReadResult> => ({
           kind: 'fresh',
           items: [esiStructure(1002), esiStructure(1001)],
           etags: ['"e1"'],
+          responseHeaders: [],
         }),
       ),
     });
@@ -124,7 +127,7 @@ describe('refreshCorpStructuresForUser', () => {
     const port = makePort({
       listMembers: vi.fn(async () => [member(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, pageEtags: ['"held"'] })),
-      readStructures: vi.fn(async (): Promise<CorpStructuresReadResult> => ({ kind: 'unchanged' })),
+      readStructures: vi.fn(async (): Promise<PagedOwnerReadResult> => ({ kind: 'unchanged' })),
     });
 
     await refreshCorpStructuresForUser(port, 'u1');
@@ -139,7 +142,7 @@ describe('refreshCorpStructuresForUser', () => {
       listMembers: vi.fn(async () => [member(1)]),
       readSyncState: vi.fn(async () => null),
       readStructures: vi.fn(
-        async (): Promise<CorpStructuresReadResult> => ({ kind: 'error', code: 'esi_403' }),
+        async (): Promise<PagedOwnerReadResult> => ({ kind: 'error', code: 'esi_403' }),
       ),
     });
 
@@ -156,10 +159,11 @@ describe('refreshCorpStructuresForUser', () => {
         listMembers: vi.fn(async (userId: string) => [member(userId === 'userA' ? 1 : 2)]),
         readSyncState: vi.fn(async () => null),
         readStructures: vi.fn(
-          async (): Promise<CorpStructuresReadResult> => ({
+          async (): Promise<PagedOwnerReadResult> => ({
             kind: 'fresh',
             items: [esiStructure(7001)],
             etags: [],
+            responseHeaders: [],
           }),
         ),
       });
@@ -181,7 +185,7 @@ describe('refreshCorpStructuresForUser', () => {
       ]),
       readSyncState: vi.fn(async () => null),
       readStructures: vi.fn(
-        async (): Promise<CorpStructuresReadResult> => ({ kind: 'fresh', items: [esiStructure(1)], etags: [] }),
+        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiStructure(1)], etags: [], responseHeaders: [] }),
       ),
     });
 

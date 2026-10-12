@@ -1,7 +1,7 @@
 """Build the Workflow args for one wave of the primitive extraction guide.
 
 Usage: make_args.py <N> [--base SHA] [--branch NAME] [--trailers FILE]
-                        [--fallow-env 'FALLOW_TYPE_AWARE_TIMEOUT_SECS=300 '] [--kill-next]
+                        [--fallow-env 'FALLOW_TYPE_AWARE_TIMEOUT_SECS=300 '] [--kill-next] [--host-guard]
 
 Reads the wave's items from its guide page, its docs briefs and cautions from
 kit/waves/wave-NN.json, and prints the JSON object to pass as Workflow `args`
@@ -30,6 +30,7 @@ p.add_argument('--branch', help='default: claude/primitives-wave-NN')
 p.add_argument('--trailers', help='file holding the commit trailer lines (Co-Authored-By and the like)')
 p.add_argument('--fallow-env', default='', help="env prefix for Fallow runs, e.g. 'FALLOW_TYPE_AWARE_TIMEOUT_SECS=300 '")
 p.add_argument('--kill-next', action='store_true', help='let the environment guard stop a running next dev')
+p.add_argument('--host-guard', action='store_true', help='the operator runs env_guard.sh and cleanup.sh snapshot/sweep from the main session; the workflow skips them')
 o = p.parse_args()
 
 repo = git('rev-parse', '--show-toplevel')
@@ -58,6 +59,7 @@ args = {
     'trailers': trailers,
     'fallowEnv': o.fallow_env,
     'killNextDev': o.kill_next,
+    'hostGuard': o.host_guard,
     'projectNote': project_note(common, spec, o.wave),
     'briefs': spec['briefs'],
     'items': w['items'],

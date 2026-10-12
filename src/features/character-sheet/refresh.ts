@@ -1,11 +1,13 @@
 import { freshnessGate, type FreshnessGate } from '@/lib/esi-datasets/freshness';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { memoizeAsync } from '@/lib/memoize';
 import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
   runOwnerSync,
+  type SingleOwnerRead,
 } from '@/platform/owner-sync';
 import {
   planSectionRead,
@@ -22,7 +24,6 @@ import type {
   PartEtags,
   SectionEnvelope,
   SectionSyncState,
-  SheetEsiRead,
   SheetPart,
   SheetPort,
   SheetSectionKey,
@@ -50,7 +51,7 @@ async function readParts<K extends DirectSectionKey>(
   accessToken: string,
   spec: DirectSectionSpec<K>,
   heldEtags: PartEtags<K>,
-): Promise<Record<SheetPart<K>, SheetEsiRead>> {
+): Promise<Record<SheetPart<K>, SingleOwnerRead>> {
   const parts = Object.keys(spec.parts) as SheetPart<K>[];
   const reads = await Promise.all(
     parts.map((part) =>
@@ -58,7 +59,7 @@ async function readParts<K extends DirectSectionKey>(
       port.readEndpoint(characterId, spec.parts[part].endpoint, accessToken, spec.key === 'journal' ? null : (heldEtags[part] ?? null)),
     ),
   );
-  return Object.fromEntries(parts.map((part, i) => [part, reads[i]])) as Record<SheetPart<K>, SheetEsiRead>;
+  return Object.fromEntries(parts.map((part, i) => [part, reads[i]])) as Record<SheetPart<K>, SingleOwnerRead>;
 }
 
 function sectionDescriptor<K extends DirectSectionKey>(
@@ -134,8 +135,11 @@ async function refreshDirectSections(
   userId: string,
   options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
+  // Each direct section reads and writes only its own key, so one row snapshot per
+  // character serves the whole phase. The structures phase reads the merged row afresh.
+  const phasePort: SheetPort = { ...port, readSheet: memoizeAsync((characterId) => port.readSheet(characterId)) };
   const results = await Promise.all(
-    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(port, SHEET_SECTIONS[key]), userId, options)),
+    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(phasePort, SHEET_SECTIONS[key]), userId, options)),
   );
   return results.flat();
 }

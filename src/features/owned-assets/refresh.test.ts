@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
+import type { PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
+import { ownedDatasetPortFake, ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCharacterOwnedAssetsForUser, refreshOwnedAssetsForUser } from './refresh';
 import type { OwnedAssetsPort } from './types';
 
@@ -18,41 +19,15 @@ function esiAsset(typeId: number, quantity = 1000) {
   };
 }
 
-function makePort(overrides: Partial<OwnedAssetsPort> = {}): OwnedAssetsPort {
-  return {
-    now: () => NOW,
-    listCharacters: vi.fn(async () => []),
-    vendToken: vi.fn(async () => 'token'),
-    readRoles: vi.fn(async () => []),
-    read: vi.fn(
-      async (): Promise<PagedOwnerReadResult> => ({
-        kind: 'fresh',
-        items: [],
-        etags: [],
-        responseHeaders: [],
-      }),
-    ),
-    readSyncState: vi.fn(async () => null),
-    save: vi.fn(async () => {}),
-    stampFresh: vi.fn(async () => {}),
-    ...overrides,
-  };
-}
-
-const character = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner => ({
-  characterId: id,
-  corporationId: null,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
+const makePort = (overrides: Partial<OwnedAssetsPort> = {}): OwnedAssetsPort =>
+  ownedDatasetPortFake(NOW, overrides);
 
 const fresh = (): PagedOwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-28T11:30:00Z'), pageEtags: [] });
 
 describe('refreshOwnedAssetsForUser — character path', () => {
   it('makes no token vend and no ESI call when the owner is fresh (the staleness gate)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => fresh()),
     });
 
@@ -65,7 +40,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
 
   it('fetches and saves a stale owner, aggregating + dropping item_id via the projection', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
@@ -90,7 +65,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
 
   it('replays held etags and only stamps freshness on a 304 (no row rewrite)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, pageEtags: ['"held"'] })),
       read: vi.fn(async (): Promise<PagedOwnerReadResult> => ({ kind: 'unchanged' })),
     });
@@ -104,7 +79,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
 
   it('refreshes several stale character owners (the parallel pass saves each one)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2), ownerFixture(3)]),
       readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
@@ -127,7 +102,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
 
   it('skips a character missing the assets scope', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { missingScopes: [CHAR_ASSETS_SCOPE] })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: [CHAR_ASSETS_SCOPE] })]),
     });
 
     await refreshOwnedAssetsForUser(port, 'u1');
@@ -139,7 +114,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
 
 describe('refreshOwnedAssetsForUser — corporation path', () => {
   it('reads corp assets once, with a Director member token (preferred vend)', async () => {
-    const members = [character(1, { corporationId: 5000 }), character(2, { corporationId: 5000 })];
+    const members = [ownerFixture(1, { corporationId: 5000 }), ownerFixture(2, { corporationId: 5000 })];
     const port = makePort({
       listCharacters: vi.fn(async () => members),
       readSyncState: vi.fn(async () => null),
@@ -166,7 +141,7 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
 
   it('skips a corp gracefully when no member holds the Director role', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       readSyncState: vi.fn(async () => null),
       readRoles: vi.fn(async () => ['Accountant']),
     });
@@ -181,7 +156,7 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
 
   it('reads no corp roles when the corp is fresh (the corp staleness gate)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       readSyncState: vi.fn(async () => fresh()),
       readRoles: vi.fn(async () => ['Director']),
     });
@@ -195,7 +170,7 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
 describe('refreshCharacterOwnedAssetsForUser — the board variant', () => {
   it('refreshes personal hangars and never reads roles or corporation assets, even for a Director', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 }), character(2, { corporationId: 5000 })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 }), ownerFixture(2, { corporationId: 5000 })]),
       readSyncState: vi.fn(async () => null),
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async () => ['Director']),
@@ -219,7 +194,7 @@ describe('refreshCharacterOwnedAssetsForUser — the board variant', () => {
 
   it('still honours the assets scope and the staleness gate', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { missingScopes: [CHAR_ASSETS_SCOPE] }), character(2)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: [CHAR_ASSETS_SCOPE] }), ownerFixture(2)]),
       readSyncState: vi.fn(async () => fresh()),
     });
 

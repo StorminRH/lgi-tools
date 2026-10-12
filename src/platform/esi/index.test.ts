@@ -529,6 +529,40 @@ describe('esiFetch', () => {
       expect(res.headers.get('x-lgi-esi-cache')).toBeNull();
       expect(await res.json()).toEqual({ a: 9 });
     });
+
+    it('treats a failing cached-body read as a miss mid-window and again on the 304', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
+      const getCachedBody = vi.fn().mockRejectedValue(new Error('redis timeout'));
+      const fake: EsiScoreboard = {
+        preDispatch: vi.fn().mockResolvedValue({
+          effectiveRemaining: 100,
+          blockedRetryAfter: null,
+          etag: {
+            etag: '"abc"',
+            expires: 'Thu, 25 Jun 2026 01:05:00 GMT',
+            contentType: 'application/json',
+          },
+        }),
+        budgetSnapshot: vi.fn(),
+        availabilitySnapshot: vi.fn(),
+        report: vi.fn().mockResolvedValue(undefined),
+        getCachedBody,
+      };
+      __setScoreboardForTests(fake);
+
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }))
+        .mockResolvedValueOnce(mockResponse(200, {}, { a: 3 }));
+      const res = await esiFetch(TEST_URL);
+
+      expect(getCachedBody).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBe('"abc"');
+      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ a: 3 });
+    });
   });
 
   describe('fail-closed when the scoreboard is unavailable', () => {

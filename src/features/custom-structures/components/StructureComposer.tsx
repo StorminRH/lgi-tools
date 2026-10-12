@@ -22,7 +22,12 @@ import {
   SDE_REFINERY_GROUP_ID,
 } from '@/data/eve-data/constants';
 import { formatSecurityStatus, type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
-import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import {
+  fittingRigs,
+  rigSlotsFrom,
+  type StructureRigOption,
+  type StructureTypeOption,
+} from '@/data/eve-data/structures';
 import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { MAX_ENTERED_BONUS_PCT } from '@/data/industry-math/entered-bonuses';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
@@ -33,7 +38,6 @@ import {
   parseStructureFitEndpoint,
   updateCustomStructureEndpoint,
   MAX_CUSTOM_STRUCTURE_NAME_LEN,
-  MAX_CUSTOM_STRUCTURE_RIGS,
   type StructureSearchResult,
 } from '../api-contract';
 import {
@@ -41,7 +45,6 @@ import {
   draftFromRow,
   emptyStructureDraft,
   payloadFromDraft,
-  slotsFromRigs,
   type BonusDraft,
   type BonusField,
   type StructureDraft,
@@ -232,7 +235,7 @@ function BonusSection({
   onDraft: (next: Partial<StructureDraft>) => void;
   onReadFit: (fit: string) => void;
 }) {
-  const validRigs = structure ? rigs.filter((r) => rigFitsStructure(r, structure)) : [];
+  const validRigs = fittingRigs(rigs, structure);
   const tab: BonusTab = pasting ? 'fit' : draft.mode;
   const choose = (next: string) => {
     onPastingChange(next === 'fit');
@@ -262,7 +265,6 @@ function BonusSection({
           content: (
             <RigSupply
               validRigs={validRigs}
-              maxSlots={MAX_CUSTOM_STRUCTURE_RIGS}
               slots={draft.rigSlots}
               onSlotsChange={(rigSlots) => onDraft({ rigSlots })}
               disabled={busy}
@@ -309,7 +311,7 @@ export function StructureComposer({
       name: hit.name.slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
       systemId: hit.systemId,
       structureTypeId,
-      ...(structureTypeId === draft.structureTypeId ? {} : { rigSlots: slotsFromRigs([]) }),
+      ...(structureTypeId === draft.structureTypeId ? {} : { rigSlots: rigSlotsFrom([]) }),
     });
     sys.setQuery('');
   }
@@ -375,7 +377,7 @@ export function StructureComposer({
           <Field label="Hull" labelStyle="eyebrow">
             <Select
               value={draft.structureTypeId === null ? '' : String(draft.structureTypeId)}
-              onValueChange={(v) => update({ structureTypeId: v === '' ? null : Number(v), rigSlots: slotsFromRigs([]) })}
+              onValueChange={(v) => update({ structureTypeId: v === '' ? null : Number(v), rigSlots: rigSlotsFrom([]) })}
               items={hullItems(structureTypes)}
             />
           </Field>

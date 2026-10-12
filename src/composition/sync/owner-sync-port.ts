@@ -1,21 +1,22 @@
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import { singleFlight } from '@/lib/memoize';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { fetchAffiliations } from '@/platform/auth/affiliation-source';
 import { parseCharacterRolesBody } from '@/platform/auth/corp-roles';
-import { readRoleCorporationId, type StoredCorpRoles, upsertCorpRoles } from '@/platform/auth/corp-roles-store';
+import {
+  readCorpRoles,
+  readRoleCorporationId,
+  type StoredCorpRoles,
+  upsertCorpRoles,
+} from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed } from '@/platform/esi/authed-read';
-import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
+import { characterRolesPath } from '@/platform/esi/paths';
+import type { EnumeratedOwner, PagedOwnerReadResult, SingleOwnerRead } from '@/platform/owner-sync';
 
-export interface LinkedCharacterHealth {
-  characterId: number;
-  corporationId: number | null;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}
-
-export async function listCharactersWithHealth(userId: string): Promise<LinkedCharacterHealth[]> {
+export async function listCharactersWithHealth(userId: string): Promise<EnumeratedOwner[]> {
   const linked = await listLinkedCharacters(userId);
   return linked.map((character) => ({
     characterId: character.characterId,
@@ -24,10 +25,16 @@ export async function listCharactersWithHealth(userId: string): Promise<LinkedCh
   }));
 }
 
-export async function vendTokenFor(characterId: number): Promise<string | null> {
+/**
+ * Vends one character's access token. The datasets a board view refreshes side
+ * by side share one in-flight vend per character, so they never race each
+ * other through the refresh-token rotation. Nothing outlives the vend: the
+ * next call after it settles asks the token service again.
+ */
+export const vendTokenFor = singleFlight(async (characterId: number): Promise<string | null> => {
   const result = await getFreshAccessTokenForCharacter(characterId);
   return result.kind === 'ok' ? result.accessToken : null;
-}
+});
 
 function softEsiFailure(error: unknown): null {
   if (error instanceof EsiBudgetExhaustedError) throw error;
@@ -41,16 +48,42 @@ async function hasMatchingLiveCorporation(characterId: number, corporationId: nu
     && result.rows.some((row) => row.characterId === characterId && row.corporationId === corporationId);
 }
 
+const ROLES_FRESHNESS = freshnessGate('character_corp_roles');
+
+/** A stored roles row for this corporation that the character_corp_roles TTL still accepts at `now`. */
+export function usableStoredRoles(
+  row: StoredCorpRoles | undefined,
+  corporationId: number,
+  now: Date,
+): row is StoredCorpRoles {
+  return row !== undefined && row.corporationId === corporationId && !ROLES_FRESHNESS.isStale(row.fetchedAt, now);
+}
+
+async function reusableStoredRoles(
+  characterId: number,
+  corporationId: number,
+  reuseFreshAt: Date | undefined,
+): Promise<StoredCorpRoles | null> {
+  if (reuseFreshAt === undefined) return null;
+  const row = (await readCorpRoles([characterId])).get(characterId);
+  return usableStoredRoles(row, corporationId, reuseFreshAt) ? row : null;
+}
+
 async function probeAndStoreRolesRecord(
   characterId: number,
   accessToken: string,
   expectedCorporationId?: number,
+  reuseFreshAt?: Date,
 ): Promise<StoredCorpRoles | null> {
   try {
     const corporationId = await readRoleCorporationId(characterId);
     if (corporationId === null || (expectedCorporationId !== undefined && corporationId !== expectedCorporationId)) return null;
+    // A reused row is trusted on the local affiliation alone, as resolveCorpViewer
+    // trusts it; ESI still authorizes the corp read the credential is picked for.
+    const reused = await reusableStoredRoles(characterId, corporationId, reuseFreshAt);
+    if (reused !== null) return reused;
     if (!await hasMatchingLiveCorporation(characterId, corporationId)) return null;
-    const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
+    const read = await readEsiAuthed(characterRolesPath(characterId), accessToken, null);
     if (read.kind !== 'fresh') return null;
     const record = parseCharacterRolesBody(read.body);
     if (record === null) return null;
@@ -65,13 +98,26 @@ async function probeAndStoreRolesRecord(
   }
 }
 
+function globalRoles(record: StoredCorpRoles | null): string[] | null {
+  return record === null ? null : [...record.roles];
+}
+
+/** Always asks ESI. The mutation gates bind it to the corporation they guard. */
 export async function probeAndStoreRoles(
   characterId: number,
   accessToken: string,
   expectedCorporationId?: number,
 ): Promise<string[] | null> {
-  const record = await probeAndStoreRolesRecord(characterId, accessToken, expectedCorporationId);
-  return record === null ? null : [...record.roles];
+  return globalRoles(await probeAndStoreRolesRecord(characterId, accessToken, expectedCorporationId));
+}
+
+/**
+ * The corp sync passes' roles read while they pick a credential: a stored
+ * same-corporation row inside the character_corp_roles TTL, else the live
+ * probe, which stores what it reads.
+ */
+export async function readRolesForSync(characterId: number, accessToken: string): Promise<string[] | null> {
+  return globalRoles(await probeAndStoreRolesRecord(characterId, accessToken, undefined, new Date()));
 }
 
 export async function fetchAndStoreCorpRoles(characterId: number): Promise<StoredCorpRoles | null> {
@@ -79,65 +125,35 @@ export async function fetchAndStoreCorpRoles(characterId: number): Promise<Store
   return accessToken === null ? null : probeAndStoreRolesRecord(characterId, accessToken);
 }
 
-export type AuthedSingleRead =
-  | { kind: 'fresh'; body: unknown; etag: string | null }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-export type AuthedPagedRead =
-  | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-function esiThrowToError(error: unknown): { kind: 'error'; code: string } {
-  softEsiFailure(error);
-  return { kind: 'error', code: 'esi_server_error' };
+/**
+ * Runs one authed ESI read for a sync port. An EsiServerError becomes the soft
+ * `esi_server_error` result; a budget deferral or any other failure still throws.
+ */
+async function softRead<T>(read: () => Promise<T>): Promise<T | { kind: 'error'; code: string }> {
+  try {
+    return await read();
+  } catch (error) {
+    softEsiFailure(error);
+    return { kind: 'error', code: 'esi_server_error' };
+  }
 }
 
-export async function readSingleEndpoint(
+export function readSingleEndpoint(
   path: string,
   accessToken: string,
   heldEtag: string | null,
-): Promise<AuthedSingleRead> {
-  try {
-    const read = await readEsiAuthed(path, accessToken, heldEtag);
-    if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
-    if (read.kind === 'unchanged') return { kind: 'unchanged' };
-    return { kind: 'error', code: read.code };
-  } catch (error) {
-    return esiThrowToError(error);
-  }
+): Promise<SingleOwnerRead> {
+  return softRead(() => readEsiAuthed(path, accessToken, heldEtag));
 }
 
-export async function postSingleEndpoint(path: string, accessToken: string, body: unknown): Promise<AuthedSingleRead> {
-  try {
-    const read = await readEsiAuthedPost(path, accessToken, body);
-    if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
-    if (read.kind === 'unchanged') return { kind: 'unchanged' };
-    return { kind: 'error', code: read.code };
-  } catch (error) {
-    return esiThrowToError(error);
-  }
+export function postSingleEndpoint(path: string, accessToken: string, body: unknown): Promise<SingleOwnerRead> {
+  return softRead(() => readEsiAuthedPost(path, accessToken, body));
 }
 
-export async function readPagedEndpoint(
+export function readPagedEndpoint(
   basePath: string,
   accessToken: string,
   heldEtags: string[],
-): Promise<AuthedPagedRead> {
-  try {
-    const read = await readEsiPagedAuthed(basePath, accessToken, heldEtags);
-    if (read.kind === 'fresh') {
-      return {
-        kind: 'fresh',
-        items: read.items,
-        etags: read.etags,
-        responseHeaders: read.responseHeaders,
-      };
-    }
-    if (read.kind === 'unchanged') return { kind: 'unchanged' };
-    return { kind: 'error', code: read.code };
-  } catch (error) {
-    return esiThrowToError(error);
-  }
+): Promise<PagedOwnerReadResult> {
+  return softRead(() => readEsiPagedAuthed(basePath, accessToken, heldEtags));
 }

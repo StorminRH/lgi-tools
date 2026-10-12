@@ -147,14 +147,23 @@ function heredoc(path, text) {
 
 // ---------------------------------------------------------------------------------------
 phase('Prepare')
-const guard = await shell(`bash "${T}/env_guard.sh"${A.killNextDev ? ' --kill-next' : ''}\nmkdir -p "${S}"\ngit status --porcelain\ngit log --oneline -1`, 'env-guard', 'Prepare')
+// With hostGuard the operator runs env_guard.sh and `cleanup.sh snapshot` before launching and
+// `cleanup.sh sweep` after the run, from the main session. Locally, the auto-mode classifier has
+// blocked those repo scripts when a workflow agent runs them, which aborted the wave at Prepare.
+const guardStep = A.hostGuard ? '' : `bash "${T}/env_guard.sh"${A.killNextDev ? ' --kill-next' : ''}\n`
+// The status output is fenced, so the clean-tree check reads only git's lines, whatever the
+// guard printed before them (env_guard.sh prints a line; with hostGuard nothing runs).
+const STATUS_FENCE = '--- lgi-wave start status ---'
+const guard = await shell(`${guardStep}mkdir -p "${S}"\necho '${STATUS_FENCE}'\ngit status --porcelain\necho '${STATUS_FENCE}'\ngit log --oneline -1`, 'env-guard', 'Prepare')
 if (!guard || !guard.ok) return { aborted: 'environment guard failed', output: guard && guard.output }
-await shell(`bash "${T}/cleanup.sh" snapshot "${S}"`, 'cleanup:snapshot', 'Prepare')
+if (!A.hostGuard) await shell(`bash "${T}/cleanup.sh" snapshot "${S}"`, 'cleanup:snapshot', 'Prepare')
 async function finish(result) {
+  if (A.hostGuard) return { ...result, cleanup: 'hostGuard: run docs/refactoring/kit/tools/cleanup.sh sweep from the main session' }
   const sweep = await shell(`bash "${T}/cleanup.sh" sweep "${S}"`, 'cleanup:sweep', 'Verify')
   return { ...result, cleanup: sweep ? sweep.output : 'cleanup sweep did not run; run docs/refactoring/kit/tools/cleanup.sh sweep yourself' }
 }
-if (/^\s*[MADRCU?]{1,2} /m.test(guard.output.split('\n').slice(1).join('\n'))) return { aborted: 'working tree not clean at start', output: guard.output }
+const [, startStatus] = guard.output.split(STATUS_FENCE)
+if (startStatus === undefined || /^\s*[MADRCU?]{1,2} /m.test(startStatus)) return { aborted: 'working tree not clean at start', output: guard.output }
 
 const briefRuns = await parallel(A.briefs.map(b => () => agent(`Task: implementers will make these changes in LGI.tools (${REPO}) during wave ${A.wave} of a refactoring project:\n${A.items.map(i => `- ${i.id}: ${i.title}`).join('\n')}\n\nThe detailed write-ups are in ${GUIDE} (read the sections for the items this technology touches).\n\nTechnology: ${b.tech}. Resolve the exact version from package.json and pnpm-lock.yaml.\nQuestions: ${b.focus}\n\nReturn a Documentation brief the implementers can rely on without a second lookup. Keep it under about 1,500 words.`, { label: `brief:${b.tech}`, phase: 'Prepare', agentType: 'docs-researcher' })))
 const BRIEFS = briefRuns.map((r, i) => r ? `### ${A.briefs[i].tech}\n${r}` : `### ${A.briefs[i].tech}\n(brief failed; consult official docs for the installed version yourself)`).join('\n\n')

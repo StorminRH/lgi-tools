@@ -5,7 +5,18 @@ import {
   SDE_REFINERY_GROUP_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
-import { attainableFilterSets, matchingFilterIds, moduleFitsHull, rigFitsStructure, shapeStructureRigs, type TargetFilter } from './structures';
+import {
+  attainableFilterSets,
+  findUnfitRig,
+  fittedRigIds,
+  fittingRigs,
+  matchingFilterIds,
+  moduleFitsHull,
+  rigSlotsFrom,
+  shapeStructureRigs,
+  type StructureRigOption,
+  type TargetFilter,
+} from './structures';
 import type { AttrMap } from './types';
 
 describe('matchingFilterIds', () => {
@@ -58,7 +69,11 @@ describe('attainableFilterSets', () => {
   });
 });
 
-describe('rigFitsStructure', () => {
+describe('the rig fitting rule', () => {
+  const rigFitsStructure = (
+    rig: { canFitGroups: number[]; rigSize: number | null },
+    hull: { groupId: number; rigSize: number | null },
+  ) => fittingRigs([rig], hull).length === 1;
   const EC = SDE_ENGINEERING_COMPLEX_GROUP_ID;
   const REFINERY = SDE_REFINERY_GROUP_ID;
   const CITADEL = SDE_CITADEL_GROUP_ID;
@@ -106,6 +121,48 @@ describe('rigFitsStructure', () => {
 
   it('rejects a size mismatch even when the group fits (XL rig on an L structure)', () => {
     expect(rigFitsStructure(xlMfgRig, azbel)).toBe(false);
+  });
+});
+
+describe('Upwell rig slots', () => {
+  const lMfgRig: StructureRigOption = {
+    typeId: 37170,
+    name: 'L-Set Equipment Mfg Eff I',
+    canFitGroups: [SDE_CITADEL_GROUP_ID, SDE_ENGINEERING_COMPLEX_GROUP_ID, SDE_REFINERY_GROUP_ID],
+    rigSize: 3,
+  };
+  const mReactionRig: StructureRigOption = {
+    typeId: 46490,
+    name: 'M-Set Reactor Eff',
+    canFitGroups: [SDE_REFINERY_GROUP_ID],
+    rigSize: 2,
+  };
+  const azbel = { groupId: SDE_ENGINEERING_COMPLEX_GROUP_ID, rigSize: 3 };
+
+  it('pads a rig list to three slots, cuts a longer one, and strips the empty slots back out', () => {
+    expect(rigSlotsFrom([])).toEqual([null, null, null]);
+    expect(rigSlotsFrom([37170])).toEqual([37170, null, null]);
+    expect(rigSlotsFrom([1, 2, 3, 4])).toEqual([1, 2, 3]);
+    expect(fittedRigIds([null, 37170, null])).toEqual([37170]);
+    expect(fittedRigIds([37170, null, 37171])).toEqual([37170, 37171]);
+    expect(fittedRigIds(rigSlotsFrom([]))).toEqual([]);
+  });
+
+  it('offers only the rigs that fit the hull, and none before a hull is picked', () => {
+    expect(fittingRigs([lMfgRig, mReactionRig], azbel)).toEqual([lMfgRig]);
+    expect(fittingRigs([lMfgRig, mReactionRig], { groupId: SDE_REFINERY_GROUP_ID, rigSize: 2 })).toEqual([
+      mReactionRig,
+    ]);
+    expect(fittingRigs([lMfgRig, mReactionRig], null)).toEqual([]);
+    expect(fittingRigs([lMfgRig, mReactionRig], undefined)).toEqual([]);
+  });
+
+  it('names the first rig a save must refuse, telling an unknown rig from one that does not fit', () => {
+    const rigs = [lMfgRig, mReactionRig];
+    expect(findUnfitRig([37170], azbel, rigs)).toBeNull();
+    expect(findUnfitRig([], azbel, rigs)).toBeNull();
+    expect(findUnfitRig([37170, 11111, 46490], azbel, rigs)).toEqual({ rigTypeId: 11111, cause: 'unknown' });
+    expect(findUnfitRig([37170, 46490, 11111], azbel, rigs)).toEqual({ rigTypeId: 46490, cause: 'misfit' });
   });
 });
 

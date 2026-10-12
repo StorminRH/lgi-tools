@@ -10,6 +10,7 @@ import {
   type EsiBudgetExhaustedReason,
 } from './errors';
 import { markRecentBudgetExhaustion } from './exhaustion-marker';
+import { httpDateMs, intHeader } from './headers';
 import {
   BODY_CACHE_MAX_BYTES,
   NO_RESPONSE_STATUS,
@@ -97,13 +98,6 @@ export function isEtagEligible(init?: RequestInit): boolean {
   return !new Headers(init?.headers).has('Authorization');
 }
 
-function parseIntHeader(headers: Headers, name: string): number | null {
-  const value = headers.get(name);
-  if (value === null) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function buildHeaders(init?: RequestInit, etag?: string | null): Headers {
   const headers = new Headers(init?.headers);
   if (!headers.has('User-Agent')) {
@@ -124,9 +118,9 @@ function buildReport(
   return {
     url,
     status: res.status,
-    errorLimitRemain: parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain'),
-    errorLimitReset: parseIntHeader(res.headers, 'X-ESI-Error-Limit-Reset'),
-    retryAfter: parseIntHeader(res.headers, 'Retry-After'),
+    errorLimitRemain: intHeader(res.headers, 'X-ESI-Error-Limit-Remain'),
+    errorLimitReset: intHeader(res.headers, 'X-ESI-Error-Limit-Reset'),
+    retryAfter: intHeader(res.headers, 'Retry-After'),
     ...extras,
   };
 }
@@ -192,7 +186,7 @@ async function reportAnswer(sb: EsiScoreboard, report: EsiReport): Promise<void>
 }
 
 async function captureBodyForCache(res: Response): Promise<string | null> {
-  const contentLength = parseIntHeader(res.headers, 'Content-Length');
+  const contentLength = intHeader(res.headers, 'Content-Length');
   if (contentLength === null || contentLength > BODY_CACHE_MAX_BYTES) {
     return null;
   }
@@ -223,10 +217,17 @@ function synthesizeRevalidated(
 const CACHE_SERVE_SKEW_MS = 5_000;
 
 function isWithinExpiresWindow(expires: string | null): boolean {
-  if (expires === null) return false;
-  const expiresAt = Date.parse(expires);
-  if (Number.isNaN(expiresAt)) return false;
-  return Date.now() + CACHE_SERVE_SKEW_MS < expiresAt;
+  const expiresAt = httpDateMs(expires);
+  return expiresAt !== null && Date.now() + CACHE_SERVE_SKEW_MS < expiresAt;
+}
+
+/** The stored body for a cached ETag, or null when it is gone or the read fails. */
+async function safeCachedBody(sb: EsiScoreboard, url: string): Promise<string | null> {
+  try {
+    return await sb.getCachedBody(url);
+  } catch {
+    return null;
+  }
 }
 
 function synthesizeFromCache(body: string, meta: CachedEtagMeta): Response {
@@ -244,12 +245,7 @@ export async function serveFromExpiresWindow(
   liveSb: EsiScoreboard,
 ): Promise<Response | null> {
   if (!isWithinExpiresWindow(etagMeta.expires)) return null;
-  let body: string | null;
-  try {
-    body = await liveSb.getCachedBody(url);
-  } catch {
-    body = null;
-  }
+  const body = await safeCachedBody(liveSb, url);
   if (body === null) return null;
   return synthesizeFromCache(body, etagMeta);
 }
@@ -317,7 +313,7 @@ function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number
 function noteLocalAnswer(url: string, res: Response): void {
   const now = Date.now();
   const seq = ++localSeq;
-  const remain = parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain');
+  const remain = intHeader(res.headers, 'X-ESI-Error-Limit-Remain');
   if (remain !== null) latestRemain = { value: remain, seq };
   if (res.status === 420) {
     localBudget = { remaining: 0, readAt: now, errorsSince: 0, seq };
@@ -328,7 +324,7 @@ function noteLocalAnswer(url: string, res: Response): void {
     }
   }
   if (res.status === 429) {
-    const retryAfter = resolveRetryAfter(parseIntHeader(res.headers, 'Retry-After'));
+    const retryAfter = resolveRetryAfter(intHeader(res.headers, 'Retry-After'));
     localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000, seq });
   }
 }
@@ -419,14 +415,7 @@ async function reuseOrRevalidate(
     expires: res304.headers.get('Expires') ?? etagMeta.expires,
     contentType: etagMeta.contentType,
   };
-  let body: string | null = null;
-  if (liveSb !== null) {
-    try {
-      body = await liveSb.getCachedBody(url);
-    } catch {
-      body = null;
-    }
-  }
+  const body = liveSb === null ? null : await safeCachedBody(liveSb, url);
   if (body !== null) {
     if (liveSb !== null) {
       await reportAnswer(
@@ -469,9 +458,9 @@ function throwIfErrorStatus(url: string, res: Response): void {
   }
   if (res.status === 429) {
     throwBudgetExhausted(
-      parseIntHeader(res.headers, 'X-Ratelimit-Remaining') ?? 0,
+      intHeader(res.headers, 'X-Ratelimit-Remaining') ?? 0,
       'rate_limited',
-      parseIntHeader(res.headers, 'Retry-After'),
+      intHeader(res.headers, 'Retry-After'),
       normalizeEsiPath(url),
     );
   }
