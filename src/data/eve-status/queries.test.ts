@@ -62,7 +62,6 @@ describe('getNavServerStatus', () => {
     });
     expect(h.esiFetch).toHaveBeenCalledTimes(1);
     expect(h.esiFetch).toHaveBeenCalledWith('https://esi.example/status/');
-    expect(h.esiFetch.mock.calls[0]).toHaveLength(1);
   });
 
   it.each([

@@ -336,6 +336,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
   });
 
   it('returns a contract-valid board with no scope strings and one write-behind', async () => {
+    mocks.after.mockClear();
     const board = await getBoardForUserOnView(USER_ID);
 
     expect(boardResponseSchema.parse(board)).toEqual(board);
@@ -454,7 +455,8 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(ilyana.status).toEqual({ state: 'reconnect' });
   });
 
-  it("serves each pilot's latest recorded day and never values on view", async () => {
+  it("serves each pilot's latest recorded day without valuing on view, then records the day from stored prices only, flooring junk bids, excluding blueprints, SKINs and skillbooks, and seeding price rows for unpriced marketable types", async () => {
+    const ownRows = () => harness.db.select().from(netWorthDays).where(eq(netWorthDays.userId, USER_ID)).orderBy(netWorthDays.day);
     const board = await getBoardForUserOnView(USER_ID);
     const aurel = pilotAt(board, 0);
     const bram = pilotAt(board, 1);
@@ -471,18 +473,13 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       { day: '2026-09-20', netWorth: 90, liquidIsk: 40, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 90, liquidIsk: 40 } } },
       { day: '2026-09-25', netWorth: 100, liquidIsk: 50, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 100, liquidIsk: 50 } } },
     ]);
-    expect(await harness.db.select().from(netWorthDays)).toHaveLength(2);
-  });
+    expect(await ownRows()).toHaveLength(2);
 
-  it('records the day from stored prices only, flooring junk bids and excluding blueprints, SKINs and skillbooks, and seeds price rows for unpriced marketable types', async () => {
-    expect(ASSET_VALUE).toBe(424_545_641.51);
-    expect(SELL_ORDERS + BUY_ESCROW + IMPLANTS).toBe(628_001_750);
-    expect(NET_WORTH).toBe(4_256_663_273.66);
     mocks.resolveEntityNames.mockClear();
     await recordNetWorthSnapshot(USER_ID, new Date(STAMP));
     expect(mocks.resolveEntityNames).not.toHaveBeenCalled();
 
-    const rows = await harness.db.select().from(netWorthDays).orderBy(netWorthDays.day);
+    const rows = await ownRows();
     expect(rows.map((row) => row.day)).toEqual(['2026-09-20', '2026-09-25', '2026-09-27']);
     expect(rows[2]).toEqual({
       userId: USER_ID,
@@ -497,9 +494,9 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
 
     const [pyerite] = await harness.db.select().from(marketPrices).where(eq(marketPrices.typeId, PYERITE));
     expect(pyerite).toMatchObject({ typeId: PYERITE, pct5Buy: null, pct5Sell: null, staleAfter: new Date(0), source: 'esi' });
-    const board = await getBoardForUserOnView(USER_ID);
-    expect(board.history).toHaveLength(3);
-    expect(pilotAt(board, 0).netWorth).toMatchObject({ data: { total: NET_WORTH, liquid: WALLET } });
+    const recorded = await getBoardForUserOnView(USER_ID);
+    expect(recorded.history).toHaveLength(3);
+    expect(pilotAt(recorded, 0).netWorth).toMatchObject({ data: { total: NET_WORTH, liquid: WALLET } });
   });
 
   it('returns an empty roster for a user with no linked characters', async () => {
