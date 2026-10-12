@@ -31,7 +31,7 @@ describe.skipIf(!harness.reachable)('seedPlaceholderPrices executes against Post
     expect(await seedPlaceholderPrices(harness.db, [])).toBe(0);
 
     const rows = await harness.db.select().from(marketPrices).orderBy(marketPrices.typeId);
-    expect(rows.map((row) => [row.typeId, row.pct5Buy, row.staleAfter.getTime(), row.source])).toEqual([
+    expect(rows.map((row) => [row.typeId, row.pct5Buy, row.staleAfter?.getTime(), row.source])).toEqual([
       [34, 3.95, Date.parse('2026-09-28T00:00:00Z'), 'esi'],
       [10217, null, 0, 'esi'],
       [29984, null, 0, 'esi'],

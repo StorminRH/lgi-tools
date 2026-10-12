@@ -26,13 +26,14 @@ export const marketHistory = pgTable(
 );
 
 /**
- * Per-type freshness + provenance marker. The on-view gate reads stale_after
- * (the ESI Expires header — next ~11:05 UTC recompute) to decide fetch-or-serve
- * without touching the bulky daily rows. One row per type.
+ * Per-type provenance marker: when each type's daily rows were last written
+ * and from where, without touching the bulky rows themselves. One row per
+ * type. `stale_after` is CCP's expiry as the row was written; the response
+ * store, not this column, decides freshness, so it is nullable and can go.
  */
 export const marketHistoryMeta = pgTable('market_history_meta', {
   typeId: integer('type_id').primaryKey(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
-  staleAfter: timestamp('stale_after', { withTimezone: true }).notNull(),
+  staleAfter: timestamp('stale_after', { withTimezone: true }),
   source: text('source').notNull(),
 });

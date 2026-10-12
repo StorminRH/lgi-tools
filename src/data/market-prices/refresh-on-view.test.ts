@@ -108,7 +108,7 @@ describe('getLivePrices', () => {
     expect(row.source).toBe('esi');
     expect(row.bestBuy).toBe(10);
     expect(row.updatedAt.getTime()).toBe(NOW - 1000);
-    expect(row.staleAfter.getTime()).toBe(EXPIRES);
+    expect(row.staleAfter?.getTime()).toBe(EXPIRES);
     expect(fetchPricesFromSourceMock).toHaveBeenCalledWith([34]);
     expect(degraded).toMatchObject({ fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
     expect(metrics).toEqual({ requested: 1, returned: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
@@ -145,7 +145,7 @@ describe('getLivePrices', () => {
     const { prices, degraded } = await getLivePrices([34]);
 
     expect(prices.get(34)?.updatedAt.getTime()).toBe(NOW);
-    expect(prices.get(34)?.staleAfter.getTime()).toBe(NOW);
+    expect(prices.get(34)?.staleAfter?.getTime()).toBe(NOW);
     expect(degraded).toEqual({ fetched: 1, esiCount: 0, fuzzworkFallbackCount: 1, budgetExhausted: true });
   });
 

@@ -52,7 +52,8 @@ export const POST = marketRefreshRoute(
           sellDepth: row.sellDepth,
           regionalDiscount: row.regionalDiscount,
           updatedAt: row.updatedAt.toISOString(),
-          staleAfter: row.staleAfter.toISOString(),
+          // A row with no expiry is due at once, as the ingest stamps one that got none.
+          staleAfter: (row.staleAfter ?? row.updatedAt).toISOString(),
           source: row.source,
         })),
     });

@@ -231,7 +231,7 @@ export async function getBlueprintPricing(
       return {
         ...toPlainPriceFigures(p),
         source: p.source,
-        staleAfterMs: p.staleAfter.getTime(),
+        staleAfterMs: p.staleAfter?.getTime() ?? null,
       };
     },
     { basis: 'marginal' },
