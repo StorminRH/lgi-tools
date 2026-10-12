@@ -116,7 +116,8 @@
       { "name": "config", "patterns": ["src/config/**"] },
       { "name": "esi-datasets", "patterns": ["src/esi-datasets/**"] },
       { "name": "convex", "patterns": ["convex/**"] },
-      { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] }
+      { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] },
+      { "name": "tooling-config", "patterns": ["postcss.config.mjs"] }
     ],
     "rules": [
       {
