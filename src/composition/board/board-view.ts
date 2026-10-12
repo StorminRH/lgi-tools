@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { type EsiStoreKey, isDue } from '@/data/esi-store';
+import { type EsiStoreKey, isDueFor } from '@/data/esi-store';
 import { sheetDueKeys } from '@/features/character-sheet/keys';
 import { getCharacterSheets, readSheetRow } from '@/features/character-sheet/queries';
 import { jobsDueKeys } from '@/features/industry-jobs/keys';
@@ -127,7 +127,7 @@ export async function getBoardForUserOnView(userId: string): Promise<BoardRespon
   const [names, history, refreshing] = await Promise.all([
     resolveNameBook(collectNameIds(raws)),
     getNetWorthHistory(userId),
-    isDue(boardDueKeys(charactersWithHealth(linked))),
+    isDueFor(userId, boardDueKeys(charactersWithHealth(linked))),
   ]);
   return { ...assembleBoard(raws, names, Date.now(), history.map(toHistoryDay)), refreshing };
 }

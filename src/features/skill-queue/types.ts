@@ -32,4 +32,6 @@ export interface SkillsPort extends CharacterSyncBase<CharacterSkillSyncState, E
   readSkillQueue(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
   readSkills(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
   saveSkills(characterId: number, halves: SkillsSaveHalves): Promise<void>;
+  /** Records a settled refusal (no role-holder, a token that is gone) as the owner's stored answer, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(characterId: number, expiresAt: number | null): Promise<void>;
 }

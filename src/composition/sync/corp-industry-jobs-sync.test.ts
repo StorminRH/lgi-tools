@@ -21,7 +21,7 @@ vi.mock('./owner-sync-port', () => ({
   readRolesForSync: vi.fn(),
   vendTokenFor: vi.fn(),
 }));
-vi.mock('@/data/esi-store', () => ({ isDue: vi.fn(async () => false) }));
+vi.mock('@/data/esi-store', () => ({ isDue: vi.fn(async () => false), isDueFor: vi.fn(async () => false) }));
 vi.mock('@/data/esi-store/session', () => ({ openReadSession: vi.fn() }));
 
 import { getCorpJobsForUserOnView } from './corp-industry-jobs-sync';

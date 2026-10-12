@@ -5,6 +5,7 @@ import type { z } from 'zod';
 import { apiFetch } from '@/transport/api-client';
 import type { EndpointContract, JsonCodec, OutcomeOf } from '@/transport/endpoint';
 import { getOrInsertComputed } from '@/lib/array';
+import { shareInFlight } from '@/lib/memoize';
 import {
   type LiveResponse,
   loadFailureStep,
@@ -13,7 +14,7 @@ import {
   reconcileDelay,
 } from '@/lib/live-dataset';
 import { useNow } from '@/lib/use-now';
-import { isCurrentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { isCurrentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 import { createRememberedRead, type RememberedRead, useRememberedRead } from './remembered-read';
 
 const TICK_MS = 30_000;
@@ -57,6 +58,28 @@ function memoryFor<TResponse>(path: string): RememberedRead<RememberedEntry<TRes
   return getOrInsertComputed(memories, path, () => createRememberedRead<RememberedEntry<unknown>>()) as RememberedRead<
     RememberedEntry<TResponse>
   >;
+}
+
+// Requests under way, per session scope: a second mount (React's dev double
+// mount included), another reader of the same read, or a re-check on the same
+// schedule joins the request already in flight instead of sending its own.
+// Each reader only ignores a result it no longer wants; nothing is aborted,
+// and the entry goes once the request settles, so the next check asks again.
+const inFlight = new WeakMap<ReadIdentity, Map<string, Promise<unknown>>>();
+
+function inFlightFor(identity: ReadIdentity): Map<string, Promise<unknown>> {
+  const requests = inFlight.get(identity) ?? new Map<string, Promise<unknown>>();
+  inFlight.set(identity, requests);
+  return requests;
+}
+
+/**
+ * One request per read: the endpoint, the remembered entry's key, and the
+ * cold key, so a reader whose cold key moved on (a save bumping a revision)
+ * never joins a request sent before it.
+ */
+function requestKey(path: string, entryKey: string, coldKey: ColdKey): string {
+  return `${path}\n${entryKey}\n${String(coldKey)}`;
 }
 
 function isPost<TResponse extends LiveResponse>(read: LiveRead<TResponse>): read is LivePost<z.ZodTypeAny, TResponse> {
@@ -138,7 +161,8 @@ export function useLiveDataset<TResponse extends LiveResponse, TKey extends Cold
     };
 
     const load = async () => {
-      const result = await fetchLive();
+      const shared = shareInFlight(inFlightFor(identity), requestKey(path, entryKey, coldKey), fetchLive);
+      const result = (await shared) as Awaited<ReturnType<typeof fetchLive>>;
       if (cancelled || !isCurrentReadIdentity(identity)) return;
       if (!result.ok) {
         onFailure();

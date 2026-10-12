@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { requireSessionPage } from '@/composition/route-guards';
-import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
+import { getCorpStructuresFirstDraw } from '@/composition/sync/corp-structures-sync';
 import { accountPageSettings } from '@/platform/page-settings/account';
 import { resolvePageControls } from '@/platform/page-settings/controls';
 import { QuietSectionHead } from '@/components/ui/section-head';
@@ -13,7 +13,7 @@ async function CorporationsContent() {
 
   const models = resolvePageControls(accountPageSettings);
   const rows = settingsNeedsCorpSharing(models)
-    ? (await getCorpStructuresPageData(session.user.id)).corporations
+    ? (await getCorpStructuresFirstDraw(session.user.id)).corporations
     : [];
 
   return <CorporationsLive initial={rows} />;

@@ -36,6 +36,7 @@ function makeDescriptor(port: CorpJobsPort) {
     save: (owner, payload) => port.saveJobs(owner.userId, owner.corporationId, payload.jobs, payload.etag),
     stampFresh: (owner) => port.stampFresh(owner.userId, owner.corporationId),
     saveGateState: (owner) => port.saveNeedsRole(owner.userId, owner.corporationId),
+    recordRefusal: (owner, expiresAt) => port.recordRefusal(owner.userId, owner.corporationId, expiresAt),
   });
 }
 

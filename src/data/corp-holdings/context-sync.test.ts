@@ -73,6 +73,7 @@ function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
     readProfileState: vi.fn(async () => null),
     saveProfile: vi.fn(async () => {}),
     stampFresh: vi.fn(async () => {}),
+    recordRefusal: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -257,5 +258,18 @@ describe('refreshCorpContextForUser', () => {
 
     expect(results[0]).toMatchObject({ kind: 'failed_permanent', code: 'needs_role' });
     expect(port.readCorporation).not.toHaveBeenCalled();
+    expect(port.recordRefusal).toHaveBeenCalledExactlyOnceWith(CORP, null);
+  });
+
+  it('records a refused read until the 403\'s own Expires, and records nothing for a server error', async () => {
+    const refusing = makePort({
+      readDivisions: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'error', code: 'esi_403', expiresAt: 7_000 })),
+    });
+    await refreshCorpContextForUser(refusing, 'u1');
+    expect(refusing.recordRefusal).toHaveBeenCalledExactlyOnceWith(CORP, 7_000);
+
+    const failing = makePort({ readCorporation: vi.fn(async () => failed('esi_server_error')) });
+    await refreshCorpContextForUser(failing, 'u1');
+    expect(failing.recordRefusal).not.toHaveBeenCalled();
   });
 });

@@ -8,7 +8,7 @@ const h = vi.hoisted(() => {
   type Cmd =
     | ['get', string]
     | ['set', string, string, { ex?: number } | undefined]
-    | ['incr', string]
+    | ['incrby', string, number]
     | ['expire', string, number]
     | ['eval', string, string[], string[]];
 
@@ -39,10 +39,10 @@ const h = vi.hoisted(() => {
     });
   }
 
-  function incrVal(key: string): number {
+  function incrVal(key: string, by: number): number {
     const entry = store.get(key);
     const live = isLive(entry);
-    const next = live ? Number(entry.value) + 1 : 1;
+    const next = live ? Number(entry.value) + by : by;
     store.set(key, {
       value: String(next),
       expiresAt: live ? entry.expiresAt : null,
@@ -74,8 +74,8 @@ const h = vi.hoisted(() => {
         setVal(cmd[1], cmd[2], typeof ex === 'number' ? ex : null);
         return 'OK';
       }
-      case 'incr':
-        return incrVal(cmd[1]);
+      case 'incrby':
+        return incrVal(cmd[1], cmd[2]);
       case 'expire':
         return expireVal(cmd[1], cmd[2]);
       case 'eval':
@@ -99,8 +99,8 @@ const h = vi.hoisted(() => {
           cmds.push(['set', key, value, opts]);
           return p;
         },
-        incr(key: string) {
-          cmds.push(['incr', key]);
+        incrby(key: string, by: number) {
+          cmds.push(['incrby', key, by]);
           return p;
         },
         expire(key: string, seconds: number) {
@@ -447,6 +447,41 @@ describe('RedisScoreboard', () => {
     expect(h.store.get(`lgi:esi:history:count:${currentMinute()}`)).toEqual({ value: '3', expiresAt: Date.now() + 120_000 });
     expect((await sb.preDispatch(HISTORY_URL)).historyCalls).toBe(3);
     expect((await sb.preDispatch(TEST_URL)).historyCalls).toBeUndefined();
+  });
+
+  it('writes a batch of answers in one pipeline: counts summed, echoes at their lowest, blocks at their longest', async () => {
+    const sb = redisScoreboard();
+    h.execs.count = 0;
+    await sb.reportMany!([
+      makeReport({ url: HISTORY_URL, status: 200, errorLimitRemain: 90, errorLimitReset: 40 }),
+      makeReport({ url: HISTORY_URL, status: NO_RESPONSE_STATUS }),
+      makeReport({ status: 304, errorLimitRemain: 70, errorLimitReset: 20, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 900 }),
+      makeReport({ status: 200, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 400 }),
+      makeReport({ url: FACILITIES_URL, status: 404, rlGroup: 'industry', rlLimit: 150, rlRemaining: 120 }),
+      makeReport({ url: INDUSTRY_URL, status: 429, retryAfter: 30, rlGroup: 'industry' }),
+      makeReport({ url: FACILITIES_URL, status: 429, retryAfter: 90, rlGroup: 'industry' }),
+    ]);
+
+    expect(h.execs.count).toBe(1);
+    const minute = currentMinute();
+    expect(h.store.get(`lgi:esi:call:count:${minute}`)?.value).toBe('7');
+    expect(h.store.get(`lgi:esi:fail:count:${minute}`)?.value).toBe('3');
+    expect(h.store.get(`lgi:esi:err:count:${minute}`)?.value).toBe('3');
+    expect(h.store.get(`lgi:esi:history:count:${minute}`)?.value).toBe('2');
+    expect(h.store.get(ECHO_KEY)).toEqual({ value: '70', expiresAt: Date.now() + 20_000 });
+    expect(h.store.get(GROUP_OF_ORDERS)?.value).toBe('market-order');
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toEqual({ group: 'market-order', remaining: 400, limit: 12000 });
+    expect((await sb.preDispatch(FACILITIES_URL)).blockedRetryAfter).toBe(90);
+  });
+
+  it('takes a 420 in a batch as an echo of zero, and writes nothing for an empty batch', async () => {
+    const sb = redisScoreboard();
+    await sb.reportMany!([makeReport({ status: 200, errorLimitRemain: 50 }), makeReport({ status: 420, errorLimitRemain: 80 })]);
+    expect(h.store.get(ECHO_KEY)?.value).toBe('0');
+
+    h.execs.count = 0;
+    await sb.reportMany!([]);
+    expect(h.execs.count).toBe(0);
   });
 });
 

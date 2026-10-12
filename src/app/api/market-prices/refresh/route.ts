@@ -10,12 +10,16 @@ import { apiResponse } from '@/transport/api-response';
 
 /**
  * A page sends every due type id in one request, up to the contract's
- * 2000-id ceiling, and the server makes one order-book call per type at
- * PER_TYPE_CONCURRENCY (32) with one Neon read and one batched write.
- * Worst honest case: 2000 ids in rounds of 32 calls against the 10s
- * fetch timeout, then the Fuzzwork fallback, needs the platform's full
- * 300s; a typical page of a few hundred ids finishes in seconds. The
- * per-client limit counts type ids a minute, not requests.
+ * ON_DEMAND_REFRESH_MAX_TYPE_IDS ceiling, and the server makes one
+ * order-book call per type, PER_TYPE_CONCURRENCY in flight, with one Neon
+ * read and one batched write. If ESI hangs on every call, each round of
+ * PER_TYPE_CONCURRENCY calls waits out OUTBOUND_FETCH_TIMEOUT_MS (10s),
+ * so 300s covers roughly 900 due ids, less the Fuzzwork rounds after
+ * them; past that the function is cut off, nothing is written, and the
+ * next view asks again. No page comes near it: the largest blueprint tree
+ * prices about 170 types (six rounds), and the ceiling is a safety limit
+ * well above any page. The per-client limit counts type ids a minute, not
+ * requests.
  */
 export const maxDuration = 300;
 

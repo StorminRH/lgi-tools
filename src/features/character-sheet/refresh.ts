@@ -73,12 +73,17 @@ function sectionDescriptor<K extends DirectSectionKey>(
       openSession: port.openSession,
       readSyncState: async (characterId) => readSectionState(await port.readSheet(characterId), spec.key),
       stampFresh: (characterId) => port.stampSection(characterId, spec.key),
+      recordRefusal: (characterId, expiresAt) => port.recordSectionRefusal(characterId, spec.key, expiresAt),
     },
     {
       eligible: (owner) => canSyncSection(spec.key, owner),
       fetchAndPlan: async (characterId, accessToken, state, session) => {
         const reads = await readParts(port, session, characterId, accessToken, spec);
-        return planSectionRead(spec, reads, state?.previous ?? null, port.now());
+        const plan = planSectionRead(spec, reads, state?.previous ?? null, port.now());
+        // A denied envelope keeps none of the parts that answered 200: their
+        // expiries are recorded, their ETags are not, so recovery reads bodies.
+        if (plan.kind === 'save' && plan.envelope.denied === true) session.discardBodies();
+        return plan;
       },
       save: (characterId, payload) => port.mergeSection(characterId, spec.key, payload.envelope),
     },

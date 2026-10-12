@@ -3,7 +3,7 @@ import { eveTag } from '@/lib/esi-datasets/routes';
 import { ESI_REGION_ID_FORGE } from './constants';
 
 /** The one route every stored price answers under, spelled once. */
-export const ORDERS_ROUTE = '/markets/{region_id}/orders/';
+const ORDERS_ROUTE = '/markets/{region_id}/orders/';
 
 export const MARKET_PRICES_TAG = eveTag('market_prices');
 

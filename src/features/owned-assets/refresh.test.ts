@@ -152,6 +152,7 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
     await refreshOwnedAssetsForUser(port, 'u1');
 
     expect(readOwners(port).find((owner) => owner.ownerType === 'corporation')).toBeUndefined();
+    expect(port.recordRefusal).toHaveBeenCalledExactlyOnceWith(CORP_5000, null);
   });
 
   it('reads no corp roles while the corp answer is unexpired (the corp gate is the store too)', async () => {

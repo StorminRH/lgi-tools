@@ -28,7 +28,7 @@ function uniqueIds(ids: readonly number[]): number[] {
 /** The typeahead results for a scoped search's first hits, with their names. */
 async function typeaheadResponse(found: readonly number[]): Promise<SearchCharactersResponse> {
   const ids = uniqueIds(found);
-  const names = await resolveEntityNamesStrict(ids);
+  const names = await resolveEntityNamesStrict(ids, { interactive: true });
   return {
     mode: 'typeahead',
     results: ids.flatMap((characterId) => {
@@ -41,7 +41,7 @@ async function typeaheadResponse(found: readonly number[]): Promise<SearchCharac
 }
 
 async function searchExactName(search: string): Promise<SearchCharactersResponse> {
-  const response = await esiPassThrough('/universe/ids/', undefined, esiJsonPostInit([search]));
+  const response = await esiPassThrough('/universe/ids/', undefined, esiJsonPostInit([search]), { interactive: true });
   if (!response.ok) throw new Error(`Exact ESI character search failed (${response.status})`);
 
   const parsed = universeIdsSchema.safeParse(await response.json());

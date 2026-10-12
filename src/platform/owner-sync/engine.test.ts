@@ -137,8 +137,8 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(opened[0]!.commit).not.toHaveBeenCalled();
   });
 
-  it('skips a character whose token cannot be vended (no fetch)', async () => {
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1)]), vendToken: vi.fn(async () => null) });
+  it('skips a character whose grant is lost (no fetch)', async () => {
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1)]), vendToken: vi.fn(async () => ({ missing: 'lost' as const })) });
 
     const results = await runOwnerSync(d, 'u');
 
@@ -330,7 +330,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const readRoles = vi.fn(async () => ['Director']);
     const d = makeDescriptor({
       characterAxis: undefined,
-      vendToken: vi.fn(async () => null),
+      vendToken: vi.fn(async () => ({ missing: 'unavailable' as const })),
       enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       corpAxis: corpAxis(readRoles),
     });
@@ -352,7 +352,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const saveGateState = vi.fn(async () => {});
     const d = makeDescriptor({
       characterAxis: undefined,
-      vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? null : `tok-${characterId}`)),
+      vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? { missing: 'unavailable' as const } : `tok-${characterId}`)),
       enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 }), ownerFixture(2, { corporationId: 5000 })]),
       corpAxis: corpAxis(vi.fn(async () => [])),
       saveGateState,
@@ -435,7 +435,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const saveGateState = vi.fn(async () => {});
     const d = makeDescriptor({
       characterAxis: undefined,
-      vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? null : `tok-${characterId}`)),
+      vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? { missing: 'unavailable' as const } : `tok-${characterId}`)),
       enumerate: vi.fn(async () => [1, 2].map((id) => ownerFixture(id, { corporationId: 5000 }))),
       corpAxis: corpAxis(vi.fn(async () => ['Director'])),
       fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'needs_role' })),
@@ -477,5 +477,120 @@ describe('runOwnerSync — the corporation pass', () => {
     await runOwnerSync(d, 'u');
 
     expect(order).toEqual(['char:1', 'corp:u:5000']);
+  });
+});
+
+describe('runOwnerSync — settled refusals are recorded as the owner\'s answer', () => {
+  const corpMembers = (...ids: number[]) => vi.fn(async () => ids.map((id) => ownerFixture(id, { corporationId: 5000 })));
+
+  it('records needs_role for a corp until the earliest 403 Expires, after the gate state', async () => {
+    const saveGateState = vi.fn(async () => {});
+    const recordRefusal = vi.fn(async () => {});
+    const d = makeDescriptor({
+      characterAxis: undefined,
+      enumerate: corpMembers(1, 2, 3),
+      corpAxis: corpAxis(vi.fn(async () => ['Director'])),
+      fetchAndPlan: vi.fn(async (_owner, accessToken): Promise<PersistVerdict<Save>> => {
+        if (accessToken === 'tok-1') return { kind: 'needs_role', expiresAt: 9_000 };
+        return accessToken === 'tok-2' ? { kind: 'needs_role', expiresAt: 4_000 } : { kind: 'needs_role' };
+      }),
+      saveGateState,
+      recordRefusal,
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(results).toEqual([
+      { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 5000 }, code: 'needs_role' },
+    ]);
+    expect(recordRefusal).toHaveBeenCalledExactlyOnceWith('corp:u:5000', 4_000);
+    expect(vi.mocked(recordRefusal).mock.invocationCallOrder[0]).toBeGreaterThan(saveGateState.mock.invocationCallOrder[0]!);
+  });
+
+  it('records needs_role with no Expires when ESI sent none, so the route\'s spec cache time applies', async () => {
+    const recordRefusal = vi.fn(async () => {});
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
+      fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'needs_role' })),
+      recordRefusal,
+    });
+
+    await runOwnerSync(d, 'u');
+
+    expect(recordRefusal).toHaveBeenCalledExactlyOnceWith('char:1', null);
+  });
+
+  it('records a corp whose every member was judged and none holds the role (denied) without reading it', async () => {
+    const recordRefusal = vi.fn(async () => {});
+    const d = makeDescriptor({
+      characterAxis: undefined,
+      enumerate: corpMembers(1, 2),
+      corpAxis: corpAxis(vi.fn(async () => [])),
+      recordRefusal,
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(results[0]).toMatchObject({ kind: 'failed_permanent', code: 'needs_role' });
+    expect(d.fetchAndPlan).not.toHaveBeenCalled();
+    expect(recordRefusal).toHaveBeenCalledExactlyOnceWith('corp:u:5000', null);
+  });
+
+  it('records a character whose grant is lost (token_unavailable)', async () => {
+    const recordRefusal = vi.fn(async () => {});
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
+      vendToken: vi.fn(async () => ({ missing: 'lost' as const })),
+      recordRefusal,
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(results[0]).toMatchObject({ kind: 'failed_permanent', code: 'token_unavailable' });
+    expect(recordRefusal).toHaveBeenCalledExactlyOnceWith('char:1', null);
+  });
+
+  it('records nothing for a character whose token service failed for now, and keeps it retryable', async () => {
+    const recordRefusal = vi.fn(async () => {});
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
+      vendToken: vi.fn(async () => ({ missing: 'unavailable' as const })),
+      recordRefusal,
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(results).toEqual([
+      { kind: 'failed_retryable', target: { ownerType: 'character', ownerId: 1 }, code: 'owner_temporarily_unavailable' },
+    ]);
+    expect(recordRefusal).not.toHaveBeenCalled();
+    expect(d.fetchAndPlan).not.toHaveBeenCalled();
+  });
+
+  it('records nothing for a transient end: a 5xx, a skip, a budget refusal, or a member not judged for now', async () => {
+    const recordRefusal = vi.fn(async () => {});
+    const budget = new EsiBudgetExhaustedError(17, 'rate_limited', 900, '/characters/3/skills/');
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => [ownerFixture(1), ownerFixture(2), ownerFixture(3), ownerFixture(4, { corporationId: 5000 })]),
+      vendToken: vi.fn(async (characterId: number) => (characterId === 4 ? { missing: 'unavailable' as const } : `tok-${characterId}`)),
+      characterAxis: { eligible: (owner) => owner.corporationId === null, ownerOf: (characterId: number) => `char:${characterId}` },
+      corpAxis: corpAxis(vi.fn(async () => ['Director'])),
+      fetchAndPlan: vi.fn(async (owner: string): Promise<PersistVerdict<Save>> => {
+        if (owner === 'char:1') return { kind: 'skip', code: 'esi_server_error' };
+        if (owner === 'char:2') return { kind: 'skip', code: 'contract_error' };
+        throw budget;
+      }),
+      recordRefusal,
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(results).toEqual([
+      { kind: 'failed_retryable', target: { ownerType: 'character', ownerId: 1 }, code: 'esi_server_error' },
+      { kind: 'failed_permanent', target: { ownerType: 'character', ownerId: 2 }, code: 'contract_error' },
+      { kind: 'deferred_for_budget', target: { ownerType: 'character', ownerId: 3 }, error: budget },
+      { kind: 'failed_retryable', target: { ownerType: 'corporation', ownerId: 5000 }, code: 'owner_temporarily_unavailable' },
+    ]);
+    expect(recordRefusal).not.toHaveBeenCalled();
   });
 });

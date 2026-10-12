@@ -55,9 +55,12 @@ describe('searchUpwellStructures', () => {
     expect(results).toEqual([
       { structureId: 1_035_000_000_001, name: 'Sobaseki - Industry Azbel', systemId: 30001363, structureTypeId: 35826 },
     ]);
-    const [searchUrl, init] = h.esiFetch.mock.calls[0]!;
+    const [searchUrl, init, opts] = h.esiFetch.mock.calls[0]!;
     expect(searchUrl).toBe('https://esi.test/characters/9001/search/?categories=structure&search=Sobaseki&strict=false');
     expect(init).toEqual({ headers: { Authorization: 'Bearer tok' } });
+    // The search and each structure lookup are user-initiated: the gate's interactive floor.
+    expect(opts).toEqual({ interactive: true });
+    expect(h.esiFetch.mock.calls[1]![2]).toEqual({ interactive: true });
   });
 
   it('drops structures ESI refuses (not on the access list) and keeps a missing type as null', async () => {

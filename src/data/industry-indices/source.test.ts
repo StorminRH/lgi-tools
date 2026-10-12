@@ -9,7 +9,16 @@ import {
 
 const fetchStoredMock = vi.fn();
 
-vi.mock('@/data/esi-store', () => ({ fetchStored: (...args: unknown[]) => fetchStoredMock(...args) }));
+type Init = { parse: (body: unknown, headers: Headers) => unknown };
+
+/** The store's transport: a 200's body is parsed inside the call with the caller's parser, and a parse failure throws. */
+async function fetchStored(key: unknown, init: Init): Promise<unknown> {
+  const answer = await fetchStoredMock(key, init);
+  if (answer.kind !== 'fresh') return answer;
+  return { kind: 'fresh', value: init.parse(await answer.res.json(), answer.res.headers), meta: answer.meta };
+}
+
+vi.mock('@/data/esi-store', () => ({ fetchStored }));
 
 const META = { key: { route: '/industry/systems/', holder: { kind: 'global' } }, expiresAt: 1, etags: [], lastModified: null, checkedAt: 0 };
 
@@ -102,7 +111,7 @@ describe('fetch* — through the response store', () => {
   it('turns an error status into EsiServerError', async () => {
     fetchStoredMock.mockResolvedValue({ kind: 'error', status: 400 });
     await expect(fetchCostIndices()).rejects.toBeInstanceOf(EsiServerError);
-    expect(fetchStoredMock).toHaveBeenCalledWith({ route: '/industry/systems/', holder: { kind: 'global' } });
+    expect(fetchStoredMock).toHaveBeenCalledWith({ route: '/industry/systems/', holder: { kind: 'global' } }, { parse: parseCostIndices });
   });
 
   it('parses a fresh adjusted-prices answer and hands back its meta', async () => {
@@ -112,7 +121,7 @@ describe('fetch* — through the response store', () => {
       rows: [{ typeId: 34, adjustedPrice: 2.9, averagePrice: null }],
       meta: META,
     });
-    expect(fetchStoredMock).toHaveBeenCalledWith({ route: '/markets/prices/', holder: { kind: 'global' } });
+    expect(fetchStoredMock).toHaveBeenCalledWith({ route: '/markets/prices/', holder: { kind: 'global' } }, { parse: parseAdjustedPrices });
   });
 
   it('passes an unchanged answer through as nothing to write', async () => {

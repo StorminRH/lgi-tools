@@ -20,6 +20,12 @@ describe('ESI read boundary', () => {
       "export { esiFetch } from '@/platform/esi';",
       "export * from '@/platform/esi/authed-read';",
       "const esi = await import('@/platform/esi');",
+      "import { esiFetch } from '@/platform/esi/index';",
+      "import { esiFetch } from '../../platform/esi/index.ts';",
+      "import { esiFetch } from '@/platform/esi/';",
+      "import { readEsiAuthed } from '@/platform/esi/authed-read.ts';",
+      "import { readEsiAuthedPost } from '../../platform/esi/authed-read.mjs';",
+      "export * from '@/platform/esi/index';",
     ]) {
       expect((await rail.messagesFor(consumer, code, boundary)).length, code).toBeGreaterThan(0);
     }
@@ -34,6 +40,8 @@ describe('ESI read boundary', () => {
       "import { httpDateMs } from '@/platform/esi/headers';",
       "import type { EsiAuthedRead } from '@/platform/esi/authed-read';",
       "import { type EsiFetchOptions, esiUrl } from '@/platform/esi';",
+      "import { esiUrl } from '@/platform/esi/index';",
+      "import { EsiServerError } from '@/platform/esi/index.ts';",
     ]) {
       expect(await rail.messagesFor(consumer, code, boundary), code).toEqual([]);
     }
@@ -53,6 +61,7 @@ describe('ESI read boundary', () => {
   it('keeps the corp-access boundary on its own readers', async () => {
     expect(await rail.messagesFor(consumer, "import { getUserAffiliations } from '@/platform/auth/affiliation-store';", 'corp-access/boundary')).toHaveLength(1);
     expect(await rail.messagesFor(consumer, "import type { getUserAffiliations } from '@/platform/auth/affiliation-store';", 'corp-access/boundary')).toEqual([]);
+    expect(await rail.messagesFor(consumer, "import { getUserAffiliations } from '@/platform/auth/affiliation-store/index';", 'corp-access/boundary')).toHaveLength(1);
   });
 });
 

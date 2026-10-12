@@ -26,13 +26,18 @@ const esiStructureSchema = z.object({
   type_id: z.number().int().positive().optional(),
 });
 
-/** ESI answers only for structures on the character's access list; anything else is dropped. */
+/** ESI answers only for structures on the character's access list; anything else is dropped. A user is waiting on the lookup. */
 async function readStructure(
   structureId: number,
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<StructureSearchResult | null> {
-  const response = await esiPassThrough(STRUCTURE_LOOKUP_ROUTE, { structure_id: structureId }, esiAuthInit(accessToken, { signal }));
+  const response = await esiPassThrough(
+    STRUCTURE_LOOKUP_ROUTE,
+    { structure_id: structureId },
+    esiAuthInit(accessToken, { signal }),
+    { interactive: true },
+  );
   if (!response.ok) return null;
   const parsed = esiStructureSchema.safeParse(await response.json());
   if (!parsed.success) return null;

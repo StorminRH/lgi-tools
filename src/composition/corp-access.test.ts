@@ -63,7 +63,7 @@ test('reads once without refresh writes, rereads after an expired refresh, and r
   mocks.fetchAffiliations.mockResolvedValue({ rows: fetched, transientFailure: false, answers: [] });
   mocks.updateAffiliations.mockResolvedValueOnce({ refreshed: 2, accessChanged: true });
   const refreshed = await resolveUserCorpAccess('u1');
-  expect(mocks.fetchAffiliations).toHaveBeenCalledWith([101, 102]);
+  expect(mocks.fetchAffiliations).toHaveBeenCalledWith([101, 102], undefined);
   expect(mocks.getUserAffiliations).toHaveBeenCalledTimes(3);
   expect(refreshed.allCharacterIds).toEqual([101, 102]);
   expect(refreshed.corporationIds).toEqual([3000]);

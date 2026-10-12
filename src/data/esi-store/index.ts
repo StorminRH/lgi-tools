@@ -3,12 +3,15 @@
  * freshness source. Until it passes nothing is called; after it, the call
  * carries If-None-Match, a 304 records the new expiry at once, and a 200
  * comes back with its meta for the caller to commit once its own write has
- * stood. Errors record nothing, so the next view retries. There are no
- * floors, no jitter and no delays.
+ * stood. A settled refusal (a 403, no role-holder, a token that is gone) is
+ * recorded as an answer of its own with no ETag, until the refusal's Expires
+ * or else the route's spec cache time; a refusal of a corporation's shared
+ * answer is the refusing user's alone. Transient errors record nothing, so
+ * the next view retries. There are no floors, no jitter and no delays.
  */
 import { expireNow } from '@/lib/cache-expiry';
 import { eveTag, routeDataset, routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
-import type { EsiHolder, EsiRouteDeclaration } from '@/lib/esi-datasets/types';
+import type { EsiRouteDeclaration } from '@/lib/esi-datasets/types';
 import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl, type EsiFetchOptions } from '@/platform/esi';
 import {
   readEsiAuthed,
@@ -23,7 +26,13 @@ import { mapConcurrent } from '@/lib/fan-out';
 import { earliestExpiry, expiryFor, isExpired } from './expiry';
 import { esiHalted } from './halt';
 import { resolvePath } from './key';
-import { readRouteExpiry, readStoredRows, recordResponses, recordUnchangedMany, type UnchangedRecord } from './rows';
+import {
+  deleteStoredRows,
+  readStoredRows,
+  recordResponses,
+  recordUnchangedMany,
+  type UnchangedRecord,
+} from './rows';
 import type {
   EsiAnswerStamp,
   EsiParams,
@@ -166,27 +175,40 @@ interface PublicCall {
 }
 
 /** A call's answer, with the 304 record the batch writes once every call is done. */
-interface PublicAnswer {
-  readonly answer: StoredManyAnswer;
+interface PublicAnswer<T> {
+  readonly answer: StoredManyAnswer<T>;
   readonly unchanged?: UnchangedRecord;
 }
 
-async function callPublic(call: PublicCall, init: StoredFetchInit, checkedAt: number): Promise<PublicAnswer> {
+/** The gate options a call carries: the interactive floor when a user waits on it. */
+function fetchOptions(interactive: boolean | undefined): EsiFetchOptions | undefined {
+  return interactive === true ? { interactive: true } : undefined;
+}
+
+/**
+ * One key's call. A 200's body is read and parsed here, inside the call, so
+ * the fan-out never holds an unread answer; any other status gives its body
+ * back to the connection unread.
+ */
+async function callPublic<T>(call: PublicCall, init: StoredFetchInit<T>, checkedAt: number): Promise<PublicAnswer<T>> {
   const { key, declaration, row } = call;
   const [etag] = heldEtags(declaration, row, init.conditional);
   const headers: Record<string, string> = etag === undefined ? {} : { 'If-None-Match': etag };
-  const opts: EsiFetchOptions | undefined = init.interactive === true ? { interactive: true } : undefined;
-  const res = await esiFetch(esiUrl(resolvePath(key)), { headers }, opts);
+  const res = await esiFetch(esiUrl(resolvePath(key)), { headers }, fetchOptions(init.interactive));
   logAnswer(key, res.status, res.headers.get('x-esi-cache-status'));
   const answer = responseAnswer(res);
   if (res.status === 304) {
     const record = unchangedRecord(key, declaration, answer, checkedAt);
     return { answer: unchanged(record.expiresAt), unchanged: record };
   }
-  if (res.status !== 200) return { answer: { kind: 'error', status: res.status } };
-  const body: unknown = declaration.keepBody === true ? await res.clone().json() : undefined;
-  const meta = metaOf(key, declaration, answer, etagsOf(res.headers.get('ETag')), checkedAt, body);
-  return { answer: { kind: 'fresh', res, meta } };
+  if (res.status !== 200) {
+    await res.body?.cancel();
+    return { answer: { kind: 'error', status: res.status } };
+  }
+  const body: unknown = await res.json();
+  const value = init.parse(body, res.headers);
+  const meta = metaOf(key, declaration, answer, etagsOf(res.headers.get('ETag')), checkedAt, declaration.keepBody === true ? body : undefined);
+  return { answer: { kind: 'fresh', value, meta } };
 }
 
 /**
@@ -195,9 +217,9 @@ async function callPublic(call: PublicCall, init: StoredFetchInit, checkedAt: nu
  * not yet started take that refusal without calling: the gate would refuse
  * them the same way.
  */
-async function fanOut(calls: readonly PublicCall[], init: StoredManyInit, checkedAt: number): Promise<PublicAnswer[]> {
+async function fanOut<T>(calls: readonly PublicCall[], init: StoredManyInit<T>, checkedAt: number): Promise<PublicAnswer<T>[]> {
   let refused: EsiBudgetExhaustedError | null = null;
-  return mapConcurrent(calls, init.concurrency, async (call) => {
+  return mapConcurrent(calls, init.concurrency, async (call): Promise<PublicAnswer<T>> => {
     if (refused !== null) return { answer: { kind: 'failed', error: refused } };
     try {
       return await callPublic(call, init, checkedAt);
@@ -211,20 +233,21 @@ async function fanOut(calls: readonly PublicCall[], init: StoredManyInit, checke
 /**
  * Many public GETs as one batch, the way a page with hundreds of due
  * prices or history series asks: one row read for every key, the expired
- * ones called with at most `concurrency` in flight, and every 304 recorded
- * in one write once the fan-out is done. Answers come back in key order.
+ * ones called with at most `concurrency` in flight, each 200 parsed inside
+ * its own call, and every 304 recorded in one write once the fan-out is
+ * done. Answers come back in key order.
  * No key takes a lock, global or owner: duplicates right after an expiry
  * are accepted, since CCP serves its shared copy or a 304 and the writes
  * behind them are idempotent. Under the downtime halt nothing is called
  * and every key serves its stored copy.
  */
-export async function fetchStoredMany(keys: readonly EsiStoreKey[], init: StoredManyInit): Promise<StoredManyAnswer[]> {
+export async function fetchStoredMany<T>(keys: readonly EsiStoreKey[], init: StoredManyInit<T>): Promise<StoredManyAnswer<T>[]> {
   if (keys.length === 0) return [];
   const declarations = keys.map(storedDeclaration);
   const rows = await readStoredRows(keys);
   const checkedAt = Date.now();
   const due = keys.flatMap((_key, i) => (isExpired(rows[i]?.expiresAt ?? null, checkedAt) ? [i] : []));
-  const answers: StoredManyAnswer[] = rows.map(unchangedRow);
+  const answers: StoredManyAnswer<T>[] = rows.map(unchangedRow);
   if (due.length === 0 || (await esiHalted(keys[due[0]!]!, checkedAt))) return answers;
   const calls = due.map((i) => ({ key: keys[i]!, declaration: declarations[i]!, row: rows[i] ?? null }));
   const settled = await fanOut(calls, init, checkedAt);
@@ -237,7 +260,7 @@ export async function fetchStoredMany(keys: readonly EsiStoreKey[], init: Stored
 }
 
 /** A public GET through the store: `fetchStoredMany` for one key, whose thrown call throws here as it always did. */
-export async function fetchStored(key: EsiStoreKey, init: StoredFetchInit = {}): Promise<StoredFetch> {
+export async function fetchStored<T>(key: EsiStoreKey, init: StoredFetchInit<T>): Promise<StoredFetch<T>> {
   const answer = (await fetchStoredMany([key], { ...init, concurrency: 1 }))[0]!;
   if (answer.kind === 'failed') throw answer.error;
   return answer;
@@ -288,7 +311,7 @@ export async function postPassThroughAuthed(
  * the batch takes through `recordExpiryFor`. Under the downtime halt it
  * fails the way ESI itself would.
  */
-export async function postStoredBatch(route: EsiRoute, body: unknown): Promise<StoredBatchAnswer> {
+export async function postStoredBatch(route: EsiRoute, body: unknown, opts?: EsiFetchOptions): Promise<StoredBatchAnswer> {
   const declaration = routeDeclaration(route);
   if (declaration.method !== 'POST' || (declaration.mode ?? 'stored') !== 'stored') {
     throw new Error(`ESI route ${route} is not a stored POST`);
@@ -296,7 +319,7 @@ export async function postStoredBatch(route: EsiRoute, body: unknown): Promise<S
   const key: EsiStoreKey = { route, holder: { kind: 'global' } };
   const checkedAt = Date.now();
   if (await esiHalted(key, checkedAt)) throw new EsiServerError(503, 'halted for daily downtime');
-  const res = await esiFetch(esiUrl(resolvePath(key)), esiJsonPostInit(body));
+  const res = await esiFetch(esiUrl(resolvePath(key)), esiJsonPostInit(body), opts);
   logAnswer(key, res.status, res.headers.get('x-esi-cache-status'));
   const answer = responseAnswer(res);
   return {
@@ -315,12 +338,18 @@ interface Prepared {
   readonly checkedAt: number;
 }
 
+/**
+ * What an authed read needs before it calls, or the unchanged answer that
+ * spares the call. Under the downtime halt a due key fails the way ESI
+ * itself would, with a 503: an owner stamped fresh from an unchanged answer
+ * nobody checked would say "refreshed just now" for data nobody saw.
+ */
 async function prepareAuthed(key: EsiStoreKey, live = false): Promise<Prepared | StoredUnchanged> {
   const declaration = storedDeclaration(key);
   const row = await readStoredRow(key);
   const checkedAt = Date.now();
-  const unexpired = !live && !isExpired(row?.expiresAt ?? null, checkedAt);
-  if (unexpired || (await esiHalted(key, checkedAt))) return unchangedRow(row);
+  if (!live && !isExpired(row?.expiresAt ?? null, checkedAt)) return unchangedRow(row);
+  if (await esiHalted(key, checkedAt)) throw new EsiServerError(503, 'halted for daily downtime');
   return { declaration, row, checkedAt };
 }
 
@@ -346,8 +375,9 @@ export async function readStoredAuthed(
 ): Promise<StoredAuthedRead> {
   const prepared = await prepareAuthed(key, init.live === true);
   if (isUnchanged(prepared)) return prepared;
-  const [etag] = heldEtags(prepared.declaration, prepared.row, undefined);
-  return settleAuthed(key, prepared, await readEsiAuthed(resolvePath(key), accessToken, etag ?? null, init.rl));
+  const [etag] = heldEtags(prepared.declaration, prepared.row, init.conditional);
+  const read = await readEsiAuthed(resolvePath(key), accessToken, etag ?? null, init.rl, fetchOptions(init.interactive));
+  return settleAuthed(key, prepared, read);
 }
 
 /** An authed POST-as-read (the affiliation batch, assets/names): never conditional, same rule otherwise. */
@@ -369,8 +399,18 @@ async function settlePaged(key: EsiStoreKey, prepared: Prepared, read: EsiPagedR
 export async function readStoredPaged(key: EsiStoreKey, accessToken: string, init: StoredAuthedInit = {}): Promise<StoredPagedRead> {
   const prepared = await prepareAuthed(key);
   if (isUnchanged(prepared)) return prepared;
-  const etags = heldEtags(prepared.declaration, prepared.row, undefined);
+  const etags = heldEtags(prepared.declaration, prepared.row, init.conditional);
   return settlePaged(key, prepared, await readEsiPagedAuthed(resolvePath(key), accessToken, etags, init.rl));
+}
+
+/**
+ * Forgets the stored answers for `keys`: the rows go, so each key is due
+ * and its next read carries no If-None-Match. For a domain write that drops
+ * the rows an ETag vouched for (a corp's jobs on `needs_role`), since a
+ * later 304 would otherwise stand for data that is no longer there.
+ */
+export function forgetStored(keys: readonly EsiStoreKey[]): Promise<void> {
+  return deleteStoredRows(keys);
 }
 
 /** Whether any of `keys` has no stored answer or an expired one. Nothing to refresh is never due. */
@@ -379,19 +419,36 @@ export async function isDue(keys: readonly EsiStoreKey[], now: number = Date.now
   return rows.some((row) => isExpired(row?.expiresAt ?? null, now));
 }
 
+/**
+ * The key one user's settled refusal is recorded on. A corporation's answer
+ * is shared by every user in it, yet each user syncs it with only their own
+ * characters, so a member without the role must not stop a Director (another
+ * user) from reading it: that refusal goes on a row of the member's own, the
+ * same route, corporation and parameters with `user_id` set. Every other key
+ * is already held by one user and records on its own row.
+ */
+export function refusalKeyFor(userId: string, key: EsiStoreKey): EsiStoreKey {
+  return key.holder.kind === 'corporation'
+    ? { ...key, holder: { kind: 'user-corporation', id: key.holder.id, userId } }
+    : key;
+}
+
+/**
+ * `isDue` as one user's sync sees it: a key is due only while both its
+ * stored answer and that user's own refusal of it (a corporation key's, see
+ * `refusalKeyFor`) have expired. Other users see only the shared answer.
+ */
+export async function isDueFor(userId: string, keys: readonly EsiStoreKey[], now: number = Date.now()): Promise<boolean> {
+  const rows = await readStoredRows([...keys, ...keys.map((key) => refusalKeyFor(userId, key))]);
+  return keys.some(
+    (_key, i) => isExpired(rows[i]?.expiresAt ?? null, now) && isExpired(rows[keys.length + i]?.expiresAt ?? null, now),
+  );
+}
+
 /** The earliest stored expiry over `keys`, in epoch ms; null when any key is due. */
 export async function storedExpiry(keys: readonly EsiStoreKey[]): Promise<number | null> {
   if (keys.length === 0) return null;
   return earliestExpiry(await readStoredRows(keys));
-}
-
-/**
- * The earliest stored expiry over every answer of a route for one holder,
- * however it was parameterised: what a reader that aggregates a whole
- * route (the prices freshness stamp) lives until. Null when any is due.
- */
-export function storedRouteExpiry(route: EsiRoute, holder: EsiHolder = { kind: 'global' }): Promise<number | null> {
-  return readRouteExpiry(route, holder);
 }
 
 /** Each key's stored expiry in key order, in epoch ms; null where the key is due. */
@@ -406,13 +463,60 @@ export function storedRow(key: EsiStoreKey): Promise<StoredRow | null> {
 }
 
 /**
- * The meta of a 5xx that is itself an answer: Tranquility down behind a
- * 503. It expires when the answer's Expires says, else at the route's spec
- * cache time, and carries no ETag.
+ * The meta of an answer that carried no body to store: a refusal, or a 5xx
+ * that is itself an answer. It expires at `expiresAt` (the answer's own
+ * Expires) when there is one, else at the route's spec cache time, and
+ * carries no ETag, so the first read after it is unconditional.
  */
+export function refusalMeta(key: EsiStoreKey, expiresAt: number | null, checkedAt: number): EsiResponseMeta {
+  return metaOf(key, storedDeclaration(key), { expiresAt }, [], checkedAt);
+}
+
+/** The meta of a 5xx that is itself an answer: Tranquility down behind a 503. */
 export function serverErrorMeta(key: EsiStoreKey, error: EsiServerError, checkedAt: number): EsiResponseMeta {
-  const declaration = storedDeclaration(key);
-  return metaOf(key, declaration, { expiresAt: httpDateMs(error.esiHeaders.expires ?? null) }, [], checkedAt);
+  return refusalMeta(key, httpDateMs(error.esiHeaders.expires ?? null), checkedAt);
+}
+
+/** The refusal metas for those of `keys` whose stored answer has expired, each on the row `refusalRow` names. */
+async function refusalMetas(
+  keys: readonly EsiStoreKey[],
+  expiresAt: number | null,
+  refusalRow: (key: EsiStoreKey) => EsiStoreKey,
+): Promise<EsiResponseMeta[]> {
+  const rows = await readStoredRows(keys);
+  const checkedAt = Date.now();
+  return keys.flatMap((key, i) =>
+    isExpired(rows[i]?.expiresAt ?? null, checkedAt) ? [{ ...refusalMeta(key, expiresAt, checkedAt), key: refusalRow(key) }] : [],
+  );
+}
+
+/**
+ * Records a settled refusal as the answer of each of `keys` that is due:
+ * an owner no credential could read (every role-holder refused, a token
+ * that is gone). Each row carries no ETag and expires at `expiresAt` (the
+ * refusal's own Expires) or else at its route's spec cache time, so the
+ * owner is not due, and no view re-asks, until then. A key whose stored
+ * answer still stands keeps it. Only for keys one user holds (a character's,
+ * a user's corp jobs): a corporation's shared answer takes a user's refusal
+ * through `recordRefusalFor`.
+ */
+export async function recordRefusal(keys: readonly EsiStoreKey[], expiresAt: number | null): Promise<void> {
+  const shared = keys.find((key) => key.holder.kind === 'corporation');
+  if (shared !== undefined) throw new Error(`ESI route ${shared.route} is shared by a corporation: record a user's refusal`);
+  const metas = await refusalMetas(keys, expiresAt, (key) => key);
+  if (metas.length > 0) await recordResponses(metas);
+}
+
+/**
+ * Records one user's settled refusal of `keys`, as `recordRefusal` does,
+ * except that a corporation key's refusal goes on that user's own row
+ * (`refusalKeyFor`): the shared answer stays due for every other user, and
+ * only this user's sync (`isDueFor`) stops re-asking until it expires. A
+ * later answer by anyone serves this user too; the refusal row just runs out.
+ */
+export async function recordRefusalFor(userId: string, keys: readonly EsiStoreKey[], expiresAt: number | null): Promise<void> {
+  const metas = await refusalMetas(keys, expiresAt, (key) => refusalKeyFor(userId, key));
+  if (metas.length > 0) await recordResponses(metas);
 }
 
 /**

@@ -1,7 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { __resetEsiGateForTests } from '@/platform/esi';
-import { fetchStored, fetchStoredMany, isDue, readStoredAuthed, recordExpiryFor, storedExpiry, storedRouteExpiry, commit } from './index';
+import { __resetEsiGateForTests, EsiServerError } from '@/platform/esi';
+import {
+  commit,
+  fetchStored,
+  fetchStoredMany,
+  isDue,
+  isDueFor,
+  readStoredAuthed,
+  recordExpiryFor,
+  recordRefusal,
+  recordRefusalFor,
+  refusalKeyFor,
+  storedExpiry,
+} from './index';
 import { esiResponses } from './schema';
 import { esiStorePurgeContributor } from './purge';
 import { identityText, rowIdentity } from './key';
@@ -36,6 +48,9 @@ function response(status: number, headers: Record<string, string> = {}, body: un
   return new Response(status === 304 ? null : JSON.stringify(body), { status, headers });
 }
 
+/** A parser that hands the JSON body back as ESI sent it. */
+const AS_IS = { parse: (body: unknown): unknown => body };
+
 async function allRows() {
   return harness.db.select().from(esiResponses);
 }
@@ -67,7 +82,7 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     await expect(isDue([PRICE_KEY])).resolves.toBe(true);
     await expect(storedExpiry([PRICE_KEY])).resolves.toBeNull();
 
-    const first = await fetchStored(PRICE_KEY);
+    const first = await fetchStored(PRICE_KEY, AS_IS);
     expect(first.kind).toBe('fresh');
     if (first.kind !== 'fresh') return;
     expect(await rowOf(PRICE_KEY)).toBeUndefined();
@@ -78,7 +93,7 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     expect(row?.expiresAt?.getTime()).toBe(Date.parse(EXPIRES));
     expect(row?.lastModified?.getTime()).toBe(Date.parse(new Date(NOW - 1000).toUTCString()));
 
-    await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: Date.parse(EXPIRES) });
+    await expect(fetchStored(PRICE_KEY, AS_IS)).resolves.toEqual({ kind: 'unchanged', expiresAt: Date.parse(EXPIRES) });
     await expect(isDue([PRICE_KEY])).resolves.toBe(false);
     await expect(storedExpiry([PRICE_KEY])).resolves.toBe(Date.parse(EXPIRES));
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -92,7 +107,7 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     );
     fetchSpy.mockResolvedValueOnce(response(304, { Expires: later }));
 
-    await expect(fetchStored(STATUS_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: Date.parse(later) });
+    await expect(fetchStored(STATUS_KEY, AS_IS)).resolves.toEqual({ kind: 'unchanged', expiresAt: Date.parse(later) });
 
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     expect(new Headers(init.headers).get('If-None-Match')).toBe('"s1"');
@@ -112,18 +127,6 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     await expect(storedExpiry([PRICE_KEY, OTHER_PRICE_KEY, SKILLS_KEY])).resolves.toBeNull();
   });
 
-  it('reads the earliest expiry across every answer of a route, and none once any of them is unset', async () => {
-    await expect(storedRouteExpiry(PRICE_KEY.route)).resolves.toBeNull();
-    await recordExpiryFor([PRICE_KEY], { expiresAt: NOW + 60_000, lastModified: null, checkedAt: NOW });
-    await recordExpiryFor([OTHER_PRICE_KEY], { expiresAt: NOW + 30_000, lastModified: null, checkedAt: NOW });
-    await recordExpiryFor([SKILLS_KEY], { expiresAt: NOW + 1_000, lastModified: null, checkedAt: NOW });
-    await expect(storedRouteExpiry(PRICE_KEY.route)).resolves.toBe(NOW + 30_000);
-    await expect(storedRouteExpiry(SKILLS_KEY.route, SKILLS_KEY.holder)).resolves.toBe(NOW + 1_000);
-    await expect(storedRouteExpiry(SKILLS_KEY.route)).resolves.toBeNull();
-    await recordExpiryFor([{ ...PRICE_KEY, params: { region_id: 10000002, type_id: 36 } }], { expiresAt: null, lastModified: null, checkedAt: NOW });
-    await expect(storedRouteExpiry(PRICE_KEY.route)).resolves.toBeNull();
-  });
-
   it('reads a batch in one row read, calls only the due keys under no lock, and records every 304 in one write', async () => {
     const third: EsiStoreKey = { ...PRICE_KEY, params: { region_id: 10000002, type_id: 36 } };
     await commit(
@@ -140,7 +143,7 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     );
 
     // The due key appears twice: both calls are made, and the one write dedupes the row.
-    const answers = await fetchStoredMany([PRICE_KEY, OTHER_PRICE_KEY, third, OTHER_PRICE_KEY], { concurrency: 8 });
+    const answers = await fetchStoredMany([PRICE_KEY, OTHER_PRICE_KEY, third, OTHER_PRICE_KEY], { concurrency: 8, ...AS_IS });
 
     expect(answers.map((answer) => answer.kind)).toEqual(['unchanged', 'unchanged', 'fresh', 'unchanged']);
     expect(answers[0]).toEqual({ kind: 'unchanged', expiresAt: NOW + 300_000 });
@@ -205,13 +208,13 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     vi.useFakeTimers({ toFake: ['Date'] });
     try {
       vi.setSystemTime(downtime + 10_000);
-      await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: downtime - 1 });
-      await expect(readStoredAuthed(SKILLS_KEY, 'token')).resolves.toEqual({ kind: 'unchanged', expiresAt: null });
+      await expect(fetchStored(PRICE_KEY, AS_IS)).resolves.toEqual({ kind: 'unchanged', expiresAt: downtime - 1 });
+      await expect(readStoredAuthed(SKILLS_KEY, 'token')).rejects.toBeInstanceOf(EsiServerError);
       expect(fetchSpy).not.toHaveBeenCalled();
 
       vi.setSystemTime(haltUntil);
       fetchSpy.mockResolvedValueOnce(response(304, { Expires: new Date(haltUntil + 300_000).toUTCString() }));
-      await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: haltUntil + 300_000 });
+      await expect(fetchStored(PRICE_KEY, AS_IS)).resolves.toEqual({ kind: 'unchanged', expiresAt: haltUntil + 300_000 });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
@@ -232,5 +235,51 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     await esiStorePurgeContributor.purgeUser?.({ kind: 'user', userId: 'u1' });
     const left = await allRows();
     expect(left.map((row) => `${row.holderType}:${row.userId}`).sort()).toEqual(['corporation:', 'global:']);
+  });
+
+  it('records a member\'s refusal of a corporation answer on their own row: still due for every other user, not for them', async () => {
+    const before = Date.now();
+    await recordRefusalFor('member', [CORP_ASSETS_KEY], null);
+
+    expect(await rowOf(CORP_ASSETS_KEY)).toBeUndefined();
+    const refusal = await rowOf(refusalKeyFor('member', CORP_ASSETS_KEY));
+    expect(refusal).toMatchObject({ holderType: 'corporation', holderId: 98, userId: 'member', etags: [], body: null });
+    expect(refusal!.expiresAt!.getTime()).toBeGreaterThan(before);
+    await expect(isDue([CORP_ASSETS_KEY])).resolves.toBe(true);
+    await expect(isDueFor('director', [CORP_ASSETS_KEY])).resolves.toBe(true);
+    await expect(isDueFor('member', [CORP_ASSETS_KEY])).resolves.toBe(false);
+    // Past the refusal's lifetime the member is due again.
+    await expect(isDueFor('member', [CORP_ASSETS_KEY], refusal!.expiresAt!.getTime() + 1)).resolves.toBe(true);
+
+    // A shared answer that still stands takes no refusal, and serves every user.
+    await commit([{ key: CORP_ASSETS_KEY, expiresAt: Date.now() + 60_000, etags: ['"a"'], lastModified: null, checkedAt: Date.now() }], { tag: 'eve:test' });
+    await recordRefusalFor('other', [CORP_ASSETS_KEY], null);
+    expect(await rowOf(refusalKeyFor('other', CORP_ASSETS_KEY))).toBeUndefined();
+    await expect(isDueFor('director', [CORP_ASSETS_KEY])).resolves.toBe(false);
+  });
+
+  it('keeps a user-held key\'s refusal on its own row, and refuses to record a user\'s refusal on a shared corporation row', async () => {
+    await recordRefusalFor('u1', [SKILLS_KEY], null);
+    await recordRefusal([CORP_JOBS_KEY], null);
+
+    expect(refusalKeyFor('u1', SKILLS_KEY)).toBe(SKILLS_KEY);
+    expect(await rowOf(SKILLS_KEY)).toMatchObject({ holderType: 'character', userId: '', etags: [] });
+    expect(await rowOf(CORP_JOBS_KEY)).toMatchObject({ holderType: 'corporation', userId: 'u1', etags: [] });
+    await expect(isDueFor('u1', [SKILLS_KEY, CORP_JOBS_KEY])).resolves.toBe(false);
+    await expect(recordRefusal([CORP_ASSETS_KEY], null)).rejects.toThrow(/shared by a corporation/);
+    expect(await rowOf(CORP_ASSETS_KEY)).toBeUndefined();
+  });
+
+  it('purges a user\'s refusals of corporation answers with the user, and leaves the shared rows', async () => {
+    await commit([{ key: CORP_ASSETS_KEY, expiresAt: NOW - 1000, etags: ['"a"'], lastModified: null, checkedAt: NOW }], { tag: 'eve:test' });
+    await recordRefusalFor('u1', [CORP_ASSETS_KEY], null);
+    await recordRefusalFor('u2', [CORP_ASSETS_KEY], null);
+    expect(await allRows()).toHaveLength(3);
+
+    await esiStorePurgeContributor.purgeUser?.({ kind: 'user', userId: 'u1' });
+
+    expect((await allRows()).map((row) => row.userId).sort()).toEqual(['', 'u2']);
+    await expect(isDueFor('u1', [CORP_ASSETS_KEY])).resolves.toBe(true);
+    await expect(isDueFor('u2', [CORP_ASSETS_KEY])).resolves.toBe(false);
   });
 });

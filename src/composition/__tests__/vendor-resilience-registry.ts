@@ -45,7 +45,7 @@ const eveEsi = policy({
   wrapper: { module: 'src/platform/esi/index.ts', symbol: 'esiFetch' },
   timeout: '10s per request (OUTBOUND_FETCH_TIMEOUT_MS via fetchWithTimeout).',
   retryableErrors:
-    'None at the dispatch layer. A 304 whose cached body has been evicted triggers one unconditional re-request — a cache repair, not an error retry.',
+    'None. A 304 is returned to the caller as ESI sent it; the gate stores no bodies and never re-requests.',
   backoff:
     'No client backoff. A CCP 429 becomes a Redis-recorded block on the rate-limit group it names (the normalized path when it names none), a 420 zeroes the error budget, and the pre-dispatch gate refuses calls until the block expires.',
   rateLimit:

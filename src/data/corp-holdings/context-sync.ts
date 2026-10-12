@@ -61,6 +61,8 @@ export interface CorpContextPort extends CorpSyncBase<EsiReadSession> {
     refreshedAt: Date,
   ): Promise<void>;
   stampFresh(corporationId: number, refreshedAt: Date): Promise<void>;
+  /** Records the syncing user's settled refusal (no role-holder among their characters) for the corporation, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(corporationId: number, expiresAt: number | null): Promise<void>;
 }
 
 interface CorpOwner {
@@ -76,11 +78,11 @@ interface CorpContextSave {
   bases: MemberBase[] | null;
 }
 
-type Step<T> = { kind: 'ok'; value: T } | { kind: 'unchanged' } | { kind: 'skip'; code: string };
+type Step<T> = { kind: 'ok'; value: T } | { kind: 'unchanged' } | { kind: 'skip'; code: string; expiresAt?: number };
 
 /** A read's parsed body; the error codes are the engine's (a 403 becomes `needs_role`) and an unchanged answer carries nothing. */
 function parsed<T>(read: SingleOwnerRead, parse: (body: unknown) => T | null): Step<T> {
-  if (read.kind === 'error') return { kind: 'skip', code: read.code };
+  if (read.kind === 'error') return { kind: 'skip', code: read.code, expiresAt: read.expiresAt };
   if (read.kind === 'unchanged') return { kind: 'unchanged' };
   const value = parse(read.body);
   return value === null ? { kind: 'skip', code: 'contract_error' } : { kind: 'ok', value };
@@ -152,14 +154,14 @@ async function planContext(
     port.currentContext(corporationId),
   ]);
   const hq = stored(parsed(corporation, parseCorporationBody), { hqStationId: context.hq.kind === 'known' ? context.hq.value : null });
-  if (hq.kind === 'skip') return errorVerdict(hq.code);
+  if (hq.kind === 'skip') return errorVerdict(hq.code, hq.expiresAt);
   const divisionNames = stored(parsed(divisions, parseDivisionsBody), context.divisionNames);
-  if (divisionNames.kind === 'skip') return errorVerdict(divisionNames.code);
+  if (divisionNames.kind === 'skip') return errorVerdict(divisionNames.code, divisionNames.expiresAt);
   const bases = stored(parsed(tracking, (body) => parseMemberTrackingBody(body, new Set(linked))), null);
-  if (bases.kind === 'skip') return errorVerdict(bases.code);
+  if (bases.kind === 'skip') return errorVerdict(bases.code, bases.expiresAt);
   const containerIds = unnamedContainerIds(context.index, context.containerNames);
   const containerNames = await readContainerNames(session, port, corporationId, accessToken, containerIds);
-  if (containerNames.kind === 'skip') return errorVerdict(containerNames.code);
+  if (containerNames.kind === 'skip') return errorVerdict(containerNames.code, containerNames.expiresAt);
   const structureIds = structureNameBatch(unnamedStructureIds(context.index, context.structureNames), port.now());
   const structureNames = await readStructureNames(session, port, accessToken, structureIds);
   const allUnchanged = [corporation, divisions, tracking].every((read) => read.kind === 'unchanged');
@@ -187,6 +189,7 @@ function makeDescriptor(port: CorpContextPort) {
     fetchAndPlan: (owner, accessToken, _state, session) => planContext(port, owner, accessToken, session),
     save: (owner, payload) => port.saveProfile(owner.corporationId, payload.profile, payload.bases, port.now()),
     stampFresh: (owner) => port.stampFresh(owner.corporationId, port.now()),
+    recordRefusal: (owner, expiresAt) => port.recordRefusal(owner.corporationId, expiresAt),
   });
 }
 

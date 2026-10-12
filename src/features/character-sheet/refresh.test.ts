@@ -39,6 +39,12 @@ const reader = (answer: (endpoint: SheetEndpoint) => SingleOwnerRead) =>
 
 interface FakePort extends SheetPort {
   sheets: Map<number, SheetSections>;
+  sessions: EsiReadSession[];
+}
+
+/** A session fake that records whether the plan discarded its bodies, in the order against its commit. */
+function sheetSessionFake(): EsiReadSession {
+  return { ...readSessionFake<EsiReadSession>(), discardBodies: vi.fn() };
 }
 
 /**
@@ -50,13 +56,19 @@ function makePort(
   sheets = new Map<number, SheetSections>(),
   unexpired: readonly DirectSectionKey[] = [],
 ): FakePort {
+  const sessions: EsiReadSession[] = [];
   const port: FakePort = {
     sheets,
+    sessions,
     now: () => NOW,
     listCharacters: vi.fn(async () => [ownerFixture(1)]),
     vendToken: vi.fn(async () => 'token'),
     isSectionDue: vi.fn(async (_id: number, key: DirectSectionKey) => !unexpired.includes(key)),
-    openSession: () => readSessionFake<EsiReadSession>(),
+    openSession: () => {
+      const session = sheetSessionFake();
+      sessions.push(session);
+      return session;
+    },
     readEndpoint: reader((endpoint) => ({ kind: 'fresh', body: BODIES[endpoint], etag: `"${endpoint}"` })),
     readStructure: vi.fn(
       async (_session, structureId): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
@@ -66,6 +78,7 @@ function makePort(
       sheets.set(id, { ...(sheets.get(id) ?? {}), [key]: envelope });
     }),
     stampSection: vi.fn(async () => {}),
+    recordSectionRefusal: vi.fn(async () => {}),
     ...overrides,
   };
   return port;
@@ -185,6 +198,17 @@ describe('refreshCharacterSheetForUser', () => {
     expect(sectionsSaved(port).sort()).toEqual(['attributes', 'clones', 'implants', 'orders', 'profile', 'status', 'structures']);
   });
 
+  it('records each direct section of a character whose token is gone as refused, and leaves structures to its own due check', async () => {
+    const port = makePort({ vendToken: vi.fn(async () => ({ missing: 'lost' as const })) });
+
+    await refreshCharacterSheetForUser(port, 'u1');
+
+    expect(port.readEndpoint).not.toHaveBeenCalled();
+    expect(vi.mocked(port.recordSectionRefusal).mock.calls.map(([id, key, expiresAt]) => [id, key, expiresAt]).sort()).toEqual(
+      ['attributes', 'clones', 'implants', 'journal', 'orders', 'profile', 'status', 'wallet'].map((key) => [1, key, null]),
+    );
+  });
+
   it('stamps a section whose answer came back unchanged and saves the ones that did not', async () => {
     const sheet: SheetSections = {
       wallet: { data: { balance: 1 }, refreshedAt: STALE_STAMP },
@@ -219,6 +243,25 @@ describe('refreshCharacterSheetForUser', () => {
 
     expect(port.sheets.get(1)?.wallet).toEqual({ data: null, refreshedAt: NOW_ISO, denied: true });
     expect(port.sheets.get(1)?.journal?.data).toBeDefined();
+  });
+
+  it('discards the bodies of a section saved as denied before its session commits, and keeps them for the sections that saved data', async () => {
+    const port = makePort({
+      readEndpoint: reader((endpoint) =>
+        endpoint === 'ship' ? { kind: 'error', code: 'esi_403' } : { kind: 'fresh', body: BODIES[endpoint], etag: `"${endpoint}"` },
+      ),
+    });
+
+    await refreshCharacterSheetForUser(port, 'u1');
+
+    const discarded = port.sessions.filter((session) => vi.mocked(session.discardBodies).mock.calls.length > 0);
+    expect(discarded).toHaveLength(1);
+    const [session] = discarded;
+    expect(vi.mocked(session!.commit)).toHaveBeenCalledOnce();
+    expect(vi.mocked(session!.discardBodies).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(session!.commit).mock.invocationCallOrder[0]!,
+    );
+    expect(port.sheets.get(1)?.status).toEqual({ data: null, refreshedAt: NOW_ISO, denied: true });
   });
 
   it('retries hidden structure names once the lookup route\'s published cache time has passed, leaving named entries cached', async () => {

@@ -52,6 +52,7 @@ describe('resolveNpcStationNames', () => {
         method: 'POST',
         body: JSON.stringify([60_000_001, 60_000_002]),
       }),
+      undefined,
     );
     expect(execute).toHaveBeenCalledTimes(1);
   });

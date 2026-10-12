@@ -49,4 +49,6 @@ export interface CorpStructuresPort extends CorpSyncBase<EsiReadSession> {
   readSyncState(corporationId: number): Promise<PagedOwnerSyncState | null>;
   saveStructures(corporationId: number, rows: ParsedCorpStructure[], etags: string[]): Promise<void>;
   stampFresh(corporationId: number): Promise<void>;
+  /** Records the syncing user's settled refusal (no role-holder among their characters) for the corporation, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(corporationId: number, expiresAt: number | null): Promise<void>;
 }

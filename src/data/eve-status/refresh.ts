@@ -1,19 +1,17 @@
 import {
-  commit,
   fetchStored,
   noteStatusOutcome,
+  recordMetas,
   serverErrorMeta,
   storedRow,
   STATUS_KEY,
   type EsiResponseMeta,
 } from '@/data/esi-store';
-import { eveTag } from '@/lib/esi-datasets/routes';
 import { EsiServerError } from '@/platform/esi';
 import { parseServerStatus } from './parse';
 import { statusRecordOf, type StatusRecord } from './record';
 import type { ServerStatus } from './types';
 
-const STATUS_TAG = eveTag('eve_status');
 /** ESI's answers while Tranquility is down; nothing else counts toward the downtime halt. */
 const DOWN_STATUSES = new Set([503, 504]);
 const OFFLINE: ServerStatus = { state: 'offline' };
@@ -31,10 +29,10 @@ type Answer =
  */
 async function askEsi(checkedAt: number): Promise<Answer> {
   try {
-    const result = await fetchStored(STATUS_KEY);
+    const result = await fetchStored(STATUS_KEY, { parse: parseServerStatus });
     if (result.kind === 'unchanged') return { kind: 'unchanged' };
     if (result.kind === 'error') return { kind: 'failed' };
-    return { kind: 'answered', status: parseServerStatus(result.meta.body), meta: result.meta };
+    return { kind: 'answered', status: result.value, meta: result.meta };
   } catch (error) {
     if (error instanceof EsiServerError && DOWN_STATUSES.has(error.status)) {
       return { kind: 'down', meta: serverErrorMeta(STATUS_KEY, error, checkedAt) };
@@ -55,6 +53,12 @@ function answeredRecord(answer: Exclude<Answer, { kind: 'unchanged' | 'failed' }
  * status, a 503 stores Tranquility offline until ESI's own expiry, and
  * either moves the downtime halt on. Any other failure records nothing,
  * so the next view asks again; it only clears a failure streak it breaks.
+ *
+ * It records the row without clearing the reader's tag. The cached status
+ * is one row whose body and expiry come from the same read, it lives until
+ * that expiry, and this refresh runs only once it has passed, so there is
+ * no entry left to clear. Its one trigger is the header's render, where
+ * revalidateTag is unsupported.
  */
 export async function refreshServerStatusOnView(): Promise<void> {
   const checkedAt = Date.now();
@@ -63,10 +67,10 @@ export async function refreshServerStatusOnView(): Promise<void> {
   const row = await storedRow(STATUS_KEY);
   const held = statusRecordOf(row?.body);
   if (answer.kind !== 'failed') {
-    await commit([answeredRecord(answer, held, checkedAt)], { tag: STATUS_TAG });
+    await recordMetas([answeredRecord(answer, held, checkedAt)]);
     return;
   }
   if (row === null || held.halt.failures.length === 0) return;
   const record: StatusRecord = { status: held.status, halt: noteStatusOutcome(held.halt, 'failed', checkedAt) };
-  await commit([{ key: STATUS_KEY, ...row, body: record }], { tag: STATUS_TAG });
+  await recordMetas([{ key: STATUS_KEY, ...row, body: record }]);
 }

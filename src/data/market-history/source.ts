@@ -30,15 +30,16 @@ export function parseEsiHistory(body: unknown): HistoryDailyRow[] {
 }
 
 /**
- * One type's series from the batched store read: a 200 comes back with
- * its meta to commit once the rows are written; unexpired, a 304, the
- * downtime halt, an error status or a malformed body leave the stored
- * series standing, and a refused call says so.
+ * One type's series from the batched store read, parsed inside its call: a
+ * 200 comes back with its meta to commit once the rows are written;
+ * unexpired, a 304, the downtime halt or an error status leave the stored
+ * series standing, and a failed key (a malformed body, a refused call)
+ * throws its error.
  */
-async function readOneType(typeId: number, answer: StoredManyAnswer): Promise<RawHistory | null> {
+function readOneType(typeId: number, answer: StoredManyAnswer<HistoryDailyRow[]>): RawHistory | null {
   if (answer.kind === 'failed') throw answer.error;
   if (answer.kind !== 'fresh') return null;
-  return { typeId, rows: parseEsiHistory(await answer.res.json()), meta: answer.meta, source: 'esi' };
+  return { typeId, rows: answer.value, meta: answer.meta, source: 'esi' };
 }
 
 /**
@@ -51,13 +52,16 @@ export async function fetchHistoryFromSource(
 ): Promise<{ results: RawHistory[]; budgetExhausted: boolean }> {
   if (typeIds.length === 0) return { results: [], budgetExhausted: false };
   const unique = dedupe(typeIds);
-  const answers = await fetchStoredMany(unique.map(historyKey), { concurrency: HISTORY_FETCH_CONCURRENCY });
+  const answers = await fetchStoredMany(unique.map(historyKey), {
+    concurrency: HISTORY_FETCH_CONCURRENCY,
+    parse: parseEsiHistory,
+  });
   const results: RawHistory[] = [];
   let budgetExhausted = false;
 
   for (const [i, typeId] of unique.entries()) {
     try {
-      const read = await readOneType(typeId, answers[i]!);
+      const read = readOneType(typeId, answers[i]!);
       if (read !== null) results.push(read);
     } catch (err) {
       if (err instanceof EsiBudgetExhaustedError) budgetExhausted = true;

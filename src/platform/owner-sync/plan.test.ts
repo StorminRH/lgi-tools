@@ -4,7 +4,7 @@ import { errorVerdict, planRead } from './plan';
 type Read =
   | { kind: 'fresh'; items: number[] }
   | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
+  | { kind: 'error'; code: string; expiresAt?: number };
 
 const project = (fresh: { items: number[] }): { rows: number[] } | null =>
   fresh.items.length === 0 ? null : { rows: fresh.items };
@@ -24,6 +24,15 @@ describe('planRead', () => {
   ] as const)('%s', (_label, code, expected) => {
     expect(planRead<Read, { rows: number[] }>({ kind: 'error', code }, project)).toEqual(expected);
     expect(errorVerdict(code)).toEqual(expected);
+  });
+
+  it('carries a 403\'s own Expires into needs_role, and drops it from any other error', () => {
+    expect(planRead<Read, { rows: number[] }>({ kind: 'error', code: 'esi_403', expiresAt: 5_000 }, project)).toStrictEqual({
+      kind: 'needs_role',
+      expiresAt: 5_000,
+    });
+    expect(errorVerdict('esi_403')).toStrictEqual({ kind: 'needs_role' });
+    expect(errorVerdict('esi_502', 5_000)).toStrictEqual({ kind: 'skip', code: 'esi_502' });
   });
 
   it('skips a fresh body that fails projection (contract mismatch)', () => {

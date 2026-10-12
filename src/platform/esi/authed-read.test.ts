@@ -99,7 +99,16 @@ describe('readEsiAuthed', () => {
 
     const read = await readEsiAuthed('/corporations/2/blueprints/', TOKEN, null);
 
-    expect(read).toEqual({ kind: 'error', code: 'esi_403' });
+    expect(read).toStrictEqual({ kind: 'error', code: 'esi_403' });
+  });
+
+  it('carries a refusal\'s own Expires, so the refusal can be recorded until then', async () => {
+    const expires = 'Mon, 12 Oct 2026 12:05:00 GMT';
+    fetchSpy.mockResolvedValueOnce(mockResponse(403, { Expires: expires }));
+
+    const read = await readEsiAuthed('/characters/1/wallet/', TOKEN, null);
+
+    expect(read).toStrictEqual({ kind: 'error', code: 'esi_403', expiresAt: Date.parse(expires) });
   });
 
   it('harvests the rate-limit headers into the snapshot when one is supplied', async () => {
@@ -269,6 +278,15 @@ describe('readEsiPagedAuthed', () => {
     const read = await readEsiPagedAuthed('/characters/1/blueprints/', TOKEN, []);
 
     expect(read).toEqual({ kind: 'error', code: 'esi_404' });
+  });
+
+  it('carries a page-1 refusal\'s own Expires', async () => {
+    const expires = 'Mon, 12 Oct 2026 13:00:00 GMT';
+    fetchSpy.mockResolvedValueOnce(mockResponse(403, { 'X-Pages': '1', Expires: expires }));
+
+    const read = await readEsiPagedAuthed('/corporations/2/structures/', TOKEN, []);
+
+    expect(read).toStrictEqual({ kind: 'error', code: 'esi_403', expiresAt: Date.parse(expires) });
   });
 
   it('treats a non-array body as a contract error', async () => {

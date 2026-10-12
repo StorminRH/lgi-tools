@@ -34,6 +34,7 @@ function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPo
     readSyncState: vi.fn(async () => null),
     saveStructures: vi.fn(async () => {}),
     stampFresh: vi.fn(async () => {}),
+    recordRefusal: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -155,6 +156,7 @@ describe('refreshCorpStructuresForUser', () => {
     expect(port.readStructures).toHaveBeenCalledTimes(2);
     expect(port.saveStructures).not.toHaveBeenCalled();
     expect(port.stampFresh).not.toHaveBeenCalled();
+    expect(port.recordRefusal).toHaveBeenCalledExactlyOnceWith(5000, null);
   });
 
   it('writes the same corp-keyed row no matter which member triggers it (the shared store)', async () => {

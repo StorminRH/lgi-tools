@@ -4,7 +4,7 @@ import { liveIskFor } from './live-isk';
 import type { SiteDetail, SiteResource } from './types';
 
 /** Every type the sites' resources are priced by, each once. */
-export function siteResourceTypeIds(sites: readonly SiteDetail[]): number[] {
+function siteResourceTypeIds(sites: readonly SiteDetail[]): number[] {
   const allTypeIds = new Set<number>();
   for (const s of sites) {
     for (const r of s.resources) {

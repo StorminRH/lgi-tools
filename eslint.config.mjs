@@ -262,8 +262,8 @@ const postgresConnectionStringSelectors = literalAndTemplate(
 
 const esiHostSelectors = literalAndTemplate(
   String.raw`esi\.evetech\.net`,
-  "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
-  "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
+  "Don't hand-write ESI URLs — declare the route once in src/lib/esi-datasets/routes.ts and read it through @/data/esi-store (fetchStored, readStoredAuthed, readStoredPaged, postStored, esiPassThrough): the store keys on declared routes and its gate owns CCP's shared per-IP error budget.",
+  "Don't hand-write ESI URLs (template literal) — declare the route once in src/lib/esi-datasets/routes.ts and read it through @/data/esi-store (fetchStored, readStoredAuthed, readStoredPaged, postStored, esiPassThrough): the store keys on declared routes and its gate owns CCP's shared per-IP error budget.",
 );
 
 const bareFetchSelectors = [
@@ -311,13 +311,15 @@ const datasetTtlSelectors = [
 ];
 
 // cacheLife on EVE data takes untilExpires(…) from the response store; 'max'
-// is for SDE and other static data. Anything else is a hand-picked window.
+// is for SDE and other static data, and for a reader that only aggregates a
+// dataset whose every write clears its tag (prices; pinned by the
+// remote-readers census). Anything else is a hand-picked window.
 const cacheLifeSelectors = [
   {
     selector:
       "CallExpression[callee.name='cacheLife']:not([arguments.0.value='max']):not([arguments.0.callee.name='untilExpires'])",
     message:
-      "cacheLife on EVE data takes untilExpires(…) from the ESI response store (@/data/esi-store), so the entry ends when CCP's copy does; 'max' is for SDE and static data. No hand-picked window.",
+      "cacheLife on EVE data takes untilExpires(…) from the ESI response store (@/data/esi-store), so the entry ends when CCP's copy does; 'max' is for SDE and static data, and for an aggregate of a dataset whose every write clears its tag (src/esi-datasets/remote-readers.test.ts). No hand-picked window.",
   },
 ];
 
@@ -562,10 +564,20 @@ const srcImportPatterns = [
 
 const clientImportPatterns = [...srcImportPatterns, ...serverRootImportPatterns];
 
+// One spelling per module: '@/x/index.ts', '@/x/index', '@/x.ts' and '@/x/'
+// all resolve to '@/x', so a boundary matches the module, not the spelling.
+function moduleSpecifier(source) {
+  return source
+    .replace(/\/+$/, "")
+    .replace(/\.[cm]?[jt]sx?$/, "")
+    .replace(/\/index$/, "");
+}
+
 // A boundary on named imports. `restricted(source)` names what a module may
-// not read from a matching import source, or null when the source is not
-// guarded. Namespace imports, dynamic import() and `export *` of a guarded
-// source cannot narrow to the allowed names, so they are reported outright.
+// not read from a matching import source (normalised by moduleSpecifier), or
+// null when the source is not guarded. Namespace imports, dynamic import() and
+// `export *` of a guarded source cannot narrow to the allowed names, so they
+// are reported outright.
 function namedImportBoundary(restricted, message) {
   return {
     meta: {
@@ -576,7 +588,7 @@ function namedImportBoundary(restricted, message) {
     create(context) {
       const guarded = (node) => {
         const source = node.source?.value;
-        return typeof source === "string" ? restricted(source) : null;
+        return typeof source === "string" ? restricted(moduleSpecifier(source)) : null;
       };
       const reportIfGuarded = (node) => {
         if (guarded(node) !== null) {

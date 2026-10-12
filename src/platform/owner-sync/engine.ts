@@ -1,14 +1,15 @@
 import { mapConcurrent } from '@/lib/fan-out';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { corpCredentials } from './credential';
-import type {
-  CorpOwnerAxis,
-  EnumeratedOwner,
-  OwnerAxis,
-  OwnerKey,
-  OwnerSyncDescriptor,
-  OwnerSyncResult,
-  ReadSession,
+import {
+  hasToken,
+  type CorpOwnerAxis,
+  type EnumeratedOwner,
+  type OwnerAxis,
+  type OwnerKey,
+  type OwnerSyncDescriptor,
+  type OwnerSyncResult,
+  type ReadSession,
 } from './types';
 
 /** Why an owner's credentials ran out: nobody holds the role, or a token (or a member's roles) could not be had. */
@@ -105,10 +106,27 @@ async function syncOwner<TOwner, TState, TSave, TSession extends ReadSession>(
   }
 }
 
+/** ESI refused one credential the role, settled until the 403's own Expires when it sent one. */
+interface RoleRefused {
+  readonly refusedUntil: number | null;
+}
+
+const isRefused = (outcome: OwnerSyncResult | RoleRefused): outcome is RoleRefused => 'refusedUntil' in outcome;
+
+/** The earlier of two refusal lifetimes, either of which may be unknown (null). */
+function earlierRefusal(held: number | null, next: number | null): number | null {
+  if (held === null) return next;
+  return next === null ? held : Math.min(held, next);
+}
+
 /**
  * Tries each credential in turn. A credential ESI refuses the role hands on
  * to the next; only once the roster is spent does the owner record
- * `needs_role`. A roster that yielded nothing reports why.
+ * `needs_role`. A roster that yielded nothing reports why. A settled end
+ * (`needs_role`, or a character whose grant is lost) is recorded as the
+ * owner's answer, so the next views skip it until that answer expires; a
+ * transient one (the token service failing for now) records nothing and
+ * the next view retries.
  */
 async function tryCredentials<TOwner, TState, TSave, TSession extends ReadSession>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
@@ -118,26 +136,47 @@ async function tryCredentials<TOwner, TState, TSave, TSession extends ReadSessio
   target: OwnerKey,
 ): Promise<OwnerSyncResult> {
   let tried = false;
+  let refusedUntil: number | null = null;
   let next = await credentials.next();
   while (!next.done) {
     tried = true;
     const outcome = await attempt(descriptor, owner, next.value, state, target);
-    if (outcome !== null) return outcome;
+    if (!isRefused(outcome)) return outcome;
+    refusedUntil = earlierRefusal(refusedUntil, outcome.refusedUntil);
     next = await credentials.next();
   }
-  if (!tried && next.value.kind === 'unavailable') {
-    return next.value.retryable
-      ? { kind: 'failed_retryable', target, code: 'owner_temporarily_unavailable' }
-      : { kind: 'failed_permanent', target, code: 'token_unavailable' };
-  }
+  return tried ? refuseRole(descriptor, owner, refusedUntil, target) : settleUntried(descriptor, owner, next.value, target);
+}
+
+/** Every credential tried was refused the role: `needs_role`, recorded until the earliest refusal's Expires. */
+async function refuseRole<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  owner: TOwner,
+  refusedUntil: number | null,
+  target: OwnerKey,
+): Promise<OwnerSyncResult> {
   await descriptor.saveGateState?.(owner);
+  await descriptor.recordRefusal?.(owner, refusedUntil);
   return { kind: 'failed_permanent', target, code: 'needs_role' };
+}
+
+/** A roster that yielded no credential: nobody holds the role, the token is gone, or a member could not be judged for now. */
+async function settleUntried<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  owner: TOwner,
+  end: CredentialsEnd,
+  target: OwnerKey,
+): Promise<OwnerSyncResult> {
+  if (end.kind === 'denied') return refuseRole(descriptor, owner, null, target);
+  if (end.retryable) return { kind: 'failed_retryable', target, code: 'owner_temporarily_unavailable' };
+  await descriptor.recordRefusal?.(owner, null);
+  return { kind: 'failed_permanent', target, code: 'token_unavailable' };
 }
 
 /**
  * One credential's try. The session's metas are committed only after the
  * owner's write has stood; a skip, a refusal or a throw drops them, so the
- * next view reads again. Null means ESI refused this credential the role.
+ * next view reads again. A refusal means ESI refused this credential the role.
  */
 async function attempt<TOwner, TState, TSave, TSession extends ReadSession>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
@@ -145,7 +184,7 @@ async function attempt<TOwner, TState, TSave, TSession extends ReadSession>(
   accessToken: string,
   state: TState | null,
   target: OwnerKey,
-): Promise<OwnerSyncResult | null> {
+): Promise<OwnerSyncResult | RoleRefused> {
   const session = descriptor.openSession();
   const verdict = await descriptor.fetchAndPlan(owner, accessToken, state, session);
   switch (verdict.kind) {
@@ -156,7 +195,7 @@ async function attempt<TOwner, TState, TSave, TSession extends ReadSession>(
         : { kind: 'failed_permanent', target, code };
     }
     case 'needs_role':
-      return null;
+      return { refusedUntil: verdict.expiresAt ?? null };
     case 'stamp':
       await descriptor.stampFresh(owner);
       await session.commit();
@@ -172,9 +211,10 @@ async function* characterCredentials<TOwner, TState, TSave, TSession extends Rea
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
   characterId: number,
 ): Credentials {
-  const accessToken = await descriptor.vendToken(characterId);
-  if (accessToken === null) return { kind: 'unavailable', retryable: false };
-  yield accessToken;
+  const vended = await descriptor.vendToken(characterId);
+  // A grant that is gone settles until the user relinks; a token service failing for now is retried by the next view.
+  if (!hasToken(vended)) return { kind: 'unavailable', retryable: vended.missing === 'unavailable' };
+  yield vended;
   return { kind: 'denied' };
 }
 

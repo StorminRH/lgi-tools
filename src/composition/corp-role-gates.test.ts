@@ -47,7 +47,7 @@ beforeEach(() => {
 describe('stationManagerGate', () => {
   it('reuses one snapshot for membership and roles, trying another linked pilot when needed', async () => {
     mocks.getUserAffiliations.mockResolvedValue(linked([101, 102]));
-    mocks.vendTokenFor.mockResolvedValueOnce(null).mockResolvedValueOnce('token');
+    mocks.vendTokenFor.mockResolvedValueOnce({ missing: 'unavailable' }).mockResolvedValueOnce('token');
     mocks.probeAndStoreRoles.mockResolvedValue(['Station_Manager']);
     await expect(stationManagerGate('u1', CORP)).resolves.toEqual({ ok: true });
     expect(mocks.getUserAffiliations).toHaveBeenCalledOnce();

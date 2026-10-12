@@ -1,5 +1,5 @@
 import { resolveUserCorpAccess } from '@/composition/corp-access';
-import { isDue } from '@/data/esi-store';
+import { isDue, recordRefusal } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
@@ -13,6 +13,7 @@ import {
   stampCorpJobsFresh,
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
+import { singleFlight } from '@/lib/memoize';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
@@ -30,10 +31,16 @@ function makeCorpJobsPort(): CorpJobsPort {
     saveJobs: (userId, corporationId, jobs, etag) => saveCorpJobs(userId, corporationId, jobs, etag),
     saveNeedsRole: (userId, corporationId) => saveCorpNeedsRole(userId, corporationId),
     stampFresh: (userId, corporationId) => stampCorpJobsFresh(userId, corporationId),
+    recordRefusal: (userId, corporationId, expiresAt) => recordRefusal([corpJobsKey(userId, corporationId)], expiresAt),
   };
 }
 
-export const refreshCorpJobsOnView = (userId: string) => refreshCorpJobsForUser(makeCorpJobsPort(), userId);
+const corpJobsInFlight = singleFlight((userId: string) => refreshCorpJobsForUser(makeCorpJobsPort(), userId));
+
+/** The refresh a view schedules: concurrent calls for one user in this process share one run, and a call after it settles runs again. */
+export function refreshCorpJobsOnView(userId: string) {
+  return corpJobsInFlight(userId);
+}
 
 export interface ViewerCorpJobs {
   corporationId: number;

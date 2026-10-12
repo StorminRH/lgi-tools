@@ -1,3 +1,5 @@
+import { hasToken, type VendedToken } from './types';
+
 export interface CorpCredential {
   characterId: number;
   accessToken: string;
@@ -7,7 +9,7 @@ export interface CorpCredential {
 export type CorpCredentialsEnd = { kind: 'denied' } | { kind: 'unavailable' };
 
 export interface CorpCredentialProbe {
-  vendToken(characterId: number): Promise<string | null>;
+  vendToken(characterId: number): Promise<VendedToken>;
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
 }
 
@@ -26,8 +28,8 @@ export async function* corpCredentials(
   let everyMemberEvaluated = characterIds.length > 0;
   for (const characterId of characterIds) {
     const accessToken = await probe.vendToken(characterId);
-    const roles = accessToken === null ? null : await probe.readRoles(characterId, accessToken);
-    if (accessToken === null || roles === null) {
+    const roles = hasToken(accessToken) ? await probe.readRoles(characterId, accessToken) : null;
+    if (!hasToken(accessToken) || roles === null) {
       everyMemberEvaluated = false;
       continue;
     }

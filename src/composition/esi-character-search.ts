@@ -27,7 +27,7 @@ function isRefusedSearch(error: unknown): boolean {
 /**
  * ESI's authenticated search for one category, as the ids it found. The
  * token's character decides what is visible (structures: only ones it can
- * access).
+ * access). A user is waiting on it, so it takes the gate's interactive floor.
  */
 async function fetchCharacterSearch(
   characterId: number,
@@ -40,6 +40,7 @@ async function fetchCharacterSearch(
     '/characters/{character_id}/search/',
     { character_id: characterId, categories: category, search, strict: 'false' },
     esiAuthInit(accessToken, { signal }),
+    { interactive: true },
   );
   if (!response.ok) throw new EsiCharacterSearchError(category, response.status);
   const parsed = esiSearchBodySchema.safeParse(await response.json());

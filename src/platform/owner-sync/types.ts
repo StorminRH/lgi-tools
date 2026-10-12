@@ -9,6 +9,20 @@ export interface EnumeratedOwner {
 
 export type CharacterOwner = Omit<EnumeratedOwner, 'corporationId'>;
 
+/**
+ * Why a character has no access token: its grant is `lost` (revoked, an
+ * invalid grant CCP confirmed, no linked token) until the user relinks, or
+ * the token service is `unavailable` for now and the next view retries.
+ */
+export interface NoToken {
+  readonly missing: 'lost' | 'unavailable';
+}
+
+/** One character's vend: the access token, or why there is none. */
+export type VendedToken = string | NoToken;
+
+export const hasToken = (vended: VendedToken): vended is string => typeof vended === 'string';
+
 export interface OwnerKey {
   ownerType: EsiOwnerType;
   ownerId: number;
@@ -22,7 +36,14 @@ export interface PagedOwnerSyncState {
 export type SingleOwnerRead =
   | { kind: 'fresh'; body: unknown; etag: string | null }
   | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
+  | OwnerReadError;
+
+/** A read ESI answered with an error status, with the answer's Expires when it sent one. */
+export interface OwnerReadError {
+  kind: 'error';
+  code: string;
+  expiresAt?: number;
+}
 
 /**
  * The ESI reads of one try at one owner. What they learned about expiry
@@ -36,7 +57,7 @@ export interface ReadSession {
 export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)
   | { kind: 'stamp' }
-  | { kind: 'needs_role' }
+  | { kind: 'needs_role'; expiresAt?: number }
   | { kind: 'skip'; code?: string };
 
 export type OwnerSyncResult =
@@ -66,7 +87,7 @@ export interface OwnerSyncDescriptor<TOwner, TState, TSave, TSession extends Rea
   enumerate(userId: string): Promise<EnumeratedOwner[]>;
   identityOf(owner: TOwner): OwnerKey;
   precondition?(owner: TOwner): Promise<boolean>;
-  vendToken(characterId: number): Promise<string | null>;
+  vendToken(characterId: number): Promise<VendedToken>;
   /** Whether any of the owner's stored ESI answers has expired; an owner that is not due costs no vend and no read. */
   isDue(owner: TOwner): Promise<boolean>;
   openSession(): TSession;
@@ -77,4 +98,14 @@ export interface OwnerSyncDescriptor<TOwner, TState, TSave, TSession extends Rea
   save(owner: TOwner, payload: TSave): Promise<void>;
   stampFresh(owner: TOwner): Promise<void>;
   saveGateState?(owner: TOwner): Promise<void>;
+  /**
+   * Records a settled refusal (no credential holds the role, or the
+   * character's grant is lost) as the answer for the owner's expired keys:
+   * no ETag, expiring at `expiresAt` (the refusal's own Expires) or else at
+   * each route's spec cache time. Until then the owner is not due, so views
+   * stop re-asking and stop saying `refreshing`. A corporation's answer is
+   * shared while its roster is the syncing user's own characters, so its
+   * refusal belongs to that user alone (`recordRefusalFor` in the store).
+   */
+  recordRefusal?(owner: TOwner, expiresAt: number | null): Promise<void>;
 }

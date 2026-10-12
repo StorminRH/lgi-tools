@@ -102,8 +102,9 @@ function SitesCatalogueFallback() {
 }
 
 /**
- * The catalogue is priced from stored order books that expire on CCP's
- * schedule, so it resolves at request time behind the shell.
+ * The priced catalogue lives until a price write clears its tag, so it
+ * prerenders into the shell; the skeleton stands in only for a request
+ * that has to build it.
  */
 export default function SitesPage({
   searchParams,

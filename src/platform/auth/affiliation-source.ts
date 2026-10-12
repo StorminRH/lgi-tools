@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { postStoredBatch, type EsiAnswerStamp, type StoredBatchAnswer } from '@/data/esi-store';
 import { chunk, dedupe } from '@/lib/array';
 import { isTimeoutError } from '@/lib/error-chain';
-import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
+import { EsiBudgetExhaustedError, EsiServerError, type EsiFetchOptions } from '@/platform/esi';
 import { AFFILIATION_ROUTE } from './affiliation-key';
 import { SYNTHETIC_PILOT } from './synthetic-pilot';
 
@@ -95,10 +95,10 @@ async function answeredBatch(batch: number[], answer: StoredBatchAnswer): Promis
   };
 }
 
-async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchResult> {
+async function fetchAffiliationBatch(batch: number[], opts: EsiFetchOptions | undefined): Promise<AffiliationFetchResult> {
   let answer: StoredBatchAnswer;
   try {
-    answer = await postStoredBatch(AFFILIATION_ROUTE, batch);
+    answer = await postStoredBatch(AFFILIATION_ROUTE, batch, opts);
   } catch (error) {
     if (isTransientFetchFailure(error)) return TRANSIENT;
     throw error;
@@ -111,8 +111,8 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchR
     }
     const mid = Math.ceil(batch.length / 2);
     // Halves run in sequence so concurrent 404s cannot overshoot the ESI error floor.
-    const left = await fetchAffiliationBatch(batch.slice(0, mid));
-    return merge(left, await fetchAffiliationBatch(batch.slice(mid)));
+    const left = await fetchAffiliationBatch(batch.slice(0, mid), opts);
+    return merge(left, await fetchAffiliationBatch(batch.slice(mid), opts));
   }
   if (!res.ok) {
     if (res.status >= 400 && res.status < 500) {
@@ -123,8 +123,10 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchR
   return answeredBatch(batch, answer);
 }
 
+/** Every character's affiliation, up to 1000 a POST; `opts` marks a read a user is waiting on (sign-in, a live role check). */
 export async function fetchAffiliations(
   characterIds: number[],
+  opts?: EsiFetchOptions,
 ): Promise<AffiliationFetchResult> {
   const unique =
     process.env.NODE_ENV === 'development'
@@ -134,7 +136,7 @@ export async function fetchAffiliations(
 
   let result = NOTHING;
   for (const batch of chunk(unique, AFFILIATION_BATCH_MAX)) {
-    result = merge(result, await fetchAffiliationBatch(batch));
+    result = merge(result, await fetchAffiliationBatch(batch, opts));
   }
   return result;
 }

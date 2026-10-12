@@ -180,6 +180,20 @@ test.each(['503', 'network', 'timeout', 'invalid JSON'] as const)(
   },
 );
 
+test('takes the gate\'s interactive floor when asked, so a read a user waits on trickles through a scoreboard outage', async () => {
+  __setScoreboardForTests('unavailable');
+  fetchMock.mockImplementation(async () => Response.json([{ character_id: 101, corporation_id: 98000001 }]));
+
+  await expect(fetchAffiliations([101])).resolves.toMatchObject({ transientFailure: true });
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  await expect(fetchAffiliations([101], { interactive: true })).resolves.toMatchObject({
+    transientFailure: false,
+    rows: [{ characterId: 101, corporationId: 98000001 }],
+  });
+  expect(fetchMock).toHaveBeenCalledOnce();
+});
+
 test('marks budget, 5xx, empty-200, and unparseable bodies as transient, but unexpected dispatch errors still throw', async () => {
   const transient = { rows: [], transientFailure: true, answers: [] };
   __setScoreboardForTests('unavailable');

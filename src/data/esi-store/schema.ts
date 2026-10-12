@@ -11,7 +11,8 @@ export const esiResponseHolderEnum = pgEnum('esi_response_holder', ESI_RESPONSE_
  * ETag(s) to send back, and when we last asked. One row per route, holder
  * and canonical parameter set. A `user-corporation` holder is a corporation
  * row with `user_id` set, since corp industry jobs are stored per user and
- * corporation. `expires_at` null means due. `etags` holds one entry per
+ * corporation; a user's own refusal of a corporation's shared answer is kept
+ * the same way, beside the shared row. `expires_at` null means due. `etags` holds one entry per
  * page of a paged read. `body` is kept only for `keepBody` routes, whose
  * whole document is small enough to live in the row (the server status).
  */

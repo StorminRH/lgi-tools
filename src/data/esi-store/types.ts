@@ -59,28 +59,36 @@ export interface StoredUnchanged {
   readonly expiresAt: number | null;
 }
 
-export type StoredFetch =
+/** A 200 comes back parsed, never as a live Response: its body was read inside its own call. */
+export type StoredFetch<T> =
   | StoredUnchanged
-  | { readonly kind: 'fresh'; readonly res: Response; readonly meta: EsiResponseMeta }
+  | { readonly kind: 'fresh'; readonly value: T; readonly meta: EsiResponseMeta }
   | { readonly kind: 'error'; readonly status: number };
 
-export interface StoredFetchInit {
+export interface StoredFetchInit<T> {
   /** False never sends If-None-Match for this call, whatever the route declares (the cron region dump). */
   readonly conditional?: boolean;
+  /** A user is waiting on the answer: the gate holds it to the lower interactive floor. */
   readonly interactive?: boolean;
+  /**
+   * Turns a 200's JSON body (and its headers, for X-Pages) into the value
+   * the caller wants. It runs inside the key's own call, so a batch never
+   * holds unread bodies while the rest of it runs; a throw fails that key.
+   */
+  readonly parse: (body: unknown, headers: Headers) => T;
 }
 
-export interface StoredManyInit extends StoredFetchInit {
+export interface StoredManyInit<T> extends StoredFetchInit<T> {
   /** How many ESI calls the batch keeps in flight: the route's share of CCP's limits, set by the caller. */
   readonly concurrency: number;
 }
 
 /**
  * One key's answer in a batched read: what `fetchStored` answers, or the
- * error that key's call threw (a budget refusal, a 5xx), kept to that key
- * so the rest of the batch still answers.
+ * error that key's call threw (a budget refusal, a 5xx, a body its parser
+ * refused), kept to that key so the rest of the batch still answers.
  */
-export type StoredManyAnswer = StoredFetch | { readonly kind: 'failed'; readonly error: unknown };
+export type StoredManyAnswer<T> = StoredFetch<T> | { readonly kind: 'failed'; readonly error: unknown };
 
 export interface StoredAuthedInit {
   readonly rl?: RlSnapshot;
@@ -90,6 +98,14 @@ export interface StoredAuthedInit {
    * unchanged answer costs a 304 and records the new expiry.
    */
   readonly live?: true;
+  /**
+   * False never sends If-None-Match for this call, whatever the route
+   * declares: a held ETag that no stored row answers for (roles bound to
+   * another corporation) must not turn the read into a 304.
+   */
+  readonly conditional?: boolean;
+  /** A user is waiting on the answer (the live role check on a corp mutation): the gate's interactive floor. */
+  readonly interactive?: boolean;
 }
 
 /** A public POST answered once for many keys: the response as ESI sent it, with the stamp its keys take. */
@@ -102,7 +118,7 @@ export interface StoredBatchAnswer {
 export type StoredAuthedRead =
   | StoredUnchanged
   | { readonly kind: 'fresh'; readonly body: unknown; readonly etag: string | null; readonly meta: EsiResponseMeta }
-  | { readonly kind: 'error'; readonly code: string };
+  | { readonly kind: 'error'; readonly code: string; readonly expiresAt?: number };
 
 /** `PagedOwnerReadResult` plus the meta a port commits after its save. */
 export type StoredPagedRead =
@@ -114,7 +130,7 @@ export type StoredPagedRead =
       readonly responseHeaders: EsiResponseHeaders;
       readonly meta: EsiResponseMeta;
     }
-  | { readonly kind: 'error'; readonly code: string };
+  | { readonly kind: 'error'; readonly code: string; readonly expiresAt?: number };
 
 /** The seconds a 'use cache' entry built from stored data may live: Next expires it when CCP's copy does. */
 export interface CacheLifeUntilExpires {

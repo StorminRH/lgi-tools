@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { type EsiStoreKey, isDue } from '@/data/esi-store';
+import { type EsiStoreKey, isDueFor } from '@/data/esi-store';
 import { getTypeNameRecord } from '@/data/eve-data/queries';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import type { EnumeratedOwner } from '@/platform/owner-sync';
@@ -41,7 +41,8 @@ export function characterRow<TData>(
 
 /**
  * Whether the after() refresh will reach ESI: some owner the sync would act
- * for has a stored answer CCP's Expires no longer covers. The response says
+ * for has a stored answer CCP's Expires no longer covers, and that this user
+ * has not been refused (a corporation answer's refusal is the user's own). The response says
  * `refreshing` from it, so the page checks back for the newer data instead
  * of keeping the stored copy it was handed.
  */
@@ -49,7 +50,7 @@ export async function refreshDue(
   userId: string,
   dueKeys: (owners: readonly EnumeratedOwner[]) => EsiStoreKey[],
 ): Promise<boolean> {
-  return isDue(dueKeys(await listCharactersWithHealth(userId)));
+  return isDueFor(userId, dueKeys(await listCharactersWithHealth(userId)));
 }
 
 export async function getLiveDatasetOnView<TData, TRow>(

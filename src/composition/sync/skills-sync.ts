@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { isDue } from '@/data/esi-store';
+import { isDue, recordRefusal } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { accountBelongsToUser, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { skillQueueKey, skillsDueKeys, skillsKey, skillsKeys } from '@/features/skill-queue/keys';
@@ -12,6 +12,7 @@ import {
 } from '@/features/skill-queue/queries';
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
 import type { SkillsPort } from '@/features/skill-queue/types';
+import { singleFlight } from '@/lib/memoize';
 import { refreshDue } from './live-dataset-view';
 import { listCharactersWithHealth, vendTokenFor } from './owner-sync-port';
 
@@ -27,10 +28,16 @@ function makeSkillsPort(): SkillsPort {
     readSyncState: (characterId) => readCharacterSyncState(characterId),
     saveSkills: (characterId, halves) => saveCharacterSkills(characterId, halves),
     stampFresh: (characterId) => stampCharacterFresh(characterId),
+    recordRefusal: (characterId, expiresAt) => recordRefusal(skillsKeys(characterId), expiresAt),
   };
 }
 
-export const refreshSkillsOnView = (userId: string) => refreshSkillsForUser(makeSkillsPort(), userId);
+const skillsInFlight = singleFlight((userId: string) => refreshSkillsForUser(makeSkillsPort(), userId));
+
+/** The refresh a view schedules: concurrent calls for one user in this process share one run, and a call after it settles runs again. */
+export function refreshSkillsOnView(userId: string) {
+  return skillsInFlight(userId);
+}
 
 export interface ViewerSkillLevels {
   characterId: number;

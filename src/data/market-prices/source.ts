@@ -147,13 +147,26 @@ class DumpUnavailable extends Error {
   }
 }
 
+/** One dump page as its own call parsed it: the wanted types' orders, and the page count page 1 states. */
+interface DumpPage {
+  readonly totalPages: number;
+  readonly orders: EsiOrder[];
+}
+
 /**
  * One page of the nightly region dump. The page keys are never committed,
  * so every page is due and called whole, without If-None-Match; what the
- * dump learns about expiry is fanned out to the type keys it priced.
+ * dump learns about expiry is fanned out to the type keys it priced. The
+ * page is cut down to the wanted types inside its own call.
  */
-async function fetchDumpPage(page: number): Promise<{ res: Response; meta: EsiResponseMeta }> {
-  const result = await fetchStored(regionDumpKey(page), { conditional: false });
+async function fetchDumpPage(page: number, wanted: Set<number>): Promise<{ value: DumpPage; meta: EsiResponseMeta }> {
+  const result = await fetchStored(regionDumpKey(page), {
+    conditional: false,
+    parse: (body, headers): DumpPage => ({
+      totalPages: esiPageCount(headers),
+      orders: parseEsiOrders(filterRawByWantedType(body, wanted)),
+    }),
+  });
   if (result.kind === 'unchanged') throw new DumpUnavailable();
   if (result.kind === 'error') throw new EsiServerError(result.status);
   return result;
@@ -165,18 +178,16 @@ async function fetchViaEsiRegionDump(
   const wanted = new Set(typeIds);
   const buckets = new Map<number, OrderBucket>();
 
-  const first = await fetchDumpPage(1);
-  const totalPages = esiPageCount(first.res.headers);
-  const firstOrders = parseEsiOrders(await first.res.json());
-  absorbOrders(firstOrders, wanted, buckets);
+  const first = await fetchDumpPage(1, wanted);
+  const totalPages = first.value.totalPages;
+  absorbOrders(first.value.orders, wanted, buckets);
 
   if (totalPages > 1) {
     const pages: number[] = [];
     for (let p = 2; p <= totalPages; p++) pages.push(p);
     await mapConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
-      const { res } = await fetchDumpPage(page);
-      const orders = parseEsiOrders(filterRawByWantedType(await res.json(), wanted));
-      absorbOrders(orders, wanted, buckets);
+      const { value } = await fetchDumpPage(page, wanted);
+      absorbOrders(value.orders, wanted, buckets);
     });
   }
 
@@ -194,21 +205,34 @@ type TypeRead =
   | { kind: 'fallback'; budgetExhausted: boolean };
 
 /**
- * One type's answer from the batched store read. Unexpired, a 304 and the
- * downtime halt all mean the stored price stands; an error status, a
- * malformed body or a refused call sends the type to Fuzzwork, as before.
+ * One type's answer from the batched store read, its orders already parsed
+ * inside its call. Unexpired, a 304 and the downtime halt all mean the
+ * stored price stands; an error status, a malformed body (a failed key) or
+ * a refused call sends the type to Fuzzwork, as before.
  */
-async function readOneType(typeId: number, answer: StoredManyAnswer): Promise<TypeRead> {
+function readOneType(typeId: number, answer: StoredManyAnswer<EsiOrder[]>): TypeRead {
   if (answer.kind === 'unchanged') return { kind: 'unchanged' };
   if (answer.kind === 'failed') return { kind: 'fallback', budgetExhausted: answer.error instanceof EsiBudgetExhaustedError };
   if (answer.kind === 'error') return { kind: 'fallback', budgetExhausted: false };
-  try {
-    const buckets = new Map<number, OrderBucket>();
-    absorbOrders(parseEsiOrders(await answer.res.json()), new Set([typeId]), buckets);
-    return { kind: 'priced', price: bucketsToRawPrices([typeId], buckets)[0]!, meta: answer.meta };
-  } catch {
-    return { kind: 'fallback', budgetExhausted: false };
-  }
+  const buckets = new Map<number, OrderBucket>();
+  absorbOrders(answer.value, new Set([typeId]), buckets);
+  return { kind: 'priced', price: bucketsToRawPrices([typeId], buckets)[0]!, meta: answer.meta };
+}
+
+/**
+ * What a Fuzzwork row records for its type: no ETag and no expiry. The row
+ * replaced whatever ESI price an ETag vouched for, so the next view must ask
+ * ESI unconditionally, never take a 304 as leave to serve this row.
+ */
+function fallbackMeta(typeId: number, checkedAt: number): EsiResponseMeta {
+  return { key: priceKey(typeId), expiresAt: null, etags: [], lastModified: null, checkedAt };
+}
+
+/** The Fuzzwork rows for types ESI could not price, each with the meta that clears its old ETag. */
+async function fallbackPrices(typeIds: number[]): Promise<{ prices: RawMarketPrice[]; metas: [number, EsiResponseMeta][] }> {
+  const prices = await fallbackToFuzzwork(typeIds);
+  const checkedAt = Date.now();
+  return { prices, metas: prices.map((price) => [price.typeId, fallbackMeta(price.typeId, checkedAt)]) };
 }
 
 /**
@@ -219,14 +243,14 @@ async function readOneType(typeId: number, answer: StoredManyAnswer): Promise<Ty
  */
 export async function fetchPricesPerType(typeIds: number[]): Promise<SourcePrices> {
   const unique = dedupe(typeIds);
-  const answers = await fetchStoredMany(unique.map(priceKey), { concurrency: PER_TYPE_CONCURRENCY });
+  const answers = await fetchStoredMany(unique.map(priceKey), { concurrency: PER_TYPE_CONCURRENCY, parse: parseEsiOrders });
   const results: RawMarketPrice[] = [];
   const metaByType = new Map<number, EsiResponseMeta>();
   const fallbackNeeded: number[] = [];
   let budgetExhausted = false;
 
   for (const [i, typeId] of unique.entries()) {
-    const read = await readOneType(typeId, answers[i]!);
+    const read = readOneType(typeId, answers[i]!);
     if (read.kind === 'priced') {
       results.push(read.price);
       metaByType.set(typeId, read.meta);
@@ -237,8 +261,9 @@ export async function fetchPricesPerType(typeIds: number[]): Promise<SourcePrice
   }
 
   if (fallbackNeeded.length > 0) {
-    const fb = await fallbackToFuzzwork(fallbackNeeded);
-    results.push(...fb);
+    const fb = await fallbackPrices(fallbackNeeded);
+    results.push(...fb.prices);
+    for (const [typeId, meta] of fb.metas) metaByType.set(typeId, meta);
   }
 
   return { prices: results, budgetExhausted, metaByType };
@@ -262,8 +287,8 @@ async function fetchViaBulk(unique: number[]): Promise<SourcePrices> {
       err instanceof EsiServerError ||
       err instanceof EsiContractError
     ) {
-      const prices = await fallbackToFuzzwork(unique);
-      return { prices, budgetExhausted: err instanceof EsiBudgetExhaustedError, metaByType: new Map() };
+      const fb = await fallbackPrices(unique);
+      return { prices: fb.prices, budgetExhausted: err instanceof EsiBudgetExhaustedError, metaByType: new Map(fb.metas) };
     }
     throw err;
   }
@@ -279,7 +304,8 @@ async function fetchViaBulk(unique: number[]): Promise<SourcePrices> {
  * it came from an ESI 5xx or budget exhaustion); the route handlers thread
  * it into the O-1 telemetry. The data slice itself never imports telemetry
  * — the boundary stays sealed. A type whose stored copy is still current
- * comes back in neither list; Fuzzwork rows carry no meta.
+ * comes back in neither list; a Fuzzwork row's meta has no ETag and no
+ * expiry, so it clears the type's old ETag and leaves it due.
  */
 export async function fetchPricesFromSource(typeIds: number[]): Promise<SourcePrices> {
   if (typeIds.length === 0) return { prices: [], budgetExhausted: false, metaByType: new Map() };

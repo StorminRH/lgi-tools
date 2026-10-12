@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
+import { esiResponses } from '@/data/esi-store/schema';
 import { snapshotMergeTracking } from '@/data/location-tracking/merge';
 import { pendingTrackingMerges } from '@/data/location-tracking/schema';
 import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
@@ -168,6 +169,15 @@ async function seedUserData() {
     { userId: NEW, corporationId: CORP, lastRefreshedAt: NEW_AT },
     { userId: NEW, corporationId: CORP + 1, lastRefreshedAt: NEW_AT },
   ]);
+  const corpJobsRoute = '/corporations/{corporation_id}/industry/jobs/';
+  await harness.db.insert(esiResponses).values([
+    { route: corpJobsRoute, holderType: 'corporation', holderId: CORP, userId: OLD, etags: ['"old"'], checkedAt: NEW_AT },
+    { route: corpJobsRoute, holderType: 'corporation', holderId: CORP, userId: NEW, etags: ['"new"'], checkedAt: NEW_AT },
+    { route: corpJobsRoute, holderType: 'corporation', holderId: CORP + 1, userId: NEW, etags: ['"new-1"'], checkedAt: NEW_AT },
+    // The source's own refusal of a shared corporation answer goes with the rest of its per-user rows.
+    { route: '/corporations/{corporation_id}/structures/', holderType: 'corporation', holderId: CORP, userId: NEW, expiresAt: new Date(Date.now() + 3_600_000), checkedAt: NEW_AT },
+    { route: '/characters/{character_id}/skills/', holderType: 'character', holderId: NEW_CHAR, checkedAt: NEW_AT },
+  ]);
   await harness.db.insert(savedPlans).values({
     id: 'plan-new',
     userId: NEW,
@@ -272,6 +282,13 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
     expect(
       await harness.db.select({ corporationId: corpIndustryJobSyncs.corporationId, userId: corpIndustryJobSyncs.userId }).from(corpIndustryJobSyncs),
     ).toEqual([{ corporationId: CORP + 1, userId: OLD }]);
+    // The source's per-user stored answers are dropped, not moved: an ETag must never outlive the rows it vouched for.
+    expect(
+      (await harness.db.select({ holderId: esiResponses.holderId, userId: esiResponses.userId }).from(esiResponses).orderBy(asc(esiResponses.holderId))),
+    ).toEqual([
+      { holderId: NEW_CHAR, userId: '' },
+      { holderId: CORP, userId: OLD },
+    ]);
     expect(await ownersOf(harness.db.select().from(savedPlans))).toEqual([OLD]);
     expect(await ownersOf(harness.db.select().from(industryProfiles))).toEqual([OLD]);
     expect(await ownersOf(harness.db.select().from(customStructures))).toEqual([OLD]);

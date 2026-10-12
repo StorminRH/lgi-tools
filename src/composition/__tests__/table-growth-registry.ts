@@ -132,7 +132,7 @@ export const TABLE_GROWTH_STORIES = [
     kind: 'bounded',
     table: schema.esiResponses,
     reason:
-      'one row per declared route, holder and canonical parameter set: holders times routes, plus the priced and history-tracked types for the per-type market keys; character and per-user rows leave with the esi-store purge contributor',
+      'one row per declared route, holder and canonical parameter set: holders times routes, plus the priced and history-tracked types for the per-type market keys; plus at most one refusal row per user, corporation and route; character and per-user rows leave with the esi-store purge contributor',
   },
   {
     kind: 'pruned',

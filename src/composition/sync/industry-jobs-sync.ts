@@ -1,4 +1,4 @@
-import { isDue } from '@/data/esi-store';
+import { isDue, recordRefusal } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
 import { characterJobsKey, jobsDueKeys } from '@/features/industry-jobs/keys';
@@ -11,6 +11,7 @@ import {
 } from '@/features/industry-jobs/queries';
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
+import { singleFlight } from '@/lib/memoize';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, vendTokenFor } from './owner-sync-port';
 
@@ -25,10 +26,16 @@ function makeJobsPort(): JobsPort {
     readSyncState: (characterId) => readCharacterJobSyncState(characterId),
     saveJobs: (characterId, jobs, etag) => saveCharacterJobs(characterId, jobs, etag),
     stampFresh: (characterId) => stampCharacterJobsFresh(characterId),
+    recordRefusal: (characterId, expiresAt) => recordRefusal([characterJobsKey(characterId)], expiresAt),
   };
 }
 
-export const refreshJobsOnView = (userId: string) => refreshJobsForUser(makeJobsPort(), userId);
+const jobsInFlight = singleFlight((userId: string) => refreshJobsForUser(makeJobsPort(), userId));
+
+/** The refresh a view schedules: concurrent calls for one user in this process share one run, and a call after it settles runs again. */
+export function refreshJobsOnView(userId: string) {
+  return jobsInFlight(userId);
+}
 
 export interface ViewerJobs {
   characterId: number;

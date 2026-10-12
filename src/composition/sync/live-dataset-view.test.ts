@@ -23,10 +23,10 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 }));
 
 const store = vi.hoisted(() => ({
-  isDue: vi.fn(async (_keys: unknown[]) => false),
+  isDueFor: vi.fn(async (_userId: string, _keys: unknown[]) => false),
   health: vi.fn(async (_userId: string) => [] as unknown[]),
 }));
-vi.mock('@/data/esi-store', () => ({ isDue: store.isDue }));
+vi.mock('@/data/esi-store', () => ({ isDueFor: store.isDueFor }));
 vi.mock('./owner-sync-port', () => ({ listCharactersWithHealth: store.health }));
 
 import type { EsiStoreKey } from '@/data/esi-store';
@@ -38,19 +38,19 @@ beforeEach(() => {
   afterCalls.length = 0;
   nameRecordArgs.length = 0;
   for (const key of Object.keys(linkedByUser)) delete linkedByUser[key];
-  store.isDue.mockReset().mockResolvedValue(false);
+  store.isDueFor.mockReset().mockResolvedValue(false);
   store.health.mockReset().mockResolvedValue([]);
 });
 
 describe('refreshDue', () => {
-  it('asks the store about the keys the refresh would check for the linked characters', async () => {
+  it('asks the store, as this user sees it, about the keys the refresh would check for the linked characters', async () => {
     const owners = [{ characterId: 10, corporationId: null, hasRefreshToken: true, missingScopes: [] }];
     store.health.mockResolvedValue(owners);
-    store.isDue.mockResolvedValue(true);
+    store.isDueFor.mockResolvedValue(true);
     const dueKeys = vi.fn(() => [KEY]);
     await expect(refreshDue('u1', dueKeys)).resolves.toBe(true);
     expect(dueKeys).toHaveBeenCalledExactlyOnceWith(owners);
-    expect(store.isDue).toHaveBeenCalledExactlyOnceWith([KEY]);
+    expect(store.isDueFor).toHaveBeenCalledExactlyOnceWith('u1', [KEY]);
   });
 });
 
@@ -109,7 +109,7 @@ describe('getLiveDatasetOnView', () => {
     const refresh = vi.fn();
     const owners = [{ characterId: 10, corporationId: null, hasRefreshToken: true, missingScopes: [] }];
     store.health.mockResolvedValue(owners);
-    store.isDue.mockResolvedValue(true);
+    store.isDueFor.mockResolvedValue(true);
     const dueKeys = vi.fn(() => [KEY]);
     const result = await getLiveDatasetOnView<{ ids: number[] }, { key: number; data: { ids: number[] } | null }>(
       'u1',
@@ -136,7 +136,7 @@ describe('getLiveDatasetOnView', () => {
     ]);
     expect(result.refreshing).toBe(true);
     expect(dueKeys).toHaveBeenCalledExactlyOnceWith('u1', owners);
-    expect(store.isDue).toHaveBeenCalledExactlyOnceWith([KEY]);
+    expect(store.isDueFor).toHaveBeenCalledExactlyOnceWith('u1', [KEY]);
     expect(afterCalls).toHaveLength(1);
     expect(refresh).toHaveBeenCalledWith('u1');
     expect(nameRecordArgs).toEqual([[100, 200, 100]]);

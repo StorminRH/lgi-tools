@@ -1,7 +1,7 @@
 import { after } from 'next/server';
 import { getCorpAssetEvidence } from '@/features/owned-assets/queries';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
-import { isDue } from '@/data/esi-store';
+import { isDueFor, recordRefusalFor } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import {
@@ -15,27 +15,34 @@ import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refre
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { formatStationName } from '@/lib/format/names';
+import { singleFlight } from '@/lib/memoize';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import { refreshDue } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
-function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
+/** The port of one user's pass: a corporation's answer is shared, but a due check and a refusal are this user's. */
+function makeOwnedBlueprintsPort(userId: string): OwnedBlueprintsPort {
   return {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesForSync,
-    isDue: (owner) => isDue([ownedBlueprintsKey(owner)]),
+    isDue: (owner) => isDueFor(userId, [ownedBlueprintsKey(owner)]),
     openSession: openReadSession,
     read: (session, owner, accessToken) => session.readPaged(ownedBlueprintsKey(owner), accessToken),
     readSyncState: (owner) => readBlueprintSyncState(owner),
     save: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
     stampFresh: (owner) => stampBlueprintFresh(owner),
+    recordRefusal: (owner, expiresAt) => recordRefusalFor(userId, [ownedBlueprintsKey(owner)], expiresAt),
   };
 }
 
-export const refreshOwnedBlueprintsOnView = (userId: string) =>
-  refreshOwnedBlueprintsForUser(makeOwnedBlueprintsPort(), userId);
+const ownedBlueprintsInFlight = singleFlight((userId: string) => refreshOwnedBlueprintsForUser(makeOwnedBlueprintsPort(userId), userId));
+
+/** The refresh a view schedules: concurrent calls for one user in this process share one run, and a call after it settles runs again. */
+export function refreshOwnedBlueprintsOnView(userId: string) {
+  return ownedBlueprintsInFlight(userId);
+}
 
 export async function getOwnedBlueprintDetailOnView(
   userId: string,

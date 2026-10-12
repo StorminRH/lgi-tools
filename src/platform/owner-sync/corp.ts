@@ -1,9 +1,9 @@
-import type { EnumeratedOwner, OwnerSyncDescriptor, ReadSession } from './types';
+import type { EnumeratedOwner, OwnerSyncDescriptor, ReadSession, VendedToken } from './types';
 
 export interface CorpSyncBase<TSession extends ReadSession> {
   now(): Date;
   listMembers(userId: string): Promise<EnumeratedOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
+  vendToken(characterId: number): Promise<VendedToken>;
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
   openSession(): TSession;
 }
@@ -16,7 +16,7 @@ export interface CorpDatasetSpec<
   TSession extends ReadSession,
 > extends Pick<
   OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
-  'isDue' | 'precondition' | 'readState' | 'fetchAndPlan' | 'save' | 'stampFresh' | 'saveGateState'
+  'isDue' | 'precondition' | 'readState' | 'fetchAndPlan' | 'save' | 'stampFresh' | 'saveGateState' | 'recordRefusal'
 > {
   ownerOf(userId: string, corporationId: number): TOwner;
   eligible(owner: EnumeratedOwner): boolean;
@@ -32,7 +32,7 @@ export function makeCorpDescriptor<
   base: CorpSyncBase<TSession>,
   spec: CorpDatasetSpec<TOwner, TState, TSave, TSession>,
 ): OwnerSyncDescriptor<TOwner, TState, TSave, TSession> {
-  const { precondition, saveGateState } = spec;
+  const { precondition, saveGateState, recordRefusal } = spec;
   return {
     now: () => base.now(),
     enumerate: (userId) => base.listMembers(userId),
@@ -52,5 +52,8 @@ export function makeCorpDescriptor<
     save: (owner, payload) => spec.save(owner, payload),
     stampFresh: (owner) => spec.stampFresh(owner),
     ...(saveGateState === undefined ? {} : { saveGateState: (owner: TOwner) => saveGateState(owner) }),
+    ...(recordRefusal === undefined
+      ? {}
+      : { recordRefusal: (owner: TOwner, expiresAt: number | null) => recordRefusal(owner, expiresAt) }),
   };
 }

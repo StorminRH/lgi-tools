@@ -8,7 +8,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
-import { resolveCorpViewer } from '@/composition/corp-viewer';
+import { readCorpViewer } from '@/composition/corp-viewer';
 import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
 import { refreshCorpContextOnView } from '@/composition/sync/corp-context-sync';
 import { refreshCorpJobsOnView } from '@/composition/sync/corp-industry-jobs-sync';
@@ -54,7 +54,7 @@ const liveContext = {
   personalEntryPoints: new Set([
     refreshAffiliationsWithOutcome.name,
     refreshCorpStructuresForUser.name,
-    resolveCorpViewer.name,
+    readCorpViewer.name,
     refreshSkillsOnView.name,
     refreshJobsOnView.name,
     refreshCorpJobsOnView.name,

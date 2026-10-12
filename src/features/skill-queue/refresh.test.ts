@@ -38,6 +38,7 @@ function makePort(overrides: Partial<SkillsPort> = {}): SkillsPort {
     readSyncState: vi.fn(async () => null),
     saveSkills: vi.fn(async () => {}),
     stampFresh: vi.fn(async () => {}),
+    recordRefusal: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -170,7 +171,7 @@ describe('refreshSkillsForUser', () => {
   it('skips a character whose token cannot be vended', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1)]),
-      vendToken: vi.fn(async () => null),
+      vendToken: vi.fn(async () => ({ missing: 'lost' as const })),
     });
 
     await refreshSkillsForUser(port, 'u1');

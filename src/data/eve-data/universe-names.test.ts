@@ -14,6 +14,13 @@ beforeEach(() => {
 });
 
 describe('postUniverseNames', () => {
+  it('passes the caller\'s gate options through, and none by default', async () => {
+    esiFetchMock.mockImplementation(async () => Response.json([]));
+    await postUniverseNames([7]);
+    await postUniverseNames([7], { interactive: true });
+    expect(esiFetchMock.mock.calls.map((call) => call[2])).toEqual([undefined, { interactive: true }]);
+  });
+
   it('keeps named rows and drops malformed entries', async () => {
     esiFetchMock.mockResolvedValue(
       Response.json([
@@ -68,6 +75,7 @@ describe('postUniverseNames', () => {
         method: 'POST',
         body: JSON.stringify([60_000_001]),
       }),
+      undefined,
     );
   });
 

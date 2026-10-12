@@ -13,6 +13,8 @@ export interface CharacterJobsSyncState {
 export interface JobsPort extends CharacterSyncBase<CharacterJobsSyncState, EsiReadSession> {
   readJobs(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
   saveJobs(characterId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
+  /** Records a settled refusal (no role-holder, a token that is gone) as the owner's stored answer, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(characterId: number, expiresAt: number | null): Promise<void>;
 }
 
 export interface CorpJobsSyncState {
@@ -34,4 +36,6 @@ export interface CorpJobsPort extends CorpSyncBase<EsiReadSession> {
   saveJobs(userId: string, corporationId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
   saveNeedsRole(userId: string, corporationId: number): Promise<void>;
   stampFresh(userId: string, corporationId: number): Promise<void>;
+  /** Records a settled refusal (no role-holder, a token that is gone) as the owner's stored answer, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(userId: string, corporationId: number, expiresAt: number | null): Promise<void>;
 }

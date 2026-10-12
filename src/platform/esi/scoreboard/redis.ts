@@ -1,6 +1,6 @@
 import { createUpstashClient, type UpstashRedis } from '@/lib/upstash';
 import { parseIntOrNull } from '../headers';
-import { isFailedCall, sumCounts, windowMinutes } from './availability';
+import { sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
   epochMinute,
@@ -16,9 +16,9 @@ import {
   keyHistoryCount,
   KEY_ERROR_ECHO,
   normalizeEsiPath,
-  resolveRetryAfter,
   WRITE_IF_LOWER_LUA,
 } from './keys';
+import { summarizeReports, type ErrorEcho, type ReportBatch } from './report-batch';
 import { effectiveRemaining } from './budget';
 import {
   CALL_COUNT_TTL_SECONDS,
@@ -167,94 +167,66 @@ class RedisScoreboard implements EsiScoreboard {
   }
 
   async report(report: EsiReport): Promise<void> {
-    const path = normalizeEsiPath(report.url);
+    await this.reportMany([report]);
+  }
+
+  /** Every answer in one pipeline: counts by their sums, echoes at their lowest, blocks at their longest. */
+  async reportMany(reports: readonly EsiReport[]): Promise<void> {
+    if (reports.length === 0) return;
+    const batch = summarizeReports(reports);
     const pipeline = this.redis.pipeline();
-    const queued = [
-      this.queueCallCount(pipeline, report),
-      this.queueHistoryCount(pipeline, path),
-      this.queueErrorCount(pipeline, report),
-      this.queueErrorEcho(pipeline, report),
-      this.queueGroupEcho(pipeline, path, report),
-      this.queueRetryBlock(pipeline, path, report),
-    ];
-    if (queued.some(Boolean)) await pipeline.exec();
-  }
-
-  private queueCallCount(pipeline: Pipeline, report: EsiReport): boolean {
-    const minute = epochMinute();
-    const keys = [keyCallCount(minute)];
-    if (isFailedCall(report.status)) keys.push(keyFailureCount(minute));
-    for (const key of keys) {
-      pipeline.incr(key);
-      pipeline.expire(key, CALL_COUNT_TTL_SECONDS);
-    }
-    return true;
-  }
-
-  /** Every market-history dispatch counts, answered or not: the cap is on calls made. */
-  private queueHistoryCount(pipeline: Pipeline, path: string): boolean {
-    if (!isHistoryPath(path)) return false;
-    const key = keyHistoryCount(epochMinute());
-    pipeline.incr(key);
-    pipeline.expire(key, HISTORY_COUNT_TTL_SECONDS);
-    return true;
-  }
-
-  private queueErrorCount(pipeline: Pipeline, report: EsiReport): boolean {
-    if (report.status < 400) return false;
-    const key = keyErrorCount(epochMinute());
-    pipeline.incr(key);
-    pipeline.expire(key, ERROR_COUNT_TTL_SECONDS);
-    return true;
-  }
-
-  private queueErrorEcho(pipeline: Pipeline, report: EsiReport): boolean {
-    if (report.status === 420) {
-      pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [
-        '0',
-        String(echoTtl(report.errorLimitReset)),
-      ]);
-      return true;
-    }
-    if (report.errorLimitRemain !== null) {
-      pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [
-        String(report.errorLimitRemain),
-        String(echoTtl(report.errorLimitReset)),
-      ]);
-      return true;
-    }
-    return false;
+    queueCounts(pipeline, batch);
+    queueErrorEcho(pipeline, batch.errorEcho);
+    this.queueGroupEchoes(pipeline, batch);
+    queueRetryBlocks(pipeline, batch.retryBlocks);
+    await pipeline.exec();
   }
 
   /**
-   * What the answer's rate-limit headers say: the path's group, kept a
-   * day, and the group's Remaining, lowest wins for the echo window, next
+   * What the answers' rate-limit headers say: each path's group, kept a
+   * day, and each group's Remaining, lowest wins for the echo window, next
    * to the limit it is a share of.
    */
-  private queueGroupEcho(pipeline: Pipeline, path: string, report: EsiReport): boolean {
-    if (report.rlGroup === null) return false;
-    this.groupOfPath.set(path, report.rlGroup);
-    pipeline.set(keyGroupOfPath(path), report.rlGroup, { ex: GROUP_OF_PATH_TTL_SECONDS });
-    if (report.rlRemaining !== null && report.rlLimit !== null) {
-      pipeline.eval(WRITE_IF_LOWER_LUA, [keyGroupRemaining(report.rlGroup)], [
-        String(report.rlRemaining),
-        String(GROUP_ECHO_TTL_SECONDS),
-      ]);
-      pipeline.set(keyGroupLimit(report.rlGroup), String(report.rlLimit), { ex: GROUP_ECHO_TTL_SECONDS });
+  private queueGroupEchoes(pipeline: Pipeline, batch: ReportBatch): void {
+    for (const [path, group] of batch.groupOfPath) {
+      this.groupOfPath.set(path, group);
+      pipeline.set(keyGroupOfPath(path), group, { ex: GROUP_OF_PATH_TTL_SECONDS });
     }
-    return true;
+    for (const [group, echo] of batch.groupEchoes) {
+      pipeline.eval(WRITE_IF_LOWER_LUA, [keyGroupRemaining(group)], [String(echo.remaining), String(GROUP_ECHO_TTL_SECONDS)]);
+      pipeline.set(keyGroupLimit(group), String(echo.limit), { ex: GROUP_ECHO_TTL_SECONDS });
+    }
   }
+}
 
-  /** A 429 blocks the group it names, since every route in it shares the bucket; without a group, the path. */
-  private queueRetryBlock(pipeline: Pipeline, path: string, report: EsiReport): boolean {
-    if (report.status !== 429) return false;
-    const retryAfter = resolveRetryAfter(report.retryAfter);
-    pipeline.set(
-      report.rlGroup === null ? keyBlock(path) : keyGroupBlock(report.rlGroup),
-      String(Math.floor(Date.now() / 1000) + retryAfter),
-      { ex: retryAfter },
-    );
-    return true;
+function queueIncrement(pipeline: Pipeline, key: string, by: number, ttlSeconds: number): void {
+  if (by === 0) return;
+  pipeline.incrby(key, by);
+  pipeline.expire(key, ttlSeconds);
+}
+
+/**
+ * Every dispatch counts as a call, and the failed ones as failures; every
+ * non-2xx/3xx against the error budget; every market-history dispatch,
+ * answered or not, against the history cap, since the cap is on calls made.
+ */
+function queueCounts(pipeline: Pipeline, batch: ReportBatch): void {
+  const minute = epochMinute();
+  queueIncrement(pipeline, keyCallCount(minute), batch.calls, CALL_COUNT_TTL_SECONDS);
+  queueIncrement(pipeline, keyFailureCount(minute), batch.failures, CALL_COUNT_TTL_SECONDS);
+  queueIncrement(pipeline, keyErrorCount(minute), batch.errors, ERROR_COUNT_TTL_SECONDS);
+  queueIncrement(pipeline, keyHistoryCount(minute), batch.historyCalls, HISTORY_COUNT_TTL_SECONDS);
+}
+
+function queueErrorEcho(pipeline: Pipeline, echo: ErrorEcho | null): void {
+  if (echo === null) return;
+  pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [String(echo.remain), String(echoTtl(echo.reset))]);
+}
+
+/** Each blocked key holds until its Retry-After, stored as the epoch second it lifts. */
+function queueRetryBlocks(pipeline: Pipeline, blocks: ReadonlyMap<string, number>): void {
+  for (const [key, retryAfter] of blocks) {
+    pipeline.set(key, String(Math.floor(Date.now() / 1000) + retryAfter), { ex: retryAfter });
   }
 }
 

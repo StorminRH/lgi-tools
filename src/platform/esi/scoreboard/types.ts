@@ -80,4 +80,9 @@ export interface EsiScoreboard {
   budgetSnapshot(): Promise<EsiBudgetSnapshot>;
   availabilitySnapshot(): Promise<EsiAvailabilitySnapshot>;
   report(report: EsiReport): Promise<void>;
+  /**
+   * Many answers as one write: what `report` records for each, in one round
+   * trip. A scoreboard without it has each answer reported alone.
+   */
+  reportMany?(reports: readonly EsiReport[]): Promise<void>;
 }

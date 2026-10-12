@@ -33,6 +33,7 @@ function makePort(overrides: Partial<JobsPort> = {}): JobsPort {
     readSyncState: vi.fn(async () => null),
     saveJobs: vi.fn(async () => {}),
     stampFresh: vi.fn(async () => {}),
+    recordRefusal: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -145,7 +146,7 @@ describe('refreshJobsForUser', () => {
   it('skips a character whose token cannot be vended', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1)]),
-      vendToken: vi.fn(async () => null),
+      vendToken: vi.fn(async () => ({ missing: 'lost' as const })),
     });
 
     await refreshJobsForUser(port, 'u1');

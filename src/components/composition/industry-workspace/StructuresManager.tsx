@@ -250,23 +250,51 @@ function useLookups(structureTypes: StructureTypeOption[]): Lookups {
 
 export type RigEdit = Pick<CorpStructurePageStructure, 'rigTypeIds' | 'taxPct'>;
 
-/** The rigs saved here, drawn over the live rows until the re-read carries them. */
-export const withRigEdits = (edits: ReadonlyMap<number, RigEdit>) =>
+const withRigEdits = (edits: ReadonlyMap<number, RigEdit>) =>
   (corp: CorpStructurePageView): CorpStructurePageView => ({
     ...corp,
     structures: corp.structures.map((s) => ({ ...s, ...edits.get(s.structureId) })),
   });
 
+/** The rigs saved here, with the live rows they were saved over. */
+export interface RigOverlay {
+  readonly over: readonly CorpStructurePageView[];
+  readonly edits: ReadonlyMap<number, RigEdit>;
+}
+
+/** A save joins the overlay while the same live rows stand, and starts a new one once newer rows came in. */
+export function withRigSaved(
+  prev: RigOverlay | null,
+  over: readonly CorpStructurePageView[],
+  structureId: number,
+  saved: RigEdit,
+): RigOverlay {
+  return { over, edits: new Map(prev?.over === over ? prev.edits : []).set(structureId, saved) };
+}
+
+/**
+ * The live rows with the rigs saved here drawn over them, until the rows
+ * change. A save bumps the revision, which cancels any earlier read, so the
+ * next rows to land are the re-read that carries the save; a later change
+ * by another manager is never masked.
+ */
+export function overlaidCorps(
+  corporations: readonly CorpStructurePageView[],
+  overlay: RigOverlay | null,
+): readonly CorpStructurePageView[] {
+  return overlay === null || overlay.over !== corporations ? corporations : corporations.map(withRigEdits(overlay.edits));
+}
+
 /** The member corps with structures to show, newer data streaming in behind the server's first draw. */
 function useCorpGroups(initialCorps: CorpStructurePageView[]) {
   const { corporations } = useCorpStructuresLive(initialCorps);
-  const [rigEdits, setRigEdits] = useState<ReadonlyMap<number, RigEdit>>(() => new Map());
+  const [overlay, setOverlay] = useState<RigOverlay | null>(null);
   const corps = useMemo(
-    () => corporations.map(withRigEdits(rigEdits)).filter((c) => c.structures.length > 0),
-    [corporations, rigEdits],
+    () => overlaidCorps(corporations, overlay).filter((c) => c.structures.length > 0),
+    [corporations, overlay],
   );
   const saveRigs = (structureId: number, saved: RigEdit) =>
-    setRigEdits((prev) => new Map(prev).set(structureId, saved));
+    setOverlay((prev) => withRigSaved(prev, corporations, structureId, saved));
   return { corps, saveRigs };
 }
 

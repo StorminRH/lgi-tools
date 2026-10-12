@@ -32,6 +32,7 @@ vi.mock('@/data/esi-store/session', () => ({
     readPaged: vi.fn(),
     readPassThrough: (route, params, accessToken) => mocks.readPassThrough(route, params, accessToken),
     postPassThrough: vi.fn(),
+    discardBodies: vi.fn(),
     commit: mocks.commit,
   }),
 }));

@@ -1,5 +1,4 @@
 import { cacheLife, cacheTag } from 'next/cache';
-import { storedExpiry, untilExpires } from '@/data/esi-store';
 import {
   DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL,
   SDE_CACHE_TAG,
@@ -25,7 +24,7 @@ import type { TreeNode } from '@/data/eve-data/types';
 import { getSystemCostIndicesOnView } from '@/data/industry-indices/on-view';
 import { getAdjustedPrices } from '@/data/industry-indices/queries';
 import type { SystemCostIndices } from '@/data/industry-indices/types';
-import { MARKET_PRICES_TAG, priceKey } from '@/data/market-prices/keys';
+import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
 import { toPlainPriceFigures } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
@@ -200,28 +199,28 @@ function nodeFilterIdsFor(
 
 /**
  * A blueprint's tree priced from the stored Forge order books, cached
- * across instances until the earliest of those books expires; a price
- * commit clears the tag sooner. A blueprint the SDE lacks lives one second.
+ * across instances until a price write clears the tag. It only aggregates
+ * stored prices (the planner's price request refreshes them), and every
+ * price write clears MARKET_PRICES_TAG, so it lives until then rather than
+ * until the earliest book in the tree expires, which a never-stored or
+ * never-refreshed type would hold in the past for good.
  */
 export async function getBlueprintPricing(
   blueprintId: number,
 ): Promise<BlueprintPricing | null> {
   'use cache: remote';
+  cacheLife('max');
   cacheTag(MARKET_PRICES_TAG, SDE_CACHE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId);
-  if (!structure) {
-    cacheLife(untilExpires(null));
-    return null;
-  }
+  if (!structure) return null;
 
   const priceIds = dedupe([
     ...collectRawTypeIds(structure.tree),
     structure.product.typeId,
     ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
   ]);
-  const [priceMap, expiresAt] = await Promise.all([getPrices(priceIds), storedExpiry(priceIds.map(priceKey))]);
-  cacheLife(untilExpires(expiresAt));
+  const priceMap = await getPrices(priceIds);
 
   return assemblePricing(
     structure,

@@ -94,6 +94,7 @@ export function __resetEsiGateForTests(): void {
   localBlocks.clear();
   localSeq = 0;
   latestRemain = null;
+  pendingReports = null;
   scoreboardOverride = null;
   __resetScoreboardForTests();
 }
@@ -176,6 +177,69 @@ async function safeReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
 const DEFERRED_ECHO_MIN_REMAIN = ESI_BUDGET_FLOOR * 2;
 
 /**
+ * How long one batch of deferred reports takes new answers. A long fan-out
+ * writes one pipeline a window instead of one per answer, and a batch whose
+ * flush never runs (a request cut off at its maxDuration drops its after()
+ * work) loses at most one window of reports, never every later one.
+ */
+const REPORT_BATCH_WINDOW_MS = 1_000;
+
+/** Deferred reports waiting for the one after() that writes them. */
+interface PendingReports {
+  readonly sb: EsiScoreboard;
+  readonly openedAt: number;
+  readonly reports: EsiReport[];
+}
+
+let pendingReports: PendingReports | null = null;
+
+function openBatch(sb: EsiScoreboard, now: number): PendingReports | null {
+  const batch = pendingReports;
+  return batch !== null && batch.sb === sb && now - batch.openedAt < REPORT_BATCH_WINDOW_MS ? batch : null;
+}
+
+/**
+ * Writes a batch as one pipeline. It runs after the response, so a failure
+ * is logged and never opens the instance-wide circuit: only a failed
+ * pre-dispatch read or an error report written before its call returns says
+ * the scoreboard is down for every call on this instance.
+ */
+async function flushReports(batch: PendingReports): Promise<void> {
+  if (pendingReports === batch) pendingReports = null;
+  try {
+    await writeReports(batch.sb, batch.reports);
+  } catch (err) {
+    console.warn('[esi] deferred scoreboard report failed', err);
+  }
+}
+
+async function writeReports(sb: EsiScoreboard, reports: readonly EsiReport[]): Promise<void> {
+  if (sb.reportMany !== undefined) {
+    await sb.reportMany(reports);
+    return;
+  }
+  for (const report of reports) await sb.report(report);
+}
+
+/**
+ * Successes and 304s are counted after the response, many in one write: an
+ * answer joins the open batch, or opens one and schedules its flush. Where
+ * nothing can run after the response (Convex, scripts), deferWork runs the
+ * flush at once and the batch holds this one answer.
+ */
+async function deferReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
+  const now = Date.now();
+  const open = openBatch(sb, now);
+  if (open !== null) {
+    open.reports.push(report);
+    return;
+  }
+  const batch: PendingReports = { sb, openedAt: now, reports: [report] };
+  pendingReports = batch;
+  await deferWork(() => flushReports(batch));
+}
+
+/**
  * Error answers, and answers whose echo shows the budget running low, are
  * counted before the call returns, so the shared budget stays current; other
  * bookkeeping for successes and 304s runs after the response.
@@ -186,7 +250,7 @@ async function reportAnswer(sb: EsiScoreboard, report: EsiReport): Promise<void>
     await safeReport(sb, report);
     return;
   }
-  await deferWork(() => safeReport(sb, report));
+  await deferReport(sb, report);
 }
 
 /** The path's state as this process holds it, read back the way a shared reading comes. */
@@ -238,9 +302,20 @@ function rememberPath(url: string, pre: PreDispatchState, readSeq: number, now: 
     seq: readSeq,
   };
   if (pre.groupBudget !== undefined) entry.groupBudget = pre.groupBudget;
-  if (pre.historyCalls !== undefined) entry.historyCalls = pre.historyCalls;
+  if (pre.historyCalls !== undefined) entry.historyCalls = keptHistoryCalls(previous, pre.historyCalls, now);
   localBlocks.set(path, entry);
   return pathState(entry, now);
+}
+
+/**
+ * The history count a new shared reading leaves this process obeying. This
+ * process's own calls since its last reading may not have reached the shared
+ * count yet (their reports wait for the response), so within the same minute
+ * the larger count stands; a new minute starts from the shared one.
+ */
+function keptHistoryCalls(previous: LocalPath | undefined, shared: number, now: number): number {
+  if (previous?.historyCalls === undefined || Math.floor(previous.readAt / 60_000) !== Math.floor(now / 60_000)) return shared;
+  return Math.max(previous.historyCalls, shared);
 }
 
 /** Keeps a shared reading for reuse and returns what this call should obey. */

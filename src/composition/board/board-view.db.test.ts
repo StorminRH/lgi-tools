@@ -343,7 +343,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(JSON.stringify(board)).not.toContain('esi-');
     expect(board.characters.map((c) => c.characterId)).toEqual([AUREL, BRAM, ILYANA]);
     expect(mocks.after).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([CALDARI_NAVY, 1000086, ALLIANCE, AMARR_ORIS]);
+    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([CALDARI_NAVY, 1000086, ALLIANCE, AMARR_ORIS], { interactive: true });
   });
 
   it('names every section of a fully synced character from the SDE, the sheet and the names resolver', async () => {

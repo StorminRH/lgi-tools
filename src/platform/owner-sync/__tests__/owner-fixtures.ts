@@ -43,6 +43,7 @@ export function ownedDatasetPortFake<TRow, TSession extends ReadSession = ReadSe
     readSyncState: vi.fn(async () => null),
     save: vi.fn(async () => {}),
     stampFresh: vi.fn(async () => {}),
+    recordRefusal: vi.fn(async () => {}),
     ...overrides,
   };
 }

@@ -1,6 +1,6 @@
 import { mapConcurrent } from '@/lib/fan-out';
 import { esiPageCount, httpDateMs, intHeader } from './headers';
-import { esiFetch, esiUrl } from './index';
+import { esiFetch, esiUrl, type EsiFetchOptions } from './index';
 import { esiAuthInit, esiJsonPostInit } from './request-init';
 import type { EsiPageResponseHeaders, EsiResponseHeaders } from './response-metadata';
 
@@ -29,7 +29,19 @@ export type EsiAuthedRead =
       cacheStatus?: string | null;
     }
   | { kind: 'unchanged'; expiresAt: number | null; lastModified?: string | null; cacheStatus?: string | null }
-  | { kind: 'error'; code: string };
+  | { kind: 'error'; code: string; expiresAt?: number };
+
+/** A status ESI answered with neither a body nor a 304. */
+type EsiReadError = Extract<EsiAuthedRead, { kind: 'error' }>;
+
+/**
+ * The error for `status`, with the answer's own Expires when it sent one: a
+ * refusal (a 403) is settled until then, and the caller records it as the
+ * key's answer.
+ */
+function readError(status: number, expiresAt: number | null): EsiReadError {
+  return { kind: 'error', code: `esi_${status}`, ...(expiresAt === null ? {} : { expiresAt }) };
+}
 
 async function toAuthedRead(res: Response, rl?: RlSnapshot): Promise<EsiAuthedRead> {
   if (rl !== undefined) captureRl(res, rl);
@@ -39,16 +51,18 @@ async function toAuthedRead(res: Response, rl?: RlSnapshot): Promise<EsiAuthedRe
   if (res.status === 200) {
     return { kind: 'fresh', body: (await res.json()) as unknown, etag: res.headers.get('ETag'), expiresAt, ...cache };
   }
-  return { kind: 'error', code: `esi_${res.status}` };
+  return readError(res.status, expiresAt);
 }
 
+/** One authed GET; `opts` carries the gate's interactive floor when a user is waiting on it. */
 export async function readEsiAuthed(
   path: string,
   accessToken: string,
   heldEtag: string | null,
   rl?: RlSnapshot,
+  opts?: EsiFetchOptions,
 ): Promise<EsiAuthedRead> {
-  return toAuthedRead(await esiFetch(esiUrl(path), esiAuthInit(accessToken, { etag: heldEtag })), rl);
+  return toAuthedRead(await esiFetch(esiUrl(path), esiAuthInit(accessToken, { etag: heldEtag }), opts), rl);
 }
 
 /**
@@ -86,7 +100,7 @@ export type EsiPagedRead =
       lastModified?: string | null;
       cacheStatus?: string | null;
     }
-  | { kind: 'error'; code: string };
+  | { kind: 'error'; code: string; expiresAt?: number };
 
 interface PageCacheHeaders {
   lastModified: string | null;
@@ -103,7 +117,7 @@ type PageFetch =
       responseHeaders: EsiPageResponseHeaders;
     } & PageCacheHeaders)
   | ({ kind: 'unchanged'; expiresAt: number | null; xPages: number } & PageCacheHeaders)
-  | { kind: 'error'; code: string };
+  | EsiReadError;
 
 function pagedPath(basePath: string, page: number): string {
   return `${basePath}${basePath.includes('?') ? '&' : '?'}page=${page}`;
@@ -140,7 +154,7 @@ async function fetchPage(
       },
     };
   }
-  return { kind: 'error', code: `esi_${res.status}` };
+  return readError(res.status, expiresAt);
 }
 
 export async function readEsiPagedAuthed(

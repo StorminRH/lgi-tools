@@ -12,7 +12,7 @@ const reads = vi.hoisted(() => ({
 vi.mock('@/composition/session', () => ({ getFullSession: reads.session }));
 vi.mock('@/components/composition/industry-workspace/StructuresManager', () => ({ StructuresManager: vi.fn() }));
 vi.mock('@/components/composition/account/LoginButton', () => ({ EveSignInButton: vi.fn() }));
-vi.mock('@/composition/sync/corp-structures-sync', () => ({ getCorpStructuresPageData: reads.corps }));
+vi.mock('@/composition/sync/corp-structures-sync', () => ({ getCorpStructuresFirstDraw: reads.corps }));
 vi.mock('@/data/eve-data/queries', () => ({ getStructureTypes: async () => [], getStructureRigs: async () => [] }));
 vi.mock('@/features/custom-structures/queries', () => ({ listCustomStructures: reads.custom }));
 

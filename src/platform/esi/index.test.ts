@@ -402,6 +402,29 @@ describe('esiFetch', () => {
       await expect(esiFetch(HISTORY_URL)).rejects.toMatchObject({ reason: 'history_cap' });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
+    it('keeps its own history calls through a newer shared reading that has not counted them yet, until the minute turns', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(Date.parse('2026-10-12T12:00:00Z'));
+      const preDispatch = vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 248 });
+      __setScoreboardForTests({
+        preDispatch,
+        budgetSnapshot: vi.fn(),
+        availabilitySnapshot: vi.fn(),
+        report: vi.fn().mockResolvedValue(undefined),
+      });
+      fetchSpy.mockImplementation(async () => mockResponse(200));
+
+      await esiFetch(HISTORY_URL);
+      vi.advanceTimersByTime(1_001);
+      // The shared count still reads 248: this process's call is still waiting in its deferred report.
+      expect((await esiFetch(HISTORY_URL)).status).toBe(200);
+      await expect(esiFetch(HISTORY_URL)).rejects.toMatchObject({ reason: 'history_cap' });
+      expect(preDispatch).toHaveBeenCalledTimes(2);
+
+      vi.setSystemTime(Date.parse('2026-10-12T12:01:00Z'));
+      preDispatch.mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 0 });
+      expect((await esiFetch(HISTORY_URL)).status).toBe(200);
+    });
   });
 
   describe('conditional requests', () => {
@@ -593,6 +616,62 @@ describe('esiFetch', () => {
       await deferred[0]!();
       expect(fake.report).toHaveBeenCalledTimes(2);
       expect(fake.report.mock.calls[1]![0]).toMatchObject({ status: 200, errorLimitRemain: 95 });
+    });
+
+    it('writes every success deferred within a window as one batch, and opens a new batch after it', async () => {
+      vi.useFakeTimers();
+      const fake = { ...fakeScoreboard(), reportMany: vi.fn().mockResolvedValue(undefined) };
+      __setScoreboardForTests(fake);
+      const deferred: (() => Promise<void>)[] = [];
+      setWorkDeferrer((task) => {
+        deferred.push(task);
+        return true;
+      });
+      fetchSpy.mockImplementation(async () => mockResponse(200, { 'X-ESI-Error-Limit-Remain': '95' }));
+
+      await esiFetch(TEST_URL);
+      await esiFetch(TEST_URL);
+      await esiFetch(POST_URL, post);
+      expect(deferred).toHaveLength(1);
+
+      vi.advanceTimersByTime(1_000);
+      await esiFetch(TEST_URL);
+      expect(deferred).toHaveLength(2);
+
+      await deferred[0]!();
+      expect(fake.reportMany).toHaveBeenCalledOnce();
+      expect(fake.reportMany.mock.calls[0]![0]).toEqual([
+        expect.objectContaining({ url: TEST_URL, status: 200 }),
+        expect.objectContaining({ url: TEST_URL, status: 200 }),
+        expect.objectContaining({ url: POST_URL, status: 200 }),
+      ]);
+      expect(fake.report).not.toHaveBeenCalled();
+
+      await esiFetch(TEST_URL);
+      expect(deferred).toHaveLength(2);
+      await deferred[1]!();
+      expect(fake.reportMany.mock.calls[1]![0]).toHaveLength(2);
+    });
+
+    it('logs a failed deferred write without closing the gate for the calls after it', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const fake = { ...fakeScoreboard(), reportMany: vi.fn().mockRejectedValue(new Error('upstash timeout')) };
+      __setScoreboardForTests(fake);
+      const deferred: (() => Promise<void>)[] = [];
+      setWorkDeferrer((task) => {
+        deferred.push(task);
+        return true;
+      });
+      fetchSpy.mockImplementation(async () => mockResponse(200));
+
+      await esiFetch(TEST_URL);
+      await deferred[0]!();
+      expect(warn).toHaveBeenCalledWith('[esi] deferred scoreboard report failed', expect.any(Error));
+
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(1_000);
+      expect((await esiFetch(TEST_URL)).status).toBe(200);
+      expect(fake.preDispatch).toHaveBeenCalledTimes(2);
     });
 
     it('reuses a fresh shared budget reading, and reads again after it ages', async () => {

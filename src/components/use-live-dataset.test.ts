@@ -281,3 +281,115 @@ describe('useLiveDataset', () => {
     expect(h.apiFetch).not.toHaveBeenCalled();
   });
 });
+
+describe('useLiveDataset request sharing', () => {
+  /** A second reader rendering after the first, as the fake React keeps one hook's state per render. */
+  const renderAgain = () => {
+    h.setters.length = 0;
+    h.refIndex = 0;
+  };
+  /** Runs the effect cleanups of every reader mounted so far: an unmount. */
+  const unmount = () => {
+    for (const cleanup of h.cleanups.splice(0)) cleanup();
+  };
+
+  it('sends one request for two readers of one GET read mounted together, and both see its answer', async () => {
+    const answer = Promise.withResolvers<unknown>();
+    h.apiFetch.mockReturnValue(answer.promise);
+    useLiveDataset(endpoint, 'k', neverCold);
+    const firstFailed = setFailed();
+    renderAgain();
+    useLiveDataset(endpoint, 'k', neverCold);
+    expect(h.apiFetch).toHaveBeenCalledOnce();
+
+    answer.resolve(ok(6));
+    await flush();
+    expect(remembered()).toEqual({ rows: 6, refreshing: false });
+    expect(firstFailed).toHaveBeenCalledWith(null);
+    expect(setFailed()).toHaveBeenCalledWith(null);
+  });
+
+  it('sends one request across a StrictMode mount, unmount and mount again, and the remount takes the answer', async () => {
+    const answer = Promise.withResolvers<unknown>();
+    h.apiFetch.mockReturnValue(answer.promise);
+    useLiveDataset(endpoint, 'k', neverCold);
+    const firstFailed = setFailed();
+    unmount();
+    renderAgain();
+    useLiveDataset(endpoint, 'k', neverCold);
+    expect(h.apiFetch).toHaveBeenCalledOnce();
+
+    answer.resolve(ok(7));
+    await flush();
+    expect(firstFailed).not.toHaveBeenCalled();
+    expect(setFailed()).toHaveBeenCalledWith(null);
+    expect(remembered()).toEqual({ rows: 7, refreshing: false });
+  });
+
+  it('sends POST reads with different keys separately', () => {
+    h.apiFetch.mockReturnValue(new Promise(() => {}));
+    useLiveDataset({ endpoint: postEndpoint, body: { typeIds: [34] }, key: '34' });
+    renderAgain();
+    useLiveDataset({ endpoint: postEndpoint, body: { typeIds: [35] }, key: '35' });
+    expect(h.apiFetch.mock.calls).toEqual([
+      [postEndpoint, { body: { typeIds: [34] } }],
+      [postEndpoint, { body: { typeIds: [35] } }],
+    ]);
+  });
+
+  it('never joins a request sent before the cold key moved on, such as a save bumping a revision', async () => {
+    const before = Promise.withResolvers<unknown>();
+    h.apiFetch.mockReturnValueOnce(before.promise).mockResolvedValueOnce(ok(2));
+    useLiveDataset(endpoint, 1, neverCold);
+    unmount();
+    renderAgain();
+    useLiveDataset(endpoint, 2, neverCold);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    await flush();
+    before.resolve(ok(1));
+    await flush();
+    expect(remembered()).toEqual({ rows: 2, refreshing: false });
+  });
+
+  it('sends a new request for a new identity rather than taking the old one\'s answer', async () => {
+    const old = Promise.withResolvers<unknown>();
+    h.apiFetch.mockReturnValueOnce(old.promise).mockResolvedValueOnce(ok(8));
+    useLiveDataset(endpoint, 'k', neverCold);
+    h.identity = { userId: 'account-b', characterId: 7 };
+    renderAgain();
+    useLiveDataset(endpoint, 'k', neverCold);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    old.resolve(ok(99));
+    await flush();
+    expect(remembered()).toEqual({ rows: 8, refreshing: false });
+  });
+
+  it('asks again on the next check once the shared request has settled', async () => {
+    h.apiFetch.mockResolvedValueOnce(ok(0, true)).mockResolvedValueOnce(ok(3));
+    useLiveDataset(endpoint);
+    await flush();
+    expect(h.apiFetch).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    expect(remembered()).toEqual({ rows: 3, refreshing: false });
+  });
+
+  it('sends every reader of a shared failure through its own retry', async () => {
+    const failing = Promise.withResolvers<unknown>();
+    const retried = Promise.withResolvers<unknown>();
+    h.apiFetch.mockReturnValueOnce(failing.promise).mockReturnValueOnce(retried.promise);
+    useLiveDataset(endpoint, 'k', neverCold);
+    const firstFailed = setFailed();
+    renderAgain();
+    useLiveDataset(endpoint, 'k', neverCold);
+    failing.resolve(serverError);
+    await flush();
+    // Both readers retry after the delay, and their retries share one request too.
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    retried.resolve(serverError);
+    await flush();
+    expect(firstFailed).toHaveBeenCalledWith(h.identity);
+    expect(setFailed()).toHaveBeenCalledWith(h.identity);
+  });
+});

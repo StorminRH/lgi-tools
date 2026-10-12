@@ -122,9 +122,9 @@ export const ESI_DATASET_ENTRIES = [
     name: 'character_corp_roles',
     store: 'neon',
     shape: 'personal-on-view',
-    refreshOwner: { kind: 'entry-point', name: 'resolveCorpViewer' },
+    refreshOwner: { kind: 'entry-point', name: 'readCorpViewer' },
     notes:
-      'Three writers share corp_member_roles. resolveCorpViewer fetches a member whose stored row has expired. The corp sync passes reuse an unexpired same-corporation row and probe live only without one. The Director and Station Manager mutation gates always probe live.',
+      'Three writers share corp_member_roles. readCorpViewer (behind resolveCorpViewer and the structures first draw) fetches a member whose stored row has expired. The corp sync passes reuse an unexpired same-corporation row and probe live only without one. The Director and Station Manager mutation gates always probe live.',
     ...esi([
       get('/characters/{character_id}/roles/', 'character', 3600),
     ]),

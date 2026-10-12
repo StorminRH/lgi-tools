@@ -66,10 +66,10 @@ export type SourceRead<T> =
  * is the error it always was.
  */
 async function readDataset<T>(key: EsiStoreKey, parse: (body: unknown) => T[]): Promise<SourceRead<T>> {
-  const result = await fetchStored(key);
+  const result = await fetchStored(key, { parse });
   if (result.kind === 'unchanged') return { kind: 'unchanged' };
   if (result.kind === 'error') throw new EsiServerError(result.status);
-  return { kind: 'fresh', rows: parse(await result.res.json()), meta: result.meta };
+  return { kind: 'fresh', rows: result.value, meta: result.meta };
 }
 
 export function fetchCostIndices(): Promise<SourceRead<RawCostIndex>> {

@@ -1,6 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
-import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
+import { datasetTag, forgetStored, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryJob } from './esi-projection';
@@ -169,11 +169,13 @@ export async function saveCorpJobs(
     });
 }
 
+/** Nobody holds the role: the jobs go, and with them the stored answer, so the next read after the role returns is unconditional. */
 export async function saveCorpNeedsRole(userId: string, corporationId: number): Promise<void> {
   const now = new Date();
   await db
     .delete(corpIndustryJobs)
     .where(and(eq(corpIndustryJobs.userId, userId), eq(corpIndustryJobs.corporationId, corporationId)));
+  await forgetStored([corpJobsKey(userId, corporationId)]);
   await db
     .insert(corpIndustryJobSyncs)
     .values({ userId, corporationId, lastRefreshedAt: now, jobsEtag: null, syncError: 'needs_role' })

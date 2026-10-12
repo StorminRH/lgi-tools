@@ -17,4 +17,6 @@ export type {
   PersistVerdict,
   ReadSession,
   SingleOwnerRead,
+  VendedToken,
 } from './types';
+export { hasToken } from './types';

@@ -9,7 +9,7 @@ function fakeProbe(
   vendable: (characterId: number) => boolean = () => true,
 ) {
   return {
-    vendToken: vi.fn(async (characterId: number) => (vendable(characterId) ? `tok-${characterId}` : null)),
+    vendToken: vi.fn(async (characterId: number) => (vendable(characterId) ? `tok-${characterId}` : { missing: 'unavailable' as const })),
     readRoles: vi.fn(async (characterId: number) => rolesOf(characterId)),
   };
 }

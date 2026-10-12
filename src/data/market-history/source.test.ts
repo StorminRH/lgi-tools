@@ -1,13 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchStoredMock = vi.fn();
-const batchInits: { concurrency: number }[] = [];
+const batchInits: { concurrency: number; parse: unknown }[] = [];
+
+type BatchInit = { concurrency: number; parse: (body: unknown, headers: Headers) => unknown };
+
+/** One key's answer as the store hands it back: a 200's body parsed inside its call, a refused body or a thrown call failing that key alone. */
+async function settle(key: unknown, init: BatchInit): Promise<unknown> {
+  const answer = await fetchStoredMock(key);
+  if (answer.kind !== 'fresh') return answer;
+  return { kind: 'fresh', value: init.parse(await answer.res.json(), answer.res.headers), meta: answer.meta };
+}
 
 /** The batched read as one call per key, a thrown call kept to its key the way the store keeps it. */
 vi.mock('@/data/esi-store', () => ({
-  fetchStoredMany: (keys: unknown[], init: { concurrency: number }) => {
+  fetchStoredMany: (keys: unknown[], init: BatchInit) => {
     batchInits.push(init);
-    return Promise.all(keys.map((key) => Promise.resolve(fetchStoredMock(key)).catch((error: unknown) => ({ kind: 'failed', error }))));
+    return Promise.all(keys.map((key) => settle(key, init).catch((error: unknown) => ({ kind: 'failed', error }))));
   },
 }));
 
@@ -81,7 +90,7 @@ describe('fetchHistoryFromSource', () => {
     expect(budgetExhausted).toBe(false);
     expect(results).toHaveLength(2);
     expect(fetchStoredMock.mock.calls.map(([key]) => key)).toEqual([historyKey(34), historyKey(35)]);
-    expect(batchInits).toEqual([{ concurrency: HISTORY_FETCH_CONCURRENCY }]);
+    expect(batchInits).toEqual([{ concurrency: HISTORY_FETCH_CONCURRENCY, parse: parseEsiHistory }]);
     expect(HISTORY_FETCH_CONCURRENCY).toBe(20);
     const r34 = results.find((r) => r.typeId === 34)!;
     expect(r34.source).toBe('esi');

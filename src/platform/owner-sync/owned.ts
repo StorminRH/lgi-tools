@@ -1,16 +1,24 @@
 import { planRead } from './plan';
-import type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState, ReadSession } from './types';
+import type {
+  EnumeratedOwner,
+  OwnerKey,
+  OwnerReadError,
+  OwnerSyncDescriptor,
+  PagedOwnerSyncState,
+  ReadSession,
+  VendedToken,
+} from './types';
 import type { EsiResponseHeaders } from '../esi/response-metadata';
 
 export type PagedOwnerReadResult =
   | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
   | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
+  | OwnerReadError;
 
 export interface OwnedDatasetPort<TRow, TSession extends ReadSession> {
   now(): Date;
   listCharacters(userId: string): Promise<EnumeratedOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
+  vendToken(characterId: number): Promise<VendedToken>;
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
   isDue(owner: OwnerKey): Promise<boolean>;
   openSession(): TSession;
@@ -23,6 +31,8 @@ export interface OwnedDatasetPort<TRow, TSession extends ReadSession> {
     source: { endpoint: string; items: unknown[]; responseHeaders: EsiResponseHeaders },
   ): Promise<void>;
   stampFresh(owner: OwnerKey): Promise<void>;
+  /** Records a settled refusal as the owner's stored answer: see `OwnerSyncDescriptor.recordRefusal`. */
+  recordRefusal(owner: OwnerKey, expiresAt: number | null): Promise<void>;
 }
 
 export interface OwnedDatasetSpec<TRow> {
@@ -88,5 +98,6 @@ export function makeOwnedDescriptor<TRow, TSession extends ReadSession>(
     },
     save: (owner, payload) => port.save(owner, payload.rows, payload.etags, payload.source),
     stampFresh: (owner) => port.stampFresh(owner),
+    recordRefusal: (owner, expiresAt) => port.recordRefusal(owner, expiresAt),
   };
 }

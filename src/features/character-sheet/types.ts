@@ -1,6 +1,6 @@
 import type { EveScope } from '@/config/eve-scopes';
 import type { EsiReadSession } from '@/data/esi-store/session';
-import type { CharacterOwner, SingleOwnerRead } from '@/platform/owner-sync';
+import type { CharacterOwner, SingleOwnerRead, VendedToken } from '@/platform/owner-sync';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import type { LocationBody } from '@/data/location-tracking/esi-projection';
 
@@ -178,7 +178,7 @@ export type SectionPlan<K extends SheetSectionKey> =
 export interface SheetPort {
   now(): Date;
   listCharacters(userId: string): Promise<CharacterOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
+  vendToken(characterId: number): Promise<VendedToken>;
   /** Whether any stored answer the section is built from has expired. */
   isSectionDue(characterId: number, key: DirectSectionKey): Promise<boolean>;
   openSession(): EsiReadSession;
@@ -196,4 +196,6 @@ export interface SheetPort {
     envelope: SectionEnvelope<K>,
   ): Promise<void>;
   stampSection(characterId: number, key: SheetSectionKey): Promise<void>;
+  /** Records a settled refusal (a token that is gone) as the section's stored answers, until `expiresAt` or each route's spec cache time. */
+  recordSectionRefusal(characterId: number, key: DirectSectionKey, expiresAt: number | null): Promise<void>;
 }

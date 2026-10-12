@@ -25,6 +25,7 @@ function makeDescriptor(port: CorpStructuresPort) {
     },
     save: (owner, payload) => port.saveStructures(owner.corporationId, payload.rows, payload.etags),
     stampFresh: (owner) => port.stampFresh(owner.corporationId),
+    recordRefusal: (owner, expiresAt) => port.recordRefusal(owner.corporationId, expiresAt),
   });
 }
 

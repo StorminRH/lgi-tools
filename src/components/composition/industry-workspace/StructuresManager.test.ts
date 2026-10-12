@@ -60,7 +60,7 @@ vi.mock('@/features/owned-structures/use-corp-structures-live', () => ({
   refreshCorpStructures: live.refreshCorps,
 }));
 
-import { savedStructure, StructuresManager, withRigEdits } from './StructuresManager';
+import { overlaidCorps, savedStructure, StructuresManager, withRigSaved } from './StructuresManager';
 import { settleNewStructure } from './structures-panel';
 
 const TYPES: StructureTypeOption[] = [
@@ -179,12 +179,30 @@ test('newer corp structures stream in over the server render, and a rig save sho
   expect(html).toContain('Corp 98000002');
   expect(html).toContain('>Set rigs<');
 
-  // The rigs saved in the drawer are drawn over the live rows until the re-read carries them.
-  const edited = live.corps.map(withRigEdits(new Map([[8, { rigTypeIds: [46486], taxPct: 0.25 }]])));
+  // The rigs saved in the drawer are drawn over the live rows they were saved over.
+  const overlay = withRigSaved(null, live.corps, 8, { rigTypeIds: [46486], taxPct: 0.25 });
+  const edited = overlaidCorps(live.corps, overlay);
   expect(edited[0]!.structures[0]).toMatchObject({ structureId: 8, rigTypeIds: [46486], taxPct: 0.25 });
   expect(edited[1]!.structures[0]).toMatchObject({ structureId: 9, rigTypeIds: [], taxPct: 0.5 });
-  live.corps = edited;
+  live.corps = [...edited];
   expect(render([], initial)).not.toContain('>Set rigs<');
+});
+
+test('a saved rig edit stands over the rows it was saved on and gives way to the next live rows', () => {
+  const before = [corp(98000001, 'manage', [corpStructure(8), corpStructure(9)])];
+  const first = withRigSaved(null, before, 8, { rigTypeIds: [46486], taxPct: 0.25 });
+  const both = withRigSaved(first, before, 9, { rigTypeIds: [], taxPct: 3 });
+  expect(overlaidCorps(before, both)[0]!.structures.map((s) => s.taxPct)).toEqual([0.25, 3]);
+
+  // The re-read carries the save; another manager's later change to the same structure is not masked.
+  const later = [corp(98000001, 'manage', [corpStructure(8, { taxPct: 5 }), corpStructure(9)])];
+  expect(overlaidCorps(later, both)).toBe(later);
+  expect(overlaidCorps(later, null)).toBe(later);
+
+  // A save over newer rows starts afresh rather than carrying the old edits onto them.
+  const next = withRigSaved(both, later, 9, { rigTypeIds: [], taxPct: 1 });
+  expect([...next.edits.keys()]).toEqual([9]);
+  expect(overlaidCorps(later, next)[0]!.structures.map((s) => s.taxPct)).toEqual([5, 1]);
 });
 
 test('with nothing saved or shared there is nothing to filter', () => {

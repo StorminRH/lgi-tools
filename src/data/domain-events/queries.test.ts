@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   values: vi.fn(),
   select: vi.fn(),
   from: vi.fn(),
+  where: vi.fn(),
   orderBy: vi.fn(),
   limit: vi.fn(),
 }));
@@ -66,7 +67,8 @@ describe('domain event ledger', () => {
     h.insert.mockClear();
     h.values.mockReset();
     h.values.mockResolvedValue(undefined);
-    h.from.mockReturnValue({ orderBy: h.orderBy });
+    h.from.mockReturnValue({ where: h.where });
+    h.where.mockReturnValue({ orderBy: h.orderBy });
     h.orderBy.mockReturnValue({ limit: h.limit });
     h.limit.mockResolvedValue([]);
   });
@@ -126,6 +128,7 @@ describe('domain event ledger', () => {
     h.limit.mockResolvedValueOnce(rows);
 
     await expect(listRecentDomainEvents(12)).resolves.toEqual(rows);
+    expect(h.where).toHaveBeenCalledTimes(1);
     expect(h.limit).toHaveBeenCalledWith(12);
   });
 });

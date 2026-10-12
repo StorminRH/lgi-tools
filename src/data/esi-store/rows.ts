@@ -4,8 +4,7 @@ import { db } from '@/db';
 import { chunk } from '@/lib/array';
 import { excluded, excludedSet } from '@/lib/db-upsert';
 import type { EsiRoute } from '@/lib/esi-datasets/routes';
-import type { EsiHolder } from '@/lib/esi-datasets/types';
-import { holderColumns, identityText, rowIdentity, type EsiResponseHolderType, type RowIdentity } from './key';
+import { identityText, rowIdentity, type EsiResponseHolderType, type RowIdentity } from './key';
 import { esiResponses } from './schema';
 import type { EsiResponseMeta, EsiStoreKey, StoredRow } from './types';
 
@@ -62,29 +61,10 @@ export async function readStoredRows(keys: readonly EsiStoreKey[]): Promise<(Sto
   return identities.map((identity) => byIdentity.get(identityText(identity)) ?? null);
 }
 
-/**
- * The earliest expiry over every stored answer of `route` for `holder`,
- * whatever its parameters: the lifetime of a reader that aggregates a whole
- * route (the prices freshness stamp). Null when no answer is stored or any
- * of them has no expiry, since that key is due.
- */
-export async function readRouteExpiry(route: EsiRoute, holder: EsiHolder): Promise<number | null> {
-  const columns = holderColumns(holder);
-  const [row] = await db
-    .select({
-      // Epoch ms as text: a bare sql<> timestamp would come back as a string in the driver's own format.
-      earliestMs: sql<string | null>`(extract(epoch from min(${esiResponses.expiresAt})) * 1000)::bigint`,
-      anyDue: sql<boolean>`coalesce(bool_or(${esiResponses.expiresAt} IS NULL), false)`,
-    })
-    .from(esiResponses)
-    .where(and(
-      eq(esiResponses.route, route),
-      eq(esiResponses.holderType, columns.holderType),
-      eq(esiResponses.holderId, columns.holderId),
-      eq(esiResponses.userId, columns.userId),
-    ));
-  if (row === undefined || row.earliestMs === null || row.anyDue) return null;
-  return Number(row.earliestMs);
+/** Deletes the stored row of each key; a key with no row is nothing to delete. */
+export async function deleteStoredRows(keys: readonly EsiStoreKey[]): Promise<void> {
+  if (keys.length === 0) return;
+  await db.delete(esiResponses).where(or(...keys.map((key) => identityWhere(rowIdentity(key)))));
 }
 
 const IDENTITY_COLUMNS = [
