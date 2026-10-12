@@ -21,11 +21,9 @@ import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures
 import { computeHeights } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
 import type { TreeNode } from '@/data/eve-data/types';
-import {
-  getAdjustedPrices,
-  getSystemCostIndices,
-  getSystemCostIndicesBatch,
-} from '@/data/industry-indices/queries';
+import { getSystemCostIndicesOnView } from '@/data/industry-indices/on-view';
+import { getAdjustedPrices } from '@/data/industry-indices/queries';
+import type { SystemCostIndices } from '@/data/industry-indices/types';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { toPlainPriceFigures } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
@@ -261,6 +259,11 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+async function systemCostIndicesOnView(systemId: number): Promise<SystemCostIndices> {
+  const indices = await getSystemCostIndicesOnView([systemId]);
+  return indices.get(systemId) ?? new Map();
+}
+
 export async function getBuildLocation(
   systemId: number | null,
   blueprintId: number,
@@ -271,7 +274,7 @@ export async function getBuildLocation(
 
   const [stations, costIndices, adjustedMap] = await Promise.all([
     systemId === null ? [] : getIndustryStationsForSystem(systemId),
-    systemId === null ? new Map<string, number>() : getSystemCostIndices(systemId),
+    systemId === null ? new Map<string, number>() : systemCostIndicesOnView(systemId),
     getAdjustedPrices(baseTypeIds),
   ]);
 
@@ -291,7 +294,7 @@ export async function getBuildLocation(
 /** Each system's manufacturing and reaction cost indices, in the order asked. */
 export async function getJobCostIndices(systemIds: number[]): Promise<SystemJobCostIndex[]> {
   const ids = dedupe(systemIds);
-  const indices = await getSystemCostIndicesBatch(ids);
+  const indices = await getSystemCostIndicesOnView(ids);
   return ids.map((systemId) => ({
     systemId,
     manufacturing: indices.get(systemId)?.get('manufacturing') ?? null,

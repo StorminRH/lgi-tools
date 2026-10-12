@@ -295,7 +295,6 @@ export async function getLoginCountsPerUser(range: DateRange): Promise<number[]>
 }
 
 export interface PriceSourceSplit {
-  cacheHits: number;
   esiCount: number;
   fuzzworkFallbackCount: number;
   requested: number;
@@ -324,7 +323,6 @@ export interface CostlyEndpoint {
 export async function getPriceSourceSplit(range: DateRange): Promise<PriceSourceSplit> {
   const [row] = await db
     .select({
-      cacheHits: summedInt('cacheHits'),
       esiCount: summedInt('esiCount'),
       fuzzworkFallbackCount: summedInt('fuzzworkFallbackCount'),
       requested: summedInt('requested'),
@@ -333,7 +331,6 @@ export async function getPriceSourceSplit(range: DateRange): Promise<PriceSource
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, 'market_price_refresh')));
   return {
-    cacheHits: Number(row?.cacheHits ?? 0),
     esiCount: Number(row?.esiCount ?? 0),
     fuzzworkFallbackCount: Number(row?.fuzzworkFallbackCount ?? 0),
     requested: Number(row?.requested ?? 0),

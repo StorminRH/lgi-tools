@@ -191,26 +191,32 @@ describe('esiFetch', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(81);
   });
 
-  it('throws EsiServerError on 5xx, keeping and logging the body and x-esi-* headers', async () => {
+  it('throws EsiServerError on 5xx, keeping and logging the body, the x-esi-* headers and Expires', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
         503,
-        { 'X-ESI-Error-Limit-Remain': '88', 'X-ESI-Request-ID': 'req-1', 'Content-Type': 'application/json' },
+        {
+          'X-ESI-Error-Limit-Remain': '88',
+          'X-ESI-Request-ID': 'req-1',
+          'Content-Type': 'application/json',
+          Expires: 'Mon, 12 Oct 2026 11:30:00 GMT',
+        },
         { error: 'Tranquility is down' },
       ),
     );
 
     const err = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(EsiServerError);
+    const kept = { 'x-esi-error-limit-remain': '88', 'x-esi-request-id': 'req-1', expires: 'Mon, 12 Oct 2026 11:30:00 GMT' };
     expect(err).toMatchObject({
       status: 503,
       body: '{"error":"Tranquility is down"}',
-      esiHeaders: { 'x-esi-error-limit-remain': '88', 'x-esi-request-id': 'req-1' },
+      esiHeaders: kept,
     });
     expect(warnSpy).toHaveBeenCalledWith('[esi] server error', {
       status: 503,
       path: '/markets/{n}/orders',
-      headers: { 'x-esi-error-limit-remain': '88', 'x-esi-request-id': 'req-1' },
+      headers: kept,
       body: '{"error":"Tranquility is down"}',
     });
   });

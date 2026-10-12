@@ -25,11 +25,6 @@ export async function getSystemCostIndicesBatch(
   return out;
 }
 
-export async function getSystemCostIndices(systemId: number): Promise<SystemCostIndices> {
-  const batch = await getSystemCostIndicesBatch([systemId]);
-  return batch.get(systemId) ?? new Map();
-}
-
 /** One IN read of a nullable price column; NULL rows are dropped, 0 is kept as a real price. */
 async function readPriceColumn(
   typeIds: number[],

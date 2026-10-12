@@ -1,17 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/platform/esi', async () => {
-  const actual = await vi.importActual<typeof import('@/platform/esi')>('@/platform/esi');
-  return { ...actual, esiFetch: vi.fn() };
-});
+const fetchStoredMock = vi.fn();
+
+vi.mock('@/data/esi-store', () => ({ fetchStored: (...args: unknown[]) => fetchStoredMock(...args) }));
 
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { esiFetch } from '@/platform/esi';
-import {
-  fetchHistoryFromSource,
-  parseEsiHistory,
-  staleAfterFromExpires,
-} from './source';
+import { historyKey } from './keys';
+import { fetchHistoryFromSource, parseEsiHistory } from './source';
+
+const EXPIRES = Date.parse('2026-06-15T11:05:00Z');
+
+function meta(typeId: number) {
+  return { key: historyKey(typeId), expiresAt: EXPIRES, etags: ['"h"'], lastModified: null, checkedAt: EXPIRES - 86_400_000 };
+}
+
+function typeIdOf(key: { params?: { type_id?: unknown } }): number {
+  return Number(key.params?.type_id);
+}
 
 const sampleItem = {
   average: 4.06,
@@ -22,15 +27,12 @@ const sampleItem = {
   volume: 6498537635,
 };
 
-function historyResponse(items: unknown[], expires?: string): Response {
-  return new Response(JSON.stringify(items), {
-    status: 200,
-    headers: expires ? { Expires: expires } : {},
-  });
+function fresh(typeId: number, items: unknown[]) {
+  return { kind: 'fresh', res: new Response(JSON.stringify(items), { status: 200 }), meta: meta(typeId) };
 }
 
 beforeEach(() => {
-  vi.mocked(esiFetch).mockReset();
+  fetchStoredMock.mockReset();
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -62,54 +64,35 @@ describe('parseEsiHistory', () => {
   });
 });
 
-describe('staleAfterFromExpires', () => {
-  const now = new Date('2026-06-14T12:00:00Z');
-
-  it('uses the Expires header (CCP next-day recompute) when present', () => {
-    const sa = staleAfterFromExpires('Mon, 15 Jun 2026 11:05:00 GMT', now);
-    expect(sa.toISOString()).toBe('2026-06-15T11:05:00.000Z');
-  });
-
-  it('falls back to now+24h when Expires is absent or unparseable', () => {
-    const expected = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-    expect(staleAfterFromExpires(null, now).toISOString()).toBe(expected);
-    expect(staleAfterFromExpires('not a date', now).toISOString()).toBe(expected);
-  });
-});
-
 describe('fetchHistoryFromSource', () => {
-  it('issues one ESI call per type and derives stale_after from Expires', async () => {
-    vi.mocked(esiFetch).mockImplementation(async (url) => {
-      const id = Number(/type_id=(\d+)/.exec(url)![1]);
-      return historyResponse(
-        [{ ...sampleItem, average: id }],
-        'Mon, 15 Jun 2026 11:05:00 GMT',
-      );
-    });
+  it('reads one key per type through the store and carries each answer\'s meta', async () => {
+    fetchStoredMock.mockImplementation((key) => Promise.resolve(fresh(typeIdOf(key), [{ ...sampleItem, average: typeIdOf(key) }])));
 
-    const { results, budgetExhausted } = await fetchHistoryFromSource([34, 35]);
+    const { results, budgetExhausted } = await fetchHistoryFromSource([34, 35, 34]);
     expect(budgetExhausted).toBe(false);
     expect(results).toHaveLength(2);
-    expect(vi.mocked(esiFetch).mock.calls).toHaveLength(2);
+    expect(fetchStoredMock.mock.calls.map(([key]) => key)).toEqual([historyKey(34), historyKey(35)]);
     const r34 = results.find((r) => r.typeId === 34)!;
     expect(r34.source).toBe('esi');
     expect(r34.rows[0]!.average).toBe(34);
-    expect(r34.staleAfter.toISOString()).toBe('2026-06-15T11:05:00.000Z');
+    expect(r34.meta).toEqual(meta(34));
   });
 
-  it('skips a type on a 4xx (keeps its stored series) without failing the batch', async () => {
-    vi.mocked(esiFetch).mockImplementation(async (url) => {
-      const id = Number(/type_id=(\d+)/.exec(url)![1]);
-      if (id === 99) return new Response('not found', { status: 404 });
-      return historyResponse([sampleItem]);
+  it('skips a type on an error status, an unchanged answer or a malformed body, keeping its stored series', async () => {
+    fetchStoredMock.mockImplementation((key) => {
+      const id = typeIdOf(key);
+      if (id === 99) return Promise.resolve({ kind: 'error', status: 404 });
+      if (id === 98) return Promise.resolve({ kind: 'unchanged', expiresAt: EXPIRES });
+      if (id === 97) return Promise.resolve(fresh(97, [{ nope: true }]));
+      return Promise.resolve(fresh(id, [sampleItem]));
     });
 
-    const { results } = await fetchHistoryFromSource([34, 99]);
+    const { results } = await fetchHistoryFromSource([34, 99, 98, 97]);
     expect(results.map((r) => r.typeId)).toEqual([34]);
   });
 
   it('flags budget exhaustion and stops dispatching', async () => {
-    vi.mocked(esiFetch).mockRejectedValue(new EsiBudgetExhaustedError(0));
+    fetchStoredMock.mockRejectedValue(new EsiBudgetExhaustedError(0));
     const { results, budgetExhausted } = await fetchHistoryFromSource([1, 2, 3]);
     expect(results).toHaveLength(0);
     expect(budgetExhausted).toBe(true);

@@ -1,7 +1,11 @@
 import { z } from 'zod';
-import { EsiContractError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
+import { fetchStored, type EsiResponseMeta, type EsiStoreKey } from '@/data/esi-store';
+import { EsiContractError, EsiServerError } from '@/platform/esi';
 import { INDUSTRY_ACTIVITIES, type IndustryActivity } from './constants';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
+
+export const COST_INDICES_KEY: EsiStoreKey = { route: '/industry/systems/', holder: { kind: 'global' } };
+const ADJUSTED_PRICES_KEY: EsiStoreKey = { route: '/markets/prices/', holder: { kind: 'global' } };
 
 const KNOWN_ACTIVITIES = new Set<string>(INDUSTRY_ACTIVITIES);
 
@@ -53,14 +57,27 @@ export function parseAdjustedPrices(body: unknown): RawAdjustedPrice[] {
   }));
 }
 
-export async function fetchCostIndices(): Promise<RawCostIndex[]> {
-  const res = await esiFetch(esiUrl('/industry/systems/'));
-  if (!res.ok) throw new EsiServerError(res.status);
-  return parseCostIndices(await res.json());
+/** A dataset read through the store: nothing new, or the parsed rows with the meta to commit after they are written. */
+export type SourceRead<T> =
+  | { readonly kind: 'unchanged' }
+  | { readonly kind: 'fresh'; readonly rows: T[]; readonly meta: EsiResponseMeta };
+
+/**
+ * One global dataset through the store: unexpired, a 304 and a busy
+ * single-flight lock all come back unchanged, and a status that is neither
+ * 200 nor 304 is the error it always was.
+ */
+async function readDataset<T>(key: EsiStoreKey, parse: (body: unknown) => T[]): Promise<SourceRead<T>> {
+  const result = await fetchStored(key);
+  if (result.kind === 'unchanged') return { kind: 'unchanged' };
+  if (result.kind === 'error') throw new EsiServerError(result.status);
+  return { kind: 'fresh', rows: parse(await result.res.json()), meta: result.meta };
 }
 
-export async function fetchAdjustedPrices(): Promise<RawAdjustedPrice[]> {
-  const res = await esiFetch(esiUrl('/markets/prices/'));
-  if (!res.ok) throw new EsiServerError(res.status);
-  return parseAdjustedPrices(await res.json());
+export function fetchCostIndices(): Promise<SourceRead<RawCostIndex>> {
+  return readDataset(COST_INDICES_KEY, parseCostIndices);
+}
+
+export function fetchAdjustedPrices(): Promise<SourceRead<RawAdjustedPrice>> {
+  return readDataset(ADJUSTED_PRICES_KEY, parseAdjustedPrices);
 }

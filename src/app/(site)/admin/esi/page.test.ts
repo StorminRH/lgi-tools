@@ -58,7 +58,7 @@ describe('admin ESI', () => {
     m.clientErrors.mockResolvedValue([
       { feature: 'maps', operation: 'search-characters', errors: 3, calls: 60, lastSeen: new Date('2026-09-20T00:00:00Z') },
     ]);
-    m.priceSplit.mockResolvedValue({ requested: 1_200, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 });
+    m.priceSplit.mockResolvedValue({ requested: 1_200, returned: 9, esiCount: 6, fuzzworkFallbackCount: 1 });
     m.historySplit.mockResolvedValue({ freshEsi: 2, warmStored: 5, staleStored: 1, missing: 1 });
     m.writeBehind.mockResolvedValue([]);
     m.endpoints.mockResolvedValue([]);

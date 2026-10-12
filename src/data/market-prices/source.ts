@@ -1,19 +1,17 @@
 import { z } from 'zod';
 import {
   BULK_THRESHOLD,
-  ESI_REGION_ID_FORGE,
   JITA_44_STATION_ID,
   PAGE_CONCURRENCY,
   PER_TYPE_CONCURRENCY,
   REGIONAL_DISCOUNT_MIN_PCT,
   REGIONAL_DISCOUNT_MIN_UNITS,
 } from './constants';
+import { fetchStored, type EsiResponseMeta } from '@/data/esi-store';
 import {
   EsiBudgetExhaustedError,
   EsiContractError,
   EsiServerError,
-  esiFetch,
-  esiUrl,
 } from '@/platform/esi';
 import { esiPageCount } from '@/platform/esi/headers';
 import { dedupe, getOrInsertComputed } from '@/lib/array';
@@ -27,6 +25,7 @@ import {
   type OrderEntry,
   type RemoteStationBook,
 } from './book-math';
+import { priceKey, regionDumpKey } from './keys';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 import type { RawMarketPrice } from './types';
 
@@ -133,44 +132,88 @@ function bucketsToRawPrices(
   );
 }
 
-function regionDumpPageUrl(page: number): string {
-  return esiUrl(`/markets/${ESI_REGION_ID_FORGE}/orders/?order_type=all&page=${page}`);
+/** The priced rows, with each ESI-priced type's answer meta to commit once the rows are written. */
+export interface SourcePrices {
+  prices: RawMarketPrice[];
+  budgetExhausted: boolean;
+  metaByType: ReadonlyMap<number, EsiResponseMeta>;
 }
 
-function perTypeUrl(typeId: number): string {
-  return esiUrl(`/markets/${ESI_REGION_ID_FORGE}/orders/?type_id=${typeId}&order_type=all`);
+/** A dump page another run holds the lock on: the dump cannot be read whole this time. */
+class DumpUnavailable extends Error {
+  constructor() {
+    super('region order dump unavailable');
+    this.name = 'DumpUnavailable';
+  }
+}
+
+/**
+ * One page of the nightly region dump. The page keys are never committed,
+ * so every page is due and called whole, without If-None-Match; what the
+ * dump learns about expiry is fanned out to the type keys it priced.
+ */
+async function fetchDumpPage(page: number): Promise<{ res: Response; meta: EsiResponseMeta }> {
+  const result = await fetchStored(regionDumpKey(page), { conditional: false });
+  if (result.kind === 'unchanged') throw new DumpUnavailable();
+  if (result.kind === 'error') throw new EsiServerError(result.status);
+  return result;
 }
 
 async function fetchViaEsiRegionDump(
   typeIds: number[],
-): Promise<RawMarketPrice[]> {
+): Promise<{ prices: RawMarketPrice[]; meta: EsiResponseMeta }> {
   const wanted = new Set(typeIds);
   const buckets = new Map<number, OrderBucket>();
 
-  const firstRes = await esiFetch(regionDumpPageUrl(1));
-  if (!firstRes.ok) throw new EsiServerError(firstRes.status);
-  const totalPages = esiPageCount(firstRes.headers);
-  const firstOrders = parseEsiOrders(await firstRes.json());
+  const first = await fetchDumpPage(1);
+  const totalPages = esiPageCount(first.res.headers);
+  const firstOrders = parseEsiOrders(await first.res.json());
   absorbOrders(firstOrders, wanted, buckets);
 
   if (totalPages > 1) {
     const pages: number[] = [];
     for (let p = 2; p <= totalPages; p++) pages.push(p);
     await mapConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
-      const res = await esiFetch(regionDumpPageUrl(page));
-      if (!res.ok) throw new EsiServerError(res.status);
+      const { res } = await fetchDumpPage(page);
       const orders = parseEsiOrders(filterRawByWantedType(await res.json(), wanted));
       absorbOrders(orders, wanted, buckets);
     });
   }
 
-  return bucketsToRawPrices(typeIds, buckets);
+  return { prices: bucketsToRawPrices(typeIds, buckets), meta: first.meta };
 }
 
-async function fetchViaEsiPerType(
-  typeIds: number[],
-): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {
+/** The first page's expiry under each priced type's own key; the page's ETag and body stay with the page. */
+function fanOutDumpMeta(prices: readonly RawMarketPrice[], meta: EsiResponseMeta): Map<number, EsiResponseMeta> {
+  return new Map(prices.map((price) => [price.typeId, { ...meta, key: priceKey(price.typeId), etags: [] }]));
+}
+
+type TypeRead =
+  | { kind: 'priced'; price: RawMarketPrice; meta: EsiResponseMeta }
+  | { kind: 'unchanged' }
+  | { kind: 'fallback'; budgetExhausted: boolean };
+
+/**
+ * One type's order book through the store. Unexpired, a 304 and a busy
+ * lock all mean the stored price stands; an error status, a malformed body
+ * or a refused call sends the type to Fuzzwork, as before.
+ */
+async function readOneType(typeId: number): Promise<TypeRead> {
+  try {
+    const result = await fetchStored(priceKey(typeId));
+    if (result.kind === 'unchanged') return { kind: 'unchanged' };
+    if (result.kind === 'error') return { kind: 'fallback', budgetExhausted: false };
+    const buckets = new Map<number, OrderBucket>();
+    absorbOrders(parseEsiOrders(await result.res.json()), new Set([typeId]), buckets);
+    return { kind: 'priced', price: bucketsToRawPrices([typeId], buckets)[0]!, meta: result.meta };
+  } catch (err) {
+    return { kind: 'fallback', budgetExhausted: err instanceof EsiBudgetExhaustedError };
+  }
+}
+
+async function fetchViaEsiPerType(typeIds: number[]): Promise<SourcePrices> {
   const results: RawMarketPrice[] = [];
+  const metaByType = new Map<number, EsiResponseMeta>();
   const fallbackNeeded: number[] = [];
   let budgetExhausted = false;
 
@@ -179,22 +222,12 @@ async function fetchViaEsiPerType(
       fallbackNeeded.push(typeId);
       return;
     }
-    try {
-      const res = await esiFetch(perTypeUrl(typeId));
-      if (!res.ok) {
-        fallbackNeeded.push(typeId);
-        return;
-      }
-      const orders = parseEsiOrders(await res.json());
-      const buckets = new Map<number, OrderBucket>();
-      absorbOrders(orders, new Set([typeId]), buckets);
-      results.push(...bucketsToRawPrices([typeId], buckets));
-    } catch (err) {
-      if (err instanceof EsiBudgetExhaustedError) {
-        budgetExhausted = true;
-        fallbackNeeded.push(typeId);
-        return;
-      }
+    const read = await readOneType(typeId);
+    if (read.kind === 'priced') {
+      results.push(read.price);
+      metaByType.set(typeId, read.meta);
+    } else if (read.kind === 'fallback') {
+      budgetExhausted ||= read.budgetExhausted;
       fallbackNeeded.push(typeId);
     }
   });
@@ -204,7 +237,7 @@ async function fetchViaEsiPerType(
     results.push(...fb);
   }
 
-  return { prices: results, budgetExhausted };
+  return { prices: results, budgetExhausted, metaByType };
 }
 
 async function fallbackToFuzzwork(
@@ -214,6 +247,24 @@ async function fallbackToFuzzwork(
   return raw.map((r) => ({ ...r, source: 'fuzzwork-fallback' as const }));
 }
 
+async function fetchViaBulk(unique: number[]): Promise<SourcePrices> {
+  try {
+    const { prices, meta } = await fetchViaEsiRegionDump(unique);
+    return { prices, budgetExhausted: false, metaByType: fanOutDumpMeta(prices, meta) };
+  } catch (err) {
+    if (err instanceof DumpUnavailable) return { prices: [], budgetExhausted: false, metaByType: new Map() };
+    if (
+      err instanceof EsiBudgetExhaustedError ||
+      err instanceof EsiServerError ||
+      err instanceof EsiContractError
+    ) {
+      const prices = await fallbackToFuzzwork(unique);
+      return { prices, budgetExhausted: err instanceof EsiBudgetExhaustedError, metaByType: new Map() };
+    }
+    throw err;
+  }
+}
+
 /**
  * Returns the priced rows plus a `budgetExhausted` flag — true when ESI's
  * error budget was hit (either the pre-dispatch gate or a 420), which forced
@@ -221,29 +272,12 @@ async function fallbackToFuzzwork(
  * reconstruct from the row `source` values alone (a fallback row reads the
  * same whether it came from an ESI 5xx or budget exhaustion); the route
  * handlers thread it into the O-1 telemetry. The data slice itself never
- * imports telemetry — the boundary stays sealed.
+ * imports telemetry — the boundary stays sealed. A type whose stored copy
+ * is still current comes back in neither list; Fuzzwork rows carry no meta.
  */
-export async function fetchPricesFromSource(
-  typeIds: number[],
-): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {
-  if (typeIds.length === 0) return { prices: [], budgetExhausted: false };
+export async function fetchPricesFromSource(typeIds: number[]): Promise<SourcePrices> {
+  if (typeIds.length === 0) return { prices: [], budgetExhausted: false, metaByType: new Map() };
   const unique = dedupe(typeIds);
-
-  if (unique.length >= BULK_THRESHOLD) {
-    try {
-      return { prices: await fetchViaEsiRegionDump(unique), budgetExhausted: false };
-    } catch (err) {
-      if (
-        err instanceof EsiBudgetExhaustedError ||
-        err instanceof EsiServerError ||
-        err instanceof EsiContractError
-      ) {
-        const prices = await fallbackToFuzzwork(unique);
-        return { prices, budgetExhausted: err instanceof EsiBudgetExhaustedError };
-      }
-      throw err;
-    }
-  }
-
+  if (unique.length >= BULK_THRESHOLD) return fetchViaBulk(unique);
   return fetchViaEsiPerType(unique);
 }

@@ -9,7 +9,7 @@
 import { expireNow } from '@/lib/cache-expiry';
 import { routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
 import type { EsiRouteDeclaration } from '@/lib/esi-datasets/types';
-import { esiFetch, esiUrl, type EsiFetchOptions } from '@/platform/esi';
+import { EsiServerError, esiFetch, esiUrl, type EsiFetchOptions } from '@/platform/esi';
 import {
   readEsiAuthed,
   readEsiAuthedPost,
@@ -20,6 +20,7 @@ import {
 } from '@/platform/esi/authed-read';
 import { httpDateMs } from '@/platform/esi/headers';
 import { earliestExpiry, expiryFor, isExpired } from './expiry';
+import { esiHalted } from './halt';
 import { identityText, resolvePath, rowIdentity } from './key';
 import { readStoredRows, recordResponse, recordUnchanged } from './rows';
 import { withGlobalSingleFlight } from './single-flight';
@@ -35,7 +36,9 @@ import type {
   StoredUnchanged,
 } from './types';
 
-export { untilExpires } from './expiry';
+export { haltOf, noteStatusOutcome, STATUS_KEY } from './downtime';
+export type { DowntimeHalt } from './downtime';
+export { isExpired, untilExpires } from './expiry';
 export type {
   EsiParams,
   EsiResponseMeta,
@@ -44,6 +47,7 @@ export type {
   StoredFetch,
   StoredFetchInit,
   StoredPagedRead,
+  StoredRow,
 } from './types';
 
 /** The declaration a stored read follows; a pass-through, tracker-only or wrongly held route is a programming error. */
@@ -126,7 +130,7 @@ function etagsOf(etag: string | null): string[] {
 async function callPublic(key: EsiStoreKey, declaration: EsiRouteDeclaration, init: StoredFetchInit): Promise<StoredFetch> {
   const row = await readStoredRow(key);
   const checkedAt = Date.now();
-  if (!isExpired(row?.expiresAt ?? null, checkedAt)) return unchangedRow(row);
+  if (!isExpired(row?.expiresAt ?? null, checkedAt) || (await esiHalted(key, checkedAt))) return unchangedRow(row);
   const [etag] = heldEtags(declaration, row, init.conditional);
   const headers: Record<string, string> = etag === undefined ? {} : { 'If-None-Match': etag };
   const opts: EsiFetchOptions | undefined = init.interactive === true ? { interactive: true } : undefined;
@@ -154,8 +158,12 @@ export async function fetchStored(key: EsiStoreKey, init: StoredFetchInit = {}):
   return outcome.busy ? unchangedRow(row) : outcome.result;
 }
 
-/** A declared pass-through route: it always calls ESI and records nothing. */
-export function esiPassThrough(
+/**
+ * A declared pass-through route: it always calls ESI and records nothing.
+ * It has no stored copy to serve, so under the downtime halt it fails the
+ * way ESI itself would, with a 503.
+ */
+export async function esiPassThrough(
   route: EsiRoute,
   params: EsiParams | undefined,
   init?: RequestInit,
@@ -163,7 +171,9 @@ export function esiPassThrough(
 ): Promise<Response> {
   const declaration = routeDeclaration(route);
   if (declaration.mode !== 'pass-through') throw new Error(`ESI route ${route} is not declared pass-through`);
-  return esiFetch(esiUrl(resolvePath({ route, holder: { kind: 'global' }, params })), init, opts);
+  const key: EsiStoreKey = { route, holder: { kind: 'global' }, params };
+  if (await esiHalted(key, Date.now())) throw new EsiServerError(503, 'halted for daily downtime');
+  return esiFetch(esiUrl(resolvePath(key)), init, opts);
 }
 
 interface Prepared {
@@ -176,7 +186,7 @@ async function prepareAuthed(key: EsiStoreKey): Promise<Prepared | StoredUnchang
   const declaration = storedDeclaration(key);
   const row = await readStoredRow(key);
   const checkedAt = Date.now();
-  if (!isExpired(row?.expiresAt ?? null, checkedAt)) return unchangedRow(row);
+  if (!isExpired(row?.expiresAt ?? null, checkedAt) || (await esiHalted(key, checkedAt))) return unchangedRow(row);
   return { declaration, row, checkedAt };
 }
 
@@ -237,6 +247,35 @@ export async function storedExpiry(keys: readonly EsiStoreKey[]): Promise<number
   return earliestExpiry(await readStoredRows(keys));
 }
 
+/** Each key's stored expiry in key order, in epoch ms; null where the key is due. */
+export async function storedExpiries(keys: readonly EsiStoreKey[]): Promise<(number | null)[]> {
+  const rows = await readStoredRows(keys);
+  return rows.map((row) => row?.expiresAt ?? null);
+}
+
+/** One key's row as stored, body included (the keepBody routes read their document from it), or null. */
+export function storedRow(key: EsiStoreKey): Promise<StoredRow | null> {
+  return readStoredRow(key);
+}
+
+/**
+ * The meta of a 5xx that is itself an answer: Tranquility down behind a
+ * 503. It expires when the answer's Expires says, else at the route's spec
+ * cache time, and carries no ETag.
+ */
+export function serverErrorMeta(key: EsiStoreKey, error: EsiServerError, checkedAt: number): EsiResponseMeta {
+  const declaration = storedDeclaration(key);
+  return metaOf(key, declaration, { expiresAt: httpDateMs(error.esiHeaders.expires ?? null) }, [], checkedAt);
+}
+
+/**
+ * Records what committed 200s said without touching the cache: for a cron
+ * or script outside a request, which clears its own tag when it has one.
+ */
+export async function recordMetas(metas: readonly EsiResponseMeta[]): Promise<void> {
+  for (const meta of metas) await recordResponse(meta);
+}
+
 /**
  * Records what the committed 200s said and clears the dataset's tag, so the
  * next read is a blocking miss onto the new rows rather than the old entry.
@@ -245,7 +284,7 @@ export async function storedExpiry(keys: readonly EsiStoreKey[]): Promise<number
  */
 export async function commit(metas: readonly EsiResponseMeta[], opts: { readonly tag: string }): Promise<void> {
   if (metas.length === 0) return;
-  for (const meta of metas) await recordResponse(meta);
+  await recordMetas(metas);
   expireNow(opts.tag);
 }
 

@@ -141,6 +141,43 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     expect((await rowOf(SKILLS_KEY))?.expiresAt?.getTime()).toBe(Date.parse(EXPIRES));
   });
 
+  it('shares the downtime halt across requests through the status row, and lifts it at 11:30 UTC', async () => {
+    const downtime = Date.parse('2026-10-12T11:05:00Z');
+    const haltUntil = Date.parse('2026-10-12T11:30:00Z');
+    await commit(
+      [{ key: PRICE_KEY, expiresAt: downtime - 1, etags: ['"v1"'], lastModified: null, checkedAt: downtime - 60_000 }],
+      { tag: 'eve:market_prices' },
+    );
+    // Another request stored the second 503 of the streak and set the halt.
+    await commit(
+      [{
+        key: STATUS_KEY,
+        expiresAt: downtime + 20_000,
+        etags: [],
+        lastModified: null,
+        checkedAt: downtime,
+        body: { status: { state: 'offline' }, halt: { failures: [downtime - 30_000, downtime], haltUntil } },
+      }],
+      { tag: 'eve:eve_status' },
+    );
+
+    // Only the clock is faked: the Postgres client needs real timers to answer.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(downtime + 10_000);
+      await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: downtime - 1 });
+      await expect(readStoredAuthed(SKILLS_KEY, 'token')).resolves.toEqual({ kind: 'unchanged', expiresAt: null });
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      vi.setSystemTime(haltUntil);
+      fetchSpy.mockResolvedValueOnce(response(304, { Expires: new Date(haltUntil + 300_000).toUTCString() }));
+      await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: haltUntil + 300_000 });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('purges character rows with the character and user rows with the user, and leaves corporation rows', async () => {
     const meta = { expiresAt: NOW + 1000, etags: [], lastModified: null, checkedAt: NOW };
     await commit(

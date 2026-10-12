@@ -316,11 +316,11 @@ export function enforceBudget(
   }
 }
 
-/** Every `x-esi-*` header on an answer, by its lower-case name. */
+/** Every `x-esi-*` header on an answer, and its Expires, by lower-case name. */
 function esiHeaders(headers: Headers): Record<string, string> {
   const picked: Record<string, string> = {};
   headers.forEach((value, name) => {
-    if (name.startsWith('x-esi-')) picked[name] = value;
+    if (name.startsWith('x-esi-') || name === 'expires') picked[name] = value;
   });
   return picked;
 }

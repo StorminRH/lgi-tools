@@ -1,18 +1,10 @@
 import { z } from 'zod';
-import {
-  EsiBudgetExhaustedError,
-  EsiContractError,
-  esiFetch,
-  esiUrl,
-} from '@/platform/esi';
-import { httpDateMs } from '@/platform/esi/headers';
+import { fetchStored } from '@/data/esi-store';
+import { EsiBudgetExhaustedError, EsiContractError } from '@/platform/esi';
 import { dedupe } from '@/lib/array';
 import { mapConcurrent } from '@/lib/fan-out';
-import { DAY_MS } from '@/lib/iso-date';
-import {
-  HISTORY_FETCH_CONCURRENCY,
-  THE_FORGE_REGION_ID,
-} from './constants';
+import { HISTORY_FETCH_CONCURRENCY } from './constants';
+import { historyKey } from './keys';
 import type { HistoryDailyRow, RawHistory } from './types';
 
 const esiHistoryItemSchema = z.object({
@@ -38,12 +30,15 @@ export function parseEsiHistory(body: unknown): HistoryDailyRow[] {
   }));
 }
 
-export function staleAfterFromExpires(expires: string | null, now: Date): Date {
-  return new Date(httpDateMs(expires) ?? now.getTime() + DAY_MS);
-}
-
-function historyUrl(typeId: number): string {
-  return esiUrl(`/markets/${THE_FORGE_REGION_ID}/history/?type_id=${typeId}`);
+/**
+ * One type's series through the store: a 200 comes back with its meta to
+ * commit once the rows are written; unexpired, a 304, a busy lock, an
+ * error status or a malformed body leave the stored series standing.
+ */
+async function readOneType(typeId: number): Promise<RawHistory | null> {
+  const result = await fetchStored(historyKey(typeId));
+  if (result.kind !== 'fresh') return null;
+  return { typeId, rows: parseEsiHistory(await result.res.json()), meta: result.meta, source: 'esi' };
 }
 
 export async function fetchHistoryFromSource(
@@ -57,16 +52,10 @@ export async function fetchHistoryFromSource(
   await mapConcurrent(unique, HISTORY_FETCH_CONCURRENCY, async (typeId) => {
     if (budgetExhausted) return;
     try {
-      const res = await esiFetch(historyUrl(typeId));
-      if (!res.ok) return;
-      const rows = parseEsiHistory(await res.json());
-      const staleAfter = staleAfterFromExpires(res.headers.get('Expires'), new Date());
-      results.push({ typeId, rows, staleAfter, source: 'esi' });
+      const read = await readOneType(typeId);
+      if (read !== null) results.push(read);
     } catch (err) {
-      if (err instanceof EsiBudgetExhaustedError) {
-        budgetExhausted = true;
-        return;
-      }
+      if (err instanceof EsiBudgetExhaustedError) budgetExhausted = true;
     }
   });
 

@@ -211,7 +211,7 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
         action: 'market_price_refresh',
         characterId: null,
         timestamp: IN_RANGE,
-        metadata: { requested: 10, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 },
+        metadata: { requested: 10, returned: 9, esiCount: 6, fuzzworkFallbackCount: 1 },
       },
       {
         action: 'market_history_refresh',

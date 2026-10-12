@@ -19,7 +19,8 @@ vi.mock('./rows', () => ({
 vi.mock('./single-flight', () => ({
   withGlobalSingleFlight: (...args: unknown[]) => singleFlightMock(...args),
 }));
-vi.mock('@/platform/esi', () => ({
+vi.mock('@/platform/esi', async () => ({
+  ...(await vi.importActual<typeof import('@/platform/esi/errors')>('@/platform/esi/errors')),
   esiFetch: (...args: unknown[]) => esiFetchMock(...args),
   esiUrl: (path: string) => `https://esi.evetech.net${path}`,
 }));
@@ -39,9 +40,14 @@ import {
   readStoredAuthed,
   readStoredPaged,
   recordExpiryFor,
+  recordMetas,
+  serverErrorMeta,
+  storedExpiries,
   storedExpiry,
+  storedRow,
   untilExpires,
 } from './index';
+import { EsiServerError } from '@/platform/esi';
 
 const NOW = Date.parse('2026-10-12T12:00:00Z');
 const EXPIRES = 'Mon, 12 Oct 2026 12:05:00 GMT';
@@ -204,7 +210,7 @@ describe('fetchStored', () => {
   });
 
   it('refuses a route declared for the map tracker alone, a pass-through route, and a holder the route is not held by', async () => {
-    expect(() => esiPassThrough('/characters/{character_id}/skills/', { character_id: 1 })).toThrow(
+    await expect(esiPassThrough('/characters/{character_id}/skills/', { character_id: 1 })).rejects.toThrow(
       'ESI route /characters/{character_id}/skills/ is not declared pass-through',
     );
     await expect(
@@ -377,5 +383,81 @@ describe('commit and recordExpiryFor', () => {
       { key: other, expiresAt: NOW + 300_000, etags: [], lastModified: NOW, checkedAt: NOW },
     ]);
     expect(expireNowMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('the daily downtime halt', () => {
+  const IN_WINDOW = Date.parse('2026-10-12T11:05:00Z');
+  const HALT_UNTIL = Date.parse('2026-10-12T11:30:00Z');
+  const haltedStatusRow: StoredRow = {
+    ...stored(IN_WINDOW + 20_000, []),
+    body: { status: { state: 'offline' }, halt: { failures: [IN_WINDOW - 60_000, IN_WINDOW - 30_000], haltUntil: HALT_UNTIL } },
+  };
+
+  it('serves the stored copy of every stored read while the status row says halted', async () => {
+    vi.setSystemTime(IN_WINDOW);
+    readStoredRowsMock.mockImplementation((keys: EsiStoreKey[]) =>
+      Promise.resolve(keys.map((key) => (key.route === '/status/' ? haltedStatusRow : stored(IN_WINDOW - 1)))),
+    );
+
+    await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: IN_WINDOW - 1 });
+    await expect(readStoredAuthed(SKILLS_KEY, TOKEN)).resolves.toEqual({ kind: 'unchanged', expiresAt: IN_WINDOW - 1 });
+    await expect(readStoredPaged(ASSETS_KEY, TOKEN)).resolves.toEqual({ kind: 'unchanged', expiresAt: IN_WINDOW - 1 });
+    await expect(postStored(AFFILIATION_KEY, TOKEN, [91])).resolves.toEqual({ kind: 'unchanged', expiresAt: IN_WINDOW - 1 });
+    await expect(esiPassThrough('/universe/structures/{structure_id}/', { structure_id: 1 })).rejects.toBeInstanceOf(EsiServerError);
+    expect(esiFetchMock).not.toHaveBeenCalled();
+    expect(readEsiAuthedMock).not.toHaveBeenCalled();
+    expect(readEsiPagedAuthedMock).not.toHaveBeenCalled();
+    expect(readEsiAuthedPostMock).not.toHaveBeenCalled();
+  });
+
+  it('lets the status probe itself through the halt', async () => {
+    vi.setSystemTime(IN_WINDOW + 25_000);
+    readStoredRowsMock.mockResolvedValue([haltedStatusRow]);
+    esiFetchMock.mockResolvedValueOnce(response(200, { Expires: EXPIRES }, { players: 0 }));
+
+    await expect(fetchStored(STATUS_KEY)).resolves.toMatchObject({ kind: 'fresh' });
+    expect(esiFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads no status row outside the window, and ignores a stale halt once 11:30 has passed', async () => {
+    vi.setSystemTime(NOW);
+    rows(stored(NOW - 1));
+    esiFetchMock.mockResolvedValueOnce(response(304, { Expires: EXPIRES }));
+    await fetchStored(PRICE_KEY);
+    expect(readStoredRowsMock.mock.calls.every(([keys]) => (keys as EsiStoreKey[]).every((key) => key.route !== '/status/'))).toBe(true);
+
+    vi.setSystemTime(HALT_UNTIL);
+    readStoredRowsMock.mockImplementation((keys: EsiStoreKey[]) =>
+      Promise.resolve(keys.map((key) => (key.route === '/status/' ? haltedStatusRow : stored(HALT_UNTIL - 1)))),
+    );
+    esiFetchMock.mockResolvedValueOnce(response(304, { Expires: EXPIRES }));
+    await expect(fetchStored(PRICE_KEY)).resolves.toEqual({ kind: 'unchanged', expiresAt: Date.parse(EXPIRES) });
+    expect(esiFetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('storedExpiries, storedRow, recordMetas and serverErrorMeta', () => {
+  it('reports each key\'s expiry in order and one key\'s whole row', async () => {
+    rows(stored(NOW + 5000), null, stored(null));
+    await expect(storedExpiries([PRICE_KEY, SKILLS_KEY, STATUS_KEY])).resolves.toEqual([NOW + 5000, null, null]);
+    rows({ ...stored(NOW + 5000, []), body: { players: 3 } });
+    await expect(storedRow(STATUS_KEY)).resolves.toMatchObject({ expiresAt: NOW + 5000, body: { players: 3 } });
+    rows(null);
+    await expect(storedRow(STATUS_KEY)).resolves.toBeNull();
+  });
+
+  it('records metas without touching the cache', async () => {
+    const meta = { key: PRICE_KEY, expiresAt: NOW + 1, etags: ['"a"'], lastModified: null, checkedAt: NOW };
+    await recordMetas([meta]);
+    expect(recordResponseMock).toHaveBeenCalledWith(meta);
+    expect(expireNowMock).not.toHaveBeenCalled();
+  });
+
+  it('gives a 503 the expiry it sent, else the route\'s spec cache time, and no ETag', () => {
+    const withExpires = serverErrorMeta(STATUS_KEY, new EsiServerError(503, null, { expires: EXPIRES }), NOW);
+    expect(withExpires).toEqual({ key: STATUS_KEY, expiresAt: Date.parse(EXPIRES), etags: [], lastModified: null, checkedAt: NOW });
+    const bare = serverErrorMeta(STATUS_KEY, new EsiServerError(503), NOW);
+    expect(bare.expiresAt).toBe(NOW + 30_000);
   });
 });

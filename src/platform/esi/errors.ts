@@ -28,8 +28,9 @@ export class EsiBudgetExhaustedError extends Error {
 }
 
 /**
- * A 5xx from ESI. The gate keeps what ESI sent with it, its body text and
- * every `x-esi-*` header, so a 503 during downtime shows CCP's real answer.
+ * A 5xx from ESI. The gate keeps what ESI sent with it, its body text,
+ * every `x-esi-*` header and its Expires, so a 503 during downtime shows
+ * CCP's real answer and the status row can expire when CCP says.
  */
 export class EsiServerError extends Error {
   constructor(

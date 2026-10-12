@@ -51,7 +51,6 @@ function cleanResult(rows: MarketPrice[]) {
     metrics: {
       requested: rows.length,
       returned: rows.length,
-      cacheHits: 0,
       esiCount: rows.length,
       fuzzworkFallbackCount: 0,
     },
@@ -109,8 +108,7 @@ describe('POST /api/market-prices/refresh', () => {
       metrics: {
         requested: 3,
         returned: 3,
-        cacheHits: 0,
-        esiCount: 1,
+          esiCount: 1,
         fuzzworkFallbackCount: 2,
       },
     });
@@ -135,8 +133,7 @@ describe('POST /api/market-prices/refresh', () => {
       metrics: {
         requested: 1,
         returned: 1,
-        cacheHits: 0,
-        esiCount: 1,
+          esiCount: 1,
         fuzzworkFallbackCount: 0,
       },
     });
@@ -161,8 +158,7 @@ describe('POST /api/market-prices/refresh', () => {
       expect.objectContaining({
         requested: 1,
         returned: 1,
-        cacheHits: 0,
-        esiCount: 1,
+          esiCount: 1,
         fuzzworkFallbackCount: 0,
         budgetExhausted: false,
       }),

@@ -30,7 +30,7 @@ export function deriveOnDemandMetrics(input: {
     {
       label: 'Item prices requested',
       value: formatQuantity(input.prices.requested),
-      note: `${formatQuantity(input.prices.returned)} returned · ${formatCount(input.prices.cacheHits, 'cache hit')}`,
+      note: `${formatQuantity(input.prices.returned)} returned`,
     },
     {
       label: 'Freshly fetched item prices',

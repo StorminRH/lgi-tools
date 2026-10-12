@@ -26,12 +26,11 @@ beforeEach(() => {
 describe('cost query result shaping', () => {
   it('normalizes the price and history source totals', async () => {
     state.results = [
-      [{ cacheHits: '2', esiCount: '7', fuzzworkFallbackCount: '1', requested: '12', returned: '10' }],
+      [{ esiCount: '7', fuzzworkFallbackCount: '1', requested: '12', returned: '10' }],
       [{ freshEsi: '3', warmStored: '8', staleStored: '2', missing: '1' }],
     ];
 
     await expect(getPriceSourceSplit(RANGE)).resolves.toEqual({
-      cacheHits: 2,
       esiCount: 7,
       fuzzworkFallbackCount: 1,
       requested: 12,
@@ -48,7 +47,6 @@ describe('cost query result shaping', () => {
   it('returns zero totals for empty source windows', async () => {
     state.results = [[], []];
     await expect(getPriceSourceSplit(RANGE)).resolves.toEqual({
-      cacheHits: 0,
       esiCount: 0,
       fuzzworkFallbackCount: 0,
       requested: 0,

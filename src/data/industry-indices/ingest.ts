@@ -1,16 +1,24 @@
+import { or, sql, type SQL } from 'drizzle-orm';
+import { commit } from '@/data/esi-store';
+import { db as defaultDb } from '@/db';
 import { chunk } from '@/lib/array';
-import { excludedSet } from '@/lib/db-upsert';
+import { excluded, excludedSet } from '@/lib/db-upsert';
+import { eveTag } from '@/lib/esi-datasets/routes';
 import { UPSERT_CHUNK_SIZE } from './constants';
 import { adjustedPrices, industryCostIndices } from './schema';
-import { fetchAdjustedPrices, fetchCostIndices } from './source';
+import { fetchAdjustedPrices, fetchCostIndices, type SourceRead } from './source';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+
+const INDICES_TAG = eveTag('industry_indices');
 
 /**
  * Per-dataset outcome. The two datasets refresh independently — one failing
  * (ESI 5xx, budget exhaustion, a contract mismatch) must not block the other —
- * so the route emits health off each. `error` is the thrown error's class name
- * (e.g. EsiServerError) when ok is false.
+ * so the route emits health off each. `written` counts the rows that changed:
+ * an unchanged row keeps its `updated_at`, and a 304 writes nothing. `error`
+ * is the thrown error's class name (e.g. EsiServerError) when ok is false.
  */
 export interface DatasetResult {
   ok: boolean;
@@ -24,6 +32,11 @@ export interface RefreshIndicesSummary {
   durationMs: number;
 }
 
+/** True when the proposed value differs from the stored one, NULLs compared as values. */
+function changed(column: AnyPgColumn): SQL {
+  return sql`${column} IS DISTINCT FROM ${excluded(column)}`;
+}
+
 async function persistCostIndices(
   db: AnyPgDb,
   rows: RawCostIndex[],
@@ -31,7 +44,7 @@ async function persistCostIndices(
 ): Promise<number> {
   let written = 0;
   for (const batch of chunk(rows, UPSERT_CHUNK_SIZE)) {
-    await db
+    const touched = await db
       .insert(industryCostIndices)
       .values(
         batch.map((r) => ({
@@ -44,8 +57,10 @@ async function persistCostIndices(
       .onConflictDoUpdate({
         target: [industryCostIndices.solarSystemId, industryCostIndices.activity],
         set: excludedSet(industryCostIndices, ['costIndex', 'updatedAt']),
-      });
-    written += batch.length;
+        setWhere: changed(industryCostIndices.costIndex),
+      })
+      .returning({ solarSystemId: industryCostIndices.solarSystemId });
+    written += touched.length;
   }
   return written;
 }
@@ -57,7 +72,7 @@ async function persistAdjustedPrices(
 ): Promise<number> {
   let written = 0;
   for (const batch of chunk(rows, UPSERT_CHUNK_SIZE)) {
-    await db
+    const touched = await db
       .insert(adjustedPrices)
       .values(
         batch.map((r) => ({
@@ -70,19 +85,29 @@ async function persistAdjustedPrices(
       .onConflictDoUpdate({
         target: adjustedPrices.typeId,
         set: excludedSet(adjustedPrices, ['adjustedPrice', 'averagePrice', 'updatedAt']),
-      });
-    written += batch.length;
+        setWhere: or(changed(adjustedPrices.adjustedPrice), changed(adjustedPrices.averagePrice)),
+      })
+      .returning({ typeId: adjustedPrices.typeId });
+    written += touched.length;
   }
   return written;
 }
 
+/**
+ * One dataset: read through the store, write the rows that changed, then
+ * commit the answer's expiry and ETag so the next read within it makes no
+ * call and the one after sends If-None-Match. A 304 has already recorded
+ * its expiry and writes nothing.
+ */
 async function refreshDataset<T>(
-  fetcher: () => Promise<T[]>,
+  read: () => Promise<SourceRead<T>>,
   persist: (rows: T[]) => Promise<number>,
 ): Promise<DatasetResult> {
   try {
-    const rows = await fetcher();
-    const written = await persist(rows);
+    const source = await read();
+    if (source.kind === 'unchanged') return { ok: true, written: 0 };
+    const written = await persist(source.rows);
+    await commit([source.meta], { tag: INDICES_TAG });
     return { ok: true, written };
   } catch (err) {
     return {
@@ -93,12 +118,26 @@ async function refreshDataset<T>(
   }
 }
 
+function refreshCostIndices(db: AnyPgDb, updatedAt: Date): Promise<DatasetResult> {
+  return refreshDataset(fetchCostIndices, (rows) => persistCostIndices(db, rows, updatedAt));
+}
+
+/**
+ * The cost indices once a view finds them due. The store's single-flight
+ * lock keeps two instances from both calling, and the cron backstop below
+ * runs the same code, so an overlap is a 304 or the same changed rows.
+ */
+export function refreshCostIndicesOnView(): Promise<DatasetResult> {
+  return refreshCostIndices(defaultDb, new Date());
+}
+
+/** The daily backstop: both datasets, each on its own, through the same store reads as a view. */
 export async function refreshIndustryIndices(db: AnyPgDb): Promise<RefreshIndicesSummary> {
   const start = Date.now();
   const updatedAt = new Date();
 
   const [costIndices, adjustedPricesResult] = await Promise.all([
-    refreshDataset(fetchCostIndices, (rows) => persistCostIndices(db, rows, updatedAt)),
+    refreshCostIndices(db, updatedAt),
     refreshDataset(fetchAdjustedPrices, (rows) => persistAdjustedPrices(db, rows, updatedAt)),
   ]);
 

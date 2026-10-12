@@ -5,7 +5,7 @@ import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { computeHistoryInputs } from './aggregate';
 import { historyTag } from './constants';
-import { marketHistory, marketHistoryMeta } from './schema';
+import { marketHistory } from './schema';
 import type { HistoryDailyRow, MarketHistoryInputs } from './types';
 
 export async function getStoredHistory(
@@ -27,22 +27,6 @@ export async function getStoredHistory(
     .orderBy(asc(marketHistory.date));
 
   return groupBy(rows, (r) => r.typeId, ({ typeId: _typeId, ...day }): HistoryDailyRow => day);
-}
-
-export async function getHistoryMeta(
-  typeIds: number[],
-): Promise<Map<number, { staleAfter: Date }>> {
-  if (typeIds.length === 0) return new Map();
-  const rows = await defaultDb
-    .select({
-      typeId: marketHistoryMeta.typeId,
-      staleAfter: marketHistoryMeta.staleAfter,
-    })
-    .from(marketHistoryMeta)
-    .where(inArray(marketHistoryMeta.typeId, typeIds));
-  const out = new Map<number, { staleAfter: Date }>();
-  for (const r of rows) out.set(r.typeId, { staleAfter: r.staleAfter });
-  return out;
 }
 
 export async function getMarketHistoryInputs(

@@ -39,20 +39,3 @@ export function freshnessGate(name: StaticWindowDatasetName): FreshnessGate {
       refreshedAt === null || now.getTime() - refreshedAt.getTime() > ttlMs,
   };
 }
-
-export function isBoundaryStaleMs(
-  staleAfterMs: number,
-  nowMs: number,
-): boolean {
-  return staleAfterMs <= nowMs;
-}
-
-export function isBoundaryStale(
-  staleAfter: Date | undefined,
-  now: Date,
-): boolean {
-  return (
-    staleAfter === undefined
-    || isBoundaryStaleMs(staleAfter.getTime(), now.getTime())
-  );
-}

@@ -237,6 +237,7 @@
         "from": "data",
         "allow": [
           "data/eve-data",
+          "data/esi-store",
           "platform/esi",
           "platform/owner-sync",
           "platform/search",
