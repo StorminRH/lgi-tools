@@ -5,8 +5,10 @@ import {
   esiFetch,
   esiUrl,
 } from '@/platform/esi';
+import { httpDateMs } from '@/platform/esi/headers';
 import { dedupe } from '@/lib/array';
 import { mapConcurrent } from '@/lib/fan-out';
+import { DAY_MS } from '@/lib/iso-date';
 import {
   HISTORY_FETCH_CONCURRENCY,
   THE_FORGE_REGION_ID,
@@ -37,11 +39,7 @@ export function parseEsiHistory(body: unknown): HistoryDailyRow[] {
 }
 
 export function staleAfterFromExpires(expires: string | null, now: Date): Date {
-  if (expires !== null) {
-    const parsed = new Date(expires);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-  return new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  return new Date(httpDateMs(expires) ?? now.getTime() + DAY_MS);
 }
 
 function historyUrl(typeId: number): string {

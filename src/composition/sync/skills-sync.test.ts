@@ -25,10 +25,7 @@ vi.mock('./owner-sync-port', () => ({
   readSingleEndpoint: vi.fn(),
   vendTokenFor: vi.fn(),
 }));
-vi.mock('./esi-refresh-owner-sync', () => ({
-  enqueueBudgetDeferral: vi.fn(),
-  targetedOwnerResult: vi.fn(),
-}));
+vi.mock('@/data/esi-refresh-jobs/queries', () => ({ enqueueEsiRefreshJob: vi.fn() }));
 
 import { getSkillLevelsForCharacterOnView } from './skills-sync';
 

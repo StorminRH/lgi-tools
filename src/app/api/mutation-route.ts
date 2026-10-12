@@ -23,6 +23,11 @@ export interface CapabilityOption {
   /** The route's contract; stage failures are then checked against its declared problems. */
   endpoint?: EndpointContract;
   preflight?: () => Promise<Response | null>;
+  /**
+   * Record failures after the client aborts too. Set it where the client gives
+   * up on a timer, so the user saw the failure, unlike a superseded search.
+   */
+  recordAbortedFailures?: boolean;
 }
 
 export interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess>
@@ -84,5 +89,6 @@ export function runMutationRoute<TAuthorization extends AuthorizationSuccess>(
 ): Promise<Response>;
 export function runMutationRoute(request: Request, options: unknown): Promise<Response> {
   const runtime = options as RuntimeMutationOptions;
-  return runCapabilityRoute(runtime.capability, () => runStages(request, runtime));
+  const signal = runtime.recordAbortedFailures === true ? undefined : request.signal;
+  return runCapabilityRoute(runtime.capability, () => runStages(request, runtime), signal);
 }

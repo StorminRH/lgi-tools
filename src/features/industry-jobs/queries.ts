@@ -1,6 +1,7 @@
-import { and, eq } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { and, eq, inArray } from 'drizzle-orm';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryJob } from './esi-projection';
 import {
@@ -11,7 +12,7 @@ import {
 } from './schema';
 import type { CharacterJobsData, CharacterJobsSyncState, CorpJobsSyncState } from './types';
 
-function industryJobsTag(characterId: number): string {
+export function industryJobsTag(characterId: number): string {
   return `industry-jobs:${characterId}`;
 }
 
@@ -37,18 +38,32 @@ export async function getJobsForCharacters(
   return mapByIdDroppingNulls(characterIds, getCharacterJobs);
 }
 
+const characterSyncStateColumns = {
+  lastRefreshedAt: characterIndustryJobSyncs.lastRefreshedAt,
+  jobsEtag: characterIndustryJobSyncs.jobsEtag,
+};
+
 export async function readCharacterJobSyncState(
   characterId: number,
 ): Promise<CharacterJobsSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: characterIndustryJobSyncs.lastRefreshedAt,
-      jobsEtag: characterIndustryJobSyncs.jobsEtag,
-    })
+    .select(characterSyncStateColumns)
     .from(characterIndustryJobSyncs)
     .where(eq(characterIndustryJobSyncs.characterId, characterId))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/** Uncached, in one query: each listed character's sync state; a character with no row is absent. */
+export async function listCharacterJobSyncStates(
+  characterIds: number[],
+): Promise<Map<number, CharacterJobsSyncState>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await db
+    .select({ characterId: characterIndustryJobSyncs.characterId, ...characterSyncStateColumns })
+    .from(characterIndustryJobSyncs)
+    .where(inArray(characterIndustryJobSyncs.characterId, characterIds));
+  return new Map(rows.map(({ characterId, ...state }) => [characterId, state]));
 }
 
 export async function saveCharacterJobs(
@@ -68,7 +83,7 @@ export async function saveCharacterJobs(
       target: characterIndustryJobSyncs.characterId,
       set: { lastRefreshedAt: now, jobsEtag: etag },
     });
-  revalidateTag(industryJobsTag(characterId), 'max');
+  expireNow(industryJobsTag(characterId));
 }
 
 export async function stampCharacterJobsFresh(characterId: number): Promise<void> {
@@ -155,7 +170,7 @@ export async function saveCorpJobs(
       target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
       set: { lastRefreshedAt: now, jobsEtag: etag, syncError: null },
     });
-  revalidateTag(corpIndustryJobsTag(userId, corporationId), 'max');
+  expireNow(corpIndustryJobsTag(userId, corporationId));
 }
 
 export async function saveCorpNeedsRole(userId: string, corporationId: number): Promise<void> {
@@ -170,7 +185,7 @@ export async function saveCorpNeedsRole(userId: string, corporationId: number): 
       target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
       set: { lastRefreshedAt: now, jobsEtag: null, syncError: 'needs_role' },
     });
-  revalidateTag(corpIndustryJobsTag(userId, corporationId), 'max');
+  expireNow(corpIndustryJobsTag(userId, corporationId));
 }
 
 export async function stampCorpJobsFresh(userId: string, corporationId: number): Promise<void> {

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import type { SheetSections } from '@/features/character-sheet/types';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
+import { universeStructurePath } from '@/platform/esi/paths';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 
 const mocks = vi.hoisted(() => ({
   listCharactersWithHealth: vi.fn(),
@@ -34,7 +36,6 @@ import {
   refreshCharacterSheetsOnView,
   runCharacterSheetRefreshJob,
   SHEET_ESI_PATHS,
-  STRUCTURE_ESI_PATH,
 } from './character-sheet-sync';
 
 const TIER_ENTRIES = ['character_sheet_live', 'character_sheet_hourly', 'character_sheet_daily'];
@@ -76,7 +77,7 @@ describe('SHEET_ESI_PATHS', () => {
     const templates = Object.values(SHEET_ESI_PATHS).map((path) =>
       path(123).replace('/characters/123/', '/characters/{character_id}/'),
     );
-    templates.push(STRUCTURE_ESI_PATH(456).replace('/456/', '/{structure_id}/'));
+    templates.push(universeStructurePath(456).replace('/456/', '/{structure_id}/'));
     for (const template of templates) {
       expect(registrySpecPaths.has(template), `${template} missing from the registry`).toBe(true);
     }
@@ -86,10 +87,7 @@ describe('SHEET_ESI_PATHS', () => {
 
 describe('makeSheetPort', () => {
   it('reads the roster once and vends once per character per run so concurrent sections never race the refresh-token rotation', async () => {
-    mocks.listCharactersWithHealth.mockResolvedValue([
-      { characterId: 1, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-      { characterId: 2, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-    ]);
+    mocks.listCharactersWithHealth.mockResolvedValue([ownerFixture(1), ownerFixture(2)]);
     mocks.vendTokenFor.mockImplementation(async (characterId: number) => `token-${characterId}`);
 
     await refreshCharacterSheetsOnView('user-1');
@@ -117,6 +115,8 @@ describe('makeSheetPort', () => {
 
     await port.readStructure(1099000000001, 'token');
     await expect(port.readSheet(7)).resolves.toBe(sheet);
+    await expect(port.readSheet(7)).resolves.toBe(sheet);
+    expect(mocks.readSheetRow).toHaveBeenCalledTimes(2);
     await port.mergeSection(7, 'wallet', sheet.wallet!);
     await port.stampSection(7, 'wallet');
 
@@ -131,10 +131,7 @@ describe('character sheet budget recovery', () => {
   const budget = new EsiBudgetExhaustedError(12, 'rate_limited', 900, '/characters/1/wallet/');
 
   beforeEach(() => {
-    mocks.listCharactersWithHealth.mockResolvedValue([
-      { characterId: 1, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-      { characterId: 2, corporationId: null, hasRefreshToken: true, missingScopes: [] },
-    ]);
+    mocks.listCharactersWithHealth.mockResolvedValue([ownerFixture(1), ownerFixture(2)]);
     mocks.vendTokenFor.mockResolvedValue('token');
   });
 

@@ -13,22 +13,25 @@ import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
-import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
+import { listCharactersWithHealth, readPagedEndpoint, readRolesForSync, vendTokenFor } from './owner-sync-port';
+import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
   return {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: probeAndStoreRoles,
+    readRoles: readRolesForSync,
     read: readPagedEndpoint,
     readSyncState: (owner) => readBlueprintSyncState(owner),
     save: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
     stampFresh: (owner) => stampBlueprintFresh(owner),
   };
 }
+
+const blueprints = ownerSyncDataset('owned_blueprints', makeOwnedBlueprintsPort, refreshOwnedBlueprintsForUser);
+
+export const runOwnedBlueprintsRefreshJob = blueprints.runJob;
 
 export async function getOwnedBlueprintDetailOnView(
   userId: string,
@@ -40,24 +43,8 @@ export async function getOwnedBlueprintDetailOnView(
     getCorpAssetEvidence,
   );
   const map = await getOwnedBlueprintMap(viewer.scope, evidence);
-  after(() =>
-    refreshOwnedBlueprintsForUser(
-      makeOwnedBlueprintsPort(),
-      userId,
-      enqueueBudgetDeferral('owned_blueprints', userId),
-    ),
-  );
+  after(() => blueprints.onView(userId));
   const contexts = contextsByCorp(viewer.scope);
   const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds, contexts));
   return buildOwnedDetail(map, requestedTypeIds, names, formatStationName, contexts);
-}
-
-export async function runOwnedBlueprintsRefreshJob(
-  userId: string,
-  target: OwnerSyncTarget,
-): Promise<OwnerSyncResult> {
-  const results = await refreshOwnedBlueprintsForUser(makeOwnedBlueprintsPort(), userId, {
-    target,
-  });
-  return targetedOwnerResult(target, results);
 }

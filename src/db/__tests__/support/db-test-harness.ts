@@ -172,6 +172,24 @@ export async function seedCharacter(
   });
 }
 
+/**
+ * Sessions queued behind `holderPid`'s locks, directly or behind another
+ * waiter (a second writer on one row waits on the first waiter's tuple lock,
+ * not on the holder). Poll it to prove writers reached a lock before releasing.
+ */
+export async function countSessionsWaitingOn(sql: Sql, holderPid: number): Promise<number> {
+  const [row] = await sql<{ count: number }[]>`
+    WITH RECURSIVE waiting AS (
+      SELECT pid FROM pg_stat_activity WHERE ${holderPid} = ANY(pg_blocking_pids(pid))
+      UNION
+      SELECT activity.pid FROM pg_stat_activity activity
+      JOIN waiting ON waiting.pid = ANY(pg_blocking_pids(activity.pid))
+    )
+    SELECT count(*)::integer AS count FROM waiting
+  `;
+  return row?.count ?? 0;
+}
+
 function schemaUrl(base: string, schema: string): string {
   return `${base}${base.includes('?') ? '&' : '?'}search_path=${schema}`;
 }

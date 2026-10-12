@@ -2,22 +2,21 @@ import { z } from 'zod';
 import { EVE_CHARACTER_SEARCH_SCOPE, type EveScope } from '@/config/eve-scopes';
 import type { StructureSearchResult } from '@/features/custom-structures/api-contract';
 import { getOrInsertComputed } from '@/lib/array';
-import { positiveIdSchema } from '@/lib/id-schemas';
-import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
-import { deriveScopeHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, esiFetch, esiUrl } from '@/platform/esi';
-import { EsiCharacterSearchError, fetchCharacterSearch } from './esi-character-search';
+import { universeStructurePath } from '@/platform/esi/paths';
+import { esiAuthInit } from '@/platform/esi/request-init';
+import {
+  firstScopedSearch,
+  scopedLinkedCharacters,
+  searchAsCharacter,
+  type CharacterSearchHit,
+} from './esi-character-search';
 
 const MAX_STRUCTURE_RESULTS = 8;
 const STRUCTURE_SEARCH_SCOPES = [
   EVE_CHARACTER_SEARCH_SCOPE,
   'esi-universe.read_structures.v1',
 ] as const satisfies readonly EveScope[];
-
-const esiStructureSearchSchema = z.object({
-  structure: z.array(positiveIdSchema).optional(),
-});
 
 const esiStructureSchema = z.object({
   name: z.string().min(1),
@@ -31,10 +30,7 @@ async function readStructure(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<StructureSearchResult | null> {
-  const response = await esiFetch(esiUrl(`/universe/structures/${structureId}/`), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    ...(signal ? { signal } : {}),
-  });
+  const response = await esiFetch(esiUrl(universeStructurePath(structureId)), esiAuthInit(accessToken, { signal }));
   if (!response.ok) return null;
   const parsed = esiStructureSchema.safeParse(await response.json());
   if (!parsed.success) return null;
@@ -44,50 +40,6 @@ async function readStructure(
     systemId: parsed.data.solar_system_id,
     structureTypeId: parsed.data.type_id ?? null,
   };
-}
-
-/** The structures one character's search turns up, before any is read. */
-async function structureIdsSeenBy(characterId: number, accessToken: string, search: string, signal?: AbortSignal): Promise<number[]> {
-  const body = await fetchCharacterSearch(characterId, accessToken, 'structure', search, signal);
-  const parsed = esiStructureSearchSchema.safeParse(body);
-  if (!parsed.success) throw new Error('ESI structure search returned an invalid body');
-  return parsed.data.structure ?? [];
-}
-
-interface CharacterSearch {
-  accessToken: string;
-  structureIds: number[];
-}
-
-async function searchWithCharacter(
-  character: LinkedCharacter,
-  search: string,
-  signal?: AbortSignal,
-): Promise<CharacterSearch | null> {
-  signal?.throwIfAborted();
-  const token = await getFreshAccessTokenForCharacter(character.characterId);
-  if (token.kind !== 'ok') return null;
-  signal?.throwIfAborted();
-  return {
-    accessToken: token.accessToken,
-    structureIds: await structureIdsSeenBy(character.characterId, token.accessToken, search, signal),
-  };
-}
-
-async function firstValidSearch(
-  characters: readonly LinkedCharacter[],
-  search: string,
-  signal?: AbortSignal,
-): Promise<{ first: CharacterSearch; remaining: readonly LinkedCharacter[] }> {
-  for (let index = 0; index < characters.length; index++) {
-    try {
-      const result = await searchWithCharacter(characters[index]!, search, signal);
-      if (result !== null) return { first: result, remaining: characters.slice(index + 1) };
-    } catch (error) {
-      if (!(error instanceof EsiCharacterSearchError && (error.status === 401 || error.status === 403))) throw error;
-    }
-  }
-  throw new Error('No scoped linked character has a usable ESI access token');
 }
 
 /** A structure read with each token whose search saw it, until one is let in. */
@@ -110,16 +62,13 @@ export async function searchUpwellStructures(
   search: string,
   signal?: AbortSignal,
 ): Promise<StructureSearchResult[]> {
-  const linked = await listLinkedCharacters(userId);
-  const scoped = linked.filter(
-    (character) => !deriveScopeHealth(character, STRUCTURE_SEARCH_SCOPES).needsReconnect,
-  );
+  const scoped = await scopedLinkedCharacters(userId, STRUCTURE_SEARCH_SCOPES);
   if (scoped.length === 0) return [];
 
-  const { first, remaining } = await firstValidSearch(scoped, search, signal);
-  const searched: CharacterSearch[] = [first];
+  const { first, remaining } = await firstScopedSearch(scoped, 'structure', search, signal);
+  const searched: CharacterSearchHit[] = [first];
   const outcomes = await Promise.allSettled(
-    remaining.map((character) => searchWithCharacter(character, search, signal)),
+    remaining.map((character) => searchAsCharacter(character, 'structure', search, signal)),
   );
   signal?.throwIfAborted();
   for (const outcome of outcomes) {
@@ -131,8 +80,8 @@ export async function searchUpwellStructures(
   }
 
   const seenBy = new Map<number, string[]>();
-  for (const { accessToken, structureIds } of searched) {
-    for (const id of structureIds) getOrInsertComputed(seenBy, id, () => []).push(accessToken);
+  for (const { accessToken, ids } of searched) {
+    for (const id of ids) getOrInsertComputed(seenBy, id, () => []).push(accessToken);
   }
   const read = await Promise.all(
     [...seenBy].slice(0, MAX_STRUCTURE_RESULTS).map(([id, accessTokens]) => readWithAny(id, accessTokens, signal)),

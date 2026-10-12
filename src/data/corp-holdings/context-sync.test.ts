@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EnumeratedOwner } from '@/platform/owner-sync';
+import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { buildCorpHoldingContext, type CorpProfile } from './context';
-import { type CorpContextPort, type CorpContextRead, refreshCorpContextForUser } from './context-sync';
+import { type CorpContextPort, refreshCorpContextForUser } from './context-sync';
 import { buildHoldingIndex, type CorpAssetItem, toHoldingNodes } from './placement';
 
 const NOW = new Date('2026-09-28T12:00:00Z');
@@ -41,8 +42,8 @@ const priorProfile: CorpProfile = {
   structureNames: {},
 };
 
-const fresh = (body: unknown): CorpContextRead => ({ kind: 'fresh', body });
-const failed = (code: string): CorpContextRead => ({ kind: 'error', code });
+const fresh = (body: unknown): SingleOwnerRead => ({ kind: 'fresh', body, etag: null });
+const failed = (code: string): SingleOwnerRead => ({ kind: 'error', code });
 
 function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
   return {
@@ -72,13 +73,8 @@ function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
   };
 }
 
-const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner => ({
-  characterId: id,
-  corporationId: CORP,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
+const member = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner =>
+  ownerFixture(id, { corporationId: CORP, ...extra });
 
 describe('refreshCorpContextForUser', () => {
   it('saves the HQ, renamed divisions, linked members\' bases, and only the names it did not have', async () => {

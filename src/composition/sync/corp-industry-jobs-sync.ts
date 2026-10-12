@@ -10,17 +10,16 @@ import {
   stampCorpJobsFresh,
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
-import { listCharactersWithHealth, probeAndStoreRoles, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
+import { listCharactersWithHealth, readRolesForSync, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 function makeCorpJobsPort(): CorpJobsPort {
   return {
     now: () => new Date(),
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: probeAndStoreRoles,
+    readRoles: readRolesForSync,
     readJobs: (corporationId, accessToken, heldEtag) =>
       readSingleEndpoint(`/corporations/${corporationId}/industry/jobs/`, accessToken, heldEtag),
     readSyncState: (userId, corporationId) => readCorpJobSyncState(userId, corporationId),
@@ -29,6 +28,10 @@ function makeCorpJobsPort(): CorpJobsPort {
     stampFresh: (userId, corporationId) => stampCorpJobsFresh(userId, corporationId),
   };
 }
+
+const corpJobs = ownerSyncDataset('corporation_industry_jobs', makeCorpJobsPort, refreshCorpJobsForUser);
+
+export const runCorporationIndustryJobsRefreshJob = corpJobs.runJob;
 
 export interface ViewerCorpJobs {
   corporationId: number;
@@ -62,12 +65,7 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
       );
       return { owners, data };
     },
-    refresh: (uid) =>
-      refreshCorpJobsForUser(
-        makeCorpJobsPort(),
-        uid,
-        enqueueBudgetDeferral('corporation_industry_jobs', uid),
-      ),
+    refresh: corpJobs.onView,
     makeRow: (owner, data) => ({
       corporationId: owner.id,
       data,
@@ -77,12 +75,4 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
     nameIds: (viewerCorpJobs) => jobTypeIds(viewerCorpJobs),
   });
   return { corporations: rows, names };
-}
-
-export async function runCorporationIndustryJobsRefreshJob(
-  userId: string,
-  target: OwnerSyncTarget,
-): Promise<OwnerSyncResult> {
-  const results = await refreshCorpJobsForUser(makeCorpJobsPort(), userId, { target });
-  return targetedOwnerResult(target, results);
 }

@@ -10,6 +10,10 @@ const shipBodySchema = z.object({
   ship_type_id: z.number().int(),
 });
 
+const onlineBodySchema = z.object({
+  online: z.boolean(),
+});
+
 export interface LocationBody {
   solarSystemId: number;
   stationId: number | null;
@@ -32,6 +36,6 @@ export function parseShipBody(body: unknown): number | null {
 }
 
 export function parseOnlineBody(body: unknown): boolean | null {
-  const parsed = z.object({ online: z.boolean() }).safeParse(body);
+  const parsed = onlineBodySchema.safeParse(body);
   return parsed.success ? parsed.data.online : null;
 }

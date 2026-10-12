@@ -1,27 +1,34 @@
-import { eq } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { eq, inArray } from 'drizzle-orm';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { expireNow } from '@/lib/cache-expiry';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { characterSkills, characterSkillSyncs } from './schema';
-import type { CharacterSkillData, CharacterSkillSyncState, SkillsSaveHalves } from './types';
+import type {
+  CharacterSkillData,
+  CharacterSkillRow,
+  CharacterSkillSyncState,
+  SkillsSaveHalves,
+} from './types';
 
 export function skillsTag(characterId: number): string {
   return `skills:${characterId}`;
 }
 
-async function getCharacterSkills(characterId: number): Promise<CharacterSkillData | null> {
+async function getCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
   'use cache';
   cacheLife('minutes');
   cacheTag(skillsTag(characterId));
-  return readCharacterSkills(characterId);
+  return readCharacterSkillRow(characterId);
 }
 
-export async function readCharacterSkills(characterId: number): Promise<CharacterSkillData | null> {
+export async function readCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
   const rows = await db
     .select({
       queue: characterSkills.queue,
       totalSp: characterSkills.totalSp,
       unallocatedSp: characterSkills.unallocatedSp,
+      skillLevels: characterSkills.skillLevels,
     })
     .from(characterSkills)
     .where(eq(characterSkills.characterId, characterId))
@@ -30,13 +37,13 @@ export async function readCharacterSkills(characterId: number): Promise<Characte
   if (row === undefined) return null;
   const data: CharacterSkillData = { entries: row.queue, totalSp: row.totalSp };
   if (row.unallocatedSp !== null) data.unallocatedSp = row.unallocatedSp;
-  return data;
+  return { data, levels: row.skillLevels ?? null };
 }
 
-export async function getSkillsForCharacters(
+export async function getSkillRowsForCharacters(
   characterIds: number[],
-): Promise<Map<number, CharacterSkillData>> {
-  return mapByIdDroppingNulls(characterIds, getCharacterSkills);
+): Promise<Map<number, CharacterSkillRow>> {
+  return mapByIdDroppingNulls(characterIds, getCharacterSkillRow);
 }
 
 export async function getCharacterSkillLevels(
@@ -48,7 +55,7 @@ export async function getCharacterSkillLevels(
   return readCharacterSkillLevels(characterId);
 }
 
-export async function readCharacterSkillLevels(characterId: number): Promise<Record<string, number> | null> {
+async function readCharacterSkillLevels(characterId: number): Promise<Record<string, number> | null> {
   const rows = await db
     .select({ skillLevels: characterSkills.skillLevels })
     .from(characterSkills)
@@ -63,19 +70,33 @@ export async function getSkillLevelsForCharacters(
   return mapByIdDroppingNulls(characterIds, getCharacterSkillLevels);
 }
 
+const syncStateColumns = {
+  lastRefreshedAt: characterSkillSyncs.lastRefreshedAt,
+  queueEtag: characterSkillSyncs.queueEtag,
+  skillsEtag: characterSkillSyncs.skillsEtag,
+};
+
 export async function readCharacterSyncState(
   characterId: number,
 ): Promise<CharacterSkillSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: characterSkillSyncs.lastRefreshedAt,
-      queueEtag: characterSkillSyncs.queueEtag,
-      skillsEtag: characterSkillSyncs.skillsEtag,
-    })
+    .select(syncStateColumns)
     .from(characterSkillSyncs)
     .where(eq(characterSkillSyncs.characterId, characterId))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/** Uncached, in one query: each listed character's sync state; a character with no row is absent. */
+export async function listCharacterSkillSyncStates(
+  characterIds: number[],
+): Promise<Map<number, CharacterSkillSyncState>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await db
+    .select({ characterId: characterSkillSyncs.characterId, ...syncStateColumns })
+    .from(characterSkillSyncs)
+    .where(inArray(characterSkillSyncs.characterId, characterIds));
+  return new Map(rows.map(({ characterId, ...state }) => [characterId, state]));
 }
 
 export async function saveCharacterSkills(
@@ -128,7 +149,7 @@ export async function saveCharacterSkills(
       .where(eq(characterSkillSyncs.characterId, characterId));
   }
 
-  revalidateTag(skillsTag(characterId), 'max');
+  expireNow(skillsTag(characterId));
 }
 
 export async function stampCharacterFresh(characterId: number): Promise<void> {

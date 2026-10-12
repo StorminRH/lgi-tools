@@ -141,6 +141,8 @@ export const ESI_DATASET_ENTRIES = [
       specPaths: ['/characters/{character_id}/roles/'],
       verifiedCacheSeconds: 3600,
     },
+    notes:
+      'Three writers share corp_member_roles. resolveCorpViewer fetches a member whose stored row is stale. The corp sync passes reuse a fresh same-corporation row and probe live only without one. The Director and Station Manager mutation gates always probe live.',
     mirrorTables: ['corp_member_roles'],
   },
   {

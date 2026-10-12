@@ -68,7 +68,7 @@ describe.skipIf(!harness.reachable)('character sheet queries execute against Pos
     await mergeSheetSection(101, 'profile', profile);
     expect((await readRow(101))?.sections).toEqual({ wallet: wallet(10), profile });
     expect(mocks.revalidateTag).toHaveBeenCalledTimes(2);
-    expect(mocks.revalidateTag).toHaveBeenCalledWith(sheetTag(101), 'max');
+    expect(mocks.revalidateTag).toHaveBeenCalledWith(sheetTag(101), { expire: 0 });
   });
 
   it('keeps both sections when two saves run concurrently', async () => {
@@ -109,7 +109,7 @@ describe.skipIf(!harness.reachable)('character sheet queries execute against Pos
     expect(sections.profile).toEqual(profile);
     expect(sections.wallet).toMatchObject({ data: { balance: 50 }, etags: { balance: '"w-50"' } });
     expect(Date.parse(sections.wallet!.refreshedAt)).toBeGreaterThan(Date.parse(T0));
-    expect(mocks.revalidateTag).toHaveBeenCalledWith(sheetTag(505), 'max');
+    expect(mocks.revalidateTag).toHaveBeenCalledWith(sheetTag(505), { expire: 0 });
   });
 
   it('leaves the row untouched when stamping a section it does not have', async () => {

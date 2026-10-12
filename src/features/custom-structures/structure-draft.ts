@@ -1,7 +1,8 @@
+import { fittedRigIds, rigSlotsFrom } from '@/data/eve-data/structures';
 import { MAX_ENTERED_BONUS_PCT, type EnteredBonuses } from '@/data/industry-math/entered-bonuses';
 import { parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
 import { parsePercentDraft } from '@/data/industry-math/percent-draft';
-import { MAX_CUSTOM_STRUCTURE_NAME_LEN, MAX_CUSTOM_STRUCTURE_RIGS } from './api-contract';
+import { MAX_CUSTOM_STRUCTURE_NAME_LEN } from './api-contract';
 import type { CustomStructureRow } from './types';
 
 export type BonusField = 'me' | 'te' | 'cost' | 'rxnMe' | 'rxnTe';
@@ -20,12 +21,7 @@ export interface StructureDraft {
   bonus: BonusDraft;
 }
 
-const emptySlots = (): (number | null)[] => Array.from({ length: MAX_CUSTOM_STRUCTURE_RIGS }, () => null);
 const draftPct = (n: number): string => (n === 0 ? '' : String(n));
-
-export function slotsFromRigs(rigTypeIds: readonly number[]): (number | null)[] {
-  return emptySlots().map((_, i) => rigTypeIds[i] ?? null);
-}
 
 function bonusDraftFrom(bonuses: EnteredBonuses | null): BonusDraft {
   return {
@@ -44,7 +40,7 @@ export function emptyStructureDraft(): StructureDraft {
     systemId: null,
     taxDraft: '',
     mode: 'values',
-    rigSlots: emptySlots(),
+    rigSlots: rigSlotsFrom([]),
     bonus: bonusDraftFrom(null),
   };
 }
@@ -61,7 +57,7 @@ export function draftFromFit(
   const hull = types.find((t) => t.typeId === fit.structureTypeId)?.name ?? '';
   return {
     structureTypeId: fit.structureTypeId,
-    rigSlots: slotsFromRigs(fit.rigTypeIds),
+    rigSlots: rigSlotsFrom(fit.rigTypeIds),
     mode: 'rigs',
     name: draft.name.trim() ? draft.name : (fit.name ?? hull).slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
   };
@@ -74,7 +70,7 @@ export function draftFromRow(row: CustomStructureRow): StructureDraft {
     systemId: row.systemId,
     taxDraft: taxDraftFromStored(row.taxPct),
     mode: row.rigTypeIds.length > 0 ? 'rigs' : 'values',
-    rigSlots: slotsFromRigs(row.rigTypeIds),
+    rigSlots: rigSlotsFrom(row.rigTypeIds),
     bonus: bonusDraftFrom(row.bonuses),
   };
 }
@@ -128,7 +124,7 @@ export function payloadFromDraft(draft: StructureDraft): PayloadResult {
     payload: {
       name,
       structureTypeId: draft.structureTypeId,
-      rigTypeIds: rigs ? draft.rigSlots.filter((r): r is number => r !== null) : [],
+      rigTypeIds: rigs ? fittedRigIds(draft.rigSlots) : [],
       systemId: draft.systemId,
       taxPct: tax.value,
       bonuses: parsed.bonuses,

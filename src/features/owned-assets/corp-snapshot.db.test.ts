@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
@@ -6,8 +7,12 @@ import { corpHoldingNodes } from '@/data/corp-holdings/schema';
 import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import { insertEsiSnapshot } from '@/data/esi-snapshots/queries';
 import { compileCorpGrant, compileReadScope } from '@/platform/auth/corp-visibility';
-import { getOwnedAssetMap, readOwnerSyncState, saveCorpOwnedAssets } from './queries';
+import { ownedResourcePath } from '@/platform/owner-sync';
+import { ownedDatasetPortFake, ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { getCorpAssetEvidence, getOwnedAssetMap, readOwnerSyncState, saveCorpOwnedAssets } from './queries';
+import { OWNED_ASSETS_RESOURCE, refreshOwnedAssetsForUser } from './refresh';
 import { ownedAssets } from './schema';
+import type { OwnedAssetsPort } from './types';
 
 vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidateTag: vi.fn() }));
 
@@ -32,9 +37,9 @@ function source(division: number, quantity: number) {
 function index(division: number, quantity = 100) {
   return buildHoldingIndex(parseCorpAssetItems(source(division, quantity))!);
 }
-async function snapshot(division: number, quantity: number) {
+async function snapshot(division: number, quantity: number, endpoint = ownedResourcePath(OWNED_ASSETS_RESOURCE, owner)) {
   return insertEsiSnapshot({
-    ...owner, endpoint: `/corporations/${CORP}/assets/`, requestHash: 'test', etag: null,
+    ...owner, endpoint, requestHash: 'test', etag: null,
     responseHeaders: [], fetchedAt: new Date(), sourceVersion: 'test',
     bodyCiphertext: encryptSnapshotBody(source(division, quantity)),
   });
@@ -43,6 +48,19 @@ async function save(division: number, quantity: number, id: number) {
   return saveCorpOwnedAssets(CORP, index(division, quantity), quantity === 0 ? [] : [{
     type_id: 34, quantity, location_id: CAN, location_type: 'item', location_flag: 'Unlocked',
   }], [`division-${division}`], id, { database: harness.db });
+}
+/** The endpoint a Director's corporation assets sync hands to the save, read through the real descriptor. */
+async function syncedEndpoint(): Promise<string> {
+  const saveSource = vi.fn<OwnedAssetsPort['save']>(async () => {});
+  await refreshOwnedAssetsForUser(ownedDatasetPortFake(new Date(), {
+    listCharacters: async () => [ownerFixture(90001, { corporationId: CORP })],
+    readRoles: async () => ['Director'],
+    read: async () => ({ kind: 'fresh', items: source(1, 25), etags: [], responseHeaders: [] }),
+    save: saveSource,
+  }), 'user-1');
+  const corpSave = saveSource.mock.calls.find(([saved]) => saved.ownerType === 'corporation');
+  if (corpSave === undefined) throw new Error('the corporation pass saved nothing');
+  return corpSave[3].endpoint;
 }
 function scope(contextDivision: number, allowedDivision: 1 | 2 = 1) {
   const grant = compileCorpGrant({
@@ -69,13 +87,21 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     expect(await getOwnedAssetMap(scope(2, 2), [34])).toEqual(new Map());
   });
 
-  it('rolls back nodes, contents and sync state if the content insert fails', async () => {
+  it('rolls back nodes, contents and sync state if the content insert fails, and expires the corp tags only on commit', async () => {
     const before = await snapshot(2, 100);
+    vi.mocked(revalidateTag).mockClear();
     await save(2, 100, before);
+    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
+      ['corp-holdings:98000001', { expire: 0 }],
+      ['owned-assets:corporation:98000001', { expire: 0 }],
+    ]);
     const oldNodes = await harness.db.select().from(corpHoldingNodes);
     await harness.sql`ALTER TABLE owned_assets ADD CONSTRAINT reject_quantity CHECK (quantity <> 999)`;
     try {
-      await expect(save(1, 999, await snapshot(1, 999))).rejects.toThrow();
+      const failed = await snapshot(1, 999);
+      vi.mocked(revalidateTag).mockClear();
+      await expect(save(1, 999, failed)).rejects.toThrow();
+      expect(revalidateTag).not.toHaveBeenCalled();
       expect(await harness.db.select().from(corpHoldingNodes)).toEqual(oldNodes);
       expect((await harness.db.select().from(ownedAssets)).map((row) => [row.quantity, row.snapshotId])).toEqual([[100, before]]);
       expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['division-2']);
@@ -98,6 +124,16 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     expect(rows[0]!.quantity).toBe(division * 11);
   });
 
+  it('stamps the sync row with the new etags and refresh time on every publication', async () => {
+    await save(2, 100, await snapshot(2, 100));
+    await harness.sql`UPDATE owned_asset_syncs SET last_refreshed_at = '2000-01-01T00:00:00Z'`;
+    const before = Date.now();
+    await save(1, 25, await snapshot(1, 25));
+    const state = await readOwnerSyncState(owner);
+    expect(state?.pageEtags).toEqual(['division-1']);
+    expect(state?.lastRefreshedAt?.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
   it('publishes an empty content set together with the moved container', async () => {
     await save(2, 100, await snapshot(2, 100));
     await save(1, 0, await snapshot(1, 0));
@@ -109,6 +145,12 @@ describe.skipIf(!harness.reachable)('corporation asset publication and authoriza
     await save(1, 25, await snapshot(1, 25));
     await harness.sql`UPDATE owned_assets SET snapshot_id = NULL`;
     expect(await getOwnedAssetMap(scope(1), [34])).toEqual(new Map());
+  });
+
+  it('reads back the snapshot stored under the endpoint the corporation sync emits', async () => {
+    await save(1, 25, await snapshot(1, 25, await syncedEndpoint()));
+    expect(await getCorpAssetEvidence(CORP)).toMatchObject({ corporationId: CORP });
+    expect((await getOwnedAssetMap(scope(1), [34])).get(34)?.ownedQty).toBe(25);
   });
 
   it('withholds snapshots belonging to another corporation or endpoint', async () => {

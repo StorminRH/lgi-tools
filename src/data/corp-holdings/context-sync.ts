@@ -4,12 +4,13 @@ import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { HOUR_MS } from '@/lib/iso-date';
 import { scopeEligibility } from '@/lib/scope-eligibility';
 import {
-  type EnumeratedOwner,
+  type CorpSyncBase,
   makeCorpDescriptor,
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
   type PersistVerdict,
   runOwnerSync,
+  type SingleOwnerRead,
 } from '@/platform/owner-sync';
 import type { CorpProfile, MemberBase } from './context';
 import {
@@ -38,21 +39,12 @@ const CONTEXT_FRESHNESS = freshnessGate('corp_context');
 const NAMES_BATCH = 1000;
 const STRUCTURE_NAME_READS_PER_PASS = 10;
 
-export type CorpContextRead =
-  | { kind: 'fresh'; body: unknown }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-export interface CorpContextPort {
-  now(): Date;
-  listMembers(userId: string): Promise<EnumeratedOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
-  readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-  readCorporation(corporationId: number, accessToken: string): Promise<CorpContextRead>;
-  readDivisions(corporationId: number, accessToken: string): Promise<CorpContextRead>;
-  readMemberTracking(corporationId: number, accessToken: string): Promise<CorpContextRead>;
-  readAssetNames(corporationId: number, accessToken: string, itemIds: readonly number[]): Promise<CorpContextRead>;
-  readStructure(structureId: number, accessToken: string): Promise<CorpContextRead>;
+export interface CorpContextPort extends CorpSyncBase {
+  readCorporation(corporationId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readDivisions(corporationId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readMemberTracking(corporationId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readAssetNames(corporationId: number, accessToken: string, itemIds: readonly number[]): Promise<SingleOwnerRead>;
+  readStructure(structureId: number, accessToken: string): Promise<SingleOwnerRead>;
   currentContext(corporationId: number): Promise<CorpHoldingContext>;
   listLinkedMemberIds(corporationId: number): Promise<number[]>;
   readProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null>;
@@ -80,7 +72,7 @@ interface CorpContextSave {
 
 type Step<T> = { kind: 'ok'; value: T } | { kind: 'skip'; code: string };
 
-function parsed<T>(read: CorpContextRead, parse: (body: unknown) => T | null): Step<T> {
+function parsed<T>(read: SingleOwnerRead, parse: (body: unknown) => T | null): Step<T> {
   if (read.kind === 'error') return { kind: 'skip', code: read.code };
   if (read.kind === 'unchanged') return { kind: 'skip', code: 'esi_unexpected_not_modified' };
   const value = parse(read.body);

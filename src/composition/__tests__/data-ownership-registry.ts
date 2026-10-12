@@ -129,6 +129,16 @@ const REPLACE_ALL = {
   note: 'Replace-all per owner on the transaction-free neon-http driver: delete the owner\'s rows, insert the fresh set, then stamp the sync row LAST. Stamping last makes a partial failure self-healing — the owner stays stale and the next view refetches — but the sequence is not atomic, so a database constraint is the only guard against a concurrent refresh interleaving.',
 } as const satisfies TransactionBoundary;
 
+const OWNER_SNAPSHOT = {
+  kind: 'transactional-batch',
+  note: 'Replace-all per owner through replaceOwnerSnapshot (src/db/snapshot-replace.ts): one direct-client postgres-js transaction upserts the owner\'s sync row FIRST, then deletes the owner\'s rows and inserts the fresh set in 1000-row statements. The sync-row lock queues a concurrent refresh, an owner\'s first publication included, behind the open one, and any failure rolls the rows and etags back together, so the prior snapshot survives and the owner stays stale until the next view refetches.',
+} as const satisfies TransactionBoundary;
+
+const OWNER_SNAPSHOT_LOCK = {
+  kind: 'transactional-batch',
+  note: 'One freshness row per owner. Its upsert is the first statement of the owner\'s replaceOwnerSnapshot transaction, so its row lock serializes refreshes and its etags commit with the rows they describe; an unchanged read stamps it alone with one keyed update. It is the staleness gate the next on-view refresh reads.',
+} as const satisfies TransactionBoundary;
+
 const SYNC_STAMP = {
   kind: 'single-statement',
   note: 'One freshness row per owner, written as a keyed upsert at the end of its dataset\'s replace-all sequence; it is the staleness gate the next on-view refresh reads.',
@@ -789,8 +799,8 @@ export const DATA_OWNERSHIP = [
       'unique(owner_type,owner_id,type_id,location_id,location_flag,location_type)',
     ],
     boundary: {
-      kind: 'ordered-sequence',
-      note: `${REPLACE_ALL.note} Here that guard exists: the ESI projection aggregates by the natural key before every write, so the natural-key unique index rejects only already-invalid rows and turns an interleaved concurrent refresh into a caught unique violation ('superseded') rather than a silently doubled ledger. Honest residual: two racing sets that share no natural key still merge into their union — the index can reject a duplicate, not arbitrate which set wins.`,
+      kind: 'transactional-batch',
+      note: `${OWNER_SNAPSHOT.note} The natural-key unique index stays as the backstop: the ESI projection aggregates by that key before every write, so a set that would still double a row rolls back whole and reports 'superseded' instead of corrupting the ledger.`,
     },
     dataClass: 'personal',
   },
@@ -799,7 +809,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-assets',
     reads: [],
     invariants: ['pk(owner_type,owner_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_SNAPSHOT_LOCK,
     dataClass: 'personal',
   },
   {
@@ -807,10 +817,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-blueprints',
     reads: [],
     invariants: ['pk(id)'],
-    boundary: {
-      kind: 'ordered-sequence',
-      note: `${REPLACE_ALL.note} Residual, recorded rather than fixed: this table shares the owned-assets replace-all race but has no natural key to constrain — rows are raw per-item blueprint stacks, so two identical rows are legitimate data and no unique index can express the invariant.`,
-    },
+    boundary: OWNER_SNAPSHOT,
     dataClass: 'personal',
   },
   {
@@ -818,7 +825,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-blueprints',
     reads: [],
     invariants: ['pk(owner_type,owner_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_SNAPSHOT_LOCK,
     dataClass: 'personal',
   },
   {
@@ -898,7 +905,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-structures',
     reads: [],
     invariants: ['pk(corporation_id,structure_id)'],
-    boundary: REPLACE_ALL,
+    boundary: OWNER_SNAPSHOT,
     dataClass: 'corp-shared',
   },
   {
@@ -906,7 +913,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-structures',
     reads: [],
     invariants: ['pk(corporation_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_SNAPSHOT_LOCK,
     dataClass: 'corp-shared',
   },
   {
@@ -934,8 +941,8 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: ['pk(corporation_id,item_id)'],
     boundary: {
-      kind: 'ordered-sequence',
-      note: 'Replace-all per corporation on the transaction-free neon-http driver: delete the corp\'s nodes, then insert the fresh tree. Not atomic; a reader between the two sees missing parents, which place as unplaced and fail closed, and the pk turns an interleaved concurrent refresh into a caught unique violation (\'superseded\').',
+      kind: 'transactional-batch',
+      note: 'Replaced inside the corporation\'s owned-assets replaceOwnerSnapshot transaction, after the asset sync-row lock and before the contents: delete the corp\'s nodes, then insert the fresh tree in 1000-row statements. Tree and contents commit together, so a reader never pairs one publication\'s placements with another\'s contents.',
     },
     dataClass: 'corp-shared',
   },
@@ -944,7 +951,10 @@ export const DATA_OWNERSHIP = [
     owner: 'data/corp-holdings',
     reads: [],
     invariants: ['pk(corporation_id)'],
-    boundary: KEYED_UPSERT,
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'One row per corporation, upserted first in the context pass\'s replaceOwnerSnapshot transaction: its row lock serializes context passes, and freshness, HQ and member bases commit together as one authorization snapshot. An unchanged pass stamps it alone with one keyed update.',
+    },
     dataClass: 'corp-shared',
   },
   {
@@ -953,8 +963,8 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: ['pk(character_id)'],
     boundary: {
-      kind: 'ordered-sequence',
-      note: 'After the profile upsert: delete the corp\'s rows for members no longer in the pass, then upsert the linked members\' bases on pk(character_id), re-homing a member who changed corps. Not atomic and there is no superseded path; an interleaved concurrent context pass resolves last writer wins, and a missing row reads as base unknown, which withholds tier-specific grants.',
+      kind: 'transactional-batch',
+      note: 'Partially replaced in the corporation\'s context-pass transaction, after the profile upsert locks the corporation: delete the rows for members no longer in the pass, then upsert the linked members\' bases on pk(character_id), re-homing a member who changed corps. Concurrent passes queue on the profile row, a failure rolls bases and profile back together, and a missing row reads as base unknown, which withholds tier-specific grants.',
     },
     dataClass: 'corp-shared',
   },

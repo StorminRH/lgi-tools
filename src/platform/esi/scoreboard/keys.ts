@@ -57,12 +57,6 @@ if cur == false or tonumber(cur) > tonumber(ARGV[1]) then
 end
 return 1`;
 
-export function parseStoredInt(value: string | null): number | null {
-  if (value === null) return null;
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 export function parseStoredMeta(value: string | null): CachedEtagMeta | null {
   if (value === null) return null;
   try {

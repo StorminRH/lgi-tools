@@ -1,28 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { industryJob } from './__tests__/job-fixture';
 import { refreshCorpJobsForUser } from './corp-refresh';
 import type { IndustryJob } from './esi-projection';
-import type { CorpJobsPort, JobsEsiRead, RefreshCorpMember } from './types';
+import type { CorpJobsPort } from './types';
 
 const SCOPE = 'esi-industry.read_corporation_jobs.v1';
 const ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 
-function member(overrides: Partial<RefreshCorpMember> = {}): RefreshCorpMember {
-  return {
-    characterId: 1,
-    corporationId: 2000,
-    hasRefreshToken: true,
-    missingScopes: [],
-    ...overrides,
-  };
-}
-
 interface FakeOptions {
-  members: RefreshCorpMember[];
+  members: EnumeratedOwner[];
   now?: Date;
   tokens?: Record<number, string | null>;
   roles?: Record<number, string[] | null>;
-  reads?: Record<number, JobsEsiRead>;
+  reads?: Record<number, SingleOwnerRead>;
   syncStates?: Record<number, { lastRefreshedAt: Date | null; jobsEtag: string | null }>;
 }
 
@@ -78,7 +70,7 @@ function makeFakePort(opts: FakeOptions) {
 describe('refreshCorpJobsForUser', () => {
   it('does zero work for a fresh corp (the staleness gate is the dedup)', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       now: new Date('2026-06-28T12:00:00Z'),
       syncStates: { 2000: { lastRefreshedAt: new Date('2026-06-28T11:59:00Z'), jobsEtag: 'e' } },
     });
@@ -92,7 +84,7 @@ describe('refreshCorpJobsForUser', () => {
   it('resolves a director and saves the board for a never-synced corp', async () => {
     const fresh = industryJob({ job_id: 7 });
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       reads: { 2000: { kind: 'fresh', body: [fresh], etag: 'etag-1' } },
     });
     const result = await refreshCorpJobsForUser(port, 'user-1');
@@ -104,8 +96,8 @@ describe('refreshCorpJobsForUser', () => {
   it('records needs_role when no member holds the role, without an ESI read', async () => {
     const { port, calls } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000 }),
-        member({ characterId: 2, corporationId: 2000 }),
+        ownerFixture(1, { corporationId: 2000 }),
+        ownerFixture(2, { corporationId: 2000 }),
       ],
       roles: { 1: ['Accountant'], 2: ['Station_Manager'] },
     });
@@ -120,7 +112,7 @@ describe('refreshCorpJobsForUser', () => {
 
   it('skips (no stamp) when no member can be vended — transient, retry next view', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       tokens: { 1: null },
     });
     await refreshCorpJobsForUser(port, 'user-1');
@@ -132,7 +124,7 @@ describe('refreshCorpJobsForUser', () => {
 
   it('stamps freshness on a 304', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       syncStates: { 2000: { lastRefreshedAt: null, jobsEtag: 'held' } },
       reads: { 2000: { kind: 'unchanged' } },
     });
@@ -145,7 +137,7 @@ describe('refreshCorpJobsForUser', () => {
 
   it('maps a read 403 (role revoked mid-run) to needs_role', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       reads: { 2000: { kind: 'error', code: 'esi_403' } },
     });
     const result = await refreshCorpJobsForUser(port, 'user-1');
@@ -158,7 +150,7 @@ describe('refreshCorpJobsForUser', () => {
 
   it('reports a transient read error without saving or stamping', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       reads: { 2000: { kind: 'error', code: 'esi_server_error' } },
     });
 
@@ -174,7 +166,7 @@ describe('refreshCorpJobsForUser', () => {
 
   it('reports a fresh contract rejection without saving or stamping', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       reads: { 2000: { kind: 'fresh', body: { not: 'an array' }, etag: 'bad' } },
     });
 
@@ -191,8 +183,8 @@ describe('refreshCorpJobsForUser', () => {
   it('prefers a role-holder as the vending character', async () => {
     const { port } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000 }),
-        member({ characterId: 2, corporationId: 2000 }),
+        ownerFixture(1, { corporationId: 2000 }),
+        ownerFixture(2, { corporationId: 2000 }),
       ],
       roles: { 1: ['Accountant'], 2: ['Director'] },
       reads: { 2000: { kind: 'fresh', body: [], etag: 'e' } },
@@ -209,9 +201,9 @@ describe('refreshCorpJobsForUser', () => {
   it('skips members missing the corp scopes and corps with no cached id', async () => {
     const { port, calls } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000, missingScopes: [SCOPE] }),
-        member({ characterId: 2, corporationId: null }),
-        member({ characterId: 3, corporationId: 3000, missingScopes: [ROLES_SCOPE] }),
+        ownerFixture(1, { corporationId: 2000, missingScopes: [SCOPE] }),
+        ownerFixture(2, { corporationId: null }),
+        ownerFixture(3, { corporationId: 3000, missingScopes: [ROLES_SCOPE] }),
       ],
     });
     await refreshCorpJobsForUser(port, 'user-1');
@@ -222,8 +214,8 @@ describe('refreshCorpJobsForUser', () => {
   it('refreshes multiple corps independently', async () => {
     const { port, calls } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000 }),
-        member({ characterId: 2, corporationId: 3000 }),
+        ownerFixture(1, { corporationId: 2000 }),
+        ownerFixture(2, { corporationId: 3000 }),
       ],
       reads: {
         2000: { kind: 'fresh', body: [industryJob({ job_id: 1 })], etag: 'a' },

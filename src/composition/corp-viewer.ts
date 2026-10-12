@@ -2,7 +2,6 @@ import { after } from 'next/server';
 import type { EveScope } from '@/config/eve-scopes';
 import { getCorpHoldingContext, readCorpMemberContext } from '@/data/corp-holdings/queries';
 import type { Knowable } from '@/data/corp-holdings/placement';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { hasScopes } from '@/lib/scope-eligibility';
 import type { UserCorpAccess } from '@/platform/auth/corp-access';
 import { narrowCorpRoles } from '@/platform/auth/corp-roles';
@@ -17,9 +16,10 @@ import {
   type OwnedReadScope,
   type SharingState,
 } from '@/platform/auth/corp-visibility';
+import type { EnumeratedOwner } from '@/platform/owner-sync';
 import { resolveUserCorpAccess } from './corp-access';
 import { refreshCorpContextOnView } from './sync/corp-context-sync';
-import { fetchAndStoreCorpRoles, type LinkedCharacterHealth, listCharactersWithHealth } from './sync/owner-sync-port';
+import { fetchAndStoreCorpRoles, listCharactersWithHealth, usableStoredRoles } from './sync/owner-sync-port';
 
 export interface CorpViewerCorporation {
   readonly corporationId: number;
@@ -32,7 +32,6 @@ export interface CorpViewer {
   readonly corporations: readonly CorpViewerCorporation[];
 }
 
-const ROLES_FRESHNESS = freshnessGate('character_corp_roles');
 const ROLES_SCOPE: EveScope = 'esi-characters.read_corporation_roles.v1';
 const UNKNOWN: MemberRoles = { kind: 'unknown' };
 const CONTEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -40,19 +39,11 @@ const NO_KNOWN_BASES: ReadonlyMap<number, number | null> = new Map();
 
 interface RoleSources {
   readonly stored: ReadonlyMap<number, StoredCorpRoles>;
-  readonly health: ReadonlyMap<number, LinkedCharacterHealth>;
+  readonly health: ReadonlyMap<number, EnumeratedOwner>;
   readonly now: Date;
 }
 
-function usableStoredRoles(
-  row: StoredCorpRoles | undefined,
-  corporationId: number,
-  now: Date,
-): row is StoredCorpRoles {
-  return row !== undefined && row.corporationId === corporationId && !ROLES_FRESHNESS.isStale(row.fetchedAt, now);
-}
-
-function canFetchRoles(health: LinkedCharacterHealth | undefined): boolean {
+function canFetchRoles(health: EnumeratedOwner | undefined): boolean {
   return health !== undefined && hasScopes(health, [ROLES_SCOPE]);
 }
 

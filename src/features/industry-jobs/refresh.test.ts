@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshJobsForUser } from './refresh';
-import type { CharacterJobsSyncState, JobsEsiRead, JobsPort } from './types';
+import type { CharacterJobsSyncState, JobsPort } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
@@ -24,7 +25,7 @@ function makePort(overrides: Partial<JobsPort> = {}): JobsPort {
     listCharacters: vi.fn(async () => []),
     vendToken: vi.fn(async () => 'token'),
     readJobs: vi.fn(
-      async (): Promise<JobsEsiRead> => ({ kind: 'fresh', body: [esiJob(5)], etag: '"j"' }),
+      async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: [esiJob(5)], etag: '"j"' }),
     ),
     readSyncState: vi.fn(async () => null),
     saveJobs: vi.fn(async () => {}),
@@ -32,13 +33,6 @@ function makePort(overrides: Partial<JobsPort> = {}): JobsPort {
     ...overrides,
   };
 }
-
-const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
-  characterId: id,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
 
 const fresh = (): CharacterJobsSyncState => ({
   lastRefreshedAt: new Date(NOW.getTime() - 60_000),
@@ -48,7 +42,7 @@ const fresh = (): CharacterJobsSyncState => ({
 describe('refreshJobsForUser', () => {
   it('makes no token vend and no ESI call when the character is fresh (the staleness gate)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => fresh()),
     });
 
@@ -62,7 +56,7 @@ describe('refreshJobsForUser', () => {
 
   it('fetches and saves the board for a never-synced character', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => null),
     });
 
@@ -79,9 +73,9 @@ describe('refreshJobsForUser', () => {
 
   it('replays the held etag and only stamps freshness on a 304', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, jobsEtag: '"jh"' })),
-      readJobs: vi.fn(async (): Promise<JobsEsiRead> => ({ kind: 'unchanged' })),
+      readJobs: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'unchanged' })),
     });
 
     const result = await refreshJobsForUser(port, 'u1');
@@ -94,8 +88,8 @@ describe('refreshJobsForUser', () => {
 
   it('skips the character on an ESI error without saving or stamping', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
-      readJobs: vi.fn(async (): Promise<JobsEsiRead> => ({ kind: 'error', code: 'esi_500' })),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
+      readJobs: vi.fn(async (): Promise<SingleOwnerRead> => ({ kind: 'error', code: 'esi_500' })),
     });
 
     const result = await refreshJobsForUser(port, 'u1');
@@ -109,9 +103,9 @@ describe('refreshJobsForUser', () => {
 
   it('reports a fresh contract rejection without saving or stamping', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       readJobs: vi.fn(
-        async (): Promise<JobsEsiRead> => ({ kind: 'fresh', body: { not: 'an array' }, etag: '"bad"' }),
+        async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { not: 'an array' }, etag: '"bad"' }),
       ),
     });
 
@@ -126,7 +120,7 @@ describe('refreshJobsForUser', () => {
 
   it('refreshes several stale characters in one parallel pass', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2), ownerFixture(3)]),
       readSyncState: vi.fn(async () => null),
     });
 
@@ -141,7 +135,7 @@ describe('refreshJobsForUser', () => {
 
   it('skips a character missing the industry scope (no sync-state read, no vend)', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1, { missingScopes: [JOBS_SCOPE] })]),
+      listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: [JOBS_SCOPE] })]),
     });
 
     await refreshJobsForUser(port, 'u1');
@@ -152,7 +146,7 @@ describe('refreshJobsForUser', () => {
 
   it('skips a character whose token cannot be vended', async () => {
     const port = makePort({
-      listCharacters: vi.fn(async () => [character(1)]),
+      listCharacters: vi.fn(async () => [ownerFixture(1)]),
       vendToken: vi.fn(async () => null),
     });
 

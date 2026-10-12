@@ -18,15 +18,12 @@ export interface LiveDatasetView<TData, TRow> {
 export async function readCharacterOwners<TData>(
   userId: string,
   readData: (characterIds: number[]) => Promise<Map<number, TData>>,
-  readState: (characterId: number) => Promise<{ lastRefreshedAt: Date | null } | null>,
+  readStates: (characterIds: number[]) => Promise<ReadonlyMap<number, { lastRefreshedAt: Date | null }>>,
 ): Promise<{ owners: OwnerRow[]; data: Map<number, TData> }> {
   const linked = await listLinkedCharacters(userId);
   const ids = linked.map((character) => character.characterId);
-  const [data, states] = await Promise.all([
-    readData(ids),
-    Promise.all(ids.map((id) => readState(id))),
-  ]);
-  const owners: OwnerRow[] = ids.map((id, i) => ({ id, lastRefreshedAt: states[i]?.lastRefreshedAt ?? null }));
+  const [data, states] = await Promise.all([readData(ids), readStates(ids)]);
+  const owners: OwnerRow[] = ids.map((id) => ({ id, lastRefreshedAt: states.get(id)?.lastRefreshedAt ?? null }));
   return { owners, data };
 }
 
