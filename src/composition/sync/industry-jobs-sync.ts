@@ -1,7 +1,7 @@
 import { isDue } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
-import { characterJobsKey } from '@/features/industry-jobs/keys';
+import { characterJobsKey, jobsDueKeys } from '@/features/industry-jobs/keys';
 import {
   getJobsForCharacters,
   listCharacterJobSyncStates,
@@ -39,14 +39,16 @@ export interface ViewerJobs {
 export interface ViewerJobsResult {
   characters: ViewerJobs[];
   names: Record<string, string>;
+  refreshing: boolean;
 }
 
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
-  const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
+  const { rows, names, refreshing } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
     read: (uid) => readCharacterOwners(uid, getJobsForCharacters, listCharacterJobSyncStates),
     refresh: refreshJobsOnView,
+    dueKeys: (_uid, owners) => jobsDueKeys(owners),
     makeRow: characterRow,
     nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
   });
-  return { characters: rows, names };
+  return { characters: rows, names, refreshing };
 }

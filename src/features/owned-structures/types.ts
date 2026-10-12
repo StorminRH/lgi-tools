@@ -27,6 +27,12 @@ export interface CorpStructurePageView {
   lastRefreshedAt: number | null;
 }
 
+/** What the structures drawer and the corporation settings page are served: every member corp, and whether a refresh is under way. */
+export interface CorpStructuresPageResult {
+  corporations: CorpStructurePageView[];
+  refreshing: boolean;
+}
+
 export interface CorpOwner {
   corporationId: number;
 }

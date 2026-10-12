@@ -19,6 +19,13 @@ Landmines that lint, Fallow, and nearby tests do not catch.
   context value. Next wraps each route segment in an Activity boundary that
   hydrates after the root, and a context change reaching it throws its server
   HTML away (React #418 or a silent re-render).
+- An EVE-data page shows the stored copy at once and streams the newer
+  data in. Its server read (`*OnView`, or the structures page data) returns
+  `refreshing` from `refreshDue`, its endpoint's 200 body declares
+  `refreshing: z.boolean()`, and its client hook is built on
+  `useLiveDataset`, which checks back on the shared schedule until the
+  refresh lands. Never read such an endpoint with your own `apiFetch`;
+  `src/esi-datasets/live-readers.test.ts` pins the set.
 
 ## Styling
 

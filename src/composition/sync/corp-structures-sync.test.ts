@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   connection: vi.fn(),
+  refreshDue: vi.fn(),
   getCorpStructures: vi.fn(),
   getCorpStructureRigs: vi.fn(),
   listCorpStructureSyncStates: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock('./owner-sync-port', () => ({
   readRolesForSync: vi.fn(),
   vendTokenFor: vi.fn(),
 }));
+vi.mock('./live-dataset-view', () => ({ refreshDue: mocks.refreshDue }));
 vi.mock('@/data/esi-store', () => ({ isDue: vi.fn() }));
 vi.mock('@/data/esi-store/session', () => ({ openReadSession: vi.fn() }));
 
@@ -81,6 +83,7 @@ const fort = (structureId: number) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.connection.mockResolvedValue(undefined);
+  mocks.refreshDue.mockResolvedValue(false);
   mocks.getCorpStructures.mockResolvedValue(new Map());
   mocks.listCorpStructureSyncStates.mockResolvedValue([]);
   mocks.getCorpStructureRigs.mockResolvedValue(new Map());
@@ -107,8 +110,8 @@ function viewWithThreeCorps(): void {
 
 describe('corp structure reads', () => {
   it('waits for a real request before resolving the viewer on both read seams', async () => {
-    await expect(getCorpStructuresPageData('user-1')).resolves.toEqual([]);
-    await expect(getAvailableCorpStructuresForUser('user-1')).resolves.toEqual([]);
+    await expect(getCorpStructuresPageData('user-1')).resolves.toEqual({ corporations: [], refreshing: false });
+    await expect(getAvailableCorpStructuresForUser('user-1')).resolves.toEqual({ structures: [], refreshing: false });
 
     expect(mocks.connection).toHaveBeenCalledTimes(2);
     expect(mocks.resolveCorpViewer).toHaveBeenCalledTimes(2);
@@ -121,12 +124,18 @@ describe('corp structure reads', () => {
     viewWithThreeCorps();
     mocks.getCorpStructureRigs.mockResolvedValue(new Map([[2, { rigTypeIds: [37178], taxPct: 1.5 }]]));
 
+    mocks.refreshDue.mockResolvedValue(true);
+
     const available = await getAvailableCorpStructuresForUser('user-1');
 
-    expect(available).toEqual([
-      { structureId: 1, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 1', rigTypeIds: [], taxPct: null },
-      { structureId: 2, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 2', rigTypeIds: [37178], taxPct: 1.5 },
-    ]);
+    expect(available).toEqual({
+      structures: [
+        { structureId: 1, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 1', rigTypeIds: [], taxPct: null },
+        { structureId: 2, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 2', rigTypeIds: [37178], taxPct: 1.5 },
+      ],
+      refreshing: true,
+    });
+    expect(mocks.after).toHaveBeenCalledOnce();
   });
 
   it('gives the settings and structures pages each corp with the viewer grant', async () => {
@@ -135,7 +144,8 @@ describe('corp structure reads', () => {
 
     const pages = await getCorpStructuresPageData('user-1');
 
-    expect(pages.map(({ corporationId, corporationName, structureAccess, canManageSharing, sharing, structures }) => ({
+    expect(pages.refreshing).toBe(false);
+    expect(pages.corporations.map(({ corporationId, corporationName, structureAccess, canManageSharing, sharing, structures }) => ({
       corporationId,
       corporationName,
       structureAccess,

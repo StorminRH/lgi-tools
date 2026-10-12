@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock('react', () => ({
   useCallback: <T>(callback: T) => callback,
+  useEffectEvent: <T>(callback: T) => callback,
   useEffect: (effect: () => void | (() => void)) => {
     const cleanup = effect();
     if (cleanup) h.cleanups.push(cleanup);
@@ -58,20 +59,24 @@ vi.mock('@/platform/auth/read-identity', () => ({
   isCurrentReadIdentity: (identity: typeof h.identity) => identity !== null && identity === h.identity,
 }));
 
-import { useLiveDataset } from './use-live-dataset';
+import type { z } from 'zod';
+import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
+import { type LivePost, useLiveDataset } from './use-live-dataset';
 
-const endpoint = { method: 'GET', path: '/api/test' } as unknown as Parameters<
-  typeof useLiveDataset<{ rows: number }, string>
->[0];
+type Rows = { rows: number; refreshing: boolean };
+const endpoint = { method: 'GET', path: '/api/test' } as unknown as EndpointContract<null, { 200: JsonCodec<Rows> }> & {
+  method: 'GET';
+};
+const postEndpoint = { method: 'POST', path: '/api/test-post' } as unknown as LivePost<z.ZodTypeAny, Rows>['endpoint'];
 const neverCold = () => false;
-const ok = (data: unknown) => ({ ok: true, data });
+const ok = (rows: number, refreshing = false) => ({ ok: true, data: { rows, refreshing } });
 const serverError = { ok: false, kind: 'http', status: 500 };
 
 // useState call order inside the hook: failed, attempts, now.
 const setFailed = () => h.setters[0]!;
 const setAttempts = () => h.setters[1]!;
-// The one endpoint the tests read, so the one memory the hook keeps.
-const remembered = () => h.memories[0]?.get() ?? null;
+// The remembered entry of the endpoint the tests read, by its memory's creation order.
+const remembered = (memory = 0) => (h.memories[memory]?.get() as { response: unknown } | null)?.response ?? null;
 
 async function flush(): Promise<void> {
   await vi.advanceTimersByTimeAsync(0);
@@ -96,11 +101,11 @@ afterEach(() => {
 
 describe('useLiveDataset', () => {
   it('is loading until the first response arrives, then stores it and clears any earlier failure', async () => {
-    h.apiFetch.mockResolvedValue(ok({ rows: 1 }));
+    h.apiFetch.mockResolvedValue(ok(1));
     const result = useLiveDataset(endpoint, 'k', neverCold);
     expect(result).toMatchObject({ response: null, loading: true, failed: false });
     await flush();
-    expect(remembered()).toEqual({ rows: 1 });
+    expect(remembered()).toEqual({ rows: 1, refreshing: false });
     expect(setFailed()).toHaveBeenCalledWith(null);
   });
 
@@ -128,15 +133,15 @@ describe('useLiveDataset', () => {
   });
 
   it('recovers when the retry succeeds', async () => {
-    h.apiFetch.mockResolvedValueOnce(serverError).mockResolvedValueOnce(ok({ rows: 2 }));
+    h.apiFetch.mockResolvedValueOnce(serverError).mockResolvedValueOnce(ok(2));
     useLiveDataset(endpoint, 'k', neverCold);
     await vi.advanceTimersByTimeAsync(4_000);
-    expect(remembered()).toEqual({ rows: 2 });
+    expect(remembered()).toEqual({ rows: 2, refreshing: false });
     expect(setFailed()).not.toHaveBeenCalledWith(h.identity);
   });
 
   it('follows a reconcile schedule while the data stays cold, then stops', async () => {
-    h.apiFetch.mockResolvedValue(ok({ rows: 0 }));
+    h.apiFetch.mockResolvedValue(ok(0));
     useLiveDataset(endpoint, 'k', () => true, [4_000, 8_000]);
     await vi.advanceTimersByTimeAsync(0);
     expect(h.apiFetch).toHaveBeenCalledTimes(1);
@@ -149,25 +154,54 @@ describe('useLiveDataset', () => {
   });
 
   it('stops the schedule as soon as the data is warm', async () => {
-    h.apiFetch.mockResolvedValueOnce(ok({ rows: 0 })).mockResolvedValue(ok({ rows: 1 }));
-    useLiveDataset(endpoint, 'k', (response: { rows: number }) => response.rows === 0, [4_000, 8_000, 15_000]);
+    h.apiFetch.mockResolvedValueOnce(ok(0)).mockResolvedValue(ok(1));
+    useLiveDataset(endpoint, 'k', (response: Rows) => response.rows === 0, [4_000, 8_000, 15_000]);
     await vi.advanceTimersByTimeAsync(4_000);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps checking back while the server says a refresh is under way, then swaps in what landed and stops', async () => {
+    h.apiFetch
+      .mockResolvedValueOnce(ok(0, true))
+      .mockResolvedValueOnce(ok(0, true))
+      .mockResolvedValue(ok(5));
+    // No coldness test of its own: the server's `refreshing` alone drives the re-checks.
+    useLiveDataset(endpoint);
+    await flush();
+    expect(h.apiFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(3);
+    expect(remembered()).toEqual({ rows: 5, refreshing: false });
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('gives up on a refresh that never lands once the default schedule runs out', async () => {
+    h.apiFetch.mockResolvedValue(ok(0, true));
+    useLiveDataset(endpoint);
+    await flush();
+    // 4, 8, 15, 30 and 60 s after the load: five re-checks, then nothing.
+    await vi.advanceTimersByTimeAsync(117_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(6);
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(6);
+  });
+
   it('keeps loaded data when the reconcile fetch fails', async () => {
-    h.apiFetch.mockResolvedValueOnce(ok({ rows: 0 })).mockResolvedValueOnce(serverError);
+    h.apiFetch.mockResolvedValueOnce(ok(0)).mockResolvedValueOnce(serverError);
     useLiveDataset(endpoint, 'k', () => true);
     await vi.advanceTimersByTimeAsync(4_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
     expect(setFailed()).not.toHaveBeenCalledWith(h.identity);
-    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(600_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
   });
 
   it('keeps loaded data when a re-run for a new key fails twice', async () => {
-    h.apiFetch.mockResolvedValueOnce(ok({ rows: 1 })).mockResolvedValue(serverError);
+    h.apiFetch.mockResolvedValueOnce(ok(1)).mockResolvedValue(serverError);
     useLiveDataset(endpoint, 'a', neverCold);
     await flush();
     h.setters.length = 0;
@@ -179,13 +213,35 @@ describe('useLiveDataset', () => {
   });
 
   it('draws the last response at once when it mounts again', async () => {
-    h.apiFetch.mockResolvedValueOnce(ok({ rows: 3 })).mockReturnValue(new Promise(() => {}));
+    h.apiFetch.mockResolvedValueOnce(ok(3)).mockReturnValue(new Promise(() => {}));
     useLiveDataset(endpoint, 'k', neverCold);
     await flush();
     h.setters.length = 0;
     const again = useLiveDataset(endpoint, 'k', neverCold);
     expect(again).toMatchObject({ response: { rows: 3 }, loading: false });
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends a POST contract its body and remembers the answer under the body key alone', async () => {
+    h.apiFetch.mockResolvedValueOnce(ok(4)).mockReturnValue(new Promise(() => {}));
+    useLiveDataset({ endpoint: postEndpoint, body: { typeIds: [34, 35] }, key: '34,35' });
+    expect(h.apiFetch).toHaveBeenCalledWith(postEndpoint, { body: { typeIds: [34, 35] } });
+    await flush();
+    h.setters.length = 0;
+    expect(useLiveDataset({ endpoint: postEndpoint, body: { typeIds: [34, 35] }, key: '34,35' })).toMatchObject({
+      response: { rows: 4 },
+      loading: false,
+    });
+    // Another key draws nothing until its own read lands, and a failure then still retries rather than keeping the other entry.
+    h.setters.length = 0;
+    h.apiFetch.mockReset().mockResolvedValue(serverError);
+    expect(useLiveDataset({ endpoint: postEndpoint, body: { typeIds: [36] }, key: '36' })).toMatchObject({
+      response: null,
+      loading: true,
+    });
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    expect(setFailed()).toHaveBeenCalledWith(h.identity);
   });
 
   it('ignores a response that lands after unmount', async () => {
@@ -213,7 +269,7 @@ describe('useLiveDataset', () => {
     h.apiFetch.mockReturnValue(new Promise((r) => (resolve = r)));
     useLiveDataset(endpoint, 'k', neverCold);
     h.identity = { userId: 'account-b', characterId: 7 };
-    resolve(ok({ rows: 99 }));
+    resolve(ok(99));
     await flush();
     expect(remembered()).toBeNull();
     expect(setFailed()).not.toHaveBeenCalled();

@@ -8,7 +8,7 @@ import {
   collectAssetNameIds,
   type OwnedAssetDetailEntry,
 } from '@/features/owned-assets/detail';
-import { ownedAssetsKey } from '@/features/owned-assets/keys';
+import { ownedAssetsDueKeys, ownedAssetsKey } from '@/features/owned-assets/keys';
 import { getOwnedAssetMap, readOwnerSyncState, stampOwnerFresh } from '@/features/owned-assets/queries';
 import {
   refreshCharacterOwnedAssetsForUser,
@@ -17,6 +17,7 @@ import {
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
 import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
+import { refreshDue } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 import { saveOwnedAssetsFromSource } from './owned-assets-source-save';
 
@@ -45,11 +46,14 @@ export const refreshCharacterAssetsOnView = (userId: string) =>
 export async function getOwnedAssetDetailOnView(
   userId: string,
   requestedTypeIds: number[],
-): Promise<OwnedAssetDetailEntry[]> {
+): Promise<{ assets: OwnedAssetDetailEntry[]; refreshing: boolean }> {
   const viewer = await resolveCorpViewer(userId);
-  const map = await getOwnedAssetMap(viewer.scope, requestedTypeIds);
+  const [map, refreshing] = await Promise.all([
+    getOwnedAssetMap(viewer.scope, requestedTypeIds),
+    refreshDue(userId, ownedAssetsDueKeys),
+  ]);
   after(() => refreshOwnedAssetsOnView(userId));
   const contexts = contextsByCorp(viewer.scope);
   const names = await resolveEntityNames(collectAssetNameIds(map, contexts));
-  return buildOwnedAssetDetail(map, names, formatStationName, contexts);
+  return { assets: buildOwnedAssetDetail(map, names, formatStationName, contexts), refreshing };
 }

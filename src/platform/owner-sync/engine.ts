@@ -47,22 +47,32 @@ async function runCharacterPass<TOwner, TState, TSave, TSession extends ReadSess
   );
 }
 
+/**
+ * The corporations a corp pass syncs, each with the members whose tokens it
+ * may try: a corporation counts once some eligible member belongs to it.
+ */
+export function corporationsOf(
+  owners: readonly EnumeratedOwner[],
+  eligible: (owner: EnumeratedOwner) => boolean,
+): Map<number, EnumeratedOwner[]> {
+  const byCorp = new Map<number, EnumeratedOwner[]>();
+  for (const owner of owners) {
+    if (!eligible(owner) || owner.corporationId === null) continue;
+    const members = byCorp.get(owner.corporationId) ?? [];
+    members.push(owner);
+    byCorp.set(owner.corporationId, members);
+  }
+  return byCorp;
+}
+
 async function runCorpPass<TOwner, TState, TSave, TSession extends ReadSession>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
   axis: CorpOwnerAxis<TOwner>,
   userId: string,
   owners: EnumeratedOwner[],
 ): Promise<OwnerSyncResult[]> {
-  const byCorp = new Map<number, EnumeratedOwner[]>();
-  for (const owner of owners) {
-    if (!axis.eligible(owner) || owner.corporationId === null) continue;
-    const members = byCorp.get(owner.corporationId) ?? [];
-    members.push(owner);
-    byCorp.set(owner.corporationId, members);
-  }
-
   return Promise.all(
-    [...byCorp].map(([corporationId, members]) =>
+    [...corporationsOf(owners, (owner) => axis.eligible(owner))].map(([corporationId, members]) =>
       syncOwner(descriptor, axis.ownerOf(userId, corporationId), () =>
         corpTokens(descriptor, axis, members),
       ),

@@ -15,7 +15,7 @@ export async function CustomStructuresContent() {
     </div>
   );
 
-  const [structureTypes, structureRigs, initialCustom, initialCorps] = await Promise.all([
+  const [structureTypes, structureRigs, initialCustom, corps] = await Promise.all([
     getStructureTypes(),
     getStructureRigs(),
     listCustomStructures(session.user.id),
@@ -27,7 +27,7 @@ export async function CustomStructuresContent() {
       structureTypes={structureTypes}
       structureRigs={structureRigs}
       initialCustom={initialCustom}
-      initialCorps={initialCorps}
+      initialCorps={corps.corporations}
     />
   );
 }

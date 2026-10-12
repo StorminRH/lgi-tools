@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { runOwnerSync } from './engine';
+import { corporationsOf, runOwnerSync } from './engine';
 import type { CorpOwnerAxis, OwnerSyncDescriptor, PersistVerdict, ReadSession } from './types';
 import { ownerFixture, readSessionFake } from './__tests__/owner-fixtures';
 
@@ -239,6 +239,22 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(saveGateState).toHaveBeenCalledWith('char:1');
     expect(d.save).not.toHaveBeenCalled();
     expect(opened[0]!.commit).not.toHaveBeenCalled();
+  });
+});
+
+describe('corporationsOf', () => {
+  it('groups eligible members by corporation and leaves out the ineligible and the corp-less', () => {
+    const owners = [
+      ownerFixture(1, { corporationId: 5000 }),
+      ownerFixture(2, { corporationId: 5000, hasRefreshToken: false }),
+      ownerFixture(3, { corporationId: 6000 }),
+      ownerFixture(4),
+    ];
+    const byCorp = corporationsOf(owners, (owner) => owner.hasRefreshToken);
+    expect([...byCorp.keys()]).toEqual([5000, 6000]);
+    expect(byCorp.get(5000)).toEqual([owners[0]]);
+    expect(byCorp.get(6000)).toEqual([owners[2]]);
+    expect(corporationsOf(owners, () => false).size).toBe(0);
   });
 });
 

@@ -2,7 +2,7 @@ import { after } from 'next/server';
 import { isDue } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { accountBelongsToUser, listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { skillQueueKey, skillsKey, skillsKeys } from '@/features/skill-queue/keys';
+import { skillQueueKey, skillsDueKeys, skillsKey, skillsKeys } from '@/features/skill-queue/keys';
 import {
   getCharacterSkillLevels,
   getSkillLevelsForCharacters,
@@ -12,6 +12,7 @@ import {
 } from '@/features/skill-queue/queries';
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
 import type { SkillsPort } from '@/features/skill-queue/types';
+import { refreshDue } from './live-dataset-view';
 import { listCharactersWithHealth, vendTokenFor } from './owner-sync-port';
 
 function makeSkillsPort(): SkillsPort {
@@ -44,15 +45,23 @@ export interface ViewerSkillLevels {
  * token vend or ESI call, so a re-view inside CCP's expiry is a pure Neon
  * read — there is no unconditional N-character refresh storm.
  */
-export async function getSkillLevelsForUserOnView(userId: string): Promise<ViewerSkillLevels[]> {
+export async function getSkillLevelsForUserOnView(
+  userId: string,
+): Promise<{ characters: ViewerSkillLevels[]; refreshing: boolean }> {
   const linked = await listLinkedCharacters(userId);
   const characterIds = linked.map((character) => character.characterId);
-  const levelsMap = await getSkillLevelsForCharacters(characterIds);
+  const [levelsMap, refreshing] = await Promise.all([
+    getSkillLevelsForCharacters(characterIds),
+    refreshDue(userId, skillsDueKeys),
+  ]);
   after(() => refreshSkillsOnView(userId));
-  return characterIds.map((characterId) => ({
-    characterId,
-    levels: levelsMap.get(characterId) ?? null,
-  }));
+  return {
+    characters: characterIds.map((characterId) => ({
+      characterId,
+      levels: levelsMap.get(characterId) ?? null,
+    })),
+    refreshing,
+  };
 }
 
 export async function getSkillLevelsForCharacterOnView(

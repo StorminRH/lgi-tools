@@ -3,7 +3,7 @@ import { isDue } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
-import { corpJobsKey } from '@/features/industry-jobs/keys';
+import { corpJobsDueKeys, corpJobsKey } from '@/features/industry-jobs/keys';
 import {
   getCorpJobsForUser,
   listCorpJobSyncStates,
@@ -45,10 +45,11 @@ export interface ViewerCorpJobs {
 export interface ViewerCorpJobsResult {
   corporations: ViewerCorpJobs[];
   names: Record<string, string>;
+  refreshing: boolean;
 }
 
 export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCorpJobsResult> {
-  const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
+  const { rows, names, refreshing } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
     read: async (uid) => {
       const [access, syncStates] = await Promise.all([
         resolveUserCorpAccess(uid),
@@ -68,6 +69,7 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
       return { owners, data };
     },
     refresh: refreshCorpJobsOnView,
+    dueKeys: corpJobsDueKeys,
     makeRow: (owner, data) => ({
       corporationId: owner.id,
       data,
@@ -76,5 +78,5 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
     }),
     nameIds: (viewerCorpJobs) => jobTypeIds(viewerCorpJobs),
   });
-  return { corporations: rows, names };
+  return { corporations: rows, names, refreshing };
 }

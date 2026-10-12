@@ -9,13 +9,14 @@ import {
   collectDetailNameIds,
   type OwnedBlueprintDetailEntry,
 } from '@/features/owned-blueprints/detail';
-import { ownedBlueprintsKey } from '@/features/owned-blueprints/keys';
+import { ownedBlueprintsDueKeys, ownedBlueprintsKey } from '@/features/owned-blueprints/keys';
 import { getOwnedBlueprintMap, readBlueprintSyncState, saveOwnedBlueprints, stampBlueprintFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { formatStationName } from '@/lib/format/names';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
+import { refreshDue } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesForSync, vendTokenFor } from './owner-sync-port';
 
 function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
@@ -39,15 +40,18 @@ export const refreshOwnedBlueprintsOnView = (userId: string) =>
 export async function getOwnedBlueprintDetailOnView(
   userId: string,
   requestedTypeIds: number[],
-): Promise<OwnedBlueprintDetailEntry[]> {
+): Promise<{ blueprints: OwnedBlueprintDetailEntry[]; refreshing: boolean }> {
   const viewer = await resolveCorpViewer(userId);
-  const evidence = await mapByIdDroppingNulls(
-    viewer.scope.corps.filter((grant) => grant.blueprints.kind === 'by-location').map((grant) => grant.corporationId),
-    getCorpAssetEvidence,
-  );
+  const [evidence, refreshing] = await Promise.all([
+    mapByIdDroppingNulls(
+      viewer.scope.corps.filter((grant) => grant.blueprints.kind === 'by-location').map((grant) => grant.corporationId),
+      getCorpAssetEvidence,
+    ),
+    refreshDue(userId, ownedBlueprintsDueKeys),
+  ]);
   const map = await getOwnedBlueprintMap(viewer.scope, evidence);
   after(() => refreshOwnedBlueprintsOnView(userId));
   const contexts = contextsByCorp(viewer.scope);
   const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds, contexts));
-  return buildOwnedDetail(map, requestedTypeIds, names, formatStationName, contexts);
+  return { blueprints: buildOwnedDetail(map, requestedTypeIds, names, formatStationName, contexts), refreshing };
 }

@@ -21,7 +21,8 @@ import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { usePreference } from '@/components/PreferencesProvider';
-import { apiFetch } from '@/transport/api-client';
+import { useLiveDataset } from '@/components/use-live-dataset';
+import { idsKey } from '@/lib/array';
 import { industryCostBasis } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,
@@ -46,7 +47,6 @@ import { useProfileFactors } from './use-planner-profile';
 import type { ProfilePlan } from '../profiles/profile-plan';
 import { usePlannerLocationWrites } from './use-planner-location-writes';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
-import { useResourceRead } from '../use-resource-read';
 import { useAvailableStructures } from '../use-available-structures';
 import { typeNamer } from '../type-name';
 import { toMarketScoreInputs } from '../market-score-inputs';
@@ -224,10 +224,8 @@ function usePlannerLocationState(structure: BlueprintStructure) {
   };
 }
 
+/** What the pilot owns of this build, streamed in as the hangars sync: null until the first read lands. */
 function usePlannerOwnedResources(structure: BlueprintStructure) {
-  const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
-  const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
-  const [ownedAssets, setOwnedAssets] = useState<Map<number, OwnedAssetEntry> | null>(null);
   const toRefresh = useMemo(
     () => [
       ...new Set<number>([
@@ -242,41 +240,21 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
     () => collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId),
     [structure],
   );
-  const readOwnedBlueprints = useCallback(
-    async (signal: AbortSignal): Promise<OwnedBlueprintMaps | null> => {
-      const res = await apiFetch(ownedBlueprintsEndpoint, {
-        body: { blueprintTypeIds: ownedBlueprintTypeIds },
-        cache: 'no-store',
-        signal,
-      });
-      return res.ok ? mapOwnedBlueprints(res.data.blueprints) : null;
-    },
-    [ownedBlueprintTypeIds],
-  );
-  const applyOwnedBlueprints = useCallback((maps: OwnedBlueprintMaps) => {
-    setOwnedMe(maps.ownedMe);
-    setOwnedDetail(maps.ownedDetail);
-  }, []);
-  useResourceRead(readOwnedBlueprints, {
-    enabled: true,
-    onData: applyOwnedBlueprints,
+  const blueprints = useLiveDataset({
+    endpoint: ownedBlueprintsEndpoint,
+    body: { blueprintTypeIds: ownedBlueprintTypeIds },
+    key: idsKey(ownedBlueprintTypeIds),
   });
-  const readOwnedAssets = useCallback(
-    async (signal: AbortSignal): Promise<Map<number, OwnedAssetEntry> | null> => {
-      const res = await apiFetch(ownedAssetsEndpoint, {
-        body: { typeIds: toRefresh },
-        cache: 'no-store',
-        signal,
-      });
-      return res.ok ? new Map(res.data.assets.map((asset) => [asset.typeId, asset])) : null;
-    },
-    [toRefresh],
+  const owned = useMemo<OwnedBlueprintMaps | null>(
+    () => (blueprints.response === null ? null : mapOwnedBlueprints(blueprints.response.blueprints)),
+    [blueprints.response],
   );
-  useResourceRead(readOwnedAssets, {
-    enabled: true,
-    onData: setOwnedAssets,
-  });
-  return { ownedAssets, ownedDetail, ownedMe, toRefresh };
+  const assets = useLiveDataset({ endpoint: ownedAssetsEndpoint, body: { typeIds: toRefresh }, key: idsKey(toRefresh) });
+  const ownedAssets = useMemo<Map<number, OwnedAssetEntry> | null>(
+    () => (assets.response === null ? null : new Map(assets.response.assets.map((asset) => [asset.typeId, asset]))),
+    [assets.response],
+  );
+  return { ownedAssets, ownedDetail: owned?.ownedDetail ?? null, ownedMe: owned?.ownedMe ?? null, toRefresh };
 }
 
 interface PriceAssembleMirrors {

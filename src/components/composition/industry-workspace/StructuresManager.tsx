@@ -20,6 +20,7 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import { refreshAvailableStructures, useAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { CorpRigEditor } from '@/features/owned-structures/components/CorpRigEditor';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
+import { refreshCorpStructures, useCorpStructuresLive } from '@/features/owned-structures/use-corp-structures-live';
 import { unresolvedName } from '@/lib/format/names';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
@@ -247,11 +248,27 @@ function useLookups(structureTypes: StructureTypeOption[]): Lookups {
   );
 }
 
-const withCorpRigs = (structureId: number, saved: Pick<CorpStructurePageStructure, 'rigTypeIds' | 'taxPct'>) =>
+export type RigEdit = Pick<CorpStructurePageStructure, 'rigTypeIds' | 'taxPct'>;
+
+/** The rigs saved here, drawn over the live rows until the re-read carries them. */
+export const withRigEdits = (edits: ReadonlyMap<number, RigEdit>) =>
   (corp: CorpStructurePageView): CorpStructurePageView => ({
     ...corp,
-    structures: corp.structures.map((s) => (s.structureId === structureId ? { ...s, ...saved } : s)),
+    structures: corp.structures.map((s) => ({ ...s, ...edits.get(s.structureId) })),
   });
+
+/** The member corps with structures to show, newer data streaming in behind the server's first draw. */
+function useCorpGroups(initialCorps: CorpStructurePageView[]) {
+  const { corporations } = useCorpStructuresLive(initialCorps);
+  const [rigEdits, setRigEdits] = useState<ReadonlyMap<number, RigEdit>>(() => new Map());
+  const corps = useMemo(
+    () => corporations.map(withRigEdits(rigEdits)).filter((c) => c.structures.length > 0),
+    [corporations, rigEdits],
+  );
+  const saveRigs = (structureId: number, saved: RigEdit) =>
+    setRigEdits((prev) => new Map(prev).set(structureId, saved));
+  return { corps, saveRigs };
+}
 
 /** The structure a save just added, in the shape a profile takes it. */
 export function savedStructure(
@@ -294,7 +311,7 @@ function StructuresManagerContent({
   identity,
 }: Omit<StructuresManagerProps, 'owner'> & { identity: ReadIdentity | null }) {
   const [custom, setCustom] = useState(initialCustom);
-  const [corps, setCorps] = useState(() => initialCorps.filter((c) => c.structures.length > 0));
+  const { corps, saveRigs } = useCorpGroups(initialCorps);
   const [ownComposer, setComposer] = useState<Composer>(null);
   // A profile asking for a new structure opens the form, and gets what it saves.
   const request = useNewStructureRequest();
@@ -343,7 +360,8 @@ function StructuresManagerContent({
             setComposer={setComposer}
             onCorpSaved={(structureId, saved) => {
               if (!isCurrentReadIdentity(identity)) return;
-              setCorps((prev) => prev.map(withCorpRigs(structureId, saved)));
+              saveRigs(structureId, saved);
+              refreshCorpStructures();
               settle();
             }}
           />

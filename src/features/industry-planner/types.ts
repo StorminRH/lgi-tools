@@ -190,6 +190,7 @@ export interface OwnedBlueprintMeEntry {
 
 export interface OwnedBlueprintsResponse {
   blueprints: OwnedBlueprintMeEntry[];
+  refreshing: boolean;
 }
 
 export type OwnedComponentDetail = Omit<OwnedBlueprintMeEntry, 'blueprintTypeId' | 'me'>;
@@ -211,4 +212,5 @@ export interface OwnedAssetEntry {
 
 export interface OwnedAssetsResponse {
   assets: OwnedAssetEntry[];
+  refreshing: boolean;
 }

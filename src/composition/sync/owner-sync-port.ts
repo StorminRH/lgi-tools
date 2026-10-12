@@ -9,19 +9,23 @@ import {
   type StoredCorpRoles,
   upsertCorpRoles,
 } from '@/platform/auth/corp-roles-store';
-import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { characterRolesKey } from '@/platform/auth/roles-key';
 import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import type { EnumeratedOwner } from '@/platform/owner-sync';
 
-export async function listCharactersWithHealth(userId: string): Promise<EnumeratedOwner[]> {
-  const linked = await listLinkedCharacters(userId);
+/** Each linked character as the syncs see it: its corporation, and whether it holds a token and the scopes. */
+export function charactersWithHealth(linked: readonly LinkedCharacter[]): EnumeratedOwner[] {
   return linked.map((character) => ({
     characterId: character.characterId,
     corporationId: character.corporationId,
     ...scopeHolderOf(character),
   }));
+}
+
+export async function listCharactersWithHealth(userId: string): Promise<EnumeratedOwner[]> {
+  return charactersWithHealth(await listLinkedCharacters(userId));
 }
 
 /**

@@ -1,6 +1,8 @@
 import type { EsiStoreKey } from '@/data/esi-store';
 import { eveTag, type EsiRoute } from '@/lib/esi-datasets/routes';
+import type { EnumeratedOwner } from '@/platform/owner-sync';
 import { SHEET_SECTION_KEYS, SHEET_SECTIONS, TIER_ENTRY } from './sections';
+import { canSyncSection } from './sync-eligibility';
 import type { DirectSectionKey, DirectSectionSpec, SheetEndpoint, SheetPart, SheetSections } from './types';
 
 /** The declared route each sheet endpoint reads, spelled once so the registry test can check every one. */
@@ -52,4 +54,17 @@ export function heldSectionKeys(characterId: number, sections: SheetSections): E
     const envelope = sections[key];
     return envelope === undefined || envelope.denied === true ? [] : sectionKeys(characterId, key);
   });
+}
+
+/**
+ * The stored answers a sheet refresh for these characters would check: each
+ * eligible direct section's. The structures section is built from
+ * pass-through lookups and has no answer of its own.
+ */
+export function sheetDueKeys(owners: readonly EnumeratedOwner[]): EsiStoreKey[] {
+  return owners.flatMap((owner) =>
+    SHEET_SECTION_KEYS.flatMap((key) =>
+      key === 'structures' || !canSyncSection(key, owner) ? [] : sectionKeys(owner.characterId, key),
+    ),
+  );
 }
