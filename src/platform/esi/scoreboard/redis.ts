@@ -9,10 +9,7 @@ import {
   keyErrorCount,
   keyFailureCount,
   KEY_ERROR_ECHO,
-  keyEtagBody,
-  keyEtagMeta,
   normalizeEsiPath,
-  parseStoredMeta,
   resolveRetryAfter,
   WRITE_IF_LOWER_LUA,
 } from './keys';
@@ -20,7 +17,6 @@ import { effectiveRemaining } from './budget';
 import {
   CALL_COUNT_TTL_SECONDS,
   ERROR_COUNT_TTL_SECONDS,
-  ETAG_TTL_SECONDS,
   type EsiAvailabilitySnapshot,
   type EsiReport,
   type EsiBudgetSnapshot,
@@ -63,12 +59,11 @@ class RedisScoreboard implements EsiScoreboard {
     });
   }
 
-  async preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState> {
+  async preDispatch(url: string): Promise<PreDispatchState> {
     const minute = epochMinute();
     const pipeline = this.redis.pipeline();
     queueBudgetReads(pipeline, minute);
     pipeline.get(keyBlock(normalizeEsiPath(url)));
-    if (wantEtag) pipeline.get(keyEtagMeta(url));
     const rows = await pipeline.exec<(string | null)[]>();
 
     const budget = budgetFromRows(rows);
@@ -79,7 +74,6 @@ class RedisScoreboard implements EsiScoreboard {
       effectiveRemaining: budget.effectiveRemaining,
       blockedRetryAfter:
         blockRemaining !== null && blockRemaining > 0 ? blockRemaining : null,
-      etag: wantEtag ? parseStoredMeta(rows[4] ?? null) : null,
     };
   }
 
@@ -115,7 +109,6 @@ class RedisScoreboard implements EsiScoreboard {
       this.queueErrorCount(pipeline, report),
       this.queueErrorEcho(pipeline, report),
       this.queueRetryBlock(pipeline, report),
-      this.queueEtag(pipeline, report),
     ];
     if (queued.some(Boolean)) await pipeline.exec();
   }
@@ -166,30 +159,6 @@ class RedisScoreboard implements EsiScoreboard {
       { ex: retryAfter },
     );
     return true;
-  }
-
-  private queueEtag(pipeline: Pipeline, report: EsiReport): boolean {
-    let queued = false;
-    if (report.etagToStore !== null) {
-      const { body, ...meta } = report.etagToStore;
-      pipeline.set(keyEtagMeta(report.url), JSON.stringify(meta), {
-        ex: ETAG_TTL_SECONDS,
-      });
-      pipeline.set(keyEtagBody(report.url), body, { ex: ETAG_TTL_SECONDS });
-      queued = true;
-    }
-    if (report.refreshEtag !== null) {
-      pipeline.set(keyEtagMeta(report.url), JSON.stringify(report.refreshEtag), {
-        ex: ETAG_TTL_SECONDS,
-      });
-      pipeline.expire(keyEtagBody(report.url), ETAG_TTL_SECONDS);
-      queued = true;
-    }
-    return queued;
-  }
-
-  async getCachedBody(url: string): Promise<string | null> {
-    return await this.redis.get<string>(keyEtagBody(url));
   }
 }
 

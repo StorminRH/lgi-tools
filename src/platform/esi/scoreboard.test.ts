@@ -117,10 +117,6 @@ const h = vi.hoisted(() => {
       return p;
     }
 
-    async get(key: string): Promise<string | null> {
-      return getVal(key);
-    }
-
     async mget(...keys: string[]): Promise<(string | null)[]> {
       return keys.map(getVal);
     }
@@ -146,8 +142,6 @@ import { ESI_ERROR_CEILING } from './scoreboard/types';
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 const BLOCK_KEY = 'lgi:esi:rl:block:/markets/{n}/orders';
 const ECHO_KEY = 'lgi:esi:err:echo';
-const ETAG_META_KEY = 'lgi:esi:etag:meta:/markets/10000002/orders/?type_id=34';
-const ETAG_BODY_KEY = 'lgi:esi:etag:body:/markets/10000002/orders/?type_id=34';
 
 function makeReport(overrides: Partial<EsiReport>): EsiReport {
   return {
@@ -156,8 +150,6 @@ function makeReport(overrides: Partial<EsiReport>): EsiReport {
     errorLimitRemain: null,
     errorLimitReset: null,
     retryAfter: null,
-    etagToStore: null,
-    refreshEtag: null,
     ...overrides,
   };
 }
@@ -220,25 +212,24 @@ describe('RedisScoreboard', () => {
     seed(`lgi:esi:err:count:${currentMinute() - 1}`, '10');
     seed(ECHO_KEY, '70');
 
-    const state = await sb.preDispatch(TEST_URL, false);
+    const state = await sb.preDispatch(TEST_URL);
     expect(state.effectiveRemaining).toBe(60);
 
     seed(ECHO_KEY, '50');
-    const lower = await sb.preDispatch(TEST_URL, false);
+    const lower = await sb.preDispatch(TEST_URL);
     expect(lower.effectiveRemaining).toBe(50);
   });
 
   it('reports a full budget when nothing is stored', async () => {
     const sb = redisScoreboard();
-    const state = await sb.preDispatch(TEST_URL, true);
+    const state = await sb.preDispatch(TEST_URL);
     expect(state).toEqual({
       effectiveRemaining: ESI_ERROR_CEILING,
       blockedRetryAfter: null,
-      etag: null,
     });
   });
 
-  it('reads the global budget without consulting route or ETag state', async () => {
+  it('reads the global budget without consulting route state', async () => {
     const sb = redisScoreboard();
     seed(`lgi:esi:err:count:${currentMinute()}`, '35');
     seed(`lgi:esi:err:count:${currentMinute() - 1}`, '10');
@@ -255,26 +246,20 @@ describe('RedisScoreboard', () => {
   it('surfaces the seconds remaining on an active Retry-After block', async () => {
     const sb = redisScoreboard();
     seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) + 30));
-    const state = await sb.preDispatch(TEST_URL, false);
+    const state = await sb.preDispatch(TEST_URL);
     expect(state.blockedRetryAfter).toBe(30);
 
     seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) - 5));
-    const expired = await sb.preDispatch(TEST_URL, false);
+    const expired = await sb.preDispatch(TEST_URL);
     expect(expired.blockedRetryAfter).toBeNull();
   });
 
-  it('returns stored ETag meta only when asked', async () => {
+  it('reads only the budget and the route block before a dispatch', async () => {
     const sb = redisScoreboard();
-    seed(
-      ETAG_META_KEY,
-      JSON.stringify({ etag: '"abc"', expires: 'E', contentType: 'ct' }),
-    );
+    seed('lgi:esi:etag:meta:/markets/10000002/orders/?type_id=34', '{"etag":"\"abc\""}');
 
-    const wanted = await sb.preDispatch(TEST_URL, true);
-    expect(wanted.etag).toEqual({ etag: '"abc"', expires: 'E', contentType: 'ct' });
-
-    const unwanted = await sb.preDispatch(TEST_URL, false);
-    expect(unwanted.etag).toBeNull();
+    const state = await sb.preDispatch(TEST_URL);
+    expect(state).toEqual({ effectiveRemaining: ESI_ERROR_CEILING, blockedRetryAfter: null });
   });
 
   it('counts every non-2xx/3xx response with a 120s TTL', async () => {
@@ -371,63 +356,17 @@ describe('RedisScoreboard', () => {
     expect(h.store.get(BLOCK_KEY)?.value).toBe(String(nowSec + 30));
   });
 
-  it('writes only the call count for a plain success without error-limit or cache headers', async () => {
+  it('writes only the call count for a plain success without error-limit headers', async () => {
     const sb = redisScoreboard();
     await sb.report(makeReport({ status: 200 }));
     expect([...h.store.keys()]).toEqual([`lgi:esi:call:count:${currentMinute()}`]);
   });
 
-  it('stores ETag meta and body together and serves the body back', async () => {
+  it('writes nothing for an ETag or a body: a 304 counts only as a call', async () => {
     const sb = redisScoreboard();
-    await sb.report(
-      makeReport({
-        status: 200,
-        etagToStore: {
-          etag: '"abc"',
-          expires: 'E',
-          contentType: 'application/json',
-          body: '{"a":1}',
-        },
-      }),
-    );
-
-    expect(JSON.parse(h.store.get(ETAG_META_KEY)!.value)).toEqual({
-      etag: '"abc"',
-      expires: 'E',
-      contentType: 'application/json',
-    });
-    expect(h.store.get(ETAG_BODY_KEY)?.value).toBe('{"a":1}');
-    expect(h.store.get(ETAG_BODY_KEY)?.expiresAt).toBe(
-      Date.now() + 172_800_000,
-    );
-    await expect(sb.getCachedBody(TEST_URL)).resolves.toBe('{"a":1}');
-  });
-
-  it('refreshes meta and the body TTL on a 304 revalidation', async () => {
-    const sb = redisScoreboard();
-    await sb.report(
-      makeReport({
-        status: 200,
-        etagToStore: { etag: '"abc"', expires: 'E1', contentType: 'ct', body: 'B' },
-      }),
-    );
-    vi.advanceTimersByTime(60_000);
-    await sb.report(
-      makeReport({
-        status: 304,
-        refreshEtag: { etag: '"abc"', expires: 'E2', contentType: 'ct' },
-      }),
-    );
-
-    expect(JSON.parse(h.store.get(ETAG_META_KEY)!.value).expires).toBe('E2');
-    expect(h.store.get(ETAG_BODY_KEY)?.expiresAt).toBe(
-      Date.now() + 172_800_000,
-    );
-  });
-
-  it('returns null for a missing cached body', async () => {
-    const sb = redisScoreboard();
-    await expect(sb.getCachedBody(TEST_URL)).resolves.toBeNull();
+    await sb.report(makeReport({ status: 200 }));
+    await sb.report(makeReport({ status: 304 }));
+    expect([...h.store.keys()]).toEqual([`lgi:esi:call:count:${currentMinute()}`]);
   });
 
   it('memoizes the client per URL', () => {
@@ -456,22 +395,14 @@ describe('resolveScoreboard fallback selection', () => {
     expect(sb).not.toBeNull();
 
     await sb!.report(makeReport({ status: 420 }));
-    const closed = await sb!.preDispatch(TEST_URL, false);
+    const closed = await sb!.preDispatch(TEST_URL);
     expect(closed.effectiveRemaining).toBe(0);
 
     await sb!.report(makeReport({ status: 429, retryAfter: 30 }));
-    const blocked = await sb!.preDispatch(TEST_URL, false);
+    const blocked = await sb!.preDispatch(TEST_URL);
     expect(blocked.blockedRetryAfter).toBe(30);
 
-    await sb!.report(
-      makeReport({
-        status: 200,
-        etagToStore: { etag: '"abc"', expires: null, contentType: null, body: 'B' },
-      }),
-    );
-    const withEtag = await sb!.preDispatch(TEST_URL, true);
-    expect(withEtag.etag?.etag).toBe('"abc"');
-    await expect(sb!.getCachedBody(TEST_URL)).resolves.toBe('B');
+    await sb!.report(makeReport({ status: 200 }));
 
     expect(resolveScoreboard()).toBe(sb);
     await expect(readEsiBudgetSnapshot()).resolves.toEqual({

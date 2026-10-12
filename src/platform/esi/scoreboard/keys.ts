@@ -1,5 +1,4 @@
 import { clamp } from '@/lib/math';
-import type { CachedEtagMeta } from './types';
 
 const ECHO_TTL_MAX_SECONDS = 90;
 const DEFAULT_RETRY_AFTER_SECONDS = 60;
@@ -40,40 +39,9 @@ export const KEY_ERROR_ECHO = `${KEY_PREFIX}:err:echo`;
 export function keyBlock(path: string): string {
   return `${KEY_PREFIX}:rl:block:${path}`;
 }
-function urlPathAndQuery(url: string): string {
-  const parsed = new URL(url);
-  return `${parsed.pathname}${parsed.search}`;
-}
-export function keyEtagMeta(url: string): string {
-  return `${KEY_PREFIX}:etag:meta:${urlPathAndQuery(url)}`;
-}
-export function keyEtagBody(url: string): string {
-  return `${KEY_PREFIX}:etag:body:${urlPathAndQuery(url)}`;
-}
 
 export const WRITE_IF_LOWER_LUA = `local cur = redis.call('GET', KEYS[1])
 if cur == false or tonumber(cur) > tonumber(ARGV[1]) then
   redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
 end
 return 1`;
-
-export function parseStoredMeta(value: string | null): CachedEtagMeta | null {
-  if (value === null) return null;
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      typeof (parsed as CachedEtagMeta).etag === 'string'
-    ) {
-      const meta = parsed as CachedEtagMeta;
-      return {
-        etag: meta.etag,
-        expires: typeof meta.expires === 'string' ? meta.expires : null,
-        contentType: typeof meta.contentType === 'string' ? meta.contentType : null,
-      };
-    }
-  } catch {
-  }
-  return null;
-}

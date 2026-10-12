@@ -37,7 +37,16 @@ describe('readEsiAuthed', () => {
 
   it('returns fresh body + etag + expires on 200, carrying the bearer token', async () => {
     fetchSpy.mockResolvedValueOnce(
-      mockResponse(200, { ETag: '"abc"', Expires: 'Wed, 11 Jun 2026 12:00:00 GMT' }, { roles: ['Director'] }),
+      mockResponse(
+        200,
+        {
+          ETag: '"abc"',
+          Expires: 'Wed, 11 Jun 2026 12:00:00 GMT',
+          'Last-Modified': 'Wed, 11 Jun 2026 11:00:00 GMT',
+          'X-ESI-Cache-Status': 'MISS',
+        },
+        { roles: ['Director'] },
+      ),
     );
 
     const read = await readEsiAuthed('/characters/1/roles', TOKEN, null);
@@ -47,16 +56,42 @@ describe('readEsiAuthed', () => {
     expect(read.body).toEqual({ roles: ['Director'] });
     expect(read.etag).toBe('"abc"');
     expect(read.expiresAt).toBe(Date.parse('Wed, 11 Jun 2026 12:00:00 GMT'));
+    expect(read.lastModified).toBe('Wed, 11 Jun 2026 11:00:00 GMT');
+    expect(read.cacheStatus).toBe('MISS');
     expect(authHeader(fetchSpy, 0).get('Authorization')).toBe(`Bearer ${TOKEN}`);
   });
 
-  it('replays the held etag and maps a 304 to unchanged', async () => {
-    fetchSpy.mockResolvedValueOnce(mockResponse(304));
+  it('replays the held etag and maps a 304 to unchanged with its cache headers', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(304, {
+        Expires: 'Wed, 11 Jun 2026 12:05:00 GMT',
+        'Last-Modified': 'Wed, 11 Jun 2026 11:00:00 GMT',
+        'X-ESI-Cache-Status': 'HIT',
+      }),
+    );
 
     const read = await readEsiAuthed('/characters/1/roles', TOKEN, '"held"');
 
-    expect(read.kind).toBe('unchanged');
+    expect(read).toEqual({
+      kind: 'unchanged',
+      expiresAt: Date.parse('Wed, 11 Jun 2026 12:05:00 GMT'),
+      lastModified: 'Wed, 11 Jun 2026 11:00:00 GMT',
+      cacheStatus: 'HIT',
+    });
     expect(authHeader(fetchSpy, 0).get('If-None-Match')).toBe('"held"');
+  });
+
+  it('leaves the cache headers null when ESI sends none', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, { ETag: '"abc"' }, { online: true }));
+
+    await expect(readEsiAuthed('/characters/1/online', TOKEN, null)).resolves.toEqual({
+      kind: 'fresh',
+      body: { online: true },
+      etag: '"abc"',
+      expiresAt: null,
+      lastModified: null,
+      cacheStatus: null,
+    });
   });
 
   it('maps a 403 to a soft error (a missing in-game role)', async () => {
@@ -102,7 +137,14 @@ describe('readEsiAuthed', () => {
 
     const read = await readEsiAuthedPost('/corporations/2/assets/names/', TOKEN, [3001]);
 
-    expect(read).toEqual({ kind: 'fresh', body: [{ item_id: 3001, name: 'Ore Can' }], etag: null, expiresAt: null });
+    expect(read).toEqual({
+      kind: 'fresh',
+      body: [{ item_id: 3001, name: 'Ore Can' }],
+      etag: null,
+      expiresAt: null,
+      lastModified: null,
+      cacheStatus: null,
+    });
     const init = fetchSpy.mock.calls[0][1] as RequestInit;
     expect(init.method).toBe('POST');
     expect(init.body).toBe('[3001]');
@@ -145,6 +187,7 @@ describe('readEsiPagedAuthed', () => {
           'Cache-Control': 'private, max-age=3600',
           ETag: '"p1"',
           'Last-Modified': 'Tue, 14 Jul 2026 12:00:00 GMT',
+          'X-ESI-Cache-Status': 'MISS',
           'X-Pages': '1',
         },
         [{ type_id: 10 }],
@@ -157,6 +200,8 @@ describe('readEsiPagedAuthed', () => {
     if (read.kind !== 'fresh') return;
     expect(read.items).toEqual([{ type_id: 10 }]);
     expect(read.etags).toEqual(['"p1"']);
+    expect(read.lastModified).toBe('Tue, 14 Jul 2026 12:00:00 GMT');
+    expect(read.cacheStatus).toBe('MISS');
     expect(read.responseHeaders).toEqual([
       {
         page: 1,
@@ -169,25 +214,26 @@ describe('readEsiPagedAuthed', () => {
   });
 
   it('short-circuits a single-page 304 to unchanged when the held etag still matches', async () => {
-    fetchSpy.mockResolvedValueOnce(mockResponse(304, { 'X-Pages': '1' }));
+    fetchSpy.mockResolvedValueOnce(mockResponse(304, { 'X-Pages': '1', 'X-ESI-Cache-Status': 'HIT' }));
 
     const read = await readEsiPagedAuthed('/characters/1/blueprints/', TOKEN, ['"held"']);
 
-    expect(read).toEqual({ kind: 'unchanged', expiresAt: null });
+    expect(read).toEqual({ kind: 'unchanged', expiresAt: null, lastModified: null, cacheStatus: 'HIT' });
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(authHeader(fetchSpy, 0).get('If-None-Match')).toBe('"held"');
   });
 
-  it('reassembles every page fresh for a multi-page collection', async () => {
+  it('reassembles every page fresh for a multi-page collection, with page 1 speaking for the cache headers', async () => {
     fetchSpy
-      .mockResolvedValueOnce(mockResponse(200, { 'X-Pages': '2' }, [{ type_id: 1 }]))
-      .mockResolvedValueOnce(mockResponse(200, {}, [{ type_id: 2 }]));
+      .mockResolvedValueOnce(mockResponse(200, { 'X-Pages': '2', 'X-ESI-Cache-Status': 'MISS' }, [{ type_id: 1 }]))
+      .mockResolvedValueOnce(mockResponse(200, { 'X-ESI-Cache-Status': 'HIT' }, [{ type_id: 2 }]));
 
     const read = await readEsiPagedAuthed('/corporations/9/blueprints/', TOKEN, []);
 
     expect(read.kind).toBe('fresh');
     if (read.kind !== 'fresh') return;
     expect(read.items).toEqual([{ type_id: 1 }, { type_id: 2 }]);
+    expect(read.cacheStatus).toBe('MISS');
     expect(read.responseHeaders.map((headers) => headers.page)).toEqual([1, 2]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(String(fetchSpy.mock.calls[1][0])).toContain('page=2');

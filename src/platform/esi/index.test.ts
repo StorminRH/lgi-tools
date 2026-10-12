@@ -12,11 +12,7 @@ import {
   esiFetch,
   esiUrl,
 } from './index';
-import {
-  BODY_CACHE_MAX_BYTES,
-  type CachedEtagMeta,
-  type EsiScoreboard,
-} from './scoreboard';
+import type { EsiScoreboard } from './scoreboard';
 import {
   setDependencyTimingSink,
   type DependencyCall,
@@ -53,6 +49,7 @@ function requestHeaders(
 
 describe('esiFetch', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof silenceConsolePrefixes>;
 
   beforeEach(() => {
     __resetEsiGateForTests();
@@ -60,7 +57,7 @@ describe('esiFetch', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    silenceConsolePrefixes('warn', ['[esi] scoreboard pre-dispatch failed']);
+    warnSpy = silenceConsolePrefixes('warn', ['[esi] scoreboard pre-dispatch failed', '[esi] server error']);
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
@@ -73,11 +70,10 @@ describe('esiFetch', () => {
   it('reports a dispatch that got no answer to the scoreboard before rethrowing', async () => {
     const report = vi.fn().mockResolvedValue(undefined);
     __setScoreboardForTests({
-      preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, etag: null }),
+      preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null }),
       budgetSnapshot: vi.fn(),
       availabilitySnapshot: vi.fn(),
       report,
-      getCachedBody: vi.fn().mockResolvedValue(null),
     });
     fetchSpy.mockRejectedValueOnce(new Error('socket hang up'));
 
@@ -88,11 +84,10 @@ describe('esiFetch', () => {
   it('does not report a request its own caller cancelled', async () => {
     const report = vi.fn().mockResolvedValue(undefined);
     __setScoreboardForTests({
-      preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, etag: null }),
+      preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null }),
       budgetSnapshot: vi.fn(),
       availabilitySnapshot: vi.fn(),
       report,
-      getCachedBody: vi.fn().mockResolvedValue(null),
     });
     const caller = new AbortController();
     fetchSpy.mockImplementationOnce(async () => {
@@ -196,14 +191,41 @@ describe('esiFetch', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(81);
   });
 
-  it('throws EsiServerError on 5xx', async () => {
+  it('throws EsiServerError on 5xx, keeping and logging the body and x-esi-* headers', async () => {
     fetchSpy.mockResolvedValueOnce(
-      mockResponse(503, { 'X-ESI-Error-Limit-Remain': '88' }),
+      mockResponse(
+        503,
+        { 'X-ESI-Error-Limit-Remain': '88', 'X-ESI-Request-ID': 'req-1', 'Content-Type': 'application/json' },
+        { error: 'Tranquility is down' },
+      ),
     );
 
     const err = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(EsiServerError);
-    expect((err as EsiServerError).status).toBe(503);
+    expect(err).toMatchObject({
+      status: 503,
+      body: '{"error":"Tranquility is down"}',
+      esiHeaders: { 'x-esi-error-limit-remain': '88', 'x-esi-request-id': 'req-1' },
+    });
+    expect(warnSpy).toHaveBeenCalledWith('[esi] server error', {
+      status: 503,
+      path: '/markets/{n}/orders',
+      headers: { 'x-esi-error-limit-remain': '88', 'x-esi-request-id': 'req-1' },
+      body: '{"error":"Tranquility is down"}',
+    });
+  });
+
+  it('still throws EsiServerError when the 5xx body cannot be read', async () => {
+    const broken = new ReadableStream({
+      start(controller) {
+        controller.error(new Error('connection reset'));
+      },
+    });
+    fetchSpy.mockResolvedValueOnce(new Response(broken, { status: 502 }));
+
+    const err = await esiFetch(TEST_URL).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(EsiServerError);
+    expect(err).toMatchObject({ status: 502, body: null, esiHeaders: {} });
   });
 
   it('throws on 420 and refuses subsequent calls regardless of header value', async () => {
@@ -296,259 +318,70 @@ describe('esiFetch', () => {
     expect(after.status).toBe(200);
   });
 
-  describe('ETag revalidation', () => {
-    it('stores an ETag on 200 and serves a 304 as a synthesized 200', async () => {
+  describe('conditional requests', () => {
+    it('passes a caller If-None-Match through and returns the 304 as ESI sent it', async () => {
       fetchSpy.mockResolvedValueOnce(
-        mockResponse(
-          200,
-          {
-            ETag: '"abc"',
-            'Content-Type': 'application/json',
-            Expires: 'Wed, 11 Jun 2026 12:00:00 GMT',
-            'Content-Length': '7',
-          },
-          { a: 1 },
-        ),
+        mockResponse(304, { ETag: '"abc"', Expires: 'Wed, 11 Jun 2026 12:05:00 GMT' }),
       );
-      const first = await esiFetch(TEST_URL);
-      expect(await first.json()).toEqual({ a: 1 });
-      expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBeNull();
 
-      fetchSpy.mockResolvedValueOnce(
-        mockResponse(304, {
-          ETag: '"abc"',
-          Expires: 'Wed, 11 Jun 2026 12:05:00 GMT',
-        }),
-      );
-      const second = await esiFetch(TEST_URL);
+      const res = await esiFetch(TEST_URL, { headers: { 'If-None-Match': '"abc"' } });
 
-      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBe('"abc"');
-      expect(second.status).toBe(200);
-      expect(second.ok).toBe(true);
-      expect(second.headers.get('x-lgi-esi-cache')).toBe('revalidated');
-      expect(second.headers.get('Expires')).toBe(
-        'Wed, 11 Jun 2026 12:05:00 GMT',
-      );
-      expect(await second.json()).toEqual({ a: 1 });
-    });
-
-    it('never attaches If-None-Match to requests carrying Authorization', async () => {
-      fetchSpy.mockResolvedValueOnce(
-        mockResponse(200, { ETag: '"abc"', 'Content-Length': '7' }, { a: 1 }),
-      );
-      await esiFetch(TEST_URL);
-
-      fetchSpy.mockResolvedValueOnce(mockResponse(200));
-      await esiFetch(TEST_URL, {
-        headers: { Authorization: 'Bearer token' },
-      });
-
-      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
-    });
-
-    it('does not cache a fixed-length body over the size cap', async () => {
-      const big = 'x'.repeat(BODY_CACHE_MAX_BYTES + 1);
-      fetchSpy.mockResolvedValueOnce(
-        new Response(big, {
-          status: 200,
-          headers: {
-            ETag: '"big"',
-            'Content-Length': String(BODY_CACHE_MAX_BYTES + 1),
-          },
-        }),
-      );
-      await esiFetch(TEST_URL);
-
-      fetchSpy.mockResolvedValueOnce(mockResponse(200));
-      await esiFetch(TEST_URL);
-
-      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
-    });
-
-    it('does not cache a chunked (no Content-Length) 200, leaving the body for the caller', async () => {
-      const body = { systems: [1, 2, 3] };
-      fetchSpy.mockResolvedValueOnce(
-        new Response(JSON.stringify(body), {
-          status: 200,
-          headers: { ETag: '"chunked"' },
-        }),
-      );
-      const first = await esiFetch(TEST_URL);
-      expect(await first.json()).toEqual(body);
-
-      fetchSpy.mockResolvedValueOnce(mockResponse(200));
-      await esiFetch(TEST_URL);
-
-      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
-    });
-
-    it('retries exactly once without If-None-Match when the cached body is gone', async () => {
-      const fake: EsiScoreboard = {
-        preDispatch: vi.fn().mockResolvedValue({
-          effectiveRemaining: 100,
-          blockedRetryAfter: null,
-          etag: { etag: '"abc"', expires: null, contentType: null },
-        }),
-        budgetSnapshot: vi.fn().mockResolvedValue({
-          effectiveRemaining: 100,
-          selfCount: 0,
-          echo: null,
-          source: 'process-local',
-        }),
-        availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
-        report: vi.fn().mockResolvedValue(undefined),
-        getCachedBody: vi.fn().mockResolvedValue(null),
-      };
-      __setScoreboardForTests(fake);
-
-      fetchSpy
-        .mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }))
-        .mockResolvedValueOnce(mockResponse(200, {}, { a: 2 }));
-
-      const res = await esiFetch(TEST_URL);
-
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenCalledOnce();
       expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBe('"abc"');
-      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
-      expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ a: 2 });
-    });
-  });
-
-  describe('within-window cache serve', () => {
-    function primingResponse(): Response {
-      return mockResponse(
-        200,
-        {
-          ETag: '"abc"',
-          'Content-Type': 'application/json',
-          Expires: 'Thu, 25 Jun 2026 01:05:00 GMT',
-          'Content-Length': '7',
-        },
-        { a: 1 },
-      );
-    }
-
-    it('serves the stored body with no dispatch while the Expires window is open', async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-      fetchSpy.mockResolvedValueOnce(primingResponse());
-
-      const first = await esiFetch(TEST_URL);
-      expect(await first.json()).toEqual({ a: 1 });
-      expect(fetchSpy).toHaveBeenCalledOnce();
-
-      const second = await esiFetch(TEST_URL);
-      expect(fetchSpy).toHaveBeenCalledOnce();
-      expect(second.status).toBe(200);
-      expect(second.headers.get('x-lgi-esi-cache')).toBe('window');
-      expect(await second.json()).toEqual({ a: 1 });
+      expect(res.status).toBe(304);
+      expect(res.headers.get('ETag')).toBe('"abc"');
+      expect(res.headers.get('Expires')).toBe('Wed, 11 Jun 2026 12:05:00 GMT');
     });
 
-    it('dispatches a conditional request once the Expires window has passed', async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-      fetchSpy.mockResolvedValueOnce(primingResponse());
-      await esiFetch(TEST_URL);
-      expect(fetchSpy).toHaveBeenCalledOnce();
-
-      vi.setSystemTime(new Date('2026-06-25T01:10:00Z'));
-      fetchSpy.mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }));
-      const second = await esiFetch(TEST_URL);
-
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
-      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBe('"abc"');
-      expect(second.status).toBe(200);
-      expect(second.headers.get('x-lgi-esi-cache')).toBe('revalidated');
-    });
-
-    it('never serves an Authorization-carrying GET from the shared cache', async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-      fetchSpy.mockResolvedValueOnce(primingResponse());
-      await esiFetch(TEST_URL);
-      expect(fetchSpy).toHaveBeenCalledOnce();
-
-      fetchSpy.mockResolvedValueOnce(mockResponse(200, {}, { a: 2 }));
-      const authed = await esiFetch(TEST_URL, {
-        headers: { Authorization: 'Bearer token' },
-      });
-
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
-      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
-      expect(authed.headers.get('x-lgi-esi-cache')).toBeNull();
-      expect(await authed.json()).toEqual({ a: 2 });
-    });
-
-    it('falls through to a normal dispatch when the body was evicted mid-window', async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-      const getCachedBody = vi.fn().mockResolvedValue(null);
-      const fake: EsiScoreboard = {
-        preDispatch: vi.fn().mockResolvedValue({
-          effectiveRemaining: 100,
-          blockedRetryAfter: null,
-          etag: {
-            etag: '"abc"',
-            expires: 'Thu, 25 Jun 2026 01:05:00 GMT',
-            contentType: 'application/json',
-          },
-        }),
-        budgetSnapshot: vi.fn().mockResolvedValue({
-          effectiveRemaining: 100,
-          selfCount: 0,
-          echo: null,
-          source: 'process-local',
-        }),
-        availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
-        report: vi.fn().mockResolvedValue(undefined),
-        getCachedBody,
-      };
-      __setScoreboardForTests(fake);
-
-      fetchSpy.mockResolvedValueOnce(mockResponse(200, { ETag: '"abc"' }, { a: 9 }));
-      const res = await esiFetch(TEST_URL);
-
-      expect(getCachedBody).toHaveBeenCalledTimes(1);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBe('"abc"');
-      expect(res.status).toBe(200);
-      expect(res.headers.get('x-lgi-esi-cache')).toBeNull();
-      expect(await res.json()).toEqual({ a: 9 });
-    });
-
-    it('treats a failing cached-body read as a miss mid-window and again on the 304', async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-      const getCachedBody = vi.fn().mockRejectedValue(new Error('redis timeout'));
-      const fake: EsiScoreboard = {
-        preDispatch: vi.fn().mockResolvedValue({
-          effectiveRemaining: 100,
-          blockedRetryAfter: null,
-          etag: {
-            etag: '"abc"',
-            expires: 'Thu, 25 Jun 2026 01:05:00 GMT',
-            contentType: 'application/json',
-          },
-        }),
+    it('reports a 304 to the scoreboard as an answer, not an error', async () => {
+      const report = vi.fn().mockResolvedValue(undefined);
+      __setScoreboardForTests({
+        preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null }),
         budgetSnapshot: vi.fn(),
         availabilitySnapshot: vi.fn(),
-        report: vi.fn().mockResolvedValue(undefined),
-        getCachedBody,
-      };
-      __setScoreboardForTests(fake);
+        report,
+      });
+      fetchSpy.mockResolvedValueOnce(mockResponse(304, { 'X-ESI-Error-Limit-Remain': '95' }));
 
+      await esiFetch(TEST_URL, { headers: { 'If-None-Match': '"abc"' } });
+
+      expect(report).toHaveBeenCalledWith({
+        url: TEST_URL,
+        status: 304,
+        errorLimitRemain: 95,
+        errorLimitReset: null,
+        retryAfter: null,
+      });
+    });
+
+    it('never adds an If-None-Match of its own: an ETag it saw is not replayed', async () => {
       fetchSpy
-        .mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }))
-        .mockResolvedValueOnce(mockResponse(200, {}, { a: 3 }));
-      const res = await esiFetch(TEST_URL);
+        .mockResolvedValueOnce(
+          mockResponse(200, { ETag: '"abc"', Expires: 'Wed, 11 Jun 2026 12:00:00 GMT' }, { a: 1 }),
+        )
+        .mockResolvedValueOnce(mockResponse(200, { ETag: '"abc"' }, { a: 1 }));
 
-      expect(getCachedBody).toHaveBeenCalledTimes(2);
+      await esiFetch(TEST_URL);
+      await esiFetch(TEST_URL);
+
       expect(fetchSpy).toHaveBeenCalledTimes(2);
-      expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBe('"abc"');
+      expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBeNull();
       expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
-      expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ a: 3 });
+    });
+
+    it('serves nothing from a cache: every call inside Expires still reaches ESI', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
+      fetchSpy.mockImplementation(async () =>
+        mockResponse(200, { ETag: '"abc"', Expires: 'Thu, 25 Jun 2026 01:05:00 GMT' }, { a: 1 }),
+      );
+
+      const first = await esiFetch(TEST_URL);
+      const second = await esiFetch(TEST_URL);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(await first.json()).toEqual({ a: 1 });
+      expect(await second.json()).toEqual({ a: 1 });
     });
   });
 
@@ -599,7 +432,6 @@ describe('esiFetch', () => {
         }),
         availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
         report: vi.fn().mockResolvedValue(undefined),
-        getCachedBody: vi.fn().mockResolvedValue(null),
       };
       __setScoreboardForTests(fake);
 
@@ -617,7 +449,6 @@ describe('esiFetch', () => {
       preDispatch.mockResolvedValue({
         effectiveRemaining: 100,
         blockedRetryAfter: null,
-        etag: null,
       });
       fetchSpy.mockResolvedValueOnce(mockResponse(200));
       const res = await esiFetch(TEST_URL);
@@ -639,12 +470,10 @@ describe('esiFetch', () => {
         preDispatch: vi.fn().mockResolvedValue({
           effectiveRemaining: remaining,
           blockedRetryAfter: null,
-          etag: null,
         }),
         budgetSnapshot: vi.fn(),
         availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
         report: vi.fn().mockResolvedValue(undefined),
-        getCachedBody: vi.fn().mockResolvedValue(null),
       };
     }
 
@@ -677,7 +506,7 @@ describe('esiFetch', () => {
       expect(fake.report.mock.calls[1]![0]).toMatchObject({ status: 200, errorLimitRemain: 95 });
     });
 
-    it('reuses a fresh shared budget reading for calls without an ETag, and reads again after it ages', async () => {
+    it('reuses a fresh shared budget reading, and reads again after it ages', async () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
       __setScoreboardForTests(fake);
@@ -692,7 +521,7 @@ describe('esiFetch', () => {
       expect(fake.preDispatch).toHaveBeenCalledTimes(2);
     });
 
-    it('still reads the shared state on every ETag-eligible GET', async () => {
+    it('reuses the reading for a GET on the same path as well', async () => {
       const fake = fakeScoreboard();
       __setScoreboardForTests(fake);
       fetchSpy.mockImplementation(async () => mockResponse(200));
@@ -700,7 +529,7 @@ describe('esiFetch', () => {
       await esiFetch(TEST_URL);
       await esiFetch(TEST_URL);
 
-      expect(fake.preDispatch).toHaveBeenCalledTimes(2);
+      expect(fake.preDispatch).toHaveBeenCalledOnce();
     });
 
     it('counts its own error answers against the reused reading', async () => {
@@ -767,7 +596,7 @@ describe('esiFetch', () => {
     it('keeps a 420 that arrived while an older shared read was still in flight', async () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
-      const open = { effectiveRemaining: 100, blockedRetryAfter: null, etag: null };
+      const open = { effectiveRemaining: 100, blockedRetryAfter: null };
       let releaseRead: (state: typeof open) => void = () => {};
       fake.preDispatch
         .mockImplementationOnce(() => new Promise((resolve) => { releaseRead = resolve; }))
@@ -789,7 +618,7 @@ describe('esiFetch', () => {
     it('trusts a shared reading over errors it saw while the read was out, which reach the shared count first', async () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
-      const reading = { effectiveRemaining: ESI_BUDGET_FLOOR, blockedRetryAfter: null, etag: null };
+      const reading = { effectiveRemaining: ESI_BUDGET_FLOOR, blockedRetryAfter: null };
       let releaseRead: (state: typeof reading) => void = () => {};
       fake.preDispatch
         .mockResolvedValueOnce({ ...reading, effectiveRemaining: 100 })
@@ -813,7 +642,7 @@ describe('esiFetch', () => {
     it("caps a shared read by ESI's newest error count from while it was out", async () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
-      const reading = { effectiveRemaining: 100, blockedRetryAfter: null, etag: null };
+      const reading = { effectiveRemaining: 100, blockedRetryAfter: null };
       let releaseRead: (state: typeof reading) => void = () => {};
       fake.preDispatch
         .mockResolvedValueOnce(reading)
@@ -838,7 +667,7 @@ describe('esiFetch', () => {
     it('keeps a newer low reading when an older read returns after it', async () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
-      const reading = (effectiveRemaining: number) => ({ effectiveRemaining, blockedRetryAfter: null, etag: null });
+      const reading = (effectiveRemaining: number) => ({ effectiveRemaining, blockedRetryAfter: null });
       let releaseOlder: (state: ReturnType<typeof reading>) => void = () => {};
       fake.preDispatch
         .mockImplementationOnce(() => new Promise((resolve) => { releaseOlder = resolve; }))
@@ -858,7 +687,7 @@ describe('esiFetch', () => {
     it('lets a recovered shared reading through when an older call finishes while it is read', async () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
-      const reading = (effectiveRemaining: number) => ({ effectiveRemaining, blockedRetryAfter: null, etag: null });
+      const reading = (effectiveRemaining: number) => ({ effectiveRemaining, blockedRetryAfter: null });
       let releaseRead: (state: ReturnType<typeof reading>) => void = () => {};
       let releaseFetch: (res: Response) => void = () => {};
       fake.preDispatch
@@ -889,8 +718,8 @@ describe('esiFetch', () => {
       vi.useFakeTimers();
       const fake = fakeScoreboard();
       fake.preDispatch
-        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: null, etag: null })
-        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: 30, etag: null });
+        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: null })
+        .mockResolvedValueOnce({ effectiveRemaining: 100, blockedRetryAfter: 30 });
       __setScoreboardForTests(fake);
       fetchSpy.mockResolvedValueOnce(mockResponse(200, {}, []));
 
@@ -941,15 +770,11 @@ describe('esiFetch', () => {
       return recorded;
     }
 
-    function scoreboardWith(
-      etag: CachedEtagMeta | null,
-      report: EsiScoreboard['report'],
-    ): EsiScoreboard {
+    function scoreboardWith(report: EsiScoreboard['report']): EsiScoreboard {
       return {
         preDispatch: vi.fn().mockResolvedValue({
           effectiveRemaining: 100,
           blockedRetryAfter: null,
-          etag,
         }),
         budgetSnapshot: vi.fn().mockResolvedValue({
           effectiveRemaining: 100,
@@ -959,24 +784,20 @@ describe('esiFetch', () => {
         }),
         availabilitySnapshot: vi.fn().mockResolvedValue({ calls: 0, failures: 0, source: 'process-local' }),
         report,
-        getCachedBody: vi.fn().mockResolvedValue(null),
       };
     }
 
-    it('records one esi timing per HTTP attempt, failed or refetched', async () => {
+    it('records one esi timing per HTTP attempt, answered or failed', async () => {
       const recorded = recordTimings();
-      __setScoreboardForTests(
-        scoreboardWith(
-          { etag: '"abc"', expires: null, contentType: null },
-          vi.fn().mockResolvedValue(undefined),
-        ),
-      );
+      __setScoreboardForTests(scoreboardWith(vi.fn().mockResolvedValue(undefined)));
       fetchSpy
         .mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }))
         .mockResolvedValueOnce(mockResponse(200, {}, { a: 2 }));
 
+      const notModified = await esiFetch(TEST_URL, { headers: { 'If-None-Match': '"abc"' } });
       const res = await esiFetch(TEST_URL);
 
+      expect(notModified.status).toBe(304);
       expect(res.status).toBe(200);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
       expect(recorded.map(([kind]) => kind)).toEqual(['esi', 'esi']);
@@ -994,7 +815,7 @@ describe('esiFetch', () => {
       const report = vi.fn(
         () => new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
       );
-      __setScoreboardForTests(scoreboardWith(null, report));
+      __setScoreboardForTests(scoreboardWith(report));
       fetchSpy.mockResolvedValueOnce(mockResponse(200));
 
       const pending = esiFetch(TEST_URL);

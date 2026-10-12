@@ -1,8 +1,6 @@
 /** CCP's legacy error-limit ceiling: 100 non-2xx/3xx per 60s window. */
 export const ESI_ERROR_CEILING = 100;
 
-export const BODY_CACHE_MAX_BYTES = 131_072;
-
 export const ERROR_COUNT_TTL_SECONDS = 120;
 
 /** Minutes of ESI calls the availability readout covers. */
@@ -11,18 +9,10 @@ export const AVAILABILITY_WINDOW_MINUTES = 60;
 export const CALL_COUNT_TTL_SECONDS = (AVAILABILITY_WINDOW_MINUTES + 5) * 60;
 /** The status a dispatch reports when ESI gave no answer at all. */
 export const NO_RESPONSE_STATUS = 0;
-export const ETAG_TTL_SECONDS = 172_800;
-
-export interface CachedEtagMeta {
-  etag: string;
-  expires: string | null;
-  contentType: string | null;
-}
 
 export interface PreDispatchState {
   effectiveRemaining: number;
   blockedRetryAfter: number | null;
-  etag: CachedEtagMeta | null;
 }
 
 export interface EsiBudgetSnapshot {
@@ -49,14 +39,11 @@ export interface EsiReport {
   errorLimitRemain: number | null;
   errorLimitReset: number | null;
   retryAfter: number | null;
-  etagToStore: (CachedEtagMeta & { body: string }) | null;
-  refreshEtag: CachedEtagMeta | null;
 }
 
 export interface EsiScoreboard {
-  preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState>;
+  preDispatch(url: string): Promise<PreDispatchState>;
   budgetSnapshot(): Promise<EsiBudgetSnapshot>;
   availabilitySnapshot(): Promise<EsiAvailabilitySnapshot>;
   report(report: EsiReport): Promise<void>;
-  getCachedBody(url: string): Promise<string | null>;
 }

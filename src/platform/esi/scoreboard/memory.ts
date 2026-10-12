@@ -8,8 +8,6 @@ import {
 import { effectiveRemaining } from './budget';
 import {
   AVAILABILITY_WINDOW_MINUTES,
-  ETAG_TTL_SECONDS,
-  type CachedEtagMeta,
   type EsiAvailabilitySnapshot,
   type EsiBudgetSnapshot,
   type EsiReport,
@@ -22,8 +20,6 @@ class MemoryScoreboard implements EsiScoreboard {
   private callCounts = new Map<number, { calls: number; failures: number }>();
   private echo: { value: number; expiresAt: number } | null = null;
   private blocks = new Map<string, { expiresAt: number }>();
-  private metas = new Map<string, { meta: CachedEtagMeta; expiresAt: number }>();
-  private bodies = new Map<string, { body: string; expiresAt: number }>();
 
   private writeEchoIfLower(value: number, ttlSeconds: number): void {
     const now = Date.now();
@@ -46,18 +42,16 @@ class MemoryScoreboard implements EsiScoreboard {
     };
   }
 
-  async preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState> {
+  async preDispatch(url: string): Promise<PreDispatchState> {
     const now = Date.now();
     const budget = this.budgetState(now);
     const block = this.blocks.get(normalizeEsiPath(url));
-    const meta = wantEtag ? this.metas.get(url) : undefined;
     return {
       effectiveRemaining: budget.effectiveRemaining,
       blockedRetryAfter:
         block !== undefined && block.expiresAt > now
           ? Math.ceil((block.expiresAt - now) / 1000)
           : null,
-      etag: meta !== undefined && meta.expiresAt > now ? meta.meta : null,
     };
   }
 
@@ -111,26 +105,6 @@ class MemoryScoreboard implements EsiScoreboard {
         expiresAt: now + retryAfter * 1000,
       });
     }
-
-    if (report.etagToStore !== null) {
-      const { body, ...meta } = report.etagToStore;
-      const expiresAt = now + ETAG_TTL_SECONDS * 1000;
-      this.metas.set(report.url, { meta, expiresAt });
-      this.bodies.set(report.url, { body, expiresAt });
-    }
-
-    if (report.refreshEtag !== null) {
-      const expiresAt = now + ETAG_TTL_SECONDS * 1000;
-      this.metas.set(report.url, { meta: report.refreshEtag, expiresAt });
-      const body = this.bodies.get(report.url);
-      if (body !== undefined) body.expiresAt = expiresAt;
-    }
-  }
-
-  async getCachedBody(url: string): Promise<string | null> {
-    const entry = this.bodies.get(url);
-    if (entry === undefined || entry.expiresAt <= Date.now()) return null;
-    return entry.body;
   }
 }
 

@@ -5,7 +5,7 @@ import { SYNTHETIC_PILOT } from './synthetic-pilot';
 
 const permissiveScoreboard = {
   async preDispatch() {
-    return { effectiveRemaining: 1000, blockedRetryAfter: null, etag: null };
+    return { effectiveRemaining: 1000, blockedRetryAfter: null };
   },
   async budgetSnapshot() {
     return { effectiveRemaining: 1000, selfCount: 0, echo: null, source: 'process-local' as const };
@@ -14,9 +14,6 @@ const permissiveScoreboard = {
     return { calls: 0, failures: 0, source: 'process-local' as const };
   },
   async report() {},
-  async getCachedBody() {
-    return null;
-  },
 };
 
 let fetchMock: ReturnType<typeof vi.fn>;

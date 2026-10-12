@@ -4,9 +4,7 @@ import { createRedisScoreboard } from './redis';
 import type { EsiAvailabilitySnapshot, EsiBudgetSnapshot, EsiScoreboard } from './types';
 
 export {
-  BODY_CACHE_MAX_BYTES,
   NO_RESPONSE_STATUS,
-  type CachedEtagMeta,
   type EsiBudgetSnapshot,
   type EsiReport,
   type EsiScoreboard,

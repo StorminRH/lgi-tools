@@ -27,8 +27,16 @@ export class EsiBudgetExhaustedError extends Error {
   }
 }
 
+/**
+ * A 5xx from ESI. The gate keeps what ESI sent with it, its body text and
+ * every `x-esi-*` header, so a 503 during downtime shows CCP's real answer.
+ */
 export class EsiServerError extends Error {
-  constructor(public readonly status: number) {
+  constructor(
+    public readonly status: number,
+    public readonly body: string | null = null,
+    public readonly esiHeaders: Readonly<Record<string, string>> = {},
+  ) {
     super(`ESI server error: ${status}`);
     this.name = 'EsiServerError';
   }

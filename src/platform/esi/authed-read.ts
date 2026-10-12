@@ -10,17 +10,30 @@ export interface RlSnapshot {
   rlUsed: number | null;
 }
 
+/**
+ * `lastModified` and `cacheStatus` are ESI's Last-Modified and
+ * x-esi-cache-status on the answer, beside Expires. They are optional so a
+ * caller that builds a read by hand need not supply them.
+ */
 export type EsiAuthedRead =
-  | { kind: 'fresh'; body: unknown; etag: string | null; expiresAt: number | null }
-  | { kind: 'unchanged'; expiresAt: number | null }
+  | {
+      kind: 'fresh';
+      body: unknown;
+      etag: string | null;
+      expiresAt: number | null;
+      lastModified?: string | null;
+      cacheStatus?: string | null;
+    }
+  | { kind: 'unchanged'; expiresAt: number | null; lastModified?: string | null; cacheStatus?: string | null }
   | { kind: 'error'; code: string };
 
 async function toAuthedRead(res: Response, rl?: RlSnapshot): Promise<EsiAuthedRead> {
   if (rl !== undefined) captureRl(res, rl);
   const expiresAt = httpDateMs(res.headers.get('Expires'));
-  if (res.status === 304) return { kind: 'unchanged', expiresAt };
+  const cache = captureCacheHeaders(res);
+  if (res.status === 304) return { kind: 'unchanged', expiresAt, ...cache };
   if (res.status === 200) {
-    return { kind: 'fresh', body: (await res.json()) as unknown, etag: res.headers.get('ETag'), expiresAt };
+    return { kind: 'fresh', body: (await res.json()) as unknown, etag: res.headers.get('ETag'), expiresAt, ...cache };
   }
   return { kind: 'error', code: `esi_${res.status}` };
 }
@@ -59,26 +72,33 @@ export async function readEsiAuthedPost(path: string, accessToken: string, body:
  * bookkeeping. A multi-page 304 fast path is a deferred optimization.
  */
 export type EsiPagedRead =
-  | { kind: 'unchanged'; expiresAt: number | null }
+  | { kind: 'unchanged'; expiresAt: number | null; lastModified?: string | null; cacheStatus?: string | null }
   | {
       kind: 'fresh';
       items: unknown[];
       etags: string[];
       expiresAt: number | null;
       responseHeaders: EsiResponseHeaders;
+      lastModified?: string | null;
+      cacheStatus?: string | null;
     }
   | { kind: 'error'; code: string };
 
+interface PageCacheHeaders {
+  lastModified: string | null;
+  cacheStatus: string | null;
+}
+
 type PageFetch =
-  | {
+  | ({
       kind: 'fresh';
       body: unknown;
       etag: string | null;
       expiresAt: number | null;
       xPages: number;
       responseHeaders: EsiPageResponseHeaders;
-    }
-  | { kind: 'unchanged'; expiresAt: number | null; xPages: number }
+    } & PageCacheHeaders)
+  | ({ kind: 'unchanged'; expiresAt: number | null; xPages: number } & PageCacheHeaders)
   | { kind: 'error'; code: string };
 
 function pagedPath(basePath: string, page: number): string {
@@ -96,7 +116,8 @@ async function fetchPage(
   if (rl !== undefined) captureRl(res, rl);
   const expiresAt = httpDateMs(res.headers.get('Expires'));
   const xPages = esiPageCount(res.headers);
-  if (res.status === 304) return { kind: 'unchanged', expiresAt, xPages };
+  const cache = captureCacheHeaders(res);
+  if (res.status === 304) return { kind: 'unchanged', expiresAt, xPages, ...cache };
   if (res.status === 200) {
     const etagValue = res.headers.get('ETag');
     return {
@@ -105,6 +126,7 @@ async function fetchPage(
       etag: etagValue,
       expiresAt,
       xPages,
+      ...cache,
       responseHeaders: {
         page,
         cacheControl: res.headers.get('Cache-Control'),
@@ -129,7 +151,7 @@ export async function readEsiPagedAuthed(
 
   if (pageCount === 1) {
     if (first.kind === 'unchanged') {
-      if (heldEtags.length === 1) return { kind: 'unchanged', expiresAt: first.expiresAt };
+      if (heldEtags.length === 1) return { kind: 'unchanged', expiresAt: first.expiresAt, ...pageCacheHeaders(first) };
       return finalizeFresh([await fetchPage(basePath, 1, null, accessToken, rl)]);
     }
     return finalizeFresh([first]);
@@ -142,7 +164,7 @@ export async function readEsiPagedAuthed(
   return finalizeFresh([firstFresh, ...rest]);
 }
 
-function finalizeFresh(pages: PageFetch[]): EsiPagedRead {
+function finalizeFresh(pages: [PageFetch, ...PageFetch[]]): EsiPagedRead {
   const items: unknown[] = [];
   const etags: string[] = [];
   const responseHeaders: EsiPageResponseHeaders[] = [];
@@ -165,6 +187,19 @@ function finalizeFresh(pages: PageFetch[]): EsiPagedRead {
     etags: allEtags ? etags : [],
     expiresAt: present.length > 0 ? Math.min(...present) : null,
     responseHeaders,
+    ...pageCacheHeaders(pages[0]),
+  };
+}
+
+/** Page 1's cache headers speak for a paged read; every page's Last-Modified is in responseHeaders. */
+function pageCacheHeaders(page: PageFetch): Partial<PageCacheHeaders> {
+  return page.kind === 'error' ? {} : { lastModified: page.lastModified, cacheStatus: page.cacheStatus };
+}
+
+function captureCacheHeaders(res: Response): PageCacheHeaders {
+  return {
+    lastModified: res.headers.get('Last-Modified'),
+    cacheStatus: res.headers.get('x-esi-cache-status'),
   };
 }
 

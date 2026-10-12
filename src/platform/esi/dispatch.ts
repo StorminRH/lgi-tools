@@ -9,13 +9,11 @@ import {
   ESI_BUDGET_FLOOR,
   type EsiBudgetExhaustedReason,
 } from './errors';
-import { httpDateMs, intHeader } from './headers';
+import { intHeader } from './headers';
 import {
-  BODY_CACHE_MAX_BYTES,
   NO_RESPONSE_STATUS,
   resolveScoreboard,
   __resetScoreboardForTests,
-  type CachedEtagMeta,
   type EsiReport,
   type EsiScoreboard,
   type PreDispatchState,
@@ -34,10 +32,10 @@ let trickleWindowStart = 0;
 let trickleCount = 0;
 
 /**
- * How long this process trusts its last shared budget reading for calls that
- * need no per-URL ETag read. Errors seen locally since the reading count
- * against it, and ESI's error-limit header on each answer caps it, so the only
- * blind spot is other instances' errors that no answer here has reported yet.
+ * How long this process trusts its last shared budget reading. Errors seen
+ * locally since the reading count against it, and ESI's error-limit header on
+ * each answer caps it, so the only blind spot is other instances' errors that
+ * no answer here has reported yet.
  */
 const LOCAL_BUDGET_REUSE_MS = 1_000;
 
@@ -92,35 +90,23 @@ export function getScoreboard(): EsiScoreboard | null {
   return resolveScoreboard();
 }
 
-export function isEtagEligible(init?: RequestInit): boolean {
-  if ((init?.method ?? 'GET').toUpperCase() !== 'GET') return false;
-  return !new Headers(init?.headers).has('Authorization');
-}
-
-function buildHeaders(init?: RequestInit, etag?: string | null): Headers {
+/** The caller's headers, including any If-None-Match it holds, under the gate's identity headers. */
+function buildHeaders(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
   if (!headers.has('User-Agent')) {
     headers.set('User-Agent', OUTBOUND_USER_AGENT);
   }
   headers.set('X-Compatibility-Date', ESI_COMPATIBILITY_DATE);
-  if (etag != null) {
-    headers.set('If-None-Match', etag);
-  }
   return headers;
 }
 
-function buildReport(
-  url: string,
-  res: Response,
-  extras: Pick<EsiReport, 'etagToStore' | 'refreshEtag'>,
-): EsiReport {
+function buildReport(url: string, res: Response): EsiReport {
   return {
     url,
     status: res.status,
     errorLimitRemain: intHeader(res.headers, 'X-ESI-Error-Limit-Remain'),
     errorLimitReset: intHeader(res.headers, 'X-ESI-Error-Limit-Reset'),
     retryAfter: intHeader(res.headers, 'Retry-After'),
-    ...extras,
   };
 }
 
@@ -132,8 +118,6 @@ function noResponseReport(url: string): EsiReport {
     errorLimitRemain: null,
     errorLimitReset: null,
     retryAfter: null,
-    etagToStore: null,
-    refreshEtag: null,
   };
 }
 
@@ -184,71 +168,6 @@ async function reportAnswer(sb: EsiScoreboard, report: EsiReport): Promise<void>
   await deferWork(() => safeReport(sb, report));
 }
 
-async function captureBodyForCache(res: Response): Promise<string | null> {
-  const contentLength = intHeader(res.headers, 'Content-Length');
-  if (contentLength === null || contentLength > BODY_CACHE_MAX_BYTES) {
-    return null;
-  }
-  const text = await res.clone().text();
-  if (new TextEncoder().encode(text).length > BODY_CACHE_MAX_BYTES) {
-    return null;
-  }
-  return text;
-}
-
-function synthesizeRevalidated(
-  res304: Response,
-  body: string,
-  meta: CachedEtagMeta,
-): Response {
-  const headers = new Headers(res304.headers);
-  if (!headers.has('Content-Type') && meta.contentType !== null) {
-    headers.set('Content-Type', meta.contentType);
-  }
-  if (!headers.has('Expires') && meta.expires !== null) {
-    headers.set('Expires', meta.expires);
-  }
-  headers.delete('Content-Length');
-  headers.set('x-lgi-esi-cache', 'revalidated');
-  return new Response(body, { status: 200, statusText: 'OK', headers });
-}
-
-const CACHE_SERVE_SKEW_MS = 5_000;
-
-function isWithinExpiresWindow(expires: string | null): boolean {
-  const expiresAt = httpDateMs(expires);
-  return expiresAt !== null && Date.now() + CACHE_SERVE_SKEW_MS < expiresAt;
-}
-
-/** The stored body for a cached ETag, or null when it is gone or the read fails. */
-async function safeCachedBody(sb: EsiScoreboard, url: string): Promise<string | null> {
-  try {
-    return await sb.getCachedBody(url);
-  } catch {
-    return null;
-  }
-}
-
-function synthesizeFromCache(body: string, meta: CachedEtagMeta): Response {
-  const headers = new Headers();
-  if (meta.contentType !== null) headers.set('Content-Type', meta.contentType);
-  if (meta.expires !== null) headers.set('Expires', meta.expires);
-  headers.set('ETag', meta.etag);
-  headers.set('x-lgi-esi-cache', 'window');
-  return new Response(body, { status: 200, statusText: 'OK', headers });
-}
-
-export async function serveFromExpiresWindow(
-  url: string,
-  etagMeta: CachedEtagMeta,
-  liveSb: EsiScoreboard,
-): Promise<Response | null> {
-  if (!isWithinExpiresWindow(etagMeta.expires)) return null;
-  const body = await safeCachedBody(liveSb, url);
-  if (body === null) return null;
-  return synthesizeFromCache(body, etagMeta);
-}
-
 /** The shared state from this process's recent reading, when both budget and block are fresh. */
 function localPreDispatch(url: string, now: number): PreDispatchState | null {
   if (localBudget === null || now - localBudget.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
@@ -260,7 +179,6 @@ function localPreDispatch(url: string, now: number): PreDispatchState | null {
       block.blockedUntil !== null && block.blockedUntil > now
         ? Math.ceil((block.blockedUntil - now) / 1000)
         : null,
-    etag: null,
   };
 }
 
@@ -298,7 +216,6 @@ function rememberBlock(url: string, pre: PreDispatchState, readSeq: number, now:
 /** Keeps a shared reading for reuse and returns what this call should obey. */
 function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number, now: number): PreDispatchState {
   return {
-    ...pre,
     effectiveRemaining: rememberBudget(pre, readSeq, now),
     blockedRetryAfter: rememberBlock(url, pre, readSeq, now),
   };
@@ -331,16 +248,13 @@ function noteLocalAnswer(url: string, res: Response): void {
 export async function consultPreDispatch(
   sb: EsiScoreboard | null,
   url: string,
-  wantEtag: boolean,
 ): Promise<PreDispatchState | null> {
   if (sb === null || Date.now() < redisDownUntil) return null;
-  if (!wantEtag) {
-    const local = localPreDispatch(url, Date.now());
-    if (local !== null) return local;
-  }
+  const local = localPreDispatch(url, Date.now());
+  if (local !== null) return local;
   const readSeq = ++localSeq;
   try {
-    const pre = await sb.preDispatch(url, wantEtag);
+    const pre = await sb.preDispatch(url);
     return rememberPreDispatch(url, pre, readSeq, Date.now());
   } catch (err) {
     redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
@@ -402,55 +316,38 @@ export function enforceBudget(
   }
 }
 
-async function reuseOrRevalidate(
-  url: string,
-  res304: Response,
-  etagMeta: CachedEtagMeta,
-  liveSb: EsiScoreboard | null,
-): Promise<Response | null> {
-  const freshMeta: CachedEtagMeta = {
-    etag: res304.headers.get('ETag') ?? etagMeta.etag,
-    expires: res304.headers.get('Expires') ?? etagMeta.expires,
-    contentType: etagMeta.contentType,
-  };
-  const body = liveSb === null ? null : await safeCachedBody(liveSb, url);
-  if (body !== null) {
-    if (liveSb !== null) {
-      await reportAnswer(
-        liveSb,
-        buildReport(url, res304, { etagToStore: null, refreshEtag: freshMeta }),
-      );
-    }
-    return synthesizeRevalidated(res304, body, freshMeta);
-  }
-  if (liveSb !== null) {
-    await reportAnswer(
-      liveSb,
-      buildReport(url, res304, { etagToStore: null, refreshEtag: null }),
-    );
-  }
-  return null;
+/** Every `x-esi-*` header on an answer, by its lower-case name. */
+function esiHeaders(headers: Headers): Record<string, string> {
+  const picked: Record<string, string> = {};
+  headers.forEach((value, name) => {
+    if (name.startsWith('x-esi-')) picked[name] = value;
+  });
+  return picked;
 }
 
-async function captureEtagToStore(
-  res: Response,
-  liveSb: EsiScoreboard | null,
-  wantEtag: boolean,
-): Promise<EsiReport['etagToStore']> {
-  if (liveSb === null || !wantEtag || res.status !== 200) return null;
-  const etag = res.headers.get('ETag');
-  if (etag === null) return null;
-  const body = await captureBodyForCache(res);
-  if (body === null) return null;
-  return {
-    etag,
-    expires: res.headers.get('Expires'),
-    contentType: res.headers.get('Content-Type'),
-    body,
-  };
+/** The body text of an error answer, or null when it cannot be read. */
+async function safeText(res: Response): Promise<string | null> {
+  try {
+    return await res.text();
+  } catch {
+    return null;
+  }
 }
 
-function throwIfErrorStatus(url: string, res: Response): void {
+/** A 5xx keeps what ESI sent and is logged, so CCP's real downtime answer is on record. */
+async function serverError(url: string, res: Response): Promise<EsiServerError> {
+  const error = new EsiServerError(res.status, await safeText(res), esiHeaders(res.headers));
+  console.warn('[esi] server error', {
+    status: error.status,
+    path: normalizeEsiPath(url),
+    headers: error.esiHeaders,
+    body: error.body,
+  });
+  return error;
+}
+
+/** A 304 is an answer, not an error: it comes back to the caller as ESI sent it. */
+async function throwIfErrorStatus(url: string, res: Response): Promise<void> {
   if (res.status === 420) {
     throwBudgetExhausted(0, 'esi_420', null, normalizeEsiPath(url));
   }
@@ -463,7 +360,7 @@ function throwIfErrorStatus(url: string, res: Response): void {
     );
   }
   if (res.status >= 500) {
-    throw new EsiServerError(res.status);
+    throw await serverError(url, res);
   }
 }
 
@@ -483,31 +380,13 @@ async function fetchFromEsi(url: string, init: RequestInit): Promise<Response> {
 export async function dispatch(
   url: string,
   init: RequestInit | undefined,
-  wantEtag: boolean,
   liveSb: EsiScoreboard | null,
-  etagMeta: CachedEtagMeta | null,
 ): Promise<Response> {
-  for (;;) {
-    const headers = buildHeaders(init, etagMeta?.etag ?? null);
-    const res = await fetchOrReportNoResponse(url, { ...init, headers }, liveSb);
-    noteLocalAnswer(url, res);
-
-    if (res.status === 304 && etagMeta !== null) {
-      const served = await reuseOrRevalidate(url, res, etagMeta, liveSb);
-      if (served !== null) return served;
-      etagMeta = null;
-      continue;
-    }
-
-    const etagToStore = await captureEtagToStore(res, liveSb, wantEtag);
-    if (liveSb !== null) {
-      await reportAnswer(
-        liveSb,
-        buildReport(url, res, { etagToStore, refreshEtag: null }),
-      );
-    }
-
-    throwIfErrorStatus(url, res);
-    return res;
+  const res = await fetchOrReportNoResponse(url, { ...init, headers: buildHeaders(init) }, liveSb);
+  noteLocalAnswer(url, res);
+  if (liveSb !== null) {
+    await reportAnswer(liveSb, buildReport(url, res));
   }
+  await throwIfErrorStatus(url, res);
+  return res;
 }
