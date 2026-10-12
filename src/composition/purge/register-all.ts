@@ -19,6 +19,7 @@ import { characterSheetPurgeContributor } from '@/features/character-sheet/purge
 import { netWorthPurgeContributor } from '@/features/net-worth/purge';
 import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
+import { esiStorePurgeContributor } from '@/data/esi-store/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
 import { createMapsPurgeContributor } from '@/data/maps/purge';
 import type { PurgeContributor } from '@/platform/purge/types';
@@ -40,6 +41,7 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   corpRolesPurgeContributor,
   corpHoldingsPurgeContributor,
   esiSnapshotsPurgeContributor,
+  esiStorePurgeContributor,
   onlineStatusPurgeContributor,
   locationTrackingPurgeContributor,
   telemetryPurgeContributor,

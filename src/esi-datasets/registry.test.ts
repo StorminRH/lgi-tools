@@ -21,9 +21,12 @@ import {
   registryCoverageDiff,
 } from '@/db/__tests__/support/schema-reflection';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
+import { routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
 import {
   effectiveTtlMs,
   type EsiDatasetEntry,
+  type EsiRouteDeclaration,
+  type EsiRouteHolder,
 } from '@/lib/esi-datasets/types';
 import { LOCATION_CADENCE_FLOOR_MS, SYNC_DATASETS } from '@/lib/sync-engine';
 import {
@@ -122,6 +125,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       freshnessModel: 'engine-cadence',
       refreshOwner: { kind: 'engine', dataset: 'characterLocation' },
       upstream: staticEsi(3600),
+      routes: [],
       mirrorTables: [],
     };
 
@@ -138,6 +142,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       freshnessModel: 'row-stale-after',
       refreshOwner: { kind: 'cron', route: '/api/cron/not-live' },
       upstream: staticEsi(300),
+      routes: [],
       mirrorTables: [],
     };
     const absent: EsiDatasetEntry = {
@@ -162,6 +167,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       freshnessModel: 'caller-ttl',
       refreshOwner: { kind: 'entry-point', name: 'refreshNothingOnView' },
       upstream: staticEsi(300),
+      routes: [],
       mirrorTables: [],
     };
 
@@ -179,6 +185,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       refreshOwner: { kind: 'entry-point', name: 'refreshSkillsOnView' },
       cronBackstopRoute: '/api/cron/not-live',
       upstream: staticEsi(300),
+      routes: [],
       mirrorTables: [],
     };
     const waived: EsiDatasetEntry = {
@@ -204,6 +211,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       freshnessModel: 'row-stale-after',
       refreshOwner: { kind: 'cron', route: '/api/cron/daily-batch' },
       upstream: staticEsi(300),
+      routes: [],
       ttlOverride: {
         milliseconds: 60_000,
         rationale: 'Synthetic seeded violation.',
@@ -228,6 +236,7 @@ describe('ESI dataset registry seeded rule failures', () => {
         specPaths: ['/synthetic/expires/'],
         verifiedCacheSeconds: null,
       },
+      routes: [],
       waiver: {
         rule: 'global-cron-names-route',
         rationale: 'Synthetic on-view owner.',
@@ -326,7 +335,7 @@ describe('ESI dataset registry live gate', () => {
     ]);
   });
 
-  it('pins the one live waiver with a non-empty rationale', () => {
+  it('pins the two live waivers with non-empty rationales', () => {
     const entries: readonly EsiDatasetEntry[] = ESI_DATASET_ENTRIES;
     const waivers = entries.flatMap((entry) =>
       entry.waiver === undefined
@@ -345,8 +354,14 @@ describe('ESI dataset registry live gate', () => {
         rationale:
           'History refreshes on view and persists each response Expires boundary; no cron owns it.',
       },
+      {
+        name: 'eve_status',
+        rule: 'global-cron-names-route',
+        rationale:
+          'Tranquility status is read on view and kept whole in its esi_responses row until CCP\'s Expires; no cron owns it.',
+      },
     ]);
-    expect(waivers[0]?.rationale.trim()).not.toBe('');
+    for (const waiver of waivers) expect(waiver.rationale.trim(), waiver.name).not.toBe('');
   });
 
   it('pins every effective runtime TTL to its verified value', () => {
@@ -376,5 +391,102 @@ describe('ESI dataset registry live gate', () => {
     expect(effectiveTtlMs(entryNamed('character_sheet_live'))).toBe(120_000);
     expect(effectiveTtlMs(entryNamed('character_sheet_hourly'))).toBe(3_600_000);
     expect(effectiveTtlMs(entryNamed('character_sheet_daily'))).toBe(86_400_000);
+  });
+});
+
+const OWNER_PLACEHOLDER: Record<EsiRouteHolder, string | null> = {
+  character: '{character_id}',
+  corporation: '{corporation_id}',
+  'user-corporation': '{corporation_id}',
+  global: null,
+};
+
+describe('ESI route declarations', () => {
+  const entries: readonly EsiDatasetEntry[] = ESI_DATASET_ENTRIES;
+  const esiEntries = entries.filter((entry) => entry.upstream.kind === 'esi');
+
+  it('declares every spec path of an ESI entry as a route, and nothing else', () => {
+    for (const entry of esiEntries) {
+      const specPaths = entry.upstream.kind === 'esi' ? [...entry.upstream.specPaths].sort() : [];
+      expect([...new Set(entry.routes.map((route) => route.route))].sort(), entry.name).toEqual(specPaths);
+    }
+    for (const entry of entries) {
+      if (entry.upstream.kind !== 'esi') expect(entry.routes, entry.name).toEqual([]);
+    }
+  });
+
+  it('fills a stored owner GET from its holder and keeps global routes owner-free', () => {
+    for (const entry of esiEntries) {
+      for (const route of entry.routes) {
+        // A stored POST (the affiliation batch) names its characters in the body and is recorded per character.
+        if (route.mode === 'pass-through' || route.method === 'POST') continue;
+        const placeholder = OWNER_PLACEHOLDER[route.holder];
+        const label = `${entry.name} ${route.route}`;
+        if (placeholder === null) {
+          expect(route.route, label).not.toMatch(/\{(character|corporation)_id\}/);
+        } else {
+          expect(route.route, label).toContain(placeholder);
+        }
+      }
+    }
+  });
+
+  it('declares one route the same way everywhere it appears, the tracker aside', () => {
+    const byRoute = new Map<string, Array<{ dataset: string; declaration: EsiRouteDeclaration }>>();
+    for (const entry of esiEntries) {
+      for (const declaration of entry.routes) {
+        byRoute.set(declaration.route, [...(byRoute.get(declaration.route) ?? []), { dataset: entry.name, declaration }]);
+      }
+    }
+    for (const [route, declared] of byRoute) {
+      const owned = declared.filter((candidate) => candidate.declaration.mode !== 'convex');
+      const [first, ...rest] = owned;
+      if (first === undefined) continue;
+      for (const other of rest) {
+        expect(other.declaration, `${route}: ${other.dataset} vs ${first.dataset}`).toEqual(first.declaration);
+      }
+      expect(routeDeclaration(route as EsiRoute)).toEqual(first.declaration);
+    }
+  });
+
+  it('leaves the map tracker its own declarations, and nothing else is convex', () => {
+    const convex = esiEntries.flatMap((entry) =>
+      entry.routes.filter((route) => route.mode === 'convex').map((route) => `${entry.name} ${route.route}`),
+    );
+    expect(convex).toEqual([
+      'character_location /characters/{character_id}/location/',
+      'character_location /characters/{character_id}/ship/',
+      'character_location /characters/{character_id}/online/',
+    ]);
+    for (const entry of esiEntries) {
+      if (entry.store === 'convex') expect(entry.routes.every((route) => route.mode === 'convex'), entry.name).toBe(true);
+    }
+  });
+
+  it('keeps stored POSTs to the affiliation batch and stored bodies to the status document', () => {
+    const storedPosts = esiEntries.flatMap((entry) =>
+      entry.routes.filter((route) => route.method === 'POST' && route.mode !== 'pass-through').map((route) => route.route),
+    );
+    expect(storedPosts).toEqual(['/characters/affiliation/']);
+    const kept = esiEntries.flatMap((entry) => entry.routes.filter((route) => route.keepBody === true).map((route) => route.route));
+    expect(kept).toEqual(['/status/']);
+    const unconditional = esiEntries.flatMap((entry) =>
+      entry.routes.filter((route) => route.conditional === false).map((route) => route.route),
+    );
+    expect(unconditional).toEqual(['/characters/{character_id}/wallet/journal/']);
+  });
+
+  it('carries CCP\'s published cache time on every stored route', () => {
+    for (const entry of esiEntries) {
+      for (const route of entry.routes) {
+        if (route.mode === 'pass-through') continue;
+        const label = `${entry.name} ${route.route}`;
+        if (route.route === '/markets/{region_id}/history/') {
+          expect(route.specCacheSeconds, label).toBeNull();
+        } else {
+          expect(route.specCacheSeconds, label).toBeGreaterThan(0);
+        }
+      }
+    }
   });
 });

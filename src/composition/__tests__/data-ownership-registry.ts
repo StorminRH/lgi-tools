@@ -5,6 +5,7 @@ export type SliceId =
   | 'data/corp-holdings'
   | 'data/domain-events'
   | 'data/esi-snapshots'
+  | 'data/esi-store'
   | 'data/eve-data'
   | 'data/gsc'
   | 'data/industry-indices'
@@ -994,6 +995,17 @@ export const DATA_OWNERSHIP = [
     boundary: {
       kind: 'single-statement',
       note: 'One insert per retained raw ESI response, and one delete on the orphan-cleanup or retention path. The snapshot insert and the projection write it accompanies are NOT atomic — the caller compensates by deleting its own snapshot when the projection write does not stand.',
+    },
+    dataClass: 'operational',
+  },
+  {
+    table: schema.esiResponses,
+    owner: 'data/esi-store',
+    reads: [],
+    invariants: ['pk(route,holder_type,holder_id,user_id,params)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One keyed `insert … on conflict do update` per stored answer. A 304 records its new expiry at once; a 200 is recorded only when the caller commits it after its own domain write has stood, so an ETag can never outlive the data it describes. Global keys refresh under a per-key advisory lock; owner keys need none, a duplicate call is a 304.',
     },
     dataClass: 'operational',
   },

@@ -22,16 +22,23 @@ export const ADVISORY_LOCKS = {
 
 export type AdvisoryLockOutcome<T> = { busy: true } | { busy: false; result: T };
 
+/**
+ * A registered key, or a bigint from Postgres's own hash of a row identity
+ * (the ESI response store). The key travels as text with an explicit cast:
+ * the client has no bigint parameter type, and a number would lose the
+ * high bits of a 64-bit hash.
+ */
 export async function withAdvisoryLock<T>(
   client: Sql,
-  lockKey: number,
+  lockKey: number | bigint,
   work: (reserved: ReservedConnection) => Promise<T>,
 ): Promise<AdvisoryLockOutcome<T>> {
+  const key = lockKey.toString();
   const reserved = await client.reserve();
   let lockHeld = false;
   try {
     const lockResult = await reserved<{ got: boolean }[]>`
-      SELECT pg_try_advisory_lock(${lockKey}) AS got
+      SELECT pg_try_advisory_lock(${key}::bigint) AS got
     `;
     const [lockRow] = lockResult;
     if (!lockRow) throw new Error('advisory lock query returned no row');
@@ -43,7 +50,7 @@ export async function withAdvisoryLock<T>(
   } finally {
     try {
       if (lockHeld) {
-        await reserved`SELECT pg_advisory_unlock(${lockKey})`;
+        await reserved`SELECT pg_advisory_unlock(${key}::bigint)`;
       }
     } finally {
       reserved.release();

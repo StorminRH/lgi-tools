@@ -129,6 +129,12 @@ export const TABLE_GROWTH_STORIES = [
     alsoPurgeManagedBy: 'esi-snapshots',
   },
   {
+    kind: 'bounded',
+    table: schema.esiResponses,
+    reason:
+      'one row per declared route, holder and canonical parameter set: holders times routes, plus the priced and history-tracked types for the per-type market keys; character and per-user rows leave with the esi-store purge contributor',
+  },
+  {
     kind: 'pruned',
     table: schema.whStaticsSnapshots,
     retentionDays: WH_STATICS_SNAPSHOT_RETENTION_DAYS,

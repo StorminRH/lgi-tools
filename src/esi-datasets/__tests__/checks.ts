@@ -176,6 +176,11 @@ export const ESI_INFRASTRUCTURE_TABLES = [
     reason:
       'Encrypted response-body transport cache governed by ETag/304 handling and retention pruning.',
   },
+  {
+    table: 'esi_responses',
+    reason:
+      'The response store: CCP\'s Expires, ETag and Last-Modified per declared route and holder, the one freshness source every stored dataset reads.',
+  },
 ] as const;
 
 export const CONVEX_ESI_HOMES = [
