@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
+import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCharacterSheetForUser } from './refresh';
 import { digestJournalBody } from './plan';
 import type {
   SectionEnvelope,
   SheetEndpoint,
-  SheetEsiRead,
   SheetPort,
   SheetSectionKey,
   SheetSections,
@@ -32,15 +32,8 @@ const BODIES: Record<SheetEndpoint, unknown> = {
   orders: [],
 };
 
-const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
-  characterId: id,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
-
-const reader = (answer: (endpoint: SheetEndpoint) => SheetEsiRead) =>
-  vi.fn(async (_id: number, endpoint: SheetEndpoint): Promise<SheetEsiRead> => answer(endpoint));
+const reader = (answer: (endpoint: SheetEndpoint) => SingleOwnerRead) =>
+  vi.fn(async (_id: number, endpoint: SheetEndpoint): Promise<SingleOwnerRead> => answer(endpoint));
 
 interface FakePort extends SheetPort {
   sheets: Map<number, SheetSections>;
@@ -50,11 +43,11 @@ function makePort(overrides: Partial<SheetPort> = {}, sheets = new Map<number, S
   const port: FakePort = {
     sheets,
     now: () => NOW,
-    listCharacters: vi.fn(async () => [character(1)]),
+    listCharacters: vi.fn(async () => [ownerFixture(1)]),
     vendToken: vi.fn(async () => 'token'),
     readEndpoint: reader((endpoint) => ({ kind: 'fresh', body: BODIES[endpoint], etag: `"${endpoint}"` })),
     readStructure: vi.fn(
-      async (structureId): Promise<SheetEsiRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
+      async (structureId): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
     ),
     readSheet: vi.fn(async (id) => sheets.get(id) ?? null),
     mergeSection: vi.fn(async (id, key, envelope) => {
@@ -122,6 +115,24 @@ describe('refreshCharacterSheetForUser', () => {
     });
   });
 
+  it('reads the sheet once for the direct phase and once for structures', async () => {
+    const sheetReads = (port: SheetPort) => vi.mocked(port.readSheet).mock.calls.map(([id]) => id).sort();
+
+    const neverSynced = makePort();
+    await refreshCharacterSheetForUser(neverSynced, 'u1');
+    expect(sheetReads(neverSynced)).toEqual([1, 1]);
+    expect(neverSynced.sheets.get(1)?.structures?.data?.names).toHaveProperty('1099000000001');
+
+    const twoPilots = makePort({ listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]) });
+    await refreshCharacterSheetForUser(twoPilots, 'u1');
+    expect(sheetReads(twoPilots)).toEqual([1, 1, 2, 2]);
+
+    const allFresh = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]));
+    await refreshCharacterSheetForUser(allFresh, 'u1');
+    expect(sheetReads(allFresh)).toEqual([1, 1]);
+    expect(allFresh.readEndpoint).not.toHaveBeenCalled();
+  });
+
   it('makes no vend and no read when every section is inside its tier', async () => {
     const port = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]));
 
@@ -149,8 +160,8 @@ describe('refreshCharacterSheetForUser', () => {
   it('skips the sections behind a missing scope and a character without a token', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [
-        character(1, { missingScopes: ['esi-wallet.read_character_wallet.v1'] }),
-        character(2, { hasRefreshToken: false }),
+        ownerFixture(1, { missingScopes: ['esi-wallet.read_character_wallet.v1'] }),
+        ownerFixture(2, { hasRefreshToken: false }),
       ]),
     });
 
@@ -168,7 +179,7 @@ describe('refreshCharacterSheetForUser', () => {
     };
     const port = makePort(
       {
-        listCharacters: vi.fn(async () => [character(1, { missingScopes: ['esi-location.read_online.v1', 'esi-skills.read_skills.v1', 'esi-clones.read_implants.v1', 'esi-clones.read_clones.v1', 'esi-universe.read_structures.v1', 'esi-markets.read_character_orders.v1'] })]),
+        listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: ['esi-location.read_online.v1', 'esi-skills.read_skills.v1', 'esi-clones.read_implants.v1', 'esi-clones.read_clones.v1', 'esi-universe.read_structures.v1', 'esi-markets.read_character_orders.v1'] })]),
         readEndpoint: reader((endpoint) =>
           endpoint === 'wallet' ? { kind: 'unchanged' } : { kind: 'fresh', body: BODIES[endpoint], etag: null },
         ),
@@ -202,7 +213,7 @@ describe('refreshCharacterSheetForUser', () => {
     let now = NOW;
     const port = makePort({
       now: () => now,
-      readStructure: vi.fn(async (id): Promise<SheetEsiRead> =>
+      readStructure: vi.fn(async (id): Promise<SingleOwnerRead> =>
         id === 1099000000001 && now === NOW
           ? { kind: 'error', code: 'esi_403' }
           : { kind: 'fresh', body: { name: `Recovered ${id}` }, etag: null },
@@ -225,7 +236,7 @@ describe('refreshCharacterSheetForUser', () => {
 
   it('reads unseen structures immediately without retrying a still-fresh hidden entry', async () => {
     const port = makePort({
-      readStructure: vi.fn(async (id): Promise<SheetEsiRead> =>
+      readStructure: vi.fn(async (id): Promise<SingleOwnerRead> =>
         id === 1099000000001
           ? { kind: 'error', code: 'esi_403' }
           : { kind: 'fresh', body: { name: `Structure ${id}` }, etag: null },
@@ -296,7 +307,7 @@ describe('refreshCharacterSheetForUser', () => {
   });
 
   it('honours a single-owner target', async () => {
-    const port = makePort({ listCharacters: vi.fn(async () => [character(1), character(2)]) });
+    const port = makePort({ listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]) });
 
     await refreshCharacterSheetForUser(port, 'u1', { target: { ownerType: 'character', ownerId: 2 } });
 

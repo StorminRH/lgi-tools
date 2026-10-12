@@ -11,7 +11,6 @@ const h = vi.hoisted(() => ({
   accountBelongsToUser: vi.fn(),
   stationManagerGate: vi.fn(),
   getCorpStructures: vi.fn(),
-  getCorpStructureRigs: vi.fn(),
   getStructureTypes: vi.fn(),
   getStructureRigs: vi.fn(),
   getBlueprintStructure: vi.fn(),
@@ -54,7 +53,6 @@ vi.mock('@/composition/corp-role-gates', () => ({
 }));
 vi.mock('@/features/owned-structures/queries', () => ({
   getCorpStructures: (...args: unknown[]) => h.getCorpStructures(...args),
-  getCorpStructureRigs: (...args: unknown[]) => h.getCorpStructureRigs(...args),
   upsertCorpStructureRigs: vi.fn(),
 }));
 vi.mock('@/data/eve-data/queries', () => ({
@@ -153,7 +151,6 @@ beforeEach(() => {
   h.accountBelongsToUser.mockReset().mockResolvedValue(true);
   h.stationManagerGate.mockReset().mockResolvedValue({ ok: true });
   h.getCorpStructures.mockReset().mockResolvedValue(new Map());
-  h.getCorpStructureRigs.mockReset().mockResolvedValue(new Map());
   h.getStructureTypes.mockReset().mockResolvedValue([
     { typeId: 35826, name: 'Azbel', groupId: 1404, rigSize: 3 },
   ]);

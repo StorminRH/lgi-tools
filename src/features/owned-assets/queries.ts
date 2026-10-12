@@ -1,14 +1,15 @@
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { and, eq, inArray } from 'drizzle-orm';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
-import { directDatabase } from '@/db/direct-database';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
+import { expireNow } from '@/lib/cache-expiry';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { buildHoldingIndex, type CorpAssetEvidence, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
-import { invalidateHoldingNodes, saveHoldingNodes } from '@/data/corp-holdings/queries';
+import { invalidateHoldingNodes, replaceHoldingNodes } from '@/data/corp-holdings/queries';
 import { decryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import { readCorpAssetSnapshots } from '@/data/esi-snapshots/queries';
-import { isUniqueViolation } from '@/db/pg-errors';
 import { type CorpGrant, type OwnedReadScope } from '@/platform/auth/corp-visibility';
 import {
   type AssetMapInput,
@@ -19,10 +20,11 @@ import {
   visibleCorpAssetInputs,
 } from './asset-map';
 import type { OwnedAsset } from './esi-projection';
-import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
+import { type OwnerKey, ownedResourcePath, type PagedOwnerSyncState } from '@/platform/owner-sync';
+import { OWNED_ASSETS_RESOURCE } from './refresh';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
-function ownedAssetsTag(owner: OwnerKey): string {
+export function ownedAssetsTag(owner: OwnerKey): string {
   return `owned-assets:${owner.ownerType}:${owner.ownerId}`;
 }
 
@@ -53,11 +55,11 @@ async function characterInputs(characterId: number): Promise<AssetMapInput[]> {
 async function getCorpAssetSnapshot(corporationId: number) {
   'use cache';
   cacheLife('hours');
-  cacheTag(ownedAssetsTag({ ownerType: 'corporation', ownerId: corporationId }));
-  const rows = await db.select().from(ownedAssets)
-    .where(ownerKeyWhere(ownedAssets, { ownerType: 'corporation', ownerId: corporationId }));
+  const owner: OwnerKey = { ownerType: 'corporation', ownerId: corporationId };
+  cacheTag(ownedAssetsTag(owner));
+  const rows = await db.select().from(ownedAssets).where(ownerKeyWhere(ownedAssets, owner));
   const ids = [...new Set(rows.flatMap((row) => row.snapshotId === null ? [] : [row.snapshotId]))];
-  const snapshots = await readCorpAssetSnapshots(corporationId, ids);
+  const snapshots = await readCorpAssetSnapshots(corporationId, ownedResourcePath(OWNED_ASSETS_RESOURCE, owner), ids);
   return snapshots.flatMap((snapshot) => {
     const body = decryptSnapshotBody(snapshot.bodyCiphertext);
     const items = Array.isArray(body) ? parseCorpAssetItems(body) : null;
@@ -97,57 +99,78 @@ export async function listCharacterAssetRows(characterIds: number[]): Promise<Ma
   return mapByIdDroppingNulls(characterIds, (ownerId) => getOwnerAssetRows({ ownerType: 'character', ownerId }));
 }
 
+const syncStateColumns = {
+  lastRefreshedAt: ownedAssetSyncs.lastRefreshedAt,
+  pageEtags: ownedAssetSyncs.pageEtags,
+};
+
 export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: ownedAssetSyncs.lastRefreshedAt,
-      pageEtags: ownedAssetSyncs.pageEtags,
-    })
+    .select(syncStateColumns)
     .from(ownedAssetSyncs)
     .where(ownerKeyWhere(ownedAssetSyncs, owner))
     .limit(1);
   return rows[0] ?? null;
 }
 
-export async function saveOwnedAssets(
-  owner: OwnerKey,
-  rows: OwnedAsset[],
-  etags: string[],
-  snapshotId: number | null = null,
-  database: AnyPgDb = db,
-): Promise<'saved' | 'superseded'> {
-  const now = new Date();
-  await database
-    .delete(ownedAssets)
-    .where(ownerKeyWhere(ownedAssets, owner));
-  if (rows.length > 0) {
-    try {
-      await database.insert(ownedAssets).values(
-        rows.map((r) => ({
-          ownerType: owner.ownerType,
-          ownerId: owner.ownerId,
-          typeId: r.type_id,
-          quantity: r.quantity,
-          locationId: r.location_id,
-          locationFlag: r.location_flag,
-          locationType: r.location_type,
-          snapshotId,
-        })),
-      );
-    } catch (error) {
-      if (database !== db || !isUniqueViolation(error)) throw error;
-      return 'superseded';
-    }
-  }
-  await database
+/**
+ * Uncached, in one query: each listed character's asset sync state; a character with no row is absent.
+ * The owner-type filter keeps a corporation that shares a numeric id out of the result.
+ */
+export async function listCharacterAssetSyncStates(
+  characterIds: number[],
+): Promise<Map<number, PagedOwnerSyncState>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await db
+    .select({ ownerId: ownedAssetSyncs.ownerId, ...syncStateColumns })
+    .from(ownedAssetSyncs)
+    .where(and(eq(ownedAssetSyncs.ownerType, 'character'), inArray(ownedAssetSyncs.ownerId, characterIds)));
+  return new Map(rows.map(({ ownerId, ...state }) => [ownerId, state]));
+}
+
+/** Upsert the owner's sync row with the new etags: the first step of every replace, and the lock it holds. */
+function upsertAssetSync(owner: OwnerKey, etags: string[], now: Date) {
+  return (tx: AnyPgDb) => tx
     .insert(ownedAssetSyncs)
     .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })
     .onConflictDoUpdate({
       target: [ownedAssetSyncs.ownerType, ownedAssetSyncs.ownerId],
       set: { lastRefreshedAt: now, pageEtags: etags },
     });
-  if (database === db) revalidateTag(ownedAssetsTag(owner), 'max');
-  return 'saved';
+}
+
+/** Delete and re-insert the owner's rows on the caller's transaction. */
+async function replaceOwnerAssetRows(
+  tx: AnyPgDb,
+  owner: OwnerKey,
+  rows: OwnedAsset[],
+  snapshotId: number | null,
+): Promise<void> {
+  await tx.delete(ownedAssets).where(ownerKeyWhere(ownedAssets, owner));
+  await insertInBatches(tx, ownedAssets, rows.map((r) => ({
+    ownerType: owner.ownerType,
+    ownerId: owner.ownerId,
+    typeId: r.type_id,
+    quantity: r.quantity,
+    locationId: r.location_id,
+    locationFlag: r.location_flag,
+    locationType: r.location_type,
+    snapshotId,
+  })));
+}
+
+/** Publish a character's assets under its sync-row lock; a unique violation is 'superseded' and changes nothing. */
+export async function saveOwnedAssets(
+  owner: OwnerKey,
+  rows: OwnedAsset[],
+  etags: string[],
+): Promise<'saved' | 'superseded'> {
+  const outcome = await replaceOwnerSnapshot({
+    lock: upsertAssetSync(owner, etags, new Date()),
+    replace: (tx) => replaceOwnerAssetRows(tx, owner, rows, null),
+  });
+  if (outcome === 'saved') expireNow(ownedAssetsTag(owner));
+  return outcome;
 }
 
 export async function stampOwnerFresh(owner: OwnerKey): Promise<void> {
@@ -166,26 +189,18 @@ export async function saveCorpOwnedAssets(
   snapshotId: number,
   options: { database?: PostgresJsDb } = {},
 ): Promise<'saved' | 'superseded'> {
-  const database = options.database ?? directDatabase();
   const owner = { ownerType: 'corporation', ownerId: corporationId } as const;
-  try {
-    await database.transaction(async (tx) => {
-      // Upsert first: it locks even a corporation's initial publication, making
-      // concurrent refreshes replace complete snapshots rather than interleave.
-      await tx.insert(ownedAssetSyncs).values({
-        ...owner, lastRefreshedAt: new Date(), pageEtags: etags,
-      }).onConflictDoUpdate({
-        target: [ownedAssetSyncs.ownerType, ownedAssetSyncs.ownerId],
-        set: { pageEtags: etags },
-      });
-      await saveHoldingNodes(corporationId, index, new Date(), tx);
-      await saveOwnedAssets(owner, rows, etags, snapshotId, tx);
-    });
-  } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
-    return 'superseded';
+  const refreshedAt = new Date();
+  const outcome = await replaceOwnerSnapshot({
+    lock: upsertAssetSync(owner, etags, refreshedAt),
+    replace: async (tx) => {
+      await replaceHoldingNodes(tx, corporationId, index, refreshedAt);
+      await replaceOwnerAssetRows(tx, owner, rows, snapshotId);
+    },
+  }, options.database);
+  if (outcome === 'saved') {
+    invalidateHoldingNodes(corporationId);
+    expireNow(ownedAssetsTag(owner));
   }
-  invalidateHoldingNodes(corporationId);
-  revalidateTag(ownedAssetsTag(owner), 'max');
-  return 'saved';
+  return outcome;
 }

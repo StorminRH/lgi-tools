@@ -50,35 +50,31 @@ describe('characterRow', () => {
 });
 
 describe('readCharacterOwners', () => {
-  it('enumerates linked characters and reads data + per-id state in parallel', async () => {
-    linkedByUser.u1 = [{ characterId: 1 }, { characterId: 2 }];
-    let dataStarted = false;
-    let stateStartedBeforeDataResolved = false;
+  it('reads data and one batched state map concurrently, keying owners by id in roster order', async () => {
+    linkedByUser.u1 = [{ characterId: 1 }, { characterId: 2 }, { characterId: 3 }];
+    const pendingData = Promise.withResolvers<Map<number, { n: number }>>();
+    const readData = vi.fn((_ids: number[]) => pendingData.promise);
+    const readStates = vi.fn(async (_ids: number[]) => new Map([
+      [3, { lastRefreshedAt: new Date('2026-06-28T11:00:00Z') }],
+      [1, { lastRefreshedAt: new Date('2026-06-28T10:00:00Z') }],
+    ]));
 
-    const readData = vi.fn(async (ids: number[]) => {
-      dataStarted = true;
-      await Promise.resolve();
-      return new Map(ids.map((id) => [id, { n: id }]));
-    });
-    const readState = vi.fn(async (id: number) => {
-      if (dataStarted) stateStartedBeforeDataResolved = true;
-      return { lastRefreshedAt: id === 1 ? new Date('2026-06-28T10:00:00Z') : null };
-    });
+    const read = readCharacterOwners('u1', readData, readStates);
+    await vi.waitFor(() => expect(readData).toHaveBeenCalledExactlyOnceWith([1, 2, 3]));
+    expect(readStates).toHaveBeenCalledExactlyOnceWith([1, 2, 3]);
+    pendingData.resolve(new Map([[1, { n: 1 }]]));
+    const { owners, data } = await read;
 
-    const { owners, data } = await readCharacterOwners('u1', readData, readState);
-
-    expect(readData).toHaveBeenCalledWith([1, 2]);
-    expect(readState).toHaveBeenCalledTimes(2);
-    expect(stateStartedBeforeDataResolved).toBe(true);
     expect(owners).toEqual([
       { id: 1, lastRefreshedAt: new Date('2026-06-28T10:00:00Z') },
       { id: 2, lastRefreshedAt: null },
+      { id: 3, lastRefreshedAt: new Date('2026-06-28T11:00:00Z') },
     ]);
     expect(data.get(1)).toEqual({ n: 1 });
   });
 
   it('returns empty owners for a user with no linked characters', async () => {
-    const { owners, data } = await readCharacterOwners('nobody', async () => new Map(), async () => null);
+    const { owners, data } = await readCharacterOwners('nobody', async () => new Map(), async () => new Map());
     expect(owners).toEqual([]);
     expect(data.size).toBe(0);
   });

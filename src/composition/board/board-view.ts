@@ -1,14 +1,12 @@
 import { after } from 'next/server';
 import { getCharacterSheets, readSheetRow } from '@/features/character-sheet/queries';
-import { getJobsForCharacters, readCharacterJobs, readCharacterJobSyncState } from '@/features/industry-jobs/queries';
+import { getJobsForCharacters, listCharacterJobSyncStates, readCharacterJobs } from '@/features/industry-jobs/queries';
 import { getNetWorthHistory, upsertNetWorthDay } from '@/features/net-worth/queries';
-import { listCharacterAssetRows, readOwnerAssetRows, readOwnerSyncState } from '@/features/owned-assets/queries';
+import { listCharacterAssetRows, listCharacterAssetSyncStates, readOwnerAssetRows } from '@/features/owned-assets/queries';
 import {
-  getSkillLevelsForCharacters,
-  getSkillsForCharacters,
-  readCharacterSkills,
-  readCharacterSkillLevels,
-  readCharacterSyncState,
+  getSkillRowsForCharacters,
+  listCharacterSkillSyncStates,
+  readCharacterSkillRow,
 } from '@/features/skill-queue/queries';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { scopeHolderOf } from '@/platform/auth/scope-health';
@@ -32,21 +30,21 @@ import { resolveValuationBook, seedUnpricedTypes } from './price-book';
 
 async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<BoardRaw[]> {
   const ids = linked.map((character) => character.characterId);
-  const [sheets, skills, levels, skillStates, jobs, jobStates, assets, assetStates] = await Promise.all([
+  const [sheets, skills, skillStates, jobs, jobStates, assets, assetStates] = await Promise.all([
     fresh ? mapByIdDroppingNulls(ids, readSheetRow) : getCharacterSheets(ids),
-    fresh ? mapByIdDroppingNulls(ids, readCharacterSkills) : getSkillsForCharacters(ids),
-    fresh ? mapByIdDroppingNulls(ids, readCharacterSkillLevels) : getSkillLevelsForCharacters(ids),
-    Promise.all(ids.map((id) => readCharacterSyncState(id))),
+    fresh ? mapByIdDroppingNulls(ids, readCharacterSkillRow) : getSkillRowsForCharacters(ids),
+    listCharacterSkillSyncStates(ids),
     fresh ? mapByIdDroppingNulls(ids, readCharacterJobs) : getJobsForCharacters(ids),
-    Promise.all(ids.map((id) => readCharacterJobSyncState(id))),
+    listCharacterJobSyncStates(ids),
     fresh
       ? mapByIdDroppingNulls(ids, (ownerId) => readOwnerAssetRows({ ownerType: 'character', ownerId }))
       : listCharacterAssetRows(ids),
-    Promise.all(ids.map((id) => readOwnerSyncState({ ownerType: 'character', ownerId: id }))),
+    listCharacterAssetSyncStates(ids),
   ]);
-  return linked.map((character, i) => {
+  return linked.map((character) => {
     const id = character.characterId;
-    const assetsSyncedAt = assetStates[i]?.lastRefreshedAt?.getTime() ?? null;
+    const assetsSyncedAt = assetStates.get(id)?.lastRefreshedAt?.getTime() ?? null;
+    const skillRow = skills.get(id);
     return {
       identity: {
         characterId: id,
@@ -58,13 +56,13 @@ async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<Board
       health: scopeHolderOf(character),
       sheet: sheets.get(id) ?? null,
       skills: {
-        data: skills.get(id) ?? null,
-        levels: levels.get(id) ?? null,
-        refreshedAt: skillStates[i]?.lastRefreshedAt?.getTime() ?? null,
+        data: skillRow?.data ?? null,
+        levels: skillRow?.levels ?? null,
+        refreshedAt: skillStates.get(id)?.lastRefreshedAt?.getTime() ?? null,
       },
       jobs: {
         data: jobs.get(id) ?? null,
-        refreshedAt: jobStates[i]?.lastRefreshedAt?.getTime() ?? null,
+        refreshedAt: jobStates.get(id)?.lastRefreshedAt?.getTime() ?? null,
       },
       assets: {
         rows: assetsSyncedAt === null ? null : (assets.get(id) ?? []),

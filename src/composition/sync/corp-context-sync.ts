@@ -6,12 +6,12 @@ import {
   stampCorpProfileFresh,
 } from '@/data/corp-holdings/queries';
 import { listLinkedCharacterIdsInCorporation } from '@/platform/auth/affiliation-store';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
+import { universeStructurePath } from '@/platform/esi/paths';
+import { ownerSyncDataset } from './esi-refresh-owner-sync';
 import {
   listCharactersWithHealth,
   postSingleEndpoint,
-  probeAndStoreRoles,
+  readRolesForSync,
   readSingleEndpoint,
   vendTokenFor,
 } from './owner-sync-port';
@@ -21,7 +21,7 @@ function makeCorpContextPort(): CorpContextPort {
     now: () => new Date(),
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: probeAndStoreRoles,
+    readRoles: readRolesForSync,
     readCorporation: (corporationId, accessToken) =>
       readSingleEndpoint(`/corporations/${corporationId}/`, accessToken, null),
     readDivisions: (corporationId, accessToken) =>
@@ -31,7 +31,7 @@ function makeCorpContextPort(): CorpContextPort {
     readAssetNames: (corporationId, accessToken, itemIds) =>
       postSingleEndpoint(`/corporations/${corporationId}/assets/names/`, accessToken, itemIds),
     readStructure: (structureId, accessToken) =>
-      readSingleEndpoint(`/universe/structures/${structureId}/`, accessToken, null),
+      readSingleEndpoint(universeStructurePath(structureId), accessToken, null),
     currentContext: getCorpHoldingContext,
     listLinkedMemberIds: listLinkedCharacterIdsInCorporation,
     readProfileState: readCorpProfileState,
@@ -40,11 +40,7 @@ function makeCorpContextPort(): CorpContextPort {
   };
 }
 
-export function refreshCorpContextOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshCorpContextForUser(makeCorpContextPort(), userId, enqueueBudgetDeferral('corp_context', userId));
-}
+const corpContext = ownerSyncDataset('corp_context', makeCorpContextPort, refreshCorpContextForUser);
 
-export async function runCorpContextRefreshJob(userId: string, target: OwnerSyncTarget): Promise<OwnerSyncResult> {
-  const results = await refreshCorpContextForUser(makeCorpContextPort(), userId, { target });
-  return targetedOwnerResult(target, results);
-}
+export const refreshCorpContextOnView = corpContext.onView;
+export const runCorpContextRefreshJob = corpContext.runJob;

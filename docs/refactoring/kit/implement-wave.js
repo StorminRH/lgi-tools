@@ -147,10 +147,15 @@ function heredoc(path, text) {
 
 // ---------------------------------------------------------------------------------------
 phase('Prepare')
-const guard = await shell(`bash "${T}/env_guard.sh"${A.killNextDev ? ' --kill-next' : ''}\nmkdir -p "${S}"\ngit status --porcelain\ngit log --oneline -1`, 'env-guard', 'Prepare')
+// With hostGuard the operator runs env_guard.sh and `cleanup.sh snapshot` before launching and
+// `cleanup.sh sweep` after the run, from the main session. Locally, the auto-mode classifier has
+// blocked those repo scripts when a workflow agent runs them, which aborted the wave at Prepare.
+const guardStep = A.hostGuard ? '' : `bash "${T}/env_guard.sh"${A.killNextDev ? ' --kill-next' : ''}\n`
+const guard = await shell(`${guardStep}mkdir -p "${S}"\ngit status --porcelain\ngit log --oneline -1`, 'env-guard', 'Prepare')
 if (!guard || !guard.ok) return { aborted: 'environment guard failed', output: guard && guard.output }
-await shell(`bash "${T}/cleanup.sh" snapshot "${S}"`, 'cleanup:snapshot', 'Prepare')
+if (!A.hostGuard) await shell(`bash "${T}/cleanup.sh" snapshot "${S}"`, 'cleanup:snapshot', 'Prepare')
 async function finish(result) {
+  if (A.hostGuard) return { ...result, cleanup: 'hostGuard: run docs/refactoring/kit/tools/cleanup.sh sweep from the main session' }
   const sweep = await shell(`bash "${T}/cleanup.sh" sweep "${S}"`, 'cleanup:sweep', 'Verify')
   return { ...result, cleanup: sweep ? sweep.output : 'cleanup sweep did not run; run docs/refactoring/kit/tools/cleanup.sh sweep yourself' }
 }

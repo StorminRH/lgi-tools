@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
@@ -5,8 +6,10 @@ import { buildHoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/pla
 import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import { insertEsiSnapshot } from '@/data/esi-snapshots/queries';
 import { getCorpAssetEvidence, saveCorpOwnedAssets } from '@/features/owned-assets/queries';
+import { OWNED_ASSETS_RESOURCE } from '@/features/owned-assets/refresh';
 import { compileCorpGrant, compileReadScope } from '@/platform/auth/corp-visibility';
 import type { CorpRole } from '@/platform/auth/corp-roles';
+import { ownedResourcePath } from '@/platform/owner-sync';
 import { getOwnedBlueprintMap, readBlueprintSyncState, saveOwnedBlueprints } from '@/features/owned-blueprints/queries';
 import { ownedBlueprints } from '@/features/owned-blueprints/schema';
 import type { OwnedBlueprint } from '@/features/owned-blueprints/esi-projection';
@@ -35,7 +38,7 @@ async function publishAssets(division: number, includeBlueprint = true, override
     ...(includeBlueprint ? [{ item_id: BLUEPRINT, type_id: 34, quantity: 1, location_id: CAN, location_type: 'item', location_flag: 'Unlocked', ...overrides }] : []),
   ];
   const id = await insertEsiSnapshot({
-    ...owner, endpoint: `/corporations/${CORP}/assets/`, requestHash: 'test', etag: null,
+    ...owner, endpoint: ownedResourcePath(OWNED_ASSETS_RESOURCE, owner), requestHash: 'test', etag: null,
     responseHeaders: [], fetchedAt: new Date(), sourceVersion: 'test', bodyCiphertext: encryptSnapshotBody(raw),
   });
   await saveCorpOwnedAssets(CORP, buildHoldingIndex(parseCorpAssetItems(raw)!), [{
@@ -106,11 +109,15 @@ describe.skipIf(!harness.reachable)('blueprint identity and immutable asset plac
     expect(await read()).toEqual(new Map());
   });
 
-  it('rolls back identity, metadata and sync state when replacement fails', async () => {
+  it('rolls back identity, metadata and sync state when replacement fails, expiring the tag only on commit', async () => {
+    vi.mocked(revalidateTag).mockClear();
     await save();
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('owned-blueprints:corporation:98000001', { expire: 0 });
     await harness.sql`ALTER TABLE owned_blueprints ADD CONSTRAINT reject_me CHECK (material_efficiency <> 99)`;
     try {
+      vi.mocked(revalidateTag).mockClear();
       await expect(save([{ ...blueprint, item_id: BLUEPRINT + 1, material_efficiency: 99 }], ['after'])).rejects.toThrow();
+      expect(revalidateTag).not.toHaveBeenCalled();
       expect((await harness.db.select().from(ownedBlueprints)).map((row) => [row.itemId, row.materialEfficiency])).toEqual([[BLUEPRINT, 10]]);
       expect((await readBlueprintSyncState(owner))?.pageEtags).toEqual(['before']);
     } finally {

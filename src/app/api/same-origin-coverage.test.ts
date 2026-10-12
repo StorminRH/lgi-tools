@@ -13,6 +13,7 @@ const PIPELINE_MUTATIONS = [
   'account/corp-structures/rigs/route.ts',
   'account/custom-structures/delete/route.ts',
   'account/custom-structures/route.ts',
+  'account/custom-structures/search/route.ts',
   'account/custom-structures/update/route.ts',
   'account/delete/route.ts',
   'account/industry-profiles/delete/route.ts',
@@ -78,10 +79,6 @@ const EXEMPT_MUTATIONS = {
   'account/custom-structures/parse-fit/route.ts': {
     authz: 'auth',
     reason: 'authenticated stateless fit parsing',
-  },
-  'account/custom-structures/search/route.ts': {
-    authz: 'auth',
-    reason: 'authenticated read-only ESI structure search',
   },
   'telemetry/route.ts': {
     authz: 'public',

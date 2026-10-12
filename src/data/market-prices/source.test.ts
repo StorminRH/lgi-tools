@@ -32,7 +32,7 @@ interface SyntheticOrder {
   system_id?: number;
 }
 
-function ordersResponse(orders: SyntheticOrder[], xPages = '1'): Response {
+function ordersResponse(orders: SyntheticOrder[], xPages: string | null = '1'): Response {
   const filled = orders.map((o) => ({
     location_id: JITA_44,
     system_id: JITA_SYSTEM,
@@ -40,7 +40,7 @@ function ordersResponse(orders: SyntheticOrder[], xPages = '1'): Response {
   }));
   return new Response(JSON.stringify(filled), {
     status: 200,
-    headers: { 'X-Pages': xPages },
+    headers: xPages === null ? {} : { 'X-Pages': xPages },
   });
 }
 
@@ -397,6 +397,8 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
 
     const { prices: result, budgetExhausted } = await fetchPricesFromSource(bulkTypeIds());
 
+    const requestedPages = vi.mocked(esiFetch).mock.calls.map(([url]) => /page=(\d+)/.exec(url)?.[1]);
+    expect(requestedPages.toSorted()).toEqual(['1', '2', '3']);
     expect(result).toHaveLength(BULK_THRESHOLD + 20);
     expect(result.every((r) => r.source === 'esi')).toBe(true);
     expect(budgetExhausted).toBe(false);
@@ -417,6 +419,21 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     const r1050 = result.find((r) => r.typeId === 1050)!;
     expect(r1050.bestBuy).toBeNull();
     expect(r1050.bestSell).toBeNull();
+  });
+
+  it('reads only the first region-dump page when X-Pages is missing, empty or malformed', async () => {
+    for (const xPages of [null, '', 'abc']) {
+      vi.mocked(esiFetch).mockReset().mockResolvedValue(
+        ordersResponse([{ type_id: 1000, is_buy_order: true, price: 50, volume_remain: 10 }], xPages),
+      );
+
+      const { prices: result } = await fetchPricesFromSource(bulkTypeIds());
+
+      expect(vi.mocked(esiFetch)).toHaveBeenCalledTimes(1);
+      expect(result.every((r) => r.source === 'esi')).toBe(true);
+      expect(result.find((r) => r.typeId === 1000)!.bestBuy).toBe(50);
+    }
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
   });
 
   it('falls back to Fuzzwork when ESI bulk returns a 5xx', async () => {

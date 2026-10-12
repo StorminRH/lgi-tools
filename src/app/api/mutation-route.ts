@@ -84,5 +84,5 @@ export function runMutationRoute<TAuthorization extends AuthorizationSuccess>(
 ): Promise<Response>;
 export function runMutationRoute(request: Request, options: unknown): Promise<Response> {
   const runtime = options as RuntimeMutationOptions;
-  return runCapabilityRoute(runtime.capability, () => runStages(request, runtime));
+  return runCapabilityRoute(runtime.capability, () => runStages(request, runtime), request.signal);
 }

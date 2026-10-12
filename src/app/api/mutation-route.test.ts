@@ -10,10 +10,15 @@ import { defineEndpoint, emptyBody, problem } from '@/transport/endpoint';
 
 const h = vi.hoisted(() => ({
   requireSameOriginMock: vi.fn(),
+  recordCapabilityOutcomeMock: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/same-origin', () => ({
   requireSameOrigin: (request: Request) => h.requireSameOriginMock(request),
+}));
+vi.mock('@/data/telemetry/capability', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/data/telemetry/capability')>()),
+  recordCapabilityOutcome: (...args: unknown[]) => h.recordCapabilityOutcomeMock(...args),
 }));
 
 import { allowAnonymous, runMutationRoute } from './mutation-route';
@@ -182,6 +187,28 @@ describe('runMutationRoute', () => {
       code: 'cross_origin',
     });
     expect(handle).not.toHaveBeenCalled();
+  });
+
+  it('records a handler failure only while the client is still waiting for it', async () => {
+    h.recordCapabilityOutcomeMock.mockReset();
+    const controller = new AbortController();
+    const options = {
+      capability: 'maps.search-characters' as const,
+      authorize: async () => ({ ok: true as const, userId: 'user-1' }),
+      handle: () => new Response(null, { status: 503 }),
+    };
+    const searchFrom = (signal: AbortSignal) =>
+      new Request('https://lgi.tools/api/example', { method: 'POST', signal });
+
+    expect((await runMutationRoute(searchFrom(controller.signal), options)).status).toBe(503);
+    expect(h.recordCapabilityOutcomeMock).toHaveBeenCalledExactlyOnceWith(
+      'maps.search-characters',
+      expect.objectContaining({ outcome: 'dependency_unavailable' }),
+    );
+
+    controller.abort();
+    expect((await runMutationRoute(searchFrom(controller.signal), options)).status).toBe(503);
+    expect(h.recordCapabilityOutcomeMock).toHaveBeenCalledOnce();
   });
 
   it('lets unexpected handler errors propagate', async () => {

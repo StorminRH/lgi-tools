@@ -46,6 +46,7 @@ test('a character cache contributor claims, follows and deletes every listed tab
     { table: skillSyncs, rule: 'follows-character' },
   ]);
   expect(contributor.purgeUser).toBeUndefined();
+  expect(contributor.cacheTags).toBeUndefined();
 
   await contributor.purgeCharacter?.({ kind: 'character', userId: 'u1', characterId: 42 });
   expect(ownerWhere).toHaveBeenCalledWith(42);
@@ -57,6 +58,20 @@ test('a character cache contributor claims, follows and deletes every listed tab
       params: ['character', 42],
     },
     { table: 'character_skill_syncs', sql: '"character_skill_syncs"."character_id" = $1', params: [42] },
+  ]);
+});
+
+test('a character cache contributor names the cache tags of the purged character', () => {
+  const { database } = recordingDatabase();
+  const contributor = characterCacheContributor(database, {
+    name: 'synthetic-cache',
+    tables: [{ table: skills, characterId: skills.characterId }],
+    cacheTags: (characterId) => [`synthetic-skills:${characterId}`, `synthetic-levels:${characterId}`],
+  });
+
+  expect(contributor.cacheTags?.({ kind: 'character', userId: 'u1', characterId: 42 })).toEqual([
+    'synthetic-skills:42',
+    'synthetic-levels:42',
   ]);
 });
 

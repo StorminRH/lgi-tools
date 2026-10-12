@@ -4,7 +4,6 @@ const h = vi.hoisted(() => ({
   requireUserIdMock: vi.fn(),
   stationManagerGateMock: vi.fn(),
   getCorpStructuresMock: vi.fn(),
-  getCorpStructureRigsMock: vi.fn(),
   upsertCorpStructureRigsMock: vi.fn(),
   getStructureTypesMock: vi.fn(),
   getStructureRigsMock: vi.fn(),
@@ -18,7 +17,6 @@ vi.mock('@/composition/corp-role-gates', () => ({
 }));
 vi.mock('@/features/owned-structures/queries', () => ({
   getCorpStructures: (...args: unknown[]) => h.getCorpStructuresMock(...args),
-  getCorpStructureRigs: (...args: unknown[]) => h.getCorpStructureRigsMock(...args),
   upsertCorpStructureRigs: (...args: unknown[]) => h.upsertCorpStructureRigsMock(...args),
 }));
 vi.mock('@/data/eve-data/queries', () => ({
@@ -53,10 +51,7 @@ beforeEach(() => {
   h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.stationManagerGateMock.mockReset().mockResolvedValue({ ok: true });
   h.getCorpStructuresMock.mockReset().mockResolvedValue(new Map([[2001, [corpStructure]]]));
-  h.getCorpStructureRigsMock
-    .mockReset()
-    .mockResolvedValue(new Map([[1001, { rigTypeIds: [37170], taxPct: 1.5 }]]));
-  h.upsertCorpStructureRigsMock.mockReset().mockResolvedValue(undefined);
+  h.upsertCorpStructureRigsMock.mockReset().mockResolvedValue({ rigTypeIds: [37170], taxPct: 1.5 });
   h.getStructureTypesMock.mockReset().mockResolvedValue([azbel]);
   h.getStructureRigsMock.mockReset().mockResolvedValue([lMfgRig]);
 });
@@ -103,5 +98,12 @@ describe('POST /api/account/corp-structures/rigs', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ structureId: 1001, rigTypeIds: [37170], taxPct: 1.5 });
     expect(h.upsertCorpStructureRigsMock).toHaveBeenCalledWith(2001, 1001, [37170], 1.5);
+
+    // A rig-only save sends no tax; the answer carries the tax the row kept.
+    h.upsertCorpStructureRigsMock.mockResolvedValue({ rigTypeIds: [37170], taxPct: 2.5 });
+    const rigOnlyRes = await POST(postJson(ROUTE, { corporationId: 2001, structureId: 1001, rigTypeIds: [37170] }));
+    expect(rigOnlyRes.status).toBe(200);
+    expect(await rigOnlyRes.json()).toEqual({ structureId: 1001, rigTypeIds: [37170], taxPct: 2.5 });
+    expect(h.upsertCorpStructureRigsMock).toHaveBeenLastCalledWith(2001, 1001, [37170], undefined);
   });
 });

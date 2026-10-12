@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { eyebrow } from '@/components/ui/type-roles';
 import { useSystemsById } from '@/components/use-system-search';
-import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import { fittingRigs, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
 import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { StructureComposer } from '@/features/custom-structures/components/StructureComposer';
 import type { CustomStructureRow } from '@/features/custom-structures/types';
@@ -124,7 +124,7 @@ function CorpGroup({
         <CorpRigEditor
           corporationId={corp.corporationId}
           structure={s}
-          validRigs={hull ? rigs.filter((r) => rigFitsStructure(r, hull)) : []}
+          validRigs={fittingRigs(rigs, hull)}
           onSaved={(saved) => onCorpSaved(s.structureId, saved)}
           onClose={() => setComposer(null)}
         />

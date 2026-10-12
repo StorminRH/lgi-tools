@@ -1,15 +1,21 @@
 import { mergeSheetSection, readSheetRow, stampSheetSection } from '@/features/character-sheet/queries';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import type { SheetEndpoint, SheetPort } from '@/features/character-sheet/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
+import { memoizeAsync } from '@/lib/memoize';
+import {
+  characterLocationPath,
+  characterOnlinePath,
+  characterShipPath,
+  universeStructurePath,
+} from '@/platform/esi/paths';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { enqueueBudgetDeferral } from './esi-refresh-owner-sync';
+import { ownerSyncDataset } from './esi-refresh-owner-sync';
 
 export const SHEET_ESI_PATHS = {
   character: (id: number) => `/characters/${id}/`,
-  location: (id: number) => `/characters/${id}/location/`,
-  ship: (id: number) => `/characters/${id}/ship/`,
-  online: (id: number) => `/characters/${id}/online/`,
+  location: characterLocationPath,
+  ship: characterShipPath,
+  online: characterOnlinePath,
   attributes: (id: number) => `/characters/${id}/attributes/`,
   implants: (id: number) => `/characters/${id}/implants/`,
   clones: (id: number) => `/characters/${id}/clones/`,
@@ -18,47 +24,24 @@ export const SHEET_ESI_PATHS = {
   orders: (id: number) => `/characters/${id}/orders/`,
 } as const satisfies Record<SheetEndpoint, (id: number) => string>;
 
-export const STRUCTURE_ESI_PATH = (structureId: number) => `/universe/structures/${structureId}/`;
-
-function memoizePerRun<A, R>(fn: (arg: A) => Promise<R>): (arg: A) => Promise<R> {
-  const pending = new Map<A, Promise<R>>();
-  return (arg) => {
-    const hit = pending.get(arg);
-    if (hit !== undefined) return hit;
-    const result = fn(arg);
-    pending.set(arg, result);
-    return result;
-  };
-}
-
 export function makeSheetPort(): SheetPort {
   return {
     now: () => new Date(),
-    listCharacters: memoizePerRun(listCharactersWithHealth),
-    vendToken: memoizePerRun(vendTokenFor),
+    listCharacters: memoizeAsync(listCharactersWithHealth),
+    vendToken: memoizeAsync(vendTokenFor),
     readEndpoint: (characterId, endpoint, accessToken, heldEtag) =>
       readSingleEndpoint(SHEET_ESI_PATHS[endpoint](characterId), accessToken, heldEtag),
     readStructure: (structureId, accessToken) =>
-      readSingleEndpoint(STRUCTURE_ESI_PATH(structureId), accessToken, null),
+      readSingleEndpoint(universeStructurePath(structureId), accessToken, null),
     readSheet: readSheetRow,
     mergeSection: mergeSheetSection,
     stampSection: stampSheetSection,
   };
 }
 
-export function refreshCharacterSheetsOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshCharacterSheetForUser(makeSheetPort(), userId, enqueueBudgetDeferral('character_sheet', userId));
-}
+const sheet = ownerSyncDataset('character_sheet', makeSheetPort, refreshCharacterSheetForUser);
+
+export const refreshCharacterSheetsOnView = sheet.onView;
 
 /** Retry all stale sections for this pilot; one completed section cannot settle the whole sheet. */
-export async function runCharacterSheetRefreshJob(
-  userId: string,
-  target: OwnerSyncTarget,
-): Promise<OwnerSyncResult> {
-  const results = await refreshCharacterSheetForUser(makeSheetPort(), userId, { target });
-  return results.find((result) => result.kind === 'deferred_for_budget')
-    ?? results.find((result) => result.kind === 'failed_retryable')
-    ?? results.find((result) => result.kind === 'failed_permanent')
-    ?? results[0]
-    ?? { kind: 'failed_permanent', target, code: 'owner_unavailable' };
-}
+export const runCharacterSheetRefreshJob = sheet.runJob;

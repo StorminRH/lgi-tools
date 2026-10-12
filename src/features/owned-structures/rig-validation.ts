@@ -1,5 +1,5 @@
 import {
-  rigFitsStructure,
+  findUnfitRig,
   type StructureRigOption,
   type StructureTypeOption,
 } from '@/data/eve-data/structures';
@@ -18,10 +18,7 @@ export function validateCorpStructureRigs(
   if (!structure) return { ok: false, reason: 'Unknown structure for this corporation' };
   const structureType = structureTypes.find((t) => t.typeId === structure.typeId);
   if (!structureType) return { ok: false, reason: 'Not an industry structure' };
-  const fittingRigIds = new Set(
-    structureRigs.filter((r) => rigFitsStructure(r, structureType)).map((r) => r.typeId),
-  );
-  if (rigTypeIds.some((id) => !fittingRigIds.has(id))) {
+  if (findUnfitRig(rigTypeIds, structureType, structureRigs)) {
     return { ok: false, reason: 'One or more rigs do not fit this structure' };
   }
   return { ok: true };

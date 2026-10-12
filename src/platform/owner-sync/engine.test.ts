@@ -1,20 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { runOwnerSync } from './engine';
-import type { CorpOwnerAxis, EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
+import type { CorpOwnerAxis, OwnerSyncDescriptor, PersistVerdict } from './types';
+import { ownerFixture } from './__tests__/owner-fixtures';
 
 const NOW = new Date('2026-06-29T12:00:00Z');
 
 type State = { lastRefreshedAt: Date | null };
 type Save = { value: number };
-
-const owner = (characterId: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner => ({
-  characterId,
-  corporationId: null,
-  hasRefreshToken: true,
-  missingScopes: [],
-  ...extra,
-});
 
 const corpAxis = (
   readRoles: CorpOwnerAxis<string>['readRoles'],
@@ -51,7 +44,7 @@ function makeDescriptor(
 
 describe('runOwnerSync — the per-owner dance', () => {
   it('does zero work for a fresh owner (stale gate before vend)', async () => {
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1)]), isStale: vi.fn(() => false) });
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1)]), isStale: vi.fn(() => false) });
 
     await runOwnerSync(d, 'u');
 
@@ -63,7 +56,7 @@ describe('runOwnerSync — the per-owner dance', () => {
 
   it('vends, fetches and saves a stale character owner', async () => {
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [owner(1)]),
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
       fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'save', value: 7 })),
     });
 
@@ -76,7 +69,7 @@ describe('runOwnerSync — the per-owner dance', () => {
 
   it('stamps (no save) on a stamp verdict', async () => {
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [owner(1)]),
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
       fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'stamp' })),
     });
 
@@ -88,7 +81,7 @@ describe('runOwnerSync — the per-owner dance', () => {
 
   it('does nothing on a skip verdict', async () => {
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [owner(1)]),
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
       fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'skip' })),
     });
 
@@ -99,7 +92,7 @@ describe('runOwnerSync — the per-owner dance', () => {
   });
 
   it('skips a character whose token cannot be vended (no fetch)', async () => {
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1)]), vendToken: vi.fn(async () => null) });
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1)]), vendToken: vi.fn(async () => null) });
 
     await runOwnerSync(d, 'u');
 
@@ -109,7 +102,7 @@ describe('runOwnerSync — the per-owner dance', () => {
 
   it('skips an ineligible character before any state read or vend', async () => {
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [owner(1)]),
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
       characterAxis: { eligible: () => false, ownerOf: (id) => `char:${id}` },
     });
 
@@ -121,7 +114,7 @@ describe('runOwnerSync — the per-owner dance', () => {
 
   it('skips an owner whose precondition returns false — before any state read or vend', async () => {
     const precondition = vi.fn(async () => false);
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1)]), precondition });
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1)]), precondition });
 
     await runOwnerSync(d, 'u');
 
@@ -133,7 +126,7 @@ describe('runOwnerSync — the per-owner dance', () => {
   });
 
   it('proceeds normally when the precondition returns true', async () => {
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1)]), precondition: vi.fn(async () => true) });
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1)]), precondition: vi.fn(async () => true) });
 
     await runOwnerSync(d, 'u');
 
@@ -142,7 +135,7 @@ describe('runOwnerSync — the per-owner dance', () => {
   });
 
   it('refreshes multiple eligible characters in one pass', async () => {
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1), owner(2), owner(3)]) });
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1), ownerFixture(2), ownerFixture(3)]) });
 
     await runOwnerSync(d, 'u');
 
@@ -150,7 +143,7 @@ describe('runOwnerSync — the per-owner dance', () => {
   });
 
   it('runs only the requested deferred owner', async () => {
-    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1), owner(2)]) });
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]) });
 
     const results = await runOwnerSync(d, 'u', {
       target: { ownerType: 'character', ownerId: 2 },
@@ -172,7 +165,7 @@ describe('runOwnerSync — the per-owner dance', () => {
     );
     const onBudgetDeferred = vi.fn(async () => {});
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [owner(1)]),
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
       fetchAndPlan: vi.fn(async () => {
         throw error;
       }),
@@ -196,7 +189,7 @@ describe('runOwnerSync — the per-owner dance', () => {
   it('records the gate state on a needs_role verdict when saveGateState is defined', async () => {
     const saveGateState = vi.fn(async () => {});
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [owner(1)]),
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
       fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'needs_role' })),
       saveGateState,
     });
@@ -213,7 +206,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const readRoles = vi.fn(async (characterId: number) => (characterId === 2 ? ['Director'] : []));
     const d = makeDescriptor({
       characterAxis: undefined,
-      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 }), owner(2, { corporationId: 5000 })]),
+      enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 }), ownerFixture(2, { corporationId: 5000 })]),
       corpAxis: corpAxis(readRoles),
     });
 
@@ -227,7 +220,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const saveGateState = vi.fn(async () => {});
     const d = makeDescriptor({
       characterAxis: undefined,
-      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 })]),
+      enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       corpAxis: corpAxis(vi.fn(async () => [])),
       saveGateState,
     });
@@ -241,7 +234,7 @@ describe('runOwnerSync — the corporation pass', () => {
   it('skips a corp with no role-holder when saveGateState is undefined', async () => {
     const d = makeDescriptor({
       characterAxis: undefined,
-      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 })]),
+      enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       corpAxis: corpAxis(vi.fn(async () => [])),
     });
 
@@ -256,7 +249,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const d = makeDescriptor({
       characterAxis: undefined,
       vendToken: vi.fn(async () => null),
-      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 })]),
+      enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       corpAxis: corpAxis(readRoles),
     });
 
@@ -278,7 +271,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const d = makeDescriptor({
       characterAxis: undefined,
       vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? null : `tok-${characterId}`)),
-      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 }), owner(2, { corporationId: 5000 })]),
+      enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 }), ownerFixture(2, { corporationId: 5000 })]),
       corpAxis: corpAxis(vi.fn(async () => [])),
       saveGateState,
     });
@@ -299,7 +292,7 @@ describe('runOwnerSync — the corporation pass', () => {
   it('never vends later members once the first member is sufficient', async () => {
     const d = makeDescriptor({
       characterAxis: undefined,
-      enumerate: vi.fn(async () => [1, 2, 3].map((id) => owner(id, { corporationId: 5000 }))),
+      enumerate: vi.fn(async () => [1, 2, 3].map((id) => ownerFixture(id, { corporationId: 5000 }))),
       corpAxis: corpAxis(vi.fn(async () => ['Director'])),
     });
 
@@ -315,7 +308,7 @@ describe('runOwnerSync — the corporation pass', () => {
     const d = makeDescriptor({
       characterAxis: undefined,
       isStale: vi.fn(() => false),
-      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 })]),
+      enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       corpAxis: corpAxis(readRoles),
     });
 
@@ -328,7 +321,7 @@ describe('runOwnerSync — the corporation pass', () => {
   it('runs the character pass THEN the corp pass for a both-axis slice', async () => {
     const order: string[] = [];
     const d = makeDescriptor({
-      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 })]),
+      enumerate: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
       corpAxis: corpAxis(vi.fn(async () => ['Director'])),
       fetchAndPlan: vi.fn(async (o: string): Promise<PersistVerdict<Save>> => {
         order.push(o);

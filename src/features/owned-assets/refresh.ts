@@ -14,9 +14,11 @@ import type { OwnedAssetsPort } from './types';
 
 const ASSETS_FRESHNESS = freshnessGate('owned_assets');
 
+export const OWNED_ASSETS_RESOURCE = 'assets';
+
 function assetsSpec(eligibleCorp: (owner: EnumeratedOwner) => boolean): OwnedDatasetSpec<OwnedAsset> {
   return {
-    resource: 'assets',
+    resource: OWNED_ASSETS_RESOURCE,
     isStale: ASSETS_FRESHNESS.isStale,
     eligibleCharacter: canSyncAssets,
     eligibleCorp,
