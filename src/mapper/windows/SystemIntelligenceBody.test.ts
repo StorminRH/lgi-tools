@@ -33,6 +33,7 @@ const assets = vi.hoisted(() => ({
 }));
 
 vi.mock('@/data/eve-data/use-names', () => ({ useEntityNames: () => ({}), useTypeNames: () => ({}) }));
+vi.mock('@/components/use-account-characters', () => ({ useAccountCharacters: () => [] }));
 vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }));
 vi.mock('../signatures/signature-context', () => ({
   useSignatureRows: () => signatures.rows,

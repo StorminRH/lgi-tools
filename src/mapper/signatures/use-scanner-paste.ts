@@ -1,34 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
+import { isPopupOpen } from '@/components/ui/popup-open';
 import { toast } from '@/components/ui/toast';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
-import { isAdoptedPopupOpen } from '../windows/MapWindow';
 import {
   isEditablePasteTarget,
+  scanFailureMessage,
   scannerPasteDecision,
   scannerPasteRefusalToast,
   type ScannerPasteDecision,
 } from './signature-model';
-
-function scanFailureMessage(error: unknown): string {
-  const detail = String(error);
-  if (detail.includes('OFF_MAP_SCAN_SYSTEM')) {
-    return 'System not on map';
-  }
-  if (detail.includes('UNTRACKED_SCAN_SYSTEM')) {
-    return 'No character online';
-  }
-  return 'Scan not applied';
-}
 
 function yieldsToFocusedSurface(event: ClipboardEvent): boolean {
   return [
     event.defaultPrevented,
     isEditablePasteTarget(event.target),
     isEditablePasteTarget(document.activeElement),
-    isAdoptedPopupOpen(),
+    isPopupOpen(),
   ].some(Boolean);
 }
 

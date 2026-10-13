@@ -13,35 +13,35 @@ Then tracking: readConvexError and the setTracking failure path, then the HomePr
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P307](#p307) | Delete dead camera flight state and collapse mapper camera-fit, window and edge pass-throughs | simplification | M | low | low | — |
-| ☐ | [P308](#p308) | Pass kernel positions straight to reconcileChain and trim stub-layout and syncNodes duplication | simplification | M | low | low | — |
-| ☐ | [P309](#p309) | Share one tree-link claim between map edge drawing and the layout crossing report | simplification | S | low | low | — |
-| ☐ | [P310](#p310) | Hoist compass ring-slot arithmetic per ring and make compassKernel async | simplification | S | low | low | — |
-| ☐ | [P055](#p055) | Declare the measured-node shape once in edge-geometry and pass React Flow internal nodes to it directly for camera focus | react-hook | S | low | low | — |
-| ☐ | [P109](#p109) | Merge pointOnRayAtRadius and leader-path's toward into one pointToward in src/mapper/lib/geometry.ts, with shared Point and Box types; leave layout trig and coordinate-space types alone | generic-utility | S | low | low | [P055](#p055) |
-| ☐ | [P111](#p111) | Extract a frame coalescer and guarded size observer into src/mapper/lib | generic-utility | S | medium | low | [P109](#p109) |
-| ☐ | [P044](#p044) | Add one commit-time style-ref hook for CSS custom properties (ui zone) | react-hook | M | medium | medium | [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277) |
-| ☐ | [P051](#p051) | Move the open-popup check to ui and share one Escape-dismiss hook between the board and the mapper | react-hook | S | low | medium | — |
-| ☐ | [P027](#p027) | Drive the dev dial panel from dial tables with one clamped commit helper | ui-component | M | low | medium | — |
-| ☐ | [P217](#p217) | Decode ConvexError payloads in one helper and route every setTracking call through one failure path | error-handling | S | low | medium | — |
-| ☐ | [P028](#p028) | Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker | ui-component | M | low | medium | [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059) |
-| ☐ | [P038](#p038) | Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle | ui-component | S | low | medium | [P028](#p028) |
-| ☐ | [P029](#p029) | Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop | ui-component | S | low | medium | [P028](#p028) |
-| ☐ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
-| ☐ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
-| ☐ | [P033](#p033) | Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics | ui-component | S | low | low | [P032](#p032) |
-| ☐ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
-| ☐ | [P092](#p092) | Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects | formatting | S | low | medium | [P030](#p030) |
-| ☐ | [P031](#p031) | Extract a controlled ScannerCombo shell, a shared wormhole combo-item mapper and class chip, and one ScannerOptionalSelect for scanner mass and life | ui-component | M | medium | medium | [P030](#p030), [P092](#p092), [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
-| ☐ | [P139](#p139) | Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it | error-handling | S | low | medium | — |
-| ☐ | [P298](#p298) | Make a scanner row's open action the ScannerPanelTarget and remove the dead trigger/clientX/clientY plumbing | simplification | S | low | medium | [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072) |
-| ☐ | [P218](#p218) | Factor the connection-query and loaded-page helpers inside optimistic-authoring.ts, and make branch restore patch unresolved holes too | client-data | S | low | low | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082), [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329), [P262](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p262), [P139](#p139) |
+| ☑ | [P307](#p307) | Delete dead camera flight state and collapse mapper camera-fit, window and edge pass-throughs | simplification | M | low | low | — |
+| ☑ | [P308](#p308) | Pass kernel positions straight to reconcileChain and trim stub-layout and syncNodes duplication | simplification | M | low | low | — |
+| ☑ | [P309](#p309) | Share one tree-link claim between map edge drawing and the layout crossing report | simplification | S | low | low | — |
+| ☑ | [P310](#p310) | Hoist compass ring-slot arithmetic per ring and make compassKernel async | simplification | S | low | low | — |
+| ☑ | [P055](#p055) | Declare the measured-node shape once in edge-geometry and pass React Flow internal nodes to it directly for camera focus | react-hook | S | low | low | — |
+| ☑ | [P109](#p109) | Merge pointOnRayAtRadius and leader-path's toward into one pointToward in src/mapper/lib/geometry.ts, with shared Point and Box types; leave layout trig and coordinate-space types alone | generic-utility | S | low | low | [P055](#p055) |
+| ☑ | [P111](#p111) | Extract a frame coalescer and guarded size observer into src/mapper/lib | generic-utility | S | medium | low | [P109](#p109) |
+| ☑ | [P044](#p044) | Add one commit-time style-ref hook for CSS custom properties (ui zone) | react-hook | M | medium | medium | [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277) |
+| ☑ | [P051](#p051) | Move the open-popup check to ui and share one Escape-dismiss hook between the board and the mapper | react-hook | S | low | medium | — |
+| ☑ | [P027](#p027) | Drive the dev dial panel from dial tables with one clamped commit helper | ui-component | M | low | medium | — |
+| ☑ | [P217](#p217) | Decode ConvexError payloads in one helper and route every setTracking call through one failure path | error-handling | S | low | medium | — |
+| ☑ | [P028](#p028) | Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker | ui-component | M | low | medium | [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059) |
+| ☑ | [P038](#p038) | Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle | ui-component | S | low | medium | [P028](#p028) |
+| ☑ | [P029](#p029) | Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop | ui-component | S | low | medium | [P028](#p028) |
+| ☑ | [P269](#p269) | Derive HomePrompt's current system from dockCharacters and resolvePasteTarget | feature-skeleton | S | low | medium | [P028](#p028) |
+| ☑ | [P032](#p032) | Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt | ui-component | S | low | low | [P075](wave-12-market-data-search-and-client-data-reads.md#p075) |
+| ☑ | [P033](#p033) | Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics | ui-component | S | low | low | [P032](#p032) |
+| ☑ | [P030](#p030) | Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch | ui-component | S | low | medium | — |
+| ☑ | [P092](#p092) | Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects | formatting | S | low | medium | [P030](#p030) |
+| ☑ | [P031](#p031) | Extract a controlled ScannerCombo shell, a shared wormhole combo-item mapper and class chip, and one ScannerOptionalSelect for scanner mass and life | ui-component | M | medium | medium | [P030](#p030), [P092](#p092), [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
+| ☑ | [P139](#p139) | Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it | error-handling | S | low | medium | — |
+| ☑ | [P298](#p298) | Make a scanner row's open action the ScannerPanelTarget and remove the dead trigger/clientX/clientY plumbing | simplification | S | low | medium | [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072) |
+| ☑ | [P218](#p218) | Factor the connection-query and loaded-page helpers inside optimistic-authoring.ts, and make branch restore patch unresolved holes too | client-data | S | low | low | [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082), [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329), [P262](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p262), [P139](#p139) |
 
 <a id="p307"></a>
 
 ## P307: Delete dead camera flight state and collapse mapper camera-fit, window and edge pass-throughs
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** Production about -120 / +35; tests about -70 / +45
 - **Depends on:** —
@@ -127,7 +127,7 @@ export function computeFollowerTransform(baseline, anchorId, viewport, anchor: F
 
 ## P308: Pass kernel positions straight to reconcileChain and trim stub-layout and syncNodes duplication
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** low · **Size:** Production about -50 / +15; tests about -60 / +45 (new helper about 25 lines)
 - **Depends on:** —
@@ -203,7 +203,7 @@ function systemNodeBase(id: string, position: ChainPosition, label: SystemLabel,
 
 ## P309: Share one tree-link claim between map edge drawing and the layout crossing report
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** Production about -20 / +12; tests about +25
 - **Depends on:** —
@@ -273,7 +273,7 @@ export function treeLinkClaim(
 
 ## P310: Hoist compass ring-slot arithmetic per ring and make compassKernel async
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** compass.ts about -14/+16 (net ~0, two duplicated blocks removed); layout.worker.ts -5; test +6
 - **Depends on:** —
@@ -337,7 +337,7 @@ export const compassKernel: LayoutKernel = async (facts, config = DEFAULT_LAYOUT
 
 ## P055: Declare the measured-node shape once in edge-geometry and pass React Flow internal nodes to it directly for camera focus
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -45 / +12
 - **Depends on:** —
@@ -410,7 +410,7 @@ export const SYSTEM_FRAME_SIZE = { width: SYSTEM_FRAME_WIDTH, height: SYSTEM_FRA
 
 ## P109: Merge pointOnRayAtRadius and leader-path's toward into one pointToward in src/mapper/lib/geometry.ts, with shared Point and Box types; leave layout trig and coordinate-space types alone
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -20 production lines (RayPoint, LeaderPoint, LeaderRect, toward, pointOnRayAtRadius), +15 in mapper/lib/geometry.ts; tests move rather than grow
 - **Depends on:** [P055](#p055)
@@ -506,7 +506,7 @@ If P105 lands, leader-path's private round() becomes roundTo(value, 2) from lib/
 
 ## P111: Extract a frame coalescer and guarded size observer into src/mapper/lib
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** medium · **Payoff:** low · **Size:** about -45 at the sites (FogLayer -25, follower -12, scanner -8); about +30 module and +45 test
 - **Depends on:** [P109](#p109)
@@ -570,7 +570,7 @@ export const observeSize: SizeObserver; // returns a no-op when ResizeObserver i
 
 ## P044: Add one commit-time style-ref hook for CSS custom properties (ui zone)
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** About -55 lines across 10 sites (refs, effects, MapWindow helpers) and +35 for the hook; net ≈ -20, plus the removal of the MapWindow double write and the ChainLinkEdge `visible` hack
 - **Depends on:** [P277](wave-01-quick-wins-delete-dead-code-fix-small.md#p277)
@@ -652,7 +652,7 @@ export function useStyleProperty<E extends HTMLElement | SVGElement>(
 
 ## P051: Move the open-popup check to ui and share one Escape-dismiss hook between the board and the mapper
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -45 / +30 production lines; +60 test lines
 - **Depends on:** —
@@ -710,7 +710,7 @@ export function useEscapeDismiss(onDismiss: () => void, opts?: { enabled?: boole
 
 ## P027: Drive the dev dial panel from dial tables with one clamped commit helper
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** MapControls.tsx goes from about 418 to about 170 lines, map-controls-model.ts from 187 to about 130, and motion-controls-model.ts from 101 to about 55. step-dial.ts adds about 60 lines plus a test. Net about -280/+150.
 - **Depends on:** —
@@ -778,7 +778,7 @@ function DialGroup<C>(props: { title: string; value: C; onChange: (c: C) => void
 
 ## P217: Decode ConvexError payloads in one helper and route every setTracking call through one failure path
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -20 / +45 (new helper and its tests account for most of the additions)
 - **Depends on:** —
@@ -847,7 +847,7 @@ export function useSetMapTracking(): (args: { mapId: string; characterId: number
 
 ## P028: Route HomePrompt's tracking portraits through the trackable roster, a shared toggle hook and CharacterPortraitPicker
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** HomePrompt about -45/+20. TrackingControls about -10/+12. Picker and toggle +6. View helper +10. Net about -10.
 - **Depends on:** [P217](#p217), [P059](wave-01-quick-wins-delete-dead-code-fix-small.md#p059)
@@ -913,7 +913,7 @@ PortraitToggle({ value, label, reconnect?: boolean, children }) // renders data-
 
 ## P038: Render HomePrompt's tracking portraits with CharacterPortraitPicker and share TrackingControls' tracking toggle
 
-- **Status:** [ ] not started
+- **Status:** [x] already done (see commit)
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45/+15 in HomePrompt, -12/+15 in TrackingControls for the hook, +4 in the picker; net about -25
 - **Depends on:** [P028](#p028)
@@ -999,7 +999,7 @@ Correct copy: TrackingControls, for the label, the filter and the error handling
 
 ## P029: Extract SystemTerminalSearch for the mapper's system pickers and stop NodeAddMenu offering a self-loop
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -30 across the three call sites, with parseDestinationSystem's 17 lines moved. The new module adds about 35 lines. Net about +5. The value is one picker definition and the self-loop fix.
 - **Depends on:** [P028](#p028)
@@ -1059,7 +1059,7 @@ export function SystemTerminalSearch(props: { placeholder: string; onPick: (syst
 
 ## P269: Derive HomePrompt's current system from dockCharacters and resolvePasteTarget
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -35 in home-prompt-model.ts, +3 in tracked-system.ts, +10 in test fixtures
 - **Depends on:** [P028](#p028)
@@ -1135,7 +1135,7 @@ export function homeCurrentSystem(input: {
 
 ## P032: Resolve Friendlies names through useCharacterIdentities and share the tracked-character row content between the dock picker and the scanner prompt
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +30
 - **Depends on:** [P075](wave-12-market-data-search-and-client-data-reads.md#p075)
@@ -1199,7 +1199,7 @@ export function CharacterLocationLabel(props: {
 
 ## P033: Extract a MapPromptCard shell for the scanner prompt rail and give every prompt group semantics
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +30
 - **Depends on:** [P032](#p032)
@@ -1258,7 +1258,7 @@ export function MapPromptCard(props: DataAttributes & {
 
 ## P030: Move wormhole field labels into one module, give OptionalSelectField a children slot for mass/life/leads, and add a memoised useWormholeTypeSearch
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -95 / +45 (three duplicate label maps, two hand-rolled optional selects, the LeadsToField readOnly branch, and the codexReady plumbing removed)
 - **Depends on:** —
@@ -1335,7 +1335,7 @@ export function useWormholeTypeSearch(codes: readonly string[], preferredCodes?:
 
 ## P092: Single-source the wormhole connection labels in mapper/authoring, share one leads readout, and fold the twin scanner selects
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** formatting · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +55: three duplicate tables (~28 lines), one select component (~36 lines), four readout functions and the inline readouts removed; one labels module (~35 lines), one generic select (~35 lines) and tests added.
 - **Depends on:** [P030](#p030)
@@ -1424,7 +1424,7 @@ export function scannerLifeReadout(v: WormholeLifeStage | null): string;  // lab
 
 ## P031: Extract a controlled ScannerCombo shell, a shared wormhole combo-item mapper and class chip, and one ScannerOptionalSelect for scanner mass and life
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** about -140 / +90
 - **Depends on:** [P030](#p030), [P092](#p092), [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039)
@@ -1512,7 +1512,7 @@ export function ScannerOptionalSelect<T extends string>(props: {
 
 ## P139: Grow signature-toast.ts into signature-removal.ts with removeSignaturesWithUndo/restoreSignaturesAndInvalidate and route the missing-flow, stub and event-log paths through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** duplicate-implementation · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -45 (missing-flow restore wiring 30, stub flow body 25, SignatureWindow catch 6, duplicate interface fields 10) and +40 in signature-removal.ts; tests about +40
 - **Depends on:** —
@@ -1608,7 +1608,7 @@ Lead for a later pass: restoreSeveredBranch and restoreConnection undo paths (co
 
 ## P298: Make a scanner row's open action the ScannerPanelTarget and remove the dead trigger/clientX/clientY plumbing
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -80 / +15 (deletes scanner-panel-body.ts, the apply/handlers/affordance helpers, OpenRowActions, openEditor/openSite and the four-argument callback types across 4 components)
 - **Depends on:** [P072](wave-13-industry-planner-and-wormhole-sites-verticals.md#p072)
@@ -1681,7 +1681,7 @@ onOpenTarget: (target: ScannerPanelTarget) => void
 
 ## P218: Factor the connection-query and loaded-page helpers inside optimistic-authoring.ts, and make branch restore patch unresolved holes too
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -40 / +28
 - **Depends on:** [P082](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p082), [P329](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p329), [P262](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p262), [P139](#p139)

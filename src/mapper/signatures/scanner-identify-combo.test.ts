@@ -69,7 +69,6 @@ it('labels the unknown-row identify field', () => {
       preferredCodes: ['N110'],
       classLabelOf: () => 'HS',
       rowId: 'ABC-123',
-      disabled: false,
       onIdentify: vi.fn(),
     }),
   );

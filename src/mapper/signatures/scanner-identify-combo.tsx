@@ -2,20 +2,18 @@
 
 import { useMemo, useState } from 'react';
 import { cn } from '@/components/ui/cn';
-import * as Combobox from '@/components/ui/combobox';
-import { pickOrType } from '@/components/ui/combobox-pick';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
-import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
-import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
 import {
-  ScannerComboPanel,
-  consumeScannerEnter,
-  type ScannerComboGroup,
-} from './scanner-combo-panel';
+  useWormholeTypeSearch,
+  type wormholeTypeSearch,
+} from '../authoring/wormhole-type-search';
+import { ScannerCombo, type ScannerComboGroup } from './scanner-combo-panel';
 import { scannerSelectedFieldClass } from './scanner-field-class';
-import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 import { scannerGroupTypeLabel } from './signature-model';
-import { scannerTypeSuggestionGroups } from './scanner-type-combo';
+import {
+  scannerTypeSuggestionGroups,
+  wormholeComboItems,
+} from './scanner-type-combo';
 
 const IDENTIFY_PREFIX = 'group:';
 const TYPE_PREFIX = 'type:';
@@ -41,11 +39,7 @@ export function scannerIdentifySuggestionGroups(
     .filter((group) => group.items.length > 0)
     .map((group) => ({
       label: group.label,
-      items: group.items.map((code) => ({
-        value: `${TYPE_PREFIX}${code}`,
-        text: code,
-        meta: code === FAR_SIDE_WORMHOLE_CODE ? '' : (classLabelOf(code) ?? ''),
-      })),
+      items: wormholeComboItems(group.items, classLabelOf, TYPE_PREFIX),
     }));
   if (needle.length === 0) {
     return [
@@ -85,14 +79,12 @@ export function ScannerIdentifyCombo({
   preferredCodes,
   classLabelOf,
   rowId,
-  disabled,
   onIdentify,
 }: {
   readonly codes: readonly string[];
   readonly preferredCodes: readonly string[];
   readonly classLabelOf: (code: string) => string | null;
   readonly rowId: string;
-  readonly disabled: boolean;
   readonly onIdentify: (group: SigGroup, wormholeTypeCode?: string) => void;
 }) {
   const [query, setQuery] = useState('');
@@ -100,11 +92,7 @@ export function ScannerIdentifyCombo({
     () => scannerIdentifySuggestionGroups(query, codes, preferredCodes, classLabelOf),
     [query, codes, preferredCodes, classLabelOf],
   );
-  const items = groups.flatMap((group) => group.items.map((item) => item.value));
-  const search = useMemo(
-    () => wormholeTypeSearch(codes, { preferredCodes, lenient: codes.length === 0 }),
-    [codes, preferredCodes],
-  );
+  const search = useWormholeTypeSearch(codes, preferredCodes);
   const commitValue = (value: string) => {
     if (value.startsWith(IDENTIFY_PREFIX)) {
       onIdentify(value.slice(IDENTIFY_PREFIX.length) as SigGroup);
@@ -114,37 +102,19 @@ export function ScannerIdentifyCombo({
       onIdentify('Wormhole', value.slice(TYPE_PREFIX.length));
     }
   };
-  const popup = useCloseOnScannerScroll();
-  const browsing = query.trim().length === 0;
   return (
-    <Combobox.Root
-      open={popup.open}
-      onOpenChange={popup.onOpenChange}
-      value={query}
-      onValueChange={(next, details) =>
-        pickOrType(next, details, { onType: setQuery, onPick: commitValue })
+    <ScannerCombo
+      query={query}
+      onQueryChange={setQuery}
+      groups={groups}
+      browsing={query.trim().length === 0}
+      browseFooter="Type to search other holes…"
+      ariaLabel={`Name ${rowId}`}
+      fieldClassName={cn(scannerSelectedFieldClass(false), 'font-normal')}
+      onCommitValue={commitValue}
+      onCommitQuery={(text) =>
+        commitScannerIdentifyQuery(text, search.parse, onIdentify)
       }
-      items={items}
-      filter={null}
-      openOnInputClick
-    >
-      <Combobox.Field
-        size="sm"
-        placeholder="Unresolved"
-        disabled={disabled}
-        aria-label={`Name ${rowId}`}
-        className={cn(scannerSelectedFieldClass(false), 'font-normal')}
-        onKeyDown={(event) => {
-          if (!consumeScannerEnter(event)) return;
-          commitScannerIdentifyQuery(query, search.parse, onIdentify);
-        }}
-      />
-      <ScannerComboPanel
-        groups={groups}
-        itemValues={items}
-        showLabels={browsing}
-        footer={browsing ? 'Type to search other holes…' : null}
-      />
-    </Combobox.Root>
+    />
   );
 }

@@ -1,9 +1,9 @@
 /**
- * The copy for a query-string notice code (`?error=`, `?outcome=`), or the
- * fallback when the code has no entry. Only the table's own keys match, so a
- * crafted `?error=constructor` can never hand a page an inherited function.
- * Without a fallback an unknown code shows nothing; a missing or repeated
- * param always shows nothing.
+ * The copy for a notice code (a query-string `?error=` or `?outcome=`, or a
+ * server refusal code), or the fallback when the code has no entry. Only the
+ * table's own keys match, so a crafted `?error=constructor` can never hand a
+ * page an inherited function. Without a fallback an unknown code shows
+ * nothing; a missing or repeated param always shows nothing.
  */
 export function resolveNotice<C extends string>(
   raw: string | string[] | undefined,

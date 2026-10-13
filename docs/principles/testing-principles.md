@@ -49,7 +49,11 @@ with the `StaticBaseDialog` parts from
 `src/components/ui/__tests__/static-base-dialog.ts`, so the real ui/dialog
 parts render and their labelling is under test, and reads the outermost
 dialog's open, portal and focus props from its `dialogProbe`; it does not stub
-`@/components/ui/dialog`. Markup tests render the real Button; a Button stub
+`@/components/ui/dialog`. A node test of code that asks whether a popup is
+open, or that listens for Escape, answers `document.querySelector` with
+`fakeQuerySelector` and dispatches `keyDown` events from
+`src/components/ui/__tests__/fake-page.ts`, not a stub that matches the
+selector string. Markup tests render the real Button; a Button stub
 that captures props for a callback stays local.
 Domain objects come from the owner's `__tests__/` fixture (`siteDetail`,
 `siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`,

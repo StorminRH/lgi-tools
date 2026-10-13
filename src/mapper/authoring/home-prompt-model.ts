@@ -1,17 +1,9 @@
-export interface HomePromptTracking {
-  readonly ownTrackedCharacterIds: readonly number[];
-  readonly tracked: readonly {
-    readonly characterId: number;
-    readonly location: { readonly solarSystemId: number } | null;
-  }[];
-}
-
-export interface HomePromptCoverage {
-  readonly coverage: readonly {
-    readonly characterId: number;
-    readonly covered: boolean;
-  }[];
-}
+import { coverageIndex, type CoveragePayload } from '../tracking/presence-model';
+import {
+  dockCharacters,
+  resolvePasteTarget,
+  type DockCharactersInput,
+} from '../tracking/tracked-system';
 
 export type HomeCurrentSystem =
   | { readonly kind: 'loading' }
@@ -19,24 +11,15 @@ export type HomeCurrentSystem =
   | { readonly kind: 'offline' }
   | { readonly kind: 'ready'; readonly systemId: number };
 
-function liveSystemId(
-  characterId: number,
-  tracking: HomePromptTracking,
-  coverage: HomePromptCoverage,
-): number | null {
-  if (!tracking.ownTrackedCharacterIds.includes(characterId)) return null;
-  const covered =
-    coverage.coverage.find((row) => row.characterId === characterId)?.covered
-    ?? false;
-  if (!covered) return null;
-  return tracking.tracked.find((row) => row.characterId === characterId)
-    ?.location?.solarSystemId ?? null;
-}
-
+/**
+ * The system the home prompt offers as "current": the active character's when
+ * it is live, else the one system every live tracked alt shares. The active
+ * character stands in for the scanner preference in resolvePasteTarget.
+ */
 export function homeCurrentSystem(input: {
   readonly characterId: number | null;
-  readonly tracking: HomePromptTracking | undefined;
-  readonly coverage: HomePromptCoverage | undefined;
+  readonly tracking: Omit<DockCharactersInput, 'coverage'> | undefined;
+  readonly coverage: CoveragePayload | undefined;
 }): HomeCurrentSystem {
   if (
     input.characterId == null
@@ -48,19 +31,15 @@ export function homeCurrentSystem(input: {
   if (input.tracking.ownTrackedCharacterIds.length === 0) {
     return { kind: 'untracked' };
   }
-  const preferred = liveSystemId(
+  const target = resolvePasteTarget(
+    dockCharacters({
+      ownTrackedCharacterIds: input.tracking.ownTrackedCharacterIds,
+      tracked: input.tracking.tracked,
+      coverage: coverageIndex(input.coverage),
+    }),
     input.characterId,
-    input.tracking,
-    input.coverage,
   );
-  if (preferred !== null) return { kind: 'ready', systemId: preferred };
-  const systems = new Set<number>();
-  for (const characterId of input.tracking.ownTrackedCharacterIds) {
-    const systemId = liveSystemId(characterId, input.tracking, input.coverage);
-    if (systemId !== null) systems.add(systemId);
-  }
-  if (systems.size !== 1) return { kind: 'offline' };
-  const systemId = systems.values().next().value;
-  if (systemId === undefined) return { kind: 'offline' };
-  return { kind: 'ready', systemId };
+  return target.kind === 'ready'
+    ? { kind: 'ready', systemId: target.systemId }
+    : { kind: 'offline' };
 }

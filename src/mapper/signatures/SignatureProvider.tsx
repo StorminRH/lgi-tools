@@ -72,6 +72,7 @@ export function SignatureProvider({
     pasteTarget,
     scannerSystemId,
     onScannerChosen,
+    authoring,
   });
   const identifyRow = useIdentifySignature(mapId);
   const { jumpResolution, pickJumpCandidate } = useSignatureJumpFlow(
@@ -112,8 +113,7 @@ export function SignatureProvider({
         onChooseScanner={chooseScanner}
         onCancelPendingPaste={cancelPendingPaste}
         onIdentify={identifyRow}
-        onOpenEditor={panel.openEditor}
-        onOpenSite={panel.openSite}
+        onOpenTarget={onPanelTargetChange}
         originLeadConnections={[...connectionDetails.values()]}
         bindConnectionSetters={bindConnectionSetters(mapId, authoring)}
       />

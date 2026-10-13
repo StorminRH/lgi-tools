@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { useGlanceMarks } from '../signatures/use-glance-mark-index';
 import { useSystemPresence } from '../tracking/presence-context';
 import { IntelIcon } from '../windows/IntelIcon';
@@ -29,12 +29,11 @@ function WidgetSeat({
   readonly index: number;
   readonly seat: TrackSeat;
 }) {
-  const ref = useRef<HTMLSpanElement>(null);
   const offset = widgetSeatOffset(index);
-  const transform = `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`;
-  useLayoutEffect(() => {
-    ref.current?.style.setProperty('--node-widget-seat-transform', transform);
-  }, [transform]);
+  const ref = useStyleProperty<HTMLSpanElement>(
+    '--node-widget-seat-transform',
+    `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
+  );
   const bucket = seat.kind === 'glance' ? seat.bucket : null;
   return (
     <span

@@ -1,10 +1,8 @@
 'use client';
 
-import { CharacterPortrait } from '@/components/character-portrait';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/components/ui/cn';
-import { mapFrostedSurface } from '../map-frosted-surface';
-import { useSystemLabel } from '../windows/use-system-label';
+import { MapPromptCard } from '../map-prompt-card';
+import { CharacterLocationLabel } from './character-location-label';
 import type { DockCharacter } from './tracked-system';
 import {
   useCharacterIdentities,
@@ -20,7 +18,6 @@ function CandidateButton({
   readonly identity: CharacterIdentity;
   readonly onPick: (characterId: number) => void;
 }) {
-  const systemName = useSystemLabel(candidate.systemId)?.name;
   return (
     <Button
       variant="secondary"
@@ -29,18 +26,12 @@ function CandidateButton({
       className="h-auto justify-start gap-2 py-1.5"
       onClick={() => onPick(candidate.characterId)}
     >
-      <CharacterPortrait
+      <CharacterLocationLabel
         characterId={candidate.characterId}
-        name={identity.name}
-        src={identity.portraitUrl}
-        size={28}
+        identity={identity}
+        systemId={candidate.systemId}
+        sublineTone="muted"
       />
-      <span className="flex min-w-0 flex-col text-left">
-        <span className="truncate text-name">{identity.name}</span>
-        <span className="truncate font-data text-micro text-muted">
-          {systemName ?? String(candidate.systemId)}
-        </span>
-      </span>
     </Button>
   );
 }
@@ -62,19 +53,17 @@ export function ScannerCharacterPrompt({
     candidates.map((candidate) => candidate.characterId),
   );
   return (
-    <div
+    <MapPromptCard
       data-scanner-character-prompt
-      role="group"
-      aria-label="Choose scanning character"
-      className={cn('flex flex-col gap-2 p-3 text-ui', mapFrostedSurface)}
+      ariaLabel="Choose scanning character"
+      eyebrow="Which character scanned this?"
+      body={
+        <>
+          Your logged-in characters are in different systems. Your pick becomes
+          the default scanner; change it under Tracking in the map menu.
+        </>
+      }
     >
-      <span className="font-data text-label uppercase tracking-label text-muted">
-        Which character scanned this?
-      </span>
-      <p className="font-data text-micro text-name">
-        Your logged-in characters are in different systems. Your pick becomes
-        the default scanner; change it under Tracking in the map menu.
-      </p>
       <div className="flex flex-col gap-1">
         {candidates.map((candidate) => (
           <CandidateButton
@@ -90,6 +79,6 @@ export function ScannerCharacterPrompt({
           Cancel
         </Button>
       </div>
-    </div>
+    </MapPromptCard>
   );
 }

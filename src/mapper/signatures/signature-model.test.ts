@@ -8,6 +8,7 @@ import {
   buildSignatureRows,
   groupSignatureSections,
   isEditablePasteTarget,
+  scanFailureMessage,
   scannerPasteDecision,
   scannerPasteRefusalToast,
   scannerGroupTypeLabel,
@@ -450,5 +451,16 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteRefusalToast({ kind: 'loading' }).options.id).toBe(
       'scanner-paste:loading',
     );
+  });
+
+  it('names the server refusal a scan failed with, from the error code alone', () => {
+    const refused = (code: string) => ({
+      data: { code, detail: 'Diagnostic text the scanner never shows.' },
+    });
+    expect(scanFailureMessage(refused('OFF_MAP_SCAN_SYSTEM'))).toBe('System not on map');
+    expect(scanFailureMessage(refused('UNTRACKED_SCAN_SYSTEM'))).toBe('No character online');
+    expect(scanFailureMessage(refused('TRACKING_CAP_EXCEEDED'))).toBe('Scan not applied');
+    expect(scanFailureMessage(refused('constructor'))).toBe('Scan not applied');
+    expect(scanFailureMessage(new Error('Network down'))).toBe('Scan not applied');
   });
 });

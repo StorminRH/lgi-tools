@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#682](https://github.com/StorminRH/lgi-tools/pull/682).
+
 ← [Wave 13: Industry planner and wormhole-sites verticals](wave-13-industry-planner-and-wormhole-sites-verticals.md) · [Index](README.md#roadmap) · [Wave 15: Mapper client: canvas, tracking, scanner and authoring](wave-15-mapper-client-canvas-tracking-scanner-and.md) →
 
 Route capped reads and batch purges through convex/lib, then uniqueByUserCharacter, then the tracked-pilot memo, then the tracking cap, then principal-aware eventActor. Next: findLiveSystem, jump stamp and watermark finders, shared pagination and location-sync lifecycle helpers. Static claims take ids before writeDoorTypeAndClaim, then setRemovedPurgeAfter. The medium-risk single-read map tracking prune follows, then the decideCollapse simplification. Shared door request shapes come last; P246 later wraps them. Use P216's strict error-code assertions throughout.
