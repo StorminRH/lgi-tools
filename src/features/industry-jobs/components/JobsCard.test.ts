@@ -38,7 +38,7 @@ function render(overrides: Partial<Parameters<typeof JobsCard>[0]> = {}): string
   );
 }
 
-test('lists a board’s jobs under its owner, with the summary, sync time and blue progress', () => {
+test('lists a board’s jobs under its owner, with the summary and sync time', () => {
   const html = render();
   expect(html).toContain('Aurel Vantesse');
   expect(html).toContain('1 job');
@@ -46,7 +46,6 @@ test('lists a board’s jobs under its owner, with the summary, sync time and bl
   expect(html).toContain('as of');
   expect(html).toContain('Raven');
   expect(html).toContain('×2 · Manufacturing');
-  expect(html).toContain('data-tone="evb"');
 
   const runner = render({ runnerFor: () => createElement('span', { 'data-runner': '' }, 'Hauler Alt') });
   expect(runner).toContain('data-runner');

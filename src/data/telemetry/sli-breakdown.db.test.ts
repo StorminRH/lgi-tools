@@ -68,8 +68,9 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
     ]);
   });
 
-  it('groups failed saves by operation, result and error class, leaving validation out', async () => {
-    const detail = capabilityFailureDetail(await getCapabilityOutcomeStats(RANGE), 'mutation', RANGE);
+  it('derives failure groups, daily failures, collapsed successes and ESI failures from one outcome read, and reads nothing for an empty window', async () => {
+    const stats = await getCapabilityOutcomeStats(RANGE);
+    const detail = capabilityFailureDetail(stats, 'mutation', RANGE);
     expect(detail.groups).toEqual([
       {
         feature: 'account',
@@ -91,18 +92,10 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
       },
     ]);
     expect(detail.validationRejected).toBe(1);
-  });
-
-  it('counts failures per UTC day', async () => {
-    const detail = capabilityFailureDetail(await getCapabilityOutcomeStats(RANGE), 'mutation', RANGE);
     expect(detail.daily).toEqual([
       { day: '2020-03-02', failures: 1 },
       { day: '2020-03-04', failures: 2 },
     ]);
-  });
-
-  it('collapses successes to one group per operation', async () => {
-    const stats = await getCapabilityOutcomeStats(RANGE);
     expect(stats.find((row) => row.outcome === 'succeeded')).toEqual({
       operation: 'save-preferences',
       outcome: 'succeeded',
@@ -114,6 +107,25 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
       count: 1,
       lastSeen: DAY_ONE,
     });
+    expect(esiFailureGroups(stats, RANGE)).toEqual([
+      {
+        feature: 'planner',
+        operation: 'read-owned-assets',
+        outcome: 'rate_limited',
+        code: 'esi_rate_limited',
+        errorClass: null,
+        count: 1,
+        lastSeen: DAY_ONE,
+      },
+    ]);
+
+    const EMPTY_RANGE = { from: new Date('2019-01-01T00:00:00Z'), to: new Date('2019-01-08T00:00:00Z') };
+    const empty = await getCapabilityOutcomeStats(EMPTY_RANGE);
+    expect(empty).toEqual([]);
+    expect(capabilitySuccessRate(empty, 'read')).toBeNull();
+    expect(capabilitySuccessRate(empty, 'mutation')).toBeNull();
+    expect(esiAvailability(empty).rate).toBeNull();
+    await expect(getCapabilityLatency(EMPTY_RANGE)).resolves.toEqual({ p95: null, slowest: [] });
   });
 
   it('ranks the slowest operations and names where their time went', async () => {
@@ -254,20 +266,6 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
 
     await expect(getEsiClientErrors(range)).resolves.toEqual([
       { feature: 'maps', operation: 'search-characters', errors: 2, calls: 26, lastSeen: timestamp },
-    ]);
-  });
-
-  it('lists ESI-dependent operations CCP limited or failed', async () => {
-    expect(esiFailureGroups(await getCapabilityOutcomeStats(RANGE), RANGE)).toEqual([
-      {
-        feature: 'planner',
-        operation: 'read-owned-assets',
-        outcome: 'rate_limited',
-        code: 'esi_rate_limited',
-        errorClass: null,
-        count: 1,
-        lastSeen: DAY_ONE,
-      },
     ]);
   });
 });

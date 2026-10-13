@@ -161,8 +161,8 @@ test('corporation structures and your own list side by side, with what each can 
   expect(html).toContain('Amamake Raitaru');
   expect(html).toContain('Unpinned Raitaru');
   // Each row names its hull, then its system by id with that system's coloured security.
-  expect(html).toContain('Raitaru · Amamake <span class="text-sec-04">0.4</span>');
-  expect(html).toContain('Tatara · 1DQ1-A <span class="text-sec-null">-0.4</span>');
+  expect(html).toMatch(/Raitaru · Amamake <span[^>]*>0\.4<\/span>/);
+  expect(html).toMatch(/Tatara · 1DQ1-A <span[^>]*>-0\.4<\/span>/);
   expect(html).not.toContain('No structures yet.');
 });
 

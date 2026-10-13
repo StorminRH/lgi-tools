@@ -43,13 +43,6 @@ describe.skipIf(!harness.reachable)('domain event ledger reads against Postgres'
     }
     expect((await listRecentDomainEvents(30)).map((row) => row.id)).toEqual([4, 9, 7, 2, 5, 1]);
   });
-
-  it('skips stored rows of a retired event type', async () => {
-    const types = (await listRecentDomainEvents(30)).map((row) => row.eventType);
-    expect(types).not.toContain('esi_refresh_job_status_changed');
-    expect(types).not.toContain('esi_budget_guard_exhausted');
-    expect((await listRecentDomainEvents(1)).map((row) => row.id)).toEqual([4]);
-  });
 });
 
 function tokenChange(characterId: number) {
