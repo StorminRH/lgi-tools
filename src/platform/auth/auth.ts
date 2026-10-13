@@ -24,6 +24,7 @@ import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
+import { releaseSyntheticEmail } from './account-purge';
 import { encryptToken } from './token-crypto';
 import { encryptAccountTokens } from './account-token-encryption';
 import { parseLinkedAccountId } from './eve-account-shared';
@@ -54,6 +55,9 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
     }),
     secret: readAuthSecret(),
     baseURL: readEnv('BETTER_AUTH_URL'),
+    // Unlinks go through unlinkCharacter; the raw endpoint would skip its runners and email
+    // repair. Only HTTP requests are refused, so the server-side auth.api.unlinkAccount still works.
+    disabledPaths: ['/unlink-account'],
     databaseHooks: {
       account: {
         create: {
@@ -94,7 +98,8 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
         ownerHash: { type: 'string', required: false, input: false, returned: false },
         deletionRequestedAt: { type: 'date', required: false, input: false, returned: false },
       },
-      accountLinking: { allowDifferentEmails: true },
+      // Implicit linking would match a signing-in character to whichever user's email still names it.
+      accountLinking: { allowDifferentEmails: true, disableImplicitLinking: true },
     },
     user: {
       additionalFields: {
@@ -153,6 +158,11 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
                 await rebindLinkTarget(outcome.survivorUserId);
                 recordMerge();
               }
+              // A user whose stale email names this character would refuse the sign-in, or make
+              // overrideUserInfo collide. If this repair fails, Better Auth still refuses: never a takeover.
+              await releaseSyntheticEmail(character.characterId).catch((error: unknown) => {
+                console.error('[auth] stale synthetic email repair failed', error);
+              });
               await upsertCharacterLoginIdentity(character);
               after(() => refreshCharacterAffiliations([character.characterId]));
               emitUsageEvent('auth', {

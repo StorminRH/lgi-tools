@@ -25,7 +25,7 @@ test('a stored row becomes a client price: bigint volumes as numbers, stale time
     staleAfter,
   };
 
-  const out = toClientPrice(stored, stored.staleAfter.getTime());
+  const out = toClientPrice(stored, staleAfter.getTime());
 
   expectTypeOf(out).toExtend<PlainPriceFigures>();
   // Only the client figures: the row's typeId and Date columns stay behind.
@@ -37,6 +37,24 @@ test('a stored row becomes a client price: bigint volumes as numbers, stale time
     source: 'esi',
     staleAfterMs: staleAfter.getTime(),
   });
+});
+
+test('a stored row with no expiry keeps a null stale time', () => {
+  const stored: MarketPrice = {
+    ...figures,
+    typeId: 34,
+    buyVolume: null,
+    sellVolume: null,
+    regionalDiscount: null,
+    source: 'esi',
+    updatedAt: new Date('2026-10-11T12:00:00Z'),
+    staleAfter: null,
+  };
+
+  const out = toClientPrice(stored, stored.staleAfter?.getTime() ?? null);
+
+  expectTypeOf(out.staleAfterMs).toEqualTypeOf<number | null>();
+  expect(out.staleAfterMs).toBeNull();
 });
 
 test('a wire row becomes a client price: string volumes as numbers, stale time parsed from ISO', () => {

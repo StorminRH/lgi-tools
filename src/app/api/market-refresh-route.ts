@@ -13,10 +13,17 @@ export type MarketRefreshCapability = Extract<
   'market.refresh-market-history' | 'market.refresh-market-prices'
 >;
 
+/** A client's limit a minute: requests, or the distinct type ids its requests carry. */
+export interface MarketRefreshLimit {
+  readonly name: string;
+  readonly perMinute: number;
+  readonly unit?: 'requests' | 'type-ids';
+}
+
 export function marketRefreshRoute<TLoaded>(
   capability: MarketRefreshCapability,
   endpoint: MarketRefreshEndpoint,
-  limit: { readonly name: string; readonly perMinute: number },
+  limit: MarketRefreshLimit,
   load: (typeIds: number[]) => Promise<TLoaded>,
   respond: (args: {
     readonly typeIds: number[];
@@ -28,10 +35,10 @@ export function marketRefreshRoute<TLoaded>(
     const parsed = await readJsonBody(request, endpoint.request);
     if (!parsed.ok) return apiResponse(endpoint, 400, parsed.failure);
 
-    const limited = await checkRateLimit(request, limit);
+    const typeIds = Array.from(new Set(parsed.data.typeIds));
+    const limited = await checkRateLimit(request, limit, limit.unit === 'type-ids' ? typeIds.length : 1);
     if (!limited.ok) return apiResponse(endpoint, 429, limited.failure);
 
-    const typeIds = Array.from(new Set(parsed.data.typeIds));
     const startedAt = Date.now();
     const loaded = await load(typeIds);
     return respond({ typeIds, loaded, durationMs: Date.now() - startedAt });

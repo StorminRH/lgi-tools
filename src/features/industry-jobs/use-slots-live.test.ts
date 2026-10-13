@@ -31,14 +31,15 @@ afterEach(() => {
 const capacity = { manufacturing: 1, science: 1, reactions: 1 };
 const synced = { characterId: 7, slots: capacity, synced: true, levels: { 3380: 5 } };
 const unsynced = (characterId: number) => ({ characterId, slots: capacity, synced: false, levels: null });
-const answer = (...characters: unknown[]) => ({ ok: true, data: { characters } });
+const answer = (characters: unknown[], refreshing = false) => ({ ok: true, data: { characters, refreshing } });
 const offline = { ok: false, kind: 'network', aborted: false, cause: new Error('offline') };
 
-test('a same-identity return keeps slots even when the background refresh fails', async () => {
-  h.apiFetch.mockResolvedValueOnce(answer(synced));
+test('draws the slots at once, keeps them through a failed re-read, and reads through the shared loop', async () => {
+  h.apiFetch.mockResolvedValueOnce(answer([synced]));
   expect(slots()).toMatchObject({ characters: [], loading: true, failed: false });
   await vi.advanceTimersByTimeAsync(0);
   expect(slots()).toMatchObject({ characters: [synced], loading: false, failed: false });
+  expect(h.apiFetch).toHaveBeenCalledWith(expect.objectContaining({ path: '/api/account/industry-slots' }));
   rt.unmount();
   h.apiFetch.mockResolvedValue(offline);
   expect(slots()).toMatchObject({ characters: [synced], loading: false });
@@ -47,14 +48,32 @@ test('a same-identity return keeps slots even when the background refresh fails'
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
+test('checks back while an eligible pilot is unsynced or a refresh is under way, then stops', async () => {
+  const caughtUp = { ...unsynced(8), synced: true, levels: {} };
+  h.apiFetch
+    .mockResolvedValueOnce(answer([synced, unsynced(8)]))
+    .mockResolvedValueOnce(answer([synced, caughtUp], true))
+    .mockResolvedValue(answer([synced, caughtUp]));
+  slots([7, 8]);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(h.apiFetch).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(4_000);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  await vi.advanceTimersByTimeAsync(8_000);
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
+  await vi.advanceTimersByTimeAsync(300_000);
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
+  expect(slots([7, 8]).characters).toHaveLength(2);
+});
+
 test('an identity change before effect cleanup rejects the old slots response and reads the new account', async () => {
   let resolve!: (value: unknown) => void;
   h.apiFetch.mockReturnValueOnce(new Promise((yes) => { resolve = yes; }));
   slots();
   identities.publishReadIdentity({ userId: 'account-b', characterId: 7 });
-  resolve(answer(synced));
+  resolve(answer([synced]));
   await vi.advanceTimersByTimeAsync(0);
-  h.apiFetch.mockResolvedValueOnce(answer());
+  h.apiFetch.mockResolvedValueOnce(answer([]));
   expect(slots()).toMatchObject({ characters: [], loading: true });
   await vi.advanceTimersByTimeAsync(0);
   expect(slots()).toMatchObject({ characters: [], loading: false });
@@ -78,7 +97,7 @@ test('a first read that fails is retried once, then reports failed until a retry
   await vi.advanceTimersByTimeAsync(125_000);
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 
-  h.apiFetch.mockResolvedValueOnce(answer(synced));
+  h.apiFetch.mockResolvedValueOnce(answer([synced]));
   failed.retry();
   expect(slots()).toMatchObject({ characters: [], loading: true, failed: false });
   await vi.advanceTimersByTimeAsync(0);
@@ -87,7 +106,7 @@ test('a first read that fails is retried once, then reports failed until a retry
 });
 
 test('a pilot whose skills cannot sync is never waited on', async () => {
-  h.apiFetch.mockResolvedValue(answer(synced, unsynced(8)));
+  h.apiFetch.mockResolvedValue(answer([synced, unsynced(8)]));
   slots([7]);
   await vi.advanceTimersByTimeAsync(600_000);
   expect(h.apiFetch).toHaveBeenCalledOnce();
@@ -95,7 +114,7 @@ test('a pilot whose skills cannot sync is never waited on', async () => {
 });
 
 test('a skill-eligible pilot still syncing is reconciled on a backoff, then given up on', async () => {
-  h.apiFetch.mockResolvedValue(answer(synced, unsynced(8)));
+  h.apiFetch.mockResolvedValue(answer([synced, unsynced(8)]));
   slots([7, 8]);
   await vi.advanceTimersByTimeAsync(0);
   const counts: number[] = [];
@@ -111,7 +130,7 @@ test('a skill-eligible pilot still syncing is reconciled on a backoff, then give
 });
 
 test('reconciling stops once every skill-eligible pilot has synced', async () => {
-  h.apiFetch.mockResolvedValueOnce(answer(unsynced(7))).mockResolvedValue(answer(synced));
+  h.apiFetch.mockResolvedValueOnce(answer([unsynced(7)])).mockResolvedValue(answer([synced]));
   slots([7]);
   await vi.advanceTimersByTimeAsync(600_000);
   expect(h.apiFetch).toHaveBeenCalledTimes(2);

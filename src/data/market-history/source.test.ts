@@ -1,17 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/platform/esi', async () => {
-  const actual = await vi.importActual<typeof import('@/platform/esi')>('@/platform/esi');
-  return { ...actual, esiFetch: vi.fn() };
-});
+const fetchStoredMock = vi.fn();
+const batchInits: { concurrency: number; parse: unknown }[] = [];
+
+type BatchInit = { concurrency: number; parse: (body: unknown, headers: Headers) => unknown };
+
+/** One key's answer as the store hands it back: a 200's body parsed inside its call, a refused body or a thrown call failing that key alone. */
+async function settle(key: unknown, init: BatchInit): Promise<unknown> {
+  const answer = await fetchStoredMock(key);
+  if (answer.kind !== 'fresh') return answer;
+  return { kind: 'fresh', value: init.parse(await answer.res.json(), answer.res.headers), meta: answer.meta };
+}
+
+/** The batched read as one call per key, a thrown call kept to its key the way the store keeps it. */
+vi.mock('@/data/esi-store', () => ({
+  fetchStoredMany: (keys: unknown[], init: BatchInit) => {
+    batchInits.push(init);
+    return Promise.all(keys.map((key) => settle(key, init).catch((error: unknown) => ({ kind: 'failed', error }))));
+  },
+}));
 
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { esiFetch } from '@/platform/esi';
-import {
-  fetchHistoryFromSource,
-  parseEsiHistory,
-  staleAfterFromExpires,
-} from './source';
+import { HISTORY_FETCH_CONCURRENCY } from './constants';
+import { historyKey } from './keys';
+import { fetchHistoryFromSource, parseEsiHistory } from './source';
+
+const EXPIRES = Date.parse('2026-06-15T11:05:00Z');
+
+function meta(typeId: number) {
+  return { key: historyKey(typeId), expiresAt: EXPIRES, etags: ['"h"'], lastModified: null, checkedAt: EXPIRES - 86_400_000 };
+}
+
+function typeIdOf(key: { params?: { type_id?: unknown } }): number {
+  return Number(key.params?.type_id);
+}
 
 const sampleItem = {
   average: 4.06,
@@ -22,15 +44,13 @@ const sampleItem = {
   volume: 6498537635,
 };
 
-function historyResponse(items: unknown[], expires?: string): Response {
-  return new Response(JSON.stringify(items), {
-    status: 200,
-    headers: expires ? { Expires: expires } : {},
-  });
+function fresh(typeId: number, items: unknown[]) {
+  return { kind: 'fresh', res: new Response(JSON.stringify(items), { status: 200 }), meta: meta(typeId) };
 }
 
 beforeEach(() => {
-  vi.mocked(esiFetch).mockReset();
+  fetchStoredMock.mockReset();
+  batchInits.length = 0;
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -62,60 +82,41 @@ describe('parseEsiHistory', () => {
   });
 });
 
-describe('staleAfterFromExpires', () => {
-  const now = new Date('2026-06-14T12:00:00Z');
-
-  it('uses the Expires header (CCP next-day recompute) when present', () => {
-    const sa = staleAfterFromExpires('Mon, 15 Jun 2026 11:05:00 GMT', now);
-    expect(sa.toISOString()).toBe('2026-06-15T11:05:00.000Z');
-  });
-
-  it('falls back to now+24h when Expires is absent or unparseable', () => {
-    const expected = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-    expect(staleAfterFromExpires(null, now).toISOString()).toBe(expected);
-    expect(staleAfterFromExpires('not a date', now).toISOString()).toBe(expected);
-  });
-});
-
 describe('fetchHistoryFromSource', () => {
-  it('issues one ESI call per type and derives stale_after from Expires', async () => {
-    vi.mocked(esiFetch).mockImplementation(async (url) => {
-      const id = Number(/type_id=(\d+)/.exec(url)![1]);
-      return historyResponse(
-        [{ ...sampleItem, average: id }],
-        'Mon, 15 Jun 2026 11:05:00 GMT',
-      );
-    });
+  it('reads one key per type through one batched store read at HISTORY_FETCH_CONCURRENCY and carries each answer\'s meta', async () => {
+    fetchStoredMock.mockImplementation((key) => Promise.resolve(fresh(typeIdOf(key), [{ ...sampleItem, average: typeIdOf(key) }])));
 
-    const { results, budgetExhausted } = await fetchHistoryFromSource([34, 35]);
+    const { results, budgetExhausted } = await fetchHistoryFromSource([34, 35, 34]);
     expect(budgetExhausted).toBe(false);
     expect(results).toHaveLength(2);
-    // Both reads go to The Forge's daily history.
-    expect(vi.mocked(esiFetch).mock.calls.map(([url]) => url).sort()).toEqual([
-      'https://esi.evetech.net/markets/10000002/history/?type_id=34',
-      'https://esi.evetech.net/markets/10000002/history/?type_id=35',
-    ]);
+    expect(fetchStoredMock.mock.calls.map(([key]) => key)).toEqual([historyKey(34), historyKey(35)]);
+    expect(batchInits).toEqual([{ concurrency: HISTORY_FETCH_CONCURRENCY, parse: parseEsiHistory }]);
+    expect(HISTORY_FETCH_CONCURRENCY).toBe(20);
     const r34 = results.find((r) => r.typeId === 34)!;
     expect(r34.source).toBe('esi');
     expect(r34.rows[0]!.average).toBe(34);
-    expect(r34.staleAfter.toISOString()).toBe('2026-06-15T11:05:00.000Z');
+    expect(r34.meta).toEqual(meta(34));
   });
 
-  it('skips a type on a 4xx (keeps its stored series) without failing the batch', async () => {
-    vi.mocked(esiFetch).mockImplementation(async (url) => {
-      const id = Number(/type_id=(\d+)/.exec(url)![1]);
-      if (id === 99) return new Response('not found', { status: 404 });
-      return historyResponse([sampleItem]);
+  it('skips a type on an error status, an unchanged answer or a malformed body, keeping its stored series', async () => {
+    fetchStoredMock.mockImplementation((key) => {
+      const id = typeIdOf(key);
+      if (id === 99) return Promise.resolve({ kind: 'error', status: 404 });
+      if (id === 98) return Promise.resolve({ kind: 'unchanged', expiresAt: EXPIRES });
+      if (id === 97) return Promise.resolve(fresh(97, [{ nope: true }]));
+      return Promise.resolve(fresh(id, [sampleItem]));
     });
 
-    const { results } = await fetchHistoryFromSource([34, 99]);
+    const { results } = await fetchHistoryFromSource([34, 99, 98, 97]);
     expect(results.map((r) => r.typeId)).toEqual([34]);
   });
 
-  it('flags budget exhaustion and stops dispatching', async () => {
-    vi.mocked(esiFetch).mockRejectedValue(new EsiBudgetExhaustedError(0));
+  it('flags budget exhaustion and keeps the other answers of the batch', async () => {
+    fetchStoredMock.mockImplementation((key) =>
+      typeIdOf(key) === 2 ? Promise.reject(new EsiBudgetExhaustedError(0)) : Promise.resolve(fresh(typeIdOf(key), [sampleItem])),
+    );
     const { results, budgetExhausted } = await fetchHistoryFromSource([1, 2, 3]);
-    expect(results).toHaveLength(0);
+    expect(results.map((r) => r.typeId)).toEqual([1, 3]);
     expect(budgetExhausted).toBe(true);
   });
 });

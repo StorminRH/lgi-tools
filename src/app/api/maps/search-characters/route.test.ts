@@ -18,10 +18,10 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: (...args: unknown[]) =>
     h.getFreshAccessTokenForCharacter(...args),
 }));
-vi.mock('@/platform/esi', () => ({
-  esiFetch: (...args: unknown[]) => h.esiFetch(...args),
-  esiUrl: (path: string) => `https://esi.test${path}`,
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
+});
 vi.mock('@/data/eve-data/entity-names', () => ({
   resolveEntityNamesStrict: (...args: unknown[]) => h.resolveEntityNamesStrict(...args),
 }));
@@ -100,7 +100,9 @@ describe('POST /api/maps/search-characters', () => {
     expect(parsed.searchParams.get('strict')).toBe('false');
     expect(init.headers).toEqual({ Authorization: 'Bearer scoped-token' });
     expect(init.signal).toBe(request.signal);
-    expect(h.resolveEntityNamesStrict).toHaveBeenCalledWith([196379789, 2112625428]);
+    // A user is waiting on the typeahead: the search and its names take the gate's interactive floor.
+    expect(h.esiFetch.mock.calls[0]![2]).toEqual({ interactive: true });
+    expect(h.resolveEntityNamesStrict).toHaveBeenCalledWith([196379789, 2112625428], { interactive: true });
   });
 
   it('uses the public exact-name fallback only when no linked token carries the scope', async () => {
@@ -131,7 +133,7 @@ describe('POST /api/maps/search-characters', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(['Chribba']),
-    });
+    }, { interactive: true });
   });
 
   it('preserves submitted casing and accepts the exact resolver canonical character name', async () => {

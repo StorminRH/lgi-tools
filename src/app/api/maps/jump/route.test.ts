@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
+
+const emitCostMetricMock = capabilityOutcomeMock();
 
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
@@ -12,6 +18,11 @@ vi.mock('@/composition/jump-resolver/resolver', () => ({
   resolveJumpRequest: (...args: unknown[]) => h.resolveJumpRequest(...args),
 }));
 
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (action: string, metadata: Record<string, unknown>) =>
+    emitCostMetricMock(action, metadata),
+}));
+
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
@@ -20,6 +31,7 @@ const MAP_ID = '11111111-1111-4111-8111-111111111111';
 const ROUTE = '/api/maps/jump';
 
 beforeEach(() => {
+  emitCostMetricMock.mockReset();
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.resolveJumpRequest.mockReset().mockResolvedValue({
     status: 'processed',
@@ -72,5 +84,20 @@ describe('POST /api/maps/jump', () => {
       'user-1',
       body,
     );
+  });
+
+  it('records a failure the client gave up on, since its timer showed it to the user', async () => {
+    const controller = new AbortController();
+    h.resolveJumpRequest.mockImplementationOnce(async () => {
+      controller.abort();
+      throw new Error('resolver timed out');
+    });
+
+    const request = postJson(ROUTE, { kind: 'typed-hole', mapId: MAP_ID, connectionId: 'connection-1' }, { signal: controller.signal });
+
+    await expect(POST(request)).rejects.toThrow('resolver timed out');
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
+      expect.objectContaining({ outcome: 'unexpected' }),
+    ]);
   });
 });

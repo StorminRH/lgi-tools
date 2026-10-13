@@ -9,7 +9,7 @@ import { apiResponse } from '@/transport/api-response';
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return apiResponse(corpIndustryJobsEndpoint, 200, { corporations: [], names: {} });
+    return apiResponse(corpIndustryJobsEndpoint, 200, { corporations: [], names: {}, refreshing: false });
   }
   const result = await measureOwnedDataRead({
     endpoint: corpIndustryJobsEndpoint,

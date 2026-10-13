@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EsiReadSession } from '@/data/esi-store/session';
 import type { SingleOwnerRead } from '@/platform/owner-sync';
-import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { NO_STATEMENTS, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCharacterSheetForUser } from './refresh';
 import { digestJournalBody } from './plan';
 import type {
+  DirectSectionKey,
   SectionEnvelope,
   SheetEndpoint,
   SheetPort,
@@ -33,34 +35,58 @@ const BODIES: Record<SheetEndpoint, unknown> = {
 };
 
 const reader = (answer: (endpoint: SheetEndpoint) => SingleOwnerRead) =>
-  vi.fn(async (_id: number, endpoint: SheetEndpoint): Promise<SingleOwnerRead> => answer(endpoint));
+  vi.fn(async (_session: EsiReadSession, _id: number, endpoint: SheetEndpoint): Promise<SingleOwnerRead> => answer(endpoint));
 
 interface FakePort extends SheetPort {
   sheets: Map<number, SheetSections>;
+  sessions: EsiReadSession[];
 }
 
-function makePort(overrides: Partial<SheetPort> = {}, sheets = new Map<number, SheetSections>()): FakePort {
+/** A session fake that records whether the plan discarded its bodies, in the order against its commit. */
+function sheetSessionFake(): EsiReadSession {
+  return { ...readSessionFake<EsiReadSession>(), discardBodies: vi.fn() };
+}
+
+/**
+ * A port whose direct sections are all due unless named in `unexpired`: the
+ * response store, not the section stamp, decides that in production.
+ */
+function makePort(
+  overrides: Partial<SheetPort> = {},
+  sheets = new Map<number, SheetSections>(),
+  unexpired: readonly DirectSectionKey[] = [],
+): FakePort {
+  const sessions: EsiReadSession[] = [];
   const port: FakePort = {
     sheets,
+    sessions,
     now: () => NOW,
     listCharacters: vi.fn(async () => [ownerFixture(1)]),
     vendToken: vi.fn(async () => 'token'),
+    isSectionDue: vi.fn(async (_id: number, key: DirectSectionKey) => !unexpired.includes(key)),
+    openSession: () => {
+      const session = sheetSessionFake();
+      sessions.push(session);
+      return session;
+    },
     readEndpoint: reader((endpoint) => ({ kind: 'fresh', body: BODIES[endpoint], etag: `"${endpoint}"` })),
     readStructure: vi.fn(
-      async (structureId): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
+      async (_session, structureId): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
     ),
     readSheet: vi.fn(async (id) => sheets.get(id) ?? null),
-    mergeSection: vi.fn(async (id, key, envelope) => {
+    mergeSection: vi.fn((id, key, envelope) => {
       sheets.set(id, { ...(sheets.get(id) ?? {}), [key]: envelope });
+      return NO_STATEMENTS;
     }),
     stampSection: vi.fn(async () => {}),
+    recordSectionRefusal: vi.fn(async () => {}),
     ...overrides,
   };
   return port;
 }
 
 const endpointsRead = (port: SheetPort) =>
-  vi.mocked(port.readEndpoint).mock.calls.map(([, endpoint]) => endpoint).sort();
+  vi.mocked(port.readEndpoint).mock.calls.map(([, , endpoint]) => endpoint).sort();
 const sectionsSaved = (port: SheetPort) =>
   vi.mocked(port.mergeSection).mock.calls.map(([, key]) => key);
 
@@ -70,15 +96,15 @@ function freshSheet(keys: SheetSectionKey[], refreshedAt = FRESH_STAMP): SheetSe
     (sheet as Record<string, SectionEnvelope<SheetSectionKey>>)[key] = {
       data: { names: {} },
       refreshedAt,
-      etags: {},
     };
   }
   return sheet;
 }
 
-const ALL_KEYS: SheetSectionKey[] = [
-  'profile', 'status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'orders', 'structures',
+const DIRECT_KEYS: DirectSectionKey[] = [
+  'profile', 'status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'orders',
 ];
+const ALL_KEYS: SheetSectionKey[] = [...DIRECT_KEYS, 'structures'];
 
 describe('refreshCharacterSheetForUser', () => {
   it('reads every endpoint once and saves all eight sections for a never-synced character', async () => {
@@ -92,7 +118,7 @@ describe('refreshCharacterSheetForUser', () => {
     expect(sectionsSaved(port).sort()).toEqual([...ALL_KEYS].sort());
     expect(results).toHaveLength(9);
     expect(results.every((result) => result.kind === 'succeeded')).toBe(true);
-    expect(port.sheets.get(1)?.wallet).toEqual({ data: { balance: 12.5 }, refreshedAt: NOW_ISO, etags: { balance: '"wallet"' } });
+    expect(port.sheets.get(1)?.wallet).toEqual({ data: { balance: 12.5 }, refreshedAt: NOW_ISO });
   });
 
   it('resolves structures only after status and clones have saved their ids', async () => {
@@ -100,7 +126,7 @@ describe('refreshCharacterSheetForUser', () => {
 
     await refreshCharacterSheetForUser(port, 'u1');
 
-    const structureReads = vi.mocked(port.readStructure).mock.calls.map(([id]) => id).sort();
+    const structureReads = vi.mocked(port.readStructure).mock.calls.map(([, id]) => id).sort();
     expect(structureReads).toEqual([1099000000001, 1099000000002]);
     const saveOrder = vi.mocked(port.mergeSection).mock.invocationCallOrder;
     const saveKeys = sectionsSaved(port);
@@ -127,14 +153,14 @@ describe('refreshCharacterSheetForUser', () => {
     await refreshCharacterSheetForUser(twoPilots, 'u1');
     expect(sheetReads(twoPilots)).toEqual([1, 1, 2, 2]);
 
-    const allFresh = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]));
+    const allFresh = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]), DIRECT_KEYS);
     await refreshCharacterSheetForUser(allFresh, 'u1');
-    expect(sheetReads(allFresh)).toEqual([1, 1]);
+    expect(sheetReads(allFresh)).toEqual([1]);
     expect(allFresh.readEndpoint).not.toHaveBeenCalled();
   });
 
-  it('makes no vend and no read when every section is inside its tier', async () => {
-    const port = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]));
+  it('makes no vend and no read while every section\'s stored answers are unexpired', async () => {
+    const port = makePort({}, new Map([[1, freshSheet(ALL_KEYS)]]), DIRECT_KEYS);
 
     await refreshCharacterSheetForUser(port, 'u1');
 
@@ -144,12 +170,12 @@ describe('refreshCharacterSheetForUser', () => {
     expect(port.mergeSection).not.toHaveBeenCalled();
   });
 
-  it('refreshes only the sections whose tier has expired', async () => {
+  it('refreshes only the sections whose stored answers have expired', async () => {
     const sheet: SheetSections = {
       ...freshSheet(['status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'orders', 'structures']),
-      profile: { data: { character: { birthday: '2014-03-11T09:42:00Z', securityStatus: null } }, refreshedAt: STALE_STAMP, etags: {} },
+      profile: { data: { character: { birthday: '2014-03-11T09:42:00Z', securityStatus: null } }, refreshedAt: STALE_STAMP },
     };
-    const port = makePort({}, new Map([[1, sheet]]));
+    const port = makePort({}, new Map([[1, sheet]]), DIRECT_KEYS.filter((key) => key !== 'profile'));
 
     await refreshCharacterSheetForUser(port, 'u1');
 
@@ -169,13 +195,24 @@ describe('refreshCharacterSheetForUser', () => {
 
     expect(endpointsRead(port)).not.toContain('wallet');
     expect(endpointsRead(port)).not.toContain('journal');
-    expect(vi.mocked(port.readEndpoint).mock.calls.every(([id]) => id === 1)).toBe(true);
+    expect(vi.mocked(port.readEndpoint).mock.calls.every(([, id]) => id === 1)).toBe(true);
     expect(sectionsSaved(port).sort()).toEqual(['attributes', 'clones', 'implants', 'orders', 'profile', 'status', 'structures']);
   });
 
-  it('hands held ETags to ESI only for sections with previous data and stamps on 304', async () => {
+  it('records each direct section of a character whose token is gone as refused, and leaves structures to its own due check', async () => {
+    const port = makePort({ vendToken: vi.fn(async () => ({ missing: 'lost' as const })) });
+
+    await refreshCharacterSheetForUser(port, 'u1');
+
+    expect(port.readEndpoint).not.toHaveBeenCalled();
+    expect(vi.mocked(port.recordSectionRefusal).mock.calls.map(([id, key, expiresAt]) => [id, key, expiresAt]).sort()).toEqual(
+      ['attributes', 'clones', 'implants', 'journal', 'orders', 'profile', 'status', 'wallet'].map((key) => [1, key, null]),
+    );
+  });
+
+  it('stamps a section whose answer came back unchanged and saves the ones that did not', async () => {
     const sheet: SheetSections = {
-      wallet: { data: { balance: 1 }, refreshedAt: STALE_STAMP, etags: { balance: '"held"' } },
+      wallet: { data: { balance: 1 }, refreshedAt: STALE_STAMP },
     };
     const port = makePort(
       {
@@ -189,9 +226,9 @@ describe('refreshCharacterSheetForUser', () => {
 
     await refreshCharacterSheetForUser(port, 'u1');
 
-    expect(port.readEndpoint).toHaveBeenCalledWith(1, 'wallet', 'token', '"held"');
-    expect(port.readEndpoint).toHaveBeenCalledWith(1, 'journal', 'token', null);
-    expect(port.readEndpoint).toHaveBeenCalledWith(1, 'character', 'token', null);
+    expect(port.readEndpoint).toHaveBeenCalledWith(expect.anything(), 1, 'wallet', 'token');
+    expect(port.readEndpoint).toHaveBeenCalledWith(expect.anything(), 1, 'journal', 'token');
+    expect(port.readEndpoint).toHaveBeenCalledWith(expect.anything(), 1, 'character', 'token');
     expect(port.stampSection).toHaveBeenCalledWith(1, 'wallet');
     expect(sectionsSaved(port).sort()).toEqual(['journal', 'profile']);
   });
@@ -205,15 +242,34 @@ describe('refreshCharacterSheetForUser', () => {
 
     await refreshCharacterSheetForUser(port, 'u1');
 
-    expect(port.sheets.get(1)?.wallet).toEqual({ data: null, refreshedAt: NOW_ISO, etags: {}, denied: true });
+    expect(port.sheets.get(1)?.wallet).toEqual({ data: null, refreshedAt: NOW_ISO, denied: true });
     expect(port.sheets.get(1)?.journal?.data).toBeDefined();
   });
 
-  it('retries hidden structure names after an hour while leaving named entries cached', async () => {
+  it('discards the bodies of a section saved as denied before its session commits, and keeps them for the sections that saved data', async () => {
+    const port = makePort({
+      readEndpoint: reader((endpoint) =>
+        endpoint === 'ship' ? { kind: 'error', code: 'esi_403' } : { kind: 'fresh', body: BODIES[endpoint], etag: `"${endpoint}"` },
+      ),
+    });
+
+    await refreshCharacterSheetForUser(port, 'u1');
+
+    const discarded = port.sessions.filter((session) => vi.mocked(session.discardBodies).mock.calls.length > 0);
+    expect(discarded).toHaveLength(1);
+    const [session] = discarded;
+    expect(vi.mocked(session!.commit)).toHaveBeenCalledOnce();
+    expect(vi.mocked(session!.discardBodies).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(session!.commit).mock.invocationCallOrder[0]!,
+    );
+    expect(port.sheets.get(1)?.status).toEqual({ data: null, refreshedAt: NOW_ISO, denied: true });
+  });
+
+  it('retries hidden structure names once the lookup route\'s published cache time has passed, leaving named entries cached', async () => {
     let now = NOW;
     const port = makePort({
       now: () => now,
-      readStructure: vi.fn(async (id): Promise<SingleOwnerRead> =>
+      readStructure: vi.fn(async (_session, id): Promise<SingleOwnerRead> =>
         id === 1099000000001 && now === NOW
           ? { kind: 'error', code: 'esi_403' }
           : { kind: 'fresh', body: { name: `Recovered ${id}` }, etag: null },
@@ -229,14 +285,14 @@ describe('refreshCharacterSheetForUser', () => {
 
     now = new Date(NOW.getTime() + 60 * 60_000 + 1);
     await refreshCharacterSheetForUser(port, 'u1');
-    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual([1099000000001]);
+    expect(vi.mocked(port.readStructure).mock.calls.map(([, id]) => id)).toEqual([1099000000001]);
     expect(port.sheets.get(1)?.structures?.data?.names['1099000000001'])
       .toEqual({ kind: 'named', name: 'Recovered 1099000000001' });
   });
 
   it('reads unseen structures immediately without retrying a still-fresh hidden entry', async () => {
     const port = makePort({
-      readStructure: vi.fn(async (id): Promise<SingleOwnerRead> =>
+      readStructure: vi.fn(async (_session, id): Promise<SingleOwnerRead> =>
         id === 1099000000001
           ? { kind: 'error', code: 'esi_403' }
           : { kind: 'fresh', body: { name: `Structure ${id}` }, etag: null },
@@ -248,7 +304,7 @@ describe('refreshCharacterSheetForUser', () => {
     vi.mocked(port.readStructure).mockClear();
 
     await refreshCharacterSheetForUser(port, 'u1');
-    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual([1099000000002]);
+    expect(vi.mocked(port.readStructure).mock.calls.map(([, id]) => id)).toEqual([1099000000002]);
     expect(port.sheets.get(1)?.structures?.data?.names['1099000000001']).toEqual({ kind: 'hidden' });
   });
 
@@ -258,12 +314,12 @@ describe('refreshCharacterSheetForUser', () => {
       ...freshSheet(ALL_KEYS),
       journal: {
         data: { journal: digestJournalBody([], earlier)! },
-        refreshedAt: earlier.toISOString(), etags: { journal: '"same-empty-body"' },
+        refreshedAt: earlier.toISOString(),
       },
     };
-    const port = makePort({}, new Map([[1, sheet]]));
+    const port = makePort({}, new Map([[1, sheet]]), DIRECT_KEYS.filter((key) => key !== 'journal'));
     await refreshCharacterSheetForUser(port, 'u1');
-    expect(port.readEndpoint).toHaveBeenCalledExactlyOnceWith(1, 'journal', 'token', null);
+    expect(port.readEndpoint).toHaveBeenCalledExactlyOnceWith(expect.anything(), 1, 'journal', 'token');
     expect(port.sheets.get(1)?.journal?.data?.journal.windowStart)
       .toBe(new Date(NOW.getTime() - 30 * 24 * 60 * 60_000).toISOString());
     expect(port.stampSection).not.toHaveBeenCalled();
@@ -274,17 +330,21 @@ describe('refreshCharacterSheetForUser', () => {
       ...freshSheet(ALL_KEYS),
       journal: {
         data: { journal: digestJournalBody([], new Date(STALE_STAMP))! },
-        refreshedAt: STALE_STAMP, etags: { journal: '"held"' },
+        refreshedAt: STALE_STAMP,
       },
     };
-    const port = makePort({ readEndpoint: reader(() => ({ kind: 'unchanged' })) }, new Map([[1, sheet]]));
+    const port = makePort(
+      { readEndpoint: reader(() => ({ kind: 'unchanged' })) },
+      new Map([[1, sheet]]),
+      DIRECT_KEYS.filter((key) => key !== 'journal'),
+    );
 
     const results = await refreshCharacterSheetForUser(port, 'u1');
 
     expect(results.filter((result) => result.kind !== 'succeeded')).toEqual([
       { kind: 'failed_retryable', target: { ownerType: 'character', ownerId: 1 }, code: 'esi_server_error' },
     ]);
-    expect(port.readEndpoint).toHaveBeenCalledExactlyOnceWith(1, 'journal', 'token', null);
+    expect(port.readEndpoint).toHaveBeenCalledExactlyOnceWith(expect.anything(), 1, 'journal', 'token');
     expect(port.mergeSection).not.toHaveBeenCalled();
     expect(port.stampSection).not.toHaveBeenCalled();
     expect(port.sheets.get(1)?.journal?.refreshedAt).toBe(STALE_STAMP);
@@ -304,20 +364,5 @@ describe('refreshCharacterSheetForUser', () => {
     expect(results.filter((result) => result.kind !== 'succeeded')).toEqual([
       { kind: 'failed_retryable', target: { ownerType: 'character', ownerId: 1 }, code: 'esi_server_error' },
     ]);
-  });
-
-  it('honours a single-owner target', async () => {
-    const port = makePort({ listCharacters: vi.fn(async () => [ownerFixture(1), ownerFixture(2)]) });
-
-    await refreshCharacterSheetForUser(port, 'u1', { target: { ownerType: 'character', ownerId: 2 } });
-
-    expect(endpointsRead(port)).toEqual([
-      'attributes', 'character', 'clones', 'implants', 'journal', 'location', 'online', 'orders', 'ship', 'wallet',
-    ]);
-    expect(vi.mocked(port.readEndpoint).mock.calls.every(([id]) => id === 2)).toBe(true);
-    expect(vi.mocked(port.mergeSection).mock.calls.map(([id, key]) => `${id}:${key}`).sort())
-      .toEqual(ALL_KEYS.map((key) => `2:${key}`).sort());
-    expect(port.sheets.get(2)?.wallet).toEqual({ data: { balance: 12.5 }, refreshedAt: NOW_ISO, etags: { balance: '"wallet"' } });
-    expect(port.sheets.has(1)).toBe(false);
   });
 });

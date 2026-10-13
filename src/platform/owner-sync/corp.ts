@@ -1,46 +1,46 @@
-import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
+import type { EnumeratedOwner, OwnerSyncDescriptor, ReadSession, VendedToken } from './types';
 
-export interface CorpSyncBase {
+export interface CorpSyncBase<TSession extends ReadSession> {
   now(): Date;
   listMembers(userId: string): Promise<EnumeratedOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
+  vendToken(characterId: number): Promise<VendedToken>;
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
+  openSession(): TSession;
 }
 
+/** What a corp dataset adds to the shared corp base: who its owners are, which role reads them, and the descriptor's owner-side steps. */
 export interface CorpDatasetSpec<
   TOwner extends { corporationId: number },
   TState extends { lastRefreshedAt: Date | null },
   TSave,
+  TSession extends ReadSession,
+> extends Pick<
+  OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  'isDue' | 'precondition' | 'readState' | 'fetchAndPlan' | 'save' | 'stampFresh' | 'saveGateState' | 'recordRefusal'
 > {
   ownerOf(userId: string, corporationId: number): TOwner;
   eligible(owner: EnumeratedOwner): boolean;
   requiredRoles: readonly string[];
-  isStale(lastRefreshedAt: Date | null, now: Date): boolean;
-  precondition?(owner: TOwner): Promise<boolean>;
-  readState(owner: TOwner): Promise<TState | null>;
-  fetchAndPlan(
-    owner: TOwner,
-    accessToken: string,
-    state: TState | null,
-  ): Promise<PersistVerdict<TSave>>;
-  save(owner: TOwner, payload: TSave): Promise<void>;
-  stampFresh(owner: TOwner): Promise<void>;
-  saveGateState?(owner: TOwner): Promise<void>;
 }
 
 export function makeCorpDescriptor<
   TOwner extends { corporationId: number },
   TState extends { lastRefreshedAt: Date | null },
   TSave,
->(base: CorpSyncBase, spec: CorpDatasetSpec<TOwner, TState, TSave>): OwnerSyncDescriptor<TOwner, TState, TSave> {
-  const { precondition, saveGateState } = spec;
+  TSession extends ReadSession,
+>(
+  base: CorpSyncBase<TSession>,
+  spec: CorpDatasetSpec<TOwner, TState, TSave, TSession>,
+): OwnerSyncDescriptor<TOwner, TState, TSave, TSession> {
+  const { precondition, saveGateState, recordRefusal } = spec;
   return {
     now: () => base.now(),
     enumerate: (userId) => base.listMembers(userId),
     identityOf: (owner) => ({ ownerType: 'corporation', ownerId: owner.corporationId }),
     vendToken: (characterId) => base.vendToken(characterId),
     ...(precondition === undefined ? {} : { precondition: (owner: TOwner) => precondition(owner) }),
-    isStale: (state, now) => spec.isStale(state?.lastRefreshedAt ?? null, now),
+    isDue: (owner) => spec.isDue(owner),
+    openSession: () => base.openSession(),
     corpAxis: {
       eligible: (owner) => spec.eligible(owner),
       ownerOf: (userId, corporationId) => spec.ownerOf(userId, corporationId),
@@ -48,9 +48,12 @@ export function makeCorpDescriptor<
       readRoles: (characterId, accessToken) => base.readRoles(characterId, accessToken),
     },
     readState: (owner) => spec.readState(owner),
-    fetchAndPlan: (owner, accessToken, state) => spec.fetchAndPlan(owner, accessToken, state),
+    fetchAndPlan: (owner, accessToken, state, session) => spec.fetchAndPlan(owner, accessToken, state, session),
     save: (owner, payload) => spec.save(owner, payload),
     stampFresh: (owner) => spec.stampFresh(owner),
     ...(saveGateState === undefined ? {} : { saveGateState: (owner: TOwner) => saveGateState(owner) }),
+    ...(recordRefusal === undefined
+      ? {}
+      : { recordRefusal: (owner: TOwner, expiresAt: number | null) => recordRefusal(owner, expiresAt) }),
   };
 }

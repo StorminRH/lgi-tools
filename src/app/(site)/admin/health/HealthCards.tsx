@@ -2,8 +2,6 @@ import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { scrollArea } from '@/components/ui/scroll-area';
 import type { DomainEventRow } from '@/data/domain-events/types';
-import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
-import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
   capabilityFailureDetail,
   esiClientErrors,
@@ -14,47 +12,37 @@ import type { DateRange } from '@/data/telemetry/types';
 import { loadSection } from '../load-section';
 import { loadSliReads } from '../load-signals';
 import { summarizeDomainEvent } from '../ops-view';
-import { getEsiClientErrorsShared, getEsiRefreshQueueStatsShared } from '../shared-reads';
-import { deriveSliSignals, mapLoaded, summarizeQueue, type Loaded, type SliReads } from '../signals';
+import { getEsiClientErrorsShared } from '../shared-reads';
+import { deriveSliSignals, mapLoaded, type Loaded, type SliReads } from '../signals';
 import { deriveServiceLevels } from './health-view';
-import { DEAD_LETTER_PREVIEW, type ServiceLevelDetails } from './ServiceLevelRows';
+import type { ServiceLevelDetails } from './ServiceLevelRows';
 import { formatUtcMinute } from '@/lib/format/time';
 
 /**
  * The headline service levels and the detail behind each. Each detail read
- * fails on its own and marks only its own row; the queue read is the one
- * the rows cannot do without.
+ * fails on its own and marks only its own row.
  */
 export async function loadServiceLevels(range: DateRange) {
-  const [sliReads, queue, deadLetters, clientErrors] = await Promise.all([
+  const [sliReads, clientErrors] = await Promise.all([
     loadSliReads(range),
-    getEsiRefreshQueueStatsShared(),
-    loadSection('sli-details.dead-letters', () => listDeadLetteredJobs(DEAD_LETTER_PREVIEW)),
     loadSection('sli-details.esi-4xx', () => getEsiClientErrorsShared(range)),
   ]);
   return {
-    rows: deriveServiceLevels(deriveSliSignals(sliReads), summarizeQueue(queue, range.to)),
-    details: serviceLevelDetails(range, { ...sliReads, queue, deadLetters, clientErrors }),
+    rows: deriveServiceLevels(deriveSliSignals(sliReads)),
+    details: serviceLevelDetails(range, { ...sliReads, clientErrors }),
   };
 }
 
 function serviceLevelDetails(
   range: DateRange,
-  reads: SliReads & {
-    queue: EsiRefreshQueueStat[];
-    deadLetters: Loaded<DeadLetterRow[]>;
-    clientErrors: Loaded<EsiClientErrorGroup[]>;
-  },
+  reads: SliReads & { clientErrors: Loaded<EsiClientErrorGroup[]> },
 ): ServiceLevelDetails {
   return {
-    now: range.to,
     read: mapLoaded(reads.outcomes, (stats) => ({ range, ...capabilityFailureDetail(stats, 'read', range) })),
     mutation: mapLoaded(reads.outcomes, (stats) => ({ range, ...capabilityFailureDetail(stats, 'mutation', range) })),
     slowest: mapLoaded(reads.latency, (latency) => latency.slowest),
     esi: mapLoaded(reads.outcomes, (stats) => esiFailureGroups(stats, range)),
     esiClientErrors: mapLoaded(reads.clientErrors, esiClientErrors),
-    queue: reads.queue,
-    deadLetters: reads.deadLetters,
   };
 }
 

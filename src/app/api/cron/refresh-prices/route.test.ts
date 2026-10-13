@@ -10,7 +10,6 @@ const revalidateTagMock = vi.fn();
 const directDatabaseMock = { handle: 'direct-database' };
 
 vi.mock('@/data/market-prices/cache', () => ({
-  PRICES_FRESHNESS_TAG: 'market-prices-freshness',
   refreshStalePrices: (...args: unknown[]) => refreshStalePricesMock(...args),
 }));
 
@@ -105,7 +104,7 @@ describe('GET /api/cron/refresh-prices', () => {
     const { GET } = await import('./route');
     const res = await GET(cronRequest(ROUTE));
     expect(res.status).toBe(200);
-    expect(revalidateTagMock).toHaveBeenCalledWith('market-prices-freshness', 'max');
+    expect(revalidateTagMock).toHaveBeenCalledWith('eve:market_prices', { expire: 0 });
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_prices',
       metadata: expect.objectContaining({

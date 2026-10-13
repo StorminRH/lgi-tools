@@ -382,7 +382,7 @@ Deleting or adding an API route or page means updating these in the same commit:
 
 ### New DB tables must join the schema registries
 
-Several gates compare the reflected Drizzle schema (reflectedSchemaTables and registryCoverageDiff in src/db/__tests__/support/schema-reflection.ts) against hand-kept registries: the purge registry (src/composition/purge/registry.test.ts), table growth (src/composition/table-growth-registry.test.ts), the ESI dataset registry and the ownership declarations (src/esi-datasets/registry.test.ts and dataset-declarations.test.ts). A new or renamed table fails them until it is declared in each. Also, `_TTL_MS` constants are lint-banned outside the ESI dataset registry; bind a freshness gate from @/lib/esi-datasets/freshness instead.
+Several gates compare the reflected Drizzle schema (reflectedSchemaTables and registryCoverageDiff in src/db/__tests__/support/schema-reflection.ts) against hand-kept registries: the purge registry (src/composition/purge/registry.test.ts), table growth (src/composition/table-growth-registry.test.ts), the ESI dataset registry and the ownership declarations (src/esi-datasets/registry.test.ts and dataset-declarations.test.ts). A new or renamed table fails them until it is declared in each. Also, `_TTL_MS` constants are lint-banned: CCP's Expires is the only freshness source, kept per declared route by the ESI response store (@/data/esi-store: isDue, storedExpiry, untilExpires).
 
 ### Drizzle no-migration check
 

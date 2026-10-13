@@ -12,7 +12,8 @@ import {
 import { floatSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { getEsiHealth } from '@/composition/esi-health';
-import { getIngestedSdeBuild, getNavServerStatus } from '@/data/eve-status/queries';
+import { getServerStatusOnView } from '@/data/eve-status/on-view';
+import { getIngestedSdeBuild } from '@/data/eve-status/queries';
 import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
@@ -23,7 +24,7 @@ async function NavEveStatusPanel({ status }: { status: ServerStatusValue }) {
 
 async function NavServerStatus() {
   await connection();
-  const status = await getNavServerStatus();
+  const status = await getServerStatusOnView();
   return (
     <HeldServerStatus>
       <ServerStatus status={status}>

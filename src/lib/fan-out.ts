@@ -1,8 +1,15 @@
+/**
+ * Reads every id and keeps the non-null answers by id. All at once by
+ * default; with `limit`, at most that many reads in flight (an ESI lookup
+ * per id).
+ */
 export async function mapByIdDroppingNulls<T>(
   ids: readonly number[],
   getter: (id: number) => Promise<T | null>,
+  limit?: number,
 ): Promise<Map<number, T>> {
-  const entries = await Promise.all(ids.map(async (id) => [id, await getter(id)] as const));
+  const read = async (id: number) => [id, await getter(id)] as const;
+  const entries = limit === undefined ? await Promise.all(ids.map(read)) : await mapConcurrent(ids, limit, read);
   const map = new Map<number, T>();
   for (const [id, value] of entries) {
     if (value !== null) map.set(id, value);

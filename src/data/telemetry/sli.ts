@@ -4,8 +4,7 @@ export type SliId =
   | 'read_success_rate'
   | 'mutation_success_rate'
   | 'critical_latency_p95'
-  | 'esi_success_rate'
-  | 'job_backlog';
+  | 'esi_success_rate';
 
 export type SliUnit = 'percent' | 'milliseconds' | 'count';
 
@@ -54,15 +53,6 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     owner: 'ccp-upstream',
     responseAction: 'Check upstream errors and limits.',
     unit: 'percent',
-  },
-  {
-    id: 'job_backlog',
-    title: 'Active jobs and exhausted retries',
-    measures:
-      'Active ESI-refresh jobs, plus jobs that exhausted their attempts and were dead-lettered.',
-    owner: 'operator',
-    responseAction: 'Review the refresh queue.',
-    unit: 'count',
   },
 ];
 

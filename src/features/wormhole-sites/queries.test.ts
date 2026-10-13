@@ -31,7 +31,8 @@ vi.mock('@/lib/neon-cold-start-retry', () => ({
   withColdStartRetry: h.withColdStartRetry,
 }));
 
-vi.mock('./live-prices', () => ({
+vi.mock('./live-prices', async () => ({
+  ...(await vi.importActual<typeof import('./live-prices')>('./live-prices')),
   overlayLivePrices: h.overlayLivePrices,
 }));
 
@@ -104,8 +105,12 @@ function combatStats(values: {
   };
 }
 
+const NOW = Date.parse('2026-10-12T12:00:00Z');
+
 beforeEach(() => {
   reset();
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
   h.cacheLife.mockReset();
   h.cacheTag.mockReset();
   h.getCombatStatsBatch.mockReset();
@@ -118,17 +123,21 @@ beforeEach(() => {
 });
 
 describe('listPricedSiteDetails', () => {
-  it('caches the complete price-overlaid catalogue at hourly freshness over the SDE-tagged catalogue', async () => {
-    state.results = [[]];
+  it('caches the price-overlaid catalogue under the prices tag until a price write clears it, over the SDE-tagged catalogue', async () => {
+    const site = siteRow(1);
+    const resource = { id: 501, siteId: 1, orderInSite: 1, resourceKind: 'gas', resourceName: 'A', units: 1, volumeM3: 1, iskPerM3: 1, totalIsk: 1, typeId: 1_001 };
+    state.results = [[site], [], [resource]];
+    h.getCombatStatsBatch.mockResolvedValue(new Map());
 
-    await expect(listPricedSiteDetails()).resolves.toEqual([]);
+    const priced = await listPricedSiteDetails();
 
-    expect(h.overlayLivePrices).toHaveBeenCalledWith([]);
-    expect(h.cacheLife.mock.calls).toEqual([['hours'], ['max']]);
+    expect(priced).toHaveLength(1);
+    expect(h.overlayLivePrices).toHaveBeenCalledWith(priced);
     expect(h.cacheTag.mock.calls).toEqual([
-      ['market-prices-freshness'],
+      ['eve:market_prices'],
       [SDE_CACHE_TAG],
     ]);
+    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
     expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
   });
 });
@@ -150,15 +159,16 @@ describe('getPricedSiteDetail', () => {
     expect(h.overlayLivePrices).toHaveBeenCalledWith([
       { ...site, waves: [], resources: [] },
     ]);
-    expect(h.cacheLife.mock.calls).toEqual([['hours'], ['max']]);
     expect(h.cacheTag.mock.calls).toEqual([
-      ['market-prices-freshness'],
+      ['eve:market_prices'],
       [SDE_CACHE_TAG],
     ]);
+    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
 
     reset();
     h.overlayLivePrices.mockClear();
     h.getCombatStatsBatch.mockClear();
+    h.cacheLife.mockClear();
     state.results = [[]];
 
     await expect(getPricedSiteDetail(10)).resolves.toBeNull();
@@ -166,6 +176,7 @@ describe('getPricedSiteDetail', () => {
     expect(state.calls.select).toBe(1);
     expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
     expect(h.overlayLivePrices).not.toHaveBeenCalled();
+    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
   });
 });
 

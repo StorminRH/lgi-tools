@@ -20,7 +20,7 @@ const REFRESHED = '2026-09-27T11:58:00.000Z';
 const REFRESHED_MS = Date.parse(REFRESHED);
 
 const envelope = <K extends keyof SheetSections>(data: NonNullable<SheetSections[K]>['data']): SectionEnvelope<K> =>
-  ({ data, refreshedAt: REFRESHED, etags: {} }) as SectionEnvelope<K>;
+  ({ data, refreshedAt: REFRESHED }) as SectionEnvelope<K>;
 
 const FULL_SHEET: SheetSections = {
   profile: envelope<'profile'>({ character: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.31 } }),
@@ -195,7 +195,7 @@ describe('assembleBoardCharacter section states', () => {
     const sheet: SheetSections = {
       ...FULL_SHEET,
       wallet: { ...FULL_SHEET.wallet!, denied: true },
-      implants: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
+      implants: { data: null, refreshedAt: REFRESHED, denied: true },
     };
     const character = assembleBoardCharacter(raw({ sheet }), NAMES, NOW);
     expect(character.wallet).toEqual({ state: 'reconnect' });
@@ -404,8 +404,8 @@ describe('net worth valuation', () => {
   it('counts a synced empty hangar and adds nothing from denied implants or orders', () => {
     const sheet: SheetSections = {
       ...FULL_SHEET,
-      implants: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
-      orders: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
+      implants: { data: null, refreshedAt: REFRESHED, denied: true },
+      orders: { data: null, refreshedAt: REFRESHED, denied: true },
     };
     expect(pilotOf([raw({ sheet, assets: { rows: [], refreshedAt: REFRESHED_MS } })])).toEqual({
       '9900000001': { netWorth: 3204115882.15 + 36_000_000, liquidIsk: 3204115882.15 },
@@ -441,7 +441,7 @@ describe('assembleBoardCharacter net worth', () => {
     const character = assembleBoardCharacter(raw({ health }), NAMES, NOW);
     expect(character.netWorth).toEqual({ state: 'reconnect' });
     expect(character.gaps).toEqual(['assets']);
-    const denied: SheetSections = { ...FULL_SHEET, wallet: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true } };
+    const denied: SheetSections = { ...FULL_SHEET, wallet: { data: null, refreshedAt: REFRESHED, denied: true } };
     expect(assembleBoardCharacter(raw({ sheet: denied }), NAMES, NOW).netWorth).toEqual({ state: 'reconnect' });
   });
 });

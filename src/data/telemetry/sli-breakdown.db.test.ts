@@ -338,7 +338,7 @@ const OPERATIONS = [
   ['maps', 'create-map'],
   ['planner', 'create-saved-plan'],
   ['cron', 'refresh-prices'],
-  ['sync', 'process-esi-refresh-job'],
+  ['sync', 'leave-location'],
   ['planner', 'not-in-catalogue'],
 ] as const;
 const OUTCOMES = ['succeeded', 'succeeded', 'succeeded', 'validation', 'unexpected', 'conflict', 'rate_limited', 'dependency_unavailable', null, 'not_found', 'succeeded'];
