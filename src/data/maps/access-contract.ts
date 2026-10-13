@@ -9,6 +9,24 @@ export function isMapCreateRole(role: MapRole | null): role is (typeof MAP_CREAT
   return MAP_CREATE_ROLES.some((createRole) => createRole === role);
 }
 
+/**
+ * Maps per claim-revocation request: Next slices a user's maps into batches of
+ * this size and Convex rejects a larger one, keeping each revocation mutation
+ * below Convex's per-mutation read and write limits.
+ */
+export const MAP_CLAIM_PURGE_BATCH = 32;
+
+/**
+ * A claim set is character-scoped when every claim names its characters. An
+ * empty set names none, so it never confirms scoping. Next uses it to require
+ * Convex's confirmation; Convex uses it to decide what it confirms.
+ */
+export function claimsCarryCharacters(
+  claims: readonly { readonly characters?: readonly unknown[] | undefined }[],
+): boolean {
+  return claims.length > 0 && claims.every((claim) => claim.characters !== undefined);
+}
+
 export const MAP_ACCESS_OWNER_TYPES = ['character', 'corporation'] as const;
 export type MapAccessOwnerType = (typeof MAP_ACCESS_OWNER_TYPES)[number];
 

@@ -1,6 +1,5 @@
 import type { ChainPosition } from '../intents';
-import type { PlacementAssigner } from '../placement';
-import type { ChainSnapshot, ConnectionRow } from '../reconciler';
+import type { ChainSnapshot, ChainState, ConnectionRow } from '../reconciler';
 
 const SLOT_COLUMNS = 6;
 const SLOT_WIDTH = 220;
@@ -43,25 +42,35 @@ function slotOfPosition(position: ChainPosition): number | null {
 }
 
 /**
- * Keeps every placed system where it is and puts each unplaced one in the
- * next grid slot that no placed system already holds.
+ * Grid positions for a merge of `snapshot` into `previous`. Retained systems
+ * keep their positions and hold their slots: every previous system the
+ * snapshot still lists, or all of them while the systems collection is
+ * incomplete (the reconciler's present-systems rule). Each arrival, in
+ * snapshot row order, takes the next free slot. `overrides` replaces entries
+ * last, so a test can propose a move.
  */
-export const sequentialTestAssigner: PlacementAssigner = ({ systems }) => {
-  const proposals = new Map<number, ChainPosition>();
+export function sequentialPositions(
+  previous: ChainState,
+  snapshot: ChainSnapshot,
+  overrides: ReadonlyMap<number, ChainPosition> = new Map(),
+): Map<number, ChainPosition> {
+  const incoming = new Set(snapshot.systems.rows.map((row) => row.systemId));
+  const positions = new Map<number, ChainPosition>();
   const occupied = new Set<number>();
-  for (const candidate of systems) {
-    const slot = candidate.position === null ? null : slotOfPosition(candidate.position);
+  for (const placed of previous.systems.values()) {
+    if (!incoming.has(placed.systemId) && snapshot.systems.complete) continue;
+    positions.set(placed.systemId, placed.position);
+    const slot = slotOfPosition(placed.position);
     if (slot !== null) occupied.add(slot);
   }
+  const retained = new Set(positions.keys());
   let nextSlot = 0;
-  for (const candidate of systems) {
-    if (candidate.position !== null) {
-      proposals.set(candidate.systemId, candidate.position);
-      continue;
-    }
+  for (const { systemId } of snapshot.systems.rows) {
+    if (retained.has(systemId)) continue;
     while (occupied.has(nextSlot)) nextSlot += 1;
     occupied.add(nextSlot);
-    proposals.set(candidate.systemId, positionOfSlot(nextSlot));
+    positions.set(systemId, positionOfSlot(nextSlot));
   }
-  return proposals;
-};
+  for (const [systemId, position] of overrides) positions.set(systemId, position);
+  return positions;
+}

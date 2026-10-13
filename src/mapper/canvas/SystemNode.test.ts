@@ -158,6 +158,11 @@ test('the header keeps the plain name while the disc owns the colored classifica
         dragging: false,
       } as unknown as NodeProps<ChainNode>),
     );
+  // The classes on the node's name span, from either header branch.
+  const nameClasses = (markup: string, name: string) =>
+    new RegExp(`<span data-chain-node-name="true" class="([^"]*)">${name}</span>`)
+      .exec(markup)?.[1]
+      ?.split(' ');
 
   const jspaceNode = nodeMarkup({
     name: 'J123456',
@@ -168,6 +173,7 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(jspaceNode).toContain('>J123456<');
   expect(jspaceNode).toContain('>C4<');
   expect(jspaceNode).toContain('text-wh-c4');
+  expect(nameClasses(jspaceNode, 'J123456')).toContain('text-name');
 
   const kspaceNode = nodeMarkup({
     name: 'Jita',
@@ -178,6 +184,7 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(kspaceNode).toContain('>Jita<');
   expect(kspaceNode).toContain('>0.9<');
   expect(kspaceNode).toContain('text-sec-09');
+  expect(nameClasses(kspaceNode, 'Jita')).toContain('text-name');
 
   const halo = nodeMarkup({
     name: 'Perimeter',

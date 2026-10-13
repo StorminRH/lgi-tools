@@ -1,6 +1,7 @@
 import type { BoardCharacter, PlaceRef } from '@/composition/board/api-contract';
 import { EntityRow } from '@/components/ui/row';
 import { SectionPanel } from '@/components/ui/section-panel';
+import { eyebrow } from '@/components/ui/type-roles';
 import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
 import { placeName } from '../board-view-model';
@@ -20,7 +21,7 @@ export function ClonesSection({
         {(clones) => (
           <div className="pb-1">
             <div className="flex flex-col gap-0.5 px-3.5 py-2.5">
-              <span className="text-micro uppercase tracking-wide text-muted">Home station</span>
+              <span className={eyebrow({ font: 'inherit', size: 'micro', weight: 'inherit' })}>Home station</span>
               {clones.home !== null ? <Place place={clones.home} /> : <span className="text-ui text-faint">Not set</span>}
               <span className="font-data text-micro text-muted">
                 Last clone jump {clones.lastJumpDate !== null ? formatUtcDate(clones.lastJumpDate) : 'never'}

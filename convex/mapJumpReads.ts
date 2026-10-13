@@ -1,4 +1,3 @@
-import { ConvexError } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import { namedDoorType } from '@/data/maps/connection-door-types';
@@ -10,8 +9,9 @@ import {
   type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
+import { takeIndexedOrThrow, uniqueByUserCharacter } from './lib/indexedQuery';
 import { readOriginConnections } from './lib/mapConnectionLookup';
-import { findSystem } from './lib/mapSystemLookup';
+import { findLiveSystem } from './lib/mapSystemLookup';
 
 const JUMP_TRACKING_SCAN_CAP = 256;
 export const JUMP_CONNECTION_SCAN_CAP = 64;
@@ -36,26 +36,21 @@ export async function readTrackedLocation(
   mapId: string,
   characterId: number,
 ): Promise<TrackedLocation | null> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_character', (q) =>
-      q.eq('mapId', mapId).eq('characterId', characterId),
-    )
-    .take(JUMP_TRACKING_SCAN_CAP + 1);
-  if (rows.length > JUMP_TRACKING_SCAN_CAP) {
-    throw new ConvexError({
+  const rows = await takeIndexedOrThrow(
+    ctx.db
+      .query('mapTracking')
+      .withIndex('by_map_character', (q) =>
+        q.eq('mapId', mapId).eq('characterId', characterId),
+      ),
+    JUMP_TRACKING_SCAN_CAP,
+    {
       code: 'MAP_TOO_LARGE',
       detail: `Map ${mapId} exceeds the jump-tracking read bound.`,
-    });
-  }
+    },
+  );
   const joined: TrackedLocation[] = [];
   for (const tracking of rows) {
-    const location = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', tracking.userId).eq('characterId', characterId),
-      )
-      .unique();
+    const location = await uniqueByUserCharacter(ctx, 'characterLocation', tracking.userId, characterId);
     if (location !== null) joined.push({ tracking, location });
   }
   if (joined.length !== 1) return null;
@@ -92,8 +87,7 @@ export async function hasAwaitingReturn(
   fromSystemId: number,
   toSystemId: number,
 ): Promise<boolean> {
-  const destination = await findSystem(ctx, mapId, toSystemId);
-  if (destination === null || isTombstoned(destination)) return false;
+  if ((await findLiveSystem(ctx, mapId, toSystemId)) === null) return false;
   const rows = await readConnectionsFrom(ctx, mapId, toSystemId, 'pair');
   return rows.some((row) =>
     !isTombstoned(row)

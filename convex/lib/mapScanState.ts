@@ -19,7 +19,6 @@ import {
   takeIndexedOrThrow,
 } from './indexedQuery';
 import { readTouchingConnections } from './mapConnectionLookup';
-import { findSystem, requireSystemId } from './mapSystemLookup';
 
 export const MAP_SCAN_ROW_LIMIT = 256;
 
@@ -72,18 +71,6 @@ export function requireBoundedSignatureIds(signatureIds: readonly string[]): str
     throw new ConvexError({ code: 'INVALID_SIGNATURE_ID' });
   }
   return normalized;
-}
-
-export async function requireLiveSystem(
-  ctx: MutationCtx,
-  mapId: string,
-  systemId: number,
-): Promise<void> {
-  requireSystemId(systemId);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
-    throw new ConvexError({ code: 'UNKNOWN_SYSTEM' });
-  }
 }
 
 async function readBoundedSignatureRows<T>(

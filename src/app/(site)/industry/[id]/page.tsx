@@ -14,9 +14,11 @@ import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPl
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import {
+  getBlueprintAdjustedPrices,
   getBlueprintPricing,
   getBlueprintStructure,
 } from '@/features/industry-planner/queries';
+import { readOr } from '../../read-or';
 
 export async function generateMetadata({
   params,
@@ -43,15 +45,18 @@ async function PlannerOpenMetrics({
   id,
   pricing,
   history,
+  adjustedPrices,
 }: {
   id: number;
   pricing: Promise<unknown>;
   history: Promise<unknown>;
+  adjustedPrices: Promise<unknown>;
 }) {
   await connection();
   const timer = startCostTimer();
   observeCostPromise(pricing, 'planner_open_timing', { stage: 'pricing', blueprintId: id }, timer);
   observeCostPromise(history, 'planner_open_timing', { stage: 'history', blueprintId: id }, timer);
+  observeCostPromise(adjustedPrices, 'planner_open_timing', { stage: 'adjusted-prices', blueprintId: id }, timer);
   return null;
 }
 
@@ -62,6 +67,14 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
   const pricingPromise = getBlueprintPricing(id);
   const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
+  const adjustedPricesRead = getBlueprintAdjustedPrices(id);
+  // The planner reads this through use(), where a rejection would reach an error
+  // boundary; a failed read leaves the fees unpriced instead, and is not cached.
+  const adjustedPricesPromise = readOr(
+    '[industry-planner] adjusted prices unavailable; fees unpriced',
+    () => adjustedPricesRead,
+    [],
+  );
   const breadcrumbJsonLd = buildBreadcrumbList([
     { name: 'Industry Planner', path: '/industry' },
     { name: structure.product.name, path: `/industry/${id}` },
@@ -71,7 +84,12 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     <div className="w-full">
       <JsonLd data={breadcrumbJsonLd} />
       <Suspense fallback={null}>
-        <PlannerOpenMetrics id={id} pricing={pricingPromise} history={historyPromise} />
+        <PlannerOpenMetrics
+          id={id}
+          pricing={pricingPromise}
+          history={historyPromise}
+          adjustedPrices={adjustedPricesRead}
+        />
       </Suspense>
       <RememberPlanner blueprintTypeId={id} />
       <RecordRecentBlueprint typeId={id} productTypeId={structure.product.typeId} name={structure.product.name} />
@@ -81,6 +99,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         structure={structure}
         pricingPromise={pricingPromise}
         historyPromise={historyPromise}
+        adjustedPricesPromise={adjustedPricesPromise}
       >
         <CockpitPlanner structure={structure} />
       </PricingProvider>

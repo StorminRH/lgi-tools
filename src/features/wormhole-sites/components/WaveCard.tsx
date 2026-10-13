@@ -1,5 +1,7 @@
 import { Collapsible } from '@/components/ui/collapsible';
+import { eyebrow } from '@/components/ui/type-roles';
 import { formatQuantity } from '@/lib/format/number';
+import { waveEwarCounts } from '../ewar';
 import type { Wave } from '../types';
 import { EwarRow } from './EwarRow';
 import { NpcRow } from './NpcRow';
@@ -22,7 +24,15 @@ export function WaveCard({
       headerClassName="bg-bg-deep/60 border-t border-border border-b border-border py-[10px]"
       header={
         <>
-          <span className="text-label font-bold tracking-eyebrow uppercase text-text shrink-0">
+          <span
+            className={eyebrow({
+              font: 'inherit',
+              tone: 'inherit',
+              weight: 'bold',
+              emphasis: 'strong',
+              className: 'text-text shrink-0',
+            })}
+          >
             {displayLabel}
           </span>
           <span className="ml-auto text-micro font-semibold tracking-label text-text">
@@ -31,14 +41,7 @@ export function WaveCard({
         </>
       }
     >
-      {showEwar && (
-        <EwarRow
-          web={wave.ewWeb}
-          scram={wave.ewScram}
-          neut={wave.ewNeut}
-          rr={wave.ewRrep}
-        />
-      )}
+      {showEwar && <EwarRow counts={waveEwarCounts(wave)} />}
       <div className="grid grid-cols-[44px_var(--npc-name-col,minmax(0,auto))_auto_1fr] px-3.5">
         {wave.npcs.map((npc) => (
           <NpcRow key={npc.id} npc={npc} />

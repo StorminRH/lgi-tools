@@ -1,8 +1,10 @@
 'use client';
 
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { scrollArea } from '@/components/ui/scroll-area';
+import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 
 export interface ScannerComboGroup {
   readonly label: string;
@@ -13,7 +15,7 @@ export interface ScannerComboGroup {
   }[];
 }
 
-export function consumeScannerEnter(event: KeyboardEvent<HTMLElement>): boolean {
+function consumeScannerEnter(event: KeyboardEvent<HTMLElement>): boolean {
   if (event.key !== 'Enter') return false;
   event.preventDefault();
   event.stopPropagation();
@@ -21,7 +23,7 @@ export function consumeScannerEnter(event: KeyboardEvent<HTMLElement>): boolean 
   return true;
 }
 
-export function ScannerComboPanel({
+function ScannerComboPanel({
   groups,
   itemValues,
   showLabels,
@@ -72,5 +74,81 @@ export function ScannerComboPanel({
         </p>
       ) : null}
     </Combobox.Panel>
+  );
+}
+
+/**
+ * A scanner row's search field over grouped picks. The caller owns the typed
+ * query, so a remount key at the call site still resets it. A pressed item
+ * commits its value and never reaches the query; Enter commits the typed text.
+ * Browsing shows the group labels and the footer. An `aside` (null included)
+ * puts the field in a row with it; without one the field stands alone.
+ */
+export function ScannerCombo({
+  query,
+  onQueryChange,
+  groups,
+  browsing,
+  browseFooter,
+  ariaLabel,
+  fieldClassName,
+  onCommitValue,
+  onCommitQuery,
+  aside,
+}: {
+  readonly query: string;
+  readonly onQueryChange: (query: string) => void;
+  readonly groups: readonly ScannerComboGroup[];
+  readonly browsing: boolean;
+  readonly browseFooter: string;
+  readonly ariaLabel: string;
+  readonly fieldClassName: string;
+  readonly onCommitValue: (value: string) => void;
+  readonly onCommitQuery: (query: string) => void;
+  readonly aside?: ReactNode;
+}) {
+  const popup = useCloseOnScannerScroll();
+  const items = groups.flatMap((group) => group.items.map((item) => item.value));
+  const field = (
+    <Combobox.Field
+      size="sm"
+      placeholder="Unresolved"
+      aria-label={ariaLabel}
+      className={fieldClassName}
+      onKeyDown={(event) => {
+        if (consumeScannerEnter(event)) onCommitQuery(query);
+      }}
+    />
+  );
+  return (
+    <Combobox.Root
+      open={popup.open}
+      onOpenChange={popup.onOpenChange}
+      value={query}
+      onValueChange={(next, details) =>
+        pickOrType(next, details, {
+          onType: onQueryChange,
+          onPick: onCommitValue,
+        })
+      }
+      items={items}
+      filter={null}
+      openOnInputClick
+    >
+      {aside === undefined ? (
+        field
+      ) : (
+        <div className="flex w-full min-w-0 max-w-full items-center gap-1">
+          {field}
+          {aside}
+        </div>
+      )}
+      <ScannerComboPanel
+        groups={groups}
+        itemValues={items}
+        showLabels={browsing}
+        footer={browsing ? browseFooter : null}
+      />
+    </Combobox.Root>
   );
 }

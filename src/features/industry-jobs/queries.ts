@@ -1,9 +1,12 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
+import { datasetTag, forgetStored, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
-import { expireNow } from '@/lib/cache-expiry';
+import { excludedSet, proposedRowsWhere } from '@/lib/db-upsert';
+import type { OwnerWrite } from '@/platform/owner-sync';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryJob } from './esi-projection';
+import { characterJobsKey, corpJobsKey } from './keys';
 import {
   characterIndustryJobs,
   characterIndustryJobSyncs,
@@ -12,15 +15,14 @@ import {
 } from './schema';
 import type { CharacterJobsData, CharacterJobsSyncState, CorpJobsSyncState } from './types';
 
-export function industryJobsTag(characterId: number): string {
-  return `industry-jobs:${characterId}`;
-}
-
+/** One character's jobs feed, cached across instances until its stored answer expires. */
 async function getCharacterJobs(characterId: number): Promise<CharacterJobsData | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(industryJobsTag(characterId));
-  return readCharacterJobs(characterId);
+  'use cache: remote';
+  const key = characterJobsKey(characterId);
+  cacheTag(datasetTag(key));
+  const [jobs, expiresAt] = await Promise.all([readCharacterJobs(characterId), storedExpiry([key])]);
+  cacheLife(untilExpires(expiresAt));
+  return jobs;
 }
 
 export async function readCharacterJobs(characterId: number): Promise<CharacterJobsData | null> {
@@ -40,7 +42,6 @@ export async function getJobsForCharacters(
 
 const characterSyncStateColumns = {
   lastRefreshedAt: characterIndustryJobSyncs.lastRefreshedAt,
-  jobsEtag: characterIndustryJobSyncs.jobsEtag,
 };
 
 export async function readCharacterJobSyncState(
@@ -66,24 +67,29 @@ export async function listCharacterJobSyncStates(
   return new Map(rows.map(({ characterId, ...state }) => [characterId, state]));
 }
 
-export async function saveCharacterJobs(
-  characterId: number,
-  jobs: IndustryJob[],
-  etag: string | null,
-): Promise<void> {
+/**
+ * A character's jobs and the ETag beside them, as statements the refresh's
+ * commit sends with its answers: each row is proposed only where those
+ * answers stand, so an older answer writes neither.
+ */
+export function saveCharacterJobs(characterId: number, jobs: IndustryJob[], etag: string | null): OwnerWrite {
   const now = new Date();
-  await db
-    .insert(characterIndustryJobs)
-    .values({ characterId, jobs })
-    .onConflictDoUpdate({ target: characterIndustryJobs.characterId, set: { jobs } });
-  await db
-    .insert(characterIndustryJobSyncs)
-    .values({ characterId, lastRefreshedAt: now, jobsEtag: etag })
-    .onConflictDoUpdate({
-      target: characterIndustryJobSyncs.characterId,
-      set: { lastRefreshedAt: now, jobsEtag: etag },
-    });
-  expireNow(industryJobsTag(characterId));
+  return {
+    kind: 'statements',
+    build: (answersStand) => [
+      db
+        .insert(characterIndustryJobs)
+        .select(proposedRowsWhere(characterIndustryJobs, [{ characterId, jobs }], answersStand))
+        .onConflictDoUpdate({ target: characterIndustryJobs.characterId, set: excludedSet(characterIndustryJobs, ['jobs']) }),
+      db
+        .insert(characterIndustryJobSyncs)
+        .select(proposedRowsWhere(characterIndustryJobSyncs, [{ characterId, lastRefreshedAt: now, jobsEtag: etag }], answersStand))
+        .onConflictDoUpdate({
+          target: characterIndustryJobSyncs.characterId,
+          set: excludedSet(characterIndustryJobSyncs, ['lastRefreshedAt', 'jobsEtag']),
+        }),
+    ],
+  };
 }
 
 export async function stampCharacterJobsFresh(characterId: number): Promise<void> {
@@ -93,19 +99,20 @@ export async function stampCharacterJobsFresh(characterId: number): Promise<void
     .where(eq(characterIndustryJobSyncs.characterId, characterId));
 }
 
-function corpIndustryJobsTag(userId: string, corporationId: number): string {
-  return `corp-industry-jobs:${userId}:${corporationId}`;
-}
-
+/** One user's view of a corporation's jobs: held per user, so it is cached and cleared per user too. */
 async function getCorpJobs(userId: string, corporationId: number): Promise<CharacterJobsData | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(corpIndustryJobsTag(userId, corporationId));
-  const rows = await db
-    .select({ jobs: corpIndustryJobs.jobs })
-    .from(corpIndustryJobs)
-    .where(and(eq(corpIndustryJobs.userId, userId), eq(corpIndustryJobs.corporationId, corporationId)))
-    .limit(1);
+  'use cache: remote';
+  const key = corpJobsKey(userId, corporationId);
+  cacheTag(datasetTag(key));
+  const [rows, expiresAt] = await Promise.all([
+    db
+      .select({ jobs: corpIndustryJobs.jobs })
+      .from(corpIndustryJobs)
+      .where(and(eq(corpIndustryJobs.userId, userId), eq(corpIndustryJobs.corporationId, corporationId)))
+      .limit(1),
+    storedExpiry([key]),
+  ]);
+  cacheLife(untilExpires(expiresAt));
   return rows[0] ?? null;
 }
 
@@ -123,7 +130,6 @@ export async function listCorpJobSyncStates(
     .select({
       corporationId: corpIndustryJobSyncs.corporationId,
       lastRefreshedAt: corpIndustryJobSyncs.lastRefreshedAt,
-      jobsEtag: corpIndustryJobSyncs.jobsEtag,
       syncError: corpIndustryJobSyncs.syncError,
     })
     .from(corpIndustryJobSyncs)
@@ -138,7 +144,6 @@ export async function readCorpJobSyncState(
   const rows = await db
     .select({
       lastRefreshedAt: corpIndustryJobSyncs.lastRefreshedAt,
-      jobsEtag: corpIndustryJobSyncs.jobsEtag,
       syncError: corpIndustryJobSyncs.syncError,
     })
     .from(corpIndustryJobSyncs)
@@ -149,35 +154,38 @@ export async function readCorpJobSyncState(
   return rows[0] ?? null;
 }
 
-export async function saveCorpJobs(
-  userId: string,
-  corporationId: number,
-  jobs: IndustryJob[],
-  etag: string | null,
-): Promise<void> {
+/** One user's view of a corporation's jobs, as statements guarded like `saveCharacterJobs`. */
+export function saveCorpJobs(userId: string, corporationId: number, jobs: IndustryJob[], etag: string | null): OwnerWrite {
   const now = new Date();
-  await db
-    .insert(corpIndustryJobs)
-    .values({ userId, corporationId, jobs })
-    .onConflictDoUpdate({
-      target: [corpIndustryJobs.userId, corpIndustryJobs.corporationId],
-      set: { jobs },
-    });
-  await db
-    .insert(corpIndustryJobSyncs)
-    .values({ userId, corporationId, lastRefreshedAt: now, jobsEtag: etag, syncError: null })
-    .onConflictDoUpdate({
-      target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
-      set: { lastRefreshedAt: now, jobsEtag: etag, syncError: null },
-    });
-  expireNow(corpIndustryJobsTag(userId, corporationId));
+  const sync = { userId, corporationId, lastRefreshedAt: now, jobsEtag: etag, syncError: null };
+  return {
+    kind: 'statements',
+    build: (answersStand) => [
+      db
+        .insert(corpIndustryJobs)
+        .select(proposedRowsWhere(corpIndustryJobs, [{ userId, corporationId, jobs }], answersStand))
+        .onConflictDoUpdate({
+          target: [corpIndustryJobs.userId, corpIndustryJobs.corporationId],
+          set: excludedSet(corpIndustryJobs, ['jobs']),
+        }),
+      db
+        .insert(corpIndustryJobSyncs)
+        .select(proposedRowsWhere(corpIndustryJobSyncs, [sync], answersStand))
+        .onConflictDoUpdate({
+          target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
+          set: excludedSet(corpIndustryJobSyncs, ['lastRefreshedAt', 'jobsEtag', 'syncError']),
+        }),
+    ],
+  };
 }
 
+/** Nobody holds the role: the jobs go, and with them the stored answer, so the next read after the role returns is unconditional. */
 export async function saveCorpNeedsRole(userId: string, corporationId: number): Promise<void> {
   const now = new Date();
   await db
     .delete(corpIndustryJobs)
     .where(and(eq(corpIndustryJobs.userId, userId), eq(corpIndustryJobs.corporationId, corporationId)));
+  await forgetStored([corpJobsKey(userId, corporationId)]);
   await db
     .insert(corpIndustryJobSyncs)
     .values({ userId, corporationId, lastRefreshedAt: now, jobsEtag: null, syncError: 'needs_role' })
@@ -185,7 +193,6 @@ export async function saveCorpNeedsRole(userId: string, corporationId: number): 
       target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
       set: { lastRefreshedAt: now, jobsEtag: null, syncError: 'needs_role' },
     });
-  expireNow(corpIndustryJobsTag(userId, corporationId));
 }
 
 export async function stampCorpJobsFresh(userId: string, corporationId: number): Promise<void> {

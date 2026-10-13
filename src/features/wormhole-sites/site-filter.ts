@@ -1,20 +1,14 @@
-import { gasClassRange } from './gas-classes';
+import { siteClassRange, wormholeClassRank } from './site-class';
 import { WORMHOLE_CLASSES } from './site-taxonomy';
 import type { SiteListItem, SiteType, WormholeClass } from './types';
 
 export function siteClassSet(
   site: Pick<SiteListItem, 'wormholeClass' | 'siteType' | 'name'>,
 ): WormholeClass[] {
-  if (site.wormholeClass) return [site.wormholeClass];
-  if (site.siteType === 'gas') {
-    const range = gasClassRange(site.name);
-    if (range) {
-      const min = WORMHOLE_CLASSES.indexOf(range.min);
-      const max = WORMHOLE_CLASSES.indexOf(range.max);
-      if (min !== -1 && max !== -1) return [...WORMHOLE_CLASSES.slice(min, max + 1)];
-    }
-  }
-  return [];
+  const range = siteClassRange(site);
+  return range
+    ? WORMHOLE_CLASSES.slice(wormholeClassRank(range.min), wormholeClassRank(range.max) + 1)
+    : [];
 }
 
 export function matchesClassFilter(clsSet: WormholeClass[], cls: WormholeClass[]): boolean {

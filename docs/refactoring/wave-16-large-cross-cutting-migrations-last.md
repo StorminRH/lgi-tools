@@ -12,16 +12,16 @@ The four items with the widest blast radius or highest risk, landed once everyth
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P219](#p219) | Enforce per-user row caps with one serializable conditional insert in src/db | persistence | M | medium | medium | — |
-| ☐ | [P138](#p138) | Add typed failureCode/failureMessage to src/transport/failure-copy.ts and route outcome-blind apiFetch failure copy through code tables | error-handling | L | medium | high | [P063](wave-12-market-data-search-and-client-data-reads.md#p063), [P054](wave-12-market-data-search-and-client-data-reads.md#p054), [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154), [P146](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p146) |
-| ☐ | [P046](#p046) | Adopt the eyebrow and title type roles and lock them with a census | css-styling | L | medium | medium | [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001), [P015](wave-07-ui-kit-primitives-src-components-ui.md#p015), [P034](wave-07-ui-kit-primitives-src-components-ui.md#p034) |
-| ☐ | [P246](#p246) | Declare each Convex HTTP door contract once, per operation, and type postConvexHttpDoor by it | contracts-validation | L | medium | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P208](wave-14-convex-backend-helpers.md#p208), [P209](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p209) |
+| ☑ | [P219](#p219) | Enforce per-user row caps with one serializable conditional insert in src/db | persistence | M | medium | medium | — |
+| ☑ | [P138](#p138) | Add typed failureCode/failureMessage to src/transport/failure-copy.ts and route outcome-blind apiFetch failure copy through code tables (map copy superseded by promote #694's approved text) | error-handling | L | medium | high | [P063](wave-12-market-data-search-and-client-data-reads.md#p063), [P054](wave-12-market-data-search-and-client-data-reads.md#p054), [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154), [P146](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p146) |
+| ☑ | [P046](#p046) | Adopt the eyebrow and title type roles and lock them with a census | css-styling | L | medium | medium | [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001), [P015](wave-07-ui-kit-primitives-src-components-ui.md#p015), [P034](wave-07-ui-kit-primitives-src-components-ui.md#p034) |
+| ☑ | [P246](#p246) | Declare each Convex HTTP door contract once, per operation, and type postConvexHttpDoor by it | contracts-validation | L | medium | medium | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P208](wave-14-convex-backend-helpers.md#p208), [P209](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p209) |
 
 <a id="p219"></a>
 
 ## P219: Enforce per-user row caps with one serializable conditional insert in src/db
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** About -45 / +60 (helper plus tests; routes lose about 25 lines and the two count helpers go)
 - **Depends on:** —
@@ -99,11 +99,16 @@ createCustomStructure(userId, input): Promise<boolean>    // was Promise<void>
 
 ## P138: Add typed failureCode/failureMessage to src/transport/failure-copy.ts and route outcome-blind apiFetch failure copy through code tables
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** error-handling · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** L · **Risk:** medium · **Payoff:** high · **Size:** about +60 for failure-copy.ts and +80 for its tests; about -40 of status-branch code across the map and feedback clients; about +25 of code-table entries across StructureComposer, CorpRigEditor, corp-sharing, account and profiles; net roughly +40 production
 - **Depends on:** [P063](wave-12-market-data-search-and-client-data-reads.md#p063), [P054](wave-12-market-data-search-and-client-data-reads.md#p054), [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154), [P146](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p146)
 - **Existing primitive:** `src/transport/endpoint.ts:OutcomeOf / ProblemCodec; src/lib/problem.ts:ProblemBody.retryAfterSeconds`
+
+**Merged with promote #694's interface-text pass (2f0b32b2).** The owner approved new Atlas copy while this wave was open, and that copy wins over the strings below. Read steps 2 and 4 and the copy notes as history for the map clients. failureMessage and the code tables are kept; only the text in them changed.
+- Map lifecycle (step 2): delete, restore and purge show the approved DELETE_FAILED, RESTORE_FAILED and PURGE_FAILED retry text for the fallback and for network failures. The per-code entries for map_admin_required, map_restore_unavailable and map_creator_required are dropped. The approved pass removed that blame copy. The lifecycle route also folds every refusal into the action's single 403 code (not yours, window ended, missing, already queued). TrashWindow offers purge only on maps the user created, so its usual 403 comes from an ended window or a purge that is already queued. Copy naming one cause would be wrong. An ended session and a rate limit still get the shared copy.
+- Map creation (step 4): rate_limited keeps the approved fixed text "You're creating maps too fast. Try again in a minute." instead of the shared retryAfterSeconds copy. map_projection_unavailable reads "Couldn't set up map access. Try again.". The fallback and the network override are both the approved "Check your connection and try again.", as development had it for every other failure. The wave's 'The map could not be created.' would have repeated the dialog's approved "Map not created" title. So invalid_body, cross_origin and protocol failures get the connection line again at this one call site. That is an owner copy call if it should change. 401 gets the shared session copy.
+- Every other P138 consumer keeps the shared copy, including the retryAfterSeconds 429 text. The copy note "429 copy now uses retryAfterSeconds instead of 'a minute'" no longer applies to map creation.
 
 **Problem.** Each apiFetch consumer maps the typed failure union to user copy on its own. Some branch on raw status numbers (map-access, map-creation, feedback). Some erase the outcome into local `{ ok: false }` types (StructureComposer's Mutation, account-actions' { kind: 'error' }, profile-sync's ProfilesResult). Some show a single string for every failure (CorpRigEditor, corp-sharing-card). Some ignore the outcome entirely (mapLifecycleFailureMessage). As a result:
 - declared problem codes never reach the user;
@@ -242,11 +247,13 @@ Dead defensive code found: apiFetch never rejects (api-client.ts:36-46 catches b
 
 ## P046: Adopt the eyebrow and title type roles and lock them with a census
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** css-styling · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** L · **Risk:** medium · **Payoff:** medium · **Size:** Roughly neutral in lines (≈60 class strings become ≈60 calls, +25 in type-roles). The payoff is tokenised tracking, fewer roles and a census lock, not line count.
 - **Depends on:** [P001](wave-07-ui-kit-primitives-src-components-ui.md#p001), [P015](wave-07-ui-kit-primitives-src-components-ui.md#p015), [P034](wave-07-ui-kit-primitives-src-components-ui.md#p034)
 - **Existing primitive:** `src/components/ui/type-roles.ts:eyebrow; src/components/ui/page-head.tsx:pageTitle`
+
+**Merged with promote #694's interface-text pass (2f0b32b2).** The owner's Atlas copy pass deleted two of the labels this item migrated: the NoMapAccess label (NoMapAccess.tsx:10) and the MapCreationDialog faint label (MapCreationDialog.tsx:105). Nothing is left to migrate at either site, so 38 of the 40 migrated label sites remain. Every other role call the wave added is still in place.
 
 **Problem.** ui/type-roles.ts exports eyebrow, but about 55 label class strings re-spell it with drifted tracking (tracking-wide 0.12em, tracking-label 0.08em, tracking-eyebrow 0.18em, plus arbitrary tracking-[0.07em], [0.08em] and [0.12em]), font (font-ui, font-data or inherited) and weight (none, semibold or bold, against eyebrow's default medium). Four de facto clusters exist. (A) The data label 'font-data text-label uppercase tracking-label text-muted' appears about 12 times and is also page-head's pageSubtitle compact. (B) 'text-label uppercase tracking-label text-muted' appears about 12 times, 7 of them in the dev-only MapControls. (C) 'text-label uppercase tracking-wide text-muted' is eyebrow minus font-ui and font-medium. (D) Strong tracking-eyebrow labels with semibold or bold. eyebrow can express none of A, B or D, which is why those sites hand-roll. The panel title 'font-display text-h2 font-semibold tracking-copy uppercase text-name' is retyped outside DialogHeader, and its h3 form outside ConfirmDialog. SectionHead copies the unexported pageTitle compact.
 
@@ -348,7 +355,7 @@ export const panelTitle = cva('font-display tracking-copy uppercase text-name', 
 
 ## P246: Declare each Convex HTTP door contract once, per operation, and type postConvexHttpDoor by it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** L · **Risk:** medium · **Payoff:** medium · **Size:** About -200 / +120. Six error classes go from 6 lines each to 1. The hand-written jump input types (~40 lines), TrackingSelection and TrackingReceiptCandidate, three Convex purge/leave schemas, and duplicate response schemas move into per-owner door modules.
 - **Depends on:** [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P208](wave-14-convex-backend-helpers.md#p208), [P209](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p209)

@@ -4,15 +4,17 @@ import { createRedisScoreboard } from './redis';
 import type { EsiAvailabilitySnapshot, EsiBudgetSnapshot, EsiScoreboard } from './types';
 
 export {
-  BODY_CACHE_MAX_BYTES,
+  GROUP_FLOOR_SHARE,
+  GROUP_FLOOR_SHARE_INTERACTIVE,
+  HISTORY_CALLS_PER_MINUTE,
   NO_RESPONSE_STATUS,
-  type CachedEtagMeta,
   type EsiBudgetSnapshot,
   type EsiReport,
   type EsiScoreboard,
+  type GroupBudget,
   type PreDispatchState,
 } from './types';
-export { normalizeEsiPath, resolveRetryAfter } from './keys';
+export { isHistoryPath, normalizeEsiPath, resolveRetryAfter } from './keys';
 
 const redisScoreboards = new Map<string, EsiScoreboard>();
 let memoryScoreboard: EsiScoreboard | null = null;

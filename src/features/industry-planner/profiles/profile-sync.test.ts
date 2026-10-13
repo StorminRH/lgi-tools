@@ -1,8 +1,21 @@
 import { expect, test, vi } from 'vitest';
 import type { IndustryProfileRow } from './api-contract';
 import { emptyProfileDocument } from './profile-document';
-import { createProfileSync, type ProfileSyncState, type ProfilesResult } from './profile-sync';
-import { copyName, createFailureMessage, saveFailureMessage, suggestProfileName } from './profile-view';
+import { apiProblem, networkDown, protocolFailure } from '@/transport/__tests__/failed-outcomes';
+import {
+  createProfileSync,
+  type ProfileSyncState,
+  type ProfilesResult,
+  type ProfileUpdateResult,
+} from './profile-sync';
+import {
+  copyName,
+  createFailureMessage,
+  deleteFailureMessage,
+  duplicateFailureMessage,
+  saveFailureMessage,
+  suggestProfileName,
+} from './profile-view';
 
 const row = (revision: number, name = 'Capitals'): IndustryProfileRow => ({
   id: 'p1',
@@ -23,7 +36,7 @@ function deferred<T>() {
 test('quick edits save in order against the revision each save returns', async () => {
   const states: ProfileSyncState[] = [];
   const sent: { expectedRevision: number; name: string }[] = [];
-  const replies = [deferred<ProfilesResult>(), deferred<ProfilesResult>()];
+  const replies = [deferred<ProfileUpdateResult>(), deferred<ProfileUpdateResult>()];
   const sync = createProfileSync({
     list: async () => ({ ok: true, data: { profiles: [row(1)] } }),
     update: (body) => {
@@ -65,7 +78,7 @@ test('a refused save drops the edit, says why and reloads the server copy', asyn
       listed += 1;
       return { ok: true, data: { profiles: [row(listed === 1 ? 1 : 5, 'Renamed elsewhere')] } };
     },
-    update: async () => ({ ok: false, error: { code: 'stale_revision' } }),
+    update: async () => (apiProblem(409, 'stale_revision')),
     publish: (state) => states.push(state),
     notify: (message) => notices.push(message),
   });
@@ -78,23 +91,44 @@ test('a refused save drops the edit, says why and reloads the server copy', asyn
   expect(states.at(-1)?.profiles).toEqual([row(5, 'Renamed elsewhere')]);
 });
 
-test.each([
-  ['profile_missing', 'This profile was deleted somewhere else.'],
-  ['not_linked', 'A character on this profile is no longer linked to your account.'],
+test('a refused save says why, and any other failure shows the last saved version', () => {
+  expect(saveFailureMessage(apiProblem(409, 'stale_revision'))).toBe(
+    'This profile changed somewhere else. Showing the latest version.',
+  );
+  expect(saveFailureMessage(apiProblem(404, 'profile_missing'))).toBe('This profile was deleted somewhere else.');
+  expect(saveFailureMessage(apiProblem(400, 'not_linked'))).toBe(
+    'A character on this profile is no longer linked to your account.',
+  );
   // A body the server would not take, such as one over a limit, does not blame a character.
-  ['invalid_body', "Couldn't save the profile. Showing the last saved version."],
-  [undefined, "Couldn't save the profile. Showing the last saved version."],
-])('a save refused for %s says so', (reason, message) => {
-  expect(saveFailureMessage(reason)).toBe(message);
+  expect(saveFailureMessage(apiProblem(400, 'invalid_body'))).toBe(
+    "Couldn't save the profile. Showing the last saved version.",
+  );
+  expect(saveFailureMessage(protocolFailure())).toBe("Couldn't save the profile. Showing the last saved version.");
+  expect(saveFailureMessage(networkDown())).toBe(
+    "Couldn't save the profile. Check your connection and try again.",
+  );
 });
 
-test.each([
-  ['profile_limit', 'You have reached the profile limit. Delete one to make room.'],
-  ['not_linked', 'A character on this profile is no longer linked to your account.'],
-  ['invalid_body', "Couldn't create the profile."],
-  [undefined, "Couldn't create the profile."],
-])('a create refused for %s says so', (reason, message) => {
-  expect(createFailureMessage(reason)).toBe(message);
+test('a refused create, duplicate or delete says why, and a dropped call takes the plain copy', () => {
+  expect(createFailureMessage(apiProblem(409, 'profile_limit'))).toBe(
+    'You have reached the profile limit. Delete one to make room.',
+  );
+  expect(createFailureMessage(apiProblem(400, 'not_linked'))).toBe(
+    'A character on this profile is no longer linked to your account.',
+  );
+  expect(createFailureMessage(apiProblem(400, 'invalid_body'))).toBe("Couldn't create the profile.");
+  expect(createFailureMessage(null)).toBe("Couldn't create the profile.");
+
+  // Duplicating a profile deleted in another tab says so, not that the create failed.
+  expect(duplicateFailureMessage(apiProblem(404, 'profile_missing'))).toBe('This profile was deleted somewhere else.');
+  expect(duplicateFailureMessage(apiProblem(409, 'profile_limit'))).toBe(
+    'You have reached the profile limit. Delete one to make room.',
+  );
+  expect(duplicateFailureMessage(null)).toBe("Couldn't duplicate the profile.");
+
+  expect(deleteFailureMessage(apiProblem(401, 'unauthenticated'))).toBe('Your session has ended. Sign in again.');
+  expect(deleteFailureMessage(networkDown())).toBe("Couldn't delete the profile. Check your connection and try again.");
+  expect(deleteFailureMessage(null)).toBe("Couldn't delete the profile.");
 });
 
 test('suggested and copied names skip names already in use', () => {
@@ -118,7 +152,7 @@ test('copied maximum-length names retain a unique suffix within the name limit',
 test('different profiles share request order and keep the latest revision for the next edit', async () => {
   const a = { ...row(1, 'A'), id: 'a' };
   const b = { ...row(1, 'B'), id: 'b' };
-  const replies = [deferred<ProfilesResult>(), deferred<ProfilesResult>(), deferred<ProfilesResult>()];
+  const replies = [deferred<ProfileUpdateResult>(), deferred<ProfileUpdateResult>(), deferred<ProfileUpdateResult>()];
   const sent: { id: string; expectedRevision: number; name: string }[] = [];
   const states: ProfileSyncState[] = [];
   const sync = createProfileSync({
@@ -154,7 +188,7 @@ test('different profiles share request order and keep the latest revision for th
 
 test('refresh requested during a save reads after that save completes', async () => {
   let serverRow = row(1);
-  const reply = deferred<ProfilesResult>();
+  const reply = deferred<ProfileUpdateResult>();
   const list = vi.fn(async (): Promise<ProfilesResult> => ({ ok: true, data: { profiles: [serverRow] } }));
   const update = vi.fn(() => reply.promise);
   const states: ProfileSyncState[] = [];
@@ -176,7 +210,7 @@ test('a queued edit keeps its original revision when another profile response re
   const b = { ...row(1, 'B'), id: 'b' };
   const externalA = { ...a, name: 'A changed in another tab', revision: 2 };
   const savedB = { ...b, name: 'B saved', revision: 2 };
-  const reply = deferred<ProfilesResult>();
+  const reply = deferred<ProfileUpdateResult>();
   const sent: { id: string; expectedRevision: number }[] = [];
   const notices: string[] = [];
   const states: ProfileSyncState[] = [];
@@ -186,7 +220,7 @@ test('a queued edit keeps its original revision when another profile response re
     update: (body) => {
       sent.push(body);
       if (body.id === 'b') return reply.promise;
-      return Promise.resolve({ ok: false, error: { code: 'stale_revision' } });
+      return Promise.resolve(apiProblem(409, 'stale_revision'));
     },
     publish: (s) => states.push(s),
     notify: (message) => notices.push(message),
@@ -217,7 +251,7 @@ test('a refresh cannot advance the revision underlying an optimistic edit', asyn
     },
     update: async (body) => {
       sent.push(body.expectedRevision);
-      return { ok: false, error: { code: 'stale_revision' } };
+      return apiProblem(409, 'stale_revision');
     },
     publish: (s) => states.push(s),
     notify: (message) => notices.push(message),
@@ -234,7 +268,7 @@ test('a refresh cannot advance the revision underlying an optimistic edit', asyn
 
 test('duplication follows an edit queued during an active save and preserves its created id', async () => {
   let serverRow = row(1);
-  const first = deferred<ProfilesResult>();
+  const first = deferred<ProfileUpdateResult>();
   const events: string[] = [];
   const states: ProfileSyncState[] = [];
   const sync = createProfileSync({
@@ -267,7 +301,7 @@ test('duplication follows an edit queued during an active save and preserves its
 
 test('deletion waits for an active save and discards edits queued behind the delete', async () => {
   let serverRows = [row(1)];
-  const reply = deferred<ProfilesResult>();
+  const reply = deferred<ProfileUpdateResult>();
   const update = vi.fn(() => reply.promise);
   const remove = vi.fn(async (): Promise<ProfilesResult> => {
     serverRows = [];
@@ -321,7 +355,7 @@ test('a failed delete leaves a queued edit intact and the queue continues after 
 });
 
 test('an own save advances queued edits by one revision even when its list includes a later external write', async () => {
-  const reply = deferred<ProfilesResult>();
+  const reply = deferred<ProfileUpdateResult>();
   const sent: number[] = [];
   const notices: string[] = [];
   const states: ProfileSyncState[] = [];
@@ -330,7 +364,7 @@ test('an own save advances queued edits by one revision even when its list inclu
     list: async () => ({ ok: true, data: { profiles: [serverRow] } }),
     update: (body) => {
       sent.push(body.expectedRevision);
-      return sent.length === 1 ? reply.promise : Promise.resolve({ ok: false, error: { code: 'stale_revision' } });
+      return sent.length === 1 ? reply.promise : Promise.resolve(apiProblem(409, 'stale_revision'));
     },
     publish: (s) => states.push(s),
     notify: (message) => notices.push(message),
@@ -352,7 +386,7 @@ test('retrying a failed list loads again rather than showing the old failure', a
   let calls = 0;
   const sync = createProfileSync({
     list: () => (++calls === 1 ? Promise.resolve({ ok: false }) : reply.promise),
-    update: async () => ({ ok: false }),
+    update: async () => networkDown(),
     publish: (s) => states.push(s),
     notify: () => undefined,
   });
@@ -367,7 +401,7 @@ test('retrying a failed list loads again rather than showing the old failure', a
 
 test('an identity change discards late saves and cancels queued reads and mutations', async () => {
   let current = true;
-  const reply = deferred<ProfilesResult>();
+  const reply = deferred<ProfileUpdateResult>();
   const list = vi.fn(async (): Promise<ProfilesResult> => ({ ok: true, data: { profiles: [row(1)] } }));
   const update = vi.fn(() => reply.promise);
   const duplicate = vi.fn(async (): Promise<ProfilesResult> => ({ ok: true, data: { profiles: [row(1)] } }));
@@ -383,7 +417,7 @@ test('an identity change discards late saves and cancels queued reads and mutati
   const refresh = sync.refresh();
   const beforeChange = states.length;
   current = false;
-  reply.resolve({ ok: false, error: { code: 'stale_revision' } });
+  reply.resolve(apiProblem(409, 'stale_revision'));
   await rejected;
   await refresh;
   sync.save('p1', { name: 'After change', document: emptyProfileDocument() });
@@ -400,7 +434,7 @@ test('an identity change during a create rejects its late success instead of ret
   const publish = vi.fn();
   const sync = createProfileSync({
     list: async () => ({ ok: false }),
-    update: async () => ({ ok: false }),
+    update: async () => networkDown(),
     publish,
     notify: () => undefined,
     isCurrent: () => current,

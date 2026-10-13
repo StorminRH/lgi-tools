@@ -223,26 +223,14 @@ export function summariseWave(
   let dpsTotal = 0;
   let alphaTotal = 0;
   let ehpTotal = 0;
-  let ewScram = 0;
-  let ewWeb = 0;
-  let ewNeut = 0;
-  let ewRrep = 0;
   for (const { stats, quantity } of npcs) {
     dpsTotal += stats.total.dps * quantity;
     alphaTotal += stats.total.alpha * quantity;
     ehpTotal += stats.hp.ehp * quantity;
-    ewScram += stats.ewar.scram * quantity;
-    ewWeb += stats.ewar.web * quantity;
-    ewNeut += stats.ewar.neutCount * quantity;
-    ewRrep += stats.ewar.rrepCount * quantity;
   }
   return {
     dpsTotal: Math.round(dpsTotal),
     alphaTotal: Math.round(alphaTotal),
     ehpTotal: Math.round(ehpTotal),
-    ewScram,
-    ewWeb,
-    ewNeut,
-    ewRrep,
   };
 }

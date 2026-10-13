@@ -1,7 +1,7 @@
 'use client';
 
 import { resolveSystemLabel, type SystemLabel } from '../chain/labels';
-import { useUniverseAssets } from '../chain/use-universe-assets';
+import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 
 export function useSystemLabel(systemId: number | null): SystemLabel | null {
   const assets = useUniverseAssets();

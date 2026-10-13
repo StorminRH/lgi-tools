@@ -82,6 +82,9 @@ export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 
 export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
 
+/** The Forge, Jita's region, whose market the price and history reads follow. */
+export const THE_FORGE_REGION_ID = 10_000_002;
+
 export const SDE_ENGINEERING_COMPLEX_GROUP_ID = 1404;
 export const SDE_REFINERY_GROUP_ID = 1406;
 export const SDE_CITADEL_GROUP_ID = 1657;

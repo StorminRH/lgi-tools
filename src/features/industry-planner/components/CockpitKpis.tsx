@@ -34,8 +34,6 @@ import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 import { useSettledMargin } from './use-settled-margin';
 
-export type { MarginMode };
-
 function GrossNetToggle({
   showNet,
   netAvailable,
@@ -312,17 +310,9 @@ function TotalJobTile({ buildTimes }: { buildTimes: BuildTimes }) {
 /** A tile that takes the rail's full width, and one column of three in between. */
 const WIDE = 'col-span-2 sm:col-span-1 lg:col-span-2 *:h-full';
 
-export function CockpitKpis({
-  structure,
-  marginMode,
-  setMarginMode,
-}: {
-  structure: BlueprintStructure;
-  marginMode: MarginMode;
-  setMarginMode: (m: MarginMode) => void;
-}) {
+export function CockpitKpis({ structure }: { structure: BlueprintStructure }) {
   const { pricing, seeded, refreshing } = useMarketData();
-  const { runs } = usePlannerConfig();
+  const { runs, marginMode, setMarginMode } = usePlannerConfig();
   const { buildTimes, skillTimeFactors } = useBuildPlan();
   const {
     location,

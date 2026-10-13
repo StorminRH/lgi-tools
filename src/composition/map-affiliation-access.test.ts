@@ -114,6 +114,8 @@ it('bounds concurrent attempts, stops within the run budget, and saves completed
 it('skips queue I/O for unchanged refreshes and delivers newly queued changes', async () => {
   mocks.refreshAffiliationsWithOutcome.mockResolvedValueOnce({ accessChanged: false });
   await refreshAffiliationsAndReconcile([1]);
+  // The character who just signed in waits on this read: the gate's interactive floor.
+  expect(mocks.refreshAffiliationsWithOutcome).toHaveBeenCalledWith([1], { interactive: true });
   expect(mocks.readPendingMapAccessChanges).not.toHaveBeenCalled();
   mocks.refreshAffiliationsWithOutcome.mockResolvedValueOnce({ accessChanged: true });
   await refreshAffiliationsAndReconcile([1]);

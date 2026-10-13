@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  dependencyUnavailableFailure,
-  rateLimitedFailure,
-  validationFailure,
-} from '@/lib/failure';
-import { problemBody, type ProblemBody } from '@/lib/problem';
+import { apiProblem, networkDown, protocolFailure } from '@/transport/__tests__/failed-outcomes';
 import {
   FEEDBACK_NETWORK_ERROR_MESSAGE,
   feedbackErrorMessage,
@@ -30,63 +25,30 @@ describe('feedbackSubmitGate', () => {
 });
 
 describe('feedbackErrorMessage', () => {
-  const problem400 = (
-    code: 'invalid_json' | 'invalid_body' | 'title_empty' | 'message_empty' | 'path_invalid',
-    detail?: string,
-  ) => ({
-    ok: false as const,
-    kind: 'api' as const,
-    status: 400 as const,
-    error: problemBody(validationFailure(code, detail), 'correlation-id') as ProblemBody & {
-      code: typeof code;
-    },
+  it('maps each refusal code to user copy and never shows the server detail', () => {
+    // The server's detail is developer text; the reader sees copy for the code.
+    // The form blocks an empty title or message and sends its own path, so those refusals take the plain line.
+    for (const code of ['title_empty', 'message_empty', 'path_invalid'] as const) {
+      expect(feedbackErrorMessage(apiProblem(400, code, { detail: `${code} detail` }))).toBe(
+        "Couldn't send your feedback. Try again.",
+      );
+    }
+    expect(feedbackErrorMessage(apiProblem(400, 'invalid_body', { detail: 'Too big: expected string to have <=8000 characters' }))).toBe(
+      "Couldn't send your feedback. Try again.",
+    );
+    expect(feedbackErrorMessage(apiProblem(502, 'linear_failed'))).toBe(
+      "Couldn't send your feedback. Try again in a few minutes.",
+    );
+    expect(feedbackErrorMessage(apiProblem(503, 'feedback_unconfigured'))).toBe('Feedback is unavailable right now.');
   });
-  const problem429 = {
-    ok: false as const,
-    kind: 'api' as const,
-    status: 429 as const,
-    error: problemBody(rateLimitedFailure(60), 'correlation-id') as ProblemBody & {
-      code: 'rate_limited';
-    },
-  };
-  const problem502 = {
-    ok: false as const,
-    kind: 'api' as const,
-    status: 502 as const,
-    error: problemBody(
-      dependencyUnavailableFailure('linear_failed', 502),
-      'correlation-id',
-    ) as ProblemBody & { code: 'linear_failed' },
-  };
 
-  it('maps validation, rate-limit, dependency, network, and protocol failures to user copy', () => {
-    expect(
-      feedbackErrorMessage(problem400('invalid_body', 'Message too long.')),
-    ).toBe('Message too long.');
-    expect(feedbackErrorMessage(problem400('invalid_body'))).toBe(
-      'Please check your message and try again.',
+  it('reads the wait from the rate limit and keeps its own network and fallback copy', () => {
+    expect(feedbackErrorMessage(apiProblem(429, 'rate_limited', { retryAfterSeconds: 60 }))).toBe(
+      'Too many attempts. Try again in 60 seconds.',
     );
-    expect(feedbackErrorMessage(problem429)).toBe(
-      'Too much feedback too fast — please wait a minute and try again.',
-    );
-    expect(feedbackErrorMessage(problem502)).toBe(
-      'Something went wrong sending your feedback. Try again.',
-    );
-    expect(
-      feedbackErrorMessage({
-        ok: false,
-        kind: 'network',
-        aborted: false,
-        cause: new TypeError('failed'),
-      }),
-    ).toBe(FEEDBACK_NETWORK_ERROR_MESSAGE);
-    expect(
-      feedbackErrorMessage({
-        ok: false,
-        kind: 'protocol',
-        status: 418,
-        detail: 'undeclared status',
-      }),
-    ).toBe('Something went wrong sending your feedback. Try again.');
+    expect(feedbackErrorMessage(networkDown())).toBe(FEEDBACK_NETWORK_ERROR_MESSAGE);
+    expect(FEEDBACK_NETWORK_ERROR_MESSAGE).toBe("Couldn't send your feedback. Check your connection and try again.");
+    expect(feedbackErrorMessage(apiProblem(403, 'cross_origin'))).toBe("Couldn't send your feedback. Try again.");
+    expect(feedbackErrorMessage(protocolFailure(418))).toBe("Couldn't send your feedback. Try again.");
   });
 });

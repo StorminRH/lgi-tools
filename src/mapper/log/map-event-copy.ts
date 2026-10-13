@@ -15,10 +15,10 @@ function signatureIdCount(event: MapEventRow): number {
 export function mapEventLabel(event: MapEventRow): string {
   switch (event.kind) {
     case 'connection_severed_retained':
-      return 'Severed connection — branch kept';
+      return 'Severed connection';
     case 'branch_removed': {
       const count = systemCount(event);
-      return `Removed ${formatCount(count, 'downstream system')}`;
+      return `Removed branch (${formatCount(count, 'system')})`;
     }
     case 'branch_restored': {
       const count = systemCount(event);

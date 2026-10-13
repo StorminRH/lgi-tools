@@ -1,21 +1,25 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
+import { eyebrow } from '@/components/ui/type-roles';
 import {
   MAX_CHARACTER_SEARCH_LENGTH,
   MIN_CHARACTER_SEARCH_LENGTH,
   searchCharactersEndpoint,
   type SearchCharactersResponse,
 } from '@/data/maps/api-contract';
+import { useSearchAnswer } from '@/platform/search/use-source-search';
 import { apiFetch } from '@/transport/api-client';
 import type { OutcomeOf } from '@/transport/endpoint';
 import {
   accessPrincipalKey,
   characterSearchPopupOpen,
+  characterSearchView,
   type AccessPrincipalOption,
+  type CharacterSearchState,
 } from './access-editor-model';
 
 type CharacterSearchResult = SearchCharactersResponse['results'][number];
@@ -46,18 +50,14 @@ function characterSearchHint({
   readonly searchLength: number;
 }): string {
   if (failed) return 'Character search is temporarily unavailable.';
-  if (mode === 'exact') return 'Exact-name mode — enter the full character name.';
+  if (mode === 'exact') return 'Enter the full character name.';
   if (searchLength > 0 && searchLength < MIN_CHARACTER_SEARCH_LENGTH) {
-    return `Enter at least ${MIN_CHARACTER_SEARCH_LENGTH} characters.`;
+    return `Type at least ${MIN_CHARACTER_SEARCH_LENGTH} letters.`;
   }
-  return 'Search by character name.';
+  return '';
 }
 
-function characterSearchState(outcome: CharacterSearchOutcome): {
-  readonly failed: boolean;
-  readonly mode: SearchCharactersResponse['mode'] | null;
-  readonly results: CharacterSearchResult[];
-} {
+function characterSearchState(outcome: CharacterSearchOutcome): CharacterSearchState {
   if (!outcome.ok) return { failed: true, mode: null, results: [] };
   return {
     failed: false,
@@ -66,73 +66,38 @@ function characterSearchState(outcome: CharacterSearchOutcome): {
   };
 }
 
+/** The search for a normalized query; a query too short to send answers null without a request. */
+async function searchCharacters(
+  search: string,
+  signal: AbortSignal,
+): Promise<CharacterSearchState | null> {
+  if (search.length < MIN_CHARACTER_SEARCH_LENGTH) return null;
+  return characterSearchState(
+    await apiFetch(searchCharactersEndpoint, { body: { search }, cache: 'no-store', signal }),
+  );
+}
+
 function useCharacterSearch(selectedKeys: ReadonlySet<string>) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<CharacterSearchResult[]>([]);
-  const [mode, setMode] = useState<SearchCharactersResponse['mode'] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [popupOpen, setPopupOpen] = useState(false);
+  // The search the popup was last closed on: it stays closed until the search changes or the field asks to open.
+  const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const search = normalizedQuery(query);
-  const latestSearchRef = useRef(search);
+  const answer = useSearchAnswer(search, searchCharacters, SEARCH_DEBOUNCE_MS);
+  const { busy, failed, mode, results } = characterSearchView(search, answer);
 
-  function changeQuery(next: string) {
-    latestSearchRef.current = normalizedQuery(next);
-    setQuery(next);
-    setResults([]);
-    setMode(null);
-    setBusy(false);
-    setFailed(false);
-    setPopupOpen(false);
-  }
-
-  useEffect(() => {
-    if (search.length < MIN_CHARACTER_SEARCH_LENGTH) return;
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      setBusy(true);
-      setFailed(false);
-      void apiFetch(searchCharactersEndpoint, {
-        body: { search },
-        cache: 'no-store',
-        signal: controller.signal,
-      }).then((outcome) => {
-        if (controller.signal.aborted || latestSearchRef.current !== search) return;
-        const next = characterSearchState(outcome);
-        setBusy(false);
-        setFailed(next.failed);
-        setResults(next.results);
-        setMode(next.mode);
-        setPopupOpen(next.results.length > 0);
-      });
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search]);
-
-  const available = useMemo(
-    () =>
-      results.filter(
-        (result) =>
-          !selectedKeys.has(
-            accessPrincipalKey({ ownerType: 'character', ownerId: result.characterId }),
-          ),
-      ),
-    [results, selectedKeys],
+  const available = results.filter(
+    (result) =>
+      !selectedKeys.has(accessPrincipalKey({ ownerType: 'character', ownerId: result.characterId })),
   );
   return {
     available,
     busy,
-    changeQuery,
     hint: characterSearchHint({ failed, mode, searchLength: search.length }),
     hintFailed: failed,
-    open: characterSearchPopupOpen(popupOpen, available.length),
+    open: characterSearchPopupOpen(dismissedFor !== search, available.length),
     query,
-    setPopupOpen,
+    setOpen: (next: boolean) => setDismissedFor(next ? null : search),
+    setQuery,
   };
 }
 
@@ -154,16 +119,8 @@ export function CharacterSearchControl({
     () => new Set(selectedPrincipals.map(accessPrincipalKey)),
     [selectedPrincipals],
   );
-  const {
-    available,
-    busy,
-    changeQuery,
-    hint,
-    hintFailed,
-    open,
-    query,
-    setPopupOpen,
-  } = useCharacterSearch(selectedKeys);
+  const { available, busy, hint, hintFailed, open, query, setOpen, setQuery } =
+    useCharacterSearch(selectedKeys);
   const inputId = useId();
   const hintId = useId();
   // Items are character ids. A pick goes to onSelect and clears the field, so neither the id nor the name lands there.
@@ -171,7 +128,7 @@ export function CharacterSearchControl({
 
   return (
     <div className="flex flex-col gap-1.5" data-map-character-search>
-      <label htmlFor={inputId} className="font-ui text-label tracking-label uppercase text-muted">
+      <label htmlFor={inputId} className={eyebrow({ weight: 'inherit', emphasis: 'label' })}>
         {label}
       </label>
       <Combobox.Root
@@ -180,16 +137,16 @@ export function CharacterSearchControl({
         onValueChange={(next, details) =>
           pickOrType(next, details, {
             lookup: (id) => byId.get(id),
-            onType: changeQuery,
+            onType: setQuery,
             onPick: (result) => {
               onSelect(principalFromCharacter(result));
-              changeQuery('');
+              setQuery('');
             },
           })
         }
         filter={null}
         open={open}
-        onOpenChange={(next) => setPopupOpen(next)}
+        onOpenChange={setOpen}
       >
         <Combobox.Field
           id={inputId}

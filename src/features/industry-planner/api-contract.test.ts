@@ -5,8 +5,6 @@ import {
   availableStructuresResponseSchema,
   availableStructureSchema,
   blueprintIndexEntrySchema,
-  buildLocationRequestSchema,
-  buildLocationResponseSchema,
   skillLevelsRequestSchema,
   type StructureModifier,
 } from './api-contract';
@@ -15,19 +13,11 @@ import type {
   AvailableStructure,
   AvailableStructuresResponse,
   BlueprintIndexEntry,
-  BuildLocationData,
 } from './types';
 
 describe('industry-planner contract', () => {
   it('pins the wire entry to BlueprintIndexEntry exactly (both directions)', () => {
     expectTypeOf<z.infer<typeof blueprintIndexEntrySchema>>().toEqualTypeOf<BlueprintIndexEntry>();
-  });
-
-  it('allows global adjusted prices without accepting an invalid or omitted installation system', () => {
-    expect(buildLocationRequestSchema.safeParse({ blueprintId: 100, systemId: null }).success).toBe(true);
-    for (const systemId of [0, -1, 1.5, 2_147_483_648, undefined]) {
-      expect(buildLocationRequestSchema.safeParse({ blueprintId: 100, systemId }).success).toBe(false);
-    }
   });
 
   it('accepts character ids above int4 for skill levels, since character columns are bigint', () => {
@@ -36,10 +26,6 @@ describe('industry-planner contract', () => {
     for (const characterId of [0, -1, 1.5, 2 ** 53]) {
       expect(skillLevelsRequestSchema.safeParse({ characterId }).success).toBe(false);
     }
-  });
-
-  it('pins the build-location response to BuildLocationData exactly (both directions)', () => {
-    expectTypeOf<z.infer<typeof buildLocationResponseSchema>>().toEqualTypeOf<BuildLocationData>();
   });
 
   it('pins the structure modifier wire shape to ProductionModifier exactly, every kind included', () => {

@@ -40,14 +40,23 @@ export function PortraitToggleGroup({
 export function PortraitToggle({
   value,
   label,
+  reconnect,
   children,
 }: {
   value: string;
   label: string;
+  /** Outlines a tracking portrait whose character must reconnect to sync location. */
+  reconnect?: boolean;
   children: ReactNode;
 }) {
   return (
-    <Toggle value={value} aria-label={label} title={label} className={portraitToggleClass}>
+    <Toggle
+      value={value}
+      aria-label={label}
+      title={label}
+      data-tracking-reconnect={reconnect === true ? 'true' : undefined}
+      className={portraitToggleClass}
+    >
       {children}
     </Toggle>
   );

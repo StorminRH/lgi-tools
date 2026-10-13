@@ -1,23 +1,19 @@
 import type { MutationCtx } from '../_generated/server';
+import { uniqueByUserCharacter, type UserCharacterTable } from './indexedQuery';
 
-type CharacterCacheTable = 'characterLocation' | 'characterLocationOnline' | 'characterLocationAccess';
-
-const CHARACTER_CACHE_TABLES: readonly CharacterCacheTable[] = [
+const CHARACTER_CACHE_TABLES = [
   'characterLocation',
   'characterLocationOnline',
   'characterLocationAccess',
-];
+] as const satisfies readonly UserCharacterTable[];
 
-async function deleteCharacterCache(
+export async function deleteCharacterCache(
   ctx: MutationCtx,
-  table: CharacterCacheTable,
+  table: Exclude<UserCharacterTable, 'characterLocationCovered'>,
   userId: string,
   characterId: number,
 ): Promise<void> {
-  const row = await ctx.db
-    .query(table)
-    .withIndex('by_user_character', (q) => q.eq('userId', userId).eq('characterId', characterId))
-    .unique();
+  const row = await uniqueByUserCharacter(ctx, table, userId, characterId);
   if (row !== null) await ctx.db.delete(table, row._id);
 }
 

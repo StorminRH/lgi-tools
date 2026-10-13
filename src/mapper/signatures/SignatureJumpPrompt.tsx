@@ -1,8 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/components/ui/cn';
-import { mapFrostedSurface } from '../map-frosted-surface';
+import { MapPromptCard } from '../map-prompt-card';
 import {
   jumpCandidateLabel,
   type JumpResolutionCandidate,
@@ -19,23 +18,22 @@ export function SignatureJumpPrompt({
   onPick,
 }: SignatureJumpPromptProps) {
   return (
-    <div
+    <MapPromptCard
       data-signature-jump-prompt
-      className={cn(
-        'flex flex-col gap-2 p-3 text-ui',
-        mapFrostedSurface,
-      )}
+      ariaLabel="Choose the wormhole you took"
+      body={
+        <>
+          You jumped into{' '}
+          <span
+            data-identity-readout
+            className={resolution.destination.tone}
+          >
+            {resolution.destination.label}
+          </span>
+          . Which wormhole did you take?
+        </>
+      }
     >
-      <p className="font-data text-micro text-name">
-        You jumped into{' '}
-        <span
-          data-identity-readout
-          className={resolution.destination.tone}
-        >
-          {resolution.destination.label}
-        </span>{' '}
-        — Which signature did you jump through?
-      </p>
       <div className="flex flex-col gap-1">
         {resolution.candidates.map((candidate) => (
           <Button
@@ -49,6 +47,6 @@ export function SignatureJumpPrompt({
           </Button>
         ))}
       </div>
-    </div>
+    </MapPromptCard>
   );
 }

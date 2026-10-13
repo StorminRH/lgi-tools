@@ -4,7 +4,7 @@ import { emptyProfileDocument } from '../profiles/profile-document';
 import type { PlanFacility, ProfilePlan } from '../profiles/profile-plan';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from '../structure-bonus';
 import type { StructureFactors } from '../structure-factors';
-import type { AvailableStructure, BlueprintStructure, BuildLocationData } from '../types';
+import type { AvailableStructure, BlueprintStructure, SystemJobCostIndex } from '../types';
 import type { SelectedLocation } from './planner-contexts';
 
 const h = vi.hoisted(() => ({
@@ -13,7 +13,8 @@ const h = vi.hoisted(() => ({
   profilesFailed: false,
   refreshProfiles: vi.fn(),
   plan: null as ProfilePlan | null,
-  readLevels: null as ((signal: AbortSignal) => Promise<unknown>) | null,
+  teamLevels: null as { characters: { characterId: number; levels: Record<string, number> | null }[]; refreshing: boolean } | null,
+  planMembers: vi.fn(),
   apiFetch: vi.fn(),
   systemsById: new Map([
     [30002537, { id: 30002537, name: 'Amamake', security: 0.4 }],
@@ -32,14 +33,12 @@ vi.mock('@/lib/retry', async (load) => {
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 vi.mock('../profiles/use-industry-profiles', () => ({ useIndustryProfiles: () => ({ profiles: h.profiles, listFailed: h.profilesFailed, refresh: h.refreshProfiles }) }));
-vi.mock('../use-resource-read', () => ({
-  useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>) => {
-    h.readLevels = read;
-  },
+vi.mock('@/components/use-live-dataset', () => ({
+  useLiveDataset: () => ({ response: h.teamLevels, now: 0, loading: h.teamLevels === null, failed: false, retry: vi.fn() }),
 }));
 vi.mock('../profiles/profile-plan', () => ({
   planFacilities: () => [],
-  planMembers: () => [],
+  planMembers: (...args: unknown[]) => h.planMembers(...args),
   profilePlan: () => h.plan,
 }));
 
@@ -93,10 +92,8 @@ function writers(currentSystemId: number | null = null, failureSystemId: number 
 const built = (activityId: number) =>
   ({ blueprintTypeId: 100, activityId, nodeActivityByBlueprint: {} }) as unknown as BlueprintStructure;
 
-const FEE_DATA: BuildLocationData = {
-  stations: [],
-  costIndices: { manufacturing: 0.04, reaction: 0.06 },
-  adjustedPrices: [{ typeId: 34, adjustedPrice: 10 }],
+const FEE_DATA: { systems: SystemJobCostIndex[] } = {
+  systems: [{ systemId: 30002537, manufacturing: 0.04, reaction: 0.06 }],
 };
 const AVAILABLE = [SOTIYO];
 let pricedLocation: SelectedLocation | null = null;
@@ -133,6 +130,8 @@ beforeEach(() => {
   h.profiles = null;
   h.profilesFailed = false;
   h.plan = null;
+  h.teamLevels = null;
+  h.planMembers.mockReset().mockReturnValue([]);
   rt.unmount();
   h.apiFetch.mockReset();
   pricedLocation = null;
@@ -149,6 +148,7 @@ test('failed profile fees clear the previous system after three attempts and wai
   expect(pricedLocation).toBeNull();
   const failed = renderFees(structure);
   expect(failed.locationPending).toBe(false);
+  expect(failed.locationFailed).toBe(true);
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
   renderFees(structure);
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
@@ -158,14 +158,17 @@ test('failed profile fees clear the previous system after three attempts and wai
   const retrying = renderFees(structure);
   expect(retrying.locationPending).toBe(true);
   expect(retrying.failureSystemId).toBeNull();
+  expect(retrying.locationFailed).toBe(false);
   await vi.waitFor(() => expect(pricedLocation?.systemId).toBe(30002537));
   expect(h.apiFetch).toHaveBeenCalledTimes(4);
-  expect(pricedLocation).toMatchObject({ costIndices: { manufacturing: 0.04 }, adjustedPrices: new Map([[34, 10]]) });
+  expect(pricedLocation).toEqual({
+    systemId: 30002537, systemName: 'Amamake', security: 0.4, costIndices: { manufacturing: 0.04, reaction: 0.06 },
+  });
   expect(renderFees(structure).locationPending).toBe(false);
   expect(h.apiFetch).toHaveBeenCalledTimes(4);
 });
 
-test.each(['profile', 'facility', 'blueprint', 'activity', 'system'] as const)(
+test.each(['profile', 'facility', 'activity', 'system'] as const)(
   'changing %s starts a fresh fee read after the previous selection failed', async (change) => {
     h.profiles = [CAPS];
     h.plan = planAt(facility({ structure: null, systemId: 30002537 }));
@@ -177,7 +180,6 @@ test.each(['profile', 'facility', 'blueprint', 'activity', 'system'] as const)(
     renderFees(structure);
     if (change === 'profile') h.profiles = [{ ...CAPS, id: 'other' }];
     if (change === 'facility') h.plan = planAt(facility({ id: 'another-station', structure: null, systemId: 30002537 }));
-    if (change === 'blueprint') structure = { ...structure, blueprintTypeId: 101 };
     if (change === 'activity') structure = { ...structure, activityId: 8 };
     if (change === 'system') h.plan = planAt(facility({ systemId: 30004759 }));
     renderFees(structure);
@@ -190,7 +192,7 @@ test('a hidden planner aborts its fee read and re-showing its preserved state re
   h.profiles = [CAPS];
   h.plan = planAt(facility({ systemId: 30002537 }));
   const structure = built(MANUFACTURING_ACTIVITY);
-  let release!: (result: { ok: true; data: BuildLocationData }) => void;
+  let release!: (result: { ok: true; data: typeof FEE_DATA }) => void;
   h.apiFetch.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }))
     .mockResolvedValueOnce({ ok: true, data: FEE_DATA });
   renderFees(structure);
@@ -252,6 +254,14 @@ test('a profile prices the product where its facility stands, moving the build t
   );
 });
 
+test("only a failed read of the product's own system marks the build location failed", () => {
+  h.profiles = [CAPS];
+  h.plan = planAt(facility({ systemId: 30002537 }));
+  // Another system's failed read, such as the reaction system's, is not the build's.
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers(null, 30004759)).locationFailed).toBe(false);
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers(null, 30002537)).locationFailed).toBe(true);
+});
+
 test('a structure in the system already in use only swaps the structure', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({}));
@@ -290,12 +300,11 @@ test('a facility with no known system keeps its structure but prices at baseline
   expect(w.applyBuildSystem).not.toHaveBeenCalled();
 });
 
-test('team skills load per character, and a failed read gives none', async () => {
+test('team skills plan per character once the live read lands, and none before', () => {
   h.profiles = [CAPS];
   useProfileFactors(built(MANUFACTURING_ACTIVITY), writers());
-  const signal = new AbortController().signal;
-  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: [{ characterId: 9001, levels: { 3380: 5 } }] } });
-  expect(await h.readLevels!(signal)).toEqual(new Map([[9001, { 3380: 5 }]]));
-  h.apiFetch.mockResolvedValueOnce({ ok: false });
-  expect(await h.readLevels!(signal)).toBeNull();
+  expect(h.planMembers).toHaveBeenLastCalledWith(CAPS.document, new Map());
+  h.teamLevels = { characters: [{ characterId: 9001, levels: { 3380: 5 } }, { characterId: 9002, levels: null }], refreshing: true };
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), writers());
+  expect(h.planMembers).toHaveBeenLastCalledWith(CAPS.document, new Map([[9001, { 3380: 5 }], [9002, null]]));
 });

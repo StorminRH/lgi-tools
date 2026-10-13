@@ -7,7 +7,7 @@ import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { tryMapAccess } from './lib/mapAccess';
-import { clampPageSize, deniedPage } from './mapChainPage';
+import { clampPageSize, deniedPage, MAP_CHAIN_MAX_PAGE_SIZE } from './lib/pagination';
 
 type ResolvedMapConnection = Doc<'mapConnections'> & { readonly toSystemId: number };
 type UnresolvedMapConnection = Doc<'mapConnections'> & { readonly toSystemId: null };
@@ -36,7 +36,7 @@ async function readConnectionPage(
     return deniedPage<ResolvedMapConnection | UnresolvedMapConnection>();
   }
 
-  const bounded = clampPageSize(paginationOpts);
+  const bounded = clampPageSize(paginationOpts, MAP_CHAIN_MAX_PAGE_SIZE);
   if (mode === 'resolved') {
     const result = await ctx.db
       .query('mapConnections')

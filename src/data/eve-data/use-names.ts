@@ -1,8 +1,10 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { parseIdsKey } from '@/lib/array';
-import type { createNamesClient } from './names-client';
+import { entityNamesClient, typeNamesClient } from './names-client';
 
-export function useNames(ids: readonly number[], client: ReturnType<typeof createNamesClient>): Record<string, string> {
+function useNames(ids: readonly number[], client: typeof typeNamesClient): Record<string, string> {
   const [names, setNames] = useState<Record<string, string>>({});
   const [attempt, setAttempt] = useState(0);
   const key = client.normalize(ids).join(',');
@@ -29,4 +31,12 @@ export function useNames(ids: readonly number[], client: ReturnType<typeof creat
     };
   }, [key, attempt, client]);
   return names;
+}
+
+export function useTypeNames(typeIds: readonly number[]): Record<string, string> {
+  return useNames(typeIds, typeNamesClient);
+}
+
+export function useEntityNames(entityIds: readonly number[]): Record<string, string> {
+  return useNames(entityIds, entityNamesClient);
 }

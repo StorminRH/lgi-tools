@@ -279,6 +279,36 @@ describe('automatic jump authoring', () => {
     ).resolves.toEqual({ canEdit: false, connection: null });
   });
 
+  it('converges a transition older than the stamp without authoring or rewinding it', async () => {
+    const t = convexTest(schema, modules);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    const newerAt = OBSERVED_AT + 1_000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: MAP,
+        characterId: CHARACTER,
+        lastProcessedTransitionAt: newerAt,
+      });
+    });
+    const before = await mapState(t);
+
+    expect(
+      await t.mutation(
+        jump.resolveJumpAuthoring,
+        authorArgs({
+          decision: { kind: 'insert', candidateIds: [], survivors: [] },
+        }),
+      ),
+    ).toEqual({ status: 'converged', reason: 'processed' });
+    const after = await mapState(t);
+    expect(after).toEqual(before);
+    expect(after.connections).toEqual([]);
+    expect(after.stamps).toEqual([
+      expect.objectContaining({ lastProcessedTransitionAt: newerAt }),
+    ]);
+  });
+
   it('does not treat static placeholders as jump candidates', async () => {
     const t = convexTest(schema, modules);
     await grantMapAccess(t, MAP, EDITOR, ['editor']);

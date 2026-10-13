@@ -27,6 +27,6 @@ describe('ActiveSiteViewer', () => {
     expect(markup).toContain('aria-label="Wormhole site card widget"');
     expect(markup).toContain('data-site-id="49"');
     expect(markup).not.toContain('data-map-connection-fields');
-    expect(markup).not.toContain('Signature Editor');
+    expect(markup).not.toContain('data-map-window="signature-editor"');
   });
 });

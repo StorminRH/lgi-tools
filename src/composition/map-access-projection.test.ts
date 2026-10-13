@@ -1,4 +1,6 @@
 import { expect, expectTypeOf, test, vi } from 'vitest';
+import { MAP_CLAIM_PURGE_BATCH } from '@/data/maps/access-contract';
+import { purgeUserMapClaimsDoor } from '@/data/maps/convex-doors';
 import { createProjectedMap } from './map-creation';
 import { deleteMapForUser, restoreMapForUser } from './map-lifecycle';
 
@@ -60,6 +62,7 @@ function affiliation(userId: string, characterId: number, corporationId: number 
     sharedAccessEligible: true,
     userId, characterId, corporationId, allianceId: null, factionId: null,
     refreshedAt: fresh ? new Date() : new Date(Date.now() - 2 * 60 * 60 * 1000),
+    expiresAt: fresh ? new Date(Date.now() + 60 * 60 * 1000) : null,
   };
 }
 
@@ -81,9 +84,9 @@ function resetProjectionMocks() {
 
 test('delivers all batches and stops before unlink when a batch fails', async () => {
   resetProjectionMocks();
-  const ids = Array.from({ length: 65 }, (_, index) => `map-${index}`);
-  mocks.fetchWithTimeout.mockResolvedValueOnce(Response.json({ deleted: 32 }))
-    .mockResolvedValueOnce(Response.json({ deleted: 32 }))
+  const ids = Array.from({ length: 2 * MAP_CLAIM_PURGE_BATCH + 1 }, (_, index) => `map-${index}`);
+  mocks.fetchWithTimeout.mockResolvedValueOnce(Response.json({ deleted: MAP_CLAIM_PURGE_BATCH }))
+    .mockResolvedValueOnce(Response.json({ deleted: MAP_CLAIM_PURGE_BATCH }))
     .mockRejectedValueOnce(new Error('Convex unavailable'));
 
   await expect(revokeUserMapClaims('departing', ids)).rejects.toBeInstanceOf(
@@ -94,8 +97,16 @@ test('delivers all batches and stops before unlink when a batch fails', async ()
   expect(calls.map(([url]) => url)).toEqual(
     Array(3).fill('http://127.0.0.1:3211/purge-user-map-claims'),
   );
-  expect(calls.map(([, init]) => JSON.parse((init as { body: string }).body).mapIds))
-    .toEqual([ids.slice(0, 32), ids.slice(32, 64), ids.slice(64)]);
+  const bodies = calls.map(([, init]) => JSON.parse((init as { body: string }).body));
+  expect(bodies.map((body) => body.mapIds))
+    .toEqual([
+      ids.slice(0, MAP_CLAIM_PURGE_BATCH),
+      ids.slice(MAP_CLAIM_PURGE_BATCH, 2 * MAP_CLAIM_PURGE_BATCH),
+      ids.slice(2 * MAP_CLAIM_PURGE_BATCH),
+    ]);
+  for (const body of bodies) {
+    expect(purgeUserMapClaimsDoor.request.safeParse(body).success).toBe(true);
+  }
 });
 
 test('computes creator-only, batched union, unlinked, and missing-or-archived claim sets', async () => {

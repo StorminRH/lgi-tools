@@ -2,51 +2,32 @@ import { ConvexError } from 'convex/values';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader, QueryCtx } from '../_generated/server';
 
-export type UserCharacterIndexedTable =
+export type UserCharacterTable =
   | 'characterLocation'
-  | 'characterLocationCovered';
+  | 'characterLocationCovered'
+  | 'characterLocationOnline'
+  | 'characterLocationAccess';
 export type PurgeAfterTable = 'mapSystems' | 'mapConnections';
-export type StoredDataset = Doc<'syncPresence'>['dataset'];
 
-export function uniqueByUserCharacter(
+/** The one row a (user, character) pair holds in a single-row location table. */
+export function uniqueByUserCharacter<T extends UserCharacterTable>(
   ctx: Pick<QueryCtx, 'db'>,
-  table: 'characterLocation',
+  table: T,
   userId: string,
   characterId: number,
-): Promise<Doc<'characterLocation'> | null>;
-export function uniqueByUserCharacter(
-  ctx: Pick<QueryCtx, 'db'>,
-  table: 'characterLocationCovered',
-  userId: string,
-  characterId: number,
-): Promise<Doc<'characterLocationCovered'> | null>;
-export function uniqueByUserCharacter(
-  ctx: Pick<QueryCtx, 'db'>,
-  table: UserCharacterIndexedTable,
-  userId: string,
-  characterId: number,
-) {
-  switch (table) {
-    case 'characterLocation':
-      return ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId),
-        )
-        .unique();
-    case 'characterLocationCovered':
-      return ctx.db
-        .query('characterLocationCovered')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId),
-        )
-        .unique();
-  }
+): Promise<Doc<T> | null> {
+  // The query runs over the union so withIndex resolves; the cast narrows the row back to T.
+  return ctx.db
+    .query(table as UserCharacterTable)
+    .withIndex('by_user_character', (q) =>
+      q.eq('userId', userId).eq('characterId', characterId),
+    )
+    .unique() as Promise<Doc<T> | null>;
 }
 
 export function uniqueByUserDataset(
   db: DatabaseReader,
-  dataset: StoredDataset,
+  dataset: Doc<'syncPresence'>['dataset'],
   userId: string,
 ): Promise<Doc<'syncPresence'> | null> {
   return db
@@ -107,4 +88,27 @@ export async function takeIndexedOrThrow<T>(
     throw new ConvexError({ code: error.code, detail: error.detail });
   }
   return rows;
+}
+
+export interface IndexedBatchDeleteResult {
+  readonly deleted: number;
+  readonly hasMore: boolean;
+}
+
+/**
+ * Removes up to `limit` rows in index order; `hasMore` is true while rows
+ * remain. Rows go one at a time, so a remover may read what earlier removals
+ * in the batch left behind.
+ */
+export async function deleteIndexedBatch<T>(
+  query: { take: (n: number) => Promise<T[]> },
+  limit: number,
+  remove: (row: T) => Promise<unknown>,
+): Promise<IndexedBatchDeleteResult> {
+  const rows = await query.take(limit + 1);
+  const doomed = rows.slice(0, limit);
+  for (const row of doomed) {
+    await remove(row);
+  }
+  return { deleted: doomed.length, hasMore: rows.length > limit };
 }

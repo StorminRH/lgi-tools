@@ -1,27 +1,12 @@
 import { Pill } from '@/components/ui/pill';
 import { Stat } from '@/components/ui/row';
+import { activeEwarKeys, npcEwar } from '../ewar';
 import type { Npc } from '../types';
 import { ShipClassIcon } from './ShipClassIcon';
-import {
-  EWAR_LABEL,
-  EWAR_ORDER,
-  EWAR_TONE,
-  TRIGGER_TONE,
-  type EwarKey,
-} from './wormhole-styles';
-
-function npcEwarKeys(npc: Npc): EwarKey[] {
-  const m: Record<EwarKey, number | null> = {
-    web: npc.web,
-    scram: npc.scram,
-    neut: npc.neut,
-    rr: npc.rrep,
-  };
-  return EWAR_ORDER.filter((k) => (m[k] ?? 0) !== 0);
-}
+import { EWAR_LABEL, EWAR_TONE, TRIGGER_TONE } from './wormhole-styles';
 
 export function NpcRow({ npc }: { npc: Npc }) {
-  const ewars = npcEwarKeys(npc);
+  const ewars = activeEwarKeys(npcEwar(npc));
 
   return (
     <div className="grid grid-cols-subgrid col-span-full items-center gap-[6px] py-[5px] border-t border-border-soft text-ui hover:bg-row-hover">

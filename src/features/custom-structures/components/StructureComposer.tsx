@@ -32,6 +32,7 @@ import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-se
 import { MAX_ENTERED_BONUS_PCT } from '@/data/industry-math/entered-bonuses';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
+import { failureCode, type FailedOutcome } from '@/transport/failure-copy';
 import {
   createCustomStructureEndpoint,
   deleteCustomStructureEndpoint,
@@ -59,12 +60,13 @@ const HULL_GROUPS: [number, string][] = [
   [SDE_CITADEL_GROUP_ID, 'Citadel'],
 ];
 
-const FIELD_ERROR: Record<'name' | 'hull' | 'tax' | 'bonus' | 'save' | 'fit', string> = {
+const FIELD_ERROR: Record<'name' | 'hull' | 'tax' | 'bonus' | 'save' | 'limit' | 'fit', string> = {
   name: 'Name the structure.',
   hull: 'Pick the hull.',
   tax: `Tax must be 0–${MAX_FACILITY_TAX_PCT}%.`,
   bonus: `Bonuses must be 0–${MAX_ENTERED_BONUS_PCT}%.`,
-  save: 'Could not save. Try again.',
+  save: "Couldn't save. Try again.",
+  limit: 'Structure limit reached. Delete one to make room.',
   fit: 'No structure in that fit.',
 };
 type ComposerError = keyof typeof FIELD_ERROR;
@@ -99,9 +101,16 @@ function useSystemField(systemId: number | null) {
   useEffect(() => {
     if (query.trim() === '' || query === system?.name) return;
     let alive = true;
-    void suggest(query).then((names) => {
-      if (alive) setSuggestions(names.flatMap((n) => systems.find((s) => s.name === n) ?? []));
-    });
+    // A lookup the next keystroke aborted rejects after this run has ended; one
+    // that fails for this query leaves no suggestions.
+    void suggest(query).then(
+      (names) => {
+        if (alive) setSuggestions(names.flatMap((n) => systems.find((s) => s.name === n) ?? []));
+      },
+      () => {
+        if (alive) setSuggestions([]);
+      },
+    );
     return () => {
       alive = false;
     };
@@ -277,7 +286,16 @@ function BonusSection({
   );
 }
 
-type Mutation = { ok: true; data: { structures: CustomStructureRow[]; createdId?: string } } | { ok: false };
+type MutationFailure =
+  | FailedOutcome<typeof createCustomStructureEndpoint>
+  | FailedOutcome<typeof updateCustomStructureEndpoint>
+  | FailedOutcome<typeof deleteCustomStructureEndpoint>;
+type Mutation = { ok: true; data: { structures: CustomStructureRow[]; createdId?: string } } | MutationFailure;
+
+/** A full structure list gets its own words; anything else is a plain failed save. */
+function mutationError(failure: MutationFailure): ComposerError {
+  return failureCode(failure) === 'structure_limit' ? 'limit' : 'save';
+}
 
 export function StructureComposer({
   structureTypes,
@@ -325,7 +343,7 @@ export function StructureComposer({
     setBusy(true);
     const res = await run();
     setBusy(false);
-    if (!res.ok) return setError('save');
+    if (!res.ok) return setError(mutationError(res));
     onSaved(res.data.structures, res.data.createdId);
   }
 

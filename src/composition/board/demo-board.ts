@@ -382,7 +382,7 @@ const ILYANA_LEVELS = levelsOf([
 ]);
 
 function envelope<K extends SheetSectionKey>(data: SheetSectionData[K], refreshedAt: number): SectionEnvelope<K> {
-  return { data, refreshedAt: new Date(refreshedAt).toISOString(), etags: {} };
+  return { data, refreshedAt: new Date(refreshedAt).toISOString() };
 }
 
 function attributes(
@@ -879,5 +879,6 @@ function demoHistory(now: number, raws: readonly BoardRaw[]): BoardHistoryDay[] 
 
 export function buildDemoBoard(now: number, variant: DemoVariant): BoardResponse {
   const raws = demoRaws(now, variant);
-  return assembleBoard(raws, DEMO_NAMES, now, demoHistory(now, raws));
+  // Demo data is never refreshed, so nothing streams in behind it.
+  return { ...assembleBoard(raws, DEMO_NAMES, now, demoHistory(now, raws)), refreshing: false };
 }

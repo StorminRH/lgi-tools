@@ -53,6 +53,19 @@ it('captures only tracking selections before the SQL merge', async () => {
   expect(JSON.parse(fetchSpy.mock.calls[0]![1]!.body as string)).toEqual({ sourceUserId: 'src' });
 });
 
+it('refuses a snapshot selection the restore door would reject instead of queueing it', async () => {
+  const restorable = { mapId: 'map', characterId: 123, lastProcessedTransitionAt: 0 };
+  fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ selections: [restorable] })));
+  await expect(snapshotMergeTracking('src')).resolves.toEqual([restorable]);
+
+  fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+    selections: [{ ...restorable, lastProcessedTransitionAt: -1 }],
+  })));
+  const refused = snapshotMergeTracking('src');
+  await expect(refused).rejects.toBeInstanceOf(LocationTrackingMergeError);
+  await expect(refused).rejects.toThrow('/snapshot-merge-tracking returned an invalid contract');
+});
+
 describe('tracking receipt retention service client', () => {
   it('reads candidates and deletes exact receipt-operation pairs through authorized doors', async () => {
     const receipts = [{ receiptId: 'receipt-id', operationId: 'operation' }];

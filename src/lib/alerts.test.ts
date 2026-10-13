@@ -8,24 +8,12 @@ vi.mock('@/lib/discord', () => ({
   postDiscordWebhook: (...args: unknown[]) => postDiscordWebhookMock(...args),
 }));
 
-import {
-  alertEsiRefreshDeadLetter,
-  alertPriceSourceDegradation,
-  alertPublicEsiBudgetExhaustion,
-  isOpsAlertConfigured,
-} from './alerts';
+import { alertPriceSourceDegradation } from './alerts';
 
 const WEBHOOK = 'https://discord.test/webhook';
 const SENT_AT = '2026-05-04T03:02:01.000Z';
 const STAMP = { footer: { text: `LGI.tools v${APP_VERSION}` }, timestamp: SENT_AT };
 const PRICE_INFO = { fetched: 10, esiCount: 6, fuzzworkFallbackCount: 4, budgetExhausted: true };
-const DEAD_LETTER_INFO = {
-  jobId: 42,
-  dataset: 'character_assets',
-  resource: 'characters/90000001/assets',
-  attemptCount: 5,
-  failureCode: 'esi_5xx',
-};
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -73,54 +61,4 @@ test('price degradation alert rejects a non-success response so bestEffort logs 
   webhook(WEBHOOK, 503);
 
   await expect(alertPriceSourceDegradation(PRICE_INFO)).rejects.toThrow('returned 503');
-});
-
-test('dead-letter alert skips an unset webhook and posts the job details', async () => {
-  webhook('');
-  await alertEsiRefreshDeadLetter(DEAD_LETTER_INFO);
-  expect(postDiscordWebhookMock).not.toHaveBeenCalled();
-
-  webhook(WEBHOOK);
-  await alertEsiRefreshDeadLetter(DEAD_LETTER_INFO);
-  expect(postedEmbeds()).toEqual([
-    {
-      title: expect.any(String),
-      description: expect.stringContaining('Job 42'),
-      fields: [
-        { name: 'Dataset', value: 'character_assets', inline: true },
-        { name: 'Attempts', value: '5', inline: true },
-        { name: 'Resource', value: 'characters/90000001/assets' },
-        { name: 'Failure', value: 'esi_5xx' },
-      ],
-      ...STAMP,
-    },
-  ]);
-});
-
-test('dead-letter alert rejects a non-success response so bestEffort logs it', async () => {
-  webhook(WEBHOOK, 503);
-
-  await expect(alertEsiRefreshDeadLetter(DEAD_LETTER_INFO)).rejects.toThrow('returned 503');
-});
-
-test('public ESI budget alert reports whether an alert was actually posted', async () => {
-  webhook('');
-  expect(isOpsAlertConfigured()).toBe(false);
-  await expect(alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 })).resolves.toBe(false);
-  expect(postDiscordWebhookMock).not.toHaveBeenCalled();
-
-  webhook(WEBHOOK);
-  expect(isOpsAlertConfigured()).toBe(true);
-  await expect(alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 })).resolves.toBe(true);
-  expect(postedEmbeds()).toEqual([
-    { title: expect.any(String), description: expect.stringContaining('3 public refresh requests'), ...STAMP },
-  ]);
-});
-
-test('public ESI budget alert rejects a non-success response so the alert claim can be released', async () => {
-  webhook(WEBHOOK, 503);
-
-  await expect(
-    alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 }),
-  ).rejects.toThrow('returned 503');
 });

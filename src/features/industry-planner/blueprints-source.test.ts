@@ -13,11 +13,11 @@ vi.mock('@/transport/api-client', () => ({
   })),
 }));
 
-import { blueprintsSource } from './blueprints-source';
+import { searchBlueprints } from './blueprints-source';
 
-describe('blueprintsSource', () => {
+describe('searchBlueprints', () => {
   it('shows the blueprint scroll while retaining product type identity', async () => {
-    const rows = await blueprintsSource.search('rifter', {
+    const rows = await searchBlueprints('rifter', {
       session: null,
       isAdmin: false,
       recents: [],

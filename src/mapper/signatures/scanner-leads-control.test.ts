@@ -6,7 +6,6 @@ import {
   commitScannerLeadsQuery,
   commitScannerLeadsValue,
   ScannerLeadsControl,
-  scannerLeadsSeed,
   scannerLeadsSuggestionGroups,
 } from './scanner-leads-control';
 
@@ -59,11 +58,6 @@ it('groups destination suggestions from empty click through typed filters', () =
       items: [{ value: 'hint:dangerous', text: 'Dangerous (C4–C5)', meta: '' }],
     },
   ]);
-  expect(scannerLeadsSeed(null, { label: 'J120924 - C2', tone: 'text-wh-c2' })).toBe(
-    'J120924 - C2',
-  );
-  expect(scannerLeadsSeed('dangerous', null)).toBe('Dangerous (C4–C5)');
-  expect(scannerLeadsSeed(null, null)).toBe('');
 });
 
 it('commits destination picks, including unique/ambiguous inbound and no-ops on settled systems', () => {
@@ -191,20 +185,26 @@ it('commits destination picks, including unique/ambiguous inbound and no-ops on 
   expect(setLeadsTo).not.toHaveBeenCalled();
 });
 
-it('labels the destination combo field', () => {
-  const leads = renderToStaticMarkup(
-    createElement(ScannerLeadsControl, {
-      hint: null,
-      destination: { label: 'J120924 - C2', tone: 'text-wh-c2' },
-      originLeads: [],
-      originSystemId: 31_000_142,
-      rowId: 'WHL-001',
-      disabled: false,
-      onChange: vi.fn(),
-      onSetDestination: vi.fn(),
-      onLinkOrigin: vi.fn(),
-    }),
-  );
+it('labels the destination combo field and seeds it from the destination, then the hint, then nothing', () => {
+  const render = (
+    hint: 'dangerous' | null,
+    destination: { label: string; tone: string } | null,
+  ) =>
+    renderToStaticMarkup(
+      createElement(ScannerLeadsControl, {
+        hint,
+        destination,
+        originLeads: [],
+        originSystemId: 31_000_142,
+        rowId: 'WHL-001',
+        onChange: vi.fn(),
+        onSetDestination: vi.fn(),
+        onLinkOrigin: vi.fn(),
+      }),
+    );
+  const leads = render('dangerous', { label: 'J120924 - C2', tone: 'text-wh-c2' });
   expect(leads).toContain('aria-label="Destination WHL-001"');
-  expect(leads).toContain('J120924 - C2');
+  expect(leads).toContain('value="J120924 - C2"');
+  expect(render('dangerous', null)).toContain('value="Dangerous (C4–C5)"');
+  expect(render(null, null)).toContain('value=""');
 });

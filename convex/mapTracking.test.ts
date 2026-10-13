@@ -2,10 +2,12 @@
 import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
-import { readTrackedPilotSystemIds } from './mapTrackingLive';
-import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
+import {
+  TRACKED_CHARACTERS_PER_MAP_CAP,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './lib/mapTrackingCapacity';
+import { trackedPilotSystemsByMap } from './lib/mapTrackedPilots';
 
 import { claimReconciler, expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
@@ -320,7 +322,7 @@ describe('mapTracking.setTracking', () => {
       mapId: MAP_A, userId: 'legacy-overflow', characterId: CHAR,
     }));
     await expectConvexErrorCode(caller.query(tracking.forMap, { mapId: MAP_A }), 'TRACKING_SCAN_LIMIT');
-    await expectConvexErrorCode(t.run((ctx) => readTrackedPilotSystemIds(ctx, MAP_A)), 'TRACKING_SCAN_LIMIT');
+    await expectConvexErrorCode(t.run((ctx) => trackedPilotSystemsByMap(ctx)(MAP_A)), 'TRACKING_SCAN_LIMIT');
   });
 
   it('refuses setTracking without a map-access claim', async () => {
@@ -776,5 +778,61 @@ describe('mapTracking revocation cascade', () => {
     expect(await readBookkeeping(t)).toEqual([
       { mapId: MAP_B, characterId: CHAR, lastProcessedTransitionAt: 23 },
     ]);
+  });
+
+  it('still revokes tracking on an over-cap map rather than failing the apply', async () => {
+    const t = convexTest(schema, modules);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < TRACKED_CHARACTERS_PER_MAP_CAP; index += 1) {
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: index + 1 });
+      }
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: CHAR });
+    });
+
+    await expect(reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]))
+      .resolves.toMatchObject({ deleted: 1, unchanged: 1, outcome: 'applied' });
+    expect(await readTracking(t, MAP_A)).toEqual([
+      { mapId: MAP_A, userId: OWNER, characterId: CHAR },
+    ]);
+  });
+
+  it('revokes tracking a legacy claimant kept after an unlink purged the claim', async () => {
+    const t = convexTest(schema, modules);
+    const reconcileAt = (
+      revision: number,
+      claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
+    ) => t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+      mapId: MAP_A, revision, claims,
+    });
+    await reconcileAt(1, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    for (const [userId, characterId] of [[OWNER, CHAR], [EDITOR, CHAR_B]] as const) {
+      await asUser(t, userId).mutation(tracking.setTracking, {
+        mapId: MAP_A, characterId, tracked: true,
+      });
+    }
+    await t.run((ctx) => ctx.db.insert('mapJumpBookkeeping', {
+      mapId: MAP_A, characterId: CHAR_B, lastProcessedTransitionAt: 12,
+    }));
+    // The unlink removes the claim; the legacy claim's other tracked character is left behind.
+    await t.mutation(internal.mapAccessProjection.purgeUserMapClaims, {
+      userId: EDITOR, revision: 2, mapIds: [MAP_A],
+    });
+    expect(await readTracking(t, MAP_A)).toHaveLength(2);
+
+    await expect(reconcileAt(3, [{ userId: OWNER, roles: ['admin'] }]))
+      .resolves.toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 1, outcome: 'applied' });
+
+    expect(await readTracking(t, MAP_A)).toEqual([
+      { mapId: MAP_A, userId: OWNER, characterId: CHAR },
+    ]);
+    expect(await readBookkeeping(t)).toEqual([]);
   });
 });

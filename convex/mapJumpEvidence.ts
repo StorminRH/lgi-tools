@@ -2,7 +2,8 @@ import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { internalQuery } from './_generated/server';
 import { tryMapAccessForUser } from './lib/mapAccess';
-import { findSystem } from './lib/mapSystemLookup';
+import { findLiveSystem, findSystem } from './lib/mapSystemLookup';
+import { findJumpStamp } from './mapJumpBookkeeping';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { hallwayDoorTypes, isStaticPlaceholder } from '@/data/maps/connection-hallway';
 import {
@@ -63,12 +64,7 @@ export const jumpEvidence = internalQuery({
         ...NO_ORIGIN,
       };
     }
-    const stamp = await ctx.db
-      .query('mapJumpBookkeeping')
-      .withIndex('by_map_character', (q) =>
-        q.eq('mapId', mapId).eq('characterId', characterId),
-      )
-      .unique();
+    const stamp = await findJumpStamp(ctx, mapId, characterId);
     const lastProcessedTransitionAt = stamp?.lastProcessedTransitionAt ?? null;
     const transition = {
       fromSolarSystemId: location.prevSolarSystemId,
@@ -142,15 +138,10 @@ export const connectionEvidence = internalQuery({
       return { canEdit: true as const, connection: null };
     }
     const [fromSystem, toSystem] = await Promise.all([
-      findSystem(ctx, mapId, connection.fromSystemId),
-      findSystem(ctx, mapId, connection.toSystemId),
+      findLiveSystem(ctx, mapId, connection.fromSystemId),
+      findLiveSystem(ctx, mapId, connection.toSystemId),
     ]);
-    if (
-      fromSystem === null
-      || toSystem === null
-      || isTombstoned(fromSystem)
-      || isTombstoned(toSystem)
-    ) {
+    if (fromSystem === null || toSystem === null) {
       return { canEdit: true as const, connection: null };
     }
     const facts: EmissionFacts = emissionFacts(connection);

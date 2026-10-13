@@ -8,6 +8,7 @@ import {
   buildSignatureRows,
   groupSignatureSections,
   isEditablePasteTarget,
+  scanFailureMessage,
   scannerPasteDecision,
   scannerPasteRefusalToast,
   scannerGroupTypeLabel,
@@ -435,11 +436,11 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     ).toMatchObject({ kind: 'reject', rejectCount: 1 });
 
     expect(scannerPasteRefusalToast({ kind: 'reject', rejectCount: 1 })).toEqual({
-      message: 'Formatting error',
+      message: "Couldn't read scan",
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     });
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).message).toBe('Read-only access');
-    expect(scannerPasteRefusalToast({ kind: 'loading' }).message).toBe('Tracking not ready');
+    expect(scannerPasteRefusalToast({ kind: 'loading' }).message).toBe('Still loading. Paste again.');
     expect(scannerPasteRefusalToast({ kind: 'untracked' }).message).toBe('No character online');
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).options.id).toBe(
       'scanner-paste:read-only',
@@ -450,5 +451,16 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteRefusalToast({ kind: 'loading' }).options.id).toBe(
       'scanner-paste:loading',
     );
+  });
+
+  it('names the server refusal a scan failed with, from the error code alone', () => {
+    const refused = (code: string) => ({
+      data: { code, detail: 'Diagnostic text the scanner never shows.' },
+    });
+    expect(scanFailureMessage(refused('OFF_MAP_SCAN_SYSTEM'))).toBe('System not on map');
+    expect(scanFailureMessage(refused('UNTRACKED_SCAN_SYSTEM'))).toBe('No character online');
+    expect(scanFailureMessage(refused('TRACKING_CAP_EXCEEDED'))).toBe('Scan not applied');
+    expect(scanFailureMessage(refused('constructor'))).toBe('Scan not applied');
+    expect(scanFailureMessage(new Error('Network down'))).toBe('Scan not applied');
   });
 });

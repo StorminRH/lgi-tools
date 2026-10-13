@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import type { PublicHttpAction } from 'convex/server';
 import { bearerMatches } from '@/lib/bearer';
 import { readEnv } from '@/lib/env';

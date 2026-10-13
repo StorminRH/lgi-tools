@@ -1,4 +1,8 @@
-import type { CreateMapRequest } from '@/data/maps/api-contract';
+import {
+  MIN_CHARACTER_SEARCH_LENGTH,
+  type CreateMapRequest,
+  type SearchCharactersResponse,
+} from '@/data/maps/api-contract';
 import {
   isMapCreateRole,
   MAP_CREATE_ROLES,
@@ -7,6 +11,7 @@ import {
   type MapAccessOwnerType,
   type MapRole,
 } from '@/data/maps/access-contract';
+import type { SearchAnswer } from '@/platform/search/use-source-search';
 
 export type AccessEditorMode = 'create' | 'manage';
 
@@ -139,7 +144,7 @@ export function prepareMapCreation(
   if (grants === null) {
     return {
       ok: false,
-      message: 'Choose Read-only or Write for every selected principal.',
+      message: 'Choose Read-only or Write for everyone on the access list.',
     };
   }
   return {
@@ -153,4 +158,30 @@ export function characterSearchPopupOpen(
   availableResultCount: number,
 ): boolean {
   return requestedOpen && availableResultCount > 0;
+}
+
+/** A character search's outcome: unavailable, or its results in typeahead or exact-name mode. */
+export interface CharacterSearchState {
+  readonly failed: boolean;
+  readonly mode: SearchCharactersResponse['mode'] | null;
+  readonly results: readonly SearchCharactersResponse['results'][number][];
+}
+
+const NO_CHARACTER_SEARCH: CharacterSearchState = { failed: false, mode: null, results: [] };
+
+/**
+ * What the character search shows for the normalized `search`. Only an answer
+ * to that very search counts, so an edit that leaves it unchanged (a trailing
+ * space, typing past the length cap) keeps the results, and any other edit
+ * hides them until its own answer lands. A search long enough to send is busy
+ * until then; a shorter one has no answer to wait for.
+ */
+export function characterSearchView(
+  search: string,
+  answer: SearchAnswer<CharacterSearchState | null> | null,
+): CharacterSearchState & { readonly busy: boolean } {
+  if (answer !== null && answer.query === search) {
+    return { busy: false, ...(answer.result ?? NO_CHARACTER_SEARCH) };
+  }
+  return { busy: search.length >= MIN_CHARACTER_SEARCH_LENGTH, ...NO_CHARACTER_SEARCH };
 }

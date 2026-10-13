@@ -21,7 +21,6 @@ import { AdminBarChart, AdminTrendChart } from '../charts';
 import {
   getCapabilityOutcomeStatsShared,
   getEsiClientErrorsShared,
-  getEsiRefreshQueueStatsShared,
   getPriceRefreshDaysShared,
   getPriceSourceDegradationShared,
 } from '../shared-reads';
@@ -69,11 +68,10 @@ export function BudgetGauge({ budget }: { budget: Awaited<ReturnType<typeof load
 }
 
 export async function loadPressureLines(range: DateRange) {
-  const [outcomes, fallback, degradation, queue, clientErrors] = await Promise.all([
+  const [outcomes, fallback, degradation, clientErrors] = await Promise.all([
     getCapabilityOutcomeStatsShared(range),
     getPriceRefreshDaysShared(range).then(fallbackRate),
     getPriceSourceDegradationShared(range),
-    getEsiRefreshQueueStatsShared(),
     getEsiClientErrorsShared(range).then(esiClientErrors),
   ]);
   const esiSuccess = esiAvailability(outcomes);
@@ -83,7 +81,6 @@ export async function loadPressureLines(range: DateRange) {
     budgetExhaustions: degradation.budgetExhaustions,
     fallback,
     degradation: degradation.byCaller,
-    queue,
     clientErrors,
   });
 }

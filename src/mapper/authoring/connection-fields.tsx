@@ -1,14 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { Tooltip } from '@/components/ui/tooltip';
-import {
-  useSystemSearch,
-  type SystemErr,
-  type SystemParams,
-} from '@/components/use-system-search';
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import {
   CONNECTION_MASS_STATES,
@@ -35,6 +29,14 @@ import {
   UNSET_FIELD,
 } from './connection-field-group';
 import {
+  DESTINATION_HINT_LABELS,
+  LIFE_STAGE_LABELS,
+  labelOr,
+  leadsToReadout,
+  MASS_STATE_LABELS,
+  optionalFieldItems,
+} from './connection-labels';
+import {
   codexPanelFacts,
   formatDurationBound,
   isCodexSizeLocked,
@@ -45,61 +47,30 @@ import {
   type MassRowDisplay,
 } from './connection-intelligence';
 import { dispatchLeadsToChange, encodeOriginLead } from './leads-to-origin';
+import { SystemTerminalSearch } from './system-terminal-search';
 import {
-  wormholeTypeSearch,
+  useWormholeTypeSearch,
   type WormholeTypeErr,
   type WormholeTypeParams,
 } from './wormhole-type-search';
 
-const MASS_LABELS: Record<ConnectionMassState, string> = {
-  stable: 'More than 50% remaining',
-  reduced: 'Less than 50% remaining',
-  critical: 'Less than 10% remaining',
-};
+const MASS_ITEMS = optionalFieldItems(
+  CONNECTION_MASS_STATES,
+  (value) => MASS_STATE_LABELS[value],
+  'Unset',
+);
 
-const MASS_ITEMS = [
-  { value: UNSET_FIELD, label: 'Unset' },
-  ...CONNECTION_MASS_STATES.map((value) => ({
-    value,
-    label: MASS_LABELS[value],
-  })),
-];
+const SIZE_ITEMS = optionalFieldItems(
+  WORMHOLE_SIZE_CLASSES,
+  (value) => value,
+  'Unset',
+);
 
-const SIZE_ITEMS = [
-  { value: UNSET_FIELD, label: 'Unset' },
-  ...WORMHOLE_SIZE_CLASSES.map((value) => ({ value, label: value })),
-];
-
-const LIFE_LABELS: Record<WormholeLifeStage, string> = {
-  under_1_day: 'Less than 1 day remaining',
-  under_4_hours: 'Less than 4 hours remaining',
-  under_1_hour: 'Less than 1 hour remaining',
-  expired: 'Expired, closure imminent',
-};
-
-const LIFE_ITEMS = [
-  { value: UNSET_FIELD, label: 'Unset' },
-  ...WORMHOLE_LIFE_STAGES.map((value) => ({
-    value,
-    label: LIFE_LABELS[value],
-  })),
-];
-
-function lifeStageReadout(stage: WormholeLifeStage | null): string {
-  return stage === null ? 'Unset' : LIFE_LABELS[stage];
-}
-
-const HINT_LABELS: Record<WormholeDestinationHint, string> = {
-  hisec: 'High-sec',
-  lowsec: 'Low-sec',
-  nullsec: 'Null-sec',
-  unknown: 'Unknown (C1–C3)',
-  dangerous: 'Dangerous (C4–C5)',
-  deadly: 'Deadly (C6)',
-  thera: 'Thera',
-  pochven: 'Pochven',
-  drifter: 'Drifter',
-};
+const LIFE_ITEMS = optionalFieldItems(
+  WORMHOLE_LIFE_STAGES,
+  (value) => LIFE_STAGE_LABELS[value],
+  'Unset',
+);
 
 export interface ConnectionFieldSetters {
   readonly setWormholeType: (value: string | null) => void;
@@ -121,7 +92,6 @@ export interface ConnectionFieldsProps {
   readonly connection: ConnectionEditorDetail;
   readonly codes: readonly string[];
   readonly preferredCodes?: readonly string[];
-  readonly codexReady: boolean;
   readonly entry: WormholeCodexEntry | null;
   readonly setters: ConnectionFieldSetters;
   readonly now: number;
@@ -136,7 +106,6 @@ export function ConnectionFields({
   connection,
   codes,
   preferredCodes,
-  codexReady,
   entry,
   setters,
   now,
@@ -157,14 +126,13 @@ export function ConnectionFields({
           data-map-connection-restore-mode
           className="font-data text-micro text-muted"
         >
-          Severed connection — restore within the undo window.
+          Connection severed.
         </p>
       ) : null}
       <TypeField
         connection={connection}
         codes={codes}
         preferredCodes={preferredCodes}
-        codexReady={codexReady}
         readOnly={readOnly}
         onChange={setters.setWormholeType}
       />
@@ -210,21 +178,16 @@ function TypeField({
   connection,
   codes,
   preferredCodes,
-  codexReady,
   readOnly,
   onChange,
 }: {
   readonly connection: ConnectionEditorDetail;
   readonly codes: readonly string[];
   readonly preferredCodes?: readonly string[];
-  readonly codexReady: boolean;
   readonly readOnly: boolean;
   readonly onChange: (value: string | null) => void;
 }) {
-  const search = wormholeTypeSearch(codes, {
-    lenient: !codexReady,
-    preferredCodes,
-  });
+  const search = useWormholeTypeSearch(codes, preferredCodes);
   const typeCode = connection.from.typeCode;
   const typeInitial = encodeOptionalField(typeCode);
   return (
@@ -264,7 +227,7 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
       className="flex w-full flex-col gap-1 rounded-ctl border border-border-soft px-2 py-1.5 text-center"
     >
       <CodexFact label="Total mass" value={formatFactKg(facts.totalMassKg)} />
-      <CodexFact label="Per-jump" value={formatFactKg(facts.maxJumpMassKg)} />
+      <CodexFact label="Jump mass" value={formatFactKg(facts.maxJumpMassKg)} />
       {facts.massRegenKg > 0 ? (
         <CodexFact label="Regeneration" value={formatFactKg(facts.massRegenKg)} />
       ) : null}
@@ -272,7 +235,6 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
         label="Lifetime"
         value={formatDurationBound(facts.lifetimeMinutes * 60 * 1000)}
       />
-      <CodexFact label="Size" value={facts.sizeClass} />
     </div>
   );
 }
@@ -317,39 +279,27 @@ function MassSection({
   readonly readOnly: boolean;
   readonly onChange: (value: ConnectionMassState | null) => void;
 }) {
+  const massState = connection.massState;
   return (
-    <ConnectionFieldGroup label="Mass">
-      {readOnly ? (
-        <FieldReadout
-          attr="data-map-connection-mass-state-readout"
-          text={
-            connection.massState === null
-              ? 'Unset'
-              : MASS_LABELS[connection.massState]
-          }
-        />
-      ) : (
-        <Select
-          ariaLabel="Mass"
-          align="center"
-          value={encodeOptionalField(connection.massState)}
-          items={MASS_ITEMS}
-          onValueChange={(next) =>
-            onChange(
-              next === UNSET_FIELD ? null : (next as ConnectionMassState),
-            )
-          }
-        />
-      )}
+    <OptionalSelectField
+      label="Mass"
+      ariaLabel="Mass"
+      items={MASS_ITEMS}
+      value={massState}
+      readOnly={readOnly}
+      readoutAttr="data-map-connection-mass-state-readout"
+      readoutText={labelOr(massState, MASS_STATE_LABELS, 'Unset')}
+      onChange={(value) => onChange(value as ConnectionMassState | null)}
+    >
       <MassEstimateView
         display={massRowDisplay(
           entry,
-          connection.massState,
+          massState,
           connection.observedMassKg,
           connection.observedMassAtStateKg,
         )}
       />
-    </ConnectionFieldGroup>
+    </OptionalSelectField>
   );
 }
 
@@ -362,7 +312,7 @@ function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
           data-map-connection-mass-range=""
           className="font-data text-micro text-muted"
         >
-          Remaining mass {display.label}
+          {display.label} remaining
         </p>
       </Tooltip>
     );
@@ -393,28 +343,22 @@ function LifetimeSection({
   readonly readOnly: boolean;
   readonly onChange: (value: WormholeLifeStage | null) => void;
 }) {
+  const stage = lifetimeStage(connection.lifetime);
   return (
-    <ConnectionFieldGroup label="Reliable Lifetime">
-      {readOnly ? (
-        <FieldReadout
-          attr="data-map-connection-life-readout"
-          text={lifeStageReadout(lifetimeStage(connection.lifetime))}
-        />
-      ) : (
-        <Select
-          ariaLabel="Reliable Lifetime"
-          align="center"
-          value={encodeOptionalField(lifetimeStage(connection.lifetime))}
-          items={LIFE_ITEMS}
-          onValueChange={(next) =>
-            onChange(next === UNSET_FIELD ? null : (next as WormholeLifeStage))
-          }
-        />
-      )}
+    <OptionalSelectField
+      label="Reliable Lifetime"
+      ariaLabel="Reliable Lifetime"
+      items={LIFE_ITEMS}
+      value={stage}
+      readOnly={readOnly}
+      readoutAttr="data-map-connection-life-readout"
+      readoutText={labelOr(stage, LIFE_STAGE_LABELS, 'Unset')}
+      onChange={(value) => onChange(value as WormholeLifeStage | null)}
+    >
       <LifetimeEstimateView
         display={lifetimeRowDisplay(connection, entry, now)}
       />
-    </ConnectionFieldGroup>
+    </OptionalSelectField>
   );
 }
 
@@ -432,7 +376,7 @@ function LifetimeEstimateView({
           data-lifetime-kind={display.kind}
           className="font-data text-micro text-muted"
         >
-          Lifetime {display.label}
+          {display.label} remaining
         </p>
       </Tooltip>
     );
@@ -468,41 +412,16 @@ function LeadsToField({
   readonly onSetDestination: (toSystemId: number | null) => void;
   readonly onLinkOrigin: (resolvedConnectionId: string) => void;
 }) {
-  const search = useSystemSearch();
   const hint = doorHint(connection.from);
-  if (readOnly) {
+  if (!readOnly && destination !== null) {
     return (
       <ConnectionFieldGroup label="Leads to">
-        <FieldReadout
-          attr="data-map-connection-leads-readout"
-          text={
-            destination !== null
-              ? destination.label
-              : hint === null
-                ? 'Unset'
-                : HINT_LABELS[hint]
-          }
-        />
-      </ConnectionFieldGroup>
-    );
-  }
-  if (destination !== null) {
-    return (
-      <ConnectionFieldGroup label="Leads to">
-        <TerminalSearch<SystemParams, SystemErr>
+        <SystemTerminalSearch
           key={`${connection.connectionId}:${destination.label}`}
           initialValue={destination.label}
-          placeholder="System name — e.g. J120924"
-          parse={(input) =>
-            parseDestinationSystem(
-              search.parse,
-              input,
-              connection.fromSystemId,
-            )
-          }
-          suggest={search.suggest}
-          errorMessage={() => 'No system matches that name.'}
-          onSubmit={(params) => onSetDestination(params.system.id)}
+          placeholder="Search systems"
+          excludeSystemId={connection.fromSystemId}
+          onPick={onSetDestination}
           onClear={() => onSetDestination(null)}
           errorLabel="Destination"
         />
@@ -517,7 +436,7 @@ function LeadsToField({
     })),
     ...WORMHOLE_DESTINATION_HINTS.map((value) => ({
       value,
-      label: HINT_LABELS[value],
+      label: DESTINATION_HINT_LABELS[value],
     })),
   ];
   return (
@@ -526,9 +445,9 @@ function LeadsToField({
       ariaLabel="Leads to"
       items={items}
       value={hint}
-      readOnly={false}
+      readOnly={readOnly}
       readoutAttr="data-map-connection-leads-readout"
-      readoutText={hint === null ? 'Unset' : HINT_LABELS[hint]}
+      readoutText={leadsToReadout(hint, destination)}
       onChange={(value) =>
         dispatchLeadsToChange(value, onLinkOrigin, (nextHint) =>
           onChangeHint(nextHint as WormholeDestinationHint | null),
@@ -536,24 +455,6 @@ function LeadsToField({
       }
     />
   );
-}
-
-export function parseDestinationSystem<P extends { system: { id: number } }>(
-  parse: (input: string) => { ok: true; params: P } | { ok: false },
-  input: string,
-  originSystemId?: number,
-): { ok: true; params: P } | { ok: false; error: SystemErr } {
-  const direct = parse(input);
-  const parsed = direct.ok
-    ? direct
-    : input.lastIndexOf(' - ') > 0
-      ? parse(input.slice(0, input.lastIndexOf(' - ')))
-      : direct;
-  if (!parsed.ok) return { ok: false, error: { kind: 'not_found' } };
-  if (parsed.params.system.id === originSystemId) {
-    return { ok: false, error: { kind: 'not_found' } };
-  }
-  return parsed;
 }
 
 function ConnectionActions({

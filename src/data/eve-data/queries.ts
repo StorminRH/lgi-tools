@@ -8,7 +8,6 @@ import {
   eveGroups,
   eveNpcStations,
   eveSolarSystems,
-  eveStationOperations,
   eveTypes,
   industryBlueprints,
   industryModifiers,
@@ -302,38 +301,6 @@ export async function solarSystemExists(systemId: number): Promise<boolean> {
     .where(eq(eveSolarSystems.id, systemId))
     .limit(1);
   return rows.length > 0;
-}
-
-export type IndustryStation = {
-  id: number;
-  name: string | null;
-  operationName: string;
-  manufacturingCapable: boolean;
-  researchCapable: boolean;
-};
-
-export async function getIndustryStationsForSystem(
-  systemId: number,
-): Promise<IndustryStation[]> {
-  return db
-    .select({
-      id: eveNpcStations.id,
-      name: eveNpcStations.name,
-      operationName: eveStationOperations.name,
-      manufacturingCapable: eveNpcStations.manufacturingCapable,
-      researchCapable: eveNpcStations.researchCapable,
-    })
-    .from(eveNpcStations)
-    .innerJoin(
-      eveStationOperations,
-      eq(eveStationOperations.id, eveNpcStations.operationId),
-    )
-    .where(
-      and(
-        eq(eveNpcStations.solarSystemId, systemId),
-        eq(eveNpcStations.industryCapable, true),
-      ),
-    );
 }
 
 export async function getStructureTypes(): Promise<StructureTypeOption[]> {

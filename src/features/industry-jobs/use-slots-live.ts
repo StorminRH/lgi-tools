@@ -1,64 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
-import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
-import { apiFetch } from '@/transport/api-client';
-import type { OutcomeOf } from '@/transport/endpoint';
-import { isCurrentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
-import { industrySlotsEndpoint, type IndustrySlotsResponse, type ViewerSlots } from './api-contract';
+import { useMemo } from 'react';
+import { type LiveDatasetState, useLiveDataset } from '@/components/use-live-dataset';
+import { idsKey } from '@/lib/array';
+import { anyEligibleCold } from '@/lib/live-dataset';
+import { type IndustrySlotsResponse, industrySlotsEndpoint, type ViewerSlots } from './api-contract';
 
-const RECONCILE_DELAY_MS = 5_000;
-const MAX_RECONCILE_ATTEMPTS = 24;
+// Kept stable, so a memo over the characters holds until slots arrive.
+const NO_SLOTS: ViewerSlots[] = [];
 
-// The last slots outlive the pages that read them, so a page mounting again draws them at once.
-const slotsMemory = createRememberedRead<IndustrySlotsResponse>();
-
-function anyUnsynced(characters: ViewerSlots[]): boolean {
-  return characters.some((character) => !character.synced);
+// Cold while a pilot whose skills can sync has none synced yet: its slots are
+// unknown, not zero. A pilot without the skill scopes never syncs, so it is
+// never waited on.
+function slotsIsCold(response: IndustrySlotsResponse, eligibleKey: string): boolean {
+  return anyEligibleCold(
+    response.characters.map((character) => ({
+      characterId: character.characterId,
+      data: character.synced ? character : null,
+    })),
+    eligibleKey,
+  );
 }
 
-export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } {
-  const response = useRememberedRead(slotsMemory);
-  const identity = useReadIdentity();
-
-  useEffect(() => {
-    if (identity === null) return;
-    let cancelled = false;
-    let attempts = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    async function load(): Promise<void> {
-      const result = await apiFetch(industrySlotsEndpoint);
-      if (!cancelled && isCurrentReadIdentity(identity)) onResult(result);
-    }
-
-    function onResult(result: OutcomeOf<typeof industrySlotsEndpoint>): void {
-      if (result.ok) {
-        slotsMemory.set(result.data, identity);
-        if (anyUnsynced(result.data.characters)) retry();
-        return;
-      }
-      onFailure();
-    }
-
-    function onFailure(): void {
-      // Settle as empty only when nothing was ever read; a drawn answer stays.
-      if (!retry() && slotsMemory.get() === null) slotsMemory.set({ characters: [] }, identity);
-    }
-
-    function retry(): boolean {
-      if (attempts >= MAX_RECONCILE_ATTEMPTS) return false;
-      attempts += 1;
-      timer = setTimeout(() => void load(), RECONCILE_DELAY_MS);
-      return true;
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-      if (timer !== undefined) clearTimeout(timer);
-    };
-  }, [identity]);
-
-  return { characters: response?.characters ?? [], loading: response === null };
+/** Slot capacity and skill levels for every linked character, checked back while a refresh runs or a skill-eligible pilot is unsynced. */
+export function useSlotsLive(
+  eligibleCharacterIds: number[],
+): { characters: ViewerSlots[] } & Pick<LiveDatasetState, 'loading' | 'failed' | 'retry'> {
+  const eligibleKey = useMemo(() => idsKey(eligibleCharacterIds), [eligibleCharacterIds]);
+  const { response, loading, failed, retry } = useLiveDataset(industrySlotsEndpoint, eligibleKey, slotsIsCold);
+  return { characters: response?.characters ?? NO_SLOTS, loading, failed, retry };
 }

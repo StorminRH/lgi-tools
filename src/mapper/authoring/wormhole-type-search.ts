@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 
 export type WormholeTypeParams = { code: string | null };
@@ -58,4 +59,23 @@ export function wormholeTypeSearch(
         .slice(0, SUGGEST_LIMIT);
     },
   };
+}
+
+/**
+ * The type search for a codex code list, kept while `codes` and
+ * `preferredCodes` hold their identities. It is lenient while the codex has
+ * not loaded, when `codes` is empty, so a canonical code still parses.
+ */
+export function useWormholeTypeSearch(
+  codes: readonly string[],
+  preferredCodes?: readonly string[],
+): ReturnType<typeof wormholeTypeSearch> {
+  return useMemo(
+    () =>
+      wormholeTypeSearch(codes, {
+        preferredCodes,
+        lenient: codes.length === 0,
+      }),
+    [codes, preferredCodes],
+  );
 }

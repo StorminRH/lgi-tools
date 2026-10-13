@@ -21,14 +21,6 @@ function trackedLocationPayload(location: Doc<'characterLocation'>) {
   };
 }
 
-function findCharacterLocation(
-  ctx: QueryCtx,
-  userId: string,
-  characterId: number,
-): Promise<Doc<'characterLocation'> | null> {
-  return uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId);
-}
-
 type TrackedLocation = ReturnType<typeof trackedLocationPayload>;
 
 // Older clients group by userId; a constant keeps them working without identifying an account.
@@ -49,7 +41,7 @@ async function readTrackedLocations(
   rows: readonly Doc<'mapTracking'>[],
 ): Promise<{ userId: string; characterId: number; location: TrackedLocation | null }[]> {
   const locations = await Promise.all(rows.map(async (row) => {
-    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
+    const location = await uniqueByUserCharacter(ctx, 'characterLocation', row.userId, row.characterId);
     return {
       characterId: row.characterId,
       location: location === null ? null : trackedLocationPayload(location),
@@ -136,18 +128,3 @@ export const coverage = query({
     };
   },
 });
-
-export async function readTrackedPilotSystemIds(
-  ctx: QueryCtx,
-  mapId: string,
-): Promise<ReadonlySet<number>> {
-  const rows = await readMapTracking(ctx, mapId);
-  const locations = await Promise.all(
-    rows.map((row) => findCharacterLocation(ctx, row.userId, row.characterId)),
-  );
-  const systemIds = new Set<number>();
-  for (const location of locations) {
-    if (location !== null) systemIds.add(location.solarSystemId);
-  }
-  return systemIds;
-}

@@ -1,65 +1,38 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Tooltip } from '@/components/ui/tooltip';
+import { eyebrow } from '@/components/ui/type-roles';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { formatElapsed } from '@/lib/format/time';
 import { clampPct } from '@/lib/math';
+import type { ScannerPanelTarget } from './signature-context';
 import { scannerGroupTypeLabel, type SignatureWindowRow } from './signature-model';
-import { scannerRowOpenAction } from './scanner-row-open';
-
-export type OpenRowActions = (
-  trigger: HTMLElement,
-  clientX: number,
-  clientY: number,
-) => void;
-
-function openRowActionsAtStart(
-  trigger: HTMLElement,
-  onOpenActions: OpenRowActions,
-): void {
-  const bounds = trigger.getBoundingClientRect();
-  onOpenActions(trigger, bounds.left + 12, bounds.top + 12);
-}
 
 function SignalFill({ signalPct }: { readonly signalPct: number | null }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    ref.current?.style.setProperty(
-      '--signature-signal',
-      `${clampPct(signalPct ?? 0)}%`,
-    );
-  }, [signalPct]);
+  const ref = useStyleProperty<HTMLDivElement>(
+    '--signature-signal',
+    `${clampPct(signalPct ?? 0)}%`,
+  );
   return <div ref={ref} data-signature-signal-fill aria-hidden />;
-}
-
-function missingDataAttribute(missing: boolean): true | undefined {
-  return missing ? true : undefined;
 }
 
 function signatureRowTone(missing: boolean): string {
   return missing ? 'map-signature-missing' : 'text-text';
 }
 
-function updatedDataAttribute(updated: boolean): true | undefined {
-  return updated ? true : undefined;
-}
-
 function signatureName(row: SignatureWindowRow): string {
   return row.name ?? 'Unresolved';
 }
 
-function rowActionPrefix(
-  row: SignatureWindowRow,
-  canEdit: boolean,
-  resolveSiteId: (name: string) => number | null,
-): string {
-  const action = scannerRowOpenAction(row, canEdit, resolveSiteId);
-  if (action?.kind === 'connection') return 'Edit wormhole';
-  if (action?.kind === 'site') return 'View site';
-  return 'Open signature';
-}
+const OPEN_TARGET_PREFIX: Readonly<
+  Record<NonNullable<ScannerPanelTarget>['kind'], string>
+> = {
+  connection: 'Edit wormhole',
+  site: 'View site',
+};
 
 export function IdCell({
   row,
@@ -92,6 +65,18 @@ export function NameCell({ row }: { readonly row: SignatureWindowRow }) {
   );
 }
 
+/** A wormhole signature's class tag (C3, HS, …) beside its name. */
+export function SignatureClassChip({ label }: { readonly label: string }) {
+  return (
+    <span
+      data-signature-class
+      className={eyebrow({ size: 'micro', weight: 'inherit', emphasis: 'label', className: 'shrink-0' })}
+    >
+      {label}
+    </span>
+  );
+}
+
 export function SiteTypeCell({ row }: { readonly row: SignatureWindowRow }) {
   const label = scannerGroupTypeLabel(row.group);
   return (
@@ -105,19 +90,13 @@ export function SiteTypeCell({ row }: { readonly row: SignatureWindowRow }) {
 }
 
 function SignatureRowContent({
-  row,
-  interactive,
-  canEdit,
-  resolveSiteId,
-  onOpenActions,
+  openTarget,
+  onOpenTarget,
   columnsClassName,
   children,
 }: {
-  readonly row: SignatureWindowRow;
-  readonly interactive: boolean;
-  readonly canEdit: boolean;
-  readonly resolveSiteId: (name: string) => number | null;
-  readonly onOpenActions: OpenRowActions;
+  readonly openTarget: ScannerPanelTarget;
+  readonly onOpenTarget: (target: ScannerPanelTarget) => void;
   readonly columnsClassName: string;
   readonly children: ReactNode;
 }) {
@@ -125,14 +104,14 @@ function SignatureRowContent({
     'relative z-base min-h-7 w-full min-w-0 flex-1 text-left',
     columnsClassName,
   );
-  if (!interactive) return <div className={className}>{children}</div>;
+  if (openTarget === null) return <div className={className}>{children}</div>;
   return (
     <Button
       variant="bare"
       className={className}
-      onClick={(event) => openRowActionsAtStart(event.currentTarget, onOpenActions)}
+      onClick={() => onOpenTarget(openTarget)}
     >
-      <span className="sr-only">{rowActionPrefix(row, canEdit, resolveSiteId)} </span>
+      <span className="sr-only">{OPEN_TARGET_PREFIX[openTarget.kind]} </span>
       {children}
     </Button>
   );
@@ -142,32 +121,29 @@ export function SignatureRow({
   row,
   missing,
   updated,
-  canEdit,
-  resolveSiteId,
   columnsClassName,
   cells,
-  showOpenAffordance,
-  onOpenActions,
+  openTarget,
+  onOpenTarget,
 }: {
   readonly row: SignatureWindowRow;
   readonly missing: boolean;
   /** Automation just filled this row in; plays a short highlight. */
   readonly updated: boolean;
-  readonly canEdit: boolean;
-  readonly resolveSiteId: (name: string) => number | null;
   readonly columnsClassName: string;
   readonly cells: ReactNode;
-  readonly showOpenAffordance: boolean;
-  readonly onOpenActions: OpenRowActions;
+  /** What a press opens; null shows the row without an open affordance. */
+  readonly openTarget: ScannerPanelTarget;
+  readonly onOpenTarget: (target: ScannerPanelTarget) => void;
 }) {
-  const interactive = showOpenAffordance;
+  const showOpenAffordance = openTarget !== null;
   return (
     <li
       data-signature-row
       data-signature-id={row.signatureId}
-      data-signature-missing={missingDataAttribute(missing)}
-      data-signature-updated={updatedDataAttribute(updated)}
-      data-signature-row-open={showOpenAffordance ? true : undefined}
+      data-signature-missing={missing || undefined}
+      data-signature-updated={updated || undefined}
+      data-signature-row-open={showOpenAffordance || undefined}
       className={cn(
         'group/sig-row relative isolate flex min-h-8 flex-col px-2.5 py-1 font-ui text-ui',
         signatureRowTone(missing),
@@ -178,11 +154,8 @@ export function SignatureRow({
     >
       <SignalFill signalPct={row.signalPct} />
       <SignatureRowContent
-        row={row}
-        interactive={interactive}
-        canEdit={canEdit}
-        resolveSiteId={resolveSiteId}
-        onOpenActions={onOpenActions}
+        openTarget={openTarget}
+        onOpenTarget={onOpenTarget}
         columnsClassName={columnsClassName}
       >
         {cells}

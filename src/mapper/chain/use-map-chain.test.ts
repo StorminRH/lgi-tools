@@ -25,12 +25,14 @@ import {
   stubPostKey,
 } from './stub-layout';
 import { normalizeMapAccess } from './use-map-chain-pages';
+import type { ChainPosition } from './intents';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
+  type ChainMerge,
   type ChainSnapshot,
+  type ChainState,
 } from './reconciler';
-import type { PlacementAssigner } from './placement';
 import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from '../layout/layout-contract';
 import { deriveChainTree } from '../layout/facts';
 import {
@@ -85,16 +87,16 @@ function unresolvedConnection(
   });
 }
 
-const keepPositions: PlacementAssigner = ({ systems: candidates }) => {
-  const proposals = new Map<number, { x: number; y: number }>();
-  for (const candidate of candidates) {
-    proposals.set(
-      candidate.systemId,
-      candidate.position ?? { x: candidate.systemId, y: 0 },
+function mergeKeepingPositions(previous: ChainState, snapshot: ChainSnapshot): ChainMerge {
+  const positions = new Map<number, ChainPosition>();
+  for (const { systemId } of snapshot.systems.rows) {
+    positions.set(
+      systemId,
+      previous.systems.get(systemId)?.position ?? { x: systemId, y: 0 },
     );
   }
-  return proposals;
-};
+  return reconcileChain(previous, snapshot, positions);
+}
 
 describe('chain snapshot signature', () => {
   it('projects an awaiting jump only as a prompt, leaving graph and scanner rows untouched', () => {
@@ -613,19 +615,11 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
     const before = chainSnapshot([JITA, AMARR], [
       { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
     ]);
-    const populated = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      before,
-      keepPositions,
-    );
+    const populated = mergeKeepingPositions(EMPTY_CHAIN_STATE, before);
     expect(deriveChainTree(factsFromSnapshot(before)).rootSystemId).toBe(JITA);
 
     const afterFilter = chainSnapshot([AMARR]);
-    const after = reconcileChain(
-      populated.state,
-      afterFilter,
-      keepPositions,
-    );
+    const after = mergeKeepingPositions(populated.state, afterFilter);
 
     expect([...after.state.systems.keys()]).toEqual([AMARR]);
     expect(after.intents.map((intent) => intent.kind)).toEqual(
@@ -649,20 +643,12 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
 describe('optimistic add through the merge', () => {
   it('shows an optimistic edge then removes it on rollback to server truth', () => {
     const home = chainSnapshot([JITA]);
-    const withHome = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      home,
-      keepPositions,
-    );
+    const withHome = mergeKeepingPositions(EMPTY_CHAIN_STATE, home);
 
     const optimistic = chainSnapshot([JITA, AMARR], [
       { connectionId: 'optimistic:mapConnections:c1', fromSystemId: JITA, toSystemId: AMARR },
     ]);
-    const local = reconcileChain(
-      withHome.state,
-      optimistic,
-      keepPositions,
-    );
+    const local = mergeKeepingPositions(withHome.state, optimistic);
     expect(
       local.state.connections.has('optimistic:mapConnections:c1'),
     ).toBe(true);
@@ -670,11 +656,7 @@ describe('optimistic add through the merge', () => {
       local.intents.some((intent) => intent.kind === 'connection-appeared'),
     ).toBe(true);
 
-    const rolledBack = reconcileChain(
-      local.state,
-      home,
-      keepPositions,
-    );
+    const rolledBack = mergeKeepingPositions(local.state, home);
     expect(rolledBack.state.connections.size).toBe(0);
     expect([...rolledBack.state.systems.keys()]).toEqual([JITA]);
     expect(
@@ -689,16 +671,8 @@ describe('optimistic add through the merge', () => {
     const confirmed = chainSnapshot([JITA, AMARR], [
       { connectionId: 'confirmed:c1', fromSystemId: JITA, toSystemId: AMARR },
     ]);
-    const local = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      optimistic,
-      keepPositions,
-    );
-    const merged = reconcileChain(
-      local.state,
-      confirmed,
-      keepPositions,
-    );
+    const local = mergeKeepingPositions(EMPTY_CHAIN_STATE, optimistic);
+    const merged = mergeKeepingPositions(local.state, confirmed);
 
     expect([...merged.state.connections.keys()]).toEqual(['confirmed:c1']);
     expect(

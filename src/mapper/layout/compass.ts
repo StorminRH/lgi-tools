@@ -46,6 +46,23 @@ function centerOut(index: number): number {
   return index % 2 === 1 ? -magnitude : magnitude;
 }
 
+interface RingSlots {
+  readonly buckets: number;
+  readonly step: number;
+  readonly start: number;
+}
+
+function ringSlots(ring: number, idealAngle: number, config: LayoutConfig): RingSlots {
+  const buckets = bucketCount(ring, config);
+  const step = FULL_CIRCLE / buckets;
+  const start = Math.round(normalizeAngle(idealAngle) / step) % buckets;
+  return { buckets, step, start };
+}
+
+function slotBucket({ buckets, start }: RingSlots, sideways: number): number {
+  return (((start + centerOut(sideways)) % buckets) + buckets) % buckets;
+}
+
 interface PlacedEdge {
   readonly from: ChainPosition;
   readonly to: ChainPosition;
@@ -122,41 +139,43 @@ class BucketRegistry {
   ): Generator<CandidateSpot> {
     const depth = extended ? EXTENDED_RING_DEPTH : CANDIDATE_RING_DEPTH;
     for (let ring = idealRing; ring < idealRing + depth; ring += 1) {
-      const buckets = bucketCount(ring, this.config);
-      const step = FULL_CIRCLE / buckets;
-      const start = Math.round(normalizeAngle(idealAngle) / step) % buckets;
+      const slots = ringSlots(ring, idealAngle, this.config);
       const window = extended
-        ? Math.floor(buckets / 2)
-        : Math.max(3, Math.floor(buckets / 8));
-      const occupied = this.taken.get(ring);
+        ? Math.floor(slots.buckets / 2)
+        : Math.max(3, Math.floor(slots.buckets / 8));
       for (let sideways = 0; sideways <= 2 * window; sideways += 1) {
-        const bucket = (((start + centerOut(sideways)) % buckets) + buckets) % buckets;
-        if (occupied?.has(bucket)) continue;
-        const angle = bucket * step;
+        const bucket = slotBucket(slots, sideways);
+        if (this.isTaken(ring, bucket)) continue;
+        const angle = bucket * slots.step;
         yield { ring, angle, bucket, position: toPosition(ring, angle, this.config) };
       }
     }
   }
 
-  private take(candidate: CandidateSpot): void {
-    getOrInsertComputed(this.taken, candidate.ring, () => new Set()).add(candidate.bucket);
+  private isTaken(ring: number, bucket: number): boolean {
+    return this.taken.get(ring)?.has(bucket) === true;
   }
 
-  private tryTake(ring: number, idealAngle: number, sideways: number): ClaimedSpot | null {
-    const buckets = bucketCount(ring, this.config);
-    const step = FULL_CIRCLE / buckets;
-    const start = Math.round(normalizeAngle(idealAngle) / step) % buckets;
-    const bucket = (((start + centerOut(sideways)) % buckets) + buckets) % buckets;
-    const occupied = getOrInsertComputed(this.taken, ring, () => new Set());
-    if (occupied.has(bucket)) return null;
-    occupied.add(bucket);
-    return { ring, angle: bucket * step };
+  private mark(ring: number, bucket: number): void {
+    getOrInsertComputed(this.taken, ring, () => new Set()).add(bucket);
+  }
+
+  private take(candidate: CandidateSpot): void {
+    this.mark(candidate.ring, candidate.bucket);
+  }
+
+  private tryTake(ring: number, slots: RingSlots, sideways: number): ClaimedSpot | null {
+    const bucket = slotBucket(slots, sideways);
+    if (this.isTaken(ring, bucket)) return null;
+    this.mark(ring, bucket);
+    return { ring, angle: bucket * slots.step };
   }
 
   private sweep(idealRing: number, idealAngle: number): ClaimedSpot {
     for (let ring = idealRing; ring < idealRing + MAX_PROBE_RINGS; ring += 1) {
-      for (let sideways = 0; sideways < bucketCount(ring, this.config); sideways += 1) {
-        const claimed = this.tryTake(ring, idealAngle, sideways);
+      const slots = ringSlots(ring, idealAngle, this.config);
+      for (let sideways = 0; sideways < slots.buckets; sideways += 1) {
+        const claimed = this.tryTake(ring, slots, sideways);
         if (claimed !== null) return claimed;
       }
     }
@@ -219,12 +238,12 @@ function layoutTree(tree: ChainTree, config: LayoutConfig): Map<number, ChainPos
   return positions;
 }
 
-export const compassKernel: LayoutKernel = (
+export const compassKernel: LayoutKernel = async (
   facts: LayoutFacts,
   config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
 ) => {
   const tree = deriveChainTree(facts);
   const positions = layoutTree(tree, config);
   parkOrphans(positions, tree.orphans, config);
-  return Promise.resolve(positions);
+  return positions;
 };

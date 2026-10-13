@@ -33,15 +33,23 @@ function rewound() {
  * latest state. useMemo and the effects re-run when their deps change by
  * count or `Object.is`, or on every render without deps. An effect runs
  * synchronously when called, after the previous run's cleanup, not after a
- * commit. useCallback hands back the callback it is given, unmemoized, so a
- * memo that depends on a callback recomputes each render and a test that
- * changes a mocked input reaches it. useSyncExternalStore reads the snapshot.
+ * commit. useEffectEvent keeps its callback in the next useRef slot and hands
+ * back a function that calls the latest render's callback, as React swaps it
+ * in at each commit, so an effect that ran on an earlier render, or an await
+ * it started, reaches the newest values. useCallback hands back the callback
+ * it is given, unmemoized, so a memo that depends on a callback recomputes
+ * each render and a test that changes a mocked input reaches it. With
+ * `memoizeCallbacks` it keeps a callback in the next useMemo slot while its
+ * deps hold, as React does, for a hook whose effect keys on a callback.
+ * useSyncExternalStore reads the snapshot and keeps a subscription in the
+ * next effect slot, so a store sees one subscriber per mounted reader until
+ * `unmount` or `hide`; a store change does not re-render, so call `render`.
  *
  * The helper imports nothing from 'react', so a test can load it for its own
  * `vi.mock('react')`:
  * `const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());`
  */
-export function createHookRuntime() {
+export function createHookRuntime(options: { memoizeCallbacks?: boolean } = {}) {
   let slots = mountedSlots();
   let cursor = rewound();
 
@@ -64,7 +72,14 @@ export function createHookRuntime() {
     return (slots.refs[cursor.ref++] ??= { current: initial }) as { current: T };
   }
 
-  function useMemo<T>(make: () => T, deps?: readonly unknown[]): T {
+  function useEffectEvent<A extends unknown[], R>(callback: (...args: A) => R): (...args: A) => R {
+    const latest = useRef(callback);
+    latest.current = callback;
+    return (...args) => latest.current(...args);
+  }
+
+  /** The value in the next memo slot, made again when its deps change. */
+  function memoized<T>(make: () => T, deps: Deps): T {
     const index = cursor.memo++;
     const held = slots.memos[index];
     if (held && !depsChanged(held.deps, deps)) return held.value as T;
@@ -73,12 +88,27 @@ export function createHookRuntime() {
     return value;
   }
 
+  function useMemo<T>(make: () => T, deps?: readonly unknown[]): T {
+    return memoized(make, deps);
+  }
+
+  function useCallback<T>(callback: T, deps?: readonly unknown[]): T {
+    return options.memoizeCallbacks ? memoized(() => callback, deps) : callback;
+  }
+
   function useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void {
     const index = cursor.effect++;
     const held = slots.effects[index];
     if (held && !depsChanged(held.deps, deps)) return;
     held?.cleanup?.();
     slots.effects[index] = { deps, cleanup: effect() };
+  }
+
+  /** Reads the snapshot, then subscribes in the next effect slot as React does after commit, again whenever `subscribe` changes. */
+  function useSyncExternalStore<T>(subscribe: (onStoreChange: () => void) => () => void, getSnapshot: () => T): T {
+    const snapshot = getSnapshot();
+    useEffect(() => subscribe(() => {}), [subscribe]);
+    return snapshot;
   }
 
   function cleanUpEffects() {
@@ -92,10 +122,11 @@ export function createHookRuntime() {
       useReducer,
       useRef,
       useMemo,
-      useCallback: <T>(callback: T, _deps?: readonly unknown[]): T => callback,
+      useCallback,
       useEffect,
+      useEffectEvent,
       useLayoutEffect: useEffect,
-      useSyncExternalStore: <T>(_subscribe: unknown, getSnapshot: () => T): T => getSnapshot(),
+      useSyncExternalStore,
     },
     /** Rewinds every cursor, then calls the component or hook with `args`. */
     render<A extends unknown[], R>(component: (...args: A) => R, ...args: A): R {

@@ -4,9 +4,7 @@ const h = vi.hoisted(() => ({
   getCurrentUserIdMock: vi.fn(),
   requireUserIdMock: vi.fn(),
   getBlueprintStructureMock: vi.fn(),
-  countSavedPlansMock: vi.fn(),
   createSavedPlanMock: vi.fn(),
-  deleteSavedPlanMock: vi.fn(),
   listSavedPlansMock: vi.fn(),
 }));
 
@@ -20,13 +18,10 @@ vi.mock('@/features/industry-planner/queries', () => ({
   getBlueprintStructure: (...args: unknown[]) => h.getBlueprintStructureMock(...args),
 }));
 vi.mock('@/features/industry-planner/saved-plans-queries', () => ({
-  countSavedPlans: (...args: unknown[]) => h.countSavedPlansMock(...args),
   createSavedPlan: (...args: unknown[]) => h.createSavedPlanMock(...args),
-  deleteSavedPlan: (...args: unknown[]) => h.deleteSavedPlanMock(...args),
   listSavedPlans: (...args: unknown[]) => h.listSavedPlansMock(...args),
 }));
 
-import { MAX_SAVED_PLANS_PER_USER } from '@/features/industry-planner/api-contract';
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { GET, POST } from './route';
@@ -52,9 +47,7 @@ beforeEach(() => {
   h.getBlueprintStructureMock
     .mockReset()
     .mockResolvedValue({ product: { typeId: 22544, name: 'Hulk' } });
-  h.countSavedPlansMock.mockReset();
-  h.createSavedPlanMock.mockReset().mockResolvedValue(undefined);
-  h.deleteSavedPlanMock.mockReset().mockResolvedValue(undefined);
+  h.createSavedPlanMock.mockReset().mockResolvedValue(true);
   h.listSavedPlansMock.mockReset().mockResolvedValue([planRow]);
 });
 
@@ -93,7 +86,7 @@ describe('POST /api/account/saved-plans', () => {
     expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
   });
 
-  it('returns 400 when the blueprint does not resolve', async () => {
+  it('returns 400 when the blueprint does not resolve, before the cap is ever checked', async () => {
     h.getBlueprintStructureMock.mockResolvedValue(null);
     const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(400);
@@ -101,12 +94,11 @@ describe('POST /api/account/saved-plans', () => {
       code: 'unknown_blueprint',
       detail: 'unknown blueprint',
     });
+    expect(h.createSavedPlanMock).not.toHaveBeenCalled();
   });
 
-  it('rolls the insert back when a concurrent save breaches the cap', async () => {
-    h.countSavedPlansMock
-      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
-      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER + 1);
+  it('maps a full account to 409 without listing', async () => {
+    h.createSavedPlanMock.mockResolvedValue(false);
     const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(409);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
@@ -114,15 +106,10 @@ describe('POST /api/account/saved-plans', () => {
       detail: 'template limit reached',
     });
     expect(h.createSavedPlanMock).toHaveBeenCalledTimes(1);
-    const insertedId = h.createSavedPlanMock.mock.calls[0]?.[1]?.id;
-    expect(h.deleteSavedPlanMock).toHaveBeenCalledWith('user-1', insertedId);
     expect(h.listSavedPlansMock).not.toHaveBeenCalled();
   });
 
   it('saves the plan and returns the updated list with 201', async () => {
-    h.countSavedPlansMock
-      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
-      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER);
     const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ plans: [planRow] });
@@ -136,7 +123,6 @@ describe('POST /api/account/saved-plans', () => {
         snapshot: { v: 1, blueprintTypeId: 22548 },
       }),
     );
-    expect(h.deleteSavedPlanMock).not.toHaveBeenCalled();
   });
 
 });

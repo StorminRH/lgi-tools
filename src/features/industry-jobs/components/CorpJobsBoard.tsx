@@ -3,7 +3,6 @@
 import { type ReactNode, useMemo } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { EntityLogo } from '@/components/entity-logo';
-import { useEntityNames } from '@/components/use-entity-names';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
@@ -11,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadFailed } from '@/components/ui/load-failed';
 import { SectionLabel } from '@/components/ui/section-label';
 import { ENTITY_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
+import { useEntityNames } from '@/data/eve-data/use-names';
 import { nameOrUnresolved } from '@/lib/format/names';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';

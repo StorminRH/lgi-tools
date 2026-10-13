@@ -20,22 +20,15 @@ function input(
       { id: 'root-a', fromSystemId: ROOT, toSystemId: A },
       { id: 'cut', fromSystemId: A, toSystemId: B },
     ],
-    pilotsPresent: 'unknown',
     ...overrides,
   };
 }
 
-it('removes cut-off branches unless pilots are present or a loop still reaches home', () => {
+it('removes cut-off branches unless a loop still reaches home', () => {
   expect(decideCollapse(input())).toEqual({
     kind: 'remove',
     systemIds: [B],
     connectionIds: ['cut'],
-  });
-  for (const pilotsPresent of ['unknown', 'absent'] as const) {
-    expect(decideCollapse(input({ pilotsPresent }))).toMatchObject({ kind: 'remove' });
-  }
-  expect(decideCollapse(input({ pilotsPresent: 'present' }))).toEqual({
-    kind: 'retain',
   });
   expect(
     decideCollapse(

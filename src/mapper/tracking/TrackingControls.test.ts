@@ -6,7 +6,7 @@ import {
 } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TrackingControls, TrackingHeartbeat } from './TrackingControls';
+import { TrackingControls, TrackingHeartbeat, useMapTrackingToggle } from './TrackingControls';
 
 const mocks = vi.hoisted(() => ({
   heartbeat: vi.fn(),
@@ -146,7 +146,7 @@ describe('TrackingControls', () => {
     const empty = renderToStaticMarkup(
       TrackingControls({ mapId: 'map-a', reconnectAction }) as ReactElement,
     );
-    expect(empty).toContain('None of your characters are on this map&#x27;s access list');
+    expect(empty).toContain('No characters to track');
     expect(empty).not.toContain('data-tracking-portrait');
   });
 
@@ -175,7 +175,7 @@ describe('TrackingControls', () => {
     expect(markup).toContain('<option value="202">Bob Own</option>');
 
     const view = element as ReactElement<{
-      onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
+      onToggle: (characterId: number, tracked: boolean) => Promise<void>;
     }>;
     await view.props.onToggle(202, true);
     expect(mocks.mutate).toHaveBeenCalledWith({
@@ -188,16 +188,29 @@ describe('TrackingControls', () => {
     expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
   });
 
-  it('explains a refused tracking change instead of dropping the rejection', async () => {
+  it('explains a refused tracking change instead of rejecting, for every setTracking caller', async () => {
+    mocks.toastError.mockClear();
+    const toggleTracking = useMapTrackingToggle('map-a');
+    const change = { mapId: 'map-a', characterId: 202, tracked: true };
+
     const detail = 'This map has reached its tracking limit.';
     mocks.mutate.mockRejectedValueOnce({ data: { code: 'TRACKING_MAP_CAP_EXCEEDED', detail } });
-    const view = TrackingControls({ mapId: 'map-a', reconnectAction }) as ReactElement<{
-      onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
-    }>;
-    await view.props.onToggle(202, true);
-    expect(mocks.toastError).toHaveBeenCalledWith('Tracking was not changed', {
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
+    expect(mocks.mutate).toHaveBeenLastCalledWith(change);
+    expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking not changed', {
       description: detail,
     });
+
+    mocks.mutate.mockRejectedValueOnce({ data: { code: 'FORBIDDEN' } });
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
+    expect(mocks.toastError.mock.lastCall).toEqual(['Tracking not changed']);
+
+    mocks.mutate.mockRejectedValueOnce(new Error('Connection lost'));
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
+    expect(mocks.toastError.mock.lastCall).toEqual(['Tracking not changed']);
+
+    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
+    expect(mocks.toastError).toHaveBeenCalledTimes(3);
   });
 
   it('surfaces location reconnect on the control even when skill-queue health is fine', () => {

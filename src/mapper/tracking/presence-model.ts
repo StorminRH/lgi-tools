@@ -120,12 +120,12 @@ export interface FriendlyRowModel {
 
 export function friendlyRows(
   pilots: readonly PresencePilot[],
-  names: Record<string, string>,
+  nameOf: (characterId: number) => string,
   shipNames: Record<string, string> = {},
 ): readonly FriendlyRowModel[] {
   return pilots.map((pilot) => ({
     characterId: pilot.characterId,
-    label: names[String(pilot.characterId)] ?? String(pilot.characterId),
+    label: nameOf(pilot.characterId),
     word: presenceStatusWord(pilot),
     shipName: pilot.docked || pilot.shipTypeId === null ? null : (shipNames[String(pilot.shipTypeId)] ?? null),
   }));

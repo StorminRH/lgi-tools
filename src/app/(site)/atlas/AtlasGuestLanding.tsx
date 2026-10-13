@@ -5,13 +5,12 @@ import { Pill } from '@/components/ui/pill';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { ATLAS_TAGLINE } from '@/features/maps/atlas-copy';
 
-const SETUP_STEPS = [
+const SETUP_STEPS: readonly { readonly title: string; readonly detail?: string }[] = [
   {
     title: 'Log in with EVE Online',
-    detail: 'Use your EVE character.',
   },
   {
-    title: 'Link additional characters you fly',
+    title: 'Link your other characters',
     detail:
       'Use Add character in your account menu.',
   },
@@ -20,7 +19,7 @@ const SETUP_STEPS = [
     detail:
       "Toggle tracking from your portrait. Tracking may take up to 30 seconds.",
   },
-] as const;
+];
 
 export function AtlasGuestLanding({
   returnHref,
@@ -37,7 +36,7 @@ export function AtlasGuestLanding({
             tone="green"
             className="reveal reveal-1 glass-surface glass-lit border-hairline-accent shadow-card-edge"
             title="Sign in required"
-            reason={`${ATLAS_TAGLINE} Sign in to access maps and tracking.`}
+            reason={ATLAS_TAGLINE}
             action={<EveSignInButton callbackURL={returnHref} />}
           >
             {null}
@@ -55,7 +54,9 @@ export function AtlasGuestLanding({
                   </Pill>
                   <div className="flex min-w-0 flex-col gap-1">
                     <span className="text-ui text-name">{step.title}</span>
-                    <p className="text-ui leading-relaxed text-muted">{step.detail}</p>
+                    {step.detail === undefined ? null : (
+                      <p className="text-ui leading-relaxed text-muted">{step.detail}</p>
+                    )}
                   </div>
                 </li>
               ))}

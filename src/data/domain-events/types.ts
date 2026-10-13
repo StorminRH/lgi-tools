@@ -1,12 +1,9 @@
 import type { PriceSourceCounts } from '@/lib/alerts';
-import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
 
 export const DOMAIN_EVENT_TYPES = [
   'price_refresh_finished',
   'esi_snapshot_pulled',
   'eve_token_state_changed',
-  'esi_refresh_job_status_changed',
-  'esi_budget_guard_exhausted',
 ] as const;
 
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
@@ -29,21 +26,6 @@ export interface DomainEventMetadataByType {
     from: 'usable' | 'suspect';
     to: 'usable' | 'suspect' | 'reauth_required';
     reason: 'invalid_grant' | 'refresh_recovered';
-  };
-  esi_refresh_job_status_changed: {
-    jobId: number;
-    dataset: string;
-    ownerType: EsiOwnerType;
-    ownerId: number;
-    status: 'succeeded' | 'failed_retryable' | 'failed_permanent' | 'dead_lettered';
-    attemptCount: number;
-    failureCode: string | null;
-  };
-  esi_budget_guard_exhausted: {
-    count: number;
-    windowMinutes: number;
-    windowStartedAt: string;
-    windowEndedAt: string;
   };
 }
 

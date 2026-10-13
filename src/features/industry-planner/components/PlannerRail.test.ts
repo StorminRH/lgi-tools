@@ -21,7 +21,7 @@ vi.mock('./MultibuyPanel', () => ({ MultibuyPanel: () => createElement('button',
 vi.mock('./planner-contexts', () => ({
   useBuildSetup: () => h.setup,
   useMarketData: () => ({ pricing: null, refreshing: false }),
-  usePlannerConfig: (): Partial<PlannerConfigValue> => ({ runs: 3, setRuns: vi.fn(), marginMode: 'net', setMarginMode: vi.fn() }),
+  usePlannerConfig: (): Partial<PlannerConfigValue> => ({ runs: 3, setRuns: vi.fn() }),
   useBuildPlan: (): Partial<BuildPlanValue> => ({
     ownedMe: null,
     ownedTe: null,

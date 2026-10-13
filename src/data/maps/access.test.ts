@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  claimsCarryCharacters,
   isMapCreateRole,
   MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
@@ -196,5 +197,15 @@ describe('capability predicates', () => {
     expect(rolesAllow(['viewer', 'editor'], 'edit')).toBe(true);
     expect(rolesAllow(['viewer'], 'edit')).toBe(false);
     expect(rolesAllow([], 'view')).toBe(false);
+  });
+});
+
+describe('claimsCarryCharacters', () => {
+  it('confirms scoping only when every claim of a non-empty set names its characters', () => {
+    const pilots = [{ characterId: 90_000_001, name: 'Pilot' }];
+    expect(claimsCarryCharacters([{ characters: pilots }, { characters: [] }])).toBe(true);
+    expect(claimsCarryCharacters([{ characters: pilots }, {}])).toBe(false);
+    expect(claimsCarryCharacters([{ characters: undefined }])).toBe(false);
+    expect(claimsCarryCharacters([])).toBe(false);
   });
 });

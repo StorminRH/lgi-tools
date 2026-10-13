@@ -23,7 +23,6 @@ describe('ADMIN_NAV_GROUPS', () => {
       'traffic',
       'search',
       'users',
-      'queue',
       'statics',
       'primitives',
       'cards',
@@ -73,18 +72,16 @@ describe('adminHref', () => {
     expect(adminHref('overview', { range: 'all' })).toBe('/admin?range=all');
     expect(adminHref('health', { hash: 'scheduled' })).toBe('/admin/health#scheduled');
     expect(adminHref('health', { range: '7d', hash: 'scheduled' })).toBe('/admin/health?range=7d#scheduled');
-    expect(adminHref('queue', { range: '7d', hash: 'dead-letters' })).toBe('/admin/queue#dead-letters');
   });
 });
 
 describe('deriveNavBadges', () => {
   it('is empty when nothing is waiting', () => {
-    expect(deriveNavBadges({ deadLettered: 0, staticsPending: false })).toEqual({});
+    expect(deriveNavBadges({ staticsPending: false })).toEqual({});
   });
 
-  it('badges dead letters and a pending statics review', () => {
-    expect(deriveNavBadges({ deadLettered: 1200, staticsPending: true })).toEqual({
-      queue: { label: '1,200', tone: 'red' },
+  it('badges a pending statics review', () => {
+    expect(deriveNavBadges({ staticsPending: true })).toEqual({
       statics: { label: '1', tone: 'orange' },
     });
   });

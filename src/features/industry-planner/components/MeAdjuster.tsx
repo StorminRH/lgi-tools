@@ -1,48 +1,57 @@
 'use client';
 
-import { useCallback, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Stepper } from '@/components/ui/stepper';
-import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
-import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
-import { MAX_TE } from '../te-overrides';
+import { eyebrow } from '@/components/ui/type-roles';
+import { effectiveEfficiencyOf, efficiencyGlyphState, MAX_ME, MAX_TE } from '../efficiency';
+import { EFFICIENCY_TONE_CLASSES, type EfficiencyToneState } from '../industry-styles';
 import type { OwnedComponentDetail } from '../types';
 import { IndustryGlyph } from './IndustryGlyph';
+import { useBuildPlan, type BuildPlanValue } from './planner-contexts';
 
-export interface MeProps {
-  blueprintTypeId: number;
-  name: string;
-  ownedMe: Map<number, number> | null;
-  meOverrides: Map<number, number>;
-  setMeOverride: (blueprintTypeId: number, me: number) => void;
-  resetMeOverride: (blueprintTypeId: number) => void;
-}
+type EfficiencyKind = 'me' | 'te';
 
-export interface TeProps {
-  blueprintTypeId: number;
-  name: string;
-  ownedTe: Map<number, number> | null;
-  teOverrides: Map<number, number>;
-  setTeOverride: (blueprintTypeId: number, te: number) => void;
-  resetTeOverride: (blueprintTypeId: number) => void;
-}
+/** Each research attribute's stepper bounds, its spoken unit, and the plan fields it reads and writes. */
+const KIND = {
+  me: {
+    ariaUnit: 'material efficiency',
+    max: MAX_ME,
+    pick: (plan: BuildPlanValue) => ({
+      owned: plan.ownedMe,
+      overrides: plan.meOverrides,
+      set: plan.setMeOverride,
+      reset: plan.resetMeOverride,
+    }),
+  },
+  te: {
+    ariaUnit: 'time efficiency',
+    max: MAX_TE,
+    pick: (plan: BuildPlanValue) => ({
+      owned: plan.ownedTe,
+      overrides: plan.teOverrides,
+      set: plan.setTeOverride,
+      reset: plan.resetTeOverride,
+    }),
+  },
+} satisfies Record<EfficiencyKind, unknown>;
 
-function deriveAdjust(owned: Map<number, number> | null, overrides: Map<number, number>, bp: number) {
-  const ownedValue = owned?.get(bp);
-  const override = overrides.get(bp);
+/** One blueprint's ME or TE as the plan holds it: the value in force, its tone, and the writes that change it. */
+function useEfficiency(kind: EfficiencyKind, blueprintTypeId: number) {
+  const { owned, overrides, set, reset } = KIND[kind].pick(useBuildPlan());
+  const override = overrides.get(blueprintTypeId);
   return {
-    owned: ownedValue,
-    effective: effectiveMeOf(owned, overrides)(bp) ?? 0,
-    state: nodeMeState(ownedValue, override),
+    effective: effectiveEfficiencyOf(owned, overrides)(blueprintTypeId) ?? 0,
+    state: efficiencyGlyphState(owned?.get(blueprintTypeId), override),
     isOverridden: override !== undefined,
+    onCommit: (n: number) => set(blueprintTypeId, n),
+    onRevert: () => reset(blueprintTypeId),
   };
 }
 
-export type IconState = NodeMeState | 'bonus' | 'reaction';
-
 /** CCP's glyph in its efficiency tone. The glow sits on a wrapper because a mask clips its own element's filter. */
-function ToneGlyph({ glyph, state }: { glyph: 'me' | 'te'; state: IconState }) {
+function ToneGlyph({ glyph, state }: { glyph: EfficiencyKind; state: EfficiencyToneState }) {
   const tone = EFFICIENCY_TONE_CLASSES[state];
   return (
     <span aria-hidden className={cn('block size-full', tone.glow)}>
@@ -51,11 +60,11 @@ function ToneGlyph({ glyph, state }: { glyph: 'me' | 'te'; state: IconState }) {
   );
 }
 
-export function GemIcon({ state }: { state: IconState }) {
+export function GemIcon({ state }: { state: EfficiencyToneState }) {
   return <ToneGlyph glyph="me" state={state} />;
 }
 
-export function HourglassIcon({ state }: { state: IconState }) {
+export function HourglassIcon({ state }: { state: EfficiencyToneState }) {
   return <ToneGlyph glyph="te" state={state} />;
 }
 
@@ -86,42 +95,51 @@ export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
   );
 }
 
-type Derived = ReturnType<typeof deriveAdjust>;
+/** A stepper marked by its icon alone; the stepper carries the name for assistive tech. */
+export function StepperRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span aria-hidden className="inline-flex size-3.5 shrink-0">
+        {icon}
+      </span>
+      {children}
+    </div>
+  );
+}
 
+/**
+ * A blueprint's ME or TE stepper, read from and written to the build plan.
+ * Boxed, it sits in its own icon row; inline, it carries a small icon of its own.
+ */
 function EfficiencyField({
-  icon,
-  ariaUnit,
+  kind,
+  blueprintTypeId,
   name,
-  max,
-  d,
-  onCommit,
-  onRevert,
   boxed = false,
 }: {
-  icon: ReactNode;
-  ariaUnit: string;
+  kind: EfficiencyKind;
+  blueprintTypeId: number;
   name: string;
-  max: number;
-  d: Derived;
-  onCommit: (n: number) => void;
-  onRevert: () => void;
   boxed?: boolean;
 }) {
-  const revertButton = d.isOverridden ? (
+  const { ariaUnit, max } = KIND[kind];
+  const field = useEfficiency(kind, blueprintTypeId);
+  const icon = <ToneGlyph glyph={kind} state={field.state} />;
+  const revertButton = field.isOverridden ? (
     <Button
       variant="bare"
       type="button"
       aria-label={`Reset ${name} ${ariaUnit}`}
       onClick={(e) => {
         e.stopPropagation();
-        onRevert();
+        field.onRevert();
       }}
       className="cursor-pointer text-ui leading-none text-isk hover:text-name"
     >
       ↺
     </Button>
   ) : null;
-  return (
+  const stepper = (
     <span
       className="inline-flex items-center gap-1"
       onClick={(e) => e.stopPropagation()}
@@ -129,98 +147,49 @@ function EfficiencyField({
     >
       {!boxed && <span className="inline-flex h-3 w-3 shrink-0">{icon}</span>}
       <Stepper
-        value={d.effective}
-        onChange={onCommit}
+        value={field.effective}
+        onChange={field.onCommit}
         min={0}
         max={max}
         ariaLabel={`${name} ${ariaUnit}`}
         variant={boxed ? 'default' : 'inline'}
         trailing={revertButton}
         reserveTrailing={boxed}
-        valueClassName={EFFICIENCY_TONE_CLASSES[d.state].text}
+        valueClassName={EFFICIENCY_TONE_CLASSES[field.state].text}
       />
     </span>
   );
+  return boxed ? <StepperRow icon={icon}>{stepper}</StepperRow> : stepper;
 }
 
-export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, boxed }: MeProps & { boxed?: boolean }) {
-  const d = deriveAdjust(ownedMe, meOverrides, blueprintTypeId);
-  const onCommit = useCallback((n: number) => setMeOverride(blueprintTypeId, n), [setMeOverride, blueprintTypeId]);
-  const onRevert = useCallback(() => resetMeOverride(blueprintTypeId), [resetMeOverride, blueprintTypeId]);
+/** The blueprint's ME and TE as two boxed icon rows, for a column of steppers. */
+export function EfficiencyStepperRows({ blueprintTypeId, name }: { blueprintTypeId: number; name: string }) {
   return (
-    <EfficiencyField
-      icon={<GemIcon state={d.state} />}
-      ariaUnit="material efficiency"
-      name={name}
-      max={MAX_ME}
-      d={d}
-      onCommit={onCommit}
-      onRevert={onRevert}
-      boxed={boxed}
-    />
-  );
-}
-
-export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, boxed }: TeProps & { boxed?: boolean }) {
-  const d = deriveAdjust(ownedTe, teOverrides, blueprintTypeId);
-  const onCommit = useCallback((n: number) => setTeOverride(blueprintTypeId, n), [setTeOverride, blueprintTypeId]);
-  const onRevert = useCallback(() => resetTeOverride(blueprintTypeId), [resetTeOverride, blueprintTypeId]);
-  return (
-    <EfficiencyField
-      icon={<HourglassIcon state={d.state} />}
-      ariaUnit="time efficiency"
-      name={name}
-      max={MAX_TE}
-      d={d}
-      onCommit={onCommit}
-      onRevert={onRevert}
-      boxed={boxed}
-    />
+    <>
+      <EfficiencyField kind="me" blueprintTypeId={blueprintTypeId} name={name} boxed />
+      <EfficiencyField kind="te" blueprintTypeId={blueprintTypeId} name={name} boxed />
+    </>
   );
 }
 
 function AdjusterRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-5">
-      <span className="text-label uppercase tracking-wide text-muted">{label}</span>
+      <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>{label}</span>
       {children}
     </div>
   );
 }
 
-export function NodeAdjusters({
-  blueprintTypeId,
-  name,
-  ownedMe,
-  meOverrides,
-  setMeOverride,
-  resetMeOverride,
-  ownedTe,
-  teOverrides,
-  setTeOverride,
-  resetTeOverride,
-}: MeProps & Omit<TeProps, 'blueprintTypeId' | 'name'>) {
+/** The build card's research popover: the blueprint's ME and TE, each under its label. */
+export function NodeAdjusters({ blueprintTypeId, name }: { blueprintTypeId: number; name: string }) {
   return (
     <div className="flex flex-col gap-2.5">
       <AdjusterRow label="Material Efficiency">
-        <MeField
-          blueprintTypeId={blueprintTypeId}
-          name={name}
-          ownedMe={ownedMe}
-          meOverrides={meOverrides}
-          setMeOverride={setMeOverride}
-          resetMeOverride={resetMeOverride}
-        />
+        <EfficiencyField kind="me" blueprintTypeId={blueprintTypeId} name={name} />
       </AdjusterRow>
       <AdjusterRow label="Time Efficiency">
-        <TeField
-          blueprintTypeId={blueprintTypeId}
-          name={name}
-          ownedTe={ownedTe}
-          teOverrides={teOverrides}
-          setTeOverride={setTeOverride}
-          resetTeOverride={resetTeOverride}
-        />
+        <EfficiencyField kind="te" blueprintTypeId={blueprintTypeId} name={name} />
       </AdjusterRow>
     </div>
   );

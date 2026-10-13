@@ -28,7 +28,6 @@ import {
 } from './chain-signature';
 import type { UnresolvedHoleSummary } from './connection-detail';
 import type { ChainPosition } from './intents';
-import { assignerFromPositions } from './placement';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
@@ -107,11 +106,7 @@ export function useMapChainMerge(
       (positions) => {
         if (!acceptReply(requestStateRef.current, requestId)) return;
         setMerge((previous) =>
-          reconcileChain(
-            previous.state,
-            snapshot,
-            assignerFromPositions(positions),
-          ),
+          reconcileChain(previous.state, snapshot, positions),
         );
         setPlacedHalo(
           halo.systems.length === 0

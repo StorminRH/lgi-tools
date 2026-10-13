@@ -38,16 +38,31 @@ function textOf(node: unknown): string {
 
 const PILOT = { characterId: 90000001, name: 'Pilot One', portraitUrl: 'https://images.evetech.net/characters/90000001/portrait' };
 
-test('a picked character is handed back, and the field clears without searching for it', async () => {
-  vi.useFakeTimers();
+/** The control mounted fresh. Typing and open changes go through the handlers it last rendered, then render again as React would. */
+function mountControl(onSelect: (principal: unknown) => void) {
   rt.unmount();
-  h.apiFetch.mockResolvedValue({ ok: true, data: { mode: 'typeahead', results: [PILOT] } });
-  const onSelect = vi.fn();
+  h.apiFetch.mockReset();
   const render = () =>
     [...elements(rt.render(CharacterSearchControl, { selectedPrincipals: [], onSelect }))];
   const root = () => render().find((node) => node.type === Combobox.Root)!.props;
-  const type = (text: string) =>
+  const type = (text: string) => {
     (root().onValueChange as Handler)(...([text, { reason: 'input-change' }] as never[]));
+    render();
+  };
+  const openChange = (open: boolean, reason: string) => {
+    (root().onOpenChange as Handler)(...([open, { reason }] as never[]));
+    render();
+  };
+  const busy = () => textOf(render().find((node) => node.type === Combobox.Field)!.props.trailing);
+  const hint = () => textOf(render().find((node) => node.type === 'span' && node.props.id === 'character-search'));
+  return { render, root, type, openChange, busy, hint };
+}
+
+test('a picked character is handed back, and the field clears without searching for it', async () => {
+  vi.useFakeTimers();
+  const onSelect = vi.fn();
+  const { render, root, type } = mountControl(onSelect);
+  h.apiFetch.mockResolvedValue({ ok: true, data: { mode: 'typeahead', results: [PILOT] } });
   // What Base UI does on a press: the item's own click handler, then the commit
   // that fills the input with the item's string value, then the close.
   const press = (name: string) => {
@@ -61,7 +76,6 @@ test('a picked character is handed back, and the field clears without searching 
   };
 
   type('Pilot');
-  render();
   await vi.advanceTimersByTimeAsync(300);
   expect(h.apiFetch).toHaveBeenCalledExactlyOnceWith(searchCharactersEndpoint, expect.objectContaining({ body: { search: 'Pilot' } }));
   expect(root()).toMatchObject({ value: 'Pilot', open: true });
@@ -76,5 +90,47 @@ test('a picked character is handed back, and the field clears without searching 
   expect(root()).toMatchObject({ value: '', open: false });
   await vi.advanceTimersByTimeAsync(300);
   expect(h.apiFetch).toHaveBeenCalledOnce();
+  vi.useRealTimers();
+});
+
+test('results stay through an edit that leaves the search unchanged, and a new search shows only its own answer', async () => {
+  vi.useFakeTimers();
+  const { root, type, openChange, busy, hint } = mountControl(vi.fn());
+  expect(hint()).toBe('');
+  type('Pi');
+  expect(hint()).toBe('Type at least 3 letters.');
+  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { mode: 'typeahead', results: [PILOT] } });
+  type('Pilot');
+  await vi.advanceTimersByTimeAsync(300);
+  expect(root()).toMatchObject({ value: 'Pilot', open: true });
+
+  // A trailing space trims to the same search: the results stay, and nothing is sent again.
+  type('Pilot ');
+  expect(root()).toMatchObject({ value: 'Pilot ', open: true });
+  await vi.advanceTimersByTimeAsync(300);
+  expect(root()).toMatchObject({ value: 'Pilot ', open: true });
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+
+  // A new search hides the old results and is busy from the keystroke until its answer lands.
+  h.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'network', aborted: false, cause: new Error('offline') });
+  type('Pilot O');
+  expect(root()).toMatchObject({ open: false });
+  expect(busy()).toBe('Searching…');
+  await vi.advanceTimersByTimeAsync(300);
+  expect(h.apiFetch).toHaveBeenLastCalledWith(searchCharactersEndpoint, expect.objectContaining({ body: { search: 'Pilot O' } }));
+  expect(busy()).toBe('');
+  expect(hint()).toBe('Character search is temporarily unavailable.');
+
+  // Escape closes the list for this search; the field asking to open again reopens it.
+  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { mode: 'exact', results: [PILOT] } });
+  type('Pilot One');
+  await vi.advanceTimersByTimeAsync(300);
+  expect(root()).toMatchObject({ open: true });
+  expect(hint()).toBe('Enter the full character name.');
+  openChange(false, 'escape-key');
+  expect(root()).toMatchObject({ open: false });
+  openChange(true, 'input-change');
+  expect(root()).toMatchObject({ open: true });
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
   vi.useRealTimers();
 });

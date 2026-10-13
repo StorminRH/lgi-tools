@@ -18,9 +18,7 @@ describe('nav tools', () => {
     expect(isToolActive(sites, null)).toBe(false);
     expect(isToolActive({ label: 'X', abbr: 'X', href: '/x' }, '/x')).toBe(false);
     const industry = TOOLS.find((tool) => tool.href === '/industry')!;
-    expect(isToolActive(industry, '/jobs')).toBe(true);
-    expect(isToolActive(industry, '/structures')).toBe(true);
-    expect(isToolActive(industry, '/jobsboard')).toBe(false);
+    expect(isToolActive(industry, '/industry/jobs')).toBe(true);
     expect(isToolActive(industry, '/sites')).toBe(false);
 
     expect(deriveNavToolItem(sites, '/sites/30002')).toEqual({

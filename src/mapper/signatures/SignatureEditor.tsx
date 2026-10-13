@@ -35,7 +35,7 @@ export function SignatureEditor({
   onRestore,
   onClose,
 }: SignatureEditorProps) {
-  const { codes, preferredCodes, entry, codexReady } = useWormholeEditorData(
+  const { codes, preferredCodes, entry } = useWormholeEditorData(
     connection.fromSystemId,
     connection.from.typeCode,
   );
@@ -44,7 +44,7 @@ export function SignatureEditor({
     <ScannerAnchoredPanel
       signatureId={anchorSignatureId ?? connection.from.signatureId}
       windowId="signature-editor"
-      title="Signature Editor"
+      title="Wormhole"
       onClose={onClose}
       layerProps={{ 'data-map-connection-mode': mode }}
     >
@@ -52,7 +52,6 @@ export function SignatureEditor({
         connection={connection}
         codes={codes}
         preferredCodes={preferredCodes}
-        codexReady={codexReady}
         entry={entry}
         setters={setters}
         now={now}

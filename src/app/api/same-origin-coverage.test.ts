@@ -28,7 +28,6 @@ const PIPELINE_MUTATIONS = [
   'account/sessions/revoke/route.ts',
   'admin/characters/reassign/route.ts',
   'admin/characters/unlink/route.ts',
-  'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/sessions/revoke/route.ts',
   'admin/wh-statics/route.ts',
@@ -67,10 +66,6 @@ const EXEMPT_MUTATIONS = {
   'eve/names/route.ts': {
     authz: 'public',
     reason: 'public stateless name resolution',
-  },
-  'industry/build-location/route.ts': {
-    authz: 'public',
-    reason: 'public stateless planner computation',
   },
   'industry/cost-indices/route.ts': {
     authz: 'public',

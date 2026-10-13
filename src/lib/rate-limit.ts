@@ -49,9 +49,14 @@ function getLimiter(
   return limiter;
 }
 
+/**
+ * Spends `cost` of the caller's per-minute allowance (one, for a plain
+ * request count) and says whether it fit.
+ */
 export async function rateLimit(
   identifier: string,
   options: RateLimitOptions,
+  cost = 1,
 ): Promise<RateLimitResult> {
   const upstash = resolveUpstashRest();
   if (!upstash) {
@@ -70,7 +75,7 @@ export async function rateLimit(
   }
 
   const limiter = getLimiter(options, upstash);
-  const result = await limiter.limit(identifier);
+  const result = await limiter.limit(identifier, { rate: cost });
   await result.pending;
 
   if (result.success) {
@@ -91,8 +96,9 @@ export type CheckRateLimitResult =
 export async function checkRateLimit(
   request: Request,
   options: RateLimitOptions,
+  cost = 1,
 ): Promise<CheckRateLimitResult> {
-  const limit = await rateLimit(clientIdentifier(request.headers), options);
+  const limit = await rateLimit(clientIdentifier(request.headers), options, cost);
   if (limit.ok) return { ok: true };
   return {
     ok: false,

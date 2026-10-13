@@ -2,6 +2,11 @@
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
+import {
+  LocationTrackingMergeError,
+  restoreMergeTracking as restoreThroughNext,
+  snapshotMergeTracking as snapshotThroughNext,
+} from '@/data/location-tracking/merge';
 import schema from './schema';
 
 import { CONVEX_HTTP_SECRET, postConvexHttp } from './__tests__/http.setup';
@@ -9,6 +14,7 @@ import { modules } from './__tests__/modules.setup';
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
@@ -120,5 +126,29 @@ describe('merge tracking recovery service doors', () => {
     expect(restored.status).toBe(200);
     expect(await restored.json()).toEqual({ restored: 1, skipped: 0, alreadyApplied: false });
     expect(await t.run((ctx) => ctx.db.query('mapTracking').collect())).toHaveLength(2);
+  });
+
+  it('accepts on the restore door every selection the Next snapshot client accepts', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: 'src', characterId: 1 });
+      await ctx.db.insert('mapAccess', { mapId: 'map-a', userId: 'surv', roles: ['viewer'] });
+      await ctx.db.insert('mapJumpBookkeeping', { mapId: 'map-a', characterId: 1, lastProcessedTransitionAt: 0 });
+      await ctx.db.insert('mapTracking', { mapId: 'map-b', userId: 'skewed', characterId: 2 });
+      await ctx.db.insert('mapJumpBookkeeping', { mapId: 'map-b', characterId: 2, lastProcessedTransitionAt: -1 });
+    });
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => t.fetch(new URL(url).pathname, init));
+
+    const selections = await snapshotThroughNext('src');
+    expect(selections).toEqual([{ mapId: 'map-a', characterId: 1, lastProcessedTransitionAt: 0 }]);
+    await expect(restoreThroughNext('recovery', 'surv', selections))
+      .resolves.toEqual({ restored: 1, skipped: 0, alreadyApplied: false });
+
+    const unrestorable = { mapId: 'map-b', characterId: 2, lastProcessedTransitionAt: -1 };
+    await expect(restoreThroughNext('skewed-op', 'surv', [unrestorable]))
+      .rejects.toThrow('/restore-merge-tracking answered 400');
+    await expect(snapshotThroughNext('skewed')).rejects.toBeInstanceOf(LocationTrackingMergeError);
   });
 });

@@ -18,11 +18,7 @@ import type {
 } from './jump-resolution';
 import { ScannerPromptRail } from './scanner-prompt-rail';
 import { ScannerWindowFrame } from './scanner-window-frame';
-import { useSignatureMapId, type OpenSignatureEditor } from './signature-context';
-import {
-  applyScannerRowOpenAction,
-  scannerRowOpenAction,
-} from './scanner-row-open';
+import { useSignatureMapId, type ScannerPanelTarget } from './signature-context';
 import {
   scannerSectionForGroup,
   type SignatureWindowRow,
@@ -50,8 +46,7 @@ export interface SignatureWindowProps {
     group: SigGroup,
     wormholeTypeCode?: string,
   ) => Promise<void>;
-  readonly onOpenEditor: OpenSignatureEditor;
-  readonly onOpenSite: (siteId: number, signatureId: string) => void;
+  readonly onOpenTarget: (target: ScannerPanelTarget) => void;
   readonly bindConnectionSetters?: (
     connection: ConnectionEditorDetail,
     side?: ConnectionDoorSide,
@@ -82,11 +77,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
     [props.rows, props.scannerSystemId],
   );
   const removeMissing = () => {
-    void props.onRemoveMissing().catch(() => {
-      toast.error('Remove failed', {
-        id: 'signature-remove:batch',
-      });
-    });
+    void props.onRemoveMissing();
   };
   const identifyRow = (
     row: SignatureWindowRow,
@@ -98,21 +89,6 @@ export function SignatureWindow(props: SignatureWindowProps) {
         id: `signature-identify:${row.systemId}:${row.signatureId}`,
       });
     });
-  const openRowActions = (
-    row: SignatureWindowRow,
-    trigger: HTMLElement,
-    clientX: number,
-    clientY: number,
-  ) => {
-    applyScannerRowOpenAction(
-      scannerRowOpenAction(row, props.canEdit, resolveSiteId),
-      {
-        openEditor: props.onOpenEditor,
-        openSite: props.onOpenSite,
-      },
-      { row, trigger, clientX, clientY },
-    );
-  };
 
   return (
     <ScannerLivePricesProvider harvestableNames={harvestableNames}>
@@ -147,7 +123,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
             originLeadConnections={props.originLeadConnections}
             resolveSiteId={resolveSiteId}
             onIdentify={identifyRow}
-            onOpenActions={openRowActions}
+            onOpenTarget={props.onOpenTarget}
           />
         </div>
       </div>

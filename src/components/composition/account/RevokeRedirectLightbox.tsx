@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Dialog, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inlineLink } from '@/components/ui/text-link';
+import { eyebrow } from '@/components/ui/type-roles';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { signOutAndLeave } from '@/platform/auth/reload-document-home';
 
@@ -33,7 +34,10 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
   return (
     <Dialog open={open} labelledBy={labelId}>
       <div className="flex max-w-[420px] flex-col gap-3 p-5">
-        <DialogTitle id={labelId} className="text-label uppercase tracking-wide text-tone-red">
+        <DialogTitle
+          id={labelId}
+          className={eyebrow({ font: 'inherit', tone: 'inherit', weight: 'inherit', className: 'text-tone-red' })}
+        >
           Account data removed
         </DialogTitle>
         <p className="text-body leading-relaxed text-text">

@@ -1,6 +1,11 @@
-import { z } from 'zod';
 import type { PublicHttpAction } from 'convex/server';
-import { MAP_ROLES } from '@/data/maps/access-contract';
+import {
+  mapTrackingSnapshotDoor,
+  projectMapAccessDoor,
+  purgeMapAccessDoor,
+  purgeMapChainDoor,
+  purgeUserMapClaimsDoor,
+} from '@/data/maps/convex-doors';
 import { internal } from './_generated/api';
 import { authorizedJsonAction } from './lib/httpAuth';
 
@@ -22,56 +27,8 @@ async function drainBatches(
 const batchLimitExceeded = (): Response =>
   new Response('Purge batch limit exceeded', { status: 503 });
 
-const mapRoleSchema = z.enum(MAP_ROLES);
-
-const projectMapAccessBodySchema = z
-  .object({
-    mapId: z.string(),
-    revision: z.number().int().positive(),
-    claims: z.array(
-      z.object({
-        userId: z.string(),
-        roles: z.array(mapRoleSchema).min(1),
-        characters: z
-          .array(z.object({ characterId: z.number().int().positive(), name: z.string() }))
-          .optional(),
-      }),
-    ),
-  })
-  .superRefine((body, ctx) => {
-    const seen = new Set<string>();
-    for (const [index, claim] of body.claims.entries()) {
-      if (seen.has(claim.userId)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['claims', index, 'userId'],
-          message: 'duplicate userId',
-        });
-      }
-      seen.add(claim.userId);
-    }
-  });
-
-const purgeMapAccessBodySchema = z.object({
-  userId: z.string(),
-});
-
-const purgeUserMapClaimsBodySchema = z.object({
-  userId: z.string().min(1),
-  revision: z.number().int().positive(),
-  mapIds: z.array(z.string().min(1)).min(1).max(32),
-});
-
-const purgeMapChainBodySchema = z.object({
-  mapId: z.string().min(1),
-});
-
-const mapTrackingSnapshotBodySchema = z.object({
-  mapId: z.string().min(1),
-});
-
 export const projectMapAccess: PublicHttpAction = authorizedJsonAction(
-  projectMapAccessBodySchema,
+  projectMapAccessDoor.request,
   async (ctx, body) => {
     const counts = await ctx.runMutation(
       internal.mapAccessProjection.reconcileMapClaims,
@@ -88,7 +45,7 @@ export const projectMapAccess: PublicHttpAction = authorizedJsonAction(
   },
 );
 
-export const purgeMapAccess: PublicHttpAction = authorizedJsonAction(purgeMapAccessBodySchema, async (ctx, body) => {
+export const purgeMapAccess: PublicHttpAction = authorizedJsonAction(purgeMapAccessDoor.request, async (ctx, body) => {
   const { deleted, finished } = await drainBatches(() => ctx.runMutation(
     internal.mapAccessProjection.purgeUserClaims,
     { userId: body.userId },
@@ -97,14 +54,14 @@ export const purgeMapAccess: PublicHttpAction = authorizedJsonAction(purgeMapAcc
 });
 
 export const purgeUserMapClaims: PublicHttpAction = authorizedJsonAction(
-  purgeUserMapClaimsBodySchema,
+  purgeUserMapClaimsDoor.request,
   async (ctx, body) => Response.json(await ctx.runMutation(
     internal.mapAccessProjection.purgeUserMapClaims,
     body,
   )),
 );
 
-export const purgeMapChain: PublicHttpAction = authorizedJsonAction(purgeMapChainBodySchema, async (ctx, body) => {
+export const purgeMapChain: PublicHttpAction = authorizedJsonAction(purgeMapChainDoor.request, async (ctx, body) => {
   const { deleted, finished } = await drainBatches(() => ctx.runMutation(
     internal.mapPurge.purgeMapBatch,
     { mapId: body.mapId },
@@ -114,7 +71,7 @@ export const purgeMapChain: PublicHttpAction = authorizedJsonAction(purgeMapChai
 
 /** Service-only freeze and snapshot for the character-scoping backfill. */
 export const mapTrackingSnapshot: PublicHttpAction = authorizedJsonAction(
-  mapTrackingSnapshotBodySchema,
+  mapTrackingSnapshotDoor.request,
   async (ctx, body) => Response.json({
     tracked: await ctx.runMutation(internal.mapAccessProjection.freezeMapTrackingForScoping, body),
   }),

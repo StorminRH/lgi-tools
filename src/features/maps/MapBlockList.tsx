@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
@@ -13,50 +11,38 @@ import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { MapBlockOption } from '@/data/maps/access-contract';
 import type { AccessPrincipalOption } from './access-editor-model';
 import { CharacterSearchControl } from './CharacterSearchControl';
-import { mapAccessFailureMessage, updateMapAccess } from './map-access-client';
 import {
   blockedPrincipals,
   mapBlockRevision,
   withBlock,
   withoutBlock,
 } from './map-block-model';
+import { useMapAccessWrite, useServerDraft } from './use-map-access-editor';
 
 export function useMapBlockEditor(mapId: string, initialBlocks: readonly MapBlockOption[]) {
-  const router = useRouter();
-  const [blocks, setBlocks] = useState<MapBlockOption[]>(() => [...initialBlocks]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const serverRevision = mapBlockRevision(initialBlocks);
-  const appliedServerRevision = useRef(serverRevision);
-
-  useEffect(() => {
-    if (appliedServerRevision.current === serverRevision) return;
-    appliedServerRevision.current = serverRevision;
-    setBlocks([...initialBlocks]);
-  }, [initialBlocks, serverRevision]);
-
-  async function write(
-    operation: 'block' | 'unblock',
-    characterId: number,
-    apply: (current: MapBlockOption[]) => MapBlockOption[],
-  ) {
-    setBusy(true);
-    setError(null);
-    const outcome = await updateMapAccess({ operation, mapId, characterId });
-    setBusy(false);
-    if (!outcome.ok) return setError(mapAccessFailureMessage(outcome));
-    setBlocks(apply);
-    router.refresh();
-  }
+  const [blocks, setBlocks] = useServerDraft(
+    initialBlocks,
+    mapBlockRevision(initialBlocks),
+    (server): MapBlockOption[] => [...server],
+  );
+  const write = useMapAccessWrite<true>();
 
   return {
     blocks,
-    busy,
-    error,
+    busy: write.busy !== null,
+    error: write.error,
     block: (block: MapBlockOption) =>
-      write('block', block.characterId, (current) => withBlock(current, block)),
+      write.run(
+        true,
+        { operation: 'block', mapId, characterId: block.characterId },
+        () => setBlocks((current) => withBlock(current, block)),
+      ),
     unblock: (characterId: number) =>
-      write('unblock', characterId, (current) => withoutBlock(current, characterId)),
+      write.run(
+        true,
+        { operation: 'unblock', mapId, characterId },
+        () => setBlocks((current) => withoutBlock(current, characterId)),
+      ),
   };
 }
 

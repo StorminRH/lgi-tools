@@ -97,7 +97,7 @@ describe('characterLocationPurge.purgeForUser', () => {
 
   });
 
-  it('deletes only the named character\'s location and tracking rows', async () => {
+  it('deletes only the named character\'s location, online, access, coverage and tracking rows', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
@@ -122,8 +122,17 @@ describe('characterLocationPurge.purgeForUser', () => {
         characterId: CHAR_B,
         lastProcessedTransitionAt: 2,
       });
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
+      for (const characterId of [CHAR_A, CHAR_B]) {
+        await ctx.db.insert('characterLocationOnline', {
+          userId: USER,
+          characterId,
+          online: true,
+          etagOnline: null,
+          onlineExpiresAt: GEN + 60_000,
+        });
+        await ctx.db.insert('characterLocationAccess', accessLease(USER, characterId));
+        await ctx.db.insert('characterLocationCovered', { userId: USER, characterId });
+      }
     });
 
     const out = await t.mutation(internal.characterLocationPurge.purgeForUser, {
@@ -150,6 +159,10 @@ describe('characterLocationPurge.purgeForUser', () => {
         .collect(),
     );
     expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
+    const online = await t.run((ctx) => ctx.db.query('characterLocationOnline').collect());
+    expect(online.map((doc) => [doc.userId, doc.characterId])).toEqual([[USER, CHAR_B]]);
+    const covered = await t.run((ctx) => ctx.db.query('characterLocationCovered').collect());
+    expect(covered.map((doc) => [doc.userId, doc.characterId])).toEqual([[USER, CHAR_B]]);
   });
 
   it('preserves other users trackers while cleaning orphan stamps for a named character', async () => {

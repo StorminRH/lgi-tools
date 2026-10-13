@@ -15,10 +15,6 @@ vi.mock('@/components/use-account-characters', () => ({
   useAccountCharacters: () => [{ characterId: 7, name: 'Creator Main', portraitUrl: 'https://images.evetech.net/characters/7/portrait' }],
 }));
 
-vi.mock('./CharacterSearchControl', () => ({
-  CharacterSearchControl: () => createElement('div', { 'data-character-search': '' }),
-}));
-
 vi.mock('./AccessListEditor', () => ({
   AccessListEditor: () => createElement('div', { 'data-access-editor': '' }),
 }));

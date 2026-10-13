@@ -5,13 +5,13 @@ import {
   memo,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type RefObject,
 } from 'react';
 import { cn } from '@/components/ui/cn';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   systemClassificationReadout,
@@ -23,9 +23,9 @@ import {
   type WormholeDestinationHint,
   type WormholeEffect,
 } from '@/data/eve-data/wormhole-contract';
+import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 import type { NodeMotion } from '../motion/motion-contract';
 import { IntelIcon } from '../windows/IntelIcon';
-import { useUniverseAssets } from '../chain/use-universe-assets';
 import { isDerivedNode, kspaceCaptionOffset, nodeCaptionKind } from './disc-chrome';
 import { SystemIntelMarks } from './SystemIntelMarks';
 import { ChainViewportContext } from './ChainViewportContext';
@@ -82,13 +82,6 @@ function nodePresentation(data: ChainNodeData) {
     exiting,
     chromeClass: fogged || stub || exiting ? null : 'pointer-events-auto nopan',
   } as const;
-}
-
-function nodeHeader(data: ChainNodeData): {
-  readonly text: string;
-  readonly toneClass: string;
-} {
-  return { text: data.name, toneClass: 'text-name' };
 }
 
 export function chipFontSizePx(
@@ -239,26 +232,24 @@ function NodeDisc({
   );
 }
 
+// The caption sits above the disc. The offset is constant, but it stays in
+// disc-chrome rather than CSS, which owns the disc size and gap it is built from.
+const KSPACE_CAPTION_OFFSET = kspaceCaptionOffset();
+const KSPACE_CAPTION_TRANSFORM = `translate(-50%, -100%) translate(${KSPACE_CAPTION_OFFSET.x}px, ${KSPACE_CAPTION_OFFSET.y}px)`;
+
 function KnownSpaceCaption({
   systemId,
   text,
-  toneClass,
   chromeClass,
 }: {
   readonly systemId: number;
   readonly text: string;
-  readonly toneClass: string;
   readonly chromeClass: string | null;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useStyleProperty<HTMLDivElement>('--kspace-caption-transform', KSPACE_CAPTION_TRANSFORM);
   const assets = useUniverseAssets();
   const info = assets?.systemInfo(systemId);
   const hub = assets?.hubJumps(systemId)[0];
-  const offset = kspaceCaptionOffset();
-  const transform = `translate(-50%, -100%) translate(${offset.x}px, ${offset.y}px)`;
-  useLayoutEffect(() => {
-    ref.current?.style.setProperty('--kspace-caption-transform', transform);
-  }, [transform]);
   return (
     <div
       ref={ref}
@@ -272,8 +263,7 @@ function KnownSpaceCaption({
       <span
         data-chain-node-name
         className={cn(
-          'min-w-0 truncate px-1 text-center font-ui text-nav font-bold leading-none',
-          toneClass,
+          'min-w-0 truncate px-1 text-center font-ui text-nav font-bold leading-none text-name',
           chromeClass,
         )}
       >
@@ -299,13 +289,11 @@ function NodeHeader({
   readonly data: ChainNodeData;
   readonly chromeClass: string | null;
 }) {
-  const header = nodeHeader(data);
   if (nodeCaptionKind(data) === 'kspace') {
     return (
       <KnownSpaceCaption
         systemId={Number(id)}
-        text={header.text}
-        toneClass={header.toneClass}
+        text={data.name}
         chromeClass={chromeClass}
       />
     );
@@ -314,12 +302,11 @@ function NodeHeader({
     <span
       data-chain-node-name
       className={cn(
-        'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
-        header.toneClass,
+        'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold text-name',
         chromeClass,
       )}
     >
-      {header.text}
+      {data.name}
     </span>
   );
 }
