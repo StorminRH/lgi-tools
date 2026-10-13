@@ -8,10 +8,6 @@ import {
 } from 'react';
 import { LivePrice } from '@/components/ui/live-price';
 import { cn } from '@/components/ui/cn';
-import {
-  useRefreshOnView,
-  type RefreshedPrice,
-} from '@/data/market-prices/use-refresh-on-view';
 import { idsKey } from '@/lib/array';
 import { formatIskShort } from '@/lib/format/isk';
 import {
@@ -20,20 +16,15 @@ import {
   scannerLiveTypeIdsForNames,
 } from '../scanner-live-isk';
 import { useSiteCatalogue } from '../site-catalogue';
+import {
+  NO_LIVE_PRICES,
+  useLivePriceLookup,
+  type LivePriceLookup,
+} from './live-price-lookup';
 
-type ScannerLiveValue = {
-  readonly priceOf: (typeId: number) => RefreshedPrice | undefined;
-  readonly isPending: (typeId: number) => boolean;
-};
+const ScannerLiveContext = createContext<LivePriceLookup>(NO_LIVE_PRICES);
 
-const NO_LIVE: ScannerLiveValue = {
-  priceOf: () => undefined,
-  isPending: () => false,
-};
-
-const ScannerLiveContext = createContext<ScannerLiveValue>(NO_LIVE);
-
-function useScannerLive(): ScannerLiveValue {
+function useScannerLive(): LivePriceLookup {
   return useContext(ScannerLiveContext);
 }
 
@@ -51,17 +42,10 @@ export function ScannerLivePricesProvider({
   );
   // A new harvestable set (a jump, a fresh gas or ore signature) refetches
   // prices in place; keying a wrapper instead remounted the whole scanner dock.
-  const { prices, isPending } = useRefreshOnView([...typeIds], {
+  const value = useLivePriceLookup(typeIds, {
     enabled: typeIds.length > 0,
     refreshKey: idsKey(typeIds),
   });
-  const value = useMemo<ScannerLiveValue>(
-    () => ({
-      priceOf: (typeId) => prices.get(typeId),
-      isPending,
-    }),
-    [prices, isPending],
-  );
   return (
     <ScannerLiveContext.Provider value={value}>
       {children}

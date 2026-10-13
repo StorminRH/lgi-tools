@@ -1,5 +1,6 @@
 import { Collapsible } from '@/components/ui/collapsible';
 import { formatQuantity } from '@/lib/format/number';
+import { waveEwarCounts } from '../ewar';
 import type { Wave } from '../types';
 import { EwarRow } from './EwarRow';
 import { NpcRow } from './NpcRow';
@@ -31,14 +32,7 @@ export function WaveCard({
         </>
       }
     >
-      {showEwar && (
-        <EwarRow
-          web={wave.ewWeb}
-          scram={wave.ewScram}
-          neut={wave.ewNeut}
-          rr={wave.ewRrep}
-        />
-      )}
+      {showEwar && <EwarRow counts={waveEwarCounts(wave)} />}
       <div className="grid grid-cols-[44px_var(--npc-name-col,minmax(0,auto))_auto_1fr] px-3.5">
         {wave.npcs.map((npc) => (
           <NpcRow key={npc.id} npc={npc} />

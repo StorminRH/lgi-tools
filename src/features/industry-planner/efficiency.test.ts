@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { clampMe, effectiveMeOf, MAX_ME, nodeMeState } from './me-overrides';
-import { mapOwnedBlueprints } from './owned-blueprint-maps';
-import { resetOverride, setOverride } from './override-map';
-import { nodeFrameState } from './node-frame-state';
-import { clampTe, MAX_TE } from './te-overrides';
-import type { OwnedBlueprintMeEntry } from './types';
+import {
+  clampMe,
+  clampTe,
+  effectiveEfficiencyOf,
+  efficiencyFactor,
+  efficiencyGlyphState,
+  MAX_ME,
+  MAX_TE,
+  nodeFrameState,
+  resetOverride,
+  setOverride,
+} from './efficiency';
 
 describe('clampMe', () => {
   it('passes an in-range integer through', () => {
@@ -24,22 +30,20 @@ describe('clampMe', () => {
     expect(clampMe(10.9)).toBe(10);
   });
 
-  it('falls back on a non-finite input (empty / malformed field)', () => {
+  it('falls back to 0 on a non-finite input (empty / malformed field)', () => {
     expect(clampMe(Number.NaN)).toBe(0);
     expect(clampMe(Number.POSITIVE_INFINITY)).toBe(0);
-    expect(clampMe(Number.NaN, 7)).toBe(7);
   });
 });
 
-describe('effectiveMeOf', () => {
+describe('effectiveEfficiencyOf', () => {
   it('is byte-identical to the owned map when no override is set', () => {
-
     const owned = new Map([
       [10, 5],
       [20, 10],
       [30, 0],
     ]);
-    const meOf = effectiveMeOf(owned, new Map());
+    const meOf = effectiveEfficiencyOf(owned, new Map());
     for (const bp of [10, 20, 30, 40]) {
       expect(meOf(bp)).toBe(owned.get(bp));
     }
@@ -47,52 +51,61 @@ describe('effectiveMeOf', () => {
 
   it('lets a manual override win over the owned ME', () => {
     const owned = new Map([[10, 5]]);
-    const meOf = effectiveMeOf(owned, new Map([[10, 9]]));
+    const meOf = effectiveEfficiencyOf(owned, new Map([[10, 9]]));
     expect(meOf(10)).toBe(9);
   });
 
   it('applies an override on a node the player does not own', () => {
-    const meOf = effectiveMeOf(new Map(), new Map([[10, 8]]));
+    const meOf = effectiveEfficiencyOf(new Map(), new Map([[10, 8]]));
     expect(meOf(10)).toBe(8);
   });
 
   it('honours an explicit override of 0 (a deliberate ME0 what-if)', () => {
     const owned = new Map([[10, 10]]);
-    const meOf = effectiveMeOf(owned, new Map([[10, 0]]));
+    const meOf = effectiveEfficiencyOf(owned, new Map([[10, 0]]));
     expect(meOf(10)).toBe(0);
   });
 
   it('falls back to undefined for an unowned, un-overridden blueprint', () => {
-    const meOf = effectiveMeOf(new Map([[10, 5]]), new Map());
+    const meOf = effectiveEfficiencyOf(new Map([[10, 5]]), new Map());
     expect(meOf(99)).toBeUndefined();
   });
 
   it('tolerates a null owned map (read not yet settled)', () => {
-    expect(effectiveMeOf(null, new Map())(10)).toBeUndefined();
-    expect(effectiveMeOf(null, new Map([[10, 7]]))(10)).toBe(7);
+    expect(effectiveEfficiencyOf(null, new Map())(10)).toBeUndefined();
+    expect(effectiveEfficiencyOf(null, new Map([[10, 7]]))(10)).toBe(7);
   });
 });
 
-describe('nodeMeState', () => {
+describe('efficiencyGlyphState', () => {
   it('reads as manual whenever an override is set — even at 0', () => {
-    expect(nodeMeState(5, 9)).toBe('manual');
-    expect(nodeMeState(undefined, 8)).toBe('manual');
-    expect(nodeMeState(10, 0)).toBe('manual');
+    expect(efficiencyGlyphState(5, 9)).toBe('manual');
+    expect(efficiencyGlyphState(undefined, 8)).toBe('manual');
+    expect(efficiencyGlyphState(10, 0)).toBe('manual');
   });
 
   it('reads as owned when a researched copy is owned and not overridden', () => {
-    expect(nodeMeState(5, undefined)).toBe('owned');
-    expect(nodeMeState(10, undefined)).toBe('owned');
+    expect(efficiencyGlyphState(5, undefined)).toBe('owned');
+    expect(efficiencyGlyphState(10, undefined)).toBe('owned');
   });
 
   it('reads as unowned with no override and no researched copy', () => {
-    expect(nodeMeState(undefined, undefined)).toBe('unowned');
-    expect(nodeMeState(0, undefined)).toBe('unowned');
+    expect(efficiencyGlyphState(undefined, undefined)).toBe('unowned');
+    expect(efficiencyGlyphState(0, undefined)).toBe('unowned');
+  });
+});
+
+describe('efficiencyFactor', () => {
+  it('is 1 at 0% (the byte-identical anchor) and scales down with the ME or TE percentage', () => {
+    expect(efficiencyFactor(0)).toBe(1);
+    expect(efficiencyFactor(-5)).toBe(1);
+    expect(efficiencyFactor(20)).toBeCloseTo(0.8);
+    expect(efficiencyFactor(10)).toBeCloseTo(0.9);
   });
 });
 
 describe('clampTe', () => {
-  it('clamps to [0, MAX_TE], floors fractions, and falls back on non-finite input', () => {
+  it('clamps to [0, MAX_TE], floors fractions, and falls back to 0 on non-finite input', () => {
     expect(clampTe(0)).toBe(0);
     expect(clampTe(12)).toBe(12);
     expect(clampTe(MAX_TE)).toBe(20);
@@ -100,7 +113,6 @@ describe('clampTe', () => {
     expect(clampTe(-3)).toBe(0);
     expect(clampTe(3.7)).toBe(3);
     expect(clampTe(Number.NaN)).toBe(0);
-    expect(clampTe(Number.NaN, 7)).toBe(7);
   });
 });
 
@@ -151,38 +163,5 @@ describe('nodeFrameState', () => {
     expect(nodeFrameState(1, empty, empty, empty, empty)).toBe('unowned');
     expect(nodeFrameState(1, new Map([[2, 5]]), new Map([[2, 10]]), empty, empty)).toBe('unowned');
     expect(nodeFrameState(1, null, null, empty, empty)).toBe('unowned');
-  });
-});
-
-describe('mapOwnedBlueprints', () => {
-  const BLUEPRINT: OwnedBlueprintMeEntry = {
-    blueprintTypeId: 681,
-    me: 10,
-    te: 20,
-    ownerType: 'corporation',
-    ownerName: 'Lo-Gang Industries',
-    locationName: 'Assembly Array',
-    locationFlag: 'CorpSAG1',
-    containerName: null,
-  };
-
-  it('splits a response row into the compute ME map and the readout detail map', () => {
-    expect(mapOwnedBlueprints([])).toEqual({ ownedMe: new Map(), ownedDetail: new Map() });
-    expect(mapOwnedBlueprints([BLUEPRINT])).toEqual({
-      ownedMe: new Map([[681, 10]]),
-      ownedDetail: new Map([
-        [
-          681,
-          {
-            te: 20,
-            ownerType: 'corporation',
-            ownerName: 'Lo-Gang Industries',
-            locationName: 'Assembly Array',
-            locationFlag: 'CorpSAG1',
-            containerName: null,
-          },
-        ],
-      ]),
-    });
   });
 });

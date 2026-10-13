@@ -8,7 +8,7 @@ import { systemClassificationReadout } from '@/data/eve-data/system-identity';
 import { useEntityNames, useTypeNames } from '@/data/eve-data/use-names';
 import { useUniverseAssets, useWormholeCodexStatus } from '@/data/eve-data/use-universe-assets';
 import { WORMHOLE_EFFECT_NAME, type WormholeEffect } from '@/data/eve-data/wormhole-contract';
-import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormhole-sites/scanner-live-prices';
+import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormhole-sites/widget';
 import { formatIskShort } from '@/lib/format/isk';
 import { formatSigned } from '@/lib/format/number';
 import { useSignatureRows } from '../signatures/signature-context';

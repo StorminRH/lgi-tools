@@ -1,5 +1,6 @@
 import type { TreeNode } from '@/data/eve-data/types';
 import { roundTo } from '@/lib/math';
+import { efficiencyFactor } from './efficiency';
 
 interface Recipe {
   blueprintTypeId: number;
@@ -54,12 +55,8 @@ export interface MeOptions {
 
 const UNSET_ME: MeOptions = { meOf: () => undefined, topBlueprintTypeId: 0 };
 
-function meFactor(me: number): number {
-  return me <= 0 ? 1 : 1 - me / 100;
-}
-
 function meAdjust(qty: number, runs: number, me: number, structureMult = 1): number {
-  const mult = meFactor(me) * structureMult;
+  const mult = efficiencyFactor(me) * structureMult;
   if (mult >= 1) return qty * runs;
   return Math.max(runs, Math.ceil(roundTo(qty * runs * mult, 2)));
 }
@@ -114,8 +111,11 @@ function seedTopDemand(
     );
 }
 
-function rawRows(ledger: BatchLedger): { typeId: number; quantity: number }[] {
-  return [...ledger.raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
+/** A quantity map as the material rows a cost is priced on. */
+export function materialRows(
+  quantities: ReadonlyMap<number, number>,
+): { typeId: number; quantity: number }[] {
+  return [...quantities].map(([typeId, quantity]) => ({ typeId, quantity }));
 }
 
 export function computeBatchLedger(
@@ -141,30 +141,29 @@ export function computeBatchLedger(
   return { raws, builds };
 }
 
-export function computeBatchMaterials(
-  tree: TreeNode[],
-  requestedRuns = 1,
-  opts: MeOptions = UNSET_ME,
-): { typeId: number; quantity: number }[] {
-  return rawRows(computeBatchLedger(tree, requestedRuns, opts));
+export interface MarginalDemand {
+  /** The raw materials one build draws, fractions included. */
+  materials: { typeId: number; quantity: number }[];
+  /** The runs each built item's job counts for one build, fractions included. */
+  runs: Map<number, number>;
 }
 
 /**
  * What one build consumes: every job runs only the fraction of its runs the
  * build draws, so no whole-run excess is counted.
  */
-function marginalDemand(
+export function computeMarginalDemand(
   tree: TreeNode[],
-  requestedRuns: number,
+  requestedRuns = 1,
   opts?: MeOptions,
-): { raws: Map<number, number>; runs: Map<number, number> } {
+): MarginalDemand {
   const recipes = flattenRecipes(tree);
   const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
 
   const meOf = opts?.meOf ?? (() => undefined);
   const structureFactorOf = opts?.structureMeFactorOf ?? (() => 1);
   const factorFor = (blueprintTypeId: number) =>
-    meFactor(meOf(blueprintTypeId) ?? 0) * structureFactorOf(blueprintTypeId);
+    efficiencyFactor(meOf(blueprintTypeId) ?? 0) * structureFactorOf(blueprintTypeId);
 
   const topFactor = opts ? factorFor(opts.topBlueprintTypeId) : 1;
   for (const node of tree) addDemand(node.typeId, node.quantity * requestedRuns * topFactor);
@@ -179,25 +178,7 @@ function marginalDemand(
     for (const input of recipe.inputs) addDemand(input.typeId, input.qty * runs * factor);
   }
 
-  return { raws, runs: runsOf };
-}
-
-export function computeMarginalMaterials(
-  tree: TreeNode[],
-  requestedRuns = 1,
-  opts?: MeOptions,
-): { typeId: number; quantity: number }[] {
-  const { raws } = marginalDemand(tree, requestedRuns, opts);
-  return [...raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
-}
-
-/** The runs each built item's job counts for one build, fractions included. */
-export function computeMarginalRuns(
-  tree: TreeNode[],
-  requestedRuns = 1,
-  opts?: MeOptions,
-): Map<number, number> {
-  return marginalDemand(tree, requestedRuns, opts).runs;
+  return { materials: materialRows(raws), runs: runsOf };
 }
 
 /** A built item's job as its install fee values it. */

@@ -40,8 +40,4 @@ export interface WaveTotals {
   dpsTotal: number;
   alphaTotal: number;
   ehpTotal: number;
-  ewScram: number;
-  ewWeb: number;
-  ewNeut: number;
-  ewRrep: number;
 }

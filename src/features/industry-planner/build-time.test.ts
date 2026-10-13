@@ -1,17 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { computeBuildTimes, formatBuildDuration, teFactor } from './build-time';
+import { computeBuildTimes, formatBuildDuration } from './build-time';
 
 const noTe = () => undefined;
 const ledger = (entries: [number, { runs: number; blueprintTypeId: number }][]) => new Map(entries);
-
-describe('teFactor', () => {
-  it('is 1 at TE0 (the byte-identical anchor) and scales down with TE', () => {
-    expect(teFactor(0)).toBe(1);
-    expect(teFactor(-5)).toBe(1);
-    expect(teFactor(20)).toBeCloseTo(0.8);
-    expect(teFactor(10)).toBeCloseTo(0.9);
-  });
-});
 
 describe('formatBuildDuration', () => {
   it('formats seconds as the largest two units', () => {

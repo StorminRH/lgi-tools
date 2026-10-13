@@ -18,6 +18,15 @@ export interface StructureBonus {
   costBonus: number;
 }
 
+function maxEach(a: StructureBonus, b: StructureBonus): StructureBonus {
+  return { me: Math.max(a.me, b.me), te: Math.max(a.te, b.te), costBonus: Math.max(a.costBonus, b.costBonus) };
+}
+
+/** The most any one of several jobs gets, metric by metric; null with no job. */
+export function bestOf(bonuses: readonly StructureBonus[]): StructureBonus | null {
+  return bonuses.length === 0 ? null : bonuses.reduce(maxEach);
+}
+
 const ACTIVITY_KEY: Record<IndustryActivityId, StructureModifier['activity']> = {
   [MANUFACTURING_ACTIVITY]: 'manufacturing',
   [REACTION_ACTIVITY]: 'reaction',
@@ -67,12 +76,8 @@ export function headlineStructureBonus(input: {
   activityId: IndustryActivityId;
   filterSets: readonly (readonly number[])[];
 }): StructureBonus {
-  const candidates = [[], ...input.filterSets].map((filterIds) =>
-    computeStructureBonus({ ...input, filterIds }),
+  return input.filterSets.reduce(
+    (best, filterIds) => maxEach(best, computeStructureBonus({ ...input, filterIds })),
+    computeStructureBonus({ ...input, filterIds: [] }),
   );
-  return {
-    me: Math.max(...candidates.map((c) => c.me)),
-    te: Math.max(...candidates.map((c) => c.te)),
-    costBonus: Math.max(...candidates.map((c) => c.costBonus)),
-  };
 }

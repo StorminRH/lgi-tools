@@ -23,7 +23,7 @@ describe('classifyFeatureUiImports', () => {
       host: MAPPER_HOST,
       source: `
         import { SiteCardWidget } from '@/features/wormhole-sites/widget';
-        import { siteIdForSiteName } from '@/features/wormhole-sites/site-name-lookup';
+        import { createSiteNameLookups } from '@/features/wormhole-sites/site-name-lookup';
         import type { SiteDetail } from '@/features/wormhole-sites/types';
       `,
       resolve: resolveMap({
@@ -42,6 +42,36 @@ describe('classifyFeatureUiImports', () => {
         widget: 'src/features/wormhole-sites/widget.tsx',
       },
     ]);
+  });
+
+  it('flags a feature .ts barrel that re-exports a feature component, but not a .ts helper', () => {
+    const barrel = 'src/features/wormhole-sites/scanner-live-prices.ts';
+    const helper = 'src/features/wormhole-sites/scanner-live-isk.ts';
+    const component = 'src/features/wormhole-sites/components/ScannerLivePrices.tsx';
+    const modules: Record<string, string> = {
+      [barrel]: "export { ScannerLivePricesProvider } from './components/ScannerLivePrices';",
+      [helper]: [
+        "import { ScannerEstIskCell } from './components/ScannerLivePrices';",
+        "export type { SiteLiveRecipe } from './site-name-lookup';",
+        "export type { ScannerLiveProps } from './components/ScannerLivePrices';",
+      ].join('\n'),
+    };
+    const hits = classifyFeatureUiImports({
+      host: MAPPER_HOST,
+      source: `
+        import { ScannerLivePricesProvider } from '@/features/wormhole-sites/scanner-live-prices';
+        import { scannerEstIskSum } from '@/features/wormhole-sites/scanner-live-isk';
+      `,
+      resolve: resolveMap({
+        [`${MAPPER_HOST}::@/features/wormhole-sites/scanner-live-prices`]: barrel,
+        [`${MAPPER_HOST}::@/features/wormhole-sites/scanner-live-isk`]: helper,
+        [`${barrel}::./components/ScannerLivePrices`]: component,
+        [`${helper}::./components/ScannerLivePrices`]: component,
+        [`${helper}::./site-name-lookup`]: 'src/features/wormhole-sites/site-name-lookup.ts',
+      }),
+      readModule: (modulePath) => modules[modulePath] ?? '',
+    });
+    expect(hits).toEqual([{ kind: 'illegal', host: MAPPER_HOST, module: barrel }]);
   });
 
   it('flags a dynamic import of a hosted feature component that is not the slice widget', () => {
