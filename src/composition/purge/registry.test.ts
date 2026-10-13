@@ -62,7 +62,7 @@ describe('purge registry gate', () => {
         'corp_member_bases',
         'corp_member_roles',
         'custom_structures',
-        'esi_refresh_jobs',
+        'esi_responses',
         'esi_snapshots',
         'industry_profiles',
         'map_access',

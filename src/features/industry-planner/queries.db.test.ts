@@ -16,6 +16,8 @@ vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
   cacheTag: vi.fn(),
 }));
+// The cost indices have no stored answer here, so the read schedules a refresh; this test is not a request.
+vi.mock('@/lib/after-response', () => ({ runAfterResponse: vi.fn() }));
 
 import { getBlueprintStructure, getBuildLocation } from './queries';
 
@@ -33,6 +35,7 @@ const harness = await createDbTestHarness({
     'adjusted_prices',
     'eve_npc_stations',
     'eve_station_operations',
+    'esi_responses',
   ],
   steerDbProxy: true,
 });

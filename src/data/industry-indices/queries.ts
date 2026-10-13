@@ -1,33 +1,40 @@
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
+import { cacheLife, cacheTag } from 'next/cache';
+import { storedExpiry, untilExpires } from '@/data/esi-store';
 import { db as defaultDb } from '@/db';
-import { getOrInsertComputed } from '@/lib/array';
+import { dedupe } from '@/lib/array';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryActivity } from './constants';
+import { COST_INDICES_KEY, INDUSTRY_INDICES_TAG } from './keys';
 import { adjustedPrices, industryCostIndices } from './schema';
 import type { SystemCostIndices } from './types';
+
+async function readSystemCostIndexRows(systemId: number): Promise<SystemCostIndices | null> {
+  const rows = await defaultDb
+    .select({ activity: industryCostIndices.activity, costIndex: industryCostIndices.costIndex })
+    .from(industryCostIndices)
+    .where(eq(industryCostIndices.solarSystemId, systemId));
+  if (rows.length === 0) return null;
+  return new Map(rows.map((r) => [r.activity as IndustryActivity, r.costIndex]));
+}
+
+/**
+ * One system's cost indices, cached across instances until CCP's copy of
+ * the whole document expires; the on-view refresh clears the tag when a
+ * 200 lands. A system with no stored indices is absent, not empty.
+ */
+async function getSystemCostIndices(systemId: number): Promise<SystemCostIndices | null> {
+  'use cache: remote';
+  cacheTag(INDUSTRY_INDICES_TAG);
+  const [indices, expiresAt] = await Promise.all([readSystemCostIndexRows(systemId), storedExpiry([COST_INDICES_KEY])]);
+  cacheLife(untilExpires(expiresAt));
+  return indices;
+}
 
 export async function getSystemCostIndicesBatch(
   systemIds: number[],
 ): Promise<Map<number, SystemCostIndices>> {
-  if (systemIds.length === 0) return new Map();
-  const rows = await defaultDb
-    .select({
-      solarSystemId: industryCostIndices.solarSystemId,
-      activity: industryCostIndices.activity,
-      costIndex: industryCostIndices.costIndex,
-    })
-    .from(industryCostIndices)
-    .where(inArray(industryCostIndices.solarSystemId, systemIds));
-
-  const out = new Map<number, Map<IndustryActivity, number>>();
-  for (const r of rows) {
-    getOrInsertComputed(out, r.solarSystemId, () => new Map()).set(r.activity as IndustryActivity, r.costIndex);
-  }
-  return out;
-}
-
-export async function getSystemCostIndices(systemId: number): Promise<SystemCostIndices> {
-  const batch = await getSystemCostIndicesBatch([systemId]);
-  return batch.get(systemId) ?? new Map();
+  return mapByIdDroppingNulls(dedupe(systemIds), getSystemCostIndices);
 }
 
 /** One IN read of a nullable price column; NULL rows are dropped, 0 is kept as a real price. */

@@ -51,7 +51,6 @@ function cleanResult(rows: MarketPrice[]) {
     metrics: {
       requested: rows.length,
       returned: rows.length,
-      cacheHits: 0,
       esiCount: rows.length,
       fuzzworkFallbackCount: 0,
     },
@@ -109,8 +108,7 @@ describe('POST /api/market-prices/refresh', () => {
       metrics: {
         requested: 3,
         returned: 3,
-        cacheHits: 0,
-        esiCount: 1,
+          esiCount: 1,
         fuzzworkFallbackCount: 2,
       },
     });
@@ -135,8 +133,7 @@ describe('POST /api/market-prices/refresh', () => {
       metrics: {
         requested: 1,
         returned: 1,
-        cacheHits: 0,
-        esiCount: 1,
+          esiCount: 1,
         fuzzworkFallbackCount: 0,
       },
     });
@@ -161,8 +158,7 @@ describe('POST /api/market-prices/refresh', () => {
       expect.objectContaining({
         requested: 1,
         returned: 1,
-        cacheHits: 0,
-        esiCount: 1,
+          esiCount: 1,
         fuzzworkFallbackCount: 0,
         budgetExhausted: false,
       }),
@@ -185,12 +181,22 @@ describe('POST /api/market-prices/refresh', () => {
     expect(getLivePricesMock).not.toHaveBeenCalled();
   });
 
-  it('rejects more than 50 typeIds', async () => {
+  it('rejects more than 2000 typeIds', async () => {
     const { POST } = await import('./route');
-    const tooMany = Array.from({ length: 51 }, (_, i) => i + 1);
+    const tooMany = Array.from({ length: 2001 }, (_, i) => i + 1);
     const res = await POST(postJson(ROUTE, { typeIds: tooMany }));
     expect(res.status).toBe(400);
     expect(getLivePricesMock).not.toHaveBeenCalled();
+  });
+
+  it('spends the client\'s per-minute allowance by distinct type ids, 2000 a minute', async () => {
+    const { POST } = await import('./route');
+    await POST(postJson(ROUTE, { typeIds: [34, 34, 35, 36] }));
+    expect(checkRateLimitMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { name: 'market-prices-refresh', perMinute: 2000, unit: 'type-ids' },
+      3,
+    );
   });
 
   it('rejects non-integer typeIds', async () => {

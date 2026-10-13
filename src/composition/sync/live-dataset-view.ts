@@ -1,6 +1,9 @@
 import { after } from 'next/server';
+import { type EsiStoreKey, isDueFor } from '@/data/esi-store';
 import { getTypeNameRecord } from '@/data/eve-data/queries';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import type { EnumeratedOwner } from '@/platform/owner-sync';
+import { listCharactersWithHealth } from './owner-sync-port';
 
 export interface OwnerRow {
   id: number;
@@ -11,6 +14,8 @@ export interface OwnerRow {
 export interface LiveDatasetView<TData, TRow> {
   read(userId: string): Promise<{ owners: OwnerRow[]; data: Map<number, TData> }>;
   refresh(userId: string): void | Promise<unknown>;
+  /** The stored answers `refresh` would check for these characters: expired ones make the response say `refreshing`. */
+  dueKeys(userId: string, owners: readonly EnumeratedOwner[]): EsiStoreKey[];
   makeRow(owner: OwnerRow, data: TData | null): TRow;
   nameIds(rows: TRow[]): Iterable<number>;
 }
@@ -34,14 +39,31 @@ export function characterRow<TData>(
   return { characterId: owner.id, data, lastRefreshedAt: owner.lastRefreshedAt?.getTime() ?? null };
 }
 
+/**
+ * Whether the after() refresh will reach ESI: some owner the sync would act
+ * for has a stored answer CCP's Expires no longer covers, and that this user
+ * has not been refused (a corporation answer's refusal is the user's own). The response says
+ * `refreshing` from it, so the page checks back for the newer data instead
+ * of keeping the stored copy it was handed.
+ */
+export async function refreshDue(
+  userId: string,
+  dueKeys: (owners: readonly EnumeratedOwner[]) => EsiStoreKey[],
+): Promise<boolean> {
+  return isDueFor(userId, dueKeys(await listCharactersWithHealth(userId)));
+}
+
 export async function getLiveDatasetOnView<TData, TRow>(
   userId: string,
   view: LiveDatasetView<TData, TRow>,
-): Promise<{ rows: TRow[]; names: Record<string, string> }> {
-  const { owners, data } = await view.read(userId);
+): Promise<{ rows: TRow[]; names: Record<string, string>; refreshing: boolean }> {
+  const [{ owners, data }, refreshing] = await Promise.all([
+    view.read(userId),
+    refreshDue(userId, (characters) => view.dueKeys(userId, characters)),
+  ]);
   after(() => view.refresh(userId));
 
   const rows = owners.map((owner) => view.makeRow(owner, data.get(owner.id) ?? null));
 
-  return { rows, names: await getTypeNameRecord(view.nameIds(rows)) };
+  return { rows, names: await getTypeNameRecord(view.nameIds(rows)), refreshing };
 }

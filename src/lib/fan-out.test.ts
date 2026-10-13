@@ -52,6 +52,24 @@ describe('mapByIdDroppingNulls', () => {
     });
     expect(maxActive).toBeGreaterThan(1);
   });
+
+  it('keeps at most `limit` getters in flight when a limit is given, still keyed by id', async () => {
+    let active = 0;
+    let maxActive = 0;
+    const map = await mapByIdDroppingNulls(
+      [1, 2, 3, 4, 5],
+      async (id) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        active -= 1;
+        return id === 3 ? null : { value: id };
+      },
+      2,
+    );
+    expect([...map.keys()]).toEqual([1, 2, 4, 5]);
+    expect(maxActive).toBe(2);
+  });
 });
 
 /** A worker whose calls stay in flight until the test settles each one by index. */

@@ -1,8 +1,11 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, type SQL } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
-import { expireNow } from '@/lib/cache-expiry';
+import { excludedSet, proposedRowsWhere } from '@/lib/db-upsert';
+import type { OwnerWrite } from '@/platform/owner-sync';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { skillsKey, skillsKeys } from './keys';
 import { characterSkills, characterSkillSyncs } from './schema';
 import type {
   CharacterSkillData,
@@ -11,15 +14,17 @@ import type {
   SkillsSaveHalves,
 } from './types';
 
-export function skillsTag(characterId: number): string {
-  return `skills:${characterId}`;
-}
-
+/**
+ * One character's skills row, cached across instances until the earlier of
+ * its two stored answers expires; the sync's commit clears the tag when a
+ * 200 lands, so nothing here decides freshness.
+ */
 async function getCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(skillsTag(characterId));
-  return readCharacterSkillRow(characterId);
+  'use cache: remote';
+  cacheTag(datasetTag(skillsKey(characterId)));
+  const [row, expiresAt] = await Promise.all([readCharacterSkillRow(characterId), storedExpiry(skillsKeys(characterId))]);
+  cacheLife(untilExpires(expiresAt));
+  return row;
 }
 
 export async function readCharacterSkillRow(characterId: number): Promise<CharacterSkillRow | null> {
@@ -49,10 +54,11 @@ export async function getSkillRowsForCharacters(
 export async function getCharacterSkillLevels(
   characterId: number,
 ): Promise<Record<string, number> | null> {
-  'use cache';
-  cacheLife('minutes');
-  cacheTag(skillsTag(characterId));
-  return readCharacterSkillLevels(characterId);
+  'use cache: remote';
+  cacheTag(datasetTag(skillsKey(characterId)));
+  const [levels, expiresAt] = await Promise.all([readCharacterSkillLevels(characterId), storedExpiry(skillsKeys(characterId))]);
+  cacheLife(untilExpires(expiresAt));
+  return levels;
 }
 
 async function readCharacterSkillLevels(characterId: number): Promise<Record<string, number> | null> {
@@ -72,8 +78,6 @@ export async function getSkillLevelsForCharacters(
 
 const syncStateColumns = {
   lastRefreshedAt: characterSkillSyncs.lastRefreshedAt,
-  queueEtag: characterSkillSyncs.queueEtag,
-  skillsEtag: characterSkillSyncs.skillsEtag,
 };
 
 export async function readCharacterSyncState(
@@ -99,57 +103,63 @@ export async function listCharacterSkillSyncStates(
   return new Map(rows.map(({ characterId, ...state }) => [characterId, state]));
 }
 
-export async function saveCharacterSkills(
-  characterId: number,
-  halves: SkillsSaveHalves,
-): Promise<void> {
+/**
+ * The halves that answered 200, as statements the refresh's commit sends
+ * with its answers. Both halves upsert the whole row; one half updates its
+ * own columns of a row that already exists. Every statement applies only
+ * where those answers stand, so an older answer writes neither half.
+ */
+export function saveCharacterSkills(characterId: number, halves: SkillsSaveHalves): OwnerWrite {
   const now = new Date();
+  return { kind: 'statements', build: (answersStand) => skillsStatements(characterId, halves, now, answersStand) };
+}
+
+function skillsStatements(characterId: number, halves: SkillsSaveHalves, now: Date, answersStand: SQL) {
   const { queue, skills } = halves;
-
   if (queue !== undefined && skills !== undefined) {
-    await db
-      .insert(characterSkills)
-      .values({
-        characterId,
-        totalSp: skills.totalSp,
-        unallocatedSp: skills.unallocatedSp ?? null,
-        queue: queue.entries,
-        skillLevels: skills.levels,
-      })
-      .onConflictDoUpdate({
-        target: characterSkills.characterId,
-        set: {
-          totalSp: skills.totalSp,
-          unallocatedSp: skills.unallocatedSp ?? null,
-          queue: queue.entries,
-          skillLevels: skills.levels,
-        },
-      });
-    await db
-      .insert(characterSkillSyncs)
-      .values({ characterId, lastRefreshedAt: now, queueEtag: queue.etag, skillsEtag: skills.etag })
-      .onConflictDoUpdate({
-        target: characterSkillSyncs.characterId,
-        set: { lastRefreshedAt: now, queueEtag: queue.etag, skillsEtag: skills.etag },
-      });
-  } else if (queue !== undefined) {
-    await db.update(characterSkills).set({ queue: queue.entries }).where(eq(characterSkills.characterId, characterId));
-    await db
-      .update(characterSkillSyncs)
-      .set({ lastRefreshedAt: now, queueEtag: queue.etag })
-      .where(eq(characterSkillSyncs.characterId, characterId));
-  } else if (skills !== undefined) {
-    await db
-      .update(characterSkills)
-      .set({ totalSp: skills.totalSp, unallocatedSp: skills.unallocatedSp ?? null, skillLevels: skills.levels })
-      .where(eq(characterSkills.characterId, characterId));
-    await db
-      .update(characterSkillSyncs)
-      .set({ lastRefreshedAt: now, skillsEtag: skills.etag })
-      .where(eq(characterSkillSyncs.characterId, characterId));
+    const row = {
+      characterId,
+      totalSp: skills.totalSp,
+      unallocatedSp: skills.unallocatedSp ?? null,
+      queue: queue.entries,
+      skillLevels: skills.levels,
+    };
+    const sync = { characterId, lastRefreshedAt: now, queueEtag: queue.etag, skillsEtag: skills.etag };
+    return [
+      db
+        .insert(characterSkills)
+        .select(proposedRowsWhere(characterSkills, [row], answersStand))
+        .onConflictDoUpdate({
+          target: characterSkills.characterId,
+          set: excludedSet(characterSkills, ['totalSp', 'unallocatedSp', 'queue', 'skillLevels']),
+        }),
+      db
+        .insert(characterSkillSyncs)
+        .select(proposedRowsWhere(characterSkillSyncs, [sync], answersStand))
+        .onConflictDoUpdate({
+          target: characterSkillSyncs.characterId,
+          set: excludedSet(characterSkillSyncs, ['lastRefreshedAt', 'queueEtag', 'skillsEtag']),
+        }),
+    ];
   }
-
-  expireNow(skillsTag(characterId));
+  const skillsRow = and(eq(characterSkills.characterId, characterId), answersStand);
+  const syncRow = and(eq(characterSkillSyncs.characterId, characterId), answersStand);
+  if (queue !== undefined) {
+    return [
+      db.update(characterSkills).set({ queue: queue.entries }).where(skillsRow),
+      db.update(characterSkillSyncs).set({ lastRefreshedAt: now, queueEtag: queue.etag }).where(syncRow),
+    ];
+  }
+  if (skills !== undefined) {
+    return [
+      db
+        .update(characterSkills)
+        .set({ totalSp: skills.totalSp, unallocatedSp: skills.unallocatedSp ?? null, skillLevels: skills.levels })
+        .where(skillsRow),
+      db.update(characterSkillSyncs).set({ lastRefreshedAt: now, skillsEtag: skills.etag }).where(syncRow),
+    ];
+  }
+  return [];
 }
 
 export async function stampCharacterFresh(characterId: number): Promise<void> {

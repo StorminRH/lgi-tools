@@ -12,7 +12,7 @@ const harness = await createDbTestHarness({
 
 const permissiveScoreboard = {
   async preDispatch() {
-    return { effectiveRemaining: 1000, blockedRetryAfter: null, etag: null };
+    return { effectiveRemaining: 1000, blockedRetryAfter: null };
   },
   async budgetSnapshot() {
     return {
@@ -26,9 +26,6 @@ const permissiveScoreboard = {
     return { calls: 0, failures: 0, source: 'process-local' as const };
   },
   async report() {},
-  async getCachedBody() {
-    return null;
-  },
 };
 
 function station(id: number, overrides: Partial<typeof eveNpcStations.$inferInsert> = {}) {
@@ -120,7 +117,15 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
 
     const [row] = await harness.db.select().from(eveNpcStations);
     expect(row?.name).toBeNull();
-    expect(warnSpy).toHaveBeenCalledTimes(2);
+    // The gate logs the 5xx it saw (body and x-esi-* headers) before the resolver skips the batch.
+    expect(warnSpy.mock.calls).toEqual([
+      ['Station-name resolution skipped a batch of 1: Error: offline'],
+      [
+        '[esi] server error',
+        { status: 503, path: '/universe/names', headers: {}, body: 'unavailable' },
+      ],
+      ['Station-name resolution skipped a batch of 1: EsiServerError: ESI server error: 503'],
+    ]);
   });
 
   it('continues with the second batch when the first observed batch fails', async () => {

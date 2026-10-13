@@ -63,6 +63,21 @@ describe('rateLimit', () => {
     );
   });
 
+  it('spends one unit by default and the given cost otherwise', async () => {
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
+    vi.stubEnv('NODE_ENV', 'production');
+    limitMock.mockResolvedValue({ success: true, remaining: 4, reset: Date.now() + 60_000, pending: Promise.resolve() });
+
+    const { rateLimit } = await importHelper();
+    await rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 });
+    await rateLimit('1.2.3.4', { name: 'prices', perMinute: 2000 }, 320);
+    expect(limitMock.mock.calls).toEqual([
+      ['1.2.3.4', { rate: 1 }],
+      ['1.2.3.4', { rate: 320 }],
+    ]);
+  });
+
   it('returns denied with retryAfter rounded up to next whole second', async () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
@@ -288,6 +303,10 @@ describe('checkRateLimit', () => {
     const { checkRateLimit } = await importHelper();
     const result = await checkRateLimit(guardRequest(), { name: 'feedback', perMinute: 5 });
     expect(result).toEqual({ ok: true });
+    expect(limitMock).toHaveBeenLastCalledWith('198.51.100.7', { rate: 1 });
+
+    await checkRateLimit(guardRequest(), { name: 'feedback', perMinute: 5 }, 12);
+    expect(limitMock).toHaveBeenLastCalledWith('198.51.100.7', { rate: 12 });
   });
 
   it('returns a typed failure with retry timing when over the limit', async () => {

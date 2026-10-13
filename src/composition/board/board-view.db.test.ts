@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { EVE_SCOPES } from '@/config/eve-scopes';
+import { commitWithWrite } from '@/data/esi-store';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -63,6 +64,7 @@ const harness = await createDbTestHarness({
     'market_prices',
     'adjusted_prices',
     'net_worth_days',
+    'esi_responses',
   ],
   foreignKeys: [
     { table: 'net_worth_days', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -109,7 +111,7 @@ const ENTITY_NAMES: Record<string, string> = {
   [AMARR_ORIS]: 'Amarr VIII (Oris) - Emperor Family Academy',
 };
 
-const envelope = <T>(data: T) => ({ data, refreshedAt: STAMP, etags: {} });
+const envelope = <T>(data: T) => ({ data, refreshedAt: STAMP });
 
 const AUREL_SHEET: SheetSections = {
   profile: envelope({ character: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.31 } }),
@@ -342,7 +344,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(JSON.stringify(board)).not.toContain('esi-');
     expect(board.characters.map((c) => c.characterId)).toEqual([AUREL, BRAM, ILYANA]);
     expect(mocks.after).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([CALDARI_NAVY, 1000086, ALLIANCE, AMARR_ORIS]);
+    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([CALDARI_NAVY, 1000086, ALLIANCE, AMARR_ORIS], { interactive: true });
   });
 
   it('names every section of a fully synced character from the SDE, the sheet and the names resolver', async () => {
@@ -515,15 +517,15 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       refreshToken: 'rt', scope: EVE_SCOPES.join(' '),
     });
     await harness.db.insert(ownedAssetSyncs).values({ ownerType: 'character', ownerId: characterId, lastRefreshedAt: new Date(STAMP) });
-    if (!firstView) await sheetQueries.mergeSheetSection(characterId, 'wallet', {
-      data: { balance: 100 }, refreshedAt: STAMP, etags: {},
-    });
+    if (!firstView) await commitWithWrite([], sheetQueries.mergeSheetSection(characterId, 'wallet', {
+      data: { balance: 100 }, refreshedAt: STAMP,
+    }));
     const staleSheets = await sheetQueries.getCharacterSheets([characterId]);
     const cachedRead = vi.spyOn(sheetQueries, 'getCharacterSheets').mockResolvedValue(staleSheets);
     mocks.refreshSheets.mockImplementationOnce(async () => {
-      await sheetQueries.mergeSheetSection(characterId, 'wallet', {
-        data: { balance: 750 }, refreshedAt: STAMP, etags: {},
-      });
+      await commitWithWrite([], sheetQueries.mergeSheetSection(characterId, 'wallet', {
+        data: { balance: 750 }, refreshedAt: STAMP,
+      }));
     });
     try {
       const before = await getBoardForUserOnView(userId);

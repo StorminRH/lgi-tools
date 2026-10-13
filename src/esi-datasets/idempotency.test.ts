@@ -1,10 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  IDEMPOTENCY_REGISTRY,
-  type IdempotencyEntry,
-} from '@/composition/__tests__/idempotency-registry';
+import { IDEMPOTENCY_REGISTRY } from '@/composition/__tests__/idempotency-registry';
 import { vendorResilienceRegistry } from '@/composition/__tests__/vendor-resilience-registry';
 import { filesMatching, listRouteFiles } from '@/lib/__tests__/source-scan';
 
@@ -98,15 +95,10 @@ describe('idempotency registry', () => {
     expect(routeEntries).toHaveLength(routes.length);
   });
 
-  it('covers the queue, its recovery, its requeue, and the outbound alert paths', () => {
+  it('covers the on-view snapshot append and the outbound alert path', () => {
     const ids = new Set(IDEMPOTENCY_REGISTRY.map((entry) => entry.id));
     for (const required of [
-      'queue/enqueue',
-      'queue/process-job',
-      'queue/recover-stranded',
-      'queue/requeue-dead-lettered',
-      'alert/esi-refresh-dead-letter',
-      'alert/public-esi-budget-exhaustion',
+      'sync/insert-esi-snapshot',
       'alert/price-source-degradation',
     ]) {
       expect(ids.has(required), `missing required entry ${required}`).toBe(true);
@@ -159,18 +151,6 @@ describe('idempotency registry verdicts', () => {
     for (const entry of accepted) {
       expect(entry.evidence.length, `${entry.id} accepted risk`).toBeGreaterThan(80);
     }
-  });
-
-  it('names the queue’s unique index as the enqueue protection', () => {
-    const enqueue = IDEMPOTENCY_REGISTRY.find(
-      (entry: IdempotencyEntry) => entry.id === 'queue/enqueue',
-    );
-    expect(enqueue?.evidence).toMatch(/esi_refresh_jobs_live_key_unique/);
-    const schema = readFileSync(
-      path.join(ROOT, 'src/data/esi-refresh-jobs/schema.ts'),
-      'utf8',
-    );
-    expect(schema).toMatch(/esi_refresh_jobs_live_key_unique/);
   });
 
   it('names the generation guard for the scheduled Convex sync action', () => {

@@ -1,13 +1,18 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { characters, corpMemberRoles } from '@/db/auth-schema';
+import { storedRowJoin } from '@/data/esi-store';
+import { esiResponses } from '@/data/esi-store/schema';
 import { executeRows } from '@/lib/db-execute';
 import type { CorpRolesRecord } from './corp-roles';
+import { CHARACTER_ROLES_ROUTE } from './roles-key';
 
+/** A corp_member_roles row with the expiry of the answer it came from; null when the store never recorded one. */
 export interface StoredCorpRoles extends CorpRolesRecord {
   readonly characterId: number;
   readonly corporationId: number | null;
   readonly fetchedAt: Date;
+  readonly expiresAt: Date | null;
 }
 
 export async function readRoleCorporationId(characterId: number): Promise<number | null> {
@@ -60,8 +65,10 @@ export async function readCorpRoles(characterIds: readonly number[]): Promise<Ma
       rolesAtBase: corpMemberRoles.rolesAtBase,
       rolesAtOther: corpMemberRoles.rolesAtOther,
       fetchedAt: corpMemberRoles.fetchedAt,
+      expiresAt: esiResponses.expiresAt,
     })
     .from(corpMemberRoles)
+    .leftJoin(esiResponses, storedRowJoin(CHARACTER_ROLES_ROUTE, 'character', corpMemberRoles.characterId))
     .where(inArray(corpMemberRoles.characterId, [...characterIds]));
   return new Map(rows.map((row) => [row.characterId, row]));
 }

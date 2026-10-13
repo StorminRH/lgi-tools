@@ -15,6 +15,7 @@ const viewerJobsSchema = z.object({
 const jobsResponseSchema = z.object({
   characters: z.array(viewerJobsSchema),
   names: z.record(z.string(), z.string()),
+  refreshing: z.boolean(),
 });
 
 export type JobsResponse = z.infer<typeof jobsResponseSchema>;
@@ -38,6 +39,7 @@ const viewerCorpJobsSchema = z.object({
 const corpJobsResponseSchema = z.object({
   corporations: z.array(viewerCorpJobsSchema),
   names: z.record(z.string(), z.string()),
+  refreshing: z.boolean(),
 });
 
 export type CorpJobsResponse = z.infer<typeof corpJobsResponseSchema>;
@@ -67,6 +69,7 @@ const viewerSlotsSchema = z.object({
 
 const industrySlotsResponseSchema = z.object({
   characters: z.array(viewerSlotsSchema),
+  refreshing: z.boolean(),
 });
 
 export type ViewerSlots = z.infer<typeof viewerSlotsSchema>;

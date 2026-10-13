@@ -43,7 +43,7 @@ function freshPrices(typeIds: readonly number[], now: number): Map<number, Refre
   return fresh;
 }
 
-/** One batch's refreshed prices: null when the server didn't answer, 'aborted' once the read is cancelled. */
+/** One request's refreshed prices: null when the server didn't answer, 'aborted' once the read is cancelled. */
 async function readBatch(batch: number[], signal: AbortSignal): Promise<RefreshedPrice[] | 'aborted' | null> {
   const result = await apiFetch(refreshPricesEndpoint, { body: { typeIds: batch }, cache: 'no-store', signal });
   if (!result.ok) return result.kind === 'network' && result.aborted ? 'aborted' : null;
@@ -88,6 +88,8 @@ export function useRefreshOnView(
     const toRefresh = wanted.filter((typeId) => !map.has(typeId));
 
     const controller = new AbortController();
+    // Every due id goes in one request; the server fans out per type. Only a
+    // page past the contract's safety ceiling splits, so no request is refused.
     const batches = chunk(toRefresh, ON_DEMAND_REFRESH_MAX_TYPE_IDS);
     const publish = () => {
       const snapshot = new Map(map);

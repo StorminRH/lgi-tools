@@ -1,3 +1,5 @@
+import type { EsiResponseMeta } from '@/data/esi-store';
+
 export interface HistoryDailyRow {
   date: string;
   average: number;
@@ -12,7 +14,8 @@ export type HistorySource = 'esi';
 export interface RawHistory {
   typeId: number;
   rows: HistoryDailyRow[];
-  staleAfter: Date;
+  /** What ESI said about the answer; committed after the rows are written. */
+  meta: EsiResponseMeta;
   source: HistorySource;
 }
 

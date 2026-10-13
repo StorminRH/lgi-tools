@@ -7,7 +7,6 @@ import type {
   DirectSectionSpec,
   JournalDigest,
   JournalSeriesPoint,
-  PartEtags,
   SectionEnvelope,
   SectionPlan,
   SectionSyncState,
@@ -36,7 +35,6 @@ function deniedEnvelope<K extends SheetSectionKey>(
   return {
     data: previous?.data ?? null,
     refreshedAt: now.toISOString(),
-    etags: previous?.etags ?? {},
     denied: true,
   };
 }
@@ -63,24 +61,21 @@ export function planSectionRead<K extends DirectSectionKey>(
   }
 
   const data: Partial<Record<SheetPart<K>, unknown>> = {};
-  const etags: PartEtags<K> = {};
   for (const part of parts) {
     const read = reads[part];
     if (read.kind === 'fresh') {
       const parsed = spec.parts[part].parse(read.body, now);
       if (parsed === null) return { kind: 'skip', code: 'contract_error' };
       data[part] = parsed;
-      etags[part] = read.etag;
       continue;
     }
     const carried = previous?.data?.[part];
     if (carried === undefined) return { kind: 'skip', code: 'unchanged_without_previous' };
     data[part] = carried;
-    etags[part] = previous?.etags[part] ?? null;
   }
   return {
     kind: 'save',
-    envelope: { data: data as SheetSectionData[K], refreshedAt: now.toISOString(), etags },
+    envelope: { data: data as SheetSectionData[K], refreshedAt: now.toISOString() },
   };
 }
 
@@ -209,18 +204,12 @@ export function planStructures(
   const rowExists = previous !== null;
   const onlyStampNeeded = rowExists && !changed && !pruned;
   if (onlyStampNeeded) return { kind: 'stamp' };
-  return { kind: 'save', envelope: { data: { names }, refreshedAt: now.toISOString(), etags: {} } };
+  return { kind: 'save', envelope: { data: { names }, refreshedAt: now.toISOString() } };
 }
 
 export function readSectionState<K extends SheetSectionKey>(
   sheet: SheetSections | null,
   key: K,
 ): SectionSyncState<K> {
-  const previous = (sheet?.[key] ?? null) as SectionEnvelope<K> | null;
-  const forceStale = key === 'structures' && unresolvedStructureIds(sheet).length > 0;
-  return {
-    lastRefreshedAt: previous === null || forceStale ? null : new Date(previous.refreshedAt),
-    previous,
-    heldEtags: previous?.data == null ? {} : previous.etags,
-  };
+  return { previous: (sheet?.[key] ?? null) as SectionEnvelope<K> | null };
 }

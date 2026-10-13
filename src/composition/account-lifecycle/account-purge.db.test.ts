@@ -91,7 +91,7 @@ const TABLE_NAMES = [
   'owned_blueprints',
   'owned_blueprint_syncs',
   'esi_snapshots',
-  'esi_refresh_jobs',
+  'esi_responses',
   'usage_logs',
   'user_preferences',
   'custom_structures',

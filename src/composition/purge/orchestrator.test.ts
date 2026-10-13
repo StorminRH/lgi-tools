@@ -64,18 +64,22 @@ describe('runPurge orchestrator', () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 });
 
     expect(vi.mocked(revalidateTag).mock.calls).toEqual([
-      ['skills:42', { expire: 0 }],
-      ['character-sheet:42', { expire: 0 }],
-      ['industry-jobs:42', { expire: 0 }],
-      ['owned-assets:character:42', { expire: 0 }],
-      ['owned-blueprints:character:42', { expire: 0 }],
+      ['eve:skills:character:42', { expire: 0 }],
+      ['eve:character_sheet_live:character:42', { expire: 0 }],
+      ['eve:character_sheet_hourly:character:42', { expire: 0 }],
+      ['eve:character_sheet_daily:character:42', { expire: 0 }],
+      ['eve:character_industry_jobs:character:42', { expire: 0 }],
+      ['eve:owned_assets:character:42', { expire: 0 }],
+      ['eve:owned_blueprints:character:42', { expire: 0 }],
     ]);
     expect(Object.fromEntries(lastDeleteBefore)).toEqual({
-      'skills:42': 'character_skill_syncs',
-      'character-sheet:42': 'character_sheets',
-      'industry-jobs:42': 'character_industry_job_syncs',
-      'owned-assets:character:42': 'owned_asset_syncs',
-      'owned-blueprints:character:42': 'owned_blueprint_syncs',
+      'eve:skills:character:42': 'character_skill_syncs',
+      'eve:character_sheet_live:character:42': 'character_sheets',
+      'eve:character_sheet_hourly:character:42': 'character_sheets',
+      'eve:character_sheet_daily:character:42': 'character_sheets',
+      'eve:character_industry_jobs:character:42': 'character_industry_job_syncs',
+      'eve:owned_assets:character:42': 'owned_asset_syncs',
+      'eve:owned_blueprints:character:42': 'owned_blueprint_syncs',
     });
   });
 

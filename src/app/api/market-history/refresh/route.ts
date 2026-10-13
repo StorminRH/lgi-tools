@@ -8,8 +8,11 @@ import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 import { apiResponse } from '@/transport/api-response';
 
 /**
- * History is one ESI call per stale type at concurrency 10; the on-view trigger
- * asks for a single product type. 60 bounds a hang well under the 300s default.
+ * History is one ESI call per stale type, HISTORY_FETCH_CONCURRENCY in
+ * flight, for at most ON_DEMAND_HISTORY_MAX_TYPE_IDS types; the on-view
+ * trigger asks for a single product type. If ESI hangs on every call, the
+ * 50-id ceiling is three rounds of the 10s OUTBOUND_FETCH_TIMEOUT_MS, so 60
+ * bounds a hang well under the 300s default.
  */
 export const maxDuration = 60;
 
