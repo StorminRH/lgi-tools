@@ -320,7 +320,7 @@ export function evaluateAbort(samples, startSwapBytes) {
 export function countDetailSentinels(html) {
   const text = String(html);
   return {
-    waveSpawns: text.split('Wave Spawns').length - 1,
+    waveSpawns: text.split('Wave spawns').length - 1,
     noSleeperPresence: text.split('No Sleeper presence').length - 1,
   };
 }

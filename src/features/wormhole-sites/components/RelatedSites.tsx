@@ -11,7 +11,7 @@ export function RelatedSites({ sites }: { sites: SiteSearchEntry[] }) {
     <section className="mt-6 w-full border-t border-border-idle pt-4" aria-labelledby="related-sites">
       <h2
         id="related-sites"
-        className={eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label', className: 'mb-2' })}
+        className={eyebrow({ font: 'inherit', weight: 'inherit', className: 'mb-2' })}
       >
         Related sites
       </h2>

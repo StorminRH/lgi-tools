@@ -134,8 +134,9 @@ const rejectLoadingToast = ['loading toast', "import { toast } from 'sonner'; to
 const rejectRetiredFont = ['retired font role', "const className = 'font-mono'; export default className;", 'No retired font or tracking utility'];
 const rejectRetiredTracking = ['retired tracking step', "const className = `text-ui tracking-emphasis`; export default className;", 'No retired font or tracking utility'];
 const rejectVariantRetiredFont = ['variant-prefixed retired font role', "const className = 'md:hover:font-body'; export default className;", 'No retired font or tracking utility'];
-const rejectStepTracking = ['arbitrary tracking equal to a step', "const className = 'uppercase tracking-[0.08em]'; export default className;", 'No arbitrary tracking that equals a registered step'];
-const rejectVariantStepTracking = ['variant-prefixed arbitrary tracking equal to a step', "const className = `md:tracking-[.12em]`; export default className;", 'No arbitrary tracking that equals a registered step'];
+const rejectStepTracking = ['arbitrary tracking equal to a step', "const className = 'tracking-[0.04em]'; export default className;", 'No arbitrary tracking that equals a registered step'];
+const rejectVariantStepTracking = ['variant-prefixed arbitrary tracking equal to a step', "const className = `md:tracking-[.08em]`; export default className;", 'No arbitrary tracking that equals a registered step'];
+const rejectCapsTracking = ['retired caps tracking step', "const className = 'text-label tracking-wide'; export default className;", 'No retired font or tracking utility'];
 
 describe('UI adoption syntax rail', () => {
   it.each([
@@ -163,6 +164,7 @@ describe('UI adoption syntax rail', () => {
     rejectVariantRetiredFont,
     rejectStepTracking,
     rejectVariantStepTracking,
+    rejectCapsTracking,
   ])('rejects %s in production and preview source', async (_name, code, message) => {
     await expectSyntax(productionProbe, code, message);
     await expectSyntax(previewProbe, code, message);

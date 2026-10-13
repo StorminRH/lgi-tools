@@ -14,9 +14,9 @@ function classOf(markup: string, tag: string): string | undefined {
   return new RegExp(`<${tag}[^>]*class="([^"]*)"`).exec(markup)?.[1];
 }
 
-test('the page title keeps the classes PageHead and SectionHead rendered before it moved', () => {
+test('the page title sets the display face in normal case at optical tracking', () => {
   expect(pageTitle({ size: 'compact' })).toBe(
-    'font-display font-bold leading-none tracking-optical uppercase text-name text-h2',
+    'font-display font-bold leading-none tracking-optical text-name text-h2',
   );
   // PageTitle goes through cn(), whose text size drops leading-none: the size
   // token's line height applies. Setting it solid is a design call, not phase 1.
@@ -26,50 +26,59 @@ test('the page title keeps the classes PageHead and SectionHead rendered before 
 
   const page = renderToStaticMarkup(createElement(PageHead, { title: 'Settings' }));
   expect(classSet(classOf(page, 'h1'))).toEqual(
-    classSet('font-display font-bold tracking-optical uppercase text-name text-title'),
+    classSet('font-display font-bold tracking-optical text-name text-title'),
   );
 
   const hero = renderToStaticMarkup(createElement(PageHead, { title: 'Market', size: 'hero' }));
   expect(classSet(classOf(hero, 'h1'))).toEqual(
-    classSet('font-display font-bold tracking-optical uppercase text-name text-display'),
+    classSet('font-display font-bold tracking-optical text-name text-display'),
   );
 
   const section = renderToStaticMarkup(createElement(SectionHead, { title: 'Characters' }));
   expect(classSet(classOf(section, 'h2'))).toEqual(
-    classSet('font-display text-h2 font-bold uppercase leading-none tracking-optical text-name'),
+    classSet('font-display text-h2 font-bold leading-none tracking-optical text-name'),
   );
 
   const compact = renderToStaticMarkup(
     createElement(PageHead, { title: 'Primitives', subtitle: 'size=compact', size: 'compact' }),
   );
   expect(classSet(classOf(compact, 'p'))).toEqual(
-    classSet('mt-2 text-muted font-data text-label tracking-label uppercase'),
+    classSet('mt-2 text-muted font-data text-small tracking-normal'),
   );
 });
 
 test('the eyebrow keeps its interface defaults and its inherit values emit no class', () => {
-  expect(eyebrow()).toBe('uppercase font-ui text-label text-muted font-medium tracking-wide');
+  expect(eyebrow()).toBe('tracking-optical font-ui text-eyebrow text-muted font-medium');
+  expect(eyebrow({ size: 'micro' })).toBe('tracking-optical font-ui text-caption text-muted font-medium');
   expect(eyebrow({ font: 'inherit', tone: 'inherit', weight: 'inherit' })).toBe(
-    'uppercase text-label tracking-wide',
+    'tracking-optical text-eyebrow',
   );
-  expect(eyebrow({ font: 'data', weight: 'bold', emphasis: 'label' })).toBe(
-    'uppercase font-data text-label text-muted font-bold tracking-label',
-  );
-  expect(cn(eyebrow(), 'tracking-[0.07em]')).toBe(
-    'uppercase font-ui text-label text-muted font-medium tracking-[0.07em]',
-  );
+  expect(cn(eyebrow(), 'text-bar')).toBe('tracking-optical font-ui text-muted font-medium text-bar');
 });
 
-test('the data label is the data-face eyebrow at label tracking, open to every axis', () => {
-  expect(dataLabel()).toBe('uppercase font-data text-label text-muted tracking-label');
-  expect(dataLabel({ size: 'micro', tone: 'faint', emphasis: 'strong', className: 'truncate' })).toBe(
-    'uppercase font-data text-micro text-faint tracking-eyebrow truncate',
+test('no label or title role sets text in capitals', () => {
+  for (const classes of [
+    eyebrow(),
+    eyebrow({ size: 'micro' }),
+    dataLabel(),
+    dataLabel({ size: 'micro' }),
+    pageTitle(),
+    displayTitle(),
+  ]) {
+    expect(classSet(classes)).not.toContain('uppercase');
+  }
+});
+
+test('the data label is the data face at normal tracking, open to size and tone', () => {
+  expect(dataLabel()).toBe('font-data tracking-normal text-small text-muted');
+  expect(dataLabel({ size: 'micro', tone: 'faint', className: 'truncate' })).toBe(
+    'font-data tracking-normal text-caption text-faint truncate',
   );
 });
 
 test('the display title stays the dialog and panel title role', () => {
-  expect(displayTitle()).toBe('font-display font-semibold tracking-copy uppercase text-h2 text-name');
+  expect(displayTitle()).toBe('font-display font-semibold tracking-optical text-h2 text-name');
   expect(displayTitle({ size: 'h3', tone: 'danger', wrap: true })).toBe(
-    'font-display font-semibold tracking-copy uppercase text-h3 text-pill-red-text min-w-0 break-words',
+    'font-display font-semibold tracking-optical text-h3 text-pill-red-text min-w-0 break-words',
   );
 });

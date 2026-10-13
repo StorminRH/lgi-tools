@@ -24,24 +24,50 @@ export function deadAllowlistEntries(css: string, allowed: readonly string[]): s
 
 const STRING_LITERAL = /(["'`])([^"'`\n]*)\1/g;
 
-function handRollsTypeRole(classes: string): boolean {
-  const utilities = classes
+function utilitiesOf(classes: string): string[] {
+  return classes
     .split(/\s+/)
     .map((token) => token.slice(token.lastIndexOf(':') + 1));
+}
+
+// The label sizes the eyebrow and data-label roles own. A tracking step set
+// beside one of them spells a label role by hand.
+const LABEL_SIZES = ['text-eyebrow', 'text-caption', 'text-small', 'text-bar'];
+
+function handRollsTypeRole(classes: string): boolean {
+  const utilities = utilitiesOf(classes);
   const tracked = utilities.some((utility) => utility.startsWith('tracking-'));
   return (
     utilities.some((utility) => utility.startsWith('tracking-['))
-    || (tracked && utilities.includes('uppercase'))
+    || (tracked && utilities.some((utility) => utility === 'uppercase' || LABEL_SIZES.includes(utility)))
   );
 }
 
 /**
- * The one-line string literals in `source` that hand-roll a type role: an
- * uppercase class string with a tracking step, in any order, or any arbitrary
- * tracking value.
+ * The one-line string literals in `source` that hand-roll a type role: a
+ * tracking step beside a label size or `uppercase`, in any order, or any
+ * arbitrary tracking value.
  */
 export function handRolledTypeRoles(source: string): string[] {
   return [...source.matchAll(STRING_LITERAL)]
     .map((match) => match[2] ?? '')
     .filter(handRollsTypeRole);
+}
+
+// `uppercase` as a whole class token: after a line start, whitespace, a
+// variant colon or a quote, and before whitespace, a quote or the line end.
+// Quote pairing is not needed, so a multi-line template literal or an earlier
+// apostrophe on the line does not hide it. The word in copy, before `<` or
+// punctuation, is not a class.
+const UPPERCASE_TOKEN = /(?:^|[\s:'"`])uppercase(?=[\s'"`]|$)/gm;
+const CSS_UPPERCASE = /\btext-transform\s*:\s*uppercase\b|@apply\b[^;}]*\buppercase\b/g;
+
+/**
+ * How many times `source` sets text in capitals: an `uppercase` class at any
+ * variant, the `'uppercase'` style value, or, in a stylesheet, a
+ * `text-transform: uppercase` declaration or an `@apply` of `uppercase`.
+ * Pass comment-stripped source.
+ */
+export function uppercaseCount(source: string, kind: 'script' | 'css'): number {
+  return [...source.matchAll(kind === 'css' ? CSS_UPPERCASE : UPPERCASE_TOKEN)].length;
 }

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
+import { eyebrow } from '@/components/ui/type-roles';
 import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
 import { getRoleChangeAudit } from '@/data/telemetry/queries';
 import { superadminCharacterId } from '@/platform/auth/admin-policy';
@@ -59,7 +60,7 @@ export function AccessSearchForm({ query }: { query: string | undefined }) {
         Search
       </Button>
       {query ? (
-        <Link href={adminHref('users')} className="px-2 py-1 text-ui uppercase tracking-wide text-muted">
+        <Link href={adminHref('users')} className={eyebrow({ font: 'inherit', weight: 'inherit', className: 'px-2 py-1' })}>
           Clear
         </Link>
       ) : null}

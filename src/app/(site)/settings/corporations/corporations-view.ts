@@ -7,7 +7,7 @@ export type CorporationMembershipView = {
   corporationId: number;
   corporationName: string;
   roleLabel: CorporationRoleLabel;
-  sharingLabel: 'sharing on' | 'sharing off';
+  sharingLabel: 'Sharing on' | 'Sharing off';
   structureCount: number | null;
 };
 
@@ -47,7 +47,7 @@ function toMembership(corp: CorpStructurePageView): CorporationMembershipView {
     corporationId: corp.corporationId,
     corporationName: corp.corporationName,
     roleLabel: roleLabelOf(corp),
-    sharingLabel: corp.sharing === 'on' ? 'sharing on' : 'sharing off',
+    sharingLabel: corp.sharing === 'on' ? 'Sharing on' : 'Sharing off',
     structureCount: corp.structureAccess === 'none' ? null : corp.structures.length,
   };
 }

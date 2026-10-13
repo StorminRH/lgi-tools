@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { cn } from '@/components/ui/cn';
 import { PageShell } from '@/components/ui/page-shell';
+import { eyebrow } from '@/components/ui/type-roles';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-styles';
 import { MOCK_SITES } from '@/features/wormhole-sites/mock-data';
@@ -23,10 +25,10 @@ export default function PreviewCardsPage() {
     <PageShell mode="detail">
       <div className="flex flex-col items-center pb-20 gap-0">
         <header className="w-full max-w-[1100px] mb-10 pb-4 border-b border-[#1a2535]">
-        <div className="font-display font-bold text-[22px] text-name tracking-copy uppercase mb-1">
-          Site Card Reference
+        <div className="font-display font-bold text-[22px] text-name tracking-optical mb-1">
+          Site card reference
         </div>
-        <div className="text-[10px] text-[#2a4050] tracking-wide uppercase">
+        <div className={cn(eyebrow({ size: 'micro', font: 'inherit', weight: 'inherit', tone: 'inherit' }), 'text-[#2a4050]')}>
           All wormhole site types · A1 blue-gray theme · Mock data
         </div>
       </header>
@@ -37,8 +39,8 @@ export default function PreviewCardsPage() {
         return (
           <section key={type} className="w-full max-w-[1100px]">
             <div className={`w-full flex items-center gap-3.5 ${i === 0 ? 'mt-0' : 'mt-12'} mb-5`}>
-              <span className="text-[9px] font-semibold tracking-eyebrow uppercase text-[#2a4050] whitespace-nowrap">
-                {SITE_TYPE_LABEL[type]} Sites
+              <span className={cn(eyebrow({ font: 'inherit', weight: 'semibold', tone: 'inherit' }), 'whitespace-nowrap text-[#2a4050]')}>
+                {SITE_TYPE_LABEL[type]} sites
               </span>
               <div className="flex-1 h-px bg-border-soft" />
             </div>

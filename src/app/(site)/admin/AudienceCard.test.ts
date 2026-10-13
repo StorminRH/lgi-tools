@@ -178,6 +178,6 @@ test('labels the activity total like the tiles above it', async () => {
 
   const html = await render('7d', WEEK);
 
-  expect(html).toContain('tabular-nums">1,250</span><span class="uppercase font-ui text-label text-muted font-medium tracking-eyebrow">page views</span>');
+  expect(html).toContain('tabular-nums">1,250</span><span class="tracking-optical font-ui text-eyebrow text-muted font-medium">Page views</span>');
   expect(html).toContain('<span class="sr-only">up 25%</span>');
 });

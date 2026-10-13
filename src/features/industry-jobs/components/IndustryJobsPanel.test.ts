@@ -110,7 +110,7 @@ test('live jobs and empty boards use the right pilot, names, progress and sync t
   expect(html).toContain('Raven');
   expect(html).toContain('×2 · Manufacturing');
   expect(html).toContain('next done in');
-  expect(html).toContain('as of');
+  expect(html).toContain('As of');
   expect(html.indexOf('Raven')).toBeLessThan(html.indexOf('Pilot Two'));
   expect(html).toContain('No industry jobs running.');
 });

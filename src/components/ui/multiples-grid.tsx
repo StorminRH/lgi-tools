@@ -42,7 +42,7 @@ export function MultiplesCell({
 }) {
   return (
     <div className="bg-bg px-3.5 py-3 flex flex-col gap-1.5">
-      <dt className={eyebrow({ emphasis: 'strong' })}>{title}</dt>
+      <dt className={eyebrow()}>{title}</dt>
       <dd className="flex items-baseline gap-2">
         <span className="font-data text-lead text-name tabular-nums">{value}</span>
         {delta}

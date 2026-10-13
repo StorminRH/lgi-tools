@@ -110,7 +110,7 @@ function CharacterRow({
           headerClassName="px-3.5 py-[6px]"
           header={
             <span className="flex min-w-0 items-center gap-2">
-              <span className={eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label' })}>
+              <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>
                 Granted access
               </span>
               <Pill tone="neutral">{status.scopes.length}</Pill>

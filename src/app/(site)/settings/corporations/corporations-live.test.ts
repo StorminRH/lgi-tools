@@ -42,5 +42,5 @@ test('draws the server render until the live read lands, then the newer membersh
   const streamed = render([corp(1)]);
   expect(streamed).toContain('Corp 2');
   expect(streamed).toContain('Sharing: Corp 2');
-  expect(streamed).toContain('sharing off');
+  expect(streamed).toContain('Sharing off');
 });

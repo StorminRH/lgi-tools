@@ -19,7 +19,7 @@ function classesAround(html: string, tag: string, text: string): string[] {
 test('StatFigure marks a label over a name-coloured figure as one term and description', () => {
   const html = figure({ label: 'Active', children: 3 });
   expect(html).toMatch(/^<dl><div class="flex min-w-0 flex-col gap-0\.5"><dt class="[^"]*">Active<\/dt><dd class="[^"]*">3<\/dd><\/div><\/dl>$/);
-  expect(classesAround(html, 'dt', 'Active')).toEqual(expect.arrayContaining(['font-ui', 'uppercase', 'text-micro', 'text-muted']));
+  expect(classesAround(html, 'dt', 'Active')).toEqual(expect.arrayContaining(['font-ui', 'text-caption', 'text-muted']));
   const value = classesAround(html, 'dd', '3');
   expect(value).toEqual(expect.arrayContaining(['font-data', 'text-h3', 'tabular-nums', 'text-name']));
   expect(value).not.toContain('sm:text-stat');

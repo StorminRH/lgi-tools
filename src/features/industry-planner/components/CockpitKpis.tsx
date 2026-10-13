@@ -192,7 +192,7 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
           ))}
         </div>
         <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 text-ui">
-          <span className="uppercase tracking-wide text-muted">Total</span>
+          <span className="tracking-optical text-muted">Total</span>
           <span className="tabular-nums font-semibold text-evb-bright">
             {buildTimes.totalProduction ?? '—'}
           </span>

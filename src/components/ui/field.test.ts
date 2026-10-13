@@ -27,15 +27,15 @@ test('a Field labels the Select inside it through the trigger id it hands down',
   expect(trigger).not.toContain('aria-label=');
 });
 
-test('an eyebrow Field keeps a dense caps label and leaves an undescribed control without aria-describedby', () => {
+test('an eyebrow Field keeps a dense small label and leaves an undescribed control without aria-describedby', () => {
   const select = () => createElement(Select, { value: 'bug', onValueChange: vi.fn(), items: ITEMS });
   const eyebrow = { label: 'Kind', labelStyle: 'eyebrow', error: 'Pick a kind.', children: select() } as const;
   const html = renderToStaticMarkup(createElement(Field, eyebrow));
   const label = /<label[^>]* for="([^"]+)" class="([^"]+)">Kind<\/label>/.exec(html);
   const trigger = /<button[^>]*role="combobox"[^>]*>/.exec(html)?.[0] ?? '';
   const errorId = /<div[^>]* id="([^"]+)"[^>]*><svg[^>]*>.*<\/svg>Pick a kind\.<\/div>/.exec(html)?.[1];
-  expect(label?.[2]).toContain('uppercase');
-  expect(label?.[2]).toContain('text-micro');
+  expect(label?.[2]).not.toContain('uppercase');
+  expect(label?.[2]).toContain('text-caption');
   expect(trigger).toContain(` id="${label?.[1]}"`);
   expect(trigger).toContain(` aria-describedby="${errorId}"`);
   expect(trigger).toContain(' aria-invalid="true"');

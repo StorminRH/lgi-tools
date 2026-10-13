@@ -292,14 +292,18 @@
    * sets BOTH size and leading; an explicit `leading-*` at a call site still
    * overrides it, and a bare `var(--text-*)` used in raw CSS below picks up SIZE
    * ONLY (the modifier applies to the generated utility, not the bare custom
-   * property). Nothing but line-height is bundled — uppercase, tabular-nums,
+   * property). Nothing but line-height is bundled — tabular-nums,
    * font-family, weight and tracking stay call-site concerns. Adding a tier is
    * inert until first referenced (v4 JIT emits the utility on first use).
    *   --text-display → page titles / PageHead (and the admin entity-header name)
    *   --text-hero    → the landing wordmark (HeroBanner) + the error/404 titles
    * Change a size HERE, never at the call site. */
   --text-micro:   10px;     --text-micro--line-height:   1.4;  /* dot sublabels, unit suffixes, superscripts, fine-print */
-  --text-label:   11.5px;  --text-label--line-height:   1.4;  /* uppercase tracked labels, table headers, breadcrumbs */
+  --text-caption: 11px;     --text-caption--line-height: 1.4;  /* small labels: micro eyebrows and data labels */
+  --text-label:   11.5px;  --text-label--line-height:   1.4;  /* hints, descriptions, meta text, table headers, breadcrumbs */
+  --text-small:   12px;     --text-small--line-height:   1.4;  /* data labels (JetBrains Mono), small card header bars */
+  --text-eyebrow: 12.5px;  --text-eyebrow--line-height: 1.4;  /* eyebrows, field and filter labels, small text actions */
+  --text-bar:     13px;     --text-bar--line-height:     1.4;  /* card header bars */
   --text-ui:      13px;     --text-ui--line-height:      1.5;  /* nav, table cells, pills, buttons, form controls */
   --text-nav:     14px;     --text-nav--line-height:     1.6;  /* navigation, menu rows, everyday action language */
   --text-body:    16px;     --text-body--line-height:    1.7;
@@ -342,8 +346,6 @@
   --tracking-optical: 0.01em;
   --tracking-copy: 0.04em;
   --tracking-label: 0.08em;
-  --tracking-wide: 0.12em;
-  --tracking-eyebrow: 0.18em;
   --transition-duration-fast: 150ms;
   --transition-duration-panel: 200ms;
   --transition-duration-price-confirm: 700ms;

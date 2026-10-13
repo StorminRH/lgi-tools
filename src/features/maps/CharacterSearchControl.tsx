@@ -128,7 +128,7 @@ export function CharacterSearchControl({
 
   return (
     <div className="flex flex-col gap-1.5" data-map-character-search>
-      <label htmlFor={inputId} className={eyebrow({ weight: 'inherit', emphasis: 'label' })}>
+      <label htmlFor={inputId} className={eyebrow({ weight: 'inherit' })}>
         {label}
       </label>
       <Combobox.Root

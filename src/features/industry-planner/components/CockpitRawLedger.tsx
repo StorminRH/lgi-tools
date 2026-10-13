@@ -55,7 +55,7 @@ function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshin
             leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name} />}
             name={<ItemNameStack
               name={row.name}
-              label={row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
+              label={row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'No price'}
             />}
             trailing={<span className="flex flex-col items-end gap-px text-right">
               <span className="whitespace-nowrap font-data text-ui tabular-nums text-muted">

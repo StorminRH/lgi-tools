@@ -170,5 +170,5 @@ function DialRow({
 }
 
 function DialLabel({ children }: { readonly children: string }) {
-  return <span className={eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label' })}>{children}</span>;
+  return <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>{children}</span>;
 }

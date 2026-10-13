@@ -31,7 +31,8 @@ it('renders a labelled group with its data attributes, eyebrow, body and actions
   expect(eyebrow).toBeGreaterThan(-1);
   expect(eyebrow).toBeLessThan(body);
   expect(body).toBeLessThan(action);
-  expect(markup).toContain('tracking-label');
+  expect(markup).toContain('font-data');
+  expect(markup).not.toContain('uppercase');
 });
 
 it('leaves the eyebrow out when the prompt has none', () => {

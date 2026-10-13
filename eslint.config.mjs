@@ -59,19 +59,19 @@ const rgbaColorSelectors = literalAndTemplate(
 
 const textSizeSelectors = literalAndTemplate(
   String.raw`text-\[[0-9.]+(px|rem|em)\]`,
-  "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`.",
+  "No raw arbitrary font sizes — use the named type scale (micro/caption/label/small/eyebrow/bar/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`.",
   "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`).",
 );
 
 const legacyTypeRoleSelectors = [
   ...literalAndTemplate(
-    String.raw`(?:^|\s)(?:\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\s|$)`,
+    String.raw`(?:^|\s)(?:\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display|wide|eyebrow))(?:\s|$)`,
     "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
   ),
   ...literalAndTemplate(
-    String.raw`(?:^|[\s:])tracking-\[0?\.(?:01|04|08|12|18)em\]`,
-    "No arbitrary tracking that equals a registered step — use tracking-optical (0.01em), tracking-copy (0.04em), tracking-label (0.08em), tracking-wide (0.12em) or tracking-eyebrow (0.18em).",
-    "No arbitrary tracking that equals a registered step (template literal) — use tracking-optical/copy/label/wide/eyebrow.",
+    String.raw`(?:^|[\s:])tracking-\[0?\.(?:01|04|08)em\]`,
+    "No arbitrary tracking that equals a registered step — use tracking-optical (0.01em), tracking-copy (0.04em) or tracking-label (0.08em).",
+    "No arbitrary tracking that equals a registered step (template literal) — use tracking-optical/copy/label.",
   ),
 ];
 

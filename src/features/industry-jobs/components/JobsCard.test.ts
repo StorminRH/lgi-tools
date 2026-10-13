@@ -43,7 +43,7 @@ test('lists a board’s jobs under its owner, with the summary and sync time', (
   expect(html).toContain('Aurel Vantesse');
   expect(html).toContain('1 job');
   expect(html).toContain('next done in');
-  expect(html).toContain('as of');
+  expect(html).toContain('As of');
   expect(html).toContain('Raven');
   expect(html).toContain('×2 · Manufacturing');
 
@@ -60,7 +60,7 @@ test('stands in for missing rows by load state, or lets the notice speak alone',
 
   const waiting = render({ data: null });
   expect(waiting).toContain('Awaiting first sync.');
-  expect(waiting).not.toContain('as of');
+  expect(waiting).not.toContain('As of');
 
   const noticeOnly = render({
     data: null,
