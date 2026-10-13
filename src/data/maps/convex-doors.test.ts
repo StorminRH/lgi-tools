@@ -11,7 +11,7 @@ import {
 
 const COUNTS = { inserted: 1, updated: 0, deleted: 0, unchanged: 2 };
 
-test('a map access projection names a map, refuses a user twice, and replies strictly', () => {
+test('a map access projection names a map and its users, refuses a user twice, and replies strictly', () => {
   const claims = [
     { userId: 'creator', roles: ['admin'] },
     { userId: 'member', roles: ['viewer'], characters: [{ characterId: 90_000_001, name: 'Pilot' }] },
@@ -20,6 +20,11 @@ test('a map access projection names a map, refuses a user twice, and replies str
     .toBe(true);
   expect(projectMapAccessDoor.request.safeParse({ mapId: '', revision: 3, claims }).success)
     .toBe(false);
+  expect(projectMapAccessDoor.request.safeParse({
+    mapId: 'map-1',
+    revision: 3,
+    claims: [{ userId: '', roles: ['viewer'] }],
+  }).success).toBe(false);
 
   const duplicate = projectMapAccessDoor.request.safeParse({
     mapId: 'map-1',

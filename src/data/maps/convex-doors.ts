@@ -223,7 +223,7 @@ export const projectMapAccessDoor = defineConvexDoor({
       revision: revisionSchema,
       claims: z.array(
         z.object({
-          userId: z.string(),
+          userId: nonEmptyString,
           roles: z.array(z.enum(MAP_ROLES)).min(1),
           characters: z
             .array(z.object({ characterId: positiveIdSchema, name: z.string() }))
