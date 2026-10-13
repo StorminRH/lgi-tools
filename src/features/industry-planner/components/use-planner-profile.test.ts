@@ -13,7 +13,8 @@ const h = vi.hoisted(() => ({
   profilesFailed: false,
   refreshProfiles: vi.fn(),
   plan: null as ProfilePlan | null,
-  readLevels: null as ((signal: AbortSignal) => Promise<unknown>) | null,
+  teamLevels: null as { characters: { characterId: number; levels: Record<string, number> | null }[]; refreshing: boolean } | null,
+  planMembers: vi.fn(),
   apiFetch: vi.fn(),
   systemsById: new Map([
     [30002537, { id: 30002537, name: 'Amamake', security: 0.4 }],
@@ -32,14 +33,12 @@ vi.mock('@/lib/retry', async (load) => {
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 vi.mock('../profiles/use-industry-profiles', () => ({ useIndustryProfiles: () => ({ profiles: h.profiles, listFailed: h.profilesFailed, refresh: h.refreshProfiles }) }));
-vi.mock('@/lib/use-resource-read', () => ({
-  useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>) => {
-    h.readLevels = read;
-  },
+vi.mock('@/components/use-live-dataset', () => ({
+  useLiveDataset: () => ({ response: h.teamLevels, now: 0, loading: h.teamLevels === null, failed: false, retry: vi.fn() }),
 }));
 vi.mock('../profiles/profile-plan', () => ({
   planFacilities: () => [],
-  planMembers: () => [],
+  planMembers: (...args: unknown[]) => h.planMembers(...args),
   profilePlan: () => h.plan,
 }));
 
@@ -133,6 +132,8 @@ beforeEach(() => {
   h.profiles = null;
   h.profilesFailed = false;
   h.plan = null;
+  h.teamLevels = null;
+  h.planMembers.mockReset().mockReturnValue([]);
   rt.unmount();
   h.apiFetch.mockReset();
   pricedLocation = null;
@@ -290,12 +291,11 @@ test('a facility with no known system keeps its structure but prices at baseline
   expect(w.applyBuildSystem).not.toHaveBeenCalled();
 });
 
-test('team skills load per character, and a failed read gives none', async () => {
+test('team skills plan per character once the live read lands, and none before', () => {
   h.profiles = [CAPS];
   useProfileFactors(built(MANUFACTURING_ACTIVITY), writers());
-  const signal = new AbortController().signal;
-  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: [{ characterId: 9001, levels: { 3380: 5 } }] } });
-  expect(await h.readLevels!(signal)).toEqual(new Map([[9001, { 3380: 5 }]]));
-  h.apiFetch.mockResolvedValueOnce({ ok: false });
-  expect(await h.readLevels!(signal)).toBeNull();
+  expect(h.planMembers).toHaveBeenLastCalledWith(CAPS.document, new Map());
+  h.teamLevels = { characters: [{ characterId: 9001, levels: { 3380: 5 } }, { characterId: 9002, levels: null }], refreshing: true };
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), writers());
+  expect(h.planMembers).toHaveBeenLastCalledWith(CAPS.document, new Map([[9001, { 3380: 5 }], [9002, null]]));
 });

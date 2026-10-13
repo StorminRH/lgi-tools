@@ -1,6 +1,8 @@
-import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
+import { storedRowJoin } from '@/data/esi-store';
+import { esiResponses } from '@/data/esi-store/schema';
 import {
   enqueuePendingMapAccessSelection,
   type PendingMapAccessChange,
@@ -9,19 +11,21 @@ import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
+import { AFFILIATION_ROUTE } from './affiliation-key';
 import { authorizationFailureCutoff } from './authorization-policy';
 import { authorizationFailureCurrent } from './authorization-store';
-import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, linkedCharacterIds, mapLinkedRows } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 
+/** One linked character's stored affiliation, with the expiry of the answer it came from; null means due. */
 export interface CachedAffiliation {
   characterId: number;
   corporationId: number | null;
   allianceId: number | null;
   factionId: number | null;
   refreshedAt: Date | null;
+  expiresAt: Date | null;
   sharedAccessEligible: boolean;
 }
 
@@ -34,6 +38,7 @@ function rowToCachedAffiliation(
     allianceId: number | null;
     factionId: number | null;
     refreshedAt: Date | null;
+    expiresAt: Date | null;
     sharedAccessEligible: boolean;
   },
 ): CachedAffiliation {
@@ -43,6 +48,7 @@ function rowToCachedAffiliation(
     allianceId: row.allianceId ?? null,
     factionId: row.factionId ?? null,
     refreshedAt: row.refreshedAt ?? null,
+    expiresAt: row.expiresAt ?? null,
     sharedAccessEligible: row.sharedAccessEligible,
   };
 }
@@ -63,6 +69,7 @@ export async function getUsersAffiliations(
       allianceId: characters.allianceId,
       factionId: characters.factionId,
       refreshedAt: characters.affiliationRefreshedAt,
+      expiresAt: esiResponses.expiresAt,
       sharedAccessEligible: sql<boolean>`${and(
         isNotNull(account.refreshToken),
         authorizationFailureCurrent(authorizationFailureCutoff()),
@@ -70,28 +77,11 @@ export async function getUsersAffiliations(
     })
     .from(account)
     .leftJoin(characters, characterProfileJoin)
+    .leftJoin(esiResponses, storedRowJoin(AFFILIATION_ROUTE, 'character', characters.characterId))
     .where(and(inArray(account.userId, [...userIds]), eq(account.providerId, EVE_PROVIDER_ID)))
     .orderBy(asc(account.userId), asc(account.accountId));
 
   return mapLinkedRows(rows, (characterId, r) => ({ userId: r.userId, ...rowToCachedAffiliation(characterId, r) }));
-}
-
-export async function listStaleLinkedCharacterIds(): Promise<number[]> {
-  const cutoff = new Date(Date.now() - AFFILIATION_FRESHNESS.ttlMs);
-  const rows = await db
-    .selectDistinct({ accountId: account.accountId })
-    .from(account)
-    .leftJoin(characters, characterProfileJoin)
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        or(
-          isNull(characters.affiliationRefreshedAt),
-          lt(characters.affiliationRefreshedAt, cutoff),
-        ),
-      ),
-    );
-  return linkedCharacterIds(rows);
 }
 
 export async function listLinkedCharacterIdsInCorporation(corporationId: number): Promise<number[]> {
@@ -129,7 +119,6 @@ export async function updateAffiliations(
   if (rows.length === 0) return { refreshed: 0, accessChanged: false };
   const incoming = [...new Map(rows.map((row) => [row.characterId, row])).values()];
   const observedIso = formatAffiliationObservedAt(observedAt);
-  const ttlSeconds = AFFILIATION_FRESHNESS.ttlMs / 1000;
   const [persisted] = await executeRows<{
     refreshed: number;
     accessChanged: boolean;
@@ -154,7 +143,6 @@ export async function updateAffiliations(
     ), changed AS (
       SELECT * FROM updated WHERE previous_corporation_id IS DISTINCT FROM corporation_id
         OR previous_refreshed_at IS NULL
-        OR previous_refreshed_at < (${observedIso}::timestamp - make_interval(secs => ${ttlSeconds}))
     ), queued AS (
       ${enqueuePendingMapAccessSelection(sql`
         SELECT DISTINCT grants.map_id FROM (

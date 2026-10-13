@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { refreshOwnedBlueprintsForUser } from './refresh';
-import type { PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
+import type { PagedOwnerReadResult } from '@/platform/owner-sync';
 import { ownedDatasetPortFake, ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import type { OwnedBlueprintsPort } from './types';
 
@@ -23,13 +23,14 @@ function esiBlueprint(typeId: number) {
 const makePort = (overrides: Partial<OwnedBlueprintsPort> = {}): OwnedBlueprintsPort =>
   ownedDatasetPortFake(NOW, overrides);
 
-const fresh = (): PagedOwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-27T11:30:00Z'), pageEtags: [] });
+const CHARACTER_1 = { ownerType: 'character', ownerId: 1 } as const;
+const CORP_5000 = { ownerType: 'corporation', ownerId: 5000 } as const;
 
 describe('refreshOwnedBlueprintsForUser — character path', () => {
-  it('makes no token vend and no ESI call when the owner is fresh (the staleness gate)', async () => {
+  it('makes no token vend and no ESI call while the stored answer is unexpired (the store is the gate)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1)]),
-      readSyncState: vi.fn(async () => fresh()),
+      isDue: vi.fn(async () => false),
     });
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
@@ -55,9 +56,9 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
-    expect(port.read).toHaveBeenCalledWith('/characters/1/blueprints/', 'token', []);
+    expect(port.read).toHaveBeenCalledWith(expect.anything(), CHARACTER_1, 'token');
     const save = vi.mocked(port.save).mock.calls[0]!;
-    expect(save[0]).toEqual({ ownerType: 'character', ownerId: 1 });
+    expect(save[0]).toEqual(CHARACTER_1);
     expect(save[1]).toEqual([
       {
         item_id: 9_999,
@@ -73,16 +74,16 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     expect(save[2]).toEqual(['"e1"']);
   });
 
-  it('replays held etags and only stamps freshness on a 304 (no row rewrite)', async () => {
+  it('only stamps freshness on an unchanged answer (no row rewrite)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1)]),
-      readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, pageEtags: ['"held"'] })),
+      readSyncState: vi.fn(async () => ({ lastRefreshedAt: null })),
       read: vi.fn(async (): Promise<PagedOwnerReadResult> => ({ kind: 'unchanged' })),
     });
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
-    expect(port.read).toHaveBeenCalledWith('/characters/1/blueprints/', 'token', ['"held"']);
+    expect(port.read).toHaveBeenCalledWith(expect.anything(), CHARACTER_1, 'token');
     expect(port.stampFresh).toHaveBeenCalledOnce();
     expect(port.save).not.toHaveBeenCalled();
   });
@@ -117,6 +118,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
+    expect(port.isDue).not.toHaveBeenCalled();
     expect(port.readSyncState).not.toHaveBeenCalled();
     expect(port.read).not.toHaveBeenCalled();
   });
@@ -142,7 +144,7 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
-    expect(port.read).toHaveBeenCalledWith('/corporations/5000/blueprints/', 'token-2', []);
+    expect(port.read).toHaveBeenCalledWith(expect.anything(), CORP_5000, 'token-2');
     const corpSave = vi
       .mocked(port.save)
       .mock.calls.find(([owner]) => owner.ownerType === 'corporation');
@@ -160,14 +162,14 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
 
     const corpRead = vi
       .mocked(port.read)
-      .mock.calls.find(([path]) => path.includes('/corporations/'));
+      .mock.calls.find(([, owner]) => owner.ownerType === 'corporation');
     expect(corpRead).toBeUndefined();
   });
 
-  it('reads no corp roles when the corp is fresh (the corp staleness gate)', async () => {
+  it('reads no corp roles while the corp answer is unexpired (the corp gate is the store too)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
-      readSyncState: vi.fn(async () => fresh()),
+      isDue: vi.fn(async () => false),
       readRoles: vi.fn(async () => ['Director']),
     });
 

@@ -1,13 +1,12 @@
 import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
-import {
-  effectiveTtlMs,
-  type EsiDatasetEntry,
-  type EsiGateRuleId,
+import type {
+  EsiDatasetEntry,
+  EsiGateRuleId,
+  EsiRouteDeclaration,
 } from '@/lib/esi-datasets/types';
 
 export type EsiDatasetCheckContext = {
   cronRoutes: ReadonlySet<string>;
-  deferredDatasets: ReadonlySet<string>;
   personalEntryPoints: ReadonlySet<string>;
   engineDatasets: ReadonlySet<string>;
 };
@@ -31,30 +30,10 @@ function ruleFinding(
 }
 
 function metadataFindings(entry: EsiDatasetEntry): string[] {
-  const findings: string[] = [];
   if (entry.waiver !== undefined && entry.waiver.rationale.trim() === '') {
-    findings.push(
-      `${entry.name}: waiver ${entry.waiver.rule} requires a rationale`,
-    );
+    return [`${entry.name}: waiver ${entry.waiver.rule} requires a rationale`];
   }
-  if (
-    entry.ttlOverride !== undefined
-    && entry.ttlOverride.rationale.trim() === ''
-  ) {
-    findings.push(`${entry.name}: TTL override requires a rationale`);
-  }
-  return findings;
-}
-
-function convexPlacementViolation(entry: EsiDatasetEntry): string | null {
-  if (entry.store !== 'convex' || entry.collaborative) return null;
-  const cacheSeconds =
-    entry.upstream.kind === 'esi'
-      ? entry.upstream.verifiedCacheSeconds
-      : null;
-  return cacheSeconds === null || cacheSeconds > 120
-    ? 'Convex requires verified ESI cache <= 120s or collaborative data'
-    : null;
+  return [];
 }
 
 function globalCronViolation(
@@ -72,16 +51,8 @@ function personalOwnerViolation(
   context: EsiDatasetCheckContext,
 ): string | null {
   if (entry.shape !== 'personal-on-view') return null;
-  const ownerExists =
-    entry.refreshOwner.kind === 'deferred-queue'
-      ? context.deferredDatasets.has(entry.refreshOwner.dataset)
-      : context.personalEntryPoints.has(entry.refreshOwner.name);
-  if (ownerExists) return null;
-  const owner =
-    entry.refreshOwner.kind === 'deferred-queue'
-      ? entry.refreshOwner.dataset
-      : entry.refreshOwner.name;
-  return `unknown personal refresh owner ${owner}`;
+  if (context.personalEntryPoints.has(entry.refreshOwner.name)) return null;
+  return `unknown personal refresh owner ${entry.refreshOwner.name}`;
 }
 
 function cronBackstopViolation(
@@ -111,22 +82,29 @@ function liveOwnerFinding(
   return [`${entry.name}: unknown engine dataset ${entry.refreshOwner.dataset}`];
 }
 
-function ttlViolation(entry: EsiDatasetEntry): string | null {
-  if (
-    entry.upstream.kind !== 'esi'
-    || entry.freshnessModel === 'expires-boundary'
-    || entry.freshnessModel === 'cron-cadence'
-  ) {
-    return null;
+const isStored = (route: EsiRouteDeclaration): boolean => (route.mode ?? 'stored') === 'stored';
+
+/** A lookup entry stores nothing: every route pass-through, no mirror table. */
+function lookupFinding(entry: EsiDatasetEntry): string[] {
+  if (entry.shape !== 'lookup') return [];
+  const findings: string[] = [];
+  for (const route of entry.routes) {
+    if (route.mode !== 'pass-through') findings.push(`${entry.name}: lookup route ${route.route} must be pass-through`);
   }
-  if (entry.upstream.verifiedCacheSeconds === null) {
-    return 'static freshness model requires a verified upstream cache time';
+  if (entry.mirrorTables.length > 0) findings.push(`${entry.name}: lookup dataset declares mirror tables`);
+  return findings;
+}
+
+/**
+ * A stored route's answer lands somewhere: in a declared mirror table, or
+ * in the esi_responses row itself when the route keeps its body.
+ */
+function storedMirrorFinding(entry: EsiDatasetEntry): string[] {
+  const stored = entry.routes.filter(isStored);
+  if (stored.length === 0 || entry.mirrorTables.length > 0 || stored.every((route) => route.keepBody === true)) {
+    return [];
   }
-  const upstreamMs = entry.upstream.verifiedCacheSeconds * 1000;
-  const effectiveMs = effectiveTtlMs(entry);
-  return effectiveMs === null || effectiveMs < upstreamMs
-    ? `effective TTL ${effectiveMs ?? 'none'}ms is below upstream ${upstreamMs}ms`
-    : null;
+  return [`${entry.name}: stored routes need a mirror table or keepBody`];
 }
 
 function entryFindings(
@@ -135,11 +113,6 @@ function entryFindings(
 ): string[] {
   return [
     ...metadataFindings(entry),
-    ...ruleFinding(
-      entry,
-      'convex-cache-bound',
-      convexPlacementViolation(entry),
-    ),
     ...ruleFinding(
       entry,
       'global-cron-names-route',
@@ -156,21 +129,19 @@ function entryFindings(
       cronBackstopViolation(entry, context),
     ),
     ...liveOwnerFinding(entry, context),
-    ...ruleFinding(
-      entry,
-      'ttl-at-least-upstream',
-      ttlViolation(entry),
-    ),
+    ...lookupFinding(entry),
+    ...storedMirrorFinding(entry),
   ];
 }
 
 /**
- * Validates placement and freshness over entries plus live-world name sets.
- * Convex is limited to ≤120-second ESI data unless collaborative; global
- * datasets name a live cron; personal datasets name a queue handle or entry
- * point and any cron backstop names a live route; engine owners name a live
- * sync dataset; and static TTLs never undercut upstream. A waiver suppresses
- * only its named rule and must retain a non-empty rationale.
+ * Validates placement over entries plus live-world name sets. Global
+ * datasets name a live cron; personal datasets name a live entry point and
+ * any cron backstop names a live route; engine owners name a live sync
+ * dataset; lookups store nothing; and a stored route's answer has a mirror
+ * table or keeps its body. Freshness has no rule here: CCP's Expires is
+ * the one source, kept per route by the response store. A waiver
+ * suppresses only its named rule and must retain a non-empty rationale.
  */
 export function checkEntries(
   entries: readonly EsiDatasetEntry[],
@@ -184,6 +155,11 @@ export const ESI_INFRASTRUCTURE_TABLES = [
     table: 'esi_snapshots',
     reason:
       'Encrypted response-body transport cache governed by ETag/304 handling and retention pruning.',
+  },
+  {
+    table: 'esi_responses',
+    reason:
+      'The response store: CCP\'s Expires, ETag and Last-Modified per declared route and holder, the one freshness source every stored dataset reads.',
   },
 ] as const;
 

@@ -3,8 +3,8 @@ import { expect, test } from 'vitest';
 import { CardLink, ExternalLink } from './text-link';
 
 test('CardLink keeps its label and arrow together on one line in the accent colour', () => {
-  const html = renderToStaticMarkup(CardLink({ href: '/admin/queue', children: 'Open queue' }));
-  const anchor = /^<a class="([^"]*)" href="\/admin\/queue">Open queue →<\/a>$/.exec(html);
+  const html = renderToStaticMarkup(CardLink({ href: '/admin/statics', children: 'Open statics' }));
+  const anchor = /^<a class="([^"]*)" href="\/admin\/statics">Open statics →<\/a>$/.exec(html);
   expect(anchor, html).not.toBeNull();
   expect(anchor![1]!.split(' ')).toEqual(expect.arrayContaining(['whitespace-nowrap', 'text-isk', 'no-underline']));
 

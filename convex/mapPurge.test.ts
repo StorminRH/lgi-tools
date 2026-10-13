@@ -18,8 +18,9 @@ function schemaMapTables(): string[] {
 }
 
 describe('map purge declaration', () => {
-  it('equals the complete schema-derived set of map-keyed tables', () => {
-    expect([...MAP_PURGE_TABLES].sort()).toEqual(schemaMapTables());
+  it('covers every schema-derived map-keyed table except the projection watermark', () => {
+    // The watermark outlives the chain so a late projection stays refused.
+    expect([...MAP_PURGE_TABLES, 'mapAccessProjectionWatermarks'].sort()).toEqual(schemaMapTables());
   });
 
   it('persists one interrupted fair batch and resumes to an empty map', async () => {
@@ -91,7 +92,7 @@ describe('map purge declaration', () => {
 
     await expect(
       t.mutation(internal.mapPurge.purgeMapBatch, { mapId }),
-    ).resolves.toEqual({ deleted: MAP_PURGE_BATCH + 9, hasMore: true });
+    ).resolves.toEqual({ deleted: MAP_PURGE_BATCH + 8, hasMore: true });
 
     const interrupted = await t.run(async (ctx) => ({
       notes: await ctx.db
@@ -118,6 +119,11 @@ describe('map purge declaration', () => {
           .collect();
         expect(rows, table).toEqual([]);
       }
+      const watermarks = await ctx.db
+        .query('mapAccessProjectionWatermarks')
+        .withIndex('by_map', (query) => query.eq('mapId', mapId))
+        .collect();
+      expect(watermarks).toEqual([expect.objectContaining({ mapId, revision: 1 })]);
     });
   });
 });

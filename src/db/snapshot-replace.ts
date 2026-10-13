@@ -1,6 +1,6 @@
 import type { PgInsertValue, PgTable } from 'drizzle-orm/pg-core';
 import { chunk } from '@/lib/array';
-import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
+import type { AnyPgDb } from '@/lib/db-types';
 import { directDatabase } from './direct-database';
 import { isUniqueViolation } from './pg-errors';
 
@@ -15,14 +15,16 @@ const SNAPSHOT_INSERT_BATCH = 1000;
  * deletes and re-inserts the owner's rows, in one or more tables. Any failure
  * rolls both back, so the prior rows and etags survive together. A unique
  * violation resolves to 'superseded'; every other error rejects. The caller
- * revalidates after the commit, and only on 'saved'.
+ * revalidates after the commit, and only on 'saved'. Given a transaction
+ * (an owner sync's commit), the steps run in a savepoint on it, and the
+ * caller's commit decides what stands.
  */
 export async function replaceOwnerSnapshot(
   steps: {
     readonly lock: (tx: AnyPgDb) => Promise<unknown>;
     readonly replace: (tx: AnyPgDb) => Promise<unknown>;
   },
-  database: PostgresJsDb = directDatabase(),
+  database: AnyPgDb = directDatabase(),
 ): Promise<'saved' | 'superseded'> {
   try {
     await database.transaction(async (tx) => {

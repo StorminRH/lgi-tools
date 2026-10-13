@@ -2,12 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawMarketPrice } from './types';
 
 const fetchPricesFromSourceMock = vi.fn();
+const recordMetasMock = vi.fn();
 
 vi.mock('./source', () => ({
   fetchPricesFromSource: (...args: unknown[]) => fetchPricesFromSourceMock(...args),
 }));
+vi.mock('@/data/esi-store', () => ({ recordMetas: (...args: unknown[]) => recordMetasMock(...args) }));
 
+import { priceKey } from './keys';
 import { persistPrices, refreshPrices } from './ingest';
+
+const EXPIRES = Date.parse('2026-10-12T12:05:00Z');
+const META = { key: priceKey(1), expiresAt: EXPIRES, etags: ['"e"'], lastModified: null, checkedAt: EXPIRES - 300_000 };
 
 function row(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
   return {
@@ -36,19 +42,25 @@ function fakeDb() {
 describe('refreshPrices — source mix (3.0.10 O-1)', () => {
   beforeEach(() => {
     fetchPricesFromSourceMock.mockReset();
+    recordMetasMock.mockReset().mockResolvedValue(undefined);
   });
 
-  it('counts esi vs fuzzwork-fallback rows and carries budgetExhausted', async () => {
+  it('counts esi vs fuzzwork-fallback rows, carries budgetExhausted and records the ESI metas after the write', async () => {
     fetchPricesFromSourceMock.mockResolvedValue({
       prices: [row(1, 'esi'), row(2, 'esi'), row(3, 'fuzzwork-fallback')],
       budgetExhausted: true,
+      metaByType: new Map([[1, META], [2, { ...META, key: priceKey(2) }]]),
     });
-    const summary = await refreshPrices(fakeDb() as never, [1, 2, 3]);
+    const db = fakeDb();
+    const summary = await refreshPrices(db as never, [1, 2, 3]);
     expect(summary.fetched).toBe(3);
     expect(summary.written).toBe(3);
     expect(summary.esiCount).toBe(2);
     expect(summary.fuzzworkFallbackCount).toBe(1);
     expect(summary.budgetExhausted).toBe(true);
+    const [rows] = db.insert.mock.results[0]!.value.values.mock.calls[0]!;
+    expect(rows.map((r: { typeId: number; staleAfter: Date; updatedAt: Date }) => [r.typeId, r.staleAfter.getTime() === EXPIRES || r.staleAfter === r.updatedAt])).toEqual([[1, true], [2, true], [3, true]]);
+    expect(recordMetasMock).toHaveBeenCalledWith([META, { ...META, key: priceKey(2) }]);
   });
 
   it('zeroes the mix on empty input without calling the source', async () => {
@@ -100,15 +112,17 @@ describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', 
     expect(summary).toMatchObject({ requested: 0, fetched: 0, written: 0, budgetExhausted: false });
   });
 
-  it('preserves the source fetch time when a cached result is written later', async () => {
+  it('preserves the source fetch time and CCP\'s expiry when a fetched row is written later', async () => {
     const db = fakeDb();
     const fetchedAt = new Date(Date.now() - 60_000);
-    await persistPrices(db as never, [row(34, 'esi')], {
-      fetchedAtByType: new Map([[34, fetchedAt]]),
+    await persistPrices(db as never, [row(34, 'esi'), row(35, 'fuzzwork-fallback')], {
+      fetchedAtByType: new Map([[34, fetchedAt], [35, fetchedAt]]),
+      staleAfterByType: new Map([[34, new Date(EXPIRES)]]),
     });
-    const saved = db.insert.mock.results[0]!.value.values.mock.calls[0]![0][0];
+    const [saved, fallback] = db.insert.mock.results[0]!.value.values.mock.calls[0]![0];
     expect(saved.updatedAt).toEqual(fetchedAt);
-    expect(saved.staleAfter.getTime()).toBe(fetchedAt.getTime() + 300_000);
+    expect(saved.staleAfter.getTime()).toBe(EXPIRES);
+    expect(fallback.staleAfter).toEqual(fetchedAt);
   });
 
   it('chunks a large batch into ≤1,000-row inserts', async () => {

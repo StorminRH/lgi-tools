@@ -1,13 +1,12 @@
-import { revalidateTag } from 'next/cache';
 import { after } from 'next/server';
+import { commit, isExpired, storedExpiries, type EsiResponseMeta } from '@/data/esi-store';
 import { db } from '@/db';
 import { dedupe } from '@/lib/array';
-import { isBoundaryStale } from '@/lib/esi-datasets/freshness';
 import { runWriteBehind, type WriteBehindResult } from '@/lib/write-behind';
 import { computeHistoryInputs } from './aggregate';
-import { historyTag } from './constants';
 import { persistHistory } from './ingest';
-import { getHistoryMeta, getStoredHistory } from './queries';
+import { historyKey, MARKET_HISTORY_TAG } from './keys';
+import { getStoredHistory } from './queries';
 import { fetchHistoryFromSource } from './source';
 import type { MarketHistoryInputs, RawHistory } from './types';
 
@@ -47,13 +46,11 @@ export async function getLiveHistory(
   };
   if (ids.length === 0) return { inputs: new Map(), degraded, metrics };
 
-  // The stored series depends only on ids, so it is read beside the meta
+  // The stored series depends only on ids, so it is read beside the expiries
   // rather than after the source fetch.
-  const [meta, stored] = await Promise.all([getHistoryMeta(ids), getStoredHistory(ids)]);
-  const now = new Date();
-  const staleIds = ids.filter((id) =>
-    isBoundaryStale(meta.get(id)?.staleAfter, now),
-  );
+  const [expiries, stored] = await Promise.all([storedExpiries(ids.map(historyKey)), getStoredHistory(ids)]);
+  const now = Date.now();
+  const staleIds = ids.filter((_id, i) => isExpired(expiries[i] ?? null, now));
 
   const { results, budgetExhausted } =
     staleIds.length > 0
@@ -86,20 +83,31 @@ export async function getLiveHistory(
 
 /**
  * Persists each fetched series on its own, so one failed type is logged and
- * skipped while the rest are still written and their cache tags expired.
+ * skipped while the rest are still written, then commits CCP's expiry for
+ * the types written; the commit clears the dataset's tag for each of them.
  */
 async function persistEach(results: RawHistory[]): Promise<{ succeeded: number; written: number }> {
-  let succeeded = 0;
+  const committed: EsiResponseMeta[] = [];
   let written = 0;
   for (const r of results) {
     try {
-      const summary = await persistHistory(db, r.typeId, r.rows, r.staleAfter, r.source);
-      succeeded++;
-      written += summary.written;
-      revalidateTag(historyTag(r.typeId), 'max');
+      written += await persistOne(r);
+      committed.push(r.meta);
     } catch (err) {
       console.error(`[${SCOPE}] write-behind failed`, err);
     }
   }
-  return { succeeded, written };
+  await commit(committed, { tag: MARKET_HISTORY_TAG });
+  return { succeeded: committed.length, written };
+}
+
+/**
+ * One type's rows, stamped stale at CCP's expiry (the fetch time when ESI
+ * sent none, so it is due again at once). The commit that follows clears
+ * the dataset's tag for every type written.
+ */
+async function persistOne(r: RawHistory): Promise<number> {
+  const staleAfter = new Date(r.meta.expiresAt ?? r.meta.checkedAt);
+  const summary = await persistHistory(db, r.typeId, r.rows, staleAfter, r.source);
+  return summary.written;
 }

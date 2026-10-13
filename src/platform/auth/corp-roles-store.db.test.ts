@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { recordExpiryFor } from '@/data/esi-store';
 import { createDbTestHarness, seedCharacter } from '@/db/__tests__/support/db-test-harness';
 import { readCorpRoles, readRoleCorporationId, upsertCorpRoles } from './corp-roles-store';
+import { characterRolesKey } from './roles-key';
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_roles_store',
-  tables: ['characters', 'corp_member_roles'],
+  tables: ['characters', 'corp_member_roles', 'esi_responses'],
   foreignKeys: [
     {
       table: 'corp_member_roles',
@@ -37,8 +39,18 @@ describe.skipIf(!harness.reachable)('corp roles store against Postgres', () => {
     await upsertCorpRoles(DIRECTOR, directorRoles, fetchedAt, CORP);
 
     expect(await readCorpRoles([DIRECTOR, LINE_MEMBER])).toEqual(
-      new Map([[DIRECTOR, { characterId: DIRECTOR, corporationId: CORP, ...directorRoles, fetchedAt }]]),
+      new Map([[DIRECTOR, { characterId: DIRECTOR, corporationId: CORP, ...directorRoles, fetchedAt, expiresAt: null }]]),
     );
+  });
+
+  it('reads the expiry of the stored roles answer beside the row once the store has recorded one', async () => {
+    await seedCharacter(harness.db, DIRECTOR, { corporationId: CORP });
+    const fetchedAt = new Date('2026-09-28T10:00:00.000Z');
+    const expiresAt = new Date('2026-09-28T11:00:00.000Z');
+    await upsertCorpRoles(DIRECTOR, directorRoles, fetchedAt, CORP);
+    await recordExpiryFor([characterRolesKey(DIRECTOR)], { expiresAt: expiresAt.getTime(), lastModified: null, checkedAt: fetchedAt.getTime() });
+
+    expect((await readCorpRoles([DIRECTOR])).get(DIRECTOR)).toMatchObject({ characterId: DIRECTOR, expiresAt });
   });
 
   it('replaces the arrays and the corp on a second fetch', async () => {
@@ -57,6 +69,7 @@ describe.skipIf(!harness.reachable)('corp roles store against Postgres', () => {
       rolesAtBase: [],
       rolesAtOther: [],
       fetchedAt: later,
+      expiresAt: null,
     });
   });
 

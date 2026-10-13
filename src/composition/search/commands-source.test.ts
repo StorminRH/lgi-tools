@@ -96,13 +96,13 @@ describe('command auth side effects', () => {
     expect(location.href).toBe('');
   });
 
-  it('asks the client for the EVE provider with the home callback', async () => {
+  it('asks the client for the EVE provider with the home callback and error callback', async () => {
     stubLocation();
     signInOauth2.mockResolvedValue({ data: { url: 'https://login.eveonline.test' }, error: null });
 
     await fire('Log in with EVE', ctx());
 
-    expect(signInOauth2).toHaveBeenCalledWith({ providerId: 'eve', callbackURL: '/' });
+    expect(signInOauth2).toHaveBeenCalledWith({ providerId: 'eve', callbackURL: '/', errorCallbackURL: '/' });
   });
 
   it('navigates nowhere when sign-in rejects', async () => {

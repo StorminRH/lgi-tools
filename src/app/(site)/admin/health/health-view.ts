@@ -3,11 +3,8 @@ import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli
 import { formatCount } from '@/lib/format/number';
 import {
   formatSliValue,
-  queueCounts,
-  queueLevel,
   sliLevel,
   sliTargetLabel,
-  type QueueSummary,
   type SliSignals,
   type StatusLine,
 } from '../signals';
@@ -19,7 +16,7 @@ export interface ServiceLevelRow extends StatusLine {
   responseAction: string;
 }
 
-const SIGNAL_FOR: Record<Exclude<SliId, 'job_backlog'>, keyof SliSignals> = {
+const SIGNAL_FOR: Record<SliId, keyof SliSignals> = {
   read_success_rate: 'readSuccess',
   mutation_success_rate: 'mutationSuccess',
   critical_latency_p95: 'latencyP95',
@@ -31,10 +28,7 @@ const OWNER_LABEL: Record<SliOwner, string> = {
   'ccp-upstream': 'upstream',
 };
 
-function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
-  if (id === 'job_backlog') {
-    return { value: queueCounts(queue), note: 'target 0 dead', level: queueLevel(queue) };
-  }
+function measure(id: SliId, sli: SliSignals) {
   const key = SIGNAL_FOR[id];
   return {
     value: formatSliValue(key, sli[key]),
@@ -43,13 +37,13 @@ function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
   };
 }
 
-export function deriveServiceLevels(sli: SliSignals, queue: QueueSummary): ServiceLevelRow[] {
+export function deriveServiceLevels(sli: SliSignals): ServiceLevelRow[] {
   return SLI_DEFINITIONS.map((definition) => ({
     id: definition.id,
     label: definition.title,
     owner: OWNER_LABEL[definition.owner],
     responseAction: definition.responseAction,
-    ...measure(definition.id, sli, queue),
+    ...measure(definition.id, sli),
   }));
 }
 

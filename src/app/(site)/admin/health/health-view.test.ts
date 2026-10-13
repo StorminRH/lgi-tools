@@ -2,33 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { deriveServiceLevels, failureResultLabel } from './health-view';
 
 const healthy = { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 };
-const idleQueue = { due: 0, deadLettered: 0, oldestDueHours: null };
 
 describe('deriveServiceLevels', () => {
   it('is all green when every indicator is healthy', () => {
-    const rows = deriveServiceLevels(healthy, idleQueue);
+    const rows = deriveServiceLevels(healthy);
     expect(rows.every((row) => row.level === 'green')).toBe(true);
   });
 
   it('formats values against their targets and names the owner', () => {
     const rows = deriveServiceLevels(
       { readSuccess: 0.9876, mutationSuccess: null, latencyP95: 3200.4, esiSuccess: 0.9 },
-      idleQueue,
     );
     expect(rows.map((row) => [row.value, row.note, row.level, row.owner])).toEqual([
       ['98.8%', 'target ≥ 99%', 'amber', 'you'],
       ['no data', 'target ≥ 99%', 'neutral', 'you'],
       ['3,200 ms', 'target ≤ 1,500 ms', 'red', 'you'],
       ['90.0%', 'target ≥ 95%', 'amber', 'upstream'],
-      ['0 active · 0 dead', 'target 0 dead', 'green', 'you'],
     ]);
-  });
-
-  it('turns the backlog red once jobs are dead-lettered, amber once it goes stale', () => {
-    const dead = deriveServiceLevels(healthy, { due: 4, deadLettered: 2, oldestDueHours: 1 }).at(-1);
-    expect(dead).toMatchObject({ value: '4 active · 2 dead', level: 'red' });
-    const stale = deriveServiceLevels(healthy, { due: 4, deadLettered: 0, oldestDueHours: 30 }).at(-1);
-    expect(stale).toMatchObject({ level: 'amber' });
   });
 });
 

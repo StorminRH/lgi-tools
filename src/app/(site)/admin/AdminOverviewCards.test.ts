@@ -26,7 +26,6 @@ function signals(overrides: Partial<AdminSignals> = {}): AdminSignals {
     fallback: { esi: 100, fallback: 0, perDay: [] },
     budgetExhaustions: 0,
     sli: { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 },
-    queue: [],
     statics: null,
     releases: [],
     ...overrides,

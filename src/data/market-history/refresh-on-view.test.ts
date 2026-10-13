@@ -3,29 +3,44 @@ import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import type { HistoryDailyRow } from './types';
 
 const fetchHistoryFromSourceMock = vi.fn();
-const getHistoryMetaMock = vi.fn();
+const storedExpiriesMock = vi.fn();
+const commitMock = vi.fn();
 const getStoredHistoryMock = vi.fn();
 const persistHistoryMock = vi.fn();
 const afterMock = vi.fn();
-const revalidateTagMock = vi.fn();
 
 vi.mock('./source', () => ({
   fetchHistoryFromSource: (...args: unknown[]) => fetchHistoryFromSourceMock(...args),
 }));
 vi.mock('./queries', () => ({
-  getHistoryMeta: (...args: unknown[]) => getHistoryMetaMock(...args),
   getStoredHistory: (...args: unknown[]) => getStoredHistoryMock(...args),
 }));
 vi.mock('./ingest', () => ({
   persistHistory: (...args: unknown[]) => persistHistoryMock(...args),
 }));
-vi.mock('next/server', () => ({ after: (cb: () => unknown) => afterMock(cb) }));
-vi.mock('next/cache', () => ({
-  revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
+vi.mock('@/data/esi-store', async () => ({
+  ...(await vi.importActual<typeof import('@/data/esi-store/expiry')>('@/data/esi-store/expiry')),
+  storedExpiries: (...args: unknown[]) => storedExpiriesMock(...args),
+  commit: (...args: unknown[]) => commitMock(...args),
 }));
+vi.mock('next/server', () => ({ after: (cb: () => unknown) => afterMock(cb) }));
 vi.mock('@/db', () => ({ db: {} }));
 
+import { historyKey } from './keys';
 import { getLiveHistory } from './refresh-on-view';
+
+const EXPIRES = Date.parse('2026-06-15T11:05:00Z');
+
+function meta(typeId: number, expiresAt: number | null = EXPIRES) {
+  return { key: historyKey(typeId), expiresAt, etags: ['"h"'], lastModified: null, checkedAt: EXPIRES - 86_400_000 };
+}
+
+/** The store's expiry per type: a number, or null when it has no row. */
+function expiries(byId: Record<number, number | null>) {
+  storedExpiriesMock.mockImplementation((keys: { params: { type_id: number } }[]) =>
+    Promise.resolve(keys.map((key) => byId[key.params.type_id] ?? null)),
+  );
+}
 
 function series(end: string, n: number, volume = 100): HistoryDailyRow[] {
   const endDay = Math.floor(Date.parse(`${end}T00:00:00Z`) / 86_400_000);
@@ -38,12 +53,13 @@ function series(end: string, n: number, volume = 100): HistoryDailyRow[] {
 beforeEach(() => {
   vi.clearAllMocks();
   persistHistoryMock.mockResolvedValue({ written: 0 });
+  commitMock.mockResolvedValue(undefined);
+  expiries({});
 });
 
 describe('getLiveHistory — stale gate', () => {
   it('serves a warm type from stored rows and makes NO source call', async () => {
-    const future = new Date(Date.now() + 60 * 60 * 1000);
-    getHistoryMetaMock.mockResolvedValue(new Map([[34, { staleAfter: future }]]));
+    expiries({ 34: Date.now() + 60 * 60 * 1000 });
     getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-13', 30)]]));
 
     const { inputs, degraded, metrics } = await getLiveHistory([34]);
@@ -56,12 +72,11 @@ describe('getLiveHistory — stale gate', () => {
   });
 
   it('fetches a stale type, returns the fresh series, and persists write-behind', async () => {
-    const past = new Date(Date.now() - 60 * 60 * 1000);
-    getHistoryMetaMock.mockResolvedValue(new Map([[34, { staleAfter: past }]]));
+    expiries({ 34: Date.now() - 60 * 60 * 1000 });
     getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)]]));
     const fresh = series('2026-06-13', 30);
     fetchHistoryFromSourceMock.mockResolvedValue({
-      results: [{ typeId: 34, rows: fresh, staleAfter: new Date(), source: 'esi' }],
+      results: [{ typeId: 34, rows: fresh, meta: meta(34), source: 'esi' }],
       budgetExhausted: false,
     });
 
@@ -73,8 +88,8 @@ describe('getLiveHistory — stale gate', () => {
     expect(inputs.get(34)?.latestDate).toBe('2026-06-13');
     expect(afterMock).toHaveBeenCalledOnce();
     await afterMock.mock.calls[0]![0]();
-    expect(persistHistoryMock).toHaveBeenCalledOnce();
-    expect(revalidateTagMock).toHaveBeenCalledWith('market-history-34', 'max');
+    expect(persistHistoryMock).toHaveBeenCalledWith({}, 34, fresh, new Date(EXPIRES), 'esi');
+    expect(commitMock).toHaveBeenCalledWith([meta(34)], { tag: 'eve:market_history' });
     expect(metrics).toEqual({ requested: 1, freshEsi: 1, warmStored: 0, staleStored: 0, missing: 0 });
     expect(observer).toHaveBeenCalledWith({
       outcome: 'succeeded',
@@ -84,48 +99,50 @@ describe('getLiveHistory — stale gate', () => {
     });
   });
 
-  it('reads the stored series beside the meta and falls back to it when a stale type fails to fetch', async () => {
-    const meta = Promise.withResolvers<Map<number, { staleAfter: Date }>>();
-    getHistoryMetaMock.mockReturnValue(meta.promise);
-    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)], [35, series('2026-06-12', 5)]]));
-    fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
-
-    const pending = getLiveHistory([34, 35]);
-
-    // The stored read starts before the meta read settles and the source fetch begins.
-    expect(getStoredHistoryMock).toHaveBeenCalledWith([34, 35]);
-    expect(fetchHistoryFromSourceMock).not.toHaveBeenCalled();
-    meta.resolve(new Map([[35, { staleAfter: new Date(Date.now() + 60 * 60 * 1000) }]]));
-
-    const { inputs, degraded, metrics } = await pending;
-    expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
-    expect(getStoredHistoryMock).toHaveBeenCalledOnce();
-    expect(degraded.budgetExhausted).toBe(true);
-    expect(afterMock).not.toHaveBeenCalled();
-    expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
-    expect(inputs.get(35)?.latestDate).toBe('2026-06-12');
-    expect(metrics).toEqual({ requested: 2, freshEsi: 0, warmStored: 1, staleStored: 1, missing: 0 });
-  });
-
-  it('fetches a missing type (no meta row)', async () => {
-    getHistoryMetaMock.mockResolvedValue(new Map());
+  it('fetches a missing type (no stored answer) and, with no Expires, stamps it due at once', async () => {
     getStoredHistoryMock.mockResolvedValue(new Map());
     fetchHistoryFromSourceMock.mockResolvedValue({
-      results: [{ typeId: 34, rows: series('2026-06-13', 3), staleAfter: new Date(), source: 'esi' }],
+      results: [{ typeId: 34, rows: series('2026-06-13', 3), meta: meta(34, null), source: 'esi' }],
       budgetExhausted: false,
     });
 
     const { inputs } = await getLiveHistory([34]);
+    expect(storedExpiriesMock).toHaveBeenCalledWith([historyKey(34)]);
     expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
     expect(inputs.get(34)?.latestDate).toBe('2026-06-13');
+    await afterMock.mock.calls[0]![0]();
+    expect(persistHistoryMock.mock.calls[0]![3]).toEqual(new Date(meta(34).checkedAt));
   });
 
-  it('does not let a write-behind observer failure escape', async () => {
-    getHistoryMetaMock.mockResolvedValue(new Map());
+  it('commits only the types whose rows were written', async () => {
     getStoredHistoryMock.mockResolvedValue(new Map());
     fetchHistoryFromSourceMock.mockResolvedValue({
       results: [
-        { typeId: 34, rows: series('2026-06-13', 3), staleAfter: new Date(), source: 'esi' },
+        { typeId: 34, rows: series('2026-06-13', 3), meta: meta(34), source: 'esi' },
+        { typeId: 35, rows: series('2026-06-13', 3), meta: meta(35), source: 'esi' },
+      ],
+      budgetExhausted: false,
+    });
+    const failure = new Error('neon: connection terminated');
+    persistHistoryMock.mockRejectedValueOnce(failure).mockResolvedValueOnce({ written: 3 });
+    const errors = silenceConsolePrefixes('error', ['[market-history/refresh-on-view] ']);
+    const observer = vi.fn();
+
+    await getLiveHistory([34, 35], observer);
+    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
+
+    expect(persistHistoryMock.mock.calls.map(([, typeId]) => typeId)).toEqual([34, 35]);
+    expect(commitMock).toHaveBeenCalledWith([meta(35)], { tag: 'eve:market_history' });
+    expect(observer).toHaveBeenCalledWith({ outcome: 'partial', attempted: 2, written: 3, durationMs: expect.any(Number) });
+    expect(errors.mock.calls).toEqual([['[market-history/refresh-on-view] write-behind failed', failure]]);
+    errors.mockRestore();
+  });
+
+  it('does not let a write-behind observer failure escape', async () => {
+    getStoredHistoryMock.mockResolvedValue(new Map());
+    fetchHistoryFromSourceMock.mockResolvedValue({
+      results: [
+        { typeId: 34, rows: series('2026-06-13', 3), meta: meta(34), source: 'esi' },
       ],
       budgetExhausted: false,
     });
@@ -140,46 +157,44 @@ describe('getLiveHistory — stale gate', () => {
 
     expect(observer).toHaveBeenCalledTimes(1);
     expect(persistHistoryMock).toHaveBeenCalledTimes(1);
-    expect(errors.mock.calls).toEqual([
-      ['[market-history/refresh-on-view] write-behind observer failed', failure],
-    ]);
+    expect(errors.mock.calls).toEqual([['[market-history/refresh-on-view] write-behind observer failed', failure]]);
     errors.mockRestore();
   });
 
-  it('reports partial when one fetched type fails to persist, and still writes the other', async () => {
-    getHistoryMetaMock.mockResolvedValue(new Map());
-    getStoredHistoryMock.mockResolvedValue(new Map());
-    fetchHistoryFromSourceMock.mockResolvedValue({
-      results: [
-        { typeId: 34, rows: series('2026-06-13', 3), staleAfter: new Date(), source: 'esi' },
-        { typeId: 35, rows: series('2026-06-13', 3), staleAfter: new Date(), source: 'esi' },
-      ],
-      budgetExhausted: false,
-    });
-    const failure = new Error('database down');
-    persistHistoryMock.mockRejectedValueOnce(failure).mockResolvedValueOnce({ written: 3 });
-    const observer = vi.fn();
-    const errors = silenceConsolePrefixes('error', ['[market-history/refresh-on-view] ']);
+  it('reads the stored series beside the expiries, before the source fetch begins', async () => {
+    const pending = Promise.withResolvers<(number | null)[]>();
+    storedExpiriesMock.mockReturnValue(pending.promise);
+    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)], [35, series('2026-06-12', 5)]]));
+    fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
 
-    await getLiveHistory([34, 35], observer);
-    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
+    const read = getLiveHistory([34, 35]);
 
-    expect(persistHistoryMock.mock.calls.map(([, typeId]) => typeId)).toEqual([34, 35]);
-    expect(revalidateTagMock.mock.calls).toEqual([['market-history-35', 'max']]);
-    expect(observer).toHaveBeenCalledWith({
-      outcome: 'partial',
-      attempted: 2,
-      written: 3,
-      durationMs: expect.any(Number),
-    });
-    expect(errors.mock.calls).toEqual([
-      ['[market-history/refresh-on-view] write-behind failed', failure],
-    ]);
-    errors.mockRestore();
+    // The stored read starts before the expiry read settles and the source fetch begins.
+    expect(getStoredHistoryMock).toHaveBeenCalledWith([34, 35]);
+    expect(fetchHistoryFromSourceMock).not.toHaveBeenCalled();
+    pending.resolve([Date.now() - 1000, Date.now() + 60 * 60 * 1000]);
+
+    const { inputs, metrics } = await read;
+    expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
+    expect(getStoredHistoryMock).toHaveBeenCalledOnce();
+    expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
+    expect(inputs.get(35)?.latestDate).toBe('2026-06-12');
+    expect(metrics).toEqual({ requested: 2, freshEsi: 0, warmStored: 1, staleStored: 1, missing: 0 });
+  });
+
+  it('falls back to the stored series when a stale type fails to fetch', async () => {
+    expiries({ 34: Date.now() - 1000 });
+    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)]]));
+    fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
+
+    const { inputs, degraded, metrics } = await getLiveHistory([34]);
+    expect(degraded.budgetExhausted).toBe(true);
+    expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
+    expect(metrics.staleStored).toBe(1);
+    expect(afterMock).not.toHaveBeenCalled();
   });
 
   it('classifies a type with no fresh or stored series as missing', async () => {
-    getHistoryMetaMock.mockResolvedValue(new Map());
     getStoredHistoryMock.mockResolvedValue(new Map());
     fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: false });
 

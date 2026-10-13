@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   values: vi.fn(),
   select: vi.fn(),
   from: vi.fn(),
+  where: vi.fn(),
   orderBy: vi.fn(),
   limit: vi.fn(),
 }));
@@ -57,27 +58,6 @@ const events = [
       reason: 'invalid_grant',
     },
   },
-  {
-    eventType: 'esi_refresh_job_status_changed',
-    metadata: {
-      jobId: 7,
-      dataset: 'skills',
-      ownerType: 'character',
-      ownerId: 90_000_001,
-      status: 'failed_retryable',
-      attemptCount: 2,
-      failureCode: 'timeout',
-    },
-  },
-  {
-    eventType: 'esi_budget_guard_exhausted',
-    metadata: {
-      count: 3,
-      windowMinutes: 15,
-      windowStartedAt: '2026-07-14T12:00:00.000Z',
-      windowEndedAt: '2026-07-14T12:15:00.000Z',
-    },
-  },
 ] as const satisfies readonly DomainEventInput[];
 
 describe('domain event ledger', () => {
@@ -87,7 +67,8 @@ describe('domain event ledger', () => {
     h.insert.mockClear();
     h.values.mockReset();
     h.values.mockResolvedValue(undefined);
-    h.from.mockReturnValue({ orderBy: h.orderBy });
+    h.from.mockReturnValue({ where: h.where });
+    h.where.mockReturnValue({ orderBy: h.orderBy });
     h.orderBy.mockReturnValue({ limit: h.limit });
     h.limit.mockResolvedValue([]);
   });
@@ -147,6 +128,7 @@ describe('domain event ledger', () => {
     h.limit.mockResolvedValueOnce(rows);
 
     await expect(listRecentDomainEvents(12)).resolves.toEqual(rows);
+    expect(h.where).toHaveBeenCalledTimes(1);
     expect(h.limit).toHaveBeenCalledWith(12);
   });
 });

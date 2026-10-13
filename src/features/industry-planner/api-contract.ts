@@ -121,6 +121,7 @@ const ownedBlueprintMeEntrySchema = z.object({
 
 const ownedBlueprintsResponseSchema = z.object({
   blueprints: z.array(ownedBlueprintMeEntrySchema),
+  refreshing: z.boolean(),
 }) satisfies z.ZodType<OwnedBlueprintsResponse>;
 
 export const ownedBlueprintsEndpoint = defineEndpoint({
@@ -154,6 +155,7 @@ const ownedAssetEntrySchema = z.object({
 
 const ownedAssetsResponseSchema = z.object({
   assets: z.array(ownedAssetEntrySchema),
+  refreshing: z.boolean(),
 }) satisfies z.ZodType<OwnedAssetsResponse>;
 
 export const ownedAssetsEndpoint = defineEndpoint({
@@ -190,6 +192,7 @@ const teamSkillLevelsResponseSchema = z.object({
       levels: z.record(z.string(), z.number()).nullable(),
     }),
   ),
+  refreshing: z.boolean(),
 });
 export const teamSkillLevelsEndpoint = defineEndpoint({
   method: 'GET',
@@ -225,6 +228,7 @@ export const availableStructureSchema = z.object({
 
 export const availableStructuresResponseSchema = z.object({
   structures: z.array(availableStructureSchema),
+  refreshing: z.boolean(),
 });
 
 export type AvailableStructure = z.infer<typeof availableStructureSchema>;

@@ -27,7 +27,6 @@ vi.mock('@/data/telemetry/queries', () => ({ getReturningVsNew: m.getReturningVs
 vi.mock('./deploy-markers', () => ({ loadDeployMarkers: async () => [] }));
 vi.mock('./shared-reads', () => ({
   getStaticsSummaryShared: async () => null,
-  getEsiRefreshQueueStatsShared: async () => [],
   getPageViewStatsShared: async () => ({ current: [], previous: [] }),
 }));
 
@@ -54,7 +53,6 @@ const SIGNALS: AdminSignals = {
   fallback: { esi: 100, fallback: 0, perDay: [] },
   budgetExhaustions: 0,
   sli: { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 },
-  queue: [],
   statics: null,
   releases: [{ date: '2026-09-24', label: 'v4.1.3' }],
 };

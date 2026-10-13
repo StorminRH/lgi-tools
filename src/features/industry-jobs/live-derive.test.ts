@@ -24,6 +24,7 @@ describe('deriveJobsByCharacter', () => {
         },
       ],
       names: {},
+      refreshing: false,
     };
     const map = deriveJobsByCharacter(response, NOW);
     expect(map.get(5)?.data?.jobs[0]!.status).toBe('ready');
@@ -47,6 +48,7 @@ describe('deriveCorpJobs', () => {
         { corporationId: 6000, data: null, lastRefreshedAt: null, syncError: 'needs_role' },
       ],
       names: {},
+      refreshing: false,
     };
     const corps = deriveCorpJobs(response, NOW);
     expect(corps[0]!.data?.jobs[0]!.status).toBe('ready');

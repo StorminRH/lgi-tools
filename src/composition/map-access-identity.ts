@@ -4,6 +4,7 @@ import {
 } from '@/composition/map-access-projection';
 import { purgeOwnedMapChains } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
+import { reopenOwnedMaps } from '@/data/maps/lifecycle';
 import {
   enqueueAffectedMapAccessChanges,
   getGrantedMapIdsForCharacter,
@@ -77,6 +78,8 @@ export const identityProjectionRunners: IdentityProjectionRunners = {
     await eraseNetWorthHistoryForCharacter(userId, characterId);
   },
   runAfterCharacterLinkChanged: async (args) => {
+    // A user who holds a link again keeps their maps, even if a deletion tombstoned them first.
+    await bestEffort('identity-projection', 'reopenOwnedMaps', args.userId, () => reopenOwnedMaps(args.userId));
     await bestEffort(
       'identity-projection',
       'afterCharacterLinkChanged',

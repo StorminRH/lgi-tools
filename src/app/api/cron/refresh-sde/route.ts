@@ -5,10 +5,11 @@ import { refreshSdeDeclaration } from './declaration';
 type SdePreLockState = Parameters<typeof refreshSdeDeclaration.work>[1];
 
 /**
- * Vercel cron endpoint. Wired to "0 14 * * *" in vercel.json. Hobby fires
- * it anywhere in the 14:00 UTC hour, which keeps it in its own invocation and
- * after the whole 12:00 daily batch, however late either fires. Vercel
- * dispatches GET with `Authorization: Bearer ${CRON_SECRET}`.
+ * Vercel cron endpoint. Wired to "30 11 * * *" in vercel.json. Pro fires it
+ * on the minute, at 11:30 UTC: after CCP's daily downtime, in its own
+ * invocation, and before the 12:07 daily batch, so types a new build seeds
+ * get priced the same day. Vercel dispatches GET with
+ * `Authorization: Bearer ${CRON_SECRET}`.
  *
  * On drift (stored sde_version != CCP's current build number),
  * acquires the SDE advisory lock and runs the full pipeline inline:

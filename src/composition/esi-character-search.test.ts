@@ -13,10 +13,10 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
 vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(),
 }));
-vi.mock('@/platform/esi', () => ({
-  esiFetch: (...args: unknown[]) => h.esiFetch(...args),
-  esiUrl: (path: string) => `https://esi.test${path}`,
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
+});
 
 const pilot = (characterId: number): LinkedCharacter => ({
   characterId,
@@ -58,6 +58,8 @@ describe('firstScopedSearch', () => {
     const result = await firstScopedSearch([pilot(1), pilot(2)], 'character', 'Pilot');
     expect(result).toEqual({ first: { accessToken: 'tok-2', ids: [20] }, remaining: [] });
     expect(searchedCharacters()).toEqual([2]);
+    // A user is waiting on the search: the gate's interactive floor.
+    expect(h.esiFetch.mock.calls[0]![2]).toEqual({ interactive: true });
   });
 
   it('skips a search ESI refuses and returns the characters after the first hit', async () => {

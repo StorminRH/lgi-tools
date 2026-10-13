@@ -21,12 +21,10 @@ import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures
 import { computeHeights } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
 import type { TreeNode } from '@/data/eve-data/types';
-import {
-  getAdjustedPrices,
-  getSystemCostIndices,
-  getSystemCostIndicesBatch,
-} from '@/data/industry-indices/queries';
-import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
+import { getSystemCostIndicesOnView } from '@/data/industry-indices/on-view';
+import { getAdjustedPrices } from '@/data/industry-indices/queries';
+import type { SystemCostIndices } from '@/data/industry-indices/types';
+import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
 import { toClientPrice } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
@@ -195,12 +193,20 @@ function nodeFilterIdsFor(
   return out;
 }
 
+/**
+ * A blueprint's tree priced from the stored Forge order books, cached
+ * across instances until a price write clears the tag. It only aggregates
+ * stored prices (the planner's price request refreshes them), and every
+ * price write clears MARKET_PRICES_TAG, so it lives until then rather than
+ * until the earliest book in the tree expires, which a never-stored or
+ * never-refreshed type would hold in the past for good.
+ */
 export async function getBlueprintPricing(
   blueprintId: number,
 ): Promise<BlueprintPricing | null> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG, SDE_CACHE_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG, SDE_CACHE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId);
   if (!structure) return null;
@@ -216,7 +222,7 @@ export async function getBlueprintPricing(
     structure,
     (typeId) => {
       const p = priceMap.get(typeId);
-      return p === undefined ? undefined : toClientPrice(p, p.staleAfter.getTime());
+      return p === undefined ? undefined : toClientPrice(p, p.staleAfter?.getTime() ?? null);
     },
     { basis: 'marginal' },
   );
@@ -252,6 +258,11 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+async function systemCostIndicesOnView(systemId: number): Promise<SystemCostIndices> {
+  const indices = await getSystemCostIndicesOnView([systemId]);
+  return indices.get(systemId) ?? new Map();
+}
+
 export async function getBuildLocation(
   systemId: number | null,
   blueprintId: number,
@@ -262,7 +273,7 @@ export async function getBuildLocation(
 
   const [stations, costIndices, adjustedMap] = await Promise.all([
     systemId === null ? [] : getIndustryStationsForSystem(systemId),
-    systemId === null ? new Map<string, number>() : getSystemCostIndices(systemId),
+    systemId === null ? new Map<string, number>() : systemCostIndicesOnView(systemId),
     getAdjustedPrices(baseTypeIds),
   ]);
 
@@ -282,7 +293,7 @@ export async function getBuildLocation(
 /** Each system's manufacturing and reaction cost indices, in the order asked. */
 export async function getJobCostIndices(systemIds: number[]): Promise<SystemJobCostIndex[]> {
   const ids = dedupe(systemIds);
-  const indices = await getSystemCostIndicesBatch(ids);
+  const indices = await getSystemCostIndicesOnView(ids);
   return ids.map((systemId) => ({
     systemId,
     manufacturing: indices.get(systemId)?.get('manufacturing') ?? null,

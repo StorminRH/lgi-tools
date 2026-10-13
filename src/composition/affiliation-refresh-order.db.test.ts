@@ -17,7 +17,7 @@ vi.mock('@/platform/auth/affiliation-source', () => ({ fetchAffiliations: mocks.
 
 const harness = await createDbTestHarness({
   schema: 'test_affiliation_refresh_order',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'esi_responses', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -45,6 +45,7 @@ function response(corporationId: number): AffiliationFetchResult {
   return {
     rows: [{ characterId: CHARACTER_ID, corporationId, allianceId: null, factionId: null }],
     transientFailure: false,
+    answers: [],
   };
 }
 
@@ -109,6 +110,7 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
         allianceId: null,
         factionId: null,
         refreshedAt: NEWER_STARTED_AT,
+        expiresAt: null,
       }]);
       await expect(computeMapAccessClaims(MAP_ID)).resolves.toEqual([
         { userId: 'creator', roles: ['admin'] },

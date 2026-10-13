@@ -3,16 +3,21 @@ import { getPrices } from '@/data/market-prices/queries';
 import { liveIskFor } from './live-isk';
 import type { SiteDetail, SiteResource } from './types';
 
-export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail[]> {
+/** Every type the sites' resources are priced by, each once. */
+function siteResourceTypeIds(sites: readonly SiteDetail[]): number[] {
   const allTypeIds = new Set<number>();
   for (const s of sites) {
     for (const r of s.resources) {
       if (r.typeId != null) allTypeIds.add(r.typeId);
     }
   }
-  if (allTypeIds.size === 0) return sites;
+  return [...allTypeIds];
+}
 
-  const typeIdList = [...allTypeIds];
+export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail[]> {
+  const typeIdList = siteResourceTypeIds(sites);
+  if (typeIdList.length === 0) return sites;
+
   const [prices, types] = await Promise.all([
     getPrices(typeIdList),
     getTypesByIds(typeIdList),

@@ -11,7 +11,7 @@ export type IdempotencyWorkKind =
   | 'convex-cron'
   | 'convex-action'
   | 'convex-mutation'
-  | 'queue'
+  | 'on-view-sync'
   | 'alert'
   | 'http-route'
   | 'future';
@@ -39,15 +39,6 @@ const DAILY_BATCH_ONLY_REDELIVERY =
 
 const CRON_ENTRIES: readonly IdempotencyEntry[] = [
   {
-    id: 'cron/drain-esi-refresh-jobs',
-    workKind: 'http-route',
-    module: 'src/app/api/cron/drain-esi-refresh-jobs/declaration.ts',
-    redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
-    verdict: 'key-protected',
-    evidence:
-      'defineCronRoute serializes the run under the ADVISORY_LOCKS.esiRefreshQueue session advisory lock; a concurrent run short-circuits to the declared busy body without claiming a job.',
-  },
-  {
     id: 'cron/daily-batch',
     workKind: 'vercel-cron',
     cronPath: '/api/cron/daily-batch',
@@ -55,7 +46,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: VERCEL_CRON_REDELIVERY,
     verdict: 'coordinated-elsewhere',
     evidence:
-      'Runs the purge-maps, prices, industry-indices, drain-esi-refresh-jobs, revalue-net-worth, wh-statics, and housekeeping declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+      'Runs the purge-maps, prices, industry-indices, revalue-net-worth, wh-statics, and housekeeping declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
   },
   {
     id: 'cron/revalue-net-worth',
@@ -98,9 +89,9 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     workKind: 'http-route',
     module: 'src/app/api/cron/refresh-industry-indices/declaration.ts',
     redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
-    verdict: 'key-protected',
+    verdict: 'inherently-idempotent',
     evidence:
-      'Guarded by the ADVISORY_LOCKS.industryIndices session advisory lock; the index upserts are replace-shaped besides.',
+      'Declares lock mode none, as no ESI call may take a lock: both datasets read through the ESI store and upsert changed rows only, so a repeat or an overlap with an on-view cost-index refresh is a 304 or the same rows written again.',
   },
   {
     id: 'cron/refresh-sde',
@@ -237,79 +228,19 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
   convexLocationSyncUser,
 ];
 
-const QUEUE_ENTRIES: readonly IdempotencyEntry[] = [
-  {
-    id: 'queue/enqueue',
-    workKind: 'queue',
-    module: 'src/data/esi-refresh-jobs/queries.ts',
-    redeliverySource:
-      'Two owner-sync paths deferring the same resource for the same owner before either runs.',
-    verdict: 'key-protected',
-    evidence:
-      'The esi_refresh_jobs_live_key_unique partial unique index on idempotency_key across the live statuses rejects a second live job for the same key, so a duplicate deferral collapses into the queued one.',
-  },
-  {
-    id: 'queue/process-job',
-    workKind: 'queue',
-    module: 'src/composition/sync/esi-refresh-worker.ts',
-    redeliverySource:
-      'The durable retry schedule (15 min – 24 h) and stranded-worker recovery both re-run a job whose first attempt did not record a terminal status.',
-    verdict: 'inherently-idempotent',
-    evidence:
-      'Every runner writes replace-shaped: delete-then-insert per owner in owned-assets, owned-blueprints, and corporation industry-jobs, and onConflictDoUpdate in skill-queue and character industry-jobs. A second run converges on the same owner state.',
-  },
-  {
-    id: 'queue/recover-stranded',
-    workKind: 'queue',
-    module: 'src/data/esi-refresh-jobs/queries.ts',
-    redeliverySource:
-      'Overlapping drains both observing the same stale running job past ESI_REFRESH_STALE_RUNNING_MS.',
-    verdict: 'key-protected',
-    evidence:
-      'Both recovery statements are UPDATE ... WHERE status = \'running\' ... RETURNING, so a job leaves the running status as it is returned and only one drain can claim it; the drain itself runs under the queue advisory lock.',
-  },
-  {
-    id: 'queue/requeue-dead-lettered',
-    workKind: 'queue',
-    module: 'src/data/esi-refresh-jobs/queries.ts',
-    redeliverySource: 'An operator double-submitting the admin retry form.',
-    verdict: 'key-protected',
-    evidence:
-      'requeueDeadLetteredJob is a single atomic CTE returning requeued / superseded / not_found, so the second submit reports superseded or not_found rather than creating a second live job.',
-  },
+const SYNC_ENTRIES: readonly IdempotencyEntry[] = [
   {
     id: 'sync/insert-esi-snapshot',
-    workKind: 'queue',
+    workKind: 'on-view-sync',
     module: 'src/composition/sync/owned-assets-source-save.ts',
-    redeliverySource: 'A recovered or retried owned-assets job re-running after a partial attempt.',
+    redeliverySource: 'The next view re-running an owned-assets refresh after a partial attempt.',
     verdict: 'accepted-risk',
     evidence:
-      'The one append-shaped write in the runner set, so a re-run can leave a second snapshot row. No duplicate is observable — readers take the latest by fetchedAt — the table is retention-pruned, and a uniqueness constraint would also reject a legitimate re-pull of an unchanged etag, which HC-4 forbids. Operator verdict, 2026-07-25.',
+      'The one append-shaped write among the owner-sync saves, so a re-run can leave a second snapshot row. No duplicate is observable — readers take the latest by fetchedAt — the table is retention-pruned, and a uniqueness constraint would also reject a legitimate re-pull of an unchanged etag, which HC-4 forbids. Operator verdict, 2026-07-25.',
   },
 ];
 
 const ALERT_ENTRIES: readonly IdempotencyEntry[] = [
-  {
-    id: 'alert/esi-refresh-dead-letter',
-    workKind: 'alert',
-    module: 'src/lib/alerts.ts',
-    vendor: 'discord-webhooks',
-    redeliverySource:
-      'A re-run of the drain that dead-lettered the job, or two drains interleaving on the same job.',
-    verdict: 'inherently-idempotent',
-    evidence:
-      'drainEsiRefreshJobs alerts on recovery.deadLettered in src/composition/sync/esi-refresh-worker.ts; the recovery UPDATEs move each job off running as they return it and the drain holds the queue advisory lock, so no interleaving double-alerts.',
-  },
-  {
-    id: 'alert/public-esi-budget-exhaustion',
-    workKind: 'alert',
-    module: 'src/lib/alerts.ts',
-    vendor: 'discord-webhooks',
-    redeliverySource: 'Concurrent serverless instances all observing the same exhausted budget.',
-    verdict: 'key-protected',
-    evidence:
-      'claimPublicEsiBudgetAlert takes a short-lived per-window lease before delivery and hasPublicEsiBudgetAlertForWindow gates on the window, so exactly one instance delivers per window.',
-  },
   {
     id: 'alert/price-source-degradation',
     workKind: 'alert',
@@ -590,12 +521,6 @@ const adminCharactersReassignRoute = mutationRoute({
   evidence:
     'Moves one character onto a named account; the second reassignment to the same target is a no-op and to a different target is a deliberate new decision.',
 });
-const adminEsiJobsRetryRoute = mutationRoute({
-  route: 'src/app/api/admin/esi-jobs/retry/route.ts',
-  verdict: 'key-protected',
-  evidence:
-    'Delegates to requeueDeadLetteredJob, a single atomic CTE returning requeued / superseded / not_found, so a double submit cannot create a second live job.',
-});
 const marketPricesRefreshRoute = mutationRoute({
   route: 'src/app/api/market-prices/refresh/route.ts',
   verdict: 'inherently-idempotent',
@@ -682,7 +607,6 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   customStructuresCreateRoute,
   feedbackRoute,
   adminCharactersReassignRoute,
-  adminEsiJobsRetryRoute,
   marketPricesRefreshRoute,
   marketHistoryRefreshRoute,
   authCatchAllRoute,
@@ -714,7 +638,7 @@ const FUTURE_ENTRIES: readonly IdempotencyEntry[] = [
 export const IDEMPOTENCY_REGISTRY: readonly IdempotencyEntry[] = [
   ...CRON_ENTRIES,
   ...CONVEX_ENTRIES,
-  ...QUEUE_ENTRIES,
+  ...SYNC_ENTRIES,
   ...ALERT_ENTRIES,
   ...ROUTE_ENTRIES,
   ...FUTURE_ENTRIES,

@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { characterCacheContributor } from '@/platform/purge/contributors';
-import { skillsTag } from './queries';
+import { eveTag } from '@/lib/esi-datasets/routes';
 import { characterSkills, characterSkillSyncs } from './schema';
 
 export const skillQueuePurgeContributor = characterCacheContributor(db, {
@@ -9,5 +9,5 @@ export const skillQueuePurgeContributor = characterCacheContributor(db, {
     { table: characterSkills, characterId: characterSkills.characterId },
     { table: characterSkillSyncs, characterId: characterSkillSyncs.characterId },
   ],
-  cacheTags: (characterId) => [skillsTag(characterId)],
+  cacheTags: (characterId) => [eveTag('skills', { kind: 'character', id: characterId })],
 });

@@ -59,11 +59,11 @@ export async function listMapChromeData(userId: string): Promise<MapChromeData> 
     getAuthorizedMapGrantsForMaps(userId, principals, adminMapIds),
     getAuthorizedMapBlocksForMaps(userId, principals, adminMapIds),
   ]);
-  const names = await resolveEntityNames([
-    ...principals.corporationIds,
-    ...grants.map((grant) => grant.ownerId),
-    ...blocks.map((block) => block.characterId),
-  ]);
+  // The map chrome renders on these names: a user is waiting on them.
+  const names = await resolveEntityNames(
+    [...principals.corporationIds, ...grants.map((grant) => grant.ownerId), ...blocks.map((block) => block.characterId)],
+    { interactive: true },
+  );
   const corporations = principals.corporationIds.map((corporationId) => ({
     corporationId,
     name: nameOrUnresolved(names, corporationId, 'corporation'),

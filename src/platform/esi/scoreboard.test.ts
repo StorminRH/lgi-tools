@@ -8,12 +8,13 @@ const h = vi.hoisted(() => {
   type Cmd =
     | ['get', string]
     | ['set', string, string, { ex?: number } | undefined]
-    | ['incr', string]
+    | ['incrby', string, number]
     | ['expire', string, number]
     | ['eval', string, string[], string[]];
 
   const store = new Map<string, Entry>();
   const ctorSpy = vi.fn();
+  const execs = { count: 0 };
 
   function isLive(entry: Entry | undefined): entry is Entry {
     return (
@@ -38,10 +39,10 @@ const h = vi.hoisted(() => {
     });
   }
 
-  function incrVal(key: string): number {
+  function incrVal(key: string, by: number): number {
     const entry = store.get(key);
     const live = isLive(entry);
-    const next = live ? Number(entry.value) + 1 : 1;
+    const next = live ? Number(entry.value) + by : by;
     store.set(key, {
       value: String(next),
       expiresAt: live ? entry.expiresAt : null,
@@ -73,8 +74,8 @@ const h = vi.hoisted(() => {
         setVal(cmd[1], cmd[2], typeof ex === 'number' ? ex : null);
         return 'OK';
       }
-      case 'incr':
-        return incrVal(cmd[1]);
+      case 'incrby':
+        return incrVal(cmd[1], cmd[2]);
       case 'expire':
         return expireVal(cmd[1], cmd[2]);
       case 'eval':
@@ -98,8 +99,8 @@ const h = vi.hoisted(() => {
           cmds.push(['set', key, value, opts]);
           return p;
         },
-        incr(key: string) {
-          cmds.push(['incr', key]);
+        incrby(key: string, by: number) {
+          cmds.push(['incrby', key, by]);
           return p;
         },
         expire(key: string, seconds: number) {
@@ -111,14 +112,11 @@ const h = vi.hoisted(() => {
           return p;
         },
         async exec() {
+          execs.count += 1;
           return cmds.map(run);
         },
       };
       return p;
-    }
-
-    async get(key: string): Promise<string | null> {
-      return getVal(key);
     }
 
     async mget(...keys: string[]): Promise<(string | null)[]> {
@@ -126,7 +124,7 @@ const h = vi.hoisted(() => {
     }
   }
 
-  return { store, ctorSpy, FakeRedis };
+  return { store, ctorSpy, execs, FakeRedis };
 });
 
 vi.mock('@upstash/redis', () => ({ Redis: h.FakeRedis }));
@@ -146,8 +144,6 @@ import { ESI_ERROR_CEILING } from './scoreboard/types';
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 const BLOCK_KEY = 'lgi:esi:rl:block:/markets/{n}/orders';
 const ECHO_KEY = 'lgi:esi:err:echo';
-const ETAG_META_KEY = 'lgi:esi:etag:meta:/markets/10000002/orders/?type_id=34';
-const ETAG_BODY_KEY = 'lgi:esi:etag:body:/markets/10000002/orders/?type_id=34';
 
 function makeReport(overrides: Partial<EsiReport>): EsiReport {
   return {
@@ -156,11 +152,17 @@ function makeReport(overrides: Partial<EsiReport>): EsiReport {
     errorLimitRemain: null,
     errorLimitReset: null,
     retryAfter: null,
-    etagToStore: null,
-    refreshEtag: null,
+    rlGroup: null,
+    rlLimit: null,
+    rlRemaining: null,
     ...overrides,
   };
 }
+
+const HISTORY_URL = 'https://esi.evetech.net/markets/10000002/history/?type_id=34';
+const INDUSTRY_URL = 'https://esi.evetech.net/industry/systems/';
+const FACILITIES_URL = 'https://esi.evetech.net/industry/facilities/';
+const GROUP_OF_ORDERS = 'lgi:esi:rl:group-of:/markets/{n}/orders';
 
 function currentMinute(): number {
   return Math.floor(Date.now() / 60_000);
@@ -220,25 +222,24 @@ describe('RedisScoreboard', () => {
     seed(`lgi:esi:err:count:${currentMinute() - 1}`, '10');
     seed(ECHO_KEY, '70');
 
-    const state = await sb.preDispatch(TEST_URL, false);
+    const state = await sb.preDispatch(TEST_URL);
     expect(state.effectiveRemaining).toBe(60);
 
     seed(ECHO_KEY, '50');
-    const lower = await sb.preDispatch(TEST_URL, false);
+    const lower = await sb.preDispatch(TEST_URL);
     expect(lower.effectiveRemaining).toBe(50);
   });
 
   it('reports a full budget when nothing is stored', async () => {
     const sb = redisScoreboard();
-    const state = await sb.preDispatch(TEST_URL, true);
+    const state = await sb.preDispatch(TEST_URL);
     expect(state).toEqual({
       effectiveRemaining: ESI_ERROR_CEILING,
       blockedRetryAfter: null,
-      etag: null,
     });
   });
 
-  it('reads the global budget without consulting route or ETag state', async () => {
+  it('reads the global budget without consulting route state', async () => {
     const sb = redisScoreboard();
     seed(`lgi:esi:err:count:${currentMinute()}`, '35');
     seed(`lgi:esi:err:count:${currentMinute() - 1}`, '10');
@@ -255,26 +256,20 @@ describe('RedisScoreboard', () => {
   it('surfaces the seconds remaining on an active Retry-After block', async () => {
     const sb = redisScoreboard();
     seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) + 30));
-    const state = await sb.preDispatch(TEST_URL, false);
+    const state = await sb.preDispatch(TEST_URL);
     expect(state.blockedRetryAfter).toBe(30);
 
     seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) - 5));
-    const expired = await sb.preDispatch(TEST_URL, false);
+    const expired = await sb.preDispatch(TEST_URL);
     expect(expired.blockedRetryAfter).toBeNull();
   });
 
-  it('returns stored ETag meta only when asked', async () => {
+  it('reads only the budget and the route block before a dispatch', async () => {
     const sb = redisScoreboard();
-    seed(
-      ETAG_META_KEY,
-      JSON.stringify({ etag: '"abc"', expires: 'E', contentType: 'ct' }),
-    );
+    seed('lgi:esi:etag:meta:/markets/10000002/orders/?type_id=34', '{"etag":"\"abc\""}');
 
-    const wanted = await sb.preDispatch(TEST_URL, true);
-    expect(wanted.etag).toEqual({ etag: '"abc"', expires: 'E', contentType: 'ct' });
-
-    const unwanted = await sb.preDispatch(TEST_URL, false);
-    expect(unwanted.etag).toBeNull();
+    const state = await sb.preDispatch(TEST_URL);
+    expect(state).toEqual({ effectiveRemaining: ESI_ERROR_CEILING, blockedRetryAfter: null });
   });
 
   it('counts every non-2xx/3xx response with a 120s TTL', async () => {
@@ -371,68 +366,125 @@ describe('RedisScoreboard', () => {
     expect(h.store.get(BLOCK_KEY)?.value).toBe(String(nowSec + 30));
   });
 
-  it('writes only the call count for a plain success without error-limit or cache headers', async () => {
+  it('writes only the call count for a plain success without error-limit headers', async () => {
     const sb = redisScoreboard();
     await sb.report(makeReport({ status: 200 }));
     expect([...h.store.keys()]).toEqual([`lgi:esi:call:count:${currentMinute()}`]);
   });
 
-  it('stores ETag meta and body together and serves the body back', async () => {
+  it('writes nothing for an ETag or a body: a 304 counts only as a call', async () => {
     const sb = redisScoreboard();
-    await sb.report(
-      makeReport({
-        status: 200,
-        etagToStore: {
-          etag: '"abc"',
-          expires: 'E',
-          contentType: 'application/json',
-          body: '{"a":1}',
-        },
-      }),
-    );
-
-    expect(JSON.parse(h.store.get(ETAG_META_KEY)!.value)).toEqual({
-      etag: '"abc"',
-      expires: 'E',
-      contentType: 'application/json',
-    });
-    expect(h.store.get(ETAG_BODY_KEY)?.value).toBe('{"a":1}');
-    expect(h.store.get(ETAG_BODY_KEY)?.expiresAt).toBe(
-      Date.now() + 172_800_000,
-    );
-    await expect(sb.getCachedBody(TEST_URL)).resolves.toBe('{"a":1}');
-  });
-
-  it('refreshes meta and the body TTL on a 304 revalidation', async () => {
-    const sb = redisScoreboard();
-    await sb.report(
-      makeReport({
-        status: 200,
-        etagToStore: { etag: '"abc"', expires: 'E1', contentType: 'ct', body: 'B' },
-      }),
-    );
-    vi.advanceTimersByTime(60_000);
-    await sb.report(
-      makeReport({
-        status: 304,
-        refreshEtag: { etag: '"abc"', expires: 'E2', contentType: 'ct' },
-      }),
-    );
-
-    expect(JSON.parse(h.store.get(ETAG_META_KEY)!.value).expires).toBe('E2');
-    expect(h.store.get(ETAG_BODY_KEY)?.expiresAt).toBe(
-      Date.now() + 172_800_000,
-    );
-  });
-
-  it('returns null for a missing cached body', async () => {
-    const sb = redisScoreboard();
-    await expect(sb.getCachedBody(TEST_URL)).resolves.toBeNull();
+    await sb.report(makeReport({ status: 200 }));
+    await sb.report(makeReport({ status: 304 }));
+    expect([...h.store.keys()]).toEqual([`lgi:esi:call:count:${currentMinute()}`]);
   });
 
   it('memoizes the client per URL', () => {
     expect(redisScoreboard()).toBe(redisScoreboard());
     expect(h.ctorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("learns a path's group from its headers and echoes the group's lowest Remaining beside its limit for 60s", async () => {
+    const sb = redisScoreboard();
+    await sb.report(makeReport({ status: 200, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 500 }));
+    expect(h.store.get(GROUP_OF_ORDERS)).toEqual({ value: 'market-order', expiresAt: Date.now() + 86_400_000 });
+    expect(h.store.get('lgi:esi:rl:group:market-order:remaining')).toEqual({ value: '500', expiresAt: Date.now() + 60_000 });
+    expect(h.store.get('lgi:esi:rl:group:market-order:limit')).toEqual({ value: '12000', expiresAt: Date.now() + 60_000 });
+
+    await sb.report(makeReport({ status: 304, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 900 }));
+    expect(h.store.get('lgi:esi:rl:group:market-order:remaining')?.value).toBe('500');
+    await sb.report(makeReport({ status: 200, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 300 }));
+
+    const state = await sb.preDispatch(TEST_URL);
+    expect(state.groupBudget).toEqual({ group: 'market-order', remaining: 300, limit: 12000 });
+
+    vi.advanceTimersByTime(61_000);
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toBeUndefined();
+    await sb.report(makeReport({ status: 200, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 11000 }));
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toEqual({ group: 'market-order', remaining: 11000, limit: 12000 });
+  });
+
+  it('reads a path\'s group from the shared mapping it has not seen itself, in a second trip once', async () => {
+    seed(GROUP_OF_ORDERS, 'market-order');
+    seed('lgi:esi:rl:group:market-order:remaining', '40');
+    seed('lgi:esi:rl:group:market-order:limit', '12000');
+    const sb = redisScoreboard();
+    h.execs.count = 0;
+
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toEqual({ group: 'market-order', remaining: 40, limit: 12000 });
+    expect(h.execs.count).toBe(2);
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toEqual({ group: 'market-order', remaining: 40, limit: 12000 });
+    expect(h.execs.count).toBe(3);
+
+    expect((await sb.preDispatch(INDUSTRY_URL)).groupBudget).toBeUndefined();
+    expect(h.execs.count).toBe(4);
+  });
+
+  it('blocks the group a 429 names, for every path in it, and only the path when it names none', async () => {
+    const sb = redisScoreboard();
+    const nowSec = Math.floor(Date.now() / 1000);
+    await sb.report(makeReport({ url: FACILITIES_URL, status: 200, rlGroup: 'industry', rlLimit: 150, rlRemaining: 100 }));
+    await sb.report(makeReport({ url: INDUSTRY_URL, status: 429, retryAfter: 30, rlGroup: 'industry' }));
+    expect(h.store.get('lgi:esi:rl:block:group:industry')?.value).toBe(String(nowSec + 30));
+    expect(h.store.has('lgi:esi:rl:block:/industry/systems')).toBe(false);
+    expect((await sb.preDispatch(INDUSTRY_URL)).blockedRetryAfter).toBe(30);
+    expect((await sb.preDispatch(FACILITIES_URL)).blockedRetryAfter).toBe(30);
+    expect((await sb.preDispatch(TEST_URL)).blockedRetryAfter).toBeNull();
+
+    await sb.report(makeReport({ status: 429, retryAfter: 45 }));
+    expect(h.store.get(BLOCK_KEY)?.value).toBe(String(nowSec + 45));
+    expect((await sb.preDispatch(TEST_URL)).blockedRetryAfter).toBe(45);
+  });
+
+  it('reserves market-history calls in a shared per-minute count before dispatch, and the answers do not count them again', async () => {
+    const sb = redisScoreboard();
+    h.execs.count = 0;
+    expect(await sb.reserveHistoryCall!()).toBe(1);
+    expect(await sb.reserveHistoryCall!()).toBe(2);
+    expect(h.execs.count).toBe(2);
+    expect(h.store.get(`lgi:esi:history:count:${currentMinute()}`)).toEqual({ value: '2', expiresAt: Date.now() + 120_000 });
+
+    await sb.report(makeReport({ url: HISTORY_URL, status: 200 }));
+    await sb.report(makeReport({ url: HISTORY_URL, status: NO_RESPONSE_STATUS }));
+    expect(h.store.get(`lgi:esi:history:count:${currentMinute()}`)?.value).toBe('2');
+
+    vi.advanceTimersByTime(60_000);
+    expect(await sb.reserveHistoryCall!()).toBe(1);
+  });
+
+  it('writes a batch of answers in one pipeline: counts summed, echoes at their lowest, blocks at their longest', async () => {
+    const sb = redisScoreboard();
+    h.execs.count = 0;
+    await sb.reportMany!([
+      makeReport({ url: HISTORY_URL, status: 200, errorLimitRemain: 90, errorLimitReset: 40 }),
+      makeReport({ url: HISTORY_URL, status: NO_RESPONSE_STATUS }),
+      makeReport({ status: 304, errorLimitRemain: 70, errorLimitReset: 20, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 900 }),
+      makeReport({ status: 200, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 400 }),
+      makeReport({ url: FACILITIES_URL, status: 404, rlGroup: 'industry', rlLimit: 150, rlRemaining: 120 }),
+      makeReport({ url: INDUSTRY_URL, status: 429, retryAfter: 30, rlGroup: 'industry' }),
+      makeReport({ url: FACILITIES_URL, status: 429, retryAfter: 90, rlGroup: 'industry' }),
+    ]);
+
+    expect(h.execs.count).toBe(1);
+    const minute = currentMinute();
+    expect(h.store.get(`lgi:esi:call:count:${minute}`)?.value).toBe('7');
+    expect(h.store.get(`lgi:esi:fail:count:${minute}`)?.value).toBe('3');
+    expect(h.store.get(`lgi:esi:err:count:${minute}`)?.value).toBe('3');
+    expect(h.store.has(`lgi:esi:history:count:${minute}`)).toBe(false);
+    expect(h.store.get(ECHO_KEY)).toEqual({ value: '70', expiresAt: Date.now() + 20_000 });
+    expect(h.store.get(GROUP_OF_ORDERS)?.value).toBe('market-order');
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toEqual({ group: 'market-order', remaining: 400, limit: 12000 });
+    expect((await sb.preDispatch(FACILITIES_URL)).blockedRetryAfter).toBe(90);
+  });
+
+  it('takes a 420 in a batch as an echo of zero, and writes nothing for an empty batch', async () => {
+    const sb = redisScoreboard();
+    await sb.reportMany!([makeReport({ status: 200, errorLimitRemain: 50 }), makeReport({ status: 420, errorLimitRemain: 80 })]);
+    expect(h.store.get(ECHO_KEY)?.value).toBe('0');
+
+    h.execs.count = 0;
+    await sb.reportMany!([]);
+    expect(h.execs.count).toBe(0);
   });
 });
 
@@ -456,22 +508,14 @@ describe('resolveScoreboard fallback selection', () => {
     expect(sb).not.toBeNull();
 
     await sb!.report(makeReport({ status: 420 }));
-    const closed = await sb!.preDispatch(TEST_URL, false);
+    const closed = await sb!.preDispatch(TEST_URL);
     expect(closed.effectiveRemaining).toBe(0);
 
     await sb!.report(makeReport({ status: 429, retryAfter: 30 }));
-    const blocked = await sb!.preDispatch(TEST_URL, false);
+    const blocked = await sb!.preDispatch(TEST_URL);
     expect(blocked.blockedRetryAfter).toBe(30);
 
-    await sb!.report(
-      makeReport({
-        status: 200,
-        etagToStore: { etag: '"abc"', expires: null, contentType: null, body: 'B' },
-      }),
-    );
-    const withEtag = await sb!.preDispatch(TEST_URL, true);
-    expect(withEtag.etag?.etag).toBe('"abc"');
-    await expect(sb!.getCachedBody(TEST_URL)).resolves.toBe('B');
+    await sb!.report(makeReport({ status: 200 }));
 
     expect(resolveScoreboard()).toBe(sb);
     await expect(readEsiBudgetSnapshot()).resolves.toEqual({
@@ -485,6 +529,32 @@ describe('resolveScoreboard fallback selection', () => {
       failures: 2,
       source: 'process-local',
     });
+  });
+
+  it('keeps the group echo, the group block and the history count in process as well', async () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.useFakeTimers();
+    const sb = resolveScoreboard()!;
+
+    await sb.report(makeReport({ status: 200, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 500 }));
+    await sb.report(makeReport({ status: 200, rlGroup: 'market-order', rlLimit: 12000, rlRemaining: 900 }));
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toEqual({ group: 'market-order', remaining: 500, limit: 12000 });
+    vi.advanceTimersByTime(61_000);
+    expect((await sb.preDispatch(TEST_URL)).groupBudget).toBeUndefined();
+
+    await sb.report(makeReport({ url: FACILITIES_URL, status: 200, rlGroup: 'industry', rlLimit: 150, rlRemaining: 100 }));
+    await sb.report(makeReport({ url: INDUSTRY_URL, status: 429, retryAfter: 30, rlGroup: 'industry' }));
+    expect((await sb.preDispatch(FACILITIES_URL)).blockedRetryAfter).toBe(30);
+    expect((await sb.preDispatch(TEST_URL)).blockedRetryAfter).toBeNull();
+    await sb.report(makeReport({ status: 429, retryAfter: 45 }));
+    expect((await sb.preDispatch(TEST_URL)).blockedRetryAfter).toBe(45);
+
+    expect(await sb.reserveHistoryCall!()).toBe(1);
+    await sb.report(makeReport({ url: HISTORY_URL, status: 200 }));
+    await sb.report(makeReport({ url: HISTORY_URL, status: 500 }));
+    expect(await sb.reserveHistoryCall!()).toBe(2);
+    vi.advanceTimersByTime(120_000);
+    expect(await sb.reserveHistoryCall!()).toBe(1);
   });
 
   it('keeps an hour of in-process call buckets and drops the rest', async () => {

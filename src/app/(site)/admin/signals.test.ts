@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
-  countJobs,
   deriveAttention,
   deriveBudgetStatus,
   deriveCronStatuses,
   deriveSliSignals,
   deriveStatusGroups,
-  heldForBudget,
   mapLoaded,
   sliLevel,
-  summarizeQueue,
   type AdminSignals,
   type CronSignals,
 } from './signals';
@@ -41,7 +37,6 @@ function signals(overrides: Partial<AdminSignals> = {}): AdminSignals {
     fallback: { esi: 100, fallback: 0, perDay: [] },
     budgetExhaustions: 0,
     sli: { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 },
-    queue: [],
     statics: null,
     releases: [
       { date: '2026-09-20', label: 'v4.1.2' },
@@ -49,10 +44,6 @@ function signals(overrides: Partial<AdminSignals> = {}): AdminSignals {
     ],
     ...overrides,
   };
-}
-
-function stat(status: EsiRefreshQueueStat['status'], count: number, ageHours: number): EsiRefreshQueueStat {
-  return { status, count, oldestCreatedAt: hoursAgo(ageHours) };
 }
 
 describe('deriveSliSignals', () => {
@@ -134,42 +125,6 @@ describe('deriveBudgetStatus', () => {
   });
 });
 
-describe('countJobs', () => {
-  it('sums the jobs in the given statuses and keeps the oldest of them', () => {
-    const stats = [stat('queued', 3, 2), stat('running', 1, 9), stat('dead_lettered', 2, 30), stat('succeeded', 40, 50)];
-    expect(countJobs(stats, ['queued', 'running'])).toEqual({ count: 4, oldest: hoursAgo(9) });
-    expect(countJobs(stats, ['failed_retryable'])).toEqual({ count: 0, oldest: null });
-    expect(countJobs([], ['queued'])).toEqual({ count: 0, oldest: null });
-  });
-});
-
-describe('summarizeQueue', () => {
-  it('counts live and dead-lettered jobs and the oldest live job', () => {
-    const summary = summarizeQueue(
-      [stat('queued', 3, 2), stat('failed_retryable', 1, 8), stat('dead_lettered', 2, 30), stat('succeeded', 40, 50)],
-      NOW,
-    );
-    expect(summary).toEqual({ due: 4, deadLettered: 2, oldestDueHours: 8 });
-  });
-
-  it('reports no oldest job for an idle queue', () => {
-    expect(summarizeQueue([stat('succeeded', 4, 1)], NOW)).toEqual({
-      due: 0,
-      deadLettered: 0,
-      oldestDueHours: null,
-    });
-  });
-});
-
-describe('heldForBudget', () => {
-  it('sums only the jobs deferred for budget', () => {
-    expect(
-      heldForBudget([stat('deferred_for_budget', 2, 1), stat('queued', 5, 1), stat('deferred_for_budget', 3, 4)]),
-    ).toBe(5);
-    expect(heldForBudget([stat('queued', 5, 1)])).toBe(0);
-  });
-});
-
 describe('deriveCronStatuses', () => {
   it('derives each scheduled task from its latest run', () => {
     const statuses = deriveCronStatuses(healthyCrons, NOW);
@@ -201,19 +156,13 @@ describe('deriveCronStatuses', () => {
 });
 
 describe('deriveStatusGroups', () => {
-  it('reports a healthy budget and an empty queue', () => {
+  it('reports a healthy budget and lists only the scheduled tasks under jobs', () => {
     const groups = deriveStatusGroups(signals());
     expect(groups[1]!.lines[0]).toMatchObject({ label: 'Error budget', value: '87 left', level: 'green' });
-    expect(groups[2]!.lines[4]).toMatchObject({ value: '0 active · 0 dead', level: 'green' });
-  });
-
-  it('shows the queue age in minutes, hours, and days, amber once stale', () => {
-    const hours = deriveStatusGroups(signals({ queue: [stat('queued', 2, 30)] }));
-    expect(hours[2]!.lines[4]).toMatchObject({ level: 'amber', note: 'oldest job 30h' });
-    const minutes = deriveStatusGroups(signals({ queue: [stat('queued', 1, 0.5)] }));
-    expect(minutes[2]!.lines[4]!.note).toBe('oldest job 30m');
-    const days = deriveStatusGroups(signals({ queue: [stat('queued', 1, 72)] }));
-    expect(days[2]!.lines[4]!.note).toBe('oldest job 3d');
+    expect(groups[1]!.lines.map((line) => line.id)).toEqual(['budget', 'esiSuccess', 'price-source']);
+    expect(groups[2]!.lines.map((line) => line.id)).toEqual([
+      'cron-prices', 'cron-sde', 'cron-gsc', 'cron-housekeeping',
+    ]);
   });
 });
 
@@ -234,21 +183,6 @@ describe('deriveAttention', () => {
       }),
     ]);
     expect(items[0]!.detail).toContain('1,234');
-  });
-
-  it('sends dead letters and a stale backlog to the queue', () => {
-    const items = attention(signals({ queue: [stat('dead_lettered', 1, 2), stat('queued', 3, 12)] }));
-    expect(items.map((i) => [i.id, i.level, i.action.href])).toEqual([
-      ['dead-letters', 'red', '/admin/queue'],
-      ['queue-backlog', 'amber', '/admin/queue'],
-    ]);
-    expect(items.map((i) => i.title)).toEqual([
-      '1 refresh job dead-lettered',
-      'Refresh backlog of 3 jobs, oldest 12h',
-    ]);
-
-    const single = attention(signals({ queue: [stat('queued', 1, 12)] }));
-    expect(single.map((i) => i.title)).toEqual(['Refresh backlog of 1 job, oldest 12h']);
   });
 
   it('routes each unhealthy status line to its page, red first', () => {
@@ -278,12 +212,10 @@ describe('deriveAttention', () => {
         ],
       },
       fallback: { esi: 95, fallback: 5, perDay: [] },
-      queue: [stat('deferred_for_budget', 2, 1)],
     });
     const lines = deriveStatusGroups(recovered).flatMap((group) => group.lines);
     expect(lines.filter((line) => line.level === 'amber').map((line) => line.id)).toEqual([
       'price-source',
-      'held-for-budget',
       'cron-prices',
     ]);
     // The recovered cron stays quiet because its status says so, not because of its wording.
@@ -301,7 +233,7 @@ describe('deriveAttention', () => {
   });
 });
 
-describe('release and budget-hold lines', () => {
+describe('release and price-source lines', () => {
   const line = (s: AdminSignals, id: string) =>
     deriveStatusGroups(s).flatMap((group) => group.lines).find((l) => l.id === id)!;
 
@@ -325,14 +257,6 @@ describe('release and budget-hold lines', () => {
     });
   });
 
-  it('counts refresh jobs held for budget', () => {
-    expect(line(signals(), 'held-for-budget')).toMatchObject({ value: '0 jobs', level: 'green' });
-    expect(line(signals({ queue: [stat('deferred_for_budget', 1, 1)] }), 'held-for-budget')).toMatchObject({
-      value: '1 job',
-      level: 'amber',
-    });
-  });
-
   it('keeps the price-source sentence in the note, not the value column', () => {
     expect(line(signals(), 'price-source')).toMatchObject({
       value: 'healthy',
@@ -348,11 +272,11 @@ describe('release and budget-hold lines', () => {
 });
 
 describe('a source that failed to load', () => {
-  const failed = signals({ crons: SECTION_LOAD_FAILED, queue: SECTION_LOAD_FAILED });
+  const failed = signals({ crons: SECTION_LOAD_FAILED, statics: SECTION_LOAD_FAILED });
   const byId = new Map(deriveStatusGroups(failed).flatMap((group) => group.lines.map((l) => [l.id, l])));
 
   it('marks only its own lines unavailable', () => {
-    for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'cron-housekeeping', 'queue', 'held-for-budget']) {
+    for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'cron-housekeeping']) {
       expect(byId.get(id)).toEqual({ id, label: expect.any(String), value: 'unavailable', level: 'neutral' });
     }
     expect(byId.get('readSuccess')).toMatchObject({ value: '99.9%', level: 'green' });
@@ -363,7 +287,7 @@ describe('a source that failed to load', () => {
     const items = deriveAttention(failed, deriveStatusGroups(failed));
     expect(items.map((i) => [i.id, i.level, i.action.href])).toEqual([
       ['unavailable:/admin/health#scheduled', 'amber', '/admin/health#scheduled'],
-      ['unavailable:/admin/queue', 'amber', '/admin/queue'],
+      ['unavailable:/admin/statics', 'amber', '/admin/statics'],
     ]);
   });
 

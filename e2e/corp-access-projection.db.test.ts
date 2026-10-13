@@ -25,7 +25,7 @@ vi.mock('@/platform/auth/affiliation', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_access_projection_pipeline',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes', 'pending_tracking_merges'],
+  tables: ['user', 'account', 'characters', 'esi_responses', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes', 'pending_tracking_merges'],
   foreignKeys: [
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },

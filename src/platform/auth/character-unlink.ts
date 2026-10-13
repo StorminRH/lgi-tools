@@ -5,14 +5,16 @@ import type { IdentityProjectionRunners } from './identity-projection-runners';
  * Removes one linked EVE character from `userId` between the identity
  * projection runners, then settles the account through
  * reconcileAfterCharacterRemoval, which repoints the active character,
- * rewrites a synthetic email that named the removed character, and deletes a
- * user left with no EVE links. Without the email repair a later EVE sign-in
- * as that character would link it back onto this user by email.
+ * rewrites a synthetic email that names a character the user no longer has,
+ * and deletes a user left with no EVE links. A later EVE sign-in as the
+ * removed character repeats the email repair (releaseSyntheticEmail), so a
+ * failed settle cannot strand it.
  *
  * A revocation or removal failure comes back as an outcome, so each caller
  * chooses how to report it; failures after the removal propagate. A
  * runAfterCharacterUnlink failure still settles, then rethrows, and a settle
- * failure skips the linkChanged runners that follow it.
+ * failure still runs the linkChanged runners and afterSettle, then rethrows:
+ * the removal has committed, so its projections must still follow it.
  */
 export async function unlinkCharacter({
   userId,
@@ -60,9 +62,12 @@ export async function unlinkCharacter({
   try {
     if (removed) await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
   } finally {
-    ({ accountEmptied } = await reconcileAfterCharacterRemoval(userId, characterId, runners));
-    await runners.runAfterCharacterLinkChanged({ userId, characterId });
-    await afterSettle?.(removed);
+    try {
+      ({ accountEmptied } = await reconcileAfterCharacterRemoval(userId, characterId, runners));
+    } finally {
+      await runners.runAfterCharacterLinkChanged({ userId, characterId });
+      await afterSettle?.(removed);
+    }
   }
   return removed
     ? { removed: true, accountEmptied }

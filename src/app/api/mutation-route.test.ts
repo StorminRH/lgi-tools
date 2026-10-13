@@ -209,6 +209,14 @@ describe('runMutationRoute', () => {
     controller.abort();
     expect((await runMutationRoute(searchFrom(controller.signal), options)).status).toBe(503);
     expect(h.recordCapabilityOutcomeMock).toHaveBeenCalledOnce();
+
+    // A client that gives up on a timer showed the failure, so its route opts back in.
+    const timed = { ...options, capability: 'maps.resolve-jump' as const, recordAbortedFailures: true };
+    expect((await runMutationRoute(searchFrom(controller.signal), timed)).status).toBe(503);
+    expect(h.recordCapabilityOutcomeMock).toHaveBeenLastCalledWith(
+      'maps.resolve-jump',
+      expect.objectContaining({ outcome: 'dependency_unavailable' }),
+    );
   });
 
   it('lets unexpected handler errors propagate', async () => {
