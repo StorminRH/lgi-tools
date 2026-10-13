@@ -161,22 +161,25 @@ describe('getLiveHistory — stale gate', () => {
     errors.mockRestore();
   });
 
-  it('reads the stored series beside the expiries, before the source fetch begins', async () => {
+  it('reads the stored series only after the expiries resolve, so a newer expiry never vouches for older rows', async () => {
     const pending = Promise.withResolvers<(number | null)[]>();
     storedExpiriesMock.mockReturnValue(pending.promise);
     getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)], [35, series('2026-06-12', 5)]]));
     fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
 
     const read = getLiveHistory([34, 35]);
+    await Promise.resolve();
 
-    // The stored read starts before the expiry read settles and the source fetch begins.
-    expect(getStoredHistoryMock).toHaveBeenCalledWith([34, 35]);
+    // Nothing reads the rows while the expiry read is in flight.
+    expect(getStoredHistoryMock).not.toHaveBeenCalled();
     expect(fetchHistoryFromSourceMock).not.toHaveBeenCalled();
     pending.resolve([Date.now() - 1000, Date.now() + 60 * 60 * 1000]);
 
     const { inputs, metrics } = await read;
-    expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
+    expect(storedExpiriesMock.mock.invocationCallOrder[0]).toBeLessThan(getStoredHistoryMock.mock.invocationCallOrder[0]!);
     expect(getStoredHistoryMock).toHaveBeenCalledOnce();
+    expect(getStoredHistoryMock).toHaveBeenCalledWith([34, 35]);
+    expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
     expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
     expect(inputs.get(35)?.latestDate).toBe('2026-06-12');
     expect(metrics).toEqual({ requested: 2, freshEsi: 0, warmStored: 1, staleStored: 1, missing: 0 });

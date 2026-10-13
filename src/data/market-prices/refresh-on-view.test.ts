@@ -129,6 +129,28 @@ describe('getLivePrices', () => {
     expect(afterMock).not.toHaveBeenCalled();
   });
 
+  it('reads the seed only after the expiries resolve, so a newer expiry never vouches for an older row', async () => {
+    const pending = Promise.withResolvers<(number | null)[]>();
+    storedExpiriesMock.mockReturnValue(pending.promise);
+    getPricesMock.mockResolvedValue(new Map([[34, seed(34)], [35, seed(35)]]));
+    source([raw(34, 'esi')]);
+
+    const read = getLivePrices([34, 35]);
+    await Promise.resolve();
+
+    // Nothing reads the seed while the expiry read is in flight.
+    expect(getPricesMock).not.toHaveBeenCalled();
+    expect(fetchPricesPerTypeMock).not.toHaveBeenCalled();
+    pending.resolve([NOW - 1000, EXPIRES]);
+
+    const { prices } = await read;
+    expect(storedExpiriesMock.mock.invocationCallOrder[0]).toBeLessThan(getPricesMock.mock.invocationCallOrder[0]!);
+    expect(getPricesMock).toHaveBeenCalledOnce();
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([34]);
+    expect(prices.get(34)?.source).toBe('esi');
+    expect(prices.get(35)?.staleAfter?.getTime()).toBe(EXPIRES);
+  });
+
   it('asks only for the types whose stored answer is missing or expired', async () => {
     getPricesMock.mockResolvedValue(new Map([[34, seed(34)], [35, seed(35)]]));
     expiries({ 34: NOW + 1, 35: NOW });

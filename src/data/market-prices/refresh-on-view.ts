@@ -74,7 +74,11 @@ export async function getLivePrices(
   const metrics: LivePricesMetrics = { requested: ids.length, returned: 0, esiCount: 0, fuzzworkFallbackCount: 0 };
   if (ids.length === 0) return { prices: new Map(), degraded, metrics };
 
-  const [seed, expiries] = await Promise.all([getPrices(ids), storedExpiries(ids.map(priceKey))]);
+  // Expiries first, then the seed: the write-behind saves the rows before it
+  // commits their expiry, so a seed read after the expiries is at least as
+  // fresh as they say. Read together, an old row could pass as fresh.
+  const expiries = await storedExpiries(ids.map(priceKey));
+  const seed = await getPrices(ids);
   const now = Date.now();
   const prices = new Map<number, MarketPrice>();
   const dueIds: number[] = [];

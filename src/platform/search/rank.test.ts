@@ -52,6 +52,15 @@ describe('rankFuzzyResults', () => {
     expect(ids(rankFuzzyResults(mixed, 'vault', (i) => i.label, toResult, { tieBreak: byId }))).toEqual(['z', 'a']);
   });
 
+  it('builds results only for the rows kept by the limit, after ranking and tie-break', () => {
+    const many: Item[] = Array.from({ length: 50 }, (_, i) => ({ id: String(i).padStart(2, '0'), label: 'Vault' }));
+    const spy = vi.fn(toResult);
+    const byIdDesc = (a: Item, b: Item) => b.id.localeCompare(a.id);
+    const out = rankFuzzyResults(many, 'vault', (i) => i.label, spy, { limit: 3, tieBreak: byIdDesc });
+    expect(out.map((r) => r.id)).toEqual(['49', '48', '47']);
+    expect(spy).toHaveBeenCalledTimes(3);
+  });
+
   it('ranks strictly by match score, not input order', () => {
     const shuffled: Item[] = [
       { id: 'weak', label: 'T-x-r-i-t' },
@@ -75,6 +84,16 @@ describe('indexedFuzzySearch', () => {
     const out = await search('trit', ctx());
     expect(load).toHaveBeenCalledOnce();
     expect(out.map((r) => r.id)).toEqual(['a', 'c']);
+  });
+
+  it('builds at most 20 rows on a broad query over a large index', async () => {
+    const many: Item[] = Array.from({ length: 500 }, (_, i) => ({ id: `t${i}`, label: `Tritanium ${i}` }));
+    const spy = vi.fn(toResult);
+    const search = indexedFuzzySearch({ load: async () => many, label: (i) => i.label, toResult: spy });
+
+    const out = await search('t', ctx());
+    expect(out).toHaveLength(20);
+    expect(spy).toHaveBeenCalledTimes(20);
   });
 
   it('drops the results of a query aborted while the index loads', async () => {
