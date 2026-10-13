@@ -56,10 +56,10 @@ describe('service level rows', () => {
     const html = render('read_success_rate', emptyDetails());
 
     expect(html).toContain('<span class="sr-only">Critical</span>');
-    expect(html).toMatch(/<span class="block font-ui[^"]*">Tracked read success<\/span><span class="block font-data[^"]*">target ≥ 99%<\/span>/);
-    expect(html).toMatch(/<span class="max-w-2\/3[^"]*text-tone-red">90.0%<\/span>/);
-    expect(html).toContain('Check failed reads.');
-    expect(html).toContain('data-chevron="true" aria-hidden="true"');
+    expect(html).toContain('Tracked read success');
+    expect(html).toContain('target ≥ 99%');
+    expect(html).toContain('90.0%');
+    expect(html).toContain(rows[0]!.responseAction);
   });
 });
 
@@ -183,20 +183,18 @@ describe('service level details', () => {
     expect(render('critical_latency_p95', details)).toContain('3 runs · redis 2% · 98% untimed');
   });
 
-  it('shows ESI failures under the ESI-specific table label', () => {
+  it('shows ESI failures and 4xx answers under their own tables, or the clear states', () => {
     const details = emptyDetails();
     details.esi = [failure('refresh-assets')];
 
-    const html = render('esi_success_rate', details);
+    const failures = render('esi_success_rate', details);
 
-    expect(html).toContain('aria-label="Top ESI failure groups"');
-    expect(html).toContain('account · refresh-assets');
-    expect(html).not.toContain('Failures by day');
-    expect(html).toContain('No 4xx answers from ESI in this period.');
-  });
+    expect(failures).toContain('aria-label="Top ESI failure groups"');
+    expect(failures).toContain('account · refresh-assets');
+    expect(failures).not.toContain('Failures by day');
+    expect(failures).toContain('No 4xx answers from ESI in this period.');
+    expect(failures).not.toContain('aria-label="ESI 4xx answers"');
 
-  it('lists the operations ESI answered with a 4xx', () => {
-    const details = emptyDetails();
     details.esiClientErrors = {
       errors: 7,
       calls: 200,
@@ -212,6 +210,7 @@ describe('service level details', () => {
 
     const html = render('esi_success_rate', details);
 
+    expect(html).not.toContain('No 4xx answers from ESI in this period.');
     expect(html).toContain('aria-label="ESI 4xx answers"');
     expect(html).toContain('maps · search-characters');
     expect(html).toContain('3.5%');

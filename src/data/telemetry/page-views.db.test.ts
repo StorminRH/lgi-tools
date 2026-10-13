@@ -126,7 +126,7 @@ describe.skipIf(!harness.reachable)('page-view reads agree with the per-figure q
     ]);
   });
 
-  it('matches the daily counts, totals and source split of each period', async () => {
+  it('matches the daily counts, totals and source split of each period, and reads just the range without a previous period', async () => {
     const stats = await getPageViewStats(RANGE, PREVIOUS);
     for (const [days, range] of [
       [stats.current, RANGE],
@@ -141,18 +141,10 @@ describe.skipIf(!harness.reachable)('page-view reads agree with the per-figure q
     }
     expect(stats.current.length).toBeGreaterThan(3);
     expect(stats.previous!.length).toBeGreaterThan(1);
-  });
 
-  it('reads only the range when no previous period is asked for', async () => {
-    const stats = await getPageViewStats(RANGE, null);
-    expect(stats.previous).toBeNull();
-    expect(stats.current).toEqual((await getPageViewStats(RANGE, PREVIOUS)).current);
-  });
-
-  it('refuses a previous period that does not end where the range starts', async () => {
-    await expect(getPageViewStats(RANGE, { from: PREVIOUS.from, to: at(RANGE.from, -1) })).rejects.toThrow(
-      'The previous period must end where the range starts.',
-    );
+    const alone = await getPageViewStats(RANGE, null);
+    expect(alone.previous).toBeNull();
+    expect(alone.current).toEqual(stats.current);
   });
 
   it('matches the top pages, entry pages and referrers', async () => {

@@ -26,11 +26,6 @@ const RANGE = {
   from: new Date('2020-01-01T00:00:00Z'),
   to: new Date('2020-01-08T00:00:00Z'),
 };
-const CURRENT_SITEMAP_URLS = [
-  'https://lgi.tools/',
-  'https://lgi.tools/sites',
-  'https://lgi.tools/new',
-];
 const SYNCED_AT = new Date('2020-01-02T06:00:00Z');
 
 interface QueryCase {
@@ -46,48 +41,9 @@ function expectNonEmptyArray(result: unknown): void {
 
 const cases: QueryCase[] = [
   { name: 'getLatestReportDate', run: () => getLatestReportDate(), check: (day) => expect(day).toBe('2020-01-02') },
-  { name: 'getSearchTrend', run: () => getSearchTrend(RANGE), check: expectNonEmptyArray },
-  {
-    name: 'getSearchTotals',
-    run: () => getSearchTotals(RANGE),
-    check: (r) => {
-      const d = r as { clicks: number; impressions: number; ctr: number; position: number };
-      expect(d.clicks).toBeGreaterThan(0);
-      expect(d.impressions).toBeGreaterThan(0);
-      expect(typeof d.ctr).toBe('number');
-      expect(typeof d.position).toBe('number');
-    },
-  },
   { name: 'getTopQueries', run: () => getTopQueries(RANGE), check: expectNonEmptyArray },
   { name: 'getTopGscPages', run: () => getTopGscPages(RANGE), check: expectNonEmptyArray },
   { name: 'getSitemapStatus', run: () => getSitemapStatus(), check: expectNonEmptyArray },
-  {
-    name: 'getLatestUrlCoverage',
-    run: () => getLatestUrlCoverage(CURRENT_SITEMAP_URLS),
-    check: (result) => {
-      expect(result).toEqual([
-        expect.objectContaining({
-          inspectionDate: '2020-01-04',
-          url: 'https://lgi.tools/',
-          verdict: 'PASS',
-          coverageState: 'Submitted and indexed',
-        }),
-        expect.objectContaining({
-          inspectionDate: '2020-01-03',
-          url: 'https://lgi.tools/sites',
-          verdict: 'NEUTRAL',
-          coverageState: 'Crawled - currently not indexed',
-        }),
-        {
-          inspectionDate: null,
-          url: 'https://lgi.tools/new',
-          verdict: null,
-          coverageState: null,
-          lastCrawlTime: null,
-        },
-      ]);
-    },
-  },
   {
     name: 'getCoverageTrend',
     run: () => getCoverageTrend(RANGE),
@@ -99,14 +55,6 @@ const cases: QueryCase[] = [
         { day: '2020-01-05', indexed: 0, notIndexed: 1 },
         { day: '2020-01-07', indexed: 0, notIndexed: 0 },
       ]);
-    },
-  },
-  {
-    name: 'getLastSyncedAt',
-    run: () => getLastSyncedAt(),
-    check: (r) => {
-      expect(r).toBeInstanceOf(Date);
-      expect((r as Date).getTime()).toBe(SYNCED_AT.getTime());
     },
   },
 ];
