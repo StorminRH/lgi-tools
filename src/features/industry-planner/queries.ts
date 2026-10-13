@@ -256,9 +256,12 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
  * The adjusted price of every type a job in the build consumes, nested inputs
  * included, so each job's fee is valued on its own inputs. They depend on the
  * blueprint alone. They are stored rows only, refreshed by the daily
- * cron:industry-indices, and every write clears INDUSTRY_INDICES_TAG, so the
- * entry lives across instances until then. Types CCP gives no adjusted price
- * are left out, and an unknown blueprint has none.
+ * cron:industry-indices. The entry lives across instances until the next
+ * industry-indices commit clears INDUSTRY_INDICES_TAG: the on-view cost-index
+ * refresh (about hourly, per CCP's /industry/systems/ expiry) or the cron's
+ * adjusted-price write, since both datasets share the one tag. So it is
+ * rebuilt at most about hourly and never serves stale prices. Types CCP gives
+ * no adjusted price are left out, and an unknown blueprint has none.
  */
 export async function getBlueprintAdjustedPrices(blueprintId: number): Promise<TypeAdjustedPrice[]> {
   'use cache: remote';

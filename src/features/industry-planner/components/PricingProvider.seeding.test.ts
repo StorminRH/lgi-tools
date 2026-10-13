@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { settle } from '@/lib/__tests__/hook-runtime';
 import { assemblePricing } from '../build-pricing';
 import type { BlueprintStructure, OwnedBlueprintMeEntry, TypeAdjustedPrice } from '../types';
-import type { BuildPlanValue, BuildSetupValue, MarketDataValue } from './planner-contexts';
+import type { BuildPlanValue, BuildSetupValue, MarketDataValue, SelectedLocation } from './planner-contexts';
 
 const h = vi.hoisted(() => ({
   /** What each promise the provider was handed resolves to, once it has. */
@@ -22,6 +22,8 @@ const h = vi.hoisted(() => ({
   refresh: { refreshing: false },
   /** What the account's owned-blueprints read has landed; null while it has not. */
   ownedBlueprints: null as OwnedBlueprintMeEntry[] | null,
+  /** The provider's build-location setter, as the location writes are handed it. */
+  setLocation: null as ((location: SelectedLocation | null) => void) | null,
 }));
 const rt = await vi.hoisted(async () =>
   (await import('@/lib/__tests__/hook-runtime')).createHookRuntime({ memoizeCallbacks: true }),
@@ -50,7 +52,12 @@ vi.mock('@/components/use-live-dataset', () => ({
   }),
 }));
 vi.mock('../use-available-structures', () => ({ useAvailableStructures: () => null }));
-vi.mock('./use-planner-location-writes', () => ({ usePlannerLocationWrites: () => h.writes }));
+vi.mock('./use-planner-location-writes', () => ({
+  usePlannerLocationWrites: (_structure: unknown, setLocation: (location: SelectedLocation | null) => void) => {
+    h.setLocation = setLocation;
+    return h.writes;
+  },
+}));
 vi.mock('./use-component-fee-sources', () => ({ useComponentFeeSources: () => h.componentFees }));
 vi.mock('./use-planner-profile', () => ({
   useProfileFactors: (_structure: unknown, location: { structureFactors: unknown }) => ({
@@ -119,7 +126,30 @@ afterEach(() => {
   rt.unmount();
   h.resolved.clear();
   h.ownedBlueprints = null;
+  h.setLocation = null;
 });
+
+const SEEDED_PRICES: TypeAdjustedPrice[] = [
+  { typeId: 34, adjustedPrice: 5 },
+  { typeId: 500, adjustedPrice: 40 },
+];
+
+/** The provider seeded with a priced build, and the adjusted-price read it is waiting on. */
+async function seededProps(adjustedPricesPromise: Promise<TypeAdjustedPrice[]>) {
+  const pricingPromise = Promise.resolve(assemblePricing(STRUCTURE, () => undefined, { basis: 'marginal' }));
+  const historyPromise = new Promise<never[]>(() => undefined);
+  h.resolved.set(pricingPromise, await pricingPromise);
+  return { structure: STRUCTURE, pricingPromise, historyPromise, adjustedPricesPromise, children: null };
+}
+
+/** Renders until the seeders' and the price clock's deferred work has landed. */
+async function renderSettled(props: Parameters<typeof PricingProvider>[0]): Promise<ProviderTree> {
+  renderProvider(props);
+  await settle();
+  renderProvider(props);
+  await settle();
+  return renderProvider(props);
+}
 
 test('the build is charged on the seeded adjusted prices before any system cost index is read', async () => {
   const pricingPromise = Promise.resolve(assemblePricing(STRUCTURE, () => undefined, { basis: 'marginal' }));
@@ -136,11 +166,11 @@ test('the build is charged on the seeded adjusted prices before any system cost 
   renderProvider(props);
   await settle();
   let tree = renderProvider(props);
-  // Priced, with the plates' fee counted, but the prices to value it on are still streaming.
-  let net = tree.props.marketData.pricing!.net!;
+  // Priced, and the plates' system index is known, but the prices to value the fee on are still streaming.
+  expect(tree.props.marketData.pricing).not.toBeNull();
+  expect(tree.props.marketData.pricing!.net).toBeNull();
   expect(tree.props.buildSetup.location).toBeNull();
   expect(tree.props.buildSetup.feesPending).toBe(true);
-  expect(net.componentJobs!.jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([34]);
 
   h.resolved.set(adjustedPricesPromise, await adjustedPricesPromise);
   renderProvider(props);
@@ -148,7 +178,7 @@ test('the build is charged on the seeded adjusted prices before any system cost 
   renderProvider(props);
   await settle();
   tree = renderProvider(props);
-  net = tree.props.marketData.pricing!.net!;
+  const net = tree.props.marketData.pricing!.net!;
   // Half a run of plates: 3.5 Tritanium at 5 is 17.5; at 10% less 4%, 1% tax and 4% SCC.
   expect(tree.props.buildSetup.location).toBeNull();
   expect(tree.props.buildSetup.feesPending).toBe(false);
@@ -181,4 +211,42 @@ test('owned blueprint maps stay null until their read lands, then the TE read gi
   expect(plan.ownedTe).toEqual(new Map([[1000, 20]]));
   expect(plan.ownedDetail?.get(1000)).toMatchObject({ te: 20, ownerName: 'Builder' });
   expect(plan.buildTimes.topTe).toBe(20);
+});
+
+test('a build-system index read before the adjusted prices stream in holds net back until they land', async () => {
+  const adjustedPricesPromise = Promise.resolve(SEEDED_PRICES);
+  const props = await seededProps(adjustedPricesPromise);
+
+  await renderSettled(props);
+  h.setLocation!({ systemId: 30000142, systemName: 'Jita', security: 0.9, costIndices: { manufacturing: 0.05, reaction: null } });
+  let tree = await renderSettled(props);
+  // The build system's index is in, but every item would be valued at zero: no net, and the fees read as pending.
+  expect(tree.props.buildSetup.location).toMatchObject({ systemId: 30000142 });
+  expect(tree.props.marketData.pricing).not.toBeNull();
+  expect(tree.props.marketData.pricing!.net).toBeNull();
+  expect(tree.props.buildSetup.feesPending).toBe(true);
+
+  h.resolved.set(adjustedPricesPromise, await adjustedPricesPromise);
+  tree = await renderSettled(props);
+  const net = tree.props.marketData.pricing!.net!;
+  expect(net).not.toBeNull();
+  expect(tree.props.buildSetup.feesPending).toBe(false);
+  expect(net.systemCostIndex).toBe(0.05);
+  expect(net.jobFee).toMatchObject({ estimatedItemValue: 200, missingAdjustedPriceTypeIds: [] });
+  expect(net.jobFee.jobGrossCost).toBeCloseTo(10, 9);
+  expect(net.componentJobs!.jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([]);
+});
+
+test('a failed adjusted-price read prices the fees as partial, not pending', async () => {
+  // A failed server read resolves to no prices: the fees show what they could not value, with no retry.
+  const adjustedPricesPromise = Promise.resolve<TypeAdjustedPrice[]>([]);
+  const props = await seededProps(adjustedPricesPromise);
+  h.resolved.set(adjustedPricesPromise, await adjustedPricesPromise);
+
+  const tree = await renderSettled(props);
+  const net = tree.props.marketData.pricing!.net!;
+  expect(tree.props.buildSetup.feesPending).toBe(false);
+  expect(tree.props.buildSetup.locationFailed).toBe(false);
+  expect(net.componentJobs!.jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([34]);
+  expect(net.jobFee.missingAdjustedPriceTypeIds).toEqual([500]);
 });

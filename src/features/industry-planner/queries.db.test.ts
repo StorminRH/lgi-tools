@@ -271,8 +271,9 @@ test.skipIf(!harness.reachable)(
     vi.mocked(cacheLife).mockClear();
     vi.mocked(cacheTag).mockClear();
     const prices = await getBlueprintAdjustedPrices(1000);
-    // The entry outlives the instance until the daily cron's adjusted-price
-    // commit clears INDUSTRY_INDICES_TAG; its own directives come first.
+    // The entry outlives the instance until the next industry-indices commit
+    // (the on-view cost-index refresh or the daily cron's adjusted-price
+    // write) clears INDUSTRY_INDICES_TAG; its own directives come first.
     expect(vi.mocked(cacheLife).mock.calls[0]).toEqual(['max']);
     expect(vi.mocked(cacheTag).mock.calls[0]).toEqual([INDUSTRY_INDICES_TAG, SDE_CACHE_TAG]);
     expect(prices.sort((a, b) => a.typeId - b.typeId)).toEqual([

@@ -236,6 +236,7 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
 
 interface PriceAssembleMirrors {
   readonly adjustedPriceOf: AdjustedPriceOf;
+  readonly adjustedPricesPending: boolean;
   readonly components: ComponentFeeInputs | null;
   readonly costBasis: CostBasis;
   readonly ledger: BatchLedger;
@@ -266,14 +267,19 @@ function useSeededAdjustedPrices() {
 
 function usePriceClock(
   structure: BlueprintStructure,
-  inputs: Omit<PriceAssembleMirrors, 'adjustedPriceOf' | 'components'>,
+  inputs: Omit<PriceAssembleMirrors, 'adjustedPriceOf' | 'adjustedPricesPending' | 'components'>,
   plan: ProfilePlan | null,
   locationRead: { refreshKey: number; failed: boolean },
 ) {
   // Pricing owns the per-job fee sources for the profile installing the build.
   const componentFees = useComponentFeeSources(structure, plan, locationRead.refreshKey);
   const { adjustedPriceOf, adjustedPricesPending, seedAdjustedPrices } = useSeededAdjustedPrices();
-  const mirrors: PriceAssembleMirrors = { ...inputs, adjustedPriceOf, components: componentFees.sources };
+  const mirrors: PriceAssembleMirrors = {
+    ...inputs,
+    adjustedPriceOf,
+    adjustedPricesPending,
+    components: componentFees.sources,
+  };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [priceSnapshot] = useState(() => createPriceSnapshot());
@@ -286,7 +292,9 @@ function usePriceClock(
   const assemble = useCallback(() => {
     const current = mirrorsRef.current;
     const sf = current.structureFactors;
-    const fee = composeFeeInputs({
+    // No fee until the prices it is valued on land: every item would count as
+    // zero, and net would read higher than it is. Gross shows meanwhile.
+    const fee = current.adjustedPricesPending ? undefined : composeFeeInputs({
       adjustedPriceOf: current.adjustedPriceOf,
       location: current.location,
       reactionLocation: current.reactionLocation,
@@ -321,6 +329,7 @@ function usePriceClock(
   }, [
     mirrors.runs,
     mirrors.adjustedPriceOf,
+    mirrors.adjustedPricesPending,
     mirrors.components,
     mirrors.location,
     mirrors.reactionLocation,

@@ -11,7 +11,8 @@ import { argumentSymbol, cachedScopes, cacheTagArguments, type CachedScope } fro
  *
  * One exception: a reader that only aggregates stored rows of a dataset
  * every write of which clears its tag (prices, and the industry indices'
- * cron-only adjusted prices) lives until that clear, as cacheLife('max').
+ * adjusted prices, whose tag every cost-index or adjusted-price write
+ * clears) lives until that clear, as cacheLife('max').
  * Its earliest stored expiry is nearly always past, since no view refreshes
  * every key behind it, so timing it by that would rebuild it on every request.
  */
