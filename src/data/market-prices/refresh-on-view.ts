@@ -3,6 +3,7 @@ import { commit, isExpired, storedExpiries, type EsiResponseMeta } from '@/data/
 import { db } from '@/db';
 import type { PriceSourceCounts } from '@/lib/alerts';
 import { dedupe } from '@/lib/array';
+import { runWriteBehind, type WriteBehindResult } from '@/lib/write-behind';
 import { persistPrices } from './ingest';
 import { MARKET_PRICES_TAG, priceKey } from './keys';
 import { getPrices } from './queries';
@@ -16,23 +17,7 @@ export interface LivePricesMetrics {
   fuzzworkFallbackCount: number;
 }
 
-export interface PriceWriteBehindResult {
-  outcome: 'succeeded' | 'failed';
-  attempted: number;
-  written: number;
-  durationMs: number;
-}
-
-function notifyWriteBehind(
-  observer: ((result: PriceWriteBehindResult) => void) | undefined,
-  result: PriceWriteBehindResult,
-): void {
-  try {
-    observer?.(result);
-  } catch (err) {
-    console.error('[market-prices/refresh-on-view] write-behind observer failed', err);
-  }
-}
+const SCOPE = 'market-prices/refresh-on-view';
 
 export interface LivePricesResult {
   prices: Map<number, MarketPrice>;
@@ -51,29 +36,20 @@ function served(row: MarketPrice, expiresAt: number | null): MarketPrice {
 function writeBehind(
   live: SourcePrices,
   stamps: { fetchedAtByType: Map<number, Date>; staleAfterByType: Map<number, Date> },
-  onWriteBehind: ((result: PriceWriteBehindResult) => void) | undefined,
+  onWriteBehind: ((result: WriteBehindResult) => void) | undefined,
 ): void {
-  after(async () => {
-    const startedAt = Date.now();
-    try {
-      const summary = await persistPrices(db, live.prices, stamps);
-      await commit([...live.metaByType.values()], { tag: MARKET_PRICES_TAG });
-      notifyWriteBehind(onWriteBehind, {
-        outcome: 'succeeded',
-        attempted: live.prices.length,
-        written: summary.written,
-        durationMs: Date.now() - startedAt,
-      });
-    } catch (err) {
-      console.error('[market-prices/refresh-on-view] write-behind failed', err);
-      notifyWriteBehind(onWriteBehind, {
-        outcome: 'failed',
-        attempted: live.prices.length,
-        written: 0,
-        durationMs: Date.now() - startedAt,
-      });
-    }
-  });
+  after(() =>
+    runWriteBehind(
+      SCOPE,
+      live.prices.length,
+      async () => {
+        const { written } = await persistPrices(db, live.prices, stamps);
+        await commit([...live.metaByType.values()], { tag: MARKET_PRICES_TAG });
+        return { succeeded: live.prices.length, written };
+      },
+      onWriteBehind,
+    ),
+  );
 }
 
 /**
@@ -86,7 +62,7 @@ function writeBehind(
  */
 export async function getLivePrices(
   typeIds: number[],
-  onWriteBehind?: (result: PriceWriteBehindResult) => void,
+  onWriteBehind?: (result: WriteBehindResult) => void,
 ): Promise<LivePricesResult> {
   const ids = dedupe(typeIds);
   const degraded: PriceSourceCounts = {

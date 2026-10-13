@@ -8,31 +8,33 @@ Market reads first: parallel on-view reads, then useEffectEvent hooks, then lib/
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P181](#p181) | Run independent reads concurrently in getLivePrices, getLiveHistory and getAvailableCorpStructuresForUser; keep the price write-behind | server-pipeline | S | low | low | — |
-| ☐ | [P052](#p052) | Replace the latest-value refs in both refresh-on-view hooks with useEffectEvent, and drop the history hook's unused return state | react-hook | S | low | low | — |
-| ☐ | [P077](#p077) | Use useEffectEvent in the on-view refresh hooks, drop the history hook's dead state, and share notifyWriteBehind through lib | client-data | S | low | low | [P052](#p052) |
-| ☐ | [P332](#p332) | Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads | simplification | S | low | low | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077) |
-| ☐ | [P295](#p295) | Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type | efficiency | S | low | medium | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332) |
-| ☐ | [P076](#p076) | Name the plain price-figure type in data/market-prices and build RefreshedPrice, PriceLite and the planner rows from it | contracts-validation | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
-| ☐ | [P075](#p075) | Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label | client-data | S | low | low | — |
-| ☐ | [P063](#p063) | Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it | client-data | L | medium | medium | [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075) |
-| ☐ | [P065](#p065) | Rebuild useSlotsLive on useLiveDataset with skill-eligible coldness, promote readWithRetries and the latest-wins read to src/lib, and add useRememberedResource for the three remembered per-identity reads | client-data | M | medium | medium | [P140](wave-03-src-lib-primitives-collections-math-async.md#p140), [P068](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p068), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154) |
-| ☐ | [P328](#p328) | Make lazy search sources load only their search function | simplification | S | low | low | — |
-| ☐ | [P069](#p069) | Send every search source through rankFuzzyResults (with a tie-break), declare lazy-source metadata once, and share the all-words name match | client-data | M | low | medium | [P328](#p328) |
-| ☐ | [P276](#p276) | Replace the page-settings and search side-effect registries with static arrays passed explicitly | feature-skeleton | M | low | medium | [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069) |
-| ☐ | [P048](#p048) | Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook | react-hook | M | low | medium | [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
-| ☐ | [P054](#p054) | Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot | react-hook | S | low | low | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048) |
-| ☐ | [P270](#p270) | Extract useAuthorityScopedMapDialogs and an EditingMapAccessDialog host for MapSwitcher and MapCatalogue | feature-skeleton | S | low | low | [P054](#p054) |
+| ☑ | [P181](#p181) | Run independent reads concurrently in getLivePrices, getLiveHistory and getAvailableCorpStructuresForUser; keep the price write-behind (reshaped by the ESI-cache merge) | server-pipeline | S | low | low | — |
+| ☑ | [P052](#p052) | Replace the latest-value refs in both refresh-on-view hooks with useEffectEvent, and drop the history hook's unused return state | react-hook | S | low | low | — |
+| ☑ | [P077](#p077) | Use useEffectEvent in the on-view refresh hooks, drop the history hook's dead state, and share notifyWriteBehind through lib | client-data | S | low | low | [P052](#p052) |
+| ☑ | [P332](#p332) | Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads | simplification | S | low | low | [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077) |
+| ☑ | [P295](#p295) | Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type (batching superseded by the ESI-cache merge; failure guard kept) | efficiency | S | low | medium | [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332) |
+| ☑ | [P076](#p076) | Name the plain price-figure type in data/market-prices and build RefreshedPrice, PriceLite and the planner rows from it | contracts-validation | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
+| ☑ | [P075](#p075) | Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label | client-data | S | low | low | — |
+| ☑ | [P063](#p063) | Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it | client-data | L | medium | medium | [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075) |
+| ☑ | [P065](#p065) | Rebuild useSlotsLive on useLiveDataset with skill-eligible coldness, promote readWithRetries and the latest-wins read to src/lib, and add useRememberedResource for the three remembered per-identity reads (partly superseded by the ESI-cache merge) | client-data | M | medium | medium | [P140](wave-03-src-lib-primitives-collections-math-async.md#p140), [P068](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p068), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154) |
+| ☑ | [P328](#p328) | Make lazy search sources load only their search function | simplification | S | low | low | — |
+| ☑ | [P069](#p069) | Send every search source through rankFuzzyResults (with a tie-break), declare lazy-source metadata once, and share the all-words name match | client-data | M | low | medium | [P328](#p328) |
+| ☑ | [P276](#p276) | Replace the page-settings and search side-effect registries with static arrays passed explicitly | feature-skeleton | M | low | medium | [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069) |
+| ☑ | [P048](#p048) | Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook | react-hook | M | low | medium | [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039) |
+| ☑ | [P054](#p054) | Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot | react-hook | S | low | low | [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048) |
+| ☑ | [P270](#p270) | Extract useAuthorityScopedMapDialogs and an EditingMapAccessDialog host for MapSwitcher and MapCatalogue | feature-skeleton | S | low | low | [P054](#p054) |
 
 <a id="p181"></a>
 
 ## P181: Run independent reads concurrently in getLivePrices, getLiveHistory and getAvailableCorpStructuresForUser; keep the price write-behind
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +8
 - **Depends on:** —
 - **Existing primitive:** `src/composition/sync/corp-structures-sync.ts:getCorpStructuresPageData (pattern)`
+
+**Merged with the ESI-cache rewrite (#689/#690).** The sections below describe the pre-rewrite code; read them as history. What the merged tree holds: getLivePrices reads the Neon seed and the store's expiries in one `Promise.all([getPrices(ids), storedExpiries(...)])` (development's shape; the live fetch now depends on the expiries, so step 1's seed-and-live overlap no longer applies). getLiveHistory reads `Promise.all([storedExpiries(ids.map(historyKey)), getStoredHistory(ids)])`; `getHistoryMeta` no longer exists, so step 2's call is replaced by the store's expiry read. getAvailableCorpStructuresForUser keeps steps 3 and 4 as written: structures, rigs and the scheduled refresh in one Promise.all, mapped through withCompletion, with AvailableCorpStructure deleted.
 
 **Problem.** Three server read paths await independent queries one after another. getLivePrices awaits a Neon seed read before starting the live fetch. getLiveHistory reads stored history only after the meta read and the ESI fetch, although it depends on neither. getAvailableCorpStructuresForUser goes through getCorpStructuresForUserOnView, which also reads sync freshness the caller discards, then reads rigs in a second round trip. It also copies the withCompletion merge that getCorpStructuresPageData already uses. Each path costs one extra DB round trip per request. Payoff is small but the fix is risk-free.
 
@@ -69,7 +71,7 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
 **Migration steps.**
 
 1. refresh-on-view.ts (market-prices): replace lines 111-128 with `const [seed, live] = await Promise.all([getPrices(ids), mapBounded(ids, PER_TYPE_CONCURRENCY, async (id) => { ... unchanged worker ... })]);`. Keep `freshRaws.push(raw)` unconditional.
-2. market-history/refresh-on-view.ts: replace line 65 and line 80 with `const [meta, stored] = await Promise.all([getHistoryMeta(ids), getStoredHistory(ids)]);` and leave staleIds and the fetch as they are.
+2. market-history/refresh-on-view.ts: replace line 65 and line 80 with `const [meta, stored] = await Promise.all([getHistoryMeta(ids), getStoredHistory(ids)]);` and leave staleIds and the fetch as they are. (After the ESI-cache merge: `Promise.all([storedExpiries(ids.map(historyKey)), getStoredHistory(ids)])`.)
 3. corp-structures-sync.ts: rewrite getAvailableCorpStructuresForUser: `const { corporations } = await loadCorpViewer(userId); const ids = corporations.map(c => c.corporationId); const [structuresByCorp, rigsByStructure] = await Promise.all([getCorpStructures(ids), getCorpStructureRigs(ids)]); scheduleCorpStructuresRefresh(userId); return corporations.flatMap(({ corporationId, grant }) => visibleStructures(grant.structures, structuresByCorp.get(corporationId)).map(s => withCompletion(s, rigsByStructure)));`
 4. Delete the AvailableCorpStructure interface (lines 84-92) and the hand-written loop. Keep the connection() call via loadCorpViewer, and schedule the refresh even when the viewer has no corporations, as today.
 
@@ -83,7 +85,7 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
 
 ## P052: Replace the latest-value refs in both refresh-on-view hooks with useEffectEvent, and drop the history hook's unused return state
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +6 production lines; test churn about 15 lines
 - **Depends on:** —
@@ -142,7 +144,7 @@ export function useRefreshOnView(typeIds: number[], opts: { enabled: boolean; on
 
 ## P077: Use useEffectEvent in the on-view refresh hooks, drop the history hook's dead state, and share notifyWriteBehind through lib
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -35 / +15 (two latest-ref blocks, two state slots, one duplicated wrapper and two result interfaces removed; one lib helper added)
 - **Depends on:** [P052](#p052)
@@ -204,7 +206,7 @@ export function useRefreshHistoryOnView(typeIds: number[], opts: { enabled: bool
 
 ## P332: Share the market write-behind runner and the Forge region id, and overlap the independent on-view reads
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -50 production lines (two result types and notifiers -32, prices after() block -15, private retentionCutoff -4, region constant -2), about +35 in lib, and about +70 test lines. The optional int4 sweep removes about 5 more constants.
 - **Depends on:** [P247](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p247), [P077](#p077)
@@ -271,7 +273,7 @@ export const pgInt4IdSchema = z.number().int().positive().max(PG_INT4_MAX);
 2. In market-prices/refresh-on-view.ts, delete lines 35-51 and type onWriteBehind as WriteBehindObserver. Replace lines 155-176 with: after(() => runWriteBehind('market-prices/refresh-on-view', freshRaws.length, async () => ({ succeeded: freshRaws.length, written: (await persistPrices(db, freshRaws)).written }), onWriteBehind)).
 3. In market-history/refresh-on-view.ts, delete lines 26-42. Replace lines 95-115 with after(() => runWriteBehind('market-history/refresh-on-view', results.length, async () => { ...the per-type loop exactly as today, including its per-type console.error and revalidateTag(historyTag(r.typeId), 'max'); return { succeeded, written }; }, onWriteBehind)).
 4. Add THE_FORGE_REGION_ID to src/data/eve-data/constants.ts. Point market-history/source.ts:11,47 and market-prices/source.ts:4,170,174 at it. Delete market-history/constants.ts:1 and market-prices/constants.ts:1.
-5. Overlap the reads. In prices, use `const [seed, live] = await Promise.all([getPrices(ids), mapBounded(ids, PER_TYPE_CONCURRENCY, ...)])`. In history, use `const [meta, stored] = await Promise.all([getHistoryMeta(ids), getStoredHistory(ids)])` before computing staleIds, and delete the later await at line 80.
+5. Overlap the reads. In prices, use `const [seed, live] = await Promise.all([getPrices(ids), mapBounded(ids, PER_TYPE_CONCURRENCY, ...)])`. In history, use `const [meta, stored] = await Promise.all([getHistoryMeta(ids), getStoredHistory(ids)])` before computing staleIds, and delete the later await at line 80. (After the ESI-cache merge the prices overlap is development's seed-and-expiries read and the history overlap reads `storedExpiries` in place of `getHistoryMeta`; runWriteBehind wraps development's store flow in both slices, committing the ESI meta inside the persist step.)
 6. In market-history/ingest.ts, delete the local retentionCutoff (lines 17-20) and compute formatIsoDay(retentionCutoff(HISTORY_RETENTION_DAYS, now)) from @/lib/batched-delete and @/lib/format/time at lines 31 and 91. The date-string semantics for the date column stay the same. Keep DAY_MS; line 35 still uses it.
 7. For the int4 schema: consume the shared schema if the contracts work has landed one. Otherwise add pgInt4IdSchema in src/transport and migrate all six PG_INT4_MAX copies (two market contracts, custom-structures, industry-planner, owned-structures, wormhole-sites). Keep each .min(1)/.max(ON_DEMAND_*_MAX_TYPE_IDS) bound at its call site; no typeIdBatchSchema wrapper is needed.
 
@@ -285,11 +287,13 @@ export const pgInt4IdSchema = z.number().int().positive().max(PG_INT4_MAX);
 
 ## P295: Batch the Fuzzwork fallback in the on-view price refresh instead of one request per type
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about +30 / -8 across source.ts and refresh-on-view.ts, plus tests
 - **Depends on:** [P335](wave-01-quick-wins-delete-dead-code-fix-small.md#p335), [P332](#p332)
 - **Existing primitive:** `src/data/market-prices/source-fallback.ts:fetchPricesFromFuzzwork`
+
+**Merged with the ESI-cache rewrite (#689/#690).** The sections below describe the pre-rewrite code; read them as history. The batching half is superseded: development's `fetchPricesPerType` reads every due type through one `fetchStoredMany` call and already sends every type ESI could not price to Fuzzwork in one batch, so `fetchPricesFromEsiPerType`, `fetchFuzzworkFallback`, `fetchLivePrice` and its `'use cache: remote'` entry were dropped. The failure-guard half is kept on top of development's code: on the page-view path (`fetchPricesPerType`, called by getLivePrices), a failed Fuzzwork batch is logged once as `[market-prices/source] Fuzzwork fallback failed` through `bestEffort`, those types stay unpriced with no meta, the ESI rows still return and write behind, and getLivePrices serves the seed for the rest. The cron's per-type read (`fetchPricesFromSource`) still lets the failure throw, as both parents did. source.test.ts pins both.
 
 **Problem.** The on-view refresh (POST /api/market-prices/refresh, at most 50 ids per call) caches each type separately. When ESI fails or its budget is exhausted, every type falls back to Fuzzwork alone. One degraded refresh of 50 types therefore makes 50 Fuzzwork aggregate requests at concurrency 10, where a single request would do: Fuzzwork takes a type list, and fetchPricesFromFuzzwork already chunks by 150. Each worker can also wait for an ESI timeout and then a Fuzzwork timeout in turn, for each of 5 rounds, which strains maxDuration=60.
 
@@ -349,7 +353,7 @@ async function fetchLivePrice(typeId: number): Promise<{ raw: RawMarketPrice | n
 
 ## P076: Name the plain price-figure type in data/market-prices and build RefreshedPrice, PriceLite and the planner rows from it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -45 / +20 (four restatements become derivations; one builder and one row walk shared)
 - **Depends on:** [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304)
@@ -423,7 +427,7 @@ function pricedRows(pricing: BlueprintPricing): Iterable<IntermediatePrice>; // 
 
 ## P075: Put both name clients and both hooks in data/eve-data, with one normalize and an explicit label
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -30 / +12 (three files deleted; label and filter folded into one normalize)
 - **Depends on:** —
@@ -492,7 +496,7 @@ const namesRequestSchema = (max: number) => z.object({ ids: z.array(z.number().i
 
 ## P063: Add a store-backed client resource (memoise until rejected, one shared retry, store-published value) and one apiFetch failure label; rebuild the five singleton index/asset loaders and their hooks on it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** L · **Risk:** medium · **Payoff:** medium · **Size:** About -200 lines across loaders, hooks and adapters; about +110 for the primitive, transport helpers and one-line hooks (net about -90), plus about 120 lines of new tests
 - **Depends on:** [P010](wave-08-charts-images-and-board-workspace-adoption.md#p010), [P075](#p075)
@@ -597,11 +601,13 @@ export function useWormholeCodexStatus(): { codex: WormholeCodex | null; failed:
 
 ## P065: Rebuild useSlotsLive on useLiveDataset with skill-eligible coldness, promote readWithRetries and the latest-wins read to src/lib, and add useRememberedResource for the three remembered per-identity reads
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** medium · **Size:** About -90 lines (use-slots-live 64→~25; use-account-characters effect 24→~10; use-available-structures effect 10→2; eve-status loop 6→1), about +40 (useRememberedResource, eligibility threading); three files move
 - **Depends on:** [P140](wave-03-src-lib-primitives-collections-math-async.md#p140), [P068](wave-09-auth-routes-and-the-mutation-transport-pipeline.md#p068), [P154](wave-01-quick-wins-delete-dead-code-fix-small.md#p154)
 - **Existing primitive:** `src/components/use-live-dataset.ts:useLiveDataset; src/components/remembered-read.ts:createRememberedRead,useRememberedRead; src/features/industry-planner/use-resource-read.ts:useResourceRead`
+
+**Merged with the ESI-cache rewrite (#689/#690).** The sections below describe the pre-rewrite code; read them as history. Carried over: (A) useSlotsLive on useLiveDataset with the skill-eligible coldness filter and the skillIds threading, on useLiveDataset's default RECONCILE_SCHEDULE (development folded RECONCILE_BACKOFF into that default, so neither SLOTS_RECONCILE nor RECONCILE_BACKOFF exists); (B1) readWithRetries in src/lib/retry.ts; (C1) resource-read and use-resource-read in src/lib; (C2, C5) useRememberedResource, whose one consumer is useAccountCharacters. Superseded: (B2) the eve-status retry loop is gone, since development reads status from its stored ESI row; (C3, C4) useAvailableStructures and the planner's team skill levels moved onto useLiveDataset with live re-checks, so they no longer use useRememberedResource.
 
 **Problem.** useLiveDataset is the canonical remembered-read live hook: identity guard, reconcile schedule, failed/retry. useSlotsLive re-implements it and has drifted. It polls every 5s for 24 attempts while any linked character has synced:false, including pilots without skill scopes, who never sync. Each poll fires an after(refreshSkillsOnView) write-behind. Failures retry silently and then settle to an empty list that looks the same as 'no characters', and the hook exposes neither failed nor retry. The generic planner primitives createResourceRead, useResourceRead and readWithRetries live in features/industry-planner, so code outside the feature hand-rolls them. data/eve-status writes its own retry loop with identical semantics. use-account-characters writes its own ignore flag, AbortController and an unreachable .catch. Inside the planner, useAvailableStructures inlines useResourceRead's effect. The remembered-read, read-identity and abortable-read trio is assembled by hand in three places.
 
@@ -685,7 +691,7 @@ export function useRememberedResource<T>(
 
 ## P328: Make lazy search sources load only their search function
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -10 / +4
 - **Depends on:** —
@@ -747,7 +753,7 @@ load: () => import('./systems-search').then((m) => m.searchSystems),
 
 ## P069: Send every search source through rankFuzzyResults (with a tie-break), declare lazy-source metadata once, and share the all-words name match
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** About -45 net (recents -12, sites -15, the duplicate meta in each lazy source -8, the two search bodies replaced by about 6 helper lines -18, nameMatches -7; plus about 20 added for the helper, the tieBreak and matchesAllWords)
 - **Depends on:** [P328](#p328)
@@ -819,7 +825,7 @@ matchesAllWords(name: string, query: string): boolean  // query trimmed+lowercas
 
 ## P276: Replace the page-settings and search side-effect registries with static arrays passed explicitly
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** simplification · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** prod about −80/+30 (platform/page-settings/index.ts −20, page-settings register-all −6, search registry functions about −45 replaced by a lazySearchSource factory of about +20, data/eve-data/search.ts −9, two side-effect imports −2, resolvePageSettings +3, SEARCH_SOURCES +7); tests net about −60 (scoping suite and engine test removed, register calls become array literals)
 - **Depends on:** [P123](wave-07-ui-kit-primitives-src-components-ui.md#p123), [P328](#p328), [P069](#p069)
@@ -931,7 +937,7 @@ Drift bug found: StructureComposer.tsx:102 lacks the rejection handler that Term
 
 ## P048: Route GlobalSearch and CharacterSearchControl through the platform/search debounced search hook
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -45 production lines (GlobalSearch -18, CharacterSearchControl -35, hook +8); about +90 test lines
 - **Depends on:** [P039](wave-07-ui-kit-primitives-src-components-ui.md#p039)
@@ -996,7 +1002,7 @@ export function characterSearchView(search: string, answer: SearchAnswer<Charact
 
 ## P054: Share the server-seeded draft and map-access write steps between the map access editors, and drop the characterSearch slot
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** react-hook · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -45 / +32 (two ref+effect re-seeds, three write sequences, the slot prop and two call-site slot fills removed; one small hook file added)
 - **Depends on:** [P056](wave-07-ui-kit-primitives-src-components-ui.md#p056), [P048](#p048)
@@ -1073,7 +1079,7 @@ export function useMapAccessWrite<K>(): {
 
 ## P270: Extract useAuthorityScopedMapDialogs and an EditingMapAccessDialog host for MapSwitcher and MapCatalogue
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** feature-skeleton · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -45 in MapSwitcher and MapCatalogue, about +40 for the hook and host; net about -5. One parameter and the admin-id key branch go from mapDialogAuthorityKey.
 - **Depends on:** [P054](#p054)

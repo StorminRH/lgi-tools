@@ -99,9 +99,16 @@ function useSystemField(systemId: number | null) {
   useEffect(() => {
     if (query.trim() === '' || query === system?.name) return;
     let alive = true;
-    void suggest(query).then((names) => {
-      if (alive) setSuggestions(names.flatMap((n) => systems.find((s) => s.name === n) ?? []));
-    });
+    // A lookup the next keystroke aborted rejects after this run has ended; one
+    // that fails for this query leaves no suggestions.
+    void suggest(query).then(
+      (names) => {
+        if (alive) setSuggestions(names.flatMap((n) => systems.find((s) => s.name === n) ?? []));
+      },
+      () => {
+        if (alive) setSuggestions([]);
+      },
+    );
     return () => {
       alive = false;
     };

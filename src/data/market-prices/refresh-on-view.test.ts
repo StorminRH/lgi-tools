@@ -203,6 +203,7 @@ describe('getLivePrices', () => {
     await afterMock.mock.calls[1]![0]();
     expect(observer).toHaveBeenLastCalledWith({ outcome: 'failed', attempted: 1, written: 0, durationMs: expect.any(Number) });
     expect(commitMock).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith('[market-prices/refresh-on-view] write-behind failed', expect.any(Error));
     errorSpy.mockRestore();
   });
 
@@ -218,6 +219,7 @@ describe('getLivePrices', () => {
 
     expect(observer).toHaveBeenCalledTimes(1);
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls).toEqual([['[market-prices/refresh-on-view] write-behind observer failed', expect.any(Error)]]);
     errorSpy.mockRestore();
   });
 

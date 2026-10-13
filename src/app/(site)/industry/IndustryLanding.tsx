@@ -12,10 +12,12 @@ import { useJobsLive } from '@/features/industry-jobs/use-jobs-live';
 export function IndustryLanding({
   characterIds,
   corpEligibleCharacterIds,
+  skillEligibleCharacterIds,
   hulls,
 }: {
   characterIds: number[];
   corpEligibleCharacterIds: number[];
+  skillEligibleCharacterIds: number[];
   hulls: HullName[];
 }) {
   const jobsLive = useJobsLive(characterIds);
@@ -25,6 +27,7 @@ export function IndustryLanding({
       jobs={jobsLive}
       corp={corpLive}
       corpEligible={corpEligibleCharacterIds.length > 0}
+      skillEligibleCharacterIds={skillEligibleCharacterIds}
       hulls={hulls}
     />
   );

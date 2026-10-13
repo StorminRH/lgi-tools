@@ -3,10 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { Suspense, createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { createClientStore, useClientStore } from '@/lib/client-store';
-import { resolvePageSettings } from '@/platform/page-settings';
+import { resolvePageSettings } from '@/composition/page-settings/specs';
 import type { PageSettingsSpec } from '@/platform/page-settings/types';
-
-import '@/composition/page-settings/register-all';
 
 // The live spec resolves in an effect after mount, so it lives in a client
 // store (see createClientStore). An explicit pathname overrides it.

@@ -61,6 +61,22 @@ test('assemblePricing carries source + buy/sell volume onto each material row, n
 
   const partly = assemblePricing(STRUCTURE, (typeId) => (typeId === 34 ? PRICES[34] : undefined));
   expect(partly.rows.find((r) => r.typeId === 35)).toMatchObject({ source: null, buyVolume: null, sellVolume: null });
+
+  // A row is its cost columns plus exactly the row price fields: no bestBuy, depth or discount.
+  expect(pricing.rows.find((r) => r.typeId === 34)).toStrictEqual({
+    typeId: 34,
+    name: 'Tritanium',
+    quantity: 100,
+    unitBuy: 5,
+    extendedCost: 500,
+    bestSell: 6,
+    pct5Buy: 4,
+    pct5Sell: 7,
+    buyVolume: 8_200,
+    sellVolume: 1_200,
+    source: 'esi',
+    staleAfterMs: 1_700_000_000_000,
+  });
 });
 
 describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
@@ -170,8 +186,19 @@ describe('assemblePricing intermediate side-channel', () => {
       typeId === 500 ? intermediatePrice : PRICES[typeId],
     );
 
-    expect(pricing.intermediatePrices).toEqual([
-      expect.objectContaining({ typeId: 500, bestBuy: 1_000, buyVolume: 30, source: 'esi' }),
+    // Its own buy quote plus exactly the row price fields.
+    expect(pricing.intermediatePrices).toStrictEqual([
+      {
+        typeId: 500,
+        bestBuy: 1_000,
+        bestSell: 1_200,
+        pct5Buy: 950,
+        pct5Sell: 1_250,
+        buyVolume: 30,
+        sellVolume: 40,
+        source: 'esi',
+        staleAfterMs: 1_700_000_000_000,
+      },
     ]);
     expect(pricing.summary.inputCost).toBe(650);
   });

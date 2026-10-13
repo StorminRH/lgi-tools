@@ -23,7 +23,6 @@ import type {
   CorpStructuresPort,
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
-import type { SecurityClass } from '@/data/eve-data/security';
 import { nameOrUnresolved } from '@/lib/format/names';
 import { singleFlight } from '@/lib/memoize';
 import { refreshDue } from './live-dataset-view';
@@ -50,17 +49,6 @@ function makeCorpStructuresPort(userId: string): CorpStructuresPort {
 const refreshCorpStructuresOnView = singleFlight((userId: string) =>
   refreshCorpStructuresForUser(makeCorpStructuresPort(userId), userId));
 
-interface ViewerCorpStructures {
-  corporationId: number;
-  structures: CorpStructureRow[];
-  lastRefreshedAt: number | null;
-}
-
-interface ViewerCorpStructuresResult {
-  corporations: ViewerCorpStructures[];
-  refreshing: boolean;
-}
-
 /** Schedules the refresh, and says whether it, or the corp context refresh resolveCorpViewer scheduled, will reach ESI. */
 function scheduleCorpStructuresRefresh(userId: string): Promise<boolean> {
   after(() => refreshCorpStructuresOnView(userId));
@@ -81,64 +69,37 @@ function visibleStructures(access: StructuresAccess, rows: CorpStructureRow[] | 
   return access === 'none' ? [] : rows ?? [];
 }
 
-async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
-  const { corporations } = await loadCorpViewer(userId);
-  const corporationIds = corporations.map((corp) => corp.corporationId);
-  const [structuresByCorp, freshnessByCorp, refreshing] = await Promise.all([
-    getCorpStructures(corporationIds),
-    loadFreshness(corporationIds),
-    scheduleCorpStructuresRefresh(userId),
-  ]);
-
-  return {
-    corporations: corporations.map(({ corporationId, grant }) => ({
-      corporationId,
-      structures: visibleStructures(grant.structures, structuresByCorp.get(corporationId)),
-      lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
-    })),
-    refreshing,
-  };
-}
-
-export interface AvailableCorpStructure {
-  structureId: number;
-  typeId: number;
-  systemId: number;
-  securityClass: SecurityClass;
-  name: string | null;
-  rigTypeIds: number[];
-  taxPct: number | null;
-}
-
-export async function getAvailableCorpStructuresForUser(
-  userId: string,
-): Promise<{ structures: AvailableCorpStructure[]; refreshing: boolean }> {
-  const { corporations, refreshing } = await getCorpStructuresForUserOnView(userId);
-  const rigsByStructure = await getCorpStructureRigs(corporations.map((c) => c.corporationId));
-  const structures: AvailableCorpStructure[] = [];
-  for (const corp of corporations) {
-    for (const s of corp.structures) {
-      const completion = rigsByStructure.get(s.structureId);
-      structures.push({
-        structureId: s.structureId,
-        typeId: s.typeId,
-        systemId: s.systemId,
-        securityClass: s.securityClass,
-        name: s.name,
-        rigTypeIds: completion?.rigTypeIds ?? [],
-        taxPct: completion?.taxPct ?? null,
-      });
-    }
-  }
-  return { structures, refreshing };
-}
-
 function withCompletion(
   structure: CorpStructureRow,
   rigsByStructure: ReadonlyMap<number, CorpStructureCompletion>,
 ): CorpStructurePageStructure {
   const completion = rigsByStructure.get(structure.structureId);
   return { ...structure, rigTypeIds: completion?.rigTypeIds ?? [], taxPct: completion?.taxPct ?? null };
+}
+
+/**
+ * The corp structures the planner may build in: each one the viewer's grant
+ * shows, completed with its stored rigs and tax, and whether a refresh will
+ * reach ESI behind them. Structures and rigs are read together, and the
+ * refresh is scheduled even when the viewer has no corporations.
+ */
+export async function getAvailableCorpStructuresForUser(
+  userId: string,
+): Promise<{ structures: CorpStructurePageStructure[]; refreshing: boolean }> {
+  const { corporations } = await loadCorpViewer(userId);
+  const corporationIds = corporations.map((corp) => corp.corporationId);
+  const [structuresByCorp, rigsByStructure, refreshing] = await Promise.all([
+    getCorpStructures(corporationIds),
+    getCorpStructureRigs(corporationIds),
+    scheduleCorpStructuresRefresh(userId),
+  ]);
+
+  const structures = corporations.flatMap(({ corporationId, grant }) =>
+    visibleStructures(grant.structures, structuresByCorp.get(corporationId)).map((s) =>
+      withCompletion(s, rigsByStructure),
+    ),
+  );
+  return { structures, refreshing };
 }
 
 /** Says, without scheduling anything, that no refresh will reach ESI. */

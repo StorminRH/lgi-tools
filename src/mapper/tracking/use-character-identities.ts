@@ -1,7 +1,7 @@
 'use client';
 
 import { useAccountCharacters } from '@/components/use-account-characters';
-import { useEntityNames } from '@/components/use-entity-names';
+import { useEntityNames } from '@/data/eve-data/use-names';
 import { nameOrUnresolved } from '@/lib/format/names';
 
 export interface CharacterIdentity {

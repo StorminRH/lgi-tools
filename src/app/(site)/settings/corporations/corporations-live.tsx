@@ -52,7 +52,7 @@ function MembershipsCard({ view }: { view: CorporationsView }) {
       )}
       <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
         Manage stations and taxes on{' '}
-        <Link href="/structures" className={inlineLink}>
+        <Link href="/industry?panel=structures" className={inlineLink}>
           Structures
         </Link>
         .

@@ -1,8 +1,8 @@
-import type { LazySearchSource } from '@/platform/search';
+import { lazySearchSource } from '@/platform/search';
 
-export const blueprintsSearchSource: LazySearchSource = {
+export const blueprintsSearchSource = lazySearchSource({
   id: 'blueprints',
   name: 'Blueprints',
   limit: 6,
-  load: () => import('./blueprints-source').then((m) => m.blueprintsSource),
-};
+  load: () => import('./blueprints-source').then((m) => m.searchBlueprints),
+});

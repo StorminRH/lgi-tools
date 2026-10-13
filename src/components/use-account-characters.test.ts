@@ -6,7 +6,9 @@ const h = vi.hoisted(() => ({
   auth: { session: { characterId: 7 } as { characterId: number } | null, loading: false },
   apiFetch: vi.fn(),
 }));
-const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
+// React keeps the roster read and its writer while the pilot and session hold, so a re-render reads nothing new.
+const rt = await vi.hoisted(async () =>
+  (await import('@/lib/__tests__/hook-runtime')).createHookRuntime({ memoizeCallbacks: true }));
 
 vi.mock('react', () => rt.react);
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => h.auth }));

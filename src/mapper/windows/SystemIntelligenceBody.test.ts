@@ -32,13 +32,13 @@ const assets = vi.hoisted(() => ({
   systemInfo: vi.fn<(id: number) => SystemDirectoryEntry | null>(() => null),
 }));
 
-vi.mock('@/components/use-entity-names', () => ({ useEntityNames: () => ({}) }));
+vi.mock('@/data/eve-data/use-names', () => ({ useEntityNames: () => ({}), useTypeNames: () => ({}) }));
 vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }));
 vi.mock('../signatures/signature-context', () => ({
   useSignatureRows: () => signatures.rows,
 }));
 vi.mock('../signatures/use-system-statics', () => ({ useSystemStaticSlots: () => statics.slots }));
-vi.mock('../chain/use-universe-assets', () => ({
+vi.mock('@/data/eve-data/use-universe-assets', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
 

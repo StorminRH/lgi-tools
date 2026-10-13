@@ -1,6 +1,6 @@
 import type { Id } from '@/data/convex/data-model';
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
-import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import type { SystemInfoLookup } from '@/data/eve-data/universe-assets-client';
 import {
   isConnectionRemoved,
   hasAnswerablePrompt,
@@ -109,7 +109,7 @@ function isOwnOpenPrompt(
 function jumpResolutionModel(
   connection: ConnectionDetail | AwaitingJumpSummary,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
-  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
+  systemInfo: SystemInfoLookup | null,
 ): JumpResolutionModel | null {
   const candidates = jumpResolutionCandidates(connection, unresolvedHoles);
   const destination = destinationReadout(
@@ -131,7 +131,7 @@ export function pendingJumpResolution(
   details: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
   dismissed: ReadonlySet<string>,
-  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
+  systemInfo: SystemInfoLookup | null,
   ownCharacterIds: ReadonlySet<number>,
   awaitingJumps: readonly AwaitingJumpSummary[] = [],
 ): JumpResolutionModel | null {

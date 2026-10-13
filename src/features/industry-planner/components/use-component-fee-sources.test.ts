@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { createResourceRead } from '../resource-read';
+import { createResourceRead } from '@/lib/resource-read';
 import type { JobRoute, PlanFacility, ProfilePlan } from '../profiles/profile-plan';
 import type { BlueprintStructure, SystemJobCostIndex } from '../types';
 
@@ -16,7 +16,7 @@ vi.mock('@/lib/retry', async (load) => {
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 
-vi.mock('../use-resource-read', () => ({
+vi.mock('@/lib/use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, opts: {
     enabled: boolean; onData: (data: unknown) => void; refreshKey: number;
   }) => {

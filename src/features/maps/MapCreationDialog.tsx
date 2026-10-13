@@ -30,7 +30,6 @@ import { displayTitle } from '@/components/ui/type-roles';
 import { MAX_MAP_NAME_LENGTH } from '@/data/maps/api-contract';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
-import { CharacterSearchControl } from './CharacterSearchControl';
 import { OwnCharacterPicker } from './OwnCharacterPicker';
 import {
   addAccessPrincipal,
@@ -289,12 +288,6 @@ function CreationForm({
             setGrants((current) => removeAccessPrincipal(current, principal));
             clearFormError();
           }}
-          characterSearch={
-            <CharacterSearchControl
-              selectedPrincipals={grants}
-              onSelect={addPrincipal}
-            />
-          }
         />
         {formError !== null ? <Banner tone="warn">{formError}</Banner> : null}
       </DialogBody>

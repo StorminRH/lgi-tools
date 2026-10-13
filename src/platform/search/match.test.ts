@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fuzzyMatch } from './match';
+import { fuzzyMatch, matchesAllWords } from './match';
 
 describe('fuzzyMatch', () => {
   it('returns a zero-score sentinel for empty query', () => {
@@ -45,5 +45,18 @@ describe('fuzzyMatch', () => {
   it('is case-insensitive in both directions', () => {
     expect(fuzzyMatch('FORG', 'Forgotten Frontier')).not.toBeNull();
     expect(fuzzyMatch('forg', 'FORGOTTEN FRONTIER')).not.toBeNull();
+  });
+});
+
+describe('matchesAllWords', () => {
+  it('needs every typed word in the name, in any order, ignoring case and spacing', () => {
+    const name = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant';
+    expect(matchesAllWords(name, 'jita navy')).toBe(true);
+    expect(matchesAllWords(name, 'navy jita')).toBe(true);
+    expect(matchesAllWords(name, 'NAVY   Jita')).toBe(true);
+    expect(matchesAllWords(name, ' jita navy ')).toBe(true);
+    expect(matchesAllWords(name, 'nav')).toBe(true);
+    expect(matchesAllWords(name, 'jita amarr')).toBe(false);
+    expect(matchesAllWords(name, 'jitanavy')).toBe(false);
   });
 });

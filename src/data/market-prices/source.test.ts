@@ -3,6 +3,7 @@ import { BULK_THRESHOLD, PER_TYPE_CONCURRENCY } from './constants';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { computeDepth, computeSide, fetchPricesFromSource, fetchPricesPerType } from './source';
 import type { RawMarketPrice } from './types';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const h = vi.hoisted(() => ({ esiFetch: vi.fn(), batchConcurrency: [] as number[] }));
 
@@ -311,7 +312,11 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
     expect(r34.bestSell).toBe(110);
     expect(r34.buyVolume).toBe(BigInt(50));
     expect(r34.sellVolume).toBe(BigInt(30));
-    expect(vi.mocked(esiFetch).mock.calls).toHaveLength(2);
+    // Both reads go to The Forge's order book.
+    expect(vi.mocked(esiFetch).mock.calls.map(([url]) => url).sort()).toEqual([
+      'https://esi.evetech.net/markets/10000002/orders/?order_type=all&type_id=34',
+      'https://esi.evetech.net/markets/10000002/orders/?order_type=all&type_id=35',
+    ]);
   });
 
   it('routes individual EsiServerError failures to Fuzzwork fallback (partial)', async () => {
@@ -610,6 +615,34 @@ describe('fetchPricesPerType — the page-view path', () => {
     expect(vi.mocked(esiFetch).mock.calls.every(([, init]) => init === undefined)).toBe(true);
     expect(h.batchConcurrency).toEqual([PER_TYPE_CONCURRENCY]);
     expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
+  it('keeps the ESI rows and logs once when the batched Fuzzwork call fails, leaving the failed types unpriced', async () => {
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const id = Number(/type_id=(\d+)/.exec(url)![1]);
+      if (id !== 34) throw new EsiServerError(502);
+      return ordersResponse([{ type_id: id, is_buy_order: false, price: 2, volume_remain: 1 }]);
+    });
+    const failure = new Error('fuzzwork down');
+    vi.mocked(fetchPricesFromFuzzwork).mockRejectedValue(failure);
+    const errors = silenceConsolePrefixes('error', ['[market-prices/source] ']);
+
+    const { prices, metaByType } = await fetchPricesPerType([34, 35, 36]);
+
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith([35, 36]);
+    expect(prices.map((r) => [r.typeId, r.source])).toEqual([[34, 'esi']]);
+    expect([...metaByType.keys()]).toEqual([34]);
+    expect(errors.mock.calls).toEqual([['[market-prices/source] Fuzzwork fallback failed', failure]]);
+    errors.mockRestore();
+  });
+
+  it('still fails the cron\'s per-type read when the Fuzzwork fallback fails', async () => {
+    vi.mocked(esiFetch).mockRejectedValue(new EsiServerError(502));
+    const failure = new Error('fuzzwork down');
+    vi.mocked(fetchPricesFromFuzzwork).mockRejectedValue(failure);
+
+    await expect(fetchPricesFromSource([34, 35])).rejects.toBe(failure);
   });
 });
 

@@ -19,7 +19,7 @@ it('renders durable grants, private create state, and an unchosen controlled rol
       onPrincipalAdd: vi.fn(),
       onRoleChange: vi.fn(),
       onPrincipalRemove: vi.fn(),
-      characterSearch: createElement('div', { 'data-character-search-controller': '' }),
+      disabled: true,
     }),
   );
   expect(manage).toContain('data-map-access-editor="manage"');
@@ -28,8 +28,12 @@ it('renders durable grants, private create state, and an unchosen controlled rol
   expect(manage).toContain('Read-only');
   expect(manage).toContain('Write');
   expect(manage).toContain('Admin');
-  expect(manage).toContain('data-character-search-controller');
   expect(manage).not.toContain('Map creator');
+  // The character search sits between the corporations and the access list, and is locked with the editor.
+  const search = manage.indexOf('data-map-character-search');
+  expect(manage.indexOf('id="map-access-corporations"')).toBeLessThan(search);
+  expect(search).toBeLessThan(manage.indexOf('id="map-access-selected"'));
+  expect(/<input[^>]*role="combobox"[^>]*>/.exec(manage)?.[0]).toMatch(/ disabled=""/);
 
   const create = renderToStaticMarkup(
     createElement(AccessListEditor, {
@@ -44,6 +48,8 @@ it('renders durable grants, private create state, and an unchosen controlled rol
   expect(create).toContain('Private — no delegated access.');
   expect(create).toContain('No linked corporations available.');
   expect(create).not.toContain('>Admin<');
+  expect(create).toContain('data-map-character-search');
+  expect(/<input[^>]*role="combobox"[^>]*>/.exec(create)?.[0]).not.toMatch(/ disabled=""/);
 
   const unchosen = renderToStaticMarkup(
     createElement(AccessListEditor, {

@@ -1,24 +1,15 @@
-import type { SearchResult, SearchSource } from '@/platform/search';
-import { fuzzyMatch } from '@/platform/search/match';
+import type { SearchSource } from '@/platform/search';
+import { rankFuzzyResults } from '@/platform/search/rank';
 
 export const recentsSearchSource: SearchSource = {
   id: 'recents',
   name: 'Recent',
   limit: 5,
   showOnEmpty: true,
+  // An empty query scores every recent alike, so they stay in recency order.
   async search(query, ctx) {
-    if (query.length === 0) {
-      return ctx.recents.map<SearchResult>((r) => ({ ...r, matchIndices: [] }));
-    }
-
-    const matched = ctx.recents
-      .map((r) => ({ row: r, match: fuzzyMatch(query, r.label) }))
-      .filter((entry): entry is { row: SearchResult; match: NonNullable<typeof entry.match> } => entry.match !== null);
-
-    matched.sort((a, b) => b.match.score - a.match.score);
-
-    return matched.map<SearchResult>(({ row, match }) => ({
-      ...row,
+    return rankFuzzyResults(ctx.recents, query, (r) => r.label, (r, match) => ({
+      ...r,
       matchIndices: match.matchIndices,
     }));
   },

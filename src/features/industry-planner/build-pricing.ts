@@ -12,7 +12,7 @@ import {
   type BuildCost,
   type PriceOf,
 } from '@/data/industry-math/profitability';
-import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
+import type { PlainPriceFigures, PriceSource } from '@/data/market-prices/types';
 import {
   computeBatchLedger,
   computeBatchMaterials,
@@ -35,18 +35,17 @@ import type {
   IntermediatePrice,
   MaterialCostRow,
   NetMarginView,
+  RowPriceFields,
 } from './types';
 
-export interface PriceLite {
-  bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  buyDepth?: DepthBand[] | null;
-  sellDepth?: DepthBand[] | null;
-  regionalDiscount?: RegionalDiscount | null;
+/**
+ * The figures the planner prices from. Depth and discount are optional, since
+ * a price seeded from a material or intermediate row carries no discount;
+ * source and stale time are null on the seeded product.
+ */
+export interface PriceLite
+  extends Omit<PlainPriceFigures, 'buyDepth' | 'sellDepth' | 'regionalDiscount'>,
+    Partial<Pick<PlainPriceFigures, 'buyDepth' | 'sellDepth' | 'regionalDiscount'>> {
   source: PriceSource | null;
   staleAfterMs: number | null;
 }
@@ -70,7 +69,7 @@ function productView(
   };
 }
 
-function rowPriceFields(p: PriceLite | undefined) {
+function rowPriceFields(p: PriceLite | undefined): RowPriceFields {
   return {
     bestSell: p?.bestSell ?? null,
     pct5Buy: p?.pct5Buy ?? null,

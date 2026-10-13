@@ -4,12 +4,12 @@ import { useCallback, useMemo, useState } from 'react';
 import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 import type {
   AwaitingJumpSummary,
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
-import { useUniverseAssets } from '../chain/use-universe-assets';
 import { answerAndAnnounce } from './connection-authoring-api';
 import {
   jumpAnswerTarget,
@@ -40,7 +40,7 @@ export function useSignatureJumpFlow(
             connectionDetails,
             unresolvedHoles,
             dismissedResolutions,
-            assets === null ? null : (id: number) => assets.systemInfo(id),
+            assets?.systemInfo ?? null,
             ownCharacterIds,
             awaitingJumps,
           )
