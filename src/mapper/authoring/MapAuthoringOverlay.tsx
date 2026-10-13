@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import type { Id } from '@/data/convex/data-model';
+import { useNow } from '@/lib/use-now';
 import type { ConnectionAuthoringApi } from '../signatures/connection-authoring-api';
+import { restoreSignaturesAndInvalidate } from '../signatures/signature-removal';
 import { MapEventLog } from '../log/MapEventLog';
 import type { MapEventRestoreAction } from '../log/map-event-copy';
 
@@ -21,23 +23,17 @@ export function MapAuthoringOverlay({
   connectionPresentationNow,
   authoring,
 }: MapAuthoringOverlayProps) {
-  const [tickNow, setTickNow] = useState(connectionPresentationNow);
-  useEffect(() => {
-    const timer = window.setInterval(
-      () => setTickNow(Date.now()),
-      OVERLAY_TICK_MS,
-    );
-    return () => window.clearInterval(timer);
-  }, []);
-  const now = Math.max(tickNow, connectionPresentationNow);
+  // A fresher tombstone tick from the chain still wins over this clock.
+  const now = Math.max(useNow(OVERLAY_TICK_MS), connectionPresentationNow);
 
   const restoreFromEvent = useCallback(
     (action: MapEventRestoreAction) => {
       if (action.kind === 'signatures') {
-        void authoring.restoreSignatures({
+        void restoreSignaturesAndInvalidate({
           mapId,
           systemId: action.systemId,
-          signatureIds: [...action.signatureIds],
+          signatureIds: action.signatureIds,
+          restore: authoring.restoreSignatures,
         });
         return;
       }

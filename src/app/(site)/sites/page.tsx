@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Banner } from '@/components/ui/banner';
 import { PageShell } from '@/components/ui/page-shell';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
@@ -87,6 +88,24 @@ async function SitesCatalogue({
   );
 }
 
+function SitesCatalogueFallback() {
+  return (
+    <SkeletonGroup label="Loading sites" className="flex w-full flex-col gap-4">
+      <Skeleton className="h-10 w-full rounded-card" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-40 w-full rounded-card" />
+        ))}
+      </div>
+    </SkeletonGroup>
+  );
+}
+
+/**
+ * The priced catalogue lives until a price write clears its tag, so it
+ * prerenders into the shell; the skeleton stands in only for a request
+ * that has to build it.
+ */
 export default function SitesPage({
   searchParams,
 }: {
@@ -94,7 +113,9 @@ export default function SitesPage({
 }) {
   return (
     <PageShell mode="workspace">
-      <SitesCatalogue searchParams={searchParams} />
+      <Suspense fallback={<SitesCatalogueFallback />}>
+        <SitesCatalogue searchParams={searchParams} />
+      </Suspense>
     </PageShell>
   );
 }

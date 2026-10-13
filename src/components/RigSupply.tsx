@@ -1,21 +1,20 @@
 'use client';
 
 import { Select, type SelectOption } from '@/components/ui/select';
+import { UPWELL_RIG_SLOTS } from '@/data/eve-data/structures';
 
 export function RigSupply({
   validRigs,
-  maxSlots,
   slots,
   onSlotsChange,
   disabled = false,
 }: {
   validRigs: { typeId: number; name: string }[];
-  maxSlots: number;
   slots: (number | null)[];
   onSlotsChange: (next: (number | null)[]) => void;
   disabled?: boolean;
 }) {
-  const slotIndices = Array.from({ length: maxSlots }, (_, i) => i);
+  const slotIndices = Array.from({ length: UPWELL_RIG_SLOTS }, (_, i) => i);
   const rigOptions: SelectOption[] = validRigs.map((r) => ({ value: String(r.typeId), label: r.name }));
   return (
     <div className="flex flex-col gap-1.5">

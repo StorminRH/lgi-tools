@@ -13,16 +13,16 @@ import { apiResponse } from '@/transport/api-response';
 // input: none
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
-  if (!userId) return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
+  if (!userId) return apiResponse(availableStructuresEndpoint, 200, { structures: [], refreshing: false });
 
-  const [custom, corp, structureTypes, capitalHulls] = await Promise.all([
+  const [custom, { structures: corp, refreshing }, structureTypes, capitalHulls] = await Promise.all([
     listCustomStructures(userId),
     getAvailableCorpStructuresForUser(userId),
     getStructureTypes(),
     getCapitalShipyardHullIds(),
   ]);
   if (custom.length === 0 && corp.length === 0) {
-    return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
+    return apiResponse(availableStructuresEndpoint, 200, { structures: [], refreshing });
   }
 
   const [modifiers, targetFilterSets] = await Promise.all([
@@ -31,5 +31,5 @@ export async function GET(): Promise<Response> {
   ]);
   const hulls = structureTypes.map((t) => ({ ...t, hostsCapitals: capitalHulls.includes(t.typeId) }));
   const structures = buildAvailableStructures(custom, corp, hulls, modifiers, targetFilterSets);
-  return apiResponse(availableStructuresEndpoint, 200, { structures });
+  return apiResponse(availableStructuresEndpoint, 200, { structures, refreshing });
 }

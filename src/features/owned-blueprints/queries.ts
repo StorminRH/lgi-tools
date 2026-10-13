@@ -1,9 +1,10 @@
-import { and, eq } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import { cacheLife, cacheTag } from 'next/cache';
+import { db } from '@/db';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
-import type { PostgresJsDb } from '@/lib/db-types';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
+import { ownerKeyWhere } from '@/lib/db-columns';
+import type { AnyPgDb } from '@/lib/db-types';
 import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
 import {
   type BlueprintMapInput,
@@ -14,29 +15,32 @@ import {
   visibleCorpBlueprintInputs,
 } from './blueprint-map';
 import type { OwnedBlueprint } from './esi-projection';
+import { ownedBlueprintsKey } from './keys';
 import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
-function ownedBlueprintsTag(owner: OwnerKey): string {
-  return `owned-blueprints:${owner.ownerType}:${owner.ownerId}`;
-}
-
+/** One owner's blueprint rows, cached across instances until the stored paged answer behind them expires. */
 async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintRow[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(ownedBlueprintsTag(owner));
-  return db
-    .select({
-      itemId: ownedBlueprints.itemId,
-      typeId: ownedBlueprints.typeId,
-      materialEfficiency: ownedBlueprints.materialEfficiency,
-      timeEfficiency: ownedBlueprints.timeEfficiency,
-      runs: ownedBlueprints.runs,
-      locationId: ownedBlueprints.locationId,
-      locationFlag: ownedBlueprints.locationFlag,
-    })
-    .from(ownedBlueprints)
-    .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
+  'use cache: remote';
+  const key = ownedBlueprintsKey(owner);
+  cacheTag(datasetTag(key));
+  const [rows, expiresAt] = await Promise.all([
+    db
+      .select({
+        itemId: ownedBlueprints.itemId,
+        typeId: ownedBlueprints.typeId,
+        materialEfficiency: ownedBlueprints.materialEfficiency,
+        timeEfficiency: ownedBlueprints.timeEfficiency,
+        runs: ownedBlueprints.runs,
+        locationId: ownedBlueprints.locationId,
+        locationFlag: ownedBlueprints.locationFlag,
+      })
+      .from(ownedBlueprints)
+      .where(ownerKeyWhere(ownedBlueprints, owner)),
+    storedExpiry([key]),
+  ]);
+  cacheLife(untilExpires(expiresAt));
+  return rows;
 }
 
 async function characterInputs(characterId: number): Promise<BlueprintMapInput[]> {
@@ -67,62 +71,54 @@ export async function getOwnedBlueprintMap(
 
 export async function readBlueprintSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
-    .select({
-      lastRefreshedAt: ownedBlueprintSyncs.lastRefreshedAt,
-      pageEtags: ownedBlueprintSyncs.pageEtags,
-    })
+    .select({ lastRefreshedAt: ownedBlueprintSyncs.lastRefreshedAt })
     .from(ownedBlueprintSyncs)
-    .where(and(eq(ownedBlueprintSyncs.ownerType, owner.ownerType), eq(ownedBlueprintSyncs.ownerId, owner.ownerId)))
+    .where(ownerKeyWhere(ownedBlueprintSyncs, owner))
     .limit(1);
-  const row = rows[0];
-  return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
+  return rows[0] ?? null;
 }
 
+/**
+ * Replace an owner's blueprints under its sync-row lock; a unique violation
+ * is 'superseded' and changes nothing. An owner sync passes the transaction
+ * its answers commit in, and its commit clears the cache tag afterwards.
+ */
 export async function saveOwnedBlueprints(
   owner: OwnerKey,
   rows: OwnedBlueprint[],
   etags: string[],
-  options: { database?: PostgresJsDb } = {},
-): Promise<void> {
-  let database = options.database;
-  if (database === undefined) {
-    resolveLockConnectionUrl();
-    database = drizzle(directClient);
-  }
+  options: { database?: AnyPgDb } = {},
+): Promise<'saved' | 'superseded'> {
   const now = new Date();
-  await database.transaction(async (tx) => {
-    await tx.insert(ownedBlueprintSyncs)
-      .values({ ...owner, lastRefreshedAt: now, pageEtags: etags })
+  return replaceOwnerSnapshot({
+    lock: (tx) => tx
+      .insert(ownedBlueprintSyncs)
+      .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })
       .onConflictDoUpdate({
         target: [ownedBlueprintSyncs.ownerType, ownedBlueprintSyncs.ownerId],
         set: { lastRefreshedAt: now, pageEtags: etags },
-      });
-    await tx
-      .delete(ownedBlueprints)
-      .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
-    if (rows.length > 0) {
-      await tx.insert(ownedBlueprints).values(
-        rows.map((r) => ({
-          ownerType: owner.ownerType,
-          ownerId: owner.ownerId,
-          itemId: r.item_id,
-          typeId: r.type_id,
-          materialEfficiency: r.material_efficiency,
-          timeEfficiency: r.time_efficiency,
-          runs: r.runs,
-          quantity: r.quantity,
-          locationId: r.location_id,
-          locationFlag: r.location_flag,
-        })),
-      );
-    }
-  });
-  revalidateTag(ownedBlueprintsTag(owner), 'max');
+      }),
+    replace: async (tx) => {
+      await tx.delete(ownedBlueprints).where(ownerKeyWhere(ownedBlueprints, owner));
+      await insertInBatches(tx, ownedBlueprints, rows.map((r) => ({
+        ownerType: owner.ownerType,
+        ownerId: owner.ownerId,
+        itemId: r.item_id,
+        typeId: r.type_id,
+        materialEfficiency: r.material_efficiency,
+        timeEfficiency: r.time_efficiency,
+        runs: r.runs,
+        quantity: r.quantity,
+        locationId: r.location_id,
+        locationFlag: r.location_flag,
+      })));
+    },
+  }, options.database);
 }
 
 export async function stampBlueprintFresh(owner: OwnerKey): Promise<void> {
   await db
     .update(ownedBlueprintSyncs)
     .set({ lastRefreshedAt: new Date() })
-    .where(and(eq(ownedBlueprintSyncs.ownerType, owner.ownerType), eq(ownedBlueprintSyncs.ownerId, owner.ownerId)));
+    .where(ownerKeyWhere(ownedBlueprintSyncs, owner));
 }

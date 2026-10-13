@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
-import {
-  computeBatchLedger,
-  computeBatchMaterials,
-  type BatchLedger,
-} from './build-batch';
+import type { TreeNode } from '@/data/eve-data/types';
+import { computeBatchLedger, type BatchLedger } from './build-batch';
 import { consolidateBuild, scaleTiersToBatched } from './build-consolidate';
 import type { BlueprintStructure } from './types';
 
@@ -119,8 +115,8 @@ describe('scaleTiersToBatched', () => {
     expect(cell(1, 100)).toBe(10);
   });
 
-  it('shows a raw at its whole-run batch total — equal to computeBatchMaterials', () => {
-    const batchTotal = computeBatchMaterials(tree, 1).find((r) => r.typeId === 200)?.quantity;
+  it('shows a raw at its whole-run batch total — equal to the ledger’s raw total', () => {
+    const batchTotal = computeBatchLedger(tree, 1).raws.get(200);
     expect(batchTotal).toBe(7);
     expect(cell(2, 200)).toBe(7);
   });
@@ -163,7 +159,7 @@ describe('scaleTiersToBatched — multi-depth raw sums to the batch total', () =
     const rCells = scaled.flatMap((t) => t.items.filter((i) => i.typeId === 200).map((i) => i.quantity));
     expect(rCells.length).toBe(2);
     const sum = rCells.reduce((a, b) => a + b, 0);
-    const batchTotal = computeBatchMaterials(tree, 1).find((r) => r.typeId === 200)?.quantity;
+    const batchTotal = computeBatchLedger(tree, 1).raws.get(200);
     expect(batchTotal).toBe(12);
     expect(sum).toBeCloseTo(12, 9);
   });

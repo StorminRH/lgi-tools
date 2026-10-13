@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { backAction, Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { StarIcon } from '@/components/ui/icons';
 import { LivePrice } from '@/components/ui/live-price';
@@ -11,24 +10,23 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/ui/stepper';
 import { eyebrow } from '@/components/ui/type-roles';
+import { activityLabel } from '@/data/eve-data/constants';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
-import { formatQuantity } from '@/lib/format/number';
-import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { startEveSignIn } from '@/platform/auth/link-character';
 import { batchedCostOfRows } from '../cost-basis-view';
 import { useFavoriteBlueprints } from '../favorite-blueprints';
-import { activityLabel, PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
-import { nodeMeState } from '../me-overrides';
+import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
-import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
+import { BlueprintMetaLine } from './BlueprintMetaLine';
 import { CockpitKpis } from './CockpitKpis';
 import { IndustryGlyph } from './IndustryGlyph';
 import { LoadFailed } from '@/components/ui/load-failed';
-import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
+import { EfficiencyStepperRows, StepperRow } from './MeAdjuster';
 import { MultibuyPanel } from './MultibuyPanel';
-import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
+import { useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 
 const PROFILES_HREF = '/industry';
 const SEARCH_HREF = '/industry/planner';
@@ -64,7 +62,7 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
         <Link
           href={SEARCH_HREF}
           transitionTypes={['industry-tab']}
-          className="mb-2 inline-flex items-center gap-2 self-start rounded-ctl py-1 font-data text-ui text-muted no-underline hover:text-isk"
+          className={cn(backAction, 'mb-2 no-underline')}
         >
           <span aria-hidden>←</span> Back to search
         </Link>
@@ -72,24 +70,17 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
           <h2 className="min-w-0 font-display text-h2 font-bold leading-tight text-name">{structure.product.name}</h2>
           <FavoriteStar typeId={structure.blueprintTypeId} name={structure.product.name} />
         </div>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-data text-micro uppercase tracking-label text-muted">
-          {group && (
-            <>
-              <span>{group}</span>
-              <span aria-hidden className="text-faint">·</span>
-            </>
-          )}
-          <span className="text-tone-blue">{activityLabel(structure.activityId)}</span>
-          <span aria-hidden className="text-faint">·</span>
-          <span>{formatQuantity(structure.product.quantityPerRun)} per run</span>
-        </p>
+        <BlueprintMetaLine
+          group={group}
+          activity={activityLabel(structure.activityId)}
+          perRun={structure.product.quantityPerRun}
+        />
       </div>
       <div className="flex items-center gap-5">
         <TypeIcon
           {...blueprintImage(structure.blueprintTypeId)}
           size={112}
           alt={structure.product.name}
-          mono={structure.product.name.slice(0, 2)}
           className="rounded-card shadow-cta-glow"
         />
         <BuildSteppers structure={structure} />
@@ -116,7 +107,7 @@ function ProfileSwitch() {
       <Button
         variant="primary"
         className={ctaClass}
-        onClick={() => void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: PROFILES_HREF })}
+        onClick={() => startEveSignIn(PROFILES_HREF)}
       >
         Create a profile
       </Button>
@@ -154,52 +145,12 @@ function ProfileSwitch() {
   );
 }
 
-/** A stepper marked by its icon alone; the stepper carries the name for assistive tech. */
-function StepperRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span aria-hidden className="inline-flex size-3.5 shrink-0">
-        {icon}
-      </span>
-      {children}
-    </div>
-  );
-}
-
 function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
   const { runs, setRuns } = usePlannerConfig();
-  const plan = useBuildPlan();
-  const id = structure.blueprintTypeId;
-  const meState = nodeMeState(plan.ownedMe?.get(id), plan.meOverrides.get(id));
-  const teState = nodeTeState(plan.ownedTe?.get(id), plan.teOverrides.get(id));
-  const manufacturing = structure.activityId === MANUFACTURING_ACTIVITY;
   return (
     <div className="flex flex-col gap-2.5">
-      {manufacturing && (
-        <StepperRow icon={<GemIcon state={meState} />}>
-          <MeField
-            blueprintTypeId={id}
-            name="main blueprint"
-            ownedMe={plan.ownedMe}
-            meOverrides={plan.meOverrides}
-            setMeOverride={plan.setMeOverride}
-            resetMeOverride={plan.resetMeOverride}
-            boxed
-          />
-        </StepperRow>
-      )}
-      {manufacturing && (
-        <StepperRow icon={<HourglassIcon state={teState} />}>
-          <TeField
-            blueprintTypeId={id}
-            name="main blueprint"
-            ownedTe={plan.ownedTe}
-            teOverrides={plan.teOverrides}
-            setTeOverride={plan.setTeOverride}
-            resetTeOverride={plan.resetTeOverride}
-            boxed
-          />
-        </StepperRow>
+      {structure.activityId === MANUFACTURING_ACTIVITY && (
+        <EfficiencyStepperRows blueprintTypeId={structure.blueprintTypeId} name="main blueprint" />
       )}
       <StepperRow icon={<IndustryGlyph glyph="runs" className="text-muted" />}>
         <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" reserveTrailing />
@@ -235,7 +186,7 @@ function BuildTools({
       >
         <span>Raw ledger</span>
         <LivePrice
-          value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
+          value={formatIsk(grandTotal)}
           pending={refreshing}
           className="font-data text-ui text-isk"
         />
@@ -254,7 +205,6 @@ export function PlannerRail({
   ledgerShown: boolean;
   onToggleLedger: () => void;
 }) {
-  const { marginMode, setMarginMode } = usePlannerConfig();
   return (
     <aside aria-label="Blueprint" className="reveal flex min-w-0 flex-col gap-5">
       <BlueprintIdentity structure={structure} />
@@ -263,7 +213,7 @@ export function PlannerRail({
         <ProfileSwitch />
       </div>
       <BuildTools structure={structure} ledgerShown={ledgerShown} onToggleLedger={onToggleLedger} />
-      <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
+      <CockpitKpis structure={structure} />
     </aside>
   );
 }

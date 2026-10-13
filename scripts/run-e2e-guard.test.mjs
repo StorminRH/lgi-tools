@@ -13,6 +13,14 @@ describe('run-e2e guard', () => {
 
     expect(
       remoteSkipSeedError({
+        baseUrl: 'http://[::1]:3000',
+        skipSeed: true,
+        e2eStorageState: undefined,
+      }),
+    ).toBeNull();
+
+    expect(
+      remoteSkipSeedError({
         baseUrl: 'https://lgi.tools',
         skipSeed: true,
         e2eStorageState: undefined,

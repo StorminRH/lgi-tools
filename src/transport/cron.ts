@@ -20,11 +20,3 @@ export async function requireBearerSecret(
 export function requireCronAuth(req: Request): Promise<Response | null> {
   return requireBearerSecret(req, 'CRON_SECRET');
 }
-
-export async function swallow(label: string, p: Promise<unknown>): Promise<void> {
-  try {
-    await p;
-  } catch (err) {
-    console.error(label, err);
-  }
-}

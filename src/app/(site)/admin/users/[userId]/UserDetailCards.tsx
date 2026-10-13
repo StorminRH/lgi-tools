@@ -1,19 +1,18 @@
-import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { AdminForceLogoutForm } from '@/components/composition/account/AdminForceLogoutForm';
 import { AdminReassignCharacterForm } from '@/components/composition/account/AdminReassignCharacterForm';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
-import { readEnv } from '@/lib/env';
 import { formatCount } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
+import { superadminCharacterId } from '@/platform/auth/admin-policy';
 import { getActiveSessionCount, getUserById, type AdminUser } from '@/platform/auth/admin-users';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
   type LinkedCharacter,
 } from '@/platform/auth/linked-characters';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { deriveLinkedCharacterStatus } from '@/platform/auth/scope-health';
 import { AdminCard } from '../../AdminSection';
 import { AdminCharacterRow } from '../AdminCharacterRow';
 import { deriveIdentityChips, forceLogoutDisabled } from './user-detail-view';
@@ -27,7 +26,7 @@ import { deriveIdentityChips, forceLogoutDisabled } from './user-detail-view';
  */
 export function readUserDetail(userId: string) {
   const characters = listLinkedCharacters(userId);
-  const superadminId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
+  const superadminId = superadminCharacterId();
   const reads = {
     user: getUserById(userId),
     characters,
@@ -73,9 +72,9 @@ export function AccountIdentity({
         characterId={user.characterId}
         portraitUrl={user.portraitUrl}
         chips={deriveIdentityChips({ role: user.role, isSuperadmin, isViewerSelf }).map((chip) => (
-          <Chip key={chip.label} tone={chip.tone}>
+          <Pill key={chip.label} tone={chip.tone}>
             {chip.label}
-          </Chip>
+          </Pill>
         ))}
       />
     </ul>
@@ -83,17 +82,17 @@ export function AccountIdentity({
 }
 
 function CharacterChips({ character, isActive }: { character: LinkedCharacter; isActive: boolean }) {
-  const health = deriveCharacterHealth({ scope: character.scope, hasRefreshToken: character.hasRefreshToken });
+  const { healthLabel } = deriveLinkedCharacterStatus(character);
   return (
     <>
       <Pill tone="neutral" className="whitespace-nowrap">
         linked {formatIsoDay(character.linkedAt)}
       </Pill>
-      {isActive ? <Chip tone="green">Selected</Chip> : null}
-      {health.needsReconnect ? (
-        <Chip tone="orange" className="normal-case">
-          {character.hasRefreshToken ? 'Missing scopes' : 'Disconnected'}
-        </Chip>
+      {isActive ? <Pill tone="green">Selected</Pill> : null}
+      {healthLabel ? (
+        <Pill tone="orange" className="shrink-0 normal-case">
+          {healthLabel}
+        </Pill>
       ) : null}
     </>
   );

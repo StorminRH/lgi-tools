@@ -1,6 +1,13 @@
 import type { Tone } from '@/components/ui/tones';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
-import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
+import type { TreeNode } from '@/data/eve-data/types';
+import type {
+  DepthBand,
+  PlainPriceFigures,
+  PriceSource,
+  RegionalDiscount,
+} from '@/data/market-prices/types';
+import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
+import type { CostBasis } from './cost-basis-view';
 
 export type {
   AvailableStructure,
@@ -61,45 +68,39 @@ export interface BlueprintStructure {
   >;
 }
 
-export interface MaterialCostRow {
+/** The price columns rowPriceFields puts on every material and intermediate row; null where unpriced. */
+export type RowPriceFields = Pick<
+  PlainPriceFigures,
+  'bestSell' | 'pct5Buy' | 'pct5Sell' | 'buyVolume' | 'sellVolume'
+> & {
+  source: PriceSource | null;
+  staleAfterMs: number | null;
+};
+
+export interface MaterialCostRow extends RowPriceFields {
   typeId: number;
   name: string;
   quantity: number;
   unitBuy: number | null;
   extendedCost: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  source: PriceSource | null;
-  staleAfterMs: number | null;
 }
 
-export interface IntermediatePrice {
+export interface IntermediatePrice extends RowPriceFields {
   typeId: number;
   bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  source: PriceSource | null;
-  staleAfterMs: number | null;
 }
 
-export interface IndustryStationView {
-  id: number;
-  name: string | null;
-  operationName: string;
-  manufacturingCapable: boolean;
-  researchCapable: boolean;
+/** One type's CCP adjusted price, the value install fees are charged on. */
+export interface TypeAdjustedPrice {
+  typeId: number;
+  adjustedPrice: number;
 }
 
-export interface BuildLocationData {
-  stations: IndustryStationView[];
-  costIndices: { manufacturing: number | null; reaction: number | null };
-  adjustedPrices: { typeId: number; adjustedPrice: number }[];
+/** A solar system a job is priced in, as the planner names and rates it. */
+export interface JobSystemRef {
+  systemId: number;
+  systemName: string;
+  security: number | null;
 }
 
 /** One system's job cost indices; null where the system has none for the activity. */
@@ -164,7 +165,7 @@ export interface BlueprintPricing {
     regionalDiscount: RegionalDiscount | null;
   };
   summary: {
-    basis: 'batched' | 'marginal';
+    basis: CostBasis;
     bases: { batched: number; marginal: number };
     inputCost: number;
     revenue: number | null;
@@ -179,7 +180,7 @@ export interface OwnedBlueprintMeEntry {
   blueprintTypeId: number;
   me: number;
   te: number;
-  ownerType: 'character' | 'corporation';
+  ownerType: EsiOwnerType;
   ownerName: string;
   locationName: string;
   locationFlag: string;
@@ -188,12 +189,13 @@ export interface OwnedBlueprintMeEntry {
 
 export interface OwnedBlueprintsResponse {
   blueprints: OwnedBlueprintMeEntry[];
+  refreshing: boolean;
 }
 
 export type OwnedComponentDetail = Omit<OwnedBlueprintMeEntry, 'blueprintTypeId' | 'me'>;
 
 export interface AssetHolding {
-  ownerType: 'character' | 'corporation';
+  ownerType: EsiOwnerType;
   ownerName: string;
   locationName: string;
   locationFlag: string;
@@ -209,4 +211,5 @@ export interface OwnedAssetEntry {
 
 export interface OwnedAssetsResponse {
   assets: OwnedAssetEntry[];
+  refreshing: boolean;
 }

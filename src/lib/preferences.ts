@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { ownedRowIdSchema } from '@/lib/id-schemas';
+import { readStoredJson, safeStorage, writeStoredJson } from '@/lib/web-storage';
 
 const LS_PREFIX = 'lgi:pref:';
 
@@ -24,16 +26,20 @@ export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'expand',
 );
 
-export const industryCostBasis = define<'batched' | 'marginal'>(
+/** How the planner prices inputs: the whole batched line, or the marginal share of one build. */
+const COST_BASES = ['batched', 'marginal'] as const;
+export type CostBasis = (typeof COST_BASES)[number];
+
+export const industryCostBasis = define<CostBasis>(
   'industry.costBasis',
-  z.enum(['batched', 'marginal']),
+  z.enum(COST_BASES),
   'marginal',
 );
 
 /** The production profile the industry workspace opens on; checked against the live list. */
 export const industryProfile = define<string | null>(
   'industry.profileId',
-  z.string().min(1).max(100).nullable(),
+  ownedRowIdSchema.nullable(),
   null,
 );
 
@@ -140,35 +146,12 @@ export function validatePreferenceValue(key: string, value: unknown): boolean {
   return def != null && def.schema.safeParse(value).success;
 }
 
-function safeStorage(): Storage | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 export function peekLocalPreference<T>(def: PreferenceDef<T>): T | undefined {
-  const store = safeStorage();
-  if (!store) return undefined;
-  const raw = store.getItem(LS_PREFIX + def.key);
-  if (raw == null) return undefined;
-  try {
-    const parsed = def.schema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : undefined;
-  } catch {
-    return undefined;
-  }
+  return readStoredJson(LS_PREFIX + def.key, def.schema);
 }
 
 export function writeLocalPreference<T>(def: PreferenceDef<T>, value: T): void {
-  const store = safeStorage();
-  if (!store) return;
-  try {
-    store.setItem(LS_PREFIX + def.key, JSON.stringify(value));
-  } catch {
-  }
+  writeStoredJson(LS_PREFIX + def.key, value);
 }
 
 /**

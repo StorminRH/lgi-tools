@@ -1,5 +1,7 @@
 import type { Tone } from '@/components/ui/tones';
+import { getOrInsertComputed } from '@/lib/array';
 import type { BatchLedger } from './build-batch';
+import { typeName } from './type-name';
 import type { BlueprintStructure, BuildNode } from './types';
 
 export interface ConsolidatedItem {
@@ -30,19 +32,11 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
   const byDepth = new Map<number, Map<number, number>>();
 
   const walk = (node: BuildNode, depth: number) => {
-    let kids = childrenOf.get(node.typeId);
-    if (!kids) {
-      kids = new Set();
-      childrenOf.set(node.typeId, kids);
-    }
+    const kids = getOrInsertComputed(childrenOf, node.typeId, () => new Set());
     for (const input of node.inputs) kids.add(input.typeId);
 
     if (depth > 0) {
-      let tier = byDepth.get(depth);
-      if (!tier) {
-        tier = new Map();
-        byDepth.set(depth, tier);
-      }
+      const tier = getOrInsertComputed(byDepth, depth, () => new Map());
       tier.set(node.typeId, (tier.get(node.typeId) ?? 0) + node.quantity);
     }
     for (const input of node.inputs) walk(input, depth + 1);
@@ -68,7 +62,7 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
     return {
       typeId,
       quantity,
-      name: d?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`,
+      name: typeName(structure, typeId),
       label: d?.label ?? '',
       tone: d?.tone ?? 'neutral',
       isRaw: d?.isRaw ?? true,

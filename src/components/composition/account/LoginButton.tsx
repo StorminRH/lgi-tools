@@ -5,9 +5,10 @@ import { EveImage } from '@/components/eve-image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip } from '@/components/ui/tooltip';
+import { eyebrow } from '@/components/ui/type-roles';
 import { LocalSyntheticPilotControl } from '@/components/composition/LocalSyntheticPilotControl';
-import { authClient } from '@/platform/auth/auth-client';
-import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
+import { startEveSignIn } from '@/platform/auth/link-character';
+import { signOutAndLeave } from '@/platform/auth/reload-document-home';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { AccountMenu } from './AccountMenu';
 
@@ -23,7 +24,7 @@ function AdminChip({ show }: { show: boolean }) {
 }
 
 export function EveSignInButton({
-  callbackURL = '/',
+  callbackURL,
   size = 'sm',
 }: {
   callbackURL?: string;
@@ -32,9 +33,7 @@ export function EveSignInButton({
   return (
     <button
       type="button"
-      onClick={() => {
-        void authClient.signIn.oauth2({ providerId: 'eve', callbackURL });
-      }}
+      onClick={() => startEveSignIn(callbackURL)}
       className={
         size === 'lg'
           ? 'inline-flex items-center rounded-ctl shadow-cta-glow transition-[filter] hover:brightness-110'
@@ -84,12 +83,8 @@ function SignedInCluster({
         <Button
           variant="bare"
           type="button"
-          onClick={() => {
-            void authClient.signOut().finally(() => {
-              reloadDocumentHome();
-            });
-          }}
-          className="text-label uppercase tracking-wide text-muted hover:text-text px-2 py-1 transition-colors"
+          onClick={() => signOutAndLeave()}
+          className={eyebrow({ font: 'inherit', weight: 'inherit', className: 'hover:text-text px-2 py-1 transition-colors' })}
         >
           Log out
         </Button>

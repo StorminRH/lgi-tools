@@ -1,51 +1,55 @@
 import { eq, inArray } from 'drizzle-orm';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
-import { eveSolarSystems } from '@/data/eve-data/schema';
-import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
+import { getSystemFacts } from '@/data/eve-data/character-facts';
+import { systemSecurityClass } from '@/data/eve-data/security';
+import type { AnyPgDb } from '@/lib/db-types';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import type { PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
+import { corpStructuresKey } from './keys';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
-import type { CorpStructureRow, CorpStructuresSyncState } from './types';
+import type { CorpStructureRow } from './types';
 
-function corpStructuresTag(corporationId: number): string {
-  return `corp-structures:${corporationId}`;
-}
-
+/** One corporation's structures, cached across instances until the stored paged answer behind them expires. */
 async function getCorpStructureRows(corporationId: number): Promise<CorpStructureRow[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(corpStructuresTag(corporationId));
-  return db
-    .select({
-      structureId: corpStructures.structureId,
-      typeId: corpStructures.typeId,
-      systemId: corpStructures.systemId,
-      securityClass: corpStructures.securityClass,
-      name: corpStructures.name,
-    })
-    .from(corpStructures)
-    .where(eq(corpStructures.corporationId, corporationId));
+  'use cache: remote';
+  const key = corpStructuresKey(corporationId);
+  cacheTag(datasetTag(key));
+  const [rows, expiresAt] = await Promise.all([
+    db
+      .select({
+        structureId: corpStructures.structureId,
+        typeId: corpStructures.typeId,
+        systemId: corpStructures.systemId,
+        securityClass: corpStructures.securityClass,
+        name: corpStructures.name,
+      })
+      .from(corpStructures)
+      .where(eq(corpStructures.corporationId, corporationId)),
+    storedExpiry([key]),
+  ]);
+  cacheLife(untilExpires(expiresAt));
+  return rows;
 }
 
 export async function getCorpStructures(
   corporationIds: number[],
 ): Promise<Map<number, CorpStructureRow[]>> {
-  const perCorp = await Promise.all(
-    corporationIds.map(async (corpId) => [corpId, await getCorpStructureRows(corpId)] as const),
-  );
-  return new Map(perCorp);
+  return mapByIdDroppingNulls(corporationIds, getCorpStructureRows);
 }
 
 export async function readCorpStructureSyncState(
   corporationId: number,
-): Promise<CorpStructuresSyncState | null> {
+): Promise<PagedOwnerSyncState | null> {
   const rows = await db
-    .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt, pageEtags: corpStructureSyncs.pageEtags })
+    .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt })
     .from(corpStructureSyncs)
     .where(eq(corpStructureSyncs.corporationId, corporationId))
     .limit(1);
-  const row = rows[0];
-  return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
+  return rows[0] ?? null;
 }
 
 export async function listCorpStructureSyncStates(
@@ -58,57 +62,40 @@ export async function listCorpStructureSyncStates(
     .where(inArray(corpStructureSyncs.corporationId, corporationIds));
 }
 
-async function deriveSecurityClasses(
-  rows: ParsedCorpStructure[],
-): Promise<Map<number, SecurityClass>> {
-  const result = new Map<number, SecurityClass>();
-  const systemIds = [...new Set(rows.map((r) => r.system_id))];
-  if (systemIds.length === 0) return result;
-  const systems = await db
-    .select({
-      id: eveSolarSystems.id,
-      securityStatus: eveSolarSystems.securityStatus,
-      wormholeClassId: eveSolarSystems.wormholeClassId,
-    })
-    .from(eveSolarSystems)
-    .where(inArray(eveSolarSystems.id, systemIds));
-  const bySystem = new Map(
-    systems.map((s) => [s.id, systemSecurityClass(s.securityStatus, s.wormholeClassId)] as const),
-  );
-  for (const r of rows) {
-    result.set(r.structure_id, bySystem.get(r.system_id) ?? systemSecurityClass(null, null));
-  }
-  return result;
-}
-
+/**
+ * Replace a corporation's structures under its sync-row lock; a unique
+ * violation is 'superseded' and changes nothing. An owner sync passes the
+ * transaction its answers commit in, and its commit clears the cache tag.
+ */
 export async function saveCorpStructures(
   corporationId: number,
   rows: ParsedCorpStructure[],
   etags: string[],
-): Promise<void> {
+  database?: AnyPgDb,
+): Promise<'saved' | 'superseded'> {
   const now = new Date();
-  const securityByStructure = await deriveSecurityClasses(rows);
-  await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
-  if (rows.length > 0) {
-    await db.insert(corpStructures).values(
-      rows.map((r) => ({
-        corporationId,
-        structureId: r.structure_id,
-        typeId: r.type_id,
-        systemId: r.system_id,
-        securityClass: securityByStructure.get(r.structure_id) ?? systemSecurityClass(null, null),
-        name: r.name ?? null,
-      })),
-    );
-  }
-  await db
-    .insert(corpStructureSyncs)
-    .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
-    .onConflictDoUpdate({
-      target: corpStructureSyncs.corporationId,
-      set: { lastRefreshedAt: now, pageEtags: etags },
-    });
-  revalidateTag(corpStructuresTag(corporationId), 'max');
+  const systems = await getSystemFacts([...new Set(rows.map((r) => r.system_id))]);
+  const records = rows.map((r) => ({
+    corporationId,
+    structureId: r.structure_id,
+    typeId: r.type_id,
+    systemId: r.system_id,
+    securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
+    name: r.name ?? null,
+  }));
+  return replaceOwnerSnapshot({
+    lock: (tx) => tx
+      .insert(corpStructureSyncs)
+      .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
+      .onConflictDoUpdate({
+        target: corpStructureSyncs.corporationId,
+        set: { lastRefreshedAt: now, pageEtags: etags },
+      }),
+    replace: async (tx) => {
+      await tx.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
+      await insertInBatches(tx, corpStructures, records);
+    },
+  }, database);
 }
 
 export async function stampCorpStructuresFresh(corporationId: number): Promise<void> {
@@ -143,21 +130,26 @@ export async function getCorpStructureRigs(
  * exposes neither the rigs nor the profile tax). Untouched by the full-replace pull
  * (saveCorpStructures never references this table), so the authored values survive
  * the hourly refresh. `taxPct` is tri-state: undefined leaves the stored tax as-is
- * (a rig-only save can't clobber it), null clears it, a number sets it.
+ * (a rig-only save can't clobber it), null clears it, a number sets it. Returns the
+ * row as stored, so a rig-only save answers with the tax it kept.
  */
 export async function upsertCorpStructureRigs(
   corporationId: number,
   structureId: number,
   rigTypeIds: number[],
   taxPct?: number | null,
-): Promise<void> {
+): Promise<CorpStructureCompletion> {
   const taxSet = taxPct === undefined ? {} : { taxPct };
-  await db
+  const [stored] = await db
     .insert(corpStructureRigs)
     .values({ corporationId, structureId, rigTypeIds, ...taxSet, setAt: new Date() })
     .onConflictDoUpdate({
       target: [corpStructureRigs.corporationId, corpStructureRigs.structureId],
       set: { rigTypeIds, ...taxSet, setAt: new Date() },
-    });
-  revalidateTag(corpStructuresTag(corporationId), 'max');
+    })
+    .returning({ rigTypeIds: corpStructureRigs.rigTypeIds, taxPct: corpStructureRigs.taxPct });
+  if (stored === undefined) {
+    throw new Error(`Corp structure rig upsert returned no row for structure ${structureId}.`);
+  }
+  return stored;
 }

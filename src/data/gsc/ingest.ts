@@ -1,7 +1,9 @@
-import { eq, sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import type { Sql } from '@/db';
-import type { AnyPgDb } from '@/lib/db-types';
+import { eq } from 'drizzle-orm';
+import { chunk } from '@/lib/array';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
+import { excludedSet } from '@/lib/db-upsert';
+import { errorMessage } from '@/lib/failure';
+import { daysBefore, isoDay } from '@/lib/iso-date';
 import {
   GSC_INSPECTION_BATCH_SIZE,
   GSC_INSPECTION_URL_LIMIT,
@@ -18,10 +20,6 @@ import type {
   SearchAnalyticsApiRow,
   SitemapApiEntry,
 } from './types';
-
-function excluded(column: string) {
-  return sql.raw(`excluded.${column}`);
-}
 
 export type SearchAnalyticsRecord = typeof gscSearchAnalytics.$inferInsert;
 export type SitemapRecord = typeof gscSitemaps.$inferInsert;
@@ -85,7 +83,7 @@ export function indexStatusToRecord(
   status: IndexStatusApiResult | null,
   syncedAt: Date,
   sitemapUrlCount: number,
-  inspectionDate = dateStr(syncedAt),
+  inspectionDate = isoDay(syncedAt),
 ): UrlInspectionRecord {
   return {
     inspectionDate,
@@ -102,16 +100,6 @@ export function indexStatusToRecord(
     crawledAs: status?.crawledAs ?? null,
     syncedAt,
   };
-}
-
-function dateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
 }
 
 function matchesProperty(url: URL, property: string): boolean {
@@ -167,19 +155,19 @@ export async function upsertUrlInspectionRecords(
     .values(records)
     .onConflictDoUpdate({
       target: [gscUrlInspection.inspectionDate, gscUrlInspection.url],
-      set: {
-        verdict: excluded('verdict'),
-        coverageState: excluded('coverage_state'),
-        robotsTxtState: excluded('robots_txt_state'),
-        indexingState: excluded('indexing_state'),
-        pageFetchState: excluded('page_fetch_state'),
-        lastCrawlTime: excluded('last_crawl_time'),
-        googleCanonical: excluded('google_canonical'),
-        userCanonical: excluded('user_canonical'),
-        crawledAs: excluded('crawled_as'),
-        sitemapUrlCount: excluded('sitemap_url_count'),
-        syncedAt: excluded('synced_at'),
-      },
+      set: excludedSet(gscUrlInspection, [
+        'verdict',
+        'coverageState',
+        'robotsTxtState',
+        'indexingState',
+        'pageFetchState',
+        'lastCrawlTime',
+        'googleCanonical',
+        'userCanonical',
+        'crawledAs',
+        'sitemapUrlCount',
+        'syncedAt',
+      ]),
     });
 }
 
@@ -202,7 +190,7 @@ export async function inspectUrlsInBatches(
             record: indexStatusToRecord(url, await inspect(url), syncedAt, sitemapUrlCount),
           };
         } catch (err) {
-          return { ok: false, error: `url-inspection ${url}: ${errText(err)}` };
+          return { ok: false, error: `url-inspection ${url}: ${errorMessage(err)}` };
         }
       }),
     );
@@ -230,21 +218,12 @@ async function upsertSearchAnalytics(
       .values(batch)
       .onConflictDoUpdate({
         target: [gscSearchAnalytics.date, gscSearchAnalytics.dimension, gscSearchAnalytics.key],
-        set: {
-          clicks: excluded('clicks'),
-          impressions: excluded('impressions'),
-          position: excluded('position'),
-          syncedAt: excluded('synced_at'),
-        },
+        set: excludedSet(gscSearchAnalytics, ['clicks', 'impressions', 'position', 'syncedAt']),
       });
   }
 }
 
 type SurfaceResult = { count: number; error: string | null };
-
-function errText(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
 
 async function syncSearchAnalytics(
   db: AnyPgDb,
@@ -266,7 +245,7 @@ async function syncSearchAnalytics(
     await upsertSearchAnalytics(db, records);
     return { count: records.length, error: null };
   } catch (err) {
-    return { count: 0, error: `search-analytics: ${errText(err)}` };
+    return { count: 0, error: `search-analytics: ${errorMessage(err)}` };
   }
 }
 
@@ -280,21 +259,23 @@ async function syncSitemaps(db: AnyPgDb, syncedAt: Date): Promise<SurfaceResult>
       .values(rows)
       .onConflictDoUpdate({
         target: gscSitemaps.path,
-        set: {
-          lastSubmitted: excluded('last_submitted'),
-          lastDownloaded: excluded('last_downloaded'),
-          isPending: excluded('is_pending'),
-          isSitemapsIndex: excluded('is_sitemaps_index'),
-          type: excluded('type'),
-          warnings: excluded('warnings'),
-          errors: excluded('errors'),
-          submitted: excluded('submitted'),
-          syncedAt: excluded('synced_at'),
-        },
+        // `indexed` is left out on purpose: sitemapToRecord never writes it, so
+        // copying it from the proposed row would reset it to its default.
+        set: excludedSet(gscSitemaps, [
+          'lastSubmitted',
+          'lastDownloaded',
+          'isPending',
+          'isSitemapsIndex',
+          'type',
+          'warnings',
+          'errors',
+          'submitted',
+          'syncedAt',
+        ]),
       });
     return { count: rows.length, error: null };
   } catch (err) {
-    return { count: 0, error: `sitemaps: ${errText(err)}` };
+    return { count: 0, error: `sitemaps: ${errorMessage(err)}` };
   }
 }
 
@@ -305,7 +286,7 @@ async function syncUrlInspections(
 ): Promise<{ count: number; errors: string[] }> {
   try {
     const urls = prepareInspectionUrls(sitemapUrls, siteUrl());
-    const inspectionDate = dateStr(syncedAt);
+    const inspectionDate = isoDay(syncedAt);
     const stored = await db
       .select({ url: gscUrlInspection.url })
       .from(gscUrlInspection)
@@ -319,11 +300,11 @@ async function syncUrlInspections(
     await upsertUrlInspectionRecords(db, result.records);
     return { count: result.records.length, errors: result.errors };
   } catch (err) {
-    return { count: 0, errors: [`url-inspection: ${errText(err)}`] };
+    return { count: 0, errors: [`url-inspection: ${errorMessage(err)}`] };
   }
 }
 
-export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSyncSummary> {
+export async function syncGsc(database: PostgresJsDb, sitemapUrls: string[]): Promise<GscSyncSummary> {
   const start = Date.now();
   if (!isGscConfigured()) {
     return {
@@ -337,14 +318,13 @@ export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSy
     };
   }
 
-  const db = drizzle(client);
   const syncedAt = new Date();
-  const endDate = dateStr(syncedAt);
-  const startDate = dateStr(new Date(syncedAt.getTime() - GSC_WINDOW_DAYS * 24 * 60 * 60 * 1000));
+  const endDate = isoDay(syncedAt);
+  const startDate = isoDay(daysBefore(syncedAt, GSC_WINDOW_DAYS));
 
-  const search = await syncSearchAnalytics(db, startDate, endDate, syncedAt);
-  const sitemap = await syncSitemaps(db, syncedAt);
-  const urls = await syncUrlInspections(db, syncedAt, sitemapUrls);
+  const search = await syncSearchAnalytics(database, startDate, endDate, syncedAt);
+  const sitemap = await syncSitemaps(database, syncedAt);
+  const urls = await syncUrlInspections(database, syncedAt, sitemapUrls);
 
   const errors = [search.error, sitemap.error, ...urls.errors].filter(
     (e): e is string => e !== null,

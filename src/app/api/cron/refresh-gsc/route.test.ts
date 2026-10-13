@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const syncGscMock = vi.fn();
 const getSitemapEntriesMock = vi.fn();
+const directDatabase = { handle: 'direct-database' };
 
 vi.mock('@/data/gsc/ingest', () => ({
   syncGsc: (...args: unknown[]) => syncGscMock(...args),
@@ -12,7 +13,7 @@ vi.mock('@/composition/pipelines/cron-gate', () => ({
     (declaration: {
       work: (
         ctx: {
-          client: unknown;
+          database: unknown;
           record: (...args: unknown[]) => Promise<void>;
         },
         pre: unknown,
@@ -20,7 +21,7 @@ vi.mock('@/composition/pipelines/cron-gate', () => ({
     }) =>
     async () => {
       const outcome = await declaration.work(
-        { client: {}, record: async () => {} },
+        { database: directDatabase, record: async () => {} },
         undefined,
       );
       return Response.json(outcome.body);
@@ -30,10 +31,6 @@ vi.mock('@/composition/pipelines/cron-gate', () => ({
 vi.mock('@/composition/sitemap', () => ({
   getSitemapEntries: (...args: unknown[]) => getSitemapEntriesMock(...args),
 }));
-
-async function importRoute() {
-  return await import('./route');
-}
 
 describe('GET /api/cron/refresh-gsc', () => {
   beforeEach(() => {
@@ -55,18 +52,18 @@ describe('GET /api/cron/refresh-gsc', () => {
   });
 
   it('syncs the sitemap URLs and returns the sync summary', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
 
     const response = await GET(new Request('http://localhost:3000/api/cron/refresh-gsc'));
 
     expect(response.status).toBe(200);
     expect((await response.json()).status).toBe('skipped');
-    expect(syncGscMock).toHaveBeenCalledWith({}, ['https://lgi.tools/']);
+    expect(syncGscMock).toHaveBeenCalledWith(directDatabase, ['https://lgi.tools/']);
   });
 
   it('lets an upstream sitemap failure escape before syncing', async () => {
     getSitemapEntriesMock.mockRejectedValue(new Error('sitemap failed'));
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
 
     await expect(
       GET(new Request('http://localhost:3000/api/cron/refresh-gsc')),

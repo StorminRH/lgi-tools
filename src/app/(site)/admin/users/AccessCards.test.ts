@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   owner: vi.fn(),
   search: vi.fn(),
   audit: vi.fn(),
-  env: vi.fn(),
+  superadmin: vi.fn(),
 }));
 
 vi.mock('@/components/character-portrait', () => ({
@@ -22,11 +22,8 @@ vi.mock('@/platform/auth/admin-users', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/platform/auth/admin-users')>()),
   searchUsersByLinkedCharacterName: mocks.search,
 }));
-vi.mock('@/data/telemetry/queries', () => ({
-  getRoleChangeAudit: mocks.audit,
-  lastNDaysRange: (days: number) => ({ days }),
-}));
-vi.mock('@/lib/env', () => ({ readEnv: mocks.env }));
+vi.mock('@/data/telemetry/queries', () => ({ getRoleChangeAudit: mocks.audit }));
+vi.mock('@/platform/auth/admin-policy', () => ({ superadminCharacterId: mocks.superadmin }));
 
 import {
   AccessSearchForm,
@@ -44,7 +41,7 @@ function user(overrides: Partial<AdminUser>): AdminUser {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.env.mockReturnValue('90000009');
+  mocks.superadmin.mockReturnValue(90_000_009);
   mocks.admins.mockResolvedValue([user({ userId: 'a', name: 'Admin Pilot', role: 'ADMIN' })]);
   mocks.owner.mockResolvedValue(user({ userId: 'super', name: 'Super Pilot', characterId: 90_000_009 }));
   mocks.search.mockResolvedValue([user({ userId: 'a', name: 'Admin Pilot', role: 'ADMIN' }), user({ userId: 'c', name: 'Cadet' })]);
@@ -63,7 +60,7 @@ describe('access loads', () => {
   });
 
   it('skips the superadmin lookup when none is configured', async () => {
-    mocks.env.mockReturnValue(undefined);
+    mocks.superadmin.mockReturnValue(null);
 
     expect(await loadAdminRows()).toHaveLength(1);
     expect(mocks.owner).not.toHaveBeenCalled();
@@ -77,10 +74,18 @@ describe('access loads', () => {
     expect(mocks.search).toHaveBeenCalledWith('pil');
   });
 
-  it('reads 90 days of role changes', async () => {
-    await loadRoleAudit();
+  it('reads the last 90 days of role changes', async () => {
+    vi.useFakeTimers({ now: new Date('2026-06-09T12:00:00Z'), toFake: ['Date'] });
+    try {
+      await loadRoleAudit();
+    } finally {
+      vi.useRealTimers();
+    }
 
-    expect(mocks.audit).toHaveBeenCalledWith({ days: 90 }, 50);
+    expect(mocks.audit).toHaveBeenCalledWith(
+      { from: new Date('2026-03-11T12:00:00Z'), to: new Date('2026-06-09T12:00:00Z') },
+      50,
+    );
   });
 });
 

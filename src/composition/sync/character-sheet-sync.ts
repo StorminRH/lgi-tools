@@ -1,64 +1,33 @@
+import { isDue, recordRefusal } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
+import { sectionKeys, sheetEndpointKey, STRUCTURE_LOOKUP_ROUTE } from '@/features/character-sheet/keys';
 import { mergeSheetSection, readSheetRow, stampSheetSection } from '@/features/character-sheet/queries';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
-import type { SheetEndpoint, SheetPort } from '@/features/character-sheet/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { enqueueBudgetDeferral } from './esi-refresh-owner-sync';
-
-export const SHEET_ESI_PATHS = {
-  character: (id: number) => `/characters/${id}/`,
-  location: (id: number) => `/characters/${id}/location/`,
-  ship: (id: number) => `/characters/${id}/ship/`,
-  online: (id: number) => `/characters/${id}/online/`,
-  attributes: (id: number) => `/characters/${id}/attributes/`,
-  implants: (id: number) => `/characters/${id}/implants/`,
-  clones: (id: number) => `/characters/${id}/clones/`,
-  wallet: (id: number) => `/characters/${id}/wallet/`,
-  journal: (id: number) => `/characters/${id}/wallet/journal/`,
-  orders: (id: number) => `/characters/${id}/orders/`,
-} as const satisfies Record<SheetEndpoint, (id: number) => string>;
-
-export const STRUCTURE_ESI_PATH = (structureId: number) => `/universe/structures/${structureId}/`;
-
-function memoizePerRun<A, R>(fn: (arg: A) => Promise<R>): (arg: A) => Promise<R> {
-  const pending = new Map<A, Promise<R>>();
-  return (arg) => {
-    const hit = pending.get(arg);
-    if (hit !== undefined) return hit;
-    const result = fn(arg);
-    pending.set(arg, result);
-    return result;
-  };
-}
+import type { SheetPort } from '@/features/character-sheet/types';
+import { memoizeAsync, singleFlight } from '@/lib/memoize';
+import { listCharactersWithHealth, vendTokenFor } from './owner-sync-port';
 
 export function makeSheetPort(): SheetPort {
   return {
     now: () => new Date(),
-    listCharacters: memoizePerRun(listCharactersWithHealth),
-    vendToken: memoizePerRun(vendTokenFor),
-    readEndpoint: (characterId, endpoint, accessToken, heldEtag) =>
-      readSingleEndpoint(SHEET_ESI_PATHS[endpoint](characterId), accessToken, heldEtag),
-    readStructure: (structureId, accessToken) =>
-      readSingleEndpoint(STRUCTURE_ESI_PATH(structureId), accessToken, null),
+    listCharacters: memoizeAsync(listCharactersWithHealth),
+    vendToken: memoizeAsync(vendTokenFor),
+    isSectionDue: (characterId, key) => isDue(sectionKeys(characterId, key)),
+    openSession: openReadSession,
+    readEndpoint: (session, characterId, endpoint, accessToken) =>
+      session.readAuthed(sheetEndpointKey(characterId, endpoint), accessToken),
+    readStructure: (session, structureId, accessToken) =>
+      session.readPassThrough(STRUCTURE_LOOKUP_ROUTE, { structure_id: structureId }, accessToken),
     readSheet: readSheetRow,
     mergeSection: mergeSheetSection,
     stampSection: stampSheetSection,
+    recordSectionRefusal: (characterId, key, expiresAt) => recordRefusal(sectionKeys(characterId, key), expiresAt),
   };
 }
 
-export function refreshCharacterSheetsOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshCharacterSheetForUser(makeSheetPort(), userId, enqueueBudgetDeferral('character_sheet', userId));
-}
+const sheetsInFlight = singleFlight((userId: string) => refreshCharacterSheetForUser(makeSheetPort(), userId));
 
-/** Retry all stale sections for this pilot; one completed section cannot settle the whole sheet. */
-export async function runCharacterSheetRefreshJob(
-  userId: string,
-  target: OwnerSyncTarget,
-): Promise<OwnerSyncResult> {
-  const results = await refreshCharacterSheetForUser(makeSheetPort(), userId, { target });
-  return results.find((result) => result.kind === 'deferred_for_budget')
-    ?? results.find((result) => result.kind === 'failed_retryable')
-    ?? results.find((result) => result.kind === 'failed_permanent')
-    ?? results[0]
-    ?? { kind: 'failed_permanent', target, code: 'owner_unavailable' };
+/** The refresh a view schedules: concurrent calls for one user in this process share one run, and a call after it settles runs again. */
+export function refreshCharacterSheetsOnView(userId: string) {
+  return sheetsInFlight(userId);
 }

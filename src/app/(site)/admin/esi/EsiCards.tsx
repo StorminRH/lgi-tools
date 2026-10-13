@@ -1,10 +1,10 @@
+import { levelValueClass } from '@/components/status-level-tone';
 import { cn } from '@/components/ui/cn';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ReadoutList, ReadoutRow } from '@/components/ui/readout';
-import { trendSeries } from '@/composition/admin-period';
-import { esiAvailability } from '@/data/telemetry/capability-stats';
+import { esiAvailability, esiClientErrors } from '@/data/telemetry/capability-stats';
 import { fallbackRate } from '@/data/telemetry/cron-stats';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
 import {
@@ -16,10 +16,11 @@ import {
 import type { DateRange } from '@/data/telemetry/types';
 import { formatQuantity } from '@/lib/format/number';
 import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
+import { trendSeries } from '../period';
 import { AdminBarChart, AdminTrendChart } from '../charts';
 import {
   getCapabilityOutcomeStatsShared,
-  getEsiRefreshQueueStatsShared,
+  getEsiClientErrorsShared,
   getPriceRefreshDaysShared,
   getPriceSourceDegradationShared,
 } from '../shared-reads';
@@ -49,7 +50,7 @@ export function BudgetGauge({ budget }: { budget: Awaited<ReturnType<typeof load
     <>
       <div className="flex flex-col gap-2 px-3.5 py-3">
         <div className="flex items-baseline gap-2">
-          <span className={cn('font-data text-stat tabular-nums', budget.level === 'red' ? 'text-tone-red' : 'text-name')}>
+          <span className={cn('font-data text-stat tabular-nums', levelValueClass(budget.level, 'text-name'))}>
             {budget.remaining}
           </span>
           <span className="font-ui text-ui text-muted">of {budget.ceiling} estimated errors remaining</span>
@@ -67,11 +68,11 @@ export function BudgetGauge({ budget }: { budget: Awaited<ReturnType<typeof load
 }
 
 export async function loadPressureLines(range: DateRange) {
-  const [outcomes, fallback, degradation, queue] = await Promise.all([
+  const [outcomes, fallback, degradation, clientErrors] = await Promise.all([
     getCapabilityOutcomeStatsShared(range),
     getPriceRefreshDaysShared(range).then(fallbackRate),
     getPriceSourceDegradationShared(range),
-    getEsiRefreshQueueStatsShared(),
+    getEsiClientErrorsShared(range).then(esiClientErrors),
   ]);
   const esiSuccess = esiAvailability(outcomes);
   return derivePressureLines({
@@ -80,7 +81,7 @@ export async function loadPressureLines(range: DateRange) {
     budgetExhaustions: degradation.budgetExhaustions,
     fallback,
     degradation: degradation.byCaller,
-    queue,
+    clientErrors,
   });
 }
 

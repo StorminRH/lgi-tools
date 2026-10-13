@@ -1,10 +1,11 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { expect, test, vi } from 'vitest';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 import schema from './schema';
 
@@ -15,9 +16,8 @@ const NOW = 1_800_000_000_000;
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
 
-type ScanDb = TestConvex<typeof schema>;
 
-async function createFixture(): Promise<ScanDb> {
+async function createFixture(): Promise<Chain> {
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {
     await ctx.db.insert('mapAccess', { mapId: MAP, userId: EDITOR, roles: ['editor'] });
@@ -40,7 +40,7 @@ async function createFixture(): Promise<ScanDb> {
   return t;
 }
 
-function asEditor(t: ScanDb) {
+function asEditor(t: Chain) {
   return t.withIdentity({ subject: EDITOR, name: 'Editor Pilot' });
 }
 
@@ -48,11 +48,11 @@ function signature(signatureId: string, overrides: Partial<ScannedRow> = {}): Sc
   return { signatureId, kind: 'signature', group: null, name: null, signalPct: 0, ...overrides };
 }
 
-function apply(t: ScanDb, rows: ScannedRow[]) {
+function apply(t: Chain, rows: ScannedRow[]) {
   return asEditor(t).mutation(api.mapScan.applyScan, { mapId: MAP, systemId: JITA, rows });
 }
 
-async function readSignature(t: ScanDb, signatureId: string) {
+async function readSignature(t: Chain, signatureId: string) {
   return await t.run(async (ctx) => await ctx.db
     .query('mapSignatures')
     .withIndex('by_map_signature', (q) =>
@@ -78,7 +78,7 @@ test('ordinary identify stays available beyond the whole-system scan bound', asy
     }
   });
 
-  await expect(apply(t, [signature('SIG-001')])).rejects.toThrow('MAP_SIGNATURE_SCAN_LIMIT');
+  await expectConvexErrorCode(apply(t, [signature('SIG-001')]), 'MAP_SIGNATURE_SCAN_LIMIT');
   expect(
     await asEditor(t).mutation(api.mapScan.identifySignature, {
       mapId: MAP,
@@ -88,14 +88,15 @@ test('ordinary identify stays available beyond the whole-system scan bound', asy
     }),
   ).toEqual({ changed: true, connectionId: null });
   expect(await readSignature(t, 'AAA-000')).toMatchObject({ group: 'Gas Site' });
-  await expect(
+  await expectConvexErrorCode(
     asEditor(t).mutation(api.mapScan.identifySignature, {
       mapId: MAP,
       systemId: JITA,
       signatureId: 'AAA-001',
       group: 'Wormhole',
     }),
-  ).rejects.toThrow('MAP_SIGNATURE_SCAN_LIMIT');
+    'MAP_SIGNATURE_SCAN_LIMIT',
+  );
 });
 
 test('repeat ordinary identification is a no-op', async () => {
@@ -123,27 +124,29 @@ test('repeat ordinary identification is a no-op', async () => {
 test('ordinary identify rejects an already-identified group', async () => {
   const t = await createFixture();
   await apply(t, [signature('GAS-003', { group: 'Gas Site' })]);
-  await expect(
+  await expectConvexErrorCode(
     asEditor(t).mutation(api.mapScan.identifySignature, {
       mapId: MAP,
       systemId: JITA,
       signatureId: 'GAS-003',
       group: 'Relic Site',
     }),
-  ).rejects.toThrow('SIGNATURE_ALREADY_IDENTIFIED');
+    'SIGNATURE_ALREADY_IDENTIFIED',
+  );
   expect(await readSignature(t, 'GAS-003')).toMatchObject({ group: 'Gas Site' });
 });
 
 test('ordinary identify rejects a missing signature', async () => {
   const t = await createFixture();
-  await expect(
+  await expectConvexErrorCode(
     asEditor(t).mutation(api.mapScan.identifySignature, {
       mapId: MAP,
       systemId: JITA,
       signatureId: 'MIS-001',
       group: 'Gas Site',
     }),
-  ).rejects.toThrow('UNKNOWN_SIGNATURE');
+    'UNKNOWN_SIGNATURE',
+  );
 });
 
 test('ordinary identify rejects a tombstoned signature', async () => {
@@ -155,14 +158,15 @@ test('ordinary identify rejects a tombstoned signature', async () => {
     systemId: JITA,
     signatureIds: ['TOM-001'],
   })).toEqual({ changed: 1 });
-  await expect(
+  await expectConvexErrorCode(
     asEditor(t).mutation(api.mapScan.identifySignature, {
       mapId: MAP,
       systemId: JITA,
       signatureId: 'TOM-001',
       group: 'Gas Site',
     }),
-  ).rejects.toThrow('UNKNOWN_SIGNATURE');
+    'UNKNOWN_SIGNATURE',
+  );
   expect(await readSignature(t, 'TOM-001')).toMatchObject({
     deletedAt: NOW,
     purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,

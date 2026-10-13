@@ -1,19 +1,23 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchAll, type SearchResult, type SearchSection } from '@/platform/search';
+import { searchAll, type SearchResult } from '@/platform/search';
+import { useSourceSearch } from '@/platform/search/use-source-search';
+import { SEARCH_SOURCES } from '@/composition/search/register-all';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
-import { pushRecent } from '@/features/search-recents/storage';
-import { useSearchRecents } from '@/features/search-recents/use-search-recents';
+import { pushRecent, useSearchRecents } from '@/features/search-recents/storage';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';
+import { pickOrType } from '@/components/ui/combobox-pick';
 import { Kbd } from '@/components/ui/kbd';
 import { SearchIcon } from '@/components/ui/icons';
-import { flattenSections, searchIconClass, searchRowImage, splitMatchRuns } from './global-search-view';
+import { dataLabel, eyebrow } from '@/components/ui/type-roles';
+import { formatCount } from '@/lib/format/number';
+import { searchIconClass, searchRowImage, searchRowKey, searchRowsByKey, splitMatchRuns } from './global-search-view';
 
 export type Props = {
   active: boolean;
@@ -28,34 +32,16 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [sections, setSections] = useState<SearchSection[]>([]);
   const recents = useSearchRecents();
+  const search = useCallback(
+    (query: string, signal: AbortSignal) => searchAll(SEARCH_SOURCES, query, { session, isAdmin, recents, signal }),
+    [session, isAdmin, recents],
+  );
+  const sections = useSourceSearch(value, search, DEBOUNCE_MS);
 
   useEffect(() => {
     setSiteSearchIndex(siteIndex);
   }, [siteIndex]);
-
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), DEBOUNCE_MS);
-    return () => clearTimeout(id);
-  }, [value]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    searchAll(debounced, { session, isAdmin, recents, signal: controller.signal })
-      .then((next) => {
-        if (controller.signal.aborted) return;
-        setSections(next);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        throw err;
-      });
-    return () => {
-      controller.abort();
-    };
-  }, [debounced, session, isAdmin, recents]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,7 +54,8 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const items = useMemo(() => flattenSections(sections), [sections]);
+  const rows = useMemo(() => searchRowsByKey(sections), [sections]);
+  const items = useMemo(() => [...rows.keys()], [rows]);
   const hasResults = sections.length > 0;
   const open = active && hasResults;
 
@@ -96,10 +83,10 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
       <Combobox.Root
         items={items}
         value={value}
-        onValueChange={(next: string) => setValue(next)}
-        itemToStringValue={(row: SearchResult) => row.label}
+        onValueChange={(next, details) =>
+          pickOrType(next, details, { lookup: (key) => rows.get(key), onType: setValue, onPick: fireResult })
+        }
         filter={null}
-        mode="list"
         open={open}
         onOpenChange={(nextOpen: boolean) => {
           if (!nextOpen) dismiss();
@@ -113,10 +100,6 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           prompt={<SearchIcon size={15} />}
           trailing={<SearchHints active={active} />}
           type="text"
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          autoComplete="off"
           placeholder="Search tools, sites, resources…"
           onFocus={() => onActiveChange(true)}
         />
@@ -130,13 +113,13 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                     <span>{section.name}</span>
                     {section.name === 'Sites' && section.results.length > 0 && (
                       <span className="font-normal text-muted">
-                        {section.results.length} match{section.results.length === 1 ? '' : 'es'}
+                        {formatCount(section.results.length, 'match', 'matches')}
                       </span>
                     )}
                   </Combobox.GroupLabel>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-1">
                     {section.results.map((row) => (
-                      <SearchRow key={row.id} row={row} fireResult={fireResult} />
+                      <SearchRow key={row.id} row={row} value={searchRowKey(section, row)} />
                     ))}
                   </div>
                 </Combobox.Group>
@@ -157,13 +140,7 @@ function SearchHints({ active }: { active: boolean }) {
 function SearchRowIcon({ row }: { row: SearchResult }) {
   const image = searchRowImage(row);
   if (image) {
-    return (
-      <TypeIcon
-        {...image}
-        size={22}
-        mono={row.iconText ?? row.label.slice(0, 2)}
-      />
-    );
+    return <TypeIcon {...image} size={22} mono={row.iconText ?? row.label} />;
   }
   return (
     <span
@@ -177,18 +154,11 @@ function SearchRowIcon({ row }: { row: SearchResult }) {
   );
 }
 
-function SearchRow({
-  row,
-  fireResult,
-}: {
-  row: SearchResult;
-  fireResult: (result: SearchResult) => void;
-}) {
+function SearchRow({ row, value }: { row: SearchResult; value: string }) {
   return (
     <Combobox.Item
-      value={row}
+      value={value}
       disabled={row.disabled}
-      onClick={() => fireResult(row)}
       className={cn(
         'group flex items-center gap-2.5 border border-border-soft bg-section px-2.5 py-2',
         'data-[highlighted]:border-border-active',
@@ -201,7 +171,7 @@ function SearchRow({
           {renderLabel(row.label, row.matchIndices)}
         </span>
         {row.sub && (
-          <span className="truncate font-data text-label uppercase tracking-[0.07em] text-muted">
+          <span className={dataLabel({ className: 'truncate' })}>
             {row.sub}
           </span>
         )}
@@ -229,7 +199,14 @@ function renderLabel(label: string, indices?: number[]) {
 
 function SearchFooter() {
   return (
-    <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-label text-faint">
+    <div
+      className={eyebrow({
+        font: 'inherit',
+        tone: 'faint',
+        weight: 'inherit',
+        className: 'mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2',
+      })}
+    >
       <span>
         Scope: <span className="text-isk">all</span> · sites · tools · commands
       </span>

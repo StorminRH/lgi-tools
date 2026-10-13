@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { isConvexConfigured } from '@/config/public-env';
 import { resolveConvexServiceDoor } from './convex-service-door';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -21,10 +22,15 @@ it.each([
   if (!allowed) expect(door).not.toHaveProperty('secret');
 });
 
-it('distinguishes absent URL and absent secret without exposing credentials', () => {
-  vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
-  expect(resolveConvexServiceDoor()).toEqual({ ok: false, reason: 'convex_not_configured' });
-  vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');
+// A configured URL without a secret is a misconfiguration that callers must
+// not skip, so only the convex_not_configured reason matches the predicate.
+it.each([
+  ['unset', undefined, false, 'convex_not_configured'],
+  ['empty', '', false, 'convex_not_configured'],
+  ['set', 'https://example.convex.cloud', true, 'service_secret_missing'],
+] as const)('agrees with isConvexConfigured when the URL is %s', (_case, url, configured, reason) => {
+  vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', url);
   vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-  expect(resolveConvexServiceDoor()).toEqual({ ok: false, reason: 'service_secret_missing' });
+  expect(isConvexConfigured()).toBe(configured);
+  expect(resolveConvexServiceDoor()).toEqual({ ok: false, reason });
 });

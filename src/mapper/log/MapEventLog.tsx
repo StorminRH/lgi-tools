@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { LoadingLabel } from '@/components/ui/loading-label';
+import { dataLabel } from '@/components/ui/type-roles';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import { formatCount } from '@/lib/format/number';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
   formatEventTime,
@@ -58,25 +60,19 @@ export function MapEventLog({
             <span className="flex w-[9.75rem] items-center gap-2">
               <span
                 data-map-event-log-toggle
-                className="font-data text-label uppercase tracking-label text-muted"
+                className={dataLabel()}
               >
-                Audit Log
+                Audit log
               </span>
               {open && events !== undefined ? (
                 <span
                   data-map-event-log-count
                   className="font-data text-micro text-muted"
                 >
-                  Events - {events.length}
+                  {formatCount(events.length, 'event')}
                 </span>
               ) : null}
-              <span
-                data-chevron
-                aria-hidden
-                className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-              >
-                ▾
-              </span>
+              <CollapsibleChevron className="ml-auto" />
             </span>
           }
         >
@@ -89,13 +85,13 @@ export function MapEventLog({
               className="flex max-h-48 w-80 max-w-[calc(100vw-5rem)] flex-col gap-1 overflow-y-auto border-t border-border-soft px-2.5 py-1.5"
             >
               {events === undefined ? (
-                <LoadingLabel label="Loading map events…" className="text-micro" />
+                <LoadingLabel label="Loading events…" className="text-micro" />
               ) : events.length === 0 ? (
                 <p
                   data-map-event-log-empty
                   className="font-data text-micro text-muted"
                 >
-                  No map events yet.
+                  No events yet.
                 </p>
               ) : (
                 events.map((event) => (

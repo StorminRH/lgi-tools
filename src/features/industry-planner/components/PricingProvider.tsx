@@ -18,21 +18,22 @@ import {
 } from '@/data/market-prices/use-refresh-on-view';
 import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-view';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
+import type { AdjustedPriceOf } from '@/data/industry-math/fees';
 import { computeMarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { usePreference } from '@/components/PreferencesProvider';
-import { apiFetch } from '@/transport/api-client';
+import { useLiveDataset } from '@/components/use-live-dataset';
+import { idsKey } from '@/lib/array';
 import { industryCostBasis } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,
-  collectRawTypeIds,
   computeBatchLedger,
   type BatchLedger,
   type MeOptions,
 } from '../build-batch';
-import { clampMe, effectiveMeOf } from '../me-overrides';
-import { clampTe, effectiveTeOf } from '../te-overrides';
+import { clampMe, clampTe, effectiveEfficiencyOf, resetOverride, setOverride } from '../efficiency';
 import type { MarginMode } from '../cockpit-margin';
+import type { CostBasis } from '../cost-basis-view';
 import type { NetMode } from '../multibuy';
 
 import { computeBuildTimes, type BuildTimes } from '../build-time';
@@ -45,15 +46,11 @@ import { useProfileFactors } from './use-planner-profile';
 import type { ProfilePlan } from '../profiles/profile-plan';
 import { usePlannerLocationWrites } from './use-planner-location-writes';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
-import { useResourceRead } from '../use-resource-read';
 import { useAvailableStructures } from '../use-available-structures';
+import { typeNamer } from '../type-name';
 import { toMarketScoreInputs } from '../market-score-inputs';
-import {
-  assemblePricing,
-  collectIntermediateTypeIds,
-} from '../build-pricing';
+import { assemblePricing, pricedTypeIds } from '../build-pricing';
 import { mapOwnedBlueprints, type OwnedBlueprintMaps } from '../owned-blueprint-maps';
-import { resetOverride, setOverride } from '../override-map';
 import { createPriceSnapshot, type PriceSnapshot } from '../price-snapshot';
 import {
   buildSelectionVacatesReaction,
@@ -70,8 +67,9 @@ import type {
   AvailableStructure,
   BlueprintPricing,
   BlueprintStructure,
+  JobSystemRef,
   OwnedAssetEntry,
-  OwnedComponentDetail,
+  TypeAdjustedPrice,
 } from '../types';
 import {
   PlannerContextProviders,
@@ -80,32 +78,15 @@ import {
   type MarketDataValue,
   type PlannerConfigValue,
   type SelectedLocation,
-  type SelectedReactionSystem,
 } from './planner-contexts';
 
-function PricingSeeder({
-  pricingPromise,
-  onSeed,
-}: {
-  pricingPromise: Promise<BlueprintPricing | null>;
-  onSeed: (pricing: BlueprintPricing | null) => void;
-}) {
-  const resolved = use(pricingPromise);
-  useEffect(() => {
-    const t = setTimeout(() => onSeed(resolved), 0);
-    return () => clearTimeout(t);
-  }, [resolved, onSeed]);
-  return null;
-}
-
-function HistorySeeder({
-  historyPromise,
-  onSeed,
-}: {
-  historyPromise: Promise<MarketHistoryInputs[]>;
-  onSeed: (inputs: MarketHistoryInputs[]) => void;
-}) {
-  const resolved = use(historyPromise);
+/**
+ * Hands a server read's value to the planner once it streams in. It renders
+ * inside its own Suspense, so each read lands on its own; `onSeed` must keep
+ * its identity, or the value is seeded again on every render.
+ */
+function PromiseSeeder<T>({ promise, onSeed }: { promise: Promise<T>; onSeed: (value: T) => void }) {
+  const resolved = use(promise);
   useEffect(() => {
     const t = setTimeout(() => onSeed(resolved), 0);
     return () => clearTimeout(t);
@@ -165,7 +146,7 @@ function usePlannerLocationState(structure: BlueprintStructure) {
   const availableStructures = useAvailableStructures();
   const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
-  const [reactionSystem, setReactionSystem] = useState<SelectedReactionSystem | null>(null);
+  const [reactionSystem, setReactionSystem] = useState<JobSystemRef | null>(null);
   const [fetchedReactionLocation, setFetchedReactionLocation] =
     useState<ReactionLocationSnapshot | null>(null);
   const reactionSecurity = reactionSystem?.security ?? null;
@@ -222,64 +203,42 @@ function usePlannerLocationState(structure: BlueprintStructure) {
   };
 }
 
+/** What the pilot owns of this build, streamed in as the hangars sync: null until the first read lands. */
 function usePlannerOwnedResources(structure: BlueprintStructure) {
-  const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
-  const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
-  const [ownedAssets, setOwnedAssets] = useState<Map<number, OwnedAssetEntry> | null>(null);
-  const toRefresh = useMemo(
-    () => [
-      ...new Set<number>([
-        ...collectRawTypeIds(structure.tree),
-        structure.product.typeId,
-        ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
-      ]),
-    ],
-    [structure],
-  );
+  const toRefresh = useMemo(() => pricedTypeIds(structure), [structure]);
   const ownedBlueprintTypeIds = useMemo(
     () => collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId),
     [structure],
   );
-  const readOwnedBlueprints = useCallback(
-    async (signal: AbortSignal): Promise<OwnedBlueprintMaps | null> => {
-      const res = await apiFetch(ownedBlueprintsEndpoint, {
-        body: { blueprintTypeIds: ownedBlueprintTypeIds },
-        cache: 'no-store',
-        signal,
-      });
-      return res.ok ? mapOwnedBlueprints(res.data.blueprints) : null;
-    },
-    [ownedBlueprintTypeIds],
-  );
-  const applyOwnedBlueprints = useCallback((maps: OwnedBlueprintMaps) => {
-    setOwnedMe(maps.ownedMe);
-    setOwnedDetail(maps.ownedDetail);
-  }, []);
-  useResourceRead(readOwnedBlueprints, {
-    enabled: true,
-    onData: applyOwnedBlueprints,
+  const blueprints = useLiveDataset({
+    endpoint: ownedBlueprintsEndpoint,
+    body: { blueprintTypeIds: ownedBlueprintTypeIds },
+    key: idsKey(ownedBlueprintTypeIds),
   });
-  const readOwnedAssets = useCallback(
-    async (signal: AbortSignal): Promise<Map<number, OwnedAssetEntry> | null> => {
-      const res = await apiFetch(ownedAssetsEndpoint, {
-        body: { typeIds: toRefresh },
-        cache: 'no-store',
-        signal,
-      });
-      return res.ok ? new Map(res.data.assets.map((asset) => [asset.typeId, asset])) : null;
-    },
-    [toRefresh],
+  // Null until a read lands, which efficiency readers tell apart from an empty map.
+  const owned = useMemo<OwnedBlueprintMaps | null>(
+    () => (blueprints.response === null ? null : mapOwnedBlueprints(blueprints.response.blueprints)),
+    [blueprints.response],
   );
-  useResourceRead(readOwnedAssets, {
-    enabled: true,
-    onData: setOwnedAssets,
-  });
-  return { ownedAssets, ownedDetail, ownedMe, toRefresh };
+  const assets = useLiveDataset({ endpoint: ownedAssetsEndpoint, body: { typeIds: toRefresh }, key: idsKey(toRefresh) });
+  const ownedAssets = useMemo<Map<number, OwnedAssetEntry> | null>(
+    () => (assets.response === null ? null : new Map(assets.response.assets.map((asset) => [asset.typeId, asset]))),
+    [assets.response],
+  );
+  return {
+    ownedAssets,
+    ownedDetail: owned?.ownedDetail ?? null,
+    ownedMe: owned?.ownedMe ?? null,
+    ownedTe: owned?.ownedTe ?? null,
+    toRefresh,
+  };
 }
 
 interface PriceAssembleMirrors {
+  readonly adjustedPriceOf: AdjustedPriceOf;
+  readonly adjustedPricesPending: boolean;
   readonly components: ComponentFeeInputs | null;
-  readonly costBasis: 'batched' | 'marginal';
+  readonly costBasis: CostBasis;
   readonly ledger: BatchLedger;
   readonly ledgerMeOpts: MeOptions;
   readonly location: SelectedLocation | null;
@@ -290,17 +249,37 @@ interface PriceAssembleMirrors {
   readonly structureFactors: StructureFactors;
 }
 
+/**
+ * The blueprint's adjusted prices, which every job's fee is valued on, once
+ * the page's read has streamed in. Null until then.
+ */
+function useSeededAdjustedPrices() {
+  const [adjustedPrices, setAdjustedPrices] = useState<ReadonlyMap<number, number> | null>(null);
+  const seedAdjustedPrices = useCallback((prices: TypeAdjustedPrice[]) => {
+    setAdjustedPrices(new Map(prices.map((price) => [price.typeId, price.adjustedPrice])));
+  }, []);
+  const adjustedPriceOf = useCallback<AdjustedPriceOf>(
+    (typeId) => adjustedPrices?.get(typeId) ?? null,
+    [adjustedPrices],
+  );
+  return { adjustedPriceOf, adjustedPricesPending: adjustedPrices === null, seedAdjustedPrices };
+}
+
 function usePriceClock(
   structure: BlueprintStructure,
-  inputs: Omit<PriceAssembleMirrors, 'components'>,
+  inputs: Omit<PriceAssembleMirrors, 'adjustedPriceOf' | 'adjustedPricesPending' | 'components'>,
   plan: ProfilePlan | null,
   locationRead: { refreshKey: number; failed: boolean },
 ) {
   // Pricing owns the per-job fee sources for the profile installing the build.
-  const componentFees = useComponentFeeSources(
-    structure, plan, locationRead.refreshKey, !inputs.location && !inputs.reactionLocation,
-  );
-  const mirrors: PriceAssembleMirrors = { ...inputs, components: componentFees.sources };
+  const componentFees = useComponentFeeSources(structure, plan, locationRead.refreshKey);
+  const { adjustedPriceOf, adjustedPricesPending, seedAdjustedPrices } = useSeededAdjustedPrices();
+  const mirrors: PriceAssembleMirrors = {
+    ...inputs,
+    adjustedPriceOf,
+    adjustedPricesPending,
+    components: componentFees.sources,
+  };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [priceSnapshot] = useState(() => createPriceSnapshot());
@@ -313,7 +292,10 @@ function usePriceClock(
   const assemble = useCallback(() => {
     const current = mirrorsRef.current;
     const sf = current.structureFactors;
-    const fee = composeFeeInputs({
+    // No fee until the prices it is valued on land: every item would count as
+    // zero, and net would read higher than it is. Gross shows meanwhile.
+    const fee = current.adjustedPricesPending ? undefined : composeFeeInputs({
+      adjustedPriceOf: current.adjustedPriceOf,
       location: current.location,
       reactionLocation: current.reactionLocation,
       buildStructure: current.selectedStructure,
@@ -346,6 +328,8 @@ function usePriceClock(
     return () => clearTimeout(t);
   }, [
     mirrors.runs,
+    mirrors.adjustedPriceOf,
+    mirrors.adjustedPricesPending,
     mirrors.components,
     mirrors.location,
     mirrors.reactionLocation,
@@ -363,9 +347,11 @@ function usePriceClock(
     priceSnapshot,
     pricing,
     seed,
+    seedAdjustedPrices,
     seeded,
     locationFailed: locationRead.failed || componentFees.failed,
-    componentFeesPending: componentFees.pending,
+    // Fees wait on the job systems' indices and on the prices they are valued on.
+    componentFeesPending: componentFees.pending || adjustedPricesPending,
   };
 }
 
@@ -427,7 +413,7 @@ function usePlannerLedger(
   structure: BlueprintStructure,
   runs: number,
   ownedMe: Map<number, number> | null,
-  ownedDetail: Map<number, OwnedComponentDetail> | null,
+  ownedTe: Map<number, number> | null,
   structureFactors: StructureFactors,
   skillTimeFactors: SkillTimeFactors,
 ) {
@@ -435,13 +421,9 @@ function usePlannerLedger(
   const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
   const { set: setMeOverride, reset: resetMeOverride } = useOverrideSetters(setMeOverrides, clampMe);
   const { set: setTeOverride, reset: resetTeOverride } = useOverrideSetters(setTeOverrides, clampTe);
-  const ownedTe = useMemo<Map<number, number> | null>(
-    () => (ownedDetail ? new Map([...ownedDetail].map(([bp, d]) => [bp, d.te])) : null),
-    [ownedDetail],
-  );
   const ledgerMeOpts = useMemo<MeOptions>(
     () => ({
-      meOf: effectiveMeOf(ownedMe, meOverrides),
+      meOf: effectiveEfficiencyOf(ownedMe, meOverrides),
       topBlueprintTypeId: structure.blueprintTypeId,
       structureMeFactorOf: structureFactors.structureMeFactorOf,
     }),
@@ -460,8 +442,8 @@ function usePlannerLedger(
         nodeJobSeconds: structure.nodeJobSeconds,
         runs,
         builds: ledger.builds,
-        teOf: effectiveTeOf(ownedTe, teOverrides),
-        nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+        teOf: effectiveEfficiencyOf(ownedTe, teOverrides),
+        nameOf: typeNamer(structure),
         structureTeFactorOf: structureFactors.structureTeFactorOf,
         skillTimeFactorOf: skillTimeFactors.skillTimeFactorOf,
       }),
@@ -472,7 +454,6 @@ function usePlannerLedger(
     ledger,
     ledgerMeOpts,
     meOverrides,
-    ownedTe,
     resetMeOverride,
     resetTeOverride,
     setMeOverride,
@@ -486,11 +467,14 @@ export function PricingProvider({
   structure,
   pricingPromise,
   historyPromise,
+  adjustedPricesPromise,
   children,
 }: {
   structure: BlueprintStructure;
   pricingPromise: Promise<BlueprintPricing | null>;
   historyPromise: Promise<MarketHistoryInputs[]>;
+  /** Must not reject: a failed read resolves to no prices. */
+  adjustedPricesPromise: Promise<TypeAdjustedPrice[]>;
   children: ReactNode;
 }) {
   const prefs = usePlannerPrefs();
@@ -509,15 +493,13 @@ export function PricingProvider({
     locationRefreshKey: locationWrites.retry,
     failureSystemId: locationWrites.failureSystemId,
   });
-  const locationFailed = locationWrites.failureSystemId !== null &&
-    locationWrites.failureSystemId === profile.plan?.top.facility?.systemId;
   const { structureFactors } = profile;
   const owned = usePlannerOwnedResources(structure);
   const ledger = usePlannerLedger(
     structure,
     prefs.runs,
     owned.ownedMe,
-    owned.ownedDetail,
+    owned.ownedTe,
     structureFactors,
     profile.skillTimeFactors ?? NO_SKILL_FACTORS,
   );
@@ -531,7 +513,7 @@ export function PricingProvider({
     runs: prefs.runs,
     selectedStructure: locationState.selectedStructure,
     structureFactors,
-  }, profile.plan, { refreshKey: locationWrites.retry, failed: locationFailed });
+  }, profile.plan, { refreshKey: locationWrites.retry, failed: profile.locationFailed });
   const market = useMarketRefresh(
     structure,
     clock.seeded,
@@ -622,7 +604,7 @@ export function PricingProvider({
       ownedMe: owned.ownedMe,
       ownedDetail: owned.ownedDetail,
       ownedAssets: owned.ownedAssets,
-      ownedTe: ledger.ownedTe,
+      ownedTe: owned.ownedTe,
       meOverrides: ledger.meOverrides,
       setMeOverride: ledger.setMeOverride,
       resetMeOverride: ledger.resetMeOverride,
@@ -638,7 +620,7 @@ export function PricingProvider({
       owned.ownedMe,
       owned.ownedDetail,
       owned.ownedAssets,
-      ledger.ownedTe,
+      owned.ownedTe,
       ledger.meOverrides,
       ledger.setMeOverride,
       ledger.resetMeOverride,
@@ -661,10 +643,13 @@ export function PricingProvider({
     >
       {children}
       <Suspense fallback={null}>
-        <PricingSeeder pricingPromise={pricingPromise} onSeed={clock.seed} />
+        <PromiseSeeder promise={pricingPromise} onSeed={clock.seed} />
       </Suspense>
       <Suspense fallback={null}>
-        <HistorySeeder historyPromise={historyPromise} onSeed={market.mergeHistory} />
+        <PromiseSeeder promise={historyPromise} onSeed={market.mergeHistory} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <PromiseSeeder promise={adjustedPricesPromise} onSeed={clock.seedAdjustedPrices} />
       </Suspense>
     </PlannerContextProviders>
   );

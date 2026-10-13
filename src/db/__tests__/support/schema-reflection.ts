@@ -27,6 +27,24 @@ export async function reflectedSchemaTables(): Promise<PgTable[]> {
   return [...byName.values()];
 }
 
+export function registryCoverageDiff(
+  expected: Iterable<string>,
+  declared: readonly string[],
+): { missing: string[]; stale: string[]; duplicate: string[] } {
+  const expectedNames = new Set(expected);
+  const declaredNames = new Set<string>();
+  const repeated = new Set<string>();
+  for (const name of declared) {
+    if (declaredNames.has(name)) repeated.add(name);
+    declaredNames.add(name);
+  }
+  return {
+    missing: [...expectedNames].filter((name) => !declaredNames.has(name)).sort(),
+    stale: [...declaredNames].filter((name) => !expectedNames.has(name)).sort(),
+    duplicate: [...repeated].sort(),
+  };
+}
+
 export async function reflectedSchemaExports(): Promise<Map<string, Map<string, string>>> {
   const modules = await Promise.all(
     Object.entries(schemaLoaders).map(

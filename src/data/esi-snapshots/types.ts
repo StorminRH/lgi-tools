@@ -1,5 +1,5 @@
-import type { EsiSnapshotOwnerType } from './constants';
 import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
+import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
 
 export type EsiSnapshotResponseHeaders = EsiResponseHeaders;
 
@@ -10,7 +10,7 @@ export interface EsiSnapshotSource {
 }
 
 export interface InsertEsiSnapshotInput {
-  readonly ownerType: EsiSnapshotOwnerType;
+  readonly ownerType: EsiOwnerType;
   readonly ownerId: number;
   readonly endpoint: string;
   readonly requestHash: string;

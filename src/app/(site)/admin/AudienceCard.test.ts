@@ -83,7 +83,8 @@ test('compares a week of traffic and search against the week before, on Google�
     ['2026-09-20', '2026-09-27'],
     ['2026-09-13', '2026-09-20'],
   ];
-  expect(periods(q.getPageViewStats)).toEqual([weekAndBefore]);
+  // The tiles and the chart ask the shared read for the same periods, so the request scans them once.
+  expect(periods(q.getPageViewStats)).toEqual([weekAndBefore, weekAndBefore]);
   expect(periods(q.getReturningVsNew)).toEqual([weekAndBefore]);
   expect(html).toContain('1,400');
   expect(html).toContain('200 / day');
@@ -99,7 +100,7 @@ test('starts the usage reads without waiting for Google’s latest report day', 
   const loading = loadAudience('7d', WEEK);
   await Promise.resolve();
 
-  expect(q.getPageViewStats).toHaveBeenCalledTimes(1);
+  expect(q.getPageViewStats).toHaveBeenCalled();
   expect(q.getReturningVsNew).toHaveBeenCalledTimes(1);
   expect(q.getSearchTotals).not.toHaveBeenCalled();
   reportDay(null);
@@ -113,8 +114,9 @@ test('skips search and prior-period queries it cannot answer', async () => {
   const allTime = await render('all', WEEK);
   expect(q.getLatestReportDate).not.toHaveBeenCalled();
   expect(q.getSearchTotals).not.toHaveBeenCalled();
-  expect(periods(q.getPageViewStats)).toEqual([[['2026-09-20', '2026-09-27'], null]]);
-  expect(periods(q.getReturningVsNew)).toEqual([[['2026-09-20', '2026-09-27'], null]]);
+  const weekAlone = [['2026-09-20', '2026-09-27'], null];
+  expect(periods(q.getPageViewStats)).toEqual([weekAlone, weekAlone]);
+  expect(periods(q.getReturningVsNew)).toEqual([weekAlone]);
   expect(allTime).toContain('—');
   expect(allTime).toContain('No page views in this range.');
 
@@ -125,7 +127,7 @@ test('skips search and prior-period queries it cannot answer', async () => {
   await render('7d', WEEK);
   expect(q.getLatestReportDate).toHaveBeenCalledTimes(1);
   expect(q.getSearchTotals).not.toHaveBeenCalled();
-  expect(q.getPageViewStats).toHaveBeenCalledTimes(1);
+  expect(q.getPageViewStats).toHaveBeenCalled();
 });
 
 test('marks only the search figures when Search Console cannot be read', async () => {
@@ -151,15 +153,20 @@ test('fails as a whole when a usage read fails, for its section to catch', async
   await expect(loadAudience('7d', WEEK)).rejects.toThrow('db down');
 });
 
-test('renders the tiles without empty chart slots, and links to the detail pages', async () => {
+test('renders the tiles without empty chart slots, and links to the detail pages at its range', async () => {
   stubTelemetry();
   const html = await render('7d', WEEK);
   expect(html).not.toContain('<dd class="mt-1"></dd>');
   expect(html.match(/<dt /g)).toHaveLength(4);
 
-  const links = renderToStaticMarkup(createElement(AudienceLinks));
-  expect(links).toContain('href="/admin/traffic"');
-  expect(links).toContain('href="/admin/search"');
+  const links = renderToStaticMarkup(createElement(AudienceLinks, { rangeKey: '7d' }));
+  expect(links).toContain('href="/admin/traffic?range=7d"');
+  expect(links).toContain('href="/admin/search?range=7d"');
+
+  // The default range stays off the URL, as in the rail.
+  const defaultLinks = renderToStaticMarkup(createElement(AudienceLinks, { rangeKey: '30d' }));
+  expect(defaultLinks).toContain('href="/admin/traffic"');
+  expect(defaultLinks).toContain('href="/admin/search"');
 });
 
 test('labels the activity total like the tiles above it', async () => {
@@ -171,6 +178,6 @@ test('labels the activity total like the tiles above it', async () => {
 
   const html = await render('7d', WEEK);
 
-  expect(html).toContain('tabular-nums">1,250</span><span class="font-ui uppercase text-label text-muted font-medium tracking-eyebrow">page views</span>');
+  expect(html).toContain('tabular-nums">1,250</span><span class="tracking-optical font-ui text-eyebrow text-muted font-medium">Page views</span>');
   expect(html).toContain('<span class="sr-only">up 25%</span>');
 });

@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { isKnownSpaceSystemId } from './wormhole-contract';
 
 const harness = await createDbTestHarness({
   schema: 'test_wormhole_space_boundary',
@@ -36,16 +35,10 @@ describe.skipIf(!harness.reachable)('wormhole space boundary against the SDE mir
     const jSpaceClasses = new Set([1, 2, 3, 4, 5, 6, 12, 13, 14, 15, 16, 17, 18]);
 
     expect(rows.length).toBeGreaterThan(0);
-    expect(
-      rows.filter(
-        (row) =>
-          isKnownSpaceSystemId(row.id) !==
-          (row.id >= 30_000_000 && row.id < 31_000_000),
-      ),
-    ).toEqual([]);
+    expect(rows.filter((row) => row.id < 30_000_000)).toEqual([]);
     expect(
       rows
-        .filter((row) => !isKnownSpaceSystemId(row.id))
+        .filter((row) => row.id >= 31_000_000)
         .filter((row) => !jSpaceClasses.has(row.wormhole_class_id ?? -1)),
     ).toEqual([]);
     expect(

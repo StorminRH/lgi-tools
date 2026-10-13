@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
+import { layoutFacts } from '../layout/__tests__/layout-facts-fixture';
 import { deriveChainTree } from '../layout/facts';
+import {
+  chainSnapshot,
+  positionOfSlot,
+  sequentialPositions,
+} from './__tests__/chain-snapshot-fixture';
 import type { SystemLabel } from './labels';
 import {
   buildEdges,
@@ -19,25 +25,6 @@ import {
   type ChainSnapshot,
   type ChainState,
 } from './reconciler';
-import { type PlacementAssigner } from './placement';
-
-function positionOfSlot(slot: number) {
-  return { x: (slot % 6) * 220, y: Math.floor(slot / 6) * 160 };
-}
-
-const sequentialTestAssigner: PlacementAssigner = ({ systems }) => {
-  const proposals = new Map<number, ReturnType<typeof positionOfSlot>>();
-  let next = 0;
-  for (const candidate of systems) {
-    if (candidate.position !== null) {
-      proposals.set(candidate.systemId, candidate.position);
-    } else {
-      proposals.set(candidate.systemId, positionOfSlot(next));
-      next += 1;
-    }
-  }
-  return proposals;
-};
 
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
@@ -51,16 +38,16 @@ const namedLabel = (systemId: number): SystemLabel =>
     ? { name: 'Jita', className: null }
     : { name: 'J123456', className: 'C5', effect: 'magnetar' };
 
-function snapshot(systemIds: readonly number[], connections: ChainSnapshot['connections']['rows'] = []): ChainSnapshot {
-  return {
-    systems: { rows: systemIds.map((systemId) => ({ systemId })), complete: true },
-    connections: { rows: connections, complete: true },
-  };
+function stateOf(snapshot: ChainSnapshot): ChainState {
+  return reconcileChain(
+    EMPTY_CHAIN_STATE,
+    snapshot,
+    sequentialPositions(EMPTY_CHAIN_STATE, snapshot),
+  ).state;
 }
 
 function stateFor(systemIds: readonly number[]): ChainState {
-  return reconcileChain(EMPTY_CHAIN_STATE, snapshot(systemIds), sequentialTestAssigner)
-    .state;
+  return stateOf(chainSnapshot(systemIds));
 }
 
 describe('canvas node projection', () => {
@@ -135,13 +122,11 @@ describe('canvas node projection', () => {
 
 describe('canvas edge projection', () => {
   it('projects one edge per visible connection', () => {
-    const state = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([JITA, AMARR], [
+    const state = stateOf(
+      chainSnapshot([JITA, AMARR], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      sequentialTestAssigner,
-    ).state;
+    );
 
     expect(buildEdges(state.connections, new Map([[AMARR, JITA]]))).toEqual([
       {
@@ -155,9 +140,8 @@ describe('canvas edge projection', () => {
 
   it('hides a dying corpse when a live line already spans the same pair', () => {
     const now = 1_700_000_000_000;
-    const state = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([JITA, AMARR], [
+    const state = stateOf(
+      chainSnapshot([JITA, AMARR], [
         {
           connectionId: 'live',
           fromSystemId: JITA,
@@ -171,8 +155,7 @@ describe('canvas edge projection', () => {
           purgeAfter: now + 1,
         },
       ]),
-      sequentialTestAssigner,
-    ).state;
+    );
 
     expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
       {
@@ -186,9 +169,8 @@ describe('canvas edge projection', () => {
 
   it('renders dying ties but keeps skeleton ties out of the canvas', () => {
     const now = 1_700_000_000_000;
-    const state = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([JITA, AMARR], [
+    const state = stateOf(
+      chainSnapshot([JITA, AMARR], [
         {
           connectionId: 'dying',
           fromSystemId: JITA,
@@ -204,8 +186,7 @@ describe('canvas edge projection', () => {
           purgeAfter: null,
         },
       ]),
-      sequentialTestAssigner,
-    ).state;
+    );
 
     const positionsBefore = [...state.systems.values()].map((row) => row.position);
     expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
@@ -226,38 +207,29 @@ describe('canvas edge projection', () => {
   });
 
   it('projects nothing for a withheld connection', () => {
-    const state = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([JITA], [
+    const state = stateOf(
+      chainSnapshot([JITA], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      sequentialTestAssigner,
-    ).state;
+    );
 
     expect(buildEdges(state.connections, new Map())).toEqual([]);
   });
 
   it('classifies tree links solid and loop closures dashed, once per pair', () => {
     const DODIXIE = 30002659;
-    const state = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([JITA, AMARR, DODIXIE], [
+    const state = stateOf(
+      chainSnapshot([JITA, AMARR, DODIXIE], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
         { connectionId: 'c2', fromSystemId: AMARR, toSystemId: DODIXIE },
         { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
         { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
       ]),
-      sequentialTestAssigner,
-    ).state;
-    const treeParents = deriveChainTree({
-      systems: [JITA, AMARR, DODIXIE].map((systemId) => ({ systemId })),
-      connections: [
-        { fromSystemId: JITA, toSystemId: AMARR },
-        { fromSystemId: AMARR, toSystemId: DODIXIE },
-        { fromSystemId: DODIXIE, toSystemId: JITA },
-        { fromSystemId: AMARR, toSystemId: JITA },
-      ],
-    }).parents;
+    );
+    const treeParents = deriveChainTree(layoutFacts(
+      [JITA, AMARR, DODIXIE],
+      [[JITA, AMARR], [AMARR, DODIXIE], [DODIXIE, JITA], [AMARR, JITA]],
+    )).parents;
 
     expect(
       buildEdges(state.connections, treeParents).map((edge) => [edge.id, edge.data.loop]),
@@ -348,21 +320,15 @@ describe('halo node projection', () => {
 
 describe('halo edge projection', () => {
   it('appends prefixed halo links sharing the pair-claiming, skipping authored pairs', () => {
-    const state = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([JITA, AMARR], [
+    const state = stateOf(
+      chainSnapshot([JITA, AMARR], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      sequentialTestAssigner,
-    ).state;
-    const treeParents = deriveChainTree({
-      systems: [{ systemId: JITA }, { systemId: AMARR }, { systemId: RING1 }, { systemId: RING3 }],
-      connections: [
-        { fromSystemId: JITA, toSystemId: AMARR },
-        { fromSystemId: JITA, toSystemId: RING1 },
-        { fromSystemId: RING1, toSystemId: RING3 },
-      ],
-    }).parents;
+    );
+    const treeParents = deriveChainTree(layoutFacts(
+      [JITA, AMARR, RING1, RING3],
+      [[JITA, AMARR], [JITA, RING1], [RING1, RING3]],
+    )).parents;
 
     const edges = buildEdges(state.connections, treeParents, Date.now(), [
       { a: JITA, b: AMARR },
@@ -380,13 +346,10 @@ describe('halo edge projection', () => {
   });
 
   it('marks the one fogged side and omits links whose two endpoints are fogged (OW4)', () => {
-    const treeParents = deriveChainTree({
-      systems: [{ systemId: JITA }, { systemId: RING1 }, { systemId: RING3 }],
-      connections: [
-        { fromSystemId: JITA, toSystemId: RING1 },
-        { fromSystemId: RING1, toSystemId: RING3 },
-      ],
-    }).parents;
+    const treeParents = deriveChainTree(layoutFacts(
+      [JITA, RING1, RING3],
+      [[JITA, RING1], [RING1, RING3]],
+    )).parents;
 
     const edges = buildEdges(
       new Map(),

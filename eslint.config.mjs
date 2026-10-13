@@ -5,11 +5,20 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import tsdoc from "eslint-plugin-tsdoc";
 
+// Builds the Literal + TemplateElement selector pair for one regex. The
+// template side may carry its own "(template literal)" message.
+function literalAndTemplate(pattern, message, templateMessage = message) {
+  return [
+    { selector: `Literal[value=/${pattern}/]`, message },
+    { selector: `TemplateElement[value.raw=/${pattern}/]`, message: templateMessage },
+  ];
+}
+
 const inlineStyleSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
     message:
-      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones (inline styles are CSP-permitted but not the default).",
+      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property written by the useStyleProperty / useStyleProperties ref (components/ui/use-style-ref) for runtime-dynamic ones (inline styles are CSP-permitted but not the default).",
   },
 ];
 
@@ -30,16 +39,11 @@ const rawHtmlSelectors = [
 const cspSelectors = [...inlineStyleSelectors, ...rawHtmlSelectors];
 
 const hexColorSelectors = [
-  {
-    selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
-    message:
-      "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
-    message:
-      "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts.",
-  },
+  ...literalAndTemplate(
+    String.raw`\[[^\]]*#[0-9a-fA-F]{3,8}`,
+    "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts.",
+    "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts.",
+  ),
   {
     selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
     message:
@@ -47,59 +51,35 @@ const hexColorSelectors = [
   },
 ];
 
-const rgbaColorSelectors = [
-  {
-    selector: "Literal[value=/rgba\\s*\\(/]",
-    message:
-      "No raw rgba() colors at call sites — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/rgba\\s*\\(/]",
-    message:
-      "No raw rgba() colors at call sites (template literal) — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
-  },
-];
+const rgbaColorSelectors = literalAndTemplate(
+  String.raw`rgba\s*\(`,
+  "No raw rgba() colors at call sites — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
+  "No raw rgba() colors at call sites (template literal) — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
+);
 
-const textSizeSelectors = [
-  {
-    selector: "Literal[value=/text-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/text-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`).",
-  },
-];
+const textSizeSelectors = literalAndTemplate(
+  String.raw`text-\[[0-9.]+(px|rem|em)\]`,
+  "No raw arbitrary font sizes — use the named type scale (micro/caption/label/small/eyebrow/bar/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`.",
+  "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`).",
+);
 
 const legacyTypeRoleSelectors = [
-  {
-    selector:
-      "Literal[value=/(?:^|\\s)(?:\\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
-    message:
-      "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
-  },
-  {
-    selector:
-      "TemplateElement[value.raw=/(?:^|\\s)(?:\\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
-    message:
-      "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
-  },
+  ...literalAndTemplate(
+    String.raw`(?:^|\s)(?:\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display|wide|eyebrow))(?:\s|$)`,
+    "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
+  ),
+  ...literalAndTemplate(
+    String.raw`(?:^|[\s:])tracking-\[0?\.(?:01|04|08)em\]`,
+    "No arbitrary tracking that equals a registered step — use tracking-optical (0.01em), tracking-copy (0.04em) or tracking-label (0.08em).",
+    "No arbitrary tracking that equals a registered step (template literal) — use tracking-optical/copy/label.",
+  ),
 ];
 
-const roundedSizeSelectors = [
-  {
-    selector: "Literal[value=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary radii — use the named radius tokens (rounded-ctl / rounded-card), backed by `--radius-ctl` / `--radius-card` in globals.css `@theme`.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
-    message:
-      "No raw arbitrary radii (template literal) — use the named radius tokens (rounded-ctl / rounded-card).",
-  },
-];
+const roundedSizeSelectors = literalAndTemplate(
+  String.raw`rounded-\[[0-9.]+(px|rem|em)\]`,
+  "No raw arbitrary radii — use the named radius tokens (rounded-ctl / rounded-card), backed by `--radius-ctl` / `--radius-card` in globals.css `@theme`.",
+  "No raw arbitrary radii (template literal) — use the named radius tokens (rounded-ctl / rounded-card).",
+);
 
 const selectElementSelectors = [
   {
@@ -203,57 +183,25 @@ const uiSemanticSelectors = [
   actionClassSelector,
 ];
 
-const emptyStateTokenSelectors = [
-  {
-    selector: "Literal[value=/text-empty/]",
-    message:
-      "No empty-state token at a call site — consume the EmptyState primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/text-empty/]",
-    message:
-      "No empty-state token at a call site — consume the EmptyState primitive.",
-  },
-];
+const emptyStateTokenSelectors = literalAndTemplate(
+  "text-empty",
+  "No empty-state token at a call site — consume the EmptyState primitive.",
+);
 
-const toneTokenSelectors = [
-  {
-    selector: "Literal[value=/(?:bg|text|border)-(?:pill|chip)-/]",
-    message:
-      "No pill/chip tone token at a call site — consume the owning tone primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/(?:bg|text|border)-(?:pill|chip)-/]",
-    message:
-      "No pill/chip tone token at a call site — consume the owning tone primitive.",
-  },
-];
+const toneTokenSelectors = literalAndTemplate(
+  "(?:bg|text|border)-(?:pill|chip)-",
+  "No pill/chip tone token at a call site — consume the owning tone primitive.",
+);
 
-const skeletonTokenSelectors = [
-  {
-    selector: "Literal[value=/skeleton-shimmer/]",
-    message:
-      "No skeleton token at a call site — consume the Skeleton primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/skeleton-shimmer/]",
-    message:
-      "No skeleton token at a call site — consume the Skeleton primitive.",
-  },
-];
+const skeletonTokenSelectors = literalAndTemplate(
+  "skeleton-shimmer",
+  "No skeleton token at a call site — consume the Skeleton primitive.",
+);
 
-const progressTokenSelectors = [
-  {
-    selector: "Literal[value=/--pct/]",
-    message:
-      "No progress custom property at a call site — consume the ProgressBar primitive.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/--pct/]",
-    message:
-      "No progress custom property at a call site — consume the ProgressBar primitive.",
-  },
-];
+const progressTokenSelectors = literalAndTemplate(
+  "--pct",
+  "No progress custom property at a call site — consume the ProgressBar primitive.",
+);
 
 const loadingToastSelector = {
   selector:
@@ -288,9 +236,9 @@ const apiFetchSelectors = [
       "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts.",
   },
   {
-    selector: "CallExpression[callee.name='apiFetch'] > ObjectExpression:first-child",
+    selector: "CallExpression[callee.name=/^apiFetch(Data)?$/] > ObjectExpression:first-child",
     message:
-      "Inline apiFetch endpoint objects bypass the declared API-contract convention — pass the named defineEndpoint contract from the owning slice's api-contract.ts.",
+      "Inline apiFetch or apiFetchData endpoint objects bypass the declared API-contract convention — pass the named defineEndpoint contract from the owning slice's api-contract.ts.",
   },
 ];
 
@@ -307,31 +255,16 @@ const directPostgresSelectors = [
   },
 ];
 
-const postgresConnectionStringSelectors = [
-  {
-    selector: "Literal[value=/^postgres(?:ql)?:\\/\\//]",
-    message:
-      "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
-  },
-  {
-    selector: "TemplateElement[value.raw=/^postgres(?:ql)?:\\/\\//]",
-    message:
-      "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
-  },
-];
+const postgresConnectionStringSelectors = literalAndTemplate(
+  String.raw`^postgres(?:ql)?:\/\/`,
+  "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
+);
 
-const esiHostSelectors = [
-  {
-    selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
-    message:
-      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
-  },
-  {
-    selector: String.raw`TemplateElement[value.raw=/esi\.evetech\.net/]`,
-    message:
-      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
-  },
-];
+const esiHostSelectors = literalAndTemplate(
+  String.raw`esi\.evetech\.net`,
+  "Don't hand-write ESI URLs — declare the route once in src/lib/esi-datasets/routes.ts and read it through @/data/esi-store (fetchStored, readStoredAuthed, readStoredPaged, postStored, esiPassThrough): the store keys on declared routes and its gate owns CCP's shared per-IP error budget.",
+  "Don't hand-write ESI URLs (template literal) — declare the route once in src/lib/esi-datasets/routes.ts and read it through @/data/esi-store (fetchStored, readStoredAuthed, readStoredPaged, postStored, esiPassThrough): the store keys on declared routes and its gate owns CCP's shared per-IP error budget.",
+);
 
 const bareFetchSelectors = [
   {
@@ -341,18 +274,11 @@ const bareFetchSelectors = [
   },
 ];
 
-const ssoHostSelectors = [
-  {
-    selector: String.raw`Literal[value=/login\.eveonline\.com/]`,
-    message:
-      "Don't hand-write EVE SSO URLs — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
-  },
-  {
-    selector: String.raw`TemplateElement[value.raw=/login\.eveonline\.com/]`,
-    message:
-      "Don't hand-write EVE SSO URLs (template literal) — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
-  },
-];
+const ssoHostSelectors = literalAndTemplate(
+  String.raw`login\.eveonline\.com`,
+  "Don't hand-write EVE SSO URLs — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
+  "Don't hand-write EVE SSO URLs (template literal) — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
+);
 
 const imageVariantSelectors = [
   {
@@ -372,7 +298,7 @@ const processEnvSelectors = [
     selector:
       "MemberExpression[object.object.name='process'][object.property.name='env'][property.name!='NODE_ENV']:not([property.name=/^NEXT_PUBLIC_/])",
     message:
-      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. NODE_ENV and NEXT_PUBLIC_* stay direct reads.",
+      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. Convex reads its SITE_URL through readAppOrigin() (convex/lib/deploymentEnv.ts). NODE_ENV and NEXT_PUBLIC_* stay direct reads.",
   },
 ];
 
@@ -380,7 +306,36 @@ const datasetTtlSelectors = [
   {
     selector: "VariableDeclarator[id.name=/_TTL_MS$/]",
     message:
-      "Dataset TTL constants belong in the ESI dataset registry; bind a gate from @/lib/esi-datasets/freshness instead.",
+      "Dataset TTL constants are not a freshness source — CCP's Expires is, kept per declared route by the ESI response store (@/data/esi-store: isDue, storedExpiry, untilExpires).",
+  },
+];
+
+// cacheLife on EVE data takes untilExpires(…) from the response store; 'max'
+// is for SDE and other static data, and for a reader that only aggregates a
+// dataset whose every write clears its tag (prices; pinned by the
+// remote-readers census). Anything else is a hand-picked window.
+const cacheLifeSelectors = [
+  {
+    selector:
+      "CallExpression[callee.name='cacheLife']:not([arguments.0.value='max']):not([arguments.0.callee.name='untilExpires'])",
+    message:
+      "cacheLife on EVE data takes untilExpires(…) from the ESI response store (@/data/esi-store), so the entry ends when CCP's copy does; 'max' is for SDE and static data, and for an aggregate of a dataset whose every write clears its tag (src/esi-datasets/remote-readers.test.ts). No hand-picked window.",
+  },
+];
+
+// Expires, ETag and Last-Modified are the store's to read: a caller takes
+// its expiry from the store's meta, never from a response header.
+const esiHeaderSelectors = [
+  {
+    selector: "CallExpression[callee.property.name='get'][arguments.0.value=/^(expires|etag|last-modified)$/i]",
+    message:
+      "Expires, ETag and Last-Modified are read only by @/platform/esi and the ESI response store (@/data/esi-store); take expiry from the store's meta instead of the response header.",
+  },
+  {
+    selector:
+      "CallExpression[callee.property.name='get'][arguments.0.quasis.0.value.raw=/^(expires|etag|last-modified)$/i]",
+    message:
+      "Expires, ETag and Last-Modified are read only by @/platform/esi and the ESI response store (@/data/esi-store) (template literal); take expiry from the store's meta instead of the response header.",
   },
 ];
 
@@ -441,7 +396,7 @@ const stalenessImportPatterns = [
   {
     group: ["**/staleness"],
     message:
-      "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+      "Freshness comes from the ESI response store (@/data/esi-store: isDue, storedExpiry, untilExpires), keyed by declared route; feature-local staleness modules duplicate the one expiry rule.",
   },
 ];
 
@@ -462,7 +417,7 @@ const upstashRedisImportPatterns = [
   {
     group: ["@upstash/redis"],
     message:
-      "Construct Upstash Redis clients through createUpstashClient / resolveUpstashClient (@/lib/upstash), the single construction owner; import the `UpstashRedis` type from there instead of the package.",
+      "Construct Upstash Redis clients through createUpstashClient (@/lib/upstash), the single construction owner; import the `UpstashRedis` type from there instead of the package.",
   },
 ];
 
@@ -538,98 +493,162 @@ const serverRootImportPatterns = [
   },
 ];
 
-function selectorsWithout(selectors, exemptions) {
-  return selectors.filter((selector) => !exemptions.includes(selector));
-}
-
-function productionSyntaxSelectorsExcept(...exemptions) {
-  return [
-    ...bareFetchSelectors,
-    ...ssoHostSelectors,
-    ...cspSelectors,
-    ...hexColorSelectors,
-    ...rgbaColorSelectors,
-    ...apiFetchSelectors,
-    ...processEnvSelectors,
-    ...esiHostSelectors,
-    ...textSizeSelectors,
-    ...legacyTypeRoleSelectors,
-    ...roundedSizeSelectors,
-    ...selectElementSelectors,
-    ...inputClassSelectors,
-    ...selectorsWithout(uiAdoptionSelectors, exemptions),
-    ...datasetTtlSelectors,
-    ...imageVariantSelectors,
-  ];
-}
-
-function primitiveSyntaxSelectorsExcept(...exemptions) {
-  return [
-    ...bareFetchSelectors,
-    ...ssoHostSelectors,
-    ...cspSelectors,
-    ...hexColorSelectors,
-    ...rgbaColorSelectors,
-    ...apiFetchSelectors,
-    ...processEnvSelectors,
-    ...esiHostSelectors,
-    ...textSizeSelectors,
-    ...legacyTypeRoleSelectors,
-    ...roundedSizeSelectors,
-    ...selectElementSelectors,
-    ...inputClassSelectors,
-    ...selectorsWithout(uiAdoptionSelectors, exemptions),
-    ...datasetTtlSelectors,
-    ...imageVariantSelectors,
-  ];
-}
-
-const corpAccessBoundary = {
-  meta: {
-    type: "problem",
-    schema: [],
-    messages: { raw: "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution." },
+const wormholeSiteSchemaImportPatterns = [
+  {
+    group: [
+      "./schema",
+      "../schema",
+      "@/features/wormhole-sites/schema",
+      "drizzle-orm",
+      "drizzle-orm/*",
+    ],
+    allowTypeImports: true,
+    message:
+      "Wormhole-site modules reach client bundles, and the Drizzle schema's module-scope pgTable/pgEnum calls would ship pg-core with them. Import site constants from ./site-taxonomy or ./sleeper-classes; only schema.ts and queries.ts load Drizzle at runtime.",
   },
-  create(context) {
-    const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations"];
-    const isAffiliationStoreSource = (source) => /platform\/auth\/affiliation-store$/.test(source);
-    const isBoundarySource = (node) => {
-      const source = node.source?.value;
-      return typeof source === "string" && isAffiliationStoreSource(source);
-    };
-    const reportIfBoundarySource = (node) => {
-      if (isBoundarySource(node)) {
-        context.report({ node, messageId: "raw" });
-      }
-    };
-    const isRawImportSpecifier = (specifier) =>
-      specifier.type === "ImportNamespaceSpecifier" ||
-      (specifier.type === "ImportSpecifier" && RAW_READERS.includes(specifier.imported.name));
-    const isRawExportSpecifier = (specifier) =>
-      specifier.type === "ExportSpecifier" && RAW_READERS.includes(specifier.local.name);
-    const reportRawSpecifiers = (node, isRawSpecifier) => {
-      if (!isBoundarySource(node)) return;
-      for (const specifier of node.specifiers.filter(isRawSpecifier)) {
-        context.report({ node: specifier, messageId: "raw" });
-      }
-    };
-    return {
-      ImportDeclaration(node) {
-        reportRawSpecifiers(node, isRawImportSpecifier);
-      },
-      // Dynamic import() and export * cannot narrow to named readers; prefer static named imports for allowed persistence APIs.
-      ImportExpression(node) {
-        reportIfBoundarySource(node);
-      },
-      ExportNamedDeclaration(node) {
-        reportRawSpecifiers(node, isRawExportSpecifier);
-      },
-      ExportAllDeclaration(node) {
-        reportIfBoundarySource(node);
-      },
-    };
-  },
+];
+
+// A later matching block replaces a rule's options outright, so every owner
+// block restates its canonical list minus its own exemptions. Exemptions
+// match by identity: pass the group arrays (or single selector objects)
+// declared above, never copies.
+function except(list, ...exemptions) {
+  return list.filter((entry) => !exemptions.includes(entry));
+}
+
+const baseSyntaxSelectors = [
+  ...cspSelectors,
+  ...hexColorSelectors,
+  ...rgbaColorSelectors,
+  ...apiFetchSelectors,
+];
+
+const testSyntaxSelectors = [
+  ...baseSyntaxSelectors,
+  ...datasetTtlSelectors,
+  ...imageVariantSelectors,
+];
+
+const convexSyntaxSelectors = [
+  ...bareFetchSelectors,
+  ...ssoHostSelectors,
+  ...baseSyntaxSelectors,
+  ...processEnvSelectors,
+];
+
+const productionSyntaxSelectors = [
+  ...bareFetchSelectors,
+  ...ssoHostSelectors,
+  ...baseSyntaxSelectors,
+  ...processEnvSelectors,
+  ...esiHostSelectors,
+  ...textSizeSelectors,
+  ...legacyTypeRoleSelectors,
+  ...roundedSizeSelectors,
+  ...selectElementSelectors,
+  ...inputClassSelectors,
+  ...uiAdoptionSelectors,
+  ...datasetTtlSelectors,
+  ...cacheLifeSelectors,
+  ...esiHeaderSelectors,
+  ...imageVariantSelectors,
+];
+
+const srcImportPatterns = [
+  ...vendorImportPatterns,
+  ...crossCuttingImportPatterns,
+  ...baseUiImportPatterns,
+  ...deprecatedBaseUiImportPatterns,
+  ...sonnerImportPatterns,
+];
+
+const clientImportPatterns = [...srcImportPatterns, ...serverRootImportPatterns];
+
+// One spelling per module: '@/x/index.ts', '@/x/index', '@/x.ts' and '@/x/'
+// all resolve to '@/x', so a boundary matches the module, not the spelling.
+function moduleSpecifier(source) {
+  return source
+    .replace(/\/+$/, "")
+    .replace(/\.[cm]?[jt]sx?$/, "")
+    .replace(/\/index$/, "");
+}
+
+// A boundary on named imports. `restricted(source)` names what a module may
+// not read from a matching import source (normalised by moduleSpecifier), or
+// null when the source is not guarded. Namespace imports, dynamic import() and
+// `export *` of a guarded source cannot narrow to the allowed names, so they
+// are reported outright.
+function namedImportBoundary(restricted, message) {
+  return {
+    meta: {
+      type: "problem",
+      schema: [],
+      messages: { raw: message },
+    },
+    create(context) {
+      const guarded = (node) => {
+        const source = node.source?.value;
+        return typeof source === "string" ? restricted(moduleSpecifier(source)) : null;
+      };
+      const reportIfGuarded = (node) => {
+        if (guarded(node) !== null) {
+          context.report({ node, messageId: "raw" });
+        }
+      };
+      const isRawImportSpecifier = (names) => (specifier) =>
+        specifier.type === "ImportNamespaceSpecifier" ||
+        (specifier.type === "ImportSpecifier" &&
+          specifier.importKind !== "type" &&
+          names.includes(specifier.imported.name));
+      const isRawExportSpecifier = (names) => (specifier) =>
+        specifier.type === "ExportSpecifier" && names.includes(specifier.local.name);
+      const reportRawSpecifiers = (node, isRawSpecifier) => {
+        const names = guarded(node);
+        if (names === null || node.importKind === "type" || node.exportKind === "type") return;
+        for (const specifier of node.specifiers.filter(isRawSpecifier(names))) {
+          context.report({ node: specifier, messageId: "raw" });
+        }
+      };
+      return {
+        ImportDeclaration(node) {
+          reportRawSpecifiers(node, isRawImportSpecifier);
+        },
+        ImportExpression(node) {
+          reportIfGuarded(node);
+        },
+        ExportNamedDeclaration(node) {
+          reportRawSpecifiers(node, isRawExportSpecifier);
+        },
+        ExportAllDeclaration(node) {
+          reportIfGuarded(node);
+        },
+      };
+    },
+  };
+}
+
+const corpAccessBoundary = namedImportBoundary(
+  (source) =>
+    /platform\/auth\/affiliation-store$/.test(source) ? ["getUserAffiliations", "getUsersAffiliations"] : null,
+  "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution.",
+);
+
+// ESI is read through the response store, which keys every call to its
+// declared route and CCP's Expires. Only the store calls the gate's fetch
+// and the authed reads; convex/ bundles platform/esi and is outside this
+// boundary by design.
+const ESI_READ_IMPORTS = {
+  "platform/esi": ["esiFetch"],
+  "platform/esi/authed-read": ["readEsiAuthed", "readEsiAuthedPost", "readEsiPagedAuthed"],
 };
+
+const esiStoreBoundary = namedImportBoundary(
+  (source) => {
+    const host = /(?:^|\/)(platform\/esi(?:\/authed-read)?)$/.exec(source)?.[1];
+    return host === undefined ? null : ESI_READ_IMPORTS[host];
+  },
+  "ESI is read through the response store (@/data/esi-store: fetchStored, readStoredAuthed, readStoredPaged, postStored, esiPassThrough), which keys every call to its declared route and CCP's Expires; only the store calls esiFetch and the authed reads.",
+);
 
 const UI_ROOT = "src/components/ui";
 const UI_REFERENCE_DIR = "src/app/(site)/preview/primitives";
@@ -772,18 +791,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
-        },
+        { paths: [...nextImageImportPaths], patterns: srcImportPatterns },
       ],
     },
   },
@@ -800,19 +808,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
-        },
+        { paths: [...nextImageImportPaths], patterns: clientImportPatterns },
       ],
     },
   },
@@ -822,17 +818,43 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...stalenessImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...reactFlowImportPatterns),
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/wormhole-sites/**/*.{ts,tsx,mts}"],
+    ignores: [
+      "src/features/wormhole-sites/schema.ts",
+      "src/features/wormhole-sites/queries.ts",
+      "src/features/wormhole-sites/**/*.test.{ts,tsx}",
+      "src/features/wormhole-sites/components/**",
+      "src/features/wormhole-sites/**/use-*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [...srcImportPatterns, ...wormholeSiteSchemaImportPatterns],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/features/wormhole-sites/components/**/*.{ts,tsx,mts}",
+      "src/features/wormhole-sites/**/use-*.{ts,tsx}",
+    ],
+    ignores: ["src/features/wormhole-sites/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [...clientImportPatterns, ...wormholeSiteSchemaImportPatterns],
         },
       ],
     },
@@ -840,19 +862,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/components/eve-image.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { patterns: clientImportPatterns }],
     },
   },
   {
@@ -861,16 +871,8 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...baseUiImportPatterns),
         },
       ],
     },
@@ -881,16 +883,8 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...sonnerImportPatterns),
         },
       ],
     },
@@ -901,16 +895,8 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            ...nextImageImportPaths,
-          ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          paths: [...nextImageImportPaths],
+          patterns: except(clientImportPatterns, ...crossCuttingImportPatterns),
         },
       ],
     },
@@ -942,19 +928,19 @@ const eslintConfig = defineConfig([
                 "Cron work receives the shared client from CronWorkContext; do not import directClient.",
             },
             {
-              name: "@/data/telemetry/queries",
+              name: "@/data/telemetry/usage-events",
+              importNames: ["emitUsageEvent", "recordUsageEvent"],
+              message:
+                "Cron outcome telemetry belongs to defineCronRoute or CronWorkContext.record.",
+            },
+            {
+              name: "@/data/telemetry/log",
               importNames: ["logUsageEvent"],
               message:
                 "Cron outcome telemetry belongs to defineCronRoute or CronWorkContext.record.",
             },
           ],
-          patterns: [
-            ...vendorImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: srcImportPatterns,
         },
       ],
     },
@@ -972,17 +958,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...upstashRedisImportPatterns),
         },
       ],
     },
@@ -994,17 +970,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...upstashRatelimitImportPatterns),
         },
       ],
     },
@@ -1021,17 +987,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...databaseDriverImportPatterns),
         },
       ],
     },
@@ -1048,17 +1004,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...betterAuthImportPatterns),
         },
       ],
     },
@@ -1070,18 +1016,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          patterns: except(clientImportPatterns, ...convexReactImportPatterns),
         },
       ],
     },
@@ -1093,17 +1028,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...convexReactImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-          ],
+          patterns: except(srcImportPatterns, ...googleAuthImportPatterns),
         },
       ],
     },
@@ -1118,18 +1043,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...convexReactImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          patterns: except(clientImportPatterns, ...betterAuthImportPatterns),
         },
       ],
     },
@@ -1141,17 +1055,11 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
+          patterns: except(
+            clientImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+          ),
         },
       ],
     },
@@ -1159,28 +1067,13 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-      ],
+      "no-restricted-syntax": ["error", ...baseSyntaxSelectors],
     },
   },
   {
     files: ["src/**/*.test.{ts,tsx}"],
-    ignores: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
-      ],
+      "no-restricted-syntax": ["error", ...testSyntaxSelectors],
     },
   },
   {
@@ -1188,14 +1081,9 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
+        ...testSyntaxSelectors,
         ...directPostgresSelectors,
         ...postgresConnectionStringSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
       ],
     },
   },
@@ -1203,25 +1091,7 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}", "src/lib/env.ts"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
-      ],
+      "no-restricted-syntax": ["error", ...productionSyntaxSelectors],
     },
   },
   {
@@ -1230,21 +1100,37 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...esiHostSelectors, ...esiHeaderSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/data/esi-store/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...except(productionSyntaxSelectors, ...esiHeaderSelectors),
+      ],
+    },
+  },
+  {
+    // anoik.is, not ESI: its ETag and Last-Modified drive the weekly conditional statics refresh.
+    files: ["src/data/wh-statics/source.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...except(productionSyntaxSelectors, ...esiHeaderSelectors),
+      ],
+    },
+  },
+  {
+    // Not EVE data: the linked-character list (per session) and the ESI health scoreboard keep their own cache profiles.
+    files: ["src/app/(site)/industry/industry-characters.ts", "src/composition/esi-health.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...except(productionSyntaxSelectors, ...cacheLifeSelectors),
       ],
     },
   },
@@ -1253,21 +1139,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...processEnvSelectors),
       ],
     },
   },
@@ -1276,21 +1148,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...hexColorSelectors),
       ],
     },
   },
@@ -1299,19 +1157,12 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...legacyTypeRoleSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(
+          productionSyntaxSelectors,
+          ...hexColorSelectors,
+          ...textSizeSelectors,
+          ...roundedSizeSelectors,
+        ),
       ],
     },
   },
@@ -1320,59 +1171,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...rawHtmlSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
-      ],
-    },
-  },
-  {
-    files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
-    ignores: ["**/*.test.{ts,tsx}"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...imageVariantSelectors,
-      ],
-    },
-  },
-  {
-    files: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...inlineStyleSelectors),
       ],
     },
   },
@@ -1381,21 +1180,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
+        ...except(productionSyntaxSelectors, ...imageVariantSelectors),
       ],
     },
   },
@@ -1404,26 +1189,27 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...datasetTtlSelectors,
+        ...except(testSyntaxSelectors, ...imageVariantSelectors),
       ],
     },
   },
   {
     files: ["convex/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.{ts,tsx}"],
+    ignores: [
+      "**/*.test.{ts,tsx}",
+      "convex/lib/deploymentEnv.ts",
+      "convex/auth.config.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", ...convexSyntaxSelectors],
+    },
+  },
+  {
+    files: ["convex/lib/deploymentEnv.ts", "convex/auth.config.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
+        ...except(convexSyntaxSelectors, ...processEnvSelectors),
       ],
     },
   },
@@ -1432,21 +1218,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...ssoHostSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
+        ...except(productionSyntaxSelectors, ...bareFetchSelectors),
       ],
     },
   },
@@ -1459,31 +1231,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...bareFetchSelectors,
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...rgbaColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...legacyTypeRoleSelectors,
-        ...roundedSizeSelectors,
-        ...selectElementSelectors,
-        ...inputClassSelectors,
-        ...uiAdoptionSelectors,
-        ...datasetTtlSelectors,
-        ...imageVariantSelectors,
-      ],
-    },
-  },
-  {
-    files: ["src/components/ui/**/*.{ts,tsx,mts}"],
-    ignores: ["**/*.test.{ts,tsx}", "src/components/ui/tones.ts"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...primitiveSyntaxSelectorsExcept(),
+        ...except(productionSyntaxSelectors, ...ssoHostSelectors),
       ],
     },
   },
@@ -1496,7 +1244,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(rawButtonSelector, ...toneTokenSelectors),
+        ...except(productionSyntaxSelectors, rawButtonSelector, ...toneTokenSelectors),
       ],
     },
   },
@@ -1505,7 +1253,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(
+        ...except(
+          productionSyntaxSelectors,
           rawButtonSelector,
           liveRegionSelector,
           ...toneTokenSelectors,
@@ -1518,7 +1267,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(detailsSelector),
+        ...except(productionSyntaxSelectors, detailsSelector),
       ],
     },
   },
@@ -1527,7 +1276,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...toneTokenSelectors),
+        ...except(productionSyntaxSelectors, liveRegionSelector),
       ],
     },
   },
@@ -1536,7 +1285,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...skeletonTokenSelectors),
+        ...except(productionSyntaxSelectors, liveRegionSelector, ...skeletonTokenSelectors),
       ],
     },
   },
@@ -1545,7 +1294,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(visibleInputSelector, textareaSelector),
+        ...except(productionSyntaxSelectors, visibleInputSelector, textareaSelector),
       ],
     },
   },
@@ -1554,7 +1303,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(tableSelector),
+        ...except(productionSyntaxSelectors, tableSelector),
       ],
     },
   },
@@ -1563,16 +1312,16 @@ const eslintConfig = defineConfig([
       "src/components/ui/access-gate.tsx",
       "src/components/ui/checkbox.tsx",
       "src/components/ui/chip-toggle.tsx",
-      "src/components/ui/chip.tsx",
       "src/components/ui/dropdown-panel.ts",
       "src/components/ui/field.tsx",
       "src/components/ui/pill.tsx",
       "src/components/ui/switch.tsx",
+      "src/components/ui/type-roles.ts",
     ],
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(...toneTokenSelectors),
+        ...except(productionSyntaxSelectors, ...toneTokenSelectors),
       ],
     },
   },
@@ -1581,7 +1330,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(...emptyStateTokenSelectors),
+        ...except(productionSyntaxSelectors, ...emptyStateTokenSelectors),
       ],
     },
   },
@@ -1590,7 +1339,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(...progressTokenSelectors),
+        ...except(productionSyntaxSelectors, ...progressTokenSelectors),
       ],
     },
   },
@@ -1599,7 +1348,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(loadingToastSelector),
+        ...except(productionSyntaxSelectors, loadingToastSelector),
       ],
     },
   },
@@ -1608,7 +1357,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(nativeTitleSelector),
+        ...except(productionSyntaxSelectors, nativeTitleSelector),
       ],
     },
   },
@@ -1617,22 +1366,16 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(rawButtonSelector),
+        ...except(productionSyntaxSelectors, rawButtonSelector),
       ],
     },
   },
   {
-    files: [
-      "src/components/composition/account/AdminForceLogoutForm.tsx",
-      "src/components/composition/account/AdminReassignCharacterForm.tsx",
-      "src/components/composition/account/AdminUnlinkCharacterForm.tsx",
-      "src/components/composition/account/RoleToggleForm.tsx",
-      "src/components/composition/account/UnlinkCharacterForm.tsx",
-    ],
+    files: ["src/components/ui/action-form.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(buttonTitleSelector),
+        ...except(productionSyntaxSelectors, buttonTitleSelector),
       ],
     },
   },
@@ -1643,7 +1386,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...productionSyntaxSelectorsExcept(detailsSelector),
+        ...except(productionSyntaxSelectors, detailsSelector),
       ],
     },
   },
@@ -1670,6 +1413,13 @@ const eslintConfig = defineConfig([
     ],
     plugins: { "corp-access": { rules: { "boundary": corpAccessBoundary } } },
     rules: { "corp-access/boundary": "error" },
+  },
+
+  {
+    files: ["src/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}", "src/data/esi-store/**", "src/platform/esi/**"],
+    plugins: { "esi-store": { rules: { "boundary": esiStoreBoundary } } },
+    rules: { "esi-store/boundary": "error" },
   },
 
   {

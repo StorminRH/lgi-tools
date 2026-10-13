@@ -1,27 +1,35 @@
 import { createUpstashClient, type UpstashRedis } from '@/lib/upstash';
+import { parseIntOrNull } from '../headers';
+import { sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
   epochMinute,
   keyBlock,
+  keyCallCount,
   keyErrorCount,
+  keyFailureCount,
+  keyGroupBlock,
+  keyGroupLimit,
+  keyGroupOfPath,
+  keyGroupRemaining,
+  keyHistoryCount,
   KEY_ERROR_ECHO,
-  keyEtagBody,
-  keyEtagMeta,
-  keyGroup,
   normalizeEsiPath,
-  parseStoredInt,
-  parseStoredMeta,
-  resolveRetryAfter,
   WRITE_IF_LOWER_LUA,
 } from './keys';
+import { summarizeReports, type ErrorEcho, type ReportBatch } from './report-batch';
 import { effectiveRemaining } from './budget';
 import {
+  CALL_COUNT_TTL_SECONDS,
   ERROR_COUNT_TTL_SECONDS,
-  ETAG_TTL_SECONDS,
-  GROUP_STATE_TTL_SECONDS,
+  GROUP_ECHO_TTL_SECONDS,
+  GROUP_OF_PATH_TTL_SECONDS,
+  HISTORY_COUNT_TTL_SECONDS,
+  type EsiAvailabilitySnapshot,
   type EsiReport,
   type EsiBudgetSnapshot,
   type EsiScoreboard,
+  type GroupBudget,
   type PreDispatchState,
 } from './types';
 
@@ -29,6 +37,7 @@ const REDIS_TIMEOUT_MS = 1500;
 const REDIS_RETRIES = 0;
 
 type Pipeline = ReturnType<UpstashRedis['pipeline']>;
+type Rows = (string | null)[];
 
 function queueBudgetReads(pipeline: Pipeline, minute: number): void {
   pipeline.get(keyErrorCount(minute));
@@ -36,10 +45,17 @@ function queueBudgetReads(pipeline: Pipeline, minute: number): void {
   pipeline.get(KEY_ERROR_ECHO);
 }
 
-function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'source'> {
+/** The group's echoed Remaining, its limit and its 429 block, in that order. */
+function queueGroupReads(pipeline: Pipeline, group: string): void {
+  pipeline.get(keyGroupRemaining(group));
+  pipeline.get(keyGroupLimit(group));
+  pipeline.get(keyGroupBlock(group));
+}
+
+function budgetFromRows(rows: Rows): Omit<EsiBudgetSnapshot, 'source'> {
   const selfCount =
-    (parseStoredInt(rows[0] ?? null) ?? 0) + (parseStoredInt(rows[1] ?? null) ?? 0);
-  const echo = parseStoredInt(rows[2] ?? null);
+    (parseIntOrNull(rows[0] ?? null) ?? 0) + (parseIntOrNull(rows[1] ?? null) ?? 0);
+  const echo = parseIntOrNull(rows[2] ?? null);
   return {
     effectiveRemaining: effectiveRemaining(echo, selfCount),
     selfCount,
@@ -47,8 +63,30 @@ function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'sourc
   };
 }
 
+/** The seconds a stored block (its expiry in epoch seconds) still holds, or null once it has passed. */
+function blockRemaining(row: string | null | undefined): number | null {
+  const expiry = parseIntOrNull(row ?? null);
+  const remaining = expiry === null ? null : expiry - Math.floor(Date.now() / 1000);
+  return remaining !== null && remaining > 0 ? remaining : null;
+}
+
+function longestBlock(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.max(a, b);
+}
+
+function groupBudgetFrom(group: string | null, rows: Rows | null): GroupBudget | undefined {
+  if (group === null || rows === null) return undefined;
+  const remaining = parseIntOrNull(rows[0] ?? null);
+  const limit = parseIntOrNull(rows[1] ?? null);
+  return remaining === null || limit === null ? undefined : { group, remaining, limit };
+}
+
 class RedisScoreboard implements EsiScoreboard {
   private readonly redis: UpstashRedis;
+  /** The rate-limit group each normalized path answered under, as this process has seen or read it. */
+  private readonly groupOfPath = new Map<string, string>();
 
   constructor(url: string, token: string) {
     this.redis = createUpstashClient({
@@ -60,134 +98,144 @@ class RedisScoreboard implements EsiScoreboard {
     });
   }
 
-  async preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState> {
+  /**
+   * One round trip in the steady state. The group's keys can only be read
+   * once the path's group is known, so a path this process has never seen
+   * reads the shared mapping here and the group's state in a second trip,
+   * once; every call after it reads both together.
+   */
+  async preDispatch(url: string): Promise<PreDispatchState> {
+    const path = normalizeEsiPath(url);
     const minute = epochMinute();
+    const known = this.groupOfPath.get(path) ?? null;
     const pipeline = this.redis.pipeline();
     queueBudgetReads(pipeline, minute);
-    pipeline.get(keyBlock(normalizeEsiPath(url)));
-    if (wantEtag) pipeline.get(keyEtagMeta(url));
-    const rows = await pipeline.exec<(string | null)[]>();
+    pipeline.get(keyBlock(path));
+    pipeline.get(keyGroupOfPath(path));
+    if (known !== null) queueGroupReads(pipeline, known);
+    const rows = await pipeline.exec<Rows>();
 
-    const budget = budgetFromRows(rows);
-    const blockExpiry = parseStoredInt(rows[3] ?? null);
-    const blockRemaining =
-      blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
-    return {
-      effectiveRemaining: budget.effectiveRemaining,
-      blockedRetryAfter:
-        blockRemaining !== null && blockRemaining > 0 ? blockRemaining : null,
-      etag: wantEtag ? parseStoredMeta(rows[4] ?? null) : null,
+    const group = known ?? this.learnGroup(path, rows[4] ?? null);
+    const groupRows = known !== null ? rows.slice(5) : await this.readGroupState(group);
+    const state: PreDispatchState = {
+      effectiveRemaining: budgetFromRows(rows).effectiveRemaining,
+      blockedRetryAfter: longestBlock(blockRemaining(rows[3]), blockRemaining(groupRows?.[2])),
     };
+    const groupBudget = groupBudgetFrom(group, groupRows);
+    if (groupBudget !== undefined) state.groupBudget = groupBudget;
+    return state;
+  }
+
+  /** INCRBY 1 then EXPIRE in one pipeline: the increment alone decides, so no two instances can take the same place. */
+  async reserveHistoryCall(): Promise<number> {
+    const key = keyHistoryCount(epochMinute());
+    const pipeline = this.redis.pipeline();
+    pipeline.incrby(key, 1);
+    pipeline.expire(key, HISTORY_COUNT_TTL_SECONDS);
+    const [count] = await pipeline.exec<[number | string, number | string]>();
+    return Number(count);
+  }
+
+  private learnGroup(path: string, row: string | null): string | null {
+    if (row !== null) this.groupOfPath.set(path, row);
+    return row;
+  }
+
+  private async readGroupState(group: string | null): Promise<Rows | null> {
+    if (group === null) return null;
+    const pipeline = this.redis.pipeline();
+    queueGroupReads(pipeline, group);
+    return pipeline.exec<Rows>();
   }
 
   async budgetSnapshot(): Promise<EsiBudgetSnapshot> {
     const minute = epochMinute();
     const pipeline = this.redis.pipeline();
     queueBudgetReads(pipeline, minute);
-    const rows = await pipeline.exec<(string | null)[]>();
+    const rows = await pipeline.exec<Rows>();
     return {
       ...budgetFromRows(rows),
       source: 'shared',
     };
   }
 
+  async availabilitySnapshot(): Promise<EsiAvailabilitySnapshot> {
+    const minutes = windowMinutes(epochMinute());
+    const rows = await this.redis.mget<Rows>(
+      ...minutes.map(keyCallCount),
+      ...minutes.map(keyFailureCount),
+    );
+    const counts = rows.map((row) => parseIntOrNull(row ?? null));
+    return {
+      calls: sumCounts(counts.slice(0, minutes.length)),
+      failures: sumCounts(counts.slice(minutes.length)),
+      source: 'shared',
+    };
+  }
+
   async report(report: EsiReport): Promise<void> {
+    await this.reportMany([report]);
+  }
+
+  /** Every answer in one pipeline: counts by their sums, echoes at their lowest, blocks at their longest. */
+  async reportMany(reports: readonly EsiReport[]): Promise<void> {
+    if (reports.length === 0) return;
+    const batch = summarizeReports(reports);
     const pipeline = this.redis.pipeline();
-    const queued = [
-      this.queueErrorCount(pipeline, report),
-      this.queueErrorEcho(pipeline, report),
-      this.queueGroupState(pipeline, report),
-      this.queueRetryBlock(pipeline, report),
-      this.queueEtag(pipeline, report),
-    ];
-    if (queued.some(Boolean)) await pipeline.exec();
+    queueCounts(pipeline, batch);
+    queueErrorEcho(pipeline, batch.errorEcho);
+    this.queueGroupEchoes(pipeline, batch);
+    queueRetryBlocks(pipeline, batch.retryBlocks);
+    await pipeline.exec();
   }
 
-  private queueErrorCount(pipeline: Pipeline, report: EsiReport): boolean {
-    if (report.status < 400) return false;
-    const key = keyErrorCount(epochMinute());
-    pipeline.incr(key);
-    pipeline.expire(key, ERROR_COUNT_TTL_SECONDS);
-    return true;
-  }
-
-  private queueErrorEcho(pipeline: Pipeline, report: EsiReport): boolean {
-    if (report.status === 420) {
-      pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [
-        '0',
-        String(echoTtl(report.errorLimitReset)),
-      ]);
-      return true;
+  /**
+   * What the answers' rate-limit headers say: each path's group, kept a
+   * day, and each group's Remaining, lowest wins for the echo window, next
+   * to the limit it is a share of.
+   */
+  private queueGroupEchoes(pipeline: Pipeline, batch: ReportBatch): void {
+    for (const [path, group] of batch.groupOfPath) {
+      this.groupOfPath.set(path, group);
+      pipeline.set(keyGroupOfPath(path), group, { ex: GROUP_OF_PATH_TTL_SECONDS });
     }
-    if (report.errorLimitRemain !== null) {
-      pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [
-        String(report.errorLimitRemain),
-        String(echoTtl(report.errorLimitReset)),
-      ]);
-      return true;
+    for (const [group, echo] of batch.groupEchoes) {
+      pipeline.eval(WRITE_IF_LOWER_LUA, [keyGroupRemaining(group)], [String(echo.remaining), String(GROUP_ECHO_TTL_SECONDS)]);
+      pipeline.set(keyGroupLimit(group), String(echo.limit), { ex: GROUP_ECHO_TTL_SECONDS });
     }
-    return false;
   }
+}
 
-  private queueGroupState(pipeline: Pipeline, report: EsiReport): boolean {
-    if (report.rateLimitGroup === null || report.rateLimitLimit === null) {
-      return false;
-    }
-    pipeline.set(
-      keyGroup(report.rateLimitGroup),
-      JSON.stringify({
-        limit: report.rateLimitLimit,
-        remaining: report.rateLimitRemaining,
-        used: report.rateLimitUsed,
-        observedAt: Date.now(),
-      }),
-      { ex: GROUP_STATE_TTL_SECONDS },
-    );
-    return true;
-  }
+function queueIncrement(pipeline: Pipeline, key: string, by: number, ttlSeconds: number): void {
+  if (by === 0) return;
+  pipeline.incrby(key, by);
+  pipeline.expire(key, ttlSeconds);
+}
 
-  private queueRetryBlock(pipeline: Pipeline, report: EsiReport): boolean {
-    if (report.status !== 429) return false;
-    const retryAfter = resolveRetryAfter(report.retryAfter);
-    pipeline.set(
-      keyBlock(normalizeEsiPath(report.url)),
-      String(Math.floor(Date.now() / 1000) + retryAfter),
-      { ex: retryAfter },
-    );
-    return true;
-  }
+/**
+ * Every dispatch counts as a call, and the failed ones as failures; every
+ * non-2xx/3xx against the error budget. A market-history call was already
+ * counted against its cap when it reserved its place before dispatch.
+ */
+function queueCounts(pipeline: Pipeline, batch: ReportBatch): void {
+  const minute = epochMinute();
+  queueIncrement(pipeline, keyCallCount(minute), batch.calls, CALL_COUNT_TTL_SECONDS);
+  queueIncrement(pipeline, keyFailureCount(minute), batch.failures, CALL_COUNT_TTL_SECONDS);
+  queueIncrement(pipeline, keyErrorCount(minute), batch.errors, ERROR_COUNT_TTL_SECONDS);
+}
 
-  private queueEtag(pipeline: Pipeline, report: EsiReport): boolean {
-    let queued = false;
-    if (report.etagToStore !== null) {
-      const { body, ...meta } = report.etagToStore;
-      pipeline.set(keyEtagMeta(report.url), JSON.stringify(meta), {
-        ex: ETAG_TTL_SECONDS,
-      });
-      pipeline.set(keyEtagBody(report.url), body, { ex: ETAG_TTL_SECONDS });
-      queued = true;
-    }
-    if (report.refreshEtag !== null) {
-      pipeline.set(keyEtagMeta(report.url), JSON.stringify(report.refreshEtag), {
-        ex: ETAG_TTL_SECONDS,
-      });
-      pipeline.expire(keyEtagBody(report.url), ETAG_TTL_SECONDS);
-      queued = true;
-    }
-    return queued;
-  }
+function queueErrorEcho(pipeline: Pipeline, echo: ErrorEcho | null): void {
+  if (echo === null) return;
+  pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [String(echo.remain), String(echoTtl(echo.reset))]);
+}
 
-  async getCachedBody(url: string): Promise<string | null> {
-    return await this.redis.get<string>(keyEtagBody(url));
+/** Each blocked key holds until its Retry-After, stored as the epoch second it lifts. */
+function queueRetryBlocks(pipeline: Pipeline, blocks: ReadonlyMap<string, number>): void {
+  for (const [key, retryAfter] of blocks) {
+    pipeline.set(key, String(Math.floor(Date.now() / 1000) + retryAfter), { ex: retryAfter });
   }
 }
 
 export function createRedisScoreboard(url: string, token: string): EsiScoreboard {
   return new RedisScoreboard(url, token);
-}
-
-export function readRedisBudgetSnapshot(
-  scoreboard: EsiScoreboard,
-): Promise<EsiBudgetSnapshot> {
-  return scoreboard.budgetSnapshot();
 }

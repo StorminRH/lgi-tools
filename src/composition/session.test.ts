@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const getSessionApiMock = vi.fn();
+const getSessionApiMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const afterMock = vi.fn();
 const checkAuthorizationsMock = vi.fn();
 vi.mock('next/server', () => ({ after: (...args: unknown[]) => afterMock(...args) }));
@@ -8,21 +10,18 @@ vi.mock('@/composition/character-authorization', () => ({
   checkUserCharacterAuthorizations: (...args: unknown[]) => checkAuthorizationsMock(...args),
 }));
 vi.mock('@/composition/auth', () => ({
-  auth: { api: { getSession: (...args: unknown[]) => getSessionApiMock(...args) } },
+  auth: { api: { getSession: () => getSessionApiMock() } },
 }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
 import { getCurrentUserId, getFullSession, getSession, getSessionCharacterId } from '@/composition/session';
 
-const ENRICHED = {
+const ENRICHED = adminSessionFixture({
   user: { id: 'u1' },
-  session: {},
   characterId: 90000001,
   name: 'Test Pilot',
   portraitUrl: 'https://images.evetech.net/characters/90000001/portrait?size=128',
-  role: 'ADMIN' as const,
-  isAdmin: true,
-};
+});
 
 afterEach(() => {
   getSessionApiMock.mockReset();

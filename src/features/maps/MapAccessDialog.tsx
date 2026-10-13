@@ -1,21 +1,16 @@
 'use client';
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from 'react';
-import { useRouter } from 'next/navigation';
+import { useId } from 'react';
 import type { PortraitToggleChange } from '@/components/character-portrait-picker';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
-  DialogDescription,
-  DialogTitle,
+  DialogFooter,
+  DialogHeader,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import type {
@@ -24,8 +19,8 @@ import type {
   MapBlockOption,
   MapRole,
 } from '@/data/maps/access-contract';
+import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { AccessListEditor } from './AccessListEditor';
-import { CharacterSearchControl } from './CharacterSearchControl';
 import { MapBlockList, useMapBlockEditor } from './MapBlockList';
 import { OwnCharacterPicker } from './OwnCharacterPicker';
 import {
@@ -37,7 +32,7 @@ import {
   type AccessGrantDraft,
   type AccessPrincipalOption,
 } from './access-editor-model';
-import { mapAccessFailureMessage, updateMapAccess } from './map-access-client';
+import { useMapAccessWrite, useServerDraft } from './use-map-access-editor';
 
 export interface MapAccessDialogProps {
   readonly mapId: string;
@@ -83,58 +78,53 @@ function useAccessGrantEditor(
   mapId: string,
   initialGrants: readonly MapAccessGrantOption[],
 ) {
-  const router = useRouter();
-  const [grants, setGrants] = useState<AccessGrantDraft[]>(() =>
-    initialDrafts(initialGrants),
+  const [grants, setGrants] = useServerDraft(
+    initialGrants,
+    mapAccessGrantRevision(initialGrants),
+    (server, current: AccessGrantDraft[] | null) =>
+      reconcileAccessGrantDrafts(server, current ?? []),
   );
-  const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const serverRevision = mapAccessGrantRevision(initialGrants);
-  const appliedServerRevision = useRef(serverRevision);
+  const write = useMapAccessWrite<string>();
 
-  useEffect(() => {
-    if (appliedServerRevision.current === serverRevision) return;
-    appliedServerRevision.current = serverRevision;
-    setGrants((current) => reconcileAccessGrantDrafts(initialGrants, current));
-  }, [initialGrants, serverRevision]);
-
-  async function commitRole(principal: AccessPrincipalOption, role: MapRole) {
-    const key = accessPrincipalKey(principal);
-    setBusyKey(key);
-    setError(null);
-    const outcome = await updateMapAccess({
-      operation: 'upsert',
-      mapId,
-      grant: { ownerType: principal.ownerType, ownerId: principal.ownerId, role },
-    });
-    setBusyKey(null);
-    if (!outcome.ok) return setError(mapAccessFailureMessage(outcome));
-    setGrants((current) =>
-      setAccessDraftRole('manage', addAccessPrincipal(current, principal), principal, role));
-    router.refresh();
+  function commitRole(principal: AccessPrincipalOption, role: MapRole) {
+    return write.run(
+      accessPrincipalKey(principal),
+      {
+        operation: 'upsert',
+        mapId,
+        grant: { ownerType: principal.ownerType, ownerId: principal.ownerId, role },
+      },
+      // Adding first lists an own character that is not on the list yet.
+      () => setGrants((current) =>
+        setAccessDraftRole('manage', addAccessPrincipal(current, principal), principal, role)),
+    );
   }
 
-  async function revoke(principal: AccessPrincipalOption) {
-    const key = accessPrincipalKey(principal);
-    setBusyKey(key);
-    setError(null);
-    const outcome = await updateMapAccess({
-      operation: 'revoke',
-      mapId,
-      principal: { ownerType: principal.ownerType, ownerId: principal.ownerId },
-    });
-    setBusyKey(null);
-    if (!outcome.ok) return setError(mapAccessFailureMessage(outcome));
-    setGrants((current) => removeAccessPrincipal(current, principal));
-    router.refresh();
+  function revoke(principal: AccessPrincipalOption) {
+    return write.run(
+      accessPrincipalKey(principal),
+      {
+        operation: 'revoke',
+        mapId,
+        principal: { ownerType: principal.ownerType, ownerId: principal.ownerId },
+      },
+      () => setGrants((current) => removeAccessPrincipal(current, principal)),
+    );
   }
 
   function addPrincipal(principal: AccessPrincipalOption) {
     setGrants((current) => addAccessPrincipal(current, principal));
-    setError(null);
+    write.clearError();
   }
 
-  return { grants, busyKey, error, commitRole, revoke, addPrincipal };
+  return {
+    grants,
+    busyKey: write.busy,
+    error: write.error,
+    commitRole,
+    revoke,
+    addPrincipal,
+  };
 }
 
 export function MapAccessDialog({
@@ -171,34 +161,20 @@ export function MapAccessDialog({
       finalFocus={finalFocus}
       className="max-h-[calc(100dvh-2rem)] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto"
     >
-      <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <DialogTitle
-            id={titleId}
-            className="min-w-0 break-words font-display text-h2 font-semibold tracking-copy uppercase text-name"
-          >
-            Manage {mapName}
-          </DialogTitle>
-          <DialogDescription className="font-ui text-ui text-muted">
-            Grant, change, or revoke access. Only characters on this list can be tracked here.
-          </DialogDescription>
-        </div>
-        <DialogClose
-          render={<Button variant="ghost" size="sm" />}
-          aria-label="Close map access"
-          disabled={disabled}
-        >
-          ×
-        </DialogClose>
-      </header>
+      <DialogHeader
+        titleId={titleId}
+        title={`Manage ${mapName}`}
+        closeLabel="Close map access"
+        closeDisabled={disabled}
+      />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <DialogBody className="gap-4">
         <OwnCharacterPicker
           characters={ownCharacters}
           selectedIds={grantedCharacterIds(access.grants)}
           onToggle={toggleOwnCharacter}
           disabled={disabled}
-          hint="Your chosen characters can be tracked on this map."
+          hint="Chosen characters can be tracked on this map."
         />
         <AccessListEditor
           mode="manage"
@@ -208,26 +184,56 @@ export function MapAccessDialog({
           onPrincipalAdd={access.addPrincipal}
           onRoleChange={(principal, role) => void access.commitRole(principal, role)}
           onPrincipalRemove={(principal) => void access.revoke(principal)}
-          characterSearch={
-            <CharacterSearchControl
-              disabled={disabled}
-              selectedPrincipals={access.grants}
-              onSelect={access.addPrincipal}
-            />
-          }
         />
         {error !== null ? <Banner tone="warn">{error}</Banner> : null}
         <MapBlockList editor={blocks} disabled={disabled} />
-      </div>
+      </DialogBody>
 
-      <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
+      <DialogFooter>
         <DialogClose
           render={<Button variant="secondary" size="sm" />}
           disabled={disabled}
         >
           Done
         </DialogClose>
-      </footer>
+      </DialogFooter>
     </Dialog>
+  );
+}
+
+/**
+ * The access editor for the map a host is editing, or nothing. Keyed by map
+ * id, so switching maps starts the editor from that map's server rows.
+ */
+export function EditingMapAccessDialog({
+  editingMap,
+  onClose,
+  finalFocus,
+  corporations,
+  grantsByMapId,
+  blocksByMapId,
+}: {
+  readonly editingMap: AuthorizedMapRow | null;
+  readonly onClose: () => void;
+  readonly finalFocus: () => HTMLElement | null;
+  readonly corporations: readonly CorporationAccessOption[];
+  readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
+  readonly blocksByMapId: Readonly<Record<string, readonly MapBlockOption[]>>;
+}) {
+  if (editingMap === null) return null;
+  return (
+    <MapAccessDialog
+      key={editingMap.id}
+      mapId={editingMap.id}
+      mapName={editingMap.name}
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      finalFocus={finalFocus}
+      corporations={corporations}
+      initialGrants={grantsByMapId[editingMap.id] ?? []}
+      initialBlocks={blocksByMapId[editingMap.id] ?? []}
+    />
   );
 }

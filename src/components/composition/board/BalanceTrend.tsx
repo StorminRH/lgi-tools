@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Measured } from '@/components/ui/measured';
 import { formatIsk } from '@/lib/format/isk';
+import { stripUtcYear } from '@/lib/format/time';
 import { balanceChart } from './board-view-model';
 
 const TrendChart = dynamic(() => import('@/components/ui/trend-chart').then((m) => m.TrendChart), {
@@ -32,7 +33,7 @@ export function BalanceTrend({
           width={width}
           height={height}
           formatY={formatIsk}
-          formatTick={(label) => label.replace(/ \d{4}$/, '')}
+          formatTick={stripUtcYear}
           ariaLabel={ariaLabel}
         />
       )}

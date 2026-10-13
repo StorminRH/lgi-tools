@@ -1,10 +1,9 @@
-import { SITE_URL } from '@/config/site-url';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { PRODUCTION_SITE_URL, SITE_URL } from '@/config/site-url';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { readEnv } from '@/lib/env';
-import { forbiddenFailure, type AppFailure } from '@/lib/failure';
+import { forbiddenFailure, type CheckResult } from '@/lib/failure';
 
 type OriginSource = 'origin' | 'referer';
-export type SameOriginResult = { ok: true } | { ok: false; failure: AppFailure };
 
 function normalizeOrigin(value: string, addHttps = false): string | null {
   try {
@@ -26,10 +25,10 @@ function canonicalOrigin(): string {
   const authOrigin = readEnv('BETTER_AUTH_URL');
   return (authOrigin ? normalizeOrigin(authOrigin) : null)
     ?? normalizeOrigin(SITE_URL)
-    ?? 'https://lgi.tools';
+    ?? PRODUCTION_SITE_URL;
 }
 
-export function requireSameOrigin(request: Request): SameOriginResult {
+export function requireSameOrigin(request: Request): CheckResult {
   const origin = request.headers.get('origin');
   const referer = origin === null ? request.headers.get('referer') : null;
   const rawOrigin = origin ?? referer;
@@ -46,15 +45,13 @@ export function requireSameOrigin(request: Request): SameOriginResult {
     && (normalizedOrigin === requestUrl.origin || normalizedOrigin === canonicalOrigin())
   ) return { ok: true };
 
-  void logUsageEvent({
+  emitUsageEvent('same-origin', {
     action: 'cross_origin_mutation',
     metadata: {
       route: requestUrl.pathname,
       offendingOrigin: normalizedOrigin ?? 'invalid',
       source,
     },
-  }).catch((error: unknown) => {
-    console.error('[same-origin] telemetry write failed', error);
   });
 
   return {

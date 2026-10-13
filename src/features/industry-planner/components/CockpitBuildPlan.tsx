@@ -3,18 +3,13 @@
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
-import { LivePrice } from '@/components/ui/live-price';
+import { EmptyState } from '@/components/ui/empty-state';
 import { nodeImage } from '@/data/eve-data/type-images';
-import { formatIsk } from '@/lib/format/isk';
 import { isEfficiencyEligible, tierColumnView, unitPriceMap, type TierRowView } from '../build-plan-view';
-import {
-  consolidateBuild,
-  scaleTiersToBatched,
-  type ConsolidatedItem,
-  type ConsolidatedTier,
-} from '../build-consolidate';
-import { nodeFrameState } from '../node-frame-state';
-import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
+import { consolidateBuild, scaleTiersToBatched, type ConsolidatedTier } from '../build-consolidate';
+import { nodeFrameState } from '../efficiency';
+import type { BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
+import { LedgerColumnHead } from './ledger-parts';
 import { NodeAdjusters } from './MeAdjuster';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
@@ -38,53 +33,6 @@ const COLS_DESKTOP = [
   'cockpit:grid-cols-[repeat(8,minmax(8rem,1fr))]',
 ];
 
-function TierRow({
-  item,
-  icon,
-  qty,
-  value,
-  efficiency,
-  detail,
-  ownedQty,
-  heldBy,
-  lit,
-  dimmed,
-  onOpen,
-  onHover,
-}: {
-  item: ConsolidatedItem;
-  icon: ReturnType<typeof nodeImage>;
-  qty: number;
-  value: number | null;
-  efficiency?: NodeEfficiency;
-  detail?: OwnedComponentDetail;
-  ownedQty?: number;
-  heldBy?: AssetHolding[];
-  lit: boolean;
-  dimmed: boolean;
-  onOpen?: () => void;
-  onHover?: (entering: boolean) => void;
-}) {
-  return (
-    <NodeCard
-      typeId={item.typeId}
-      icon={icon}
-      name={item.name}
-      label={item.label}
-      qty={qty}
-      value={value}
-      efficiency={efficiency}
-      detail={detail}
-      ownedQty={ownedQty}
-      heldBy={heldBy}
-      lit={lit}
-      dimmed={dimmed}
-      onOpen={onOpen}
-      onHover={onHover}
-    />
-  );
-}
-
 interface RowHandlers {
   iconFor: (typeId: number) => ReturnType<typeof nodeImage>;
   efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
@@ -99,9 +47,11 @@ function TierRowSlot({ row, handlers }: { row: TierRowView; handlers: RowHandler
   const { item } = row;
   const { ownedQty, heldBy } = ownedAssetFor(item.typeId) ?? {};
   return (
-    <TierRow
-      item={item}
+    <NodeCard
+      typeId={item.typeId}
       icon={iconFor(item.typeId)}
+      name={item.name}
+      label={item.label}
       qty={row.qty}
       value={row.value}
       efficiency={efficiencyFor?.(item.typeId, item.name)}
@@ -133,18 +83,13 @@ function TierColumn({
   return (
     <div className="@container min-w-0">
       {/* A narrow column stacks its subtotal under the tier name, so every column's cards start level. */}
-      <div className="mb-2 flex items-center gap-x-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted @max-[14rem]:flex-col @max-[14rem]:items-start">
-        <span className="flex items-center gap-2">
-          Tier {tier.depth}
-          <span className="text-faint">· {tier.items.length}</span>
-        </span>
-        <span className="h-0 flex-1 border-b border-dotted border-border-idle @max-[14rem]:hidden" />
-        <LivePrice
-          value={formatIsk(subtotal)}
-          pending={refreshing}
-          className="text-ui font-semibold tracking-normal text-isk"
-        />
-      </div>
+      <LedgerColumnHead
+        label={`Tier ${tier.depth}`}
+        count={tier.items.length}
+        total={subtotal}
+        pending={refreshing}
+        collapseNarrow
+      />
       <div className="flex flex-col gap-2">
         {rows.map((row) => (
           <TierRowSlot key={row.item.typeId} row={row} handlers={handlers} />
@@ -171,12 +116,8 @@ export function CockpitBuildPlan({
     ownedDetail,
     ownedAssets,
     meOverrides,
-    setMeOverride,
-    resetMeOverride,
     ownedTe,
     teOverrides,
-    setTeOverride,
-    resetTeOverride,
     ledger,
   } = useBuildPlan();
   const { tiers, descendants } = useMemo(() => consolidateBuild(structure), [structure]);
@@ -190,20 +131,7 @@ export function CockpitBuildPlan({
     }
     return {
       state: nodeFrameState(bp, ownedMe, ownedTe, meOverrides, teOverrides),
-      adjusters: (
-        <NodeAdjusters
-          blueprintTypeId={bp}
-          name={name}
-          ownedMe={ownedMe}
-          meOverrides={meOverrides}
-          setMeOverride={setMeOverride}
-          resetMeOverride={resetMeOverride}
-          ownedTe={ownedTe}
-          teOverrides={teOverrides}
-          setTeOverride={setTeOverride}
-          resetTeOverride={resetTeOverride}
-        />
-      ),
+      adjusters: <NodeAdjusters blueprintTypeId={bp} name={name} />,
     };
   };
   const detailFor = (typeId: number) => {
@@ -230,9 +158,7 @@ export function CockpitBuildPlan({
     return (
       <div className="reveal reveal-3">
         <Card>
-          <p className="px-3.5 py-3 text-ui text-muted">
-            No build breakdown — this blueprint has no resolved inputs yet.
-          </p>
+          <EmptyState>No build breakdown — this blueprint has no resolved inputs yet.</EmptyState>
         </Card>
       </div>
     );

@@ -11,7 +11,7 @@ import {
   categoryName,
 } from '@/features/industry-planner/profiles/production-categories';
 import { MANUFACTURING_ACTIVITY, type StructureBonus } from '@/features/industry-planner/structure-bonus';
-import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
+import { formatPct } from '@/lib/format/number';
 
 interface ChecklistProps {
   categories: readonly CategoryKey[];
@@ -24,7 +24,7 @@ const NONE: ReadonlySet<CategoryKey> = new Set();
 const NO_BONUSES: ReadonlyMap<CategoryKey, StructureBonus> = new Map();
 
 function bonusText(bonus: StructureBonus): string {
-  return [bonus.me > 0 ? `ME ${formatBonusPct(bonus.me)}` : null, bonus.te > 0 ? `TE ${formatBonusPct(bonus.te)}` : null]
+  return [bonus.me > 0 ? `ME ${formatPct(bonus.me)}` : null, bonus.te > 0 ? `TE ${formatPct(bonus.te)}` : null]
     .filter(Boolean)
     .join(' · ');
 }
@@ -35,23 +35,22 @@ function Option({ id, text, props }: { id: CategoryKey; text: string; props: Che
   const off = unavailable.has(id);
   const bonus = bonuses.get(id);
   return (
-    <label
-      className={cn(
-        'flex min-w-0 items-center gap-2.5 py-0.5 text-ui',
-        off ? 'cursor-not-allowed text-faint opacity-50' : parent !== null ? 'text-muted' : 'cursor-pointer text-name',
+    <Checkbox
+      checked={!off && (parent !== null || categories.includes(id))}
+      disabled={off || parent !== null}
+      onCheckedChange={(on) => onChange(toggleCategory(categories, id, on))}
+      label={categoryName(id)}
+      rowClassName={cn(
+        'min-w-0 py-0.5',
+        // A class its ticked parent covers is locked but not unavailable, so it stays legible.
+        off ? 'text-faint' : parent !== null ? 'text-muted has-[[data-disabled]]:opacity-100' : 'text-name',
       )}
     >
-      <Checkbox
-        checked={!off && (parent !== null || categories.includes(id))}
-        disabled={off || parent !== null}
-        onCheckedChange={(on) => onChange(toggleCategory(categories, id, on))}
-        label={categoryName(id)}
-      />
       <span className="shrink-0">{text}</span>
       {bonus && !off ? (
         <span className="min-w-0 truncate pl-1 font-data text-micro text-isk">{bonusText(bonus)}</span>
       ) : null}
-    </label>
+    </Checkbox>
   );
 }
 

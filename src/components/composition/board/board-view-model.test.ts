@@ -19,8 +19,8 @@ import {
   splitDomains,
   boardViewHref,
   characterParam,
-  fittedDomain,
   flowWindowLabel,
+  focusedView,
   effectiveSkills,
   groupSkills,
   placeName,
@@ -99,6 +99,15 @@ describe('board view state', () => {
     expect(boardViewFrom('9900000002abc', chars)).toEqual({ view: 'overview' });
     expect(boardViewFrom('', chars)).toEqual({ view: 'overview' });
     expect(characterParam(new URLSearchParams('?character=7'))).toBe('7');
+  });
+
+  it('focuses a character only for a whole-number id the caller has', () => {
+    const hasSeven = (id: number) => id === 7;
+    expect(focusedView('7', hasSeven)).toEqual({ view: 'character', characterId: 7 });
+    expect(focusedView('8', hasSeven)).toEqual({ view: 'overview' });
+    for (const param of [null, '', '-7', '7.5', '7abc', ' 7']) {
+      expect(focusedView(param, () => true)).toEqual({ view: 'overview' });
+    }
   });
 
   it('always opens a lone pilot on its own sheet', () => {
@@ -201,10 +210,11 @@ describe('places and timeline', () => {
   });
 });
 
-test('fittedDomain pads a swinging series, a flat series, and a flat zero', () => {
-  expect(fittedDomain([3_200_000_000, 3_500_000_000, 3_400_000_000])).toEqual([3_170_000_000, 3_530_000_000]);
-  expect(fittedDomain([2_000, 2_000])).toEqual([1_800, 2_200]);
-  expect(fittedDomain([0, 0])).toEqual([-0.1, 0.1]);
+test('the balance chart pads a swinging series by a tenth of its range, a flat one by a tenth of its value, and an all-zero one by 1 ISK', () => {
+  const series = (balances: number[]) => balances.map((balance, t) => ({ t, balance }));
+  expect(balanceChart(series([3_200_000_000, 3_500_000_000, 3_400_000_000])).domain).toEqual([3_170_000_000, 3_530_000_000]);
+  expect(balanceChart(series([2_000, 2_000])).domain).toEqual([1_800, 2_200]);
+  expect(balanceChart(series([0, 0])).domain).toEqual([-1, 1]);
 });
 
 describe('overview model', () => {
@@ -374,6 +384,13 @@ describe('queueWindow', () => {
     expect(queueHealth(ready(queue), NOW)).toEqual({ tone: 'bad', label: 'Queue paused' });
   });
 
+  it('keeps an entry whose finish does not parse, reading it as paused', () => {
+    const garbled = { ...entry(0, -1, null), finish_date: 'garbage' };
+    expect(remainingQueue([garbled], NOW)).toEqual([{ number: 1, entry: garbled }]);
+    expect(queueHealth(ready([garbled]), NOW)).toEqual({ tone: 'bad', label: 'Queue paused' });
+    expect(queueTimeline([garbled], NOW)).toBeNull();
+  });
+
   it('never counts a finished entry as training or time left', () => {
     expect(queueHealth(ready([entry(0, -9, -1), entry(1, -1, 5)]), NOW)).toEqual({
       tone: 'warn',
@@ -417,6 +434,17 @@ describe('effectiveSkills', () => {
     const catalog = [{ groupId: 1, name: 'Gunnery', skills: [{ typeId: 3300, name: 'Gunnery', rank: 1 }] }];
     const [group] = groupSkills(effectiveSkills({ ...base, queue: [done(3300, 5)] }, NOW), catalog);
     expect(group).toMatchObject({ trained: 1, atV: 1, skills: [{ level: 5, reported: 4 }] });
+  });
+
+  it('applies a passed finish without a start date, but never a finish that does not parse', () => {
+    const { start_date: _start, ...undated } = done(3300, 5);
+    const garbled = { ...done(3302, 1), finish_date: 'garbage' };
+    expect(effectiveSkills({ ...base, queue: [undated, garbled] }, NOW)).toEqual({
+      levels: { '3300': 5, '3301': 2 },
+      reported: { '3300': 4 },
+      known: 2,
+      atV: 1,
+    });
   });
 });
 
@@ -520,6 +548,12 @@ describe('worth chart mode', () => {
   it('fits each segment to its own range', () => {
     const series = [point(100, null), point(200, 3_000), point(150, 3_050)];
     expect(splitDomains(series)).toEqual({ upper: [2_880, 3_520], lower: [90, 210] });
+  });
+
+  it('gives an all-zero ISK band a whole ISK either side of zero, not a fraction of one', () => {
+    const series = [point(0, 3_000), point(0, 3_050)];
+    expect(worthChartMode(series)).toBe('broken');
+    expect(splitDomains(series).lower).toEqual([-1, 1]);
   });
 
   it('never fits a segment tighter than 5% of its midpoint, so a market wobble stays a ripple', () => {

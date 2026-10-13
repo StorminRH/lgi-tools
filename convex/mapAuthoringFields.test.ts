@@ -10,6 +10,7 @@ import schema from './schema';
 
 import { connectionInsert } from './__tests__/connection-doc.setup';
 import { modules } from './__tests__/modules.setup';
+import { expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import {
   AMARR,
   DODIXIE,
@@ -19,14 +20,12 @@ import {
   WH_A,
   WH_ROOT,
   asUser,
-  expectConvexError,
   readConnection,
   readSystem,
   seedHome,
   seedJump,
   installAuthoringTimers,
   restoreAuthoringTimers,
-  type Chain,
 } from './__tests__/mapAuthoring.setup';
 
 beforeEach(() => {
@@ -364,14 +363,15 @@ describe('map authoring', () => {
         to: expect.objectContaining({ leadsTo: { kind: 'system', systemId: DODIXIE } }),
       });
 
-      await expect(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
           value: JITA,
         }),
-      ).rejects.toThrow('SELF_LOOP');
+        'SELF_LOOP',
+      );
 
       await expect(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
@@ -579,7 +579,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,
@@ -588,7 +588,7 @@ describe('map authoring', () => {
         }),
         'INVALID_DEATH_WINDOW',
       );
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,
@@ -598,7 +598,7 @@ describe('map authoring', () => {
         }),
         'INVALID_DEATH_WINDOW',
       );
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,

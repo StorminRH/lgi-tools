@@ -3,9 +3,11 @@
 import { useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CopyButton } from '@/components/ui/copy-button';
+import { HelpPopover } from '@/components/ui/help-popover';
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SegmentedControl } from '@/components/ui/segmented';
+import { formatCount } from '@/lib/format/number';
 import { computeMultibuyDemand } from '../build-batch';
 import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
 import {
@@ -14,12 +16,11 @@ import {
   hasOwnedStock,
   multibuyBuildSet,
   multibuyEntries,
-  pluralCount,
   tierRowsFromTierOf,
   type NetMode,
 } from '../multibuy';
+import { typeNamer } from '../type-name';
 import type { BlueprintStructure } from '../types';
-import { KpiHelp } from './kpi-tile';
 import { useBuildPlan, usePlannerConfig } from './planner-contexts';
 
 const NET_MODES = ['Total', 'Remaining'] as const satisfies readonly NetMode[];
@@ -51,7 +52,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
     });
     return multibuyEntries(
       buy,
-      (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+      typeNamer(structure),
       (typeId) => tierOf.get(typeId),
     );
   }, [structure, runs, ledgerMeOpts, tierOf, uncheckedTiers, effectiveMode, ownedAssets]);
@@ -64,7 +65,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
   };
 
   const copyValue = buildMultibuyText(entries);
-  const entryCount = pluralCount(entries.length, 'item', 'items');
+  const entryCount = formatCount(entries.length, 'item');
 
   return (
     <Popover
@@ -84,7 +85,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
     >
       <div className="flex items-center justify-between">
         <PopoverHeading>Multibuy export</PopoverHeading>
-        <KpiHelp label="What the multibuy export copies">
+        <HelpPopover label="What the multibuy export copies">
           <p className="text-ui leading-snug text-muted">
             Check the tiers you&rsquo;ll build yourself.
           </p>
@@ -94,7 +95,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
           <PopoverRow layout="description" label="Remaining">
             the same list minus what your linked characters already own
           </PopoverRow>
-        </KpiHelp>
+        </HelpPopover>
       </div>
 
       <SegmentedControl
@@ -115,15 +116,15 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
 
       <div className="flex flex-col gap-1.5">
         {tierRows.map(([depth, count]) => (
-          <label key={depth} className="flex cursor-pointer items-center gap-2">
-            <Checkbox
-              checked={!uncheckedTiers.has(depth)}
-              onCheckedChange={(build) => toggleTier(depth, build)}
-              label={`Build tier ${depth}`}
-            />
-            <span className="text-ui text-text">Tier {depth}</span>
-            <span className="text-micro text-faint">· {pluralCount(count, 'type', 'types')}</span>
-          </label>
+          <Checkbox
+            key={depth}
+            checked={!uncheckedTiers.has(depth)}
+            onCheckedChange={(build) => toggleTier(depth, build)}
+            label={`Tier ${depth}`}
+          >
+            <span>Tier {depth}</span>
+            <span className="text-micro text-faint">· {formatCount(count, 'type')}</span>
+          </Checkbox>
         ))}
       </div>
 

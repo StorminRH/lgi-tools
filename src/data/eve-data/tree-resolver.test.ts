@@ -6,12 +6,11 @@ import {
   computeHeights,
   hashGateSkips,
   hashResolverInputs,
-  makeBatchInserter,
   pickBuildTimeSeconds,
   roundedFlatRows,
   type Indexes,
-  type TreeNode,
 } from './tree-resolver';
+import type { BlueprintActivities, TreeNode } from './types';
 import flatMaterialsFixture from './__fixtures__/blueprint-flat-materials.json';
 
 function buildSyntheticIndexes(): Indexes {
@@ -482,7 +481,7 @@ describe('pickBuildTimeSeconds', () => {
 describe('hashResolverInputs', () => {
   const row = (
     blueprintTypeId: number,
-    activities: unknown,
+    activities: BlueprintActivities,
     published: boolean | null = true,
   ) => ({ blueprintTypeId, activities, published });
 
@@ -539,35 +538,5 @@ describe('assertNoResolverCycles', () => {
     expect(() =>
       assertNoResolverCycles({ cycleWarnings: ['a', 'b', 'c', 'd', 'e', 'f'] }),
     ).toThrow(/6 unexpected cycle\(s\); first few: a \| b \| c \| d \| e$/);
-  });
-});
-
-describe('makeBatchInserter', () => {
-  it('flushes every batchSize rows and the remainder on flush(), tracking the written count', async () => {
-    const batches: number[][] = [];
-    const inserter = makeBatchInserter<number>(2, async (batch) => {
-      batches.push([...batch]);
-    });
-    await inserter.add([1, 2, 3]);
-    expect(batches).toEqual([[1, 2]]);
-    expect(inserter.written()).toBe(2);
-    await inserter.add([4]);
-    expect(batches).toEqual([[1, 2], [3, 4]]);
-    await inserter.flush();
-    expect(batches).toEqual([[1, 2], [3, 4]]);
-    await inserter.add([5]);
-    await inserter.flush();
-    expect(batches).toEqual([[1, 2], [3, 4], [5]]);
-    expect(inserter.written()).toBe(5);
-  });
-
-  it('never calls the sink when nothing was added', async () => {
-    let calls = 0;
-    const inserter = makeBatchInserter<number>(2, async () => {
-      calls++;
-    });
-    await inserter.flush();
-    expect(calls).toBe(0);
-    expect(inserter.written()).toBe(0);
   });
 });

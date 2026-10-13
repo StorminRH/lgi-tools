@@ -1,13 +1,12 @@
-import { revalidateTag } from 'next/cache';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import type { CronRefreshPricesResponse } from '@/data/market-prices/api-contract';
-import {
-  PRICES_FRESHNESS_TAG,
-  refreshStalePrices,
-} from '@/data/market-prices/cache';
+import { refreshStalePrices } from '@/data/market-prices/cache';
+import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
+import { readPriceSourceHealth } from '@/data/market-prices/source-health';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
-import { swallow } from '@/transport/cron';
+import { bestEffort } from '@/lib/best-effort';
+import { expireNow } from '@/lib/cache-expiry';
 
 export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesResponse> = {
   name: 'cron:prices',
@@ -22,8 +21,8 @@ export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesRes
     mode: 'none',
     justification: 'the sole bulk writer races safely with last-write-wins on-demand refreshes',
   },
-  work: async ({ client, record }) => {
-    const result = await refreshStalePrices(client);
+  work: async ({ database, record }) => {
+    const result = await refreshStalePrices(database);
 
     if (result.status === 'cached') {
       return {
@@ -37,53 +36,32 @@ export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesRes
       };
     }
 
-    revalidateTag(PRICES_FRESHNESS_TAG, 'max');
+    // Outside a request, so the sweep clears the dataset's tag itself once its rows and metas are written.
+    expireNow(MARKET_PRICES_TAG);
 
     const { summary } = result;
-    const degraded =
-      summary.fuzzworkFallbackCount > 0 || summary.budgetExhausted;
+    const { counts, degraded } = readPriceSourceHealth(summary);
     emitDomainEvent({
       eventType: 'price_refresh_finished',
       metadata: {
         outcome: degraded ? 'degraded' : 'completed',
-        fetched: summary.fetched,
+        ...counts,
         written: summary.written,
-        esiCount: summary.esiCount,
-        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-        budgetExhausted: summary.budgetExhausted,
         durationMs: summary.durationMs,
       },
     });
 
     if (degraded) {
-      await record('price_source_degraded', {
-        caller: 'cron',
-        fetched: summary.fetched,
-        esiCount: summary.esiCount,
-        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-        budgetExhausted: summary.budgetExhausted,
-      });
-      await swallow(
-        '[cron:prices] degradation alert failed',
-        alertPriceSourceDegradation({
-          fetched: summary.fetched,
-          esiCount: summary.esiCount,
-          fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-          budgetExhausted: summary.budgetExhausted,
-        }),
+      await record('price_source_degraded', { caller: 'cron', ...counts });
+      await bestEffort('cron:prices', 'degradation alert', null, () =>
+        alertPriceSourceDegradation(counts),
       );
     }
 
     return {
       outcome: 'refreshed',
       workDone: true,
-      telemetry: {
-        fetched: summary.fetched,
-        written: summary.written,
-        esiCount: summary.esiCount,
-        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-        budgetExhausted: summary.budgetExhausted,
-      },
+      telemetry: { ...counts, written: summary.written },
       body: {
         cached: false,
         lastUpdatedAt: result.lastUpdatedAt.toISOString(),

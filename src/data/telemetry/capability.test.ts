@@ -14,7 +14,9 @@ import {
   CAPABILITIES,
   capabilityResultForError,
   errorClassOf,
+  operationsOfKind,
   recordCapabilityOutcome,
+  USER_FACING_CAPABILITY_KINDS,
   type CapabilityId,
   type CapabilityOutcomeInput,
 } from './capability';
@@ -51,6 +53,22 @@ describe('capability catalogue', () => {
       seen.add(key);
     }
   });
+
+  it('keeps cron runs out of the user-facing operations', () => {
+    const userFacing = operationsOfKind(...USER_FACING_CAPABILITY_KINDS);
+    for (const op of [
+      'refresh-gsc',
+      'refresh-industry-indices',
+      'refresh-prices',
+      'refresh-sde',
+      'refresh-wh-statics',
+      'purge-maps',
+      'housekeeping',
+      'revalue-net-worth',
+    ]) {
+      expect(userFacing).not.toContain(op);
+    }
+  });
 });
 
 describe('recordCapabilityOutcome', () => {
@@ -76,7 +94,8 @@ describe('recordCapabilityOutcome', () => {
       outcome: 'conflict',
       code: 'template_limit',
       durationMs: 41,
-      dependencies: { neon: { ms: 8, calls: 1 } },
+      dependencies: { neon: { ms: 8, calls: 1, wallMs: expect.closeTo(8, 6) } },
+      dependencyWallMs: expect.closeTo(8, 6),
       retry: null,
       correlationId: expect.any(String),
       appVersion: APP_VERSION,
@@ -103,7 +122,7 @@ describe('recordCapabilityOutcome', () => {
 
   it('carries retry and rate-limit results for re-runnable work', async () => {
     await withCorrelationScope(async () => {
-      recordCapabilityOutcome('sync.process-esi-refresh-job', {
+      recordCapabilityOutcome('cron.refresh-prices', {
         outcome: 'rate_limited',
         code: 'deferred_for_budget',
         durationMs: 12,
@@ -139,6 +158,7 @@ describe('recordCapabilityOutcome', () => {
     });
 
     expect(metadata.dependencies).toEqual({});
+    expect(metadata.dependencyWallMs).toBe(0);
     expect(metadata.correlationId).not.toBe('');
   });
 

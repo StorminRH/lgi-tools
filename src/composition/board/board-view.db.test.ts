@@ -1,5 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
+import { commitWithWrite } from '@/data/esi-store';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -22,7 +24,6 @@ import type { SheetSections } from '@/features/character-sheet/types';
 import { netWorthDays } from '@/features/net-worth/schema';
 import { ownedAssets, ownedAssetSyncs } from '@/features/owned-assets/schema';
 import { characterSkills, characterSkillSyncs } from '@/features/skill-queue/schema';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 import { BOARD_GAPS, boardResponseSchema } from './api-contract';
 
 const mocks = vi.hoisted(() => ({
@@ -63,6 +64,7 @@ const harness = await createDbTestHarness({
     'market_prices',
     'adjusted_prices',
     'net_worth_days',
+    'esi_responses',
   ],
   foreignKeys: [
     { table: 'net_worth_days', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -109,7 +111,7 @@ const ENTITY_NAMES: Record<string, string> = {
   [AMARR_ORIS]: 'Amarr VIII (Oris) - Emperor Family Academy',
 };
 
-const envelope = <T>(data: T) => ({ data, refreshedAt: STAMP, etags: {} });
+const envelope = <T>(data: T) => ({ data, refreshedAt: STAMP });
 
 const AUREL_SHEET: SheetSections = {
   profile: envelope({ character: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.31 } }),
@@ -242,7 +244,7 @@ function priceRow(typeId: number, pct5: number) {
     pct5Sell: pct5,
     updatedAt: new Date(STAMP),
     staleAfter: new Date('2026-09-28T00:00:00Z'),
-    source: 'esi',
+    source: 'esi' as const,
   };
 }
 
@@ -336,13 +338,14 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
   });
 
   it('returns a contract-valid board with no scope strings and one write-behind', async () => {
+    mocks.after.mockClear();
     const board = await getBoardForUserOnView(USER_ID);
 
     expect(boardResponseSchema.parse(board)).toEqual(board);
     expect(JSON.stringify(board)).not.toContain('esi-');
     expect(board.characters.map((c) => c.characterId)).toEqual([AUREL, BRAM, ILYANA]);
     expect(mocks.after).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([CALDARI_NAVY, 1000086, ALLIANCE, AMARR_ORIS]);
+    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([CALDARI_NAVY, 1000086, ALLIANCE, AMARR_ORIS], { interactive: true });
   });
 
   it('names every section of a fully synced character from the SDE, the sheet and the names resolver', async () => {
@@ -454,7 +457,8 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(ilyana.status).toEqual({ state: 'reconnect' });
   });
 
-  it("serves each pilot's latest recorded day and never values on view", async () => {
+  it("serves each pilot's latest recorded day without valuing on view, then records the day from stored prices only, flooring junk bids, excluding blueprints, SKINs and skillbooks, and seeding price rows for unpriced marketable types", async () => {
+    const ownRows = () => harness.db.select().from(netWorthDays).where(eq(netWorthDays.userId, USER_ID)).orderBy(netWorthDays.day);
     const board = await getBoardForUserOnView(USER_ID);
     const aurel = pilotAt(board, 0);
     const bram = pilotAt(board, 1);
@@ -471,18 +475,13 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       { day: '2026-09-20', netWorth: 90, liquidIsk: 40, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 90, liquidIsk: 40 } } },
       { day: '2026-09-25', netWorth: 100, liquidIsk: 50, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 100, liquidIsk: 50 } } },
     ]);
-    expect(await harness.db.select().from(netWorthDays)).toHaveLength(2);
-  });
+    expect(await ownRows()).toHaveLength(2);
 
-  it('records the day from stored prices only, flooring junk bids and excluding blueprints, SKINs and skillbooks, and seeds price rows for unpriced marketable types', async () => {
-    expect(ASSET_VALUE).toBe(424_545_641.51);
-    expect(SELL_ORDERS + BUY_ESCROW + IMPLANTS).toBe(628_001_750);
-    expect(NET_WORTH).toBe(4_256_663_273.66);
     mocks.resolveEntityNames.mockClear();
     await recordNetWorthSnapshot(USER_ID, new Date(STAMP));
     expect(mocks.resolveEntityNames).not.toHaveBeenCalled();
 
-    const rows = await harness.db.select().from(netWorthDays).orderBy(netWorthDays.day);
+    const rows = await ownRows();
     expect(rows.map((row) => row.day)).toEqual(['2026-09-20', '2026-09-25', '2026-09-27']);
     expect(rows[2]).toEqual({
       userId: USER_ID,
@@ -497,9 +496,9 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
 
     const [pyerite] = await harness.db.select().from(marketPrices).where(eq(marketPrices.typeId, PYERITE));
     expect(pyerite).toMatchObject({ typeId: PYERITE, pct5Buy: null, pct5Sell: null, staleAfter: new Date(0), source: 'esi' });
-    const board = await getBoardForUserOnView(USER_ID);
-    expect(board.history).toHaveLength(3);
-    expect(pilotAt(board, 0).netWorth).toMatchObject({ data: { total: NET_WORTH, liquid: WALLET } });
+    const recorded = await getBoardForUserOnView(USER_ID);
+    expect(recorded.history).toHaveLength(3);
+    expect(pilotAt(recorded, 0).netWorth).toMatchObject({ data: { total: NET_WORTH, liquid: WALLET } });
   });
 
   it('returns an empty roster for a user with no linked characters', async () => {
@@ -515,15 +514,15 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       refreshToken: 'rt', scope: EVE_SCOPES.join(' '),
     });
     await harness.db.insert(ownedAssetSyncs).values({ ownerType: 'character', ownerId: characterId, lastRefreshedAt: new Date(STAMP) });
-    if (!firstView) await sheetQueries.mergeSheetSection(characterId, 'wallet', {
-      data: { balance: 100 }, refreshedAt: STAMP, etags: {},
-    });
+    if (!firstView) await commitWithWrite([], sheetQueries.mergeSheetSection(characterId, 'wallet', {
+      data: { balance: 100 }, refreshedAt: STAMP,
+    }));
     const staleSheets = await sheetQueries.getCharacterSheets([characterId]);
     const cachedRead = vi.spyOn(sheetQueries, 'getCharacterSheets').mockResolvedValue(staleSheets);
     mocks.refreshSheets.mockImplementationOnce(async () => {
-      await sheetQueries.mergeSheetSection(characterId, 'wallet', {
-        data: { balance: 750 }, refreshedAt: STAMP, etags: {},
-      });
+      await commitWithWrite([], sheetQueries.mergeSheetSection(characterId, 'wallet', {
+        data: { balance: 750 }, refreshedAt: STAMP,
+      }));
     });
     try {
       const before = await getBoardForUserOnView(userId);

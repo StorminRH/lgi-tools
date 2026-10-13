@@ -6,7 +6,7 @@ import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
 import { netWorthDays } from '@/features/net-worth/schema';
 import {
   createDbTestHarness,
-  seedCharacter as insertCharacter,
+  seedCharacter,
   seedEveAccount as insertEveAccount,
   seedUser as insertUser,
 } from '@/db/__tests__/support/db-test-harness';
@@ -31,15 +31,16 @@ vi.mock('@/lib/convex-http-door', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
   return {
     ...actual,
-    postConvexHttpDoor: (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
-      options.path === '/purge-user-map-claims'
-        ? Promise.resolve(options.schema.parse({ deleted: 1 }))
-        : actual.postConvexHttpDoor(options),
+    postConvexHttpDoor: (...[door, body, options]: Parameters<typeof actual.postConvexHttpDoor>) =>
+      door.path === '/purge-user-map-claims'
+        ? Promise.resolve(door.response.parse({ deleted: 1 }))
+        : actual.postConvexHttpDoor(door, body, options),
   };
 });
 
 import { encryptToken } from '@/platform/auth/token-crypto';
-import { proveCharacter, purgeTransferredCharacter } from './owner-transfer';
+import { transferCharacter } from './account-purge';
+import { proveCharacter } from './owner-transfer';
 import { account, characters, session, user } from '@/db/auth-schema';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
@@ -62,10 +63,10 @@ const harness = await createDbTestHarness({
     'net_worth_days',
     'corp_industry_jobs',
     'corp_industry_job_syncs',
+    'esi_responses',
     'saved_plans',
     'industry_profiles',
     'custom_structures',
-    'esi_refresh_jobs',
     'pending_tracking_merges',
     'pending_deletions',
   ],
@@ -115,12 +116,6 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     });
   }
 
-  async function seedCharacter(characterId: number) {
-    await insertCharacter(harness.db, characterId, {
-      portraitUrl: `https://images.example/${characterId}`,
-    });
-  }
-
   async function seedEveAccount(
     id: string,
     characterId: number,
@@ -128,12 +123,10 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     ownerHash: string | null,
     extra: { createdAt?: Date; accessToken?: string | null } = {},
   ) {
-    const createdAt = extra.createdAt ?? new Date();
     await insertEveAccount(harness.db, { id, characterId, userId }, {
       ownerHash,
       accessToken: extra.accessToken ?? null,
-      createdAt,
-      updatedAt: createdAt,
+      createdAt: extra.createdAt,
     });
   }
 
@@ -165,7 +158,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   });
 
   it('uses the credential tier on owner mismatch, deleting custody but retaining cache rows', async () => {
-    await seedCharacter(MOVED_CHAR);
+    await seedCharacter(harness.db, MOVED_CHAR);
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, H1);
     await harness.db.insert(session).values({
       id: 'source-session',
@@ -229,7 +222,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   });
 
   it('keeps a prior owner with siblings, rebinding identity email and active character', async () => {
-    await seedCharacter(MOVED_CHAR);
+    await seedCharacter(harness.db, MOVED_CHAR);
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, H1, { createdAt: new Date('2026-07-01T00:00:00Z') });
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, H1, { createdAt: new Date('2026-07-02T00:00:00Z') });
 
@@ -240,7 +233,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
         pilots: { [SURVIVOR_CHAR]: { netWorth: 200, liquidIsk: 200 } }, recordedAt: new Date() },
     ]);
 
-    await purgeTransferredCharacter(SOURCE_ID, MOVED_CHAR);
+    await transferCharacter(SOURCE_ID, MOVED_CHAR);
 
     expect((await harness.db.select().from(netWorthDays)).map((row) => row.day)).toEqual(['2026-09-27']);
 
@@ -265,17 +258,17 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
 
     expect(await readAccount(MOVED_CHAR)).toEqual({ ownerHash: H1, userId: TARGET_ID });
     expect(await userIds()).toEqual([TARGET_ID]);
-    expect(after).toHaveBeenCalledTimes(1);
-    await vi.waitFor(async () => {
-      const [event] = await harness.db
-        .select()
-        .from(usageLogs)
-        .where(eq(usageLogs.action, 'auth_merge'))
-        .limit(1);
-      expect(event).toMatchObject({
-        characterId: MOVED_CHAR,
-        metadata: { sourceUserId: SOURCE_ID, survivorUserId: TARGET_ID, movedCharacterIds: [MOVED_CHAR] },
-      });
+    // The merge schedules its audit row, then the Convex settle; run only the audit write.
+    expect(after).toHaveBeenCalledTimes(2);
+    await after.mock.calls[0]![0]();
+    const [event] = await harness.db
+      .select()
+      .from(usageLogs)
+      .where(eq(usageLogs.action, 'auth_merge'))
+      .limit(1);
+    expect(event).toMatchObject({
+      characterId: MOVED_CHAR,
+      metadata: { sourceUserId: SOURCE_ID, survivorUserId: TARGET_ID, movedCharacterIds: [MOVED_CHAR] },
     });
   });
 
@@ -339,7 +332,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   });
 
   it('derives a null owner hash from the stored token: a mismatch purges the sold character', async () => {
-    await seedCharacter(MOVED_CHAR);
+    await seedCharacter(harness.db, MOVED_CHAR);
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, null, { accessToken: encryptToken(eveToken(H2)) });
 
     await expect(

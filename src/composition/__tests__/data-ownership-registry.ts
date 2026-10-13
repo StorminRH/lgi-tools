@@ -4,8 +4,8 @@ import * as schema from '../drizzle-schema';
 export type SliceId =
   | 'data/corp-holdings'
   | 'data/domain-events'
-  | 'data/esi-refresh-jobs'
   | 'data/esi-snapshots'
+  | 'data/esi-store'
   | 'data/eve-data'
   | 'data/gsc'
   | 'data/industry-indices'
@@ -124,9 +124,19 @@ const KEYED_UPSERT = {
   note: 'Each write is one keyed `insert … on conflict do update`, so a concurrent refresh of the same key is last-writer-wins with no torn row. Batches are independent statements, not a transaction.',
 } as const satisfies TransactionBoundary;
 
-const REPLACE_ALL = {
-  kind: 'ordered-sequence',
-  note: 'Replace-all per owner on the transaction-free neon-http driver: delete the owner\'s rows, insert the fresh set, then stamp the sync row LAST. Stamping last makes a partial failure self-healing — the owner stays stale and the next view refetches — but the sequence is not atomic, so a database constraint is the only guard against a concurrent refresh interleaving.',
+const OWNER_ANSWER_WRITE = {
+  kind: 'transactional-batch',
+  note: 'Written only inside an owner sync\'s commit (commitWithWrite → recordWithStatements in src/data/esi-store), as one atomic serializable HTTP batch on Neon\'s stateless driver (runAtomically in src/db; a postgres-js transaction on local runs). The batch upserts the refresh\'s esi_responses rows FIRST, all or none, and none while any key holds an answer asked for later; each keyed upsert or update here follows as an insert-select or WHERE guarded by EXISTS(the stored answer carries this refresh\'s checked_at), so an older answer writes neither the answer nor these rows, and the rows here and the ETag that vouches for them always come from the same answer. A concurrent refresh of the same keys fails one batch with a serialization error, and that batch reruns against the winner.',
+} as const satisfies TransactionBoundary;
+
+const OWNER_SNAPSHOT = {
+  kind: 'transactional-batch',
+  note: 'Replace-all per owner through replaceOwnerSnapshot (src/db/snapshot-replace.ts), the one owner write that keeps a direct-client postgres-js transaction (it did before the stored answers joined it), run in a savepoint on the owner sync\'s commit transaction (commitWithWrite → recordWithTransaction in src/data/esi-store): the commit upserts the refresh\'s esi_responses rows first, only where the stored answer was asked for no later, then the snapshot upserts the owner\'s sync row and deletes and re-inserts the owner\'s rows in 1000-row statements. The row locks queue a concurrent refresh, an owner\'s first publication included, behind the open one; an older answer rolls back before the snapshot runs, and any failure rolls the rows, etags and stored answers back together, so the prior snapshot survives and the owner stays stale until the next view refetches.',
+} as const satisfies TransactionBoundary;
+
+const OWNER_SNAPSHOT_LOCK = {
+  kind: 'transactional-batch',
+  note: 'One freshness row per owner. Its upsert is the first statement of the owner\'s replaceOwnerSnapshot, right after the sync commit\'s esi_responses rows on the same direct-client transaction, so its row lock serializes refreshes and its etags commit with the rows they describe and the stored answers that vouch for them; an unchanged read stamps it alone with one keyed update. It is the staleness gate the next on-view refresh reads.',
 } as const satisfies TransactionBoundary;
 
 const SYNC_STAMP = {
@@ -328,6 +338,14 @@ export const DATA_OWNERSHIP = [
     boundary: KEYED_UPSERT,
     dataClass: 'global-reference',
   },
+  {
+    table: schema.eveEntityNames,
+    owner: 'data/eve-data',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: KEYED_UPSERT,
+    dataClass: 'global-reference',
+  },
 
   {
     table: schema.sites,
@@ -374,13 +392,6 @@ export const DATA_OWNERSHIP = [
     table: schema.marketPrices,
     owner: 'data/market-prices',
     reads: 'open',
-    writers: [
-      {
-        by: 'composition/pipelines',
-        reason:
-          'The SDE pipeline seeds a price row per newly imported type so the planner has a baseline before the first market refresh; a cross-slice pipeline may not live inside either slice.',
-      },
-    ],
     invariants: ['pk(type_id)'],
     boundary: KEYED_UPSERT,
     dataClass: 'global-reference',
@@ -724,7 +735,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/skill-queue',
     reads: [],
     invariants: ['pk(character_id)'],
-    boundary: REPLACE_ALL,
+    boundary: OWNER_ANSWER_WRITE,
     dataClass: 'personal',
   },
   {
@@ -732,7 +743,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/skill-queue',
     reads: [],
     invariants: ['pk(character_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_ANSWER_WRITE,
     dataClass: 'personal',
   },
   {
@@ -742,7 +753,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['pk(character_id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One jsonb envelope per section, saved with a keyed `insert … on conflict do update set sections = sections || excluded.sections`. Concurrent refreshes of different sections merge instead of clobbering, and a section\'s data, ETags and freshness stamp land in the same statement; the stamp is a `jsonb_set` on the section\'s refreshedAt.',
+      note: 'One jsonb envelope per section, saved with a keyed `insert … select … on conflict do update set sections = sections || excluded.sections` in the section sync\'s commit batch, after its esi_responses rows and guarded on them (OWNER_ANSWER_WRITE: one atomic serializable HTTP batch), so a section\'s data and the stored answers that vouch for it land together and an older answer changes neither. Concurrent refreshes of different sections merge instead of clobbering; the stamp is a `jsonb_set` on the section\'s refreshedAt.',
     },
     dataClass: 'personal',
   },
@@ -762,7 +773,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/industry-jobs',
     reads: [],
     invariants: ['pk(character_id)'],
-    boundary: REPLACE_ALL,
+    boundary: OWNER_ANSWER_WRITE,
     dataClass: 'personal',
   },
   {
@@ -770,7 +781,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/industry-jobs',
     reads: [],
     invariants: ['pk(character_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_ANSWER_WRITE,
     dataClass: 'personal',
   },
   {
@@ -788,8 +799,8 @@ export const DATA_OWNERSHIP = [
       'unique(owner_type,owner_id,type_id,location_id,location_flag,location_type)',
     ],
     boundary: {
-      kind: 'ordered-sequence',
-      note: `${REPLACE_ALL.note} Here that guard exists: the ESI projection aggregates by the natural key before every write, so the natural-key unique index rejects only already-invalid rows and turns an interleaved concurrent refresh into a caught unique violation ('superseded') rather than a silently doubled ledger. Honest residual: two racing sets that share no natural key still merge into their union — the index can reject a duplicate, not arbitrate which set wins.`,
+      kind: 'transactional-batch',
+      note: `${OWNER_SNAPSHOT.note} The natural-key unique index stays as the backstop: the ESI projection aggregates by that key before every write, so a set that would still double a row rolls back whole and reports 'superseded' instead of corrupting the ledger.`,
     },
     dataClass: 'personal',
   },
@@ -798,7 +809,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-assets',
     reads: [],
     invariants: ['pk(owner_type,owner_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_SNAPSHOT_LOCK,
     dataClass: 'personal',
   },
   {
@@ -806,10 +817,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-blueprints',
     reads: [],
     invariants: ['pk(id)'],
-    boundary: {
-      kind: 'ordered-sequence',
-      note: `${REPLACE_ALL.note} Residual, recorded rather than fixed: this table shares the owned-assets replace-all race but has no natural key to constrain — rows are raw per-item blueprint stacks, so two identical rows are legitimate data and no unique index can express the invariant.`,
-    },
+    boundary: OWNER_SNAPSHOT,
     dataClass: 'personal',
   },
   {
@@ -817,7 +825,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-blueprints',
     reads: [],
     invariants: ['pk(owner_type,owner_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_SNAPSHOT_LOCK,
     dataClass: 'personal',
   },
   {
@@ -827,7 +835,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert, update, or delete per user action. The per-user plan cap is application-enforced (count, then insert) and cannot be expressed as a plain constraint; its compensating delete can over-correct under concurrency — operator-declined as impractical for human click rates (2026-08-11 triage).',
+      note: 'One insert, update, or delete per user action. The per-user plan cap is one serializable conditional insert (insertWithinCap): the count and the insert are one statement, so of two saves racing for the last slot one is rejected, retried, and finds the account full.',
     },
     dataClass: 'personal',
   },
@@ -838,7 +846,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert or update per user action. Edits are revision-guarded in the update statement itself, so a stale writer changes nothing. Delete stamps deleted_at and keeps the row for later references. The per-user profile cap is application-enforced (count, insert, recount, compensating delete), like saved plans.',
+      note: 'One insert or update per user action. Edits are revision-guarded in the update statement itself, so a stale writer changes nothing. Delete stamps deleted_at and keeps the row for later references. The per-user cap on live profiles is the same serializable conditional insert as saved plans (insertWithinCap).',
     },
     dataClass: 'personal',
   },
@@ -849,7 +857,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert, update, or delete per user action. The per-user structure cap is application-enforced with no compensating recount, so two concurrent saves at the cap can both succeed — operator-declined as impractical for human click rates (2026-08-11 triage); a cardinality rule would need a trigger or counter column.',
+      note: 'One insert, update, or delete per user action. The per-user structure cap is the same serializable conditional insert as saved plans (insertWithinCap), so two concurrent saves at the cap admit exactly one.',
     },
     dataClass: 'personal',
   },
@@ -881,7 +889,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/industry-jobs',
     reads: [],
     invariants: ['pk(user_id,corporation_id)'],
-    boundary: REPLACE_ALL,
+    boundary: OWNER_ANSWER_WRITE,
     dataClass: 'corp-shared',
   },
   {
@@ -889,7 +897,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/industry-jobs',
     reads: [],
     invariants: ['pk(user_id,corporation_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_ANSWER_WRITE,
     dataClass: 'corp-shared',
   },
   {
@@ -897,7 +905,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-structures',
     reads: [],
     invariants: ['pk(corporation_id,structure_id)'],
-    boundary: REPLACE_ALL,
+    boundary: OWNER_SNAPSHOT,
     dataClass: 'corp-shared',
   },
   {
@@ -905,7 +913,7 @@ export const DATA_OWNERSHIP = [
     owner: 'features/owned-structures',
     reads: [],
     invariants: ['pk(corporation_id)'],
-    boundary: SYNC_STAMP,
+    boundary: OWNER_SNAPSHOT_LOCK,
     dataClass: 'corp-shared',
   },
   {
@@ -933,8 +941,8 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: ['pk(corporation_id,item_id)'],
     boundary: {
-      kind: 'ordered-sequence',
-      note: 'Replace-all per corporation on the transaction-free neon-http driver: delete the corp\'s nodes, then insert the fresh tree. Not atomic; a reader between the two sees missing parents, which place as unplaced and fail closed, and the pk turns an interleaved concurrent refresh into a caught unique violation (\'superseded\').',
+      kind: 'transactional-batch',
+      note: 'Replaced inside the corporation\'s owned-assets replaceOwnerSnapshot transaction, after the asset sync-row lock and before the contents: delete the corp\'s nodes, then insert the fresh tree in 1000-row statements. Tree and contents commit together, so a reader never pairs one publication\'s placements with another\'s contents.',
     },
     dataClass: 'corp-shared',
   },
@@ -943,7 +951,10 @@ export const DATA_OWNERSHIP = [
     owner: 'data/corp-holdings',
     reads: [],
     invariants: ['pk(corporation_id)'],
-    boundary: KEYED_UPSERT,
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'One row per corporation, upserted first in the context pass\'s replaceOwnerSnapshot, right after the pass\'s esi_responses rows on the same direct-client commit transaction: its row lock serializes context passes, and freshness, HQ and member bases commit together as one authorization snapshot. An unchanged pass stamps it alone with one keyed update.',
+    },
     dataClass: 'corp-shared',
   },
   {
@@ -952,8 +963,8 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: ['pk(character_id)'],
     boundary: {
-      kind: 'ordered-sequence',
-      note: 'After the profile upsert: delete the corp\'s rows for members no longer in the pass, then upsert the linked members\' bases on pk(character_id), re-homing a member who changed corps. Not atomic and there is no superseded path; an interleaved concurrent context pass resolves last writer wins, and a missing row reads as base unknown, which withholds tier-specific grants.',
+      kind: 'transactional-batch',
+      note: 'Partially replaced in the corporation\'s context-pass transaction, after the profile upsert locks the corporation: delete the rows for members no longer in the pass, then upsert the linked members\' bases on pk(character_id), re-homing a member who changed corps. Concurrent passes queue on the profile row, a failure rolls bases and profile back together, and a missing row reads as base unknown, which withholds tier-specific grants.',
     },
     dataClass: 'corp-shared',
   },
@@ -983,21 +994,18 @@ export const DATA_OWNERSHIP = [
     invariants: ['pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert per retained raw ESI response, and one delete on the orphan-cleanup or retention path. The snapshot insert and the projection write it accompanies are NOT atomic — the caller compensates by deleting its own snapshot when the projection write does not stand.',
+      note: 'One insert per retained raw ESI response, on the owner sync\'s commit transaction beside the projection write it accompanies, so a superseded or failed publication rolls its snapshot back with it; one delete on the retention path.',
     },
     dataClass: 'operational',
   },
   {
-    table: schema.esiRefreshJobs,
-    owner: 'data/esi-refresh-jobs',
+    table: schema.esiResponses,
+    owner: 'data/esi-store',
     reads: [],
-    invariants: [
-      'partial-unique(idempotency_key) where("status" in (\'queued\', \'running\', \'deferred_for_budget\', \'failed_retryable\'))',
-      'pk(id)',
-    ],
+    invariants: ['pk(route,holder_type,holder_id,user_id,params)'],
     boundary: {
       kind: 'single-statement',
-      note: 'Enqueue and claim are single statements; the partial unique index over live statuses is the race authority that makes enqueue idempotent, and the loser of a claim race is coalesced from its unique violation rather than retried.',
+      note: 'Keyed multi-row `insert … on conflict do update … where checked_at <= excluded.checked_at` statements in identity order, so an answer asked for earlier never replaces a later one. A 304 or a cron\'s answers record at once, chunked at 1000 rows. An owner sync\'s 200s commit atomically with the owner\'s domain write (commitWithWrite), so an ETag can never describe data from a different answer: in the same serializable HTTP batch as guarded data statements (one insert-select that writes every key or none), or, for an owner snapshot replace, on that replace\'s direct-client transaction. No ESI call takes a lock: a duplicate call is a shared copy or a 304; only the commit\'s row locks and serialization checks order two writes of one key.',
     },
     dataClass: 'operational',
   },

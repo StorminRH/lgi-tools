@@ -12,7 +12,7 @@ import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import { emissionFacts, readConnectionsFrom, type EmissionFacts } from './mapJumpReads';
 import { upsertLiveDestination } from './mapAuthoringHome';
 import { supersedeDyingPairsForEndpoints } from './mapJumpAuthoring';
-import { findSystem } from './lib/mapSystemLookup';
+import { requireLiveSystem } from './lib/mapSystemLookup';
 
 export const confirmJumpIdentity = internalMutation({
   args: {
@@ -59,10 +59,7 @@ async function answerAwaitingSignature(
     || (candidate.signatureId !== null && candidate.signatureId === target.from.signatureId),
   );
   if (!offered) throw new ConvexError({ code: 'INVALID_SIGNATURE_CHOICE' });
-  const origin = await findSystem(ctx, source.mapId, source.fromSystemId);
-  if (origin === null || isTombstoned(origin)) {
-    throw new ConvexError({ code: 'UNKNOWN_ORIGIN' });
-  }
+  await requireLiveSystem(ctx, source.mapId, source.fromSystemId, { code: 'UNKNOWN_ORIGIN' });
   const [forward, reverse] = await Promise.all([
     readConnectionsFrom(ctx, source.mapId, source.fromSystemId, 'pair'),
     readConnectionsFrom(ctx, source.mapId, destinationSystemId, 'pair'),

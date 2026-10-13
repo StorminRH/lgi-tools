@@ -1,13 +1,12 @@
 import { z } from 'zod';
+import { int4IdSchema } from '@/lib/id-schemas';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
 import { ON_DEMAND_HISTORY_MAX_TYPE_IDS } from './constants';
 import type { MarketHistoryInputs } from './types';
 
-const PG_INT4_MAX = 2_147_483_647;
-
 export const refreshHistoryRequestSchema = z.object({
   typeIds: z
-    .array(z.number().int().positive().max(PG_INT4_MAX))
+    .array(int4IdSchema)
     .min(1)
     .max(ON_DEMAND_HISTORY_MAX_TYPE_IDS),
 });

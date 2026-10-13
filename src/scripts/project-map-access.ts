@@ -1,11 +1,9 @@
-import { config } from 'dotenv';
+import './load-env';
 import {
   projectMapAccess,
   teardownMapAccessProjection,
 } from '@/composition/map-access-projection';
-import { readEnv } from '@/lib/env';
-
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
+import { runScript } from './script-runtime';
 
 const action = process.argv[2];
 const mapId = process.argv[3];
@@ -19,15 +17,8 @@ if (mapId === undefined || mapId.length === 0) {
   process.exit(1);
 }
 
-const run =
-  action === 'project' ? projectMapAccess(mapId) : teardownMapAccessProjection(mapId);
-
-run
-  .then((result) => {
-    console.log(JSON.stringify({ action, mapId, result }));
-    process.exit(0);
-  })
-  .catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
-  });
+runScript(async () => {
+  const result =
+    action === 'project' ? await projectMapAccess(mapId) : await teardownMapAccessProjection(mapId);
+  console.log(JSON.stringify({ action, mapId, result }));
+});

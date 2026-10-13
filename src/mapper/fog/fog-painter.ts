@@ -1,4 +1,5 @@
-import { mulberry32 } from '../lib/prng';
+import { clamp, clamp01 } from '@/lib/math';
+import { djb2, mulberry32 } from '../lib/prng';
 import type { FogFrame, FogPaintDisc, FogPaintStroke } from './fog-model';
 
 export interface FogRect {
@@ -79,7 +80,7 @@ export function fogBackingScale(
   const bucket = Math.min(4, 2 ** Math.ceil(Math.log2(demand)));
   const area = Math.max(1, cover.width * cover.height);
   const budgetCap = Math.sqrt(maxPixels / area);
-  return Math.max(0.02, Math.min(bucket, budgetCap));
+  return clamp(bucket, 0.02, budgetCap);
 }
 
 const BRUSH_NOISE_CELLS = 8;
@@ -119,7 +120,7 @@ export function fogBrushAlpha(size: number, seed: number): Uint8ClampedArray {
       const band = Math.max(0, 1 - Math.abs(r - 0.75) / 0.35);
       const noise = latticeNoise(lattice, px / size, py / size);
       const value = falloff + (noise - 0.5) * 0.7 * band;
-      alpha[py * size + px] = Math.round(Math.min(1, Math.max(0, value)) * 255);
+      alpha[py * size + px] = Math.round(clamp01(value) * 255);
     }
   }
   return alpha;
@@ -196,11 +197,7 @@ export interface FogPaintInput {
   readonly alphaOnly: boolean;
 }
 
-function stampAngle(key: string, index: number): number {
-  let hash = 5381;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 33 + key.charCodeAt(i)) >>> 0;
-  }
+function stampAngle(hash: number, index: number): number {
   return (((hash + index * 97) % 360) * Math.PI) / 180;
 }
 
@@ -244,6 +241,7 @@ function stampStroke(
   const length = Math.hypot(stroke.x2 - stroke.x1, stroke.y2 - stroke.y1);
   const spacing = input.strokeRadius * 0.8;
   const count = Math.max(1, Math.ceil(length / spacing));
+  const hash = djb2(stroke.key);
   for (let step = 0; step <= count; step += 1) {
     const t = step / count;
     stampBrush(
@@ -253,7 +251,7 @@ function stampStroke(
       stroke.y1 + (stroke.y2 - stroke.y1) * t,
       radius,
       alpha,
-      stampAngle(stroke.key, step),
+      stampAngle(hash, step),
     );
   }
 }
@@ -274,7 +272,7 @@ export function paintFog(ctx: FogPaintContext, input: FogPaintInput): void {
       input.revealRadius,
       input.alphaOnly,
     );
-    stampBrush(ctx, input, disc.x, disc.y, radius, alpha, stampAngle(disc.key, 0));
+    stampBrush(ctx, input, disc.x, disc.y, radius, alpha, stampAngle(djb2(disc.key), 0));
   }
   for (const stroke of input.frame.strokes) stampStroke(ctx, input, stroke);
   for (const wake of input.wakeStamps) {
@@ -285,7 +283,7 @@ export function paintFog(ctx: FogPaintContext, input: FogPaintInput): void {
       wake.y,
       input.strokeRadius,
       wake.strength * 0.7,
-      stampAngle(wake.key, 0),
+      stampAngle(djb2(wake.key), 0),
     );
   }
   ctx.globalCompositeOperation = 'source-over';

@@ -3,7 +3,6 @@ import {
   recipeLiveIsk,
   scannerEstIskSum,
   scannerLiveEstIsk,
-  scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
 } from './scanner-live-isk';
 import type { SiteLiveRecipe } from './site-name-lookup';
@@ -14,7 +13,7 @@ const RECIPE: SiteLiveRecipe = {
   seedIsk: 28_100_000,
 };
 
-test('scanner live Est. ISK sums recipes, tracks pending, and keys unique type ids', () => {
+test('scanner live Est. ISK sums recipes, tracks pending, and collects unique type ids', () => {
   expect(recipeLiveIsk(RECIPE, 30)).toBe(30_000);
   expect(recipeLiveIsk(RECIPE, null)).toBe(28_100_000);
   expect(recipeLiveIsk(RECIPE, undefined)).toBe(28_100_000);
@@ -57,8 +56,6 @@ test('scanner live Est. ISK sums recipes, tracks pending, and keys unique type i
       recipes.get(name) ?? [],
     ),
   ).toEqual([30370, 1]);
-  expect(scannerLiveTypeIdKey([3, 1, 2, 1])).toBe('1,2,3');
-  expect(scannerLiveTypeIdKey([])).toBe('');
 });
 
 test('site totals preserve duplicate sites and withhold incomplete estimates', () => {

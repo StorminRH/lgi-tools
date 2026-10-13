@@ -10,12 +10,13 @@ vi.mock('react', () => ({
 }));
 
 const stored = new Map<string, string>();
-vi.stubGlobal('window', {
+const device = {
   localStorage: {
     getItem: (key: string) => stored.get(key) ?? null,
     setItem: (key: string, value: string) => void stored.set(key, value),
   },
-});
+};
+vi.stubGlobal('window', device);
 
 const { recordRecentBlueprint, useRecentBlueprints } = await import('./recent-blueprints');
 
@@ -27,16 +28,17 @@ beforeEach(() => {
   h.hydrated = true;
 });
 
-test('nothing is read until hydrated, then an empty device has no recents', () => {
+test('nothing is read until hydrated; then the blueprint opened last leads, a reopened one moves up rather than repeating, eight are kept, and an unchanged list reads as the same list', () => {
   h.hydrated = false;
   expect(useRecentBlueprints()).toBeNull();
   h.hydrated = true;
   expect(useRecentBlueprints()).toEqual([]);
-});
 
-test('the blueprint opened last leads, a reopened one moves up rather than repeating, and eight are kept', () => {
   for (const typeId of [1, 2, 3, 4, 5, 6, 7, 8, 9, 3]) recordRecentBlueprint(blueprint(typeId));
-  expect(useRecentBlueprints()!.map((r) => r.typeId)).toEqual([3, 9, 8, 7, 6, 5, 4, 2]);
+  const recents = useRecentBlueprints();
+  expect(recents!.map((r) => r.typeId)).toEqual([3, 9, 8, 7, 6, 5, 4, 2]);
+  // The same stored list is the same list, so the page does not re-render for nothing.
+  expect(useRecentBlueprints()).toBe(recents);
 });
 
 test('recents kept by the old landing page still read, and anything malformed is skipped', () => {
@@ -46,11 +48,6 @@ test('recents kept by the old landing page still read, and anything malformed is
   expect(useRecentBlueprints()).toEqual([]);
   stored.set(KEY, '{"typeId":1}');
   expect(useRecentBlueprints()).toEqual([]);
-});
-
-test('the same stored list reads as the same list, so the page does not re-render for nothing', () => {
-  recordRecentBlueprint(blueprint(1));
-  expect(useRecentBlueprints()).toBe(useRecentBlueprints());
 });
 
 test('a recorded blueprint tells whoever is listening, until they stop', () => {
@@ -65,16 +62,19 @@ test('a recorded blueprint tells whoever is listening, until they stop', () => {
 });
 
 test('a device that will not store anything still opens blueprints', () => {
-  vi.stubGlobal('window', {
-    localStorage: { getItem: () => null, setItem: () => { throw new Error('quota'); } },
-  });
-  expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
-  vi.stubGlobal('window', {
-    get localStorage(): Storage {
-      throw new Error('blocked');
-    },
-  });
-  expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
-  expect(useRecentBlueprints()).toEqual([]);
-  vi.unstubAllGlobals();
+  try {
+    vi.stubGlobal('window', {
+      localStorage: { getItem: () => null, setItem: () => { throw new Error('quota'); } },
+    });
+    expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
+    vi.stubGlobal('window', {
+      get localStorage(): Storage {
+        throw new Error('blocked');
+      },
+    });
+    expect(() => recordRecentBlueprint(blueprint(1))).not.toThrow();
+    expect(useRecentBlueprints()).toEqual([]);
+  } finally {
+    vi.stubGlobal('window', device);
+  }
 });

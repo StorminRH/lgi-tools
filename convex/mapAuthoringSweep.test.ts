@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import {
@@ -19,6 +20,7 @@ import schema from './schema';
 
 import { connectionInsert } from './__tests__/connection-doc.setup';
 import { modules } from './__tests__/modules.setup';
+import { type Chain } from './__tests__/convexTest.setup';
 import {
   AMARR,
   EDITOR,
@@ -28,7 +30,6 @@ import {
   WH_A,
   WH_B,
   WH_C,
-  type Chain,
   readConnection,
   readEvents,
   readSystem,
@@ -44,6 +45,7 @@ beforeEach(() => {
 
 afterEach(() => {
   restoreAuthoringTimers();
+  vi.restoreAllMocks();
 });
 
 describe('map authoring', () => {
@@ -203,6 +205,43 @@ describe('map authoring', () => {
           kind: 'connection_severed_retained',
           actor: CEILING_SWEEP_ACTOR,
           payload: { connectionId: String(ids.cut!) },
+        }),
+      ]);
+    });
+
+    it('removes a branch when the only tracked pilot is on the home side', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [JITA, WH_A, WH_B],
+        [
+          { key: 'cut', fromSystemId: JITA, toSystemId: WH_A },
+          { key: 'a-b', fromSystemId: WH_A, toSystemId: WH_B },
+        ],
+      );
+      await patchConnection(t, ids.cut!, {
+        lifetime: {
+          kind: 'window',
+          earliestAt: EXPIRED - 60_000,
+          latestAt: EXPIRED,
+          lifeStage: null,
+          observedAt: null,
+        },
+      });
+      await trackPilotAt(t, JITA);
+
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
+        .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
+
+      expect(tombstoneDeletedAt(await readConnection(t, ids['a-b']!))).toBe(NOW);
+      expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: NOW });
+      expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW });
+      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });
+      expect(await readEvents(t)).toEqual([
+        expect.objectContaining({
+          kind: 'branch_removed',
+          actor: CEILING_SWEEP_ACTOR,
+          payload: { connectionId: String(ids.cut!), systemIds: [WH_A, WH_B] },
         }),
       ]);
     });
@@ -505,7 +544,7 @@ describe('map authoring', () => {
           purgeAfter: null,
         })),
       );
-      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      silenceConsolePrefixes('error', ['{"scope":"map:ceiling-collapse",']);
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toMatchObject({ collapsed: 0, removedStubs: 0, failed: CEILING_SWEEP_BATCH, hasMore: true });

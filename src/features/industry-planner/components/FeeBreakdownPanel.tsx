@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { PopoverHeading } from '@/components/ui/popover';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { formatIsk } from '@/lib/format/isk';
@@ -8,14 +8,12 @@ import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import type { NetMarginView } from '../types';
 import { UnpricedInputs } from './UnpricedInputs';
 
-const isk = (v: number | null) => (v === null ? '—' : formatIsk(v));
-
 function FeeRow({ line }: { line: FeeLine }) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between gap-4">
         <span className="truncate text-muted">{line.label}</span>
-        <span className={cn('shrink-0 tabular-nums', line.unpriced ? 'text-dps-mid' : 'text-text')}>{isk(line.value)}</span>
+        <span className={cn('shrink-0 tabular-nums', line.unpriced ? 'text-dps-mid' : 'text-text')}>{formatIsk(line.value)}</span>
       </div>
       <UnpricedInputs names={line.unpriced ?? []} />
     </div>
@@ -41,12 +39,10 @@ function FeeSection({
       header={
         <>
           <span className="flex min-w-0 items-center gap-1.5 text-text">
-            <span data-chevron aria-hidden className="inline-block w-3 shrink-0 text-center text-micro text-muted transition-transform">
-              ▾
-            </span>
+            <CollapsibleChevron className="w-3 text-center" />
             {label}
           </span>
-          <span className={cn('shrink-0 tabular-nums', partial ? 'text-dps-mid' : 'text-name')}>{isk(total)}</span>
+          <span className={cn('shrink-0 tabular-nums', partial ? 'text-dps-mid' : 'text-name')}>{formatIsk(total)}</span>
         </>
       }
     >

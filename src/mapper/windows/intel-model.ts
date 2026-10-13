@@ -1,5 +1,6 @@
 import { systemSecurityClass } from '@/data/eve-data/security';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
+import { getOrInsertComputed } from '@/lib/array';
 import { GLANCE_BUCKETS, identifiedGlanceBucket, type GlanceBucket, type SignatureWindowRow } from '../signatures/signature-model';
 
 export const INTEL_CATEGORY_LABEL: Record<GlanceBucket, string> = {
@@ -17,9 +18,7 @@ export function intelCategoryBlocks(rows: readonly SignatureWindowRow[], systemI
     if (row.systemId !== systemId) continue;
     const bucket = identifiedGlanceBucket(row.group);
     if (bucket === null) continue;
-    const entries = buckets.get(bucket) ?? [];
-    entries.push(row);
-    buckets.set(bucket, entries);
+    getOrInsertComputed(buckets, bucket, () => []).push(row);
   }
   return GLANCE_BUCKETS.flatMap((bucket) => {
     const entries = buckets.get(bucket);

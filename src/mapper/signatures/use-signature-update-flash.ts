@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { subscribeEliminationApplied } from './signature-elimination-client';
-import type { SignatureWindowRow } from './signature-model';
+import { signatureIdentityKey, type SignatureWindowRow } from './signature-model';
 import {
   diffSignatureUpdates,
-  signatureIdentityKey,
   SIGNATURE_UPDATE_FLASH_MS,
   type SignatureRowFacts,
 } from './signature-update-flash';

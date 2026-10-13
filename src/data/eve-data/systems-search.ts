@@ -1,9 +1,10 @@
-import { apiFetch } from '@/transport/api-client';
-import type { SearchSource } from '@/platform/search';
+import { createClientResource } from '@/lib/client-resource';
+import { apiFetchData } from '@/transport/api-fetch-data';
 import { fuzzyMatch } from '@/platform/search/match';
-import { rankFuzzyResults } from '@/platform/search/rank';
+import type { SearchSource } from '@/platform/search';
+import { indexedFuzzySearch } from '@/platform/search/rank';
 import { systemsEndpoint } from './api-contract';
-import { roundSecurityStatus } from './security';
+import { formatSecurityStatus } from './security';
 
 export interface SystemSearchEntry {
   id: number;
@@ -11,36 +12,28 @@ export interface SystemSearchEntry {
   security: number | null;
 }
 
-const MAX_RESULTS = 20;
-
-let indexPromise: Promise<SystemSearchEntry[]> | null = null;
-let loadedIndex: SystemSearchEntry[] | null = null;
-
-export function loadSystems(): Promise<SystemSearchEntry[]> {
-  if (!indexPromise) {
-    indexPromise = apiFetch(systemsEndpoint)
-      .then((result) => {
-        if (!result.ok) {
-          const reason = 'status' in result ? result.status : result.kind;
-          throw new Error(`system index ${reason}`);
-        }
-        loadedIndex = result.data.systems;
-        return loadedIndex;
-      })
-      .catch((err) => {
-        indexPromise = null;
-        throw err;
-      });
-  }
-  return indexPromise;
+async function readSystemIndex(): Promise<{
+  readonly systems: SystemSearchEntry[];
+  readonly byId: ReadonlyMap<number, SystemSearchEntry>;
+}> {
+  const { systems } = await apiFetchData(systemsEndpoint, 'system index');
+  return { systems, byId: new Map(systems.map((system) => [system.id, system])) };
 }
 
-export function getLoadedSystems(): SystemSearchEntry[] | null {
-  return loadedIndex;
-}
+/**
+ * The system index for this page, as a list and keyed by id. Both are built
+ * once per load, so their identities hold for as long as the index does, and
+ * any caller's load reaches every reader.
+ */
+export const systemsResource = createClientResource(readSystemIndex);
 
-export function formatSec(sec: number | null): string {
-  return sec === null ? '—' : roundSecurityStatus(sec).toFixed(1);
+/** The system behind an id, or null with no id, no index yet, or no such system. */
+export function lookupSystem(
+  systemsById: ReadonlyMap<number, SystemSearchEntry> | null,
+  systemId: number | null,
+): SystemSearchEntry | null {
+  if (systemId === null || systemsById === null) return null;
+  return systemsById.get(systemId) ?? null;
 }
 
 export function matchSystem(systems: SystemSearchEntry[], input: string): SystemSearchEntry | null {
@@ -61,30 +54,23 @@ export function matchSystem(systems: SystemSearchEntry[], input: string): System
   return best;
 }
 
+const searchSystems = indexedFuzzySearch({
+  load: async () => (await systemsResource.load()).systems,
+  label: (entry) => entry.name,
+  toResult: (entry, match) => ({
+    kind: 'system',
+    id: `system:${entry.id}`,
+    label: entry.name,
+    sub: formatSecurityStatus(entry.security),
+    href: '#',
+    matchIndices: match.matchIndices,
+  }),
+});
+
+/** System names for a form field's suggestions; the global search leaves systems out. */
 export const systemsSource: SearchSource = {
   id: 'systems',
   name: 'Systems',
   limit: 10,
-  excludeFromDefaultScope: true,
-  async search(query, ctx) {
-    if (query.length === 0) return [];
-
-    const index = await loadSystems();
-    if (ctx.signal?.aborted) return [];
-
-    return rankFuzzyResults(
-      index,
-      query,
-      (entry) => entry.name,
-      (entry, match) => ({
-        kind: 'system',
-        id: `system:${entry.id}`,
-        label: entry.name,
-        sub: formatSec(entry.security),
-        href: '#',
-        matchIndices: match.matchIndices,
-      }),
-      { limit: MAX_RESULTS },
-    );
-  },
+  search: searchSystems,
 };

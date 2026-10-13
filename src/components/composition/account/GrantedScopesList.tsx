@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Chip } from '@/components/ui/chip';
+import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import type { GrantedScope } from '@/platform/auth/scope-health';
 
@@ -20,9 +20,9 @@ export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): React
             </span>
           }
           trailing={scope.status === 'active' ? (
-            <Chip tone="green">Active</Chip>
+            <Pill tone="green">Active</Pill>
           ) : (
-            <Chip tone="orange">Legacy</Chip>
+            <Pill tone="orange">Legacy</Pill>
           )}
         />
       ))}

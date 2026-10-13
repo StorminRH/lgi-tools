@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { int4IdSchema, positiveIdSchema } from '@/lib/id-schemas';
 import {
   defineEndpoint,
   jsonBody,
@@ -22,18 +23,22 @@ import {
 } from './wormhole-contract';
 
 export const ENTITY_NAMES_MAX_IDS = 200;
+/** Per client IP. A page asks once per names hook, so this leaves room for busy pages while capping what an anonymous caller can make ESI resolve. */
+export const ENTITY_NAMES_LIMIT_PER_MINUTE = 60;
 export const TYPE_NAMES_MAX_IDS = 200;
 
 export const typeNamesRequestSchema = z.object({
-  ids: z.array(z.number().int().positive()).min(1).max(TYPE_NAMES_MAX_IDS),
+  ids: z.array(int4IdSchema).min(1).max(TYPE_NAMES_MAX_IDS),
 });
 
 export const entityNamesRequestSchema = z.object({
-  ids: z.array(z.number().int().positive()).min(1).max(ENTITY_NAMES_MAX_IDS),
+  ids: z.array(positiveIdSchema).min(1).max(ENTITY_NAMES_MAX_IDS),
 });
 
 const entityNamesResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
+  /** Ids ESI could not answer for this time (as opposed to ids it does not know), worth asking again. */
+  pending: z.array(z.number()).optional(),
 });
 export type SdePipelineSummary = {
   ingest: IngestSummary;
@@ -54,6 +59,7 @@ export const entityNamesEndpoint = defineEndpoint({
   responses: {
     200: jsonBody(entityNamesResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
+    429: problem('rate_limited'),
   },
 });
 
@@ -118,7 +124,7 @@ const universeAssetVersionSchema = z.string().min(1).max(64);
 export const UNIVERSE_ASSET_CACHE_CONTROL =
   'public, max-age=31536000, immutable';
 
-export const universeAssetVersionParamsSchema = z.object({
+const universeAssetVersionParamsSchema = z.object({
   version: universeAssetVersionSchema,
 });
 

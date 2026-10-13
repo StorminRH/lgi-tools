@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   updateReturning: [{ id: 'acc1' }] as { id: string }[],
   updateSpy: vi.fn(),
   refreshEveTokenMock: vi.fn(),
-  logUsageEventMock: vi.fn(() => Promise.resolve()),
+  emitUsageEventMock: vi.fn(),
   emitDomainEventMock: vi.fn(),
 }));
 
@@ -36,7 +36,7 @@ vi.mock('@/db', () => ({
   },
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: h.logUsageEventMock }));
+vi.mock('@/data/telemetry/usage-events', () => ({ emitUsageEvent: h.emitUsageEventMock }));
 vi.mock('@/data/domain-events/queries', () => ({ emitDomainEvent: h.emitDomainEventMock }));
 
 vi.mock('./eve-sso', async (importOriginal) => {
@@ -58,15 +58,13 @@ const past = () => new Date(Date.now() - 1000);
 
 beforeEach(() => {
   vi.stubEnv('EVE_TOKEN_ENCRYPTION_KEY', VALID_KEY);
-  vi.stubEnv('EVE_CLIENT_ID', 'client-id');
-  vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
   h.selectRows = [];
   h.rereadRows = null;
   h.selectCount = 0;
   h.updateReturning = [{ id: 'acc1' }];
   h.updateSpy.mockClear();
   h.refreshEveTokenMock.mockReset();
-  h.logUsageEventMock.mockClear();
+  h.emitUsageEventMock.mockClear();
   h.emitDomainEventMock.mockClear();
 });
 
@@ -136,11 +134,7 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'ok',
       accessToken: 'new-access',
     });
-    expect(h.refreshEveTokenMock).toHaveBeenCalledWith({
-      refreshToken: 'old-refresh',
-      clientId: 'client-id',
-      clientSecret: 'client-secret',
-    });
+    expect(h.refreshEveTokenMock).toHaveBeenCalledWith({ refreshToken: 'old-refresh' });
     const persisted = h.updateSpy.mock.calls[0]![0] as { accessToken: string; refreshToken: string };
     expect(persisted.refreshToken.startsWith('v1:')).toBe(true);
     expect(persisted.accessToken.startsWith('v1:')).toBe(true);
@@ -175,12 +169,12 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(strike.refreshTokenInvalidGrantFirstAt).toEqual(
       new Date('2026-07-13T20:00:00.000Z'),
     );
-    expect(h.logUsageEventMock).toHaveBeenCalledWith({
+    expect(h.emitUsageEventMock).toHaveBeenCalledWith('eve-token', {
       action: 'eve_token_refresh_invalid_grant',
       characterId: CHAR_ID,
       metadata: { failureClass: 'invalid_grant' },
     });
-    expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(h.emitUsageEventMock).toHaveBeenCalledTimes(1);
     expect(h.emitDomainEventMock).toHaveBeenCalledWith({
       eventType: 'eve_token_state_changed',
       metadata: {
@@ -213,7 +207,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
     expect(h.refreshEveTokenMock).not.toHaveBeenCalled();
     expect(h.updateSpy).not.toHaveBeenCalled();
-    expect(h.logUsageEventMock).not.toHaveBeenCalled();
+    expect(h.emitUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('confirms invalid_grant at exactly 5:00 and clears custody', async () => {
@@ -328,7 +322,7 @@ describe('getFreshAccessTokenForCharacter', () => {
 
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
-    expect(h.logUsageEventMock).not.toHaveBeenCalled();
+    expect(h.emitUsageEventMock).not.toHaveBeenCalled();
     expect(h.emitDomainEventMock).not.toHaveBeenCalled();
   });
 
@@ -361,14 +355,15 @@ describe('getFreshAccessTokenForCharacter', () => {
 
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
-    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+    expect(h.emitUsageEventMock).toHaveBeenCalledTimes(2);
     expect(h.emitDomainEventMock).not.toHaveBeenCalled();
-    expect(h.logUsageEventMock).toHaveBeenCalledWith({
+    expect(h.emitUsageEventMock).toHaveBeenCalledWith('eve-token', {
       action: 'eve_token_refresh_invalid_grant',
       characterId: CHAR_ID,
       metadata: { failureClass: 'invalid_grant' },
     });
-    expect(h.logUsageEventMock).toHaveBeenCalledWith(
+    expect(h.emitUsageEventMock).toHaveBeenCalledWith(
+      'eve-token',
       expect.objectContaining({ action: 'eve_token_refresh_race', characterId: CHAR_ID }),
     );
   });
@@ -401,7 +396,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     ];
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
-    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+    expect(h.emitUsageEventMock).toHaveBeenCalledTimes(2);
   });
 
   it('on a lost confirmation CAS, logs the race signal and reflects a fresh winner', async () => {
@@ -439,7 +434,7 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'ok',
       accessToken: 'winner-access',
     });
-    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+    expect(h.emitUsageEventMock).toHaveBeenCalledTimes(2);
   });
 
   it('returns reauth_required when a lost-race re-read finds the account genuinely tokenless', async () => {
@@ -476,7 +471,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     ];
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
-    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+    expect(h.emitUsageEventMock).toHaveBeenCalledTimes(2);
   });
 
   it('returns reauth_required when a lost-race re-read finds an expired token (mirrors the skew guard)', async () => {
@@ -537,12 +532,12 @@ describe('getFreshAccessTokenForCharacter', () => {
       expect(deferred.refreshTokenInvalidGrantFirstAt).toEqual(expect.any(Date));
       expect(deferred).not.toHaveProperty('accessToken');
       expect(deferred).not.toHaveProperty('refreshToken');
-      expect(h.logUsageEventMock).toHaveBeenCalledWith({
+      expect(h.emitUsageEventMock).toHaveBeenCalledWith('eve-token', {
         action,
         characterId: CHAR_ID,
         metadata: { failureClass },
       });
-      expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+      expect(h.emitUsageEventMock).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -571,30 +566,6 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(deferred).not.toHaveProperty('refreshToken');
   });
 
-  it('does not let a rejected telemetry write fail a vend', async () => {
-    h.selectRows = [
-      {
-        id: 'acc1',
-        accessToken: encryptToken('old-access'),
-        refreshToken: encryptToken('old-refresh'),
-        accessTokenExpiresAt: past(),
-        scope: null,
-      },
-    ];
-    h.refreshEveTokenMock.mockResolvedValue({
-      kind: 'retryable',
-      failureClass: 'connection',
-    });
-    h.logUsageEventMock.mockRejectedValueOnce(new Error('telemetry unavailable'));
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
-    await vi.waitFor(() => expect(consoleSpy).toHaveBeenCalledWith(
-      '[eve-token] telemetry write failed',
-      expect.any(Error),
-    ));
-    consoleSpy.mockRestore();
-  });
 });
 
 

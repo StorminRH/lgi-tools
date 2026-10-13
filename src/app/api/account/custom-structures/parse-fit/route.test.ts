@@ -12,20 +12,11 @@ vi.mock('@/data/eve-data/queries', () => ({
   getStructureFitNameIndex: (...args: unknown[]) => h.getStructureFitNameIndex(...args),
 }));
 
-import { NextRequest } from 'next/server';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-function makeRequest(body: unknown): NextRequest {
-  return new NextRequest(
-    'http://localhost:3000/api/account/custom-structures/parse-fit',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
-  );
-}
+const ROUTE = '/api/account/custom-structures/parse-fit';
 
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
@@ -39,7 +30,7 @@ describe('POST /api/account/custom-structures/parse-fit', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
 
-    const response = await POST(makeRequest({ fit: '[Azbel, Test]' }));
+    const response = await POST(postJson(ROUTE, { fit: '[Azbel, Test]' }));
 
     expect(response.status).toBe(401);
     expect(problemBodySchema.parse(await response.json())).toMatchObject({

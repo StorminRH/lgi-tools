@@ -1,4 +1,5 @@
 import { componentJob, type BatchLedger } from './build-batch';
+import { typeNamer } from './type-name';
 import type { BlueprintStructure, ComponentJobFee } from './types';
 
 export interface ComponentInputRow {
@@ -77,8 +78,7 @@ export function componentSheet(
   const { unitPriceOf } = opts;
   const job = componentJob(structure.tree, typeId, ledger, opts.structureMeFactorOf);
   if (!job) return null;
-  const nameOf = (id: number) =>
-    structure.buildNodeDisplay[id]?.name ?? structure.materialNames[id] ?? `Type ${id}`;
+  const nameOf = typeNamer(structure);
   const inputs = job.inputs.map((input): ComponentInputRow => {
     const unitPrice = unitPriceOf.get(input.typeId) ?? null;
     return {

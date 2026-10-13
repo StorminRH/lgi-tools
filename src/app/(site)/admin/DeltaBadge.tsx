@@ -1,6 +1,6 @@
 import { deriveDeltaBadge, type DeltaBadgeView } from './delta-badge-view';
 import { cn } from '@/components/ui/cn';
-import type { Delta } from '@/composition/admin-period';
+import type { Delta } from './period';
 
 const TONE_CLASS = {
   green: 'text-isk',

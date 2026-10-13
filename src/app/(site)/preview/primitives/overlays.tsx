@@ -2,15 +2,22 @@
 
 import { useId, useRef, useState, type MouseEvent } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { floatIconTrigger } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
+  DialogCloseButton,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Drawer, DrawerClose } from '@/components/ui/drawer';
+import { HelpPopover } from '@/components/ui/help-popover';
+import { CheckIcon } from '@/components/ui/icons';
 import {
   Menu,
   MenuCheckboxItem,
@@ -30,6 +37,7 @@ import { PointerMenu, type MenuAnchor } from '@/components/ui/pointer-menu';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { Tooltip } from '@/components/ui/tooltip';
 import { SidePanel } from '@/components/ui/side-panel';
+import { SwitcherMenu } from '@/components/ui/switcher-menu';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 const secondaryTrigger = buttonVariants({ variant: 'secondary', size: 'sm' });
@@ -67,7 +75,9 @@ function ReferenceMenu({ surface }: { surface: 'solid' | 'frosted' }) {
           {['margin', 'volume', 'name'].map((option) => (
             <MenuRadioItem key={option} value={option} closeOnClick={false} className={menuRow}>
               {option}
-              <MenuRadioItemIndicator className="ml-auto text-isk">✓</MenuRadioItemIndicator>
+              <MenuRadioItemIndicator className="ml-auto flex text-isk">
+                <CheckIcon size={12} />
+              </MenuRadioItemIndicator>
             </MenuRadioItem>
           ))}
         </MenuRadioGroup>
@@ -80,13 +90,48 @@ function ReferenceMenu({ surface }: { surface: 'solid' | 'frosted' }) {
           className={menuControlRow}
         >
           Show cleared sites
-          <span aria-hidden className="text-isk">{showCleared ? '✓' : ''}</span>
+          <span aria-hidden className="flex text-isk">{showCleared ? <CheckIcon size={12} /> : null}</span>
         </MenuCheckboxItem>
         <MenuSeparator className={menuSeparator} />
         <MenuItem className={menuRow} onClick={() => setSort('margin')}>Reset sorting</MenuItem>
         <MenuLinkItem className={menuRow} href="#overlays">Back to overlays</MenuLinkItem>
       </MenuGroup>
     </Menu>
+  );
+}
+
+const SWITCHER_PLANS = ['Main build', 'Capital parts', 'Reaction chain'] as const;
+
+function SwitcherSample() {
+  const [current, setCurrent] = useState<string>(SWITCHER_PLANS[0]);
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <SwitcherMenu label={`Switch plan from ${current}`} current={current} className="flex min-w-56 flex-col">
+        {SWITCHER_PLANS.map((plan) => (
+          <MenuItem
+            key={plan}
+            closeOnClick
+            aria-current={plan === current ? 'true' : undefined}
+            className={cn(menuRow, 'rounded-ctl', plan === current && 'bg-row-on text-name')}
+            onClick={() => setCurrent(plan)}
+          >
+            {plan}
+          </MenuItem>
+        ))}
+      </SwitcherMenu>
+      <Menu
+        label={`Manage ${current}`}
+        trigger={<span aria-hidden>⋯</span>}
+        triggerClassName={cn(floatIconTrigger, 'font-data text-h3')}
+        className="min-w-48 rounded-card p-[5px]"
+        surface="frosted"
+        align="start"
+        sideOffset={8}
+      >
+        <MenuItem closeOnClick className={cn(menuRow, 'rounded-ctl')}>Rename…</MenuItem>
+        <MenuItem closeOnClick className={cn(menuRow, 'rounded-ctl')}>Duplicate…</MenuItem>
+      </Menu>
+    </div>
   );
 }
 
@@ -133,12 +178,12 @@ function DialogSample() {
       <Button ref={trigger} size="sm" onClick={() => setOpen(true)}>Open dialog</Button>
       <Dialog open={open} onOpenChange={setOpen} labelledBy={titleId} finalFocus={trigger} className="w-[min(480px,calc(100vw-2rem))]">
         <DialogHeader titleId={titleId} title="Build location" description="Where this plan's jobs install." closeLabel="Close dialog" />
-        <div className="flex flex-col gap-3 px-4 py-4 font-ui text-ui text-text">
-          <p>DialogHeader composes DialogTitle, DialogDescription, and DialogClose for the common header.</p>
-        </div>
-        <footer className="flex justify-end gap-2.5 border-t border-border-soft px-4 py-3">
+        <DialogBody className="font-ui text-ui text-text">
+          <p>DialogHeader composes DialogTitle, DialogDescription, and DialogCloseButton for the common header.</p>
+        </DialogBody>
+        <DialogFooter>
           <DialogClose render={<Button variant="secondary" size="sm" />}>Done</DialogClose>
-        </footer>
+        </DialogFooter>
       </Dialog>
     </>
   );
@@ -150,7 +195,10 @@ function BareDialogSample() {
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>Open bare parts</Button>
       <Dialog open={open} onOpenChange={setOpen} className="w-[min(420px,calc(100vw-2rem))] p-5">
-        <DialogTitle className="font-ui text-h3 font-semibold text-name">Hand-composed</DialogTitle>
+        <div className="flex items-start justify-between gap-3">
+          <DialogTitle className="font-ui text-h3 font-semibold text-name">Hand-composed</DialogTitle>
+          <DialogCloseButton label="Close hand-composed dialog" />
+        </div>
         <DialogDescription className="mt-2 font-ui text-ui text-muted">
           Use the parts directly when a dialog needs a custom header.
         </DialogDescription>
@@ -240,6 +288,29 @@ export function OverlaysGroup() {
       </Specimen>
 
       <Specimen
+        name="HelpPopover"
+        source="help-popover"
+        note="The (?) mark beside a figure: a Popover that opens on hover or tap. It turns amber when something inside wants a look."
+      >
+        <div className="flex flex-wrap gap-6">
+          <Variant label="neutral">
+            <HelpPopover label="How input cost is computed">
+              <PopoverHeading>Input cost</PopoverHeading>
+              <PopoverRow label="Raw">412.0M</PopoverRow>
+              <PopoverRow label="Item">370.8M</PopoverRow>
+            </HelpPopover>
+          </Variant>
+          <Variant label="attention">
+            <HelpPopover label="Fee breakdown" attention>
+              <PopoverHeading>Fee breakdown</PopoverHeading>
+              <PopoverRow label="Job fees">4.2M</PopoverRow>
+              <PopoverRow label="Unpriced inputs" layout="description">2 inputs have no Jita price yet.</PopoverRow>
+            </HelpPopover>
+          </Variant>
+        </div>
+      </Specimen>
+
+      <Specimen
         name="Menu"
         source="menu"
         note="Action menus with labelled groups, radio and checkbox items, links, and separators. Solid by default; frosted over busy surfaces."
@@ -255,6 +326,14 @@ export function OverlaysGroup() {
       </Specimen>
 
       <Specimen
+        name="SwitcherMenu"
+        source="switcher-menu · card"
+        note="A floating glass pill that names the open record and switches it from a frosted list capped at 24rem. Callers own the rows and mark the open one with aria-current. floatIconTrigger is the round glass button beside it."
+      >
+        <SwitcherSample />
+      </Specimen>
+
+      <Specimen
         name="PointerMenu"
         source="pointer-menu · overlay-positioning"
         note="A controlled menu anchored to a pointer position, for canvas context menus."
@@ -265,7 +344,7 @@ export function OverlaysGroup() {
       <Specimen
         name="Dialog"
         source="dialog"
-        note="The modal glass sheet. DialogHeader is the standard header; the parts compose a custom one."
+        note="The modal glass sheet. DialogHeader, DialogBody and DialogFooter are the standard chrome; closeDisabled greys the header's DialogCloseButton while work runs, and the parts compose a custom one."
       >
         <div className="flex flex-wrap gap-3">
           <DialogSample />

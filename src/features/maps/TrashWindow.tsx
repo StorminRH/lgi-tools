@@ -10,11 +10,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
+  DialogFooter,
   DialogHeader,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
+import { formatCount } from '@/lib/format/number';
 import {
   mapLifecycleFailureMessage,
   requestMapPurge,
@@ -30,13 +34,32 @@ export function selectedCreatorMapIds(
     .map((map) => map.id);
 }
 
-export async function runMapLifecycleBatch(
+/** A failed outcome among an action's outcomes, so the batch can hand it back typed. */
+function isFailed<TOutcome extends { readonly ok: boolean }>(
+  outcome: TOutcome,
+): outcome is Extract<TOutcome, { readonly ok: false }> {
+  return !outcome.ok;
+}
+
+/**
+ * Runs `action` over the maps one at a time and stops at the first failure,
+ * which it hands back as `failed` so the copy can name why.
+ */
+export async function runMapLifecycleBatch<TOutcome extends { readonly ok: boolean }>(
   mapIds: Iterable<string>,
-  action: (input: { readonly mapId: string }) => Promise<{ readonly ok: boolean }>,
-): Promise<{ readonly succeeded: readonly string[]; readonly complete: boolean }> {
+  action: (input: { readonly mapId: string }) => Promise<TOutcome>,
+): Promise<
+  | { readonly succeeded: readonly string[]; readonly complete: true }
+  | {
+      readonly succeeded: readonly string[];
+      readonly complete: false;
+      readonly failed: Extract<TOutcome, { readonly ok: false }>;
+    }
+> {
   const succeeded: string[] = [];
   for (const mapId of mapIds) {
-    if (!(await action({ mapId })).ok) return { succeeded, complete: false };
+    const outcome = await action({ mapId });
+    if (isFailed(outcome)) return { succeeded, complete: false, failed: outcome };
     succeeded.push(mapId);
   }
   return { succeeded, complete: true };
@@ -66,23 +89,19 @@ function TrashMapRows({
     return <p className="font-ui text-ui text-muted">Trash is empty.</p>;
   }
   return maps.map((map) => (
-    <label
+    <Checkbox
       key={map.id}
-      className={cn(insetSurface, 'flex cursor-pointer items-center gap-3 px-3 py-2')}
+      checked={selected.has(map.id)}
+      onCheckedChange={(checked) => onCheckedChange(map.id, checked)}
+      label={map.name}
+      disabled={disabled}
+      rowClassName={cn(insetSurface, 'gap-3 px-3 py-2')}
     >
-      <Checkbox
-        checked={selected.has(map.id)}
-        onCheckedChange={(checked) => onCheckedChange(map.id, checked)}
-        label={`Select ${map.name}`}
-        disabled={disabled}
-      />
-      <span className="min-w-0 flex-1 truncate font-ui text-ui text-name">
-        {map.name}
-      </span>
+      <span className="min-w-0 flex-1 truncate text-name">{map.name}</span>
       <span className="font-data text-micro text-muted">
         {map.provenance.kind === 'created' ? 'Created by you' : 'Admin access'}
       </span>
-    </label>
+    </Checkbox>
   ));
 }
 
@@ -101,7 +120,8 @@ export function TrashWindow({
   const titleId = useId();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState<'restore' | 'purge' | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  // The creator maps chosen when the purge was asked for, kept while the confirmation fades out.
+  const purge = useConfirmGate<readonly string[]>();
   const [error, setError] = useState<string | null>(null);
   const visibleSelected = useMemo(() => {
     const visible = new Set(maps.map((map) => map.id));
@@ -131,21 +151,22 @@ export function TrashWindow({
     setBusy(null);
     setSelected((current) => pruneTrashSelection(current, result.succeeded));
     if (result.complete) setSelected(new Set());
-    else setError(mapLifecycleFailureMessage('restore'));
+    else setError(mapLifecycleFailureMessage('restore', result.failed));
     router.refresh();
   }
 
-  async function purgeSelected() {
+  async function purgeSelected(mapIds: readonly string[]) {
     setBusy('purge');
     setError(null);
-    const result = await runMapLifecycleBatch(creatorIds, requestMapPurge);
+    const result = await runMapLifecycleBatch(mapIds, requestMapPurge);
     setBusy(null);
     setSelected((current) => pruneTrashSelection(current, result.succeeded));
     if (result.complete) {
-      setConfirmOpen(false);
+      purge.reset();
       setSelected(new Set());
     } else {
-      setError(mapLifecycleFailureMessage('purge'));
+      purge.request(mapIds.filter((mapId) => !result.succeeded.includes(mapId)));
+      setError(mapLifecycleFailureMessage('purge', result.failed));
     }
     router.refresh();
   }
@@ -155,7 +176,7 @@ export function TrashWindow({
       <Dialog
         open={open}
         onOpenChange={(next) => {
-          if (busy === null && !confirmOpen) onOpenChange(next);
+          if (busy === null && !purge.open) onOpenChange(next);
         }}
         labelledBy={titleId}
         finalFocus={finalFocus}
@@ -164,11 +185,12 @@ export function TrashWindow({
         <DialogHeader
           titleId={titleId}
           title="Deleted maps"
-          description="Restore maps during their 30-day undo window."
+          description="Maps stay here for 30 days."
           closeLabel="Close trash"
+          closeDisabled={busy !== null || purge.open}
         />
 
-        <div className="flex flex-col gap-2 px-4 py-4">
+        <DialogBody className="gap-2">
           <TrashMapRows
             maps={maps}
             selected={visibleSelected}
@@ -176,14 +198,14 @@ export function TrashWindow({
             onCheckedChange={setChecked}
           />
           {error !== null ? <Banner tone="warn">{error}</Banner> : null}
-        </div>
+        </DialogBody>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-border-soft px-4 py-3">
+        <DialogFooter align="between">
           <Button
             variant="danger"
             size="sm"
             disabled={!permanentEligible || busy !== null}
-            onClick={() => setConfirmOpen(true)}
+            onClick={() => purge.request(creatorIds)}
           >
             Permanently delete
           </Button>
@@ -200,19 +222,21 @@ export function TrashWindow({
               {busy === 'restore' ? 'Restoring…' : 'Restore'}
             </Button>
           </div>
-        </footer>
+        </DialogFooter>
       </Dialog>
 
       <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
+        open={purge.open}
+        onOpenChange={(next) => {
+          if (!next) purge.cancel();
+        }}
         title="Permanently delete selected maps?"
-        consequence={`${creatorIds.length} selected map${creatorIds.length === 1 ? '' : 's'} will enter the next scheduled purge. This cannot be undone after the sweep completes.`}
+        consequence={`${formatCount(purge.target?.length ?? 0, 'map')} will be deleted. This can't be undone.`}
         busy={busy === 'purge'}
         error={error}
         confirmLabel="Permanently delete"
         confirmDisabled={!permanentEligible}
-        onConfirm={() => void purgeSelected()}
+        onConfirm={() => void purgeSelected(purge.target ?? [])}
       />
     </>
   );

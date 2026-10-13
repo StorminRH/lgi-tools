@@ -1,9 +1,11 @@
 import type { DistributionInput } from '@/components/ui/distribution-bars';
-import { trendSeries } from '@/composition/admin-period';
-import { searchTotalsFromTrend, toDateStr } from '@/data/gsc/queries';
+import { searchTotalsFromTrend } from '@/data/gsc/queries';
 import type { GscDailyPoint, GscRange, GscSitemapStatus, GscTermStat, GscTotals } from '@/data/gsc/types';
-import { formatCount, formatQuantity } from '@/lib/format/number';
+import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
+import { isoDay } from '@/lib/iso-date';
+import { roundTo } from '@/lib/math';
+import { trendSeries } from '../period';
 
 /**
  * The one window the search cards read: the previous period ends the day
@@ -14,8 +16,8 @@ export function searchSpan(range: GscRange, previous: GscRange | null): GscRange
 }
 
 function daysWithin(points: readonly GscDailyPoint[], range: GscRange): GscDailyPoint[] {
-  const from = toDateStr(range.from);
-  const to = toDateStr(range.to);
+  const from = isoDay(range.from);
+  const to = isoDay(range.to);
   return points.filter((point) => point.day >= from && point.day <= to);
 }
 
@@ -46,7 +48,7 @@ export function deriveGscPerformanceView(trend: readonly GscDailyPoint[]) {
     ),
     positionTrend: trendSeries(
       trend.map((d) => d.day),
-      trend.map((d) => Math.round(d.position * 10) / 10),
+      trend.map((d) => roundTo(d.position, 1)),
     ),
   };
 }
@@ -57,7 +59,7 @@ export function gscTermBars(terms: readonly GscTermStat[]): DistributionInput[] 
     key: term.key,
     label: term.key,
     count: term.clicks,
-    sub: `${formatQuantity(term.impressions)} impr · ${(term.ctr * 100).toFixed(1)}% CTR · pos ${term.position.toFixed(1)}`,
+    sub: `${formatQuantity(term.impressions)} impr · ${formatPct(term.ctr * 100)} CTR · pos ${term.position.toFixed(1)}`,
   }));
 }
 

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
-import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 
 export function LinkedCharactersCard({
   label,
@@ -15,10 +14,9 @@ export function LinkedCharactersCard({
   children?: ReactNode;
 }) {
   return (
-    <Card className="reveal reveal-1">
-      <SectionHeader size="md" label={label} />
+    <SectionPanel title={label} className="reveal reveal-1">
       {count === 0 ? <EmptyState>No characters linked to this account.</EmptyState> : rows}
       {children}
-    </Card>
+    </SectionPanel>
   );
 }

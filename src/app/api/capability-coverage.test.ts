@@ -1,9 +1,7 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CAPABILITIES } from '@/data/telemetry/capability';
-
-const API_ROOT = path.join(process.cwd(), 'src/app/api');
+import { listRouteFiles } from '@/lib/__tests__/source-scan';
 
 const EXCLUSIONS = new Map<string, string>([
   [
@@ -15,10 +13,6 @@ const EXCLUSIONS = new Map<string, string>([
     'Resets a fixed local test fixture in development. It is unavailable to hosted production users and does not represent product usage.',
   ],
   [
-    'src/app/api/internal/eve-characters/route.ts',
-    'Machine-to-machine; already accounted for by the calling capability.',
-  ],
-  [
     'src/app/api/internal/eve-token/route.ts',
     'Machine-to-machine; already accounted for by the calling capability.',
   ],
@@ -28,24 +22,9 @@ const EXCLUSIONS = new Map<string, string>([
   ],
 ]);
 
-function routeFiles(dir: string): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) found.push(...routeFiles(full));
-    else if (entry.name === 'route.ts') found.push(full);
-  }
-  return found;
-}
-
-function repoRelative(file: string): string {
-  return path.relative(process.cwd(), file);
-}
-
-const postRoutes = routeFiles(API_ROOT)
-  .map((file) => ({ file, source: readFileSync(file, 'utf8') }))
+const postRoutes = listRouteFiles()
+  .map((relative) => ({ relative, source: readFileSync(relative, 'utf8') }))
   .filter(({ source }) => /export (async function |function |const )POST\b/.test(source))
-  .map(({ file, source }) => ({ relative: repoRelative(file), source }))
   .sort((a, b) => a.relative.localeCompare(b.relative));
 
 function capabilityIdsIn(source: string): string[] {
@@ -85,7 +64,6 @@ describe('capability coverage', () => {
     expect([...EXCLUSIONS.keys()].sort()).toEqual([
       'src/app/api/auth/[...all]/route.ts',
       'src/app/api/dev/synthetic-pilot/route.ts',
-      'src/app/api/internal/eve-characters/route.ts',
       'src/app/api/internal/eve-token/route.ts',
       'src/app/api/telemetry/route.ts',
     ]);

@@ -1,25 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { layoutFacts } from './__tests__/layout-facts-fixture';
 import { compassKernel } from './compass';
-import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from './layout-contract';
+import { DEFAULT_LAYOUT_CONFIG } from './layout-contract';
 import {
   crossingReport,
   generateChain,
   PROOF_CORPUS,
   separationViolations,
 } from './proof-kit';
-
-function facts(
-  systemIds: readonly number[],
-  connections: readonly (readonly [number, number])[],
-): LayoutFacts {
-  return {
-    systems: systemIds.map((systemId) => ({ systemId })),
-    connections: connections.map(([fromSystemId, toSystemId]) => ({
-      fromSystemId,
-      toSystemId,
-    })),
-  };
-}
 
 describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seeded corpus`, () => {
   it(`keeps every pairwise distance ≥ minSeparation (${DEFAULT_LAYOUT_CONFIG.minSeparation}) across all ${PROOF_CORPUS.length} corpus chains`, async () => {
@@ -49,7 +37,7 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
 
   it('keeps a multi-orphan cluster clear of the gate, including its own internal spacing', async () => {
     const A = 31_000_001;
-    const chain = facts(
+    const chain = layoutFacts(
       [A, 31_000_002, 31_000_003, 31_000_004, 31_000_005, 31_000_006],
       [
         [A, 31_000_002],
@@ -66,7 +54,7 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
   it('holds the overlap gate when the dials tighten below the compass defaults', async () => {
     const A = 31_000_001;
     const children = [2, 3, 4, 5, 6, 7].map((n) => 31_000_000 + n);
-    const star = facts(
+    const star = layoutFacts(
       [A, ...children],
       children.map((child) => [A, child] as const),
     );

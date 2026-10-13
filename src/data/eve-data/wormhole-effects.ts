@@ -1,3 +1,7 @@
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
+import { capitalize, humanizeIdentifier } from '@/lib/format/text';
+import { roundTo } from '@/lib/math';
+import { asRecord } from './coerce';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from './wormhole-contract';
 
 /**
@@ -128,18 +132,11 @@ export function parseEffectBeaconName(
   return { effect, wormholeClass: Number(classMatch) };
 }
 
-function humanize(name: string): string {
-  return name
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/^./, (first) => first.toUpperCase());
-}
-
 export function effectModifierLabel(displayName: string | null, name: string): string {
-  const raw = displayName?.trim() || humanize(name);
+  const raw = displayName?.trim() || humanizeIdentifier(name);
   const override = LABEL_OVERRIDES.get(raw.toLowerCase());
   if (override !== undefined) return override;
-  const stripped = raw.replace(TRAILING_DOGMA_WORDS, '');
-  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+  return capitalize(raw.replace(TRAILING_DOGMA_WORDS, ''));
 }
 
 /**
@@ -152,8 +149,7 @@ function foldResistances(modifiers: WormholeEffectModifier[]): WormholeEffectMod
   for (const modifier of modifiers) {
     const layer = RESISTANCE_LAYER.exec(modifier.label)?.[1];
     if (layer === undefined) continue;
-    const key = layer.toLowerCase();
-    byLayer.set(key, [...(byLayer.get(key) ?? []), modifier]);
+    getOrInsertComputed(byLayer, layer.toLowerCase(), () => []).push(modifier);
   }
   const folded = new Set<WormholeEffectModifier>();
   const merged: WormholeEffectModifier[] = [];
@@ -164,15 +160,11 @@ function foldResistances(modifiers: WormholeEffectModifier[]): WormholeEffectMod
     for (const modifier of group) folded.add(modifier);
     merged.push({
       attributeId: first.attributeId,
-      label: `${layer.charAt(0).toUpperCase()}${layer.slice(1)} resistances`,
+      label: `${capitalize(layer)} resistances`,
       percent: first.percent,
     });
   }
   return [...modifiers.filter((modifier) => !folded.has(modifier)), ...merged];
-}
-
-function roundPercent(value: number): number {
-  return Math.round(value * 10) / 10;
 }
 
 function percentConverter(attribute: EffectAttributeRow): ((value: number) => number) | undefined {
@@ -184,7 +176,7 @@ function percentConverter(attribute: EffectAttributeRow): ((value: number) => nu
 function attributeModifier(attribute: EffectAttributeRow, value: number): WormholeEffectModifier | null {
   const toPercent = percentConverter(attribute);
   if (toPercent === undefined) return null;
-  const raw = roundPercent(toPercent(value));
+  const raw = roundTo(toPercent(value), 1);
   if (raw === 0) return null;
   const resonance = RESONANCE.test(attribute.name) || RESONANCE.test(attribute.displayName ?? '');
   return {
@@ -198,9 +190,10 @@ function beaconModifiers(
   attributes: unknown,
   attributeById: ReadonlyMap<number, EffectAttributeRow>,
 ): WormholeEffectModifier[] {
-  if (typeof attributes !== 'object' || attributes === null || Array.isArray(attributes)) return [];
+  const record = asRecord(attributes);
+  if (record === null) return [];
   const modifiers: WormholeEffectModifier[] = [];
-  for (const [key, value] of Object.entries(attributes as Record<string, unknown>)) {
+  for (const [key, value] of Object.entries(record)) {
     const attribute = attributeById.get(Number(key));
     if (attribute === undefined || typeof value !== 'number' || !Number.isFinite(value)) continue;
     const modifier = attributeModifier(attribute, value);
@@ -243,11 +236,10 @@ export function buildWormholeEffects(
 export function beaconAttributeIds(beacons: readonly EffectBeaconRow[]): number[] {
   const ids = new Set<number>();
   for (const beacon of beacons) {
-    if (typeof beacon.attributes !== 'object' || beacon.attributes === null) continue;
-    for (const key of Object.keys(beacon.attributes)) {
+    for (const key of Object.keys(asRecord(beacon.attributes) ?? {})) {
       const id = Number(key);
       if (Number.isInteger(id)) ids.add(id);
     }
   }
-  return [...ids].sort((left, right) => left - right);
+  return sortedUniqueIds(ids);
 }

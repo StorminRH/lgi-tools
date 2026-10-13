@@ -1,17 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
+import { listSourceFiles, stripComments } from '@/lib/__tests__/source-scan';
 
 function allStylesheets(): string {
-  const files: string[] = [];
-  const walk = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const file = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) walk(file);
-      else if (entry.name.endsWith('.css')) files.push(file);
-    }
-  };
-  walk('src');
-  return files.sort().map((file) => readFileSync(file, 'utf8')).join('\n');
+  return listSourceFiles({ roots: ['src'], extensions: ['.css'] })
+    .map((file) => readFileSync(file, 'utf8'))
+    .join('\n');
 }
 
 const LOOPING_CLASSES = [
@@ -40,4 +34,32 @@ test('looping classes render statically under reduced motion', () => {
       `.${className} needs an animation: none reduced-motion override`,
     ).toBe(true);
   }
+});
+
+// The rules inside each flat `@media (prefers-reduced-motion: reduce)` block.
+function reducedMotionRules(css: string): { selectors: string[]; body: string }[] {
+  const blocks = css.matchAll(
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g,
+  );
+  return [...blocks].flatMap((block) =>
+    [...block[1]!.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((rule) => ({
+      selectors: rule[1]!.split(',').map((selector) => selector.trim()),
+      body: rule[2]!,
+    })),
+  );
+}
+
+// Every view transition's pseudo-elements hang off the document root, so the
+// rule that makes them instant is a document rule and lives in globals.css,
+// not in one owner's stylesheet.
+test('globals.css makes every view transition instant under reduced motion', () => {
+  const css = stripComments(readFileSync('src/app/globals.css', 'utf8'));
+  const pseudos = ['group', 'image-pair', 'old', 'new'].map((part) => `::view-transition-${part}(*)`);
+  const instant = reducedMotionRules(css).filter((rule) =>
+    pseudos.every((pseudo) => rule.selectors.includes(pseudo)),
+  );
+
+  expect(instant).toHaveLength(1);
+  expect(instant[0]!.body).toMatch(/animation-duration:\s*0s\s*!important/);
+  expect(instant[0]!.body).toMatch(/animation-delay:\s*0s\s*!important/);
 });

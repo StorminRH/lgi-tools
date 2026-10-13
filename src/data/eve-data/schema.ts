@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import type { AttrMap, BlueprintActivities, TreeNode } from './types';
 import { WORMHOLE_EFFECTS } from './wormhole-contract';
 
 export const eveCategories = pgTable('eve_categories', {
@@ -84,7 +85,7 @@ export const dgmAttributeTypes = pgTable('dgm_attribute_types', {
  */
 export const typeDogma = pgTable('type_dogma', {
   typeId: integer('type_id').primaryKey(),
-  attributes: jsonb('attributes').notNull(),
+  attributes: jsonb('attributes').$type<AttrMap>().notNull(),
 });
 
 /**
@@ -92,8 +93,10 @@ export const typeDogma = pgTable('type_dogma', {
  * `blueprints.jsonl` record. `activities` holds CCP's whole nested object verbatim
  * (string-keyed: `manufacturing`, `reaction`, `invention`, `copying`,
  * `research_material`, `research_time`), each activity carrying a subset of
- * `materials[]`, `products[]`, `skills[]`, `time`. Truncate+refill on every SDE
- * ingest; the SDE version stamp lives in `eveDataMeta` below.
+ * `materials[]`, `products[]`, `skills[]`, `time`. Ingest skips a blueprint
+ * whose document fails `isBlueprintActivitiesDocument`, so the stored shape is
+ * the `BlueprintActivities` type. Truncate+refill on every SDE ingest; the SDE
+ * version stamp lives in `eveDataMeta` below.
  *
  * Activity IDs used downstream: 1 = manufacturing, 11 = reactions (the resolver +
  * planner read those two; ACTIVITY_NAME_TO_ID in constants.ts maps CCP's string
@@ -109,7 +112,7 @@ export const typeDogma = pgTable('type_dogma', {
 export const industryBlueprints = pgTable('industry_blueprints', {
   blueprintTypeId: integer('blueprint_type_id').primaryKey(),
   maxProductionLimit: integer('max_production_limit').notNull(),
-  activities: jsonb('activities').notNull(),
+  activities: jsonb('activities').$type<BlueprintActivities>().notNull(),
 });
 
 export const blueprintTrees = pgTable('blueprint_trees', {
@@ -118,7 +121,7 @@ export const blueprintTrees = pgTable('blueprint_trees', {
     .references(() => industryBlueprints.blueprintTypeId, {
       onDelete: 'cascade',
     }),
-  treeJson: jsonb('tree_json').notNull(),
+  treeJson: jsonb('tree_json').$type<TreeNode[]>().notNull(),
   computedAt: timestamp('computed_at', { withTimezone: true }).notNull(),
 });
 
@@ -303,3 +306,18 @@ export const eveDataMeta = pgTable('eve_data_meta', {
     .notNull()
     .defaultNow(),
 });
+
+/**
+ * Names ESI `/universe/names/` returned, shared across instances and deploys.
+ * A null name records that ESI could not resolve the id, so it is not asked
+ * again until that answer ages out.
+ */
+export const eveEntityNames = pgTable('eve_entity_names', {
+  id: bigint('id', { mode: 'number' }).primaryKey(),
+  name: text('name'),
+  category: text('category'),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  // Housekeeping deletes by age in batches; without it each batch scans the table.
+  resolvedAtIdx: index('eve_entity_names_resolved_at_idx').on(t.resolvedAt),
+}));

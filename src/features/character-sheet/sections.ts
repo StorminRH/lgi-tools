@@ -1,3 +1,4 @@
+import type { EveScope } from '@/config/eve-scopes';
 import { parseLocationBody } from '@/data/location-tracking/esi-projection';
 import { LOCATION_SYNC_SCOPES } from '@/data/location-tracking/sync-eligibility';
 import {
@@ -19,8 +20,8 @@ export const TIER_ENTRY = {
   daily: 'character_sheet_daily',
 } as const satisfies Record<SheetTier, string>;
 
-const WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
-const PUBLIC_ENDPOINT_SCOPES: readonly string[] = [];
+const WALLET_SCOPE: EveScope = 'esi-wallet.read_character_wallet.v1';
+const PUBLIC_ENDPOINT_SCOPES: readonly EveScope[] = [];
 
 export const SHEET_SECTION_KEYS = [
   'profile',

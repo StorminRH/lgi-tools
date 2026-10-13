@@ -7,12 +7,15 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
 import type { ReadIdentity } from '@/platform/auth/read-identity';
 
-const SYSTEMS = [
-  { id: 30002537, name: 'Amamake', security: 0.4 },
-  { id: 30004759, name: '1DQ1-A', security: -0.4 },
-];
+const SYSTEMS_BY_ID = new Map([
+  [30002537, { id: 30002537, name: 'Amamake', security: 0.4 }],
+  [30004759, { id: 30004759, name: '1DQ1-A', security: -0.4 }],
+]);
 const live = vi.hoisted(() => ({
   available: [] as AvailableStructure[],
+  // What the live corp structures read last answered; null before it lands.
+  corps: null as CorpStructurePageView[] | null,
+  refreshCorps: vi.fn(),
   request: null as symbol | null,
   identity: { userId: 'account-a', characterId: 101 } as ReadIdentity | null,
   committed: false,
@@ -23,9 +26,11 @@ const live = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: live.refresh }) }));
 vi.mock('@/lib/use-client-committed', () => ({ useClientCommitted: () => live.committed }));
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => ({ loading: false }) }));
-vi.mock('@/platform/auth/read-identity', () => ({
+// Currency follows the hoisted identity; sameReadIdentity is pure, so the test keeps the real one.
+vi.mock('@/platform/auth/read-identity', async (importOriginal) => ({
   useReadIdentity: () => live.identity,
-  currentReadIdentity: () => live.identity,
+  isCurrentReadIdentity: (identity: ReadIdentity | null) => identity !== null && identity === live.identity,
+  sameReadIdentity: (await importOriginal<typeof import('@/platform/auth/read-identity')>()).sameReadIdentity,
 }));
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react')>()),
@@ -41,15 +46,21 @@ vi.mock('./structures-panel', () => ({
   useNewStructureRequest: () => live.request,
   settleNewStructure: vi.fn(),
 }));
-vi.mock('@/components/use-system-search', () => ({
-  useSystemSearch: () => ({ systems: SYSTEMS, suggest: async () => [] }),
-}));
+vi.mock('@/components/use-system-search', () => ({ useSystemsById: () => SYSTEMS_BY_ID }));
 vi.mock('@/features/industry-planner/use-available-structures', () => ({
   useAvailableStructures: () => live.available,
   refreshAvailableStructures: vi.fn(),
 }));
+vi.mock('@/features/owned-structures/use-corp-structures-live', () => ({
+  useCorpStructuresLive: (initial: CorpStructurePageView[]) => ({
+    corporations: live.corps ?? initial,
+    failed: false,
+    retry: vi.fn(),
+  }),
+  refreshCorpStructures: live.refreshCorps,
+}));
 
-import { savedStructure, StructuresManager } from './StructuresManager';
+import { overlaidCorps, savedStructure, StructuresManager, withRigSaved } from './StructuresManager';
 import { settleNewStructure } from './structures-panel';
 
 const TYPES: StructureTypeOption[] = [
@@ -63,6 +74,7 @@ beforeEach(() => {
   live.identity = OWNER;
   live.committed = false;
   live.runEffects = false;
+  live.corps = null;
   live.request = null;
   live.refresh.mockClear();
   live.save = null;
@@ -148,7 +160,49 @@ test('corporation structures and your own list side by side, with what each can 
   expect(html).toContain('>Tatara<');
   expect(html).toContain('Amamake Raitaru');
   expect(html).toContain('Unpinned Raitaru');
+  // Each row names its hull, then its system by id with that system's coloured security.
+  expect(html).toMatch(/Raitaru · Amamake <span[^>]*>0\.4<\/span>/);
+  expect(html).toMatch(/Tatara · 1DQ1-A <span[^>]*>-0\.4<\/span>/);
   expect(html).not.toContain('No structures yet.');
+});
+
+test('newer corp structures stream in over the server render, and a rig save shows at once', () => {
+  live.available = [];
+  const initial = [corp(98000001, 'manage', [corpStructure(7)])];
+  expect(render([], initial)).toContain('Tatara 7');
+
+  // The live read answered with a structure the server render did not have, and without the old one.
+  live.corps = [corp(98000001, 'manage', [corpStructure(8, { name: 'Tatara 8' })]), corp(98000002, 'use', [corpStructure(9)])];
+  const html = render([], initial);
+  expect(html).not.toContain('Tatara 7');
+  expect(html).toContain('Tatara 8');
+  expect(html).toContain('Corp 98000002');
+  expect(html).toContain('>Set rigs<');
+
+  // The rigs saved in the drawer are drawn over the live rows they were saved over.
+  const overlay = withRigSaved(null, live.corps, 8, { rigTypeIds: [46486], taxPct: 0.25 });
+  const edited = overlaidCorps(live.corps, overlay);
+  expect(edited[0]!.structures[0]).toMatchObject({ structureId: 8, rigTypeIds: [46486], taxPct: 0.25 });
+  expect(edited[1]!.structures[0]).toMatchObject({ structureId: 9, rigTypeIds: [], taxPct: 0.5 });
+  live.corps = [...edited];
+  expect(render([], initial)).not.toContain('>Set rigs<');
+});
+
+test('a saved rig edit stands over the rows it was saved on and gives way to the next live rows', () => {
+  const before = [corp(98000001, 'manage', [corpStructure(8), corpStructure(9)])];
+  const first = withRigSaved(null, before, 8, { rigTypeIds: [46486], taxPct: 0.25 });
+  const both = withRigSaved(first, before, 9, { rigTypeIds: [], taxPct: 3 });
+  expect(overlaidCorps(before, both)[0]!.structures.map((s) => s.taxPct)).toEqual([0.25, 3]);
+
+  // The re-read carries the save; another manager's later change to the same structure is not masked.
+  const later = [corp(98000001, 'manage', [corpStructure(8, { taxPct: 5 }), corpStructure(9)])];
+  expect(overlaidCorps(later, both)).toBe(later);
+  expect(overlaidCorps(later, null)).toBe(later);
+
+  // A save over newer rows starts afresh rather than carrying the old edits onto them.
+  const next = withRigSaved(both, later, 9, { rigTypeIds: [], taxPct: 1 });
+  expect([...next.edits.keys()]).toEqual([9]);
+  expect(overlaidCorps(later, next)[0]!.structures.map((s) => s.taxPct)).toEqual([5, 1]);
 });
 
 test('with nothing saved or shared there is nothing to filter', () => {

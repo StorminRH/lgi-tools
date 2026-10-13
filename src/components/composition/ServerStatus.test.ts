@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { HeldServerStatus, ServerStatus, ServerStatusFallback } from './ServerStatus';
 
-const ONLINE = { state: 'online', players: 27_240, build: '3569502', startedAt: null } as const;
+const ONLINE = { state: 'online', players: 27_240, startedAt: null } as const;
 
 test('HeldServerStatus server snapshot matches the Suspense fallback shell', () => {
   const held = renderToStaticMarkup(
@@ -20,19 +20,15 @@ test('HeldServerStatus server snapshot matches the Suspense fallback shell', () 
   expect(held).not.toContain('27,240');
 });
 
-test('ServerStatus reads as flat header text that names the server and its count', () => {
-  const html = renderToStaticMarkup(
+test('ServerStatus reads as flat header text that names the server and its count, or says the status is unknown', () => {
+  const online = renderToStaticMarkup(
     createElement(ServerStatus, { status: ONLINE }, createElement('p', null, 'details')),
   );
-  expect(html).toContain('aria-label="Tranquility online — 27,240 players"');
-  expect(html).toContain('TQ');
-  expect(html).toContain('27,240');
-  expect(html).not.toContain('data-tone');
-});
+  expect(online).toContain('aria-label="Tranquility online — 27,240 players"');
+  expect(online).toContain('TQ');
+  expect(online).toContain('27,240');
 
-test('an unknown status reads as unknown, not offline', () => {
-  const html = renderToStaticMarkup(createElement(ServerStatus, { status: { state: 'unknown' } }));
-  expect(html).toContain('aria-label="Tranquility status unknown"');
-  expect(html).toContain('unknown');
-  expect(html).not.toContain('offline<');
+  const unknown = renderToStaticMarkup(createElement(ServerStatus, { status: { state: 'unknown' } }));
+  expect(unknown).toContain('aria-label="Tranquility status unknown"');
+  expect(unknown).toContain('unknown');
 });

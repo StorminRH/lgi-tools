@@ -6,17 +6,14 @@ import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fi
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import {
   buildSignatureRows,
-  filterSignatureRows,
-  formatSignatureAge,
   groupSignatureSections,
   isEditablePasteTarget,
+  scanFailureMessage,
   scannerPasteDecision,
   scannerPasteRefusalToast,
   scannerGroupTypeLabel,
   scannerSectionForGroup,
   scannerLifeUpperBound,
-  scannerWormholeLifetime,
-  scannerWormholeSize,
   type ConnectionSignatureInput,
   type SignatureWindowRow,
 } from './signature-model';
@@ -83,10 +80,16 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     );
 
     expect(rows).toHaveLength(3);
-    expect(filterSignatureRows(rows, SYSTEM, 'signature').map((row) => row.signatureId))
-      .toEqual(['ABC-123', 'WHL-001']);
-    expect(filterSignatureRows(rows, SYSTEM, 'anomaly').map((row) => row.signatureId))
-      .toEqual(['ANO-456']);
+    expect(
+      rows
+        .filter((row) => row.systemId === SYSTEM && row.kind === 'signature')
+        .map((row) => row.signatureId),
+    ).toEqual(['ABC-123', 'WHL-001']);
+    expect(
+      rows
+        .filter((row) => row.systemId === SYSTEM && row.kind === 'anomaly')
+        .map((row) => row.signatureId),
+    ).toEqual(['ANO-456']);
     expect(rows.find((row) => row.signatureId === 'WHL-001')).toMatchObject({
       key: 'connection:connection-1',
       group: 'Wormhole',
@@ -144,7 +147,9 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       }),
     });
     expect(
-      filterSignatureRows(rows, toSystemId, 'signature').map((row) => row.signatureId),
+      rows
+        .filter((row) => row.systemId === toSystemId && row.kind === 'signature')
+        .map((row) => row.signatureId),
     ).toEqual(['YXX-744']);
   });
 
@@ -347,7 +352,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(legacySections[0]?.rows.map((row) => row.signatureId)).toEqual(['LEG-001']);
   });
 
-  it('reads wormhole size, remaining lifetime, and shared age clock like the row editor', () => {
+  it('reads the scanner life ceiling like the row editor', () => {
     const typed: WormholeCodexEntry = {
       code: 'B274',
       typeId: 1,
@@ -363,38 +368,15 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     const now = createdAt + 2 * 60 * 60_000;
     const base = connection({
       _creationTime: createdAt,
-      shipSize: 'M',
+      firstSeenAt: null,
       lifetime: { kind: 'unknown' },
     });
 
-    expect(scannerWormholeSize(base, typed)).toBe('L');
-    expect(scannerWormholeSize(base, null)).toBe('M');
-    expect(scannerWormholeSize(null, null)).toBe('—');
-    expect(scannerWormholeSize(base, {
-      code: 'K162',
-      typeId: 2,
-      farSide: true,
-    })).toBe('M');
-    expect(scannerWormholeLifetime(base, typed, now)).toBe('≤ 14h');
     expect(scannerLifeUpperBound(base, typed, now)).toBe('14h');
-    expect(scannerLifeUpperBound(null, typed, now)).toBe('—');
-    expect(scannerWormholeLifetime(base, null, now)).toBe('—');
     expect(
-      scannerWormholeLifetime(
-        {
-          ...base,
-          lifetime: {
-            kind: 'window',
-            earliestAt: now + 60 * 60_000,
-            latestAt: now + 4 * 60 * 60_000,
-            lifeStage: null,
-            observedAt: null,
-          },
-        },
-        typed,
-        now,
-      ),
-    ).toBe('~1h–4h');
+      scannerLifeUpperBound({ ...base, firstSeenAt: createdAt - 4 * 60 * 60_000 }, typed, now),
+    ).toBe('10h');
+    expect(scannerLifeUpperBound(null, typed, now)).toBe('—');
     expect(
       scannerLifeUpperBound(
         {
@@ -411,27 +393,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         now,
       ),
     ).toBe('4h');
-    expect(
-      scannerWormholeLifetime(
-        {
-          ...base,
-          lifetime: {
-            kind: 'window',
-            earliestAt: now - 1_000,
-            latestAt: now - 1_000,
-            lifeStage: null,
-            observedAt: null,
-          },
-        },
-        typed,
-        now,
-      ),
-    ).toBe('Expired');
-
-    expect(formatSignatureAge(1_000, 1_000)).toBe('<1m');
-    expect(formatSignatureAge(1_000, 6 * 60_000 + 1_000)).toBe('6m');
-    expect(formatSignatureAge(1_000, 3 * 60 * 60_000 + 1_000)).toBe('3h');
-    expect(formatSignatureAge(1_000, 2 * 24 * 60 * 60_000 + 1_000)).toBe('2d');
   });
 
   it('classifies scanner pastes before side effects and maps refusals to toast copy', () => {
@@ -475,11 +436,11 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     ).toMatchObject({ kind: 'reject', rejectCount: 1 });
 
     expect(scannerPasteRefusalToast({ kind: 'reject', rejectCount: 1 })).toEqual({
-      message: 'Formatting error',
+      message: "Couldn't read scan",
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     });
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).message).toBe('Read-only access');
-    expect(scannerPasteRefusalToast({ kind: 'loading' }).message).toBe('Tracking not ready');
+    expect(scannerPasteRefusalToast({ kind: 'loading' }).message).toBe('Still loading. Paste again.');
     expect(scannerPasteRefusalToast({ kind: 'untracked' }).message).toBe('No character online');
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).options.id).toBe(
       'scanner-paste:read-only',
@@ -490,5 +451,16 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteRefusalToast({ kind: 'loading' }).options.id).toBe(
       'scanner-paste:loading',
     );
+  });
+
+  it('names the server refusal a scan failed with, from the error code alone', () => {
+    const refused = (code: string) => ({
+      data: { code, detail: 'Diagnostic text the scanner never shows.' },
+    });
+    expect(scanFailureMessage(refused('OFF_MAP_SCAN_SYSTEM'))).toBe('System not on map');
+    expect(scanFailureMessage(refused('UNTRACKED_SCAN_SYSTEM'))).toBe('No character online');
+    expect(scanFailureMessage(refused('TRACKING_CAP_EXCEEDED'))).toBe('Scan not applied');
+    expect(scanFailureMessage(refused('constructor'))).toBe('Scan not applied');
+    expect(scanFailureMessage(new Error('Network down'))).toBe('Scan not applied');
   });
 });

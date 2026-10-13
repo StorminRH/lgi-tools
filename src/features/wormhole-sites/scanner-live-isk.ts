@@ -26,10 +26,6 @@ export function scannerLiveEstIsk(
   return { total, pending };
 }
 
-export function scannerLiveTypeIdKey(typeIds: readonly number[]): string {
-  return [...new Set(typeIds)].sort((a, b) => a - b).join(',');
-}
-
 export function scannerLiveTypeIdsForNames(
   names: readonly string[],
   recipesForName: (name: string) => readonly SiteLiveRecipe[],

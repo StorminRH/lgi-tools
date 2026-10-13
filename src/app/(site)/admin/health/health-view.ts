@@ -3,11 +3,8 @@ import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli
 import { formatCount } from '@/lib/format/number';
 import {
   formatSliValue,
-  queueCounts,
-  queueLevel,
   sliLevel,
   sliTargetLabel,
-  type QueueSummary,
   type SliSignals,
   type StatusLine,
 } from '../signals';
@@ -19,7 +16,7 @@ export interface ServiceLevelRow extends StatusLine {
   responseAction: string;
 }
 
-const SIGNAL_FOR: Record<Exclude<SliId, 'job_backlog'>, keyof SliSignals> = {
+const SIGNAL_FOR: Record<SliId, keyof SliSignals> = {
   read_success_rate: 'readSuccess',
   mutation_success_rate: 'mutationSuccess',
   critical_latency_p95: 'latencyP95',
@@ -31,10 +28,7 @@ const OWNER_LABEL: Record<SliOwner, string> = {
   'ccp-upstream': 'upstream',
 };
 
-function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
-  if (id === 'job_backlog') {
-    return { value: queueCounts(queue), note: 'target 0 dead', level: queueLevel(queue) };
-  }
+function measure(id: SliId, sli: SliSignals) {
   const key = SIGNAL_FOR[id];
   return {
     value: formatSliValue(key, sli[key]),
@@ -43,13 +37,13 @@ function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
   };
 }
 
-export function deriveServiceLevels(sli: SliSignals, queue: QueueSummary): ServiceLevelRow[] {
+export function deriveServiceLevels(sli: SliSignals): ServiceLevelRow[] {
   return SLI_DEFINITIONS.map((definition) => ({
     id: definition.id,
     label: definition.title,
     owner: OWNER_LABEL[definition.owner],
     responseAction: definition.responseAction,
-    ...measure(definition.id, sli, queue),
+    ...measure(definition.id, sli),
   }));
 }
 
@@ -65,11 +59,20 @@ export function failureResultLabel(row: FailureGroup): string {
   return parts.join(' · ');
 }
 
-export function dayLabel(date: Date): string {
-  return date.toISOString().slice(0, 10);
+function percent(share: number): string {
+  return `${Math.round(share * 100)}%`;
 }
 
+/** The heaviest timed dependency; "mostly" only when it takes half the run or its share is unknown. */
+function dependencyPart(dependency: string, share: number | null): string {
+  if (share === null) return `mostly ${dependency}`;
+  return share >= 0.5 ? `mostly ${dependency} (${percent(share)})` : `${dependency} ${percent(share)}`;
+}
+
+/** Run count, where most of a run's time went, and how much of it no timed dependency covers. */
 export function slowOperationNote(row: SlowOperation): string {
-  const runs = formatCount(row.count, 'run');
-  return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency} on average`;
+  const parts = [formatCount(row.count, 'run')];
+  if (row.slowestDependency !== null) parts.push(dependencyPart(row.slowestDependency, row.slowestShare));
+  if (row.untimedShare !== null) parts.push(`${percent(row.untimedShare)} untimed`);
+  return parts.join(' · ');
 }

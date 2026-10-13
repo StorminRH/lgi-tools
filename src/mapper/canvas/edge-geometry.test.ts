@@ -3,16 +3,14 @@ import { ICON_TRACK_CLEARANCE_PX } from './disc-chrome';
 import { SYSTEM_DISC_SIZE, SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 import {
   chainLinkSegment,
-  chainLinkPath,
   connectionLabelBox,
   edgeTaperFraction,
   endpointFrame,
   frameCenter,
-  frameNameBox,
   frameSegment,
-  kspaceCaptionBox,
+  nodeCenter,
   pointAlongSegment,
-  pointOnRayAtRadius,
+  segmentPath,
   visibleChainLinkSegment,
   type FrameRect,
 } from './edge-geometry';
@@ -71,11 +69,6 @@ test('frameSegment stops at the icon ring and nulls lines that would cross it', 
   expect(frameSegment(frame(0, 0), frame(30, 10))).toBeNull();
   expect(frameSegment(frame(0, 0), frame(0, 0))).toBeNull();
   expect(frameCenter(frame(10, 20))).toEqual({ x: 10 + CX, y: 20 + CY });
-  expect(pointOnRayAtRadius({ x: 0, y: 0 }, { x: 80, y: 60 }, DISC_R)).toEqual({
-    x: 80 * (DISC_R / 100),
-    y: 60 * (DISC_R / 100),
-  });
-  expect(pointOnRayAtRadius({ x: 0, y: 0 }, { x: 0, y: 0 }, DISC_R)).toBeNull();
 });
 
 test('chainLinkSegment prefers measured frames and nulls incomplete endpoints', () => {
@@ -99,11 +92,25 @@ test('chainLinkSegment prefers measured frames and nulls incomplete endpoints', 
   expect(chainLinkSegment(node(0, 0, MEASURED), node(CLEAR * 2, 0, MEASURED))).toBeNull();
 });
 
-test('chainLinkPath cuts only the fog side of the shared segment', () => {
+test('nodeCenter centers the measured frame, else the declared one, and nulls unsized nodes', () => {
+  const measured = { measured: { width: 80, height: 60 }, width: FRAME_W, height: FRAME_H };
+  expect(nodeCenter(node(100, 200, measured))).toEqual({ x: 140, y: 230 });
+  expect(nodeCenter(node(100, 200, { width: FRAME_W, height: FRAME_H }))).toEqual({
+    x: 100 + CX,
+    y: 200 + CY,
+  });
+  expect(nodeCenter(node(100, 200))).toBeNull();
+  expect(nodeCenter(node(100, 200, { measured: { width: 80 } }))).toBeNull();
+  expect(nodeCenter(undefined)).toBeNull();
+});
+
+test('the drawn path cuts only the fog side of the shared segment', () => {
   const segment = { startX: 0, startY: 0, endX: 100, endY: 0 };
-  expect(chainLinkPath(segment, undefined, 0.25)).toBe('M 0,0 L 100,0');
-  expect(chainLinkPath(segment, 'target', 0.25)).toBe('M 0,0 L 25,0');
-  expect(chainLinkPath(segment, 'source', 0.25)).toBe('M 75,0 L 100,0');
+  const path = (fogSide: 'source' | 'target' | undefined) =>
+    segmentPath(visibleChainLinkSegment(segment, fogSide, 0.25));
+  expect(path(undefined)).toBe('M 0,0 L 100,0');
+  expect(path('target')).toBe('M 0,0 L 25,0');
+  expect(path('source')).toBe('M 75,0 L 100,0');
 });
 
 test('fog taper uses the rendered segment and preserves a 24px fade', () => {
@@ -140,15 +147,18 @@ test('asymmetric captions remain attached to their endpoint for paths and revers
   );
   expect(segment).toEqual({ startX: 75, startY: 100.5, endX: 75, endY: 183.5 });
   if (segment === null) throw new Error('Expected separated endpoints to render');
-  expect(chainLinkPath(segment, undefined, 0.25)).toBe('M 75,100.5 L 75,183.5');
-  expect(chainLinkPath(segment, 'target', 0.25)).toBe('M 75,100.5 L 75,121.25');
-  expect(chainLinkPath(segment, 'source', 0.25)).toBe('M 75,162.75 L 75,183.5');
+  const path = (fogSide: 'source' | 'target' | undefined) =>
+    segmentPath(visibleChainLinkSegment(segment, fogSide, 0.25));
+  expect(path(undefined)).toBe('M 75,100.5 L 75,183.5');
+  expect(path('target')).toBe('M 75,100.5 L 75,121.25');
+  expect(path('source')).toBe('M 75,162.75 L 75,183.5');
   expect(pointAlongSegment(segment, 0.25, true)).toEqual({ x: 75, y: 121.25, angle: 90 });
   expect(pointAlongSegment(segment, 0.25, false)).toEqual({ x: 75, y: 162.75, angle: -90 });
 });
 
 test('k-space captions push an arriving line out past the text', () => {
-  const caption = kspaceCaptionBox();
+  const caption = connectionLabelBox({ security: 1 });
+  if (caption === null) throw new Error('Expected a k-space caption box');
   const source = frame(0, 0);
   const target = frame(0, 200);
   const from = frameCenter(source);
@@ -163,12 +173,14 @@ test('k-space captions push an arriving line out past the text', () => {
 });
 
 test('wormhole names and derived nodes use the frame label, k-space uses the caption', () => {
+  const caption = { left: -CX, right: CX, top: -71.5, bottom: -33.5 };
+  const frameName = { left: 4 - CX, right: CX - 4, top: 4 - CY, bottom: 4 - CY + 14 * 1.6 };
   expect(connectionLabelBox(undefined)).toBeNull();
-  expect(connectionLabelBox({ security: 1 })).toEqual(kspaceCaptionBox());
-  expect(connectionLabelBox({ whClassId: 2 })).toEqual(frameNameBox());
-  expect(connectionLabelBox({ security: 1, halo: { ring: 1 } })).toEqual(frameNameBox());
-  expect(connectionLabelBox({ stub: { code: 'B274' } })).toEqual(frameNameBox());
-  expect(frameNameBox().top).toBe(4 - FRAME_H / 2);
+  expect(connectionLabelBox({ security: 1 })).toStrictEqual(caption);
+  expect(connectionLabelBox({ security: -0.4 })).toStrictEqual(caption);
+  expect(connectionLabelBox({ whClassId: 2 })).toStrictEqual(frameName);
+  expect(connectionLabelBox({ security: 1, halo: { ring: 1 } })).toStrictEqual(frameName);
+  expect(connectionLabelBox({ stub: { code: 'B274' } })).toStrictEqual(frameName);
 });
 
 test('edge taper is a fixed run that collapses on a short segment', () => {

@@ -1,13 +1,12 @@
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
 import { movingAverage, zeroFillDaily } from './aggregate';
-import { computeDelta, type Delta } from '@/composition/admin-period';
 import type { DateRange } from '@/data/telemetry/types';
+import { groupBy } from '@/lib/array';
+import { DAY_MS, isoDay } from '@/lib/iso-date';
+import { computeDelta, type Delta } from './period';
 
-const MS_PER_DAY = 86_400_000;
 const MA_WINDOW = 7;
 const MARKER_DENSITY_CAP = 120;
-
-const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
 export interface ActivityChartData extends DailyChartSeries {
   totalValue: number;
@@ -32,12 +31,7 @@ const EMPTY: ActivityChartData = {
 function dedupeMarkersByDay(
   markers: { date: string; label: string }[],
 ): { date: string; label: string }[] {
-  const byDay = new Map<string, string[]>();
-  for (const m of markers) {
-    const list = byDay.get(m.date);
-    if (list) list.push(m.label);
-    else byDay.set(m.date, [m.label]);
-  }
+  const byDay = groupBy(markers, (m) => m.date, (m) => m.label);
   return [...byDay.entries()].map(([date, labels]) => ({
     date,
     label: labels.length === 1 ? labels[0]! : `${labels.length} releases`,
@@ -58,7 +52,7 @@ export function deriveActivityView(input: {
   const start = firstDay > rangeStart ? firstDay : rangeStart;
   // The range is half-open, so its last day is the one holding `to - 1ms`;
   // a range ending at midnight must not add an empty day for tomorrow.
-  const end = isoDay(new Date(range.to.getTime() - 1));
+  const end = isoDay(range.to.getTime() - 1);
   const series = zeroFillDaily(
     dailyCounts.map((d) => ({ day: d.day, value: d.views })),
     start,
@@ -101,5 +95,5 @@ export function deriveActivityView(input: {
 }
 
 export function rangeDayCount(range: DateRange): number {
-  return Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / MS_PER_DAY));
+  return Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / DAY_MS));
 }

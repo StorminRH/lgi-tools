@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ settled: null as number | null, ref: { current: undefined as unknown }, cleanup: null as (() => void) | null }));
 vi.mock('react', () => ({
@@ -14,40 +14,33 @@ vi.mock('react', () => ({
 
 const { useSettledHover } = await import('./use-settled-hover');
 
-beforeEach(() => {
+test('passing over cards lights nothing, resting on one lights it, leaving it lets it go, and a pending light dies with the plan', () => {
   vi.useFakeTimers();
-  h.settled = null;
-  h.ref.current = undefined;
-});
-afterEach(() => vi.useRealTimers());
+  try {
+    const [, onHover] = useSettledHover();
+    onHover(1, true);
+    vi.advanceTimersByTime(120);
+    onHover(1, false);
+    onHover(2, true);
+    vi.advanceTimersByTime(120);
+    onHover(2, false);
+    onHover(3, true);
+    expect(h.settled).toBeNull();
+    vi.advanceTimersByTime(260);
+    expect(h.settled).toBe(3);
 
-test('passing over cards lights nothing; resting on one lights it', () => {
-  const [, onHover] = useSettledHover();
-  onHover(1, true);
-  vi.advanceTimersByTime(120);
-  onHover(1, false);
-  onHover(2, true);
-  vi.advanceTimersByTime(120);
-  onHover(2, false);
-  onHover(3, true);
-  expect(h.settled).toBeNull();
-  vi.advanceTimersByTime(260);
-  expect(h.settled).toBe(3);
-});
+    // Leaving another card keeps the lit chain; leaving the lit card lets it go.
+    onHover(4, false);
+    expect(h.settled).toBe(3);
+    onHover(3, false);
+    expect(h.settled).toBeNull();
 
-test('leaving the lit card lets its chain go, and leaving another card keeps it', () => {
-  h.settled = 3;
-  const [, onHover] = useSettledHover();
-  onHover(4, false);
-  expect(h.settled).toBe(3);
-  onHover(3, false);
-  expect(h.settled).toBeNull();
-});
-
-test('a pending light is dropped when the plan goes away', () => {
-  const [, onHover] = useSettledHover();
-  onHover(5, true);
-  h.cleanup?.();
-  vi.advanceTimersByTime(500);
-  expect(h.settled).toBeNull();
+    // A light still pending when the plan goes away is dropped.
+    onHover(5, true);
+    h.cleanup?.();
+    vi.advanceTimersByTime(500);
+    expect(h.settled).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
 });

@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
-import { PRODUCTION_ACTIVITIES, type ProductionModifier } from '@/data/eve-data/structures';
+import {
+  PRODUCTION_ACTIVITIES,
+  PRODUCTION_MODIFIER_KINDS,
+  type ProductionModifier,
+} from '@/data/eve-data/structures';
+import { int4IdSchema, ownedRowIdSchema, positiveIdSchema } from '@/lib/id-schemas';
+import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 import {
   defineEndpoint,
   jsonBody,
@@ -11,16 +17,12 @@ import { planSnapshotWireSchema } from './template-snapshot';
 import type {
   AssetHolding,
   BlueprintIndexEntry,
-  BuildLocationData,
-  IndustryStationView,
   OwnedAssetEntry,
   OwnedAssetsResponse,
   OwnedBlueprintMeEntry,
   OwnedBlueprintsResponse,
   SystemJobCostIndex,
 } from './types';
-
-const PG_INT4_MAX = 2_147_483_647;
 
 export const blueprintIndexEntrySchema = z.object({
   blueprintTypeId: z.number(),
@@ -40,45 +42,11 @@ export const blueprintsEndpoint = defineEndpoint({
   },
 });
 
-export const buildLocationRequestSchema = z.object({
-  // Adjusted prices are global and can be read before choosing an installation system.
-  systemId: z.number().int().positive().max(PG_INT4_MAX).nullable(),
-  blueprintId: z.number().int().positive().max(PG_INT4_MAX),
-});
-
-const industryStationViewSchema = z.object({
-  id: z.number(),
-  name: z.string().nullable(),
-  operationName: z.string(),
-  manufacturingCapable: z.boolean(),
-  researchCapable: z.boolean(),
-}) satisfies z.ZodType<IndustryStationView>;
-
-export const buildLocationResponseSchema = z.object({
-  stations: z.array(industryStationViewSchema),
-  costIndices: z.object({
-    manufacturing: z.number().nullable(),
-    reaction: z.number().nullable(),
-  }),
-  adjustedPrices: z.array(
-    z.object({ typeId: z.number(), adjustedPrice: z.number() }),
-  ),
-}) satisfies z.ZodType<BuildLocationData>;
-export const buildLocationEndpoint = defineEndpoint({
-  method: 'POST',
-  path: '/api/industry/build-location',
-  request: buildLocationRequestSchema,
-  responses: {
-    200: jsonBody(buildLocationResponseSchema),
-    400: problem('invalid_json', 'invalid_body'),
-  },
-});
-
 /** Enough for every facility a profile runs jobs in. */
 const MAX_COST_INDEX_SYSTEMS = 64;
 
 export const costIndicesRequestSchema = z.object({
-  systemIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_COST_INDEX_SYSTEMS),
+  systemIds: z.array(int4IdSchema).max(MAX_COST_INDEX_SYSTEMS),
 });
 
 const systemCostIndexSchema = z.object({
@@ -101,14 +69,14 @@ export const costIndicesEndpoint = defineEndpoint({
 });
 
 export const ownedBlueprintsRequestSchema = z.object({
-  blueprintTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(4096),
+  blueprintTypeIds: z.array(int4IdSchema).max(4096),
 });
 
 const ownedBlueprintMeEntrySchema = z.object({
   blueprintTypeId: z.number(),
   me: z.number(),
   te: z.number(),
-  ownerType: z.enum(['character', 'corporation']),
+  ownerType: z.enum(ESI_OWNER_TYPES),
   ownerName: z.string(),
   locationName: z.string(),
   locationFlag: z.string(),
@@ -117,6 +85,7 @@ const ownedBlueprintMeEntrySchema = z.object({
 
 const ownedBlueprintsResponseSchema = z.object({
   blueprints: z.array(ownedBlueprintMeEntrySchema),
+  refreshing: z.boolean(),
 }) satisfies z.ZodType<OwnedBlueprintsResponse>;
 
 export const ownedBlueprintsEndpoint = defineEndpoint({
@@ -130,11 +99,11 @@ export const ownedBlueprintsEndpoint = defineEndpoint({
 });
 
 export const ownedAssetsRequestSchema = z.object({
-  typeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(4096),
+  typeIds: z.array(int4IdSchema).max(4096),
 });
 
 const assetHoldingSchema = z.object({
-  ownerType: z.enum(['character', 'corporation']),
+  ownerType: z.enum(ESI_OWNER_TYPES),
   ownerName: z.string(),
   locationName: z.string(),
   locationFlag: z.string(),
@@ -150,6 +119,7 @@ const ownedAssetEntrySchema = z.object({
 
 const ownedAssetsResponseSchema = z.object({
   assets: z.array(ownedAssetEntrySchema),
+  refreshing: z.boolean(),
 }) satisfies z.ZodType<OwnedAssetsResponse>;
 
 export const ownedAssetsEndpoint = defineEndpoint({
@@ -163,7 +133,7 @@ export const ownedAssetsEndpoint = defineEndpoint({
 });
 
 export const skillLevelsRequestSchema = z.object({
-  characterId: z.number().int().positive().max(PG_INT4_MAX),
+  characterId: positiveIdSchema,
 });
 
 const skillLevelsResponseSchema = z.object({
@@ -186,6 +156,7 @@ const teamSkillLevelsResponseSchema = z.object({
       levels: z.record(z.string(), z.number()).nullable(),
     }),
   ),
+  refreshing: z.boolean(),
 });
 export const teamSkillLevelsEndpoint = defineEndpoint({
   method: 'GET',
@@ -198,7 +169,7 @@ export const teamSkillLevelsEndpoint = defineEndpoint({
 
 const structureModifierSchema = z.object({
   activity: z.enum(PRODUCTION_ACTIVITIES),
-  kind: z.enum(['material', 'time', 'cost']),
+  kind: z.enum(PRODUCTION_MODIFIER_KINDS),
   filterId: z.number().nullable(),
   factor: z.object({ high: z.number(), low: z.number(), null: z.number() }),
 }) satisfies z.ZodType<ProductionModifier>;
@@ -221,6 +192,7 @@ export const availableStructureSchema = z.object({
 
 export const availableStructuresResponseSchema = z.object({
   structures: z.array(availableStructureSchema),
+  refreshing: z.boolean(),
 });
 
 export type AvailableStructure = z.infer<typeof availableStructureSchema>;
@@ -239,7 +211,6 @@ const MAX_SAVED_PLAN_NAME_LEN = 80;
 export const MAX_SAVED_PLANS_PER_USER = 50;
 const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
 
-const savedPlanId = z.string().min(1).max(100);
 const savedPlanName = z.string().trim().min(1).max(MAX_SAVED_PLAN_NAME_LEN);
 
 const savedPlanRowSchema = z.object({
@@ -287,7 +258,7 @@ export const createSavedPlanEndpoint = defineEndpoint({
 });
 
 export const renameSavedPlanRequestSchema = z.object({
-  id: savedPlanId,
+  id: ownedRowIdSchema,
   name: savedPlanName,
 });
 export const renameSavedPlanEndpoint = defineEndpoint({
@@ -303,7 +274,7 @@ export const renameSavedPlanEndpoint = defineEndpoint({
 });
 
 export const favoriteSavedPlanRequestSchema = z.object({
-  id: savedPlanId,
+  id: ownedRowIdSchema,
   favorite: z.boolean(),
 });
 export const favoriteSavedPlanEndpoint = defineEndpoint({
@@ -319,7 +290,7 @@ export const favoriteSavedPlanEndpoint = defineEndpoint({
 });
 
 export const deleteSavedPlanRequestSchema = z.object({
-  id: savedPlanId,
+  id: ownedRowIdSchema,
 });
 export const deleteSavedPlanEndpoint = defineEndpoint({
   method: 'POST',

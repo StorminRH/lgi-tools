@@ -1,13 +1,13 @@
 import type { z } from 'zod';
-import { validationFailure, type AppFailure } from '@/lib/failure';
+import { validationFailure, type FailureResult } from '@/lib/failure';
 
 export type ParsedFormBody<T> =
   | { ok: true; data: T }
-  | { ok: false; failure: AppFailure };
+  | FailureResult;
 
 export type ReadJsonBodyResult<T> =
   | { ok: true; data: T }
-  | { ok: false; failure: AppFailure; zodError?: z.ZodError };
+  | (FailureResult & { zodError?: z.ZodError });
 
 export async function readJsonBody<S extends z.ZodTypeAny>(
   request: Request,
@@ -38,16 +38,35 @@ export async function readJsonBody<S extends z.ZodTypeAny>(
   return { ok: true, data: parsed.data };
 }
 
-export async function parseFormBody<S extends z.ZodTypeAny>(
+/**
+ * Parses a browser form post: reads only `fields`, passes a missing field as
+ * undefined (as parseQueryInput does), and owns both form failures.
+ */
+export async function parseFormBody<S extends z.ZodType>(
   request: Request,
   schema: S,
-  pick: (form: FormData) => unknown,
-  invalid: (error: z.ZodError) => AppFailure,
+  fields: readonly (keyof z.input<S> & string)[],
 ): Promise<ParsedFormBody<z.infer<S>>> {
-  const form = await request.formData();
-  const parsed = schema.safeParse(pick(form));
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return {
+      ok: false,
+      failure: validationFailure('invalid_form', 'Invalid form body'),
+    };
+  }
+
+  const input = Object.fromEntries(
+    fields.map((field) => [field, form.get(field) ?? undefined]),
+  );
+  const parsed = schema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, failure: invalid(parsed.error) };
+    const path = parsed.error.issues[0]?.path.join('.');
+    return {
+      ok: false,
+      failure: validationFailure('invalid_form_field', `Invalid ${path || 'form'}`),
+    };
   }
   return { ok: true, data: parsed.data };
 }

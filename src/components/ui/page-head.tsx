@@ -1,29 +1,16 @@
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { dataLabel, pageTitle } from './type-roles';
 
 export type PageTitleSize = 'hero' | 'page' | 'compact';
-
-const pageTitle = cva(
-  'font-display font-bold leading-none tracking-optical uppercase text-name',
-  {
-    variants: {
-      size: {
-        hero: 'text-display',
-        page: 'text-title',
-        compact: 'text-h2',
-      },
-    },
-    defaultVariants: { size: 'page' },
-  },
-);
 
 const pageSubtitle = cva('mt-2 text-muted', {
   variants: {
     size: {
       hero: 'font-ui text-body leading-relaxed',
       page: 'font-ui text-ui',
-      compact: 'font-data text-label tracking-label uppercase',
+      compact: dataLabel({ tone: 'inherit' }),
     },
   },
   defaultVariants: { size: 'page' },

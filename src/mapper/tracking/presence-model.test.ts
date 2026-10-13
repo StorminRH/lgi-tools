@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { unresolvedName } from '@/lib/format/names';
 import {
   coverageIndex,
   coverageQueryArgs,
@@ -107,16 +108,20 @@ test('presence shape groups, dedupes, hides uncovered, and labels friendlies', (
     derive([row({ characterId: 7 }), row({ characterId: 8 })], {
       coverage: new Map([[7, true], [8, false]]),
     }).get(JITA)?.pilots ?? [];
-  expect(friendlyRows(pilots, { '7': 'E2E Pilot' })).toEqual([
+  const nameFrom = (names: Record<string, string>) => (id: number) =>
+    names[String(id)] ?? unresolvedName('character', id);
+  expect(friendlyRows(pilots, nameFrom({ '7': 'E2E Pilot' }))).toEqual([
     { characterId: 7, label: 'E2E Pilot', word: 'In space', shipName: null },
   ]);
   const shipPilots = [
     { characterId: 7, shipTypeId: 100, docked: false, lastMovementAt: 1 },
     { characterId: 8, shipTypeId: 100, docked: true, lastMovementAt: 1 },
+    { characterId: 9, shipTypeId: 101, docked: false, lastMovementAt: 1 },
   ];
-  expect(friendlyRows(shipPilots, { '7': 'Pilot', '8': 'Docked Pilot' }, { '100': 'Astero' })).toEqual([
+  expect(friendlyRows(shipPilots, nameFrom({ '7': 'Pilot', '8': 'Docked Pilot' }), { '100': 'Astero' })).toEqual([
     { characterId: 7, label: 'Pilot', word: 'In space', shipName: 'Astero' },
     { characterId: 8, label: 'Docked Pilot', word: 'Docked', shipName: null },
+    { characterId: 9, label: 'Character 9', word: 'In space', shipName: null },
   ]);
 });
 

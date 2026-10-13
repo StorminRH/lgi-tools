@@ -1,48 +1,43 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
-import { validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
-import { checkRateLimit } from '@/lib/rate-limit';
-import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
-import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
+import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
+import { problemResponse, seeOther } from '@/transport/api-response';
+import { characterIdFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
+import { notLinkedFailure, setActiveCharacter } from '@/platform/auth/linked-characters';
 import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
+
+const CHARACTERS_PAGE = '/settings/characters';
 
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.switch-active-character',
-    preflight: async () => {
-      const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
-      return limit.ok ? null : problemResponse(limit.failure);
-    },
-    authorize: checkSession,
-    parse: (incoming) => parseFormBody(
-      incoming,
-      switchCharacterFormSchema,
-      (form) => ({ characterId: form.get('characterId') }),
-      () => validationFailure('invalid_form_field', 'Invalid character'),
+    preflight: rateLimitPreflight(
+      request,
+      { name: 'account-switch', perMinute: 30 },
+      problemResponse,
     ),
+    authorize: checkSession,
+    parse: (incoming) =>
+      parseFormBody(incoming, characterIdFormSchema, ['characterId']),
     handle: async ({ session }, { characterId }) => {
-      if (!(await accountBelongsToUser(session.user.id, characterId))) {
-        return problemResponse(
-          validationFailure(
-            'not_linked',
-            'Character not linked to your account',
-          ),
-        );
+      if (!(await setActiveCharacter(session.user.id, characterId))) {
+        // The switch form posts natively, so the refusal is a notice on the page.
+        return seeOther(request, CHARACTERS_PAGE, {
+          query: { error: 'not_linked' satisfies CharacterLinkNotice },
+          failure: notLinkedFailure(),
+        });
       }
 
-      await setActiveCharacter(session.user.id, characterId);
-
-      void logUsageEvent({
+      emitUsageEvent('account/active-character', {
         action: 'character_switch',
         characterId: session.characterId,
         metadata: { userId: session.user.id, toCharacterId: characterId },
-      }).catch((err) => console.error('[account/active-character] telemetry write failed', err));
+      });
 
-      return Response.redirect(new URL('/settings/characters', request.url), 303);
+      return seeOther(request, CHARACTERS_PAGE);
     },
   });
 }

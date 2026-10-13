@@ -2,55 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
   EVE_REVOKE_URL,
-  EVE_SCOPES,
   claimsToCharacter,
   exchangeCodeForToken,
-  portraitUrl,
   refreshEveToken,
   revokeEveRefreshToken,
 } from './eve-sso';
-
-describe('EVE_SCOPES', () => {
-  it('matches the verified least-privilege EVE scope names', () => {
-    expect([...EVE_SCOPES]).toEqual([
-      'publicData',
-      'esi-skills.read_skills.v1',
-      'esi-skills.read_skillqueue.v1',
-      'esi-industry.read_character_jobs.v1',
-      'esi-characters.read_corporation_roles.v1',
-      'esi-industry.read_corporation_jobs.v1',
-      'esi-characters.read_blueprints.v1',
-      'esi-corporations.read_blueprints.v1',
-      'esi-assets.read_assets.v1',
-      'esi-assets.read_corporation_assets.v1',
-      'esi-location.read_online.v1',
-      'esi-location.read_location.v1',
-      'esi-location.read_ship_type.v1',
-      'esi-corporations.read_structures.v1',
-      'esi-search.search_structures.v1',
-      'esi-wallet.read_character_wallet.v1',
-      'esi-clones.read_clones.v1',
-      'esi-clones.read_implants.v1',
-      'esi-universe.read_structures.v1',
-      'esi-markets.read_character_orders.v1',
-      'esi-corporations.read_divisions.v1',
-      'esi-corporations.track_members.v1',
-    ]);
-  });
-
-  it('requests ZERO write scope (read-only by construction)', () => {
-    // track_members gates only GET /corporations/{id}/membertracking; its name lacks `.read_`.
-    const READ_ONLY_EXCEPTIONS = ['esi-corporations.track_members.v1'];
-    for (const scope of EVE_SCOPES) {
-      const readOnly =
-        scope === 'publicData' ||
-        /\.read_/.test(scope) ||
-        scope === 'esi-search.search_structures.v1' ||
-        READ_ONLY_EXCEPTIONS.includes(scope);
-      expect(readOnly, `${scope} is not a read-only scope`).toBe(true);
-    }
-  });
-});
 
 describe('claimsToCharacter', () => {
   it('parses sub "CHARACTER:EVE:<id>" into characterId + portrait URL', () => {
@@ -89,29 +45,18 @@ describe('claimsToCharacter', () => {
   });
 });
 
-describe('portraitUrl', () => {
-  it('defaults to size=128', () => {
-    expect(portraitUrl(42)).toBe(
-      'https://images.evetech.net/characters/42/portrait?size=128',
-    );
-  });
-
-  it('respects the size argument', () => {
-    expect(portraitUrl(42, 64)).toBe(
-      'https://images.evetech.net/characters/42/portrait?size=64',
-    );
-  });
-});
-
 describe('exchangeCodeForToken outbound headers', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
   it('sends the outbound User-Agent to the EVE token endpoint', async () => {
@@ -125,8 +70,6 @@ describe('exchangeCodeForToken outbound headers', () => {
     await exchangeCodeForToken({
       code: 'auth-code',
       codeVerifier: 'verifier',
-      clientId: 'client-id',
-      clientSecret: 'client-secret',
     });
 
     const [, init] = fetchSpy.mock.calls[0];
@@ -146,8 +89,6 @@ describe('exchangeCodeForToken outbound headers', () => {
     await exchangeCodeForToken({
       code: 'auth-code',
       codeVerifier: 'verifier',
-      clientId: 'client-id',
-      clientSecret: 'client-secret',
     });
 
     const [, init] = fetchSpy.mock.calls[0];
@@ -165,8 +106,6 @@ describe('exchangeCodeForToken outbound headers', () => {
       exchangeCodeForToken({
         code: 'auth-code',
         codeVerifier: 'verifier',
-        clientId: 'client-id',
-        clientSecret: 'client-secret',
       }),
     ).rejects.toThrow(/boundary validation/);
   });
@@ -176,18 +115,17 @@ describe('refreshEveToken', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
-  const input = {
-    refreshToken: 'a+b/c',
-    clientId: 'client-id',
-    clientSecret: 'client-secret',
-  };
+  const input = { refreshToken: 'a+b/c' };
 
   it('returns ok with the rotated refresh token, and sends a refresh grant with the outbound UA + timeout', async () => {
     fetchSpy.mockResolvedValueOnce(
@@ -285,6 +223,12 @@ describe('refreshEveToken', () => {
     });
   });
 
+  it('rejects on a missing client credential instead of classifying it as a retryable connection failure', async () => {
+    vi.stubEnv('EVE_CLIENT_ID', undefined);
+    await expect(refreshEveToken(input)).rejects.toThrow('EVE_CLIENT_ID is not set');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('preserves server retry delays without treating rate limiting as revocation', async () => {
     fetchSpy.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: { 'Retry-After': '600' } }));
     expect(await refreshEveToken(input)).toEqual({
@@ -307,18 +251,17 @@ describe('revokeEveRefreshToken', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
-  const input = {
-    refreshToken: 'a+b/c',
-    clientId: 'client-id',
-    clientSecret: 'client-secret',
-  };
+  const input = { refreshToken: 'a+b/c' };
 
   it('POSTs the RFC 7009 revoke params to the revoke endpoint with Basic auth + the outbound UA', async () => {
     fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
@@ -347,5 +290,11 @@ describe('revokeEveRefreshToken', () => {
   it('swallows a network/timeout error and reports ok:false (never aborts a purge)', async () => {
     fetchSpy.mockRejectedValueOnce(new Error('aborted'));
     expect(await revokeEveRefreshToken(input)).toEqual({ ok: false });
+  });
+
+  it('throws a missing client credential before the request instead of reporting ok:false', async () => {
+    vi.stubEnv('EVE_CLIENT_SECRET', undefined);
+    await expect(revokeEveRefreshToken(input)).rejects.toThrow('EVE_CLIENT_SECRET is not set');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

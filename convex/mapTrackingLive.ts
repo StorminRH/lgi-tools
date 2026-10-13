@@ -1,4 +1,5 @@
 import { ConvexError, v } from 'convex/values';
+import { groupBy, sortedUniqueIds } from '@/lib/array';
 import { query, type QueryCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
@@ -18,14 +19,6 @@ function trackedLocationPayload(location: Doc<'characterLocation'>) {
     transitionObservedAt: location.transitionObservedAt ?? null,
     observedAt: location.observedAt,
   };
-}
-
-function findCharacterLocation(
-  ctx: QueryCtx,
-  userId: string,
-  characterId: number,
-): Promise<Doc<'characterLocation'> | null> {
-  return uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId);
 }
 
 type TrackedLocation = ReturnType<typeof trackedLocationPayload>;
@@ -48,7 +41,7 @@ async function readTrackedLocations(
   rows: readonly Doc<'mapTracking'>[],
 ): Promise<{ userId: string; characterId: number; location: TrackedLocation | null }[]> {
   const locations = await Promise.all(rows.map(async (row) => {
-    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
+    const location = await uniqueByUserCharacter(ctx, 'characterLocation', row.userId, row.characterId);
     return {
       characterId: row.characterId,
       location: location === null ? null : trackedLocationPayload(location),
@@ -118,15 +111,12 @@ export const coverage = query({
       });
     }
 
-    const unique = [...new Set(characterIds)].sort((left, right) => left - right);
+    const unique = sortedUniqueIds(characterIds);
     const requested = new Set(unique);
-    const trackedByCharacter = new Map<number, Doc<'mapTracking'>[]>();
-    for (const row of await readMapTracking(ctx, mapId)) {
-      if (!requested.has(row.characterId)) continue;
-      const held = trackedByCharacter.get(row.characterId) ?? [];
-      held.push(row);
-      trackedByCharacter.set(row.characterId, held);
-    }
+    const trackedByCharacter = groupBy(
+      (await readMapTracking(ctx, mapId)).filter((row) => requested.has(row.characterId)),
+      (row) => row.characterId,
+    );
     const coverageRows = await Promise.all(unique.map(async (characterId) => ({
       characterId,
       covered: await characterCovered(ctx, trackedByCharacter.get(characterId) ?? []),
@@ -138,18 +128,3 @@ export const coverage = query({
     };
   },
 });
-
-export async function readTrackedPilotSystemIds(
-  ctx: QueryCtx,
-  mapId: string,
-): Promise<ReadonlySet<number>> {
-  const rows = await readMapTracking(ctx, mapId);
-  const locations = await Promise.all(
-    rows.map((row) => findCharacterLocation(ctx, row.userId, row.characterId)),
-  );
-  const systemIds = new Set<number>();
-  for (const location of locations) {
-    if (location !== null) systemIds.add(location.solarSystemId);
-  }
-  return systemIds;
-}

@@ -1,61 +1,48 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { displayTitle } from '@/components/ui/type-roles';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { MapBlockOption } from '@/data/maps/access-contract';
-import { characterPortraitUrl } from '@/lib/eve-image';
 import type { AccessPrincipalOption } from './access-editor-model';
 import { CharacterSearchControl } from './CharacterSearchControl';
-import { mapAccessFailureMessage, updateMapAccess } from './map-access-client';
 import {
   blockedPrincipals,
   mapBlockRevision,
   withBlock,
   withoutBlock,
 } from './map-block-model';
+import { useMapAccessWrite, useServerDraft } from './use-map-access-editor';
 
 export function useMapBlockEditor(mapId: string, initialBlocks: readonly MapBlockOption[]) {
-  const router = useRouter();
-  const [blocks, setBlocks] = useState<MapBlockOption[]>(() => [...initialBlocks]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const serverRevision = mapBlockRevision(initialBlocks);
-  const appliedServerRevision = useRef(serverRevision);
-
-  useEffect(() => {
-    if (appliedServerRevision.current === serverRevision) return;
-    appliedServerRevision.current = serverRevision;
-    setBlocks([...initialBlocks]);
-  }, [initialBlocks, serverRevision]);
-
-  async function write(
-    operation: 'block' | 'unblock',
-    characterId: number,
-    apply: (current: MapBlockOption[]) => MapBlockOption[],
-  ) {
-    setBusy(true);
-    setError(null);
-    const outcome = await updateMapAccess({ operation, mapId, characterId });
-    setBusy(false);
-    if (!outcome.ok) return setError(mapAccessFailureMessage(outcome));
-    setBlocks(apply);
-    router.refresh();
-  }
+  const [blocks, setBlocks] = useServerDraft(
+    initialBlocks,
+    mapBlockRevision(initialBlocks),
+    (server): MapBlockOption[] => [...server],
+  );
+  const write = useMapAccessWrite<true>();
 
   return {
     blocks,
-    busy,
-    error,
+    busy: write.busy !== null,
+    error: write.error,
     block: (block: MapBlockOption) =>
-      write('block', block.characterId, (current) => withBlock(current, block)),
+      write.run(
+        true,
+        { operation: 'block', mapId, characterId: block.characterId },
+        () => setBlocks((current) => withBlock(current, block)),
+      ),
     unblock: (characterId: number) =>
-      write('unblock', characterId, (current) => withoutBlock(current, characterId)),
+      write.run(
+        true,
+        { operation: 'unblock', mapId, characterId },
+        () => setBlocks((current) => withoutBlock(current, characterId)),
+      ),
   };
 }
 
@@ -68,14 +55,11 @@ export function MapBlockList({
   readonly editor: MapBlockEditor;
   readonly disabled: boolean;
 }) {
-  const [pending, setPending] = useState<AccessPrincipalOption | null>(null);
+  const blockConfirm = useConfirmGate<AccessPrincipalOption>();
 
   return (
     <section className="flex flex-col gap-2" aria-labelledby="map-blocked-pilots" data-map-block-list>
-      <h3
-        id="map-blocked-pilots"
-        className="font-display text-nav font-semibold tracking-copy uppercase text-name"
-      >
+      <h3 id="map-blocked-pilots" className={displayTitle({ size: 'nav' })}>
         Blocked pilots
       </h3>
       <p className="font-ui text-label text-faint">
@@ -83,10 +67,9 @@ export function MapBlockList({
       </p>
       <CharacterSearchControl
         label="Block character"
-        searchLabel="Search characters to block"
         disabled={disabled}
         selectedPrincipals={blockedPrincipals(editor.blocks)}
-        onSelect={setPending}
+        onSelect={blockConfirm.request}
       />
       {editor.blocks.length === 0 ? (
         <p className="font-ui text-ui text-muted">Nobody is blocked.</p>
@@ -102,7 +85,6 @@ export function MapBlockList({
                 characterId={block.characterId}
                 name={block.name}
                 size={32}
-                src={characterPortraitUrl(block.characterId, 64)}
               />
               <p className="min-w-0 flex-1 truncate font-ui text-ui text-text">{block.name}</p>
               <Button
@@ -119,22 +101,22 @@ export function MapBlockList({
       )}
       {editor.error !== null ? <Banner tone="warn">{editor.error}</Banner> : null}
       <ConfirmDialog
-        open={pending !== null}
+        open={blockConfirm.open}
         onOpenChange={(open) => {
-          if (!open) setPending(null);
+          if (!open) blockConfirm.cancel();
         }}
         title="Block pilot?"
         consequence={
-          pending === null
+          blockConfirm.target === null
             ? ''
-            : `Blocking removes ${pending.name} and every other character on their LGI.tools account from this map.`
+            : `Blocking removes ${blockConfirm.target.name} and every other character on their LGI.tools account from this map.`
         }
         busy={false}
         confirmLabel="Block"
         onConfirm={() => {
-          if (pending === null) return;
-          void editor.block({ characterId: pending.ownerId, name: pending.name });
-          setPending(null);
+          const pilot = blockConfirm.target;
+          if (pilot !== null) void editor.block({ characterId: pilot.ownerId, name: pilot.name });
+          blockConfirm.reset();
         }}
       />
     </section>

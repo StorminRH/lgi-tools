@@ -14,9 +14,10 @@ export type Tone =
 
 export type PillTone = Tone;
 
-export type ChipTone = Extract<Tone, 'blue' | 'red' | 'purple' | 'green' | 'orange'>;
-
 export type DotTone = Extract<Tone, 'orange' | 'blue' | 'green' | 'red' | 'neutral'>;
+
+/** The tones a chart series, bar or band can draw in. */
+export type ChartTone = Extract<Tone, 'green' | 'orange' | 'red' | 'blue' | 'purple' | 'teal'>;
 
 export const toneHex: Record<Tone, string> = {
   neutral: '#6a7a8a',

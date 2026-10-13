@@ -76,6 +76,9 @@ export function springFamily(overshootPct: number): SpringFamily {
   return { ease, cssLinear: `linear(${stops.join(', ')})` };
 }
 
+/** The zero-overshoot ease: CSS --map-motion-ease-settle, fog reveals, camera flights. */
+export const SETTLE_SPRING: SpringFamily = springFamily(0);
+
 export function motionCssProperties(
   config: MotionConfig,
 ): Readonly<Record<string, string>> {
@@ -84,7 +87,7 @@ export function motionCssProperties(
     '--map-motion-mid': `${config.tempo.mid}ms`,
     '--map-motion-slow': `${config.tempo.slow}ms`,
     '--map-motion-ease': springFamily(config.overshootPct).cssLinear,
-    '--map-motion-ease-settle': springFamily(0).cssLinear,
+    '--map-motion-ease-settle': SETTLE_SPRING.cssLinear,
   };
 }
 

@@ -27,15 +27,6 @@ const harness = await createDbTestHarness({
 const future = () => new Date(Date.now() + 10 * 60 * 1000);
 const past = () => new Date(Date.now() - 1000);
 
-async function waitFor(pred: () => Promise<boolean>, timeoutMs = 3000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (await pred()) return;
-    await new Promise((r) => setTimeout(r, 5));
-  }
-  throw new Error('waitFor: condition not met before timeout');
-}
-
 describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres concurrency)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
@@ -148,7 +139,7 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
       getFreshAccessTokenForCharacter(CHAR_ID),
       getFreshAccessTokenForCharacter(CHAR_ID),
     ]);
-    await waitFor(async () => (await rawRefreshToken()) === null);
+    await expect.poll(() => rawRefreshToken(), { timeout: 3_000, interval: 5 }).toBeNull();
     releaseWinner();
     const results = await race;
 

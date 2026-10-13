@@ -13,6 +13,7 @@ import schema from './schema';
 
 import { connectionInsert } from './__tests__/connection-doc.setup';
 import { modules } from './__tests__/modules.setup';
+import { expectConvexErrorCode } from './__tests__/convexTest.setup';
 import {
   EDITOR,
   JITA,
@@ -23,7 +24,6 @@ import {
   WH_C,
   WH_ROOT,
   asUser,
-  expectConvexError,
   readConnection,
   readEvents,
   readSystem,
@@ -348,7 +348,7 @@ describe('map authoring', () => {
       });
       expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: NOW + 1 });
 
-      await expectConvexError(
+      await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
           mapId: MAP_A,
           connectionId: cut,
@@ -383,14 +383,50 @@ describe('map authoring', () => {
         }));
       });
 
-      await expectConvexError(
+      const refused = await expectConvexErrorCode(
         asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId,
         }),
         'MAP_TOO_LARGE',
       );
+      expect(refused.data).toEqual({
+        code: 'MAP_TOO_LARGE',
+        detail: `Map ${MAP_A} exceeds the 128-row collapse bound.`,
+      });
       expect(tombstoneDeletedAt(await readConnection(t, connectionId))).toBe(null);
+      expect(await readEvents(t)).toEqual([]);
+    });
+
+    it('fails closed with the same error when only the connections exceed the bound', async () => {
+      const t = convexTest(schema, modules);
+      await seedEmpty(t);
+      const [connectionId] = await t.run(async (ctx) => await Promise.all(
+        Array.from({ length: COLLAPSE_MAP_SCAN_CAP + 1 }, (_, index) =>
+          ctx.db.insert('mapConnections', connectionInsert({
+            mapId: MAP_A,
+            fromSystemId: WH_ROOT,
+            toSystemId: WH_A + index,
+            wormholeTypeCode: null,
+            massState: null,
+            shipSize: null,
+            deletedAt: null,
+            purgeAfter: null,
+          }))),
+      ));
+
+      const refused = await expectConvexErrorCode(
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
+          mapId: MAP_A,
+          connectionId: connectionId!,
+        }),
+        'MAP_TOO_LARGE',
+      );
+      expect(refused.data).toEqual({
+        code: 'MAP_TOO_LARGE',
+        detail: `Map ${MAP_A} exceeds the 128-row collapse bound.`,
+      });
+      expect(tombstoneDeletedAt(await readConnection(t, connectionId!))).toBe(null);
       expect(await readEvents(t)).toEqual([]);
     });
 

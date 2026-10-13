@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
-import { bearerMatches, checkBearerSecret } from './service-auth';
+import { checkBearerSecret } from './service-auth';
 
 const SECRET = 'shared-secret';
 
@@ -23,18 +24,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('bearerMatches', () => {
-  it('accepts the exact bearer and rejects everything else', () => {
-    expect(bearerMatches(`Bearer ${SECRET}`, SECRET)).toBe(true);
-    expect(bearerMatches(`Bearer ${SECRET} `, SECRET)).toBe(false);
-    expect(bearerMatches(SECRET, SECRET)).toBe(false);
-    expect(bearerMatches(null, SECRET)).toBe(false);
-  });
-});
-
 describe('checkBearerSecret', () => {
   it('returns typed failures and preserves successful admission', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[service-auth] missing required environment variable']);
     vi.stubEnv('CRON_SECRET', '');
     await expect(
       checkBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET'),

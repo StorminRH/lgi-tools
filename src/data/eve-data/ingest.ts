@@ -1,5 +1,3 @@
-import { createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDb } from '@/lib/db-types';
 import {
@@ -17,8 +15,10 @@ import {
   cleanupSdeJsonl,
   type SdeJsonlPaths,
 } from './source';
-import { boolOf, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
+import { isBlueprintActivitiesDocument } from './activities';
+import { boolOf, dogmaAttributePairs, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
 import { emitIndustryRules, parseIndustryRules } from './industry-rules';
+import { makeBatchInserter, streamJsonl } from './sde-io';
 import { emitUniverseNeon, parseUniverse } from './universe';
 
 export type IngestSummary = {
@@ -52,31 +52,13 @@ async function streamInsert<T extends Record<string, unknown>>(
   mapRow: (row: Record<string, unknown>) => T | null,
   flush: (batch: T[]) => Promise<void>,
 ): Promise<number> {
-  const rl = createInterface({
-    input: createReadStream(path),
-    crlfDelay: Infinity,
-  });
-
-  let batch: T[] = [];
-  let total = 0;
-
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const mapped = mapRow(JSON.parse(trimmed) as Record<string, unknown>);
-    if (!mapped) continue;
-    batch.push(mapped);
-    if (batch.length >= BATCH_SIZE) {
-      await flush(batch);
-      total += batch.length;
-      batch = [];
-    }
+  const inserter = makeBatchInserter(BATCH_SIZE, flush);
+  for await (const row of streamJsonl(path)) {
+    const mapped = mapRow(row);
+    if (mapped) await inserter.add([mapped]);
   }
-  if (batch.length > 0) {
-    await flush(batch);
-    total += batch.length;
-  }
-  return total;
+  await inserter.flush();
+  return inserter.written();
 }
 
 export async function runIngest(
@@ -218,14 +200,7 @@ export async function runIngest(
           const typeId = intOrNull(r._key);
           const list = r.dogmaAttributes;
           if (typeId === null || !Array.isArray(list)) return null;
-          const attributes: Record<string, number> = {};
-          for (const a of list) {
-            const attrId = intOrNull((a as Record<string, unknown>).attributeID);
-            const value = numOrNull((a as Record<string, unknown>).value);
-            if (attrId === null || value === null) continue;
-            attributes[String(attrId)] = value;
-          }
-          return { typeId, attributes };
+          return { typeId, attributes: Object.fromEntries(dogmaAttributePairs(list)) };
         },
         async (batch) => {
           await tx.insert(typeDogma).values(batch);
@@ -238,7 +213,7 @@ export async function runIngest(
           const id = intOrNull(r.blueprintTypeID) ?? intOrNull(r._key);
           const max = intOrNull(r.maxProductionLimit);
           const activities = r.activities;
-          if (id === null || max === null || activities === undefined) return null;
+          if (id === null || max === null || !isBlueprintActivitiesDocument(activities)) return null;
           return { blueprintTypeId: id, maxProductionLimit: max, activities };
         },
         async (batch) => {

@@ -14,6 +14,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'structures.update-custom-structure',
+    endpoint: updateCustomStructureEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, updateCustomStructureRequestSchema),
     handle: async ({ userId }, { id, ...input }) => {

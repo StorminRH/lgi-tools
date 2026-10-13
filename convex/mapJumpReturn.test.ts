@@ -1,8 +1,9 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { internal } from './_generated/api';
 import schema from './schema';
+import { grantMapAccess, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 
 const MAP = 'return-before-signature';
@@ -15,9 +16,7 @@ const MASS = 10_000_000;
 
 async function prepareReturn() {
   const t = convexTest(schema, modules);
-  await t.run((ctx) => ctx.db.insert('mapAccess', {
-    mapId: MAP, userId: USER, roles: ['editor'],
-  }));
+  await grantMapAccess(t, MAP, USER, ['editor']);
   await t.mutation(internal.mapFixtureTracking.seedTrackedLocationFixture, {
     mapId: MAP, userId: USER, characterId: CHARACTER,
     solarSystemId: A, shipTypeId: 587, transitionObservedAt: AT - 1,
@@ -58,13 +57,13 @@ async function prepareReturn() {
   return { t, args, firstId: first.connectionId, awaitingId: outbound.emission.connectionId };
 }
 
-async function evidence(t: TestConvex<typeof schema>) {
+async function evidence(t: Chain) {
   return await t.query(internal.mapJumpEvidence.jumpEvidence, {
     mapId: MAP, userId: USER, characterId: CHARACTER,
   });
 }
 
-async function snapshot(t: TestConvex<typeof schema>) {
+async function snapshot(t: Chain) {
   return await t.run(async (ctx) => ({
     systems: await ctx.db.query('mapSystems').withIndex('by_map', (q) => q.eq('mapId', MAP)).take(64),
     connections: await ctx.db.query('mapConnections').withIndex('by_map', (q) => q.eq('mapId', MAP)).take(64),

@@ -1,8 +1,9 @@
 // @vitest-environment edge-runtime
 import { readFileSync } from 'node:fs';
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { api } from './_generated/api';
+import { type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
 import { MAP_SIGNATURE_PAGE_SIZE } from './mapScan';
 import schema from './schema';
@@ -11,9 +12,8 @@ const MAP = 'map-a';
 const SYSTEM = 31_000_001;
 const VIEWER = 'viewer';
 const EDITOR = 'editor';
-type ScanDb = TestConvex<typeof schema>;
 
-async function seed(t: ScanDb) {
+async function seed(t: Chain) {
   await t.run(async (ctx) => {
     for (const mapId of [MAP, 'map-b']) {
       await ctx.db.insert('mapAccess', { mapId, userId: VIEWER, roles: ['viewer'] });
@@ -38,7 +38,7 @@ async function seed(t: ScanDb) {
   });
 }
 
-function page(t: ScanDb, cursor: string | null = null) {
+function page(t: Chain, cursor: string | null = null) {
   return t.withIdentity({ subject: VIEWER }).query(api.mapScan.watchSystemSignatures, {
     mapId: MAP, systemId: SYSTEM, paginationOpts: { cursor, numItems: 1000 },
   });
@@ -189,7 +189,7 @@ describe('system signature subscriptions', () => {
   it('places both selection bounds in the indexed read before pagination', () => {
     const source = readFileSync('convex/mapScan.ts', 'utf8');
     const reader = source.slice(source.indexOf('async function viewableSignaturePage'));
-    expect(reader).toMatch(/indexed\(ctx\.db\.query\('mapSignatures'\)\)\.paginate\(boundedPageOptions\(paginationOpts\)\)/);
+    expect(reader).toMatch(/indexed\(ctx\.db\.query\('mapSignatures'\)\)\.paginate\(clampPageSize\(paginationOpts, MAP_SIGNATURE_PAGE_SIZE\)\)/);
     const watcher = source.slice(source.indexOf('async function readSignaturePage'));
     expect(watcher).toMatch(/withIndex\('by_map_signature',[\s\S]*?q\.eq\('mapId', mapId\)\.eq\('systemId', systemId\)/);
   });

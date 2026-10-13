@@ -1,26 +1,29 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { logUsageEvent } from '@/data/telemetry/queries';
-import { validationFailure } from '@/lib/failure';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
-import { problemResponse } from '@/transport/api-response';
+import { unexpectedFailure, validationFailure, type AppFailure } from '@/lib/failure';
+import { problemResponse, seeOther } from '@/transport/api-response';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
-import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
+import { characterIdFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { auth } from '@/composition/auth';
-import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
-import {
-  getStoredActiveCharacterId,
-  listLinkedCharacters,
-  repointActiveToOldest,
-} from '@/platform/auth/linked-characters';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
+import { unlinkCharacter } from '@/platform/auth/character-unlink';
+import { listLinkedCharacters, notLinkedFailure } from '@/platform/auth/linked-characters';
 import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
-function redirectWithError(request: NextRequest, code: string): Response {
-  const url = new URL('/settings/characters', request.url);
-  url.searchParams.set('error', code);
-  return Response.redirect(url, 303);
+const CHARACTERS_PAGE = '/settings/characters';
+
+const UNLINK_FAILURE_LOGS = {
+  'revocation-failed': '[account/unlink] map access revocation failed',
+  'remove-failed': '[account/unlink] unlinkAccount failed',
+} as const;
+
+/** Back to the characters page with the notice for `error`, recording `failure`. */
+function notice(request: Request, error: CharacterLinkNotice, failure: AppFailure): Response {
+  return seeOther(request, CHARACTERS_PAGE, { query: { error }, failure });
 }
 
 // authz: auth
@@ -33,67 +36,41 @@ export async function POST(request: NextRequest): Promise<Response> {
       problemResponse,
     ),
     authorize: checkSession,
-    parse: (incoming) => parseFormBody(
-      incoming,
-      unlinkCharacterFormSchema,
-      (form) => ({ characterId: form.get('characterId') }),
-      () => validationFailure('invalid_form_field', 'Invalid character'),
-    ),
+    parse: (incoming) =>
+      parseFormBody(incoming, characterIdFormSchema, ['characterId']),
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);
       if (!linked.some((c) => c.characterId === characterId)) {
-        return redirectWithError(request, 'not_linked');
+        return notice(request, 'not_linked', notLinkedFailure());
       }
       if (linked.length <= 1) {
-        return redirectWithError(request, 'last_character');
+        return notice(request, 'last_character', validationFailure('last_character'));
       }
 
-      let mapIds: string[];
-      try {
-        mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({
-          userId: session.user.id,
-          characterId,
-        });
-      } catch (err) {
-        console.error('[account/unlink] map access revocation failed', err);
-        return redirectWithError(request, 'unlink_failed');
+      const outcome = await unlinkCharacter({
+        userId: session.user.id,
+        characterId,
+        runners: identityProjectionRunners,
+        remove: async () => {
+          await auth.api.unlinkAccount({
+            body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
+            headers: await headers(),
+          });
+          return true;
+        },
+      });
+      if ('error' in outcome) {
+        console.error(UNLINK_FAILURE_LOGS[outcome.reason], outcome.error);
+        return notice(request, 'unlink_failed', unexpectedFailure('unlink_failed', outcome.error));
       }
 
-      try {
-        await auth.api.unlinkAccount({
-          body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
-          headers: await headers(),
-        });
-      } catch (err) {
-        console.error('[account/unlink] unlinkAccount failed', err);
-        await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
-        return redirectWithError(request, 'unlink_failed');
-      }
-
-      try {
-        await identityProjectionRunners.runAfterCharacterUnlink({
-          userId: session.user.id,
-          characterId,
-          mapIds,
-        });
-      } finally {
-        await identityProjectionRunners.runAfterCharacterLinkChanged({
-          userId: session.user.id,
-          characterId,
-        });
-        const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
-        if (activeCharacterId === characterId) {
-          await repointActiveToOldest(session.user.id);
-        }
-      }
-
-      void logUsageEvent({
+      emitUsageEvent('account/characters/unlink', {
         action: 'character_unlink',
         characterId: session.characterId,
         metadata: { userId: session.user.id, unlinkedCharacterId: characterId },
-      }).catch((err) => console.error('[account/unlink] telemetry write failed', err));
+      });
 
-      return Response.redirect(new URL('/settings/characters', request.url), 303);
+      return seeOther(request, CHARACTERS_PAGE);
     },
   });
 }

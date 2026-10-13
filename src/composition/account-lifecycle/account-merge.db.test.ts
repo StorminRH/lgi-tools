@@ -1,9 +1,9 @@
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
+import { esiResponses } from '@/data/esi-store/schema';
 import { snapshotMergeTracking } from '@/data/location-tracking/merge';
 import { pendingTrackingMerges } from '@/data/location-tracking/schema';
-import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
 import { userPreferences } from '@/data/preferences/schema';
 import { usageLogs } from '@/data/telemetry/schema';
@@ -24,6 +24,11 @@ import type { PurgeContributor } from '@/platform/purge/types';
 import { mergeUsers, type MergeRequest } from './account-merge';
 
 vi.mock('@/data/location-tracking/merge', () => ({ snapshotMergeTracking: vi.fn() }));
+// The merge audit row is scheduled with after(); run it as soon as it is scheduled, as a request would.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: (task: () => unknown) => task(),
+}));
 
 beforeEach(() => {
   vi.mocked(snapshotMergeTracking).mockReset().mockResolvedValue([]);
@@ -46,10 +51,10 @@ const harness = await createDbTestHarness({
     'net_worth_days',
     'corp_industry_jobs',
     'corp_industry_job_syncs',
+    'esi_responses',
     'saved_plans',
     'industry_profiles',
     'custom_structures',
-    'esi_refresh_jobs',
     'usage_logs',
     'pending_tracking_merges',
     'pending_deletions',
@@ -164,6 +169,15 @@ async function seedUserData() {
     { userId: NEW, corporationId: CORP, lastRefreshedAt: NEW_AT },
     { userId: NEW, corporationId: CORP + 1, lastRefreshedAt: NEW_AT },
   ]);
+  const corpJobsRoute = '/corporations/{corporation_id}/industry/jobs/';
+  await harness.db.insert(esiResponses).values([
+    { route: corpJobsRoute, holderType: 'corporation', holderId: CORP, userId: OLD, etags: ['"old"'], checkedAt: NEW_AT },
+    { route: corpJobsRoute, holderType: 'corporation', holderId: CORP, userId: NEW, etags: ['"new"'], checkedAt: NEW_AT },
+    { route: corpJobsRoute, holderType: 'corporation', holderId: CORP + 1, userId: NEW, etags: ['"new-1"'], checkedAt: NEW_AT },
+    // The source's own refusal of a shared corporation answer goes with the rest of its per-user rows.
+    { route: '/corporations/{corporation_id}/structures/', holderType: 'corporation', holderId: CORP, userId: NEW, expiresAt: new Date(Date.now() + 3_600_000), checkedAt: NEW_AT },
+    { route: '/characters/{character_id}/skills/', holderType: 'character', holderId: NEW_CHAR, checkedAt: NEW_AT },
+  ]);
   await harness.db.insert(savedPlans).values({
     id: 'plan-new',
     userId: NEW,
@@ -184,14 +198,6 @@ async function seedUserData() {
     userId: NEW,
     name: 'Fort',
     structureTypeId: 3,
-  });
-  await harness.db.insert(esiRefreshJobs).values({
-    dataset: 'skills',
-    userId: NEW,
-    ownerType: 'character',
-    ownerId: NEW_CHAR,
-    resource: 'skills',
-    idempotencyKey: `skills|${NEW}|character|${NEW_CHAR}|skills`,
   });
   await harness.db.insert(maps).values([
     { id: OLD_MAP, userId: OLD, name: 'Old map' },
@@ -276,10 +282,16 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
     expect(
       await harness.db.select({ corporationId: corpIndustryJobSyncs.corporationId, userId: corpIndustryJobSyncs.userId }).from(corpIndustryJobSyncs),
     ).toEqual([{ corporationId: CORP + 1, userId: OLD }]);
+    // The source's per-user stored answers are dropped, not moved: an ETag must never outlive the rows it vouched for.
+    expect(
+      (await harness.db.select({ holderId: esiResponses.holderId, userId: esiResponses.userId }).from(esiResponses).orderBy(asc(esiResponses.holderId))),
+    ).toEqual([
+      { holderId: NEW_CHAR, userId: '' },
+      { holderId: CORP, userId: OLD },
+    ]);
     expect(await ownersOf(harness.db.select().from(savedPlans))).toEqual([OLD]);
     expect(await ownersOf(harness.db.select().from(industryProfiles))).toEqual([OLD]);
     expect(await ownersOf(harness.db.select().from(customStructures))).toEqual([OLD]);
-    expect(await harness.db.select().from(esiRefreshJobs)).toEqual([]);
     expect(
       await harness.db.select({ id: maps.id, userId: maps.userId }).from(maps).orderBy(asc(maps.id)),
     ).toEqual([
@@ -389,7 +401,6 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
     expect(await userIds()).toEqual([NEW, OLD].sort());
     expect(await ownersOf(harness.db.select().from(account).orderBy(asc(account.accountId)))).toEqual([OLD, NEW, NEW]);
     expect(await ownersOf(harness.db.select().from(userPreferences).orderBy(asc(userPreferences.userId)))).toEqual([NEW, NEW, OLD]);
-    expect(await harness.db.select().from(esiRefreshJobs)).toHaveLength(1);
     expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
     expect(await harness.db.select().from(usageLogs)).toEqual([]);
   });

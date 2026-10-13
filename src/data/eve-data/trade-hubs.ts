@@ -1,3 +1,5 @@
+import { breadthFirst, type Neighbours, type Reached } from '@/lib/graph';
+
 const TRADE_HUBS = [
   { id: 30_000_142, name: 'Jita' },
   { id: 30_002_187, name: 'Amarr' },
@@ -34,26 +36,6 @@ function compareHubJumps(left: HubJump, right: HubJump): number {
   return (HUB_ORDER.get(left.id) ?? 0) - (HUB_ORDER.get(right.id) ?? 0);
 }
 
-function distancesFrom(
-  origin: number,
-  neighbours: (id: number) => readonly number[],
-): ReadonlyMap<number, number> {
-  const distances = new Map<number, number>([[origin, 0]]);
-  const queue = [origin];
-  for (let index = 0; index < queue.length; index += 1) {
-    const current = queue[index];
-    if (current === undefined) continue;
-    const jumps = distances.get(current);
-    if (jumps === undefined) continue;
-    for (const next of neighbours(current)) {
-      if (distances.has(next)) continue;
-      distances.set(next, jumps + 1);
-      queue.push(next);
-    }
-  }
-  return distances;
-}
-
 function tupleFromJumps(
   jumpsByHub: ReadonlyMap<number, number | null>,
 ): HubJumpTuple {
@@ -66,23 +48,23 @@ function tupleFromJumps(
 }
 
 export function buildHubJumpIndex(
-  neighbours: (id: number) => readonly number[],
+  neighbours: Neighbours,
 ): (systemId: number) => HubJumpTuple {
-  let distanceByHub: readonly {
+  let reachedByHub: readonly {
     readonly id: HubJump['id'];
-    readonly distances: ReadonlyMap<number, number>;
+    readonly reached: ReadonlyMap<number, Reached>;
   }[] | undefined;
   const cache = new Map<number, HubJumpTuple>();
   return (systemId) => {
     const cached = cache.get(systemId);
     if (cached !== undefined) return cached;
-    distanceByHub ??= TRADE_HUBS.map((hub) => ({
+    reachedByHub ??= TRADE_HUBS.map((hub) => ({
       id: hub.id,
-      distances: distancesFrom(hub.id, neighbours),
+      reached: breadthFirst([hub.id], neighbours),
     }));
     const result = tupleFromJumps(
       new Map(
-        distanceByHub.map((hub) => [hub.id, hub.distances.get(systemId) ?? null]),
+        reachedByHub.map((hub) => [hub.id, hub.reached.get(systemId)?.depth ?? null]),
       ),
     );
     cache.set(systemId, result);

@@ -32,7 +32,7 @@ describe('map event copy', () => {
           payload: { connectionId: 'c1' },
         }),
       ),
-    ).toBe('Severed connection — branch kept');
+    ).toBe('Severed connection');
     expect(
       mapEventLabel(
         event({
@@ -41,7 +41,7 @@ describe('map event copy', () => {
           payload: { connectionId: 'c1', systemIds: [1] },
         }),
       ),
-    ).toBe('Removed 1 downstream system');
+    ).toBe('Removed branch (1 system)');
     expect(
       mapEventLabel(
         event({
@@ -50,7 +50,7 @@ describe('map event copy', () => {
           payload: { connectionId: 'c1', systemIds: [1, 2] },
         }),
       ),
-    ).toBe('Removed 2 downstream systems');
+    ).toBe('Removed branch (2 systems)');
     expect(
       mapEventLabel(
         event({

@@ -12,19 +12,21 @@ import {
   type BuildCost,
   type PriceOf,
 } from '@/data/industry-math/profitability';
-import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
+import type { PlainPriceFigures, PriceSource } from '@/data/market-prices/types';
+import { dedupe } from '@/lib/array';
 import {
+  collectRawTypeIds,
   computeBatchLedger,
-  computeBatchMaterials,
-  computeMarginalMaterials,
-  computeMarginalRuns,
+  computeMarginalDemand,
   feeJobs,
+  materialRows,
   type BatchLedger,
   type MeOptions,
 } from './build-batch';
 import { computeComponentJobFees, type ComponentFeeSources } from './component-job-fees';
-import type { ConfidenceInput } from './industry-styles';
+import type { CostBasis } from './cost-basis-view';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
+import { typeName } from './type-name';
 import type {
   BlueprintPricing,
   BlueprintStructure,
@@ -34,18 +36,17 @@ import type {
   IntermediatePrice,
   MaterialCostRow,
   NetMarginView,
+  RowPriceFields,
 } from './types';
 
-export interface PriceLite {
-  bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  buyDepth?: DepthBand[] | null;
-  sellDepth?: DepthBand[] | null;
-  regionalDiscount?: RegionalDiscount | null;
+/**
+ * The figures the planner prices from. Depth and discount are optional, since
+ * a price seeded from a material or intermediate row carries no discount;
+ * source and stale time are null on the seeded product.
+ */
+export interface PriceLite
+  extends Omit<PlainPriceFigures, 'buyDepth' | 'sellDepth' | 'regionalDiscount'>,
+    Partial<Pick<PlainPriceFigures, 'buyDepth' | 'sellDepth' | 'regionalDiscount'>> {
   source: PriceSource | null;
   staleAfterMs: number | null;
 }
@@ -69,7 +70,7 @@ function productView(
   };
 }
 
-function rowPriceFields(p: PriceLite | undefined) {
+function rowPriceFields(p: PriceLite | undefined): RowPriceFields {
   return {
     bestSell: p?.bestSell ?? null,
     pct5Buy: p?.pct5Buy ?? null,
@@ -81,7 +82,7 @@ function rowPriceFields(p: PriceLite | undefined) {
   };
 }
 
-export function collectIntermediateTypeIds(
+function collectIntermediateTypeIds(
   buildTree: BuildNode[],
   display: Record<number, BuildNodeDisplay>,
 ): number[] {
@@ -98,25 +99,19 @@ export function collectIntermediateTypeIds(
   return [...out];
 }
 
-export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, ConfidenceInput> {
-  const map = new Map<number, ConfidenceInput>();
-  for (const r of pricing.rows) {
-    map.set(r.typeId, {
-      source: r.source,
-      buyVolume: r.buyVolume,
-      unitBuy: r.unitBuy,
-      staleAfterMs: r.staleAfterMs,
-    });
-  }
-  for (const ip of pricing.intermediatePrices) {
-    map.set(ip.typeId, {
-      source: ip.source,
-      buyVolume: ip.buyVolume,
-      unitBuy: ip.bestBuy,
-      staleAfterMs: ip.staleAfterMs,
-    });
-  }
-  return map;
+/**
+ * Every type assemblePricing reads: the raw materials, the product, then the
+ * intermediates, each once. The server prices exactly these ids and the
+ * client refreshes them, so the two cannot drift apart.
+ */
+export function pricedTypeIds(
+  structure: Pick<BlueprintStructure, 'tree' | 'product' | 'buildTree' | 'buildNodeDisplay'>,
+): number[] {
+  return dedupe([
+    ...collectRawTypeIds(structure.tree),
+    structure.product.typeId,
+    ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
+  ]);
 }
 
 export interface AssembleOptions {
@@ -136,7 +131,7 @@ export interface AssembleOptions {
   };
   meOf?: (blueprintTypeId: number) => number | undefined;
   structureMeFactorOf?: (blueprintTypeId: number) => number;
-  basis?: 'batched' | 'marginal';
+  basis?: CostBasis;
 }
 
 /**
@@ -152,12 +147,8 @@ function componentJobFees(
   if (!fee.components) return null;
   const runsOf =
     bill.basis === 'marginal'
-      ? computeMarginalRuns(structure.tree, bill.runs, bill.meOpts)
-      : new Map(
-          [...(bill.ledger ?? computeBatchLedger(structure.tree, bill.runs, bill.meOpts)).builds].map(
-            ([typeId, build]) => [typeId, build.runs],
-          ),
-        );
+      ? bill.marginalRuns
+      : new Map([...bill.ledger.builds].map(([typeId, build]) => [typeId, build.runs]));
   return computeComponentJobFees(feeJobs(structure.tree, runsOf), {
     ...fee.components,
     activityOf: (blueprintTypeId) => structure.nodeActivityByBlueprint[blueprintTypeId],
@@ -225,10 +216,12 @@ function computeNet(
 }
 
 interface CostBill {
-  basis: 'batched' | 'marginal';
+  basis: CostBasis;
   runs: number;
-  meOpts: MeOptions;
-  ledger: BatchLedger | undefined;
+  /** The full line: its raw totals price the rows, its whole runs the batched fees. */
+  ledger: BatchLedger;
+  /** The share of each job one build draws, which the marginal fees charge. */
+  marginalRuns: ReadonlyMap<number, number>;
   rowsCost: BuildCost;
   buildCost: BuildCost;
   bases: { batched: number; marginal: number };
@@ -245,21 +238,17 @@ function resolveCostBills(
     topBlueprintTypeId: structure.blueprintTypeId,
     structureMeFactorOf: opts.structureMeFactorOf,
   };
-  const batchedMaterials = opts.ledger
-    ? [...opts.ledger.raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }))
-    : computeBatchMaterials(structure.tree, runs, meOpts);
-  const rowsCost = computeBuildCost(batchedMaterials, buyOf);
-  const marginalCost = computeBuildCost(
-    computeMarginalMaterials(structure.tree, runs, meOpts),
-    buyOf,
-  );
+  const ledger = opts.ledger ?? computeBatchLedger(structure.tree, runs, meOpts);
+  const marginal = computeMarginalDemand(structure.tree, runs, meOpts);
+  const rowsCost = computeBuildCost(materialRows(ledger.raws), buyOf);
+  const marginalCost = computeBuildCost(marginal.materials, buyOf);
   const basis = opts.basis ?? 'batched';
   const buildCost = basis === 'marginal' ? marginalCost : rowsCost;
   return {
     basis,
     runs,
-    meOpts,
-    ledger: opts.ledger,
+    ledger,
+    marginalRuns: marginal.runs,
     rowsCost,
     buildCost,
     bases: { batched: rowsCost.total, marginal: marginalCost.total },
@@ -289,7 +278,7 @@ export function assemblePricing(
 
   const rows: MaterialCostRow[] = rowsCost.perMaterial.map((c) => ({
     typeId: c.typeId,
-    name: structure.materialNames[c.typeId] ?? `Type ${c.typeId}`,
+    name: typeName(structure, c.typeId),
     quantity: c.quantity,
     unitBuy: c.unitBuy,
     extendedCost: c.extendedCost,
@@ -299,11 +288,10 @@ export function assemblePricing(
   const intermediatePrices: IntermediatePrice[] = collectIntermediateTypeIds(
     structure.buildTree,
     structure.buildNodeDisplay,
-  ).map((typeId) => ({
-    typeId,
-    bestBuy: priceOf(typeId)?.bestBuy ?? null,
-    ...rowPriceFields(priceOf(typeId)),
-  }));
+  ).map((typeId) => {
+    const p = priceOf(typeId);
+    return { typeId, bestBuy: p?.bestBuy ?? null, ...rowPriceFields(p) };
+  });
 
   return {
     rows,

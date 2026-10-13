@@ -1,3 +1,5 @@
+import { firstSearchParam, withSearchParams } from '@/lib/search-params';
+
 export function atlasMapQueryPresent(
   map: string | string[] | undefined,
 ): boolean {
@@ -9,15 +11,13 @@ export function mapSelectionHref(
   searchParams: Pick<URLSearchParams, 'toString'>,
   mapId: string,
 ): string {
-  const next = new URLSearchParams(searchParams.toString());
-  next.set('map', mapId);
-  return `${pathname}?${next.toString()}`;
+  return withSearchParams(pathname, searchParams, { map: mapId });
 }
 
 export function atlasMapHref(
   map: string | string[] | undefined,
 ): string {
-  const mapId = Array.isArray(map) ? map[0] : map;
+  const mapId = firstSearchParam(map);
   if (mapId === undefined || mapId === '') return '/atlas';
   return `/atlas?${new URLSearchParams({ map: mapId }).toString()}`;
 }
@@ -27,8 +27,5 @@ export function mapDeletionHref(
   mapId: string,
 ): string | null {
   if (searchParams.get('map') !== mapId) return null;
-  const next = new URLSearchParams(searchParams.toString());
-  next.delete('map');
-  const query = next.toString();
-  return query === '' ? '/atlas' : `/atlas?${query}`;
+  return withSearchParams('/atlas', searchParams, { map: null });
 }

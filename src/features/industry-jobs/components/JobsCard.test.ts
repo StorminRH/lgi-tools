@@ -6,31 +6,27 @@ vi.mock('@/components/type-icon', () => ({
   TypeIcon: ({ mono }: { mono: string }) => createElement('i', { 'data-icon': mono }),
 }));
 
-import type { IndustryJob } from '../esi-projection';
+import { industryJob } from '../__tests__/job-fixture';
 import { JobsCard, JobsCardSkeleton } from './JobsCard';
 
 const NOW = Date.UTC(2026, 8, 27, 14, 5);
 const SYNCED_AT = NOW - 60_000;
-
-const job = (over: Partial<IndustryJob> = {}): IndustryJob => ({
-  job_id: 1,
-  installer_id: 7,
-  activity_id: 1,
-  blueprint_type_id: 688,
-  product_type_id: 638,
-  runs: 2,
-  status: 'active',
-  start_date: new Date(NOW - 3_600_000).toISOString(),
-  end_date: new Date(NOW + 3_600_000).toISOString(),
-  ...over,
-});
 
 function render(overrides: Partial<Parameters<typeof JobsCard>[0]> = {}): string {
   return renderToStaticMarkup(
     createElement(JobsCard, {
       avatar: createElement('img', { alt: '' }),
       title: 'Aurel Vantesse',
-      data: { jobs: [job()] },
+      data: {
+        jobs: [industryJob({
+          installer_id: 7,
+          blueprint_type_id: 688,
+          product_type_id: 638,
+          runs: 2,
+          start_date: new Date(NOW - 3_600_000).toISOString(),
+          end_date: new Date(NOW + 3_600_000).toISOString(),
+        })],
+      },
       lastSyncedAt: SYNCED_AT,
       names: { '638': 'Raven' },
       now: NOW,
@@ -42,15 +38,14 @@ function render(overrides: Partial<Parameters<typeof JobsCard>[0]> = {}): string
   );
 }
 
-test('lists a board’s jobs under its owner, with the summary, sync time and blue progress', () => {
+test('lists a board’s jobs under its owner, with the summary and sync time', () => {
   const html = render();
   expect(html).toContain('Aurel Vantesse');
   expect(html).toContain('1 job');
   expect(html).toContain('next done in');
-  expect(html).toContain('as of');
+  expect(html).toContain('As of');
   expect(html).toContain('Raven');
   expect(html).toContain('×2 · Manufacturing');
-  expect(html).toContain('data-tone="evb"');
 
   const runner = render({ runnerFor: () => createElement('span', { 'data-runner': '' }, 'Hauler Alt') });
   expect(runner).toContain('data-runner');
@@ -65,7 +60,7 @@ test('stands in for missing rows by load state, or lets the notice speak alone',
 
   const waiting = render({ data: null });
   expect(waiting).toContain('Awaiting first sync.');
-  expect(waiting).not.toContain('as of');
+  expect(waiting).not.toContain('As of');
 
   const noticeOnly = render({
     data: null,

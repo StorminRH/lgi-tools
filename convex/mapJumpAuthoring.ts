@@ -1,4 +1,4 @@
-import { ConvexError, v } from 'convex/values';
+import { ConvexError, type Infer, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
@@ -6,8 +6,10 @@ import {
   type QueryCtx,
 } from './_generated/server';
 import { requireMapAccessForUser } from './lib/mapAccess';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
+import { advanceJumpStamp, findJumpStamp } from './mapJumpBookkeeping';
 import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
 import {
   blankHallway,
@@ -39,19 +41,7 @@ const jumpDecisionValidator = v.union(
   }),
 );
 
-type JumpDecision =
-  | {
-      readonly kind: 'resolve';
-      readonly candidateId: Id<'mapConnections'>;
-      readonly provenance: 'jump-verified' | 'assumed';
-      readonly candidateIds: readonly Id<'mapConnections'>[];
-      readonly survivors: readonly Id<'mapConnections'>[];
-    }
-  | {
-      readonly kind: 'insert';
-      readonly candidateIds: readonly Id<'mapConnections'>[];
-      readonly survivors: readonly Id<'mapConnections'>[];
-    };
+type JumpDecision = Infer<typeof jumpDecisionValidator>;
 
 interface ResolveJumpInput {
   readonly userId: string;
@@ -97,8 +87,10 @@ async function readPairRows(
   readonly pairRows: Doc<'mapConnections'>[];
   readonly forward: Doc<'mapConnections'>[];
 }> {
-  const forward = await readConnectionsFrom(ctx, mapId, fromSystemId, 'pair');
-  const reverse = await readConnectionsFrom(ctx, mapId, toSystemId, 'pair');
+  const [forward, reverse] = await Promise.all([
+    readConnectionsFrom(ctx, mapId, fromSystemId, 'pair'),
+    readConnectionsFrom(ctx, mapId, toSystemId, 'pair'),
+  ]);
   return {
     forward,
     pairRows: [
@@ -127,26 +119,6 @@ function validObservedMass(value: number | null): number | null {
     throw new ConvexError({ code: 'INVALID_OBSERVED_MASS' });
   }
   return value;
-}
-
-async function stampTransition(
-  ctx: MutationCtx,
-  mapId: string,
-  characterId: number,
-  transitionObservedAt: number,
-  existing: Doc<'mapJumpBookkeeping'> | null,
-): Promise<void> {
-  if (existing === null) {
-    await ctx.db.insert('mapJumpBookkeeping', {
-      mapId,
-      characterId,
-      lastProcessedTransitionAt: transitionObservedAt,
-    });
-    return;
-  }
-  await ctx.db.patch(existing._id, {
-    lastProcessedTransitionAt: transitionObservedAt,
-  });
 }
 
 function connectionBase(
@@ -187,18 +159,6 @@ function validateJumpInput(args: ResolveJumpInput): ValidJumpInput | StaleResult
     throw new ConvexError({ code: 'INVALID_JUMP_INPUT' });
   }
   return { observedShipMassKg: validObservedMass(args.observedShipMassKg) };
-}
-
-async function readTransitionStamp(
-  ctx: QueryCtx,
-  args: ResolveJumpInput,
-): Promise<Doc<'mapJumpBookkeeping'> | null> {
-  return await ctx.db
-    .query('mapJumpBookkeeping')
-    .withIndex('by_map_character', (q) =>
-      q.eq('mapId', args.mapId).eq('characterId', args.characterId),
-    )
-    .unique();
 }
 
 function transitionMatches(
@@ -371,10 +331,7 @@ async function supersedeDyingPairConnections(
   for (const row of pairRows) {
     if (row._id === liveId) continue;
     if (chainTombstoneState(row, now) !== 'dying') continue;
-    if (row.tombstone.kind !== 'removed') continue;
-    await ctx.db.patch(row._id, {
-      tombstone: { ...row.tombstone, purgeAfter: now },
-    });
+    await setRemovedPurgeAfter(ctx, row, now);
   }
 }
 
@@ -438,7 +395,7 @@ export const resolveJumpAuthoring = internalMutation({
     await requireMapAccessForUser(ctx, args.mapId, args.userId, 'edit');
     const validated = validateJumpInput(args);
     if ('status' in validated) return validated;
-    const stamp = await readTransitionStamp(ctx, args);
+    const stamp = await findJumpStamp(ctx, args.mapId, args.characterId);
     if (
       stamp !== null
       && stamp.lastProcessedTransitionAt >= args.transitionObservedAt
@@ -476,7 +433,7 @@ export const resolveJumpAuthoring = internalMutation({
         );
     if ('status' in topology) return topology;
 
-    await stampTransition(
+    await advanceJumpStamp(
       ctx,
       args.mapId,
       args.characterId,

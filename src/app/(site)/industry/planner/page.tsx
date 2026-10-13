@@ -1,13 +1,13 @@
-import type { Metadata } from 'next';
 import { IndustrySection, RememberPlanner } from '@/components/composition/industry-workspace/IndustryShell';
 import { BlueprintSearch } from '@/features/industry-planner/components/BlueprintSearch';
 import { BlueprintShelves } from '@/features/industry-planner/components/BlueprintShelves';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Planner — Industry Planner',
   description: 'Search any Eve Online blueprint to plan its build: cost, profit margin and build time at live Jita prices.',
-  alternates: { canonical: '/industry/planner' },
-};
+  canonical: '/industry/planner',
+});
 
 export default function EmptyPlannerPage() {
   return (

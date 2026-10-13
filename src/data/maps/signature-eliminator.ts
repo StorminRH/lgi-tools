@@ -1,5 +1,9 @@
-import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
+import {
+  isTypedCodexEntry,
+  type ConnectionProvenance,
+} from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
 
 export interface EliminationSignature {
   readonly signatureId: string;
@@ -56,37 +60,17 @@ type FixedCrossing =
 
 const QUIET_RESULT: EliminationResult = { deductions: [], quiet: true };
 
-function sameCodeMeaning(
-  left: WormholeCodexEntry,
-  right: WormholeCodexEntry,
-): boolean {
-  if (left.farSide !== right.farSide) return false;
-  if (left.farSide) return true;
-  if (right.farSide) return false;
-  return left.totalMass === right.totalMass
-    && left.maxJumpMass === right.maxJumpMass
-    && left.massRegen === right.massRegen
-    && left.lifetimeMinutes === right.lifetimeMinutes
-    && left.sizeClass === right.sizeClass
-    && left.targetClass === right.targetClass;
-}
+function codexAdmits(input: EliminationInput): boolean {
+  const codex = indexWormholeCodex(input.codex);
+  if (codex.conflictingCodes.size > 0) return false;
 
-function codebook(input: EliminationInput): ReadonlyMap<string, WormholeCodexEntry> | null {
-  const byCode = new Map<string, WormholeCodexEntry>();
-  for (const entry of input.codex) {
-    const existing = byCode.get(entry.code);
-    if (existing !== undefined && !sameCodeMeaning(existing, entry)) return null;
-    if (existing === undefined) byCode.set(entry.code, entry);
-  }
-
-  const staticsValid = input.staticTypeCodes.every((code) => {
-    const entry = byCode.get(code);
-    return entry !== undefined && !entry.farSide;
-  });
-  const factsValid = [...input.signatures, ...input.connections].every((fact) =>
-    fact.wormholeTypeCode === null || byCode.has(fact.wormholeTypeCode),
+  const staticsValid = input.staticTypeCodes.every((code) =>
+    isTypedCodexEntry(codex.byCode(code)),
   );
-  return staticsValid && factsValid ? byCode : null;
+  const factsValid = [...input.signatures, ...input.connections].every((fact) =>
+    fact.wormholeTypeCode === null || codex.byCode(fact.wormholeTypeCode) !== null,
+  );
+  return staticsValid && factsValid;
 }
 
 function staticSlots(staticTypeCodes: readonly string[]): StaticSlots {
@@ -229,7 +213,7 @@ function bySignatureId(
 }
 
 export function eliminateSignatures(input: EliminationInput): EliminationResult {
-  if (codebook(input) === null) return QUIET_RESULT;
+  if (!codexAdmits(input)) return QUIET_RESULT;
 
   const slots = staticSlots(input.staticTypeCodes);
   for (const connection of input.connections) {

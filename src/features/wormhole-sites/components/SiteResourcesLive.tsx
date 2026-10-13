@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useRefreshOnView } from '@/data/market-prices/use-refresh-on-view';
 import { LivePrice } from '@/components/ui/live-price';
 import { SectionFooter } from '@/components/ui/section-footer';
+import { dedupe } from '@/lib/array';
+import { formatIskShort } from '@/lib/format/isk';
+import { isLivePricedResource } from '../live-isk';
 import type { SiteResource, SiteType } from '../types';
-import { formatIskHeader } from '../format';
+import { useLivePriceLookup } from './live-price-lookup';
 import { SiteResourceRow } from './ResourceRow';
 import {
   resourceLiveIsk,
@@ -15,11 +17,7 @@ import {
 } from './site-live-context';
 
 function eligibleTypeIdsOf(resources: SiteResource[]): number[] {
-  return [
-    ...new Set(
-      resources.filter((r) => r.liveEligible && r.typeId != null).map((r) => r.typeId as number),
-    ),
-  ];
+  return dedupe(resources.filter(isLivePricedResource).map((r) => r.typeId));
 }
 
 export function SiteLiveProvider({
@@ -34,11 +32,11 @@ export function SiteLiveProvider({
   const [enabled, setEnabled] = useState(false);
   const requestEnable = useCallback(() => setEnabled(true), []);
 
-  const { prices, isPending } = useRefreshOnView(eligibleTypeIds, { enabled });
+  const lookup = useLivePriceLookup(eligibleTypeIds, { enabled });
 
   const value = useMemo<SiteLiveValue>(
-    () => ({ priceOf: (typeId) => prices.get(typeId), isPending, requestEnable }),
-    [prices, isPending, requestEnable],
+    () => ({ ...lookup, requestEnable }),
+    [lookup, requestEnable],
   );
 
   return <SiteLiveContext.Provider value={value}>{children}</SiteLiveContext.Provider>;
@@ -47,10 +45,10 @@ export function SiteLiveProvider({
 function LiveSiteTotal({ resources }: { resources: SiteResource[] }) {
   const live = useSiteLive();
   const total = resources.reduce((sum, resource) => sum + (resourceLiveIsk(resource, live) ?? 0), 0);
-  const pending = resources.some((resource) =>
-    resource.typeId === null ? false : live.isPending(resource.typeId),
+  const pending = resources.some(
+    (resource) => isLivePricedResource(resource) && live.isPending(resource.typeId),
   );
-  return <LivePrice value={formatIskHeader(total)} pending={pending} />;
+  return <LivePrice value={formatIskShort(total, { unit: true })} pending={pending} />;
 }
 
 function ViewSentinel() {

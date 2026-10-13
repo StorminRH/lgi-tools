@@ -1,42 +1,22 @@
 import { beforeEach, expect, test, vi } from 'vitest';
+import { settle } from '@/lib/__tests__/hook-runtime';
 import { currentReadIdentity, publishReadIdentity } from '@/platform/auth/read-identity';
-import { deleteIndustryProfileEndpoint, industryProfilesEndpoint, type IndustryProfileRow } from './api-contract';
+import { apiProblem } from '@/transport/__tests__/failed-outcomes';
+import {
+  deleteIndustryProfileEndpoint,
+  duplicateIndustryProfileEndpoint,
+  industryProfilesEndpoint,
+  type IndustryProfileRow,
+} from './api-contract';
 import { emptyProfileDocument } from './profile-document';
 
-const h = vi.hoisted(() => ({
-  apiFetch: vi.fn(),
-  notify: vi.fn(),
-  states: [] as unknown[],
-  stateIndex: 0,
-  memos: [] as { deps: readonly unknown[]; value: unknown }[],
-  memoIndex: 0,
-  effectDeps: undefined as readonly unknown[] | undefined,
-}));
+const h = vi.hoisted(() => ({ apiFetch: vi.fn(), notify: vi.fn() }));
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
-vi.mock('react', () => ({
-  useCallback: <T>(callback: T) => callback,
-  useSyncExternalStore: (_subscribe: unknown, get: () => unknown) => get(),
-  useState: <T>(initial: T) => {
-    const index = h.stateIndex++;
-    if (!(index in h.states)) h.states[index] = initial;
-    return [h.states[index], (next: T) => { h.states[index] = next; }];
-  },
-  useMemo: <T>(make: () => T, deps: readonly unknown[]) => {
-    const index = h.memoIndex++;
-    const held = h.memos[index];
-    if (!held || deps.some((dep, i) => !Object.is(dep, held.deps[i]))) h.memos[index] = { deps, value: make() };
-    return h.memos[index]!.value;
-  },
-  useEffect: (effect: () => void, deps: readonly unknown[]) => {
-    if (!h.effectDeps || deps.some((dep, i) => !Object.is(dep, h.effectDeps![i]))) {
-      h.effectDeps = deps;
-      effect();
-    }
-  },
-}));
+vi.mock('react', () => rt.react);
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
 vi.mock('@/components/ui/toast', () => ({ toast: { error: h.notify } }));
-vi.mock('../read-with-retries', () => ({ readWithRetries: (read: () => Promise<unknown>) => read().catch(() => null) }));
+vi.mock('@/lib/retry', () => ({ readWithRetries: (read: () => Promise<unknown>) => read().catch(() => null) }));
 
 import { useIndustryProfiles } from './use-industry-profiles';
 
@@ -51,21 +31,13 @@ function ProfilesHarness() {
 }
 
 function render() {
-  h.stateIndex = 0;
-  h.memoIndex = 0;
-  return ProfilesHarness();
-}
-
-async function settle() {
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  return rt.render(ProfilesHarness);
 }
 
 beforeEach(() => {
   publishReadIdentity(null);
   publishReadIdentity({ userId: 'account-a', characterId: 7 });
-  h.states.length = 0;
-  h.memos.length = 0;
-  h.effectDeps = undefined;
+  rt.unmount();
   h.apiFetch.mockReset();
   h.notify.mockReset();
 });
@@ -75,9 +47,7 @@ test('same-identity remounts keep their profiles while a background refresh fail
   expect(render().profiles).toBeNull();
   await settle();
   expect(render().profiles).toEqual([profile]);
-  h.states.length = 0;
-  h.memos.length = 0;
-  h.effectDeps = undefined;
+  rt.unmount();
   h.apiFetch.mockResolvedValueOnce({ ok: false });
   expect(render().profiles).toEqual([profile]);
   await settle();
@@ -129,23 +99,37 @@ test('deleting a profile publishes the returned list and remembers it across a s
   resolve(ok([]));
   expect(await deleted).toBe(true);
   expect(render()).toMatchObject({ profiles: [], busy: false });
-  h.states.length = 0;
-  h.memos.length = 0;
-  h.effectDeps = undefined;
+  rt.unmount();
   h.apiFetch.mockReturnValueOnce(new Promise(() => {}));
   expect(render()).toMatchObject({ profiles: [], busy: false });
   expect(h.notify).not.toHaveBeenCalled();
 });
 
-test.each(['refused', 'rejected'] as const)('a %s delete preserves profiles, clears busy and reports the failure', async (failure) => {
+test.each([
+  ['refused', "Your session has ended. Sign in again."],
+  ['rejected', "Couldn't delete the profile."],
+] as const)('a %s delete preserves profiles, clears busy and reports the failure', async (failure, message) => {
   h.apiFetch.mockResolvedValueOnce(ok([profile]));
   render();
   await settle();
-  if (failure === 'refused') h.apiFetch.mockResolvedValueOnce({ ok: false, error: { code: 'profile_missing' } });
+  if (failure === 'refused') h.apiFetch.mockResolvedValueOnce(apiProblem(401, 'unauthenticated'));
   else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
   expect(await render().remove(profile.id)).toBe(false);
   expect(render()).toMatchObject({ profiles: [profile], busy: false });
-  expect(h.notify).toHaveBeenCalledExactlyOnceWith("Couldn't delete the profile.");
+  expect(h.notify).toHaveBeenCalledExactlyOnceWith(message);
+});
+
+test('duplicating a profile deleted elsewhere says so rather than that the create failed', async () => {
+  h.apiFetch.mockResolvedValueOnce(ok([profile]));
+  render();
+  await settle();
+  h.apiFetch.mockResolvedValueOnce(apiProblem(404, 'profile_missing'));
+  expect(await render().duplicate(profile.id, 'Private production line copy')).toBeNull();
+  expect(h.apiFetch).toHaveBeenLastCalledWith(duplicateIndustryProfileEndpoint, {
+    body: { id: profile.id, name: 'Private production line copy' },
+  });
+  expect(render()).toMatchObject({ profiles: [profile], busy: false });
+  expect(h.notify).toHaveBeenCalledExactlyOnceWith('This profile was deleted somewhere else.');
 });
 
 test.each([

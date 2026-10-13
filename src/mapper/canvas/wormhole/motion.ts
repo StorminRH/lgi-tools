@@ -1,3 +1,5 @@
+import { clamp } from '@/lib/math';
+
 export interface WormholeMotion {
   readonly time: number;
   readonly age: number;
@@ -18,7 +20,7 @@ export function stepWormholeMotion(
   paused: boolean,
 ): WormholeMotion {
   if (paused) return { time: state.time, age: 10, speed: 0, active: state.active };
-  const dt = Math.max(0, Math.min(0.05, elapsed));
+  const dt = clamp(elapsed, 0, 0.05);
   const age = active && !state.active ? 0 : Math.min(10, state.age + dt);
   let speed = state.speed + ((active ? 1 : 0) - state.speed) * (1 - Math.exp(-dt * 5));
   if (!active && speed < 0.002) speed = 0;

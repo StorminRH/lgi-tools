@@ -7,8 +7,6 @@ import { MapSwitcher } from '@/features/maps/MapSwitcher';
 import type { Session } from '@/platform/auth/types';
 import { MapMenu } from './MapMenu';
 
-import '@/composition/search/register-all';
-
 export function MapChrome({
   session,
   contextualSection,
@@ -48,6 +46,7 @@ export function MapChrome({
           corporations={corporations}
           grantsByMapId={grantsByMapId}
           blocksByMapId={blocksByMapId}
+          listingAvailable={listingAvailable}
           focusFallback={switcherFocusFallback}
         />
       </div>

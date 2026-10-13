@@ -46,7 +46,7 @@ export function Panel({
   const overlayContainer = useOverlayPortalContainer();
 
   return (
-    <Autocomplete.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
+    <Autocomplete.Portal container={overlayContainer}>
       <Autocomplete.Positioner side="bottom" align={align} sideOffset={sideOffset} className="z-dropdown">
         <Autocomplete.Popup className={cn(dropdownPanel, className)}>{children}</Autocomplete.Popup>
       </Autocomplete.Positioner>

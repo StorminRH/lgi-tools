@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   connection: vi.fn(),
+  refreshDue: vi.fn(),
   getCorpStructures: vi.fn(),
   getCorpStructureRigs: vi.fn(),
   listCorpStructureSyncStates: vi.fn(),
+  readCorpViewer: vi.fn(),
   resolveCorpViewer: vi.fn(),
   resolveEntityNames: vi.fn(),
+  refreshCorpStructuresForUser: vi.fn(),
 }));
 
 vi.mock('next/server', () => ({
@@ -15,7 +18,10 @@ vi.mock('next/server', () => ({
   connection: mocks.connection,
 }));
 
-vi.mock('@/composition/corp-viewer', () => ({ resolveCorpViewer: mocks.resolveCorpViewer }));
+vi.mock('@/composition/corp-viewer', () => ({
+  readCorpViewer: mocks.readCorpViewer,
+  resolveCorpViewer: mocks.resolveCorpViewer,
+}));
 
 vi.mock('@/features/owned-structures/queries', () => ({
   getCorpStructureRigs: mocks.getCorpStructureRigs,
@@ -27,7 +33,7 @@ vi.mock('@/features/owned-structures/queries', () => ({
 }));
 
 vi.mock('@/features/owned-structures/refresh', () => ({
-  refreshCorpStructuresForUser: vi.fn(),
+  refreshCorpStructuresForUser: mocks.refreshCorpStructuresForUser,
 }));
 
 vi.mock('@/data/eve-data/entity-names', () => ({
@@ -36,17 +42,19 @@ vi.mock('@/data/eve-data/entity-names', () => ({
 
 vi.mock('./owner-sync-port', () => ({
   listCharactersWithHealth: vi.fn(),
-  readPagedEndpoint: vi.fn(),
-  probeAndStoreRoles: vi.fn(),
+  readRolesForSync: vi.fn(),
   vendTokenFor: vi.fn(),
 }));
+vi.mock('./live-dataset-view', () => ({ refreshDue: mocks.refreshDue }));
+vi.mock('@/data/esi-store', () => ({ isDue: vi.fn() }));
+vi.mock('@/data/esi-store/session', () => ({ openReadSession: vi.fn() }));
 
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
 import { narrowCorpRoles } from '@/platform/auth/corp-roles';
 import { compileCorpGrant, type SharingState } from '@/platform/auth/corp-visibility';
 import {
   getAvailableCorpStructuresForUser,
-  getCorpStructuresForUserOnView,
+  getCorpStructuresFirstDraw,
   getCorpStructuresPageData,
 } from './corp-structures-sync';
 
@@ -81,36 +89,38 @@ const fort = (structureId: number) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.connection.mockResolvedValue(undefined);
+  mocks.refreshDue.mockResolvedValue(false);
   mocks.getCorpStructures.mockResolvedValue(new Map());
   mocks.listCorpStructureSyncStates.mockResolvedValue([]);
   mocks.getCorpStructureRigs.mockResolvedValue(new Map());
   mocks.resolveCorpViewer.mockResolvedValue({ corporations: [] });
+  mocks.readCorpViewer.mockResolvedValue({ corporations: [] });
   mocks.resolveEntityNames.mockResolvedValue({});
 });
 
-function viewWithThreeCorps(): void {
-  mocks.resolveCorpViewer.mockResolvedValue({
+function viewWithThreeCorps(): Map<number, ReturnType<typeof fort>[]> {
+  const viewer = {
     corporations: [
       viewerCorp(SHARED_CORP, 'on', []),
       viewerCorp(MANAGED_CORP, 'off', ['Station_Manager']),
       viewerCorp(PRIVATE_CORP, 'off', []),
     ],
-  });
-  mocks.getCorpStructures.mockResolvedValue(
-    new Map([
-      [SHARED_CORP, [fort(1)]],
-      [MANAGED_CORP, [fort(2)]],
-      [PRIVATE_CORP, [fort(3)]],
-    ]),
-  );
+  };
+  mocks.resolveCorpViewer.mockResolvedValue(viewer);
+  mocks.readCorpViewer.mockResolvedValue(viewer);
+  const structuresByCorp = new Map([
+    [SHARED_CORP, [fort(1)]],
+    [MANAGED_CORP, [fort(2)]],
+    [PRIVATE_CORP, [fort(3)]],
+  ]);
+  mocks.getCorpStructures.mockResolvedValue(structuresByCorp);
+  return structuresByCorp;
 }
 
 describe('corp structure reads', () => {
   it('waits for a real request before resolving the viewer on both read seams', async () => {
-    await expect(getCorpStructuresPageData('user-1')).resolves.toEqual([]);
-    await expect(getCorpStructuresForUserOnView('user-1')).resolves.toEqual({
-      corporations: [],
-    });
+    await expect(getCorpStructuresPageData('user-1')).resolves.toEqual({ corporations: [], refreshing: false });
+    await expect(getAvailableCorpStructuresForUser('user-1')).resolves.toEqual({ structures: [], refreshing: false });
 
     expect(mocks.connection).toHaveBeenCalledTimes(2);
     expect(mocks.resolveCorpViewer).toHaveBeenCalledTimes(2);
@@ -120,15 +130,38 @@ describe('corp structure reads', () => {
   });
 
   it('offers the planner the structures of shared corps and of corps the viewer manages', async () => {
-    viewWithThreeCorps();
+    const structuresByCorp = viewWithThreeCorps();
+    const structures = Promise.withResolvers<typeof structuresByCorp>();
+    mocks.getCorpStructures.mockReturnValue(structures.promise);
     mocks.getCorpStructureRigs.mockResolvedValue(new Map([[2, { rigTypeIds: [37178], taxPct: 1.5 }]]));
 
-    const available = await getAvailableCorpStructuresForUser('user-1');
+    mocks.refreshDue.mockResolvedValue(true);
 
-    expect(available).toEqual([
-      { structureId: 1, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 1', rigTypeIds: [], taxPct: null },
-      { structureId: 2, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 2', rigTypeIds: [37178], taxPct: 1.5 },
-    ]);
+    const pending = getAvailableCorpStructuresForUser('user-1');
+    await vi.waitFor(() => expect(mocks.getCorpStructures).toHaveBeenCalledOnce());
+
+    // Rigs are read beside the structures, not after them.
+    expect(mocks.getCorpStructureRigs).toHaveBeenCalledWith([SHARED_CORP, MANAGED_CORP, PRIVATE_CORP]);
+    structures.resolve(structuresByCorp);
+
+    expect(await pending).toEqual({
+      structures: [
+        { structureId: 1, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 1', rigTypeIds: [], taxPct: null },
+        { structureId: 2, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 2', rigTypeIds: [37178], taxPct: 1.5 },
+      ],
+      refreshing: true,
+    });
+    // The planner read has no use for the sync state, so it never queries it.
+    expect(mocks.listCorpStructureSyncStates).not.toHaveBeenCalled();
+    expect(mocks.after).toHaveBeenCalledOnce();
+  });
+
+  it('schedules the corp refresh from the planner read even when the viewer has no corporations', async () => {
+    await expect(getCorpStructuresPageData('user-1')).resolves.toEqual({ corporations: [], refreshing: false });
+    expect(mocks.after).not.toHaveBeenCalled();
+
+    await expect(getAvailableCorpStructuresForUser('user-1')).resolves.toEqual({ structures: [], refreshing: false });
+    expect(mocks.after).toHaveBeenCalledOnce();
   });
 
   it('gives the settings and structures pages each corp with the viewer grant', async () => {
@@ -137,7 +170,8 @@ describe('corp structure reads', () => {
 
     const pages = await getCorpStructuresPageData('user-1');
 
-    expect(pages.map(({ corporationId, corporationName, structureAccess, canManageSharing, sharing, structures }) => ({
+    expect(pages.refreshing).toBe(false);
+    expect(pages.corporations.map(({ corporationId, corporationName, structureAccess, canManageSharing, sharing, structures }) => ({
       corporationId,
       corporationName,
       structureAccess,
@@ -149,5 +183,56 @@ describe('corp structure reads', () => {
       { corporationId: MANAGED_CORP, corporationName: `Corporation ${MANAGED_CORP}`, structureAccess: 'manage', canManageSharing: false, sharing: 'off', structureIds: [2] },
       { corporationId: PRIVATE_CORP, corporationName: `Corporation ${PRIVATE_CORP}`, structureAccess: 'none', canManageSharing: false, sharing: 'off', structureIds: [] },
     ]);
+  });
+
+  it('schedules both refreshes from the route read and says whether they reach ESI', async () => {
+    viewWithThreeCorps();
+    mocks.refreshDue.mockResolvedValue(true);
+
+    await expect(getCorpStructuresPageData('user-1')).resolves.toMatchObject({ refreshing: true });
+
+    expect(mocks.resolveCorpViewer).toHaveBeenCalledWith('user-1');
+    expect(mocks.readCorpViewer).not.toHaveBeenCalled();
+    expect(mocks.after).toHaveBeenCalledOnce();
+    expect(mocks.refreshDue).toHaveBeenCalledOnce();
+  });
+
+  it('draws a page render\'s first copy after a real request with the same rows and schedules nothing', async () => {
+    viewWithThreeCorps();
+    mocks.refreshDue.mockResolvedValue(true);
+
+    const firstDraw = await getCorpStructuresFirstDraw('user-1');
+
+    expect(firstDraw.refreshing).toBe(false);
+    expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(mocks.readCorpViewer.mock.invocationCallOrder[0]!);
+    expect(mocks.resolveCorpViewer).not.toHaveBeenCalled();
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.refreshDue).not.toHaveBeenCalled();
+    expect(firstDraw.corporations).toEqual((await getCorpStructuresPageData('user-1')).corporations);
+  });
+
+  it('shares one in-flight structures refresh per user across the route reads that schedule it', async () => {
+    viewWithThreeCorps();
+    const scheduled: Array<() => unknown> = [];
+    mocks.after.mockImplementation((fn: () => unknown) => scheduled.push(fn));
+    const runs: Array<PromiseWithResolvers<void>> = [];
+    mocks.refreshCorpStructuresForUser.mockImplementation(() => {
+      const run = Promise.withResolvers<void>();
+      runs.push(run);
+      return run.promise;
+    });
+    const users = () => mocks.refreshCorpStructuresForUser.mock.calls.map((call) => call[1]);
+
+    await Promise.all([getCorpStructuresPageData('user-1'), getCorpStructuresPageData('user-1'), getCorpStructuresPageData('user-2')]);
+    const concurrent = scheduled.splice(0).map((fn) => fn());
+    expect(users()).toEqual(['user-1', 'user-2']);
+    for (const run of runs) run.resolve();
+    await Promise.all(concurrent);
+
+    await getCorpStructuresPageData('user-1');
+    const later = scheduled.splice(0).map((fn) => fn());
+    expect(users()).toEqual(['user-1', 'user-2', 'user-1']);
+    runs.at(-1)!.resolve();
+    await Promise.all(later);
   });
 });

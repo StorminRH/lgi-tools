@@ -1,11 +1,11 @@
 import { runCapabilityRoute } from '@/app/api/capability-route';
 import type { CapabilityId } from '@/data/telemetry/capability';
-import type { AppFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
+import type { AppFailure, FailureResult } from '@/lib/failure';
+import { apiFailure, problemResponse } from '@/transport/api-response';
+import type { EndpointContract } from '@/transport/endpoint';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 export type AuthorizationSuccess = { ok: true };
-export type FailureResult = { ok: false; failure: AppFailure };
 export type MaybePromise<T> = T | Promise<T>;
 type AuthorizationFunction = () => Promise<AuthorizationSuccess | FailureResult>;
 type ParseFunction = (
@@ -13,9 +13,21 @@ type ParseFunction = (
 ) => Promise<{ ok: true; data: unknown } | FailureResult>;
 export type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
 
+/** Authorizes every caller, for a public mutation that still needs the origin gate. */
+export async function allowAnonymous(): Promise<AuthorizationSuccess> {
+  return { ok: true };
+}
+
 export interface CapabilityOption {
   capability: CapabilityId;
+  /** The route's contract; stage failures are then checked against its declared problems. */
+  endpoint?: EndpointContract;
   preflight?: () => Promise<Response | null>;
+  /**
+   * Record failures after the client aborts too. Set it where the client gives
+   * up on a timer, so the user saw the failure, unlike a superseded search.
+   */
+  recordAbortedFailures?: boolean;
 }
 
 export interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess>
@@ -39,6 +51,10 @@ interface RuntimeMutationOptions extends CapabilityOption {
   handle: (authorization: AuthorizationSuccess, body?: unknown) => MaybePromise<Response>;
 }
 
+function stageFailure(endpoint: EndpointContract | undefined, failure: AppFailure): Response {
+  return endpoint ? apiFailure(endpoint, failure) : problemResponse(failure);
+}
+
 async function runStages(
   request: Request,
   runtime: RuntimeMutationOptions,
@@ -49,14 +65,14 @@ async function runStages(
   }
 
   const authorization = await runtime.authorize();
-  if (!authorization.ok) return problemResponse(authorization.failure);
+  if (!authorization.ok) return stageFailure(runtime.endpoint, authorization.failure);
 
   const originCheck = requireSameOrigin(request);
-  if (!originCheck.ok) return problemResponse(originCheck.failure);
+  if (!originCheck.ok) return stageFailure(runtime.endpoint, originCheck.failure);
 
   if (runtime.parse) {
     const parsed = await runtime.parse(request);
-    if (!parsed.ok) return problemResponse(parsed.failure);
+    if (!parsed.ok) return stageFailure(runtime.endpoint, parsed.failure);
     return runtime.handle(authorization, parsed.data);
   }
 
@@ -73,5 +89,6 @@ export function runMutationRoute<TAuthorization extends AuthorizationSuccess>(
 ): Promise<Response>;
 export function runMutationRoute(request: Request, options: unknown): Promise<Response> {
   const runtime = options as RuntimeMutationOptions;
-  return runCapabilityRoute(runtime.capability, () => runStages(request, runtime));
+  const signal = runtime.recordAbortedFailures === true ? undefined : request.signal;
+  return runCapabilityRoute(runtime.capability, () => runStages(request, runtime), signal);
 }

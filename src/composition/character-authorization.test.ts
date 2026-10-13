@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { settle } from '@/lib/__tests__/hook-runtime';
 
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
-  reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
+  reconcileTrackingMerges: vi.fn().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 }),
 }));
 
 const mocks = vi.hoisted(() => ({
@@ -17,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   acknowledgeMapAccessChanges: vi.fn(),
   projectMapAccess: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
+  reconcileAffiliationAccessOnVisit: vi.fn(),
 }));
 vi.mock('@/platform/auth/authorization-store', () => ({
   hasAuthorizationWork: mocks.hasAuthorizationWork,
@@ -44,8 +47,14 @@ vi.mock('./map-access-projection', async (importOriginal) => ({
   ...await importOriginal<Record<string, unknown>>(),
   projectMapAccess: mocks.projectMapAccess,
 }));
+// Visit drains coalesce per instance (map-affiliation-access.test.ts pins that); here each visit drains.
+vi.mock('./map-affiliation-access', async (importOriginal) => ({
+  ...await importOriginal<Record<string, unknown>>(),
+  reconcileAffiliationAccessOnVisit: mocks.reconcileAffiliationAccessOnVisit,
+}));
 
-import { checkCharacterAuthorizations } from './character-authorization';
+import { checkCharacterAuthorizations, checkUserCharacterAuthorizations } from './character-authorization';
+import { reconcileAffiliationAccess } from './map-affiliation-access';
 
 const change = { id: 'alice-account', characterId: '42', changedAt: new Date('2026-09-28T12:00:00Z') };
 
@@ -57,6 +66,7 @@ beforeEach(() => {
   mocks.readPendingMapAccessChanges.mockResolvedValue([]);
   mocks.claimAuthorization.mockResolvedValue(true);
   mocks.projectMapAccess.mockResolvedValue({ outcome: 'applied' });
+  mocks.reconcileAffiliationAccessOnVisit.mockImplementation(reconcileAffiliationAccess);
 });
 
 afterEach(() => { vi.restoreAllMocks(); });
@@ -72,6 +82,9 @@ it('persists access changes before acknowledging them, then drains the map outbo
   expect(mocks.acknowledgeAuthorizationAccessChange.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.readPendingMapAccessChanges.mock.invocationCallOrder[0]!,
   );
+  // The drain after enqueueing must see the rows it just queued, so it is never the coalesced visit drain.
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledTimes(2);
+  expect(mocks.reconcileAffiliationAccessOnVisit).not.toHaveBeenCalled();
 });
 
 it('retains the access-change marker when persisting the outbox fails', async () => {
@@ -98,9 +111,73 @@ it('publishes newly confirmed invalid authorization in the same worker run', asy
   );
 });
 
+it('acknowledges a malformed account id without enqueueing map access and never refreshes one', async () => {
+  mocks.listAuthorizationAccessChanges.mockResolvedValueOnce([{ ...change, characterId: 'not-a-number' }]);
+  mocks.listDueAuthorizations.mockResolvedValue([
+    { id: 'malformed-account', characterId: '' },
+    { id: 'account-1', characterId: '101' },
+  ]);
+
+  await checkCharacterAuthorizations('alice');
+
+  expect(mocks.enqueueAffectedMapAccessChanges).not.toHaveBeenCalled();
+  expect(mocks.acknowledgeAuthorizationAccessChange).toHaveBeenCalledExactlyOnceWith(change.id, change.changedAt);
+  expect(mocks.claimAuthorization.mock.calls.map(([id]) => id)).toEqual(['malformed-account', 'account-1']);
+  expect(mocks.getFreshAccessTokenForCharacter).toHaveBeenCalledExactlyOnceWith(101, { forceRefresh: true });
+});
+
+it('stops claiming due characters once a claim fails and leaves the run failed', async () => {
+  const due = Array.from({ length: 8 }, (_, i) => ({ id: `account-${i}`, characterId: String(100 + i) }));
+  mocks.listDueAuthorizations.mockResolvedValue(due);
+  mocks.claimAuthorization.mockImplementation(async (id: string) => {
+    if (id === 'account-0') throw new Error('authorization store unavailable');
+    return true;
+  });
+
+  await expect(checkCharacterAuthorizations('alice')).rejects.toThrow('authorization store unavailable');
+  await settle();
+
+  expect(mocks.claimAuthorization.mock.calls.map(([id]) => id)).toEqual([
+    'account-0',
+    'account-1',
+    'account-2',
+    'account-3',
+  ]);
+  expect(mocks.getFreshAccessTokenForCharacter.mock.calls.map(([characterId]) => characterId)).toEqual([101, 102, 103]);
+  expect(mocks.suspendOverdueAuthorizations).toHaveBeenCalledOnce();
+});
+
+it('logs a failed token check and still checks the other characters before publishing', async () => {
+  const errors = silenceConsolePrefixes('error', ['[character-authorization] check failed']);
+  const down = new Error('SSO unavailable');
+  mocks.listDueAuthorizations.mockResolvedValue([
+    { id: 'account-1', characterId: '101' },
+    { id: 'account-2', characterId: '102' },
+  ]);
+  mocks.getFreshAccessTokenForCharacter.mockRejectedValueOnce(down);
+
+  await checkCharacterAuthorizations('alice');
+
+  expect(mocks.getFreshAccessTokenForCharacter.mock.calls.map(([characterId]) => characterId)).toEqual([101, 102]);
+  expect(errors).toHaveBeenCalledExactlyOnceWith('[character-authorization] check failed for 101', down);
+  expect(mocks.suspendOverdueAuthorizations).toHaveBeenCalledTimes(2);
+});
+
+it('logs and absorbs a failed background run so the request that started it is unaffected', async () => {
+  const errors = silenceConsolePrefixes('error', ['[character-authorization] background check failed']);
+  const down = new Error('database unavailable');
+  mocks.hasAuthorizationWork.mockRejectedValueOnce(down);
+
+  await expect(checkUserCharacterAuthorizations('alice')).resolves.toBeUndefined();
+
+  expect(errors).toHaveBeenCalledExactlyOnceWith('[character-authorization] background check failed for alice', down);
+  expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
+});
+
 it('checks queued access changes on a healthy visit without refreshing authorization', async () => {
   mocks.hasAuthorizationWork.mockResolvedValue(false);
   await checkCharacterAuthorizations('alice');
+  expect(mocks.reconcileAffiliationAccessOnVisit).toHaveBeenCalledOnce();
   expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
   expect(mocks.projectMapAccess).not.toHaveBeenCalled();
   expect(mocks.suspendOverdueAuthorizations).not.toHaveBeenCalled();
@@ -113,7 +190,7 @@ it('delivers a failed queued revocation on a later healthy visit', async () => {
   mocks.hasAuthorizationWork.mockResolvedValue(false);
   mocks.readPendingMapAccessChanges.mockResolvedValue(pending);
   mocks.projectMapAccess.mockRejectedValueOnce(new Error('Convex unavailable'));
-  vi.spyOn(console, 'error').mockImplementation(() => {});
+  silenceConsolePrefixes('error', ['[map-affiliation-access] projection retained for retry']);
 
   await checkCharacterAuthorizations('alice');
   expect(mocks.acknowledgeMapAccessChanges).toHaveBeenLastCalledWith([], pending);

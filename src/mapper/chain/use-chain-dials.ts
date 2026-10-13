@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { atlasCameraFollow, atlasClickFocus } from '@/lib/preferences';
 import type { CameraFocusRequest } from '../canvas/use-camera-follow';
@@ -12,7 +12,6 @@ import {
 } from '../layout/layout-contract';
 import {
   DEFAULT_MOTION_CONFIG,
-  motionCssProperties,
   type MotionConfig,
 } from '../motion/motion-contract';
 
@@ -27,17 +26,6 @@ export function useChainDials() {
   );
   const [haloLimits, setHaloLimits] = useState<HaloLimits>(HALO_PINNED_LIMITS);
   const [fogConfig, setFogConfig] = useState<FogConfig>(DEFAULT_FOG_CONFIG);
-  const shellRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const element = shellRef.current;
-    if (element === null) return;
-    for (const [property, value] of Object.entries(
-      motionCssProperties(motionConfig),
-    )) {
-      element.style.setProperty(property, value);
-    }
-  }, [motionConfig]);
 
   return {
     config,
@@ -53,6 +41,5 @@ export function useChainDials() {
     setFogConfig,
     setHaloLimits,
     setMotionConfig,
-    shellRef,
   };
 }

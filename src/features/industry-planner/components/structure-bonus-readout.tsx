@@ -2,6 +2,7 @@
 
 import { Fragment, type ReactNode } from 'react';
 import { Tooltip } from '@/components/ui/tooltip';
+import { dataLabel } from '@/components/ui/type-roles';
 import { GemIcon, HourglassIcon } from './MeAdjuster';
 import { structureBonusColumns, type StructureBonusRow } from '../structure-bonus-view';
 import type { StructureReadout } from '../structure-factors';
@@ -23,7 +24,7 @@ function Metric({ icon, title, value }: { icon: ReactNode; title: string; value:
 }
 
 function RxnMarker() {
-  return <span className="font-data text-label uppercase leading-none tracking-label text-muted">rxn</span>;
+  return <span className={dataLabel({ className: 'leading-none' })}>RXN</span>;
 }
 
 function ReactionMetric({ withMarker, children }: { withMarker: boolean; children: ReactNode }) {

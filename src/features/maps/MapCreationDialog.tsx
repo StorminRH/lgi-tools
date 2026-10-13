@@ -16,18 +16,20 @@ import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { displayTitle } from '@/components/ui/type-roles';
 import { MAX_MAP_NAME_LENGTH } from '@/data/maps/api-contract';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
-import { CharacterSearchControl } from './CharacterSearchControl';
 import { OwnCharacterPicker } from './OwnCharacterPicker';
 import {
   addAccessPrincipal,
@@ -85,27 +87,20 @@ function CreationInterstitial({
     >
       <Compass failed={failed} />
       <div className="flex max-w-sm flex-col gap-1.5">
-        <DialogTitle
-          id={titleId}
-          className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
-        >
-          {failed ? 'Map creation paused' : 'Creating your map'}
+        <DialogTitle id={titleId} className={displayTitle()}>
+          {failed ? 'Map not created' : 'Creating your map'}
         </DialogTitle>
-        <DialogDescription className="font-ui text-ui leading-relaxed text-muted">
-          {failed
-            ? phase.message
-            : 'Committing the map and confirming access before the first jump.'}
-        </DialogDescription>
+        {failed ? (
+          <DialogDescription className="font-ui text-ui leading-relaxed text-muted">
+            {phase.message}
+          </DialogDescription>
+        ) : null}
       </div>
       {failed ? (
         <Button variant="primary" onClick={onRetry}>
           Try again
         </Button>
-      ) : (
-        <span className="font-data text-label tracking-label uppercase text-faint">
-          Neon → access projection → Atlas
-        </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -249,7 +244,7 @@ function CreationForm({
         closeLabel="Close map creation"
       />
 
-      <div className="flex flex-col gap-5 px-4 py-4">
+      <DialogBody className="gap-5">
         <Field label="Map name">
           <Input
             ref={nameInputRef}
@@ -272,7 +267,7 @@ function CreationForm({
           }}
           hint={creatorCharacterIds.length === 0
             ? CREATOR_CHARACTER_REQUIRED_MESSAGE
-            : 'Chosen characters can be tracked on this map. You stay the map admin.'}
+            : 'Chosen characters can be tracked on this map.'}
         />
         <AccessListEditor
           mode="create"
@@ -289,24 +284,18 @@ function CreationForm({
             setGrants((current) => removeAccessPrincipal(current, principal));
             clearFormError();
           }}
-          characterSearch={
-            <CharacterSearchControl
-              selectedPrincipals={grants}
-              onSelect={addPrincipal}
-            />
-          }
         />
         {formError !== null ? <Banner tone="warn">{formError}</Banner> : null}
-      </div>
+      </DialogBody>
 
-      <footer className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
+      <DialogFooter>
         <DialogClose render={<Button variant="secondary" size="sm" />}>
           Cancel
         </DialogClose>
         <Button type="submit" variant="primary" size="sm" disabled={!canSubmit}>
           Create map
         </Button>
-      </footer>
+      </DialogFooter>
     </form>
   );
 }

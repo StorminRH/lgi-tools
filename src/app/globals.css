@@ -238,23 +238,10 @@
    * hue as --color-tone-purple, named for its meaning. */
   --color-reaction-purple:   #aa55ff;
 
-  /* Chip — saturated EWAR/status chips. Text differs from toneHex (brighter);
-   * orange text reuses --color-dps-mid. bg/border are translucent. */
-  --color-chip-blue:          #6688ff;
+  /* Bright error red — the ink for field errors, the red checkbox mark and
+   * failed copies; lighter than --color-alert-red. Tinted labels use the Pill
+   * tones above. */
   --color-chip-red:           #ff6666;
-  --color-chip-purple:        #cc77ff;
-  --color-chip-green:         #33dd88;
-  --color-chip-blue-bg:       rgba(40,90,255,0.16);
-  --color-chip-blue-border:   rgba(40,90,255,0.32);
-  --color-chip-red-bg:        rgba(255,50,50,0.14);
-  --color-chip-red-border:    rgba(255,50,50,0.30);
-  --color-chip-purple-bg:     rgba(170,70,255,0.14);
-  --color-chip-purple-border: rgba(170,70,255,0.30);
-  --color-chip-green-bg:      rgba(0,200,120,0.13);
-  --color-chip-green-border:  rgba(0,200,120,0.28);
-  --color-chip-orange-bg:     rgba(255,140,0,0.13);
-  --color-chip-orange-border: rgba(255,140,0,0.32);
-  --color-chip-pressed-bg:    #0f1a14;
 
   /* Dot indicator glows (translucent box-shadow color). */
   --color-dot-orange-glow: rgba(204,119,51,0.4);
@@ -305,14 +292,18 @@
    * sets BOTH size and leading; an explicit `leading-*` at a call site still
    * overrides it, and a bare `var(--text-*)` used in raw CSS below picks up SIZE
    * ONLY (the modifier applies to the generated utility, not the bare custom
-   * property). Nothing but line-height is bundled — uppercase, tabular-nums,
+   * property). Nothing but line-height is bundled — tabular-nums,
    * font-family, weight and tracking stay call-site concerns. Adding a tier is
    * inert until first referenced (v4 JIT emits the utility on first use).
    *   --text-display → page titles / PageHead (and the admin entity-header name)
    *   --text-hero    → the landing wordmark (HeroBanner) + the error/404 titles
    * Change a size HERE, never at the call site. */
   --text-micro:   10px;     --text-micro--line-height:   1.4;  /* dot sublabels, unit suffixes, superscripts, fine-print */
-  --text-label:   11.5px;  --text-label--line-height:   1.4;  /* uppercase tracked labels, table headers, breadcrumbs */
+  --text-caption: 11px;     --text-caption--line-height: 1.4;  /* small labels: micro eyebrows and data labels */
+  --text-label:   11.5px;  --text-label--line-height:   1.4;  /* hints, descriptions, meta text, table headers, breadcrumbs */
+  --text-small:   12px;     --text-small--line-height:   1.4;  /* data labels (JetBrains Mono), small card header bars */
+  --text-eyebrow: 12.5px;  --text-eyebrow--line-height: 1.4;  /* eyebrows, field and filter labels, small text actions */
+  --text-bar:     13px;     --text-bar--line-height:     1.4;  /* card header bars */
   --text-ui:      13px;     --text-ui--line-height:      1.5;  /* nav, table cells, pills, buttons, form controls */
   --text-nav:     14px;     --text-nav--line-height:     1.6;  /* navigation, menu rows, everyday action language */
   --text-body:    16px;     --text-body--line-height:    1.7;
@@ -355,8 +346,6 @@
   --tracking-optical: 0.01em;
   --tracking-copy: 0.04em;
   --tracking-label: 0.08em;
-  --tracking-wide: 0.12em;
-  --tracking-eyebrow: 0.18em;
   --transition-duration-fast: 150ms;
   --transition-duration-panel: 200ms;
   --transition-duration-price-confirm: 700ms;
@@ -514,7 +503,7 @@ a:hover {
 
 /* ── Glass surface (glass-panel) ─────────────────────────────────────────
  * The one frosted-surface recipe: a color-mix tint of the deep well over
- * `backdrop-filter: blur() saturate()`, driven by the two :root --glass-*
+ * `backdrop-filter: blur() saturate()`, driven by the :root --glass-*
  * knobs below so density/blur tune in ONE place. 65% density on operator
  * review — the earlier 80% tier read as solid black over these near-black
  * pages (the tint only registers where blurred content shows through), and
@@ -566,6 +555,19 @@ a:hover {
   background-color: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
   -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
   backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--color-bg-deep);
+  }
+}
+/* glass-chip: the small inline frost worn by the ui banners, copy chips and
+ * Select/Combobox triggers. A faint white lift over a 55% deep well, on the
+ * tighter --glass-chip-blur. The owner sheets @apply it inside their
+ * @layer components rules, so utility-class overrides on those elements
+ * still win; it is not meant as an element class. */
+@utility glass-chip {
+  background-color: color-mix(in oklab, white 4%, color-mix(in oklab, var(--color-bg-deep) 55%, transparent));
+  -webkit-backdrop-filter: blur(var(--glass-chip-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-chip-blur)) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     background-color: var(--color-bg-deep);
   }
@@ -645,6 +647,18 @@ a:hover {
 .reveal-5 { animation-delay: 350ms; }
 .reveal-6 { animation-delay: 420ms; }
 
+/* View-transition fades shared by the board and the industry tabs. A
+ * ::view-transition-new rule sets --vt-rise to shorten the 12px rise. */
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+@keyframes vt-rise-in {
+  from { opacity: 0; translate: 0 var(--vt-rise, 12px); }
+}
+
 /* Live ping: radar ring around a status dot. */
 .live-ping {
   position: relative;
@@ -668,6 +682,14 @@ a:hover {
   .live-ping::after { animation: none; }
   .reveal { animation: none; }
   .lift, .lift:hover { transition: none; translate: none; }
+  /* Every view transition (board, industry tabs, planner view) lands at once. */
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }
 
 /* Plain :root (not @theme) — these are shared knobs, not utility-generating
@@ -675,5 +697,6 @@ a:hover {
  * the frost instead of washing gray. */
 :root {
   --glass-blur: 16px;
+  --glass-chip-blur: 14px;
   --glass-saturate: 1.3;
 }

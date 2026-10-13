@@ -1,11 +1,9 @@
-import { addDependencyTiming } from '@/lib/dependency-timing';
 import {
   consultPreDispatch,
   dispatch,
   enforceBudget,
   getScoreboard,
-  isEtagEligible,
-  serveFromExpiresWindow,
+  reserveHistoryCall,
   type EsiFetchOptions,
 } from './dispatch';
 
@@ -24,29 +22,19 @@ export function esiUrl(path: string): string {
   return `${ESI_BASE_URL}${path}`;
 }
 
+/**
+ * The gate is transport, budget and headers. It stores nothing: a caller's
+ * If-None-Match goes out as given, and ESI's 304 comes back as it is.
+ */
 export async function esiFetch(
   url: string,
   init?: RequestInit,
   opts?: EsiFetchOptions,
 ): Promise<Response> {
   const sb = getScoreboard();
-  const wantEtag = isEtagEligible(init);
-
-  const pre = await consultPreDispatch(sb, url, wantEtag);
+  const pre = await consultPreDispatch(sb, url);
   enforceBudget(pre, url, opts);
-
   const liveSb = pre !== null ? sb : null;
-  const etagMeta = pre !== null && wantEtag ? pre.etag : null;
-
-  if (etagMeta !== null && liveSb !== null) {
-    const cached = await serveFromExpiresWindow(url, etagMeta, liveSb);
-    if (cached !== null) return cached;
-  }
-
-  const startedAt = Date.now();
-  try {
-    return await dispatch(url, init, wantEtag, liveSb, etagMeta);
-  } finally {
-    addDependencyTiming('esi', Date.now() - startedAt);
-  }
+  await reserveHistoryCall(liveSb, url);
+  return dispatch(url, init, liveSb);
 }

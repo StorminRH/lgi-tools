@@ -25,8 +25,16 @@ export function splitMatchRuns(
   return runs;
 }
 
-export function flattenSections(sections: SearchSection[]): SearchResult[] {
-  return sections.flatMap((section) => section.results);
+/** A row's list value. A recent can repeat a row another section shows, so the section name qualifies its id. */
+export function searchRowKey(section: SearchSection, row: SearchResult): string {
+  return `${section.name}/${row.id}`;
+}
+
+/** Every row in display order, by its list value. */
+export function searchRowsByKey(sections: SearchSection[]): Map<string, SearchResult> {
+  return new Map(
+    sections.flatMap((section) => section.results.map((row) => [searchRowKey(section, row), row] as const)),
+  );
 }
 
 export function searchIconClass(iconTone?: string): string {

@@ -32,7 +32,7 @@ describe('homeCurrentSystem', () => {
     const trackedOffline = {
       tracking: {
         ownTrackedCharacterIds: [CHAR],
-        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA } }],
+        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA, transitionObservedAt: null, observedAt: 0 } }],
       },
       coverage: { coverage: [{ characterId: CHAR, covered: false }] },
     };
@@ -43,7 +43,7 @@ describe('homeCurrentSystem', () => {
     const lastKnownUncovered = {
       tracking: {
         ownTrackedCharacterIds: [CHAR],
-        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA } }],
+        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA, transitionObservedAt: null, observedAt: 0 } }],
       },
       coverage: { coverage: [] },
     };
@@ -54,13 +54,17 @@ describe('homeCurrentSystem', () => {
     const live = {
       tracking: {
         ownTrackedCharacterIds: [CHAR],
-        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA } }],
+        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA, transitionObservedAt: null, observedAt: 0 } }],
       },
       coverage: { coverage: [{ characterId: CHAR, covered: true }] },
     };
     expect(homeCurrentSystem({ characterId: CHAR, ...live })).toEqual({
       kind: 'ready',
       systemId: JITA,
+    });
+    // No active character yet: wait rather than offer the live pilot's system.
+    expect(homeCurrentSystem({ characterId: null, ...live })).toEqual({
+      kind: 'loading',
     });
   });
 
@@ -71,8 +75,8 @@ describe('homeCurrentSystem', () => {
       tracking: {
         ownTrackedCharacterIds: [CHAR, alt],
         tracked: [
-          { characterId: CHAR, location: { solarSystemId: JITA } },
-          { characterId: alt, location: { solarSystemId: altSystem } },
+          { characterId: CHAR, location: { solarSystemId: JITA, transitionObservedAt: null, observedAt: 0 } },
+          { characterId: alt, location: { solarSystemId: altSystem, transitionObservedAt: null, observedAt: 0 } },
         ],
       },
       coverage: {
@@ -86,10 +90,29 @@ describe('homeCurrentSystem', () => {
       homeCurrentSystem({ characterId: CHAR, ...sessionOfflineAltLive }),
     ).toEqual({ kind: 'ready', systemId: altSystem });
 
+    const sessionUnlocatedAltLive = {
+      tracking: {
+        ownTrackedCharacterIds: [CHAR, alt],
+        tracked: [
+          { characterId: CHAR, location: null },
+          { characterId: alt, location: { solarSystemId: altSystem, transitionObservedAt: null, observedAt: 0 } },
+        ],
+      },
+      coverage: {
+        coverage: [
+          { characterId: CHAR, covered: true },
+          { characterId: alt, covered: true },
+        ],
+      },
+    };
+    expect(
+      homeCurrentSystem({ characterId: CHAR, ...sessionUnlocatedAltLive }),
+    ).toEqual({ kind: 'ready', systemId: altSystem });
+
     const onlyAltTracked = {
       tracking: {
         ownTrackedCharacterIds: [alt],
-        tracked: [{ characterId: alt, location: { solarSystemId: altSystem } }],
+        tracked: [{ characterId: alt, location: { solarSystemId: altSystem, transitionObservedAt: null, observedAt: 0 } }],
       },
       coverage: { coverage: [{ characterId: alt, covered: true }] },
     };
@@ -102,8 +125,8 @@ describe('homeCurrentSystem', () => {
       tracking: {
         ownTrackedCharacterIds: [CHAR, alt],
         tracked: [
-          { characterId: CHAR, location: { solarSystemId: JITA } },
-          { characterId: alt, location: { solarSystemId: altSystem } },
+          { characterId: CHAR, location: { solarSystemId: JITA, transitionObservedAt: null, observedAt: 0 } },
+          { characterId: alt, location: { solarSystemId: altSystem, transitionObservedAt: null, observedAt: 0 } },
         ],
       },
       coverage: {
@@ -122,9 +145,9 @@ describe('homeCurrentSystem', () => {
       tracking: {
         ownTrackedCharacterIds: [CHAR, alt, 303],
         tracked: [
-          { characterId: CHAR, location: { solarSystemId: JITA } },
-          { characterId: alt, location: { solarSystemId: altSystem } },
-          { characterId: 303, location: { solarSystemId: JITA } },
+          { characterId: CHAR, location: { solarSystemId: JITA, transitionObservedAt: null, observedAt: 0 } },
+          { characterId: alt, location: { solarSystemId: altSystem, transitionObservedAt: null, observedAt: 0 } },
+          { characterId: 303, location: { solarSystemId: JITA, transitionObservedAt: null, observedAt: 0 } },
         ],
       },
       coverage: {
@@ -143,8 +166,8 @@ describe('homeCurrentSystem', () => {
       tracking: {
         ownTrackedCharacterIds: [CHAR, alt, 303],
         tracked: [
-          { characterId: alt, location: { solarSystemId: altSystem } },
-          { characterId: 303, location: { solarSystemId: altSystem } },
+          { characterId: alt, location: { solarSystemId: altSystem, transitionObservedAt: null, observedAt: 0 } },
+          { characterId: 303, location: { solarSystemId: altSystem, transitionObservedAt: null, observedAt: 0 } },
         ],
       },
       coverage: {

@@ -1,27 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
-import { chunk } from '@/lib/array';
+import { chunk, dedupe } from '@/lib/array';
 import { refreshPricesEndpoint } from './api-contract';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
-import { toPlainPriceFigures } from './narrow';
-import type { DepthBand, PriceSource, RegionalDiscount } from './types';
+import { toClientPrice } from './narrow';
 
-export interface RefreshedPrice {
-  typeId: number;
-  bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  buyDepth: DepthBand[] | null;
-  sellDepth: DepthBand[] | null;
-  regionalDiscount: RegionalDiscount | null;
-  source: PriceSource;
-  staleAfterMs: number;
-}
+export type RefreshedPrice = { typeId: number } & ReturnType<typeof toClientPrice<number>>;
 
 export interface RefreshOnViewResult {
   prices: Map<number, RefreshedPrice>;
@@ -43,15 +29,13 @@ function freshPrices(typeIds: readonly number[], now: number): Map<number, Refre
   return fresh;
 }
 
-/** One batch's refreshed prices: null when the server didn't answer, 'aborted' once the read is cancelled. */
+/** One request's refreshed prices: null when the server didn't answer, 'aborted' once the read is cancelled. */
 async function readBatch(batch: number[], signal: AbortSignal): Promise<RefreshedPrice[] | 'aborted' | null> {
   const result = await apiFetch(refreshPricesEndpoint, { body: { typeIds: batch }, cache: 'no-store', signal });
   if (!result.ok) return result.kind === 'network' && result.aborted ? 'aborted' : null;
   return result.data.prices.map((p) => ({
     typeId: p.typeId,
-    ...toPlainPriceFigures(p),
-    source: p.source,
-    staleAfterMs: Date.parse(p.staleAfter),
+    ...toClientPrice(p, Date.parse(p.staleAfter)),
   }));
 }
 
@@ -71,28 +55,25 @@ export function useRefreshOnView(
   const [pending, setPending] = useState<Set<number>>(() => new Set());
   const [refreshing, setRefreshing] = useState(false);
 
-  const typeIdsRef = useRef(typeIds);
-  const onBatchRef = useRef(opts.onBatch);
-  useEffect(() => {
-    typeIdsRef.current = typeIds;
-    onBatchRef.current = opts.onBatch;
-  });
-
-  const { enabled, refreshKey } = opts;
+  const { enabled, onBatch, refreshKey } = opts;
+  const readIds = useEffectEvent(() => dedupe(typeIds));
+  const emitBatch = useEffectEvent((snapshot: Map<number, RefreshedPrice>) => onBatch?.(snapshot));
 
   useEffect(() => {
     if (!enabled) return;
-    const wanted = [...new Set(typeIdsRef.current)];
+    const wanted = readIds();
     if (wanted.length === 0) return;
     const map = freshPrices(wanted, Date.now());
     const toRefresh = wanted.filter((typeId) => !map.has(typeId));
 
     const controller = new AbortController();
+    // Every due id goes in one request; the server fans out per type. Only a
+    // page past the contract's safety ceiling splits, so no request is refused.
     const batches = chunk(toRefresh, ON_DEMAND_REFRESH_MAX_TYPE_IDS);
     const publish = () => {
       const snapshot = new Map(map);
       setPrices(snapshot);
-      onBatchRef.current?.(snapshot);
+      emitBatch(snapshot);
     };
 
     const clearBatch = (batch: number[]) =>
@@ -125,7 +106,6 @@ export function useRefreshOnView(
             if (!controller.signal.aborted) clearBatch(batch);
           }
         }
-      } catch {
       } finally {
         if (!controller.signal.aborted) {
           setRefreshing(false);

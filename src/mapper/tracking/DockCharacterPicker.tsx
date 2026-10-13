@@ -1,7 +1,7 @@
 'use client';
 
 import { CharacterPortrait } from '@/components/character-portrait';
-import { cn } from '@/components/ui/cn';
+import { CheckIcon } from '@/components/ui/icons';
 import {
   Menu,
   MenuRadioGroup,
@@ -11,7 +11,7 @@ import {
   menuRow,
   menuSeparator,
 } from '@/components/ui/menu';
-import { useSystemLabel } from '../windows/use-system-label';
+import { CharacterLocationLabel } from './character-location-label';
 import {
   useCharacterIdentities,
   type CharacterIdentity,
@@ -40,8 +40,8 @@ const PINNED_BADGE = (
 );
 
 const INDICATOR = (
-  <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
-    ✓
+  <MenuRadioItemIndicator className="ml-auto flex pl-2 text-muted">
+    <CheckIcon size={12} />
   </MenuRadioItemIndicator>
 );
 
@@ -52,22 +52,14 @@ function CharacterItem({
   readonly character: DockCharacter;
   readonly identity: CharacterIdentity;
 }) {
-  const systemName = useSystemLabel(character.systemId)?.name;
   return (
     <MenuRadioItem value={character.characterId} closeOnClick className={menuRow}>
-      <CharacterPortrait
+      <CharacterLocationLabel
         characterId={character.characterId}
-        name={identity.name}
-        src={identity.portraitUrl}
-        size={28}
-        className={cn(character.systemId === null && 'opacity-50')}
+        identity={identity}
+        systemId={character.systemId}
+        sublineTone="faint"
       />
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-name">{identity.name}</span>
-        <span className="truncate font-data text-micro text-faint">
-          {character.systemId === null ? 'Offline' : (systemName ?? String(character.systemId))}
-        </span>
-      </span>
       {INDICATOR}
     </MenuRadioItem>
   );

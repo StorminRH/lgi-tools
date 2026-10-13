@@ -20,6 +20,12 @@ export interface AppFailure {
   cause?: unknown;
 }
 
+/** The failure branch every pass/fail result shares. */
+export type FailureResult = { ok: false; failure: AppFailure };
+
+/** A guard that either passes with nothing to carry or fails with an AppFailure. */
+export type CheckResult = { ok: true } | FailureResult;
+
 function failure(
   category: FailureCategory,
   code: string,
@@ -98,4 +104,9 @@ export function isAppFailure(value: unknown): value is AppFailure {
     isFailureCategory(value.category) &&
     typeof value.code === 'string'
   );
+}
+
+/** The message of an Error, or the string form of anything else thrown, for logs and stored outcomes. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

@@ -1,3 +1,5 @@
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
+
 export const DEFAULT_DEBUG_IDS = [34, 35, 36];
 
 export type RefreshMode = { kind: 'cached' } | { kind: 'explicit'; ids: number[] };
@@ -9,7 +11,7 @@ export function parseIds(arg: string): number[] {
     .filter((s) => s.length > 0)
     .map((s) => {
       const n = Number(s);
-      if (!Number.isSafeInteger(n) || n <= 0) {
+      if (!isPositiveSafeInteger(n)) {
         throw new Error(`Invalid type ID: "${s}"`);
       }
       return n;

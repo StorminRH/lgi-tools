@@ -164,11 +164,6 @@ describe('summariseWave', () => {
     expect(total.ehpTotal).toBe(
       Math.round(patrol.hp.ehp * 3 + watch.hp.ehp * 2),
     );
-
-    expect(total.ewScram).toBe(0);
-    expect(total.ewWeb).toBe(0);
-    expect(total.ewNeut).toBe(0);
-    expect(total.ewRrep).toBe(0);
   });
 
   it('returns zeros for an empty wave', () => {
@@ -176,10 +171,6 @@ describe('summariseWave', () => {
       dpsTotal: 0,
       alphaTotal: 0,
       ehpTotal: 0,
-      ewScram: 0,
-      ewWeb: 0,
-      ewNeut: 0,
-      ewRrep: 0,
     });
   });
 });

@@ -1,0 +1,1 @@
+CREATE INDEX "eve_entity_names_resolved_at_idx" ON "eve_entity_names" USING btree ("resolved_at");

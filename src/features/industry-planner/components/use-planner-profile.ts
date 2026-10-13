@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
-import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
-import { useSystemSearch } from '@/components/use-system-search';
+import { useLiveDataset } from '@/components/use-live-dataset';
+import { useSystemsById } from '@/components/use-system-search';
+import { lookupSystem } from '@/data/eve-data/systems-search';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
-import { useReadIdentity } from '@/platform/auth/read-identity';
-import { apiFetch } from '@/transport/api-client';
 import { teamSkillLevelsEndpoint } from '../api-contract';
 import type { IndustryProfileRow } from '../profiles/api-contract';
 import { planFacilities, planMembers, profilePlan, type ProfilePlan } from '../profiles/profile-plan';
@@ -15,9 +14,8 @@ import { useIndustryProfiles } from '../profiles/use-industry-profiles';
 import type { SkillTimeFactors } from '../skill-time';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import type { StructureFactors } from '../structure-factors';
-import type { AvailableStructure, BlueprintStructure } from '../types';
-import { useResourceRead } from '../use-resource-read';
-import type { SelectedLocation, SelectedReactionSystem } from './planner-contexts';
+import type { AvailableStructure, BlueprintStructure, JobSystemRef } from '../types';
+import type { SelectedLocation } from './planner-contexts';
 import type { ApplySystemOptions, ApplySystemOutcome } from '../build-system-apply';
 
 export interface PlannerProfileState {
@@ -32,14 +30,16 @@ export interface PlannerProfileState {
 
 type LevelsByCharacter = ReadonlyMap<number, Record<string, number> | null>;
 
-async function readTeamSkillLevels(signal: AbortSignal): Promise<LevelsByCharacter | null> {
-  const res = await apiFetch(teamSkillLevelsEndpoint, { cache: 'no-store', signal });
-  return res.ok ? new Map(res.data.characters.map((c) => [c.characterId, c.levels])) : null;
-}
-
 const NO_LEVELS: LevelsByCharacter = new Map();
-// The last levels outlive the planner, so opening another blueprint plans with them at once.
-const levelsMemory = createRememberedRead<LevelsByCharacter>();
+
+/** Every linked character's trained levels, streamed in as they sync; none until the first read lands. */
+function useTeamSkillLevels(): LevelsByCharacter {
+  const { response } = useLiveDataset(teamSkillLevelsEndpoint);
+  return useMemo(
+    () => (response === null ? NO_LEVELS : new Map(response.characters.map((c) => [c.characterId, c.levels]))),
+    [response],
+  );
+}
 
 /**
  * The production profile applied to this build: each job's facility from the
@@ -54,14 +54,11 @@ function usePlannerProfile(
   // The planner and the Profiles tab share the profile last used.
   const [profileId, setProfileId] = usePreference(industryProfile);
   const profile = profiles?.find((p) => p.id === profileId) ?? profiles?.[0] ?? null;
-  const levels = useRememberedRead(levelsMemory) ?? NO_LEVELS;
-  const identity = useReadIdentity();
-  const rememberLevels = useCallback((next: LevelsByCharacter) => levelsMemory.set(next, identity), [identity]);
-  useResourceRead(readTeamSkillLevels, { enabled: profile !== null && identity !== null, onData: rememberLevels });
-  const { systems } = useSystemSearch();
+  const levels = useTeamSkillLevels();
+  const systemsById = useSystemsById();
   const securityOf = useCallback(
-    (systemId: number) => systems.find((s) => s.id === systemId)?.security ?? null,
-    [systems],
+    (systemId: number) => lookupSystem(systemsById, systemId)?.security ?? null,
+    [systemsById],
   );
   const doc = profile?.document ?? null;
   const plan = useMemo(
@@ -88,12 +85,9 @@ export interface LocationWriters {
   failureSystemId: number | null;
   location: SelectedLocation | null;
   setLocation: (location: SelectedLocation | null) => void;
-  applyBuildSystem: (
-    sys: { systemId: number; systemName: string; security: number | null },
-    opts: ApplySystemOptions,
-  ) => Promise<ApplySystemOutcome>;
+  applyBuildSystem: (sys: JobSystemRef, opts: ApplySystemOptions) => Promise<ApplySystemOutcome>;
   setSelectedStructure: (structure: AvailableStructure | null) => void;
-  setReactionSystem: (system: SelectedReactionSystem | null) => void;
+  setReactionSystem: (system: JobSystemRef | null) => void;
   setReactionStructure: (structure: AvailableStructure | null) => void;
 }
 
@@ -109,9 +103,9 @@ function useProfileLocation(
   activityId: number,
   writers: LocationWriters,
 ): boolean {
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   const facility = plan?.top.facility ?? null;
-  const found = systems.find((s) => s.id === facility?.systemId);
+  const found = lookupSystem(systemsById, facility?.systemId ?? null);
   const system = useMemo(
     () => (found ? { systemId: found.id, systemName: found.name, security: found.security } : null),
     [found],
@@ -172,12 +166,15 @@ export function useProfileFactors(
   structureFactors: StructureFactors;
   skillTimeFactors: SkillTimeFactors | null;
   locationPending: boolean;
+  /** The read of the system the product's own job runs in failed. */
+  locationFailed: boolean;
 } {
   const profile = usePlannerProfile(structure, location.availableStructures);
   const locationPending = useProfileLocation(profile.plan, profile.profile?.id ?? null, structure.activityId, location);
   return {
     ...profile,
     locationPending,
+    locationFailed: location.failureSystemId !== null && location.failureSystemId === profile.plan?.top.facility?.systemId,
     structureFactors: profile.plan?.structureFactors ?? location.structureFactors,
     skillTimeFactors: profile.plan?.skillTimeFactors ?? null,
   };

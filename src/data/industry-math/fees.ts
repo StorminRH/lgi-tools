@@ -1,3 +1,4 @@
+import { parsePercentDraft, type PercentDraftResult } from './percent-draft';
 import { computeMargin, type MarginInput, type MaterialQty } from './profitability';
 
 export interface FeeRates {
@@ -22,15 +23,8 @@ export function effectiveFacilityTaxRate(enteredPct: number | null): number {
   return enteredPct === null ? DEFAULT_FEE_RATES.facilityTax : enteredPct / 100;
 }
 
-export function parseFacilityTaxDraft(
-  draft: string,
-): { ok: true; value: number | null } | { ok: false } {
-  const t = draft.trim();
-  if (t === '') return { ok: true, value: null };
-  if (!/^\d+(\.\d+)?$/.test(t)) return { ok: false };
-  const n = Number(t);
-  if (!Number.isFinite(n) || n < 0 || n > MAX_FACILITY_TAX_PCT) return { ok: false };
-  return { ok: true, value: n };
+export function parseFacilityTaxDraft(draft: string): PercentDraftResult {
+  return parsePercentDraft(draft, MAX_FACILITY_TAX_PCT);
 }
 
 export function taxDraftFromStored(taxPct: number | null): string {

@@ -1,20 +1,22 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 
 const m = vi.hoisted(() => ({
   budget: vi.fn(),
   outcomeStats: vi.fn(),
-  queue: vi.fn(),
   priceRefreshDays: vi.fn(),
   degradation: vi.fn(),
+  clientErrors: vi.fn(),
   priceSplit: vi.fn(),
   historySplit: vi.fn(),
   writeBehind: vi.fn(),
   endpoints: vi.fn(),
 }));
 
-vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => ({ isAdmin: true }) }));
+vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => adminSessionFixture() }));
 vi.mock('next/navigation', () => ({
   unstable_rethrow: () => undefined,
   usePathname: () => '/admin/esi',
@@ -25,9 +27,9 @@ vi.mock('next/dynamic', () => ({ default: () => () => null }));
 vi.mock('@/platform/esi/scoreboard', () => ({ readEsiBudgetSnapshot: m.budget }));
 vi.mock('../shared-reads', () => ({
   getCapabilityOutcomeStatsShared: m.outcomeStats,
-  getEsiRefreshQueueStatsShared: m.queue,
   getPriceRefreshDaysShared: m.priceRefreshDays,
   getPriceSourceDegradationShared: m.degradation,
+  getEsiClientErrorsShared: m.clientErrors,
 }));
 vi.mock('@/data/telemetry/queries', () => ({
   getPriceSourceSplit: m.priceSplit,
@@ -51,10 +53,12 @@ describe('admin ESI', () => {
   beforeEach(() => {
     m.budget.mockResolvedValue({ effectiveRemaining: 12, selfCount: 88, echo: 14, source: 'shared' });
     m.outcomeStats.mockResolvedValue([]);
-    m.queue.mockResolvedValue([]);
     m.priceRefreshDays.mockResolvedValue([]);
     m.degradation.mockResolvedValue({ budgetExhaustions: 1, byCaller: [] });
-    m.priceSplit.mockResolvedValue({ requested: 1_200, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 });
+    m.clientErrors.mockResolvedValue([
+      { feature: 'maps', operation: 'search-characters', errors: 3, calls: 60, lastSeen: new Date('2026-09-20T00:00:00Z') },
+    ]);
+    m.priceSplit.mockResolvedValue({ requested: 1_200, returned: 9, esiCount: 6, fuzzworkFallbackCount: 1 });
     m.historySplit.mockResolvedValue({ freshEsi: 2, warmStored: 5, staleStored: 1, missing: 1 });
     m.writeBehind.mockResolvedValue([]);
     m.endpoints.mockResolvedValue([]);
@@ -103,6 +107,8 @@ describe('admin ESI', () => {
     expect(value('Scoreboard source')?.[1]).toContain('text-name');
     // The pressure lines keep their verdicts.
     expect(html).toContain('<span class="sr-only">Warning</span>');
+    expect(html).toContain('ESI 4xx answers');
+    expect(html).toContain('3 of 60 calls · most from maps · search-characters');
   });
 
   it('says why each empty block is empty', async () => {
@@ -114,7 +120,7 @@ describe('admin ESI', () => {
   });
 
   it('blanks only the card whose read failed', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] endpoints section unavailable']);
     m.endpoints.mockRejectedValue(new Error('offline'));
 
     const html = await page();

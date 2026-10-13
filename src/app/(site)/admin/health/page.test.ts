@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 
 const m = vi.hoisted(() => ({
   lastCronRuns: vi.fn(),
@@ -8,12 +10,11 @@ const m = vi.hoisted(() => ({
   priceRefreshDays: vi.fn(),
   outcomeStats: vi.fn(),
   latency: vi.fn(),
-  queue: vi.fn(),
-  deadLetters: vi.fn(),
+  clientErrors: vi.fn(),
   events: vi.fn(),
 }));
 
-vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => ({ isAdmin: true }) }));
+vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => adminSessionFixture() }));
 vi.mock('next/navigation', () => ({
   unstable_rethrow: () => undefined,
   usePathname: () => '/admin/health',
@@ -28,9 +29,8 @@ vi.mock('../shared-reads', () => ({
   getPriceRefreshDaysShared: m.priceRefreshDays,
   getCapabilityOutcomeStatsShared: m.outcomeStats,
   getCapabilityLatencyShared: m.latency,
-  getEsiRefreshQueueStatsShared: m.queue,
+  getEsiClientErrorsShared: m.clientErrors,
 }));
-vi.mock('@/data/esi-refresh-jobs/queries', () => ({ listDeadLetteredJobs: m.deadLetters }));
 vi.mock('@/data/domain-events/queries', () => ({ listRecentDomainEvents: m.events }));
 
 import AdminHealthPage from './page';
@@ -63,14 +63,16 @@ describe('admin health', () => {
     m.priceRefreshDays.mockResolvedValue([]);
     m.outcomeStats.mockResolvedValue([]);
     m.latency.mockResolvedValue({ p95: 420, slowest: [] });
-    m.queue.mockResolvedValue([]);
-    m.deadLetters.mockResolvedValue([]);
+    m.clientErrors.mockResolvedValue([]);
     m.events.mockResolvedValue([
       {
         id: 1,
         occurredAt: new Date('2026-09-20T18:04:00Z'),
-        eventType: 'esi_budget_guard_exhausted',
-        metadata: { count: 3, windowMinutes: 15, windowStartedAt: '', windowEndedAt: '' },
+        eventType: 'price_refresh_finished',
+        metadata: {
+          outcome: 'degraded', fetched: 200, written: 180, esiCount: 150,
+          fuzzworkFallbackCount: 30, budgetExhausted: true, durationMs: 1500,
+        },
       },
     ]);
   });
@@ -94,7 +96,7 @@ describe('admin health', () => {
     expect(html).toMatch(/data-admin-card="scheduled-tasks" id="scheduled"/);
     expect(m.events).toHaveBeenCalledWith(30);
     expect(html).toContain('2026-09-20 18:04');
-    expect(html).toContain('Public ESI budget exhausted 3 times in 15m');
+    expect(html).toContain('Price refresh degraded: 180/200 rows written');
   });
 
   it('reads scheduled tasks like the overview’s Jobs card', async () => {
@@ -120,22 +122,22 @@ describe('admin health', () => {
     expect(html).toMatch(emptyState('No runs in this period\\.'));
     expect(html.match(emptyState('Search Console not connected\\.'))?.[1]).toBe('text-muted');
     expect(html.match(emptyState('No failures in this period\\.'))?.[1]).toBe('text-isk');
-    expect(html.match(emptyState('No dead-lettered jobs\\.'))?.[1]).toBe('text-isk');
     expect(html.match(emptyState('No operations in this period\\.'))?.[1]).toBe('text-faint');
   });
 
   it('marks only the failed detail of a service level unavailable', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    m.deadLetters.mockRejectedValue(new Error('offline'));
+    silenceConsolePrefixes('error', ['[admin] sli-details.esi-4xx section unavailable']);
+    m.clientErrors.mockRejectedValue(new Error('offline'));
 
     const html = await page();
 
     expect(html).toMatch(/text-tone-orange"[^>]*>(?:(?!<\/svg>).)*<\/svg><div class="min-w-0">Details unavailable\.<\/div>/);
+    expect(html.match(/Details unavailable\./g)).toHaveLength(1);
     expect(html).not.toContain('Unable to load this section.');
   });
 
   it('blanks only the card whose read failed', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] event-log section unavailable']);
     m.events.mockRejectedValue(new Error('offline'));
 
     const html = await page();

@@ -4,7 +4,12 @@ import {
   absorbDoorLeadsNote,
   doorDestination,
 } from '@/data/maps/connection-door-destinations';
-import { hallwayDoor, leadsToFromSystem, replaceDoor } from '@/data/maps/connection-hallway';
+import {
+  hallwayDoor,
+  leadsToFromSystem,
+  replaceDoor,
+  type ConnectionDoorSide,
+} from '@/data/maps/connection-hallway';
 import { isScannerSignatureId, type ScannedRow } from '@/data/maps/scan-parse';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
@@ -14,7 +19,6 @@ import {
   takeIndexedOrThrow,
 } from './indexedQuery';
 import { readTouchingConnections } from './mapConnectionLookup';
-import { findSystem, requireSystemId } from './mapSystemLookup';
 
 export const MAP_SCAN_ROW_LIMIT = 256;
 
@@ -69,18 +73,6 @@ export function requireBoundedSignatureIds(signatureIds: readonly string[]): str
   return normalized;
 }
 
-export async function requireLiveSystem(
-  ctx: MutationCtx,
-  mapId: string,
-  systemId: number,
-): Promise<void> {
-  requireSystemId(systemId);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
-    throw new ConvexError({ code: 'UNKNOWN_SYSTEM' });
-  }
-}
-
 async function readBoundedSignatureRows<T>(
   query: { take: (limit: number) => Promise<T[]> },
   noun: string,
@@ -132,7 +124,7 @@ export function rowMaps<Row extends { signatureId: string }>(
 export function endpointSide(
   connection: Doc<'mapConnections'>,
   systemId: number,
-): 'from' | 'to' | null {
+): ConnectionDoorSide | null {
   if (connection.fromSystemId === systemId) return 'from';
   return connection.toSystemId === systemId ? 'to' : null;
 }
@@ -140,7 +132,7 @@ export function endpointSide(
 export function leadsNotePatch(
   surviving: Doc<'mapConnections'>,
   stubTyped: number | null,
-  attachedSide: 'from' | 'to',
+  attachedSide: ConnectionDoorSide,
 ): Partial<Doc<'mapConnections'>> {
   const door = hallwayDoor(surviving, attachedSide);
   const kept = absorbDoorLeadsNote(

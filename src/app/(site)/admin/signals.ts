@@ -1,4 +1,3 @@
-import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
   capabilitySuccessRate,
   esiAvailability,
@@ -29,9 +28,11 @@ import type {
 } from '@/data/telemetry/types';
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
-import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
+import { adminHref, SCHEDULED_TASKS_ANCHOR } from './admin-sections';
 import { SECTION_LOAD_FAILED } from './load-section';
-import { formatCount, formatQuantity } from '@/lib/format/number';
+import { getOrInsertComputed } from '@/lib/array';
+import { formatCount, formatPct, formatQuantity } from '@/lib/format/number';
+import { DAY_MS } from '@/lib/iso-date';
 
 export interface CronSignals {
   lastRuns: CronLastRun[];
@@ -57,11 +58,14 @@ export function mapLoaded<T, U>(value: Loaded<T>, derive: (loaded: T) => U): Loa
   return value === SECTION_LOAD_FAILED ? SECTION_LOAD_FAILED : derive(value);
 }
 
+/** The capability outcome and latency reads every service level is derived from. */
+export interface SliReads {
+  outcomes: Loaded<CapabilityOutcomeStat[]>;
+  latency: Loaded<CapabilityLatency>;
+}
+
 /** The headline service levels from the capability outcome and latency reads. */
-export function deriveSliSignals(
-  outcomes: Loaded<CapabilityOutcomeStat[]>,
-  latency: Loaded<CapabilityLatency>,
-): SliSignals {
+export function deriveSliSignals({ outcomes, latency }: SliReads): SliSignals {
   return {
     readSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'read')),
     mutationSuccess: mapLoaded(outcomes, (rows) => capabilitySuccessRate(rows, 'mutation')),
@@ -77,24 +81,28 @@ export interface AdminSignals {
   fallback: Loaded<FallbackRateData>;
   budgetExhaustions: Loaded<number>;
   sli: Loaded<SliSignals>;
-  queue: Loaded<EsiRefreshQueueStat[]>;
   statics: Loaded<{ feedVersion: string; totalDifferences: number } | null>;
   releases: Loaded<{ date: string; label: string }[]>;
 }
 
-const HEALTH_PAGE = { label: 'Open health', href: '/admin/health' };
-const ESI_PAGE = { label: 'Open ESI', href: '/admin/esi' };
+// The page each attention item and unread source sends the operator to.
+const PAGE_ACTIONS = {
+  health: { label: 'Open health', href: adminHref('health') },
+  esi: { label: 'Open ESI', href: adminHref('esi') },
+  jobs: { label: 'View jobs', href: adminHref('health', { hash: SCHEDULED_TASKS_ANCHOR }) },
+  statics: { label: 'Open statics', href: adminHref('statics') },
+  staticsReview: { label: 'Review snapshot', href: adminHref('statics') },
+} satisfies Record<string, AttentionItem['action']>;
 
 // Where an operator goes to see a source directly when the overview could not read it.
-const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page: { label: string; href: string } }> = {
-  crons: { label: 'scheduled jobs', page: { label: 'View jobs', href: '/admin/health#scheduled' } },
-  budget: { label: 'ESI error budget', page: ESI_PAGE },
-  fallback: { label: 'price source', page: ESI_PAGE },
-  budgetExhaustions: { label: 'price source', page: ESI_PAGE },
-  sli: { label: 'service levels', page: HEALTH_PAGE },
-  queue: { label: 'refresh queue', page: { label: 'Open queue', href: '/admin/queue' } },
-  statics: { label: 'statics review', page: { label: 'Open statics', href: '/admin/statics' } },
-  releases: { label: 'releases', page: HEALTH_PAGE },
+const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page: AttentionItem['action'] }> = {
+  crons: { label: 'scheduled jobs', page: PAGE_ACTIONS.jobs },
+  budget: { label: 'ESI error budget', page: PAGE_ACTIONS.esi },
+  fallback: { label: 'price source', page: PAGE_ACTIONS.esi },
+  budgetExhaustions: { label: 'price source', page: PAGE_ACTIONS.esi },
+  sli: { label: 'service levels', page: PAGE_ACTIONS.health },
+  statics: { label: 'statics review', page: PAGE_ACTIONS.statics },
+  releases: { label: 'releases', page: PAGE_ACTIONS.health },
 };
 
 function unavailableLine(id: string, label: string): StatusLine {
@@ -168,7 +176,7 @@ export function formatSliValue(key: keyof SliSignals, value: Loaded<number | nul
   if (value === SECTION_LOAD_FAILED) return 'unavailable';
   if (value === null || Number.isNaN(value)) return 'no data';
   if (key === 'latencyP95') return `${formatQuantity(value)} ms`;
-  return `${(value * 100).toFixed(1)}%`;
+  return formatPct(value * 100);
 }
 
 export function sliTargetLabel(key: keyof SliSignals): string {
@@ -221,61 +229,6 @@ export function deriveBudgetStatus(budget: EsiBudgetSnapshot | null): SubsystemS
   };
 }
 
-function elapsedHours(from: Date, now: Date): number {
-  return Math.max(0, (now.getTime() - from.getTime()) / 3_600_000);
-}
-
-function formatHours(hours: number): string {
-  if (hours < 1) return `${Math.floor(hours * 60)}m`;
-  if (hours < 48) return `${Math.floor(hours)}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
-// A live job older than this means owner data is going stale.
-const QUEUE_STALE_HOURS = 6;
-
-export interface QueueSummary {
-  due: number;
-  deadLettered: number;
-  oldestDueHours: number | null;
-}
-
-export function summarizeQueue(stats: EsiRefreshQueueStat[], now: Date): QueueSummary {
-  const live = new Set<string>(LIVE_ESI_REFRESH_JOB_STATUSES);
-  let due = 0;
-  let deadLettered = 0;
-  let oldest: Date | null = null;
-  for (const stat of stats) {
-    if (stat.status === 'dead_lettered') deadLettered += stat.count;
-    if (!live.has(stat.status)) continue;
-    due += stat.count;
-    if (oldest === null || stat.oldestCreatedAt < oldest) oldest = stat.oldestCreatedAt;
-  }
-  return { due, deadLettered, oldestDueHours: oldest === null ? null : elapsedHours(oldest, now) };
-}
-
-export function queueLevel(queue: QueueSummary): StatusLevel {
-  if (queue.deadLettered > 0) return 'red';
-  if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) return 'amber';
-  return 'green';
-}
-
-/** The queue's live and dead-lettered counts, as the overview and health pages show them. */
-export function queueCounts(queue: QueueSummary): string {
-  return `${formatQuantity(queue.due)} active · ${formatQuantity(queue.deadLettered)} dead`;
-}
-
-function queueLine(queue: QueueSummary): StatusLine {
-  return {
-    id: 'queue',
-    label: 'Refresh queue',
-    value: queueCounts(queue),
-    note: queue.oldestDueHours === null ? undefined : `oldest job ${formatHours(queue.oldestDueHours)}`,
-    level: queueLevel(queue),
-    quiet: true,
-  };
-}
-
 type Release = { date: string; label: string };
 
 function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
@@ -287,32 +240,13 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
   if (latest === null) {
     return { id: 'release', label: 'Latest release', value: 'none', level: 'neutral' };
   }
-  const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / 86_400_000));
+  const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / DAY_MS));
   return {
     id: 'release',
     label: 'Latest release',
     value: latest.label,
     note: `${latest.date} · ${days === 0 ? 'today' : `${days}d ago`}`,
     level: 'neutral',
-  };
-}
-
-/** Refresh jobs waiting for the ESI budget to recover. */
-export function heldForBudget(stats: readonly EsiRefreshQueueStat[]): number {
-  return stats
-    .filter((stat) => stat.status === 'deferred_for_budget')
-    .reduce((total, stat) => total + stat.count, 0);
-}
-
-function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
-  if (stats === SECTION_LOAD_FAILED) return unavailableLine('held-for-budget', 'Held for budget');
-  const held = heldForBudget(stats);
-  return {
-    id: 'held-for-budget',
-    label: 'Held for budget',
-    value: formatCount(held, 'job'),
-    level: held > 0 ? 'amber' : 'green',
-    quiet: true,
   };
 }
 
@@ -343,11 +277,6 @@ function cronLines(signals: AdminSignals): StatusLine[] {
   return rows.map(([id, label, key]) => ({ id, label, ...crons[key] }));
 }
 
-function queueStatusLine(signals: AdminSignals): StatusLine {
-  if (signals.queue === SECTION_LOAD_FAILED) return unavailableLine('queue', 'Refresh queue');
-  return queueLine(summarizeQueue(signals.queue, signals.now));
-}
-
 const STATUS_GROUP_LINES: Record<StatusGroupId, (signals: AdminSignals) => StatusLine[]> = {
   app: (signals) => [
     sliLine('readSuccess', 'Page & tool reads', signals.sli),
@@ -359,9 +288,8 @@ const STATUS_GROUP_LINES: Record<StatusGroupId, (signals: AdminSignals) => Statu
     budgetLine(signals.budget),
     sliLine('esiSuccess', 'ESI availability', signals.sli),
     priceSourceLine(signals),
-    heldForBudgetLine(signals.queue),
   ],
-  jobs: (signals) => [...cronLines(signals), queueStatusLine(signals)],
+  jobs: cronLines,
 };
 
 /** One status card's lines; each card reads the same request-cached signals. */
@@ -393,32 +321,9 @@ function staticsAttention(statics: AdminSignals['statics']): AttentionItem[] {
       level: 'amber',
       title: `Wormhole statics feed v${statics.feedVersion} is waiting for review`,
       detail: formatCount(statics.totalDifferences, 'assignment difference'),
-      action: { label: 'Review snapshot', href: '/admin/statics' },
+      action: PAGE_ACTIONS.staticsReview,
     },
   ];
-}
-
-function queueAttention(queue: QueueSummary): AttentionItem[] {
-  const items: AttentionItem[] = [];
-  if (queue.deadLettered > 0) {
-    items.push({
-      id: 'dead-letters',
-      level: 'red',
-      title: `${formatCount(queue.deadLettered, 'refresh job')} dead-lettered`,
-      detail: 'Refresh stopped',
-      action: { label: 'Open queue', href: '/admin/queue' },
-    });
-  }
-  if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) {
-    items.push({
-      id: 'queue-backlog',
-      level: 'amber',
-      title: `Refresh backlog of ${formatCount(queue.due, 'job')}, oldest ${formatHours(queue.oldestDueHours)}`,
-      detail: `target ≤ ${QUEUE_STALE_HOURS}h`,
-      action: { label: 'Open queue', href: '/admin/queue' },
-    });
-  }
-  return items;
 }
 
 function lineAttention(line: StatusLine, action: AttentionItem['action']): AttentionItem[] {
@@ -440,9 +345,7 @@ function unavailableAttention(signals: AdminSignals): AttentionItem[] {
   for (const key of keys) {
     if (signals[key] !== SECTION_LOAD_FAILED) continue;
     const { label, page } = SOURCES[key];
-    const entry = byPage.get(page.href) ?? { page, labels: new Set<string>() };
-    entry.labels.add(label);
-    byPage.set(page.href, entry);
+    getOrInsertComputed(byPage, page.href, () => ({ page, labels: new Set() })).labels.add(label);
   }
   return [...byPage.values()].map(({ page, labels }) => ({
     id: `unavailable:${page.href}`,
@@ -455,16 +358,15 @@ function unavailableAttention(signals: AdminSignals): AttentionItem[] {
 
 export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): AttentionItem[] {
   const actionFor: Record<StatusGroup['id'], AttentionItem['action']> = {
-    app: HEALTH_PAGE,
-    esi: ESI_PAGE,
-    jobs: { label: 'View jobs', href: '/admin/health#scheduled' },
+    app: PAGE_ACTIONS.health,
+    esi: PAGE_ACTIONS.esi,
+    jobs: PAGE_ACTIONS.jobs,
   };
   const statusItems = groups.flatMap((group) =>
     group.lines.flatMap((line) => lineAttention(line, actionFor[group.id])),
   );
   const items = [
     ...statusItems,
-    ...(signals.queue === SECTION_LOAD_FAILED ? [] : queueAttention(summarizeQueue(signals.queue, signals.now))),
     ...staticsAttention(signals.statics),
     ...unavailableAttention(signals),
   ];

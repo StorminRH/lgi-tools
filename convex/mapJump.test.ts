@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { convexTest, type TestConvex } from 'convex-test';
+import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { api, internal } from './_generated/api';
@@ -8,6 +8,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { expectConvexErrorCode, grantMapAccess, type Chain } from './__tests__/convexTest.setup';
 
 const jump = {
   jumpEvidence: internal.mapJumpEvidence.jumpEvidence,
@@ -25,18 +26,6 @@ const ORIGIN = 31_000_001;
 const DESTINATION = 31_000_002;
 const CHARACTER = 90_000_001;
 const OBSERVED_AT = 1_800_000_000_000;
-
-type Chain = TestConvex<typeof schema>;
-
-async function grant(
-  t: Chain,
-  userId: string,
-  roles: ('viewer' | 'editor' | 'admin')[],
-): Promise<void> {
-  await t.run(async (ctx) => {
-    await ctx.db.insert('mapAccess', { mapId: MAP, userId, roles });
-  });
-}
 
 async function seedTrackedTransition(
   t: Chain,
@@ -160,8 +149,8 @@ async function mapState(t: Chain) {
 describe('automatic jump authoring', () => {
   it('returns one access-safe evidence packet and resolves a repeated doorbell exactly once', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
-    await grant(t, VIEWER, ['viewer']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, VIEWER, ['viewer']);
     await seedTrackedTransition(t);
     const candidateId = await seedCandidate(t, 'ABC', 'C247');
 
@@ -290,9 +279,39 @@ describe('automatic jump authoring', () => {
     ).resolves.toEqual({ canEdit: false, connection: null });
   });
 
+  it('converges a transition older than the stamp without authoring or rewinding it', async () => {
+    const t = convexTest(schema, modules);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    const newerAt = OBSERVED_AT + 1_000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: MAP,
+        characterId: CHARACTER,
+        lastProcessedTransitionAt: newerAt,
+      });
+    });
+    const before = await mapState(t);
+
+    expect(
+      await t.mutation(
+        jump.resolveJumpAuthoring,
+        authorArgs({
+          decision: { kind: 'insert', candidateIds: [], survivors: [] },
+        }),
+      ),
+    ).toEqual({ status: 'converged', reason: 'processed' });
+    const after = await mapState(t);
+    expect(after).toEqual(before);
+    expect(after.connections).toEqual([]);
+    expect(after.stamps).toEqual([
+      expect.objectContaining({ lastProcessedTransitionAt: newerAt }),
+    ]);
+  });
+
   it('does not treat static placeholders as jump candidates', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
       mapId: MAP,
@@ -328,7 +347,7 @@ describe('automatic jump authoring', () => {
 
   it('confirms legacy pending survivors and re-associates the destination round trip', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     const firstId = await seedCandidate(t, 'AAA', 'C247');
     const secondId = await seedCandidate(t, 'BBB', null);
@@ -413,7 +432,7 @@ describe('automatic jump authoring', () => {
 
   it('auto-resolves one assumed survivor without durable prompt state', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     const candidateId = await seedCandidate(t, 'AAA', null);
 
@@ -443,7 +462,7 @@ describe('automatic jump authoring', () => {
 
   it('inserts without candidates and converges a reverse crossing onto the same connection', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     const first = await t.mutation(
       jump.resolveJumpAuthoring,
@@ -490,9 +509,9 @@ describe('automatic jump authoring', () => {
 
   it('clears the processed stamp on untrack so a later retrack can author a new transition', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
-    await grant(t, VIEWER, ['viewer']);
-    await grant(t, TRACKER, ['viewer']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, VIEWER, ['viewer']);
+    await grantMapAccess(t, MAP, TRACKER, ['viewer']);
     await seedTrackedTransition(t);
     const args = authorArgs({
       decision: { kind: 'insert', candidateIds: [], survivors: [] },
@@ -545,18 +564,19 @@ describe('automatic jump authoring', () => {
     ).toMatchObject({ status: 'converged' });
     expect((await mapState(t)).connections[0]?.observedMassKg).toBe(20_000_000);
 
-    await expect(
+    await expectConvexErrorCode(
       t.mutation(jump.resolveJumpAuthoring, {
         ...args,
         userId: VIEWER,
         transitionObservedAt: nextObservedAt + 1,
       }),
-    ).rejects.toThrow('FORBIDDEN');
+      'FORBIDDEN',
+    );
   });
 
   it('lapses off-map origins without partial writes', async () => {
     const offMap = convexTest(schema, modules);
-    await grant(offMap, EDITOR, ['editor']);
+    await grantMapAccess(offMap, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(offMap, { placeOrigin: false });
     expect(
       await offMap.mutation(
@@ -575,7 +595,7 @@ describe('automatic jump authoring', () => {
 
   it('authors a new line when the destination or pair is already in trash', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     let trashedPairId = '' as Id<'mapConnections'>;
     await t.run(async (ctx) => {
@@ -622,7 +642,7 @@ describe('automatic jump authoring', () => {
 
   it('resolves a remapped stub without leaving the collapsed pair dying', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     const stubId = await seedCandidate(t, 'ABS-420', 'K162');
     let corpseId = '' as Id<'mapConnections'>;
@@ -681,7 +701,7 @@ describe('automatic jump authoring', () => {
 
   it('ignores forged tracking rows that join to no location document', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', {
@@ -726,7 +746,7 @@ describe('automatic jump authoring', () => {
 
   it('authors one character among many unrelated trackers', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     await t.run(async (ctx) => {
       for (let index = 0; index < 257; index += 1) {
@@ -749,7 +769,7 @@ describe('automatic jump authoring', () => {
 
   it('throws MAP_TOO_LARGE when one character exceeds the jump-tracking cap', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     await t.run(async (ctx) => {
       for (let index = 0; index < 256; index += 1) {
@@ -760,18 +780,52 @@ describe('automatic jump authoring', () => {
         });
       }
     });
-    await expect(
+    await expectConvexErrorCode(
       t.query(jump.jumpEvidence, {
         userId: EDITOR,
         mapId: MAP,
         characterId: CHARACTER,
       }),
-    ).rejects.toThrow('MAP_TOO_LARGE');
+      'MAP_TOO_LARGE',
+    );
+  });
+
+  it('returns empty evidence until a tracked location carries a transition', async () => {
+    const t = convexTest(schema, modules);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
+    const readEvidence = () =>
+      t.query(jump.jumpEvidence, {
+        userId: EDITOR,
+        mapId: MAP,
+        characterId: CHARACTER,
+      });
+    const empty = {
+      transition: null,
+      lastProcessedTransitionAt: null,
+      originLive: false,
+      scannedTypeCodes: [],
+      candidates: [],
+    };
+    expect(await readEvidence()).toEqual({ canEdit: true, tracked: false, ...empty });
+
+    await seedTrackedTransition(t);
+    await t.run(async (ctx) => {
+      const location = requiredRow(
+        await ctx.db
+          .query('characterLocation')
+          .withIndex('by_user_character', (q) =>
+            q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+          )
+          .unique(),
+      );
+      await ctx.db.patch(location._id, { transitionObservedAt: undefined });
+    });
+    expect(await readEvidence()).toEqual({ canEdit: true, tracked: true, ...empty });
   });
 
   it('returns processed evidence without origin candidates', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, EDITOR, ['editor']);
+    await grantMapAccess(t, MAP, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     await t.mutation(
       jump.resolveJumpAuthoring,

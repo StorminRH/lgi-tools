@@ -1,11 +1,13 @@
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
+import { EVE_SCOPES } from '@/config/eve-scopes';
 import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 
 const m = vi.hoisted(() => ({
-  getFullSession: vi.fn(),
+  getFullSession: vi.fn<() => Promise<BetterAuthSession | null>>(),
   listLinkedCharacters: vi.fn(),
   redirect: vi.fn((to: string) => {
     throw new Error(`NEXT_REDIRECT ${to}`);
@@ -13,6 +15,8 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock('@/composition/session', () => ({ getFullSession: m.getFullSession }));
+// requireSessionPage reads the session above; keep Better Auth itself out of the import graph.
+vi.mock('@/composition/auth', () => ({ auth: {} }));
 vi.mock('@/platform/auth/linked-characters', () => ({ listLinkedCharacters: m.listLinkedCharacters }));
 vi.mock('next/navigation', () => ({ redirect: m.redirect }));
 vi.mock('next/link', () => ({
@@ -43,7 +47,7 @@ async function renderContent(error?: string): Promise<string> {
 }
 
 test('lists each linked character with its health, access, and the actions it allows', async () => {
-  m.getFullSession.mockResolvedValue({ user: { id: 'user-1' }, characterId: 90_000_001 });
+  m.getFullSession.mockResolvedValue(sessionFixture({ user: { id: 'user-1' }, characterId: 90_000_001 }));
   m.listLinkedCharacters.mockResolvedValue([
     linked(90_000_001, 'Aurel Vantesse', { authorizationDelayed: true }),
     linked(90_000_002, 'Bram Oskarsen', { scope: null, hasRefreshToken: false }),
@@ -59,6 +63,8 @@ test('lists each linked character with its health, access, and the actions it al
   expect(active).toContain('Verification delayed');
   expect(active).toContain('Access resumes when verification succeeds.');
   expect(active).toContain('Granted access');
+  // The disclosure ▾ stays out of the summary's accessible name.
+  expect(active).toContain('<span data-chevron="true" aria-hidden="true"');
   expect(active).not.toContain('Make active');
   expect(active).not.toContain('>Reconnect<');
 
@@ -72,7 +78,7 @@ test('lists each linked character with its health, access, and the actions it al
 });
 
 test('keeps the only character linked and explains a failed link', async () => {
-  m.getFullSession.mockResolvedValue({ user: { id: 'user-2' }, characterId: 90_000_003 });
+  m.getFullSession.mockResolvedValue(sessionFixture({ user: { id: 'user-2' }, characterId: 90_000_003 }));
   m.listLinkedCharacters.mockResolvedValue([linked(90_000_003, 'Kessa Draymoor', { scope: 'publicData' })]);
 
   const html = await renderContent('last_character');
@@ -81,6 +87,8 @@ test('keeps the only character linked and explains a failed link', async () => {
   expect(html).toContain('Missing scopes');
   expect(html).toContain('disabled=""');
   expect(await renderContent('something_else')).toContain('Linking was cancelled or failed.');
+  // A prototype key is just another unknown code, not an inherited function in the Callout.
+  expect(await renderContent('constructor')).toContain('Linking was cancelled or failed.');
 
   m.getFullSession.mockResolvedValue(null);
   await expect(renderContent()).rejects.toThrow('NEXT_REDIRECT /?auth_error=login_required');

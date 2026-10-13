@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useMemo, type ReactNode } from 'react';
+import type { Neighbours } from '@/lib/graph';
 import type { ChainEdge } from '../chain/nodes';
 import {
   EMPTY_OUTBOUND_ARROWS,
@@ -17,7 +18,7 @@ import {
 export interface OutboundArrowProviderProps {
   readonly drawnSystemIds: ReadonlySet<number>;
   readonly edges: readonly ChainEdge[];
-  readonly neighboursOf: (systemId: number) => readonly number[];
+  readonly neighboursOf: Neighbours;
   readonly children: ReactNode;
 }
 
@@ -27,9 +28,9 @@ export function OutboundArrowProvider({
   neighboursOf,
   children,
 }: OutboundArrowProviderProps) {
-  const presence = useContext(MapPresenceContext)?.presence;
+  const presence = useContext(MapPresenceContext);
   const pilotKey = useMemo(() => {
-    if (presence === undefined || presence.size === 0) return '';
+    if (presence === null || presence.size === 0) return '';
     return arrowPilotKey(
       [...presence.entries()]
         .map(([systemId]) => ({

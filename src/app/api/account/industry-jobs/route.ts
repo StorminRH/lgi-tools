@@ -9,10 +9,10 @@ import { apiResponse } from '@/transport/api-response';
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return apiResponse(industryJobsEndpoint, 200, { characters: [], names: {} });
+    return apiResponse(industryJobsEndpoint, 200, { characters: [], names: {}, refreshing: false });
   }
   const result = await measureOwnedDataRead({
-    endpoint: '/api/account/industry-jobs',
+    endpoint: industryJobsEndpoint,
     read: () => getJobsForUserOnView(userId),
     returned: (value) => value.characters.length,
   });

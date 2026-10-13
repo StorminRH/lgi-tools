@@ -1,3 +1,4 @@
+import { normalizeCharacterRole } from './admin-policy';
 import type { ActiveCharacter } from './linked-characters';
 import type { CharacterRole } from './types';
 
@@ -11,7 +12,7 @@ export function deriveSessionIdentity<
   isAdmin: (characterId: number | null, role: CharacterRole) => boolean;
 }) {
   const { user, session, active, isAdmin } = params;
-  const role = (user.role as CharacterRole) ?? 'USER';
+  const role = normalizeCharacterRole(user.role);
   const characterId = active?.characterId ?? null;
   return {
     user,

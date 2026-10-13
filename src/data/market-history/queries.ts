@@ -1,10 +1,12 @@
 import { asc, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
+import { storedExpiry, untilExpires } from '@/data/esi-store';
 import { db as defaultDb } from '@/db';
+import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { computeHistoryInputs } from './aggregate';
-import { historyTag } from './constants';
-import { marketHistory, marketHistoryMeta } from './schema';
+import { historyKey, MARKET_HISTORY_TAG } from './keys';
+import { marketHistory } from './schema';
 import type { HistoryDailyRow, MarketHistoryInputs } from './types';
 
 export async function getStoredHistory(
@@ -25,45 +27,24 @@ export async function getStoredHistory(
     .where(inArray(marketHistory.typeId, typeIds))
     .orderBy(asc(marketHistory.date));
 
-  const out = new Map<number, HistoryDailyRow[]>();
-  for (const r of rows) {
-    const list = out.get(r.typeId) ?? [];
-    list.push({
-      date: r.date,
-      average: r.average,
-      highest: r.highest,
-      lowest: r.lowest,
-      volume: r.volume,
-      orderCount: r.orderCount,
-    });
-    out.set(r.typeId, list);
-  }
-  return out;
+  return groupBy(rows, (r) => r.typeId, ({ typeId: _typeId, ...day }): HistoryDailyRow => day);
 }
 
-export async function getHistoryMeta(
-  typeIds: number[],
-): Promise<Map<number, { staleAfter: Date }>> {
-  if (typeIds.length === 0) return new Map();
-  const rows = await defaultDb
-    .select({
-      typeId: marketHistoryMeta.typeId,
-      staleAfter: marketHistoryMeta.staleAfter,
-    })
-    .from(marketHistoryMeta)
-    .where(inArray(marketHistoryMeta.typeId, typeIds));
-  const out = new Map<number, { staleAfter: Date }>();
-  for (const r of rows) out.set(r.typeId, { staleAfter: r.staleAfter });
-  return out;
-}
-
+/**
+ * The scoring inputs of each type's stored history, cached across instances
+ * under the dataset's tag until the earliest of the requested series
+ * expires; a history commit clears the tag sooner.
+ */
 export async function getMarketHistoryInputs(
   typeIds: number[],
 ): Promise<MarketHistoryInputs[]> {
-  'use cache';
-  cacheLife('hours');
-  for (const id of typeIds) cacheTag(historyTag(id));
-  const stored = await withColdStartRetry(() => getStoredHistory(typeIds));
+  'use cache: remote';
+  cacheTag(MARKET_HISTORY_TAG);
+  const [stored, expiresAt] = await Promise.all([
+    withColdStartRetry(() => getStoredHistory(typeIds)),
+    storedExpiry(typeIds.map(historyKey)),
+  ]);
+  cacheLife(untilExpires(expiresAt));
   const out: MarketHistoryInputs[] = [];
   for (const id of typeIds) {
     const rows = stored.get(id);

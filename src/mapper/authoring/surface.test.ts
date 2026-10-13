@@ -1,18 +1,17 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-
-const ROOT = 'src/mapper/authoring';
+import { listSourceFiles, stripComments } from '@/lib/__tests__/source-scan';
 
 function authoringFiles(): string[] {
-  return readdirSync(ROOT, { recursive: true, encoding: 'utf8' })
-    .filter((name) => /\.tsx?$/.test(name) && !name.includes('.test.'))
-    .map((name) => name.replaceAll('\\', '/'));
+  return listSourceFiles({
+    roots: ['src/mapper/authoring'],
+    extensions: ['.ts', '.tsx'],
+    skipSuffixes: ['.test.ts', '.test.tsx'],
+  });
 }
 
-function sourceOf(relative: string): string {
-  return readFileSync(`${ROOT}/${relative}`, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+function sourceOf(file: string): string {
+  return stripComments(readFileSync(file, 'utf8'));
 }
 
 describe('authoring surface inspection', () => {

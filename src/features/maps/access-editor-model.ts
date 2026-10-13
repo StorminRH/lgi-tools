@@ -1,9 +1,17 @@
-import type { CreateMapRequest } from '@/data/maps/api-contract';
-import type {
-  CorporationAccessOption,
-  MapAccessOwnerType,
-  MapRole,
+import {
+  MIN_CHARACTER_SEARCH_LENGTH,
+  type CreateMapRequest,
+  type SearchCharactersResponse,
+} from '@/data/maps/api-contract';
+import {
+  isMapCreateRole,
+  MAP_CREATE_ROLES,
+  MAP_ROLES,
+  type CorporationAccessOption,
+  type MapAccessOwnerType,
+  type MapRole,
 } from '@/data/maps/access-contract';
+import type { SearchAnswer } from '@/platform/search/use-source-search';
 
 export type AccessEditorMode = 'create' | 'manage';
 
@@ -18,8 +26,6 @@ export interface AccessGrantDraft extends AccessPrincipalOption {
   readonly role: MapRole | null;
 }
 
-const CREATE_ROLES = ['viewer', 'editor'] as const;
-const MANAGE_ROLES = ['viewer', 'editor', 'admin'] as const;
 const MAP_ROLE_LABELS: Readonly<Record<MapRole, string>> = {
   viewer: 'Read-only',
   editor: 'Write',
@@ -31,7 +37,7 @@ export function mapRoleLabel(role: MapRole): string {
 }
 
 export function accessRolesForMode(mode: AccessEditorMode): readonly MapRole[] {
-  return mode === 'create' ? CREATE_ROLES : MANAGE_ROLES;
+  return mode === 'create' ? MAP_CREATE_ROLES : MAP_ROLES;
 }
 
 export function accessPrincipalKey(
@@ -47,7 +53,6 @@ export function corporationAccessPrincipal(
     ownerType: 'corporation',
     ownerId: corporation.corporationId,
     name: corporation.name,
-    imageUrl: corporation.logoUrl,
   };
 }
 
@@ -92,26 +97,15 @@ export function setAccessDraftRole(
   );
 }
 
-export function accessDraftsComplete(
-  mode: AccessEditorMode,
-  drafts: readonly AccessGrantDraft[],
-): boolean {
-  const roles = accessRolesForMode(mode);
-  return drafts.every((draft) => draft.role !== null && roles.includes(draft.role));
-}
-
 export function createMapGrantsFromDrafts(
   drafts: readonly AccessGrantDraft[],
 ): CreateMapRequest['grants'] | null {
-  if (!accessDraftsComplete('create', drafts)) return null;
-  return drafts.map((draft) => {
-    const role = draft.role as 'viewer' | 'editor';
-    return {
-      ownerType: draft.ownerType,
-      ownerId: draft.ownerId,
-      role,
-    };
-  });
+  const grants: CreateMapRequest['grants'] = [];
+  for (const draft of drafts) {
+    if (!isMapCreateRole(draft.role)) return null;
+    grants.push({ ownerType: draft.ownerType, ownerId: draft.ownerId, role: draft.role });
+  }
+  return grants;
 }
 
 export type PreparedMapCreation =
@@ -150,7 +144,7 @@ export function prepareMapCreation(
   if (grants === null) {
     return {
       ok: false,
-      message: 'Choose Read-only or Write for every selected principal.',
+      message: 'Choose Read-only or Write for everyone on the access list.',
     };
   }
   return {
@@ -164,4 +158,30 @@ export function characterSearchPopupOpen(
   availableResultCount: number,
 ): boolean {
   return requestedOpen && availableResultCount > 0;
+}
+
+/** A character search's outcome: unavailable, or its results in typeahead or exact-name mode. */
+export interface CharacterSearchState {
+  readonly failed: boolean;
+  readonly mode: SearchCharactersResponse['mode'] | null;
+  readonly results: readonly SearchCharactersResponse['results'][number][];
+}
+
+const NO_CHARACTER_SEARCH: CharacterSearchState = { failed: false, mode: null, results: [] };
+
+/**
+ * What the character search shows for the normalized `search`. Only an answer
+ * to that very search counts, so an edit that leaves it unchanged (a trailing
+ * space, typing past the length cap) keeps the results, and any other edit
+ * hides them until its own answer lands. A search long enough to send is busy
+ * until then; a shorter one has no answer to wait for.
+ */
+export function characterSearchView(
+  search: string,
+  answer: SearchAnswer<CharacterSearchState | null> | null,
+): CharacterSearchState & { readonly busy: boolean } {
+  if (answer !== null && answer.query === search) {
+    return { busy: false, ...(answer.result ?? NO_CHARACTER_SEARCH) };
+  }
+  return { busy: search.length >= MIN_CHARACTER_SEARCH_LENGTH, ...NO_CHARACTER_SEARCH };
 }

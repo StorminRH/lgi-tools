@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
-const { chain, state } = vi.hoisted(() => {
-  const state = { results: [] as unknown[] };
-  const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
-  };
-  for (const m of ['select', 'from', 'where', 'limit']) chain[m] = () => chain;
-  return { chain, state };
+const { chain } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
 });
 vi.mock('@/db', () => ({ db: chain }));
 
@@ -18,42 +15,26 @@ vi.mock('./token-crypto', () => ({
 
 const revokeEveRefreshTokenMock = vi.fn();
 vi.mock('./eve-sso', () => ({
-  EVE_PROVIDER_ID: 'eve',
   refreshEveToken: vi.fn(),
   revokeEveRefreshToken: (input: unknown) => revokeEveRefreshTokenMock(input),
 }));
 
-vi.mock('@/lib/env', () => ({
-  requireEnv: (k: string) => `env:${k}`,
-  readEnv: (k: string) => `env:${k}`,
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: vi.fn().mockResolvedValue(undefined),
-}));
-
 import { revokeStoredCharacterToken } from './eve-token-service';
 
-
 beforeEach(() => {
-  state.results = [];
   decryptTokenMock.mockReset();
   revokeEveRefreshTokenMock.mockReset();
   revokeEveRefreshTokenMock.mockResolvedValue({ ok: true });
 });
 
 describe('revokeStoredCharacterToken', () => {
-  it('revokes the decrypted refresh token at EVE with the confidential-client creds', async () => {
-    state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
+  it('revokes the decrypted refresh token at EVE', async () => {
     decryptTokenMock.mockReturnValue('plain-refresh');
 
     await revokeStoredCharacterToken('cipher');
 
     expect(decryptTokenMock).toHaveBeenCalledWith('cipher');
-    expect(revokeEveRefreshTokenMock).toHaveBeenCalledWith({
-      refreshToken: 'plain-refresh',
-      clientId: 'env:EVE_CLIENT_ID',
-      clientSecret: 'env:EVE_CLIENT_SECRET',
-    });
+    expect(revokeEveRefreshTokenMock).toHaveBeenCalledWith({ refreshToken: 'plain-refresh' });
   });
 
   it('skips the revoke when there is no plaintext refresh token', async () => {
@@ -67,9 +48,12 @@ describe('revokeStoredCharacterToken', () => {
   });
 
   it('never throws when the revoke itself fails (best-effort — the purge must complete)', async () => {
-    state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
+    const errors = silenceConsolePrefixes('error', ['[eve-token] revoke failed']);
+    const down = new Error('CCP down');
     decryptTokenMock.mockReturnValue('plain-refresh');
-    revokeEveRefreshTokenMock.mockRejectedValue(new Error('CCP down'));
+    revokeEveRefreshTokenMock.mockRejectedValue(down);
     await expect(revokeStoredCharacterToken('cipher')).resolves.toBeUndefined();
+    expect(errors).toHaveBeenCalledExactlyOnceWith('[eve-token] revoke failed', down);
+    errors.mockRestore();
   });
 });

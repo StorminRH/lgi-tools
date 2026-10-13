@@ -11,6 +11,7 @@ import { SiteCard } from './components/SiteCard';
 export {
   ScannerEstIskCell,
   ScannerLivePricesProvider,
+  useScannerEstIskSum,
 } from './components/ScannerLivePrices';
 
 export { useSiteCatalogue } from './site-catalogue';
@@ -29,17 +30,13 @@ async function loadWidgetState(
   siteId: number,
   signal: AbortSignal,
 ): Promise<WidgetState> {
-  try {
-    const result = await apiFetch(siteDetailEndpoint, {
-      params: { id: siteId },
-      signal,
-    });
-    return result.ok
-      ? { siteId, status: 'ready', site: result.data }
-      : { siteId, status: 'error' };
-  } catch {
-    return { siteId, status: 'error' };
-  }
+  const result = await apiFetch(siteDetailEndpoint, {
+    params: { id: siteId },
+    signal,
+  });
+  return result.ok
+    ? { siteId, status: 'ready', site: result.data }
+    : { siteId, status: 'error' };
 }
 
 function WidgetContent({ state }: { state: WidgetState }) {

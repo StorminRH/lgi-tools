@@ -1,25 +1,31 @@
-import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
+import { storedRowJoin } from '@/data/esi-store';
+import { esiResponses } from '@/data/esi-store/schema';
 import {
   enqueuePendingMapAccessSelection,
   type PendingMapAccessChange,
 } from '@/data/maps/authorization-sql';
 import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
-import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
-import { AFFILIATION_FRESHNESS } from './affiliation-policy';
+import { AFFILIATION_ROUTE } from './affiliation-key';
+import { authorizationFailureCutoff } from './authorization-policy';
+import { authorizationFailureCurrent } from './authorization-store';
 import type { AffiliationRow } from './affiliation-source';
-import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
-import { EVE_PROVIDER_ID } from './eve-sso';
+import { characterProfileJoin, linkedCharacterIds, mapLinkedRows } from './eve-account-shared';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 
+/** One linked character's stored affiliation, with the expiry of the answer it came from; null means due. */
 export interface CachedAffiliation {
   characterId: number;
   corporationId: number | null;
   allianceId: number | null;
   factionId: number | null;
   refreshedAt: Date | null;
+  expiresAt: Date | null;
   sharedAccessEligible: boolean;
 }
 
@@ -32,6 +38,7 @@ function rowToCachedAffiliation(
     allianceId: number | null;
     factionId: number | null;
     refreshedAt: Date | null;
+    expiresAt: Date | null;
     sharedAccessEligible: boolean;
   },
 ): CachedAffiliation {
@@ -41,6 +48,7 @@ function rowToCachedAffiliation(
     allianceId: row.allianceId ?? null,
     factionId: row.factionId ?? null,
     refreshedAt: row.refreshedAt ?? null,
+    expiresAt: row.expiresAt ?? null,
     sharedAccessEligible: row.sharedAccessEligible,
   };
 }
@@ -61,44 +69,19 @@ export async function getUsersAffiliations(
       allianceId: characters.allianceId,
       factionId: characters.factionId,
       refreshedAt: characters.affiliationRefreshedAt,
+      expiresAt: esiResponses.expiresAt,
       sharedAccessEligible: sql<boolean>`${and(
         isNotNull(account.refreshToken),
-        or(
-          isNull(account.authorizationFailureFirstAt),
-          gt(account.authorizationFailureFirstAt, new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS)),
-        ),
+        authorizationFailureCurrent(authorizationFailureCutoff()),
       )}`,
     })
     .from(account)
     .leftJoin(characters, characterProfileJoin)
+    .leftJoin(esiResponses, storedRowJoin(AFFILIATION_ROUTE, 'character', characters.characterId))
     .where(and(inArray(account.userId, [...userIds]), eq(account.providerId, EVE_PROVIDER_ID)))
     .orderBy(asc(account.userId), asc(account.accountId));
 
-  return rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null ? [] : [{ userId: r.userId, ...rowToCachedAffiliation(characterId, r) }];
-  });
-}
-
-export async function listStaleLinkedCharacterIds(): Promise<number[]> {
-  const cutoff = new Date(Date.now() - AFFILIATION_FRESHNESS.ttlMs);
-  const rows = await db
-    .selectDistinct({ accountId: account.accountId })
-    .from(account)
-    .leftJoin(characters, characterProfileJoin)
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        or(
-          isNull(characters.affiliationRefreshedAt),
-          lt(characters.affiliationRefreshedAt, cutoff),
-        ),
-      ),
-    );
-  return rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null ? [] : [characterId];
-  });
+  return mapLinkedRows(rows, (characterId, r) => ({ userId: r.userId, ...rowToCachedAffiliation(characterId, r) }));
 }
 
 export async function listLinkedCharacterIdsInCorporation(corporationId: number): Promise<number[]> {
@@ -107,10 +90,7 @@ export async function listLinkedCharacterIdsInCorporation(corporationId: number)
     .from(account)
     .innerJoin(characters, characterProfileJoin)
     .where(and(eq(account.providerId, EVE_PROVIDER_ID), eq(characters.corporationId, corporationId)));
-  return rows.flatMap((r) => {
-    const characterId = parseLinkedAccountId(r.accountId);
-    return characterId === null ? [] : [characterId];
-  });
+  return linkedCharacterIds(rows);
 }
 
 function formatAffiliationObservedAt(observedAt: Date | string): string {
@@ -119,11 +99,10 @@ function formatAffiliationObservedAt(observedAt: Date | string): string {
 }
 
 export async function captureAffiliationObservedAt(): Promise<string> {
-  const result = await db.execute<{ now: string }>(sql`
+  const [row] = await executeRows<{ now: string }>(db, sql`
     SELECT to_char(timezone('utc', clock_timestamp()), 'YYYY-MM-DD HH24:MI:SS.US') AS now
   `);
-  const rows = Array.isArray(result) ? result : result.rows;
-  const now = rows[0]?.now;
+  const now = row?.now;
   if (typeof now !== 'string' || now.length === 0) {
     throw new Error('Affiliation observation clock returned an invalid timestamp.');
   }
@@ -140,11 +119,10 @@ export async function updateAffiliations(
   if (rows.length === 0) return { refreshed: 0, accessChanged: false };
   const incoming = [...new Map(rows.map((row) => [row.characterId, row])).values()];
   const observedIso = formatAffiliationObservedAt(observedAt);
-  const ttlSeconds = AFFILIATION_FRESHNESS.ttlMs / 1000;
-  const result = await db.execute<{
+  const [persisted] = await executeRows<{
     refreshed: number;
     accessChanged: boolean;
-  }>(sql`
+  }>(db, sql`
     WITH incoming AS (
       SELECT * FROM jsonb_to_recordset(${JSON.stringify(incoming)}::jsonb)
         AS r("characterId" bigint, "corporationId" bigint, "allianceId" bigint, "factionId" bigint)
@@ -165,7 +143,6 @@ export async function updateAffiliations(
     ), changed AS (
       SELECT * FROM updated WHERE previous_corporation_id IS DISTINCT FROM corporation_id
         OR previous_refreshed_at IS NULL
-        OR previous_refreshed_at < (${observedIso}::timestamp - make_interval(secs => ${ttlSeconds}))
     ), queued AS (
       ${enqueuePendingMapAccessSelection(sql`
         SELECT DISTINCT grants.map_id FROM (
@@ -181,10 +158,9 @@ export async function updateAffiliations(
            EXISTS (SELECT 1 FROM queued) AS "accessChanged"
     FROM updated
   `);
-  const persisted = Array.isArray(result) ? result : result.rows;
   return {
-    accessChanged: persisted[0]?.accessChanged ?? false,
-    refreshed: persisted[0]?.refreshed ?? 0,
+    accessChanged: persisted?.accessChanged ?? false,
+    refreshed: persisted?.refreshed ?? 0,
   };
 }
 

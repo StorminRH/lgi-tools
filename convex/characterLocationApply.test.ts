@@ -334,6 +334,42 @@ describe('characterLocationApply.finishSync (apply)', () => {
     });
   });
 
+  // A racing run can report a system change into the system already stored.
+  // It still writes a new transition epoch, which jump processing keys on.
+  it('advances the transition epoch for a system change into the stored system', async () => {
+    const t = convexTest(schema, modules);
+    await seedSyncState(t);
+    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_142,
+          stationId: null,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: true,
+          etagLocation: 'loc',
+          etagShip: 'ship',
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    expect(await readDoc(t)).toMatchObject({
+      solarSystemId: 30_000_142,
+      shipTypeId: 670,
+      prevSolarSystemId: 30_000_142,
+      prevFresh: false,
+      transitionObservedAt: NOW,
+      observedAt: NOW,
+      etagLocation: 'loc',
+      etagShip: 'ship',
+    });
+  });
+
   it('stamps this run\'s covered set from clean results only (304 included)', async () => {
     const t = convexTest(schema, modules);
     await seedSyncState(t);

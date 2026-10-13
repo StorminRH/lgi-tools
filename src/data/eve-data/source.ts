@@ -20,28 +20,7 @@ const CCP_SDE_LATEST_ZIP_URL = `${CCP_SDE_BASE}/eve-online-static-data-latest-js
 
 const CCP_SDE_LATEST_MANIFEST_URL = `${CCP_SDE_BASE}/tranquility/latest.jsonl`;
 
-export type SdeJsonlName =
-  | 'categories'
-  | 'groups'
-  | 'types'
-  | 'dogmaAttributes'
-  | 'typeDogma'
-  | 'blueprints'
-  | 'mapRegions'
-  | 'mapConstellations'
-  | 'mapSolarSystems'
-  | 'mapStargates'
-  | 'mapSecondarySuns'
-  | 'npcStations'
-  | 'stationOperations'
-  | 'stationServices'
-  | 'dogmaEffects'
-  | 'industryTargetFilters'
-  | 'industryModifierSources'
-  | 'industryAssemblyLines'
-  | 'industryInstallationTypes';
-
-const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
+const SDE_JSONL_NAMES = [
   'categories',
   'groups',
   'types',
@@ -63,6 +42,9 @@ const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'industryInstallationTypes',
 ] as const;
 
+/** One SDE JSONL file the ingest extracts; derived from the extract list, so a name is never declared without its file. */
+export type SdeJsonlName = (typeof SDE_JSONL_NAMES)[number];
+
 export type SdeJsonlPaths = Record<SdeJsonlName, string>;
 
 const JSONL_CACHE_DIR = join(tmpdir(), 'lgi-sde-jsonl');
@@ -71,16 +53,11 @@ function localJsonlPathFor(name: SdeJsonlName): string {
   return join(JSONL_CACHE_DIR, `${name}.jsonl`);
 }
 
-async function streamToFileAtomic(
-  body: ReadableStream<Uint8Array>,
-  dest: string,
-): Promise<void> {
+/** Pipes `source` into a `.tmp` sibling and renames it onto `dest`, removing the partial file and rethrowing when the pipe fails. */
+async function pipeToFileAtomic(source: Readable, dest: string): Promise<void> {
   const tmp = `${dest}.tmp`;
   try {
-    await pipeline(
-      Readable.fromWeb(body as unknown as NodeWebReadableStream<Uint8Array>),
-      createWriteStream(tmp),
-    );
+    await pipeline(source, createWriteStream(tmp));
     await rename(tmp, dest);
   } catch (err) {
     await unlink(tmp).catch(() => undefined);
@@ -99,7 +76,10 @@ async function downloadZipTo(dest: string): Promise<void> {
       `Fetch failed for SDE JSONL zip: ${res.status} ${res.statusText}`,
     );
   }
-  await streamToFileAtomic(res.body, dest);
+  await pipeToFileAtomic(
+    Readable.fromWeb(res.body as unknown as NodeWebReadableStream<Uint8Array>),
+    dest,
+  );
 }
 
 async function extractEntries(
@@ -136,9 +116,7 @@ async function extractEntries(
             return;
           }
           readStream.on('error', fail);
-          const tmp = `${dest}.tmp`;
-          pipeline(readStream, createWriteStream(tmp))
-            .then(() => rename(tmp, dest))
+          pipeToFileAtomic(readStream, dest)
             .then(() => {
               remaining.delete(entry.fileName);
               if (remaining.size === 0) {
@@ -148,10 +126,7 @@ async function extractEntries(
                 zipfile.readEntry();
               }
             })
-            .catch((pErr) => {
-              unlink(tmp).catch(() => undefined);
-              fail(pErr);
-            });
+            .catch(fail);
         });
       });
 

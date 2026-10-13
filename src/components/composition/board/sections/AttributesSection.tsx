@@ -3,11 +3,13 @@
 import { TypeIcon } from '@/components/type-icon';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
-import { eyebrow } from '@/components/ui/type-roles';
-import type { BoardCharacter } from '@/composition/board/api-contract';
+import { SectionPanel } from '@/components/ui/section-panel';
+import { StatFigure } from '@/components/ui/stat-figure';
+import type { BoardAttributesData, BoardCharacter, BoardImplantsData } from '@/composition/board/api-contract';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
+import { formatCount } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
-import { SectionPanel, SectionBody } from '../SectionBody';
+import { SectionBody, SectionNote } from '../SectionBody';
 
 const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   intelligence: 'Intelligence',
@@ -16,9 +18,6 @@ const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   willpower: 'Willpower',
   charisma: 'Charisma',
 };
-
-type Attributes = Extract<BoardCharacter['attributes'], { state: 'ready' }>['data'];
-type Implants = Extract<BoardCharacter['implants'], { state: 'ready' }>['data'];
 
 export function AttributesSection({
   attributes,
@@ -38,22 +37,19 @@ export function AttributesSection({
   );
 }
 
-function AttributeGrid({ attributes }: { attributes: Attributes }) {
+function AttributeGrid({ attributes }: { attributes: BoardAttributesData }) {
   return (
     <div className="@container flex flex-col gap-3 px-3.5 py-3">
       <dl className="grid grid-cols-3 gap-x-4 gap-y-2.5 @xl:grid-cols-5">
         {attributes.values.map((value) => (
-          <div key={value.key} className="flex flex-col gap-0.5">
-            <dt className={eyebrow({ size: 'micro' })}>{ATTRIBUTE_LABEL[value.key]}</dt>
-            <dd className="font-data text-h3 tabular-nums text-name">
-              {value.base + value.implant}
-              {value.implant > 0 && <span className="ml-1 text-micro text-isk">(+{value.implant})</span>}
-            </dd>
-          </div>
+          <StatFigure key={value.key} label={ATTRIBUTE_LABEL[value.key]}>
+            {value.base + value.implant}
+            {value.implant > 0 && <span className="ml-1 text-micro text-isk">(+{value.implant})</span>}
+          </StatFigure>
         ))}
       </dl>
       <p className="font-data text-micro text-muted">
-        {attributes.bonusRemaps} bonus {attributes.bonusRemaps === 1 ? 'remap' : 'remaps'} ·{' '}
+        {formatCount(attributes.bonusRemaps, 'bonus remap')} ·{' '}
         {attributes.nextRemapDate !== null
           ? `next remap ${formatUtcDate(attributes.nextRemapDate)}`
           : 'remap available now'}
@@ -62,9 +58,9 @@ function AttributeGrid({ attributes }: { attributes: Attributes }) {
   );
 }
 
-function ImplantList({ implants }: { implants: Implants }) {
+function ImplantList({ implants }: { implants: BoardImplantsData }) {
   if (implants.implants.length === 0) {
-    return <p className="px-3.5 py-2.5 text-ui text-faint">No implants plugged in.</p>;
+    return <SectionNote>No implants plugged in.</SectionNote>;
   }
   return (
     <div className="pb-1">

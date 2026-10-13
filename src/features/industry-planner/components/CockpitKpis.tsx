@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { cn } from '@/components/ui/cn';
+import { HelpPopover } from '@/components/ui/help-popover';
 import { LivePrice } from '@/components/ui/live-price';
 import { PriceConfidence } from '@/components/ui/price-confidence';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
@@ -10,7 +11,7 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
-import { formatPct } from '@/lib/format/number';
+import { formatPct, formatQuantity, formatSigned } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
 import {
   cockpitMarginView,
@@ -22,17 +23,16 @@ import {
 import { type MarginMode } from '../cockpit-margin';
 import type { CostBasis } from '../cost-basis-view';
 import { timeLeverRows } from '../time-lever-rows';
+import { typeNamer } from '../type-name';
 import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { hasUnpricedInputs } from '../fee-breakdown';
 import { FeeBreakdownPanel } from './FeeBreakdownPanel';
-import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
+import { KpiHead, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { LoadFailed } from '@/components/ui/load-failed';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 import { useSettledMargin } from './use-settled-margin';
-
-export type { MarginMode };
 
 function GrossNetToggle({
   showNet,
@@ -80,15 +80,15 @@ function RawItemToggle({
 
 function InputCostHelp({ bases }: { bases: { batched: number; marginal: number } | null }) {
   return (
-    <KpiHelp label="How input cost is computed">
+    <HelpPopover label="How input cost is computed">
       <PopoverHeading>Input cost</PopoverHeading>
-      <PopoverRow label="Raw">{bases ? formatIsk(bases.batched) : '—'}</PopoverRow>
-      <PopoverRow label="Item">{bases ? formatIsk(bases.marginal) : '—'}</PopoverRow>
+      <PopoverRow label="Raw">{formatIsk(bases?.batched ?? null)}</PopoverRow>
+      <PopoverRow label="Item">{formatIsk(bases?.marginal ?? null)}</PopoverRow>
       <p className="max-w-[240px] text-ui leading-snug text-muted">
         Raw is the full production line, including the excess that whole batches produce.
         Item is only what this build consumes.
       </p>
-    </KpiHelp>
+    </HelpPopover>
   );
 }
 
@@ -127,7 +127,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
       <p className="max-w-[240px] text-ui leading-snug text-muted">
         Available at <span className="text-text">{systemName}</span> for {article}{' '}
         <span className="text-isk">{callout.pct}%</span> discount —{' '}
-        {callout.units.toLocaleString('en-US')} units.
+        {formatQuantity(callout.units)} units.
       </p>
     </Popover>
   );
@@ -166,15 +166,15 @@ function FeeHover({
 }) {
   // Wide enough that an indented line such as an assumed facility tax reads in full.
   return (
-    <KpiHelp label="Fee breakdown" keepSide attention={hasUnpricedInputs(net)} className="w-[296px]">
+    <HelpPopover label="Fee breakdown" keepSide attention={hasUnpricedInputs(net)} className="w-[296px]">
       <FeeBreakdownPanel net={net} systemName={systemName} nameOf={nameOf} />
-    </KpiHelp>
+    </HelpPopover>
   );
 }
 
 function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
   return (
-    <KpiHelp label="How total job time is calculated">
+    <HelpPopover label="How total job time is calculated">
       <PopoverHeading>Total job time — whole tree</PopoverHeading>
       <div className="flex flex-col">
         <div className={cn(scrollArea, 'flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1')}>
@@ -192,7 +192,7 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
           ))}
         </div>
         <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 text-ui">
-          <span className="uppercase tracking-wide text-muted">Total</span>
+          <span className="tracking-optical text-muted">Total</span>
           <span className="tabular-nums font-semibold text-evb-bright">
             {buildTimes.totalProduction ?? '—'}
           </span>
@@ -202,7 +202,7 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
         Sequential — one job at a time. TE, structure and skills applied per job; parallel slots
         not counted.
       </p>
-    </KpiHelp>
+    </HelpPopover>
   );
 }
 
@@ -222,8 +222,12 @@ function MarginFigure({
   }
   return (
     <div className={cn(KPI_FIG, marginToneClass(view.marginPct))}>
-      <LivePrice value={`${view.sign}${formatIsk(view.margin)}`} pending={refreshing} />
-      {view.marginPct !== null && <span className="ml-1.5 text-ui">({formatPct(view.marginPct)})</span>}
+      <LivePrice value={formatSigned(view.margin, formatIsk)} pending={refreshing} />
+      {view.marginPct !== null && (
+        <span className="ml-1.5 text-ui">
+          ({view.marginPct < 0 ? formatSigned(view.marginPct, formatPct) : formatPct(view.marginPct)})
+        </span>
+      )}
     </div>
   );
 }
@@ -278,7 +282,7 @@ function BuildTimeTile({
       <KpiHead
         label="Build time"
         right={
-          <KpiHelp label="How build time is estimated">
+          <HelpPopover label="How build time is estimated">
             <PopoverHeading>Build time — final job</PopoverHeading>
             <PopoverRow label="Runs">×{runs}</PopoverRow>
             <PopoverRow label="Time efficiency">
@@ -286,7 +290,7 @@ function BuildTimeTile({
             </PopoverRow>
             <PopoverRow label="Skills">{leverRows.skills}</PopoverRow>
             <PopoverRow label="Structure">{leverRows.structure}</PopoverRow>
-          </KpiHelp>
+          </HelpPopover>
         }
       />
       <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.topJob ?? '—'}</div>
@@ -306,17 +310,9 @@ function TotalJobTile({ buildTimes }: { buildTimes: BuildTimes }) {
 /** A tile that takes the rail's full width, and one column of three in between. */
 const WIDE = 'col-span-2 sm:col-span-1 lg:col-span-2 *:h-full';
 
-export function CockpitKpis({
-  structure,
-  marginMode,
-  setMarginMode,
-}: {
-  structure: BlueprintStructure;
-  marginMode: MarginMode;
-  setMarginMode: (m: MarginMode) => void;
-}) {
+export function CockpitKpis({ structure }: { structure: BlueprintStructure }) {
   const { pricing, seeded, refreshing } = useMarketData();
-  const { runs } = usePlannerConfig();
+  const { runs, marginMode, setMarginMode } = usePlannerConfig();
   const { buildTimes, skillTimeFactors } = useBuildPlan();
   const {
     location,
@@ -368,7 +364,7 @@ export function CockpitKpis({
           seeded={seeded}
           refreshing={refreshing || margin.held}
           setMarginMode={setMarginMode}
-          nameOf={(typeId) => structure.buildNodeDisplay[typeId]?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`}
+          nameOf={typeNamer(structure)}
         />
       </div>
       <div className={WIDE}>

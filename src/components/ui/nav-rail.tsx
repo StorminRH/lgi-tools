@@ -66,7 +66,7 @@ function NavRailDrawer({
         title={title}
         trigger={
           <span className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="shrink-0 font-ui text-label font-semibold tracking-label uppercase text-faint">
+            <span className={eyebrow({ tone: 'faint', weight: 'semibold', className: 'shrink-0' })}>
               {label}
             </span>
             <span data-nav-rail-current className="min-w-0 flex-1 truncate text-left text-nav text-text">
@@ -109,7 +109,6 @@ export function NavRailGroup({
             size: 'micro',
             tone: 'faint',
             weight: 'semibold',
-            emphasis: 'strong',
             className: 'mb-1.5 pl-3',
           })}
         >
@@ -163,5 +162,40 @@ export function NavRailFrame({
         {children}
       </NavRailPanel>
     </>
+  );
+}
+
+// Desktop rail-and-content columns. Below lg the rail and content stack.
+const RAIL_COLUMNS = {
+  nav: 'lg:grid-cols-[220px_minmax(0,1fr)]',
+  // Caps the content column at the reading measure.
+  reading: 'lg:grid-cols-[220px_minmax(0,var(--container-reading))]',
+  // Room for chapter titles, which run longer than section names.
+  chapters: 'lg:grid-cols-[232px_minmax(0,1fr)]',
+} as const;
+
+/** The grid that seats a NavRailFrame beside its content column. */
+export function NavRailLayout({
+  rail,
+  columns = 'nav',
+  className,
+  contentClassName,
+  contentProps,
+  children,
+  ...rest
+}: Omit<ComponentProps<'div'>, 'children'> & { [key: `data-${string}`]: string | boolean } & {
+  rail: ReactNode;
+  columns?: keyof typeof RAIL_COLUMNS;
+  contentClassName?: string;
+  contentProps?: { [key: `data-${string}`]: string | boolean };
+  children: ReactNode;
+}) {
+  return (
+    <div {...rest} className={cn('grid items-start gap-5 lg:gap-10', RAIL_COLUMNS[columns], className)}>
+      {rail}
+      <div {...contentProps} className={cn('min-w-0', contentClassName)}>
+        {children}
+      </div>
+    </div>
   );
 }

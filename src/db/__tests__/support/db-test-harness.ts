@@ -128,21 +128,35 @@ export async function seedUser(
   });
 }
 
-export async function seedEveAccount(
+/**
+ * Insert one Better Auth account row for any provider. `updatedAt` defaults
+ * to the effective `createdAt`, so a suite that backdates an account gets a
+ * row that was last touched when it was created.
+ */
+export async function seedAccount(
+  database: PostgresJsDatabase,
+  base: { id: string; accountId: string; providerId: string; userId: string },
+  overrides: Partial<typeof account.$inferInsert> = {},
+): Promise<void> {
+  const createdAt = overrides.createdAt ?? new Date();
+  await database.insert(account).values({
+    ...base,
+    ...overrides,
+    createdAt,
+    updatedAt: overrides.updatedAt ?? createdAt,
+  });
+}
+
+export function seedEveAccount(
   database: PostgresJsDatabase,
   base: { id: string; characterId: number; userId: string },
   overrides?: Partial<typeof account.$inferInsert>,
 ): Promise<void> {
-  const now = new Date();
-  await database.insert(account).values({
-    id: base.id,
-    accountId: String(base.characterId),
-    providerId: 'eve',
-    userId: base.userId,
-    createdAt: now,
-    updatedAt: now,
-    ...overrides,
-  });
+  return seedAccount(
+    database,
+    { id: base.id, accountId: String(base.characterId), providerId: 'eve', userId: base.userId },
+    overrides,
+  );
 }
 
 export async function seedCharacter(
@@ -156,6 +170,24 @@ export async function seedCharacter(
     portraitUrl: `portrait-${characterId}`,
     ...overrides,
   });
+}
+
+/**
+ * Sessions queued behind `holderPid`'s locks, directly or behind another
+ * waiter (a second writer on one row waits on the first waiter's tuple lock,
+ * not on the holder). Poll it to prove writers reached a lock before releasing.
+ */
+export async function countSessionsWaitingOn(sql: Sql, holderPid: number): Promise<number> {
+  const [row] = await sql<{ count: number }[]>`
+    WITH RECURSIVE waiting AS (
+      SELECT pid FROM pg_stat_activity WHERE ${holderPid} = ANY(pg_blocking_pids(pid))
+      UNION
+      SELECT activity.pid FROM pg_stat_activity activity
+      JOIN waiting ON waiting.pid = ANY(pg_blocking_pids(activity.pid))
+    )
+    SELECT count(*)::integer AS count FROM waiting
+  `;
+  return row?.count ?? 0;
 }
 
 function schemaUrl(base: string, schema: string): string {

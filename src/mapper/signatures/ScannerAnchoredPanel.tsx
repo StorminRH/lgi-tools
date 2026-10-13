@@ -8,11 +8,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { isPopupOpen, useEscapeDismiss } from '@/components/ui/popup-open';
+import { clamp } from '@/lib/math';
+import { createFrameCoalescer, observeSize } from '../lib/frame-coalescer';
 import { CARD_ATTACH_Y } from '../windows/follower-model';
-import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
+import { MapWindow } from '../windows/MapWindow';
 import {
   isOutsideClickGesture,
-  keydownAction,
   outsideDismissAction,
   type ScannerAnchoredMeasure,
 } from '../windows/window-model';
@@ -116,16 +118,15 @@ export function alignCardToRow(
   const rowTop = Math.max(rowBox.top, clip?.top ?? rowBox.top);
   const rowBottom = Math.min(rowBox.bottom, clip?.bottom ?? rowBox.bottom);
   const maxTop = Math.max(CARD_EDGE_PX, layer.clientHeight - panel.offsetHeight - CARD_FLOAT_PX);
-  const clamp = (value: number) => Math.min(Math.max(value, CARD_EDGE_PX), maxTop);
   if (rowBottom <= rowTop && panel.dataset.rowAligned !== undefined) {
     // The row is scrolled out of view: hold the card where it is, but keep it
     // inside the layer if the layer or the card changed size meanwhile.
     const held = Number.parseFloat(panel.style.getPropertyValue('--scanner-card-y'));
-    if (Number.isFinite(held)) panel.style.setProperty('--scanner-card-y', `${Math.round(clamp(held))}px`);
+    if (Number.isFinite(held)) panel.style.setProperty('--scanner-card-y', `${Math.round(clamp(held, CARD_EDGE_PX, maxTop))}px`);
     return;
   }
   const middle = (rowTop + rowBottom) / 2 - origin.top;
-  const top = clamp(middle - SCANNER_CARD_RISE_PX - CARD_ATTACH_Y);
+  const top = clamp(middle - SCANNER_CARD_RISE_PX - CARD_ATTACH_Y, CARD_EDGE_PX, maxTop);
   panel.style.setProperty('--scanner-card-y', `${Math.round(top)}px`);
   panel.dataset.rowAligned = '';
 }
@@ -150,27 +151,16 @@ function useEditorLeader(
     measure();
     // Scroll and resize can fire many times a frame; measuring writes the
     // card's position and then reads layout, so coalesce to one per frame.
-    let frame: number | null = null;
-    const schedule = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        measure();
-      });
-    };
-    window.addEventListener('resize', schedule);
-    document.addEventListener('scroll', schedule, true);
+    const frame = createFrameCoalescer(measure);
+    window.addEventListener('resize', frame.request);
+    document.addEventListener('scroll', frame.request, true);
     const panel = panelRef.current;
-    let observer: ResizeObserver | null = null;
-    if (panel !== null && typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(schedule);
-      observer.observe(panel);
-    }
+    const stopObserve = panel === null ? () => undefined : observeSize(panel, frame.request);
     return () => {
-      window.removeEventListener('resize', schedule);
-      document.removeEventListener('scroll', schedule, true);
-      observer?.disconnect();
-      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', frame.request);
+      document.removeEventListener('scroll', frame.request, true);
+      stopObserve();
+      frame.cancel();
     };
   }, [measure, panelRef]);
 
@@ -199,7 +189,7 @@ function useOutsideDismiss(
           panel !== null && target instanceof Node && panel.contains(target),
         insideOpenPopup:
           target instanceof Element && target.closest('[data-open]') !== null,
-        popupOpen: isAdoptedPopupOpen(),
+        popupOpen: isPopupOpen(),
       };
     };
 
@@ -229,25 +219,13 @@ function useOutsideDismiss(
       if (action === 'dismiss-card') onClose();
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const action = keydownAction({
-        key: event.key,
-        surfaceKind: 'card',
-        popupOpen: isAdoptedPopupOpen(),
-        defaultPrevented: event.defaultPrevented,
-      });
-      if (action === 'dismiss-card') onClose();
-    };
-
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('pointerup', handlePointerUp);
     document.addEventListener('pointercancel', clearDown);
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('pointerup', handlePointerUp);
       document.removeEventListener('pointercancel', clearDown);
-      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [panelRef, onClose]);
 }
@@ -309,6 +287,7 @@ export function ScannerAnchoredPanel({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const leader = useEditorLeader(signatureId, layerRef, panelRef);
   useOutsideDismiss(panelRef, onClose);
+  useEscapeDismiss(onClose);
 
   return (
     <div

@@ -1,20 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { canSyncIndustryJobs, INDUSTRY_JOBS_SYNC_SCOPES } from './sync-eligibility';
+import { expect, test } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
+import { canSyncIndustryJobs } from './sync-eligibility';
 
-describe('INDUSTRY_JOBS_SYNC_SCOPES', () => {
-  it('pins the verified industry-jobs scope string', () => {
+const NEEDED: readonly string[] = ['esi-industry.read_character_jobs.v1'];
 
-    expect([...INDUSTRY_JOBS_SYNC_SCOPES]).toEqual(['esi-industry.read_character_jobs.v1']);
-  });
-});
-
-describe('canSyncIndustryJobs', () => {
-  it.each([
-    [{ hasRefreshToken: true, missingScopes: [] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-industry.read_character_jobs.v1'] }, false],
-    [{ hasRefreshToken: false, missingScopes: [] }, false],
-  ])('token + required scope: %j → %s', (input, expected) => {
-    expect(canSyncIndustryJobs(input)).toBe(expected);
-  });
+test('canSyncIndustryJobs needs the character jobs scope and no other', () => {
+  for (const scope of NEEDED) {
+    expect(canSyncIndustryJobs({ hasRefreshToken: true, missingScopes: [scope] }), scope).toBe(false);
+  }
+  const others = EVE_SCOPES.filter((scope) => !NEEDED.includes(scope));
+  expect(canSyncIndustryJobs({ hasRefreshToken: true, missingScopes: others })).toBe(true);
 });

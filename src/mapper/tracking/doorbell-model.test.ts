@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
+import { type BroadcastBus, createBroadcastBus } from '@/lib/__tests__/broadcast-bus';
 import {
   DOORBELL_ATTEMPT_CAP,
   DOORBELL_CHANNEL_PREFIX,
@@ -13,7 +14,6 @@ import {
   ringDispatched,
   ringOwnDoorbells,
   ringPendingTransitions,
-  type DoorbellChannel,
   type DoorbellMemoryEntry,
 } from './doorbell-model';
 
@@ -195,52 +195,6 @@ class MemoryStorage {
   }
 }
 
-class TestChannel implements DoorbellChannel {
-  onmessage: DoorbellChannel['onmessage'] = null;
-  onmessageerror: DoorbellChannel['onmessageerror'] = null;
-  closed = false;
-
-  constructor(readonly name: string, private readonly bus: TestBus) {}
-
-  postMessage(data: unknown) {
-    if (this.closed) throw new Error('channel closed');
-    this.bus.send(this, data);
-  }
-
-  close() {
-    this.closed = true;
-  }
-
-  deliver(data: unknown) {
-    if (!this.closed) {
-      this.onmessage?.({ data } as MessageEvent<unknown>);
-    }
-  }
-}
-
-class TestBus {
-  readonly channels: TestChannel[] = [];
-  readonly queue: Array<() => void> = [];
-
-  open = (name: string) => {
-    const channel = new TestChannel(name, this);
-    this.channels.push(channel);
-    return channel;
-  };
-
-  send(sender: TestChannel, data: unknown) {
-    for (const receiver of this.channels) {
-      if (receiver === sender || receiver.closed || receiver.name !== sender.name) continue;
-      const cloned = structuredClone(data);
-      this.queue.push(() => receiver.deliver(cloned));
-    }
-  }
-
-  flush() {
-    while (this.queue.length > 0) this.queue.shift()?.();
-  }
-}
-
 const settled: DoorbellMemoryEntry = {
   transitionObservedAt: 5_000,
   attempts: 1,
@@ -289,7 +243,7 @@ describe('doorbell remount memory', () => {
 
 describe('doorbell tab memory', () => {
   it('shares two-tab in-flight memory on the doorbell channel', () => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const firstMemory = new Map<number, DoorbellMemoryEntry>();
     const secondMemory = new Map<number, DoorbellMemoryEntry>();
     const first = joinDoorbellChannel({
@@ -366,7 +320,7 @@ describe('doorbell recovery', () => {
 });
 
 describe('doorbell snapshot handshake', () => {
-  function join(bus: TestBus, tabId: string, memory: Map<number, DoorbellMemoryEntry>) {
+  function join(bus: BroadcastBus, tabId: string, memory: Map<number, DoorbellMemoryEntry>) {
     return joinDoorbellChannel({
       userId: 'user-a', mapId: 'map-a', tabId, memory,
       openChannel: bus.open, persist: () => undefined,
@@ -374,7 +328,7 @@ describe('doorbell snapshot handshake', () => {
   }
 
   it.each(['settled', 'in-flight'] as const)('learns existing %s state before a new tab rings', async (state) => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const entry = state === 'settled' ? settled : {
       ...inFlight, lease: { id: 'owner', expiresAt: Date.now() + 15_000 },
     };
@@ -392,7 +346,7 @@ describe('doorbell snapshot handshake', () => {
   });
 
   it.each(['processed', 'retry'] as const)('clears a sibling lease when its owner answers %s', async (status) => {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const entry = { ...inFlight, lease: { id: 'owner', expiresAt: Date.now() + 15_000 } };
     const firstMemory = new Map<number, DoorbellMemoryEntry>([[101, entry]]);
     const owner = join(bus, 'owner', firstMemory);
@@ -406,16 +360,26 @@ describe('doorbell snapshot handshake', () => {
     owner.close(); newcomer.close();
   });
 
-  it('continues without peers after the bounded join wait', async () => {
+  it('continues without peers after the bounded join wait, or at once when the channel cannot open', async () => {
     vi.useFakeTimers();
     try {
-      const channel = join(new TestBus(), 'alone', new Map());
+      const channel = join(createBroadcastBus(), 'alone', new Map());
       const ready = vi.fn();
       void channel.ready.then(ready);
       expect(ready).not.toHaveBeenCalled();
       await vi.runAllTimersAsync();
       expect(ready).toHaveBeenCalledOnce();
       channel.close();
+
+      const blocked = createBroadcastBus();
+      blocked.unavailable = true;
+      const offline = join(blocked, 'offline', new Map());
+      const offlineReady = vi.fn();
+      void offline.ready.then(offlineReady);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(offlineReady).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+      offline.close();
     } finally { vi.useRealTimers(); }
   });
 });
@@ -455,7 +419,7 @@ describe('doorbell snapshot parsing', () => {
 
 describe('doorbell channel messages', () => {
   function listen(memory = new Map<number, DoorbellMemoryEntry>()) {
-    const bus = new TestBus();
+    const bus = createBroadcastBus();
     const persist = vi.fn();
     const handle = joinDoorbellChannel({
       userId: 'user-a', mapId: 'map-a', tabId: 'tab-a', memory,

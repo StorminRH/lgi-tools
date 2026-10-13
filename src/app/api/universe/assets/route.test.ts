@@ -46,6 +46,7 @@ describe('GET /api/universe/assets', () => {
     getCachedSdeVersionMock.mockResolvedValue({
       version: VERSION,
       ingestedAt: new Date(),
+      latestPublished: VERSION,
     });
     const { GET } = await import('./route');
     const response = await GET();
@@ -60,6 +61,7 @@ describe('GET /api/universe/assets', () => {
     getCachedSdeVersionMock.mockResolvedValue({
       version: null,
       ingestedAt: null,
+      latestPublished: null,
     });
     const { GET } = await import('./route');
     const response = await GET();
@@ -92,7 +94,7 @@ describe('GET /api/universe/assets', () => {
       asset: { version: VERSION, types: [] },
     },
   ])(
-    'serves matching $label immutably and rejects a stale version',
+    'serves matching $label immutably and rejects stale and malformed versions',
     async ({ importRoute, read, asset }) => {
       read.mockResolvedValue(asset);
       const { GET } = await importRoute();
@@ -114,6 +116,20 @@ describe('GET /api/universe/assets', () => {
         status: 404,
         code: 'asset_version_not_found',
       });
+      expect(read).toHaveBeenCalledTimes(2);
+
+      for (const malformed of ['', 'v'.repeat(65)]) {
+        const rejected = await GET(
+          new Request('http://localhost'),
+          { params: Promise.resolve({ version: malformed }) },
+        );
+        expect(rejected.status).toBe(404);
+        await expect(rejected.json()).resolves.toMatchObject({
+          status: 404,
+          code: 'asset_version_not_found',
+        });
+      }
+      expect(read).toHaveBeenCalledTimes(2);
     },
   );
 });

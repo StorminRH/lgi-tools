@@ -1,6 +1,5 @@
 import { cache } from 'react';
 import { getWhStaticsOperatorReview, getWhStaticsOperatorSummary } from '@/composition/wh-statics-refresh';
-import { getEsiRefreshQueueStats } from '@/data/esi-refresh-jobs/queries';
 import { getLastSyncedAt, getLatestReportDate, getSearchTrend } from '@/data/gsc/queries';
 import {
   getCronOutcomes,
@@ -10,7 +9,7 @@ import {
   getPriceRefreshDays,
   getPriceSourceDegradation,
 } from '@/data/telemetry/queries';
-import { getCapabilityLatency, getCapabilityOutcomeStats } from '@/data/telemetry/sli-breakdown';
+import { getCapabilityLatency, getCapabilityOutcomeStats, getEsiClientErrors } from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
 import { getUserOwningCharacter, listAdminUsers } from '@/platform/auth/admin-users';
 
@@ -26,7 +25,6 @@ function sharedRangeRead<T>(load: (range: DateRange) => Promise<T>): (range: Dat
   return (range) => read(range.from.toISOString(), range.to.toISOString());
 }
 
-export const getEsiRefreshQueueStatsShared = cache(getEsiRefreshQueueStats);
 export const getStaticsReviewShared = cache(getWhStaticsOperatorReview);
 export const getLastSyncedAtShared = cache(getLastSyncedAt);
 
@@ -41,6 +39,7 @@ export const getStaticsSummaryShared = cache(getWhStaticsOperatorSummary);
 // Telemetry
 export const getCapabilityOutcomeStatsShared = sharedRangeRead(getCapabilityOutcomeStats);
 export const getCapabilityLatencyShared = sharedRangeRead(getCapabilityLatency);
+export const getEsiClientErrorsShared = sharedRangeRead(getEsiClientErrors);
 export const getCronOutcomesShared = sharedRangeRead(getCronOutcomes);
 export const getLastCronRunsShared = cache(getLastCronRuns);
 export const getPriceRefreshDaysShared = sharedRangeRead(getPriceRefreshDays);
@@ -67,7 +66,7 @@ function sharedPeriodRead<T>(
 
 export const getPageViewStatsShared = sharedPeriodRead(getPageViewStats);
 
-// Traffic, search, queue, statics and users
+// Traffic, search, statics and users
 
 /** The top pages, entry pages and referrers, read once for the three cards that rank them. */
 export const getPageViewRankingsShared = sharedRangeRead((range) => getPageViewRankings(range, 10));

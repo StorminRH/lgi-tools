@@ -12,7 +12,7 @@ vi.mock('react', () => ({
     const cleanup = effect();
     if (cleanup) h.cleanups.push(cleanup);
   },
-  useRef: <T>(value: T) => ({ current: value }),
+  useEffectEvent: <F>(fn: F): F => fn,
   useState: <T>(initial: T | (() => T)) => {
     const setter = vi.fn();
     h.stateSetters.push(setter);
@@ -33,6 +33,23 @@ beforeEach(() => {
 });
 
 describe('useRefreshOnView', () => {
+  it('sends every due type id of a page in one request, and splits only past the contract ceiling', async () => {
+    h.apiFetch.mockReturnValue(new Promise(() => {}));
+    const page = Array.from({ length: 320 }, (_, index) => 500_000 + index);
+    useRefreshOnView(page, { enabled: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.apiFetch).toHaveBeenCalledTimes(1);
+    expect(h.apiFetch.mock.calls[0]?.[1]?.body).toEqual({ typeIds: page });
+
+    h.apiFetch.mockReset().mockResolvedValue({ ok: true, data: { prices: [] } });
+    const oversized = Array.from({ length: ON_DEMAND_REFRESH_MAX_TYPE_IDS + 1 }, (_, index) => 600_000 + index);
+    useRefreshOnView(oversized, { enabled: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    expect(h.apiFetch.mock.calls[0]?.[1]?.body.typeIds).toHaveLength(ON_DEMAND_REFRESH_MAX_TYPE_IDS);
+    expect(h.apiFetch.mock.calls[1]?.[1]?.body.typeIds).toEqual([oversized.at(-1)]);
+  });
+
   it('stops scheduling batches when an in-flight request is aborted on unmount', async () => {
     let resolveFirst!: (value: unknown) => void;
     h.apiFetch.mockReturnValueOnce(

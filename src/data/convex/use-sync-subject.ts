@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from 'convex/react';
 import { useEffect } from 'react';
+import { idsKey, parseIdsKey } from '@/lib/array';
 import type { SyncDataset } from '@/lib/sync-engine';
 import { api } from './api';
 import { useConvexAuthState } from './convex-auth-store';
@@ -13,11 +14,11 @@ export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
   const { isAuthenticated, isLoading, isRefreshing } = useConvexAuthState();
   const enabled = isAuthenticated && !isLoading && !isRefreshing;
   const currentUserId = useQuery(api.engine.currentUser, enabled ? {} : 'skip');
-  const characterIdsKey = [...new Set(characterIds)].sort((a, b) => a - b).join(',');
+  const characterIdsKey = idsKey(characterIds);
 
   useEffect(() => {
     if (!enabled || !currentUserId || characterIdsKey === '') return;
-    const characterIdsHint = characterIdsKey.split(',').map(Number);
+    const characterIdsHint = parseIdsKey(characterIdsKey);
 
     const session = startHeartbeatSession(
       {

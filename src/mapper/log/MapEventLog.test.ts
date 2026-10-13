@@ -14,31 +14,6 @@ vi.mock('react', async (importOriginal) => ({
 }));
 vi.mock('@/data/convex/use-live-value', () => ({ useLiveValue: liveValue }));
 
-vi.mock('@/components/ui/button', () => ({
-  Button: (props: {
-    children?: unknown;
-    'data-map-event-restore'?: string;
-  }) =>
-    createElement(
-      'button',
-      { 'data-map-event-restore': props['data-map-event-restore'] },
-      props.children as never,
-    ),
-}));
-
-vi.mock('@/components/ui/collapsible', () => ({
-  Collapsible: (props: {
-    header: unknown;
-    children?: unknown;
-  }) =>
-    createElement(
-      'div',
-      { 'data-collapsible': '' },
-      props.header as never,
-      props.children as never,
-    ),
-}));
-
 const NOW = 10_000;
 
 function row(
@@ -69,7 +44,7 @@ describe('MapEventLog', () => {
       mapId: 'map-a', canEdit: true, now: NOW, onRestore: vi.fn(),
     }));
     expect(liveValue.mock.calls[0]?.[1]).toBe('skip');
-    expect(markup).toContain('Audit Log');
+    expect(markup).toContain('Audit log');
     expect(markup).not.toContain('data-map-event-log-count');
     expect(markup).not.toContain('data-map-event-log-rows');
   });
@@ -80,8 +55,8 @@ describe('MapEventLog', () => {
       mapId: 'map-b', canEdit: true, now: NOW, onRestore: vi.fn(),
     }));
     expect(liveValue.mock.calls[0]?.[1]).toEqual({ mapId: 'map-b' });
-    expect(markup).toContain('Loading map events');
-    expect(markup).not.toContain('No map events yet');
+    expect(markup).toContain('Loading events…');
+    expect(markup).not.toContain('No events yet.');
     expect(markup).not.toContain('data-map-event-log-count');
   });
 
@@ -96,8 +71,9 @@ describe('MapEventLog', () => {
     );
     expect(empty).toContain('data-map-event-log');
     expect(empty).toContain('data-map-event-log-empty');
-    expect(empty).toContain('Audit Log');
-    expect(empty).toContain('Events - 0');
+    expect(empty).toContain('Audit log');
+    expect(empty).toContain('0 events');
+    expect(empty).toContain('No events yet.');
 
     const events = [
       row({
@@ -125,10 +101,9 @@ describe('MapEventLog', () => {
     );
     expect(editor).toContain('data-map-event-restore');
     expect(editor).toContain('data-map-event-undoable="true"');
-    expect(editor).not.toContain('map-chip-undo-pulse');
     expect(editor).toContain('bottom-4 right-14');
-    expect(editor).toContain('Events - 2');
-    expect(editor).toContain('Removed 2 downstream systems');
+    expect(editor).toContain('2 events');
+    expect(editor).toContain('Removed branch (2 systems)');
     expect(editor).toContain('Pilot');
 
     const viewer = renderToStaticMarkup(

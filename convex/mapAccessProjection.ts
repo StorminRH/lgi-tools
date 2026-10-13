@@ -1,24 +1,22 @@
 import { v } from 'convex/values';
 import {
   canonicalizeMapRoles,
+  claimsCarryCharacters,
   type MapRole,
 } from '@/data/maps/access-contract';
+import { groupBy, sameItems } from '@/lib/array';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { deleteIndexedBatch, type IndexedBatchDeleteResult } from './lib/indexedQuery';
+import { findProjectionWatermark } from './lib/mapAccess';
 import {
   currentMapRoleValidator,
   currentRolesFromStored,
   mapClaimCharactersValidator,
   type MapClaimCharacter,
-  type StoredMapRole,
 } from './lib/mapEntityContracts';
 import { readMapTracking } from './lib/mapTrackingCapacity';
-import {
-  deleteAllTrackingForMap,
-  deleteTrackingForUser,
-  deleteTrackingOutsideCharacters,
-  purgeTrackingForUserBatch,
-} from './mapTrackingTeardown';
+import { pruneMapTracking, purgeTrackingForUserBatch } from './mapTrackingTeardown';
 
 export const MAP_ACCESS_PURGE_BATCH = 128;
 
@@ -42,26 +40,8 @@ export type ReconcileResult = ReconcileCounts & {
 
 const NO_COUNTS: ReconcileCounts = { inserted: 0, updated: 0, deleted: 0, unchanged: 0 };
 
-function claimsCarryCharacters(
-  claims: ReadonlyArray<{ readonly characters?: readonly MapClaimCharacter[] }>,
-): boolean {
-  return claims.length > 0 && claims.every((claim) => claim.characters !== undefined);
-}
-
 function scopedMarker(scoped: boolean | undefined): { characterScoped?: true } {
   return scoped === true ? { characterScoped: true } : {};
-}
-
-export interface UserClaimsPurgeResult {
-  readonly deleted: number;
-  readonly hasMore: boolean;
-}
-
-function rolesEqual(
-  left: readonly StoredMapRole[],
-  right: readonly MapRole[],
-): boolean {
-  return left.length === right.length && left.every((role, index) => role === right[index]);
 }
 
 interface DesiredClaim {
@@ -93,20 +73,7 @@ function charactersEqual(
   right: readonly MapClaimCharacter[] | undefined,
 ): boolean {
   if (left === undefined || right === undefined) return left === right;
-  return left.length === right.length && left.every((character, index) =>
-    character.characterId === right[index]?.characterId && character.name === right[index]?.name);
-}
-
-function indexClaimsByUser(
-  existing: Doc<'mapAccess'>[],
-): Map<string, Doc<'mapAccess'>[]> {
-  const byUser = new Map<string, Doc<'mapAccess'>[]>();
-  for (const row of existing) {
-    const rows = byUser.get(row.userId) ?? [];
-    rows.push(row);
-    byUser.set(row.userId, rows);
-  }
-  return byUser;
+  return sameItems(left, right, (a, b) => a.characterId === b.characterId && a.name === b.name);
 }
 
 async function applyDesiredUserClaim(
@@ -129,7 +96,7 @@ async function applyDesiredUserClaim(
     deleted += 1;
   }
 
-  if (rolesEqual(keeper.roles, roles) && charactersEqual(keeper.characters, characters)) {
+  if (sameItems(keeper.roles, roles) && charactersEqual(keeper.characters, characters)) {
     return { inserted: 0, updated: 0, deleted, unchanged: 1 };
   }
 
@@ -149,6 +116,23 @@ async function deleteClaimRows(
     }
   }
   return deleted;
+}
+
+/**
+ * Tracking survives only for a desired claimant, and on a scoped claim only
+ * for an eligible character. Keying on the desired set, not on the claim rows
+ * being deleted, also revokes a tracker whose claim an unlink already purged.
+ */
+function keepsDesiredTracking(
+  desired: ReadonlyMap<string, DesiredClaim>,
+): (row: Doc<'mapTracking'>) => boolean {
+  const eligible = new Map<string, ReadonlySet<number>>();
+  for (const [userId, { characters }] of desired) {
+    if (characters === undefined) continue;
+    eligible.set(userId, new Set(characters.map(({ characterId }) => characterId)));
+  }
+  return (row) =>
+    desired.has(row.userId) && (eligible.get(row.userId)?.has(row.characterId) ?? true);
 }
 
 function refusedOutcome(
@@ -177,7 +161,7 @@ async function applyClaimSet(
     .query('mapAccess')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
     .collect();
-  const byUser = indexClaimsByUser(existing);
+  const byUser = groupBy(existing, (row) => row.userId);
   const counts = { ...NO_COUNTS };
 
   for (const [userId, claim] of desired) {
@@ -188,20 +172,10 @@ async function applyClaimSet(
     counts.updated += delta.updated;
     counts.deleted += delta.deleted;
     counts.unchanged += delta.unchanged;
-    if (claim.characters !== undefined) {
-      await deleteTrackingOutsideCharacters(ctx, mapId, userId, claim.characters);
-    }
   }
 
-  const revokedUserIds = [...byUser.keys()];
   counts.deleted += await deleteClaimRows(ctx, byUser.values());
-  if (desired.size === 0) {
-    await deleteAllTrackingForMap(ctx, mapId);
-  } else {
-    for (const userId of revokedUserIds) {
-      await deleteTrackingForUser(ctx, mapId, userId);
-    }
-  }
+  await pruneMapTracking(ctx, mapId, keepsDesiredTracking(desired));
   return counts;
 }
 
@@ -231,10 +205,7 @@ export const reconcileMapClaims = internalMutation({
     characterScoped: v.optional(v.literal(true)),
   }),
   handler: async (ctx, { mapId, revision, claims }): Promise<ReconcileResult> => {
-    const watermark = await ctx.db
-      .query('mapAccessProjectionWatermarks')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId))
-      .unique();
+    const watermark = await findProjectionWatermark(ctx, mapId);
     const carried = claimsCarryCharacters(claims);
     const refused = refusedOutcome(watermark, revision, claims.length, carried);
     if (refused !== null) return refused;
@@ -255,17 +226,12 @@ export const reconcileMapClaims = internalMutation({
 
 export const purgeUserClaims = internalMutation({
   args: { userId: v.string() },
-  handler: async (ctx, { userId }): Promise<UserClaimsPurgeResult> => {
-    const rows = await ctx.db
-      .query('mapAccess')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .take(MAP_ACCESS_PURGE_BATCH + 1);
-
-    const doomed = rows.slice(0, MAP_ACCESS_PURGE_BATCH);
-    for (const row of doomed) {
-      await ctx.db.delete(row._id);
-    }
-
+  handler: async (ctx, { userId }): Promise<IndexedBatchDeleteResult> => {
+    const access = await deleteIndexedBatch(
+      ctx.db.query('mapAccess').withIndex('by_user', (q) => q.eq('userId', userId)),
+      MAP_ACCESS_PURGE_BATCH,
+      (row) => ctx.db.delete('mapAccess', row._id),
+    );
     const tracking = await purgeTrackingForUserBatch(
       ctx,
       userId,
@@ -273,8 +239,8 @@ export const purgeUserClaims = internalMutation({
     );
 
     return {
-      deleted: doomed.length + tracking.deleted,
-      hasMore: rows.length > MAP_ACCESS_PURGE_BATCH || tracking.hasMore,
+      deleted: access.deleted + tracking.deleted,
+      hasMore: access.hasMore || tracking.hasMore,
     };
   },
 });
@@ -288,10 +254,7 @@ export const purgeUserMapClaims = internalMutation({
   handler: async (ctx, { userId, revision, mapIds }) => {
     let deleted = 0;
     for (const mapId of new Set(mapIds)) {
-      const watermark = await ctx.db
-        .query('mapAccessProjectionWatermarks')
-        .withIndex('by_map', (q) => q.eq('mapId', mapId))
-        .unique();
+      const watermark = await findProjectionWatermark(ctx, mapId);
       if (watermark === null) {
         await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision });
       } else if (watermark.revision < revision) {
@@ -327,7 +290,7 @@ export const remapLegacyOwnerRoles = internalMutation({
     let remapped = 0;
     for (const row of page.page) {
       const roles = currentRolesFromStored(row.roles);
-      if (rolesEqual(row.roles, roles)) continue;
+      if (sameItems(row.roles, roles)) continue;
       await ctx.db.patch(row._id, { roles });
       remapped += 1;
     }
@@ -343,8 +306,7 @@ export const freezeMapTrackingForScoping = internalMutation({
   args: { mapId: v.string() },
   returns: v.array(v.object({ userId: v.string(), characterId: v.number() })),
   handler: async (ctx, { mapId }) => {
-    const watermark = await ctx.db.query('mapAccessProjectionWatermarks')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId)).unique();
+    const watermark = await findProjectionWatermark(ctx, mapId);
     if (watermark === null) {
       await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision: 0, scopingPending: true });
     } else if (watermark.characterScoped !== true) {

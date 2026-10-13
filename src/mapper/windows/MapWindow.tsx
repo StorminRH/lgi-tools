@@ -1,32 +1,18 @@
 'use client';
 
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useRef,
-  type ForwardedRef,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { forwardRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { CloseIcon } from '@/components/ui/icons';
+import { isPopupOpen } from '@/components/ui/popup-open';
 import { scrollArea } from '@/components/ui/scroll-area';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { mapFrostedSurface, mapOverlaySurface } from '../map-frosted-surface';
 import {
   keydownAction,
   surfaceKindOf,
   type WindowPlacement,
 } from './window-model';
-
-const ADOPTED_POPUP_SELECTOR = [
-  '[data-open][role="dialog"]',
-  '[data-open][role="listbox"]',
-  '[data-open][role="menu"]',
-  '[data-open] [role="dialog"]',
-  '[data-open] [role="listbox"]',
-  '[data-open] [role="menu"]',
-].join(',');
 
 // The scanner grows with its rows up to half the viewport height, so it
 // never takes more than half the map at any resolution or window size.
@@ -52,10 +38,6 @@ const MAP_SCANNER_EDITOR_CLASS =
 const MAP_SCANNER_SITE_VIEWER_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-max`;
 
-export function isAdoptedPopupOpen(): boolean {
-  return typeof document !== 'undefined' && document.querySelector(ADOPTED_POPUP_SELECTOR) !== null;
-}
-
 interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
@@ -79,21 +61,6 @@ interface MapWindowProps {
   readonly children?: ReactNode;
 }
 
-function applyWindowStyles(
-  element: HTMLDivElement,
-  stackIndex: number,
-): void {
-  element.style.setProperty('--map-window-z', String(stackIndex));
-}
-
-function assignForwardedRef(
-  forwardedRef: ForwardedRef<HTMLDivElement>,
-  node: HTMLDivElement | null,
-): void {
-  if (typeof forwardedRef === 'function') forwardedRef(node);
-  else if (forwardedRef !== null) forwardedRef.current = node;
-}
-
 function placementClassName(
   placement: WindowPlacement,
   overlay: boolean,
@@ -114,12 +81,31 @@ function placementClassName(
   return 'left-0 top-0 h-auto max-h-[min(24rem,calc(100dvh-7rem))] w-72 [transform:var(--map-window-transform)]';
 }
 
+// Only the system summary card's title, an EVE system name, is set in
+// capitals; every other card title reads in normal case.
+function windowTitleClass({
+  overlay,
+  alignStart,
+  systemTitle,
+}: {
+  readonly overlay: boolean;
+  readonly alignStart: boolean;
+  readonly systemTitle: boolean;
+}): string {
+  if (overlay) return 'px-1 text-left font-display text-h3 font-bold tracking-copy text-name';
+  if (alignStart) return 'text-center font-ui text-lead font-semibold text-name';
+  return systemTitle
+    ? 'px-1 text-center font-data text-label uppercase tracking-label text-name'
+    : 'px-1 text-center font-data text-label text-name';
+}
+
 function WindowHeader({
   title,
   titleAccessory,
   titleLead,
   overlay,
   alignStart,
+  systemTitle,
   showCloseButton,
   onClose,
 }: {
@@ -128,6 +114,8 @@ function WindowHeader({
   readonly titleLead?: ReactNode;
   readonly overlay: boolean;
   readonly alignStart: boolean;
+  /** The system summary card, whose title is an EVE system name. */
+  readonly systemTitle: boolean;
   readonly showCloseButton: boolean;
   readonly onClose: () => void;
 }) {
@@ -146,11 +134,7 @@ function WindowHeader({
       <h2
         className={cn(
           'min-w-0 flex-1 truncate',
-          overlay
-            ? 'px-1 text-left font-display text-h3 font-bold tracking-copy text-name'
-            : alignStart
-              ? 'text-center font-ui text-lead font-semibold text-name'
-              : 'px-1 text-center font-data text-label uppercase tracking-label text-name',
+          windowTitleClass({ overlay, alignStart, systemTitle }),
         )}
       >
         {title}
@@ -163,7 +147,7 @@ function WindowHeader({
           className="h-6 w-6 cursor-pointer justify-center text-muted hover:text-name"
           onClick={onClose}
         >
-          ×
+          <CloseIcon size={14} />
         </Button>
       ) : null}
     </header>
@@ -206,26 +190,6 @@ function windowBodyClass(
   );
 }
 
-/** The root ref callback: keeps the stacking style applied and forwards the node. */
-function useWindowRootRef(
-  forwardedRef: ForwardedRef<HTMLDivElement>,
-  stackIndex: number,
-): (node: HTMLDivElement | null) => void {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const element = rootRef.current;
-    if (element === null) return;
-    applyWindowStyles(element, stackIndex);
-  }, [stackIndex]);
-
-  return useCallback((node: HTMLDivElement | null) => {
-    rootRef.current = node;
-    if (node !== null) applyWindowStyles(node, stackIndex);
-    assignForwardedRef(forwardedRef, node);
-  }, [forwardedRef, stackIndex]);
-}
-
 function windowKeyDownHandler(
   placement: WindowPlacement,
   onClose: () => void,
@@ -235,7 +199,7 @@ function windowKeyDownHandler(
     const action = keydownAction({
       key: event.key,
       surfaceKind,
-      popupOpen: isAdoptedPopupOpen(),
+      popupOpen: isPopupOpen(),
       defaultPrevented: event.defaultPrevented,
     });
     if (action === 'dismiss-card') onClose();
@@ -273,7 +237,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
     },
     forwardedRef,
   ) {
-    const setRootRef = useWindowRootRef(forwardedRef, stackIndex);
+    const setRootRef = useStyleProperty('--map-window-z', String(stackIndex), forwardedRef);
     const overlay = appearance === 'overlay';
 
     return (
@@ -293,6 +257,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
             titleLead={titleLead}
             overlay={overlay}
             alignStart={placement.kind === 'docked-bottom-left'}
+            systemTitle={placement.kind === 'node-anchored'}
             showCloseButton={showCloseButton}
             onClose={onClose}
           />

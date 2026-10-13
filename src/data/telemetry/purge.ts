@@ -1,14 +1,8 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/platform/purge/types';
+import { characterCacheContributor } from '@/platform/purge/contributors';
 import { usageLogs } from './schema';
 
-export const telemetryPurgeContributor: PurgeContributor = {
+export const telemetryPurgeContributor = characterCacheContributor(db, {
   name: 'telemetry',
-  tier: 'cache',
-  claims: [usageLogs],
-  merge: [{ table: usageLogs, rule: 'follows-character' }],
-  async purgeCharacter({ characterId }) {
-    await db.delete(usageLogs).where(eq(usageLogs.characterId, characterId));
-  },
-};
+  tables: [{ table: usageLogs, characterId: usageLogs.characterId }],
+});

@@ -1,14 +1,20 @@
-import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
-import { deriveEsiSourceStatus } from '@/data/telemetry/health-metrics';
+import type { EsiClientErrorSummary } from '@/data/telemetry/capability-stats';
+import {
+  deriveEsiSourceStatus,
+  ESI_CLIENT_ERROR_TARGET,
+  formatClientErrorShare,
+  formatFallbackShare,
+  targetLevel,
+} from '@/data/telemetry/health-metrics';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import { ESI_ERROR_CEILING } from '@/platform/esi/scoreboard/types';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { formatQuantity } from '@/lib/format/number';
+import { clampPct } from '@/lib/math';
 import type { OpsMetricRow } from '../ops-view';
 import {
   deriveBudgetStatus,
   formatSliValue,
-  heldForBudget,
   sliLevel,
   sliTargetLabel,
   type StatusLine,
@@ -24,7 +30,7 @@ function budgetFigures(budget: EsiBudgetSnapshot): OpsMetricRow[] {
     },
     {
       label: 'Lowest recent CCP allowance',
-      value: budget.echo === null ? '—' : formatQuantity(budget.echo),
+      value: formatQuantity(budget.echo),
       note: budget.echo === null ? 'not observed' : 'CCP response header',
     },
     {
@@ -46,17 +52,9 @@ export function deriveBudgetCard(budget: EsiBudgetSnapshot | null) {
     pct:
       budget === null
         ? 0
-        : Math.max(0, Math.min(100, (budget.effectiveRemaining / ESI_ERROR_CEILING) * 100)),
+        : clampPct((budget.effectiveRemaining / ESI_ERROR_CEILING) * 100),
     figures: budget === null ? [] : budgetFigures(budget),
   };
-}
-
-export function fallbackShare(fallback: FallbackRateData): string {
-  const priced = fallback.esi + fallback.fallback;
-  if (priced === 0) return 'no data';
-  const pct = (fallback.fallback / priced) * 100;
-  if (pct > 0 && pct < 1) return '<1%';
-  return `${Math.round(pct)}%`;
 }
 
 function countLine(id: string, label: string, count: number, note?: string): StatusLine {
@@ -69,13 +67,26 @@ function countLine(id: string, label: string, count: number, note?: string): Sta
   };
 }
 
+/** ESI calls answered with a 4xx, as a share of all recorded ESI calls. */
+export function clientErrorLine(summary: EsiClientErrorSummary): StatusLine {
+  const worst = summary.groups[0];
+  const counts = `${formatQuantity(summary.errors)} of ${formatQuantity(summary.calls)} calls`;
+  return {
+    id: 'esi-4xx',
+    label: 'ESI 4xx answers',
+    value: summary.rate === null ? '—' : formatClientErrorShare(summary.rate),
+    note: worst === undefined ? counts : `${counts} · most from ${worst.feature} · ${worst.operation}`,
+    level: summary.rate === null ? 'neutral' : targetLevel(summary.rate, ESI_CLIENT_ERROR_TARGET),
+  };
+}
+
 export function derivePressureLines(input: {
   esiSuccess: number | null;
   esiSamples?: number;
   budgetExhaustions: number;
   fallback: FallbackRateData;
   degradation: DegradationCallerCount[];
-  queue: EsiRefreshQueueStat[];
+  clientErrors: EsiClientErrorSummary;
 }): StatusLine[] {
   const source = deriveEsiSourceStatus({
     fallback: input.fallback,
@@ -84,7 +95,6 @@ export function derivePressureLines(input: {
   });
   const priced = input.fallback.esi + input.fallback.fallback;
   const degradationTotal = input.degradation.reduce((total, row) => total + row.count, 0);
-  const deferred = heldForBudget(input.queue);
   return [
     {
       id: 'esi-success',
@@ -93,11 +103,12 @@ export function derivePressureLines(input: {
       note: `${input.esiSamples === undefined ? '—' : formatQuantity(input.esiSamples)} operations · target ${sliTargetLabel('esiSuccess')}`,
       level: sliLevel('esiSuccess', input.esiSuccess),
     },
+    clientErrorLine(input.clientErrors),
     countLine('exhaustions', 'Budget-blocked refreshes', input.budgetExhaustions),
     {
       id: 'fallback',
       label: 'Scheduled Fuzzwork share',
-      value: fallbackShare(input.fallback),
+      value: formatFallbackShare(input.fallback),
       note: `${formatQuantity(input.fallback.fallback)} of ${formatQuantity(priced)} priced items`,
       level: source.level,
     },
@@ -109,6 +120,5 @@ export function derivePressureLines(input: {
         ? undefined
         : input.degradation.map((row) => `${row.caller} ${formatQuantity(row.count)}`).join(' · '),
     ),
-    countLine('deferred', 'Jobs held for budget', deferred),
   ];
 }

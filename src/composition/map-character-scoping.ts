@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { readPendingMapTrackingTransfers } from '@/data/location-tracking/merge-store';
 import type { DatedMapGrant } from '@/data/maps/access';
 import { canonicalizeMapRoles } from '@/data/maps/access-contract';
@@ -8,9 +7,12 @@ import {
   stampCharacterScoped,
   type GrandfatherGrant,
 } from '@/data/maps/character-scoping';
+import { mapTrackingSnapshotDoor } from '@/data/maps/convex-doors';
 import { getMapGrants } from '@/data/maps/queries';
+import { groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
-import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from '@/platform/auth/authorization-policy';
+import { runUntilDeadline, type DeadlineBatchResult } from '@/lib/fan-out';
+import { authorizationFailureCutoff } from '@/platform/auth/authorization-policy';
 import {
   computeMapAccessClaims,
   eligibleCharacterIds,
@@ -29,15 +31,8 @@ export interface TrackedPair {
   readonly characterId: number;
 }
 
-const trackingSnapshotSchema = z.object({
-  tracked: z.array(z.object({ userId: z.string(), characterId: z.number().int() })),
-});
-
 async function freezeMapTrackingForScoping(mapId: string): Promise<TrackedPair[]> {
-  const snapshot = await postConvexHttpDoor({
-    path: '/map-tracking-snapshot',
-    body: { mapId },
-    schema: trackingSnapshotSchema,
+  const snapshot = await postConvexHttpDoor(mapTrackingSnapshotDoor, { mapId }, {
     error: ProjectionUnavailableError,
     label: 'Map tracking snapshot unavailable',
   });
@@ -52,8 +47,7 @@ function highestRoleByUser(claims: readonly MapAccessClaim[]) {
 }
 
 function eligibleByUser(grants: readonly DatedMapGrant[], affiliations: readonly AccountAffiliation[]) {
-  const rows = new Map<string, AccountAffiliation[]>();
-  for (const row of affiliations) rows.set(row.userId, [...(rows.get(row.userId) ?? []), row]);
+  const rows = groupBy(affiliations, (row) => row.userId);
   return new Map([...rows].map(([userId, held]) => [userId, new Set(eligibleCharacterIds(grants, held))]));
 }
 
@@ -110,7 +104,7 @@ async function grandfatherPass(
     await deps.grandfather(
       mapId,
       grandfatherGrants({ claims, grants, tracked, affiliations }),
-      new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS),
+      authorizationFailureCutoff(),
     );
     const nextTransfers = await deps.readTransfers(mapId);
     const considered = new Set(tracked.map(trackedPairKey));
@@ -157,18 +151,14 @@ export async function scopeLegacyMap(
 export async function scopeLegacyMaps(
   deadline: number,
   dependencies: MapScopingDependencies & { readonly listMapIds?: typeof listUnscopedMapIds } = {},
-): Promise<{ succeeded: number; failed: number }> {
+): Promise<DeadlineBatchResult> {
   const mapIds = await (dependencies.listMapIds ?? listUnscopedMapIds)(SCOPING_BATCH);
-  const counts = { succeeded: 0, failed: 0 };
-  for (const mapId of mapIds) {
-    if (Date.now() >= deadline) break;
-    try {
-      if (await scopeLegacyMap(mapId, dependencies)) counts.succeeded += 1;
-      else counts.failed += 1;
-    } catch (error) {
+  return runUntilDeadline(
+    mapIds,
+    deadline,
+    async (mapId) => (await scopeLegacyMap(mapId, dependencies)) ? 'succeeded' : 'failed',
+    (mapId, error) => {
       console.error('[map-character-scoping] map kept for retry', mapId, error);
-      counts.failed += 1;
-    }
-  }
-  return counts;
+    },
+  );
 }

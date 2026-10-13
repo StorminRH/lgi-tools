@@ -1,27 +1,35 @@
-import { and, asc, eq, isNotNull, lte, or } from 'drizzle-orm';
+import { and, asc, eq, gt, isNotNull, isNull, lte, or, type SQL } from 'drizzle-orm';
 import { db } from '@/db';
 import { account } from '@/db/auth-schema';
-import { EVE_PROVIDER_ID } from './eve-sso';
-import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
+import { authorizationFailureCutoff } from './authorization-policy';
+import { eveAccountsForUser } from './eve-account-shared';
 
-function ownerCondition(userId: string) {
-  return and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.userId, userId));
+/** Unsuspended accounts whose failures began at or before the cutoff, so they are due for suspension. */
+function overdueUnsuspended(cutoff: Date): SQL | undefined {
+  return and(eq(account.authorizationSuspended, false), lte(account.authorizationFailureFirstAt, cutoff));
+}
+
+/**
+ * The complement of the overdue bound: no unresolved failure, or one that began
+ * after the cutoff. `lte` on a NULL first-failure is NULL, hence the IS NULL branch.
+ */
+export function authorizationFailureCurrent(cutoff: Date): SQL | undefined {
+  return or(isNull(account.authorizationFailureFirstAt), gt(account.authorizationFailureFirstAt, cutoff));
 }
 
 export async function hasAuthorizationWork(userId: string): Promise<boolean> {
   const now = new Date();
-  const rows = await db.select({ id: account.id }).from(account).where(and(ownerCondition(userId), or(
+  const rows = await db.select({ id: account.id }).from(account).where(and(eveAccountsForUser(userId), or(
     and(isNotNull(account.refreshToken), lte(account.authorizationNextCheckAt, now)),
     isNotNull(account.authorizationAccessChangedAt),
-    and(eq(account.authorizationSuspended, false),
-      lte(account.authorizationFailureFirstAt, new Date(now.getTime() - AUTHORIZATION_MAX_FAILURE_AGE_MS))),
+    overdueUnsuspended(authorizationFailureCutoff(now.getTime())),
   ))).limit(1);
   return rows.length > 0;
 }
 
 export async function listDueAuthorizations(userId: string) {
   return db.select({ id: account.id, characterId: account.accountId, dueAt: account.authorizationNextCheckAt })
-    .from(account).where(and(ownerCondition(userId), isNotNull(account.refreshToken),
+    .from(account).where(and(eveAccountsForUser(userId), isNotNull(account.refreshToken),
       lte(account.authorizationNextCheckAt, new Date())))
     .orderBy(asc(account.authorizationNextCheckAt), asc(account.id)).limit(40);
 }
@@ -36,13 +44,12 @@ export async function claimAuthorization(id: string): Promise<boolean> {
 
 export async function suspendOverdueAuthorizations(userId: string): Promise<void> {
   await db.update(account).set({ authorizationSuspended: true, authorizationAccessChangedAt: new Date() })
-    .where(and(ownerCondition(userId), eq(account.authorizationSuspended, false),
-      lte(account.authorizationFailureFirstAt, new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS))));
+    .where(and(eveAccountsForUser(userId), overdueUnsuspended(authorizationFailureCutoff())));
 }
 
 export async function listAuthorizationAccessChanges(userId: string) {
   return db.select({ id: account.id, characterId: account.accountId, changedAt: account.authorizationAccessChangedAt })
-    .from(account).where(and(ownerCondition(userId), isNotNull(account.authorizationAccessChangedAt)))
+    .from(account).where(and(eveAccountsForUser(userId), isNotNull(account.authorizationAccessChangedAt)))
     .orderBy(asc(account.authorizationAccessChangedAt), asc(account.id)).limit(100);
 }
 

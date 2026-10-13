@@ -6,12 +6,12 @@ import {
 } from '@/data/maps/chain-contract';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
-import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { requireMapAccess } from './lib/mapAccess';
-import { requireConnectionOnMap } from './lib/mapConnectionLookup';
-import { findSystem, requireSystemId } from './lib/mapSystemLookup';
+import { gatedAuthoringEdit, writeMapEvent } from './lib/mapAuthoringEvents';
+import { readTouchingConnections, requireConnectionOnMap } from './lib/mapConnectionLookup';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
+import { findSystem, requireLiveSystem, requireSystemId } from './lib/mapSystemLookup';
 import { deleteUnclaimedRespawn } from './lib/mapStaticClaim';
-import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 import { ensureStaticPlaceholders } from './mapStatics';
 
 const LIVE_CONNECTION_SCAN_CAP = 32;
@@ -37,24 +37,13 @@ async function readIncidentConnections(
   mapId: string,
   systemId: number,
 ): Promise<Doc<'mapConnections'>[]> {
-  const incidentBound = {
-    code: 'MAP_TOO_LARGE',
-    detail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
-  };
-  const takeIncident = (
-    index: 'by_map_from' | 'by_map_to',
-    field: 'fromSystemId' | 'toSystemId',
-  ) =>
-    takeIndexedOrThrow(
-      ctx.db
-        .query('mapConnections')
-        .withIndex(index, (q) => q.eq('mapId', mapId).eq(field, systemId)),
-      LIVE_CONNECTION_SCAN_CAP,
-      incidentBound,
-    );
-  const fromRows = await takeIncident('by_map_from', 'fromSystemId');
-  const toRows = await takeIncident('by_map_to', 'toSystemId');
-  return [...new Map([...fromRows, ...toRows].map((row) => [row._id, row])).values()];
+  const rows = await readTouchingConnections(ctx, mapId, systemId, {
+    limit: LIVE_CONNECTION_SCAN_CAP,
+    errorCode: 'MAP_TOO_LARGE',
+    errorDetail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
+  });
+  // Self-loops are rejected upstream; the dedupe only guards a row seen from both doors.
+  return [...new Map(rows.map((row) => [row._id, row])).values()];
 }
 
 async function stampSystemTombstone(
@@ -74,14 +63,7 @@ async function stampSystemTombstone(
   const stamps = chainTombstoneStamps(Date.now());
   await ctx.db.patch(system._id, stamps);
   for (const connection of incidentConnections) {
-    if (
-      connection.tombstone.kind === 'removed'
-      && connection.tombstone.purgeAfter !== stamps.purgeAfter
-    ) {
-      await ctx.db.patch(connection._id, {
-        tombstone: { ...connection.tombstone, purgeAfter: stamps.purgeAfter },
-      });
-    }
+    await setRemovedPurgeAfter(ctx, connection, stamps.purgeAfter);
   }
   return { tombstoned: true };
 }
@@ -109,20 +91,6 @@ async function clearSystemTombstone(
   return { restored: true };
 }
 
-async function requireLiveEndpoint(
-  ctx: MutationCtx,
-  mapId: string,
-  endpointId: number,
-): Promise<void> {
-  const endpoint = await findSystem(ctx, mapId, endpointId);
-  if (endpoint === null || isTombstoned(endpoint)) {
-    throw new ConvexError({
-      code: 'ENDPOINT_TOMBSTONED',
-      detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
-    });
-  }
-}
-
 async function clearConnectionTombstone(
   ctx: MutationCtx,
   mapId: string,
@@ -130,9 +98,12 @@ async function clearConnectionTombstone(
 ): Promise<{ restored: true; changed: boolean }> {
   const connection = await requireConnectionOnMap(ctx, mapId, connectionId);
   if (!isTombstoned(connection)) return { restored: true, changed: false };
-  await requireLiveEndpoint(ctx, mapId, connection.fromSystemId);
-  if (connection.toSystemId !== null) {
-    await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
+  for (const endpointId of [connection.fromSystemId, connection.toSystemId]) {
+    if (endpointId === null) continue;
+    await requireLiveSystem(ctx, mapId, endpointId, {
+      code: 'ENDPOINT_TOMBSTONED',
+      detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
+    });
   }
   await deleteUnclaimedRespawn(ctx, connection);
   await ctx.db.patch(connectionId, { tombstone: { kind: 'live' } });
@@ -184,8 +155,8 @@ export const restoreSystem = internalMutation({
 
 export const restoreConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    await requireMapAccess(ctx, mapId, 'edit');
-    return restoreLiveConnection(ctx, mapId, connectionId, await eventActor(ctx, mapId));
-  },
+  handler: (ctx, { mapId, connectionId }) =>
+    gatedAuthoringEdit(ctx, mapId, (actor) =>
+      restoreLiveConnection(ctx, mapId, connectionId, actor),
+    ),
 });

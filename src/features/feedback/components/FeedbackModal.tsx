@@ -5,10 +5,11 @@ import { cn } from '@/components/ui/cn';
 import { useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
-import { Dialog } from '@/components/ui/dialog';
-import { Field, fieldLabel } from '@/components/ui/field';
+import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { eyebrow } from '@/components/ui/type-roles';
 import type { Session } from '@/platform/auth/types';
 import { apiFetch } from '@/transport/api-client';
 import { feedbackEndpoint } from '../api-contract';
@@ -19,7 +20,6 @@ import {
 } from '../categories';
 import { FEEDBACK_MESSAGE_MAX_LENGTH, FEEDBACK_TITLE_MAX_LENGTH } from '../constants';
 import {
-  FEEDBACK_NETWORK_ERROR_MESSAGE,
   feedbackErrorMessage,
   feedbackSubmitGate,
   type SubmitState,
@@ -31,15 +31,12 @@ async function submitFeedback(
   path: string,
   category: FeedbackCategory,
 ): Promise<SubmitState> {
-  try {
-    const result = await apiFetch(feedbackEndpoint, {
-      body: { title, message, path, category },
-    });
-    if (!result.ok) return { kind: 'error', message: feedbackErrorMessage(result) };
-    return { kind: 'success' };
-  } catch {
-    return { kind: 'error', message: FEEDBACK_NETWORK_ERROR_MESSAGE };
-  }
+  const result = await apiFetch(feedbackEndpoint, {
+    body: { title, message, path, category },
+  });
+  return result.ok
+    ? { kind: 'success' }
+    : { kind: 'error', message: feedbackErrorMessage(result) };
 }
 
 function FeedbackMeta({
@@ -52,13 +49,18 @@ function FeedbackMeta({
   path: string;
 }) {
   return (
-    <div className={cn(insetSurface, 'flex flex-col gap-1 px-3 py-2 text-label tracking-label uppercase text-muted')}>
+    <div
+      className={cn(
+        insetSurface,
+        eyebrow({ font: 'inherit', weight: 'inherit', className: 'flex flex-col gap-1 px-3 py-2' }),
+      )}
+    >
       {loading ? (
         <div>Submitting…</div>
       ) : session ? (
         <div>
           <span>Submitting as</span>{' '}
-          <span className="text-text normal-case tracking-normal">{session.name}</span>
+          <span className="text-text">{session.name}</span>
         </div>
       ) : (
         <div>Submitting anonymously</div>
@@ -66,7 +68,7 @@ function FeedbackMeta({
       {path && (
         <div className="truncate">
           <span>From</span>{' '}
-          <span className="font-data text-text normal-case tracking-normal">{path}</span>
+          <span className="font-data text-text">{path}</span>
         </div>
       )}
     </div>
@@ -83,16 +85,14 @@ function FeedbackCategoryField({
   onCategoryChange: (value: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className={fieldLabel}>Category</span>
+    <Field label="Category">
       <Select
         value={category}
         onValueChange={onCategoryChange}
         items={FEEDBACK_CATEGORY_SELECT_ITEMS}
-        ariaLabel="Category"
         disabled={disabled}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -258,25 +258,15 @@ export function FeedbackModal({
       className="flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(560px,calc(100vw-2rem))] flex-col"
     >
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border-soft px-4 py-3">
-          <h2
-            id={titleId}
-            className="font-display font-bold text-h3 tracking-copy uppercase text-name"
-          >
-            Send feedback
-          </h2>
-          <Button
-            variant="bare"
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="text-muted hover:text-text text-ui leading-none px-2 py-1"
-          >
-            ×
-          </Button>
-        </header>
+        <DialogHeader
+          titleId={titleId}
+          title="Send feedback"
+          size="h3"
+          closeLabel="Close feedback"
+          className="items-center"
+        />
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-3">
+        <DialogBody className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
           <FeedbackMeta loading={loading} session={session} path={path} />
           {state.kind !== 'success' && (
             <>
@@ -304,16 +294,16 @@ export function FeedbackModal({
             textareaRef={textareaRef}
             onMessageChange={(e) => setMessage(e.target.value)}
           />
-        </div>
+        </DialogBody>
 
-        <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-border-soft px-4 py-3">
+        <DialogFooter>
           <FeedbackFooter
             state={state}
             disabled={disabled}
             canSend={canSend}
             onClose={onClose}
           />
-        </footer>
+        </DialogFooter>
       </form>
     </Dialog>
   );

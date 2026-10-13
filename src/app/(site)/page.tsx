@@ -8,9 +8,12 @@ import { JsonLd } from '@/components/composition/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
+import { isAuthErrorCode, LINK_ERROR_MESSAGES } from '@/composition/auth-error';
 import { buildDemoBoard, demoVariant } from '@/composition/board/demo-board';
 import { readEnv } from '@/lib/env';
+import { resolveNotice } from '@/lib/error-copy';
 import { buildPageMetadata } from '@/lib/page-metadata';
+import type { AuthErrorCode, BetterAuthLinkError, BetterAuthSignInError } from '@/platform/auth/api-contract';
 
 export const metadata = buildPageMetadata({
   title: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
@@ -42,30 +45,42 @@ const HOME_JSON_LD = {
   ],
 };
 
-const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  state_mismatch:
-    'Sign-in could not be verified. Try clicking "Log in with EVE" again.',
-  token_exchange_failed:
-    'EVE rejected the sign-in. Wait a moment and try again.',
-  db_write_failed:
-    'We signed you in but could not save your character record. Try again or report this.',
+const AUTH_ERROR_MESSAGES = {
+  login_required: 'Log in with EVE to open your settings.',
   admin_required:
     'The admin dashboard is only available to authorized characters.',
-};
+} satisfies Record<AuthErrorCode, string>;
+
+const SIGN_IN_ERROR_MESSAGES = {
+  ...LINK_ERROR_MESSAGES,
+  account_not_linked:
+    "That character isn't linked to an account here any more. Try signing in again, or sign in with a character on your account and add it under Settings → Characters.",
+} satisfies Record<BetterAuthSignInError | BetterAuthLinkError, string>;
+
+/**
+ * Any other `?error=` on the home page is a sign-in or link from here that did not finish (an
+ * expired state cookie, EVE failing the code exchange, Better Auth's own error redirect). The code
+ * is never shown: Better Auth only filters it to a word, and `error_description` is raw.
+ */
+const SIGN_IN_FAILED_MESSAGE = "Your EVE login didn't finish. Please try again.";
+
+/** A page guard's `?auth_error=` notice, else the copy for a sign-in or link that came back with `?error=`. */
+function authNotice(params: { [key: string]: string | string[] | undefined }): string | null {
+  const code = params.auth_error;
+  if (isAuthErrorCode(code)) return AUTH_ERROR_MESSAGES[code];
+  return resolveNotice(params.error, SIGN_IN_ERROR_MESSAGES, SIGN_IN_FAILED_MESSAGE);
+}
 
 async function AuthErrorNotice({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const params = await searchParams;
-  const rawError = params.auth_error;
-  const errorKey =
-    typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
-  if (!errorKey) return null;
+  const message = authNotice(await searchParams);
+  if (message === null) return null;
   return (
     <div className="w-full max-w-[640px] mb-8">
-      <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
+      <Callout label="Auth">{message}</Callout>
     </div>
   );
 }

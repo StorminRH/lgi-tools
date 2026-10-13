@@ -11,27 +11,95 @@ export const uiAdoptionRegistry = {
       reason: "SortableTable's expandable-row API requires the native details owner.",
     },
   ],
-  hiddenInputs: [
-    'src/app/(site)/admin/queue/RetryJobForm.tsx',
-    'src/app/(site)/admin/statics/StaticsCards.tsx',
-    'src/components/composition/account/AdminForceLogoutForm.tsx',
-    'src/components/composition/account/AdminReassignCharacterForm.tsx',
-    'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
-    'src/components/composition/account/RoleToggleForm.tsx',
-    'src/components/composition/account/SwitchCharacterForm.tsx',
-    'src/components/composition/account/UnlinkCharacterForm.tsx',
-  ],
   nativeTitles: [
     {
       file: 'src/components/composition/NavTools.tsx',
       reason: 'Owned by the deferred Category-dropdown top nav + module expansion backlog item.',
     },
   ],
-  disabledControlTitles: [
-    'src/components/composition/account/AdminForceLogoutForm.tsx',
-    'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
-    'src/components/composition/account/RoleToggleForm.tsx',
-    'src/components/composition/account/UnlinkCharacterForm.tsx',
+  uppercaseExceptions: [
+    {
+      file: 'src/app/(site)/sites/[id]/opengraph-image.tsx',
+      count: 2,
+      reason: 'The share-card image, a brand graphic set in capitals; not page text.',
+    },
+    {
+      file: 'src/app/opengraph-image.tsx',
+      count: 1,
+      reason: 'The share-card image, a brand graphic set in capitals; not page text.',
+    },
+    {
+      file: 'src/components/composition/AppHeader.tsx',
+      count: 1,
+      reason: 'The [LGI].TOOLS logo.',
+    },
+    {
+      file: 'src/components/composition/HeroBanner.tsx',
+      count: 2,
+      reason: 'The landing wordmark and tagline.',
+    },
+    {
+      file: 'src/components/composition/map/MapMenu.tsx',
+      count: 1,
+      reason: 'The [LGI].tools logo in the map menu.',
+    },
+    {
+      file: 'src/mapper/canvas/SystemNode.tsx',
+      count: 1,
+      reason: 'The system class chip, an EVE code (C4, HS, NS).',
+    },
+    {
+      file: 'src/mapper/signatures/scanner-row-cells.tsx',
+      count: 1,
+      reason: 'The signature class tag, an EVE code (C3, HS).',
+    },
+    {
+      file: 'src/mapper/windows/MapWindow.tsx',
+      count: 1,
+      reason: 'The system summary card title, an EVE system name.',
+    },
+  ],
+  typeRoleExceptions: [
+    {
+      file: 'src/components/composition/AppHeader.tsx',
+      count: 1,
+      reason: 'The header wordmark, not a label or title role.',
+    },
+    {
+      file: 'src/components/composition/Footer.tsx',
+      count: 2,
+      reason: 'Footer copy at an off-step 0.03em, awaiting a design pass.',
+    },
+    {
+      file: 'src/components/composition/HeroBanner.tsx',
+      count: 2,
+      reason: 'The landing wordmark and tagline, tracked off the scale on purpose.',
+    },
+    {
+      file: 'src/components/composition/map/MapMenu.tsx',
+      count: 1,
+      reason: 'The map menu wordmark, not a label or title role.',
+    },
+    {
+      file: 'src/components/ui/callout.tsx',
+      count: 1,
+      reason: 'Callout body copy at an off-step 0.03em, awaiting a design pass.',
+    },
+    {
+      file: 'src/mapper/canvas/SystemNode.tsx',
+      count: 1,
+      reason: 'A system class chip, an EVE code in capitals sized by the node.',
+    },
+    {
+      file: 'src/mapper/signatures/scanner-row-cells.tsx',
+      count: 1,
+      reason: 'A signature class tag, an EVE code in capitals.',
+    },
+    {
+      file: 'src/mapper/windows/MapWindow.tsx',
+      count: 1,
+      reason: 'The system summary card title, an EVE system name in capitals.',
+    },
   ],
   temporaryCssFamilies: [],
   retainedCssFamilies: [

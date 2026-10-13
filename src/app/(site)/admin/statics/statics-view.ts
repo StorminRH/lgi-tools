@@ -1,21 +1,20 @@
+import type { WhStaticsReviewOutcome } from '@/data/wh-statics/api-contract';
 import type { PendingWhStaticsReview } from '@/data/wh-statics/queries';
 import type { WhStaticsSystemCodes } from '@/data/wh-statics/schema';
 
-const OUTCOME_LABELS: Readonly<Record<string, string>> = {
+/** The notice for each `outcome` a statics action redirects back with. */
+export const OUTCOME_LABELS = {
   busy: 'Another statics refresh is already running.',
   'feed-unavailable': 'The community feed was unavailable; the promoted copy was not changed.',
   promoted: 'The pending statics snapshot was promoted.',
   rejected: 'The pending statics snapshot was rejected.',
+  'snapshot-empty': 'That snapshot has no static assignments, so it was not promoted.',
+  'snapshot-not-pending': 'That snapshot is no longer pending review, so nothing changed.',
   'snapshot-pending': 'A changed feed was recorded for review.',
   'stale-observation':
     'A newer feed observation was already recorded; the pending snapshot was left alone.',
   unchanged: 'The community feed is unchanged.',
-};
-
-/** The notice for the `outcome` a statics action redirects back with, if it is one we know. */
-export function outcomeMessage(raw: string | string[] | undefined): string | undefined {
-  return typeof raw === 'string' ? OUTCOME_LABELS[raw] : undefined;
-}
+} satisfies Record<WhStaticsReviewOutcome, string>;
 
 /** One titled list in the review's difference or lineage panel. */
 export interface ReviewList {

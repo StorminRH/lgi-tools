@@ -1,4 +1,5 @@
-import { sectionMatches } from '@/lib/section-path';
+import { longestSectionMatch } from '@/lib/section-path';
+
 export type SettingsSectionId =
   | 'characters'
   | 'corporations'
@@ -52,13 +53,9 @@ export function deriveActiveSettingsSection(
   pathname: string,
   groups: readonly SettingsGroup[],
 ): SettingsSection | null {
-  let best: SettingsSection | null = null;
-  for (const group of groups) {
-    for (const section of group.sections) {
-      if (sectionMatches(pathname, section.href) && (best === null || section.href.length > best.href.length)) {
-        best = section;
-      }
-    }
-  }
-  return best;
+  return longestSectionMatch(
+    pathname,
+    groups.flatMap((group) => group.sections),
+    (section) => section.href,
+  );
 }

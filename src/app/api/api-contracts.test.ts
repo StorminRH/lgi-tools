@@ -1,20 +1,20 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { listRouteFiles, listSourceFiles } from '@/lib/__tests__/source-scan';
 
 const API_DIR = dirname(fileURLToPath(import.meta.url));
-const SRC_DIR = join(API_DIR, '..', '..');
-const REPO_ROOT = join(SRC_DIR, '..');
+const REPO_ROOT = join(API_DIR, '..', '..', '..');
 const ROUTE_BODY_MODULE = '@/transport/route-body';
 const API_RESPONSE_MODULE = '@/transport/api-response';
+const VERSIONED_ASSET_ROUTE_MODULE = '@/app/api/universe/assets/versioned-asset-route';
 const SCHEMA_HELPERS = new Set(['parseFormBody', 'readJsonBody']);
 const INPUT_MARKER_RE = /^[ \t]*\/\/[ \t]*input:[ \t]*([a-z]+)[ \t]*$/gm;
 const VALID_INPUT_CLASSES = new Set(['none', 'query', 'path']);
 
 const CRON_ROUTES = new Set([
-  'cron/drain-esi-refresh-jobs/route.ts',
   'cron/daily-batch/route.ts',
   'cron/refresh-gsc/route.ts',
   'cron/refresh-industry-indices/route.ts',
@@ -29,7 +29,6 @@ const FORM_ROUTES = new Set([
   'account/characters/unlink/route.ts',
   'admin/characters/reassign/route.ts',
   'admin/characters/unlink/route.ts',
-  'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/sessions/revoke/route.ts',
   'admin/wh-statics/route.ts',
@@ -40,17 +39,7 @@ const CONTRACTLESS_ROUTES = new Set([
   'dev/synthetic-pilot/route.ts',
 ]);
 
-function findFiles(dir: string, accept: (name: string) => boolean): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...findFiles(full, accept));
-    else if (accept(entry.name)) out.push(full);
-  }
-  return out;
-}
-
-const ALL_ROUTE_FILES = findFiles(API_DIR, (name) => /^route\.(ts|js|mts|mjs)$/.test(name));
+const ALL_ROUTE_FILES = listRouteFiles().map((file) => join(REPO_ROOT, file));
 const FIRST_PARTY_ROUTE_FILES = ALL_ROUTE_FILES.filter(
   (file) => !CONTRACTLESS_ROUTES.has(relative(API_DIR, file)),
 );
@@ -191,14 +180,17 @@ function boundEndpointCalls(
   endpointImports: ReadonlySet<string>,
   lifecycleNames: ReadonlySet<string>,
   marketNames: ReadonlySet<string>,
+  versionedAssetNames: ReadonlySet<string>,
 ): number {
   const callee = calledIdentifier(node);
   if (callee === null) return 0;
-  // First matching binder wins, in the order apiResponse, lifecycle, market.
+  // First matching binder wins, in the order apiResponse, lifecycle, market,
+  // versioned asset.
   const binders: readonly [ReadonlySet<string>, (call: ts.CallExpression) => string | null][] = [
     [apiResponseNames, firstArgIdentifier],
     [lifecycleNames, lifecycleEndpointName],
     [marketNames, secondArgIdentifier],
+    [versionedAssetNames, firstArgIdentifier],
   ];
   const extractEndpoint = binders.find(([names]) => names.has(callee))?.[1];
   const endpoint = extractEndpoint?.(node) ?? null;
@@ -229,6 +221,11 @@ function classifyV2Route(source: string): V2Classification {
       .filter(([, imported]) => imported === 'marketRefreshRoute')
       .map(([local]) => local),
   );
+  const versionedAssetNames = new Set(
+    [...namedImports(file, (moduleName) => moduleName === VERSIONED_ASSET_ROUTE_MODULE)]
+      .filter(([, imported]) => imported === 'versionedAssetRoute')
+      .map(([local]) => local),
+  );
   let apiResponseCalls = 0;
   let mixedRawResponse = false;
 
@@ -241,6 +238,7 @@ function classifyV2Route(source: string): V2Classification {
         endpointImports,
         lifecycleNames,
         marketNames,
+        versionedAssetNames,
       );
       if (isResponseJsonCall(node)) mixedRawResponse = true;
     }
@@ -311,15 +309,17 @@ function declaredEndpoint(node: ts.Node, contract: string): DeclaredEndpoint | n
 
 function collectDeclaredEndpoints(): DeclaredEndpoint[] {
   const declared: DeclaredEndpoint[] = [];
-  for (const file of findFiles(SRC_DIR, (name) => name === 'api-contract.ts')) {
+  const contracts = listSourceFiles({ roots: ['src'], extensions: ['.ts'] }).filter((file) =>
+    file.endsWith('/api-contract.ts'),
+  );
+  for (const contract of contracts) {
     const source = ts.createSourceFile(
-      file,
-      readFileSync(file, 'utf8'),
+      contract,
+      readFileSync(join(REPO_ROOT, contract), 'utf8'),
       ts.ScriptTarget.Latest,
       true,
       ts.ScriptKind.TS,
     );
-    const contract = relative(REPO_ROOT, file);
     const visit = (node: ts.Node): void => {
       const endpoint = declaredEndpoint(node, contract);
       if (endpoint !== null) declared.push(endpoint);
@@ -411,6 +411,23 @@ import { apiResponse as respond } from '@/transport/api-response';
 respond(endpoint, 200, { ok: true });`);
     expect(result.endpointImports).toEqual(new Set(['endpoint']));
     expect(result.apiResponseCalls).toBe(1);
+  });
+
+  it('binds the versioned asset shell to its first-argument endpoint', () => {
+    const shellImport =
+      "import { versionedAssetRoute as serve } from '@/app/api/universe/assets/versioned-asset-route';";
+    const bound = classifyV2Route(`${endpointImport}
+${shellImport}
+export const GET = serve(exampleEndpoint, load);`);
+    const localShell = classifyV2Route(`${endpointImport}
+function versionedAssetRoute() {}
+export const GET = versionedAssetRoute(exampleEndpoint, load);`);
+    const localEndpoint = classifyV2Route(`${shellImport}
+const exampleEndpoint = {};
+export const GET = serve(exampleEndpoint, load);`);
+    expect(bound.apiResponseCalls).toBe(1);
+    expect(localShell.apiResponseCalls).toBe(0);
+    expect(localEndpoint.apiResponseCalls).toBe(0);
   });
 });
 

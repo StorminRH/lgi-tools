@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { getOrInsertComputed } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
   ATTRIBUTE_BONUS_DOGMA_NAMES,
@@ -9,7 +10,7 @@ import {
   IMPLANT_SLOT_DOGMA,
   SKILL_RANK_DOGMA,
 } from './character-attributes';
-import { BLUEPRINT_STRUCTURE_TAG, SDE_SKILL_CATEGORY_ID } from './constants';
+import { SDE_CACHE_TAG, SDE_SKILL_CATEGORY_ID } from './constants';
 import { getTypeAttributesBatch } from './queries';
 import { dgmAttributeTypes, eveGroups, eveNpcStations, eveSolarSystems, eveTypes, typeDogma } from './schema';
 import { type SecurityClass, systemSecurityClass } from './security';
@@ -64,7 +65,7 @@ const DOGMA_NAMES = [IMPLANT_SLOT_DOGMA, SKILL_RANK_DOGMA, ...Object.values(ATTR
 async function dogmaAttributeIds(): Promise<Record<string, number>> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   const rows = await withColdStartRetry(() =>
     db
       .select({ id: dgmAttributeTypes.id, name: dgmAttributeTypes.name })
@@ -142,7 +143,7 @@ const FALLBACK_SKILL_RANK = 1;
 export async function getSkillCatalog(): Promise<CatalogGroup[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   const [ids, rows] = await Promise.all([
     dogmaAttributeIds(),
     withColdStartRetry(() =>
@@ -162,10 +163,13 @@ export async function getSkillCatalog(): Promise<CatalogGroup[]> {
   ]);
   const groups = new Map<number, CatalogGroup>();
   for (const row of rows) {
-    const group = groups.get(row.groupId) ?? { groupId: row.groupId, name: row.groupName, skills: [] };
-    const rank = attributeValue((row.attributes ?? {}) as AttrMap, ids, SKILL_RANK_DOGMA);
+    const group = getOrInsertComputed(groups, row.groupId, () => ({
+      groupId: row.groupId,
+      name: row.groupName,
+      skills: [],
+    }));
+    const rank = attributeValue(row.attributes ?? {}, ids, SKILL_RANK_DOGMA);
     group.skills.push({ typeId: row.typeId, name: row.name, rank: rank ?? FALLBACK_SKILL_RANK });
-    groups.set(row.groupId, group);
   }
   const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
   return [...groups.values()]

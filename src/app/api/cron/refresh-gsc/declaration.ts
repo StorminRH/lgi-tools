@@ -1,8 +1,8 @@
 import { getSitemapEntries } from '@/composition/sitemap';
 import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
-import { ADVISORY_LOCK_GSC_SYNC } from '@/data/gsc/constants';
 import { syncGsc } from '@/data/gsc/ingest';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import { ADVISORY_LOCKS } from '@/db/advisory-lock';
 
 export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse> = {
   name: 'cron:gsc',
@@ -14,7 +14,7 @@ export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse>
     justification: 'daily batch wakes Neon by design and preserves skipped or partial syncs',
   },
   lock: {
-    key: Number(ADVISORY_LOCK_GSC_SYNC),
+    key: ADVISORY_LOCKS.gscSync,
     busyBody: (durationMs) => ({
       status: 'skipped',
       reason: 'busy',
@@ -25,9 +25,9 @@ export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse>
       durationMs,
     }),
   },
-  work: async ({ client }) => {
+  work: async ({ database }) => {
     const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);
-    const summary = await syncGsc(client, sitemapUrls);
+    const summary = await syncGsc(database, sitemapUrls);
 
     return {
       outcome: summary.status,

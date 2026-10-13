@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import { Dialog, DialogClose, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogCloseButton, DialogTitle } from '@/components/ui/dialog';
 import {
   PointerMenu,
   MenuItem,
@@ -9,12 +9,8 @@ import {
   type MenuAnchor,
 } from '@/components/ui/pointer-menu';
 import { pointerAnchor } from '@/components/ui/overlay-positioning';
-import { TerminalSearch } from '@/components/ui/terminal-search';
-import {
-  useSystemSearch,
-  type SystemErr,
-  type SystemParams,
-} from '@/components/use-system-search';
+import { displayTitle } from '@/components/ui/type-roles';
+import { SystemTerminalSearch } from './system-terminal-search';
 
 export interface NodeMenuAnchor {
   readonly systemId: number;
@@ -35,7 +31,6 @@ export function NodeAddMenu({
   onMenuOpenChange,
   onAdd,
 }: NodeAddMenuProps) {
-  const { parse, suggest } = useSystemSearch();
   const [searchOpen, setSearchOpen] = useState(false);
   const [fromSystemId, setFromSystemId] = useState<number | null>(null);
   const titleId = useId();
@@ -73,34 +68,21 @@ export function NodeAddMenu({
       >
         <div className="flex flex-col gap-3" data-map-node-add-search>
           <div className="flex items-start justify-between gap-2">
-            <DialogTitle
-              id={titleId}
-              className="font-display text-h3 font-semibold tracking-copy uppercase text-name"
-            >
+            <DialogTitle id={titleId} className={displayTitle({ size: 'h3' })}>
               Add connection
             </DialogTitle>
-            <DialogClose className="font-ui text-nav text-muted hover:text-name">
-              ×
-            </DialogClose>
+            <DialogCloseButton label="Close add connection" />
           </div>
-          <p className="font-ui text-ui leading-relaxed text-muted">
-            Existing systems supported.
-          </p>
-          <TerminalSearch<SystemParams, SystemErr>
-            initialValue=""
-            placeholder="Destination system — type a name"
-            parse={parse}
-            suggest={suggest}
+          <SystemTerminalSearch
+            placeholder="Destination system"
             inputRef={searchInputRef}
-            errorMessage={() => 'No system matches that name.'}
-            onSubmit={(params) => {
+            excludeSystemId={fromSystemId ?? undefined}
+            onPick={(toSystemId) => {
               if (fromSystemId === null) return;
-              onAdd(fromSystemId, params.system.id);
+              onAdd(fromSystemId, toSystemId);
               setSearchOpen(false);
               setFromSystemId(null);
             }}
-            onClear={() => undefined}
-            errorLabel="System"
           />
         </div>
       </Dialog>

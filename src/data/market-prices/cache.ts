@@ -1,12 +1,12 @@
 import { desc } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
-import { db, type Sql } from '@/db';
+import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { refreshPrices, type RefreshSummary } from './ingest';
+import { MARKET_PRICES_TAG } from './keys';
 import { listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
-import type { AnyPgDb } from '@/lib/db-types';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 
 export type CachedRefreshResult =
   | { status: 'cached'; reason: 'empty-set'; lastUpdatedAt: Date | null }
@@ -23,26 +23,30 @@ async function getPricesFreshness(
   return { lastUpdatedAt: row?.updatedAt ?? null };
 }
 
-export const PRICES_FRESHNESS_TAG = 'market-prices-freshness';
-
+/**
+ * When any price was last written, cached across instances until a price
+ * write clears the tag. It only aggregates stored rows and never refreshes
+ * anything, and every price write (the view's write-behind and the cron
+ * sweep) clears MARKET_PRICES_TAG, so the entry cannot outlive the rows it
+ * reads. Timing it by the earliest stored order book instead would rebuild
+ * it on nearly every request: some type's book has almost always expired.
+ */
 export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date | null }> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG);
   return withColdStartRetry(() => getPricesFreshness(db));
 }
 
-export async function refreshStalePrices(client: Sql): Promise<CachedRefreshResult> {
-  const db = drizzle(client);
-
-  const typeIds = await listStaleTypeIds(db);
+export async function refreshStalePrices(database: PostgresJsDb): Promise<CachedRefreshResult> {
+  const typeIds = await listStaleTypeIds(database);
   if (typeIds.length === 0) {
-    const { lastUpdatedAt } = await getPricesFreshness(db);
+    const { lastUpdatedAt } = await getPricesFreshness(database);
     return { status: 'cached', reason: 'empty-set', lastUpdatedAt };
   }
 
-  const summary = await refreshPrices(db, typeIds);
-  const { lastUpdatedAt } = await getPricesFreshness(db);
+  const summary = await refreshPrices(database, typeIds);
+  const { lastUpdatedAt } = await getPricesFreshness(database);
   return {
     status: 'refreshed',
     lastUpdatedAt: lastUpdatedAt ?? new Date(),

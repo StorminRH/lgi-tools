@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const recovery = vi.hoisted(() => ({
   jobsForCharacter: vi.fn(),
@@ -41,14 +42,14 @@ describe('deletion recovery boundaries', () => {
   });
 
   it('does not discover or enqueue work after the cron deadline', async () => {
-    expect(await retryRequestedDeletions(Date.now() - 1)).toEqual({ retried: 0, failed: 0 });
+    expect(await retryRequestedDeletions(Date.now() - 1)).toEqual({ succeeded: 0, failed: 0, deferred: 0 });
     expect(recovery.readRequestedDeletions).not.toHaveBeenCalled();
   });
 
   it('retains a failed job and moves its retry behind other waiting work', async () => {
     recovery.readDeletionJobs.mockResolvedValue([{ id: 'job', userId: 'owner', scope: 'character' }]);
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 1 });
+    const error = silenceConsolePrefixes('error', ['[account-purge] requested deletion retry failed']);
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ succeeded: 0, failed: 1, deferred: 0 });
     expect(recovery.rotateDeletionJob).toHaveBeenCalledWith('job');
     error.mockRestore();
   });

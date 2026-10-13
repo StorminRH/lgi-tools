@@ -1,14 +1,13 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { Callout } from '@/components/ui/callout';
-import { Chip } from '@/components/ui/chip';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
-import { getFullSession } from '@/composition/session';
+import { ExternalLink, inlineLink } from '@/components/ui/text-link';
+import { requireSessionPage } from '@/composition/route-guards';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { LinkedCharactersCard } from '@/components/composition/account/LinkedCharactersCard';
@@ -16,17 +15,19 @@ import { SwitchCharacterForm } from '@/components/composition/account/SwitchChar
 import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkCharacterForm';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
-import { resolveErrorMessage } from '@/lib/error-copy';
+import { deriveLinkedCharacterStatus } from '@/platform/auth/scope-health';
+import { LINK_ERROR_MESSAGES } from '@/composition/auth-error';
+import { resolveNotice } from '@/lib/error-copy';
+import type { BetterAuthLinkError, CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { QuietSectionHead } from '@/components/ui/section-head';
-import { deriveCharacterRowView } from './characters-view';
+import { eyebrow } from '@/components/ui/type-roles';
 
-const ERROR_MESSAGES: Record<string, string> = {
-  account_already_linked_to_different_user: 'That character is already linked to another account.',
+const ERROR_MESSAGES = {
+  ...LINK_ERROR_MESSAGES,
   last_character: "You can't unlink your only character.",
   not_linked: "That character isn't linked to your account.",
   unlink_failed: 'Could not remove that character. Please try again.',
-  "email_doesn't_match": 'Linking failed. Please try again.',
-};
+} satisfies Record<CharacterLinkNotice | BetterAuthLinkError, string>;
 
 type CharactersSearchParams = Promise<{ error?: string | string[] }>;
 
@@ -61,7 +62,7 @@ function CharacterRow({
   isActive: boolean;
   isOnlyCharacter: boolean;
 }) {
-  const view = deriveCharacterRowView(character);
+  const status = deriveLinkedCharacterStatus(character);
 
   return (
     <div className="border-t border-border-soft">
@@ -80,11 +81,11 @@ function CharacterRow({
         chips={
           <span className="flex flex-wrap items-center gap-[6px]">
             <Pill tone="neutral">ID {character.characterId}</Pill>
-            {isActive ? <Chip tone="green">Active</Chip> : null}
-            {view.healthLabel ? (
-              <Chip tone="orange" className="normal-case">
-                {view.healthLabel}
-              </Chip>
+            {isActive ? <Pill tone="green">Active</Pill> : null}
+            {status.healthLabel ? (
+              <Pill tone="orange" className="shrink-0 normal-case">
+                {status.healthLabel}
+              </Pill>
             ) : null}
           </span>
         }
@@ -93,36 +94,31 @@ function CharacterRow({
             characterId={character.characterId}
             isActive={isActive}
             isOnlyCharacter={isOnlyCharacter}
-            needsReconnect={view.needsReconnect}
+            needsReconnect={status.needsReconnect}
           />
         }
       />
-      {view.authorizationDelayed ? (
+      {status.authorizationDelayed ? (
         <Callout className="mx-3.5 my-2" label="Verification delayed">
           We couldn&apos;t verify this character with EVE. Shared access through this character is
           paused while we retry automatically. Access resumes when verification succeeds.
         </Callout>
       ) : null}
-      {view.scopes.length > 0 ? (
+      {status.scopes.length > 0 ? (
         <Collapsible
           className="border-b-0"
           headerClassName="px-3.5 py-[6px]"
           header={
             <span className="flex min-w-0 items-center gap-2">
-              <span className="text-label uppercase tracking-label text-muted">
+              <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>
                 Granted access
               </span>
-              <Pill tone="neutral">{view.scopes.length}</Pill>
-              <span
-                data-chevron
-                className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-              >
-                ▾
-              </span>
+              <Pill tone="neutral">{status.scopes.length}</Pill>
+              <CollapsibleChevron className="ml-auto" />
             </span>
           }
         >
-          <GrantedScopesList scopes={view.scopes} />
+          <GrantedScopesList scopes={status.scopes} />
         </Collapsible>
       ) : null}
     </div>
@@ -130,16 +126,14 @@ function CharacterRow({
 }
 
 async function CharactersContent({ searchParams }: { searchParams: CharactersSearchParams }) {
-  const session = await getFullSession();
-  if (!session) {
-    redirect('/?auth_error=login_required');
-  }
+  const session = await requireSessionPage();
 
   const [{ error: rawError }, characters] = await Promise.all([
     searchParams,
     listLinkedCharacters(session.user.id),
   ]);
-  const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
+  // Better Auth writes its own codes here too, so anything unknown gets the generic copy.
+  const error = resolveNotice(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
   const isOnlyCharacter = characters.length <= 1;
 
   return (
@@ -163,19 +157,14 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
         </div>
         <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
           Manage EVE access:{' '}
-          <a
-            href={EVE_AUTHORIZED_APPS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-tone-blue hover:underline"
-          >
+          <ExternalLink href={EVE_AUTHORIZED_APPS_URL} className={inlineLink}>
             EVE authorized apps
-          </a> ·{' '}
-          <Link href="/legal" className="text-tone-blue hover:underline">
+          </ExternalLink> ·{' '}
+          <Link href="/legal" className={inlineLink}>
             Data policy
           </Link>
           {' '}·{' '}
-          <Link href="/settings/account" className="text-tone-blue hover:underline">
+          <Link href="/settings/account" className={inlineLink}>
             Purge data
           </Link>
           .

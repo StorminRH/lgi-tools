@@ -12,7 +12,7 @@ import { LoadFailed } from '@/components/ui/load-failed';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
@@ -131,21 +131,25 @@ export function FeedbackGroup() {
       <Specimen
         name="Skeleton + LoadingLabel"
         source="skeleton · loading-label"
-        note="Shape-preserving Suspense fallbacks, and the plain text label for small loading slots."
+        note="Shape-preserving Suspense fallbacks: decorative bars inside one labelled SkeletonGroup. LoadingLabel is the plain text label for small loading slots."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Card>
-            {[['w-2/5', 'w-16'], ['w-3/5', 'w-12'], ['w-1/3', 'w-20']].map(([left, right]) => (
-              <div key={left} className="flex justify-between gap-3 border-b border-border-soft px-4 py-3 last:border-0">
-                <Skeleton className={`h-3 ${left}`} />
-                <Skeleton className={`h-3 ${right}`} />
-              </div>
-            ))}
+            <SkeletonGroup label="Loading sample rows">
+              {[['w-2/5', 'w-16'], ['w-3/5', 'w-12'], ['w-1/3', 'w-20']].map(([left, right]) => (
+                <div key={left} className="flex justify-between gap-3 border-b border-border-soft px-4 py-3 last:border-0">
+                  <Skeleton className={`h-3 ${left}`} />
+                  <Skeleton className={`h-3 ${right}`} />
+                </div>
+              ))}
+            </SkeletonGroup>
           </Card>
           <div className="flex flex-col gap-2.5">
-            <Skeleton className="h-3 w-1/3" />
-            <Skeleton className="h-6 w-3/5" />
-            <Skeleton className="h-12 w-full" />
+            <SkeletonGroup label="Loading sample panel" className="flex flex-col gap-2.5">
+              <Skeleton className="h-3 w-1/3" />
+              <Skeleton className="h-6 w-3/5" />
+              <Skeleton className="h-12 w-full" />
+            </SkeletonGroup>
             <LoadingLabel />
           </div>
         </div>

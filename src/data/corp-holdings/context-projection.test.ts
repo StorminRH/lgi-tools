@@ -131,6 +131,14 @@ describe('unnamedStructureIds', () => {
     expect(unnamedStructureIds(index, new Map()).sort((a, b) => a - b)).toEqual([STRUCTURE, 1000000000002]);
     expect(unnamedStructureIds(index, new Map([[STRUCTURE, 'Jita Fort']]))).toEqual([1000000000002]);
   });
+
+  it('draws the Upwell line at location id 1e12: the id just below is an NPC station', () => {
+    const edge = buildHoldingIndex([
+      item(2004, 999_999_999_999, 'station', 'CorpDeliveries'),
+      item(2005, 1_000_000_000_000, 'station', 'CorpDeliveries'),
+    ]);
+    expect(unnamedStructureIds(edge, new Map())).toEqual([1_000_000_000_000]);
+  });
 });
 
 describe('mergeNames', () => {

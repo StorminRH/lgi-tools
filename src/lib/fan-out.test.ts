@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { mapByIdDroppingNulls } from './fan-out';
+import { describe, expect, it, vi } from 'vitest';
+import { settle } from '@/lib/__tests__/hook-runtime';
+import { mapByIdDroppingNulls, mapConcurrent, runUntilDeadline } from './fan-out';
 
 describe('mapByIdDroppingNulls', () => {
   it('keeps only the ids whose getter returns non-null, keyed by id', async () => {
@@ -30,6 +31,15 @@ describe('mapByIdDroppingNulls', () => {
     expect(map.get(2)).toBe(5);
   });
 
+  it('keeps every entry of a non-nullable getter, an empty list included, over readonly ids', async () => {
+    const ids: readonly number[] = [7, 8];
+    const map = await mapByIdDroppingNulls(ids, async (id) => (id === 7 ? [] : ['row']));
+    expect([...map.entries()]).toEqual([
+      [7, []],
+      [8, ['row']],
+    ]);
+  });
+
   it('runs the getters concurrently (Promise.all), not sequentially', async () => {
     let active = 0;
     let maxActive = 0;
@@ -41,5 +51,192 @@ describe('mapByIdDroppingNulls', () => {
       return { value: id };
     });
     expect(maxActive).toBeGreaterThan(1);
+  });
+
+  it('keeps at most `limit` getters in flight when a limit is given, still keyed by id', async () => {
+    let active = 0;
+    let maxActive = 0;
+    const map = await mapByIdDroppingNulls(
+      [1, 2, 3, 4, 5],
+      async (id) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        active -= 1;
+        return id === 3 ? null : { value: id };
+      },
+      2,
+    );
+    expect([...map.keys()]).toEqual([1, 2, 4, 5]);
+    expect(maxActive).toBe(2);
+  });
+});
+
+/** A worker whose calls stay in flight until the test settles each one by index. */
+function gatedWorker() {
+  const started: number[] = [];
+  const settles: ((outcome: { value: string } | { error: Error }) => void)[] = [];
+  let active = 0;
+  let peak = 0;
+  const worker = (item: string, index: number) => {
+    started.push(index);
+    active += 1;
+    peak = Math.max(peak, active);
+    return new Promise<string>((resolve, reject) => {
+      settles[index] = (outcome) => {
+        active -= 1;
+        if ('error' in outcome) reject(outcome.error);
+        else resolve(outcome.value);
+      };
+    });
+  };
+  return {
+    worker,
+    started,
+    peak: () => peak,
+    resolve: (index: number) => settles[index]!({ value: `done ${index}` }),
+    reject: (index: number, error: Error) => settles[index]!({ error }),
+  };
+}
+
+describe('mapConcurrent', () => {
+  it('keeps at most `limit` calls in flight and returns results in input order', async () => {
+    const pool = gatedWorker();
+    const run = mapConcurrent(['a', 'b', 'c', 'd', 'e'], 2, pool.worker);
+    expect(pool.started).toEqual([0, 1]);
+
+    pool.resolve(1);
+    await vi.waitFor(() => expect(pool.started).toEqual([0, 1, 2]));
+    pool.resolve(2);
+    await vi.waitFor(() => expect(pool.started).toEqual([0, 1, 2, 3]));
+    pool.resolve(0);
+    await vi.waitFor(() => expect(pool.started).toEqual([0, 1, 2, 3, 4]));
+    pool.resolve(4);
+    pool.resolve(3);
+
+    expect(await run).toEqual(['done 0', 'done 1', 'done 2', 'done 3', 'done 4']);
+    expect(pool.peak()).toBe(2);
+  });
+
+  it('passes each item with its index to the worker', async () => {
+    const seen: [string, number][] = [];
+    const results = await mapConcurrent(['x', 'y'], 4, async (item, index) => {
+      seen.push([item, index]);
+      return `${item}${index}`;
+    });
+    expect(results).toEqual(['x0', 'y1']);
+    expect(seen).toEqual([['x', 0], ['y', 1]]);
+  });
+
+  it('returns [] for no items without calling the worker', async () => {
+    const worker = vi.fn(async () => 'unused');
+    expect(await mapConcurrent([], 3, worker)).toEqual([]);
+    expect(worker).not.toHaveBeenCalled();
+  });
+
+  it('starts every item at once when the limit exceeds the item count', async () => {
+    const pool = gatedWorker();
+    const run = mapConcurrent(['a', 'b', 'c'], 10, pool.worker);
+    expect(pool.started).toEqual([0, 1, 2]);
+    pool.resolve(2);
+    pool.resolve(0);
+    pool.resolve(1);
+    expect(await run).toEqual(['done 0', 'done 1', 'done 2']);
+  });
+
+  it('rethrows the first rejection and claims no item after it', async () => {
+    const pool = gatedWorker();
+    const run = mapConcurrent(['a', 'b', 'c', 'd', 'e'], 2, pool.worker);
+    expect(pool.started).toEqual([0, 1]);
+
+    pool.reject(1, new Error('upstream down'));
+    await expect(run).rejects.toThrow('upstream down');
+
+    pool.resolve(0);
+    await settle();
+    expect(pool.started).toEqual([0, 1]);
+  });
+
+  it('runs one call at a time when the limit is 0 or NaN', async () => {
+    for (const limit of [0, Number.NaN]) {
+      const pool = gatedWorker();
+      const run = mapConcurrent(['a', 'b'], limit, pool.worker);
+      expect(pool.started).toEqual([0]);
+      pool.resolve(0);
+      await vi.waitFor(() => expect(pool.started).toEqual([0, 1]));
+      pool.resolve(1);
+      expect(await run).toEqual(['done 0', 'done 1']);
+    }
+  });
+});
+
+describe('runUntilDeadline', () => {
+  it('works through every item in order, counting each outcome, and calls onError only for a throw', async () => {
+    const started: string[] = [];
+    const onError = vi.fn();
+    const result = await runUntilDeadline(
+      ['ok', 'quiet', 'refused', 'gone', 'boom', 'last'],
+      Date.now() + 60_000,
+      async (item) => {
+        started.push(item);
+        if (item === 'ok') return 'succeeded';
+        if (item === 'refused') return 'failed';
+        if (item === 'gone') return 'skipped';
+        if (item === 'boom') throw new Error('door down');
+      },
+      onError,
+    );
+
+    expect(result).toEqual({ succeeded: 3, failed: 2, deferred: 0 });
+    expect(started).toEqual(['ok', 'quiet', 'refused', 'gone', 'boom', 'last']);
+    expect(onError).toHaveBeenCalledExactlyOnceWith('boom', new Error('door down'));
+  });
+
+  it('starts nothing once the deadline has passed and reports every item deferred', async () => {
+    const work = vi.fn(async () => {});
+    const onError = vi.fn();
+    expect(await runUntilDeadline(['a', 'b'], Date.now() - 1, work, onError))
+      .toEqual({ succeeded: 0, failed: 0, deferred: 2 });
+    expect(await runUntilDeadline([], Date.now() + 60_000, work, onError))
+      .toEqual({ succeeded: 0, failed: 0, deferred: 0 });
+    expect(work).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('lets the item in flight finish and defers the rest from the first check at or past the deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1_000);
+      const started: number[] = [];
+      const result = await runUntilDeadline([1, 2, 3, 4], 1_100, async (item) => {
+        started.push(item);
+        vi.setSystemTime(1_000 + item * 50);
+      }, vi.fn());
+
+      expect(started).toEqual([1, 2]);
+      expect(result).toEqual({ succeeded: 2, failed: 0, deferred: 2 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('awaits onError before the next item starts, and a throw from onError stops the run', async () => {
+    const started: string[] = [];
+    let releaseRotate!: () => void;
+    const onError = vi.fn((item: string) => item === 'a'
+      ? new Promise<void>((resolve) => { releaseRotate = resolve; })
+      : Promise.reject(new Error('rotate failed')));
+    const run = runUntilDeadline(['a', 'b', 'c'], Date.now() + 60_000, async (item) => {
+      started.push(item);
+      throw new Error(`${item} failed`);
+    }, onError);
+
+    await settle();
+    expect(started).toEqual(['a']);
+    releaseRotate();
+
+    await expect(run).rejects.toThrow('rotate failed');
+    expect(started).toEqual(['a', 'b']);
+    expect(onError).toHaveBeenCalledTimes(2);
   });
 });

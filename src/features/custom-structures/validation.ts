@@ -1,5 +1,5 @@
 import {
-  rigFitsStructure,
+  findUnfitRig,
   type StructureRigOption,
   type StructureTypeOption,
 } from '@/data/eve-data/structures';
@@ -19,13 +19,9 @@ export function validateCustomStructureSelection(
   const structure = structureTypes.find((t) => t.typeId === selection.structureTypeId);
   if (!structure) return { ok: false, reason: 'unknown structure type' };
 
-  const rigById = new Map(structureRigs.map((r) => [r.typeId, r]));
-  for (const rigId of selection.rigTypeIds) {
-    const rig = rigById.get(rigId);
-    if (!rig) return { ok: false, reason: `unknown rig ${rigId}` };
-    if (!rigFitsStructure(rig, structure)) {
-      return { ok: false, reason: `rig ${rigId} does not fit this structure` };
-    }
-  }
-  return { ok: true };
+  const unfit = findUnfitRig(selection.rigTypeIds, structure, structureRigs);
+  if (!unfit) return { ok: true };
+  const reason =
+    unfit.cause === 'unknown' ? `unknown rig ${unfit.rigTypeId}` : `rig ${unfit.rigTypeId} does not fit this structure`;
+  return { ok: false, reason };
 }

@@ -1,14 +1,19 @@
 'use client';
 
-import { useId, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Dialog, DialogClose } from '@/components/ui/dialog';
-import { SectionHeader } from '@/components/ui/section-header';
+import { useState } from 'react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
+import { eyebrow } from '@/components/ui/type-roles';
 import { setCorpDataSharingEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/transport/api-client';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
 import type { SharingCorpView } from './corporations-view';
+
+const SHARING_FAILURE_COPY = {
+  fallback: 'Sharing not changed',
+} satisfies FailureCopy<FailedOutcome<typeof setCorpDataSharingEndpoint>>;
 
 export function CorpSharingCard({
   directorCorps,
@@ -18,8 +23,7 @@ export function CorpSharingCard({
   memberCorps: SharingCorpView[];
 }) {
   return (
-    <Card>
-      <SectionHeader size="md" label="Share corporation data" />
+    <SectionPanel title="Share corporation data">
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         {directorCorps.map((corp) => (
           <SharingSwitchRow key={corp.corporationId} corp={corp} />
@@ -31,7 +35,7 @@ export function CorpSharingCard({
           </p>
         ))}
       </div>
-    </Card>
+    </SectionPanel>
   );
 }
 
@@ -39,7 +43,6 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
   const [enabled, setEnabled] = useState(corp.sharingEnabled);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const confirmLabelId = useId();
 
   async function applySharing(next: boolean) {
     setBusy(true);
@@ -49,7 +52,7 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
     });
     setBusy(false);
     if (!res.ok) {
-      toast.error('Sharing not changed');
+      toast.error(failureMessage(res, SHARING_FAILURE_COPY));
       return;
     }
     setEnabled(next);
@@ -61,41 +64,37 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
     else setConfirmOpen(true);
   }
 
+  async function stopSharing() {
+    await applySharing(false);
+    setConfirmOpen(false);
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="flex items-center gap-2.5">
-        <Switch
-          checked={enabled}
-          onCheckedChange={onToggle}
-          disabled={busy}
-          label={`Share ${corp.corporationName}'s data`}
-        />
-        <span className="text-ui text-text">{corp.corporationName}</span>
-        <span className="text-label uppercase tracking-wide text-muted">
-          {enabled ? 'sharing on' : 'sharing off'}
+      <Switch
+        checked={enabled}
+        onCheckedChange={onToggle}
+        disabled={busy}
+        label={corp.corporationName}
+      >
+        <span>{corp.corporationName}</span>
+        <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>
+          {enabled ? 'Sharing on' : 'Sharing off'}
         </span>
-      </label>
+      </Switch>
       <p className="text-body text-muted">Share corporation data with members based on their in-game role access.</p>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen} labelledBy={confirmLabelId}>
-        <div className="flex flex-col gap-3 p-4 max-w-[360px]">
-          <p id={confirmLabelId} className="text-body text-text">
-            Stop sharing {corp.corporationName}’s data? Members lose access to shared corporation
-            data. Directors keep it. Nothing is deleted.
-          </p>
-          <div className="flex items-center justify-end gap-3">
-            <DialogClose className="text-label uppercase tracking-wide text-muted hover:text-text">
-              Keep sharing
-            </DialogClose>
-            <DialogClose
-              onClick={() => void applySharing(false)}
-              className="text-label uppercase tracking-wide text-tone-red hover:underline"
-            >
-              Stop sharing
-            </DialogClose>
-          </div>
-        </div>
-      </Dialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Stop sharing ${corp.corporationName}’s data?`}
+        consequence="Members lose access to shared corporation data. Directors keep it. Nothing is deleted."
+        confirmLabel="Stop sharing"
+        cancelLabel="Keep sharing"
+        busy={busy}
+        onConfirm={() => void stopSharing()}
+        className="w-[min(360px,calc(100vw-2rem))]"
+      />
     </div>
   );
 }

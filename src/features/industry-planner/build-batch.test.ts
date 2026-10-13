@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import flatMaterialsFixture from '@/data/eve-data/__fixtures__/blueprint-flat-materials.json';
 import treesFixture from '@/data/eve-data/__fixtures__/blueprint-trees.json';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import {
   componentJob,
   collectBlueprintTypeIds,
   collectRawTypeIds,
   computeBatchLedger,
-  computeBatchMaterials,
-  computeMarginalMaterials,
-  computeMarginalRuns,
+  computeMarginalDemand,
   computeMultibuyDemand,
   feeJobs,
+  materialRows,
   productTypeByBlueprint,
 } from './build-batch';
 
@@ -21,7 +20,11 @@ function asMap(rows: { typeId: number; quantity: number }[]): Record<number, num
   return Object.fromEntries(rows.map((r) => [r.typeId, r.quantity]));
 }
 
-describe('computeBatchMaterials — batch rounding', () => {
+function batchRaws(...args: Parameters<typeof computeBatchLedger>): Record<number, number> {
+  return Object.fromEntries(computeBatchLedger(...args).raws);
+}
+
+describe('computeBatchLedger — batch rounding', () => {
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -32,11 +35,11 @@ describe('computeBatchMaterials — batch rounding', () => {
   ];
 
   it('rounds a partial run up to a whole run', () => {
-    expect(asMap(computeBatchMaterials(tree))).toEqual({ 200: 7 });
+    expect(batchRaws(tree)).toEqual({ 200: 7 });
   });
 
   it('scales by requestedRuns, still whole-run', () => {
-    expect(asMap(computeBatchMaterials(tree, 3))).toEqual({ 200: 14 });
+    expect(batchRaws(tree, 3)).toEqual({ 200: 14 });
   });
 });
 
@@ -62,14 +65,12 @@ describe('computeBatchLedger — raws + buildable run-counts from one walk', () 
     expect(raws.get(200)).toBe(14);
   });
 
-  it('agrees with computeBatchMaterials on the raw projection', () => {
-    expect(asMap([...computeBatchLedger(tree, 3).raws].map(([typeId, quantity]) => ({ typeId, quantity })))).toEqual(
-      asMap(computeBatchMaterials(tree, 3)),
-    );
+  it('lists the raw totals as the rows a cost is priced on', () => {
+    expect(materialRows(computeBatchLedger(tree, 3).raws)).toEqual([{ typeId: 200, quantity: 14 }]);
   });
 });
 
-describe('computeBatchMaterials — shared sub-component', () => {
+describe('computeBatchLedger — shared sub-component', () => {
   const sub = (): TreeNode => ({
     typeId: 200,
     quantity: 300,
@@ -92,13 +93,13 @@ describe('computeBatchMaterials — shared sub-component', () => {
   ];
 
   it('counts a shared component once (sum-then-ceil, no double count)', () => {
-    expect(asMap(computeBatchMaterials(tree))).toEqual({ 300: 1 });
+    expect(batchRaws(tree)).toEqual({ 300: 1 });
   });
 });
 
-describe('computeBatchMaterials — Legion Hull oracle (regression)', () => {
+describe('computeBatchLedger — Legion Hull oracle (regression)', () => {
   const legion = (treesFixture as Record<string, TreeNode[]>).Legion!;
-  const totals = asMap(computeBatchMaterials(legion));
+  const totals = batchRaws(legion);
 
   it('Fullerite-C50 = 1,000 (Fulleroferrocene 2 runs × 200 + PPD 2 runs × 300)', () => {
     expect(totals[30370]).toBe(1_000);
@@ -156,28 +157,28 @@ describe('componentJob — one item\'s job in the build', () => {
   });
 });
 
-describe('computeBatchMaterials — EVE material-efficiency formula', () => {
+describe('computeBatchLedger — EVE material-efficiency formula', () => {
   const oneLevel = (baseQty: number): TreeNode[] => [{ typeId: 1, quantity: baseQty, inputs: [] }];
   const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
 
   it('qty 1, 100 runs, ME10 → 100 (the ≥1-per-run floor, NOT 90)', () => {
-    expect(asMap(computeBatchMaterials(oneLevel(1), 100, me10))).toEqual({ 1: 100 });
+    expect(batchRaws(oneLevel(1), 100, me10)).toEqual({ 1: 100 });
   });
 
   it('qty 1, 10 runs, ME10 → 10 (floored to runs)', () => {
-    expect(asMap(computeBatchMaterials(oneLevel(1), 10, me10))).toEqual({ 1: 10 });
+    expect(batchRaws(oneLevel(1), 10, me10)).toEqual({ 1: 10 });
   });
 
   it('qty 200, 3 runs, ME10 → 540', () => {
-    expect(asMap(computeBatchMaterials(oneLevel(200), 3, me10))).toEqual({ 1: 540 });
+    expect(batchRaws(oneLevel(200), 3, me10)).toEqual({ 1: 540 });
   });
 
   it('qty 32, 1 run, ME10 → 29 (round-then-ceil: 28.8 → 29)', () => {
-    expect(asMap(computeBatchMaterials(oneLevel(32), 1, me10))).toEqual({ 1: 29 });
+    expect(batchRaws(oneLevel(32), 1, me10)).toEqual({ 1: 29 });
   });
 });
 
-describe('computeBatchMaterials — aggregate-then-ceil (non-linearity guard)', () => {
+describe('computeBatchLedger — aggregate-then-ceil (non-linearity guard)', () => {
   const child = (): TreeNode => ({
     typeId: 200,
     quantity: 1,
@@ -191,7 +192,7 @@ describe('computeBatchMaterials — aggregate-then-ceil (non-linearity guard)', 
   const meOf = (bp: number) => (bp === 1200 ? 10 : undefined);
 
   it('applies ME over the summed run total, not per shared-parent visit (13, not 14)', () => {
-    expect(asMap(computeBatchMaterials(tree, 1, { meOf, topBlueprintTypeId: 0 }))).toEqual({ 300: 13 });
+    expect(batchRaws(tree, 1, { meOf, topBlueprintTypeId: 0 })).toEqual({ 300: 13 });
   });
 });
 
@@ -263,7 +264,7 @@ describe('computeBatchLedger — structure material factor (3.7.9.1.3)', () => {
   });
 
   it('reduces a node by the structure factor, rounded once', () => {
-    expect(asMap(computeBatchMaterials(oneLevel(200), 1, noBpMe(0.95)))).toEqual({ 1: 190 });
+    expect(batchRaws(oneLevel(200), 1, noBpMe(0.95))).toEqual({ 1: 190 });
   });
 
   it('composes blueprint ME and the structure as ONE round (no double-ceil)', () => {
@@ -272,17 +273,17 @@ describe('computeBatchLedger — structure material factor (3.7.9.1.3)', () => {
       topBlueprintTypeId: 9000,
       structureMeFactorOf: () => 0.99,
     };
-    expect(asMap(computeBatchMaterials(oneLevel(199), 1, opts))).toEqual({ 1: 196 });
+    expect(batchRaws(oneLevel(199), 1, opts)).toEqual({ 1: 196 });
   });
 
   it('honours the ≥1-per-run floor under a structure factor', () => {
-    expect(asMap(computeBatchMaterials(oneLevel(1), 100, noBpMe(0.95)))).toEqual({ 1: 100 });
+    expect(batchRaws(oneLevel(1), 100, noBpMe(0.95))).toEqual({ 1: 100 });
   });
 
   it('byte-identical to the no-structure basis when the factor is 1 everywhere', () => {
     const tree = oneLevel(200);
-    expect(asMap(computeBatchMaterials(tree, 3, noBpMe(1)))).toEqual(
-      asMap(computeBatchMaterials(tree, 3)),
+    expect(batchRaws(tree, 3, noBpMe(1))).toEqual(
+      batchRaws(tree, 3),
     );
   });
 
@@ -305,7 +306,7 @@ describe('computeBatchLedger — structure material factor (3.7.9.1.3)', () => {
   });
 });
 
-describe('computeMarginalMaterials — fractional (Item) basis', () => {
+describe('computeMarginalDemand — fractional (Item) basis', () => {
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -316,11 +317,11 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   ];
 
   it('charges the fraction of a run consumed — no ceil, no ≥1-per-run floor', () => {
-    expect(asMap(computeMarginalMaterials(tree))).toEqual({ 200: 3.5 });
+    expect(asMap(computeMarginalDemand(tree).materials)).toEqual({ 200: 3.5 });
   });
 
   it('is linear in requestedRuns (3 runs = exactly 3× one run)', () => {
-    expect(asMap(computeMarginalMaterials(tree, 3))).toEqual({ 200: 10.5 });
+    expect(asMap(computeMarginalDemand(tree, 3).materials)).toEqual({ 200: 10.5 });
   });
 
   it('sums shared-component demand once (no double count)', () => {
@@ -334,18 +335,18 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
       { typeId: 100, quantity: 1, producedBy: { blueprintTypeId: 1100, quantityPerRun: 1, runsNeeded: 1 }, inputs: [sub()] },
       { typeId: 101, quantity: 1, producedBy: { blueprintTypeId: 1101, quantityPerRun: 1, runsNeeded: 1 }, inputs: [sub()] },
     ];
-    expect(asMap(computeMarginalMaterials(shared))).toEqual({ 300: 0.6 });
+    expect(asMap(computeMarginalDemand(shared).materials)).toEqual({ 300: 0.6 });
   });
 
   it('applies owned ME as a LINEAR factor (no floor: 100 runs × qty 1 @ ME10 → 90)', () => {
     const oneLevel: TreeNode[] = [{ typeId: 1, quantity: 1, inputs: [] }];
     const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
-    expect(asMap(computeMarginalMaterials(oneLevel, 100, me10))).toEqual({ 1: 90 });
+    expect(asMap(computeMarginalDemand(oneLevel, 100, me10).materials)).toEqual({ 1: 90 });
   });
 
   it('cascades a parent’s ME fractionally to its children', () => {
     const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
-    const only = computeMarginalMaterials(tree, 1, me10)[0]!;
+    const only = computeMarginalDemand(tree, 1, me10).materials[0]!;
     expect(only.typeId).toBe(200);
     expect(only.quantity).toBeCloseTo(3.15, 9);
   });
@@ -357,18 +358,18 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
       topBlueprintTypeId: 9000,
       structureMeFactorOf: () => 0.95,
     };
-    const only = computeMarginalMaterials(oneLevel, 1, opts)[0]!;
+    const only = computeMarginalDemand(oneLevel, 1, opts).materials[0]!;
     expect(only.quantity).toBeCloseTo(171, 9);
   });
 
   it('unowned / reaction nodes (ME ≤ 0) get factor ×1 — identical to no opts', () => {
-    expect(asMap(computeMarginalMaterials(tree, 1, { meOf: () => 0, topBlueprintTypeId: 9000 }))).toEqual(
-      asMap(computeMarginalMaterials(tree, 1)),
+    expect(asMap(computeMarginalDemand(tree, 1, { meOf: () => 0, topBlueprintTypeId: 9000 }).materials)).toEqual(
+      asMap(computeMarginalDemand(tree, 1).materials),
     );
   });
 });
 
-describe('computeMarginalRuns — the share of each job one build draws', () => {
+describe('computeMarginalDemand — the share of each job one build draws', () => {
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -386,19 +387,19 @@ describe('computeMarginalRuns — the share of each job one build draws', () => 
   ];
 
   it('half a run of the plates draws 1.5 of 20 carbide, so 0.075 of its run', () => {
-    const runs = computeMarginalRuns(tree);
+    const runs = computeMarginalDemand(tree).runs;
     expect(runs.get(100)).toBe(0.5);
     expect(runs.get(150)).toBeCloseTo(0.075, 12);
   });
 
   it('runs on the parent ME, and scale with the requested runs', () => {
     const me10 = { meOf: (bp: number) => (bp === 1100 ? 10 : undefined), topBlueprintTypeId: 9000 };
-    expect(computeMarginalRuns(tree, 4, me10).get(150)).toBeCloseTo((2 * 3 * 0.9) / 20, 12);
+    expect(computeMarginalDemand(tree, 4, me10).runs.get(150)).toBeCloseTo((2 * 3 * 0.9) / 20, 12);
   });
 
   it('agrees with the materials the same walk charges', () => {
-    const runs = computeMarginalRuns(tree, 3);
-    expect(asMap(computeMarginalMaterials(tree, 3))[200]).toBeCloseTo(runs.get(150)! * 4, 12);
+    const { materials, runs } = computeMarginalDemand(tree, 3);
+    expect(asMap(materials)[200]).toBeCloseTo(runs.get(150)! * 4, 12);
   });
 });
 
@@ -451,7 +452,7 @@ describe('feeJobs — each job valued on its unresearched inputs', () => {
   });
 });
 
-describe('computeMarginalMaterials — resolver flat-materials cross-check', () => {
+describe('computeMarginalDemand — resolver flat-materials cross-check', () => {
   const flat = flatMaterialsFixture as unknown as Record<
     string,
     { blueprintTypeId: number; outputTypeId: number; materials: Record<string, number> }
@@ -462,7 +463,7 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
     it(`${name}: client marginal walk === resolver flat materials (±1, rounds-to-0 tolerant)`, () => {
       const tree = (treesFixture as Record<string, TreeNode[]>)[name]!;
       const expected = flat[name]!.materials;
-      const computed = computeMarginalMaterials(tree, 1);
+      const computed = computeMarginalDemand(tree, 1).materials;
       for (const { typeId, quantity } of computed) {
         const pinned = expected[String(typeId)];
         if (pinned === undefined) {
@@ -480,9 +481,9 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
 
   it('Legion: marginal Tritanium ≈ 1,766 where the batched basis bears 2,556', () => {
     const legion = (treesFixture as Record<string, TreeNode[]>).Legion!;
-    const marginal = asMap(computeMarginalMaterials(legion));
+    const marginal = asMap(computeMarginalDemand(legion).materials);
     expect(Math.round(marginal[34]!)).toBe(1_766);
-    expect(asMap(computeBatchMaterials(legion))[34]).toBe(2_556);
+    expect(batchRaws(legion)[34]).toBe(2_556);
   });
 });
 

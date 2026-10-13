@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { clearCoverageForUser, findCoverage } from './lib/locationCoverage';
@@ -19,7 +20,7 @@ function requireTrackedFixtureIdentity(
       detail: 'A tracked-location fixture needs a non-empty user id.',
     });
   }
-  if (!Number.isSafeInteger(characterId) || characterId <= 0) {
+  if (!isPositiveSafeInteger(characterId)) {
     throw new ConvexError({
       code: 'INVALID_CHARACTER_ID',
       detail: 'A tracked-location fixture needs a positive safe character id.',

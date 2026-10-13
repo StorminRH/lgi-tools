@@ -5,20 +5,18 @@ const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   getSession: vi.fn(),
   getUserById: vi.fn(),
-  logUsageEvent: vi.fn(),
   checkRateLimit: vi.fn(),
   fetchWithTimeout: vi.fn(),
   tokenService: vi.fn(),
   accountBelongsToUser: vi.fn(),
   stationManagerGate: vi.fn(),
   getCorpStructures: vi.fn(),
-  getCorpStructureRigs: vi.fn(),
   getStructureTypes: vi.fn(),
   getStructureRigs: vi.fn(),
   getBlueprintStructure: vi.fn(),
-  countSavedPlans: vi.fn(),
+  createSavedPlan: vi.fn(),
   rejectInvalidCustomStructure: vi.fn(),
-  countCustomStructures: vi.fn(),
+  createCustomStructure: vi.fn(),
   getPricedSiteDetail: vi.fn(),
 }));
 
@@ -28,7 +26,6 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 vi.mock('@/composition/route-guards', () => ({
   checkAdmin: (...args: unknown[]) => h.checkAdmin(...args),
-  checkAdminMutation: (...args: unknown[]) => h.checkAdmin(...args),
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/composition/session', () => ({
@@ -38,9 +35,6 @@ vi.mock('@/composition/session', () => ({
 vi.mock('@/platform/auth/admin-users', () => ({
   getUserById: (...args: unknown[]) => h.getUserById(...args),
   setUserRole: vi.fn(),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
 }));
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (...args: unknown[]) => h.checkRateLimit(...args),
@@ -59,7 +53,6 @@ vi.mock('@/composition/corp-role-gates', () => ({
 }));
 vi.mock('@/features/owned-structures/queries', () => ({
   getCorpStructures: (...args: unknown[]) => h.getCorpStructures(...args),
-  getCorpStructureRigs: (...args: unknown[]) => h.getCorpStructureRigs(...args),
   upsertCorpStructureRigs: vi.fn(),
 }));
 vi.mock('@/data/eve-data/queries', () => ({
@@ -70,31 +63,23 @@ vi.mock('@/features/industry-planner/queries', () => ({
   getBlueprintStructure: (...args: unknown[]) => h.getBlueprintStructure(...args),
 }));
 vi.mock('@/features/industry-planner/saved-plans-queries', () => ({
-  countSavedPlans: (...args: unknown[]) => h.countSavedPlans(...args),
-  createSavedPlan: vi.fn(),
-  deleteSavedPlan: vi.fn(),
+  createSavedPlan: (...args: unknown[]) => h.createSavedPlan(...args),
   listSavedPlans: vi.fn(),
 }));
 vi.mock('@/features/custom-structures/save-boundary', () => ({
   rejectInvalidCustomStructure: (...args: unknown[]) => h.rejectInvalidCustomStructure(...args),
 }));
 vi.mock('@/features/custom-structures/queries', () => ({
-  countCustomStructures: (...args: unknown[]) => h.countCustomStructures(...args),
-  createCustomStructure: vi.fn(),
+  createCustomStructure: (...args: unknown[]) => h.createCustomStructure(...args),
   listCustomStructures: vi.fn(),
 }));
 vi.mock('@/features/wormhole-sites/queries', () => ({
   getPricedSiteDetail: (...args: unknown[]) => h.getPricedSiteDetail(...args),
 }));
 
-import { NextRequest } from 'next/server';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import { eveTokenEndpoint } from '@/platform/auth/api-contract';
-import {
-  MAX_CUSTOM_STRUCTURES_PER_USER,
-} from '@/features/custom-structures/api-contract';
-import {
-  MAX_SAVED_PLANS_PER_USER,
-} from '@/features/industry-planner/api-contract';
+import { postForm, postJson } from '@/lib/__tests__/route-requests';
 import { dependencyUnavailableFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 import { apiResponse } from '@/transport/api-response';
@@ -107,15 +92,12 @@ import { POST as postCustomStructure } from './account/custom-structures/route';
 import { GET as getSiteDetail } from './sites/[id]/route';
 
 const SECRET = 'matrix-service-secret';
-const ADMIN_SESSION = {
+const ADMIN_SESSION = adminSessionFixture({
   user: { id: 'admin-user' },
-  session: {},
   characterId: 90000001,
   name: 'Admin',
   portraitUrl: '',
-  role: 'ADMIN' as const,
-  isAdmin: true,
-};
+});
 const EVE_BODY = { userId: 'user-1', characterId: 90000002 };
 const SAVED_PLAN_BODY = {
   name: 'Hulk batch',
@@ -134,25 +116,6 @@ const CORP_RIGS_BODY = {
   rigTypeIds: [37170],
   taxPct: 1.5,
 };
-
-function jsonRequest(path: string, body: unknown, authorization?: string): NextRequest {
-  return new NextRequest(`http://localhost:3000${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authorization ? { Authorization: authorization } : {}),
-    },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
-
-function formRequest(path: string, fields: Record<string, string>): NextRequest {
-  return new NextRequest(`http://localhost:3000${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(fields),
-  });
-}
 
 async function expectProblem(
   response: Response,
@@ -173,14 +136,12 @@ beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.getSession.mockReset().mockResolvedValue(null);
   h.getUserById.mockReset().mockResolvedValue(null);
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   h.checkRateLimit.mockReset().mockResolvedValue({ ok: true });
   h.fetchWithTimeout.mockReset().mockResolvedValue(new Response(null, { status: 204 }));
   h.tokenService.mockReset().mockResolvedValue({ kind: 'ok', accessToken: 'token', expiresAt: 1 });
   h.accountBelongsToUser.mockReset().mockResolvedValue(true);
   h.stationManagerGate.mockReset().mockResolvedValue({ ok: true });
   h.getCorpStructures.mockReset().mockResolvedValue(new Map());
-  h.getCorpStructureRigs.mockReset().mockResolvedValue(new Map());
   h.getStructureTypes.mockReset().mockResolvedValue([
     { typeId: 35826, name: 'Azbel', groupId: 1404, rigSize: 3 },
   ]);
@@ -195,9 +156,9 @@ beforeEach(() => {
   h.getBlueprintStructure.mockReset().mockResolvedValue({
     product: { typeId: 22544, name: 'Hulk' },
   });
-  h.countSavedPlans.mockReset().mockResolvedValue(0);
+  h.createSavedPlan.mockReset().mockResolvedValue(true);
   h.rejectInvalidCustomStructure.mockReset().mockResolvedValue({ ok: true });
-  h.countCustomStructures.mockReset().mockResolvedValue(0);
+  h.createCustomStructure.mockReset().mockResolvedValue(true);
   h.getPricedSiteDetail.mockReset().mockResolvedValue(null);
 });
 
@@ -208,13 +169,13 @@ afterEach(() => {
 describe('route-level problem status matrix', () => {
   it('covers 400 parse and domain failures', async () => {
     await expectProblem(
-      await postFeedback(jsonRequest('/api/feedback', '{not json')),
+      await postFeedback(postJson('/api/feedback', '{not json')),
       400,
       'invalid_json',
     );
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', {
+        postJson('/api/feedback', {
           title: 'hello',
           message: 'hello',
           path: 'not-a-path',
@@ -224,6 +185,13 @@ describe('route-level problem status matrix', () => {
       400,
       'path_invalid',
     );
+    await expectProblem(
+      await postAdminRole(
+        postJson('/api/admin/role', { userId: 'target-user', nextRole: 'ADMIN' }),
+      ),
+      400,
+      'invalid_form',
+    );
   });
 
   it('covers 401 guard and internal-service failures', async () => {
@@ -232,12 +200,12 @@ describe('route-level problem status matrix', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     await expectProblem(
-      await postSavedPlan(jsonRequest('/api/account/saved-plans', SAVED_PLAN_BODY)),
+      await postSavedPlan(postJson('/api/account/saved-plans', SAVED_PLAN_BODY)),
       401,
       'unauthenticated',
     );
     await expectProblem(
-      await postEveToken(jsonRequest('/api/internal/eve-token', EVE_BODY)),
+      await postEveToken(postJson('/api/internal/eve-token', EVE_BODY)),
       401,
       'unauthenticated',
     );
@@ -250,7 +218,7 @@ describe('route-level problem status matrix', () => {
     });
     await expectProblem(
       await postAdminRole(
-        formRequest('/api/admin/role', { userId: 'target-user', nextRole: 'ADMIN' }),
+        postForm('/api/admin/role', { userId: 'target-user', nextRole: 'ADMIN' }),
       ),
       403,
       'forbidden',
@@ -266,7 +234,7 @@ describe('route-level problem status matrix', () => {
     });
     await expectProblem(
       await postCorpRigs(
-        jsonRequest('/api/account/corp-structures/rigs', CORP_RIGS_BODY),
+        postJson('/api/account/corp-structures/rigs', CORP_RIGS_BODY),
       ),
       403,
       'not_station_manager',
@@ -277,7 +245,7 @@ describe('route-level problem status matrix', () => {
     h.accountBelongsToUser.mockResolvedValue(false);
     await expectProblem(
       await postEveToken(
-        jsonRequest('/api/internal/eve-token', EVE_BODY, `Bearer ${SECRET}`),
+        postJson('/api/internal/eve-token', EVE_BODY, { authorization: `Bearer ${SECRET}` }),
       ),
       404,
       'not_found',
@@ -291,7 +259,7 @@ describe('route-level problem status matrix', () => {
     );
     await expectProblem(
       await postAdminRole(
-        formRequest('/api/admin/role', { userId: 'missing-user', nextRole: 'ADMIN' }),
+        postForm('/api/admin/role', { userId: 'missing-user', nextRole: 'ADMIN' }),
       ),
       404,
       'user_not_found',
@@ -302,21 +270,21 @@ describe('route-level problem status matrix', () => {
     h.tokenService.mockResolvedValue({ kind: 'reauth_required' });
     await expectProblem(
       await postEveToken(
-        jsonRequest('/api/internal/eve-token', EVE_BODY, `Bearer ${SECRET}`),
+        postJson('/api/internal/eve-token', EVE_BODY, { authorization: `Bearer ${SECRET}` }),
       ),
       409,
       'reauth_required',
     );
-    h.countSavedPlans.mockResolvedValue(MAX_SAVED_PLANS_PER_USER);
+    h.createSavedPlan.mockResolvedValue(false);
     await expectProblem(
-      await postSavedPlan(jsonRequest('/api/account/saved-plans', SAVED_PLAN_BODY)),
+      await postSavedPlan(postJson('/api/account/saved-plans', SAVED_PLAN_BODY)),
       409,
       'template_limit',
     );
-    h.countCustomStructures.mockResolvedValue(MAX_CUSTOM_STRUCTURES_PER_USER);
+    h.createCustomStructure.mockResolvedValue(false);
     await expectProblem(
       await postCustomStructure(
-        jsonRequest('/api/account/custom-structures', CUSTOM_STRUCTURE_BODY),
+        postJson('/api/account/custom-structures', CUSTOM_STRUCTURE_BODY),
       ),
       409,
       'structure_limit',
@@ -333,7 +301,7 @@ describe('route-level problem status matrix', () => {
       },
     });
     const response = await postFeedback(
-      jsonRequest('/api/feedback', {
+      postJson('/api/feedback', {
         title: 'hello',
         message: 'hello',
         path: '/sites',
@@ -348,7 +316,7 @@ describe('route-level problem status matrix', () => {
     h.tokenService.mockResolvedValue({ kind: 'upstream_error' });
     await expectProblem(
       await postEveToken(
-        jsonRequest('/api/internal/eve-token', EVE_BODY, `Bearer ${SECRET}`),
+        postJson('/api/internal/eve-token', EVE_BODY, { authorization: `Bearer ${SECRET}` }),
       ),
       502,
       'upstream_error',
@@ -356,7 +324,7 @@ describe('route-level problem status matrix', () => {
     h.fetchWithTimeout.mockResolvedValue(new Response('denied', { status: 429 }));
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', {
+        postJson('/api/feedback', {
           title: 'hello',
           message: 'hello',
           path: '/sites',
@@ -372,7 +340,7 @@ describe('route-level problem status matrix', () => {
     vi.stubEnv('LINEAR_API_KEY', '');
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', {
+        postJson('/api/feedback', {
           title: 'hello',
           message: 'hello',
           path: '/sites',
@@ -404,7 +372,7 @@ describe('route-level problem status matrix', () => {
     h.fetchWithTimeout.mockRejectedValueOnce(new Error(seededSecret));
 
     const response = await postFeedback(
-      jsonRequest('/api/feedback', {
+      postJson('/api/feedback', {
         title: 'hello',
         message: 'hello',
         path: '/sites',

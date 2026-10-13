@@ -11,12 +11,6 @@ import {
   type QueryInputOf,
 } from './endpoint';
 
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-
 const echoSchema = z.object({ value: z.string() });
 
 afterEach(() => {
@@ -85,7 +79,7 @@ const problemResponseBody = (code = 'invalid_body', status = 400) =>
 
 describe('apiFetch', () => {
   it('sends the same request bytes as the raw call sites it replaced', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ value: 'ok' }));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ value: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
 
     await apiFetch(typedEndpoint, { body: { value: 'hi' } });
@@ -98,7 +92,7 @@ describe('apiFetch', () => {
   });
 
   it('sends no body or Content-Type for a request-less endpoint', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ value: 'ok' }));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ value: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
 
     await apiFetch(requestlessEndpoint);
@@ -107,7 +101,7 @@ describe('apiFetch', () => {
   });
 
   it('passes signal/cache/keepalive through to fetch', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ value: 'ok' }));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ value: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
     const controller = new AbortController();
 
@@ -125,7 +119,7 @@ describe('apiFetch', () => {
   });
 
   it('resolves path parameters and query values into the request URL', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ value: 'ok' }));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ value: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
 
     await apiFetch(detailEndpoint, { params: { id: '42' } });
@@ -136,7 +130,7 @@ describe('apiFetch', () => {
   });
 
   it('keeps params and query out of the request init', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ value: 'ok' }));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ value: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
 
     await apiFetch(detailEndpoint, { params: { id: '42' } });
@@ -147,7 +141,7 @@ describe('apiFetch', () => {
   it('returns raw JSON through the exact declared success arm', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ value: 'ok', extra: 1 })),
+      vi.fn().mockResolvedValue(Response.json({ value: 'ok', extra: 1 })),
     );
 
     const result = await apiFetch(typedEndpoint, { body: { value: 'request' } });
@@ -177,7 +171,7 @@ describe('apiFetch', () => {
   it('returns a declared problem through its narrowed API arm', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse(problemResponseBody(), 400)),
+      vi.fn().mockResolvedValue(Response.json(problemResponseBody(), { status: 400 })),
     );
 
     const result = await apiFetch(typedEndpoint, { body: { value: 'request' } });
@@ -197,7 +191,7 @@ describe('apiFetch', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        jsonResponse({ ...problemResponseBody(), stack: 'private stack' }, 400),
+        Response.json({ ...problemResponseBody(), stack: 'private stack' }, { status: 400 }),
       ),
     );
 
@@ -216,7 +210,7 @@ describe('apiFetch', () => {
       vi.stubEnv('NODE_ENV', nodeEnv);
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(jsonResponse({ value: 123 })),
+        vi.fn().mockResolvedValue(Response.json({ value: 123 })),
       );
 
       const result = await apiFetch(typedEndpoint, { body: { value: 'request' } });
@@ -232,10 +226,10 @@ describe('apiFetch', () => {
   it('returns protocol failure for undeclared status, invalid JSON, and code drift', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse({ value: 'ok' }, 201))
+      .mockResolvedValueOnce(Response.json({ value: 'ok' }, { status: 201 }))
       .mockResolvedValueOnce(new Response('not json', { status: 400 }))
       .mockResolvedValueOnce(
-        jsonResponse(problemResponseBody('different_code'), 400),
+        Response.json(problemResponseBody('different_code'), { status: 400 }),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -295,8 +289,8 @@ describe('apiFetch', () => {
   });
 
   it('returns a network arm when JSON or problem body streams fail', async () => {
-    const json = jsonResponse({ value: 'ok' });
-    const problemBody = jsonResponse(problemResponseBody(), 400);
+    const json = Response.json({ value: 'ok' });
+    const problemBody = Response.json(problemResponseBody(), { status: 400 });
     vi.spyOn(json, 'json').mockRejectedValue(new TypeError('json stream failed'));
     vi.spyOn(problemBody, 'json').mockRejectedValue(
       new TypeError('problem stream failed'),

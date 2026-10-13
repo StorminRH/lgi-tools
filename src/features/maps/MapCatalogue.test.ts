@@ -48,7 +48,7 @@ vi.mock('./MapCreationDialog', () => ({
 }));
 
 vi.mock('./MapAccessDialog', () => ({
-  MapAccessDialog: () => createElement('div', { 'data-map-access-dialog-probe': '' }),
+  EditingMapAccessDialog: () => null,
 }));
 
 vi.mock('./TrashWindow', () => ({
@@ -190,7 +190,7 @@ describe('MapCatalogue', () => {
     expect(markup).not.toContain('Map catalogue');
     expect(markup).toContain('data-map-catalogue-create');
     expect(markup).not.toContain('data-map-catalogue-create-card');
-    expect(markup).toContain('Create new map');
+    expect(markup).toMatch(/data-map-catalogue-create[^>]*>.*New map<\/button>/);
     expect(markup).toContain('data-map-delete-confirm="false"');
     expect(markup).toContain('data-map-creation-dialog-probe="false"');
     expect(markup).toContain('data-corporation-count="1"');
@@ -213,10 +213,10 @@ describe('MapCatalogue', () => {
   it('keeps the empty-catalogue hint and the create control when no maps are authorized', () => {
     const markup = renderCatalogue([]);
     expect(markup).toContain('data-map-catalogue-create');
-    expect(markup).toContain('Create new map');
+    expect(markup).toMatch(/data-map-catalogue-create[^>]*>.*New map<\/button>/);
     expect(markup).not.toContain('data-map-catalogue-create-card');
     expect(markup).toContain('data-map-catalogue-empty-hint');
-    expect(markup).toContain('Create a map to begin charting a chain.');
+    expect(markup).toContain('No maps yet.');
     expect(markup).not.toContain('data-map-catalogue-card=');
     expect(markup).not.toContain('Your maps');
     expect(markup).not.toContain('Corporation maps');
@@ -226,8 +226,8 @@ describe('MapCatalogue', () => {
   it('distinguishes listing failure from a true zero-map account', () => {
     const markup = renderCatalogue([], false);
     expect(markup).toContain('data-map-catalogue-unavailable');
-    expect(markup).toContain('Map catalogue unavailable');
-    expect(markup).toContain('Try again');
+    expect(markup).toMatch(/<div role="alert"[^>]*>.*Maps didn&#x27;t load/);
+    expect(markup).toContain('<button type="button" aria-label="Try again"');
     expect(markup).not.toContain('data-map-catalogue-empty-hint');
     expect(markup).not.toContain('data-map-catalogue-create');
     expect(markup).not.toContain('data-map-catalogue-trash');

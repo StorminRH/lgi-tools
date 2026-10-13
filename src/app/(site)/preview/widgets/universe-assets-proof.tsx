@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Banner } from '@/components/ui/banner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { dataLabel } from '@/components/ui/type-roles';
 import {
   loadUniverseAssets,
   loadWormholeCodex,
 } from '@/data/eve-data/universe-assets-client';
+import { isTypedCodexEntry } from '@/data/eve-data/wormhole-contract';
 
 const JITA_ID = 30_000_142;
 
@@ -30,7 +32,7 @@ function systemName(
 function wormholeSummary(
   entry: ReturnType<Awaited<ReturnType<typeof loadWormholeCodex>>['byCode']>,
 ): string {
-  if (entry === null || entry.farSide) return 'B274 unavailable';
+  if (!isTypedCodexEntry(entry)) return 'B274 unavailable';
   return `B274 ${entry.sizeClass} → class ${entry.targetClass}`;
 }
 
@@ -62,7 +64,7 @@ function ProofContent({ state }: { state: ProofState }) {
   }
   return (
     <>
-      <span className="font-data text-label tracking-label uppercase text-muted">
+      <span className={dataLabel()}>
         Universe assets · v{state.version}
       </span>
       <span className="font-data text-ui text-text">

@@ -5,7 +5,7 @@ vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => ({
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const doors = vi.hoisted(() => ({
-  logUsageEvent: vi.fn().mockResolvedValue(undefined),
+  emitUsageEvent: vi.fn(),
   snapshotMergeTracking: vi.fn(),
   enqueueTrackingMerge: vi.fn(),
   reconcileTrackingMerges: vi.fn(),
@@ -44,38 +44,18 @@ vi.mock('@/composition/map-access-projection', () => ({
   },
 }));
 vi.mock('@/composition/purge/register-all', () => ({ PURGE_CONTRIBUTORS: [] }));
-vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: doors.logUsageEvent }));
-vi.mock('@/db', () => ({ directClient: {}, resolveLockConnectionUrl: () => 'postgres://direct' }));
+vi.mock('@/data/telemetry/usage-events', () => ({ emitUsageEvent: doors.emitUsageEvent }));
+vi.mock('@/db', () => ({ directClient: {} }));
 
 import type { PostgresJsDb } from '@/lib/db-types';
 import { mergeUsers, resolveMergePair, settleConvexAfterMerge, type MergeRequest } from './account-merge';
 
-const { chain, state } = vi.hoisted(() => {
-  const state = { results: [] as unknown[], calls: { update: 0, delete: 0, execute: 0 } };
-  const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
-  };
-  for (const method of ['select', 'from', 'where', 'orderBy', 'for', 'set', 'limit']) {
-    chain[method] = () => chain;
-  }
-  chain.update = () => {
-    state.calls.update += 1;
-    return chain;
-  };
-  chain.delete = () => {
-    state.calls.delete += 1;
-    return chain;
-  };
-  chain.execute = async () => {
-    state.calls.execute += 1;
-    return [];
-  };
-  return { chain, state };
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
 });
 
-const fakeDatabase = {
-  transaction: (work: (tx: unknown) => Promise<unknown>) => work(chain),
-} as unknown as PostgresJsDb;
+const fakeDatabase = chain as unknown as PostgresJsDb;
 
 const request: MergeRequest = {
   linkingUserId: 'linker',
@@ -89,9 +69,8 @@ const captured = [{ mapId: 'map-1', version: 'v1' }];
 
 beforeEach(() => {
   doors.order.length = 0;
-  doors.logUsageEvent.mockClear();
-  state.results = [];
-  state.calls = { update: 0, delete: 0, execute: 0 };
+  doors.emitUsageEvent.mockClear();
+  reset();
   for (const door of [
     doors.snapshotMergeTracking,
     doors.enqueueTrackingMerge,
@@ -143,7 +122,7 @@ describe('mergeUsers', () => {
       captured: [],
     });
     expect(state.calls).toMatchObject({ update: 0, delete: 1 });
-    expect(doors.logUsageEvent).toHaveBeenCalledWith({
+    expect(doors.emitUsageEvent).toHaveBeenCalledWith('account-merge', {
       action: 'auth_merge',
       characterId: 100,
       metadata: { sourceUserId: 'linker', survivorUserId: 'other', movedCharacterIds: [200] },
@@ -182,8 +161,8 @@ describe('mergeUsers', () => {
       kind: 'noop',
       reason: 'source-gone',
     });
-    expect(state.calls).toEqual({ update: 0, delete: 0, execute: 0 });
-    expect(doors.logUsageEvent).not.toHaveBeenCalled();
+    expect(state.calls).toMatchObject({ update: 0, delete: 0, execute: 0 });
+    expect(doors.emitUsageEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -196,7 +175,7 @@ describe('settleConvexAfterMerge', () => {
       captured,
     });
     expect(doors.order).toEqual(['retry', 'deliver', 'backstop']);
-    expect(doors.reconcileTrackingMerges).toHaveBeenCalledWith('surv');
+    expect(doors.reconcileTrackingMerges).toHaveBeenCalledWith({ userId: 'surv' });
     expect(doors.deliverCapturedMapAccessChanges).toHaveBeenCalledWith(captured);
     expect(doors.purgeUserMapAccessProjection).toHaveBeenCalledWith('src');
   });

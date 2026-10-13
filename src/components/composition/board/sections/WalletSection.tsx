@@ -1,26 +1,25 @@
 'use client';
 
+import { SectionPanel } from '@/components/ui/section-panel';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
-import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
+import type { BoardCharacter, BoardHistoryDay, BoardJournalData } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
-import { formatUtcDate } from '@/lib/format/time';
+import { formatSigned } from '@/lib/format/number';
+import { formatUtcDate, stripUtcYear } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
 import { FlowLine } from '../board-bits';
-import { pilotWorthSeries, recentJournal } from '../board-view-model';
-import { SectionBody, SectionPanel } from '../SectionBody';
+import { pilotWorthSeries, readyData, recentJournal } from '../board-view-model';
+import { SectionBody, SectionNote } from '../SectionBody';
 import { WorthChart, WorthHeadline } from '../WorthChart';
 
-type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
-type JournalRow = Journal['recent'][number];
-
-const signedIsk = (amount: number): string => `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${formatIsk(Math.abs(amount))}`;
+type JournalRow = BoardJournalData['recent'][number];
 
 const COLUMNS: readonly StaticTableColumn<JournalRow>[] = [
   {
     key: 'date',
     label: 'Date',
     className: 'whitespace-nowrap text-muted',
-    render: (row) => formatUtcDate(row.date).replace(/ \d{4}$/, ''),
+    render: (row) => stripUtcYear(formatUtcDate(row.date)),
   },
   { key: 'type', label: 'Type', className: 'max-w-[160px] truncate text-name', render: (row) => row.refLabel },
   {
@@ -29,7 +28,7 @@ const COLUMNS: readonly StaticTableColumn<JournalRow>[] = [
     align: 'right',
     className: 'whitespace-nowrap tabular-nums',
     render: (row) => (
-      <span className={row.amount >= 0 ? 'text-isk' : 'text-dps-high'}>{signedIsk(row.amount)}</span>
+      <span className={row.amount >= 0 ? 'text-isk' : 'text-dps-high'}>{formatSigned(row.amount, formatIsk)}</span>
     ),
   },
   {
@@ -58,7 +57,7 @@ export function WalletSection({
   className?: string;
 }) {
   const { wallet, journal } = character;
-  const worth = character.netWorth.state === 'ready' ? character.netWorth.data.total : null;
+  const worth = readyData(character.netWorth)?.total ?? null;
   return (
     <SectionPanel title="Wallet" className={className}>
       <SectionBody section={wallet}>
@@ -81,7 +80,7 @@ export function WalletSection({
   );
 }
 
-function JournalBody({ journal, chart }: { journal: Journal; chart: boolean }) {
+function JournalBody({ journal, chart }: { journal: BoardJournalData; chart: boolean }) {
   const rows = recentJournal(journal.recent);
   return (
     <>
@@ -91,7 +90,7 @@ function JournalBody({ journal, chart }: { journal: Journal; chart: boolean }) {
         </div>
       )}
       {rows.length === 0 ? (
-        <p className="border-t border-border-soft px-3.5 py-3 text-ui text-faint">No journal entries yet.</p>
+        <SectionNote divided>No journal entries yet.</SectionNote>
       ) : (
         <div className="border-t border-border-soft">
           <StaticTable

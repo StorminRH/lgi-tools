@@ -159,13 +159,9 @@ function seatKey(row: {
   return '';
 }
 
-function stubKey(row: AccountedStubLayoutRow): string {
-  return seatKey(row);
-}
-
 export function stubLayoutSignature(rows: readonly AccountedStubLayoutRow[]): string {
   return rows
-    .map((row) => `${stubKey(row)}:${row.fromSystemId}>${row.layoutSystemId}`)
+    .map((row) => `${seatKey(row)}:${row.fromSystemId}>${row.layoutSystemId}`)
     .join(',');
 }
 
@@ -270,25 +266,11 @@ function assignHolderIds(
   const seated: SeatedChild[] = [];
   for (const group of groups) {
     if (group.childId !== null) {
-      seated.push({
-        seatKey: group.seatKey,
-        seatOrder: group.seatOrder,
-        tieId: group.tieId,
-        fromSystemId: group.fromSystemId,
-        kind: group.kind,
-        childId: group.childId,
-      });
+      seated.push({ ...group, childId: group.childId });
       continue;
     }
     while (usedIds.has(nextHolder)) nextHolder -= 1;
-    seated.push({
-      seatKey: group.seatKey,
-      seatOrder: group.seatOrder,
-      tieId: group.tieId,
-      fromSystemId: group.fromSystemId,
-      kind: group.kind,
-      childId: nextHolder,
-    });
+    seated.push({ ...group, childId: nextHolder });
     usedIds.add(nextHolder);
     nextHolder -= 1;
   }
@@ -296,11 +278,8 @@ function assignHolderIds(
 }
 
 export function seatOrderedLayout(input: SeatOrderedInput): SeatOrderedLayout {
-  const seated = assignHolderIds(
-    collapseSeats(collectCandidates(input)),
-    new Set(input.systems.map((system) => system.systemId)),
-  );
   const authored = new Set(input.systems.map((system) => system.systemId));
+  const seated = assignHolderIds(collapseSeats(collectCandidates(input)), authored);
   const childIdBySeatKey = new Map<string, number>();
   const extraSystems: { readonly systemId: number }[] = [];
   const connections: { fromSystemId: number; toSystemId: number }[] = [];
@@ -334,7 +313,7 @@ export function stubPositionsFromLayout(
 ): ReadonlyMap<string, ChainPosition> {
   const placed = new Map<string, ChainPosition>();
   for (const row of rows) {
-    const key = stubKey(row);
+    const key = seatKey(row);
     const childId = childIdBySeatKey?.get(key) ?? row.layoutSystemId;
     const position = positions.get(childId);
     if (position !== undefined) placed.set(key, position);
@@ -372,7 +351,7 @@ export function placedStubs(
   positions: ReadonlyMap<string, ChainPosition>,
 ): readonly PlacedStub[] {
   return rows.flatMap((row) => {
-    const position = positions.get(stubKey(row));
+    const position = positions.get(seatKey(row));
     if (position === undefined) return [];
     return [drawnStub(row, position)];
   });

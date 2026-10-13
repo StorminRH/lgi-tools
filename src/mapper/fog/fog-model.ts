@@ -1,8 +1,10 @@
+import { sameItems } from '@/lib/array';
+import { sameFields } from '@/lib/equality';
 import type { ChainNode } from '../canvas/SystemNode';
 import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import { frameCenter } from '../canvas/edge-geometry';
 import type { ChainEdge } from '../chain/nodes';
-import { springFamily, type MotionConfig } from '../motion/motion-contract';
+import { SETTLE_SPRING, type MotionConfig } from '../motion/motion-contract';
 
 const FOG_REVEAL_RADIUS = 280;
 
@@ -100,29 +102,9 @@ export function deriveFogReveals(
   return { discs, strokes };
 }
 
-function sameDisc(left: FogDisc, right: FogDisc): boolean {
-  return left.key === right.key
-    && left.x === right.x
-    && left.y === right.y
-    && left.phase === right.phase
-    && left.heavy === right.heavy;
-}
-
-function sameStroke(left: FogStroke, right: FogStroke): boolean {
-  return left.key === right.key
-    && left.x1 === right.x1
-    && left.y1 === right.y1
-    && left.x2 === right.x2
-    && left.y2 === right.y2
-    && left.phase === right.phase
-    && left.heavy === right.heavy;
-}
-
 export function sameFogReveals(left: FogRevealSet, right: FogRevealSet): boolean {
-  return left.discs.length === right.discs.length
-    && left.strokes.length === right.strokes.length
-    && left.discs.every((disc, index) => sameDisc(disc, right.discs[index]!))
-    && left.strokes.every((stroke, index) => sameStroke(stroke, right.strokes[index]!));
+  return sameItems(left.discs, right.discs, sameFields)
+    && sameItems(left.strokes, right.strokes, sameFields);
 }
 
 export interface FogTiming {
@@ -140,7 +122,7 @@ export function fogTimingOf(config: MotionConfig, reducedMotion: boolean): FogTi
     closeMs: config.tempo.mid,
     heavyCloseMs: config.tempo.slow,
     wakeMs: config.tempo.fast * 2,
-    ease: reducedMotion ? (t: number) => t : springFamily(0).ease,
+    ease: reducedMotion ? (t: number) => t : SETTLE_SPRING.ease,
     reducedMotion,
   };
 }

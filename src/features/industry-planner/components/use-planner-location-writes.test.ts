@@ -1,32 +1,21 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import type { BuildLocationData, BlueprintStructure } from '../types';
+import type { BlueprintStructure, SystemJobCostIndex } from '../types';
 import type { ReactionLocationSnapshot } from '../selection-policy';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from '../structure-bonus';
 
 const h = vi.hoisted(() => ({
-  states: [] as unknown[],
-  cursor: 0,
   apiFetch: vi.fn(),
   reads: [] as { read: (signal: AbortSignal) => Promise<unknown>; enabled: boolean; refreshKey?: number }[],
 }));
-vi.mock('react', () => ({
-  useState: <T>(initial: T) => {
-    const index = h.cursor++;
-    if (h.states.length <= index) h.states[index] = initial;
-    return [h.states[index], (next: T | ((previous: T) => T)) => {
-      h.states[index] = typeof next === 'function' ? (next as (previous: T) => T)(h.states[index] as T) : next;
-    }];
-  },
-  useMemo: <T>(make: () => T) => make(),
-  useCallback: <T>(callback: T) => callback,
-}));
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
+vi.mock('react', () => rt.react);
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
-vi.mock('../read-with-retries', async (load) => {
-  const { readWithRetries } = await load<typeof import('../read-with-retries')>();
+vi.mock('@/lib/retry', async (load) => {
+  const { readWithRetries } = await load<typeof import('@/lib/retry')>();
   return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
 });
 
-vi.mock('../use-resource-read', () => ({
+vi.mock('@/lib/use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, options: { enabled: boolean; refreshKey?: number }) => {
     h.reads.push({ read, ...options });
   },
@@ -35,19 +24,16 @@ vi.mock('../use-resource-read', () => ({
 import { usePlannerLocationWrites } from './use-planner-location-writes';
 
 const SYSTEM = { systemId: 30002537, systemName: 'Amamake', security: 0.4 };
-const DATA: BuildLocationData = {
-  stations: [],
-  costIndices: { manufacturing: 0.04, reaction: 0.06 },
-  adjustedPrices: [{ typeId: 34, adjustedPrice: 10 }],
+const DATA: { systems: SystemJobCostIndex[] } = {
+  systems: [{ systemId: SYSTEM.systemId, manufacturing: 0.04, reaction: 0.06 }],
 };
+const PRICED = { ...SYSTEM, costIndices: { manufacturing: 0.04, reaction: 0.06 } };
 const setLocation = vi.fn();
 const setReactionLocation = vi.fn();
-function resetRenderState() {
-  h.cursor = 0;
+function renderWrites(activityId: number, reactionSystemId: number | null = SYSTEM.systemId, snapshot: ReactionLocationSnapshot | null = null) {
   h.reads = [];
-}
-function useWrites(activityId: number, reactionSystemId: number | null = SYSTEM.systemId, snapshot: ReactionLocationSnapshot | null = null) {
-  const state = usePlannerLocationWrites(
+  const state = rt.render(
+    usePlannerLocationWrites,
     { blueprintTypeId: 100, activityId } as BlueprintStructure,
     setLocation,
     reactionSystemId,
@@ -60,8 +46,7 @@ function useWrites(activityId: number, reactionSystemId: number | null = SYSTEM.
 }
 
 beforeEach(() => {
-  h.states = [];
-  resetRenderState();
+  rt.unmount();
   h.apiFetch.mockReset();
   setLocation.mockClear();
   setReactionLocation.mockClear();
@@ -69,80 +54,75 @@ beforeEach(() => {
 
 test('a manufacturing blip the next attempt clears applies fees without a failure', async () => {
   h.apiFetch.mockResolvedValueOnce({ ok: false }).mockResolvedValueOnce({ ok: true, data: DATA });
-  const state = useWrites(MANUFACTURING_ACTIVITY);
+  const state = renderWrites(MANUFACTURING_ACTIVITY);
   await expect(state.applyBuildSystem(SYSTEM, { persist: false })).resolves.toMatchObject({ status: 'applied' });
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
-  resetRenderState();
-  expect(useWrites(MANUFACTURING_ACTIVITY).failureSystemId).toBeNull();
+  expect(renderWrites(MANUFACTURING_ACTIVITY).failureSystemId).toBeNull();
 });
 
 test('the system priced until now stays while the next is read, so it is asked for once', async () => {
-  let release!: (result: { ok: boolean; data: BuildLocationData }) => void;
+  let release!: (result: { ok: boolean; data: typeof DATA }) => void;
   h.apiFetch.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
-  const pending = useWrites(MANUFACTURING_ACTIVITY).applyBuildSystem(SYSTEM, { persist: false });
+  const pending = renderWrites(MANUFACTURING_ACTIVITY).applyBuildSystem(SYSTEM, { persist: false });
   expect(setLocation).not.toHaveBeenCalled();
   release({ ok: true, data: DATA });
   await expect(pending).resolves.toMatchObject({ status: 'applied' });
-  expect(setLocation.mock.calls).toEqual([[{ ...SYSTEM, ...DATA, adjustedPrices: new Map([[34, 10]]) }]]);
+  expect(setLocation.mock.calls).toEqual([[PRICED]]);
   expect(h.apiFetch).toHaveBeenCalledTimes(1);
+  expect(h.apiFetch.mock.calls[0]![1]).toMatchObject({ body: { systemIds: [SYSTEM.systemId] } });
 });
 
 test.each(['response', 'network'])('manufacturing %s failure after three attempts clears old fees; Retry clears the notice until success applies current fees', async (failure) => {
   if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
   else h.apiFetch.mockRejectedValue(new Error('offline'));
-  let state = useWrites(MANUFACTURING_ACTIVITY);
+  let state = renderWrites(MANUFACTURING_ACTIVITY);
   await expect(state.applyBuildSystem(SYSTEM, { persist: false })).resolves.toEqual({ status: 'failed' });
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
   expect(setLocation).toHaveBeenCalledWith(null);
-  resetRenderState();
-  state = useWrites(MANUFACTURING_ACTIVITY);
+  state = renderWrites(MANUFACTURING_ACTIVITY);
   expect(state.failureSystemId).toBe(SYSTEM.systemId);
   state.retryLocation();
-  resetRenderState();
-  state = useWrites(MANUFACTURING_ACTIVITY);
+  state = renderWrites(MANUFACTURING_ACTIVITY);
   expect(state.retry).toBe(1);
   expect(state.failureSystemId).toBeNull();
   h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: DATA });
   await state.applyBuildSystem(SYSTEM, { persist: false });
-  expect(setLocation).toHaveBeenLastCalledWith({ ...SYSTEM, ...DATA, adjustedPrices: new Map([[34, 10]]) });
-  resetRenderState();
-  expect(useWrites(MANUFACTURING_ACTIVITY).failureSystemId).toBeNull();
+  expect(setLocation).toHaveBeenLastCalledWith(PRICED);
+  expect(renderWrites(MANUFACTURING_ACTIVITY).failureSystemId).toBeNull();
 });
 
 test.each(['response', 'network'])('reaction %s failure after three attempts clears old fees; Retry clears the notice and refreshes until successful', async (failure) => {
   if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
   else h.apiFetch.mockRejectedValue(new Error('offline'));
-  let state = useWrites(REACTION_ACTIVITY);
+  let state = renderWrites(REACTION_ACTIVITY);
   expect(state.reaction.enabled).toBe(true);
   expect(state.reactionPending).toBe(true);
   await expect(state.reaction.read(new AbortController().signal)).resolves.toBeNull();
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
   expect(setReactionLocation).toHaveBeenCalledWith(null);
-  resetRenderState();
-  state = useWrites(REACTION_ACTIVITY);
+  state = renderWrites(REACTION_ACTIVITY);
   expect(state.failureSystemId).toBe(SYSTEM.systemId);
   // A failed read is not still waited on.
   expect(state.reactionPending).toBe(false);
   state.retryLocation();
-  resetRenderState();
-  state = useWrites(REACTION_ACTIVITY);
+  state = renderWrites(REACTION_ACTIVITY);
   expect(state.reactionPending).toBe(true);
   expect(state.reaction.refreshKey).toBe(1);
   expect(state.failureSystemId).toBeNull();
   h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: DATA });
   await expect(state.reaction.read(new AbortController().signal)).resolves.toEqual({
-    systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06, adjustedPrices: new Map([[34, 10]]),
+    systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06,
   });
-  resetRenderState();
-  expect(useWrites(REACTION_ACTIVITY).failureSystemId).toBeNull();
+  expect(h.apiFetch.mock.calls[0]![1]).toMatchObject({ body: { systemIds: [SYSTEM.systemId] } });
+  expect(renderWrites(REACTION_ACTIVITY).failureSystemId).toBeNull();
 });
 
 test.each([MANUFACTURING_ACTIVITY, REACTION_ACTIVITY])('cancelled activity %i read cannot apply an old profile result or publish a failure', async (activityId) => {
-  let release!: (result: { ok: boolean; data: BuildLocationData }) => void;
+  let release!: (result: { ok: boolean; data: typeof DATA }) => void;
   h.apiFetch.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
-  const state = useWrites(activityId);
+  const state = renderWrites(activityId);
   const controller = new AbortController();
   const pending = activityId === REACTION_ACTIVITY
     ? state.reaction.read(controller.signal)
@@ -150,14 +130,13 @@ test.each([MANUFACTURING_ACTIVITY, REACTION_ACTIVITY])('cancelled activity %i re
   controller.abort();
   release({ ok: true, data: DATA });
   await pending;
-  resetRenderState();
-  expect(useWrites(activityId).failureSystemId).toBeNull();
+  expect(renderWrites(activityId).failureSystemId).toBeNull();
   expect(setLocation).not.toHaveBeenCalled();
   expect(setReactionLocation.mock.calls).toEqual(activityId === REACTION_ACTIVITY ? [[null]] : []);
 });
 
 test('a profile with no reaction system disables the read and cannot fetch fees', async () => {
-  const state = useWrites(REACTION_ACTIVITY, null);
+  const state = renderWrites(REACTION_ACTIVITY, null);
   expect(state.reaction.enabled).toBe(false);
   await expect(state.reaction.read(new AbortController().signal)).resolves.toBeNull();
   expect(h.apiFetch).not.toHaveBeenCalled();
@@ -165,13 +144,12 @@ test('a profile with no reaction system disables the read and cannot fetch fees'
 
 
 test('component Retry reuses a valid current reaction snapshot without clearing root fees', () => {
-  const snapshot = { systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06, adjustedPrices: new Map([[34, 10]]) };
-  let state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
+  const snapshot = { systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06 };
+  let state = renderWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
   expect(state.reaction.enabled).toBe(false);
   expect(state.reactionPending).toBe(false);
   state.retryLocation();
-  resetRenderState();
-  state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
+  state = renderWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
   expect(state.retry).toBe(1);
   expect(state.reaction.enabled).toBe(false);
   expect(setReactionLocation).not.toHaveBeenCalled();
@@ -182,6 +160,6 @@ test.each([
   { systemId: 30000142, blueprintTypeId: 100 },
   { systemId: SYSTEM.systemId, blueprintTypeId: 101 },
 ])('a snapshot from another system or blueprint still reads the current reaction fees: %j', (key) => {
-  const state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, { ...key, costIndex: 0.06, adjustedPrices: new Map() });
+  const state = renderWrites(REACTION_ACTIVITY, SYSTEM.systemId, { ...key, costIndex: 0.06 });
   expect(state.reaction.enabled).toBe(true);
 });

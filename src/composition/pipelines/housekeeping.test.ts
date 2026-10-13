@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const h = vi.hoisted(() => {
   const done = { deleted: 0, finished: true };
@@ -25,9 +26,9 @@ const prunes = vi.hoisted(() => ({
   pruneExpiredVerifications: h.prune('verification'),
   pruneExpiredSessions: h.prune('session'),
   pruneEsiSnapshots: h.prune('esi_snapshots'),
-  pruneEsiRefreshJobs: h.prune('esi_refresh_jobs'),
   pruneWhStaticsSnapshots: h.prune('wh_statics_snapshots'),
   pruneStaleMarketHistory: h.prune('market_history'),
+  pruneEntityNames: h.prune('eve_entity_names'),
 }));
 
 vi.mock('@/db', () => ({ db: {} }));
@@ -43,9 +44,12 @@ vi.mock('@/platform/auth/verification-retention', () => ({
   pruneExpiredSessions: prunes.pruneExpiredSessions,
 }));
 vi.mock('./esi-snapshot-retention', () => ({ pruneEsiSnapshots: prunes.pruneEsiSnapshots }));
-vi.mock('@/data/esi-refresh-jobs/queries', () => ({ pruneEsiRefreshJobs: prunes.pruneEsiRefreshJobs }));
 vi.mock('@/data/wh-statics/queries', () => ({ pruneWhStaticsSnapshots: prunes.pruneWhStaticsSnapshots }));
 vi.mock('@/data/market-history/ingest', () => ({ pruneStaleMarketHistory: prunes.pruneStaleMarketHistory }));
+vi.mock('@/data/eve-data/entity-names-store', () => ({
+  ENTITY_NAME_RETENTION_DAYS: 30,
+  pruneEntityNames: prunes.pruneEntityNames,
+}));
 vi.mock('@/composition/account-lifecycle/account-purge', () => ({
   retryRequestedDeletions: h.retryRequestedDeletions,
 }));
@@ -65,9 +69,9 @@ const NOW = new Date('2026-07-14T12:00:00Z');
 
 beforeEach(() => {
   h.order.length = 0;
-  h.retryRequestedDeletions.mockReset().mockResolvedValue({ retried: 0, failed: 0 });
-  h.reconcileTrackingMerges.mockReset().mockResolvedValue({ processed: 0, failed: 0 });
-  h.scopeLegacyMaps.mockReset().mockResolvedValue({ succeeded: 0, failed: 0 });
+  h.retryRequestedDeletions.mockReset().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 });
+  h.reconcileTrackingMerges.mockReset().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 });
+  h.scopeLegacyMaps.mockReset().mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 });
   h.pruneTrackingMergeReceipts.mockReset().mockImplementation(async () => {
     h.order.push('account_merge_tracking_receipts');
     return { deleted: 0, finished: true };
@@ -80,7 +84,7 @@ describe('runHousekeeping', () => {
       h.order.push('session');
       return { deleted: 4, finished: true };
     });
-    h.retryRequestedDeletions.mockResolvedValueOnce({ retried: 1, failed: 0 });
+    h.retryRequestedDeletions.mockResolvedValueOnce({ succeeded: 1, failed: 0, deferred: 0 });
 
     const summary = await runHousekeeping(NOW);
 
@@ -93,26 +97,28 @@ describe('runHousekeeping', () => {
       'verification',
       'session',
       'esi_snapshots',
-      'esi_refresh_jobs',
       'wh_statics_snapshots',
       'market_history',
+      'eve_entity_names',
       'account_merge_tracking_receipts',
     ]);
     expect(summary.status).toBe('cleaned');
     expect(summary.deletes).toContainEqual({ task: 'session', deleted: 4, finished: true, error: null });
     expect(summary.retries).toEqual([
-      { task: 'requested_deletions', succeeded: 1, failed: 0, error: null },
-      { task: 'tracking_merges', succeeded: 0, failed: 0, error: null },
-      { task: 'character_scoping', succeeded: 0, failed: 0, error: null },
+      { task: 'requested_deletions', succeeded: 1, failed: 0, deferred: 0, error: null },
+      { task: 'tracking_merges', succeeded: 0, failed: 0, deferred: 0, error: null },
+      { task: 'character_scoping', succeeded: 0, failed: 0, deferred: 0, error: null },
     ]);
+    expect(h.retryRequestedDeletions).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(h.reconcileTrackingMerges).toHaveBeenCalledExactlyOnceWith({ deadline: expect.any(Number) });
   });
 
   it('runs one bounded legacy-map scoping batch and marks a kept map partial', async () => {
-    h.scopeLegacyMaps.mockResolvedValueOnce({ succeeded: 2, failed: 1 });
+    h.scopeLegacyMaps.mockResolvedValueOnce({ succeeded: 2, failed: 1, deferred: 0 });
     const summary = await runHousekeeping(NOW);
     expect(h.scopeLegacyMaps).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
     expect(summary.retries).toContainEqual({
-      task: 'character_scoping', succeeded: 2, failed: 1, error: null,
+      task: 'character_scoping', succeeded: 2, failed: 1, deferred: 0, error: null,
     });
     expect(summary.status).toBe('partial');
   });
@@ -120,7 +126,7 @@ describe('runHousekeeping', () => {
   it('cleans merge receipts after tracking retries and records failures through housekeeping', async () => {
     h.reconcileTrackingMerges.mockImplementationOnce(async () => {
       h.order.push('tracking_merges');
-      return { processed: 1, failed: 0 };
+      return { succeeded: 1, failed: 0, deferred: 0 };
     });
     h.pruneTrackingMergeReceipts.mockImplementationOnce(async () => {
       h.order.push('account_merge_tracking_receipts');
@@ -133,14 +139,18 @@ describe('runHousekeeping', () => {
     });
     expect(summary.status).toBe('cleaned');
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
     h.pruneTrackingMergeReceipts.mockRejectedValueOnce(new Error('pending lookup unavailable'));
     await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'partial' });
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith(
+      '[housekeeping] account_merge_tracking_receipts failed',
+      expect.any(Error),
+    );
     errorSpy.mockRestore();
   });
 
   it('keeps going past a failed delete and marks the run partial', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
     prunes.pruneUsageLogs.mockRejectedValueOnce(new Error('usage_logs locked'));
 
     const summary = await runHousekeeping(NOW);
@@ -154,17 +164,23 @@ describe('runHousekeeping', () => {
     });
     expect(h.order).toContain('market_history');
     expect(h.reconcileTrackingMerges).toHaveBeenCalledOnce();
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith('[housekeeping] usage_logs failed', expect.any(Error));
     errorSpy.mockRestore();
   });
 
-  it('treats an unfinished delete as backlog, not failure', async () => {
+  it('treats an unfinished delete or deferred retry work as backlog, not failure', async () => {
     prunes.pruneEsiSnapshots.mockResolvedValueOnce({ deleted: 5000, finished: false });
-    await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'cleaned' });
+    h.reconcileTrackingMerges.mockResolvedValueOnce({ succeeded: 1, failed: 0, deferred: 4 });
+    const summary = await runHousekeeping(NOW);
+    expect(summary.status).toBe('cleaned');
+    expect(summary.retries).toContainEqual({
+      task: 'tracking_merges', succeeded: 1, failed: 0, deferred: 4, error: null,
+    });
   });
 
   it('marks the run partial when a retry fails or throws', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    h.retryRequestedDeletions.mockResolvedValueOnce({ retried: 0, failed: 1 });
+    const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
+    h.retryRequestedDeletions.mockResolvedValueOnce({ succeeded: 0, failed: 1, deferred: 0 });
     await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'partial' });
 
     h.reconcileTrackingMerges.mockRejectedValueOnce(new Error('direct endpoint unavailable'));
@@ -174,8 +190,10 @@ describe('runHousekeeping', () => {
       task: 'tracking_merges',
       succeeded: 0,
       failed: 0,
+      deferred: 0,
       error: 'direct endpoint unavailable',
     });
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith('[housekeeping] tracking_merges failed', expect.any(Error));
     errorSpy.mockRestore();
   });
 });

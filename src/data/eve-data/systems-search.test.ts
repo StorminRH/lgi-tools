@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { SearchContext } from '@/platform/search';
 import { z } from 'zod';
 import { systemSearchEntrySchema } from './api-contract';
-import { formatSec, matchSystem, type SystemSearchEntry } from './systems-search';
+import { lookupSystem, matchSystem, type SystemSearchEntry } from './systems-search';
 
 const { apiFetchMock } = vi.hoisted(() => ({ apiFetchMock: vi.fn() }));
 
@@ -49,12 +49,17 @@ describe('matchSystem', () => {
   });
 });
 
-describe('formatSec', () => {
-  it('renders one decimal with CCP rounding, with a dash for unknown security', () => {
-    expect(formatSec(0.9)).toBe('0.9');
-    expect(formatSec(-0.99)).toBe('-1.0');
-    expect(formatSec(0.04)).toBe('0.1');
-    expect(formatSec(null)).toBe('—');
+describe('lookupSystem', () => {
+  const byId = new Map(SYSTEMS.map((system) => [system.id, system]));
+
+  it('resolves a known id against the loaded index', () => {
+    expect(lookupSystem(byId, 30000142)).toBe(SYSTEMS[1]);
+  });
+
+  it('is null before the index loads, for a null id, and for an unknown id', () => {
+    expect(lookupSystem(null, 30000142)).toBeNull();
+    expect(lookupSystem(byId, null)).toBeNull();
+    expect(lookupSystem(byId, 99)).toBeNull();
   });
 });
 
@@ -90,16 +95,29 @@ describe('systemsSource', () => {
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('retries after a failed load instead of caching the rejection, and fills the snapshot on success', async () => {
+  it('forgets a failed load so the next reader loads again, and publishes one index to every reader', async () => {
     const m = await freshModule();
     apiFetchMock.mockClear();
-    apiFetchMock.mockRejectedValueOnce(new Error('network down'));
-    await expect(m.loadSystems()).rejects.toThrow('network down');
-    expect(m.getLoadedSystems()).toBeNull();
+    apiFetchMock
+      .mockResolvedValueOnce({ ok: false, kind: 'api', status: 503, error: null })
+      .mockResolvedValueOnce({ ok: true, status: 200, data: { systems: SYSTEMS } });
+    await expect(m.systemsResource.load()).rejects.toThrow('system index api 503');
+    expect(m.systemsResource.get()).toEqual({ value: null, failed: true });
 
-    apiFetchMock.mockResolvedValueOnce({ ok: true, status: 200, data: { systems: SYSTEMS } });
-    await expect(m.loadSystems()).resolves.toEqual(SYSTEMS);
-    expect(m.getLoadedSystems()).toEqual(SYSTEMS);
+    const listener = vi.fn();
+    const unsubscribe = m.systemsResource.subscribe(listener);
+    const index = await m.systemsResource.load();
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+    expect(index.systems).toEqual(SYSTEMS);
+    expect(index.byId.size).toBe(SYSTEMS.length);
+    expect(index.byId.get(30000142)).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
+    expect(index.byId.get(5)?.security).toBeNull();
+    // Every reader hears the load and gets the same index, and the server never has one.
+    expect(listener).toHaveBeenCalledOnce();
+    expect(m.systemsResource.get()).toEqual({ value: index, failed: false });
+    expect(m.systemsResource.get().value).toBe(index);
+    expect(m.systemsResource.serverValue).toEqual({ value: null, failed: false });
+    unsubscribe();
   });
 
   it('drops results for a query aborted mid-flight', async () => {

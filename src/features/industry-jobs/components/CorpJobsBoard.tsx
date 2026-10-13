@@ -2,8 +2,7 @@
 
 import { type ReactNode, useMemo } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
-import { EveImage } from '@/components/eve-image';
-import { useEntityNames } from '@/components/use-entity-names';
+import { EntityLogo } from '@/components/entity-logo';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
@@ -11,7 +10,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadFailed } from '@/components/ui/load-failed';
 import { SectionLabel } from '@/components/ui/section-label';
 import { ENTITY_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
-import { corporationLogoUrl } from '@/lib/eve-image';
+import { useEntityNames } from '@/data/eve-data/use-names';
+import { nameOrUnresolved } from '@/lib/format/names';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
 import { corpEntityIds, type CorpGroupState, corpGroupState, runnerName } from '../job-view';
@@ -83,17 +83,14 @@ function CorpJobsList({
     <JobsCard
       key={corp.corporationId}
       avatar={
-        <EveImage
-          source="eve"
-          family="corporation-logo"
-          src={corporationLogoUrl(corp.corporationId, 64)}
-          alt=""
-          width={36}
-          height={36}
-          className="size-9 shrink-0 rounded-ctl border border-border-soft"
+        <EntityLogo
+          kind="corporation"
+          id={corp.corporationId}
+          size={36}
+          className="border border-border-soft"
         />
       }
-      title={entityNames[String(corp.corporationId)] ?? `Corporation #${corp.corporationId}`}
+      title={nameOrUnresolved(entityNames, corp.corporationId, 'corporation')}
       notice={CORP_NOTICES[corpGroupState(corp)]}
       data={corp.data}
       lastSyncedAt={corp.lastRefreshedAt}

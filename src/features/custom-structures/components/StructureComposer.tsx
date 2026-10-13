@@ -1,36 +1,44 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { PercentInput } from '@/components/PercentInput';
 import { RigSupply } from '@/components/RigSupply';
+import { SecurityStatus, SystemWithSecurity } from '@/components/security-status';
 import { StructureHullTile } from '@/components/StructureHullTile';
 import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import { cardSurface, insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { Field } from '@/components/ui/field';
 import { CloseIcon } from '@/components/ui/icons';
 import { Textarea } from '@/components/ui/input';
-import { Pill } from '@/components/ui/pill';
+import { Pill, type PillTone } from '@/components/ui/pill';
 import { Select, type SelectItems } from '@/components/ui/select';
 import { Tabs } from '@/components/ui/tabs';
-import { eyebrow } from '@/components/ui/type-roles';
-import { useSystemSearch } from '@/components/use-system-search';
+import { useSystemSearch, useSystemsById } from '@/components/use-system-search';
 import {
   SDE_CITADEL_GROUP_ID,
   SDE_ENGINEERING_COMPLEX_GROUP_ID,
   SDE_REFINERY_GROUP_ID,
 } from '@/data/eve-data/constants';
-import { securityStatusTextClass } from '@/data/eve-data/security';
-import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
-import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { formatSecurityStatus, type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
+import {
+  fittingRigs,
+  rigSlotsFrom,
+  type StructureRigOption,
+  type StructureTypeOption,
+} from '@/data/eve-data/structures';
+import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { MAX_ENTERED_BONUS_PCT } from '@/data/industry-math/entered-bonuses';
+import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
+import { failureCode, type FailedOutcome } from '@/transport/failure-copy';
 import {
   createCustomStructureEndpoint,
   deleteCustomStructureEndpoint,
   parseStructureFitEndpoint,
   updateCustomStructureEndpoint,
   MAX_CUSTOM_STRUCTURE_NAME_LEN,
-  MAX_CUSTOM_STRUCTURE_RIGS,
   type StructureSearchResult,
 } from '../api-contract';
 import {
@@ -38,7 +46,6 @@ import {
   draftFromRow,
   emptyStructureDraft,
   payloadFromDraft,
-  slotsFromRigs,
   type BonusDraft,
   type BonusField,
   type StructureDraft,
@@ -47,20 +54,19 @@ import type { CustomStructureRow } from '../types';
 import { useStructureSearch } from '../use-structure-search';
 import { PickField, type PickOption } from './PickField';
 
-const label = eyebrow({ size: 'micro' });
-
 const HULL_GROUPS: [number, string][] = [
   [SDE_ENGINEERING_COMPLEX_GROUP_ID, 'Engineering complex'],
   [SDE_REFINERY_GROUP_ID, 'Refinery'],
   [SDE_CITADEL_GROUP_ID, 'Citadel'],
 ];
 
-const FIELD_ERROR: Record<'name' | 'hull' | 'tax' | 'bonus' | 'save' | 'fit', string> = {
+const FIELD_ERROR: Record<'name' | 'hull' | 'tax' | 'bonus' | 'save' | 'limit' | 'fit', string> = {
   name: 'Name the structure.',
   hull: 'Pick the hull.',
-  tax: 'Tax must be 0–10%.',
-  bonus: 'Bonuses must be 0–99%.',
-  save: 'Could not save. Try again.',
+  tax: `Tax must be 0–${MAX_FACILITY_TAX_PCT}%.`,
+  bonus: `Bonuses must be 0–${MAX_ENTERED_BONUS_PCT}%.`,
+  save: "Couldn't save. Try again.",
+  limit: 'Structure limit reached. Delete one to make room.',
   fit: 'No structure in that fit.',
 };
 type ComposerError = keyof typeof FIELD_ERROR;
@@ -77,84 +83,89 @@ function hullItems(types: StructureTypeOption[]): SelectItems {
   ];
 }
 
-function SecPill({ security }: { security: number | null }) {
-  return <Pill tone={security !== null && security >= 0.45 ? 'green' : security !== null && security > 0 ? 'orange' : 'red'}>{formatSec(security)}</Pill>;
-}
+const SEC_PILL_TONE: Record<SecurityClass, PillTone> = { high: 'green', low: 'orange', null: 'red', wormhole: 'red' };
 
-function LabeledField({ htmlFor, text, children, className }: { htmlFor?: string; text: string; children: ReactNode; className?: string }) {
-  return (
-    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <label htmlFor={htmlFor} className={label}>{text}</label>
-      {children}
-    </div>
-  );
+/** The pinned system's security, toned by its band; an unknown security reads neutral rather than as null-sec. */
+function SecPill({ security }: { security: number | null }) {
+  const tone = security === null ? 'neutral' : SEC_PILL_TONE[systemSecurityClass(security, null)];
+  return <Pill tone={tone}>{formatSecurityStatus(security)}</Pill>;
 }
 
 function useSystemField(systemId: number | null) {
   const { systems, suggest } = useSystemSearch();
-  const system = useMemo(() => systems.find((s) => s.id === systemId) ?? null, [systems, systemId]);
+  const systemsById = useSystemsById();
+  const system = lookupSystem(systemsById, systemId);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SystemSearchEntry[]>([]);
   const shown = query || system?.name || '';
   useEffect(() => {
     if (query.trim() === '' || query === system?.name) return;
     let alive = true;
-    void suggest(query).then((names) => {
-      if (alive) setSuggestions(names.flatMap((n) => systems.find((s) => s.name === n) ?? []));
-    });
+    // A lookup the next keystroke aborted rejects after this run has ended; one
+    // that fails for this query leaves no suggestions.
+    void suggest(query).then(
+      (names) => {
+        if (alive) setSuggestions(names.flatMap((n) => systems.find((s) => s.name === n) ?? []));
+      },
+      () => {
+        if (alive) setSuggestions([]);
+      },
+    );
     return () => {
       alive = false;
     };
   }, [query, system, suggest, systems]);
   const exact = (text: string) => systems.find((s) => s.name.toLowerCase() === text.trim().toLowerCase()) ?? null;
-  return { systems, system, shown, suggestions: query === system?.name ? [] : suggestions, setQuery, exact };
+  return { systemsById, system, shown, suggestions: query === system?.name ? [] : suggestions, setQuery, exact };
+}
+
+/** A found structure's hull, then its system with that system's coloured security. */
+function hitMeta(hull: string | undefined, system: SystemSearchEntry | null): ReactNode {
+  if (!system) return hull;
+  return (
+    <>
+      {hull ? `${hull} · ` : null}
+      <SystemWithSecurity system={system} />
+    </>
+  );
 }
 
 function NameField({
   draft,
   types,
-  systems,
+  systemsById,
   onName,
   onPick,
 }: {
   draft: StructureDraft;
   types: StructureTypeOption[];
-  systems: SystemSearchEntry[];
+  systemsById: ReadonlyMap<number, SystemSearchEntry> | null;
   onName: (name: string) => void;
   onPick: (hit: StructureSearchResult) => void;
 }) {
-  const id = useId();
   const [typed, setTyped] = useState('');
-  const picked = useRef<string | null>(null);
   const hits = useStructureSearch(typed);
-  const options: PickOption<StructureSearchResult>[] = hits.map((hit) => {
-    const hull = types.find((t) => t.typeId === hit.structureTypeId)?.name;
-    const system = systems.find((s) => s.id === hit.systemId);
-    return {
-      key: String(hit.structureId),
-      value: hit.name,
-      label: hit.name,
-      meta: [hull, system ? `${system.name} ${formatSec(system.security)}` : null].filter(Boolean).join(' · '),
-      item: hit,
-    };
-  });
+  const options: PickOption<StructureSearchResult>[] = hits.map((hit) => ({
+    key: String(hit.structureId),
+    label: hit.name,
+    meta: hitMeta(types.find((t) => t.typeId === hit.structureTypeId)?.name, lookupSystem(systemsById, hit.systemId)),
+    item: hit,
+  }));
   return (
-    <LabeledField htmlFor={id} text="Structure">
+    <Field label="Structure" labelStyle="eyebrow">
       <PickField
-        id={id}
         value={draft.name}
         onValueChange={(name) => {
           onName(name);
-          setTyped(name === picked.current ? '' : name);
+          setTyped(name);
         }}
         options={options}
         onPick={(hit) => {
-          picked.current = hit.name;
           setTyped('');
           onPick(hit);
         }}
       />
-    </LabeledField>
+    </Field>
   );
 }
 
@@ -233,7 +244,7 @@ function BonusSection({
   onDraft: (next: Partial<StructureDraft>) => void;
   onReadFit: (fit: string) => void;
 }) {
-  const validRigs = structure ? rigs.filter((r) => rigFitsStructure(r, structure)) : [];
+  const validRigs = fittingRigs(rigs, structure);
   const tab: BonusTab = pasting ? 'fit' : draft.mode;
   const choose = (next: string) => {
     onPastingChange(next === 'fit');
@@ -263,7 +274,6 @@ function BonusSection({
           content: (
             <RigSupply
               validRigs={validRigs}
-              maxSlots={MAX_CUSTOM_STRUCTURE_RIGS}
               slots={draft.rigSlots}
               onSlotsChange={(rigSlots) => onDraft({ rigSlots })}
               disabled={busy}
@@ -276,7 +286,16 @@ function BonusSection({
   );
 }
 
-type Mutation = { ok: true; data: { structures: CustomStructureRow[]; createdId?: string } } | { ok: false };
+type MutationFailure =
+  | FailedOutcome<typeof createCustomStructureEndpoint>
+  | FailedOutcome<typeof updateCustomStructureEndpoint>
+  | FailedOutcome<typeof deleteCustomStructureEndpoint>;
+type Mutation = { ok: true; data: { structures: CustomStructureRow[]; createdId?: string } } | MutationFailure;
+
+/** A full structure list gets its own words; anything else is a plain failed save. */
+function mutationError(failure: MutationFailure): ComposerError {
+  return failureCode(failure) === 'structure_limit' ? 'limit' : 'save';
+}
 
 export function StructureComposer({
   structureTypes,
@@ -307,10 +326,10 @@ export function StructureComposer({
     const known = structureTypes.some((t) => t.typeId === hit.structureTypeId);
     const structureTypeId = hit.structureTypeId === null ? draft.structureTypeId : known ? hit.structureTypeId : null;
     update({
-      name: hit.name,
+      name: hit.name.slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
       systemId: hit.systemId,
       structureTypeId,
-      ...(structureTypeId === draft.structureTypeId ? {} : { rigSlots: slotsFromRigs([]) }),
+      ...(structureTypeId === draft.structureTypeId ? {} : { rigSlots: rigSlotsFrom([]) }),
     });
     sys.setQuery('');
   }
@@ -324,7 +343,7 @@ export function StructureComposer({
     setBusy(true);
     const res = await run();
     setBusy(false);
-    if (!res.ok) return setError('save');
+    if (!res.ok) return setError(mutationError(res));
     onSaved(res.data.structures, res.data.createdId);
   }
 
@@ -367,20 +386,19 @@ export function StructureComposer({
         <NameField
           draft={draft}
           types={structureTypes}
-          systems={sys.systems}
+          systemsById={sys.systemsById}
           onName={(name) => update({ name: name.slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN) })}
           onPick={pickStructure}
         />
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
           <SystemField sys={sys} onType={typeSystem} onPick={(s) => { sys.setQuery(''); update({ systemId: s.id }); }} />
-          <LabeledField text="Hull">
+          <Field label="Hull" labelStyle="eyebrow">
             <Select
               value={draft.structureTypeId === null ? '' : String(draft.structureTypeId)}
-              onValueChange={(v) => update({ structureTypeId: v === '' ? null : Number(v), rigSlots: slotsFromRigs([]) })}
+              onValueChange={(v) => update({ structureTypeId: v === '' ? null : Number(v), rigSlots: rigSlotsFrom([]) })}
               items={hullItems(structureTypes)}
-              ariaLabel="Hull"
             />
-          </LabeledField>
+          </Field>
         </div>
         <BonusSection
           draft={draft}
@@ -392,9 +410,9 @@ export function StructureComposer({
           onDraft={update}
           onReadFit={(fit) => void readFit(fit)}
         />
-        <LabeledField text="Facility tax" className="w-40">
-          <PercentInput value={draft.taxDraft} onChange={(taxDraft) => update({ taxDraft })} ariaLabel="Facility tax" />
-        </LabeledField>
+        <Field label="Facility tax" labelStyle="eyebrow" className="w-40">
+          <PercentInput value={draft.taxDraft} onChange={(taxDraft) => update({ taxDraft })} />
+        </Field>
         {error && <Callout label="Check">{FIELD_ERROR[error]}</Callout>}
       </div>
       <div className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
@@ -421,24 +439,21 @@ function SystemField({
   onType: (text: string) => void;
   onPick: (system: SystemSearchEntry) => void;
 }) {
-  const id = useId();
   const options: PickOption<SystemSearchEntry>[] = sys.suggestions.map((s) => ({
     key: String(s.id),
-    value: s.name,
     label: s.name,
-    meta: <span className={securityStatusTextClass(s.security)}>{formatSec(s.security)}</span>,
+    meta: <SecurityStatus security={s.security} />,
     item: s,
   }));
   return (
-    <LabeledField htmlFor={id} text="System">
+    <Field label="System" labelStyle="eyebrow">
       <PickField
-        id={id}
         value={sys.shown}
         onValueChange={onType}
         options={options}
         onPick={onPick}
         trailing={sys.system ? <SecPill security={sys.system.security} /> : undefined}
       />
-    </LabeledField>
+    </Field>
   );
 }

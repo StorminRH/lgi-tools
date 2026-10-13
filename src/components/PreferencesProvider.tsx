@@ -1,12 +1,12 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
 import { toast } from '@/components/ui/toast';
 import { getPreferencesEndpoint, putPreferenceEndpoint } from '@/data/preferences/api-contract';
 import { processPreferencesResponse } from '@/data/preferences/parse-server-preferences';
 import { createClientStore, useClientStore } from '@/lib/client-store';
-import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { currentReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
 import { apiFetch } from '@/transport/api-client';
 import {
   PREFERENCES,
@@ -48,16 +48,11 @@ function readLocalValues(): Map<string, unknown> {
 }
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
-  const { data } = authClient.useSession();
   // AuthProvider's settled flag, not better-auth's isPending: a signed-out
   // refetch on window focus must not rebuild every preference consumer.
   const { loading } = useAuth();
-  const userId = data?.user?.id ?? null;
-
-  const userIdRef = useRef(userId);
-  useEffect(() => {
-    userIdRef.current = userId;
-  }, [userId]);
+  // The id alone, so switching characters on one account does not refetch.
+  const userId = useReadIdentity()?.userId ?? null;
 
   useEffect(() => {
     if (loading) return;
@@ -96,7 +91,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     const { values, ready } = preferencesStore.get();
     preferencesStore.set({ values: new Map(values).set(def.key, value), ready });
     writeLocalPreference(def, value);
-    if (userIdRef.current) {
+    if (currentReadIdentity() !== null) {
       void apiFetch(putPreferenceEndpoint, { body: { key: def.key, value } }).then((result) => {
         if (!result.ok) toast.error('Save failed');
       });

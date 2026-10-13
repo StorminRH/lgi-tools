@@ -1,4 +1,4 @@
-import { config } from 'dotenv';
+import './load-env';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -6,7 +6,8 @@ import { eq } from 'drizzle-orm';
 import { projectMapAccess } from '@/composition/map-access-projection';
 import { db } from '@/db';
 import { maps } from '@/data/maps/schema';
-import { readEnv, requireEnv } from '@/lib/env';
+import { requireEnv } from '@/lib/env';
+import { sleep } from '@/lib/retry';
 import type { LayoutEdge } from '@/mapper/layout/layout-contract';
 import {
   generateChainTimeline,
@@ -20,8 +21,6 @@ import {
   type ReplayArgs,
   type SpawnStep,
 } from './map-replay-plan';
-
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 const execFileAsync = promisify(execFile);
 
@@ -100,10 +99,6 @@ async function convexRun(path: string, args: Record<string, unknown>): Promise<s
   } catch (error) {
     throw new Error(`${path} failed: ${errorDetail(error)}`);
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function pace(intervalMs: number): Promise<void> {

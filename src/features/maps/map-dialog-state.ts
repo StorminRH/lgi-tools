@@ -16,23 +16,12 @@ export function currentAdminMap(
   return current?.role === 'admin' ? current : null;
 }
 
-/** The admin-only rows (grants, blocks) for the map being edited. */
-export function editingMapRows<T>(
-  byMapId: Readonly<Record<string, readonly T[]>>,
-  map: AuthorizedMapRow | null,
-): readonly T[] {
-  return map === null ? [] : byMapId[map.id] ?? [];
-}
-
-export function mapDialogAuthorityKey(
-  listingAvailable: boolean,
-  maps: readonly AuthorizedMapRow[],
-): string {
-  if (!listingAvailable) return 'unavailable';
-  return `available:${maps
-    .filter((map) => map.role === 'admin')
-    .map((map) => map.id)
-    .join('|')}`;
+/**
+ * Dialogs close together only when the map listing comes or goes. An access
+ * edit whose map loses admin closes on its own, through dropLostAdminEdit.
+ */
+export function mapDialogAuthorityKey(listingAvailable: boolean): string {
+  return listingAvailable ? 'available' : 'unavailable';
 }
 
 export function closedMapDialogs(authorityKey: string): AuthorityScopedMapDialogs {

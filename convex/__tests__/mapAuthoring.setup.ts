@@ -1,10 +1,9 @@
-import { type TestConvex } from 'convex-test';
-import { expect, vi } from 'vitest';
+import { vi } from 'vitest';
 import { api } from '../_generated/api';
 import type { Id } from '../_generated/dataModel';
-import schema from '../schema';
 
 import { connectionInsert } from './connection-doc.setup';
+import { grantMapAccess, type Chain } from './convexTest.setup';
 
 export const MAP_A = 'map-a';
 export const EDITOR = 'user-editor';
@@ -17,8 +16,6 @@ export const WH_ROOT = 31_000_001;
 export const WH_A = 31_000_002;
 export const WH_B = 31_000_003;
 export const WH_C = 31_000_004;
-
-export type Chain = TestConvex<typeof schema>;
 
 export function installAuthoringTimers(): void {
   vi.useFakeTimers();
@@ -33,24 +30,9 @@ export function asUser(t: Chain, userId = EDITOR, name = 'Editor Pilot') {
   return t.withIdentity({ subject: userId, name });
 }
 
-async function grant(
-  t: Chain,
-  mapId: string,
-  userId: string,
-  roles: ('viewer' | 'editor' | 'admin')[],
-): Promise<void> {
-  await t.run(async (ctx) => {
-    await ctx.db.insert('mapAccess', { mapId, userId, roles });
-  });
-}
-
-export async function expectConvexError(call: Promise<unknown>, code: string): Promise<void> {
-  await expect(call).rejects.toThrow(code);
-}
-
 export async function seedEmpty(t: Chain): Promise<void> {
-  await grant(t, MAP_A, EDITOR, ['editor']);
-  await grant(t, MAP_A, VIEWER, ['viewer']);
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+  await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
 }
 
 export async function seedHome(t: Chain, systemId = JITA): Promise<Id<'mapSystems'>> {

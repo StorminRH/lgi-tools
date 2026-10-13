@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { encryptAccountTokens } from './account-token-encryption';
-import { EVE_PROVIDER_ID } from './eve-sso';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { TOKEN_CRYPTO_VERSION } from './token-crypto';
 
 const enc = (s: string) => `ENC(${s})`;

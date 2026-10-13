@@ -1,7 +1,6 @@
-import { parseRange, rangeFor } from '@/composition/admin-period';
+import { parseRange, rangeFor } from '../period';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
-import { CardLink } from '../CardLink';
 import { LevelRows } from '../LevelRows';
 import type { RangeSearchParams } from '../RangeControl';
 import {
@@ -35,11 +34,10 @@ async function EsiContent({ searchParams }: { searchParams: RangeSearchParams })
         <AdminSection
           title="Rate-limit pressure"
           name="pressure"
-          rows={5}
+          rows={6}
           reveal={2}
           slotClassName="h-full"
           className="h-full"
-          hint={<CardLink href="/admin/queue">Queue</CardLink>}
           load={() => loadPressureLines(range)}
         >
           {(lines) => <LevelRows lines={lines} />}
@@ -81,11 +79,7 @@ async function EsiContent({ searchParams }: { searchParams: RangeSearchParams })
 
 export default function AdminEsiPage({ searchParams }: { searchParams: RangeSearchParams }) {
   return (
-    <AdminPageFrame
-      title="ESI & rate limits"
-      rangeBasePath="/admin/esi"
-      fallbackLabel="Error budget"
-    >
+    <AdminPageFrame section="esi" fallbackLabel="Error budget">
       <EsiContent searchParams={searchParams} />
     </AdminPageFrame>
   );

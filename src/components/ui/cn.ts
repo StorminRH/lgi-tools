@@ -24,7 +24,11 @@ const twMerge = extendTailwindMerge({
         {
           text: [
             'micro',
+            'caption',
             'label',
+            'small',
+            'eyebrow',
+            'bar',
             'ui',
             'nav',
             'body',
@@ -41,7 +45,7 @@ const twMerge = extendTailwindMerge({
       ],
       tracking: [
         {
-          tracking: ['optical', 'copy', 'label', 'wide', 'eyebrow'],
+          tracking: ['optical', 'copy', 'label'],
         },
       ],
       rounded: [{ rounded: ['ctl', 'card', 'panel', 'sheet'] }],

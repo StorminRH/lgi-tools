@@ -2,8 +2,6 @@ export type ServerStatus =
   | {
       state: 'online' | 'vip';
       players: number;
-      /** Tranquility's build number. */
-      build: string | null;
       /** When the cluster started taking logins, as an ISO time. */
       startedAt: string | null;
     }
@@ -14,8 +12,9 @@ export type ServerStatus =
 
 export type LiveServerStatus = Extract<ServerStatus, { players: number }>;
 
-/** The static data build LGI has ingested. */
+/** The static data build LGI has ingested, and the newest one CCP has published. */
 export interface SdeBuild {
   build: string;
   ingestedAt: Date;
+  latestPublished: string | null;
 }

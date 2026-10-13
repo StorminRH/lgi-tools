@@ -1,17 +1,49 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BULK_THRESHOLD } from './constants';
+import { BULK_THRESHOLD, PER_TYPE_CONCURRENCY } from './constants';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
-import { computeDepth, computeSide, fetchPricesFromSource } from './source';
+import { computeDepth, computeSide, fetchPricesFromSource, fetchPricesPerType } from './source';
 import type { RawMarketPrice } from './types';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+
+const h = vi.hoisted(() => ({ esiFetch: vi.fn(), batchConcurrency: [] as number[] }));
 
 vi.mock('@/platform/esi', async () => {
   const actual =
     await vi.importActual<typeof import('@/platform/esi')>('@/platform/esi');
   return {
     ...actual,
-    esiFetch: vi.fn(),
+    esiFetch: h.esiFetch,
   };
 });
+
+/**
+ * The store reduced to its transport: every key is due, and what ESI
+ * answers comes back parsed, with a meta under that key. The batched read
+ * keeps a thrown call (or a body its parser refused) to its key, as the
+ * real one does, and records its concurrency.
+ */
+vi.mock('@/data/esi-store', async () => {
+  const { resolvePath } = await vi.importActual<typeof import('@/data/esi-store/key')>('@/data/esi-store/key');
+  type Init = { conditional?: boolean; parse: (body: unknown, headers: Headers) => unknown };
+  const fetchStored = async (key: { route: string }, init: Init) => {
+    const passed = init.conditional === undefined ? undefined : { conditional: init.conditional };
+    const res: Response = await h.esiFetch(`https://esi.evetech.net${resolvePath(key as never)}`, passed);
+    if (res.status === 304) return { kind: 'unchanged', expiresAt: null };
+    if (res.status !== 200) return { kind: 'error', status: res.status };
+    const value = init.parse(await res.json(), res.headers);
+    return { kind: 'fresh', value, meta: { key, expiresAt: EXPIRES_MS, etags: [res.headers.get('ETag') ?? ''], lastModified: null, checkedAt: CHECKED_AT } };
+  };
+  return {
+    fetchStored,
+    fetchStoredMany: async (keys: { route: string }[], init: Init & { concurrency: number }) => {
+      h.batchConcurrency.push(init.concurrency);
+      return Promise.all(keys.map((key) => fetchStored(key, init).catch((error: unknown) => ({ kind: 'failed', error }))));
+    },
+  };
+});
+
+const EXPIRES_MS = Date.parse('2026-10-12T12:05:00Z');
+const CHECKED_AT = Date.parse('2026-10-12T12:00:00Z');
 
 vi.mock('./source-fallback', () => ({
   fetchPricesFromFuzzwork: vi.fn(),
@@ -32,7 +64,7 @@ interface SyntheticOrder {
   system_id?: number;
 }
 
-function ordersResponse(orders: SyntheticOrder[], xPages = '1'): Response {
+function ordersResponse(orders: SyntheticOrder[], xPages: string | null = '1'): Response {
   const filled = orders.map((o) => ({
     location_id: JITA_44,
     system_id: JITA_SYSTEM,
@@ -40,7 +72,7 @@ function ordersResponse(orders: SyntheticOrder[], xPages = '1'): Response {
   }));
   return new Response(JSON.stringify(filled), {
     status: 200,
-    headers: { 'X-Pages': xPages },
+    headers: xPages === null ? {} : { 'X-Pages': xPages },
   });
 }
 
@@ -63,6 +95,7 @@ function fuzzworkRow(typeId: number): RawMarketPrice {
 beforeEach(() => {
   vi.mocked(esiFetch).mockReset();
   vi.mocked(fetchPricesFromFuzzwork).mockReset();
+  h.batchConcurrency.length = 0;
 });
 
 afterEach(() => {
@@ -279,7 +312,11 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
     expect(r34.bestSell).toBe(110);
     expect(r34.buyVolume).toBe(BigInt(50));
     expect(r34.sellVolume).toBe(BigInt(30));
-    expect(vi.mocked(esiFetch).mock.calls).toHaveLength(2);
+    // Both reads go to The Forge's order book.
+    expect(vi.mocked(esiFetch).mock.calls.map(([url]) => url).sort()).toEqual([
+      'https://esi.evetech.net/markets/10000002/orders/?order_type=all&type_id=34',
+      'https://esi.evetech.net/markets/10000002/orders/?order_type=all&type_id=35',
+    ]);
   });
 
   it('routes individual EsiServerError failures to Fuzzwork fallback (partial)', async () => {
@@ -397,6 +434,8 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
 
     const { prices: result, budgetExhausted } = await fetchPricesFromSource(bulkTypeIds());
 
+    const requestedPages = vi.mocked(esiFetch).mock.calls.map(([url]) => /page=(\d+)/.exec(url)?.[1]);
+    expect(requestedPages.toSorted()).toEqual(['1', '2', '3']);
     expect(result).toHaveLength(BULK_THRESHOLD + 20);
     expect(result.every((r) => r.source === 'esi')).toBe(true);
     expect(budgetExhausted).toBe(false);
@@ -417,6 +456,21 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     const r1050 = result.find((r) => r.typeId === 1050)!;
     expect(r1050.bestBuy).toBeNull();
     expect(r1050.bestSell).toBeNull();
+  });
+
+  it('reads only the first region-dump page when X-Pages is missing, empty or malformed', async () => {
+    for (const xPages of [null, '', 'abc']) {
+      vi.mocked(esiFetch).mockReset().mockResolvedValue(
+        ordersResponse([{ type_id: 1000, is_buy_order: true, price: 50, volume_remain: 10 }], xPages),
+      );
+
+      const { prices: result } = await fetchPricesFromSource(bulkTypeIds());
+
+      expect(vi.mocked(esiFetch)).toHaveBeenCalledTimes(1);
+      expect(result.every((r) => r.source === 'esi')).toBe(true);
+      expect(result.find((r) => r.typeId === 1000)!.bestBuy).toBe(50);
+    }
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
   });
 
   it('falls back to Fuzzwork when ESI bulk returns a 5xx', async () => {
@@ -538,6 +592,57 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith(ids);
+  });
+});
+
+describe('fetchPricesPerType — the page-view path', () => {
+  it('never reaches the region dump, however many types a page asks for', async () => {
+    const ids = Array.from({ length: 500 }, (_, i) => 1000 + i);
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const id = Number(/type_id=(\d+)/.exec(url)![1]);
+      return ordersResponse([{ type_id: id, is_buy_order: false, price: 2, volume_remain: 1 }]);
+    });
+
+    const { prices, metaByType, budgetExhausted } = await fetchPricesPerType([...ids, ...ids]);
+
+    expect(ids.length).toBeGreaterThan(BULK_THRESHOLD);
+    expect(prices).toHaveLength(500);
+    expect(metaByType.size).toBe(500);
+    expect(budgetExhausted).toBe(false);
+    const urls = vi.mocked(esiFetch).mock.calls.map(([url]) => url);
+    expect(urls).toHaveLength(500);
+    expect(urls.every((url) => /type_id=\d+/.test(url) && !url.includes('page='))).toBe(true);
+    expect(vi.mocked(esiFetch).mock.calls.every(([, init]) => init === undefined)).toBe(true);
+    expect(h.batchConcurrency).toEqual([PER_TYPE_CONCURRENCY]);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
+  it('keeps the ESI rows and logs once when the batched Fuzzwork call fails, leaving the failed types unpriced', async () => {
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const id = Number(/type_id=(\d+)/.exec(url)![1]);
+      if (id !== 34) throw new EsiServerError(502);
+      return ordersResponse([{ type_id: id, is_buy_order: false, price: 2, volume_remain: 1 }]);
+    });
+    const failure = new Error('fuzzwork down');
+    vi.mocked(fetchPricesFromFuzzwork).mockRejectedValue(failure);
+    const errors = silenceConsolePrefixes('error', ['[market-prices/source] ']);
+
+    const { prices, metaByType } = await fetchPricesPerType([34, 35, 36]);
+
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith([35, 36]);
+    expect(prices.map((r) => [r.typeId, r.source])).toEqual([[34, 'esi']]);
+    expect([...metaByType.keys()]).toEqual([34]);
+    expect(errors.mock.calls).toEqual([['[market-prices/source] Fuzzwork fallback failed', failure]]);
+    errors.mockRestore();
+  });
+
+  it('still fails the cron\'s per-type read when the Fuzzwork fallback fails', async () => {
+    vi.mocked(esiFetch).mockRejectedValue(new EsiServerError(502));
+    const failure = new Error('fuzzwork down');
+    vi.mocked(fetchPricesFromFuzzwork).mockRejectedValue(failure);
+
+    await expect(fetchPricesFromSource([34, 35])).rejects.toBe(failure);
   });
 });
 
@@ -668,10 +773,107 @@ describe('fetchPricesFromSource — buy/sell spread floor', () => {
 
 describe('fetchPricesFromSource — dispatch', () => {
   it('returns [] for an empty type-ID list without calling ESI or Fuzzwork', async () => {
-    const { prices: result } = await fetchPricesFromSource([]);
+    const { prices: result, metaByType } = await fetchPricesFromSource([]);
     expect(result).toEqual([]);
+    expect(metaByType.size).toBe(0);
     expect(vi.mocked(esiFetch)).not.toHaveBeenCalled();
     expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
+  it('hands back each ESI-priced type\'s own meta on the per-type path, and a Fuzzwork row one that clears its ETag', async () => {
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const id = Number(/type_id=(\d+)/.exec(url)![1]);
+      if (id === 36) throw new EsiServerError(502);
+      return new Response(JSON.stringify([{ type_id: id, is_buy_order: false, price: 2, volume_remain: 1, location_id: JITA_44, system_id: JITA_SYSTEM }]), {
+        status: 200,
+        headers: { ETag: `"t${id}"` },
+      });
+    });
+    vi.mocked(fetchPricesFromFuzzwork).mockResolvedValue([fuzzworkRow(36)]);
+
+    const { prices: result, metaByType } = await fetchPricesFromSource([34, 36]);
+    expect(result.map((r) => [r.typeId, r.source])).toEqual([[34, 'esi'], [36, 'fuzzwork-fallback']]);
+    expect([...metaByType.keys()]).toEqual([34, 36]);
+    expect(metaByType.get(34)).toMatchObject({
+      key: { route: '/markets/{region_id}/orders/', holder: { kind: 'global' }, params: { region_id: 10000002, order_type: 'all', type_id: 34 } },
+      etags: ['"t34"'],
+      expiresAt: EXPIRES_MS,
+    });
+    // The Fuzzwork row replaced the price an old ETag vouched for: no ETag and no expiry, so the next view asks ESI unconditionally.
+    expect(metaByType.get(36)).toMatchObject({
+      key: { route: '/markets/{region_id}/orders/', holder: { kind: 'global' }, params: { region_id: 10000002, order_type: 'all', type_id: 36 } },
+      etags: [],
+      expiresAt: null,
+      lastModified: null,
+    });
+  });
+
+  it('records no meta for a type Fuzzwork could not price either, so its old ESI row and ETag stand together', async () => {
+    vi.mocked(esiFetch).mockRejectedValue(new EsiServerError(502));
+    vi.mocked(fetchPricesFromFuzzwork).mockResolvedValue([fuzzworkRow(34)]);
+
+    const { prices: result, metaByType } = await fetchPricesPerType([34, 35]);
+
+    expect(result.map((r) => r.typeId)).toEqual([34]);
+    expect([...metaByType.keys()]).toEqual([34]);
+    expect(metaByType.get(34)).toMatchObject({ etags: [], expiresAt: null });
+  });
+
+  it('clears the ETag of every type the cron prices from Fuzzwork when the region dump fails', async () => {
+    const ids = Array.from({ length: BULK_THRESHOLD }, (_, i) => 1000 + i);
+    vi.mocked(esiFetch).mockRejectedValue(new EsiServerError(503));
+    vi.mocked(fetchPricesFromFuzzwork).mockResolvedValue(ids.map(fuzzworkRow));
+
+    const { metaByType } = await fetchPricesFromSource(ids);
+
+    expect(metaByType.size).toBe(ids.length);
+    expect([...metaByType.values()].every((meta) => meta.etags.length === 0 && meta.expiresAt === null)).toBe(true);
+  });
+
+  it('leaves a type whose stored price is still current out of both lists', async () => {
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const id = Number(/type_id=(\d+)/.exec(url)![1]);
+      if (id === 35) return new Response(null, { status: 304 });
+      return ordersResponse([{ type_id: id, is_buy_order: true, price: 1, volume_remain: 1 }]);
+    });
+
+    const { prices: result, metaByType } = await fetchPricesFromSource([34, 35]);
+    expect(result.map((r) => r.typeId)).toEqual([34]);
+    expect(metaByType.has(35)).toBe(false);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
+  it('fans the dump\'s expiry out to every priced type without the page\'s ETag, and prices nothing when the store answers the dump without calling', async () => {
+    const ids = Array.from({ length: BULK_THRESHOLD }, (_, i) => 1000 + i);
+    vi.mocked(esiFetch).mockResolvedValue(
+      new Response(JSON.stringify([{ type_id: ids[0], is_buy_order: false, price: 2, volume_remain: 1, location_id: JITA_44, system_id: JITA_SYSTEM }]), {
+        status: 200,
+        headers: { 'X-Pages': '1', ETag: '"dump"' },
+      }),
+    );
+    const { prices: result, metaByType } = await fetchPricesFromSource(ids);
+    expect(result).toHaveLength(ids.length);
+    expect(metaByType.size).toBe(ids.length);
+    expect(metaByType.get(ids[0]!)).toEqual({
+      key: { route: '/markets/{region_id}/orders/', holder: { kind: 'global' }, params: { region_id: 10000002, order_type: 'all', type_id: ids[0] } },
+      expiresAt: EXPIRES_MS,
+      etags: [],
+      lastModified: null,
+      checkedAt: CHECKED_AT,
+    });
+    expect(vi.mocked(esiFetch).mock.calls[0]?.[1]).toEqual({ conditional: false });
+
+    vi.mocked(esiFetch).mockResolvedValue(new Response(null, { status: 304 }));
+    const halted = await fetchPricesFromSource(ids);
+    expect(halted).toEqual({ prices: [], budgetExhausted: false, metaByType: new Map() });
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
+  it('asks the store for every type in one batch at PER_TYPE_CONCURRENCY on the per-type path', async () => {
+    vi.mocked(esiFetch).mockImplementation(async () => ordersResponse([]));
+    await fetchPricesFromSource([34, 35, 36]);
+    expect(h.batchConcurrency).toEqual([PER_TYPE_CONCURRENCY]);
+    expect(PER_TYPE_CONCURRENCY).toBe(32);
   });
 
   it('deduplicates incoming type IDs', async () => {

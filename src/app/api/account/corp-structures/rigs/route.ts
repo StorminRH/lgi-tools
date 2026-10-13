@@ -5,11 +5,7 @@ import {
   setCorpStructureRigsEndpoint,
   setCorpStructureRigsRequestSchema,
 } from '@/features/owned-structures/api-contract';
-import {
-  getCorpStructureRigs,
-  getCorpStructures,
-  upsertCorpStructureRigs,
-} from '@/features/owned-structures/queries';
+import { getCorpStructures, upsertCorpStructureRigs } from '@/features/owned-structures/queries';
 import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
 import { checkUserId } from '@/composition/route-guards';
 import { stationManagerGate } from '@/composition/corp-role-gates';
@@ -21,6 +17,7 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'structures.set-corp-structure-rigs',
+    endpoint: setCorpStructureRigsEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, setCorpStructureRigsRequestSchema),
     handle: async ({ userId }, body) => {
@@ -51,12 +48,11 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
-      await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
-      const saved = (await getCorpStructureRigs([corporationId])).get(structureId);
+      const saved = await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
       return apiResponse(setCorpStructureRigsEndpoint, 200, {
         structureId,
-        rigTypeIds,
-        taxPct: saved?.taxPct ?? null,
+        rigTypeIds: saved.rigTypeIds,
+        taxPct: saved.taxPct,
       });
     },
   });

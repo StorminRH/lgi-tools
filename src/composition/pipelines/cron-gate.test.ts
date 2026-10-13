@@ -1,20 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const withAdvisoryLockMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const connectionMock = vi.fn();
+const directDatabaseFake = { handle: 'direct-database' };
+const directDatabaseMock = vi.fn(() => directDatabaseFake);
 
 const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock();
 
 vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => reserveMock(...args) },
 }));
+vi.mock('@/db/direct-database', () => ({
+  directDatabase: () => directDatabaseMock(),
+}));
 vi.mock('@/db/advisory-lock', () => ({
   withAdvisoryLock: (...args: unknown[]) => withAdvisoryLockMock(...args),
-}));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
@@ -31,18 +35,15 @@ import {
   type CronRouteDeclaration,
 } from './cron-gate';
 
-function authedRequest(): Request {
-  return new Request('http://localhost/api/cron/example', {
-    headers: { authorization: 'Bearer test-secret' },
-  });
-}
+const ROUTE = '/api/cron/example';
 
 describe('defineCronRoute', () => {
   beforeEach(() => {
     withAdvisoryLockMock.mockReset();
+    directDatabaseMock.mockClear();
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     connectionMock.mockReset().mockResolvedValue(undefined);
-    vi.stubEnv('CRON_SECRET', 'test-secret');
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -122,7 +123,7 @@ describe('defineCronRoute', () => {
       },
     });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'completed' });
     expect(order).toEqual([
@@ -133,6 +134,7 @@ describe('defineCronRoute', () => {
       'capability',
       'telemetry',
     ]);
+    expect(directDatabaseMock).not.toHaveBeenCalled();
   });
 
   it('returns the declared busy body and records busy under always', async () => {
@@ -160,7 +162,7 @@ describe('defineCronRoute', () => {
       }),
     });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
     const body = await response.json();
 
     expect(body).toEqual({
@@ -195,7 +197,7 @@ describe('defineCronRoute', () => {
       }),
     });
 
-    await GET(authedRequest());
+    await GET(cronRequest(ROUTE));
 
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
@@ -209,7 +211,7 @@ describe('defineCronRoute', () => {
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test route is lock-free' },
       work: async (ctx) => {
-        expect(ctx.client).toEqual(expect.anything());
+        expect(ctx.database).toBe(directDatabaseFake);
         expect(ctx.reserved).toBeUndefined();
         return {
           outcome: 'idle',
@@ -219,7 +221,7 @@ describe('defineCronRoute', () => {
       },
     });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'idle' });
     expect(withAdvisoryLockMock).not.toHaveBeenCalled();
@@ -251,7 +253,7 @@ describe('defineCronRoute', () => {
       work,
     });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'up-to-date' });
     expect(withAdvisoryLockMock).not.toHaveBeenCalled();
@@ -283,11 +285,11 @@ describe('defineCronRoute', () => {
       }),
     });
 
-    await GET(authedRequest());
+    await GET(cronRequest(ROUTE));
     expect(logUsageEventMock).not.toHaveBeenCalled();
 
     workDone = true;
-    await GET(authedRequest());
+    await GET(cronRequest(ROUTE));
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_map_purge',
       metadata: {
@@ -314,7 +316,7 @@ describe('defineCronRoute', () => {
       }),
     });
 
-    await GET(authedRequest());
+    await GET(cronRequest(ROUTE));
 
     expect(console.log).toHaveBeenCalledOnce();
     expect(JSON.parse(vi.mocked(console.log).mock.calls[0]?.[0] as string)).toEqual({
@@ -340,7 +342,7 @@ describe('defineCronRoute', () => {
       },
     });
 
-    await expect(GET(authedRequest())).rejects.toBe(error);
+    await expect(GET(cronRequest(ROUTE))).rejects.toBe(error);
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_map_purge',
       metadata: {
@@ -369,7 +371,7 @@ describe('defineCronRoute', () => {
       },
     });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(response.status).toBe(200);
     expect(logUsageEventMock).toHaveBeenCalledOnce();
@@ -385,9 +387,8 @@ describe('defineCronRoute capability recording', () => {
     withAdvisoryLockMock.mockReset();
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     connectionMock.mockReset().mockResolvedValue(undefined);
-    vi.stubEnv('CRON_SECRET', 'test-secret');
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
+    silenceConsolePrefixes('log', ['{"scope":"cron']);
   });
 
   afterEach(() => {
@@ -409,13 +410,10 @@ describe('defineCronRoute capability recording', () => {
       wakeClass: 'batch',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test' },
-      work: async (ctx) => {
-        await ctx.client.reserve();
-        return { outcome: 'refreshed', workDone: true, body: { status: 'ok' } };
-      },
+      work: async () => ({ outcome: 'refreshed', workDone: true, body: { status: 'ok' } }),
     });
 
-    await GET(authedRequest());
+    await GET(cronRequest(ROUTE));
 
     const rows = capabilityRows();
     expect(rows).toHaveLength(1);
@@ -442,7 +440,7 @@ describe('defineCronRoute capability recording', () => {
       },
     });
 
-    await expect(GET(authedRequest())).rejects.toThrow('stage exploded');
+    await expect(GET(cronRequest(ROUTE))).rejects.toThrow('stage exploded');
 
     const rows = capabilityRows();
     expect(rows).toHaveLength(1);
@@ -466,7 +464,7 @@ describe('defineCronRoute capability recording', () => {
       }),
     });
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ status: 'partial' });
@@ -489,7 +487,7 @@ describe('defineCronRoute capability recording', () => {
       work: async () => ({ outcome: 'refreshed', workDone: true, body: { status: 'ok' } }),
     });
 
-    await GET(authedRequest());
+    await GET(cronRequest(ROUTE));
 
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
@@ -500,9 +498,9 @@ describe('defineCronBatchRoute', () => {
     withAdvisoryLockMock.mockReset();
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     connectionMock.mockReset().mockResolvedValue(undefined);
-    vi.stubEnv('CRON_SECRET', 'test-secret');
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
+    silenceConsolePrefixes('error', [/^\[cron:\w+\] batch step failed$/]);
   });
 
   afterEach(() => {
@@ -549,7 +547,7 @@ describe('defineCronBatchRoute', () => {
       cronBatchStep(step('cron:c', async () => { order.push('c'); })),
     ]);
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(order).toEqual(['a', 'b', 'c']);
     expect(response.status).toBe(500);
@@ -572,7 +570,7 @@ describe('defineCronBatchRoute', () => {
     const a = step('cron:a', async () => { throw new Error('a failed'); });
     const GET = defineCronBatchRoute([cronBatchStep(a), cronBatchStep(step('cron:b', work), undefined, a)]);
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(work).not.toHaveBeenCalled();
     await expect(response.json()).resolves.toEqual({
@@ -584,7 +582,7 @@ describe('defineCronBatchRoute', () => {
 
     const passing = step('cron:a', async () => {});
     const next = defineCronBatchRoute([cronBatchStep(passing), cronBatchStep(step('cron:b', work), undefined, passing)]);
-    await expect((await next(authedRequest())).json()).resolves.toEqual({
+    await expect((await next(cronRequest(ROUTE))).json()).resolves.toEqual({
       steps: [
         { name: 'cron:a', status: 'ok' },
         { name: 'cron:b', status: 'ok' },
@@ -599,7 +597,7 @@ describe('defineCronBatchRoute', () => {
       cronBatchStep(step('cron:a', work), () => false),
     ]);
 
-    const response = await GET(authedRequest());
+    const response = await GET(cronRequest(ROUTE));
 
     expect(response.status).toBe(200);
     expect(work).not.toHaveBeenCalled();

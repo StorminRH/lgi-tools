@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { listRouteFiles } from '@/lib/__tests__/source-scan';
 
 const API_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(API_DIR, '..', '..', '..');
@@ -9,20 +10,7 @@ const REPO_ROOT = join(API_DIR, '..', '..', '..');
 const MARKER_RE = /^[ \t]*\/\/[ \t]*authz:[ \t]*([a-z]+)[ \t]*$/gm;
 const VALID_CLASSES = new Set(['public', 'auth', 'admin', 'cron', 'service']);
 
-function findRouteFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      out.push(...findRouteFiles(full));
-    } else if (/^route\.(ts|js|mts|mjs)$/.test(entry.name)) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
-const ROUTE_FILES = findRouteFiles(API_DIR);
+const ROUTE_FILES = listRouteFiles().map((file) => join(REPO_ROOT, file));
 const label = (file: string) => relative(REPO_ROOT, file);
 
 describe('authz classification markers', () => {

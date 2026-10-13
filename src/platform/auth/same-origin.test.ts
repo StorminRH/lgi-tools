@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { logUsageEventMock } = vi.hoisted(() => ({
-  logUsageEventMock: vi.fn(),
+const { emitUsageEventMock } = vi.hoisted(() => ({
+  emitUsageEventMock: vi.fn(),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: logUsageEventMock,
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: emitUsageEventMock,
 }));
 
 import { requireSameOrigin } from './same-origin';
@@ -18,7 +18,7 @@ function mutationRequest(
 }
 
 beforeEach(() => {
-  logUsageEventMock.mockReset().mockResolvedValue(undefined);
+  emitUsageEventMock.mockReset();
   vi.stubEnv('VERCEL_ENV', undefined);
   vi.stubEnv('VERCEL_URL', undefined);
   vi.stubEnv('BETTER_AUTH_URL', 'https://lgi.tools');
@@ -26,7 +26,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  vi.restoreAllMocks();
 });
 
 test('accepts same-origin, missing provenance, preview, local, and production auth origins', () => {
@@ -72,10 +71,10 @@ test('accepts same-origin, missing provenance, preview, local, and production au
 
   vi.stubEnv('BETTER_AUTH_URL', undefined);
   expect(requireSameOrigin(mutationRequest({ origin: 'https://lgi.tools' }))).toEqual({ ok: true });
-  expect(logUsageEventMock).not.toHaveBeenCalled();
+  expect(emitUsageEventMock).not.toHaveBeenCalled();
 });
 
-test('rejects foreign Origin/Referer, null, and malformed headers and swallows telemetry failures', async () => {
+test('rejects foreign Origin/Referer, null, and malformed headers and records each refusal', () => {
   expect(
     requireSameOrigin(mutationRequest({ referer: 'https://foreign.example/private?credential=secret' })),
   ).toEqual({
@@ -86,7 +85,7 @@ test('rejects foreign Origin/Referer, null, and malformed headers and swallows t
       detail: 'Cross-origin requests are not allowed',
     },
   });
-  expect(logUsageEventMock).toHaveBeenCalledWith({
+  expect(emitUsageEventMock).toHaveBeenCalledWith('same-origin', {
     action: 'cross_origin_mutation',
     metadata: {
       route: '/api/preferences',
@@ -95,14 +94,14 @@ test('rejects foreign Origin/Referer, null, and malformed headers and swallows t
     },
   });
 
-  logUsageEventMock.mockClear();
+  emitUsageEventMock.mockClear();
   expect(
     requireSameOrigin(mutationRequest({ origin: 'null', authorization: 'Bearer secret' })),
   ).toMatchObject({
     ok: false,
     failure: { category: 'forbidden', code: 'cross_origin' },
   });
-  expect(logUsageEventMock).toHaveBeenCalledWith({
+  expect(emitUsageEventMock).toHaveBeenCalledWith('same-origin', {
     action: 'cross_origin_mutation',
     metadata: {
       route: '/api/preferences',
@@ -111,12 +110,12 @@ test('rejects foreign Origin/Referer, null, and malformed headers and swallows t
     },
   });
 
-  logUsageEventMock.mockClear();
+  emitUsageEventMock.mockClear();
   expect(requireSameOrigin(mutationRequest({ origin: 'not a URL with secret=abc' }))).toMatchObject({
     ok: false,
     failure: { category: 'forbidden', code: 'cross_origin' },
   });
-  expect(logUsageEventMock).toHaveBeenCalledWith({
+  expect(emitUsageEventMock).toHaveBeenCalledWith('same-origin', {
     action: 'cross_origin_mutation',
     metadata: {
       route: '/api/preferences',
@@ -124,15 +123,22 @@ test('rejects foreign Origin/Referer, null, and malformed headers and swallows t
       source: 'origin',
     },
   });
+});
 
-  const error = new Error('database unavailable');
-  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  logUsageEventMock.mockRejectedValueOnce(error);
-  expect(requireSameOrigin(mutationRequest({ origin: 'https://foreign.example' }))).toMatchObject({
+test('falls back to the production origin when the auth and site URLs are unusable', async () => {
+  vi.stubEnv('BETTER_AUTH_URL', undefined);
+  vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'not a URL');
+  vi.resetModules();
+  const { requireSameOrigin: requireSameOriginWithBadSiteUrl } = await import('./same-origin');
+  const internalUrl = 'http://internal.example/api/preferences';
+
+  expect(
+    requireSameOriginWithBadSiteUrl(mutationRequest({ origin: 'https://lgi.tools' }, internalUrl)),
+  ).toEqual({ ok: true });
+  expect(
+    requireSameOriginWithBadSiteUrl(mutationRequest({ origin: 'https://foreign.example' }, internalUrl)),
+  ).toMatchObject({
     ok: false,
     failure: { category: 'forbidden', code: 'cross_origin' },
-  });
-  await vi.waitFor(() => {
-    expect(consoleError).toHaveBeenCalledWith('[same-origin] telemetry write failed', error);
   });
 });

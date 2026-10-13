@@ -2,34 +2,30 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useRef, useState, type RefObject } from 'react';
-import { EveImage } from '@/components/eve-image';
+import { useMemo, useRef, type RefObject } from 'react';
+import { EntityLogo } from '@/components/entity-logo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
+import { displayTitle } from '@/components/ui/type-roles';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { formatUtcDate } from '@/lib/format/time';
-import { corporationLogoUrl } from '@/lib/eve-image';
+import { unresolvedName } from '@/lib/format/names';
 import { mapRoleLabel } from './access-editor-model';
-import { MapAccessDialog } from './MapAccessDialog';
+import { EditingMapAccessDialog } from './MapAccessDialog';
 import { MapLifecycleDialogs } from './MapLifecycleDialogs';
 import {
   useMapCatalogueData,
   type MapCatalogueData,
 } from './map-catalogue-data';
-import {
-  closedMapDialogs,
-  connectedDialogFocus,
-  currentAdminMap,
-  dropLostAdminEdit,
-  editingMapRows,
-  mapDialogAuthorityKey,
-  reconcileAuthorityScopedMapDialogs,
-} from './map-dialog-state';
+import { connectedDialogFocus } from './map-dialog-state';
 import { mapSelectionHref } from './map-navigation';
+import { useAuthorityScopedMapDialogs } from './use-authority-scoped-map-dialogs';
 import { useMapDeletion } from './use-map-deletion';
 
 export interface MapCatalogueSection {
@@ -88,21 +84,13 @@ function CorporationBadges({
     <div className="flex flex-wrap gap-2" data-map-catalogue-corporations={map.id}>
       {map.provenance.corporationIds.map((corporationId) => {
         const corporation = corporationById.get(corporationId);
-        const name = corporation?.name ?? `Corporation ${corporationId}`;
+        const name = corporation?.name ?? unresolvedName('corporation', corporationId);
         return (
           <span
             key={corporationId}
             className="inline-flex items-center gap-2 rounded-full border border-border-soft bg-row-hover px-2.5 py-1 font-data text-micro text-muted"
           >
-            <EveImage
-              source="eve"
-              family="corporation-logo"
-              src={corporation?.logoUrl ?? corporationLogoUrl(corporationId, 64)}
-              alt=""
-              width={24}
-              height={24}
-              className="size-6 rounded-ctl object-cover"
-            />
+            <EntityLogo kind="corporation" id={corporationId} size={24} />
             <span>{name}</span>
           </span>
         );
@@ -136,7 +124,7 @@ function CatalogueMapCard({
         className="flex flex-1 flex-col gap-4 p-5 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub"
       >
         <div className="flex min-w-0 flex-col gap-1">
-          <h2 className="min-w-0 break-words font-display text-h2 font-semibold tracking-copy uppercase text-name">
+          <h2 className={displayTitle({ wrap: true })}>
             {map.name}
           </h2>
           {map.provenance.kind === 'created' ? null : (
@@ -253,19 +241,12 @@ function MapCatalogueSurface({
       >
         <PageShell mode="workspace">
           <h1 className="sr-only">Atlas</h1>
-          <Card className="flex max-w-lg flex-col items-center gap-4 p-6 text-center">
-            <div className="flex flex-col gap-1.5">
-              <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
-                Map catalogue unavailable
-              </h2>
-              <p className="font-ui text-ui leading-relaxed text-muted">
-                Atlas could not load your authorized maps. Retry before creating or managing a map.
-              </p>
-            </div>
-            <Button variant="primary" onClick={onRetry}>
-              Try again
-            </Button>
-          </Card>
+          <LoadFailed
+            title="Maps didn't load"
+            retryLabel="Try again"
+            onRetry={onRetry}
+            className="max-w-lg"
+          />
         </PageShell>
       </div>
     );
@@ -278,7 +259,7 @@ function MapCatalogueSurface({
         <div className="mb-5 flex flex-wrap items-center gap-2">
           {maps.length === 0 ? (
             <p data-map-catalogue-empty-hint className="font-ui text-ui text-muted">
-              Create a map to begin charting a chain.
+              No maps yet.
             </p>
           ) : null}
           <Button
@@ -289,7 +270,7 @@ function MapCatalogueSurface({
             onClick={(event) => onCreate(event.currentTarget)}
           >
             <PlusGlyph />
-            Create new map
+            New map
           </Button>
           <Button
             variant="secondary"
@@ -320,27 +301,15 @@ function MapCatalogueSurface({
   );
 }
 
-function useMapCatalogueDialogs(data: MapCatalogueData) {
-  const { maps, corporations, listingAvailable } = data;
+function useMapCatalogueDialogs(corporations: readonly CorporationAccessOption[]) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const authorityKey = mapDialogAuthorityKey(listingAvailable, []);
-  const [storedDialogs, setStoredDialogs] = useState(() =>
-    closedMapDialogs(authorityKey),
-  );
-  const reconciled = reconcileAuthorityScopedMapDialogs(storedDialogs, authorityKey);
-  const currentEditingMap = currentAdminMap(maps, reconciled.editingMapId);
-  const dialogs = dropLostAdminEdit(reconciled, currentEditingMap);
-  if (dialogs !== storedDialogs) setStoredDialogs(dialogs);
   const creationOpenerRef = useRef<HTMLElement | null>(null);
   const trashOpenerRef = useRef<HTMLElement | null>(null);
   const editOpenerRef = useRef<HTMLElement | null>(null);
   const deleteOpenerRef = useRef<HTMLElement | null>(null);
   const catalogueRef = useRef<HTMLDivElement | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const deleteGate = useConfirmGate<{ id: string; name: string }>();
   const deletion = useMapDeletion();
   const corporationById = useMemo(
     () => new Map(corporations.map((corporation) => [corporation.corporationId, corporation])),
@@ -350,16 +319,12 @@ function useMapCatalogueDialogs(data: MapCatalogueData) {
     catalogueRef,
     corporationById,
     creationOpenerRef,
-    currentEditingMap,
+    deleteGate,
     deleteOpenerRef,
     deletion,
-    dialogs,
     editOpenerRef,
     pathname,
-    pendingDelete,
     searchParams,
-    setPendingDelete,
-    setStoredDialogs,
     trashOpenerRef,
   };
 }
@@ -378,18 +343,18 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
     catalogueRef,
     corporationById,
     creationOpenerRef,
-    currentEditingMap,
+    deleteGate,
     deleteOpenerRef,
     deletion,
-    dialogs,
     editOpenerRef,
     pathname,
-    pendingDelete,
     searchParams,
-    setPendingDelete,
-    setStoredDialogs,
     trashOpenerRef,
-  } = useMapCatalogueDialogs(data);
+  } = useMapCatalogueDialogs(corporations);
+  const { dialogs, setDialogs, editingMap } = useAuthorityScopedMapDialogs(
+    maps,
+    listingAvailable,
+  );
   const sections = mapCatalogueSections(maps);
 
   const surface = (
@@ -401,15 +366,15 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
       maps={maps}
       onCreate={(opener) => {
         creationOpenerRef.current = opener;
-        setStoredDialogs((current) => ({ ...current, creationOpen: true }));
+        setDialogs((current) => ({ ...current, creationOpen: true }));
       }}
       onDelete={(map, opener) => {
         deleteOpenerRef.current = opener;
-        setPendingDelete({ id: map.id, name: map.name });
+        deleteGate.request({ id: map.id, name: map.name });
       }}
       onManage={(map, opener) => {
         editOpenerRef.current = opener;
-        setStoredDialogs((current) => ({
+        setDialogs((current) => ({
           ...current,
           editingMapId: map.id,
         }));
@@ -417,7 +382,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
       onRetry={() => router.refresh()}
       onTrash={(opener) => {
         trashOpenerRef.current = opener;
-        setStoredDialogs((current) => ({ ...current, trashOpen: true }));
+        setDialogs((current) => ({ ...current, trashOpen: true }));
       }}
       pathname={pathname}
       searchParams={searchParams}
@@ -434,47 +399,39 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
 
       <MapLifecycleDialogs
         dialogs={dialogs}
-        onDialogsChange={setStoredDialogs}
+        onDialogsChange={setDialogs}
         corporations={corporations}
         deletedMaps={deletedMaps}
         creationOpenerRef={creationOpenerRef}
         trashOpenerRef={trashOpenerRef}
         hostRef={catalogueRef}
       />
-      {dialogs.editingMapId !== null ? (
-        <MapAccessDialog
-          key={dialogs.editingMapId}
-          mapId={dialogs.editingMapId}
-          mapName={currentEditingMap?.name ?? 'map'}
-          open={currentEditingMap !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              setStoredDialogs((current) => ({ ...current, editingMapId: null }));
-            }
-          }}
-          finalFocus={() => finalFocus(editOpenerRef.current)}
-          corporations={corporations}
-          initialGrants={editingMapRows(grantsByMapId, currentEditingMap)}
-          initialBlocks={editingMapRows(blocksByMapId, currentEditingMap)}
-        />
-      ) : null}
+      <EditingMapAccessDialog
+        editingMap={editingMap}
+        onClose={() => setDialogs((current) => ({ ...current, editingMapId: null }))}
+        finalFocus={() => finalFocus(editOpenerRef.current)}
+        corporations={corporations}
+        grantsByMapId={grantsByMapId}
+        blocksByMapId={blocksByMapId}
+      />
       <ConfirmDialog
-        open={pendingDelete !== null}
+        open={deleteGate.open}
         onOpenChange={(open) => {
-          if (!open && !deletion.deleting) setPendingDelete(null);
+          if (!open) deleteGate.cancel();
         }}
         title="Delete map?"
         consequence={
-          pendingDelete === null
+          deleteGate.target === null
             ? ''
-            : `${pendingDelete.name} leaves the catalogue. Restore it from Trash within 30 days.`
+            : `${deleteGate.target.name} moves to Trash. You can restore it within 30 days.`
         }
-        busy={deletion.deleting}
-        error={deletion.error}
+        busy={deleteGate.busy}
+        error={deleteGate.errored ? deletion.error : null}
         confirmLabel="Delete map"
         onConfirm={() => {
-          if (pendingDelete === null) return;
-          void deletion.removeMap(pendingDelete.id, () => setPendingDelete(null));
+          const map = deleteGate.target;
+          if (map === null) return;
+          void deleteGate.run(() => deletion.removeMap(map.id, deleteGate.reset), (deleted) => !deleted);
         }}
         finalFocus={deleteOpenerRef}
       />

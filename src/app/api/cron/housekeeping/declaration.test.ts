@@ -6,13 +6,13 @@ vi.mock('@/composition/pipelines/housekeeping', () => ({ runHousekeeping }));
 
 import { housekeepingDeclaration } from './declaration';
 
-const context = { client: {} as never, record: async () => {} };
+const context = { database: {} as never, record: async () => {} };
 
 function summary(overrides: Partial<HousekeepingSummary> = {}): HousekeepingSummary {
   return {
     status: 'cleaned',
     deletes: [{ task: 'session', deleted: 0, finished: true, error: null }],
-    retries: [{ task: 'requested_deletions', succeeded: 0, failed: 0, error: null }],
+    retries: [{ task: 'requested_deletions', succeeded: 0, failed: 0, deferred: 0, error: null }],
     ...overrides,
   };
 }
@@ -36,7 +36,7 @@ describe('housekeepingDeclaration', () => {
     expect((await housekeepingDeclaration.work(context, undefined)).workDone).toBe(true);
 
     runHousekeeping.mockResolvedValue(
-      summary({ retries: [{ task: 'requested_deletions', succeeded: 1, failed: 0, error: null }] }),
+      summary({ retries: [{ task: 'requested_deletions', succeeded: 1, failed: 0, deferred: 0, error: null }] }),
     );
     expect((await housekeepingDeclaration.work(context, undefined)).workDone).toBe(true);
   });

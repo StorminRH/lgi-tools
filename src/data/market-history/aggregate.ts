@@ -1,22 +1,19 @@
+import { isoDayNumber } from '@/lib/iso-date';
 import {
   HISTORY_ADV_WINDOWS,
   HISTORY_STABILITY_WINDOW_DAYS,
 } from './constants';
 import type { HistoryDailyRow, MarketHistoryInputs } from './types';
 
-function toDayNumber(date: string): number {
-  return Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
-}
-
 function rowsInWindow(
   rows: HistoryDailyRow[],
   windowDays: number,
   asOf: string,
 ): HistoryDailyRow[] {
-  const end = toDayNumber(asOf);
+  const end = isoDayNumber(asOf);
   const start = end - windowDays + 1;
   return rows.filter((r) => {
-    const d = toDayNumber(r.date);
+    const d = isoDayNumber(r.date);
     return d >= start && d <= end;
   });
 }

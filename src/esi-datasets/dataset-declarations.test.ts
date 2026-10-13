@@ -32,6 +32,7 @@ import {
 import {
   reflectedSchemaExports,
   reflectedSchemaTables,
+  registryCoverageDiff,
 } from '@/db/__tests__/support/schema-reflection';
 
 const GROWTH_DECLARATION =
@@ -186,13 +187,12 @@ const declaredOwnership = new Map(
 
 describe('data ownership registry', () => {
   it('declares exactly the reflected table set, with no missing, stale, or duplicate entry', () => {
-    const reflected = tables.map(tableName).sort();
-    const declared = DATA_OWNERSHIP.map((entry) => tableName(entry.table)).sort();
-    const duplicates = declared.filter((name, index) => declared.indexOf(name) !== index);
-    const missing = reflected.filter((name) => !declaredOwnership.has(name));
-    const stale = declared.filter((name) => !reflected.includes(name));
+    const { missing, stale, duplicate } = registryCoverageDiff(
+      tables.map(tableName),
+      DATA_OWNERSHIP.map((entry) => tableName(entry.table)),
+    );
 
-    expect(duplicates, `Duplicate ownership entries: ${duplicates.join(', ')}`).toEqual([]);
+    expect(duplicate, `Duplicate ownership entries: ${duplicate.join(', ')}`).toEqual([]);
     expect(
       missing,
       `Table(s) missing a declaration:\n${missing.map((name) => `- ${name} needs ${OWNERSHIP_DECLARATION}`).join('\n')}`,
@@ -289,7 +289,6 @@ const KNOWN_CROSS_OWNER_WRITES = [
   'src/composition/account-lifecycle/account-purge.ts::account',
   'src/composition/account-lifecycle/owner-transfer.ts::account',
   'src/composition/pipelines/esi-snapshot-retention.ts::esi_snapshots',
-  'src/composition/pipelines/sde-pipeline.ts::market_prices',
 ];
 const MINIMUM_DETECTED_WRITE_SITES = 70;
 

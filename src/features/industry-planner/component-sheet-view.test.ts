@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { computeBatchLedger } from './build-batch';
 import { computeComponentJobFees } from './component-job-fees';
 import { componentSheet } from './component-sheet-view';
@@ -28,7 +28,7 @@ const structure = {
     10: { name: 'Capital Armor Plates', label: 'Capital Component', isRaw: false, height: 2, tone: 'green' },
     20: { name: 'Fernite Carbide', label: 'Reaction', isRaw: false, height: 1, tone: 'blue' },
   },
-  materialNames: { 30: 'Fernite', 40: 'Tritanium' },
+  materialNames: { 10: 'Capital Armor Plates', 20: 'Fernite Carbide', 30: 'Fernite', 40: 'Tritanium' },
   nodeActivityByBlueprint: { 110: 1, 120: 11 },
 } as unknown as BlueprintStructure;
 

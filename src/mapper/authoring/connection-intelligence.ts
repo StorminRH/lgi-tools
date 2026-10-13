@@ -1,15 +1,22 @@
 import {
+  isTypedCodexEntry,
   remainingMassAfterTravel,
   type ConnectionMassState,
-  type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
-import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import type {
+  TypedWormholeCodexEntry,
+  WormholeCodexEntry,
+} from '@/data/eve-data/universe-assets';
 import { lifetimeDeathWindow } from '@/data/maps/connection-hallway';
 import type { ConnectionLifetime } from '@/data/maps/connection-hallway';
 import {
   lifetimeDisplay,
+  typedLifetimeWindow,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
+import { formatQuantity } from '@/lib/format/number';
+import { formatUtcMinute } from '@/lib/format/time';
+import { HOUR_MS } from '@/lib/iso-date';
 import type { ConnectionDetail } from '../chain/connection-detail';
 
 export interface CodexPanelFacts {
@@ -17,7 +24,6 @@ export interface CodexPanelFacts {
   readonly maxJumpMassKg: number;
   readonly massRegenKg: number;
   readonly lifetimeMinutes: number;
-  readonly sizeClass: WormholeSizeClass;
 }
 
 export type MassRowDisplay =
@@ -45,22 +51,21 @@ export type LifetimeRowDisplay =
     }
   | { readonly kind: 'expired'; readonly label: string };
 
-const HOUR_MS = 60 * 60 * 1000;
-
-export function isCodexSizeLocked(entry: WormholeCodexEntry | null): boolean {
-  return entry !== null && entry.farSide === false;
+export function isCodexSizeLocked(
+  entry: WormholeCodexEntry | null,
+): entry is TypedWormholeCodexEntry {
+  return isTypedCodexEntry(entry);
 }
 
 export function codexPanelFacts(
   entry: WormholeCodexEntry | null,
 ): CodexPanelFacts | null {
-  if (entry === null || entry.farSide) return null;
+  if (!isTypedCodexEntry(entry)) return null;
   return {
     totalMassKg: entry.totalMass,
     maxJumpMassKg: entry.maxJumpMass,
     massRegenKg: entry.massRegen,
     lifetimeMinutes: entry.lifetimeMinutes,
-    sizeClass: entry.sizeClass,
   };
 }
 
@@ -95,10 +100,9 @@ export function massRowDisplay(
   observedMassKg: number | null,
   observedMassAtStateKg: number | null,
 ): MassRowDisplay {
-  if (entry === null) return { kind: 'none' };
-  if (entry.farSide) return { kind: 'none' };
+  if (!isTypedCodexEntry(entry)) return { kind: 'none' };
   if (entry.massRegen > 0) {
-    return { kind: 'regenerates', label: 'Regenerates — no mass interval' };
+    return { kind: 'regenerates', label: 'Mass regenerates, so no estimate' };
   }
   const bounds = remainingMassAfterTravel(
     entry,
@@ -111,8 +115,8 @@ export function massRowDisplay(
     kind: 'range',
     minKg: bounds.minKg,
     maxKg: bounds.maxKg,
-    label: `${formatKilograms(bounds.minKg)}–${formatKilograms(bounds.maxKg)} (±10% spawn)`,
-    title: `${bounds.minKg.toLocaleString()}–${bounds.maxKg.toLocaleString()} kg remaining`,
+    label: `${formatKilograms(bounds.minKg)}–${formatKilograms(bounds.maxKg)}`,
+    title: `${formatQuantity(bounds.minKg)}–${formatQuantity(bounds.maxKg)} kg remaining`,
   };
 }
 
@@ -126,7 +130,10 @@ type LifetimeSource =
   | { readonly kind: 'ceiling'; readonly remainingMs: number; readonly ceilingAt: number }
   | { readonly kind: 'unset' };
 
-export type LifetimeConnection = Pick<ConnectionDetail, '_creationTime'> & {
+export type LifetimeConnection = Pick<
+  ConnectionDetail,
+  '_creationTime' | 'firstSeenAt'
+> & {
   readonly lifetime: ConnectionLifetime;
 };
 
@@ -145,19 +152,14 @@ function lifetimeSource(
       latestRemainingMs: display.latestRemainingMs,
     };
   }
-  if (
-    entry !== null &&
-    !entry.farSide &&
-    Number.isFinite(entry.lifetimeMinutes) &&
-    entry.lifetimeMinutes >= 0
-  ) {
-    const ceilingAt =
-      connection._creationTime + entry.lifetimeMinutes * 60_000;
-    const remainingMs = Math.max(0, ceilingAt - now);
-    if (remainingMs === 0) return { kind: 'expired' };
-    return { kind: 'ceiling', remainingMs, ceilingAt };
-  }
-  return { kind: 'unset' };
+  const typed = typedLifetimeWindow(
+    connection,
+    isTypedCodexEntry(entry) ? entry.lifetimeMinutes : null,
+  );
+  if (typed === null) return { kind: 'unset' };
+  const remainingMs = Math.max(0, typed.latestAt - now);
+  if (remainingMs === 0) return { kind: 'expired' };
+  return { kind: 'ceiling', remainingMs, ceilingAt: typed.latestAt };
 }
 
 export function lifetimeRowDisplay(
@@ -178,7 +180,7 @@ export function lifetimeRowDisplay(
     return {
       kind: 'ceiling',
       label: `≤ ${formatDurationBound(source.remainingMs)}`,
-      title: `Typed ceiling ${new Date(source.ceilingAt).toISOString()}`,
+      title: `Closes by ${formatUtcMinute(source.ceilingAt)}`,
     };
   }
   return { kind: 'unset' };

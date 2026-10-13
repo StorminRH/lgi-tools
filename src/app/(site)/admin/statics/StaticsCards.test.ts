@@ -1,7 +1,9 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { whStaticsAdminFormSchema } from '@/data/wh-statics/api-contract';
 import type { PendingWhStaticsReview } from '@/data/wh-statics/queries';
+import { postedForm, postedForms } from '@/lib/__tests__/posted-forms';
 
 const mocks = vi.hoisted(() => ({ statics: vi.fn() }));
 
@@ -67,10 +69,15 @@ describe('PendingReview', () => {
     expect(html).not.toContain('px-4');
   });
 
-  it('offers promote and reject for the snapshot', () => {
+  it('offers promote and reject for the snapshot, posted as the route parses them', () => {
     expect(html).toContain('Promote snapshot');
     expect(html).toContain('Reject snapshot');
-    expect(html).toContain('name="snapshotId" value="7"');
+    const forms = postedForms(html);
+    expect(forms.map((form) => form.action)).toEqual(['/api/admin/wh-statics', '/api/admin/wh-statics']);
+    expect(forms.map((form) => whStaticsAdminFormSchema.parse(form.fields))).toEqual([
+      { action: 'promote', snapshotId: 7 },
+      { action: 'reject', snapshotId: 7 },
+    ]);
   });
 
   it('will not promote an empty snapshot', () => {
@@ -85,7 +92,8 @@ describe('StaticsActionForm', () => {
   it('posts a refresh without a snapshot id', () => {
     const html = renderToStaticMarkup(createElement(StaticsActionForm, { action: 'refresh', label: 'Check feed now' }));
 
-    expect(html).toContain('name="action" value="refresh"');
-    expect(html).not.toContain('snapshotId');
+    const refresh = postedForm(html);
+    expect(refresh.fields).toEqual({ action: 'refresh' });
+    expect(whStaticsAdminFormSchema.parse(refresh.fields)).toEqual({ action: 'refresh' });
   });
 });

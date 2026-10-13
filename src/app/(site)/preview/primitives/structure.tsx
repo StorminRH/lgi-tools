@@ -1,8 +1,9 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Collapsible } from '@/components/ui/collapsible';
+import { Card, cardSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
+import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { Measured } from '@/components/ui/measured';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { PageFooter } from '@/components/ui/page-footer';
@@ -13,10 +14,14 @@ import { SectionFooter } from '@/components/ui/section-footer';
 import { QuietSectionHead, SectionHead } from '@/components/ui/section-head';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SectionLabel } from '@/components/ui/section-label';
+import { SectionPanel } from '@/components/ui/section-panel';
+import { StatFigure } from '@/components/ui/stat-figure';
 import { UrlSync } from '@/components/ui/url-sync';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 const RESOURCE_COLS = 'grid-cols-[minmax(0,1fr)_auto_auto]';
+
+const STAT_TILE = cn(cardSurface, 'gap-1 px-3 py-2.5');
 
 const MULTIPLES = [
   { title: 'Jobs running', value: '14', note: 'of 20 slots' },
@@ -98,20 +103,19 @@ export function StructureGroup() {
       </Specimen>
 
       <Specimen
-        name="SectionHeader + SectionLabel + SectionFooter"
-        source="section-header · section-label · section-footer"
-        note="Card chrome: a header bar or a sentence-case sub-heading for a block inside the card body, the // section label, and a totals footer. as renders the label as an h2 or h3 so cards join the page outline."
+        name="SectionPanel + SectionHeader + SectionLabel + SectionFooter"
+        source="section-panel · section-header · section-label · section-footer"
+        note="Card chrome. SectionPanel is the titled card: the card glass under a medium header bar, with meta at the right of the bar. Inside it, a small header bar or a sentence-case sub-heading titles a block, and a footer carries totals; the // section label titles a group. titleAs on SectionPanel, and as on SectionHeader, render the title as an h2 or h3 so cards join the page outline."
       >
         <div className="flex flex-col gap-4">
-          <Card className="overflow-hidden">
-            <SectionHeader label="Materials" hint="12 items" />
-            <SectionHeader label="Medium bar" hint="size=md" size="md" />
+          <SectionPanel title="Materials" meta="12 items">
+            <SectionHeader label="Small bar" hint="size=sm" />
             <div className="px-3.5 py-3">
               <SectionHeader label="Sub variant · as h3" variant="sub" as="h3" className="mb-2" />
               <p className="font-ui text-ui text-muted">The block this sub-heading titles.</p>
             </div>
             <SectionFooter label="Total" value="128.4M ISK" />
-          </Card>
+          </SectionPanel>
           <div className="flex flex-col gap-2">
             <SectionLabel meta={<Stat>3 items</Stat>}>Section label</SectionLabel>
             <SectionLabel prefix={false}>Without prefix</SectionLabel>
@@ -153,7 +157,7 @@ export function StructureGroup() {
       <Specimen
         name="Collapsible + UrlSync"
         source="collapsible · url-sync · readout"
-        note="Native disclosure rows. chevron adds the turning ▾, hidden from screen readers. A ReadoutLine makes a status row the summary. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
+        note="Native disclosure rows. chevron adds the turning ▾, hidden from screen readers; CollapsibleChevron places one inside a custom header. A ReadoutLine makes a status row the summary. UrlSync mirrors the open state into the address bar, here as a #fragment so a reload stays on this page."
       >
         <Card className="overflow-hidden">
           <Collapsible
@@ -172,8 +176,16 @@ export function StructureGroup() {
           >
             <p className="px-3.5 pb-3 font-ui text-ui text-muted">The detail behind the status line.</p>
           </Collapsible>
-          <Collapsible header={<span className="text-name">Material breakdown</span>} defaultOpen>
-            <p className="px-3.5 pb-3 font-ui text-ui text-muted">Opens by default; the header row is the summary.</p>
+          <Collapsible
+            defaultOpen
+            header={
+              <span className="flex min-w-0 items-center gap-2">
+                <CollapsibleChevron />
+                <span className="text-name">Material breakdown</span>
+              </span>
+            }
+          >
+            <p className="px-3.5 pb-3 font-ui text-ui text-muted">Opens by default; CollapsibleChevron leads this custom header.</p>
           </Collapsible>
           <UrlSync basePath="/preview/primitives#" entityId="collapsible-sample">
             <Collapsible header={<span className="text-name">Synced to the URL</span>}>
@@ -215,6 +227,36 @@ export function StructureGroup() {
             <Measured>
               {(width) => <span className="font-data text-ui text-isk">This slot is {width}px wide</span>}
             </Measured>
+          </Variant>
+        </div>
+      </Specimen>
+
+      <Specimen
+        name="StatFigure"
+        source="stat-figure"
+        note="A small labelled figure: an eyebrow term over a tabular value, rendered as a term and description inside a dl. The value takes a tone; the lg size and a note line suit a figure that stands as its own tile."
+      >
+        <div className="flex flex-col gap-4">
+          <dl className="grid grid-cols-3 gap-3">
+            <StatFigure label="Active">14</StatFigure>
+            <StatFigure label="Ready" tone="text-isk">3</StatFigure>
+            <StatFigure label="Slots">17/20</StatFigure>
+          </dl>
+          <Variant label="tile · lg with a note">
+            <dl className="grid grid-cols-2 gap-2">
+              <StatFigure
+                label="Skill points"
+                size="lg"
+                note="+1.2M free"
+                noteTone="text-isk"
+                className={STAT_TILE}
+              >
+                48.6M
+              </StatFigure>
+              <StatFigure label="Skills" size="lg" note="212 at V" className={STAT_TILE}>
+                431
+              </StatFigure>
+            </dl>
           </Variant>
         </div>
       </Specimen>

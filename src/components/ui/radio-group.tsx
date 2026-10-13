@@ -2,6 +2,7 @@
 
 import { Radio } from '@base-ui/react/radio';
 import { RadioGroup as BaseGroup } from '@base-ui/react/radio-group';
+import { choiceRow } from './choice-row';
 import { cn } from './cn';
 
 export interface RadioOption {
@@ -44,10 +45,7 @@ export function RadioGroup({
       className={cn('flex flex-col gap-2.5', className)}
     >
       {options.map((option) => (
-        <label
-          key={option.value}
-          className="flex cursor-pointer items-start gap-2.5 font-ui text-ui text-text has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:opacity-50"
-        >
+        <label key={option.value} className={cn(choiceRow, 'items-start')}>
           <Radio.Root
             value={option.value}
             disabled={option.disabled}

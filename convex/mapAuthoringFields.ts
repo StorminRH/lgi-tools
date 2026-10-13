@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 import { doorDestination } from '@/data/maps/connection-door-destinations';
-import { connectionTypePatch } from '@/data/maps/connection-door-types';
+import { connectionTypePatch, sameDoorTyping } from '@/data/maps/connection-door-types';
 import {
   typeSetterSemanticWrite,
   type SemanticWrite,
@@ -9,7 +9,6 @@ import {
   clearPendingResolution,
   connectionLifetimeFrom,
   hallwayDoor,
-  identityEquals,
   leadsToEquals,
   leadsToFromHint,
   leadsToFromSystem,
@@ -17,8 +16,10 @@ import {
   lifetimeObservedAt,
   lifetimeStage,
   replaceDoor,
+  type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import {
+  deathWindowFrom,
   intersectOrReset,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
@@ -32,7 +33,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
-import { claimStaticPlaceholder } from './lib/mapStaticClaim';
+import { claimStaticPlaceholder, writeDoorTypeAndClaim } from './lib/mapStaticClaim';
 import {
   connectionDoorSideValidator,
   destinationHintValidator,
@@ -44,7 +45,6 @@ import {
   wormholeTypeCodeValidator,
   type WormholeLifeStage,
 } from './lib/mapEntityContracts';
-import { stampObservationKey } from './lib/observationKey';
 import { requireSystemId } from './lib/mapSystemLookup';
 
 async function requireLiveConnection(
@@ -63,7 +63,7 @@ async function requireLiveConnection(
 async function writeDoorLeadsTo(
   ctx: MutationCtx,
   connection: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
   leadsTo: Doc<'mapConnections'>['from']['leadsTo'],
 ): Promise<{ changed: boolean }> {
   const door = hallwayDoor(connection, side);
@@ -102,21 +102,10 @@ function resolveDeathWindow(
   }
 
   validateDeathWindowInput(proposal);
-  const earliestAt = proposal.deathEarliestAt;
-  const latestAt = proposal.deathLatestAt;
-  if (earliestAt === null || latestAt === null) {
-    return null;
-  }
-  if (earliestAt === undefined || latestAt === undefined) {
-    throw new ConvexError({
-      code: 'INVALID_DEATH_WINDOW',
-      detail: 'Death-window timestamps must both be supplied.',
-    });
-  }
-  return intersectOrReset(storedDeathWindow(connection), {
-    earliestAt,
-    latestAt,
-  });
+  const proposed = deathWindowFrom(proposal.deathEarliestAt, proposal.deathLatestAt);
+  return proposed === null
+    ? null
+    : intersectOrReset(storedDeathWindow(connection), proposed);
 }
 
 function sameDeathWindow(
@@ -136,7 +125,7 @@ async function applyConnectionWormholeType(
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
     readonly value: string | null;
-    readonly side?: 'from' | 'to';
+    readonly side?: ConnectionDoorSide;
     readonly deathEarliestAt?: number | null;
     readonly deathLatestAt?: number | null;
   },
@@ -170,27 +159,19 @@ async function applyConnectionWormholeType(
   });
   const resolution = clearPendingResolution(connection.resolution);
   if (
-    connection.from.typeCode === typePatch.from.typeCode
-    && connection.to.typeCode === typePatch.to.typeCode
-    && identityEquals(connection.identity, typePatch.identity)
+    sameDoorTyping(connection, typePatch)
     && connection.resolution.kind === resolution.kind
     && sameDeathWindow(connection, window)
   ) {
     const claimed = input.value !== null
-      && (await claimStaticPlaceholder(ctx, connection, door)) === 'claimed';
+      && (await claimStaticPlaceholder(ctx, connection._id, door)) === 'claimed';
     return typeSetterSemanticWrite({ changed: false, claimed });
   }
-  await ctx.db.patch(input.connectionId, {
-    ...typePatch,
-    resolution,
-    lifetime,
-    ...(input.value === null
-      ? {}
-      : stampObservationKey(connection.observationKey).patch),
-  });
-  if (input.value !== null) {
-    const typed = await ctx.db.get(input.connectionId);
-    if (typed !== null) await claimStaticPlaceholder(ctx, typed, door);
+  const patch = { ...typePatch, resolution, lifetime };
+  if (input.value === null) {
+    await ctx.db.patch('mapConnections', input.connectionId, patch);
+  } else {
+    await writeDoorTypeAndClaim(ctx, connection, door, patch);
   }
   return typeSetterSemanticWrite({ changed: true, claimed: false });
 }
@@ -200,7 +181,7 @@ async function applyConnectionDestinationHint(
   input: {
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
-    readonly side: 'from' | 'to';
+    readonly side: ConnectionDoorSide;
     readonly value: WormholeDestinationHint | null;
   },
 ): Promise<{ changed: boolean }> {
@@ -222,7 +203,7 @@ async function applyConnectionDestination(
   input: {
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
-    readonly side: 'from' | 'to';
+    readonly side: ConnectionDoorSide;
     readonly value: number | null;
   },
 ): Promise<{ changed: boolean }> {

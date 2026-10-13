@@ -1,10 +1,10 @@
+import { sectionMatches } from '@/lib/section-path';
+
 export type Tool = {
   label: string;
   abbr: string;
   href: string | null;
   matchPrefix?: string;
-  /** Other route prefixes this nav item owns, so it stays lit on their pages. */
-  alsoMatches?: readonly string[];
   description?: string;
   navDisabled?: boolean;
   navHidden?: boolean;
@@ -23,7 +23,6 @@ export const TOOLS: Tool[] = [
     abbr: 'IP',
     href: '/industry',
     matchPrefix: '/industry',
-    alsoMatches: ['/jobs', '/structures'],
     description: 'Live · /industry',
   },
   {
@@ -36,17 +35,16 @@ export const TOOLS: Tool[] = [
   {
     label: 'Industry Jobs',
     abbr: 'IJ',
-    href: '/jobs',
-    matchPrefix: '/jobs',
-    description: 'Live · /jobs',
+    href: '/industry/jobs',
+    matchPrefix: '/industry/jobs',
+    description: 'Live · /industry/jobs',
     navHidden: true,
   },
   {
     label: 'Structures',
     abbr: 'ST',
-    href: '/structures',
-    matchPrefix: '/structures',
-    description: 'Live · /structures',
+    href: '/industry?panel=structures',
+    description: 'Live · /industry',
     navHidden: true,
   },
 ];
@@ -57,7 +55,7 @@ export function visibleNavTools(): Tool[] {
 
 export function isToolActive(tool: Tool, pathname: string | null): boolean {
   if (pathname == null || !tool.matchPrefix) return false;
-  return [tool.matchPrefix, ...(tool.alsoMatches ?? [])].some((prefix) => pathname.startsWith(prefix));
+  return sectionMatches(pathname, tool.matchPrefix);
 }
 
 export type NavToolItem =

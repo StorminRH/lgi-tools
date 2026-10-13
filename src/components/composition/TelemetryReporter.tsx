@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
-import { postTelemetry } from '@/components/composition/telemetry/client';
+import { postTelemetry } from '@/components/telemetry/client';
 import {
   buildPageViewMetadata,
   readUtmTags,

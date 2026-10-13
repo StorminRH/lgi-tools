@@ -2,14 +2,12 @@ import { cn } from '@/components/ui/cn';
 import { fieldVariants, triggerShape } from '@/components/ui/input';
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
-import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
-import type { PriceSource } from '@/data/market-prices/types';
-import { isBoundaryStaleMs } from '@/lib/esi-datasets/freshness';
-import type { NodeMeState } from './me-overrides';
+import type { EfficiencyState } from './efficiency';
+import { REACTION_ACTIVITY } from './structure-bonus';
 
 const THIN_MARGIN_PCT = 5;
 
-export type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
+export type EfficiencyToneState = EfficiencyState | 'bonus' | 'reaction';
 
 /** The rail's tool buttons wear the frosted trigger the profile picker wears. */
 export const PLANNER_TOOL_TRIGGER_CLASS = cn(
@@ -61,7 +59,6 @@ export interface MarginFigures {
   showNet: boolean;
   margin: number | null;
   marginPct: number | null;
-  sign: string;
   missingSystemCostIndex: boolean;
   missingAdjustedPriceCount: number;
 }
@@ -85,14 +82,9 @@ export function deriveMarginFigures(
     showNet,
     margin,
     marginPct,
-    sign: margin !== null && margin > 0 ? '+' : '',
     missingSystemCostIndex: fees.some((fee) => fee.missingSystemCostIndex),
     missingAdjustedPriceCount: new Set(fees.flatMap((fee) => fee.missingAdjustedPriceTypeIds)).size,
   };
-}
-
-export function activityLabel(activityId: number): string {
-  return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
 }
 
 export interface Category {
@@ -102,12 +94,12 @@ export interface Category {
 }
 
 const MINERALS: Category = { label: 'Minerals', tone: 'neutral', order: 21 };
-const ICE: Category = { label: 'Ice Products', tone: 'blue', order: 22 };
+const ICE: Category = { label: 'Ice products', tone: 'blue', order: 22 };
 const GAS: Category = { label: 'Gas', tone: 'teal', order: 23 };
-const MOON: Category = { label: 'Moon Materials', tone: 'magenta', order: 24 };
+const MOON: Category = { label: 'Moon materials', tone: 'magenta', order: 24 };
 const SALVAGE: Category = { label: 'Salvage', tone: 'yellow', order: 25 };
 const PLANETARY: Category = { label: 'Planetary', tone: 'orange-soft', order: 26 };
-const OTHER_MATERIAL: Category = { label: 'Other Materials', tone: 'neutral', order: 29 };
+const OTHER_MATERIAL: Category = { label: 'Other materials', tone: 'neutral', order: 29 };
 
 const RAW_BY_GROUP: Record<string, Category> = {
   Mineral: MINERALS,
@@ -128,7 +120,6 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
   );
 }
 
-const REACTION_ACTIVITY_ID = 11;
 export const REACTION_NODE_LABEL = 'Reaction';
 
 export interface NodeLabel {
@@ -145,54 +136,20 @@ export function classifyBuildNode(args: {
 }): NodeLabel {
   const { isRaw, isRoot, activityId, groupName, categoryName } = args;
   if (isRaw) {
-    return { label: groupName || categoryName || 'Raw Material', tone: classifyRaw(groupName, categoryName).tone };
+    return { label: groupName || categoryName || 'Raw material', tone: classifyRaw(groupName, categoryName).tone };
   }
   if (isRoot) {
-    return { label: groupName || categoryName || 'Final Product', tone: 'teal' };
+    return { label: groupName || categoryName || 'Final product', tone: 'teal' };
   }
-  if (activityId === REACTION_ACTIVITY_ID) {
+  if (activityId === REACTION_ACTIVITY) {
     return { label: REACTION_NODE_LABEL, tone: 'purple' };
   }
   return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };
 }
 
-const THIN_LIQUIDITY_UNITS = 100;
-const HIGH_CONFIDENCE_SHARE = 0.75;
-const MEDIUM_CONFIDENCE_SHARE = 0.4;
-
-export interface ConfidenceInput {
-  source: PriceSource | null;
-  buyVolume: number | null;
-  unitBuy: number | null;
-  staleAfterMs: number | null;
-}
-
 export interface RowConfidence {
   level: ConfidenceLevel;
   reasons: string[];
-}
-
-export interface AggregateConfidence {
-  level: ConfidenceLevel;
-  summary: string;
-}
-
-export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfidence {
-  if (input.staleAfterMs === null) {
-    return { level: 'unknown', reasons: ['No price data yet'] };
-  }
-  if (input.unitBuy === null) {
-    return { level: 'low', reasons: ['No live price — excluded from cost'] };
-  }
-  const reasons: string[] = [];
-  if (isBoundaryStaleMs(input.staleAfterMs, nowMs)) {
-    reasons.push('Stale — price may have moved');
-  }
-  if (input.source !== null && input.source !== 'esi') reasons.push('Fallback price source');
-  if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) {
-    reasons.push('Thin market depth');
-  }
-  return reasons.length === 0 ? { level: 'high', reasons: [] } : { level: 'medium', reasons };
 }
 
 const THIN_SELL_ANCHOR_RATIO = 0.9;
@@ -230,64 +187,4 @@ export function regionalDiscountCallout(product: {
     return null;
   }
   return { systemId: d.systemId, pct: Math.round(d.pct), units: d.units };
-}
-
-export interface ConfidenceCounts {
-  high: number;
-  total: number;
-  stale: number;
-  fallback: number;
-  thin: number;
-  missing: number;
-}
-
-export function aggregateConfidenceFromCounts(c: ConfidenceCounts): AggregateConfidence {
-  if (c.total === 0) return { level: 'unknown', summary: 'No materials to price' };
-
-  const share = c.high / c.total;
-  const level: ConfidenceLevel =
-    share >= HIGH_CONFIDENCE_SHARE
-      ? 'high'
-      : share >= MEDIUM_CONFIDENCE_SHARE
-        ? 'medium'
-        : 'low';
-
-  const parts: string[] = [];
-  if (c.stale) parts.push(`${c.stale} stale`);
-  if (c.fallback) parts.push(`${c.fallback} fallback`);
-  if (c.thin) parts.push(`${c.thin} illiquid`);
-  if (c.missing) parts.push(`${c.missing} missing`);
-  return { level, summary: parts.length ? parts.join(' · ') : 'all live · liquid' };
-}
-
-type RowCounts = Omit<ConfidenceCounts, 'total'>;
-
-function classifyInput(input: ConfidenceInput, nowMs: number): RowCounts {
-  const { level } = priceConfidence(input, nowMs);
-  const counts: RowCounts = { high: 0, stale: 0, fallback: 0, thin: 0, missing: 0 };
-  if (level === 'high') counts.high = 1;
-  if (level === 'low' || level === 'unknown') counts.missing = 1;
-  if (input.staleAfterMs !== null && input.unitBuy !== null) {
-    if (isBoundaryStaleMs(input.staleAfterMs, nowMs)) counts.stale = 1;
-    if (input.source !== null && input.source !== 'esi') counts.fallback = 1;
-    if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) counts.thin = 1;
-  }
-  return counts;
-}
-
-export function aggregateConfidence(
-  inputs: ConfidenceInput[],
-  nowMs: number,
-): AggregateConfidence {
-  const totals: RowCounts = { high: 0, stale: 0, fallback: 0, thin: 0, missing: 0 };
-  for (const input of inputs) {
-    const counts = classifyInput(input, nowMs);
-    totals.high += counts.high;
-    totals.stale += counts.stale;
-    totals.fallback += counts.fallback;
-    totals.thin += counts.thin;
-    totals.missing += counts.missing;
-  }
-
-  return aggregateConfidenceFromCounts({ ...totals, total: inputs.length });
 }

@@ -7,7 +7,7 @@ import {
   resolveSearchRows,
   type PendingSearchRow,
 } from './blueprint-shaping';
-import type { BlueprintActivities } from './tree-resolver';
+import type { BlueprintActivities } from './types';
 
 const mfg = (products: { typeID: number; quantity: number }[]): BlueprintActivities => ({
   manufacturing: { products },
@@ -96,9 +96,9 @@ describe('collectSearchPending', () => {
     expect([...productIds].sort((a, b) => a - b)).toEqual([587, 16671, 16672]);
   });
 
-  it('treats null/absent activities as empty', () => {
+  it('yields nothing for blueprints without a manufacturing or reaction product', () => {
     const { pending, productIds } = collectSearchPending([
-      { blueprintTypeId: 1, activities: null },
+      { blueprintTypeId: 1, activities: { copying: { time: 480 }, invention: { products: [{ typeID: 9, quantity: 1 }] } } },
       { blueprintTypeId: 2, activities: {} },
     ]);
     expect(pending).toEqual([]);

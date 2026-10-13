@@ -1,4 +1,5 @@
 import { authClient } from '@/platform/auth/auth-client';
+import { startEveSignIn } from '@/platform/auth/link-character';
 import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
 import type { AppRouterInstance, SearchContext, SearchSource } from '@/platform/search';
 import { rankFuzzyResults } from '@/platform/search/rank';
@@ -55,14 +56,6 @@ const COMMANDS: CommandEntry[] = [
     visible: (ctx) => ctx.isAdmin,
   },
   {
-    id: 'cmd:open-admin-queue',
-    label: 'Open admin refresh queue',
-    sub: 'Retry dead-lettered ESI refresh jobs',
-    href: '/admin/queue',
-    iconText: '→',
-    visible: (ctx) => ctx.isAdmin,
-  },
-  {
     id: 'cmd:open-admin-statics',
     label: 'Open admin wormhole statics',
     sub: 'Review and promote the community statics feed',
@@ -93,10 +86,7 @@ const COMMANDS: CommandEntry[] = [
     sub: 'Sign in via EVE SSO',
     href: '/',
     iconText: '↪',
-    onSelect: () => {
-      void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' }).catch(() => {
-      });
-    },
+    onSelect: () => startEveSignIn(),
     visible: (ctx) => ctx.session === null,
   },
 ];

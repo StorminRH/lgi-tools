@@ -33,6 +33,13 @@ test('the drawer opens and closes through the address', () => {
   expect(pushState).toHaveBeenLastCalledWith(null, '', '/industry?profile=p1&panel=structures');
   setStructuresPanelOpen(false);
   expect(pushState).toHaveBeenLastCalledWith(null, '', '/industry?profile=p1');
+
+  vi.stubGlobal('window', {
+    location: { href: 'https://lgi.tools/industry?profile=p1#rail' },
+    history: { pushState },
+  });
+  setStructuresPanelOpen(true);
+  expect(pushState).toHaveBeenLastCalledWith(null, '', '/industry?profile=p1&panel=structures#rail');
 });
 
 test('a profile asking for a new structure gets it once saved, and the drawer closes', () => {

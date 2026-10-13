@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import type { BoardCharacter } from '@/composition/board/api-contract';
+import { industryJob } from '@/features/industry-jobs/__tests__/job-fixture';
 import type { ViewerJobs } from '@/features/industry-jobs/live-derive';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { addFacility, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
@@ -21,6 +22,12 @@ const live = vi.hoisted(() => ({
   boardCharacters: null as BoardCharacter[] | null,
   now: Date.parse('2026-10-01T12:00:00Z'),
 }));
+const useBoardLive = vi.hoisted(() =>
+  vi.fn(() => ({
+    response: live.boardCharacters === null ? null : { characters: live.boardCharacters },
+    now: live.now,
+  })),
+);
 
 // Next serves the app its canary React, which has <ViewTransition>; the stable
 // React that vitest resolves does not, so stand in a pass-through.
@@ -51,14 +58,9 @@ vi.mock('@/components/PreferencesProvider', () => ({
   usePreference: () => [live.remembered, vi.fn()],
 }));
 vi.mock('@/features/industry-jobs/use-slots-live', () => ({
-  useSlotsLive: () => ({ characters: live.slots, loading: false }),
+  useSlotsLive: () => ({ characters: live.slots, loading: false, failed: false, retry: vi.fn() }),
 }));
-vi.mock('../board/use-board-live', () => ({
-  useBoardLive: () => ({
-    response: live.boardCharacters === null ? null : { characters: live.boardCharacters },
-    now: live.now,
-  }),
-}));
+vi.mock('../board/use-board-live', () => ({ useBoardLive }));
 vi.mock('@/features/industry-planner/use-available-structures', () => ({
   useAvailableStructures: () => live.structures,
 }));
@@ -98,7 +100,9 @@ function render(jobsByCharacter: Map<number, ViewerJobs> = new Map()): string {
   const jobs = { jobsByCharacter, loading: false, failed: false };
   const corp = { corporations: [], loading: false, failed: false };
   const hulls = [{ typeId: 35836, name: 'Tatara' }];
-  return renderToStaticMarkup(createElement(ProfileWorkspace, { jobs, corp, corpEligible: false, hulls }));
+  return renderToStaticMarkup(
+    createElement(ProfileWorkspace, { jobs, corp, corpEligible: false, skillEligibleCharacterIds: [], hulls }),
+  );
 }
 
 function capacityReadout(html: string): string {
@@ -107,20 +111,21 @@ function capacityReadout(html: string): string {
   return capacity?.[1] ?? '';
 }
 
+/** A member's slot cells in the team table, in manufacturing, reactions, science order. */
+function slotCells(html: string, name: string): string[] {
+  const table = html.match(/<table aria-label="Production skills by member"[^>]*>([\s\S]*?)<\/table>/);
+  expect(table).not.toBeNull();
+  const row = (table?.[1] ?? '').split('</tr>').find((tr) => tr.includes(name)) ?? '';
+  return [...row.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((cell) => cell[1] ?? '');
+}
+
 function jobsFor(characterId: number, activities: readonly number[]): ViewerJobs {
   return {
     characterId,
     lastRefreshedAt: 1,
     data: {
-      jobs: activities.map((activity_id, index) => ({
-        job_id: characterId * 10 + index,
-        activity_id,
-        blueprint_type_id: 1,
-        runs: 1,
-        status: 'active',
-        start_date: '2026-09-29T00:00:00Z',
-        end_date: '2026-09-30T00:00:00Z',
-      })),
+      jobs: activities.map((activity_id, index) =>
+        industryJob({ job_id: characterId * 10 + index, activity_id, status: 'active' })),
     },
   };
 }
@@ -153,7 +158,9 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   live.session = { characterId: BUILDER.characterId };
   live.roster = [BUILDER, REACTOR];
   live.profiles = null;
-  expect(render()).toContain('Loading production profiles');
+  const loading = render();
+  expect(loading).toContain('role="status" aria-label="Loading production profiles"');
+  expect(loading.match(/role="status"/g)).toHaveLength(1);
 
   live.listFailed = true;
   const failed = render();
@@ -164,7 +171,6 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   live.profiles = [];
   const first = render();
   expect(first).toContain('Create your first production profile');
-  expect(first).toMatch(/Add characters.*Add structures.*Simulate a build/);
 
   live.profiles = [teamProfile(), { ...teamProfile(), id: 'rx', name: 'Reactions only' }];
   live.slots = [
@@ -172,9 +178,12 @@ test('the workspace walks from signed out, to a first profile, to a team and one
     { characterId: REACTOR.characterId, levels: null },
   ];
   live.structures = [TATARA];
-  // With no member open, the rail sits beside the whole profile.
+  // With no member open, the rail sits beside the whole profile, and the
+  // account board, which only a member's identity needs, stays unread.
   live.params = new URLSearchParams('profile=caps');
+  useBoardLive.mockClear();
   const team = render();
+  expect(useBoardLive).not.toHaveBeenCalled();
   expect(team).toContain('Capital line');
   expect(team).toContain(`data-member-id="${BUILDER.characterId}"`);
   expect(team).toContain(`${BUILDER.name}: Capital ships · All components`);
@@ -189,40 +198,51 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(team).toContain('NPC station');
   expect(team).toContain('All manufacturing');
   expect(team).toContain('aria-label="Add a facility"');
-  expect(team).toContain('Production Capacity');
+  expect(team).toContain('Production capacity');
   expect(capacityReadout(team)).toContain('?/8+');
+  // Each member's row reads its slots the way the panel does: known totals
+  // beside unknown usage, and "?" for skills that have not synced.
+  expect(slotCells(team, BUILDER.name)).toEqual(['?/8', '?/1', '?/1']);
+  expect(slotCells(team, REACTOR.name)).toEqual(['?/?', '?/?', '?/?']);
   expect(team).toContain('1 unlinked character is excluded.');
   // Skills that have not synced stay unknown rather than showing a zero bonus.
   expect(team).toContain('Syncing');
   expect(team).not.toContain('All members');
   expect(team).not.toContain('The profile in this link no longer exists');
 
-  // A member in the link opens on its own sheet in place of the rail.
+  // A member in the link opens on its own sheet in place of the rail, which
+  // reads the account board once for its identity.
   live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
   const reactor = render();
+  expect(useBoardLive).toHaveBeenCalledTimes(1);
   expect(reactor).toContain(`aria-label="${REACTOR.name} in Capital line"`);
   expect(reactor).toContain('All members');
   expect(reactor).not.toContain('data-member-id');
   // Skills that have not synced are said to be syncing, not shown as zero.
   expect(reactor).toContain('Skills are still syncing from EVE.');
   expect(capacityReadout(reactor)).toContain('?/?');
-  expect(reactor).not.toContain('Reaction material bonuses from rigs are not modelled yet.');
-  expect(reactor).not.toContain('Manage structures');
-  expect(reactor).not.toContain('Reactions facility');
-  expect(reactor).not.toContain('Job slots');
+  // The team sheet offers adding a facility; a member's sheet does not.
+  expect(reactor).not.toContain('aria-label="Add a facility"');
   expect(reactor).toContain(`What ${REACTOR.name} builds</legend>`);
   const categories = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
   expect(categories).toHaveLength(22);
-  const box = (label: string) => categories.find((checkbox) => checkbox.includes(`aria-label="${label}"`)) ?? '';
+  // Each category box is named by its full category name, not the short row text.
+  const nameOf = (checkbox: string) => {
+    const id = /aria-labelledby="([^"]+)"/.exec(checkbox)?.[1];
+    return new RegExp(`<span id="${id}" hidden="">([^<]*)</span>`).exec(reactor)?.[1];
+  };
+  const box = (label: string) => categories.find((checkbox) => nameOf(checkbox) === label) ?? '';
   expect(box('All reactions')).toContain('aria-checked="true"');
   // A ticked parent covers its classes, which read as ticked and stay put.
   expect(box('Composite reactions')).toContain('aria-checked="true"');
   expect(box('Composite reactions')).toContain('aria-disabled="true"');
   expect(box('All components')).toContain('aria-checked="false"');
-  expect(reactor).toContain('aria-label="All manufacturing"');
-  expect(reactor).toContain('aria-label="All ships"');
-  expect(reactor).toContain('aria-label="Small T1 ships"');
-  expect(reactor).toContain('aria-label="Hybrid reactions"');
+  const names = categories.map(nameOf);
+  expect(names).not.toContain(undefined);
+  expect(names).toContain('All manufacturing');
+  expect(names).toContain('All ships');
+  expect(names).toContain('Small T1 ships');
+  expect(names).toContain('Hybrid reactions');
   expect(reactor).toContain(`Remove ${REACTOR.name} from this profile`);
 
   // A member that is not on the profile shows the whole profile instead.

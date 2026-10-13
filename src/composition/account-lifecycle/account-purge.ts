@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { deletionDatabase } from '@/db/deletion-client';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { runPurge } from '@/composition/purge/orchestrator';
+import { runUntilDeadline, type DeadlineBatchResult } from '@/lib/fan-out';
 import { accountMatch, eveAccountsForUser, parseLinkedAccountId } from '@/platform/auth/eve-account-shared';
 import { revokeStoredCharacterToken } from '@/platform/auth/eve-token-service';
 import { deleteUserIfUnlinked, reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
@@ -114,23 +115,19 @@ export async function finishPendingDeletion(characterId: number): Promise<void> 
 
 const DELETION_RETRY_BATCH = 20;
 
-export async function retryRequestedDeletions(deadline: number): Promise<{ retried: number; failed: number }> {
-  if (Date.now() >= deadline) return { retried: 0, failed: 0 };
+export async function retryRequestedDeletions(deadline: number): Promise<DeadlineBatchResult> {
+  if (Date.now() >= deadline) return { succeeded: 0, failed: 0, deferred: 0 };
   // Existing jobs are excluded by discovery, so poisoned oldest markers cannot
   // prevent new requests from entering the fair, independently ordered queue.
   for (const request of await readRequestedDeletions(DELETION_RETRY_BATCH)) await enqueueDeletion(request);
-  const jobs = await readDeletionJobs(DELETION_RETRY_BATCH);
-  let retried = 0;
-  let failed = 0;
-  for (const job of jobs) {
-    if (Date.now() >= deadline) break;
-    try {
-      if (await finishDeletionJob(job.id) !== undefined) retried += 1;
-    } catch (error) {
-      failed += 1;
+  return runUntilDeadline(
+    await readDeletionJobs(DELETION_RETRY_BATCH),
+    deadline,
+    // A job another finisher already removed is neither a success nor a failure.
+    async (job) => (await finishDeletionJob(job.id)) === undefined ? 'skipped' : 'succeeded',
+    async (job, error) => {
       console.error('[account-purge] requested deletion retry failed', { id: job.id, userId: job.userId, scope: job.scope }, error);
       await rotateDeletionJob(job.id);
-    }
-  }
-  return { retried, failed };
+    },
+  );
 }

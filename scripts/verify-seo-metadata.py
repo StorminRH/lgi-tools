@@ -24,6 +24,9 @@ PAGE_TITLES = {
     "/legal": "Privacy",
     "/contact": "Contact",
     "/sites": "Wormhole Sites — Live Jita Loot & Resource Values",
+    "/industry": "Industry Planner",
+    "/industry/jobs": "Active Jobs — Industry Planner",
+    "/industry/planner": "Planner — Industry Planner",
 }
 
 class MetadataParser(HTMLParser):

@@ -2,10 +2,13 @@ import { ConvexError, v } from 'convex/values';
 import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { characterTrackable, requireMapAccess, requireMapTrackingOpen } from './lib/mapAccess';
-import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
+import {
+  readMapTracking,
+  readUserMapTracking,
+  requireMapTrackingSpace,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './lib/mapTrackingCapacity';
 import { deleteTrackingRow } from './mapTrackingTeardown';
-
-export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 
 interface TrackingIdentity {
   mapId: string;
@@ -23,7 +26,7 @@ async function enableTracking(
   if (existing.length >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
     throw new ConvexError({
       code: 'TRACKING_CAP_EXCEEDED',
-      detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
+      detail: `You can track up to ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} characters on this map.`,
     });
   }
   // Reading capacity and inserting in one mutation makes concurrent opt-ins conflict.
@@ -45,12 +48,7 @@ export const setTracking = mutation({
   },
   handler: async (ctx, { mapId, characterId, tracked }) => {
     const principal = await requireMapAccess(ctx, mapId, 'view');
-    const existing = await ctx.db
-      .query('mapTracking')
-      .withIndex('by_map_user', (q) =>
-        q.eq('mapId', mapId).eq('userId', principal.userId),
-      )
-      .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP + 1);
+    const existing = await readUserMapTracking(ctx, mapId, principal.userId);
     const match = existing.find((row) => row.characterId === characterId);
 
     if (tracked) {

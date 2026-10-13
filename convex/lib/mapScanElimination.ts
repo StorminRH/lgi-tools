@@ -1,4 +1,4 @@
-import { ConvexError } from 'convex/values';
+import { ConvexError, type Infer, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import {
   absorbDoorKnowledge,
@@ -6,6 +6,7 @@ import {
 } from '@/data/maps/connection-door-destinations';
 import {
   connectionTypePatch,
+  sameDoorTyping,
   typedDoorsFrom,
 } from '@/data/maps/connection-door-types';
 import {
@@ -15,11 +16,9 @@ import {
   hallwayDoorTypes,
   identityFromDoors,
   replaceDoor,
+  type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
-import {
-  isWormholeTypeCode,
-  type ConnectionProvenance,
-} from '@/data/eve-data/wormhole-contract';
+import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import { isScannerSignatureId } from '@/data/maps/scan-parse';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
@@ -27,9 +26,13 @@ import {
   readInboundConnections,
   readOriginConnections,
 } from './mapConnectionLookup';
-import { claimStaticPlaceholder, mergeSeatFields } from './mapStaticClaim';
-import { stampObservationKey } from './observationKey';
-import { findSystem, requireSystemId } from './mapSystemLookup';
+import { connectionProvenanceValidator } from './mapEntityContracts';
+import {
+  claimStaticPlaceholder,
+  mergeSeatFields,
+  writeDoorTypeAndClaim,
+} from './mapStaticClaim';
+import { findLiveSystem, requireSystemId } from './mapSystemLookup';
 import {
   MAP_ELIMINATION_CONNECTION_LIMIT,
   MAP_SCAN_ROW_LIMIT,
@@ -37,37 +40,50 @@ import {
   leadsNotePatch,
 } from './mapScanState';
 
-export type EliminationOutcome = {
-  readonly signatureId: string;
-  readonly outcome: 'applied' | 'unchanged' | 'protected' | 'stale';
-  readonly observationKey: string | null;
-};
+export const eliminationOutcomeValidator = v.object({
+  signatureId: v.string(),
+  outcome: v.union(
+    v.literal('applied'),
+    v.literal('unchanged'),
+    v.literal('protected'),
+    v.literal('stale'),
+  ),
+  observationKey: v.union(v.string(), v.null()),
+});
 
-export type EliminationEvidence = {
-  readonly canEdit: true;
-  readonly signatures: {
-    readonly signatureId: string;
-    readonly wormholeTypeCode: string | null;
-    readonly typeProvenance: ConnectionProvenance | null;
-    readonly observationKey: string | null;
-  }[];
-  readonly connections: {
-    readonly connectionId: Id<'mapConnections'>;
-    readonly wormholeTypeCode: string | null;
-    readonly linkedSignature: boolean;
-  }[];
-};
+export type EliminationOutcome = Infer<typeof eliminationOutcomeValidator>;
+
+export const eliminationEvidenceValidator = v.object({
+  canEdit: v.boolean(),
+  signatures: v.array(
+    v.object({
+      signatureId: v.string(),
+      wormholeTypeCode: v.union(v.string(), v.null()),
+      typeProvenance: v.union(connectionProvenanceValidator, v.null()),
+      observationKey: v.union(v.string(), v.null()),
+    }),
+  ),
+  connections: v.array(
+    v.object({
+      connectionId: v.id('mapConnections'),
+      wormholeTypeCode: v.union(v.string(), v.null()),
+      linkedSignature: v.boolean(),
+    }),
+  ),
+});
+
+export type EliminationEvidence = Infer<typeof eliminationEvidenceValidator>;
 
 function endpointTypeCode(
   connection: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): string | null {
   return hallwayDoorTypes(connection)[side];
 }
 
 function endpointOwnsSignature(
   connection: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): boolean {
   return hallwayDoor(connection, side).signatureId !== null;
 }
@@ -100,8 +116,7 @@ export async function collectEliminationEvidence(
   systemId: number,
 ): Promise<EliminationEvidence> {
   requireSystemId(systemId);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
+  if ((await findLiveSystem(ctx, mapId, systemId)) === null) {
     return { canEdit: true, signatures: [], connections: [] };
   }
 
@@ -174,12 +189,9 @@ async function applyTypeDeduction(
     return { signatureId, outcome: 'stale', observationKey: null };
   }
   const observationKey = source.observationKey ?? null;
-  if (
-    source.from.typeCode === typeCode
-    && source.identity.kind === 'typed'
-    && source.identity.provenance === 'assumed'
-  ) {
-    await claimStaticPlaceholder(ctx, source, 'from');
+  const typePatch = connectionTypePatch(source, 'from', typeCode, 'assumed');
+  if (sameDoorTyping(source, typePatch)) {
+    await claimStaticPlaceholder(ctx, source._id, 'from');
     return { signatureId, outcome: 'unchanged', observationKey };
   }
   if (
@@ -188,23 +200,17 @@ async function applyTypeDeduction(
   ) {
     return { signatureId, outcome: 'protected', observationKey };
   }
-  const stamped = stampObservationKey(source.observationKey);
-  await ctx.db.patch(source._id, {
-    ...connectionTypePatch(source, 'from', typeCode, 'assumed'),
-    ...stamped.patch,
-  });
-  const typed = await ctx.db.get(source._id);
-  if (typed !== null) await claimStaticPlaceholder(ctx, typed, 'from');
-  return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
+  const written = await writeDoorTypeAndClaim(ctx, source, 'from', typePatch);
+  return { signatureId, outcome: 'applied', observationKey: written.observationKey };
 }
 
-function occupiedLeadsTo(target: Doc<'mapConnections'>, side: 'from' | 'to') {
+function occupiedLeadsTo(target: Doc<'mapConnections'>, side: ConnectionDoorSide) {
   return hallwayDoor(target, side).leadsTo;
 }
 
 function clearOccupiedDestinationNote(
   target: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Partial<Doc<'mapConnections'>> {
   const door = hallwayDoor(target, side);
   return replaceDoor(target, side, { ...door, leadsTo: { kind: 'unset' } });
@@ -212,7 +218,7 @@ function clearOccupiedDestinationNote(
 
 function vacateOccupiedDoor(
   target: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Doc<'mapConnections'> {
   const afterType = {
     ...target,
@@ -229,7 +235,7 @@ async function recreateOccupiedDoorAsStub(
   target: Doc<'mapConnections'>,
   systemId: number,
   occupant: string,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Promise<void> {
   const doorType = hallwayDoorTypes(target)[side];
   const doors = typedDoorsFrom('from', doorType);
@@ -300,7 +306,7 @@ export async function applyLinkDeduction(
 function applyLinkKnowledge(
   surviving: Doc<'mapConnections'>,
   stub: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): Doc<'mapConnections'> {
   const afterTypes = { ...surviving, ...absorbDoorKnowledge(surviving, stub, side) };
   return {
@@ -311,7 +317,7 @@ function applyLinkKnowledge(
 
 function applyDoorSignature(
   hallway: Doc<'mapConnections'>,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
   signatureId: string,
 ): Doc<'mapConnections'> {
   const door = hallwayDoor(hallway, side);
@@ -334,7 +340,7 @@ async function findLeftoverOriginStub(
   ctx: MutationCtx,
   target: Doc<'mapConnections'>,
   sourceId: Id<'mapConnections'>,
-  attachedSide: 'from' | 'to',
+  attachedSide: ConnectionDoorSide,
 ): Promise<{ row: Doc<'mapConnections'>; id: Id<'mapConnections'> } | null> {
   const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
   const oppositeSystemId = oppositeSide === 'from'
@@ -355,7 +361,7 @@ async function findLeftoverOriginStub(
 function absorbLeftoverOriginStub(
   target: Doc<'mapConnections'>,
   leftover: Doc<'mapConnections'>,
-  attachedSide: 'from' | 'to',
+  attachedSide: ConnectionDoorSide,
 ): Doc<'mapConnections'> {
   const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
   const afterKnowledge = applyLinkKnowledge(target, leftover, oppositeSide);
@@ -376,18 +382,21 @@ function absorbLeftoverOriginStub(
   };
 }
 
-export type EliminationDeduction =
-  | {
-      readonly signatureId: string;
-      readonly typeCode: string;
-      readonly provenance: 'assumed';
-    }
-  | {
-      readonly signatureId: string;
-      readonly connectionId: Id<'mapConnections'>;
-      readonly provenance: 'assumed';
-      readonly expectedTypeCode: string | null;
-    };
+export const eliminationDeductionValidator = v.union(
+  v.object({
+    signatureId: v.string(),
+    typeCode: v.string(),
+    provenance: v.literal('assumed'),
+  }),
+  v.object({
+    signatureId: v.string(),
+    connectionId: v.id('mapConnections'),
+    provenance: v.literal('assumed'),
+    expectedTypeCode: v.union(v.string(), v.null()),
+  }),
+);
+
+export type EliminationDeduction = Infer<typeof eliminationDeductionValidator>;
 
 export async function applyEliminationDeductionBatch(
   ctx: MutationCtx,
@@ -397,8 +406,7 @@ export async function applyEliminationDeductionBatch(
 ): Promise<EliminationOutcome[]> {
   requireSystemId(systemId);
   requireEliminationDeductions(deductions);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
+  if ((await findLiveSystem(ctx, mapId, systemId)) === null) {
     return deductions.map(({ signatureId }) => ({
       signatureId,
       outcome: 'stale' as const,

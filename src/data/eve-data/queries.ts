@@ -8,16 +8,16 @@ import {
   eveGroups,
   eveNpcStations,
   eveSolarSystems,
-  eveStationOperations,
   eveTypes,
   industryBlueprints,
   industryModifiers,
   industryTargetFilters,
   typeDogma,
 } from './schema';
+import { groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
-  BLUEPRINT_STRUCTURE_TAG,
+  SDE_CACHE_TAG,
   SDE_CAPITAL_SHIPYARD_TYPE_ID,
   SDE_INDUSTRY_STRUCTURE_GROUP_IDS,
   SDE_STRUCTURE_MODULE_CATEGORY_ID,
@@ -27,6 +27,7 @@ import {
   attainableFilterSets,
   moduleFitsHull,
   PRODUCTION_ACTIVITIES,
+  PRODUCTION_MODIFIER_KINDS,
   shapeStructureRigs,
   type ProductionModifier,
   type StructureRigOption,
@@ -45,16 +46,12 @@ import {
 export type { BlueprintOutput, BlueprintSearchRow };
 import type { StationSearchEntry } from './stations-search';
 import type { SystemSearchEntry } from './systems-search';
-import {
-  pickBuildTimeSeconds,
-  type BlueprintActivities,
-  type TreeNode,
-} from './tree-resolver';
+import { pickBuildTimeSeconds } from './tree-resolver';
 import {
   parseBlueprintActivities,
   type BlueprintActivitySet,
 } from './activities';
-import type { AttrMap, EveType } from './types';
+import type { AttrMap, BlueprintActivities, EveType, TreeNode } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 
 const TYPE_COLUMNS = {
@@ -103,6 +100,11 @@ export async function getTypeNames(ids: number[]): Promise<Map<number, string>> 
   return out;
 }
 
+/** Names of the distinct `ids` keyed by decimal id, the wire shape of a names response; unknown ids are absent. */
+export async function getTypeNameRecord(ids: Iterable<number>): Promise<Record<string, string>> {
+  return Object.fromEntries(await getTypeNames([...new Set(ids)]));
+}
+
 export type TypeLabel = { name: string; groupId: number; groupName: string; categoryId: number; categoryName: string };
 
 export async function getTypeLabels(ids: number[]): Promise<Map<number, TypeLabel>> {
@@ -144,7 +146,7 @@ export async function getTypeAttributesBatch(
     .from(typeDogma)
     .where(inArray(typeDogma.typeId, typeIds));
   for (const r of rows) {
-    result.set(r.typeId, r.attributes as AttrMap);
+    result.set(r.typeId, r.attributes);
   }
   return result;
 }
@@ -160,13 +162,12 @@ export async function getBlueprintTree(
     .from(blueprintTrees)
     .where(eq(blueprintTrees.blueprintTypeId, blueprintId))
     .limit(1);
-  if (!row) return null;
-  return { treeJson: row.treeJson as TreeNode[], computedAt: row.computedAt };
+  return row ?? null;
 }
 
 async function mapBlueprintActivities<T>(
   blueprintTypeIds: number[],
-  derive: (rawActivities: unknown) => T | null,
+  derive: (activities: BlueprintActivities) => T | null,
 ): Promise<Map<number, T>> {
   const out = new Map<number, T>();
   if (blueprintTypeIds.length === 0) return out;
@@ -187,25 +188,19 @@ async function mapBlueprintActivities<T>(
 export async function getActivityByBlueprint(
   blueprintTypeIds: number[],
 ): Promise<Map<number, number>> {
-  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
-    pickProducingActivityId((raw ?? {}) as BlueprintActivities),
-  );
+  return mapBlueprintActivities(blueprintTypeIds, pickProducingActivityId);
 }
 
 export async function getBlueprintActivityTimes(
   blueprintTypeIds: number[],
 ): Promise<Map<number, number>> {
-  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
-    pickBuildTimeSeconds((raw ?? {}) as BlueprintActivities),
-  );
+  return mapBlueprintActivities(blueprintTypeIds, pickBuildTimeSeconds);
 }
 
 export async function getBlueprintActivities(
   blueprintTypeIds: number[],
 ): Promise<Map<number, BlueprintActivitySet>> {
-  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
-    parseBlueprintActivities(raw),
-  );
+  return mapBlueprintActivities(blueprintTypeIds, parseBlueprintActivities);
 }
 
 export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
@@ -233,7 +228,7 @@ export async function getBlueprintOutput(
     )
     .limit(1);
   if (!row) return null;
-  return pickBlueprintOutput((row.activities ?? {}) as BlueprintActivities);
+  return pickBlueprintOutput(row.activities);
 }
 
 export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
@@ -259,7 +254,7 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
 export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
 
   const systems = await withColdStartRetry(() =>
     db
@@ -280,7 +275,7 @@ export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
 export async function getManufacturingStationIndex(): Promise<StationSearchEntry[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
 
   const rows = await withColdStartRetry(() =>
     db
@@ -308,42 +303,10 @@ export async function solarSystemExists(systemId: number): Promise<boolean> {
   return rows.length > 0;
 }
 
-export type IndustryStation = {
-  id: number;
-  name: string | null;
-  operationName: string;
-  manufacturingCapable: boolean;
-  researchCapable: boolean;
-};
-
-export async function getIndustryStationsForSystem(
-  systemId: number,
-): Promise<IndustryStation[]> {
-  return db
-    .select({
-      id: eveNpcStations.id,
-      name: eveNpcStations.name,
-      operationName: eveStationOperations.name,
-      manufacturingCapable: eveNpcStations.manufacturingCapable,
-      researchCapable: eveNpcStations.researchCapable,
-    })
-    .from(eveNpcStations)
-    .innerJoin(
-      eveStationOperations,
-      eq(eveStationOperations.id, eveNpcStations.operationId),
-    )
-    .where(
-      and(
-        eq(eveNpcStations.solarSystemId, systemId),
-        eq(eveNpcStations.industryCapable, true),
-      ),
-    );
-}
-
 export async function getStructureTypes(): Promise<StructureTypeOption[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const rows = await db
       .select({
@@ -362,7 +325,7 @@ export async function getStructureTypes(): Promise<StructureTypeOption[]> {
       );
     return rows
       .map((r) => {
-        const attrs = (r.attributes ?? {}) as AttrMap;
+        const attrs = r.attributes ?? {};
         return {
           typeId: r.id,
           name: r.name,
@@ -386,7 +349,7 @@ async function attributeIdsNamed(prefix: string): Promise<number[]> {
 export async function getCapitalShipyardHullIds(): Promise<number[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   const [hulls, types, groups, shipyard] = await withColdStartRetry(() =>
     Promise.all([
       getStructureTypes(),
@@ -395,7 +358,7 @@ export async function getCapitalShipyardHullIds(): Promise<number[]> {
       db.select({ attributes: typeDogma.attributes }).from(typeDogma).where(eq(typeDogma.typeId, SDE_CAPITAL_SHIPYARD_TYPE_ID)),
     ]),
   );
-  const attrs = (shipyard[0]?.attributes ?? {}) as AttrMap;
+  const attrs = shipyard[0]?.attributes ?? {};
   return hulls.filter((hull) => moduleFitsHull(attrs, { types, groups }, hull)).map((hull) => hull.typeId);
 }
 
@@ -406,7 +369,7 @@ function productionModifierSources() {
     .where(
       and(
         inArray(industryModifiers.activity, [...PRODUCTION_ACTIVITIES]),
-        inArray(industryModifiers.kind, [...MODIFIER_KINDS]),
+        inArray(industryModifiers.kind, [...PRODUCTION_MODIFIER_KINDS]),
       ),
     );
 }
@@ -415,14 +378,14 @@ function productionModifierSources() {
 export async function getIndustryTargetFilters(): Promise<TargetFilter[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => db.select().from(industryTargetFilters).orderBy(industryTargetFilters.id));
 }
 
 export async function getIndustryTargetFilterSets(): Promise<number[][]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   const [filters, groups] = await Promise.all([
     getIndustryTargetFilters(),
     withColdStartRetry(() =>
@@ -432,19 +395,18 @@ export async function getIndustryTargetFilterSets(): Promise<number[][]> {
   return attainableFilterSets(filters, groups);
 }
 
-const MODIFIER_KINDS: readonly string[] = ['material', 'time', 'cost'] satisfies ProductionModifier['kind'][];
-
-function isProductionModifier(row: {
-  activity: string;
-  kind: string;
-}): row is { activity: ProductionModifier['activity']; kind: ProductionModifier['kind'] } {
-  return (PRODUCTION_ACTIVITIES as readonly string[]).includes(row.activity) && MODIFIER_KINDS.includes(row.kind);
+function isProductionModifier<Row extends { activity: string; kind: string }>(
+  row: Row,
+): row is Row & { activity: ProductionModifier['activity']; kind: ProductionModifier['kind'] } {
+  return (
+    (PRODUCTION_ACTIVITIES as readonly string[]).includes(row.activity) &&
+    (PRODUCTION_MODIFIER_KINDS as readonly string[]).includes(row.kind)
+  );
 }
 
 /** The manufacturing and reaction bonuses each hull or rig type carries. */
 export async function getProductionModifiers(typeIds: number[]): Promise<Map<number, ProductionModifier[]>> {
-  const out = new Map<number, ProductionModifier[]>();
-  if (typeIds.length === 0) return out;
+  if (typeIds.length === 0) return new Map();
   const rows = await withColdStartRetry(() =>
     db
       .select()
@@ -456,24 +418,22 @@ export async function getProductionModifiers(typeIds: number[]): Promise<Map<num
         ),
       ),
   );
-  for (const row of rows) {
-    if (!isProductionModifier(row)) continue;
-    const list = out.get(row.sourceTypeId) ?? [];
-    list.push({
+  return groupBy(
+    rows.filter(isProductionModifier),
+    (row) => row.sourceTypeId,
+    (row): ProductionModifier => ({
       activity: row.activity,
       kind: row.kind,
       filterId: row.filterId,
       factor: { high: row.factorHigh, low: row.factorLow, null: row.factorNull },
-    });
-    out.set(row.sourceTypeId, list);
-  }
-  return out;
+    }),
+  );
 }
 
 export async function getStructureRigs(): Promise<StructureRigOption[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const rows = await db
       .select({

@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { Collapsible } from './collapsible';
+import { Collapsible, CollapsibleChevron } from './collapsible';
 
 function render(chevron?: boolean): string {
   return renderToStaticMarkup(
@@ -19,6 +19,23 @@ describe('Collapsible', () => {
 
   it('pins the chevron to the first text line of a multi-line header', () => {
     expect(render(true)).toContain('<span class="flex h-lh shrink-0 items-center self-start text-ui"><span data-chevron');
+  });
+
+  it('lets a custom header place its own chevron or mark, still hidden from screen readers', () => {
+    const html = renderToStaticMarkup(
+      Collapsible({
+        header: createElement('span', { className: 'flex w-full' }, 'Layout dials', CollapsibleChevron({ className: 'ml-auto' })),
+        children: createElement('p', null, 'Details'),
+      }),
+    );
+    expect(html).toMatch(
+      /<summary [^>]*><span class="flex w-full">Layout dials<span data-chevron="true" aria-hidden="true" class="inline-block shrink-0 text-micro text-muted transition-transform ml-auto">▾<\/span><\/span><\/summary>/,
+    );
+
+    const icon = renderToStaticMarkup(CollapsibleChevron({ className: 'flex', children: createElement('svg') }));
+    expect(icon).toBe(
+      '<span data-chevron="true" aria-hidden="true" class="shrink-0 text-micro text-muted transition-transform flex"><svg></svg></span>',
+    );
   });
 
   it('leaves the summary to the header without the chevron', () => {

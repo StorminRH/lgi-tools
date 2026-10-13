@@ -31,26 +31,11 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('map=map-a'),
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({
-    children,
-    finalFocus,
-  }: {
-    children: React.ReactNode;
-    finalFocus?: React.RefObject<HTMLElement | null>;
-  }) =>
-    createElement(
-      'div',
-      { role: 'dialog', 'data-has-final-focus': String(finalFocus !== undefined) },
-      children,
-    ),
-  DialogClose: ({ children }: { children: React.ReactNode }) =>
-    createElement('button', null, children),
-  DialogDescription: ({ children }: { children: React.ReactNode }) =>
-    createElement('p', null, children),
-  DialogTitle: ({ children, ...props }: { children: React.ReactNode }) =>
-    createElement('h2', props, children),
-}));
+// Stub the Base layer so the real ui/dialog chrome renders as static markup.
+vi.mock('@base-ui/react/dialog', async () => {
+  const { StaticBaseDialog } = await import('@/components/ui/__tests__/static-base-dialog');
+  return { Dialog: StaticBaseDialog };
+});
 
 vi.mock('@/components/use-account-characters', () => ({
   useAccountCharacters: () => [
@@ -60,32 +45,29 @@ vi.mock('@/components/use-account-characters', () => ({
 }));
 
 vi.mock('./CharacterSearchControl', () => ({
-  CharacterSearchControl: () => createElement('div', { 'data-character-search': '' }),
+  CharacterSearchControl: ({ label }: { label?: string }) =>
+    createElement('div', { 'data-character-search': label ?? '' }),
 }));
 
 vi.mock('./AccessListEditor', () => ({
   AccessListEditor: ({
     mode,
     currentGrants,
-    characterSearch,
   }: {
     mode: string;
     currentGrants: readonly { ownerId: number; name: string; role: string }[];
-    characterSearch: React.ReactNode;
   }) =>
-    createElement(
-      'div',
-      {
-        'data-access-editor-mode': mode,
-        'data-access-grants': currentGrants
-          .map((grant) => `${grant.ownerId}:${grant.name}:${grant.role}`)
-          .join(','),
-      },
-      characterSearch,
-    ),
+    createElement('div', {
+      'data-access-editor-mode': mode,
+      'data-access-grants': currentGrants
+        .map((grant) => `${grant.ownerId}:${grant.name}:${grant.role}`)
+        .join(','),
+    }),
 }));
 
+import { dialogProbe } from '@/components/ui/__tests__/static-base-dialog';
 import {
+  EditingMapAccessDialog,
   MapAccessDialog,
   mapAccessGrantRevision,
   reconcileAccessGrantDrafts,
@@ -108,13 +90,14 @@ describe('MapAccessDialog', () => {
   });
 
   it('seeds the shared manage editor with presentation-ready delegated grants', () => {
+    const finalFocus = { current: null };
     const markup = renderToStaticMarkup(
       createElement(MapAccessDialog, {
         mapId: 'map-a',
         mapName: 'Alpha',
         open: true,
         onOpenChange: vi.fn(),
-        finalFocus: { current: null },
+        finalFocus,
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
         initialGrants: [
           {
@@ -136,13 +119,52 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('min-w-0');
     expect(markup).toContain('data-access-editor-mode="manage"');
     expect(markup).toContain('data-access-grants="42:Scout:editor"');
-    expect(markup).toContain('data-character-search');
-    expect(markup).toContain('data-has-final-focus="true"');
+    // The access list renders its own search, so the dialog itself renders only the block search.
+    expect(markup.match(/data-character-search=/g)).toHaveLength(1);
+    expect(markup).toContain('data-character-search="Block character"');
+    expect(dialogProbe.popup?.finalFocus).toBe(finalFocus);
     expect(markup).toContain('Done');
     expect(markup).not.toContain('Delete map');
     expect(markup).toContain('data-own-character-picker');
     expect(markup).toMatch(/aria-pressed="true"[^>]*aria-label="Scout"|aria-label="Scout"[^>]*aria-pressed="true"/);
     expect(markup).toMatch(/aria-pressed="false"[^>]*aria-label="Hauler"|aria-label="Hauler"[^>]*aria-pressed="false"/);
+  });
+
+  it('hosts the editor for the map being edited, seeded from that map\'s rows, and closes through onClose', () => {
+    const editor = {
+      onClose: vi.fn(),
+      finalFocus: () => null,
+      corporations: [],
+      grantsByMapId: {
+        'map-a': [{ ownerType: 'character' as const, ownerId: 42, name: 'Scout', role: 'editor' as const }],
+        'map-b': [{ ownerType: 'character' as const, ownerId: 43, name: 'Hauler', role: 'viewer' as const }],
+      },
+      blocksByMapId: { 'map-b': [{ characterId: 77, name: 'Spy' }] },
+    };
+    expect(renderToStaticMarkup(createElement(EditingMapAccessDialog, { ...editor, editingMap: null }))).toBe('');
+
+    const markup = renderToStaticMarkup(
+      createElement(EditingMapAccessDialog, {
+        ...editor,
+        editingMap: {
+          id: 'map-a',
+          name: 'Alpha',
+          createdAt: new Date('2026-08-12T12:00:00.000Z'),
+          creatorName: 'Mapper',
+          role: 'admin',
+          provenance: { kind: 'created' },
+        },
+      }),
+    );
+    expect(markup).toContain('Manage Alpha');
+    expect(markup).toContain('data-access-grants="42:Scout:editor"');
+    expect(markup).not.toContain('data-map-blocked-character');
+    expect(dialogProbe.root?.open).toBe(true);
+    expect(dialogProbe.popup?.finalFocus).toBe(editor.finalFocus);
+    dialogProbe.root?.onOpenChange?.(true);
+    expect(editor.onClose).not.toHaveBeenCalled();
+    dialogProbe.root?.onOpenChange?.(false);
+    expect(editor.onClose).toHaveBeenCalledOnce();
   });
 
   it('reconciles a refreshed grant snapshot after a concurrent revocation', () => {

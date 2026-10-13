@@ -41,7 +41,7 @@ describe('restoreMergeTracking', () => {
 
   it('rejects when Convex is not configured instead of pretending to have moved anything', async () => {
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
-    await expect(restoreMergeTracking('op', 'surv', [])).rejects.toThrow('service secret is unset');
+    await expect(restoreMergeTracking('op', 'surv', [])).rejects.toThrow('(convex_not_configured)');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
@@ -51,6 +51,19 @@ it('captures only tracking selections before the SQL merge', async () => {
   fetchSpy.mockResolvedValue(new Response(JSON.stringify({ selections })));
   await expect(snapshotMergeTracking('src')).resolves.toEqual(selections);
   expect(JSON.parse(fetchSpy.mock.calls[0]![1]!.body as string)).toEqual({ sourceUserId: 'src' });
+});
+
+it('refuses a snapshot selection the restore door would reject instead of queueing it', async () => {
+  const restorable = { mapId: 'map', characterId: 123, lastProcessedTransitionAt: 0 };
+  fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ selections: [restorable] })));
+  await expect(snapshotMergeTracking('src')).resolves.toEqual([restorable]);
+
+  fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+    selections: [{ ...restorable, lastProcessedTransitionAt: -1 }],
+  })));
+  const refused = snapshotMergeTracking('src');
+  await expect(refused).rejects.toBeInstanceOf(LocationTrackingMergeError);
+  await expect(refused).rejects.toThrow('/snapshot-merge-tracking returned an invalid contract');
 });
 
 describe('tracking receipt retention service client', () => {

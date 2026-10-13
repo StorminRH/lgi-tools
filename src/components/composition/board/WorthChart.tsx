@@ -2,11 +2,12 @@
 
 import dynamic from 'next/dynamic';
 import { Measured } from '@/components/ui/measured';
-import { Popover, PopoverHeading } from '@/components/ui/popover';
+import { HelpPopover } from '@/components/ui/help-popover';
+import { PopoverHeading } from '@/components/ui/popover';
 import type { SplitDatum } from '@/components/ui/split-axis-chart';
 import type { StackedBand, StackedDatum } from '@/components/ui/stacked-area-chart';
 import { formatIsk } from '@/lib/format/isk';
-import { formatUtcDate } from '@/lib/format/time';
+import { formatUtcDate, stripUtcYear } from '@/lib/format/time';
 import { splitDomains, type WorthPoint, worthChartMode } from './board-view-model';
 
 const StackedAreaChart = dynamic(
@@ -36,15 +37,13 @@ function WorthTooltip({ label, isk, worth }: { label: string; isk: number; worth
   );
 }
 
-const shortDate = (label: string) => label.replace(/ \d{4}$/, '');
-
 /**
  * Net worth over time. When net worth dwarfs ISK the two get their own
  * fitted segments of a broken axis; otherwise ISK and assets stack.
  */
 export function WorthChart({ series, ariaLabel, height = 190 }: { series: readonly WorthPoint[]; ariaLabel: string; height?: number }) {
   if (series.length < 2) return null;
-  const label = (point: WorthPoint) => formatUtcDate(new Date(point.t));
+  const label = (point: WorthPoint) => formatUtcDate(point.t);
   if (worthChartMode(series) === 'broken') {
     const domains = splitDomains(series);
     const data: SplitDatum[] = series.map((point) => ({
@@ -65,7 +64,7 @@ export function WorthChart({ series, ariaLabel, height = 190 }: { series: readon
             width={width}
             height={height}
             formatY={formatIsk}
-            formatTick={shortDate}
+            formatTick={stripUtcYear}
             ariaLabel={ariaLabel}
             renderTooltip={(datum) => <WorthTooltip label={datum.label} isk={datum.lower} worth={datum.upper} />}
           />
@@ -87,7 +86,7 @@ export function WorthChart({ series, ariaLabel, height = 190 }: { series: readon
           width={width}
           height={height}
           formatY={formatIsk}
-          formatTick={shortDate}
+          formatTick={stripUtcYear}
           ariaLabel={ariaLabel}
           renderTooltip={(datum) => {
             const isk = datum.values[0] ?? 0;
@@ -103,11 +102,7 @@ export function WorthChart({ series, ariaLabel, height = 190 }: { series: readon
 /** The (?) beside a net-worth figure: what is and is not counted. */
 function NetWorthHelp() {
   return (
-    <Popover
-      label="About estimated net worth"
-      trigger="?"
-      triggerClassName="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg-deep/60 text-micro font-bold text-muted hover:border-isk-dim hover:text-isk"
-    >
+    <HelpPopover label="About estimated net worth">
       <PopoverHeading>Estimated net worth</PopoverHeading>
       <p className="text-ui leading-snug text-muted">
         Your ISK plus the market value of what your pilots own: items in hangars, ships and their
@@ -118,7 +113,7 @@ function NetWorthHelp() {
         recalculated once a day after prices update, and when you add or remove a pilot.
       </p>
       <p className="text-ui leading-snug text-muted">Not counted: blueprints, SKINs, PLEX in your PLEX vault, and items without a price.</p>
-    </Popover>
+    </HelpPopover>
   );
 }
 

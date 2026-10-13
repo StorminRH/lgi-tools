@@ -4,6 +4,7 @@ import {
   deathWindowFrom,
   intersectOrReset,
   lifetimeDisplay,
+  typedLifetimeWindow,
 } from './connection-lifetime';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -51,6 +52,36 @@ describe('connection lifetime', () => {
       earliestAt: NOW + 2 * HOUR_MS,
       latestAt: NOW + 4 * HOUR_MS,
     });
+  });
+
+  it('ignores an unusable typed lifetime when capping a report', () => {
+    const uncapped = { earliestAt: NOW + 4 * HOUR_MS, latestAt: NOW + 24 * HOUR_MS };
+    expect(deathWindowForReport('under_1_day', NOW, Number.NaN)).toEqual(uncapped);
+    expect(deathWindowForReport('under_1_day', NOW, -60)).toEqual(uncapped);
+    expect(deathWindowForReport('under_1_day', NOW, 0)).toEqual({
+      earliestAt: NOW,
+      latestAt: NOW,
+    });
+  });
+
+  it('anchors the typed lifetime window on first sighting, then on row creation', () => {
+    const migrated = { firstSeenAt: NOW - 2 * HOUR_MS, _creationTime: NOW };
+    expect(typedLifetimeWindow(migrated, 16 * 60)).toEqual({
+      earliestAt: NOW - 2 * HOUR_MS,
+      latestAt: NOW + 14 * HOUR_MS,
+    });
+    expect(typedLifetimeWindow({ firstSeenAt: null, _creationTime: NOW }, 16 * 60)).toEqual({
+      earliestAt: NOW,
+      latestAt: NOW + 16 * HOUR_MS,
+    });
+    expect(typedLifetimeWindow(migrated, 0)).toEqual({
+      earliestAt: NOW - 2 * HOUR_MS,
+      latestAt: NOW - 2 * HOUR_MS,
+    });
+    expect(typedLifetimeWindow(migrated, null)).toBeNull();
+    expect(typedLifetimeWindow(migrated, Number.NaN)).toBeNull();
+    expect(typedLifetimeWindow(migrated, Number.POSITIVE_INFINITY)).toBeNull();
+    expect(typedLifetimeWindow(migrated, -1)).toBeNull();
   });
 
   it('resets a contradictory report instead of wedging the interval', () => {

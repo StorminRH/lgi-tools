@@ -1,44 +1,57 @@
 import { after } from 'next/server';
+import { type EsiStoreKey, isDueFor } from '@/data/esi-store';
+import { sheetDueKeys } from '@/features/character-sheet/keys';
 import { getCharacterSheets, readSheetRow } from '@/features/character-sheet/queries';
-import { getJobsForCharacters, readCharacterJobs, readCharacterJobSyncState } from '@/features/industry-jobs/queries';
-import { getNetWorthHistory, upsertNetWorthDay, utcDay } from '@/features/net-worth/queries';
-import { listCharacterAssetRows, readOwnerAssetRows, readOwnerSyncState } from '@/features/owned-assets/queries';
+import { jobsDueKeys } from '@/features/industry-jobs/keys';
+import { getJobsForCharacters, listCharacterJobSyncStates, readCharacterJobs } from '@/features/industry-jobs/queries';
+import { getNetWorthHistory, upsertNetWorthDay } from '@/features/net-worth/queries';
+import { characterAssetsDueKeys } from '@/features/owned-assets/keys';
+import { listCharacterAssetRows, listCharacterAssetSyncStates, readOwnerAssetRows } from '@/features/owned-assets/queries';
+import { skillsDueKeys } from '@/features/skill-queue/keys';
 import {
-  getSkillLevelsForCharacters,
-  getSkillsForCharacters,
-  readCharacterSkills,
-  readCharacterSkillLevels,
-  readCharacterSyncState,
+  getSkillRowsForCharacters,
+  listCharacterSkillSyncStates,
+  readCharacterSkillRow,
 } from '@/features/skill-queue/queries';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { scopeHolderOf } from '@/platform/auth/scope-health';
+import type { EnumeratedOwner } from '@/platform/owner-sync';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
+import { isoDay } from '@/lib/iso-date';
 import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
 import { refreshJobsOnView } from '@/composition/sync/industry-jobs-sync';
 import { refreshCharacterAssetsOnView } from '@/composition/sync/owned-assets-sync';
+import { charactersWithHealth } from '@/composition/sync/owner-sync-port';
 import { refreshSkillsOnView } from '@/composition/sync/skills-sync';
 import type { BoardResponse } from './api-contract';
-import { assembleBoard, type BoardRaw, collectNameIds, netWorthSnapshot, toHistoryDay } from './board-assemble';
+import {
+  assembleBoard,
+  type BoardRaw,
+  collectNameIds,
+  collectValuationTypeIds,
+  netWorthSnapshot,
+  toHistoryDay,
+} from './board-assemble';
 import { resolveNameBook } from './name-book';
 import { resolveValuationBook, seedUnpricedTypes } from './price-book';
 
 async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<BoardRaw[]> {
   const ids = linked.map((character) => character.characterId);
-  const [sheets, skills, levels, skillStates, jobs, jobStates, assets, assetStates] = await Promise.all([
+  const [sheets, skills, skillStates, jobs, jobStates, assets, assetStates] = await Promise.all([
     fresh ? mapByIdDroppingNulls(ids, readSheetRow) : getCharacterSheets(ids),
-    fresh ? mapByIdDroppingNulls(ids, readCharacterSkills) : getSkillsForCharacters(ids),
-    fresh ? mapByIdDroppingNulls(ids, readCharacterSkillLevels) : getSkillLevelsForCharacters(ids),
-    Promise.all(ids.map((id) => readCharacterSyncState(id))),
+    fresh ? mapByIdDroppingNulls(ids, readCharacterSkillRow) : getSkillRowsForCharacters(ids),
+    listCharacterSkillSyncStates(ids),
     fresh ? mapByIdDroppingNulls(ids, readCharacterJobs) : getJobsForCharacters(ids),
-    Promise.all(ids.map((id) => readCharacterJobSyncState(id))),
+    listCharacterJobSyncStates(ids),
     fresh
       ? mapByIdDroppingNulls(ids, (ownerId) => readOwnerAssetRows({ ownerType: 'character', ownerId }))
       : listCharacterAssetRows(ids),
-    Promise.all(ids.map((id) => readOwnerSyncState({ ownerType: 'character', ownerId: id }))),
+    listCharacterAssetSyncStates(ids),
   ]);
-  return linked.map((character, i) => {
+  return linked.map((character) => {
     const id = character.characterId;
-    const assetsSyncedAt = assetStates[i]?.lastRefreshedAt?.getTime() ?? null;
+    const assetsSyncedAt = assetStates.get(id)?.lastRefreshedAt?.getTime() ?? null;
+    const skillRow = skills.get(id);
     return {
       identity: {
         characterId: id,
@@ -47,19 +60,16 @@ async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<Board
         corporationId: character.corporationId,
         allianceId: character.allianceId,
       },
-      health: {
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth(character).missingScopes,
-      },
+      health: scopeHolderOf(character),
       sheet: sheets.get(id) ?? null,
       skills: {
-        data: skills.get(id) ?? null,
-        levels: levels.get(id) ?? null,
-        refreshedAt: skillStates[i]?.lastRefreshedAt?.getTime() ?? null,
+        data: skillRow?.data ?? null,
+        levels: skillRow?.levels ?? null,
+        refreshedAt: skillStates.get(id)?.lastRefreshedAt?.getTime() ?? null,
       },
       jobs: {
         data: jobs.get(id) ?? null,
-        refreshedAt: jobStates[i]?.lastRefreshedAt?.getTime() ?? null,
+        refreshedAt: jobStates.get(id)?.lastRefreshedAt?.getTime() ?? null,
       },
       assets: {
         rows: assetsSyncedAt === null ? null : (assets.get(id) ?? []),
@@ -81,11 +91,8 @@ export async function recordNetWorthSnapshot(userId: string, now = new Date()): 
   if (linked.length === 0) return;
   // SWR caches can still hold the pre-refresh view here; snapshots must read the completed writes.
   const raws = await readRaws(linked, true);
-  const valuation = await resolveValuationBook(collectNameIds(raws).valuationTypeIds);
-  const snapshot = netWorthSnapshot(raws, {
-    prices: valuation.prices,
-    typeCategories: valuation.categories,
-  }, utcDay(now));
+  const valuation = await resolveValuationBook(collectValuationTypeIds(raws));
+  const snapshot = netWorthSnapshot(raws, valuation, isoDay(now));
   if (snapshot.pilotsIncluded > 0) await upsertNetWorthDay(userId, snapshot, now);
   await seedUnpricedTypes(valuation.unseeded);
 }
@@ -99,6 +106,16 @@ export function refreshBoardDatasets(userId: string): Promise<unknown> {
   ]);
 }
 
+/** The stored answers the four board refreshes would check, so the board says `refreshing` exactly when one of them will reach ESI. */
+function boardDueKeys(owners: readonly EnumeratedOwner[]): EsiStoreKey[] {
+  return [
+    ...skillsDueKeys(owners),
+    ...jobsDueKeys(owners),
+    ...sheetDueKeys(owners),
+    ...characterAssetsDueKeys(owners),
+  ];
+}
+
 /**
  * Serves net worth from the recorded days only: the view refreshes the pilots' datasets behind their
  * freshness gates but never values or records them, so nothing prices on view.
@@ -107,9 +124,10 @@ export async function getBoardForUserOnView(userId: string): Promise<BoardRespon
   const linked = await listLinkedCharacters(userId);
   const raws = await readRaws(linked);
   after(() => refreshBoardDatasets(userId));
-  const [names, history] = await Promise.all([
-    resolveNameBook({ ...collectNameIds(raws), valuationTypeIds: [] }),
+  const [names, history, refreshing] = await Promise.all([
+    resolveNameBook(collectNameIds(raws)),
     getNetWorthHistory(userId),
+    isDueFor(userId, boardDueKeys(charactersWithHealth(linked))),
   ]);
-  return assembleBoard(raws, names, Date.now(), history.map(toHistoryDay));
+  return { ...assembleBoard(raws, names, Date.now(), history.map(toHistoryDay)), refreshing };
 }

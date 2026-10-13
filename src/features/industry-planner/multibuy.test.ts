@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import treesFixture from '@/data/eve-data/__fixtures__/blueprint-trees.json';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import {
   assignBuildTiers,
   buildMultibuyText,
   hasOwnedStock,
   multibuyBuildSet,
   multibuyEntries,
-  pluralCount,
   tierRowsFromTierOf,
 } from './multibuy';
 
@@ -167,12 +166,9 @@ describe('multibuyBuildSet', () => {
 });
 
 describe('clipboard helpers', () => {
-  it('flags owned stock and pluralizes the entry / tier counts', () => {
+  it('flags owned stock', () => {
     expect(hasOwnedStock(null)).toBe(false);
     expect(hasOwnedStock(new Map())).toBe(false);
     expect(hasOwnedStock(new Map([[1, 5]]))).toBe(true);
-    expect(pluralCount(1, 'item', 'items')).toBe('1 item');
-    expect(pluralCount(0, 'item', 'items')).toBe('0 items');
-    expect(pluralCount(3, 'type', 'types')).toBe('3 types');
   });
 });

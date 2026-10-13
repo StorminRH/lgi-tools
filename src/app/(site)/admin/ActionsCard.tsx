@@ -2,11 +2,11 @@ import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
+import { CardLink } from '@/components/ui/text-link';
 import { getSystemStatics } from '@/data/wh-statics/queries';
 import { deriveActionRows, type AdminActionRow, type StaticsVersions } from './actions-view';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { getEsiRefreshQueueStatsShared, getStaticsSummaryShared } from './shared-reads';
-import { summarizeQueue } from './signals';
+import { getStaticsSummaryShared } from './shared-reads';
 
 const REFERENCE_LINKS = [
   { href: '/preview/primitives', label: 'Primitives' },
@@ -40,9 +40,7 @@ function ReferenceTile() {
       <span className="font-ui text-ui text-text">UI reference</span>
       <span className="mt-auto flex flex-wrap gap-x-3 gap-y-1 font-ui text-label">
         {REFERENCE_LINKS.map((link) => (
-          <Link key={link.href} href={link.href} className="text-isk no-underline transition-colors hover:text-name">
-            {link.label} ↗
-          </Link>
+          <CardLink key={link.href} href={link.href} arrow="↗">{link.label}</CardLink>
         ))}
       </span>
     </li>
@@ -59,14 +57,8 @@ async function loadStaticsVersions(): Promise<StaticsVersions> {
  * whose source failed says so and still links to its page.
  */
 export async function loadActionRows(): Promise<AdminActionRow[]> {
-  const [statics, queue] = await Promise.all([
-    loadSection('admin-actions.statics', loadStaticsVersions),
-    loadSection('admin-actions.queue', async () => summarizeQueue(await getEsiRefreshQueueStatsShared(), new Date())),
-  ]);
-  return deriveActionRows({
-    statics: statics === SECTION_LOAD_FAILED ? null : statics,
-    queue: queue === SECTION_LOAD_FAILED ? null : queue,
-  });
+  const statics = await loadSection('admin-actions.statics', loadStaticsVersions);
+  return deriveActionRows({ statics: statics === SECTION_LOAD_FAILED ? null : statics });
 }
 
 export function ActionTiles({ rows }: { rows: AdminActionRow[] }) {

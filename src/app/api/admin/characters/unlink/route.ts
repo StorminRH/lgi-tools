@@ -1,23 +1,19 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
-import { logUsageEvent } from '@/data/telemetry/queries';
-import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/transport/api-response';
-import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
+import { emitUsageEvent } from '@/data/telemetry/usage-events';
+import {
+  conflictFailure,
+  notFoundFailure,
+  validationFailure,
+  type AppFailure,
+} from '@/lib/failure';
+import { seeOther } from '@/transport/api-response';
+import { adminUnlinkFormSchema, type CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
-import {
-  accountBelongsToUser,
-  listLinkedCharacters,
-} from '@/platform/auth/linked-characters';
+import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deleteLinkedCharacter } from '@/platform/auth/admin-users';
-
-function redirectTo(request: NextRequest, userId: string, error?: string): Response {
-  const url = new URL(`/admin/users/${userId}`, request.url);
-  if (error) url.searchParams.set('error', error);
-  return Response.redirect(url, 303);
-}
 
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
@@ -25,33 +21,26 @@ export async function POST(request: NextRequest): Promise<Response> {
     capability: 'admin.unlink-character',
     authorize: checkAdmin,
     parse: (incoming) =>
-      parseFormBody(
-        incoming,
-        adminUnlinkFormSchema,
-        (form) => ({ userId: form.get('userId'), characterId: form.get('characterId') }),
-        () => validationFailure('invalid_form_field', 'Invalid form'),
-      ),
+      parseFormBody(incoming, adminUnlinkFormSchema, ['userId', 'characterId']),
     handle: async ({ session }, { userId, characterId }) => {
-      if (!(await accountBelongsToUser(userId, characterId))) {
-        return problemResponse(
-          notFoundFailure(
-            'not_linked',
-            'Character not linked to that user',
-          ),
-        );
-      }
+      const userPage = `/admin/users/${userId}`;
+      const notice = (error: CharacterLinkNotice, failure: AppFailure) =>
+        seeOther(request, userPage, { query: { error }, failure });
 
       const linked = await listLinkedCharacters(userId);
+      if (!linked.some((c) => c.characterId === characterId)) {
+        return notice('not_linked', notFoundFailure('not_linked', 'Character not linked to that user'));
+      }
       if (linked.length <= 1) {
-        return redirectTo(request, userId, 'last_character');
+        return notice('last_character', validationFailure('last_character'));
       }
 
       const removed = await deleteLinkedCharacter(userId, characterId, identityProjectionRunners);
       if (!removed) {
-        return redirectTo(request, userId, 'unlink_failed');
+        return notice('unlink_failed', conflictFailure('unlink_failed'));
       }
 
-      void logUsageEvent({
+      emitUsageEvent('admin/characters/unlink', {
         action: 'admin_character_unlink',
         characterId: session.characterId,
         metadata: {
@@ -59,9 +48,9 @@ export async function POST(request: NextRequest): Promise<Response> {
           targetUserId: userId,
           characterId,
         },
-      }).catch((err) => console.error('[admin/characters/unlink] telemetry write failed', err));
+      });
 
-      return redirectTo(request, userId);
+      return seeOther(request, userPage);
     },
   });
 }

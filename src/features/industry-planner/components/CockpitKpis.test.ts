@@ -4,13 +4,19 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import type { BlueprintStructure } from '../types';
 
-const h = vi.hoisted(() => ({ locationFailed: false, feesPending: false, retryLocation: vi.fn(), pricing: null as unknown }));
+const h = vi.hoisted(() => ({
+  locationFailed: false,
+  feesPending: false,
+  retryLocation: vi.fn(),
+  pricing: null as unknown,
+  marginMode: 'net' as 'net' | 'gross',
+}));
 
 vi.mock('@/components/use-system-search', () => ({ useSystemName: () => undefined }));
 vi.mock('./MarketScorePanel', () => ({ MarketScorePanel: () => null }));
 vi.mock('./planner-contexts', () => ({
   useMarketData: () => ({ pricing: h.pricing, seeded: true, refreshing: false }),
-  usePlannerConfig: () => ({ runs: 1, costBasis: 'marginal', setCostBasis: vi.fn() }),
+  usePlannerConfig: () => ({ runs: 1, costBasis: 'marginal', setCostBasis: vi.fn(), marginMode: h.marginMode, setMarginMode: vi.fn() }),
   useBuildPlan: () => ({
     buildTimes: { topJob: null, totalProduction: null, topTe: 0, breakdown: [] },
     skillTimeFactors: { skillTimeFactorOf: () => 1, active: false },
@@ -31,13 +37,13 @@ vi.mock('./planner-contexts', () => ({
 import { CockpitKpis } from './CockpitKpis';
 
 const structure = { blueprintTypeId: 100, activityId: MANUFACTURING_ACTIVITY } as unknown as BlueprintStructure;
-const render = () =>
-  renderToStaticMarkup(createElement(CockpitKpis, { structure, marginMode: 'net', setMarginMode: vi.fn() }));
+const render = () => renderToStaticMarkup(createElement(CockpitKpis, { structure }));
 
 beforeEach(() => {
   h.locationFailed = false;
   h.feesPending = false;
   h.pricing = null;
+  h.marginMode = 'net';
 });
 
 const fee = (missingAdjustedPriceTypeIds: number[]) => ({
@@ -102,4 +108,24 @@ test('a net margin waiting on new fees is marked as updating', () => {
   h.feesPending = true;
   expect(render()).toContain('>Net margin<');
   expect(figure()).toContain('price-pending');
+});
+
+test('the margin tile follows the planner-wide margin mode', () => {
+  h.pricing = priced([]);
+  expect(render()).toContain('>Net margin<');
+  h.marginMode = 'gross';
+  const html = render();
+  expect(html).toContain('>Gross margin<');
+  expect(html).not.toContain('+300.00');
+});
+
+test('a loss-making margin carries a true minus, the same glyph the wallet journal uses', () => {
+  const loss = priced([]);
+  h.pricing = { ...loss, net: { ...loss.net, netMargin: -1_250_000, netMarginPct: -12.5 } };
+  const html = render();
+  expect(html).toMatch(/<span[^>]*>−1\.25M<\/span>/);
+  expect(html).not.toContain('-1.25M');
+  // The percentage beside it uses the same minus, so one tile never shows two glyphs.
+  expect(html).toContain('(−12.5%)');
+  expect(html).not.toContain('(-12.5%)');
 });

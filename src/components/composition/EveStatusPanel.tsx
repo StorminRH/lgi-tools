@@ -1,15 +1,7 @@
 import type { EveStatusSection } from '@/components/composition/server-status-presentation';
+import { levelValueClass } from '@/components/status-level-tone';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { StatusLevel } from '@/data/telemetry/health-metrics';
-
-// Healthy values stay plain so only problems draw the eye.
-const LEVEL_CLASS: Record<StatusLevel, string | undefined> = {
-  green: undefined,
-  amber: 'text-tone-orange',
-  red: 'text-tone-red',
-  neutral: 'text-muted',
-};
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 
 /** Tranquility, ESI and the static data LGI runs on, one block each. */
 export function EveStatusPanel({ sections }: { sections: EveStatusSection[] }) {
@@ -18,7 +10,8 @@ export function EveStatusPanel({ sections }: { sections: EveStatusSection[] }) {
       <PopoverHeading>{section.heading}</PopoverHeading>
       {section.rows.map((row) => (
         <PopoverRow key={row.label} label={row.label}>
-          <span className={LEVEL_CLASS[row.level]}>{row.value}</span>
+          {/* A healthy value inherits the row's plain colour; only problems draw the eye. */}
+          <span className={levelValueClass(row.level)}>{row.value}</span>
         </PopoverRow>
       ))}
     </section>
@@ -27,11 +20,11 @@ export function EveStatusPanel({ sections }: { sections: EveStatusSection[] }) {
 
 export function EveStatusPanelFallback() {
   return (
-    <div className="flex flex-col gap-2">
-      <Skeleton label="Loading EVE status" className="h-3 w-24" />
+    <SkeletonGroup label="Loading EVE status" className="flex flex-col gap-2">
+      <Skeleton className="h-3 w-24" />
       {[0, 1, 2, 3].map((row) => (
-        <Skeleton key={row} aria-hidden className="h-3 w-full" />
+        <Skeleton key={row} className="h-3 w-full" />
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

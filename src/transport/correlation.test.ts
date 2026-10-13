@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { conflictFailure, forbiddenFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
 import { addDependencyTiming } from '@/lib/dependency-timing';
@@ -6,13 +6,25 @@ import { problemResponse } from './api-response';
 import {
   currentCorrelationId,
   currentDependencyTimings,
+  currentDependencyWallMs,
   currentStashedFailure,
   stashFailure,
   withCorrelationScope,
 } from './correlation';
 
+/** Pins the clock each recorded call reads as its end. */
+function clockAt(...ends: number[]): void {
+  const spy = vi.spyOn(performance, 'now');
+  for (const end of ends) spy.mockReturnValueOnce(end);
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('correlation scope', () => {
   it('gives concurrent scopes independent ids, timings, and failure stashes', async () => {
+    clockAt(1_000, 1_000);
     const observe = (kind: 'neon' | 'esi', ms: number) =>
       withCorrelationScope(async () => {
         const id = currentCorrelationId();
@@ -33,13 +45,14 @@ describe('correlation scope', () => {
     expect(first.id).not.toBe(second.id);
     expect(first.idAfterAwait).toBe(first.id);
     expect(second.idAfterAwait).toBe(second.id);
-    expect(first.dependencies).toEqual({ neon: { ms: 12, calls: 1 } });
-    expect(second.dependencies).toEqual({ esi: { ms: 30, calls: 1 } });
+    expect(first.dependencies).toEqual({ neon: { ms: 12, calls: 1, wallMs: 12 } });
+    expect(second.dependencies).toEqual({ esi: { ms: 30, calls: 1, wallMs: 30 } });
     expect(first.failure).toEqual({ category: 'conflict', code: 'template_limit' });
     expect(second.failure).toEqual({ category: 'forbidden', code: 'forbidden' });
   });
 
   it('accumulates repeated calls to one dependency kind', async () => {
+    clockAt(100, 200, 300);
     const timings = await withCorrelationScope(async () => {
       addDependencyTiming('neon', 5);
       addDependencyTiming('neon', 7);
@@ -47,7 +60,60 @@ describe('correlation scope', () => {
       return { ...currentDependencyTimings() };
     });
 
-    expect(timings).toEqual({ neon: { ms: 12, calls: 2 }, redis: { ms: 2, calls: 1 } });
+    expect(timings).toEqual({
+      neon: { ms: 12, calls: 2, wallMs: 12 },
+      redis: { ms: 2, calls: 1, wallMs: 2 },
+    });
+  });
+
+  it('counts overlapping calls once in wall time but in full in summed time', async () => {
+    // ESI calls ending at 100 and 150 cover 0-150; the Redis call ending at
+    // 160 covers 60-160, so together the run waited 0-160, not 250 ms.
+    clockAt(100, 150, 160);
+    const { timings, wallMs } = await withCorrelationScope(async () => {
+      addDependencyTiming('esi', 100);
+      addDependencyTiming('esi', 100);
+      addDependencyTiming('redis', 100);
+      return { timings: currentDependencyTimings(), wallMs: currentDependencyWallMs() };
+    });
+
+    expect(timings.esi).toEqual({ ms: 200, calls: 2, wallMs: 150 });
+    expect(timings.redis).toEqual({ ms: 100, calls: 1, wallMs: 100 });
+    expect(wallMs).toBe(160);
+  });
+
+  it('counts calls answered with a 4xx status, leaving rate limiting to its own outcome', async () => {
+    clockAt(10, 20, 30, 40, 50, 60, 70);
+    const timings = await withCorrelationScope(async () => {
+      addDependencyTiming('esi', 1, { status: 200 });
+      addDependencyTiming('esi', 1, { status: 404 });
+      addDependencyTiming('esi', 1, { status: 400 });
+      addDependencyTiming('esi', 1, { status: 420 });
+      addDependencyTiming('esi', 1, { status: 429 });
+      addDependencyTiming('esi', 1, { status: 503 });
+      addDependencyTiming('esi', 1);
+      return currentDependencyTimings();
+    });
+
+    expect(timings.esi).toEqual({ ms: 7, calls: 7, wallMs: 7, status4xx: 2 });
+  });
+
+  it('returns a snapshot that later calls do not change', async () => {
+    clockAt(10, 20);
+    const { snapshot, later } = await withCorrelationScope(async () => {
+      addDependencyTiming('neon', 5);
+      const taken = currentDependencyTimings();
+      addDependencyTiming('neon', 5);
+      return { snapshot: taken, later: currentDependencyTimings() };
+    });
+
+    expect(snapshot.neon).toEqual({ ms: 5, calls: 1, wallMs: 5 });
+    expect(later.neon).toEqual({ ms: 10, calls: 2, wallMs: 10 });
+  });
+
+  it('reports zero wall time when nothing was timed', async () => {
+    expect(await withCorrelationScope(async () => currentDependencyWallMs())).toBe(0);
+    expect(currentDependencyWallMs()).toBe(0);
   });
 
   it('mints a fresh id and reports no timings outside any scope', () => {

@@ -13,6 +13,9 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'maps.resolve-jump',
+    // The client gives up after 15 s and shows the failure, so it still counts.
+    recordAbortedFailures: true,
+    endpoint: jumpResolverEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, jumpResolverRequestSchema),
     handle: async ({ userId }, body) =>

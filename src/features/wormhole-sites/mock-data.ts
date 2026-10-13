@@ -1,3 +1,4 @@
+import { waveEwar } from './ewar';
 import type { Npc, SiteDetail, SiteResource, Wave } from './types';
 
 let nextId = 1;
@@ -40,7 +41,7 @@ function npc(
     sleeperClassCode: cls,
     scram: scram ? 1 : null,
     web: web ? 1 : null,
-    neut: neut ? 1 : null,
+    neut: neut ? -1 : null,
     rrep: rr ? 1 : null,
     sig: null,
     speed: null,
@@ -58,23 +59,11 @@ function wave(
   dpsTotal: number,
   npcs: Npc[],
 ): Wave {
-  const ew = npcs.reduce(
-    (acc, n) => ({
-      web:   acc.web   + (n.web   ?? 0),
-      scram: acc.scram + (n.scram ?? 0),
-      neut:  acc.neut  + (n.neut  ?? 0),
-      rr:    acc.rr    + (n.rrep  ?? 0),
-    }),
-    { web: 0, scram: 0, neut: 0, rr: 0 },
-  );
   return {
     id: id(),
     waveNumber,
     waveLabel: label,
-    ewWeb:   ew.web   || null,
-    ewScram: ew.scram || null,
-    ewNeut:  ew.neut  || null,
-    ewRrep:  ew.rr    || null,
+    ...waveEwar(npcs),
     dpsTotal,
     alphaTotal: 0,
     ehpTotal: npcs.reduce((total, npc) => total + (npc.ehp ?? 0) * npc.quantity, 0),

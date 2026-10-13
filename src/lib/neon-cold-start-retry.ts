@@ -1,3 +1,7 @@
+import { bestEffort } from '@/lib/best-effort';
+import { isTimeoutError } from '@/lib/error-chain';
+import { sleep } from '@/lib/retry';
+
 const MAX_ATTEMPTS = 4;
 const BASE_DELAY_MS = 500;
 const MAX_CHAIN_DEPTH = 10;
@@ -20,19 +24,21 @@ export function configureNeonColdStartMetricSink(
 
 async function emitMetric(metric: NeonColdStartMetric): Promise<void> {
   if (!metricSink) return;
-  try {
-    await metricSink(metric);
-  } catch (error) {
-    console.error('[neon-cold-start-retry] telemetry write failed', error);
-  }
+  const sink = metricSink;
+  await bestEffort('neon-cold-start-retry', 'telemetry write', null, async () => sink(metric));
+}
+
+function isRetryable(error: unknown, retryTimeouts: boolean): boolean {
+  return isNeonColdStartError(error) || (retryTimeouts && isTimeoutError(error));
 }
 
 async function retryDelayFor(
   error: unknown,
   attempt: number,
   totalDelayMs: number,
+  retryTimeouts: boolean,
 ): Promise<number> {
-  if (!isNeonColdStartError(error)) throw error;
+  if (!isRetryable(error, retryTimeouts)) throw error;
   if (attempt >= MAX_ATTEMPTS) {
     await emitMetric({ outcome: 'exhausted', attempts: attempt, totalDelayMs });
     throw error;
@@ -40,37 +46,21 @@ async function retryDelayFor(
   return BASE_DELAY_MS * 2 ** (attempt - 1);
 }
 
-const MAX_TIMEOUT_SEARCH_NODES = 16;
-
-export function hasTimeoutAbort(err: unknown): boolean {
-  const pending: unknown[] = [err];
-  for (let visited = 0; visited < MAX_TIMEOUT_SEARCH_NODES && visited < pending.length; visited++) {
-    const node = pending[visited];
-    if (node == null) continue;
-    if ((node as { name?: unknown }).name === 'TimeoutError') return true;
-    const { cause, sourceError } = node as { cause?: unknown; sourceError?: unknown };
-    if (cause != null) pending.push(cause);
-    if (sourceError != null) pending.push(sourceError);
-  }
-  return false;
-}
-
-export async function pauseBeforeRetry(
+async function pauseBeforeRetry(
   label: string,
   attempt: number,
-  maxAttempts: number,
   err: unknown,
   delayMs: number,
 ): Promise<void> {
   const summary = err instanceof Error ? err.message.split('\n')[0] : String(err);
   console.warn(
-    `[${label}] attempt ${attempt}/${maxAttempts} failed (${summary}); retrying in ${delayMs}ms`,
+    `[${label}] attempt ${attempt}/${MAX_ATTEMPTS} failed (${summary}); retrying in ${delayMs}ms`,
   );
-  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  await sleep(delayMs);
 }
 
 export function isNeonColdStartError(err: unknown): boolean {
-  if (hasTimeoutAbort(err)) return false;
+  if (isTimeoutError(err)) return false;
   let node: unknown = err;
   for (let depth = 0; depth < MAX_CHAIN_DEPTH && node instanceof Error; depth++) {
     if (node.name === 'NeonDbError') {
@@ -90,7 +80,16 @@ export function isNeonColdStartError(err: unknown): boolean {
   return false;
 }
 
-export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> {
+/**
+ * Runs a read, retrying a Neon cold start up to 4 attempts on a 500ms, 1s,
+ * 2s backoff. A timeout abort fails at once unless `retryTimeouts` is set;
+ * `label` tags each attempt's warn line.
+ */
+export async function withColdStartRetry<T>(
+  read: () => Promise<T>,
+  options: { readonly label?: string; readonly retryTimeouts?: boolean } = {},
+): Promise<T> {
+  const { label = 'neon-cold-start-retry', retryTimeouts = false } = options;
   let totalDelayMs = 0;
   for (let attempt = 1; ; attempt++) {
     try {
@@ -100,9 +99,9 @@ export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> 
       }
       return result;
     } catch (err) {
-      const delayMs = await retryDelayFor(err, attempt, totalDelayMs);
+      const delayMs = await retryDelayFor(err, attempt, totalDelayMs, retryTimeouts);
       totalDelayMs += delayMs;
-      await pauseBeforeRetry('neon-cold-start-retry', attempt, MAX_ATTEMPTS, err, delayMs);
+      await pauseBeforeRetry(label, attempt, err, delayMs);
     }
   }
 }

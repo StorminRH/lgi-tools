@@ -34,14 +34,26 @@ export const ALL_ACTIVITY_NAMES = [
 ] as const;
 export type ActivityName = (typeof ALL_ACTIVITY_NAMES)[number];
 
-export const ACTIVITY_ID_LABEL: Record<number, string> = {
-  1: 'Manufacturing',
-  3: 'TE Research',
-  4: 'ME Research',
-  5: 'Copying',
-  8: 'Invention',
-  11: 'Reaction',
+/**
+ * Live ESI still reports some reaction jobs under activity 9, the reaction id
+ * the SDE retired in favour of 11. The SDE-fed planner never sees it.
+ */
+export const LEGACY_REACTION_ACTIVITY_ID = 9;
+
+const ACTIVITY_ID_LABEL: Record<number, string> = {
+  [ACTIVITY_NAME_TO_ID.manufacturing]: 'Manufacturing',
+  [ACTIVITY_NAME_TO_ID.research_time]: 'TE Research',
+  [ACTIVITY_NAME_TO_ID.research_material]: 'ME Research',
+  [ACTIVITY_NAME_TO_ID.copying]: 'Copying',
+  [ACTIVITY_NAME_TO_ID.invention]: 'Invention',
+  [LEGACY_REACTION_ACTIVITY_ID]: 'Reaction',
+  [ACTIVITY_NAME_TO_ID.reaction]: 'Reaction',
 };
+
+/** The display name of an industry activity id, or 'Industry' for one we do not name. */
+export function activityLabel(activityId: number): string {
+  return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
+}
 
 /**
  * The only activities the resolver + planner walk: 1 = manufacturing,
@@ -63,12 +75,15 @@ export const INDUSTRY_ACTIVITY_NAMES = ['manufacturing', 'reaction'] as const;
  */
 export const REFERENCE_BLUEPRINT_TYPE_IDS = [691, 24699, 23758] as const;
 
-export const ADVISORY_LOCK_SDE_INGEST = BigInt(8273619013);
-
 export const SDE_META_KEY_VERSION = 'sde_version';
+/** The newest SDE build CCP had published when the refresh-sde cron last looked. */
+export const SDE_META_KEY_LATEST_PUBLISHED = 'sde_latest_published';
 export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 
 export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
+
+/** The Forge, Jita's region, whose market the price and history reads follow. */
+export const THE_FORGE_REGION_ID = 10_000_002;
 
 export const SDE_ENGINEERING_COMPLEX_GROUP_ID = 1404;
 export const SDE_REFINERY_GROUP_ID = 1406;
@@ -100,4 +115,7 @@ export const DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL = 1982;
  */
 export const SDE_CAPITAL_SHIPYARD_TYPE_ID = 35881;
 
-export const BLUEPRINT_STRUCTURE_TAG = 'blueprint-structure';
+/** Every cache derived from SDE tables; the refresh-sde cron revalidates it after a re-ingest. */
+export const SDE_CACHE_TAG = 'sde';
+/** The cached SDE version read alone; the cron revalidates it when it sees a newer build. */
+export const SDE_VERSION_CACHE_TAG = 'sde-version';

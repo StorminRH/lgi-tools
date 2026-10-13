@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { problemBodySchema } from '@/lib/problem';
 import {
-  fetchEnumeratedCharacters,
+  type AppFailure,
+  conflictFailure,
+  dependencyUnavailableFailure,
+  notFoundFailure,
+  unauthenticatedFailure,
+  unexpectedFailure,
+} from '@/lib/failure';
+import { problemBody, serializeProblem } from '@/lib/problem';
+import {
+  requireSyncEnv,
   resolveExpiresAt,
   vendCharacterToken,
 } from './characterSync';
@@ -10,18 +18,6 @@ const NOW = 1_700_000_000_000;
 const FALLBACK = 60_000;
 
 const ENV = { siteUrl: 'https://app.test', secret: 'service-secret' };
-
-const problemResponse = (code: string, status: number) =>
-  Response.json(
-    problemBodySchema.parse({
-      type: `https://lgi.tools/problems/${code}`,
-      title: 'Request failed',
-      status,
-      code,
-      correlationId: 'correlation-id',
-    }),
-    { status },
-  );
 
 const stubFetch = (response: Response | Error) => {
   const mock =
@@ -33,7 +29,40 @@ const stubFetch = (response: Response | Error) => {
 };
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+});
+
+describe('requireSyncEnv', () => {
+  it('reads SITE_URL as an origin so a trailing slash still vends at a single-slash path', async () => {
+    vi.stubEnv('SITE_URL', 'https://app.test/');
+    vi.stubEnv('CONVEX_SERVICE_SECRET', 'service-secret');
+    const fetchMock = stubFetch(Response.json({ accessToken: 'fresh-token', expiresAt: NOW }));
+
+    const env = requireSyncEnv();
+
+    expect(env).toEqual({ siteUrl: 'https://app.test', secret: 'service-secret' });
+    await expect(vendCharacterToken(env, 'user-1', 90000001)).resolves.toMatchObject({
+      kind: 'token',
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://app.test/api/internal/eve-token',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it.each([
+    ['an empty SITE_URL', '', 'service-secret'],
+    ['a plain-HTTP SITE_URL off loopback', 'http://app.test', 'service-secret'],
+    ['an empty service secret', 'https://app.test', ''],
+  ])('refuses %s instead of vending to it', (_case, siteUrl, secret) => {
+    vi.stubEnv('SITE_URL', siteUrl);
+    vi.stubEnv('CONVEX_SERVICE_SECRET', secret);
+
+    expect(() => requireSyncEnv()).toThrowError(
+      'SITE_URL and CONVEX_SERVICE_SECRET must be set on this Convex deployment',
+    );
+  });
 });
 
 describe('vendCharacterToken', () => {
@@ -58,7 +87,7 @@ describe('vendCharacterToken', () => {
   });
 
   it('maps 404 to a silent skip', async () => {
-    stubFetch(problemResponse('not_found', 404));
+    stubFetch(serializeProblem(problemBody(notFoundFailure(), 'correlation-id')));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).resolves.toEqual({
       kind: 'skip',
@@ -66,15 +95,19 @@ describe('vendCharacterToken', () => {
   });
 
   it('maps 409 to a reauth requirement', async () => {
-    stubFetch(problemResponse('reauth_required', 409));
+    stubFetch(serializeProblem(problemBody(conflictFailure('reauth_required'), 'correlation-id')));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).resolves.toEqual({
       kind: 'reauth',
     });
   });
 
-  it.each([401, 500, 502])('maps other non-success status %i to unavailable', async (status) => {
-    stubFetch(problemResponse(status === 502 ? 'upstream_error' : 'unauthenticated', status));
+  it.each<[number, AppFailure]>([
+    [401, unauthenticatedFailure()],
+    [500, unexpectedFailure('not_configured')],
+    [502, dependencyUnavailableFailure('upstream_error', 502)],
+  ])('maps other non-success status %i to unavailable', async (_status, failure) => {
+    stubFetch(serializeProblem(problemBody(failure, 'correlation-id')));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).resolves.toEqual({
       kind: 'unavailable',
@@ -101,62 +134,6 @@ describe('vendCharacterToken', () => {
     stubFetch(new TypeError('Failed to fetch'));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).rejects.toThrowError(
-      'Failed to fetch',
-    );
-  });
-});
-
-describe('fetchEnumeratedCharacters', () => {
-  const character = {
-    characterId: 90000001,
-    name: 'Pilot',
-    hasRefreshToken: true,
-    missingScopes: [],
-    corporationId: 98000001,
-  };
-
-  it('returns the enumerated characters with service auth applied', async () => {
-    const fetchMock = stubFetch(Response.json({ characters: [character] }));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).resolves.toEqual([character]);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://app.test/api/internal/eve-characters',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ userId: 'user-1' }),
-        headers: expect.objectContaining({ Authorization: 'Bearer service-secret' }),
-      }),
-    );
-  });
-
-  it('throws on a declared failure status so the retrier retries', async () => {
-    stubFetch(problemResponse('unauthenticated', 401));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
-      'eve-characters returned 401',
-    );
-  });
-
-  it('throws on an undeclared status', async () => {
-    stubFetch(new Response('gateway timeout', { status: 504 }));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
-      'eve-characters response failed its contract',
-    );
-  });
-
-  it('throws on a drifted success body instead of propagating garbage', async () => {
-    stubFetch(Response.json({ characters: [{ characterId: 'not-a-number' }] }));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
-      'eve-characters response failed its contract',
-    );
-  });
-
-  it('rethrows a transport rejection unchanged', async () => {
-    stubFetch(new TypeError('Failed to fetch'));
-
-    await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(
       'Failed to fetch',
     );
   });

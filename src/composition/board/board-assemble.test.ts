@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { SectionEnvelope, SheetSections } from '@/features/character-sheet/types';
+import { industryJob } from '@/features/industry-jobs/__tests__/job-fixture';
 import { BOARD_GAPS, type BoardCharacter, type BoardHistoryDay } from './api-contract';
 import {
   assembleBoard,
   assembleBoardCharacter,
   type BoardRaw,
   collectNameIds,
+  collectValuationTypeIds,
   type NameBook,
   netWorthSnapshot,
   toHistoryDay,
+  type Valuation,
 } from './board-assemble';
 
 const NOW = Date.parse('2026-09-27T12:00:00Z');
@@ -17,7 +20,7 @@ const REFRESHED = '2026-09-27T11:58:00.000Z';
 const REFRESHED_MS = Date.parse(REFRESHED);
 
 const envelope = <K extends keyof SheetSections>(data: NonNullable<SheetSections[K]>['data']): SectionEnvelope<K> =>
-  ({ data, refreshedAt: REFRESHED, etags: {} }) as SectionEnvelope<K>;
+  ({ data, refreshedAt: REFRESHED }) as SectionEnvelope<K>;
 
 const FULL_SHEET: SheetSections = {
   profile: envelope<'profile'>({ character: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.31 } }),
@@ -84,6 +87,9 @@ const NAMES: NameBook = {
   npcStations: new Map([[60003760, { name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', systemId: 30000142 }]]),
   entities: { '1000035': 'Caldari Navy' },
   skillCatalog: [{ groupId: 257, name: 'Spaceship Command', skills: [{ typeId: 3327, name: 'Spaceship Command', rank: 1 }] }],
+};
+
+const VALUATION: Valuation = {
   prices: new Map([
     [34, { jitaMid: 4, average: 3.5 }],
     [29984, { jitaMid: 228_000_000, average: 224_000_000 }],
@@ -94,7 +100,7 @@ const NAMES: NameBook = {
     [44992, { jitaMid: 1, average: 4_690_000 }],
     [787, { jitaMid: 2_000_000, average: 2_900_000 }],
   ]),
-  typeCategories: new Map([[34, 4], [29984, 6], [10217, 20], [10222, 20], [10216, 20], [10208, 20], [44992, 5], [787, 9]]),
+  categories: new Map([[34, 4], [29984, 6], [10217, 20], [10222, 20], [10216, 20], [10208, 20], [44992, 5], [787, 9]]),
 };
 
 const ASSET_ROWS = [
@@ -134,15 +140,15 @@ const states = (character: BoardCharacter) =>
   Object.fromEntries(SECTION_KEYS.map((key) => [key, character[key].state]));
 
 it('excludes denied active implants from name lookup and valuation while keeping jump-clone implants', () => {
-  const ids = collectNameIds([raw({ sheet: {
+  const denied = [raw({ sheet: {
     ...FULL_SHEET,
     implants: { ...envelope<'implants'>({ implants: [10222, 10217] }), denied: true },
-  } })]);
+  } })];
+  const ids = collectNameIds(denied);
   expect(ids.typeIds).not.toContain(10222);
   expect(ids.typeIds).not.toContain(10217);
-  expect(ids.valuationTypeIds).not.toContain(10222);
-  expect(ids.valuationTypeIds).not.toContain(10217);
   expect(ids.typeIds).toEqual(expect.arrayContaining([10216, 10208]));
+  expect(collectValuationTypeIds(denied)).toEqual([34, 787, 10208, 10216, 29984, 44992]);
 });
 
 describe('assembleBoardCharacter section states', () => {
@@ -189,7 +195,7 @@ describe('assembleBoardCharacter section states', () => {
     const sheet: SheetSections = {
       ...FULL_SHEET,
       wallet: { ...FULL_SHEET.wallet!, denied: true },
-      implants: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
+      implants: { data: null, refreshedAt: REFRESHED, denied: true },
     };
     const character = assembleBoardCharacter(raw({ sheet }), NAMES, NOW);
     expect(character.wallet).toEqual({ state: 'reconnect' });
@@ -362,11 +368,27 @@ describe('assembleBoardCharacter ready data', () => {
       data: { active: 1, ready: 1, slots: { used: 2, max: 7 } },
     });
   });
+
+  it('counts used slots by the shared slot rule: a repeated job_id or an activity outside the slot categories holds no slot', () => {
+    const job = (jobId: number, activityId: number) => industryJob({
+      job_id: jobId,
+      activity_id: activityId,
+      status: 'active',
+      end_date: new Date(NOW + HOUR).toISOString(),
+    });
+    const jobs = [job(1, 1), job(1, 1), job(4, 7), job(5, 9)];
+    const { industry } = assembleBoardCharacter(
+      raw({ jobs: { data: { jobs }, refreshedAt: REFRESHED_MS } }),
+      NAMES,
+      NOW,
+    );
+    expect(industry).toMatchObject({ state: 'ready', data: { slots: { used: 2, max: 7 } } });
+  });
 });
 
 describe('net worth valuation', () => {
   const TOTAL = 3204115882.15 + 274_400_000 + 448_000_000 + 1_750 + 216_000_000;
-  const pilotOf = (raws: BoardRaw[]) => netWorthSnapshot(raws, NAMES, '2026-09-27').pilots;
+  const pilotOf = (raws: BoardRaw[]) => netWorthSnapshot(raws, VALUATION, '2026-09-27').pilots;
 
   it('values wallet, assets, sell orders, escrow and implants from stored holdings and prices', () => {
     expect(pilotOf([raw()])).toEqual({ '9900000001': { netWorth: TOTAL, liquidIsk: 3204115882.15 } });
@@ -382,8 +404,8 @@ describe('net worth valuation', () => {
   it('counts a synced empty hangar and adds nothing from denied implants or orders', () => {
     const sheet: SheetSections = {
       ...FULL_SHEET,
-      implants: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
-      orders: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
+      implants: { data: null, refreshedAt: REFRESHED, denied: true },
+      orders: { data: null, refreshedAt: REFRESHED, denied: true },
     };
     expect(pilotOf([raw({ sheet, assets: { rows: [], refreshedAt: REFRESHED_MS } })])).toEqual({
       '9900000001': { netWorth: 3204115882.15 + 36_000_000, liquidIsk: 3204115882.15 },
@@ -419,7 +441,7 @@ describe('assembleBoardCharacter net worth', () => {
     const character = assembleBoardCharacter(raw({ health }), NAMES, NOW);
     expect(character.netWorth).toEqual({ state: 'reconnect' });
     expect(character.gaps).toEqual(['assets']);
-    const denied: SheetSections = { ...FULL_SHEET, wallet: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true } };
+    const denied: SheetSections = { ...FULL_SHEET, wallet: { data: null, refreshedAt: REFRESHED, denied: true } };
     expect(assembleBoardCharacter(raw({ sheet: denied }), NAMES, NOW).netWorth).toEqual({ state: 'reconnect' });
   });
 });
@@ -435,7 +457,6 @@ describe('collectNameIds', () => {
       systemIds: [30000142],
       stationIds: [60003760],
       entityIds: [99, 1000035],
-      valuationTypeIds: [34, 787, 10208, 10216, 10217, 10222, 29984, 44992],
     });
   });
 
@@ -445,14 +466,34 @@ describe('collectNameIds', () => {
       sheet: null,
       assets: { rows: null, refreshedAt: null },
     });
-    expect(collectNameIds([bare])).toEqual({ typeIds: [], systemIds: [], stationIds: [], entityIds: [], valuationTypeIds: [] });
+    expect(collectNameIds([bare])).toEqual({ typeIds: [], systemIds: [], stationIds: [], entityIds: [] });
+  });
+});
+
+describe('collectValuationTypeIds', () => {
+  it('gathers every asset, implant and open-order type a snapshot prices, sorted and de-duplicated', () => {
+    const other = raw({
+      identity: { characterId: 2, name: 'B', portraitUrl: 'https://p/2', corporationId: 1000035, allianceId: 99 },
+      sheet: {
+        ...FULL_SHEET,
+        implants: envelope<'implants'>({ implants: [10222] }),
+        orders: envelope<'orders'>({ orders: { open: [{ typeId: 3327, volumeRemain: 1, isBuyOrder: false, escrow: 0 }] } }),
+      },
+      assets: { rows: [{ typeId: 34, quantity: 5, locationFlag: 'Hangar' }], refreshedAt: REFRESHED_MS },
+    });
+    expect(collectValuationTypeIds([raw(), other])).toEqual([34, 787, 3327, 10208, 10216, 10217, 10222, 29984, 44992]);
+  });
+
+  it('prices nothing before the first assets sync when no sheet exists', () => {
+    const bare = raw({ sheet: null, assets: { rows: null, refreshedAt: null } });
+    expect(collectValuationTypeIds([bare])).toEqual([]);
   });
 });
 
 describe('netWorthSnapshot and toHistoryDay', () => {
   it('sums only the pilots with a computable net worth and reports included of total', () => {
     const pending = raw({ identity: { ...raw().identity, characterId: 2 }, assets: { rows: null, refreshedAt: null } });
-    const snapshot = netWorthSnapshot([raw(), pending], NAMES, '2026-09-27');
+    const snapshot = netWorthSnapshot([raw(), pending], VALUATION, '2026-09-27');
     const total = 3204115882.15 + 274_400_000 + 448_000_000 + 1_750 + 216_000_000;
     expect(snapshot).toEqual({
       day: '2026-09-27',

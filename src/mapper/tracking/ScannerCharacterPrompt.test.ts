@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { ScannerCharacterPrompt } from './ScannerCharacterPrompt';
@@ -19,11 +19,6 @@ vi.mock('@/components/character-portrait', () => ({
   CharacterPortrait: ({ name }: { name: string }) => createElement('img', { alt: name }),
 }));
 
-vi.mock('@/components/ui/button', () => ({
-  Button: (props: { children?: ReactNode; onClick?: () => void } & Record<string, unknown>) =>
-    createElement('button', { ...props, type: 'button' }, props.children),
-}));
-
 const candidates = [
   { characterId: 7, systemId: 31_000_001, lastMovementAt: 1 },
   { characterId: 8, systemId: 31_000_002, lastMovementAt: 2 },
@@ -37,6 +32,9 @@ describe('ScannerCharacterPrompt', () => {
         onPick: () => undefined,
         onCancel: () => undefined,
       }),
+    );
+    expect(markup).toContain(
+      'role="group" aria-label="Choose scanning character"',
     );
     expect(markup).toContain('Which character scanned this?');
     expect(markup).toContain('data-scanner-character-candidate="7"');

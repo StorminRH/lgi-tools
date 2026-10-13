@@ -43,11 +43,12 @@ import { join } from 'node:path';
 import { inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { blueprintFlatMaterials, blueprintTrees } from '@/data/eve-data/schema';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import type { CombatStats } from '@/data/npc-stats/types';
 import {
   compareCanonical,
+  type FlatMap,
   groupFlatByBlueprint,
   sortTree,
 } from './resolver-fixtures';
@@ -67,8 +68,6 @@ const FIXTURE_DIR = join('src', 'data', 'eve-data', '__fixtures__');
 const FLAT_FIXTURE = join(FIXTURE_DIR, 'blueprint-flat-materials.json');
 const TREES_FIXTURE = join(FIXTURE_DIR, 'blueprint-trees.json');
 const SLEEPER_FIXTURE = join(FIXTURE_DIR, 'npc-combat-stats.json');
-
-type FlatMap = Record<string, number>;
 
 async function readFlatMaterials(): Promise<Record<string, FlatMap>> {
   const ids = Object.values(REFERENCE_BLUEPRINTS);
@@ -95,7 +94,7 @@ async function readTrees(): Promise<Record<string, TreeNode[]>> {
     .where(inArray(blueprintTrees.blueprintTypeId, ids));
 
   const byBlueprint = new Map<number, TreeNode[]>();
-  for (const r of rows) byBlueprint.set(r.blueprintTypeId, r.treeJson as TreeNode[]);
+  for (const r of rows) byBlueprint.set(r.blueprintTypeId, r.treeJson);
   const out: Record<string, TreeNode[]> = {};
   for (const [name, bpId] of Object.entries(REFERENCE_BLUEPRINTS)) {
     out[name] = sortTree(byBlueprint.get(bpId) ?? []);

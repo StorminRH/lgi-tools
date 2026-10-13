@@ -1,24 +1,20 @@
-import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/platform/purge/types';
+import { ownerKeyWhere } from '@/lib/db-columns';
+import { characterCacheContributor } from '@/platform/purge/contributors';
+import { eveTag } from '@/lib/esi-datasets/routes';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
-export const ownedAssetsPurgeContributor: PurgeContributor = {
+export const ownedAssetsPurgeContributor = characterCacheContributor(db, {
   name: 'owned-assets',
-  tier: 'cache',
-  claims: [ownedAssets, ownedAssetSyncs],
-  merge: [
-    { table: ownedAssets, rule: 'follows-character' },
-    { table: ownedAssetSyncs, rule: 'follows-character' },
+  tables: [
+    {
+      table: ownedAssets,
+      where: (ownerId) => ownerKeyWhere(ownedAssets, { ownerType: 'character', ownerId }),
+    },
+    {
+      table: ownedAssetSyncs,
+      where: (ownerId) => ownerKeyWhere(ownedAssetSyncs, { ownerType: 'character', ownerId }),
+    },
   ],
-  async purgeCharacter({ characterId }) {
-    await db
-      .delete(ownedAssets)
-      .where(and(eq(ownedAssets.ownerType, 'character'), eq(ownedAssets.ownerId, characterId)));
-    await db
-      .delete(ownedAssetSyncs)
-      .where(
-        and(eq(ownedAssetSyncs.ownerType, 'character'), eq(ownedAssetSyncs.ownerId, characterId)),
-      );
-  },
-};
+  cacheTags: (ownerId) => [eveTag('owned_assets', { kind: 'character', id: ownerId })],
+});

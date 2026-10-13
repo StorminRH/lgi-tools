@@ -1,15 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 
 import { PG_CONNECT_TIMEOUT_SECONDS } from '@/db/index';
 
-describe('coverage-gaps', () => {
-  it('pins leftover runtime exports on the test graph', () => {
-    const pinned = [
-      PG_CONNECT_TIMEOUT_SECONDS,
-    ];
-    expect(pinned.length).toBeGreaterThan(0);
-    for (const value of pinned) {
-      expect(value).toBeDefined();
-    }
-  });
+test('pins leftover runtime exports on the test graph', () => {
+  expect([PG_CONNECT_TIMEOUT_SECONDS]).not.toContain(undefined);
 });

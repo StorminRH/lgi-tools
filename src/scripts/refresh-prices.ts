@@ -1,19 +1,15 @@
-import { config } from 'dotenv';
-import { readEnv } from '@/lib/env';
-config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
-
+import './load-env';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
 import { refreshStalePrices } from '../data/market-prices/cache';
 import { refreshPrices } from '../data/market-prices/ingest';
 import { getPrices } from '../data/market-prices/queries';
-import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
+import { resolveLockConnectionUrl } from '@/db';
 import { parseArgs } from './refresh-prices-args';
-import { runScript } from './script-runtime';
+import { createScriptClient, runScript } from './script-runtime';
 
 const mode = parseArgs(process.argv.slice(2));
 
-const client = postgres(resolveLockConnectionUrl(), { max: 5, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
+const client = createScriptClient(resolveLockConnectionUrl(), { max: 5 });
 
 async function main() {
   const db = drizzle(client);
@@ -32,7 +28,7 @@ async function main() {
     return;
   }
 
-  const result = await refreshStalePrices(client);
+  const result = await refreshStalePrices(db);
   if (result.status === 'cached') {
     console.log('Nothing stale — no Fuzzwork call.');
     console.log(JSON.stringify({

@@ -1,5 +1,5 @@
 import { asc, lt } from 'drizzle-orm';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { pruneStaleMarketHistory } from '@/data/market-history/ingest';
 import { marketHistory, marketHistoryMeta } from '@/data/market-history/schema';
 import { deleteInBatches } from '@/lib/batched-delete';
@@ -10,6 +10,7 @@ import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 const harness = await createDbTestHarness({
   schema: 'test_housekeeping',
   tables: ['session', 'verification', 'market_history', 'market_history_meta'],
+  resetBetweenTests: 'delete',
 });
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = new Date('2026-07-14T12:00:00Z');
@@ -23,13 +24,6 @@ function historyRow(typeId: number, date: string) {
 }
 
 describe.skipIf(!harness.reachable)('housekeeping deletes execute against Postgres', () => {
-  beforeEach(async () => {
-    await harness.db.delete(session);
-    await harness.db.delete(verification);
-    await harness.db.delete(marketHistory);
-    await harness.db.delete(marketHistoryMeta);
-  });
-
   it('deletes in batches until none remain, and stops unfinished at the deadline', async () => {
     const expired = new Date(NOW.getTime() - 2 * DAY_MS);
     const rows = Array.from({ length: 5 }, (_, i) => ({

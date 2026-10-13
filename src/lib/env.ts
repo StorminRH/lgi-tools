@@ -62,6 +62,11 @@ export function readEnv(name: ServerEnvName): string | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
+/** BETTER_AUTH_SECRET, else SESSION_SECRET; an empty value counts as unset. */
+export function readAuthSecret(): string | undefined {
+  return readEnv('BETTER_AUTH_SECRET') || readEnv('SESSION_SECRET') || undefined;
+}
+
 export function requireEnv(name: RequiredEnvName): string {
   const value = readEnv(name);
   if (!value) throw new Error(`${name} is not set`);

@@ -9,11 +9,14 @@ import {
   decideOnlineProbe,
   type HeldOnlineState,
 } from '@/data/location-tracking/online-probe';
+import { errorMessage } from '@/lib/failure';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
+import { characterLocationPath, characterOnlinePath, characterShipPath } from '@/platform/esi/paths';
 import { internal } from './_generated/api';
 import { internalAction, type ActionCtx } from './_generated/server';
-import type { syncOutcomeValidator } from './characterLocationApply';
+import type { LeaseWrite } from './characterLocationAccess';
+import type { CharacterResult, syncOutcomeValidator } from './characterLocationApply';
 import {
   requireSyncEnv,
   resolveExpiresAt,
@@ -25,33 +28,12 @@ const FALLBACK_TTL_MS = 5_000;
 
 const ONLINE_FALLBACK_TTL_MS = 60_000;
 
-interface AccessLease {
-  accessToken: string;
-  expiresAt: number;
-}
-
-type LeaseWrite = AccessLease & { characterId: number };
+type AccessLease = Pick<LeaseWrite, 'accessToken' | 'expiresAt'>;
 
 interface HeldState {
   solarSystemId: number | null;
   etagLocation: string | null;
   etagShip: string | null;
-}
-
-interface CharacterResult {
-  characterId: number;
-  solarSystemId: number | null;
-  stationId: number | null;
-  structureId: number | null;
-  shipTypeId: number | null;
-  systemChanged: boolean;
-  etagLocation: string | null;
-  etagShip: string | null;
-  expiresAt: number | null;
-  error: string | null;
-  online: boolean | null;
-  etagOnline: string | null;
-  onlineExpiresAt: number | null;
 }
 
 type LocationReadResult = Omit<CharacterResult, 'online' | 'etagOnline' | 'onlineExpiresAt'>;
@@ -94,10 +76,7 @@ export const syncUser = internalAction({
     try {
       outcome = await runLocationSync(ctx, userId, leases);
     } catch (error) {
-      outcome = {
-        kind: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      };
+      outcome = { kind: 'failed', error: errorMessage(error) };
     }
     await ctx.runMutation(internal.characterLocationApply.finishSync, {
       userId,
@@ -228,16 +207,7 @@ async function readProbeThenLocation(
 
   if (!probe.online) {
     return {
-      characterId,
-      solarSystemId: null,
-      stationId: null,
-      structureId: null,
-      shipTypeId: null,
-      systemChanged: false,
-      etagLocation: held.etagLocation,
-      etagShip: held.etagShip,
-      expiresAt: probe.windowExpiresAt,
-      error: null,
+      ...noLocationRead(characterId, held, probe.windowExpiresAt, null),
       online: false,
       etagOnline: probe.etagOnline,
       onlineExpiresAt: probe.onlineExpiresAt,
@@ -269,7 +239,7 @@ async function resolveOnlineProbe(
     };
   }
 
-  const read = await readEsiAuthed(`/characters/${characterId}/online`, accessToken, decision.etagOnline, rl);
+  const read = await readEsiAuthed(characterOnlinePath(characterId), accessToken, decision.etagOnline, rl);
   if (read.kind === 'error') return read.code;
 
   const windowExpiresAt = resolveExpiresAt([read.expiresAt], ONLINE_FALLBACK_TTL_MS, Date.now());
@@ -295,7 +265,7 @@ async function readLocationCharacter(
   rl: RlSnapshot,
 ): Promise<LocationReadResult> {
   const locationRead = await readEsiAuthed(
-    `/characters/${characterId}/location`,
+    characterLocationPath(characterId),
     accessToken,
     held.etagLocation,
     rl,
@@ -306,18 +276,7 @@ async function readLocationCharacter(
 
   if (locationRead.kind === 'unchanged') {
     const expiresAt = resolveExpiresAt([locationRead.expiresAt], FALLBACK_TTL_MS, Date.now());
-    return {
-      characterId,
-      solarSystemId: null,
-      stationId: null,
-      structureId: null,
-      shipTypeId: null,
-      systemChanged: false,
-      etagLocation: held.etagLocation,
-      etagShip: held.etagShip,
-      expiresAt,
-      error: null,
-    };
+    return noLocationRead(characterId, held, expiresAt, null);
   }
 
   const location = parseLocationBody(locationRead.body);
@@ -363,7 +322,7 @@ async function finishWithOptionalShip(
   }
 
   const shipRead = await readEsiAuthed(
-    `/characters/${characterId}/ship`,
+    characterShipPath(characterId),
     accessToken,
     held.etagShip,
     rl,
@@ -404,7 +363,16 @@ async function finishWithOptionalShip(
   };
 }
 
-function errorResult(characterId: number, code: string, held: HeldState): CharacterResult {
+/**
+ * A read that yields no new location fix: the location fields stay null and
+ * the held etags carry over, so finishSync leaves the stored location alone.
+ */
+function noLocationRead(
+  characterId: number,
+  held: HeldState,
+  expiresAt: number | null,
+  error: string | null,
+): LocationReadResult {
   return {
     characterId,
     solarSystemId: null,
@@ -414,8 +382,14 @@ function errorResult(characterId: number, code: string, held: HeldState): Charac
     systemChanged: false,
     etagLocation: held.etagLocation,
     etagShip: held.etagShip,
-    expiresAt: null,
-    error: code,
+    expiresAt,
+    error,
+  };
+}
+
+function errorResult(characterId: number, code: string, held: HeldState): CharacterResult {
+  return {
+    ...noLocationRead(characterId, held, null, code),
     online: null,
     etagOnline: null,
     onlineExpiresAt: null,

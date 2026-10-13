@@ -1,5 +1,6 @@
 import { SDE_ENGINEERING_COMPLEX_GROUP_ID } from '@/data/eve-data/constants';
 import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
+import { unresolvedName } from '@/lib/format/names';
 import type { AvailableStructure, StructureModifier } from './api-contract';
 
 export interface CustomStructureInput {
@@ -92,7 +93,7 @@ export function buildAvailableStructures(
     structures.push({
       id: `corp:${s.structureId}`,
       source: 'corp',
-      name: s.name ?? typeNameById.get(s.typeId) ?? `Structure ${s.structureId}`,
+      name: s.name ?? typeNameById.get(s.typeId) ?? unresolvedName('structure', s.structureId),
       structureTypeId: s.typeId,
       groupId: resolveGroupId(groupIdByType, s.typeId),
       hostsCapitals: capitalHulls.has(s.typeId),

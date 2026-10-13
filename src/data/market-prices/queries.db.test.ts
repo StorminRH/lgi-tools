@@ -20,7 +20,7 @@ describe.skipIf(!harness.reachable)('listStaleTypeIds executes against Postgres'
       typeId,
       updatedAt: new Date(fetchedAtMs),
       staleAfter: new Date(placeholder ? 0 : fetchedAtMs + 300_000),
-      source: 'esi',
+      source: 'esi' as const,
     });
     await harness.db.insert(marketPrices).values([
       row(34, now - BATCH_REFRESH_INTERVAL_MS),
@@ -39,8 +39,10 @@ describe.skipIf(!harness.reachable)('listStaleTypeIds executes against Postgres'
       regionalDiscount: null, source: 'esi',
     };
     const fetchedAt = new Date(Date.now() - 60_000);
+    const staleAfter = new Date(fetchedAt.getTime() + 300_000);
     const recent = await persistPrices(harness.db, [raw], {
       fetchedAtByType: new Map([[34, fetchedAt]]),
+      staleAfterByType: new Map([[34, staleAfter]]),
     });
     expect(recent.written).toBe(1);
     const delayed = await persistPrices(harness.db, [{ ...raw, bestSell: 1 }], {
@@ -50,7 +52,7 @@ describe.skipIf(!harness.reachable)('listStaleTypeIds executes against Postgres'
     const saved = (await getPrices([34])).get(34)!;
     expect(saved.bestSell).toBe(12);
     expect(saved.updatedAt).toEqual(fetchedAt);
-    expect(saved.staleAfter.getTime()).toBe(fetchedAt.getTime() + 300_000);
+    expect(saved.staleAfter).toEqual(staleAfter);
   });
 
 });

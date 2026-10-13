@@ -40,36 +40,25 @@ export type SearchSource = {
   search: (query: string, ctx: SearchContext) => Promise<SearchResult[]>;
   limit?: number;
   showOnEmpty?: boolean;
-  excludeFromDefaultScope?: boolean;
 };
 
-export type LazySearchSource = {
-  id: string;
-  name: string;
-  limit?: number;
-  showOnEmpty?: boolean;
-  excludeFromDefaultScope?: boolean;
-  load: () => Promise<SearchSource>;
-};
+/**
+ * A source whose search function loads on its first search. `load` brings
+ * only the search function; the metadata stays with the caller, so listing
+ * the source loads nothing. One load serves every search, a rejected load is
+ * tried again by the next search, and a search aborted while it loads rejects
+ * with AbortError instead of searching.
+ */
+export function lazySearchSource(
+  meta: Omit<SearchSource, 'search'> & { load: () => Promise<SearchSource['search']> },
+): SearchSource {
+  let loadPromise: Promise<SearchSource['search']> | null = null;
 
-const sources: SearchSource[] = [];
-
-export function registerSearchSource(source: SearchSource): void {
-  if (sources.some((s) => s.id === source.id)) {
-    console.error(`registerSearchSource: duplicate source id "${source.id}"`);
-  }
-  sources.push(source);
-}
-
-export function registerLazySearchSource(meta: LazySearchSource): void {
-  let loadPromise: Promise<SearchSource> | null = null;
-
-  registerSearchSource({
+  return {
     id: meta.id,
     name: meta.name,
     limit: meta.limit,
     showOnEmpty: meta.showOnEmpty,
-    excludeFromDefaultScope: meta.excludeFromDefaultScope,
     async search(query, ctx) {
       if (!loadPromise) {
         loadPromise = meta.load().catch((err) => {
@@ -77,17 +66,13 @@ export function registerLazySearchSource(meta: LazySearchSource): void {
           throw err;
         });
       }
-      const resolved = await loadPromise;
+      const search = await loadPromise;
       if (ctx.signal?.aborted) {
         throw new DOMException('Aborted', 'AbortError');
       }
-      return resolved.search(query, ctx);
+      return search(query, ctx);
     },
-  });
-}
-
-export function listRegisteredSources(): readonly SearchSource[] {
-  return sources;
+  };
 }
 
 export type SearchSection = {
@@ -95,20 +80,23 @@ export type SearchSection = {
   results: SearchResult[];
 };
 
+/**
+ * Every source's results for the query, one section per source that found
+ * something, in the order of `sources`. Each section holds at most the
+ * source's limit (5 by default). An empty query asks only the showOnEmpty
+ * sources. A source that fails is logged and left out, and the run rejects
+ * with AbortError when its signal has aborted by the time every source settles.
+ */
 export async function searchAll(
+  sources: readonly SearchSource[],
   query: string,
   ctx: SearchContext,
-  sourceIds?: readonly string[],
 ): Promise<SearchSection[]> {
   const trimmed = query.trim();
   const isEmpty = trimmed.length === 0;
 
-  const active = sourceIds === undefined
-    ? sources.filter((s) => !s.excludeFromDefaultScope)
-    : sources.filter((s) => sourceIds.includes(s.id));
-
   const settled = await Promise.allSettled(
-    active.map(async (s) => {
+    sources.map(async (s) => {
       if (isEmpty && !s.showOnEmpty) {
         return { name: s.name, results: [] };
       }
@@ -128,23 +116,19 @@ export async function searchAll(
     } else {
       const isAbort = r.reason instanceof DOMException && r.reason.name === 'AbortError';
       if (!isAbort) {
-        console.warn(`searchAll: source "${active[i]!.name}" failed`, r.reason);
+        console.warn(`searchAll: source "${sources[i]!.name}" failed`, r.reason);
       }
     }
   }
   return out;
 }
 
-/** One scoped source's results for a form field: no session, no recents. */
+/** One source's results for a form field: no session, no recents. Rejects with AbortError when `signal` has aborted. */
 export async function searchOneSource(
   query: string,
-  sourceId: string,
+  source: SearchSource,
   signal: AbortSignal,
 ): Promise<SearchResult[]> {
-  const sections = await searchAll(query, { session: null, isAdmin: false, recents: [], signal }, [sourceId]);
+  const sections = await searchAll([source], query, { session: null, isAdmin: false, recents: [], signal });
   return sections[0]?.results ?? [];
-}
-
-export function __resetSearchSources(): void {
-  sources.length = 0;
 }

@@ -1,8 +1,10 @@
 import { asc } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
+import { OWNED_ASSETS_RESOURCE } from '@/features/owned-assets/refresh';
 import { ownedAssets } from '@/features/owned-assets/schema';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { ownedResourcePath } from '@/platform/owner-sync';
 import { pruneEsiSnapshots } from './esi-snapshot-retention';
 
 const harness = await createDbTestHarness({
@@ -19,7 +21,7 @@ function snapshot(id: number, ownerId: number, fetchedAt: Date) {
     id,
     ownerType: 'corporation' as const,
     ownerId,
-    endpoint: `/corporations/${ownerId}/assets/`,
+    endpoint: ownedResourcePath(OWNED_ASSETS_RESOURCE, { ownerType: 'corporation', ownerId }),
     requestHash: `hash-${id}`,
     etag: `"${id}"`,
     responseHeaders: [],

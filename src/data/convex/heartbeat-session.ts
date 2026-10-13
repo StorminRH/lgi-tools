@@ -1,63 +1,44 @@
+import { openPeerChannel, type PeerChannelPort } from '@/lib/peer-channel';
 import { HEARTBEAT_MS, type SyncDataset } from '@/lib/sync-engine';
 import { type HeartbeatHost, startHeartbeatLoop } from './heartbeat-loop';
 import { createHeartbeatPeers } from './heartbeat-peers';
 
 type SessionHost = Parameters<typeof startHeartbeatSession>[0];
 type SessionInput = Parameters<typeof startHeartbeatSession>[1];
-type Channel = ReturnType<SessionHost['openChannel']>;
 
 function joinHeartbeatSession(host: SessionHost, input: SessionInput) {
   const tabId = host.createTabId();
   let active = true;
-  let channel: Channel | null = null;
   const peers = createHeartbeatPeers({ tabId, characterIdsHint: input.characterIdsHint });
 
-  const disconnect = () => {
-    const previous = channel;
-    channel = null;
-    if (!previous) return;
-    previous.onmessage = null;
-    previous.onmessageerror = null;
-    try {
-      previous.close();
-    } catch {
-    }
-  };
-
   const advertise = (kind: 'join' | 'state' | 'leave') => {
-    try {
-      channel?.postMessage(kind === 'leave'
-        ? { kind, tabId }
-        : { kind, tabId, visible: host.isVisible(), characterIdsHint: input.characterIdsHint });
-    } catch {
-      disconnect();
-    }
+    link.post(kind === 'leave'
+      ? { kind, tabId }
+      : { kind, tabId, visible: host.isVisible(), characterIdsHint: input.characterIdsHint });
   };
 
   const intervalBeat = () => {
     if (!active) return;
     const visible = host.isVisible();
     const selection = peers.select(visible, host.now());
-    if (channel && !selection.isLeader) return;
+    if (link.connected && !selection.isLeader) return;
     host.beat({
       reason: 'interval', visible, tabId,
-      characterIdsHint: channel ? selection.characterIdsHint : input.characterIdsHint,
+      characterIdsHint: link.connected ? selection.characterIdsHint : input.characterIdsHint,
     });
   };
 
-  try {
-    channel = host.openChannel(JSON.stringify(['lgi-sync-heartbeat-v1', input.userId, input.dataset]));
-    channel.onmessage = (event: MessageEvent<unknown>) => {
-      if (!active || !channel) return;
-      const kind = peers.receive(event.data, host.now());
+  const link = openPeerChannel({
+    key: ['lgi-sync-heartbeat-v1', input.userId, input.dataset],
+    open: host.openChannel,
+    onMessage(data) {
+      if (!active) return;
+      const kind = peers.receive(data, host.now());
       if (kind === 'join') advertise('state');
       if (kind === 'leave') intervalBeat();
-    };
-    channel.onmessageerror = disconnect;
-    advertise('join');
-  } catch {
-    disconnect();
-  }
+    },
+  });
+  advertise('join');
 
   const loop = startHeartbeatLoop({
     isVisible: host.isVisible,
@@ -84,7 +65,7 @@ function joinHeartbeatSession(host: SessionHost, input: SessionInput) {
       active = false;
       loop.stop();
       advertise('leave');
-      disconnect();
+      link.close();
       if (sendLeave) host.leave(tabId);
     },
   };
@@ -93,10 +74,7 @@ function joinHeartbeatSession(host: SessionHost, input: SessionInput) {
 export function startHeartbeatSession(host: Omit<HeartbeatHost, 'beat'> & {
   now(): number;
   createTabId(): string;
-  openChannel(name: string): Pick<BroadcastChannel, 'postMessage' | 'close'> & {
-    onmessage: ((event: MessageEvent<unknown>) => void) | null;
-    onmessageerror: ((event: MessageEvent<unknown>) => void) | null;
-  };
+  openChannel(name: string): PeerChannelPort;
   beat(input: {
     reason: Parameters<HeartbeatHost['beat']>[0];
     visible: boolean;

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseBlueprintActivities, type BlueprintActivitySet } from './activities';
+import {
+  isBlueprintActivitiesDocument,
+  parseBlueprintActivities,
+  type BlueprintActivitySet,
+} from './activities';
 import { INV_683, MFG_681, RXN_46175 } from './__fixtures__/blueprint-activities';
 
 const byName = (set: BlueprintActivitySet, name: string) =>
@@ -109,5 +113,32 @@ describe('parseBlueprintActivities — normalization & defensiveness', () => {
     const mfg = byName(set, 'manufacturing');
     expect(mfg?.materials).toEqual([{ typeId: 7, quantity: 3 }]);
     expect(mfg?.time).toBeNull();
+  });
+});
+
+describe('isBlueprintActivitiesDocument', () => {
+  it('accepts CCP documents and rejects any entry that breaks the stored shape', () => {
+    for (const doc of [MFG_681, RXN_46175, INV_683, {}, { copying: {} }]) {
+      expect(isBlueprintActivitiesDocument(doc)).toBe(true);
+    }
+    for (const notObject of [null, undefined, 'nope', 42, [MFG_681]]) {
+      expect(isBlueprintActivitiesDocument(notObject)).toBe(false);
+    }
+    const malformed = [
+      { manufacturing: null },
+      { manufacturing: 'x' },
+      { manufacturing: { materials: { typeID: 34, quantity: 1 } } },
+      { manufacturing: { materials: [null] } },
+      { manufacturing: { materials: [{ typeID: '34', quantity: 1 }] } },
+      { manufacturing: { materials: [{ typeID: 34 }] } },
+      { manufacturing: { materials: [{ typeID: 34, quantity: 1.5 }] } },
+      { manufacturing: { products: [{ quantity: 1 }] } },
+      { invention: { products: [{ typeID: 9, quantity: 1, probability: '0.3' }] } },
+      { invention: { skills: [{ typeID: 3380 }] } },
+      { manufacturing: { time: '600' } },
+    ];
+    for (const doc of malformed) {
+      expect(isBlueprintActivitiesDocument({ copying: { time: 480 }, ...doc }), JSON.stringify(doc)).toBe(false);
+    }
   });
 });

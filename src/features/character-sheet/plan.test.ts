@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
 import {
   digestJournalBody,
   planSectionRead,
@@ -8,15 +9,15 @@ import {
   unresolvedStructureIds,
 } from './plan';
 import { SHEET_SECTIONS } from './sections';
-import type { SectionEnvelope, SheetEsiRead, SheetSectionData, SheetSections, StructureName } from './types';
+import type { SectionEnvelope, SheetSectionData, SheetSections, StructureName } from './types';
 
 const NOW = new Date('2026-09-27T12:00:00Z');
 const NOW_ISO = NOW.toISOString();
 const DAY = 24 * 60 * 60 * 1000;
 
-const fresh = (body: unknown, etag: string | null = '"e"'): SheetEsiRead => ({ kind: 'fresh', body, etag });
-const unchanged: SheetEsiRead = { kind: 'unchanged' };
-const error = (code: string): SheetEsiRead => ({ kind: 'error', code });
+const fresh = (body: unknown, etag: string | null = '"e"'): SingleOwnerRead => ({ kind: 'fresh', body, etag });
+const unchanged: SingleOwnerRead = { kind: 'unchanged' };
+const error = (code: string): SingleOwnerRead => ({ kind: 'error', code });
 
 const LOCATION_BODY = { solar_system_id: 30000142, station_id: 60003760 };
 const SHIP_BODY = { ship_type_id: 29984, ship_item_id: 1030000000101, ship_name: 'Quiet Ledger' };
@@ -29,7 +30,6 @@ const previousStatus: SectionEnvelope<'status'> = {
     online: { online: false, lastLogin: null, lastLogout: null },
   },
   refreshedAt: '2026-09-27T11:58:00.000Z',
-  etags: { location: '"l0"', ship: '"s0"', online: '"o0"' },
 };
 
 describe('planSectionRead', () => {
@@ -47,7 +47,6 @@ describe('planSectionRead', () => {
     const previous: SectionEnvelope<'journal'> = {
       data: { journal: digestJournalBody([], new Date(NOW.getTime() - DAY))! },
       refreshedAt: new Date(NOW.getTime() - DAY).toISOString(),
-      etags: { journal: '"held"' },
     };
     expect(planSectionRead(SHEET_SECTIONS.journal, { journal: unchanged }, previous, NOW))
       .toEqual({ kind: 'skip', code: 'esi_server_error' });
@@ -69,7 +68,7 @@ describe('planSectionRead', () => {
     });
   });
 
-  it('saves a fresh part and carries the unchanged parts with their held ETags', () => {
+  it('saves a fresh part and carries the unchanged parts from the previous envelope', () => {
     const plan = planSectionRead(
       SHEET_SECTIONS.status,
       { location: fresh(LOCATION_BODY, '"l1"'), ship: unchanged, online: unchanged },
@@ -85,7 +84,6 @@ describe('planSectionRead', () => {
           online: previousStatus.data!.online,
         },
         refreshedAt: NOW_ISO,
-        etags: { location: '"l1"', ship: '"s0"', online: '"o0"' },
       },
     });
   });
@@ -105,13 +103,12 @@ describe('planSectionRead', () => {
           ship: { shipTypeId: 29984, shipItemId: 1030000000101, shipName: 'Quiet Ledger' },
           online: { online: true, lastLogin: '2026-09-27T09:00:00Z', lastLogout: null },
         },
-        etags: { location: '"l"', ship: null, online: '"o"' },
       },
     });
     expect(plan).not.toHaveProperty('envelope.denied');
   });
 
-  it('marks the section denied on a 403 and keeps the previous data and ETags', () => {
+  it('marks the section denied on a 403 and keeps the previous data', () => {
     const plan = planSectionRead(
       SHEET_SECTIONS.status,
       { location: error('esi_403'), ship: fresh(SHIP_BODY), online: unchanged },
@@ -120,7 +117,7 @@ describe('planSectionRead', () => {
     );
     expect(plan).toEqual({
       kind: 'save',
-      envelope: { data: previousStatus.data, refreshedAt: NOW_ISO, etags: previousStatus.etags, denied: true },
+      envelope: { data: previousStatus.data, refreshedAt: NOW_ISO, denied: true },
     });
   });
 
@@ -128,7 +125,7 @@ describe('planSectionRead', () => {
     const plan = planSectionRead(SHEET_SECTIONS.wallet, { balance: error('esi_403') }, null, NOW);
     expect(plan).toEqual({
       kind: 'save',
-      envelope: { data: null, refreshedAt: NOW_ISO, etags: {}, denied: true },
+      envelope: { data: null, refreshedAt: NOW_ISO, denied: true },
     });
   });
 
@@ -153,7 +150,6 @@ describe('planSectionRead', () => {
       envelope: {
         data: previousStatus.data,
         refreshedAt: recoveredAt.toISOString(),
-        etags: previousStatus.etags,
       },
     });
   });
@@ -273,7 +269,6 @@ const sheetWithStructures = (names: Record<string, StructureName> | null): Sheet
       online: { online: false, lastLogin: null, lastLogout: null },
     },
     refreshedAt: NOW_ISO,
-    etags: {},
   },
   clones: {
     data: {
@@ -297,9 +292,8 @@ const sheetWithStructures = (names: Record<string, StructureName> | null): Sheet
       },
     },
     refreshedAt: NOW_ISO,
-    etags: {},
   },
-  ...(names === null ? {} : { structures: { data: { names }, refreshedAt: NOW_ISO, etags: {} } }),
+  ...(names === null ? {} : { structures: { data: { names }, refreshedAt: NOW_ISO } }),
 });
 
 describe('referencedStructureIds / unresolvedStructureIds', () => {
@@ -322,7 +316,7 @@ describe('planStructures', () => {
   const ids = [1099000000001, 1099000000002];
 
   it('stores fresh names and records denied structures as hidden', () => {
-    const reads = new Map<number, SheetEsiRead>([
+    const reads = new Map<number, SingleOwnerRead>([
       [1099000000001, fresh({ name: 'Sobaseki - Driftwood Anchorage', owner_id: 1 })],
       [1099000000002, error('esi_403')],
     ]);
@@ -333,7 +327,6 @@ describe('planStructures', () => {
           names: { '1099000000001': { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' }, '1099000000002': { kind: 'hidden' } },
         },
         refreshedAt: NOW_ISO,
-        etags: {},
       },
     });
   });
@@ -357,16 +350,16 @@ describe('planStructures', () => {
   it('saves an empty map the first time so the section gains a freshness stamp', () => {
     expect(planStructures([], null, new Map(), NOW)).toEqual({
       kind: 'save',
-      envelope: { data: { names: {} }, refreshedAt: NOW_ISO, etags: {} },
+      envelope: { data: { names: {} }, refreshedAt: NOW_ISO },
     });
   });
 
   it('skips on a retryable error when nothing else changed, but saves the rest otherwise', () => {
     const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' } } };
-    const failing = new Map<number, SheetEsiRead>([[1099000000002, error('esi_server_error')]]);
+    const failing = new Map<number, SingleOwnerRead>([[1099000000002, error('esi_server_error')]]);
     expect(planStructures(ids, previous, failing, NOW)).toEqual({ kind: 'skip', code: 'esi_server_error' });
 
-    const mixed = new Map<number, SheetEsiRead>([
+    const mixed = new Map<number, SingleOwnerRead>([
       [1099000000001, fresh({ name: 'Renamed' })],
       [1099000000002, error('esi_server_error')],
     ]);
@@ -378,7 +371,7 @@ describe('planStructures', () => {
 
   it('drops a name whose read came back bodyless', () => {
     const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' } } };
-    const reads = new Map<number, SheetEsiRead>([[1099000000001, { kind: 'unchanged' }]]);
+    const reads = new Map<number, SingleOwnerRead>([[1099000000001, { kind: 'unchanged' }]]);
     expect(planStructures([1099000000001], previous, reads, NOW)).toMatchObject({
       kind: 'save',
       envelope: { data: { names: {} } },
@@ -394,7 +387,7 @@ describe('planStructures', () => {
     const previous: SheetSectionData['structures'] = {
       names: { '1099000000001': { kind: 'hidden' }, '1099000000002': { kind: 'hidden' } },
     };
-    const reads = new Map<number, SheetEsiRead>([
+    const reads = new Map<number, SingleOwnerRead>([
       [1099000000001, error('esi_server_error')],
       [1099000000002, fresh({ name: 'Recovered' })],
     ]);
@@ -411,33 +404,13 @@ describe('planStructures', () => {
 });
 
 describe('readSectionState', () => {
-  it('is stale with nothing held for an unknown character', () => {
-    expect(readSectionState(null, 'wallet')).toEqual({ lastRefreshedAt: null, previous: null, heldEtags: {} });
+  it('holds nothing for an unknown character', () => {
+    expect(readSectionState(null, 'wallet')).toEqual({ previous: null });
   });
 
-  it('holds the ETags of a section that has data', () => {
-    const sheet: SheetSections = { status: previousStatus };
-    expect(readSectionState(sheet, 'status')).toEqual({
-      lastRefreshedAt: new Date(previousStatus.refreshedAt),
-      previous: previousStatus,
-      heldEtags: previousStatus.etags,
-    });
-  });
-
-  it('holds no ETags for a denied section without data, so a re-grant fetches in full', () => {
-    const denied: SectionEnvelope<'wallet'> = { data: null, refreshedAt: NOW_ISO, etags: { balance: '"x"' }, denied: true };
-    expect(readSectionState({ wallet: denied }, 'wallet')).toEqual({
-      lastRefreshedAt: NOW,
-      previous: denied,
-      heldEtags: {},
-    });
-  });
-
-  it('forces structures stale while a referenced id has no name entry', () => {
-    const unresolved = sheetWithStructures({ '1099000000001': { kind: 'named', name: 'Known' } });
-    expect(readSectionState(unresolved, 'structures').lastRefreshedAt).toBeNull();
-
-    const resolved = sheetWithStructures({ '1099000000001': { kind: 'named', name: 'Known' }, '1099000000002': { kind: 'hidden' } });
-    expect(readSectionState(resolved, 'structures').lastRefreshedAt).toEqual(NOW);
+  it('holds the previous envelope of a section that has one, denied or not', () => {
+    expect(readSectionState({ status: previousStatus }, 'status')).toEqual({ previous: previousStatus });
+    const denied: SectionEnvelope<'wallet'> = { data: null, refreshedAt: NOW_ISO, denied: true };
+    expect(readSectionState({ wallet: denied }, 'wallet')).toEqual({ previous: denied });
   });
 });

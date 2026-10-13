@@ -1,5 +1,6 @@
-import { formatIskHeader } from './format';
+import { formatIskShort } from '@/lib/format/isk';
 import { deriveSiteMeta } from './site-meta';
+import { isWaveDrivenSiteType, primarySiteIsk } from './site-type';
 import type { SiteDetail } from './types';
 
 export interface SiteSocialCardContent {
@@ -11,13 +12,13 @@ export interface SiteSocialCardContent {
 
 export function deriveSiteSocialCardContent(site: SiteDetail): SiteSocialCardContent {
   const { typeLabel, classLabel } = deriveSiteMeta(site);
-  const isResourceSite = site.siteType === 'ore' || site.siteType === 'gas';
-  const isk = isResourceSite ? site.resourceValueIsk : site.blueLootIsk;
 
   return {
     name: site.name,
     classification: [classLabel, typeLabel].filter(Boolean).join(' · '),
-    value: formatIskHeader(isk),
-    valueCaption: isResourceSite ? 'LIVE JITA RESOURCE VALUE' : 'ESTIMATED BLUE-LOOT VALUE',
+    value: formatIskShort(primarySiteIsk(site), { unit: true }),
+    valueCaption: isWaveDrivenSiteType(site.siteType)
+      ? 'ESTIMATED BLUE-LOOT VALUE'
+      : 'LIVE JITA RESOURCE VALUE',
   };
 }

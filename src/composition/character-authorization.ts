@@ -1,5 +1,7 @@
 import { cache } from 'react';
 import { enqueueAffectedMapAccessChanges } from '@/data/maps/queries';
+import { bestEffort } from '@/lib/best-effort';
+import { mapConcurrent } from '@/lib/fan-out';
 import {
   acknowledgeAuthorizationAccessChange,
   claimAuthorization,
@@ -8,15 +10,20 @@ import {
   listDueAuthorizations,
   suspendOverdueAuthorizations,
 } from '@/platform/auth/authorization-store';
+import { parseLinkedAccountId } from '@/platform/auth/eve-account-shared';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { reconcileAffiliationAccess } from './map-affiliation-access';
+import { reconcileAffiliationAccess, reconcileAffiliationAccessOnVisit } from './map-affiliation-access';
+
+const AUTHORIZATION_CONCURRENCY = 4;
 
 async function publishAccessChanges(userId: string): Promise<void> {
   await suspendOverdueAuthorizations(userId);
   for (const change of await listAuthorizationAccessChanges(userId)) {
     if (change.changedAt === null) continue;
+    const characterId = parseLinkedAccountId(change.characterId);
     // Persist into the existing map outbox before acknowledging. A crash only causes a harmless replay.
-    await enqueueAffectedMapAccessChanges(Number(change.characterId));
+    // A malformed account id grants no map access, so its change is acknowledged with nothing to enqueue.
+    if (characterId !== null) await enqueueAffectedMapAccessChanges(characterId);
     await acknowledgeAuthorizationAccessChange(change.id, change.changedAt);
   }
   await reconcileAffiliationAccess();
@@ -28,33 +35,29 @@ async function publishAccessChanges(userId: string): Promise<void> {
  */
 export async function checkCharacterAuthorizations(userId: string): Promise<void> {
   if (!await hasAuthorizationWork(userId)) {
-    await reconcileAffiliationAccess();
+    await reconcileAffiliationAccessOnVisit();
     return;
   }
   const deadline = Date.now() + 35_000;
   // Revoke already-known invalid/overdue access before any slow network requests.
   await publishAccessChanges(userId);
   const due = await listDueAuthorizations(userId);
-  let next = 0;
-  await Promise.all(Array.from({ length: 4 }, async () => {
-    while (next < due.length && Date.now() < deadline) {
-      const candidate = due[next++]!;
-      if (!await claimAuthorization(candidate.id)) continue;
-      try {
-        await getFreshAccessTokenForCharacter(Number(candidate.characterId), { forceRefresh: true });
-      } catch (error) {
-        // The claim expires, so a process/network failure cannot strand the character.
-        console.error('[character-authorization] check failed', candidate.characterId, error);
-      }
-    }
-  }));
+  // A failed claim (store outage) rejects the run and stops further claims.
+  await mapConcurrent(due, AUTHORIZATION_CONCURRENCY, async (candidate) => {
+    if (Date.now() >= deadline) return;
+    if (!await claimAuthorization(candidate.id)) return;
+    const characterId = parseLinkedAccountId(candidate.characterId);
+    if (characterId === null) return;
+    // The claim expires, so a process/network failure cannot strand the character.
+    await bestEffort('character-authorization', 'check', candidate.characterId, () =>
+      getFreshAccessTokenForCharacter(characterId, { forceRefresh: true }),
+    );
+  });
   await publishAccessChanges(userId);
 }
 
-export const checkUserCharacterAuthorizations = cache(async (userId: string): Promise<void> => {
-  try {
-    await checkCharacterAuthorizations(userId);
-  } catch (error) {
-    console.error('[character-authorization] background check failed', error);
-  }
-});
+export const checkUserCharacterAuthorizations = cache((userId: string): Promise<void> =>
+  bestEffort('character-authorization', 'background check', userId, () =>
+    checkCharacterAuthorizations(userId),
+  ),
+);

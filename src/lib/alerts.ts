@@ -2,41 +2,56 @@ import { APP_VERSION } from '@/config/app-version';
 import { postDiscordWebhook } from '@/lib/discord';
 import { readEnv } from '@/lib/env';
 
-export interface PriceSourceDegradation {
+/** Where a price read's rows came from: priced rows, ESI rows, Fuzzwork fallback rows, and whether ESI's budget ran out. */
+export interface PriceSourceCounts {
   fetched: number;
   esiCount: number;
   fuzzworkFallbackCount: number;
   budgetExhausted: boolean;
 }
 
-export interface EsiRefreshDeadLetter {
-  jobId: number;
-  dataset: string;
-  resource: string;
-  attemptCount: number;
-  failureCode: string;
+interface OpsAlertEmbed {
+  title: string;
+  description: string;
+  fields?: ReadonlyArray<{ name: string; value: string; inline?: boolean }>;
 }
 
-export interface PublicEsiBudgetExhaustion {
-  count: number;
-  windowMinutes: number;
+function opsAlertWebhookUrl(): string | undefined {
+  return readEnv('DISCORD_ALERT_WEBHOOK_URL');
 }
 
-export function isOpsAlertConfigured(): boolean {
-  return Boolean(readEnv('DISCORD_ALERT_WEBHOOK_URL'));
+/**
+ * Posts one embed, stamped with the app version and send time, to the ops
+ * webhook. Resolves false when no webhook is configured and true once Discord
+ * accepts the post; rejects on a non-2xx so the caller's bestEffort logs it.
+ */
+async function sendOpsAlert(embed: OpsAlertEmbed): Promise<boolean> {
+  const url = opsAlertWebhookUrl();
+  if (!url) return false;
+
+  const response = await postDiscordWebhook(url, {
+    embeds: [
+      {
+        ...embed,
+        footer: { text: `LGI.tools v${APP_VERSION}` },
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  });
+  if (!response.ok) {
+    throw new Error(`Ops alert webhook returned ${response.status}`);
+  }
+  return true;
 }
 
 export async function alertPriceSourceDegradation(
-  info: PriceSourceDegradation,
+  info: PriceSourceCounts,
 ): Promise<void> {
-  const url = readEnv('DISCORD_ALERT_WEBHOOK_URL');
-  if (!url) return;
-
   const fallbackPct =
     info.fetched > 0
       ? Math.round((info.fuzzworkFallbackCount / info.fetched) * 100)
       : 0;
-  const embed = {
+  await sendOpsAlert({
     title: info.budgetExhausted
       ? 'Price source degraded — ESI error budget exhausted'
       : 'Price source degraded — ESI fell back to Fuzzwork',
@@ -53,55 +68,5 @@ export async function alertPriceSourceDegradation(
         inline: true,
       },
     ],
-    footer: { text: `LGI.tools v${APP_VERSION}` },
-    timestamp: new Date().toISOString(),
-  };
-
-  await postDiscordWebhook(url, { embeds: [embed] });
-}
-
-export async function alertEsiRefreshDeadLetter(
-  info: EsiRefreshDeadLetter,
-): Promise<void> {
-  const url = readEnv('DISCORD_ALERT_WEBHOOK_URL');
-  if (!url) return;
-
-  await postDiscordWebhook(url, {
-    embeds: [
-      {
-        title: 'Deferred ESI refresh dead-lettered',
-        description: `Job ${info.jobId} exhausted its retry budget and needs operator review.`,
-        fields: [
-          { name: 'Dataset', value: info.dataset, inline: true },
-          { name: 'Attempts', value: String(info.attemptCount), inline: true },
-          { name: 'Resource', value: info.resource },
-          { name: 'Failure', value: info.failureCode },
-        ],
-        footer: { text: `LGI.tools v${APP_VERSION}` },
-        timestamp: new Date().toISOString(),
-      },
-    ],
   });
-}
-
-export async function alertPublicEsiBudgetExhaustion(
-  info: PublicEsiBudgetExhaustion,
-): Promise<boolean> {
-  const url = readEnv('DISCORD_ALERT_WEBHOOK_URL');
-  if (!url) return false;
-
-  const response = await postDiscordWebhook(url, {
-    embeds: [
-      {
-        title: 'Public ESI refreshes are repeatedly budget-blocked',
-        description: `${info.count} public refresh requests hit the shared ESI gate in the last ${info.windowMinutes} minutes. Stored data or the existing price fallback kept responses available.`,
-        footer: { text: `LGI.tools v${APP_VERSION}` },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  });
-  if (!response.ok) {
-    throw new Error(`Public ESI budget alert webhook returned ${response.status}`);
-  }
-  return true;
 }

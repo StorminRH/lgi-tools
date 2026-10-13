@@ -12,15 +12,13 @@ import type { Doc } from './_generated/dataModel';
 import { mutation, query, internalMutation, type MutationCtx } from './_generated/server';
 import {
   ensureLocationSync,
-  getLocationSync,
   type LocationSyncState,
+  retireLocationSync,
   runState,
   scheduleRun,
-  stopSync,
 } from './lib/locationSchedule';
 import { internal } from './_generated/api';
-import { clearCoverageForUser } from './lib/locationCoverage';
-import { getPresence } from './lib/subjects';
+import { getLocationPresence } from './lib/subjects';
 
 export const currentUser = query({
   args: {},
@@ -44,7 +42,7 @@ export const heartbeat = mutation({
     if (expectedUserId !== identity.subject) return;
     const userId = identity.subject;
     const now = Date.now();
-    const presence = await getPresence(ctx.db, 'characterLocation', userId);
+    const presence = await getLocationPresence(ctx.db, userId);
     if (presence !== null && isLeftTab(presence.leftTabId, tabId)) return;
 
     if (reason === 'interval' && isPresenceFresh(presence, visible, tabId, now)) {
@@ -88,7 +86,7 @@ async function scheduleFromBeat(
 ): Promise<void> {
   const state = await ensureLocationSync(ctx, userId);
   if (!hasSyncTarget(state.syncedCharacterIds, characterIdsHint)) return;
-  const run = await runState(ctx.db, state);
+  const run = await runState(ctx.db, state.jobId);
   if (run === 'inProgress') return;
   const stale = isStaleForImmediate(
     state.minExpiresAt,
@@ -171,14 +169,11 @@ function isLeftTab(leftTabId: string | undefined, tabId: string): boolean {
 
 /** One liveness check per cold window, independent of external action completion. */
 export async function ensurePresenceExpiry(ctx: MutationCtx, userId: string): Promise<void> {
-  const presence = await getPresence(ctx.db, 'characterLocation', userId);
+  const presence = await getLocationPresence(ctx.db, userId);
   if (presence === null) return;
   // A check that already ran, failed, or was cancelled no longer guards this
   // presence, so only a live one short-circuits.
-  if (presence.expiryJobId !== undefined) {
-    const job = await ctx.db.system.get('_scheduled_functions', presence.expiryJobId);
-    if (job !== null && (job.state.kind === 'pending' || job.state.kind === 'inProgress')) return;
-  }
+  if (await runState(ctx.db, presence.expiryJobId) !== 'none') return;
   await schedulePresenceExpiry(ctx, presence);
 }
 
@@ -204,9 +199,7 @@ export const expirePresence = internalMutation({
       await schedulePresenceExpiry(ctx, presence);
       return null;
     }
-    const state = await getLocationSync(ctx.db, presence.userId);
-    if (state !== null) await stopSync(ctx, state, now);
-    else await clearCoverageForUser(ctx, presence.userId);
+    await retireLocationSync(ctx, presence.userId, now);
     await ctx.db.patch('syncPresence', presenceId, { expiryJobId: undefined });
     return null;
   },

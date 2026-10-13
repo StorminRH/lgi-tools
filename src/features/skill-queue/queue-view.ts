@@ -1,6 +1,6 @@
 import type { Tone } from '@/components/ui/tones';
 import type { SkillQueueEntry } from './esi-projection';
-import { type EntryStatus, entryProgress } from './progress';
+import { type EntryStatus, entryProgress, entryTimes } from './progress';
 import { STATUS_META } from './skill-queue-styles';
 
 export interface EntryRowModel {
@@ -13,7 +13,7 @@ export interface EntryRowModel {
 
 export function entryRowModel(entry: SkillQueueEntry, now: number): EntryRowModel {
   const progress = entryProgress(entry, now);
-  const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;
+  const { finish } = entryTimes(entry);
   const training = progress.status === 'training';
   return {
     status: progress.status,

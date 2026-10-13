@@ -1,5 +1,6 @@
 import { ACTIVITY_NAME_TO_ID, INDUSTRY_ACTIVITY_NAMES } from './constants';
-import { activitiesToRows, type BlueprintActivities } from './tree-resolver';
+import { activitiesToRows } from './tree-resolver';
+import type { BlueprintActivities } from './types';
 
 export type BlueprintOutput = {
   productTypeId: number;
@@ -47,14 +48,13 @@ export function pickProducingActivityId(activities: BlueprintActivities): number
 }
 
 export function collectSearchPending(
-  rows: ReadonlyArray<{ blueprintTypeId: number; activities: unknown }>,
+  rows: ReadonlyArray<{ blueprintTypeId: number; activities: BlueprintActivities }>,
 ): { pending: PendingSearchRow[]; productIds: Set<number> } {
   const pending: PendingSearchRow[] = [];
   const productIds = new Set<number>();
   for (const r of rows) {
-    const activities = (r.activities ?? {}) as BlueprintActivities;
     for (const name of INDUSTRY_ACTIVITY_NAMES) {
-      for (const p of activities[name]?.products ?? []) {
+      for (const p of r.activities[name]?.products ?? []) {
         pending.push({
           blueprintTypeId: r.blueprintTypeId,
           activityId: ACTIVITY_NAME_TO_ID[name],
@@ -88,14 +88,11 @@ export function resolveSearchRows(
 }
 
 export function collectTrackedTypeIds(
-  rows: ReadonlyArray<{ blueprintTypeId: number; activities: unknown }>,
+  rows: ReadonlyArray<{ blueprintTypeId: number; activities: BlueprintActivities }>,
 ): number[] {
   const set = new Set<number>();
   for (const r of rows) {
-    const { mats, prods } = activitiesToRows(
-      r.blueprintTypeId,
-      (r.activities ?? {}) as BlueprintActivities,
-    );
+    const { mats, prods } = activitiesToRows(r.blueprintTypeId, r.activities);
     for (const m of mats) set.add(m.materialTypeId);
     for (const p of prods) set.add(p.productTypeId);
   }

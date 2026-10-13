@@ -19,11 +19,13 @@ describe('SectionHeader', () => {
     expect(render({ variant: 'sub', as: 'h3' })).toContain('<h3>Visitors &amp; users</h3>');
   });
 
-  it('draws the card header bar as an uppercase eyebrow on the row tint', () => {
+  it('draws the card header bar as a semibold label on the row tint, a step above an eyebrow', () => {
     const html = render({ hint: '12 items' });
-    expect(html).toMatch(/^<div class="[^"]*\buppercase\b[^"]*\bbg-row-hover\b[^"]*">/);
-    expect(html).toContain('py-[5px]');
-    expect(render({ size: 'md' })).toContain('py-2');
+    expect(html).toMatch(/^<div class="[^"]*\bfont-semibold\b[^"]*\bbg-row-hover\b[^"]*">/);
+    expect(html).not.toContain('uppercase');
+    expect(html).toContain('text-small py-[5px]');
+    expect(html).not.toContain('text-eyebrow');
+    expect(render({ size: 'md' })).toContain('text-bar py-2');
     expect(html).toContain('<span class="text-micro font-normal text-muted">12 items</span>');
   });
 
@@ -31,7 +33,7 @@ describe('SectionHeader', () => {
     const html = render({ variant: 'sub' });
     const classes = /^<div class="([^"]*)"/.exec(html)![1]!.split(' ');
     expect(classes).toEqual(expect.arrayContaining(['font-ui', 'text-ui', 'font-medium', 'text-text']));
-    for (const barOnly of ['uppercase', 'bg-row-hover', 'border-b', 'px-3.5', 'tracking-eyebrow']) {
+    for (const barOnly of ['bg-row-hover', 'border-b', 'px-3.5', 'font-semibold']) {
       expect(classes).not.toContain(barOnly);
     }
   });

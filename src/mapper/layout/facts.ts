@@ -1,3 +1,4 @@
+import { getOrInsertComputed } from '@/lib/array';
 import type { LayoutEdge, LayoutFacts } from './layout-contract';
 
 export interface ChainTree {
@@ -39,9 +40,7 @@ function attach(state: Derivation, child: number, parent: number): void {
   state.attached.add(child);
   state.parents.set(child, parent);
   state.attachmentOrder.push(child);
-  const siblings = state.childrenInOrder.get(parent);
-  if (siblings === undefined) state.childrenInOrder.set(parent, [child]);
-  else siblings.push(child);
+  getOrInsertComputed(state.childrenInOrder, parent, () => []).push(child);
 }
 
 function examineEdge(state: Derivation, index: number, edge: LayoutEdge): boolean {
@@ -79,6 +78,23 @@ function drainPending(state: Derivation, facts: LayoutFacts, pending: number[]):
     const index = pending[i];
     if (index !== undefined && state.classified.has(index)) pending.splice(i, 1);
   }
+}
+
+/**
+ * Classifies links in caller order: the first link joining a tree parent and
+ * its child is solid; every other link (duplicates, cross links, self links,
+ * orphan links) is a loop. Keyed by child, since each child has one parent.
+ */
+export function treeLinkClaim(
+  parents: ReadonlyMap<number, number>,
+): (a: number, b: number) => boolean {
+  const claimed = new Set<number>();
+  return (a, b) => {
+    const child = parents.get(b) === a ? b : parents.get(a) === b ? a : null;
+    if (child === null || claimed.has(child)) return false;
+    claimed.add(child);
+    return true;
+  };
 }
 
 export function deriveChainTree(facts: LayoutFacts): ChainTree {

@@ -1,5 +1,5 @@
 import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
-import type { SignatureWindowRow } from './signature-model';
+import { signatureIdentityKey, type SignatureWindowRow } from './signature-model';
 
 /** How long an automatically updated scanner row stays highlighted. */
 export const SIGNATURE_UPDATE_FLASH_MS = 2_600;
@@ -16,12 +16,6 @@ export interface SignatureRowFacts {
   readonly typeByMachine: boolean;
   readonly destinationSystemId: number | null;
   readonly destinationByMachine: boolean;
-}
-
-export function signatureIdentityKey(
-  row: Pick<SignatureWindowRow, 'systemId' | 'signatureId'>,
-): string {
-  return `${row.systemId}:${row.signatureId}`;
 }
 
 function signatureRowFacts(row: SignatureWindowRow): SignatureRowFacts | null {

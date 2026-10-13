@@ -56,7 +56,7 @@ describe('labelCorpHolding', () => {
     expect(labelCorpHolding(placement, context, {}, fmt).containerName).toBeNull();
   });
 
-  it('labels an unnamed structure generically and a missing station honestly', () => {
+  it('labels an unnamed structure generically and a missing or blank station honestly', () => {
     expect(labelCorpHolding({ kind: 'hangar', rootId: UNNAMED_STRUCTURE, division: 1, containers: [] }, context, {}, fmt)).toEqual({
       locationName: 'Upwell structure',
       locationFlag: '1st Division',
@@ -67,6 +67,9 @@ describe('labelCorpHolding', () => {
       locationFlag: '',
       containerName: null,
     });
+    expect(labelCorpHolding({ kind: 'unplaced', rootId: STATION }, context, { [STATION]: '' }, fmt).locationName).toBe(
+      'Unknown location',
+    );
     expect(labelCorpHolding({ kind: 'unplaced', rootId: null }, context, names, fmt)).toEqual({
       locationName: 'Unknown location',
       locationFlag: '',

@@ -4,9 +4,6 @@ import { deriveChainTree } from '../layout/facts';
 import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
 import { movedSystems } from '../layout/proof-kit';
 import {
-  assignerFromPositions,
-} from './placement';
-import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
   type ChainSnapshot,
@@ -346,16 +343,8 @@ describe('seat-ordered children', () => {
       SIBLING,
       THIRD,
     ]);
-    const first = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshotOf(held),
-      assignerFromPositions(before),
-    );
-    const second = reconcileChain(
-      first.state,
-      snapshotOf(purged),
-      assignerFromPositions(after),
-    );
+    const first = reconcileChain(EMPTY_CHAIN_STATE, snapshotOf(held), before);
+    const second = reconcileChain(first.state, snapshotOf(purged), after);
     expect(
       second.intents
         .filter((intent) => intent.kind === 'system-moved')

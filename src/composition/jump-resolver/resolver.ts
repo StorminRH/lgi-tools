@@ -14,6 +14,7 @@ import {
   type WormholeCodexAsset,
 } from '@/data/eve-data/universe-assets';
 import { readShipMassByType } from '@/data/eve-data/queries';
+import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
 import { matchJump } from '@/data/maps/hole-matching';
 import { classifyMovement } from '@/data/maps/movement-classification';
 import { resolveSignatureElimination } from '@/composition/signature-elimination/resolver';
@@ -27,13 +28,17 @@ import type {
   JumpResolverRequest,
   JumpResolverResponse,
 } from '@/data/maps/api-contract';
+import type {
+  authorJumpDoor,
+  confirmJumpDoor,
+  reassociateJumpDoor,
+} from '@/data/maps/convex-doors';
+import type { ConvexDoorRequest } from '@/lib/convex-door-contract';
 import {
   answerJump,
   authorJump,
   readConnectionEvidence,
   readTransitionEvidence,
-  type AnswerJumpInput,
-  type AuthorJumpInput,
   type AuthorJumpResult,
   type ConnectionEmissionFacts,
   type TransitionEvidence,
@@ -217,7 +222,7 @@ async function emitObservation(
       dedupeKey: emission.observationKey,
       destinationClassId: effectiveWormholeClassId(destination),
     },
-    codex.types,
+    indexWormholeCodex(codex.types),
   );
   if (observation === null) return false;
 
@@ -400,7 +405,11 @@ async function resolveDoorbell(
     codex: geography.codex.types,
   });
   const candidateIds = evidence.candidates.map((candidate) => candidate.id);
-  const decision = { ...matched, candidateIds } satisfies AuthorJumpInput['decision'];
+  const decision = {
+    ...matched,
+    candidateIds,
+    survivors: [...matched.survivors],
+  } satisfies ConvexDoorRequest<typeof authorJumpDoor>['decision'];
 
   let resolved: AuthorJumpResult;
   try {
@@ -427,20 +436,21 @@ async function resolveConfirmation(
   request: Extract<JumpResolverRequest, { kind: 'confirm' }>,
   dependencies: JumpResolverDependencies,
 ): Promise<JumpResolverResponse> {
-  const input: AnswerJumpInput = request.targetConnectionId === null
-    ? {
-        operation: 'confirm',
-        userId,
-        mapId: request.mapId,
-        connectionId: request.connectionId,
-      }
-    : {
-        operation: 'reassociate',
-        userId,
-        mapId: request.mapId,
-        connectionId: request.connectionId,
-        targetConnectionId: request.targetConnectionId,
-      };
+  const input: ConvexDoorRequest<typeof confirmJumpDoor | typeof reassociateJumpDoor> =
+    request.targetConnectionId === null
+      ? {
+          operation: 'confirm',
+          userId,
+          mapId: request.mapId,
+          connectionId: request.connectionId,
+        }
+      : {
+          operation: 'reassociate',
+          userId,
+          mapId: request.mapId,
+          connectionId: request.connectionId,
+          targetConnectionId: request.targetConnectionId,
+        };
   let emission: ConnectionEmissionFacts;
   try {
     emission = await dependencies.answerJump(input);

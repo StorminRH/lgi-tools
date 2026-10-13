@@ -18,7 +18,9 @@ describe('applyMapAccessUpdate', () => {
     const result = await applyMapAccessUpdate('admin', UPSERT, {
       resolvePrincipals: vi.fn().mockResolvedValue({ characterIds: [], corporationIds: [] }),
       applyGrantChange: vi.fn().mockResolvedValue({ mapId: 'map-1', version: 'captured' }),
-      projectAccess: vi.fn().mockResolvedValue({ outcome: 'stale' }),
+      projectAccess: vi.fn().mockRejectedValue(
+        new ProjectionUnavailableError('Map access projection unavailable: a newer projection already won'),
+      ),
       acknowledgeAccess,
     });
     expect(result).toMatchObject({ ok: false, reason: 'projection-unavailable' });

@@ -1,22 +1,14 @@
 import { sql, type SQL, type SQLWrapper } from 'drizzle-orm';
 import { account } from '@/db/auth-schema';
-import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapPrincipals } from './access';
+import { activeMapCondition } from './lifecycle-sql';
 import { mapAccess, mapBlockAccounts, mapBlocks, maps, pendingMapAccessChanges } from './schema';
 
 export type PendingMapAccessChange = {
   readonly mapId: string;
   readonly version: string;
 };
-
-export async function mapAuthorizationRows<T extends Record<string, unknown>>(
-  database: AnyPgDb,
-  query: SQL,
-): Promise<T[]> {
-  const result = await database.execute<T>(query);
-  return Array.isArray(result) ? result : result.rows;
-}
 
 /** True when a block names this account: as a past holder of the character, or as its holder now. */
 export function userBlockedFromMap(userId: string, mapId: SQLWrapper): SQL {
@@ -90,6 +82,15 @@ export function authorizedAdminMapsSelection(
         )
       )
   `;
+}
+
+/** The active maps among `mapIds` that the caller created or administers. */
+export function activeAdminMapsSelection(
+  userId: string,
+  principals: MapPrincipals,
+  mapIds: readonly string[],
+): SQL {
+  return authorizedAdminMapsSelection(userId, principals, mapIds, activeMapCondition());
 }
 
 /** Records the current holder of a blocked character on each map that blocks it, unless they created that map. */

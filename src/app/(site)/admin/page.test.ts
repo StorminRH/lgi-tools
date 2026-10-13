@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { AdminSignals } from './signals';
 
 const m = vi.hoisted(() => ({
@@ -10,7 +12,7 @@ const m = vi.hoisted(() => ({
   getReturningVsNew: vi.fn(),
 }));
 
-vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => ({ isAdmin: true }) }));
+vi.mock('@/composition/route-guards', () => ({ requireAdminPage: async () => adminSessionFixture() }));
 vi.mock('next/navigation', () => ({
   unstable_rethrow: () => undefined,
   usePathname: () => '/admin',
@@ -25,7 +27,6 @@ vi.mock('@/data/telemetry/queries', () => ({ getReturningVsNew: m.getReturningVs
 vi.mock('./deploy-markers', () => ({ loadDeployMarkers: async () => [] }));
 vi.mock('./shared-reads', () => ({
   getStaticsSummaryShared: async () => null,
-  getEsiRefreshQueueStatsShared: async () => [],
   getPageViewStatsShared: async () => ({ current: [], previous: [] }),
 }));
 
@@ -52,7 +53,6 @@ const SIGNALS: AdminSignals = {
   fallback: { esi: 100, fallback: 0, perDay: [] },
   budgetExhaustions: 0,
   sli: { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 },
-  queue: [],
   statics: null,
   releases: [{ date: '2026-09-24', label: 'v4.1.3' }],
 };
@@ -112,7 +112,7 @@ describe('admin overview', () => {
   });
 
   it('blanks only the card whose read failed', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] accounts section unavailable']);
     m.getAccountTotals.mockRejectedValue(new Error('offline'));
 
     const html = await page();

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const logUsageEventMock = vi.fn();
 const afterMock = vi.fn();
@@ -21,6 +22,10 @@ describe('cost metrics', () => {
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
     afterMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('keeps the invocation alive while the usage event is written', async () => {
@@ -62,11 +67,81 @@ describe('cost metrics', () => {
     });
   });
 
+  it('adds result metadata to the succeeded event and leaves it off the failed one', async () => {
+    const countRows = (rows: string[]) => ({ returned: rows.length });
+
+    await observeCostPromise(
+      Promise.resolve(['a', 'b']),
+      'owned_data_read',
+      { endpoint: '/api/account/board' },
+      startCostTimer(),
+      countRows,
+    );
+    const error = new Error('read failed');
+    await expect(
+      observeCostPromise(
+        Promise.reject<string[]>(error),
+        'owned_data_read',
+        { endpoint: '/api/account/board' },
+        startCostTimer(),
+        countRows,
+      ),
+    ).rejects.toBe(error);
+
+    expect(afterMock).toHaveBeenCalledTimes(2);
+    await afterMock.mock.calls[0]![0]();
+    await afterMock.mock.calls[1]![0]();
+    expect(logUsageEventMock.mock.calls).toEqual([
+      [
+        {
+          action: 'owned_data_read',
+          metadata: {
+            endpoint: '/api/account/board',
+            returned: 2,
+            outcome: 'succeeded',
+            durationMs: expect.any(Number),
+          },
+        },
+      ],
+      [
+        {
+          action: 'owned_data_read',
+          metadata: { endpoint: '/api/account/board', outcome: 'failed', durationMs: expect.any(Number) },
+        },
+      ],
+    ]);
+  });
+
+  it('still records the succeeded event when the result metadata hook throws', async () => {
+    const logged = silenceConsolePrefixes('error', ['[cost-metrics] result metadata failed']);
+    const hookError = new Error('unexpected shape');
+
+    await expect(
+      observeCostPromise(
+        Promise.resolve('value'),
+        'owned_data_read',
+        { endpoint: '/api/account/board' },
+        startCostTimer(),
+        () => {
+          throw hookError;
+        },
+      ),
+    ).resolves.toBe('value');
+
+    expect(afterMock).toHaveBeenCalledOnce();
+    await afterMock.mock.calls[0]![0]();
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'owned_data_read',
+      metadata: { endpoint: '/api/account/board', outcome: 'succeeded', durationMs: expect.any(Number) },
+    });
+    expect(logged).toHaveBeenCalledWith('[cost-metrics] result metadata failed', hookError);
+  });
+
   it('does not detach a write when lifecycle scheduling is unavailable', () => {
     afterMock.mockImplementationOnce(() => {
       throw new Error('outside request scope');
     });
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    silenceConsolePrefixes('error', ['[cost-metrics] telemetry scheduling failed']);
 
     expect(() => emitCostMetric('market_price_refresh', { requested: 1 })).not.toThrow();
     expect(logUsageEventMock).not.toHaveBeenCalled();

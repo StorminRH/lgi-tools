@@ -27,7 +27,42 @@ instead of spying.
 
 Shared test helpers live under `src/db/__tests__/support/` and
 `convex/__tests__/*.setup.ts`. Import factories explicitly inside each test (or
-a per-test factory). Harness-owned `beforeAll` / `beforeEach` for disposable
+a per-test factory). A unit test that mocks `@/db` stands in the database with
+`createFakeQueryChain` from `src/db/__tests__/support/fake-query-chain.ts`, not
+a hand-built thenable chain. A test that mocks `react` to call hooks or
+components as plain functions and needs state, memos or effects that persist
+across renders runs on `createHookRuntime` from
+`src/lib/__tests__/hook-runtime.ts`, not a hand-rolled slot runtime; a scripted
+single-purpose fake (a fixed ref, spy setters, a hydration switch) stays local,
+as does any copy in `components/ui`, which may not import `lib`. A gate
+suite that scans the source tree lists files with `listSourceFiles` or
+`listRouteFiles` and reads them through `filesMatching`, `stripComments`,
+`valueImportSpecifiers` and `resolveLocalImport` from
+`src/lib/__tests__/source-scan.ts`, not a hand-rolled `readdirSync` walker,
+comment stripper or import regex; each gate still passes its own scan scope
+(roots, extensions, skipped directories and suffixes). A test of a cross-tab
+peer link opens its channels on `createBroadcastBus` from
+`src/lib/__tests__/broadcast-bus.ts`, not a hand-rolled channel and bus fake;
+a stub of the global `BroadcastChannel` that only records calls stays local.
+A markup test of anything that renders a dialog mocks `@base-ui/react/dialog`
+with the `StaticBaseDialog` parts from
+`src/components/ui/__tests__/static-base-dialog.ts`, so the real ui/dialog
+parts render and their labelling is under test, and reads the outermost
+dialog's open, portal and focus props from its `dialogProbe`; it does not stub
+`@/components/ui/dialog`. A node test of code that asks whether a popup is
+open, or that listens for Escape, answers `document.querySelector` with
+`fakeQuerySelector` and dispatches `keyDown` events from
+`src/components/ui/__tests__/fake-page.ts`, not a stub that matches the
+selector string. Markup tests render the real Button; a Button stub
+that captures props for a callback stays local.
+Domain objects come from the owner's `__tests__/` fixture (`siteDetail`,
+`siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`,
+`ownerFixture` for an owner-sync owner), not a local literal builder;
+pass every field the test reads. A corp-member builder that pins its file's
+corporation is a thin wrapper over `ownerFixture`. An owned-dataset refresh test
+(assets, blueprints) builds its port with `ownedDatasetPortFake` from
+`src/platform/owner-sync/__tests__/owner-fixtures.ts`; a port of another shape
+keeps its local fake. Harness-owned `beforeAll` / `beforeEach` for disposable
 schema lifecycle is the exception — do not introduce extra hooks that hide
 arrange steps. That conflicts with the principles below.
 
@@ -112,7 +147,8 @@ Do not spin a live Convex deployment for the Vitest gate.
 - Keep test output free of stray logging. When a log is part of the tested
   contract, assert on the calls (prefer a stable first-argument tag plus
   `expect.any(Error)`; do not pin long prose). When the log is incidental,
-  silence only the expected tags — a blanket `.mockImplementation(() => {})`
+  silence only the expected tags with `silenceConsolePrefixes` from
+  `src/lib/__tests__/console-tags.ts` — a blanket `.mockImplementation(() => {})`
   can hide a real regression.
 
 ## Examples

@@ -1,7 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
-import SiteDetailPage, { SiteDetailContent } from './page';
+import { siteDetail } from '@/features/wormhole-sites/__tests__/site-fixtures';
+import SiteDetailPage, { generateMetadata, SiteDetailContent } from './page';
 
 const mocks = vi.hoisted(() => ({
   getPricedSiteDetail: vi.fn(),
@@ -70,19 +71,13 @@ vi.mock('@/data/market-prices/cache', () => ({
   getCachedPricesFreshness: async () => ({ lastUpdatedAt: null }),
 }));
 
-const site = {
+const site = siteDetail({
   id: 1,
   name: 'Forgotten Perimeter Coronation Platform',
-  siteType: 'relic' as const,
-  wormholeClass: 'C1' as const,
-  signatureLabel: 'ABC-123',
-  sourceTab: 'Sheet',
+  siteType: 'relic',
+  wormholeClass: 'C1',
   blueLootIsk: 1,
-  iskPerEhp: null,
-  resourceValueIsk: null,
-  waves: [],
-  resources: [],
-};
+});
 
 beforeEach(() => {
   mocks.getPricedSiteDetail.mockReset();
@@ -116,4 +111,29 @@ test('site detail keeps params under Suspense then hosts the standalone card', a
   expect(html).toContain('Forgotten Perimeter Coronation Platform');
   expect(html).toContain('data-related-sites');
   expect(mocks.getPricedSiteDetail).toHaveBeenCalledWith(1);
+});
+
+test('site detail metadata leaves the share image to the per-site card and 404s a miss', async () => {
+  const metadata = await generateMetadata({ params: Promise.resolve({ id: '1' }) });
+  expect(metadata.title).toBe('Forgotten Perimeter Coronation Platform — C1 Relic');
+  expect(metadata.alternates).toEqual({ canonical: '/sites/1' });
+  expect(metadata.openGraph).toMatchObject({
+    title: 'Forgotten Perimeter Coronation Platform — C1 Relic',
+    url: '/sites/1',
+  });
+  // An own images key, even an undefined one, would mask opengraph-image.tsx.
+  expect('images' in (metadata.openGraph ?? {})).toBe(false);
+  expect('images' in (metadata.twitter ?? {})).toBe(false);
+
+  mocks.getPricedSiteDetail.mockResolvedValue(null);
+  await expect(generateMetadata({ params: Promise.resolve({ id: '2' }) })).rejects.toThrow('NEXT_NOT_FOUND');
+  await expect(
+    SiteDetailContent({ params: Promise.resolve({ id: '2' }), searchParams: Promise.resolve({}) }),
+  ).rejects.toThrow('NEXT_NOT_FOUND');
+  expect(mocks.getPricedSiteDetail).toHaveBeenCalledTimes(3);
+
+  await expect(
+    SiteDetailContent({ params: Promise.resolve({ id: '01' }), searchParams: Promise.resolve({}) }),
+  ).rejects.toThrow('NEXT_NOT_FOUND');
+  expect(mocks.getPricedSiteDetail).toHaveBeenCalledTimes(3);
 });

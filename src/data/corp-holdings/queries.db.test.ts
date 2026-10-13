@@ -1,15 +1,16 @@
 import { eq } from 'drizzle-orm';
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
-import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { countSessionsWaitingOn, createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpHoldingContext,
   readCorpProfileState,
   readCorpMemberContext,
+  replaceHoldingNodes,
   saveCorpProfile as persistCorpProfile,
-  saveHoldingNodes,
   stampCorpProfileFresh,
 } from './queries';
-import { buildHoldingIndex, type CorpAssetItem, placeUnder } from './placement';
+import { buildHoldingIndex, type CorpAssetItem, type HoldingIndex, placeUnder } from './placement';
 import { corpHoldingNodes, corpMemberBases } from './schema';
 import type { CorpProfile, MemberBase } from './context';
 
@@ -21,7 +22,7 @@ vi.mock('next/cache', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_holdings',
-  tables: ['corp_holding_nodes', 'corp_profiles', 'corp_member_bases'],
+  tables: ['corp_holding_nodes', 'corp_profiles', 'corp_member_bases', 'esi_responses'],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
 });
@@ -68,18 +69,15 @@ async function committedNodeIds(): Promise<number[]> {
   return rows.map((row) => row.itemId).sort((a, b) => a - b);
 }
 
-async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 3000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (await predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-  throw new Error('waitFor: condition not met before timeout');
+function replaceHoldingNodesInTransaction(corporationId: number, index: HoldingIndex): Promise<void> {
+  return harness.db.transaction((tx) => replaceHoldingNodes(tx, corporationId, index, NOW));
 }
 
 describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () => {
   it('stores the tree and rebuilds placements from it, with the HQ unknown before a context pass', async () => {
-    expect(await saveHoldingNodes(CORP, tree, NOW)).toBe('saved');
+    vi.mocked(revalidateTag).mockClear();
+    await replaceHoldingNodesInTransaction(CORP, tree);
+    expect(revalidateTag).not.toHaveBeenCalled();
 
     const context = await getCorpHoldingContext(CORP);
     expect(context.hq).toEqual({ kind: 'unknown' });
@@ -98,43 +96,13 @@ describe.skipIf(!harness.reachable)('corp holding nodes against Postgres', () =>
   });
 
   it('replaces the corp tree and leaves other corps alone', async () => {
-    await saveHoldingNodes(CORP, tree, NOW);
-    await saveHoldingNodes(OTHER_CORP, tree, NOW);
+    await replaceHoldingNodesInTransaction(CORP, tree);
+    await replaceHoldingNodesInTransaction(OTHER_CORP, tree);
 
-    await saveHoldingNodes(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]), NOW);
+    await replaceHoldingNodesInTransaction(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]));
 
     expect(await committedNodeIds()).toEqual([7001]);
     expect(placeUnder((await getCorpHoldingContext(OTHER_CORP)).index, CAN, 'Unlocked').kind).toBe('hangar');
-  });
-
-  it('reports superseded when a concurrent refresh wins the insert race', async () => {
-    await saveHoldingNodes(CORP, buildHoldingIndex([item(2002, 7001, 'station', 'CorpSAG1')]), NOW);
-
-    let signalInserted!: () => void;
-    let releaseWinner!: () => void;
-    const winnerHasInserted = new Promise<void>((resolve) => {
-      signalInserted = resolve;
-    });
-    const winnerMayCommit = new Promise<void>((resolve) => {
-      releaseWinner = resolve;
-    });
-    const winner = harness.sql.begin(async (tx) => {
-      await tx`
-        INSERT INTO corp_holding_nodes (corporation_id, item_id, kind, root_id, refreshed_at)
-        VALUES (${CORP}, ${OFFICE}, 'office', ${STATION}, ${NOW.toISOString()})
-      `;
-      signalInserted();
-      await winnerMayCommit;
-    });
-    await winnerHasInserted;
-
-    const loser = saveHoldingNodes(CORP, tree, NOW);
-    await waitFor(async () => (await committedNodeIds()).length === 0);
-    releaseWinner();
-    await winner;
-
-    expect(await loser).toBe('superseded');
-    expect(await committedNodeIds()).toEqual([OFFICE]);
   });
 });
 
@@ -184,16 +152,20 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
     expect((await readCorpMemberContext(CORP, []))?.bases).toEqual(new Map());
   });
 
-  it('rolls the profile and member snapshot back together when a base write fails', async () => {
+  it('rolls the profile and member snapshot back together when a base write fails, leaving the tag to the sync\'s commit', async () => {
+    vi.mocked(revalidateTag).mockClear();
     await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
+    expect(revalidateTag).not.toHaveBeenCalled();
     await harness.sql`ALTER TABLE corp_member_bases ADD CONSTRAINT reject_test_base CHECK (base_id <> 60008494)`;
     try {
+      vi.mocked(revalidateTag).mockClear();
       await expect(saveCorpProfile(
         CORP,
         { ...profile, hqStationId: 60008494, divisionNames: { 2: 'Changed' } },
         [{ characterId: 90002, baseId: 60008494 }],
         new Date('2026-09-28T11:00:00.000Z'),
       )).rejects.toThrow();
+      expect(revalidateTag).not.toHaveBeenCalled();
       expect(await readCorpMemberContext(CORP, [90001, 90002])).toEqual({
         lastRefreshedAt: NOW,
         hqStationId: STATION,
@@ -208,7 +180,7 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
   it('serializes concurrent profile saves so the final member list belongs to the final profile', async () => {
     await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
     const blocker = await harness.sql.reserve();
-    let saves: Promise<void[]> | undefined;
+    let saves: Promise<('saved' | 'superseded')[]> | undefined;
     try {
       await blocker`BEGIN`;
       await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;
@@ -218,18 +190,7 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
         saveCorpProfile(CORP, { ...profile, hqStationId: 60008494 }, [{ characterId: 90002, baseId: 60008494 }], NOW),
         saveCorpProfile(CORP, { ...profile, hqStationId: 60011866 }, [{ characterId: 90003, baseId: 60011866 }], NOW),
       ]);
-      await expect.poll(async () => {
-        const [row] = await harness.sql<{ count: number }[]>`
-          WITH RECURSIVE waiting AS (
-            SELECT pid FROM pg_stat_activity WHERE ${holder!.pid} = ANY(pg_blocking_pids(pid))
-            UNION
-            SELECT activity.pid FROM pg_stat_activity activity
-            JOIN waiting ON waiting.pid = ANY(pg_blocking_pids(activity.pid))
-          )
-          SELECT count(*)::integer AS count FROM waiting
-        `;
-        return row?.count;
-      }, { timeout: 3_000, interval: 20 }).toBe(2);
+      await expect.poll(() => countSessionsWaitingOn(harness.sql, holder!.pid), { timeout: 3_000, interval: 20 }).toBe(2);
       expect((await readCorpMemberContext(CORP, [90001, 90002, 90003]))?.bases).toEqual(new Map([[90001, STATION]]));
       await blocker`COMMIT`;
       await saves;

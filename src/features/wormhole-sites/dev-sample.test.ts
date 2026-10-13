@@ -1,45 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { siteDetail } from './__tests__/site-fixtures';
 import { selectDevSampleSites } from './dev-sample';
 import { siteClassSet } from './site-filter';
 import type { SiteDetail } from './types';
 
-function makeSite(overrides: Partial<SiteDetail> = {}): SiteDetail {
-  return {
-    id: 1,
-    name: 'Site 1',
-    siteType: 'combat',
-    wormholeClass: 'C1',
-    signatureLabel: 'Combat Site',
-    sourceTab: 'combat',
-    blueLootIsk: null,
-    iskPerEhp: null,
-    resourceValueIsk: null,
-    waves: [],
-    resources: [],
-    ...overrides,
-  };
-}
-
 function representativeFixture(): SiteDetail[] {
   return [
-    makeSite({ id: 1, name: 'C1 Combat A' }),
-    makeSite({ id: 2, name: 'C1 Combat B' }),
-    makeSite({ id: 3, name: 'C2 Combat', wormholeClass: 'C2' }),
-    makeSite({ id: 4, name: 'Classless Ore A', siteType: 'ore', wormholeClass: null }),
-    makeSite({ id: 5, name: 'Classless Ore B', siteType: 'ore', wormholeClass: null }),
-    makeSite({
+    siteDetail({ id: 1, name: 'C1 Combat A', siteType: 'combat', wormholeClass: 'C1' }),
+    siteDetail({ id: 2, name: 'C1 Combat B', siteType: 'combat', wormholeClass: 'C1' }),
+    siteDetail({ id: 3, name: 'C2 Combat', siteType: 'combat', wormholeClass: 'C2' }),
+    siteDetail({ id: 4, name: 'Classless Ore A', siteType: 'ore', wormholeClass: null }),
+    siteDetail({ id: 5, name: 'Classless Ore B', siteType: 'ore', wormholeClass: null }),
+    siteDetail({
       id: 6,
       name: 'Perimeter Reservoir',
       siteType: 'gas',
       wormholeClass: null,
     }),
-    makeSite({
+    siteDetail({
       id: 7,
       name: 'Perimeter Reservoir',
       siteType: 'gas',
       wormholeClass: null,
     }),
-    makeSite({ id: 8, name: 'C3 Relic', siteType: 'relic', wormholeClass: 'C3' }),
+    siteDetail({ id: 8, name: 'C3 Relic', siteType: 'relic', wormholeClass: 'C3' }),
   ];
 }
 

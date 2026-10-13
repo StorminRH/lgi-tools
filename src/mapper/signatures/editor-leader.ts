@@ -1,11 +1,6 @@
+import { clamp } from '@/lib/math';
+import type { Box } from '../lib/geometry';
 import { roundedLeaderPath } from '../windows/leader-path';
-
-export interface LeaderRect {
-  readonly left: number;
-  readonly right: number;
-  readonly top: number;
-  readonly bottom: number;
-}
 
 export interface EditorLeader {
   readonly bracket: { readonly x: number; readonly top: number; readonly bottom: number };
@@ -35,11 +30,6 @@ const MIN_RUN_PX = 14;
 
 const CORNER_RADIUS_PX = 8;
 
-function clamp(value: number, low: number, high: number): number {
-  if (high < low) return low;
-  return Math.min(Math.max(value, low), high);
-}
-
 /**
  * A bracket on the selected row's right edge and a callout to the card: a
  * short level stub, a 45° turn toward the card's attach point, and a level
@@ -47,10 +37,10 @@ function clamp(value: number, low: number, high: number): number {
  * row, clamped to the card's side when the card cannot reach that height.
  */
 export function editorLeader(input: {
-  readonly row: LeaderRect;
-  readonly panel: LeaderRect;
+  readonly row: Box;
+  readonly panel: Box;
   readonly origin: { readonly left: number; readonly top: number };
-  readonly clip?: LeaderRect;
+  readonly clip?: Box;
 }): EditorLeader | null {
   const { row, panel, origin, clip } = input;
   const rowTop = clip === undefined ? row.top : Math.max(row.top, clip.top);

@@ -1,10 +1,12 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { getOrInsertComputed, sortedUniqueIds } from '@/lib/array';
 import type { AnyPgDb } from '@/lib/db-types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
+import { asRecord } from './coerce';
 import {
-  BLUEPRINT_STRUCTURE_TAG,
+  SDE_CACHE_TAG,
   SDE_META_KEY_VERSION,
 } from './constants';
 import { getSdeMetaValue } from './meta';
@@ -123,16 +125,11 @@ export function buildAdjacencyGraph(
 ): AdjacencyEntry[] {
   const neighboursBySystem = new Map<number, Set<number>>();
   for (const row of rows) {
-    const neighbours = neighboursBySystem.get(row.fromSystemId) ?? new Set();
-    neighbours.add(row.toSystemId);
-    neighboursBySystem.set(row.fromSystemId, neighbours);
+    getOrInsertComputed(neighboursBySystem, row.fromSystemId, () => new Set()).add(row.toSystemId);
   }
   return [...neighboursBySystem]
     .sort(([left], [right]) => left - right)
-    .map(([systemId, neighbours]) => [
-      systemId,
-      [...neighbours].sort((left, right) => left - right),
-    ]);
+    .map(([systemId, neighbours]) => [systemId, sortedUniqueIds(neighbours)]);
 }
 
 export function resolveWormholeAttributeIds(
@@ -208,7 +205,10 @@ export function buildWormholeCodex(
         ),
       };
     })
-    .sort((left, right) => left.code.localeCompare(right.code));
+    .sort(
+      (left, right) =>
+        left.code.localeCompare(right.code) || left.typeId - right.typeId,
+    );
 }
 
 function isKnownQaWormholeType(row: WormholeTypeRow): boolean {
@@ -216,16 +216,13 @@ function isKnownQaWormholeType(row: WormholeTypeRow): boolean {
 }
 
 function dogmaAttributes(row: WormholeTypeRow): Record<string, unknown> {
-  if (
-    typeof row.attributes !== 'object'
-    || row.attributes === null
-    || Array.isArray(row.attributes)
-  ) {
+  const attributes = asRecord(row.attributes);
+  if (attributes === null) {
     throw new Error(
       `SDE wormhole type ${row.id} (${row.name}) has no dogma row.`,
     );
   }
-  return row.attributes as Record<string, unknown>;
+  return attributes;
 }
 
 function requireDogmaNumber(
@@ -342,20 +339,20 @@ export async function readWormholeCodex(
 export async function getSystemDirectory(): Promise<SystemDirectoryAsset> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => readSystemDirectory(db));
 }
 
 export async function getAdjacencyGraph(): Promise<AdjacencyAsset> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => readAdjacencyGraph(db));
 }
 
 export async function getWormholeCodex(): Promise<WormholeCodexAsset> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(() => readWormholeCodex(db));
 }

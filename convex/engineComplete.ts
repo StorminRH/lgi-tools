@@ -1,9 +1,9 @@
 import { v } from 'convex/values';
-import { LOCATION_COLD_AFTER_MS, LOCATION_CADENCE_FLOOR_MS, isColdFromPresence } from '@/lib/sync-engine';
+import { LOCATION_CADENCE_FLOOR_MS } from '@/lib/sync-engine';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { ensureLocationSync, runState, scheduleRun } from './lib/locationSchedule';
 import { ensurePresenceExpiry } from './engine';
-import { getPresence } from './lib/subjects';
+import { isLocationWatcherCold } from './lib/subjects';
 
 /**
  * Hands a warm legacy watcher to the location scheduler before retention
@@ -12,11 +12,10 @@ import { getPresence } from './lib/subjects';
  */
 export async function handOffLocationSync(ctx: MutationCtx, userId: string, completedGeneration?: string): Promise<void> {
   const now = Date.now();
-  const presence = await getPresence(ctx.db, 'characterLocation', userId);
-  if (isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, now)) return;
+  if (await isLocationWatcherCold(ctx.db, userId, now)) return;
   await ensurePresenceExpiry(ctx, userId);
   const state = await ensureLocationSync(ctx, userId);
-  const running = await runState(ctx.db, state);
+  const running = await runState(ctx.db, state.jobId);
   if (running !== 'none') {
     // An unversioned action from an earlier PR deployment may still own this
     // state. Only that exact in-flight legacy generation may hand itself off;

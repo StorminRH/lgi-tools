@@ -6,6 +6,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Prose } from '@/components/ui/prose';
 import { SectionLabel } from '@/components/ui/section-label';
+import { ExternalLink } from '@/components/ui/text-link';
 import { eyebrow } from '@/components/ui/type-roles';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { buildPageMetadata } from '@/lib/page-metadata';
@@ -16,14 +17,6 @@ export const metadata = buildPageMetadata({
     'How LGI.tools handles site usage data and the EVE character data you grant through EVE SSO.',
   canonical: '/legal',
 });
-
-function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  );
-}
 
 function LegalCard({
   title,
@@ -36,7 +29,7 @@ function LegalCard({
 }) {
   return (
     <section className={cn(cardSurface, 'reveal px-5 py-6 sm:px-8 sm:py-7', reveal)}>
-      <h2 className="mb-6 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">
+      <h2 className="mb-6 font-display text-h3 font-bold leading-none tracking-optical text-name">
         {title}
       </h2>
       {children}
@@ -67,7 +60,7 @@ export default function LegalPage() {
 
       <div className="pb-16">
         <Prose className="flex flex-col gap-6">
-          <LegalCard title="Site Usage" reveal="reveal-1">
+          <LegalCard title="Site usage" reveal="reveal-1">
             <p className="mb-7">What the site records about your visit.</p>
 
             <LegalSection label="In-house telemetry">
@@ -106,7 +99,7 @@ export default function LegalPage() {
             </LegalSection>
           </LegalCard>
 
-          <LegalCard title="EVE Data" reveal="reveal-2">
+          <LegalCard title="EVE data" reveal="reveal-2">
             <p className="mb-7">
               What signing in shares, why the site needs it, and what control you keep.
             </p>
@@ -177,7 +170,7 @@ export default function LegalPage() {
             </LegalSection>
           </LegalCard>
 
-          <LegalCard title="Our Privacy Stance" reveal="reveal-3">
+          <LegalCard title="Our privacy stance" reveal="reveal-3">
 
             <LegalSection label="What we never do">
               <p>

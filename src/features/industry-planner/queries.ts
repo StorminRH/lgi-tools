@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from 'next/cache';
 import {
-  BLUEPRINT_STRUCTURE_TAG,
   DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL,
+  SDE_CACHE_TAG,
 } from '@/data/eve-data/constants';
 import {
   getActivityByBlueprint,
@@ -10,7 +10,6 @@ import {
   getBlueprintOutput,
   getBlueprintSearchRows,
   getBlueprintTree,
-  getIndustryStationsForSystem,
   getIndustryTargetFilters,
   getTypeAttributesBatch,
   getTypeLabels,
@@ -18,32 +17,28 @@ import {
   type TypeLabel,
 } from '@/data/eve-data/queries';
 import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures';
-import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
+import { computeHeights } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
-import {
-  getAdjustedPrices,
-  getSystemCostIndices,
-  getSystemCostIndicesBatch,
-} from '@/data/industry-indices/queries';
-import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
-import { toPlainPriceFigures } from '@/data/market-prices/narrow';
+import type { TreeNode } from '@/data/eve-data/types';
+import { getSystemCostIndicesOnView } from '@/data/industry-indices/on-view';
+import { INDUSTRY_INDICES_TAG } from '@/data/industry-indices/keys';
+import { getAdjustedPrices } from '@/data/industry-indices/queries';
+import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
+import { toClientPrice } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
+import { unresolvedName } from '@/lib/format/names';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { collectBlueprintTypeIds, collectRawTypeIds, productTypeByBlueprint } from './build-batch';
-import {
-  assemblePricing,
-  collectIntermediateTypeIds,
-  type PriceLite,
-} from './build-pricing';
+import { assemblePricing, pricedTypeIds } from './build-pricing';
 import { toBuildTree } from './build-tree';
 import { classifyRaw } from './industry-styles';
 import type {
   BlueprintIndexEntry,
   BlueprintPricing,
   BlueprintStructure,
-  BuildLocationData,
   SystemJobCostIndex,
+  TypeAdjustedPrice,
 } from './types';
 
 function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
@@ -99,7 +94,7 @@ async function nodeTimeSkillsFor(
         ? [
             {
               skillTypeId: skill.typeId,
-              skillName: skillNames.get(skill.typeId) ?? `Skill ${skill.typeId}`,
+              skillName: skillNames.get(skill.typeId) ?? unresolvedName('skill', skill.typeId),
               timePctPerLevel: pct,
             },
           ]
@@ -115,7 +110,7 @@ export async function getBlueprintStructure(
 ): Promise<BlueprintStructure | null> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
     const chosen = await getBlueprintOutput(blueprintId);
     if (!chosen) return null;
@@ -160,7 +155,7 @@ export async function getBlueprintStructure(
       activityId: chosen.activityId,
       product: {
         typeId: chosen.productTypeId,
-        name: materialNames[chosen.productTypeId] ?? `Type ${chosen.productTypeId}`,
+        name: materialNames[chosen.productTypeId] ?? unresolvedName('type', chosen.productTypeId),
         quantityPerRun: chosen.quantity,
         renderable: isRenderableCategory(labels.get(chosen.productTypeId)?.categoryName ?? ''),
       },
@@ -197,33 +192,31 @@ function nodeFilterIdsFor(
   return out;
 }
 
+/**
+ * A blueprint's tree priced from the stored Forge order books, cached
+ * across instances until a price write clears the tag. It only aggregates
+ * stored prices (the planner's price request refreshes them), and every
+ * price write clears MARKET_PRICES_TAG, so it lives until then rather than
+ * until the earliest book in the tree expires, which a never-stored or
+ * never-refreshed type would hold in the past for good.
+ */
 export async function getBlueprintPricing(
   blueprintId: number,
 ): Promise<BlueprintPricing | null> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG, BLUEPRINT_STRUCTURE_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG, SDE_CACHE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId);
   if (!structure) return null;
 
-  const priceIds = dedupe([
-    ...collectRawTypeIds(structure.tree),
-    structure.product.typeId,
-    ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
-  ]);
-  const priceMap = await getPrices(priceIds);
+  const priceMap = await getPrices(pricedTypeIds(structure));
 
   return assemblePricing(
     structure,
-    (typeId): PriceLite | undefined => {
+    (typeId) => {
       const p = priceMap.get(typeId);
-      if (!p) return undefined;
-      return {
-        ...toPlainPriceFigures(p),
-        source: p.source,
-        staleAfterMs: p.staleAfter.getTime(),
-      };
+      return p === undefined ? undefined : toClientPrice(p, p.staleAfter?.getTime() ?? null);
     },
     { basis: 'marginal' },
   );
@@ -232,7 +225,7 @@ export async function getBlueprintPricing(
 export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> {
   'use cache';
   cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  cacheTag(SDE_CACHE_TAG);
 
   const rows = await withColdStartRetry(() => getBlueprintSearchRows());
 
@@ -259,37 +252,32 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getBuildLocation(
-  systemId: number | null,
-  blueprintId: number,
-): Promise<BuildLocationData> {
+/**
+ * The adjusted price of every type a job in the build consumes, nested inputs
+ * included, so each job's fee is valued on its own inputs. They depend on the
+ * blueprint alone. They are stored rows only, refreshed by the daily
+ * cron:industry-indices. The entry lives across instances until the next
+ * industry-indices commit clears INDUSTRY_INDICES_TAG: the on-view cost-index
+ * refresh (about hourly, per CCP's /industry/systems/ expiry) or the cron's
+ * adjusted-price write, since both datasets share the one tag. So it is
+ * rebuilt at most about hourly and never serves stale prices. Types CCP gives
+ * no adjusted price are left out, and an unknown blueprint has none.
+ */
+export async function getBlueprintAdjustedPrices(blueprintId: number): Promise<TypeAdjustedPrice[]> {
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(INDUSTRY_INDICES_TAG, SDE_CACHE_TAG);
+
   const structure = await getBlueprintStructure(blueprintId);
-  // Every job in the tree is valued on its inputs' adjusted prices, not only the product's own.
-  const baseTypeIds = dedupe(collectTreeTypeIds(structure?.tree ?? []));
-
-  const [stations, costIndices, adjustedMap] = await Promise.all([
-    systemId === null ? [] : getIndustryStationsForSystem(systemId),
-    systemId === null ? new Map<string, number>() : getSystemCostIndices(systemId),
-    getAdjustedPrices(baseTypeIds),
-  ]);
-
-  return {
-    stations,
-    costIndices: {
-      manufacturing: costIndices.get('manufacturing') ?? null,
-      reaction: costIndices.get('reaction') ?? null,
-    },
-    adjustedPrices: [...adjustedMap.entries()].map(([typeId, adjustedPrice]) => ({
-      typeId,
-      adjustedPrice,
-    })),
-  };
+  if (!structure) return [];
+  const adjusted = await withColdStartRetry(() => getAdjustedPrices(dedupe(collectTreeTypeIds(structure.tree))));
+  return [...adjusted].map(([typeId, adjustedPrice]) => ({ typeId, adjustedPrice }));
 }
 
 /** Each system's manufacturing and reaction cost indices, in the order asked. */
 export async function getJobCostIndices(systemIds: number[]): Promise<SystemJobCostIndex[]> {
   const ids = dedupe(systemIds);
-  const indices = await getSystemCostIndicesBatch(ids);
+  const indices = await getSystemCostIndicesOnView(ids);
   return ids.map((systemId) => ({
     systemId,
     manufacturing: indices.get(systemId)?.get('manufacturing') ?? null,

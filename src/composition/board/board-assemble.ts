@@ -1,3 +1,4 @@
+import type { EveScope } from '@/config/eve-scopes';
 import { ATTRIBUTE_KEYS, type AttributeKey } from '@/data/eve-data/character-attributes';
 import type { SystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
@@ -13,20 +14,20 @@ import type {
   SheetSectionKey,
   SheetSections,
 } from '@/features/character-sheet/types';
+import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import { deriveJobStatus } from '@/features/industry-jobs/job-state';
-import { jobOccupiesSlot, slotCapacity } from '@/features/industry-jobs/slots';
+import { countUsedSlots, slotCapacity } from '@/features/industry-jobs/slots';
 import { canSyncIndustryJobs, INDUSTRY_JOBS_SYNC_SCOPES } from '@/features/industry-jobs/sync-eligibility';
 import type { CharacterJobsData } from '@/features/industry-jobs/types';
 import { canSyncSkillQueue, SKILL_SYNC_SCOPES } from '@/features/skill-queue/sync-eligibility';
 import { canSyncAssets, ASSETS_SYNC_SCOPES } from '@/features/owned-assets/sync-eligibility';
 import type { NetWorthDay, PilotWorth } from '@/features/net-worth/types';
-import {
-  type AssetLine,
-  type PriceBook,
-  type TypeCategories,
-  valueCharacter,
-} from '@/features/net-worth/valuation';
+import { type AssetLine, valueCharacter } from '@/features/net-worth/valuation';
 import type { CharacterSkillData } from '@/features/skill-queue/types';
+import { sortedUniqueIds } from '@/lib/array';
+import { isoDayStartMs } from '@/lib/iso-date';
+import { roundIsk } from '@/lib/math';
+import { hasScopes, type ScopeHolder } from '@/lib/scope-eligibility';
 import {
   BOARD_GAPS,
   type BoardCharacter,
@@ -41,6 +42,7 @@ import {
   type SkillCatalogGroup,
   type SystemRef,
 } from './api-contract';
+import type { ValuationBook } from './price-book';
 
 export interface BoardIdentity {
   characterId: number;
@@ -50,14 +52,9 @@ export interface BoardIdentity {
   allianceId: number | null;
 }
 
-export interface BoardHealth {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}
-
 export interface BoardRaw {
   identity: BoardIdentity;
-  health: BoardHealth;
+  health: ScopeHolder;
   sheet: SheetSections | null;
   skills: { data: CharacterSkillData | null; levels: Record<string, number> | null; refreshedAt: number | null };
   jobs: { data: CharacterJobsData | null; refreshedAt: number | null };
@@ -82,8 +79,6 @@ export interface NameBook {
   npcStations: Map<number, PlaceFacts>;
   entities: Record<string, string>;
   skillCatalog: SkillCatalogGroup[];
-  prices: PriceBook;
-  typeCategories: TypeCategories;
 }
 
 export interface NameIdRequest {
@@ -91,11 +86,12 @@ export interface NameIdRequest {
   systemIds: number[];
   stationIds: number[];
   entityIds: number[];
-  /** Every type the valuation prices: asset rows, implants and open orders. */
-  valuationTypeIds: number[];
 }
 
-const GAP_SCOPES: Record<BoardGap, readonly string[]> = {
+/** The stored prices and categories a net-worth snapshot values holdings at. */
+export type Valuation = Pick<ValuationBook, 'prices' | 'categories'>;
+
+const GAP_SCOPES: Record<BoardGap, readonly EveScope[]> = {
   skills: SKILL_SYNC_SCOPES,
   location: LOCATION_SYNC_SCOPES,
   wallet: SHEET_SECTION_SCOPES.wallet,
@@ -118,10 +114,6 @@ const SECTION_GAP: Record<SheetSectionKey, BoardGap | null> = {
   orders: 'orders',
   structures: 'structures',
 };
-
-function sorted(ids: Iterable<number>): number[] {
-  return [...new Set(ids)].sort((a, b) => a - b);
-}
 
 function cloneStationIds(clones: ClonesPart | undefined): number[] {
   const locations = [clones?.home ?? null, ...(clones?.jumpClones.map((clone) => clone.location) ?? [])];
@@ -153,14 +145,17 @@ function valuationTypeIdsOf(raw: BoardRaw): number[] {
   ];
 }
 
+/** Every type a net-worth snapshot prices (asset rows, implants and open orders), sorted and de-duplicated. */
+export function collectValuationTypeIds(raws: readonly BoardRaw[]): number[] {
+  return sortedUniqueIds(raws.flatMap(valuationTypeIdsOf));
+}
+
 export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
   const typeIds: number[] = [];
   const systemIds: number[] = [];
   const stationIds: number[] = [];
   const entityIds: number[] = [];
-  const valuationTypeIds: number[] = [];
   for (const raw of raws) {
-    valuationTypeIds.push(...valuationTypeIdsOf(raw));
     if (raw.identity.corporationId !== null) entityIds.push(raw.identity.corporationId);
     if (raw.identity.allianceId !== null) entityIds.push(raw.identity.allianceId);
     const status = raw.sheet?.status?.data;
@@ -175,11 +170,10 @@ export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
     stationIds.push(...cloneStationIds(clones));
   }
   return {
-    typeIds: sorted(typeIds),
-    systemIds: sorted(systemIds),
-    stationIds: sorted(stationIds),
-    entityIds: sorted(entityIds),
-    valuationTypeIds: sorted(valuationTypeIds),
+    typeIds: sortedUniqueIds(typeIds),
+    systemIds: sortedUniqueIds(systemIds),
+    stationIds: sortedUniqueIds(stationIds),
+    entityIds: sortedUniqueIds(entityIds),
   };
 }
 
@@ -333,19 +327,23 @@ function mapSkills(data: CharacterSkillData, levels: Record<string, number> | nu
   };
 }
 
+const slotTotal = (perCategory: Readonly<Record<JobCategory, number>>): number =>
+  perCategory.manufacturing + perCategory.science + perCategory.reactions;
+
 function mapIndustry(
   data: CharacterJobsData,
   levels: Record<string, number> | null,
   now: number,
+  characterId: number,
 ): BoardIndustryData {
   const statuses = data.jobs.map((job) => deriveJobStatus(job.status, job.end_date, now));
-  const capacity = slotCapacity(levels);
   return {
     active: statuses.filter((status) => status === 'active').length,
     ready: statuses.filter((status) => status === 'ready').length,
     slots: {
-      used: statuses.filter(jobOccupiesSlot).length,
-      max: capacity.manufacturing + capacity.science + capacity.reactions,
+      // The board has no corp-job feed yet; pass the pilot's corp jobs here once it reads them.
+      used: slotTotal(countUsedSlots(characterId, data.jobs, [])),
+      max: slotTotal(slotCapacity(levels)),
     },
   };
 }
@@ -356,7 +354,7 @@ function worthEligible(raw: BoardRaw): boolean {
 }
 
 /** Values the stored holdings at stored prices; null until the wallet and the assets have both synced. */
-function pilotWorthOf(raw: BoardRaw, names: Pick<NameBook, 'prices' | 'typeCategories'>): PilotWorth | null {
+function pilotWorthOf(raw: BoardRaw, valuation: Valuation): PilotWorth | null {
   const wallet = raw.sheet?.wallet;
   if (!worthEligible(raw) || wallet === undefined || wallet.denied === true || raw.assets.rows === null) return null;
   const implants = implantIdsOf(raw);
@@ -368,8 +366,8 @@ function pilotWorthOf(raw: BoardRaw, names: Pick<NameBook, 'prices' | 'typeCateg
       jumpCloneImplants: implants.jumpClones,
       orders: openOrdersOf(raw),
     },
-    names.prices,
-    names.typeCategories,
+    valuation.prices,
+    valuation.categories,
   );
   return { netWorth: total, liquidIsk: liquid };
 }
@@ -383,7 +381,7 @@ export interface StoredWorth {
 function latestStoredWorth(history: readonly BoardHistoryDay[]): Map<string, StoredWorth> {
   const latest = new Map<string, StoredWorth>();
   for (const day of history) {
-    const at = Date.parse(`${day.day}T00:00:00Z`);
+    const at = isoDayStartMs(day.day);
     for (const [id, worth] of Object.entries(day.pilots)) latest.set(id, { worth, at });
   }
   return latest;
@@ -408,13 +406,10 @@ function deniedGaps(sheet: SheetSections | null): Set<BoardGap> {
   return gaps;
 }
 
+/** Without a refresh token every gap shows, in BOARD_GAPS order. */
 function boardGaps(raw: BoardRaw): BoardGap[] {
-  if (!raw.health.hasRefreshToken) return [...BOARD_GAPS];
   const denied = deniedGaps(raw.sheet);
-  return BOARD_GAPS.filter(
-    (gap) =>
-      denied.has(gap) || GAP_SCOPES[gap].some((scope) => raw.health.missingScopes.includes(scope)),
-  );
+  return BOARD_GAPS.filter((gap) => denied.has(gap) || !hasScopes(raw.health, GAP_SCOPES[gap]));
 }
 
 export function assembleBoardCharacter(
@@ -451,7 +446,7 @@ export function assembleBoardCharacter(
     wallet: sectionOf(eligible('wallet'), sheet?.wallet, (data) => ({ balance: data.balance })),
     journal: sectionOf(eligible('journal'), sheet?.journal, (data) => mapJournal(data.journal)),
     industry: datasetOf(canSyncIndustryJobs(health), raw.jobs.data, raw.jobs.refreshedAt, (data) =>
-      mapIndustry(data, raw.skills.levels, now),
+      mapIndustry(data, raw.skills.levels, now, identity.characterId),
     ),
     netWorth: storedWorthOf(raw, stored),
   };
@@ -469,12 +464,12 @@ export function toHistoryDay(day: NetWorthDay): BoardHistoryDay {
 }
 
 /** The account's day valued from stored holdings and prices: only pilots with a computable worth count. */
-export function netWorthSnapshot(raws: readonly BoardRaw[], names: Pick<NameBook, 'prices' | 'typeCategories'>, day: string): NetWorthDay {
+export function netWorthSnapshot(raws: readonly BoardRaw[], valuation: Valuation, day: string): NetWorthDay {
   const pilots: NetWorthDay['pilots'] = {};
   let netWorth = 0;
   let liquidIsk = 0;
   for (const raw of raws) {
-    const worth = pilotWorthOf(raw, names);
+    const worth = pilotWorthOf(raw, valuation);
     if (worth === null) continue;
     pilots[String(raw.identity.characterId)] = worth;
     netWorth += worth.netWorth;
@@ -482,8 +477,8 @@ export function netWorthSnapshot(raws: readonly BoardRaw[], names: Pick<NameBook
   }
   return {
     day,
-    netWorth: Math.round(netWorth * 100) / 100,
-    liquidIsk: Math.round(liquidIsk * 100) / 100,
+    netWorth: roundIsk(netWorth),
+    liquidIsk: roundIsk(liquidIsk),
     pilotsIncluded: Object.keys(pilots).length,
     pilotsTotal: raws.length,
     pilots,
@@ -495,7 +490,7 @@ export function assembleBoard(
   names: NameBook,
   now: number,
   history: BoardHistoryDay[],
-): BoardResponse {
+): Omit<BoardResponse, 'refreshing'> {
   const stored = latestStoredWorth(history);
   return {
     characters: raws.map((raw) =>

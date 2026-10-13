@@ -7,14 +7,14 @@ import {
   type ScannedRow,
   type SigGroup,
 } from '@/data/maps/scan-parse';
+import { SCAN_REFUSAL_CODE } from '@/data/maps/scan-errors';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
-import {
-  isCodexSizeLocked,
-  lifetimeRowDisplay,
-  lifetimeUpperBoundLabel,
-} from '../authoring/connection-intelligence';
+import { hallwayDoorTypes, type ConnectionDoorSide } from '@/data/maps/connection-hallway';
+import { getOrInsertComputed, sameItems } from '@/lib/array';
+import { readConvexError } from '@/lib/convex-error';
+import { resolveNotice } from '@/lib/error-copy';
+import { lifetimeUpperBoundLabel } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
 
@@ -28,8 +28,14 @@ export interface SignatureWindowRow {
   readonly signalPct: number | null;
   readonly firstSeenAt: number;
   readonly connection: ConnectionEditorDetail | null;
-  readonly endpoint?: 'from' | 'to';
+  readonly endpoint?: ConnectionDoorSide;
   readonly className: string | null;
+}
+
+export function signatureIdentityKey(
+  row: Pick<SignatureWindowRow, 'systemId' | 'signatureId'>,
+): string {
+  return `${row.systemId}:${row.signatureId}`;
 }
 
 export type ConnectionSignatureInput = ConnectionEditorDetail;
@@ -65,14 +71,14 @@ function signatureDocumentRow(
 
 function localWormholeTypeCode(
   row: ConnectionSignatureInput,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
 ): string | null {
   return hallwayDoorTypes(row)[side];
 }
 
 function connectionSideRow(
   row: ConnectionSignatureInput,
-  side: 'from' | 'to',
+  side: ConnectionDoorSide,
   classLabelOf: (code: string) => string | null,
 ): SignatureWindowRow | null {
   const signatureId = side === 'from' ? row.from.signatureId : row.to.signatureId;
@@ -113,11 +119,11 @@ export function buildSignatureRows(
   const byIdentity = new Map<string, SignatureWindowRow>();
   for (const row of signatures) {
     const projected = signatureDocumentRow(row);
-    byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
+    byIdentity.set(signatureIdentityKey(projected), projected);
   }
   for (const row of connections) {
     for (const projected of connectionRowsForScanner(row, classLabelOf)) {
-      byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
+      byIdentity.set(signatureIdentityKey(projected), projected);
     }
   }
   return [...byIdentity.values()].toSorted(
@@ -210,9 +216,7 @@ export function glanceMarkIndex(
   for (const row of rows) {
     const bucket = identifiedGlanceBucket(row.group);
     if (bucket === null) continue;
-    const present = presentBySystem.get(row.systemId) ?? new Set<GlanceBucket>();
-    present.add(bucket);
-    presentBySystem.set(row.systemId, present);
+    getOrInsertComputed(presentBySystem, row.systemId, () => new Set()).add(bucket);
   }
   const index = new Map<number, readonly GlanceBucket[]>();
   for (const [systemId, present] of presentBySystem) {
@@ -231,19 +235,9 @@ export function sameGlanceMarkIndex(
   if (left.size !== right.size) return false;
   for (const [systemId, buckets] of left) {
     const other = right.get(systemId);
-    if (other === undefined || other.length !== buckets.length) return false;
-    if (buckets.some((bucket, index) => other[index] !== bucket)) return false;
+    if (other === undefined || !sameItems(buckets, other)) return false;
   }
   return true;
-}
-
-export function filterSignatureRows(
-  rows: readonly SignatureWindowRow[],
-  systemId: number | null,
-  kind: ScannedKind,
-): readonly SignatureWindowRow[] {
-  if (systemId === null) return [];
-  return rows.filter((row) => row.systemId === systemId && row.kind === kind);
 }
 
 export function groupSignatureSections(
@@ -271,42 +265,16 @@ export function groupSignatureSections(
   return sections;
 }
 
-export function scannerWormholeSize(
-  connection: Pick<ConnectionEditorDetail, 'shipSize'> | null,
-  entry: WormholeCodexEntry | null,
-): string {
-  if (isCodexSizeLocked(entry) && entry !== null && entry.farSide === false) {
-    return entry.sizeClass;
-  }
-  return connection?.shipSize ?? '—';
-}
-
-export function scannerWormholeLifetime(
-  connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
-  entry: WormholeCodexEntry | null,
-  now: number,
-): string {
-  if (connection === null) return '—';
-  const display = lifetimeRowDisplay(connection, entry, now);
-  return display.kind === 'unset' ? '—' : display.label;
-}
-
 export function scannerLifeUpperBound(
-  connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
+  connection: Pick<
+    ConnectionEditorDetail,
+    '_creationTime' | 'firstSeenAt' | 'lifetime'
+  > | null,
   entry: WormholeCodexEntry | null,
   now: number,
 ): string {
   if (connection === null) return '—';
   return lifetimeUpperBoundLabel(connection, entry, now) ?? '—';
-}
-
-export function formatSignatureAge(firstSeenAt: number, now: number): string {
-  const minutes = Math.max(0, Math.floor((now - firstSeenAt) / 60_000));
-  if (minutes < 1) return '<1m';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
 }
 
 export function isEditablePasteTarget(target: EventTarget | null): boolean {
@@ -335,12 +303,15 @@ export function scannerPasteDecision(
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
 
+/** The local untracked refusal and the server's untracked code share this copy. */
+const NO_CHARACTER_ONLINE = 'No character online';
+
 export function scannerPasteRefusalToast(
   decision: Exclude<ScannerPasteDecision, { kind: 'apply' | 'choose' }>,
 ): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {
   if (decision.kind === 'reject') {
     return {
-      message: 'Formatting error',
+      message: "Couldn't read scan",
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     };
   }
@@ -352,12 +323,23 @@ export function scannerPasteRefusalToast(
   }
   if (decision.kind === 'loading') {
     return {
-      message: 'Tracking not ready',
+      message: 'Still loading. Paste again.',
       options: { id: 'scanner-paste:loading', duration: 5_000 },
     };
   }
   return {
-    message: 'No character online',
+    message: NO_CHARACTER_ONLINE,
     options: { id: 'scanner-paste:untracked' },
   };
+}
+
+/** Toast copy for a scan the server refused, keyed by its refusal code. */
+const SCAN_REFUSAL_COPY = {
+  [SCAN_REFUSAL_CODE.offMap]: 'System not on map',
+  [SCAN_REFUSAL_CODE.untracked]: NO_CHARACTER_ONLINE,
+};
+
+/** The toast message for a scanner paste the server did not apply. */
+export function scanFailureMessage(error: unknown): string {
+  return resolveNotice(readConvexError(error)?.code, SCAN_REFUSAL_COPY) ?? 'Scan not applied';
 }

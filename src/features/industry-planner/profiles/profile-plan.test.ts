@@ -249,6 +249,42 @@ test('a missing specific structure yields to a live broader facility or leaves t
   expect(planSummary(uncovered, [MODULE_BP]).uncovered).toBe(1);
 });
 
+test('a profile that covers no production job reads no bonus, while a station covers it at zero', () => {
+  const tatara = facility('structure:tatara', ['reactions'], TATARA, -0.4);
+  const make = (facilities: PlanFacility[]) => profilePlan({
+    facilities,
+    members: [],
+    nodeActivityByBlueprint: { [MODULE_BP]: MANUFACTURING_ACTIVITY, [INVENTION_BP]: INVENTION },
+    nodeFilterIds: { [MODULE_BP]: [EQUIPMENT] },
+    nodeTimeSkills: {},
+    topBlueprintTypeId: MODULE_BP,
+  });
+  // The refinery covers reactions only, so the module job is uncovered, and
+  // with no reaction job its reaction bonus never shows as a headline.
+  const uncovered = make([tatara]);
+  expect(uncovered.top).toEqual({ facility: null, characterId: null, bonus: null });
+  expect(uncovered.structureFactors).toMatchObject({
+    structureCostBonusPct: 0,
+    manufacturingBonus: null,
+    reactionBonus: null,
+    active: false,
+  });
+  expect(uncovered.structureFactors.structureMeFactorOf(MODULE_BP)).toBe(1);
+  expect(uncovered.structureFactors.structureTeFactorOf(MODULE_BP)).toBe(1);
+  expect(uncovered.structureFactors.structureTeFactorOf(INVENTION_BP)).toBe(1);
+
+  // A station gives no bonus, but the job is covered, so the readout shows its zeroes.
+  const station = make([tatara, facility('station:60003760', ['manufacturing'], null, 0.95)]);
+  expect(station.top.facility?.key).toBe('station:60003760');
+  expect(station.structureFactors).toMatchObject({
+    structureCostBonusPct: 0,
+    manufacturingBonus: { me: 0, te: 0, costBonus: 0 },
+    reactionBonus: null,
+    active: true,
+  });
+  expect(station.structureFactors.structureMeFactorOf(MODULE_BP)).toBe(1);
+});
+
 test('a live unpinned structure never revives the profile old system pin', () => {
   const doc = {
     ...emptyProfileDocument(),

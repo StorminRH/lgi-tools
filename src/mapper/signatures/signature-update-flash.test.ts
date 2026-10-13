@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { blankDoor, type ConnectionIdentity, type ConnectionResolution } from '@/data/maps/connection-hallway';
+import {
+  blankDoor,
+  type ConnectionDoorSide,
+  type ConnectionIdentity,
+  type ConnectionResolution,
+} from '@/data/maps/connection-hallway';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
-import type { SignatureWindowRow } from './signature-model';
-import { diffSignatureUpdates, signatureIdentityKey } from './signature-update-flash';
+import { signatureIdentityKey, type SignatureWindowRow } from './signature-model';
+import { diffSignatureUpdates } from './signature-update-flash';
 
 const SYSTEM = 31_000_001;
 
@@ -11,7 +16,7 @@ function wormholeRow(input: {
   readonly identity?: ConnectionIdentity;
   readonly toSystemId?: number | null;
   readonly resolution?: ConnectionResolution;
-  readonly endpoint?: 'from' | 'to';
+  readonly endpoint?: ConnectionDoorSide;
 }): SignatureWindowRow {
   const connection = {
     fromSystemId: SYSTEM,

@@ -4,8 +4,8 @@ import type { ShareSegment } from '@/components/ui/stacked-share-bar';
 import { refreshVolume as refreshVolumeOf } from '@/data/telemetry/cron-stats';
 import { refreshVolumeSummary } from '@/data/telemetry/health-metrics';
 import type { DateRange, RefreshVolumePoint } from '@/data/telemetry/types';
-import { trendSeries } from '@/composition/admin-period';
 import { AdminTrendChart } from '../charts';
+import { trendSeries } from '../period';
 import { loadCronSignals } from '../load-signals';
 import { getPriceRefreshDaysShared } from '../shared-reads';
 import { CRON_OUTCOME_RULES, deriveCronStatuses } from '../signals';
@@ -113,9 +113,7 @@ function GscSyncDetail({
         <>
           <DetailCaption>
             Google data lags ~2–3 days · last synced{' '}
-            {lastSyncedAt
-              ? `${formatUtcMinute(lastSyncedAt)} UTC`
-              : 'never'}
+            {formatUtcMinute(lastSyncedAt, { empty: 'never' })}
           </DetailCaption>
           {gscOutcomes.length > 0 && (
             <TitledBlock title="Sync runs by outcome">

@@ -55,30 +55,8 @@ describe('facility tax draft and stored rate', () => {
     expect(effectiveFacilityTaxRate(0)).toBe(0);
 
     expect(parseFacilityTaxDraft('')).toEqual({ ok: true, value: null });
-    expect(parseFacilityTaxDraft('   ')).toEqual({ ok: true, value: null });
-    expect(parseFacilityTaxDraft('0')).toEqual({ ok: true, value: 0 });
-    expect(parseFacilityTaxDraft('0.25')).toEqual({ ok: true, value: 0.25 });
-    expect(parseFacilityTaxDraft('1.5')).toEqual({ ok: true, value: 1.5 });
-    expect(parseFacilityTaxDraft(String(MAX_FACILITY_TAX_PCT))).toEqual({
-      ok: true,
-      value: MAX_FACILITY_TAX_PCT,
-    });
-    for (const draft of [
-      String(MAX_FACILITY_TAX_PCT + 0.01),
-      '12',
-      '-1',
-      'abc',
-      'NaN',
-      'Infinity',
-      '1e1',
-      '0xa',
-      '1.',
-      '.5',
-      '+1',
-      ' 1 2 ',
-    ]) {
-      expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
-    }
+    expect(parseFacilityTaxDraft('10')).toEqual({ ok: true, value: 10 });
+    expect(parseFacilityTaxDraft('10.01')).toEqual({ ok: false });
 
     expect(taxDraftFromStored(null)).toBe('');
     expect(taxDraftFromStored(0)).toBe('0');

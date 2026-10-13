@@ -2,15 +2,16 @@
 
 import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
-import { EveImage } from '@/components/eve-image';
+import { EntityLogo } from '@/components/entity-logo';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RadioGroup, type RadioOption } from '@/components/ui/radio-group';
+import { displayTitle } from '@/components/ui/type-roles';
+import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import type { CorporationAccessOption, MapRole } from '@/data/maps/access-contract';
-import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import {
   accessPrincipalKey,
   accessRolesForMode,
@@ -20,6 +21,7 @@ import {
   type AccessGrantDraft,
   type AccessPrincipalOption,
 } from './access-editor-model';
+import { CharacterSearchControl } from './CharacterSearchControl';
 
 function roleOptions(mode: AccessEditorMode): RadioOption[] {
   return accessRolesForMode(mode).map((role) => ({
@@ -35,19 +37,17 @@ function PrincipalImage({ principal }: { principal: AccessPrincipalOption }) {
         characterId={principal.ownerId}
         name={principal.name}
         size={32}
-        src={principal.imageUrl ?? characterPortraitUrl(principal.ownerId, 64)}
+        src={principal.imageUrl}
       />
     );
   }
   return (
-    <EveImage
-      source="eve"
-      family="corporation-logo"
-      src={principal.imageUrl ?? corporationLogoUrl(principal.ownerId, 64)}
+    <EntityLogo
+      kind="corporation"
+      id={principal.ownerId}
+      size={32}
       alt={principal.name}
-      width={32}
-      height={32}
-      className="size-8 rounded-ctl border border-border-idle object-cover"
+      className="border border-border-idle"
     />
   );
 }
@@ -59,7 +59,6 @@ export interface AccessListEditorProps {
   readonly onPrincipalAdd: (principal: AccessPrincipalOption) => void;
   readonly onRoleChange: (principal: AccessGrantDraft, role: MapRole) => void;
   readonly onPrincipalRemove: (principal: AccessGrantDraft) => void;
-  readonly characterSearch?: ReactNode;
   readonly disabled?: boolean;
 }
 
@@ -70,10 +69,9 @@ export function AccessListEditor({
   onPrincipalAdd,
   onRoleChange,
   onPrincipalRemove,
-  characterSearch,
   disabled = false,
 }: AccessListEditorProps) {
-  const [revokeTarget, setRevokeTarget] = useState<AccessGrantDraft | null>(null);
+  const revoke = useConfirmGate<AccessGrantDraft>();
   const selectedKeys = useMemo(
     () => new Set(currentGrants.map(accessPrincipalKey)),
     [currentGrants],
@@ -82,7 +80,7 @@ export function AccessListEditor({
 
   function requestRemove(grant: AccessGrantDraft) {
     if (mode === 'manage') {
-      setRevokeTarget(grant);
+      revoke.request(grant);
       return;
     }
     onPrincipalRemove(grant);
@@ -91,17 +89,9 @@ export function AccessListEditor({
   return (
     <div className="flex flex-col gap-4" data-map-access-editor={mode}>
       <section className="flex flex-col gap-2" aria-labelledby="map-access-corporations">
-        <div>
-          <h3
-            id="map-access-corporations"
-            className="font-display text-nav font-semibold tracking-copy uppercase text-name"
-          >
-            Corporations
-          </h3>
-          <p className="font-ui text-label text-faint">
-            Choose corporations and roles.
-          </p>
-        </div>
+        <h3 id="map-access-corporations" className={displayTitle({ size: 'nav' })}>
+          Corporations
+        </h3>
         {corporations.length > 0 ? (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {corporations.map((corporation) => {
@@ -141,17 +131,18 @@ export function AccessListEditor({
         )}
       </section>
 
-      {characterSearch}
+      <CharacterSearchControl
+        disabled={disabled}
+        selectedPrincipals={currentGrants}
+        onSelect={onPrincipalAdd}
+      />
 
       <section className="flex flex-col gap-2" aria-labelledby="map-access-selected">
-        <h3
-          id="map-access-selected"
-          className="font-display text-nav font-semibold tracking-copy uppercase text-name"
-        >
+        <h3 id="map-access-selected" className={displayTitle({ size: 'nav' })}>
           Access list
         </h3>
         {currentGrants.length === 0 ? (
-          <p className="font-ui text-ui text-muted">Private — no delegated access.</p>
+          <p className="font-ui text-ui text-muted">Only you.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {currentGrants.map((grant) => (
@@ -192,22 +183,21 @@ export function AccessListEditor({
       </section>
 
       <ConfirmDialog
-        open={revokeTarget !== null}
+        open={revoke.open}
         onOpenChange={(open) => {
-          if (!open) setRevokeTarget(null);
+          if (!open) revoke.cancel();
         }}
         title="Revoke map access?"
         consequence={
-          revokeTarget === null
+          revoke.target === null
             ? ''
-            : `${revokeTarget.name} will lose this delegated map role after the access projection updates.`
+            : `${revoke.target.name} will be removed from the access list.`
         }
         busy={false}
         confirmLabel="Revoke access"
         onConfirm={() => {
-          if (revokeTarget === null) return;
-          onPrincipalRemove(revokeTarget);
-          setRevokeTarget(null);
+          if (revoke.target !== null) onPrincipalRemove(revoke.target);
+          revoke.reset();
         }}
       />
     </div>

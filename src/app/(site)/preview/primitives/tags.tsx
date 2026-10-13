@@ -1,6 +1,5 @@
 'use client';
 
-import { Chip, type ChipTone } from '@/components/ui/chip';
 import { Dot, type DotTone } from '@/components/ui/dot';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { PriceConfidence, type ConfidenceLevel } from '@/components/ui/price-confidence';
@@ -22,7 +21,6 @@ const PILL_TONES: readonly PillTone[] = [
   'red',
   'red-soft',
 ];
-const CHIP_TONES: readonly ChipTone[] = ['green', 'blue', 'purple', 'orange', 'red'];
 const DOT_TONES: readonly DotTone[] = ['green', 'blue', 'orange', 'red', 'neutral'];
 const DOT_SIZES = ['sm', 'md', 'lg'] as const;
 const STATUS_STATES: readonly StatusDotState[] = ['online', 'vip', 'offline'];
@@ -39,7 +37,7 @@ export function TagsGroup() {
       <Specimen
         name="Pill"
         source="pill"
-        note="Rounded tone labels for categories and states, in twelve tones and two sizes."
+        note="Rounded tone labels for categories, roles, statuses and EWAR, in twelve tones and two sizes."
         wide
       >
         <div className="flex flex-col gap-4">
@@ -57,18 +55,6 @@ export function TagsGroup() {
               <Pill tone="red" size="md">Loss</Pill>
             </div>
           </Variant>
-        </div>
-      </Specimen>
-
-      <Specimen
-        name="Chip"
-        source="chip"
-        note="Soft tinted chips for EWAR and combat status."
-      >
-        <div className="flex flex-wrap gap-2">
-          {CHIP_TONES.map((tone) => (
-            <Chip key={tone} tone={tone}>{tone}</Chip>
-          ))}
         </div>
       </Specimen>
 

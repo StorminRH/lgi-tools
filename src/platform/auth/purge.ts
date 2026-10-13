@@ -1,13 +1,9 @@
 import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
-import { accountMatch, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
+import { accountMatch, parseLinkedAccountId, userAccountMatch } from './eve-account-shared';
 import { account, characters, corpAccessAudit, session, user } from '@/db/auth-schema';
 import { pendingDeletions } from './deletion-schema';
-
-function characterLink(userId: string, characterId: number) {
-  return and(eveAccountsForUser(userId), eq(account.accountId, String(characterId)));
-}
 
 export const authPurgeContributor: PurgeContributor = {
   name: 'auth',
@@ -53,7 +49,7 @@ export const authPurgeContributor: PurgeContributor = {
         refreshTokenExpiresAt: null,
         updatedAt: new Date(),
       })
-      .where(characterLink(userId, characterId));
+      .where(userAccountMatch(userId, characterId));
   },
 };
 
@@ -84,21 +80,23 @@ export async function readPendingDeletion(characterId: number): Promise<PendingD
 
 /** Oldest pending deletions first; a character inside a pending account deletion is left to it. */
 export async function readRequestedDeletions(limit: number): Promise<PendingDeletion[]> {
-  const users = await db
-    .select({ userId: user.id, requestedAt: user.deletionRequestedAt })
-    .from(user)
-    .leftJoin(pendingDeletions, eq(pendingDeletions.userId, user.id))
-    .where(and(isNotNull(user.deletionRequestedAt), isNull(pendingDeletions.id)))
-    .orderBy(asc(user.deletionRequestedAt))
-    .limit(limit);
-  const links = await db
-    .select({ userId: account.userId, accountId: account.accountId, accountRowId: account.id, requestedAt: account.deletionRequestedAt })
-    .from(account)
-    .innerJoin(user, eq(user.id, account.userId))
-    .leftJoin(pendingDeletions, eq(pendingDeletions.userId, user.id))
-    .where(and(isNotNull(account.deletionRequestedAt), isNull(user.deletionRequestedAt), isNull(pendingDeletions.id)))
-    .orderBy(asc(account.deletionRequestedAt))
-    .limit(limit);
+  const [users, links] = await Promise.all([
+    db
+      .select({ userId: user.id, requestedAt: user.deletionRequestedAt })
+      .from(user)
+      .leftJoin(pendingDeletions, eq(pendingDeletions.userId, user.id))
+      .where(and(isNotNull(user.deletionRequestedAt), isNull(pendingDeletions.id)))
+      .orderBy(asc(user.deletionRequestedAt))
+      .limit(limit),
+    db
+      .select({ userId: account.userId, accountId: account.accountId, accountRowId: account.id, requestedAt: account.deletionRequestedAt })
+      .from(account)
+      .innerJoin(user, eq(user.id, account.userId))
+      .leftJoin(pendingDeletions, eq(pendingDeletions.userId, user.id))
+      .where(and(isNotNull(account.deletionRequestedAt), isNull(user.deletionRequestedAt), isNull(pendingDeletions.id)))
+      .orderBy(asc(account.deletionRequestedAt))
+      .limit(limit),
+  ]);
   const pending: PendingDeletion[] = users.flatMap((row) => row.requestedAt === null ? [] : [{ scope: 'user' as const, userId: row.userId, requestedAt: row.requestedAt }]);
   for (const link of links) {
     const characterId = parseLinkedAccountId(link.accountId);

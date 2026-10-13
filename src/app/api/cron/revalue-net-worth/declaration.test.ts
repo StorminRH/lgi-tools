@@ -5,7 +5,7 @@ vi.mock('@/composition/board/net-worth-nightly', () => ({ revalueAllNetWorth }))
 
 import { revalueNetWorthDeclaration } from './declaration';
 
-const context = { client: {} as never, record: async () => {} };
+const context = { database: {} as never, record: async () => {} };
 
 beforeEach(() => {
   revalueAllNetWorth.mockReset();

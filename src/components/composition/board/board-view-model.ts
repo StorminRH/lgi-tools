@@ -1,3 +1,4 @@
+import { paddedDomain } from '@/components/ui/chart/chart-geometry';
 import {
   BOARD_GAPS,
   type BoardCharacter,
@@ -10,15 +11,20 @@ import {
   type SystemRef,
 } from '@/composition/board/api-contract';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
-import { type CurrentTraining, currentTraining, summarizeQueue } from '@/features/skill-queue/progress';
+import {
+  type CurrentTraining,
+  currentTraining,
+  entryTimes,
+  isEntryFinished,
+  summarizeQueue,
+} from '@/features/skill-queue/progress';
+import { unresolvedName } from '@/lib/format/names';
 import { formatUtcDate, formatRemaining } from '@/lib/format/time';
+import { DAY_MS, HOUR_MS, isoDayStartMs } from '@/lib/iso-date';
+import { withSearchParams } from '@/lib/search-params';
 
-const HOUR = 60 * 60 * 1000;
-const DAY = 24 * HOUR;
-
-export const BOARD_LOAD_FAILED = 'Couldn’t load your characters — reload the page to try again.';
-
-function readyData<T>(section: BoardSection<T>): T | null {
+/** A section's data once it is ready, or null while it is pending or needs a reconnect. */
+export function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
 }
 
@@ -45,7 +51,7 @@ export interface QueueHealth {
   label: string;
 }
 
-const QUEUE_WARN_MS = DAY;
+const QUEUE_WARN_MS = DAY_MS;
 
 export function queueHealth(skills: BoardSection<BoardSkillsData>, now: number): QueueHealth {
   if (skills.state === 'pending') return { tone: 'quiet', label: 'Syncing from EVE…' };
@@ -100,10 +106,7 @@ function trainingOf(
   return {
     training,
     skillName: skillId !== null ? (names[String(skillId)] ?? null) : null,
-    remainingLabel:
-      training.kind === 'training' && Number.isFinite(training.finishesAt)
-        ? formatRemaining(training.finishesAt - now)
-        : null,
+    remainingLabel: training.kind === 'training' ? formatRemaining(training.finishesAt - now) : null,
   };
 }
 
@@ -158,18 +161,23 @@ export const OVERVIEW: BoardView = { view: 'overview' };
 const CHARACTER_PARAM = 'character';
 
 /**
- * A lone pilot always gets its own sheet. With more, `?character=` picks one
- * and anything else (no param, an id not on this board) is the overview.
+ * The character `?character=` names, when `has` says it is one of this
+ * board's; anything else (no param, not an id, someone else) is the overview.
  */
+export function focusedView(param: string | null, has: (characterId: number) => boolean): BoardView {
+  if (param === null || !/^\d+$/.test(param)) return OVERVIEW;
+  const characterId = Number(param);
+  return has(characterId) ? { view: 'character', characterId } : OVERVIEW;
+}
+
+/** A lone pilot always gets its own sheet. With more, `?character=` picks one. */
 export function boardViewFrom(
   param: string | null,
   characters: readonly Pick<BoardCharacter, 'characterId'>[],
 ): BoardView {
   const [only] = characters;
   if (characters.length === 1 && only !== undefined) return { view: 'character', characterId: only.characterId };
-  if (param === null || !/^\d+$/.test(param)) return OVERVIEW;
-  const characterId = Number(param);
-  return characters.some((c) => c.characterId === characterId) ? { view: 'character', characterId } : OVERVIEW;
+  return focusedView(param, (id) => characters.some((c) => c.characterId === id));
 }
 
 export type BoardTransitionType = 'board-open' | 'board-close';
@@ -191,11 +199,9 @@ export function railOrder<T extends Pick<BoardCharacter, 'characterId'>>(
 
 /** The same page with `?character=` set for a character view or removed for the overview. */
 export function boardViewHref(pathname: string, search: string, view: BoardView): string {
-  const params = new URLSearchParams(search);
-  if (view.view === 'character') params.set(CHARACTER_PARAM, String(view.characterId));
-  else params.delete(CHARACTER_PARAM);
-  const query = params.toString();
-  return query === '' ? pathname : `${pathname}?${query.replace(/=(&|$)/g, '$1')}`;
+  return withSearchParams(pathname, search, {
+    [CHARACTER_PARAM]: view.view === 'character' ? String(view.characterId) : null,
+  });
 }
 
 export function characterParam(params: { get: (key: string) => string | null }): string | null {
@@ -226,7 +232,7 @@ export function effectiveSkills(
     atV: skills.atV,
   };
   for (const entry of skills.queue) {
-    if (entry.finish_date === undefined || Date.parse(entry.finish_date) > now) continue;
+    if (!isEntryFinished(entry, now)) continue;
     applyFinishedEntry(effective, skills.levels, entry);
   }
   return effective;
@@ -292,11 +298,11 @@ export function groupSkills(
   return groups.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const FLOW_WINDOW_MS = 30 * DAY;
+const FLOW_WINDOW_MS = 30 * DAY_MS;
 
 export function flowWindowLabel(windowStart: string, now: number): string {
   const start = Date.parse(windowStart);
-  if (!Number.isFinite(start) || now - start >= FLOW_WINDOW_MS - HOUR) return 'last 30 days';
+  if (!Number.isFinite(start) || now - start >= FLOW_WINDOW_MS - HOUR_MS) return 'last 30 days';
   return `since ${formatUtcDate(windowStart)}`;
 }
 
@@ -306,21 +312,12 @@ export interface BalanceChartModel {
   domain: [number, number];
 }
 
-const DOMAIN_PADDING = 0.1;
-
-export function fittedDomain(values: readonly number[]): [number, number] {
-  const low = Math.min(...values);
-  const high = Math.max(...values);
-  const pad = (high - low || Math.abs(high) || 1) * DOMAIN_PADDING;
-  return [low - pad, high + pad];
-}
-
 export function balanceChart(series: readonly { t: number; balance: number }[]): BalanceChartModel {
   const balances = series.map((point) => point.balance);
   return {
     points: balances.map((balance, index) => ({ x: index, y: balance })),
-    labels: series.map((point) => formatUtcDate(new Date(point.t))),
-    domain: fittedDomain(balances),
+    labels: series.map((point) => formatUtcDate(point.t)),
+    domain: paddedDomain(balances),
   };
 }
 
@@ -374,7 +371,7 @@ export function boardIsCold(response: { characters: readonly BoardCharacter[] })
 
 export function placeName(place: PlaceRef): string {
   if (place.name !== null) return place.name;
-  return place.kind === 'structure' ? 'Player structure' : `Station ${place.id}`;
+  return place.kind === 'structure' ? 'Player structure' : unresolvedName('station', place.id);
 }
 
 export interface TimelineSegment {
@@ -392,10 +389,9 @@ export function queueTimeline(queue: readonly SkillQueueEntry[], now: number): Q
   const segments: TimelineSegment[] = [];
   let endsAt = now;
   for (const entry of queue) {
-    if (entry.start_date === undefined || entry.finish_date === undefined) continue;
-    const start = Date.parse(entry.start_date);
-    const finish = Date.parse(entry.finish_date);
-    if (!Number.isFinite(start) || !Number.isFinite(finish) || finish <= now) continue;
+    if (isEntryFinished(entry, now)) continue;
+    const { start, finish } = entryTimes(entry);
+    if (start === null || finish === null) continue;
     segments.push({ key: entry.queue_position, weight: finish - Math.max(start, now), training: start <= now });
     endsAt = Math.max(endsAt, finish);
   }
@@ -421,7 +417,7 @@ export function combinedFlow(characters: readonly BoardCharacter[], now: number)
   if (present.length === 0) return null;
   const starts = present.map((journal) => Date.parse(journal.windowStart));
   const latest = Math.max(...starts);
-  const aligned = Math.max(...starts) - Math.min(...starts) < DAY;
+  const aligned = Math.max(...starts) - Math.min(...starts) < DAY_MS;
   const window = flowWindowLabel(new Date(latest).toISOString(), now);
   return {
     inflow: present.reduce((sum, journal) => sum + journal.inflow, 0),
@@ -505,8 +501,6 @@ export interface WorthPoint {
   assets: number | null;
 }
 
-const dayStart = (day: string) => Date.parse(`${day}T00:00:00Z`);
-
 // Recorded days, with the journal's wallet series filling in before the first
 // one so a new account still sees its ISK; assets begin at the first snapshot.
 function stackWorth(
@@ -541,7 +535,7 @@ export function accountWorthSeries(
       netWorth += pilot.netWorth;
       liquid += pilot.liquidIsk;
     }
-    return [{ t: dayStart(day.day), netWorth, liquid }];
+    return [{ t: isoDayStartMs(day.day), netWorth, liquid }];
   });
   return stackWorth(recorded, netWorthSeries(characters, now).points);
 }
@@ -554,7 +548,7 @@ export function pilotWorthSeries(
 ): WorthPoint[] {
   const recorded = history.flatMap((day) => {
     const pilot = day.pilots[String(character.characterId)];
-    return pilot === undefined ? [] : [{ t: dayStart(day.day), netWorth: pilot.netWorth, liquid: pilot.liquidIsk }];
+    return pilot === undefined ? [] : [{ t: isoDayStartMs(day.day), netWorth: pilot.netWorth, liquid: pilot.liquidIsk }];
   });
   return stackWorth(recorded, netWorthSeries([character], now).points);
 }
@@ -566,7 +560,7 @@ export interface NetWorthSeries {
   of: number;
 }
 
-const startOfUtcDay = (t: number) => t - (((t % DAY) + DAY) % DAY);
+const startOfUtcDay = (t: number) => t - (((t % DAY_MS) + DAY_MS) % DAY_MS);
 
 // The balance a pilot held at the end of a day: its last point by then, or,
 // before its first point, that first point (its window opens no later).
@@ -600,10 +594,10 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
   const from = Math.max(...pilots.map((pilot) => Date.parse(pilot.journal.windowStart)));
   const firstDay = startOfUtcDay(from);
   const today = startOfUtcDay(now);
-  if (today - firstDay < DAY) return { ...empty, from };
+  if (today - firstDay < DAY_MS) return { ...empty, from };
   const points: { t: number; balance: number }[] = [];
-  for (let day = firstDay; day < today; day += DAY) {
-    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.series, day + DAY - 1), 0);
+  for (let day = firstDay; day < today; day += DAY_MS) {
+    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.series, day + DAY_MS - 1), 0);
     points.push({ t: day, balance });
   }
   points.push({ t: today, balance: pilots.reduce((sum, pilot) => sum + pilot.wallet.balance, 0) });
@@ -622,7 +616,7 @@ export interface QueueRow {
 export function remainingQueue(queue: readonly SkillQueueEntry[], now: number): QueueRow[] {
   return [...queue]
     .sort((a, b) => a.queue_position - b.queue_position)
-    .filter((entry) => entry.finish_date === undefined || Date.parse(entry.finish_date) > now)
+    .filter((entry) => !isEntryFinished(entry, now))
     .map((entry, index) => ({ number: index + 1, entry }));
 }
 
@@ -661,7 +655,7 @@ export function worthChartMode(series: readonly WorthPoint[]): WorthChartMode {
 const MIN_BAND_SPAN = 0.05;
 
 function bandDomain(values: readonly number[]): [number, number] {
-  const [low, high] = fittedDomain(values);
+  const [low, high] = paddedDomain(values);
   const mid = (low + high) / 2;
   const half = Math.max((high - low) / 2, (Math.abs(mid) * MIN_BAND_SPAN) / 2);
   return [mid - half, mid + half];

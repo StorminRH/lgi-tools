@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import { safeStorage } from '@/lib/web-storage';
 import { postJumpRequest } from '../jump-client';
 import {
   DOORBELL_RETRY_INTERVAL_MS,
@@ -43,8 +44,7 @@ export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
   useEffect(() => {
     if (typeof userId !== 'string' || userId === '') return;
     const storageKey = JSON.stringify([userId, mapId]);
-    let storage: Storage | null = null;
-    try { storage = window.sessionStorage; } catch {}
+    const storage = safeStorage('session');
     const memory = storage === null
       ? new Map<number, DoorbellMemoryEntry>()
       : hydrateDoorbellMemory(storage, storageKey);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_NAV_GROUPS,
+  adminHref,
+  adminSection,
   adminSectionHref,
   deriveActiveAdminSection,
   deriveNavBadges,
@@ -10,12 +12,33 @@ import {
 const sectionById = (id: string) =>
   ADMIN_NAV_GROUPS.flatMap((group) => group.sections).find((section) => section.id === id)!;
 
+describe('ADMIN_NAV_GROUPS', () => {
+  it('lists every section exactly once, as the table names it', () => {
+    const sections = ADMIN_NAV_GROUPS.flatMap((group) => group.sections);
+
+    expect(sections.map((section) => section.id)).toEqual([
+      'overview',
+      'health',
+      'esi',
+      'traffic',
+      'search',
+      'users',
+      'statics',
+      'primitives',
+      'cards',
+      'widgets',
+    ]);
+    for (const section of sections) expect(adminSection(section.id)).toBe(section);
+  });
+});
+
 describe('deriveActiveAdminSection', () => {
   it('matches the overview exactly, other sections by prefix, and nothing outside the console', () => {
     expect(deriveActiveAdminSection('/admin')?.id).toBe('overview');
     expect(deriveActiveAdminSection('/admin/')?.id).toBe('overview');
     expect(deriveActiveAdminSection('/admin/esi')?.id).toBe('esi');
     expect(deriveActiveAdminSection('/admin/statics/anything')?.id).toBe('statics');
+    expect(deriveActiveAdminSection('/admin/unlisted')).toBeNull();
     expect(deriveActiveAdminSection('/admin-ish')).toBeNull();
     expect(deriveActiveAdminSection('/')).toBeNull();
   });
@@ -39,14 +62,26 @@ describe('adminSectionHref', () => {
   });
 });
 
+describe('adminHref', () => {
+  it('carries a range onto ranged pages only, keeps the default off the URL, and appends an anchor', () => {
+    expect(adminHref('users')).toBe('/admin/users');
+    expect(adminHref('statics', { range: '7d' })).toBe('/admin/statics');
+    expect(adminHref('traffic')).toBe('/admin/traffic');
+    expect(adminHref('traffic', { range: '30d' })).toBe('/admin/traffic');
+    expect(adminHref('search', { range: '90d' })).toBe('/admin/search?range=90d');
+    expect(adminHref('overview', { range: 'all' })).toBe('/admin?range=all');
+    expect(adminHref('health', { hash: 'scheduled' })).toBe('/admin/health#scheduled');
+    expect(adminHref('health', { range: '7d', hash: 'scheduled' })).toBe('/admin/health?range=7d#scheduled');
+  });
+});
+
 describe('deriveNavBadges', () => {
   it('is empty when nothing is waiting', () => {
-    expect(deriveNavBadges({ deadLettered: 0, staticsPending: false })).toEqual({});
+    expect(deriveNavBadges({ staticsPending: false })).toEqual({});
   });
 
-  it('badges dead letters and a pending statics review', () => {
-    expect(deriveNavBadges({ deadLettered: 1200, staticsPending: true })).toEqual({
-      queue: { label: '1,200', tone: 'red' },
+  it('badges a pending statics review', () => {
+    expect(deriveNavBadges({ staticsPending: true })).toEqual({
       statics: { label: '1', tone: 'orange' },
     });
   });

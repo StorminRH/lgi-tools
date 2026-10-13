@@ -1,7 +1,7 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 import { computeBatchLedger } from '../build-batch';
 import type { IndustryProfileRow } from '../profiles/api-contract';
 import { emptyProfileDocument } from '../profiles/profile-document';
@@ -30,7 +30,7 @@ const structure = {
     10: { name: 'Capital Armor Plates', label: 'Capital Component', isRaw: false, height: 2, tone: 'green' },
     20: { name: 'Fernite Carbide', label: 'Reaction', isRaw: false, height: 1, tone: 'blue' },
   },
-  materialNames: { 30: 'Fernite', 40: 'Tritanium' },
+  materialNames: { 10: 'Capital Armor Plates', 20: 'Fernite Carbide', 30: 'Fernite', 40: 'Tritanium' },
   nodeActivityByBlueprint: { 110: 1, 120: 11 },
 } as unknown as BlueprintStructure;
 
@@ -52,7 +52,7 @@ vi.mock('@/components/ui/side-panel', () => ({
     open ? createElement('section', { 'data-title': title }, children) : null,
 }));
 vi.mock('@/components/use-system-search', () => ({
-  useSystemSearch: () => ({ systems: [{ id: 30004759, name: '1DQ1-A', security: -0.4 }] }),
+  useSystemsById: () => new Map([[30004759, { id: 30004759, name: '1DQ1-A', security: -0.4 }]]),
 }));
 vi.mock('./planner-contexts', () => ({
   useMarketData: () => ({
@@ -108,11 +108,11 @@ test('a component job: its runs, build against buy, and its inputs, built ones o
   expect(html).toContain('Manufacturing');
   expect(html).toContain('2 per run');
   // 3 needed, 2 runs of 2; 5 owned covers it.
-  expect(html).toMatch(/Needed<\/span><span[^>]*>3</);
-  expect(html).toMatch(/Runs<\/span><span[^>]*>2<span[^>]*>× 2/);
-  expect(html).toMatch(/Owned<\/span><span[^>]*text-isk[^>]*>5</);
+  expect(html).toMatch(/Needed<\/dt><dd[^>]*>3</);
+  expect(html).toMatch(/Runs<\/dt><dd[^>]*>2<span[^>]*>× 2/);
+  expect(html).toMatch(/Owned<\/dt><dd[^>]*text-isk[^>]*>5</);
   // Building at 4,070 for 4 units beats buying at 9,000 a unit.
-  expect(html).toMatch(/Build · per unit<\/span><span[^>]*text-isk/);
+  expect(html).toMatch(/Build · per unit<\/dt><dd[^>]*text-isk/);
   expect(html).toContain('aria-label="Open Fernite Carbide"');
   expect(html).not.toContain('aria-label="Open Tritanium"');
   expect(html).toContain('Tritanium');
@@ -127,7 +127,7 @@ test('under a profile the job’s install fee shows and is part of a built unit;
   const html = render([10]);
   expect(html).toMatch(/Install fee<\/span><span[^>]*>930.00</);
   // (4,070 + 930) / 4 = 1,250 built still beats 9,000 bought.
-  expect(html).toMatch(/Build · per unit<\/span><span[^>]*text-isk[^>]*><span[^>]*>1.3K</);
+  expect(html).toMatch(/Build · per unit<\/dt><dd[^>]*text-isk[^>]*><span[^>]*>1.3K</);
 });
 
 test('a deeper job leads back, names a reaction once, and takes no research', () => {
@@ -156,7 +156,7 @@ test('under a profile the job shows where it runs and who runs it', () => {
   } as unknown as ProfilePlan;
   const html = render([20]);
   expect(html).toContain('1DQ1-A Tatara');
-  expect(html).toContain('1DQ1-A <span');
+  expect(html).toContain('1DQ1-A <span class="text-sec-null">-0.4</span>');
   expect(html).toContain('Builder');
 });
 
@@ -173,7 +173,7 @@ test('an unplaced job explains missing installation configuration without claimi
   const html = render([10]);
   expect(html).toContain('Choose an installation system to calculate fees.');
   expect(html).not.toContain('Price Unavailable');
-  expect(html).toMatch(/Build · per unit<\/span><span[^>]*><span[^>]*>—</);
+  expect(html).toMatch(/Build · per unit<\/dt><dd[^>]*><span[^>]*>—</);
   expect(html).toContain('9.0K');
 });
 

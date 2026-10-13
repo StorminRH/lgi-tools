@@ -6,6 +6,7 @@ import type { MarketScore } from '@/data/industry-math/market-score';
 import type { BatchLedger, MeOptions } from '../build-batch';
 import type { BuildTimes } from '../build-time';
 import type { MarginMode } from '../cockpit-margin';
+import type { CostBasis } from '../cost-basis-view';
 import type { NetMode } from '../multibuy';
 import type { IndustryProfileRow } from '../profiles/api-contract';
 import type { ProfilePlan } from '../profiles/profile-plan';
@@ -13,24 +14,13 @@ import type { SkillTimeFactors } from '../skill-time';
 import type { StructureFactors } from '../structure-factors';
 import type {
   BlueprintPricing,
-  IndustryStationView,
+  JobSystemRef,
   OwnedAssetEntry,
   OwnedComponentDetail,
 } from '../types';
 
-export interface SelectedLocation {
-  systemId: number;
-  systemName: string;
-  security: number | null;
-  stations: IndustryStationView[];
+export interface SelectedLocation extends JobSystemRef {
   costIndices: { manufacturing: number | null; reaction: number | null };
-  adjustedPrices: Map<number, number>;
-}
-
-export interface SelectedReactionSystem {
-  systemId: number;
-  systemName: string;
-  security: number | null;
 }
 
 export interface MarketDataValue {
@@ -44,8 +34,8 @@ export interface MarketDataValue {
 export interface PlannerConfigValue {
   runs: number;
   setRuns: (runs: number) => void;
-  costBasis: 'batched' | 'marginal';
-  setCostBasis: (basis: 'batched' | 'marginal') => void;
+  costBasis: CostBasis;
+  setCostBasis: (basis: CostBasis) => void;
   marginMode: MarginMode;
   setMarginMode: (mode: MarginMode) => void;
   multibuyMode: NetMode;
@@ -57,7 +47,7 @@ export interface PlannerConfigValue {
 export interface BuildSetupValue {
   /** The system the product's own job is priced in; a profile picks it. */
   location: SelectedLocation | null;
-  reactionSystem: SelectedReactionSystem | null;
+  reactionSystem: JobSystemRef | null;
   structureFactors: StructureFactors;
   reactionNetAvailable: boolean;
   /** The account's production profiles; null when signed out or still loading. */

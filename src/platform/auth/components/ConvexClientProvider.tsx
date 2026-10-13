@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { ConvexProvider, ConvexProviderWithAuth, useConvexAuth } from 'convex/react';
 import { convexClient } from '@/data/convex/client';
 import { convexAuthStore } from '@/data/convex/convex-auth-store';
@@ -18,15 +18,9 @@ function useAuthForConvex() {
     if (!loading && !isAuthenticated) clearCachedConvexAccessToken();
   }, [loading, isAuthenticated]);
 
-  const fetchAccessToken = useCallback(
-    ({ forceRefreshToken }: { forceRefreshToken: boolean }) =>
-      fetchConvexAccessToken({ forceRefreshToken }),
-    [],
-  );
-
   return useMemo(
-    () => ({ isLoading: loading, isAuthenticated, fetchAccessToken }),
-    [loading, isAuthenticated, fetchAccessToken],
+    () => ({ isLoading: loading, isAuthenticated, fetchAccessToken: fetchConvexAccessToken }),
+    [loading, isAuthenticated],
   );
 }
 

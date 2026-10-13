@@ -1,20 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 import { readSystemStatics } from '@/data/wh-statics/queries';
 import {
   whStaticsSnapshots,
   whSystemStatics,
 } from '@/data/wh-statics/schema';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const probeMock = vi.fn();
 const recordChangedMock = vi.fn();
 const logUsageEventMock = vi.fn();
+const directDatabaseMock = { handle: 'direct-database' };
 
 let lockGot = true;
-const releaseMock = vi.fn();
-const reservedTag = vi.fn(() => Promise.resolve([{ got: lockGot }]));
-Object.assign(reservedTag, { release: releaseMock });
-const reserveMock = vi.fn(() => Promise.resolve(reservedTag));
+const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
+  () => Promise.resolve([{ got: lockGot }]),
+);
 
 vi.mock('@/composition/wh-statics-refresh', () => ({
   probeWhStaticsRefresh: (...args: unknown[]) => probeMock(...args),
@@ -22,7 +25,7 @@ vi.mock('@/composition/wh-statics-refresh', () => ({
     recordChangedMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
@@ -30,17 +33,9 @@ vi.mock('@/db', () => ({
   directClient: { reserve: () => reserveMock() },
 }));
 
-vi.mock('drizzle-orm/postgres-js', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('drizzle-orm/postgres-js')>();
-  return {
-    ...actual,
-    drizzle: (client: unknown) =>
-      typeof client === 'function'
-        ? (actual.drizzle as (connection: unknown) => unknown)(client)
-        : { client },
-  };
-});
+vi.mock('@/db/direct-database', () => ({
+  directDatabase: () => directDatabaseMock,
+}));
 
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
@@ -59,16 +54,7 @@ const harness = await createDbTestHarness({
   resetBetweenTests: 'truncate',
 });
 
-function authedRequest(): Request {
-  return new Request(
-    'http://localhost:3000/api/cron/refresh-wh-statics',
-    { headers: { authorization: 'Bearer test-secret' } },
-  );
-}
-
-async function importRoute() {
-  return import('./route');
-}
+const ROUTE = '/api/cron/refresh-wh-statics';
 
 const BASELINE = { etag: '"feed-10"', latestSnapshotId: 11 } as const;
 
@@ -85,9 +71,9 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     reserveMock.mockClear();
     reservedTag.mockClear();
-    releaseMock.mockClear();
-    vi.stubEnv('CRON_SECRET', 'test-secret');
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    reservedTag.release.mockClear();
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {
@@ -97,10 +83,11 @@ describe('GET /api/cron/refresh-wh-statics', () => {
 
   it('finishes an unchanged conditional probe before reserving the lock', async () => {
     probeResolves({ status: 'unchanged' });
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
+    expect(probeMock).toHaveBeenCalledWith(directDatabaseMock);
     expect(reserveMock).not.toHaveBeenCalled();
     expect(recordChangedMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -114,8 +101,8 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       status: 'unavailable',
       reason: 'anoik.is request failed: offline',
     });
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({
       status: 'feed-unavailable',
@@ -180,8 +167,8 @@ describe('GET /api/cron/refresh-wh-statics', () => {
         reason: 'anoik.is request failed: offline',
       });
 
-      const { GET } = await importRoute();
-      const response = await GET(authedRequest());
+      const { GET } = await import('./route');
+      const response = await GET(cronRequest(ROUTE));
 
       expect((await response.json()).status).toBe('feed-unavailable');
       await expect(readSystemStatics(harness.db)).resolves.toEqual(before);
@@ -210,16 +197,16 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     } as const;
     probeResolves(feed);
     recordChangedMock.mockResolvedValue(result);
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual(result);
     expect(recordChangedMock).toHaveBeenCalledWith(
-      { client: { reserve: expect.any(Function) } },
+      directDatabaseMock,
       feed,
       BASELINE,
     );
-    expect(releaseMock).toHaveBeenCalledOnce();
+    expect(reservedTag.release).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_wh_statics',
       metadata: expect.objectContaining({
@@ -240,16 +227,16 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     } as const;
     probeResolves(feed);
     recordChangedMock.mockResolvedValue({ status: 'unchanged' });
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'unchanged' });
     expect(recordChangedMock).toHaveBeenCalledWith(
-      { client: { reserve: expect.any(Function) } },
+      directDatabaseMock,
       feed,
       BASELINE,
     );
-    expect(releaseMock).toHaveBeenCalledOnce();
+    expect(reservedTag.release).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_wh_statics',
       metadata: expect.objectContaining({ outcome: 'unchanged' }),
@@ -265,8 +252,8 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     } as const;
     probeResolves(feed);
     recordChangedMock.mockResolvedValue({ status: 'stale-observation' });
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'stale-observation' });
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -283,16 +270,16 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       etag: '"changed"',
       lastModified: null,
     });
-    const { GET } = await importRoute();
-    const response = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const response = await GET(cronRequest(ROUTE));
 
     expect(await response.json()).toEqual({ status: 'busy' });
     expect(recordChangedMock).not.toHaveBeenCalled();
-    expect(releaseMock).toHaveBeenCalledOnce();
+    expect(reservedTag.release).toHaveBeenCalledOnce();
   });
 
   it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const response = await GET(
       new Request('http://localhost:3000/api/cron/refresh-wh-statics'),
     );

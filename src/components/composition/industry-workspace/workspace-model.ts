@@ -5,7 +5,8 @@ import type { IndustryProfileRow } from '@/features/industry-planner/profiles/ap
 import { type CategoryKey, categoryName } from '@/features/industry-planner/profiles/production-categories';
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { type AppliedTimeSkill, skillTimeBreakdown } from '@/features/industry-planner/skill-time';
-import { type BoardView, OVERVIEW } from '../board/board-view-model';
+import { withSearchParams } from '@/lib/search-params';
+import { type BoardView, boardViewHref, focusedView, OVERVIEW } from '../board/board-view-model';
 
 export const SLOT_POOLS: readonly JobCategory[] = ['manufacturing', 'reactions', 'science'];
 
@@ -39,19 +40,12 @@ export function resolveSelection(
 }
 
 export function memberView(param: string | null, doc: ProfileDocument | null): BoardView {
-  if (doc === null || param === null || !/^\d+$/.test(param)) return OVERVIEW;
-  const characterId = Number(param);
-  return doc.members.some((m) => m.characterId === characterId) ? { view: 'character', characterId } : OVERVIEW;
+  return doc === null ? OVERVIEW : focusedView(param, (id) => doc.members.some((m) => m.characterId === id));
 }
 
 /** The address with another profile open and no member focused. */
 export function profileHref(pathname: string, search: string, profileId: string | null): string {
-  const params = new URLSearchParams(search);
-  if (profileId === null) params.delete('profile');
-  else params.set('profile', profileId);
-  params.delete('character');
-  const query = params.toString();
-  return query === '' ? pathname : `${pathname}?${query}`;
+  return boardViewHref(pathname, withSearchParams('', search, { profile: profileId }), OVERVIEW);
 }
 
 // ---------------------------------------------------------------------------
@@ -157,13 +151,15 @@ export function poolSummaries(
 }
 
 /**
- * Used over capacity when usage is known; capacity alone otherwise. "+" marks
- * capacity still syncing, and "?" a pool no one's skills have synced for yet.
+ * Used over capacity. Usage reads "?" while anyone's jobs are unknown. Capacity
+ * reads "N+" while some skills are still syncing, and "?" when none have.
  */
 export function poolFigure(pool: PoolSummary): string {
-  const unknownAll = pool.unknownCapacity > 0 && pool.capacity === 0;
-  const capacity = unknownAll ? '?' : pool.unknownCapacity > 0 ? `${pool.capacity}+` : String(pool.capacity);
-  return pool.unknownUsed > 0 || unknownAll ? capacity : `${pool.used}/${capacity}`;
+  const used = pool.unknownUsed > 0 ? '?' : String(pool.used);
+  const total = pool.unknownCapacity === 0
+    ? String(pool.capacity)
+    : pool.capacity > 0 ? `${pool.capacity}+` : '?';
+  return `${used}/${total}`;
 }
 
 // ---------------------------------------------------------------------------

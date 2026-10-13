@@ -1,7 +1,9 @@
 import { BetterAuthError } from 'better-auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const listLinkedCharactersMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
@@ -19,6 +21,7 @@ import { industryCharacters, jobCharacterIds } from './industry-characters';
 
 const JOB_SCOPE = 'esi-industry.read_character_jobs.v1';
 const CORP_SCOPES = 'esi-characters.read_corporation_roles.v1 esi-industry.read_corporation_jobs.v1';
+const SKILL_SCOPES = 'esi-skills.read_skills.v1 esi-skills.read_skillqueue.v1';
 
 const linked = (characterId: number, scope: string, hasRefreshToken = true) => ({
   characterId,
@@ -56,43 +59,54 @@ describe('industryCharacters', () => {
 
     vi.stubEnv('BETTER_AUTH_SECRET', 'a-real-prod-secret');
     await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
+
+    vi.stubEnv('BETTER_AUTH_SECRET', '');
+    vi.stubEnv('SESSION_SECRET', 'a-real-session-secret');
+    await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
   });
 
-  it('lists every pilot and which of them can sync personal and corporation jobs', async () => {
-    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
+  it('lists every pilot and which of them can sync personal and corporation jobs and skills', async () => {
+    getSessionMock.mockResolvedValue(sessionFixture());
     listLinkedCharactersMock.mockResolvedValue([
       linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
-      linked(200, JOB_SCOPE, false),
-      linked(300, JOB_SCOPE),
+      linked(200, `${JOB_SCOPE} ${SKILL_SCOPES}`, false),
+      linked(300, `${JOB_SCOPE} ${SKILL_SCOPES}`),
+      linked(400, 'esi-skills.read_skills.v1'),
     ]);
     const found = await industryCharacters();
     expect(found?.characters.map((c) => [c.characterId, c.needsReconnect])).toEqual([
       [100, false],
       [200, true],
       [300, false],
+      [400, true],
     ]);
     expect(found?.jobIds).toEqual([100, 300]);
     expect(found?.corpIds).toEqual([100]);
+    expect(found?.skillIds).toEqual([300]);
   });
 });
 
 describe('jobCharacterIds', () => {
   it('gives none for a signed-out viewer', async () => {
     getSessionMock.mockResolvedValue(null);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [] });
+    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it('logs a failed read and gives none instead of failing the section', async () => {
-    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
-    listLinkedCharactersMock.mockRejectedValue(new Error('neon: connection terminated'));
-    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [] });
-    expect(errorSpy).toHaveBeenCalledTimes(1);
+    getSessionMock.mockResolvedValue(sessionFixture());
+    const err = new Error('neon: connection terminated');
+    listLinkedCharactersMock.mockRejectedValue(err);
+    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
+    expect(errorSpy.mock.calls).toEqual([['[industry/industry-characters] failed to resolve linked characters', err]]);
   });
 
   it('passes the eligible ids through', async () => {
-    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
-    listLinkedCharactersMock.mockResolvedValue([linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`)]);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [100], corpIds: [100] });
+    getSessionMock.mockResolvedValue(sessionFixture());
+    listLinkedCharactersMock.mockResolvedValue([
+      linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
+      linked(200, SKILL_SCOPES),
+    ]);
+    expect(await jobCharacterIds()).toEqual({ jobIds: [100], corpIds: [100], skillIds: [200] });
   });
 });

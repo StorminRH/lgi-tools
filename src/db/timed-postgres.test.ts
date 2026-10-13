@@ -113,6 +113,20 @@ describe('withQueryTiming', () => {
     expect(recorded).toHaveLength(2);
   });
 
+  it('records a rejected reserve() and still rejects for the caller', async () => {
+    const client = fakeClient();
+    client.reserve = async (): Promise<never> => {
+      throw new Error('pool exhausted');
+    };
+    const sql = withQueryTiming(client);
+
+    await expect(
+      (sql as unknown as { reserve: () => Promise<unknown> }).reserve(),
+    ).rejects.toThrow('pool exhausted');
+
+    expect(recorded.map(([kind]) => kind)).toEqual(['neon']);
+  });
+
   it('times statements inside a transaction without counting the envelope', async () => {
     const sql = withQueryTiming(fakeClient());
     await (

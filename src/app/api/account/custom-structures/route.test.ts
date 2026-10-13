@@ -5,7 +5,6 @@ const h = vi.hoisted(() => ({
   getStructureTypesMock: vi.fn(),
   getStructureRigsMock: vi.fn(),
   solarSystemExistsMock: vi.fn(),
-  countCustomStructuresMock: vi.fn(),
   createCustomStructureMock: vi.fn(),
   listCustomStructuresMock: vi.fn(),
 }));
@@ -19,12 +18,11 @@ vi.mock('@/data/eve-data/queries', () => ({
   solarSystemExists: (...args: unknown[]) => h.solarSystemExistsMock(...args),
 }));
 vi.mock('@/features/custom-structures/queries', () => ({
-  countCustomStructures: (...args: unknown[]) => h.countCustomStructuresMock(...args),
   createCustomStructure: (...args: unknown[]) => h.createCustomStructureMock(...args),
   listCustomStructures: (...args: unknown[]) => h.listCustomStructuresMock(...args),
 }));
 
-import { NextRequest } from 'next/server';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
@@ -46,13 +44,7 @@ const savedRow = {
   bonuses: null,
 };
 
-function makeRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost:3000/api/account/custom-structures', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const ROUTE = '/api/account/custom-structures';
 
 const VALID_BODY = {
   name: 'Home Azbel',
@@ -67,8 +59,7 @@ beforeEach(() => {
   h.getStructureTypesMock.mockReset().mockResolvedValue([azbel]);
   h.getStructureRigsMock.mockReset().mockResolvedValue([lMfgRig]);
   h.solarSystemExistsMock.mockReset().mockResolvedValue(true);
-  h.countCustomStructuresMock.mockReset().mockResolvedValue(0);
-  h.createCustomStructureMock.mockReset().mockResolvedValue(undefined);
+  h.createCustomStructureMock.mockReset().mockResolvedValue(true);
   h.listCustomStructuresMock.mockReset().mockResolvedValue([savedRow]);
 });
 
@@ -78,29 +69,30 @@ describe('POST /api/account/custom-structures', () => {
       ok: false,
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(401);
     expect(h.createCustomStructureMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for an invalid body', async () => {
-    const res = await POST(makeRequest({ name: 'no type id' }));
+    const res = await POST(postJson(ROUTE, { name: 'no type id' }));
     expect(res.status).toBe(400);
     expect(h.createCustomStructureMock).not.toHaveBeenCalled();
   });
 
-  it('returns 400 for a selection that fails validation', async () => {
-    const res = await POST(makeRequest({ ...VALID_BODY, structureTypeId: 99999 }));
+  it('returns 400 for a selection that fails validation, before the cap is ever checked', async () => {
+    const res = await POST(postJson(ROUTE, { ...VALID_BODY, structureTypeId: 99999 }));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_structure',
       detail: 'unknown structure type',
     });
+    expect(h.createCustomStructureMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for a pin to an unknown system', async () => {
     h.solarSystemExistsMock.mockResolvedValue(false);
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'unknown_system',
@@ -108,8 +100,20 @@ describe('POST /api/account/custom-structures', () => {
     });
   });
 
+  it('maps a full account to 409 without listing', async () => {
+    h.createCustomStructureMock.mockResolvedValue(false);
+    const res = await POST(postJson(ROUTE, VALID_BODY));
+    expect(res.status).toBe(409);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'structure_limit',
+      detail: 'structure limit reached',
+    });
+    expect(h.createCustomStructureMock).toHaveBeenCalledTimes(1);
+    expect(h.listCustomStructuresMock).not.toHaveBeenCalled();
+  });
+
   it('saves the structure and returns the updated list with 201', async () => {
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(postJson(ROUTE, VALID_BODY));
     expect(res.status).toBe(201);
     const createdId = h.createCustomStructureMock.mock.calls[0]![1].id as string;
     expect(createdId).toMatch(/^[0-9a-f-]{36}$/);
@@ -128,7 +132,7 @@ describe('POST /api/account/custom-structures', () => {
 
   it('saves entered bonuses on a structure without rigs', async () => {
     const bonuses = { manufacturing: { me: 3.38, te: 39.2, cost: 4 }, reactions: { me: 0, te: 0 } };
-    const res = await POST(makeRequest({ ...VALID_BODY, rigTypeIds: [], bonuses }));
+    const res = await POST(postJson(ROUTE, { ...VALID_BODY, rigTypeIds: [], bonuses }));
     expect(res.status).toBe(201);
     expect(h.createCustomStructureMock).toHaveBeenCalledWith(
       'user-1',

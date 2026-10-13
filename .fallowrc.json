@@ -116,7 +116,8 @@
       { "name": "config", "patterns": ["src/config/**"] },
       { "name": "esi-datasets", "patterns": ["src/esi-datasets/**"] },
       { "name": "convex", "patterns": ["convex/**"] },
-      { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] }
+      { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] },
+      { "name": "tooling-config", "patterns": ["postcss.config.mjs"] }
     ],
     "rules": [
       {
@@ -237,6 +238,7 @@
         "from": "data",
         "allow": [
           "data/eve-data",
+          "data/esi-store",
           "platform/esi",
           "platform/owner-sync",
           "platform/search",
@@ -259,7 +261,7 @@
           "config"
         ]
       },
-      { "from": "platform/owner-sync", "allow": ["platform/esi"] },
+      { "from": "platform/owner-sync", "allow": ["platform/esi", "lib"] },
       { "from": "platform/esi", "allow": ["lib", "config"] },
       { "from": "platform/search", "allow": [] },
       { "from": "platform/purge", "allow": [] },

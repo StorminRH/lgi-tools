@@ -14,14 +14,14 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => h.auth }));
-vi.mock('@/platform/auth/auth-client', () => ({ authClient: { signIn: { oauth2: vi.fn() } } }));
+vi.mock('@/platform/auth/link-character', () => ({ startEveSignIn: vi.fn() }));
 vi.mock('../favorite-blueprints', () => ({ useFavoriteBlueprints: () => ({ favorites: h.favorites, toggle: vi.fn() }) }));
 vi.mock('./CockpitKpis', () => ({ CockpitKpis: () => createElement('div', null, 'kpis') }));
 vi.mock('./MultibuyPanel', () => ({ MultibuyPanel: () => createElement('button', null, 'Multibuy') }));
 vi.mock('./planner-contexts', () => ({
   useBuildSetup: () => h.setup,
   useMarketData: () => ({ pricing: null, refreshing: false }),
-  usePlannerConfig: (): Partial<PlannerConfigValue> => ({ runs: 3, setRuns: vi.fn(), marginMode: 'net', setMarginMode: vi.fn() }),
+  usePlannerConfig: (): Partial<PlannerConfigValue> => ({ runs: 3, setRuns: vi.fn() }),
   useBuildPlan: (): Partial<BuildPlanValue> => ({
     ownedMe: null,
     ownedTe: null,

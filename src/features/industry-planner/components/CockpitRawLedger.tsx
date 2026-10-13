@@ -4,9 +4,11 @@ import { LivePrice } from '@/components/ui/live-price';
 import { EntityRow } from '@/components/ui/row';
 import { TypeIcon } from '@/components/type-icon';
 import { itemImage } from '@/data/eve-data/type-images';
+import { groupBy } from '@/lib/array';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import type { BlueprintPricing, BlueprintStructure, MaterialCostRow } from '../types';
+import { ItemNameStack, LedgerColumnHead } from './ledger-parts';
 
 interface CategoryGroup {
   label: string;
@@ -18,13 +20,7 @@ function groupByCategory(
   pricing: BlueprintPricing,
   structure: BlueprintStructure,
 ): CategoryGroup[] {
-  const byCategory = new Map<string, MaterialCostRow[]>();
-  for (const row of pricing.rows) {
-    const label = structure.materialCategory[row.typeId] ?? 'Other';
-    const list = byCategory.get(label) ?? [];
-    list.push(row);
-    byCategory.set(label, list);
-  }
+  const byCategory = groupBy(pricing.rows, (row) => structure.materialCategory[row.typeId] ?? 'Other');
   const orderedLabels = [
     ...structure.materialCategories.map((c) => c.label),
     ...[...byCategory.keys()].filter(
@@ -44,37 +40,29 @@ function groupByCategory(
 function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshing: boolean }) {
   return (
     <div className="mb-4 break-inside-avoid">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
-        {group.label}
-        <span className="text-faint">· {group.rows.length}</span>
-        <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <LivePrice
-          value={formatIsk(group.total)}
-          pending={refreshing}
-          className="text-ui font-semibold tracking-normal text-isk"
-        />
-      </div>
+      <LedgerColumnHead
+        label={group.label}
+        count={group.rows.length}
+        total={group.total}
+        pending={refreshing}
+      />
       <Card>
         {group.rows.map((row) => (
           <EntityRow
             key={row.typeId}
             colsClass="grid-cols-[30px_minmax(0,1fr)_auto]"
             className="min-h-[44px] px-3 py-[9px]"
-            leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name.slice(0, 2)} />}
-            name={<div className="flex min-w-0 flex-col gap-px">
-              <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
-                {row.name}
-              </span>
-              <span className="truncate font-data text-label uppercase tracking-label text-muted">
-                {row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
-              </span>
-            </div>}
+            leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name} />}
+            name={<ItemNameStack
+              name={row.name}
+              label={row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'No price'}
+            />}
             trailing={<span className="flex flex-col items-end gap-px text-right">
               <span className="whitespace-nowrap font-data text-ui tabular-nums text-muted">
                 × {formatQuantity(row.quantity)}
               </span>
               <LivePrice
-                value={row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
+                value={formatIsk(row.extendedCost)}
                 pending={refreshing}
                 className="whitespace-nowrap text-ui text-text"
               />

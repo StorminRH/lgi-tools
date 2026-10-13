@@ -363,6 +363,31 @@ describe('optimistic collapse patches', () => {
       store.connections.every((row) => row.tombstone.kind === 'live'),
     ).toBe(true);
   });
+
+  it('restores unresolved holes sharing the cut stamp', () => {
+    const stamp = 100;
+    const removedAt = (deletedAt: number) => ({
+      tombstone: { kind: 'removed' as const, deletedAt, purgeAfter: deletedAt + 1 },
+    });
+    const store = mockStore({
+      systems: [systemRow(JITA), systemRow(AMARR)],
+      connections: [connectionRow('cut', JITA, AMARR, removedAt(stamp))],
+      unresolved: [
+        connectionRow('hole', AMARR, JITA, { toSystemId: null, ...removedAt(stamp) }),
+        connectionRow('older', AMARR, JITA, { toSystemId: null, ...removedAt(stamp - 50) }),
+      ],
+    });
+    optimisticRestoreSeveredBranch(store, {
+      mapId: MAP,
+      connectionId: 'cut',
+    });
+    expect(
+      store.unresolved.map((row) => [row._id, row.tombstone.kind]),
+    ).toEqual([
+      ['hole', 'live'],
+      ['older', 'removed'],
+    ]);
+  });
 });
 
 describe('explicit lifetime proposals', () => {
@@ -476,6 +501,37 @@ describe('explicit lifetime proposals', () => {
         lifeStage: 'under_1_day',
         observedAt: 5,
       },
+    });
+  });
+
+  it('drops death windows the server would reject from both optimistic setters', () => {
+    const store = mockStore({
+      connections: [connectionRow('c1', JITA, AMARR)],
+    });
+    optimisticSetConnectionWormholeType(store, {
+      mapId: MAP,
+      connectionId: 'c1',
+      value: 'B274',
+      deathEarliestAt: Number.NaN,
+      deathLatestAt: 2,
+    });
+    expect(store.connections[0]?.lifetime).toEqual({ kind: 'unknown' });
+
+    optimisticSetConnectionLifeStage(
+      store,
+      {
+        mapId: MAP,
+        connectionId: 'c1',
+        value: 'under_1_day',
+        deathEarliestAt: 4,
+        deathLatestAt: 3,
+      },
+      5,
+    );
+    expect(store.connections[0]?.lifetime).toEqual({
+      kind: 'stage',
+      lifeStage: 'under_1_day',
+      observedAt: 5,
     });
   });
 

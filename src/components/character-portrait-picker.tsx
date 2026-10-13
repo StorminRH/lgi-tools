@@ -61,12 +61,18 @@ export function CharacterPortraitPicker({
   onToggle,
   label,
   disabled,
+  itemLabel,
+  markLocationReconnect,
 }: {
   readonly characters: readonly PickerCharacter[];
   readonly selectedIds: ReadonlySet<number>;
   readonly onToggle: (change: PortraitToggleChange) => void;
   readonly label: string;
   readonly disabled?: boolean;
+  /** Each portrait's accessible name and title; the character's name when omitted. */
+  readonly itemLabel?: (character: PickerCharacter, selected: boolean) => string;
+  /** Outline portraits whose character must reconnect to sync location, as tracking pickers do. */
+  readonly markLocationReconnect?: boolean;
 }) {
   const visibleSelectedIds = new Set(characters
     .filter((character) => selectedIds.has(character.characterId))
@@ -85,7 +91,8 @@ export function CharacterPortraitPicker({
         <PortraitToggle
           key={character.characterId}
           value={String(character.characterId)}
-          label={character.name}
+          label={itemLabel?.(character, visibleSelectedIds.has(character.characterId)) ?? character.name}
+          reconnect={markLocationReconnect === true && character.needsLocationReconnect === true}
         >
           <Portrait character={character} />
         </PortraitToggle>

@@ -1,11 +1,14 @@
 import { createElement, type ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 import { AdminPageFrame } from './AdminFrame';
 import AdminLayout from './layout';
 
 const mocks = vi.hoisted(() => ({
-  requireAdminPage: vi.fn(),
+  requireAdminPage: vi.fn<() => Promise<BetterAuthSession>>(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
@@ -20,16 +23,14 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('./shared-reads', () => ({
-  getEsiRefreshQueueStatsShared: async () => {
+  getStaticsSummaryShared: async () => {
     throw new Error('offline');
   },
-  getStaticsSummaryShared: async () => null,
 }));
 
 function staticsFrame() {
   return AdminPageFrame({
-    title: 'Wormhole statics',
-    rangeBasePath: '/admin/statics',
+    section: 'statics',
     actions: createElement('button', { type: 'submit' }, 'Check feed now'),
     fallbackLabel: 'Serving copy',
     children: createElement('p', null, 'Pending feed v42'),
@@ -48,7 +49,7 @@ function renderConsole(): Promise<string> {
 describe('admin console gate', () => {
   beforeEach(() => {
     mocks.requireAdminPage.mockReset();
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    silenceConsolePrefixes('error', ['[admin] admin-nav-badges section unavailable']);
   });
 
   afterEach(() => {
@@ -88,7 +89,7 @@ describe('admin console gate', () => {
   });
 
   it('renders the console chrome and page for an admin', async () => {
-    mocks.requireAdminPage.mockResolvedValue({ user: { id: 'admin-1' }, isAdmin: true });
+    mocks.requireAdminPage.mockResolvedValue(adminSessionFixture({ user: { id: 'admin-1' } }));
 
     const markup = await renderConsole();
 
@@ -103,5 +104,24 @@ describe('admin console gate', () => {
     ]) {
       expect(markup).toContain(adminText);
     }
+    // Statics reads no range, so its head offers none.
+    expect(markup).not.toContain('Reporting range');
+  });
+
+  it('heads a ranged section with its title and a range control linked to its own page', async () => {
+    mocks.requireAdminPage.mockResolvedValue(adminSessionFixture({ user: { id: 'admin-1' } }));
+
+    const ranged = await render(
+      AdminPageFrame({ section: 'traffic', fallbackLabel: 'Activity', children: createElement('p', null, 'Body') }),
+    );
+    expect(ranged).toContain('>Traffic</h2>');
+    expect(ranged).toContain('Reporting range');
+    expect(ranged).toContain('href="/admin/traffic?range=7d"');
+
+    const named = await render(
+      AdminPageFrame({ title: 'User', fallbackLabel: 'Account', children: createElement('p', null, 'Body') }),
+    );
+    expect(named).toContain('>User</h2>');
+    expect(named).not.toContain('Reporting range');
   });
 });

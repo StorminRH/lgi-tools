@@ -1,5 +1,5 @@
 import { formatCount, formatQuantity } from '@/lib/format/number';
-import { formatIsoDay } from '@/lib/format/time';
+import { formatIsoDay, formatRelativeTime } from '@/lib/format/time';
 import type {
   CronOutcomeCount,
   FallbackRateData,
@@ -53,6 +53,20 @@ export const ESI_AVAILABILITY_TARGET = {
   direction: 'min',
 } as const satisfies AlertTarget;
 
+/** The share of ESI calls answered with a 4xx: any rise above warn needs a look. */
+export const ESI_CLIENT_ERROR_TARGET = {
+  warn: 0.01,
+  fail: 0.05,
+  direction: 'max',
+} as const satisfies AlertTarget;
+
+/** A 4xx share as a percentage that never rounds a real share down to zero. */
+export function formatClientErrorShare(rate: number): string {
+  const pct = rate * 100;
+  if (pct > 0 && pct < 0.1) return '<0.1%';
+  return `${pct.toFixed(pct < 10 ? 1 : 0)}%`;
+}
+
 export function targetLevel(value: number, target: AlertTarget): Exclude<StatusLevel, 'neutral'> {
   const breaches = (limit: number) =>
     target.direction === 'min' ? value < limit : value > limit;
@@ -82,16 +96,6 @@ export const GSC_OUTCOME_RULES = {
 
 const STALE_AMBER_FACTOR = 1.25;
 const STALE_RED_FACTOR = 2;
-
-export function formatAgo(then: Date, now: Date): string {
-  const ms = now.getTime() - then.getTime();
-  if (ms < 60_000) return 'just now';
-  const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 export interface OutcomeRules {
   healthy: readonly string[];
@@ -123,7 +127,7 @@ export function deriveCronStatus(input: CronStatusInput): SubsystemStatus {
   const { lastRun, outcomes, expectedEveryHours, now } = input;
   if (!lastRun) return { level: 'red', value: 'never ran' };
 
-  const ago = formatAgo(lastRun.timestamp, now);
+  const ago = formatRelativeTime(lastRun.timestamp, now.getTime(), 'd');
   const ageHours = (now.getTime() - lastRun.timestamp.getTime()) / 3_600_000;
   const lastKind = classifyOutcome(lastRun.outcome, input);
 
@@ -186,6 +190,15 @@ export interface EsiSourceStatusInput {
 
 const FALLBACK_RED_RATE = 0.5;
 
+/** Fuzzwork's share of priced items as a whole percent; a real fallback never rounds down to `0%`. */
+export function formatFallbackShare(fallback: Pick<FallbackRateData, 'esi' | 'fallback'>): string {
+  const priced = fallback.esi + fallback.fallback;
+  if (priced === 0) return 'no data';
+  const pct = (fallback.fallback / priced) * 100;
+  if (pct > 0 && pct < 1) return '<1%';
+  return `${Math.round(pct)}%`;
+}
+
 export function deriveEsiSourceStatus({
   fallback,
   budgetExhaustions,
@@ -194,13 +207,13 @@ export function deriveEsiSourceStatus({
   if (denom === 0) return { level: 'neutral', value: 'idle', note: 'no price refreshes this period' };
 
   const rate = fallback.fallback / denom;
-  const ratePct = rate * 100 < 1 && rate > 0 ? '<1%' : `${Math.round(rate * 100)}%`;
+  const share = formatFallbackShare(fallback);
   if (rate > FALLBACK_RED_RATE) {
-    return { level: 'red', value: 'degraded', note: `Fuzzwork covered ${ratePct} of priced items` };
+    return { level: 'red', value: 'degraded', note: `Fuzzwork covered ${share} of priced items` };
   }
   if (fallback.fallback > 0 || budgetExhaustions > 0) {
     const parts: string[] = [];
-    if (fallback.fallback > 0) parts.push(`${ratePct} fallback`);
+    if (fallback.fallback > 0) parts.push(`${share} fallback`);
     if (budgetExhaustions > 0) parts.push(formatCount(budgetExhaustions, 'budget exhaustion'));
     return { level: 'amber', value: 'partial', note: parts.join(' · ') };
   }

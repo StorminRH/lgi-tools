@@ -1,7 +1,8 @@
+import { isLoopbackHostname } from './loopback.mjs';
+
 function isLocalBaseUrl(baseUrl) {
   try {
-    const { hostname } = new URL(baseUrl);
-    return hostname === 'localhost' || hostname === '127.0.0.1';
+    return isLoopbackHostname(new URL(baseUrl).hostname);
   } catch {
     return false;
   }

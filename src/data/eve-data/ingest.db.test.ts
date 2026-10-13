@@ -85,6 +85,15 @@ const EMPTY_INDUSTRY_SUMMARY = {
   installationTypesWritten: 0,
 };
 
+const MANUFACTURING_1000 = {
+  manufacturing: {
+    time: 60,
+    materials: [{ typeID: 34, quantity: 5 }],
+    products: [{ typeID: 100, quantity: 1 }],
+    skills: [{ typeID: 3380, level: 1 }],
+  },
+};
+
 let fixtureDir: string;
 let fixturePaths: SdeJsonlPaths;
 
@@ -158,6 +167,8 @@ beforeAll(async () => {
       {
         _key: 100,
         dogmaAttributes: [
+          { attributeID: 20, value: 9 },
+          null,
           { attributeID: 20, value: 1.5 },
           { attributeID: null, value: 10 },
           { attributeID: 21, value: null },
@@ -173,7 +184,7 @@ beforeAll(async () => {
       {
         blueprintTypeID: 1000,
         maxProductionLimit: 10,
-        activities: { manufacturing: { time: 60 } },
+        activities: MANUFACTURING_1000,
       },
       {
         _key: 1001,
@@ -183,6 +194,12 @@ beforeAll(async () => {
       { _key: null, maxProductionLimit: 30, activities: {} },
       { _key: 1002, maxProductionLimit: null, activities: {} },
       { _key: 1003, maxProductionLimit: 40 },
+      { _key: 1004, maxProductionLimit: 50, activities: 'manufacturing' },
+      {
+        _key: 1005,
+        maxProductionLimit: 60,
+        activities: { manufacturing: { time: 60, materials: [{ typeID: 34, quantity: 'many' }] } },
+      },
     ]),
   );
 });
@@ -202,7 +219,7 @@ beforeEach(() => {
 });
 
 describe.skipIf(!harness.reachable)('runIngest executes against Postgres', () => {
-  it('streams batched JSONL and persists the flagged dogma and blueprint mappings', async () => {
+  it('streams batched JSONL, persists the flagged dogma and blueprint mappings, and skips malformed activities', async () => {
     const result = await runIngest(harness.db as unknown as PostgresJsDb);
 
     expect(result).toEqual({
@@ -300,7 +317,7 @@ describe.skipIf(!harness.reachable)('runIngest executes against Postgres', () =>
       {
         blueprintTypeId: 1000,
         maxProductionLimit: 10,
-        activities: { manufacturing: { time: 60 } },
+        activities: MANUFACTURING_1000,
       },
       {
         blueprintTypeId: 1001,

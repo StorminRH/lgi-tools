@@ -1,17 +1,4 @@
-const MS_PER_DAY = 86_400_000;
-
-export function toDayNumber(date: string): number {
-  return Math.floor(Date.parse(`${date}T00:00:00Z`) / MS_PER_DAY);
-}
-
-export function dayString(dayNumber: number): string {
-  return new Date(dayNumber * MS_PER_DAY).toISOString().slice(0, 10);
-}
-
-export function isWeekend(date: string): boolean {
-  const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
-  return dow === 0 || dow === 6;
-}
+import { isoDayFromNumber, isoDayNumber, isUtcWeekend } from '@/lib/iso-date';
 
 export interface DailySeries {
   days: string[];
@@ -24,17 +11,17 @@ export function zeroFillDaily(
   startDay: string,
   endDay: string,
 ): DailySeries {
-  const start = toDayNumber(startDay);
-  const end = toDayNumber(endDay);
+  const start = isoDayNumber(startDay);
+  const end = isoDayNumber(endDay);
   const byDay = new Map(rows.map((r) => [r.day, r.value]));
   const days: string[] = [];
   const values: number[] = [];
   const weekend: boolean[] = [];
   for (let d = start; d <= end; d += 1) {
-    const key = dayString(d);
+    const key = isoDayFromNumber(d);
     days.push(key);
     values.push(byDay.get(key) ?? 0);
-    weekend.push(isWeekend(key));
+    weekend.push(isUtcWeekend(key));
   }
   return { days, values, weekend };
 }

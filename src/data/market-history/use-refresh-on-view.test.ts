@@ -1,24 +1,11 @@
 import { expect, test, vi } from 'vitest';
+import { settle } from '@/lib/__tests__/hook-runtime';
 import type { MarketHistoryInputs } from './types';
 
-const h = vi.hoisted(() => ({
-  setters: [] as Array<ReturnType<typeof vi.fn>>,
-  cleanups: [] as Array<() => void>,
-  apiFetch: vi.fn(),
-}));
+const h = vi.hoisted(() => ({ apiFetch: vi.fn() }));
+const rt = await vi.hoisted(async () => (await import('@/lib/__tests__/hook-runtime')).createHookRuntime());
 
-vi.mock('react', () => ({
-  useState: <T>(init: T | (() => T)) => {
-    const setter = vi.fn();
-    h.setters.push(setter);
-    return [typeof init === 'function' ? (init as () => T)() : init, setter];
-  },
-  useRef: <T>(current: T) => ({ current }),
-  useEffect: (effect: () => void | (() => void)) => {
-    const cleanup = effect();
-    if (cleanup) h.cleanups.push(cleanup);
-  },
-}));
+vi.mock('react', () => rt.react);
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
 
 import { useRefreshHistoryOnView } from './use-refresh-on-view';
@@ -33,74 +20,66 @@ const inputsFor = (typeId: number): MarketHistoryInputs => ({
 });
 
 function freshMount() {
-  h.setters.length = 0;
-  h.cleanups.length = 0;
-  h.apiFetch.mockClear();
+  rt.unmount();
+  h.apiFetch.mockReset();
 }
 
-function mounted() {
-  const [setInputs, setRefreshing] = h.setters;
-  return { setInputs: setInputs!, setRefreshing: setRefreshing!, unmount: () => h.cleanups.forEach((c) => c()) };
-}
+const view = (typeIds: number[], enabled: boolean, onResult: (inputs: Map<number, MarketHistoryInputs>) => void) =>
+  rt.render(useRefreshHistoryOnView, typeIds, { enabled, onResult });
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-test('refreshes unique type ids once enabled and publishes the fetched inputs', async () => {
+test('refreshes unique type ids once enabled, keeps the run as ids change, and publishes to the latest callback', async () => {
   freshMount();
-  expect(useRefreshHistoryOnView([34], { enabled: false })).toEqual({ inputs: new Map(), refreshing: false });
-  const idle = mounted();
-  freshMount();
-  useRefreshHistoryOnView([], { enabled: true });
-  const empty = mounted();
+  const idle = vi.fn();
+  view([34], false, idle);
+  view([], true, idle);
   await settle();
   expect(h.apiFetch).not.toHaveBeenCalled();
-  expect(idle.setRefreshing).not.toHaveBeenCalled();
-  expect(empty.setRefreshing).not.toHaveBeenCalled();
+  expect(idle).not.toHaveBeenCalled();
 
-  const onResult = vi.fn();
-  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { inputs: [inputsFor(34), inputsFor(35)] } });
   freshMount();
-  useRefreshHistoryOnView([34, 34, 35], { enabled: true, onResult });
-  const live = mounted();
-  expect(live.setRefreshing).toHaveBeenLastCalledWith(true);
-  const [, init] = h.apiFetch.mock.calls[0]!;
-  expect(init).toMatchObject({ body: { typeIds: [34, 35] }, cache: 'no-store' });
-  await settle();
-  const published = new Map([[34, inputsFor(34)], [35, inputsFor(35)]]);
-  expect(live.setInputs).toHaveBeenCalledWith(published);
-  expect(onResult).toHaveBeenCalledWith(published);
-  expect(live.setRefreshing).toHaveBeenLastCalledWith(false);
-});
-
-test('keeps prior inputs on failed or thrown refreshes and goes quiet once unmounted', async () => {
-  h.apiFetch.mockResolvedValueOnce({ ok: false });
-  freshMount();
-  useRefreshHistoryOnView([34], { enabled: true });
-  const rejected = mounted();
-  await settle();
-  expect(rejected.setInputs).not.toHaveBeenCalled();
-  expect(rejected.setRefreshing.mock.calls).toEqual([[true], [false]]);
-
-  h.apiFetch.mockRejectedValueOnce(new Error('offline'));
-  freshMount();
-  useRefreshHistoryOnView([34], { enabled: true });
-  const thrown = mounted();
-  await settle();
-  expect(thrown.setInputs).not.toHaveBeenCalled();
-  expect(thrown.setRefreshing.mock.calls).toEqual([[true], [false]]);
-
   let resolve: (value: unknown) => void = () => {};
   h.apiFetch.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
-  const onResult = vi.fn();
-  freshMount();
-  useRefreshHistoryOnView([34], { enabled: true, onResult });
-  const leaving = mounted();
+  const first = vi.fn();
+  view([34, 34, 35], true, first);
   const [, init] = h.apiFetch.mock.calls[0]!;
-  leaving.unmount();
+  expect(init).toMatchObject({ body: { typeIds: [34, 35] }, cache: 'no-store' });
+
+  // A new id list and callback while the read is out start no second read.
+  const latest = vi.fn();
+  view([36], true, latest);
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+  resolve({ ok: true, data: { inputs: [inputsFor(34), inputsFor(35)] } });
+  await settle();
+  expect(first).not.toHaveBeenCalled();
+  expect(latest).toHaveBeenCalledExactlyOnceWith(new Map([[34, inputsFor(34)], [35, inputsFor(35)]]));
+});
+
+test('publishes nothing on refused or unreachable refreshes, or once unmounted', async () => {
+  freshMount();
+  const refused = vi.fn();
+  h.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'api', status: 429, error: {} });
+  view([34], true, refused);
+  await settle();
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+  expect(refused).not.toHaveBeenCalled();
+
+  freshMount();
+  const offline = vi.fn();
+  h.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'network', aborted: false, cause: new Error('offline') });
+  view([34], true, offline);
+  await settle();
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+  expect(offline).not.toHaveBeenCalled();
+
+  freshMount();
+  let resolve: (value: unknown) => void = () => {};
+  h.apiFetch.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+  const leaving = vi.fn();
+  view([34], true, leaving);
+  const [, init] = h.apiFetch.mock.calls[0]!;
+  rt.unmount();
   expect((init as { signal: AbortSignal }).signal.aborted).toBe(true);
   resolve({ ok: true, data: { inputs: [inputsFor(34)] } });
   await settle();
-  expect(leaving.setInputs).not.toHaveBeenCalled();
-  expect(onResult).not.toHaveBeenCalled();
-  expect(leaving.setRefreshing.mock.calls).toEqual([[true]]);
+  expect(leaving).not.toHaveBeenCalled();
 });

@@ -1,6 +1,8 @@
-import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
+import { fittedRigIds, rigSlotsFrom } from '@/data/eve-data/structures';
+import { MAX_ENTERED_BONUS_PCT, type EnteredBonuses } from '@/data/industry-math/entered-bonuses';
 import { parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
-import { MAX_CUSTOM_STRUCTURE_NAME_LEN, MAX_CUSTOM_STRUCTURE_RIGS } from './api-contract';
+import { parsePercentDraft } from '@/data/industry-math/percent-draft';
+import { MAX_CUSTOM_STRUCTURE_NAME_LEN } from './api-contract';
 import type { CustomStructureRow } from './types';
 
 export type BonusField = 'me' | 'te' | 'cost' | 'rxnMe' | 'rxnTe';
@@ -19,13 +21,7 @@ export interface StructureDraft {
   bonus: BonusDraft;
 }
 
-const MAX_BONUS_PCT = 99;
-const emptySlots = (): (number | null)[] => Array.from({ length: MAX_CUSTOM_STRUCTURE_RIGS }, () => null);
 const draftPct = (n: number): string => (n === 0 ? '' : String(n));
-
-export function slotsFromRigs(rigTypeIds: readonly number[]): (number | null)[] {
-  return emptySlots().map((_, i) => rigTypeIds[i] ?? null);
-}
 
 function bonusDraftFrom(bonuses: EnteredBonuses | null): BonusDraft {
   return {
@@ -44,7 +40,7 @@ export function emptyStructureDraft(): StructureDraft {
     systemId: null,
     taxDraft: '',
     mode: 'values',
-    rigSlots: emptySlots(),
+    rigSlots: rigSlotsFrom([]),
     bonus: bonusDraftFrom(null),
   };
 }
@@ -61,7 +57,7 @@ export function draftFromFit(
   const hull = types.find((t) => t.typeId === fit.structureTypeId)?.name ?? '';
   return {
     structureTypeId: fit.structureTypeId,
-    rigSlots: slotsFromRigs(fit.rigTypeIds),
+    rigSlots: rigSlotsFrom(fit.rigTypeIds),
     mode: 'rigs',
     name: draft.name.trim() ? draft.name : (fit.name ?? hull).slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
   };
@@ -74,16 +70,15 @@ export function draftFromRow(row: CustomStructureRow): StructureDraft {
     systemId: row.systemId,
     taxDraft: taxDraftFromStored(row.taxPct),
     mode: row.rigTypeIds.length > 0 ? 'rigs' : 'values',
-    rigSlots: slotsFromRigs(row.rigTypeIds),
+    rigSlots: rigSlotsFrom(row.rigTypeIds),
     bonus: bonusDraftFrom(row.bonuses),
   };
 }
 
-function parsePct(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (trimmed === '') return 0;
-  const n = Number(trimmed);
-  return Number.isFinite(n) && n >= 0 && n <= MAX_BONUS_PCT ? n : null;
+/** One bonus cell, or null when it is not a valid percent. A blank cell reads as 0. */
+function parseBonusCell(raw: string): number | null {
+  const pct = parsePercentDraft(raw, MAX_ENTERED_BONUS_PCT);
+  return pct.ok ? (pct.value ?? 0) : null;
 }
 
 type ParsedBonuses = { ok: true; bonuses: EnteredBonuses | null } | { ok: false };
@@ -92,7 +87,7 @@ type ParsedBonuses = { ok: true; bonuses: EnteredBonuses | null } | { ok: false 
 function parseBonusDraft(draft: BonusDraft): ParsedBonuses {
   const cells = [draft.me, draft.te, draft.cost, draft.rxnMe, draft.rxnTe];
   if (cells.every((c) => c.trim() === '')) return { ok: true, bonuses: null };
-  const [me, te, cost, rxnMe, rxnTe] = cells.map(parsePct);
+  const [me, te, cost, rxnMe, rxnTe] = cells.map(parseBonusCell);
   if ([me, te, cost, rxnMe, rxnTe].some((n) => n === null)) return { ok: false };
   return {
     ok: true,
@@ -129,7 +124,7 @@ export function payloadFromDraft(draft: StructureDraft): PayloadResult {
     payload: {
       name,
       structureTypeId: draft.structureTypeId,
-      rigTypeIds: rigs ? draft.rigSlots.filter((r): r is number => r !== null) : [],
+      rigTypeIds: rigs ? fittedRigIds(draft.rigSlots) : [],
       systemId: draft.systemId,
       taxPct: tax.value,
       bonuses: parsed.bonuses,

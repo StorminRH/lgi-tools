@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { humanizeIdentifier } from '@/lib/format/text';
 import { getPreferenceDef, type PreferenceDef } from '@/lib/preferences';
 import type { FeatureControlId } from './feature-controls';
 import type { PageSettingsSpec, SettingsControlRef } from './types';
@@ -43,9 +44,7 @@ function placedControls(
 }
 
 function labelFromKey(key: string): string {
-  const segment = key.slice(key.lastIndexOf('.') + 1);
-  const words = segment.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
+  return humanizeIdentifier(key.slice(key.lastIndexOf('.') + 1));
 }
 
 function preferenceModel(ref: { key: string }): MenuControlModel | null {

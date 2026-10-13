@@ -1,8 +1,8 @@
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
+import { ENTITY_NAME_RETENTION_DAYS } from '@/data/eve-data/entity-names-store';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
-import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
 import { NET_WORTH_HISTORY_DAYS } from '@/features/net-worth/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
@@ -129,13 +129,10 @@ export const TABLE_GROWTH_STORIES = [
     alsoPurgeManagedBy: 'esi-snapshots',
   },
   {
-    kind: 'pruned',
-    table: schema.esiRefreshJobs,
-    retentionDays: ESI_REFRESH_JOB_RETENTION_DAYS,
-    retentionConstant: 'ESI_REFRESH_JOB_RETENTION_DAYS',
-    prunedBy:
-      'daily /api/cron/daily-batch housekeeping; dead letters kept ESI_DEAD_LETTER_RETENTION_DAYS (30) for operator requeue',
-    alsoPurgeManagedBy: 'esi-refresh-jobs',
+    kind: 'bounded',
+    table: schema.esiResponses,
+    reason:
+      'one row per declared route, holder and canonical parameter set: holders times routes, plus the priced and history-tracked types for the per-type market keys; plus at most one refusal row per user, corporation and route; character and per-user rows leave with the esi-store purge contributor',
   },
   {
     kind: 'pruned',
@@ -228,6 +225,13 @@ export const TABLE_GROWTH_STORIES = [
     reason: 'replaced from the EVE SDE',
   },
   { kind: 'bounded', table: schema.eveNpcStations, reason: 'replaced from the EVE SDE' },
+  {
+    kind: 'pruned',
+    table: schema.eveEntityNames,
+    retentionDays: ENTITY_NAME_RETENTION_DAYS,
+    retentionConstant: 'ENTITY_NAME_RETENTION_DAYS',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping',
+  },
   { kind: 'bounded', table: schema.eveSystemJumps, reason: 'replaced from the EVE SDE' },
   {
     kind: 'bounded',

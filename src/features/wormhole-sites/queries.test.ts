@@ -1,40 +1,27 @@
+import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
 import type { CombatStats } from '@/data/npc-stats/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SiteListItem } from './types';
 
-const h = vi.hoisted(() => {
-  const state = { results: [] as unknown[] };
-  const select = vi.fn(() => {
-    const result = state.results.shift() ?? [];
-    const builder: Record<string, unknown> = {};
-    for (const method of ['from', 'where', 'orderBy']) {
-      builder[method] = () => builder;
-    }
-    builder.then = (
-      resolve: (value: unknown) => unknown,
-      reject?: (reason: unknown) => unknown,
-    ) => Promise.resolve(result).then(resolve, reject);
-    return builder;
-  });
-  return {
-    state,
-    select,
-    cacheLife: vi.fn(),
-    cacheTag: vi.fn(),
-    getCombatStatsBatch: vi.fn(),
-    overlayLivePrices: vi.fn(),
-    withColdStartRetry: vi.fn(),
-  };
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
 });
+
+const h = vi.hoisted(() => ({
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
+  getCombatStatsBatch: vi.fn(),
+  overlayLivePrices: vi.fn(),
+  withColdStartRetry: vi.fn(),
+}));
 
 vi.mock('next/cache', () => ({
   cacheLife: h.cacheLife,
   cacheTag: h.cacheTag,
 }));
 
-vi.mock('@/db', () => ({
-  db: { select: h.select },
-}));
+vi.mock('@/db', () => ({ db: chain }));
 
 vi.mock('@/data/npc-stats/queries', () => ({
   getCombatStatsBatch: h.getCombatStatsBatch,
@@ -44,11 +31,16 @@ vi.mock('@/lib/neon-cold-start-retry', () => ({
   withColdStartRetry: h.withColdStartRetry,
 }));
 
-vi.mock('./live-prices', () => ({
+vi.mock('./live-prices', async () => ({
+  ...(await vi.importActual<typeof import('./live-prices')>('./live-prices')),
   overlayLivePrices: h.overlayLivePrices,
 }));
 
-import { listPricedSiteDetails, listSiteDetails } from './queries';
+import {
+  getPricedSiteDetail,
+  listPricedSiteDetails,
+  listSiteDetails,
+} from './queries';
 
 function siteRow(
   id: number,
@@ -113,9 +105,12 @@ function combatStats(values: {
   };
 }
 
+const NOW = Date.parse('2026-10-12T12:00:00Z');
+
 beforeEach(() => {
-  h.state.results = [];
-  h.select.mockClear();
+  reset();
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
   h.cacheLife.mockReset();
   h.cacheTag.mockReset();
   h.getCombatStatsBatch.mockReset();
@@ -128,33 +123,79 @@ beforeEach(() => {
 });
 
 describe('listPricedSiteDetails', () => {
-  it('caches the complete price-overlaid catalogue at hourly freshness', async () => {
-    h.state.results = [[]];
+  it('caches the price-overlaid catalogue under the prices tag until a price write clears it, over the SDE-tagged catalogue', async () => {
+    const site = siteRow(1);
+    const resource = { id: 501, siteId: 1, orderInSite: 1, resourceKind: 'gas', resourceName: 'A', units: 1, volumeM3: 1, iskPerM3: 1, totalIsk: 1, typeId: 1_001 };
+    state.results = [[site], [], [resource]];
+    h.getCombatStatsBatch.mockResolvedValue(new Map());
 
-    await expect(listPricedSiteDetails()).resolves.toEqual([]);
+    const priced = await listPricedSiteDetails();
 
-    expect(h.overlayLivePrices).toHaveBeenCalledWith([]);
-    expect(h.cacheLife).toHaveBeenCalledWith('hours');
-    expect(h.cacheTag).toHaveBeenCalledWith('market-prices-freshness');
+    expect(priced).toHaveLength(1);
+    expect(h.overlayLivePrices).toHaveBeenCalledWith(priced);
+    expect(h.cacheTag.mock.calls).toEqual([
+      ['eve:market_prices'],
+      [SDE_CACHE_TAG],
+    ]);
+    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
     expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
   });
 });
 
+describe('getPricedSiteDetail', () => {
+  it('overlays prices on a site detail cached under the SDE tag, and returns null for a missing site', async () => {
+    const site = siteRow(9);
+    state.results = [[site], [], [], []];
+    h.getCombatStatsBatch.mockResolvedValue(new Map());
+
+    await expect(getPricedSiteDetail(9)).resolves.toEqual({
+      ...site,
+      waves: [],
+      resources: [],
+    });
+
+    expect(state.calls.select).toBe(4);
+    expect(state.results).toEqual([]);
+    expect(h.overlayLivePrices).toHaveBeenCalledWith([
+      { ...site, waves: [], resources: [] },
+    ]);
+    expect(h.cacheTag.mock.calls).toEqual([
+      ['eve:market_prices'],
+      [SDE_CACHE_TAG],
+    ]);
+    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
+
+    reset();
+    h.overlayLivePrices.mockClear();
+    h.getCombatStatsBatch.mockClear();
+    h.cacheLife.mockClear();
+    state.results = [[]];
+
+    await expect(getPricedSiteDetail(10)).resolves.toBeNull();
+
+    expect(state.calls.select).toBe(1);
+    expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
+    expect(h.overlayLivePrices).not.toHaveBeenCalled();
+    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
+  });
+});
+
 describe('listSiteDetails', () => {
-  it('short-circuits an empty catalogue without dependent reads', async () => {
-    h.state.results = [[]];
+  it('caches under the SDE tag and short-circuits an empty catalogue without dependent reads', async () => {
+    state.results = [[]];
 
-    await expect(listSiteDetails({})).resolves.toEqual([]);
+    await expect(listSiteDetails()).resolves.toEqual([]);
 
-    expect(h.select).toHaveBeenCalledTimes(1);
+    expect(h.cacheLife.mock.calls).toEqual([['max']]);
+    expect(h.cacheTag.mock.calls).toEqual([[SDE_CACHE_TAG]]);
+    expect(state.calls.select).toBe(1);
     expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
     expect(h.withColdStartRetry).toHaveBeenCalledTimes(1);
-    expect(h.state.results).toEqual([]);
+    expect(state.results).toEqual([]);
   });
 
-  it('assembles filtered sites with weighted combat, per-type EWAR, and raw resources', async () => {
-    const included = siteRow(1);
-    const excludedClass = siteRow(2, { wormholeClass: 'C4' });
+  it('assembles every site with weighted combat, per-type EWAR, and raw resources', async () => {
+    const fought = siteRow(1);
     const emptyDetail = siteRow(3, { name: 'Empty C3 site' });
     const statsA = combatStats({
       dps: 10.4,
@@ -203,8 +244,8 @@ describe('listSiteDetails', () => {
       typeId: null,
     };
 
-    h.state.results = [
-      [included, excludedClass, emptyDetail],
+    state.results = [
+      [fought, emptyDetail],
       [
         { id: 11, siteId: 1, waveNumber: 1, waveLabel: 'Initial' },
         { id: 12, siteId: 1, waveNumber: 2, waveLabel: 'Reinforcement' },
@@ -259,13 +300,10 @@ describe('listSiteDetails', () => {
       [200, statsB],
     ]));
 
-    const result = await listSiteDetails({
-      type: 'combat',
-      wormholeClass: 'C3',
-    });
+    const result = await listSiteDetails();
 
     expect(result.map((site) => site.id)).toEqual([1, 3]);
-    expect(h.select).toHaveBeenCalledTimes(4);
+    expect(state.calls.select).toBe(4);
     expect(h.getCombatStatsBatch).toHaveBeenCalledWith([100, 200, 300]);
 
     const firstWave = result[0]?.waves[0];
@@ -377,39 +415,5 @@ describe('listSiteDetails', () => {
       },
     ]);
     expect(result[1]).toEqual({ ...emptyDetail, waves: [], resources: [] });
-  });
-
-  it('matches gas class ranges while excluding out-of-range and unknown gas sites', async () => {
-    const perimeter = siteRow(4, {
-      name: 'Barren Perimeter Reservoir',
-      siteType: 'gas',
-      wormholeClass: null,
-    });
-    const frontier = siteRow(5, {
-      name: 'Bountiful Frontier Reservoir',
-      siteType: 'gas',
-      wormholeClass: null,
-    });
-    const unknown = siteRow(6, {
-      name: 'Unknown Reservoir',
-      siteType: 'gas',
-      wormholeClass: null,
-    });
-    const exactClass = siteRow(7, { wormholeClass: 'C2' });
-    h.state.results = [
-      [perimeter, frontier, unknown, exactClass],
-      [],
-      [],
-    ];
-    h.getCombatStatsBatch.mockResolvedValue(new Map());
-
-    const result = await listSiteDetails({ wormholeClass: 'C2' });
-
-    expect(result).toEqual([
-      { ...perimeter, waves: [], resources: [] },
-      { ...exactClass, waves: [], resources: [] },
-    ]);
-    expect(h.select).toHaveBeenCalledTimes(3);
-    expect(h.getCombatStatsBatch).toHaveBeenCalledWith([]);
   });
 });

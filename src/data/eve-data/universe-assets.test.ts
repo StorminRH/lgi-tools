@@ -104,6 +104,22 @@ describe('wormhole codex builder', () => {
     ]);
   });
 
+  it('orders a clone cluster by typeId whatever the row order', () => {
+    const codex = buildWormholeCodex(
+      [
+        { id: 56_546, name: 'Wormhole C729', attributes: B274_ATTRIBUTES },
+        { id: 30_831, name: 'Wormhole K162', attributes: null },
+        { id: 56_026, name: 'Wormhole C729', attributes: B274_ATTRIBUTES },
+      ],
+      ATTRIBUTE_ROWS,
+    );
+    expect(codex.map(({ code, typeId }) => [code, typeId])).toEqual([
+      ['C729', 56_026],
+      ['C729', 56_546],
+      ['K162', 30_831],
+    ]);
+  });
+
   it('excludes only the two exact known QA records', () => {
     expect(
       buildWormholeCodex(

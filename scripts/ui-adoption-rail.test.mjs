@@ -45,17 +45,11 @@ const exemptionHomes = [
     '<button type="button">Log in</button>',
     'No raw <button>',
   ],
-  ...[
-    'src/components/composition/account/AdminForceLogoutForm.tsx',
-    'src/components/composition/account/AdminReassignCharacterForm.tsx',
-    'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
-    'src/components/composition/account/RoleToggleForm.tsx',
-    'src/components/composition/account/UnlinkCharacterForm.tsx',
-  ].map((filePath) => [
-    filePath,
+  [
+    'src/components/ui/action-form.tsx',
     '<Button title="Disabled reason">Action</Button>',
     'No native title forwarded through Button',
-  ]),
+  ],
   [
     'src/features/wormhole-sites/components/SitesTable.tsx',
     '<details><summary>Site</summary></details>',
@@ -70,14 +64,13 @@ const tokenExemptionHomes = [
     'src/components/ui/button.tsx',
     'src/components/ui/checkbox.tsx',
     'src/components/ui/chip-toggle.tsx',
-    'src/components/ui/chip.tsx',
-    'src/components/ui/confirm-dialog.tsx',
     'src/components/ui/copy-button.tsx',
     'src/components/ui/dropdown-panel.ts',
     'src/components/ui/field.tsx',
     'src/components/ui/pagination.tsx',
     'src/components/ui/pill.tsx',
     'src/components/ui/switch.tsx',
+    'src/components/ui/type-roles.ts',
   ].map((filePath) => [
     filePath,
     "export const recipe = 'bg-pill-green-bg';",
@@ -141,6 +134,9 @@ const rejectLoadingToast = ['loading toast', "import { toast } from 'sonner'; to
 const rejectRetiredFont = ['retired font role', "const className = 'font-mono'; export default className;", 'No retired font or tracking utility'];
 const rejectRetiredTracking = ['retired tracking step', "const className = `text-ui tracking-emphasis`; export default className;", 'No retired font or tracking utility'];
 const rejectVariantRetiredFont = ['variant-prefixed retired font role', "const className = 'md:hover:font-body'; export default className;", 'No retired font or tracking utility'];
+const rejectStepTracking = ['arbitrary tracking equal to a step', "const className = 'tracking-[0.04em]'; export default className;", 'No arbitrary tracking that equals a registered step'];
+const rejectVariantStepTracking = ['variant-prefixed arbitrary tracking equal to a step', "const className = `md:tracking-[.08em]`; export default className;", 'No arbitrary tracking that equals a registered step'];
+const rejectCapsTracking = ['retired caps tracking step', "const className = 'text-label tracking-wide'; export default className;", 'No retired font or tracking utility'];
 
 describe('UI adoption syntax rail', () => {
   it.each([
@@ -166,14 +162,17 @@ describe('UI adoption syntax rail', () => {
     rejectRetiredFont,
     rejectRetiredTracking,
     rejectVariantRetiredFont,
+    rejectStepTracking,
+    rejectVariantStepTracking,
+    rejectCapsTracking,
   ])('rejects %s in production and preview source', async (_name, code, message) => {
     await expectSyntax(productionProbe, code, message);
     await expectSyntax(previewProbe, code, message);
   });
 
-  it('accepts current type roles, current tracking, and similarly named CSS properties', async () => {
+  it('accepts current type roles, current tracking, off-scale tracking, and similarly named CSS properties', async () => {
     const code = [
-      "const className = 'font-ui font-data font-display tracking-label tracking-optical';",
+      "const className = 'font-ui font-data font-display tracking-label tracking-optical tracking-[0.03em]';",
       "const property = 'var(--font-body)';",
       'export { className, property };',
     ].join('\n');
@@ -182,7 +181,8 @@ describe('UI adoption syntax rail', () => {
       const messages = await restrictedMessages(filePath, code);
       expect(
         messages.some((entry) =>
-          entry.message.includes('No retired font or tracking utility')),
+          entry.message.includes('No retired font or tracking utility')
+          || entry.message.includes('No arbitrary tracking that equals a registered step')),
       ).toBe(false);
     }
   });

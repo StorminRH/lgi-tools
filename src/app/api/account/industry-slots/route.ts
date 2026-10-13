@@ -26,19 +26,20 @@ function industryLevels(levels: Record<string, number>): Record<string, number> 
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return apiResponse(industrySlotsEndpoint, 200, { characters: [] });
+    return apiResponse(industrySlotsEndpoint, 200, { characters: [], refreshing: false });
   }
-  const perCharacter = await measureOwnedDataRead({
-    endpoint: '/api/account/industry-slots',
+  const { characters, refreshing } = await measureOwnedDataRead({
+    endpoint: industrySlotsEndpoint,
     read: () => getSkillLevelsForUserOnView(userId),
-    returned: (value) => value.length,
+    returned: (value) => value.characters.length,
   });
   return apiResponse(industrySlotsEndpoint, 200, {
-    characters: perCharacter.map(({ characterId, levels }) => ({
+    characters: characters.map(({ characterId, levels }) => ({
       characterId,
       slots: slotCapacity(levels),
       synced: levels !== null,
       levels: levels === null ? null : industryLevels(levels),
     })),
+    refreshing,
   });
 }

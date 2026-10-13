@@ -2,7 +2,7 @@ import { inArray, lt, or } from 'drizzle-orm';
 import { db as defaultDb } from '@/db';
 import { BATCH_REFRESH_INTERVAL_MS, BATCH_REFRESH_LEAD_MS } from './constants';
 import { marketPrices } from './schema';
-import type { MarketPrice, PriceSource } from './types';
+import type { MarketPrice } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 
 const PRICE_COLUMNS = {
@@ -30,7 +30,7 @@ export async function getPrices(
     .from(marketPrices)
     .where(inArray(marketPrices.typeId, typeIds));
   const out = new Map<number, MarketPrice>();
-  for (const r of rows) out.set(r.typeId, { ...r, source: r.source as PriceSource });
+  for (const r of rows) out.set(r.typeId, r);
   return out;
 }
 

@@ -1,29 +1,25 @@
-import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { db, directClient, resolveLockConnectionUrl } from '@/db';
-import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
-import { isUniqueViolation } from '@/db/pg-errors';
-import { chunk } from '@/lib/array';
+import { and, eq, inArray, notInArray } from 'drizzle-orm';
+import { cacheLife, cacheTag } from 'next/cache';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
+import { db } from '@/db';
+import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
+import type { AnyPgDb } from '@/lib/db-types';
+import { excluded } from '@/lib/db-upsert';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
+import { corpAssetsKey, corpContextKeys, corporationKey } from './keys';
 import { type CorpHoldingContext, type HoldingIndex, toHoldingNodes } from './placement';
 import { corpHoldingNodes, corpMemberBases, corpProfiles } from './schema';
 
-const NODE_INSERT_BATCH = 1000;
-
-function holdingsTag(corporationId: number): string {
-  return `corp-holdings:${corporationId}`;
-}
-
-function profileTag(corporationId: number): string {
-  return `corp-profile:${corporationId}`;
-}
-
+/**
+ * The placement tree and profile behind one corporation's holdings. The
+ * tree is written with the corp assets and the profile by the context pass,
+ * so the entry carries both datasets' tags and lives until the earliest of
+ * their stored answers expires.
+ */
 async function readCorpHoldingRows(corporationId: number) {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(holdingsTag(corporationId), profileTag(corporationId));
-  const [nodes, profiles] = await Promise.all([
+  'use cache: remote';
+  cacheTag(datasetTag(corpAssetsKey(corporationId)), datasetTag(corporationKey(corporationId)));
+  const [nodes, profiles, expiresAt] = await Promise.all([
     db
       .select({
         itemId: corpHoldingNodes.itemId,
@@ -45,7 +41,9 @@ async function readCorpHoldingRows(corporationId: number) {
       .from(corpProfiles)
       .where(eq(corpProfiles.corporationId, corporationId))
       .limit(1),
+    storedExpiry([corpAssetsKey(corporationId), ...corpContextKeys(corporationId)]),
   ]);
+  cacheLife(untilExpires(expiresAt));
   return { nodes, profile: profiles[0] ?? null };
 }
 
@@ -54,69 +52,63 @@ export async function getCorpHoldingContext(corporationId: number): Promise<Corp
   return buildCorpHoldingContext(corporationId, nodes, profile);
 }
 
-export async function saveHoldingNodes(
+/**
+ * Replace a corporation's placement tree on the caller's transaction. It
+ * neither swallows a unique violation nor invalidates: the transaction owner
+ * maps a lost race to 'superseded', and the sync's commit clears the tag.
+ */
+export async function replaceHoldingNodes(
+  tx: AnyPgDb,
   corporationId: number,
   index: HoldingIndex,
   refreshedAt: Date,
-  database: AnyPgDb = db,
-): Promise<'saved' | 'superseded'> {
-  const rows = toHoldingNodes(index).map((node) => ({
+): Promise<void> {
+  await tx.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
+  await insertInBatches(tx, corpHoldingNodes, toHoldingNodes(index).map((node) => ({
     ...node,
     corporationId,
     refreshedAt,
     containers: [...node.containers],
-  }));
-  await database.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
-  try {
-    for (const batch of chunk(rows, NODE_INSERT_BATCH)) await database.insert(corpHoldingNodes).values(batch);
-  } catch (error) {
-    if (database !== db || !isUniqueViolation(error)) throw error;
-    return 'superseded';
-  }
-  if (database === db) invalidateHoldingNodes(corporationId);
-  return 'saved';
+  })));
 }
 
-export function invalidateHoldingNodes(corporationId: number): void {
-  revalidateTag(holdingsTag(corporationId), 'max');
-}
-
+/**
+ * The profile upsert takes the corporation's lock before its member bases are
+ * replaced, so freshness, HQ, and bases commit together as one authorization
+ * snapshot. Null bases keep the stored ones: the tracking answer was unchanged.
+ * The context sync passes the transaction its answers commit in, and its
+ * commit clears the cache tag once both stand.
+ */
 export async function saveCorpProfile(
   corporationId: number,
   profile: CorpProfile,
-  bases: readonly MemberBase[],
+  bases: readonly MemberBase[] | null,
   refreshedAt: Date,
-  options: { database?: PostgresJsDb } = {},
-): Promise<void> {
-  let database = options.database;
-  if (database === undefined) {
-    resolveLockConnectionUrl();
-    database = drizzle(directClient);
-  }
-  await database.transaction(async (tx) => {
-    // The profile write serializes corporation refreshes before replacing its bases.
-    // Freshness, HQ, and bases commit together as one authorization snapshot.
-    await tx
+  options: { database?: AnyPgDb } = {},
+): Promise<'saved' | 'superseded'> {
+  return replaceOwnerSnapshot({
+    lock: (tx) => tx
       .insert(corpProfiles)
       .values({ corporationId, ...profile, lastRefreshedAt: refreshedAt })
-      .onConflictDoUpdate({ target: corpProfiles.corporationId, set: { ...profile, lastRefreshedAt: refreshedAt } });
-    await tx
-      .delete(corpMemberBases)
-      .where(and(
-        eq(corpMemberBases.corporationId, corporationId),
-        notInArray(corpMemberBases.characterId, bases.map((base) => base.characterId)),
-      ));
-    if (bases.length > 0) {
+      .onConflictDoUpdate({ target: corpProfiles.corporationId, set: { ...profile, lastRefreshedAt: refreshedAt } }),
+    replace: async (tx) => {
+      if (bases === null) return;
+      await tx
+        .delete(corpMemberBases)
+        .where(and(
+          eq(corpMemberBases.corporationId, corporationId),
+          notInArray(corpMemberBases.characterId, bases.map((base) => base.characterId)),
+        ));
+      if (bases.length === 0) return;
       await tx
         .insert(corpMemberBases)
         .values(bases.map((base) => ({ corporationId, ...base })))
         .onConflictDoUpdate({
           target: corpMemberBases.characterId,
-          set: { corporationId, baseId: sql`excluded.base_id` },
+          set: { corporationId, baseId: excluded(corpMemberBases.baseId) },
         });
-    }
-  });
-  revalidateTag(profileTag(corporationId), 'max');
+    },
+  }, options.database);
 }
 
 export async function readCorpProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null> {

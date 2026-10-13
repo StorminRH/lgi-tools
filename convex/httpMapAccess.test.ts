@@ -1,8 +1,15 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAP_CLAIM_PURGE_BATCH } from '@/data/maps/access-contract';
+import {
+  mapTrackingSnapshotDoor,
+  projectMapAccessDoor,
+  purgeMapAccessDoor,
+  purgeUserMapClaimsDoor,
+} from '@/data/maps/convex-doors';
 import { internal } from './_generated/api';
-import { MAP_JUMP_BOOKKEEPING_PURGE_BATCH } from './mapJumpBookkeeping';
+import { MAP_PURGE_BATCH } from './mapPurge';
 import schema from './schema';
 
 import { CONVEX_HTTP_SECRET, postConvexHttp } from './__tests__/http.setup';
@@ -25,6 +32,14 @@ describe('POST /project-map-access', () => {
       ).status,
     ).toBe(401);
     expect((await postConvexHttp('/project-map-access', 'not json')).status).toBe(400);
+    expect(
+      (
+        await postConvexHttp(
+          '/project-map-access',
+          JSON.stringify({ mapId: '', revision: 1, claims: [{ userId: 'u1', roles: ['admin'] }] }),
+        )
+      ).status,
+    ).toBe(400);
     expect(
       (
         await postConvexHttp(
@@ -77,13 +92,15 @@ describe('POST /project-map-access', () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
+    const reply = await res.json();
+    expect(reply).toEqual({
       inserted: 1,
       updated: 0,
       deleted: 0,
       unchanged: 0,
       outcome: 'applied',
     });
+    expect(projectMapAccessDoor.response.safeParse(reply).success).toBe(true);
   });
 
   it('stores per-claim characters when the body carries them', async () => {
@@ -125,7 +142,7 @@ describe('POST /project-map-access', () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
-      for (let index = 0; index <= MAP_JUMP_BOOKKEEPING_PURGE_BATCH; index += 1) {
+      for (let index = 0; index <= MAP_PURGE_BATCH; index += 1) {
         await ctx.db.insert('mapJumpBookkeeping', {
           mapId: 'map-large',
           characterId: 90_000_000 + index,
@@ -205,7 +222,10 @@ describe('POST /purge-map-access', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deleted: 129 });
+    const reply = await res.json();
+    expect(reply).toEqual({ deleted: 129 });
+    expect(purgeMapAccessDoor.response.safeParse(reply).success).toBe(true);
+    expect((await postConvexHttp('/purge-map-access', JSON.stringify({ userId: '' }))).status).toBe(400);
   });
 });
 
@@ -228,12 +248,26 @@ describe('POST /purge-user-map-claims', () => {
       body,
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deleted: 1 });
+    const reply = await res.json();
+    expect(reply).toEqual({ deleted: 1 });
+    expect(purgeUserMapClaimsDoor.response.safeParse(reply).success).toBe(true);
     expect(await t.run((ctx) => ctx.db.query('mapAccess').collect()))
       .toMatchObject([
         { mapId: 'affected', userId: 'neighbor' },
         { mapId: 'unaffected', userId: 'departing' },
       ]);
+  });
+
+  it('accepts the batch Next slices revocations into and refuses a larger one', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    const body = (mapCount: number) => JSON.stringify({
+      userId: 'departing',
+      revision: 42,
+      mapIds: Array.from({ length: mapCount }, (_, index) => `map-${index}`),
+    });
+    expect((await postConvexHttp('/purge-user-map-claims', body(MAP_CLAIM_PURGE_BATCH))).status).toBe(200);
+    expect((await postConvexHttp('/purge-user-map-claims', body(MAP_CLAIM_PURGE_BATCH + 1))).status).toBe(400);
+    expect((await postConvexHttp('/purge-user-map-claims', body(0))).status).toBe(400);
   });
 });
 
@@ -245,6 +279,28 @@ describe('POST /purge-map-chain', () => {
     ).toBe(401);
     expect((await postConvexHttp('/purge-map-chain', 'not json')).status).toBe(400);
     expect((await postConvexHttp('/purge-map-chain', JSON.stringify({ mapId: '' }))).status).toBe(400);
+  });
+
+  it('keeps the fence watermark through the purge, so an older projection stays refused', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    const t = convexTest(schema, modules);
+    const post = (path: string, body: unknown) => t.fetch(path, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify(body),
+    });
+    const grantee = [{ userId: 'grantee', roles: ['viewer'] }];
+    await post('/project-map-access', { mapId: 'map-erased', revision: 5, claims: grantee });
+    await expect((await post('/project-map-access', { mapId: 'map-erased', revision: 9, claims: [] })).json())
+      .resolves.toMatchObject({ outcome: 'applied' });
+    expect((await post('/purge-map-chain', { mapId: 'map-erased' })).status).toBe(200);
+
+    // A delivery reserved before the fence lands after the purge.
+    await expect((await post('/project-map-access', { mapId: 'map-erased', revision: 7, claims: grantee })).json())
+      .resolves.toMatchObject({ outcome: 'stale' });
+    await expect(t.run((ctx) => ctx.db.query('mapAccess')
+      .withIndex('by_map', (query) => query.eq('mapId', 'map-erased'))
+      .collect())).resolves.toEqual([]);
   });
 
   it('drains multiple batches across map tables and preserves another map', async () => {
@@ -326,9 +382,11 @@ describe('POST /map-tracking-snapshot', () => {
       body: JSON.stringify({ mapId: 'map-1' }),
     });
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
+    const reply = await response.json();
+    expect(reply).toEqual({
       tracked: [{ userId: 'u1', characterId: 11 }, { userId: 'u2', characterId: 22 }],
     });
+    expect(mapTrackingSnapshotDoor.response.safeParse(reply).success).toBe(true);
     await expect(t.run((ctx) => ctx.db.query('mapAccessProjectionWatermarks').collect()))
       .resolves.toMatchObject([{ mapId: 'map-1', scopingPending: true }]);
   });

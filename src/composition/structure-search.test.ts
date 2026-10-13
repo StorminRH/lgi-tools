@@ -14,11 +14,10 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: (...args: unknown[]) => h.getFreshAccessTokenForCharacter(...args),
 }));
-vi.mock('@/platform/esi', async (importOriginal) => ({
-  ...await importOriginal<Record<string, unknown>>(),
-  esiUrl: (path: string) => `https://esi.test${path}`,
-  esiFetch: (...args: unknown[]) => h.esiFetch(...args),
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
+});
 
 const BOTH_SCOPES = 'esi-search.search_structures.v1 esi-universe.read_structures.v1';
 const pilot = (characterId: number, scope: string, corporationId: number | null = null) => ({
@@ -28,17 +27,13 @@ const pilot = (characterId: number, scope: string, corporationId: number | null 
   corporationId,
 });
 
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
-
 /** ESI stand-in: search returns ids; each structure read answers per `structures`. */
 function esiAnswers(ids: number[], structures: Record<number, { status: number; body?: unknown }>) {
   h.esiFetch.mockImplementation(async (url: string) => {
-    if (url.includes('/search/')) return json(200, { structure: ids });
+    if (url.includes('/search/')) return Response.json({ structure: ids });
     const id = Number(/structures\/(\d+)\//.exec(url)?.[1]);
     const answer = structures[id] ?? { status: 404 };
-    return json(answer.status, answer.body ?? { error: 'nope' });
+    return Response.json(answer.body ?? { error: 'nope' }, { status: answer.status });
   });
 }
 
@@ -60,9 +55,12 @@ describe('searchUpwellStructures', () => {
     expect(results).toEqual([
       { structureId: 1_035_000_000_001, name: 'Sobaseki - Industry Azbel', systemId: 30001363, structureTypeId: 35826 },
     ]);
-    const [searchUrl, init] = h.esiFetch.mock.calls[0]!;
+    const [searchUrl, init, opts] = h.esiFetch.mock.calls[0]!;
     expect(searchUrl).toBe('https://esi.test/characters/9001/search/?categories=structure&search=Sobaseki&strict=false');
     expect(init).toEqual({ headers: { Authorization: 'Bearer tok' } });
+    // The search and each structure lookup are user-initiated: the gate's interactive floor.
+    expect(opts).toEqual({ interactive: true });
+    expect(h.esiFetch.mock.calls[1]![2]).toEqual({ interactive: true });
   });
 
   it('drops structures ESI refuses (not on the access list) and keeps a missing type as null', async () => {
@@ -112,11 +110,13 @@ describe('searchUpwellStructures', () => {
       h.esiFetch.mockImplementation(async (url: string, init: { headers: { Authorization: string } }) => {
         const token = tokenOf(init);
         if (url.includes('/search/')) {
-          return failing[token] ? json(failing[token]!, {}) : json(200, { structure: seen[token] ?? [] });
+          return failing[token]
+            ? Response.json({}, { status: failing[token]! })
+            : Response.json({ structure: seen[token] ?? [] });
         }
         const id = Number(/structures\/(\d+)\//.exec(url)?.[1]);
-        if (refused.includes(`${token}:${id}`)) return json(403, {});
-        return json(200, { name: `S${id}`, solar_system_id: 30000142, type_id: 35825 });
+        if (refused.includes(`${token}:${id}`)) return Response.json({}, { status: 403 });
+        return Response.json({ name: `S${id}`, solar_system_id: 30000142, type_id: 35825 });
       });
     }
     const searchesBy = () =>
@@ -154,7 +154,7 @@ describe('searchUpwellStructures', () => {
 
     it('does not admit the batch after a malformed successful response', async () => {
       h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES), pilot(2, BOTH_SCOPES)]);
-      h.esiFetch.mockResolvedValue(json(200, { structure: 'invalid' }));
+      h.esiFetch.mockResolvedValue(Response.json({ structure: 'invalid' }));
       await expect(searchUpwellStructures('user-1', 'any')).rejects.toThrow('invalid body');
       expect(searchesBy()).toEqual([1]);
     });
@@ -176,16 +176,16 @@ describe('searchUpwellStructures', () => {
       const result = searchUpwellStructures('user-1', 'any');
       await vi.waitFor(() => expect(searchesBy()).toEqual([1]));
       expect(h.getFreshAccessTokenForCharacter).toHaveBeenCalledTimes(1);
-      finish.get(1)!(json(200, { structure: [] }));
+      finish.get(1)!(Response.json({ structure: [] }));
       await vi.waitFor(() => expect(searchesBy()).toEqual(Array.from({ length: 30 }, (_, i) => i + 1)));
-      for (let id = 2; id <= 30; id++) finish.get(id)!(json(200, { structure: [] }));
+      for (let id = 2; id <= 30; id++) finish.get(id)!(Response.json({ structure: [] }));
       await expect(result).resolves.toEqual([]);
     });
 
     it('preserves a gateway budget refusal and does not start structure reads', async () => {
       h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES), pilot(2, BOTH_SCOPES)]);
       const error = new EsiBudgetExhaustedError(0, 'rate_limited', 60);
-      h.esiFetch.mockResolvedValueOnce(json(200, { structure: [10] })).mockRejectedValueOnce(error);
+      h.esiFetch.mockResolvedValueOnce(Response.json({ structure: [10] })).mockRejectedValueOnce(error);
       await expect(searchUpwellStructures('user-1', 'any')).rejects.toBe(error);
       expect(searchesBy()).toEqual([1, 2]);
       expect(readsOf(10)).toBe(0);
@@ -204,7 +204,7 @@ describe('searchUpwellStructures', () => {
       const controller = new AbortController();
       h.esiFetch.mockImplementationOnce(async () => {
         controller.abort();
-        return json(200, { structure: [] });
+        return Response.json({ structure: [] });
       });
       await expect(searchUpwellStructures('user-1', 'any', controller.signal)).rejects.toThrow();
       expect(searchesBy()).toEqual([1]);

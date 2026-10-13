@@ -6,13 +6,17 @@ import { eveNpcStations } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_station_name_resolution',
-  tables: ['eve_npc_stations'],
+  // The ESI store reads the shared /status/ row from esi_responses through the
+  // request DB inside the daily downtime window, so the suite steers that DB
+  // here and clones the table; without it the suite fails 10:55-11:30 UTC.
+  tables: ['eve_npc_stations', 'esi_responses'],
+  steerDbProxy: true,
   resetBetweenTests: 'truncate',
 });
 
 const permissiveScoreboard = {
   async preDispatch() {
-    return { effectiveRemaining: 1000, blockedRetryAfter: null, etag: null };
+    return { effectiveRemaining: 1000, blockedRetryAfter: null };
   },
   async budgetSnapshot() {
     return {
@@ -22,18 +26,11 @@ const permissiveScoreboard = {
       source: 'process-local' as const,
     };
   },
-  async report() {},
-  async getCachedBody() {
-    return null;
+  async availabilitySnapshot() {
+    return { calls: 0, failures: 0, source: 'process-local' as const };
   },
+  async report() {},
 };
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 function station(id: number, overrides: Partial<typeof eveNpcStations.$inferInsert> = {}) {
   return {
@@ -75,7 +72,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
       station(60_000_004, { name: 'Already named' }),
     ]);
     fetchMock.mockResolvedValue(
-      jsonResponse([
+      Response.json([
         { category: 'station', id: 60_000_001, name: 'Manufacturing Station' },
         { category: 'station', id: 60_000_002, name: 'Research Station' },
         { category: 'constellation', id: 60_000_002, name: 'Wrong category' },
@@ -124,7 +121,15 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
 
     const [row] = await harness.db.select().from(eveNpcStations);
     expect(row?.name).toBeNull();
-    expect(warnSpy).toHaveBeenCalledTimes(2);
+    // The gate logs the 5xx it saw (body and x-esi-* headers) before the resolver skips the batch.
+    expect(warnSpy.mock.calls).toEqual([
+      ['Station-name resolution skipped a batch of 1: Error: offline'],
+      [
+        '[esi] server error',
+        { status: 503, path: '/universe/names', headers: {}, body: 'unavailable' },
+      ],
+      ['Station-name resolution skipped a batch of 1: EsiServerError: ESI server error: 503'],
+    ]);
   });
 
   it('continues with the second batch when the first observed batch fails', async () => {
@@ -137,7 +142,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
       requestedBatches.push(ids);
       if (requestedBatches.length === 1) return Promise.reject(new Error('first batch failed'));
       return Promise.resolve(
-        jsonResponse(ids.map((id) => ({ category: 'station', id, name: `Station ${id}` }))),
+        Response.json(ids.map((id) => ({ category: 'station', id, name: `Station ${id}` }))),
       );
     });
 
@@ -155,7 +160,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
 
   it('warns on malformed response envelopes and keeps the station unresolved', async () => {
     await harness.db.insert(eveNpcStations).values(station(60_000_001));
-    fetchMock.mockResolvedValue(jsonResponse({ names: [] }));
+    fetchMock.mockResolvedValue(Response.json({ names: [] }));
 
     await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
 
@@ -168,7 +173,7 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
 
   it('accepts an empty response without warning or changing the station', async () => {
     await harness.db.insert(eveNpcStations).values(station(60_000_001));
-    fetchMock.mockResolvedValue(jsonResponse([]));
+    fetchMock.mockResolvedValue(Response.json([]));
 
     await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
 

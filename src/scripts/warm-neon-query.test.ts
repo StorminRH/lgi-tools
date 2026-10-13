@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { warmNeon } from './warm-neon-query';
 
 function neonDbError(message: string, extras: Record<string, unknown> = {}): Error {
@@ -12,6 +13,7 @@ describe('warmNeon', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('returns on the first successful read', async () => {
@@ -21,6 +23,7 @@ describe('warmNeon', () => {
   });
 
   it('retries TimeoutError then succeeds', async () => {
+    const warn = silenceConsolePrefixes('warn', ['[warm-neon] ']);
     const timeout = new DOMException('signal timed out', 'TimeoutError');
     const read = vi
       .fn()
@@ -32,9 +35,12 @@ describe('warmNeon', () => {
     await done;
 
     expect(read).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[warm-neon\] attempt 1\/4 failed/));
   });
 
   it('retries Neon cold-start connection errors then succeeds', async () => {
+    silenceConsolePrefixes('warn', ['[warm-neon] ']);
     const cold = neonDbError('Error connecting to database: fetch failed');
     const read = vi.fn().mockRejectedValueOnce(cold).mockResolvedValueOnce([{ ok: 1 }]);
 
@@ -53,6 +59,7 @@ describe('warmNeon', () => {
   });
 
   it('rethrows after exhausting timeout retries', async () => {
+    const warn = silenceConsolePrefixes('warn', ['[warm-neon] ']);
     const timeout = new DOMException('signal timed out', 'TimeoutError');
     const read = vi.fn().mockRejectedValue(timeout);
 
@@ -61,5 +68,6 @@ describe('warmNeon', () => {
     await vi.runAllTimersAsync();
     await expectation;
     expect(read).toHaveBeenCalledTimes(4);
+    expect(warn).toHaveBeenCalledTimes(3);
   });
 });

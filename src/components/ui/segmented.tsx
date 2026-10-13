@@ -3,23 +3,18 @@
 import { Toggle } from '@base-ui/react/toggle';
 import { ToggleGroup } from '@base-ui/react/toggle-group';
 import { cva } from 'class-variance-authority';
+import Link from 'next/link';
 import { useRef } from 'react';
 import { cn } from './cn';
-import type { Tone } from './tones';
 import { useSlidingThumb } from './use-sliding-thumb';
-
-export type SegmentedTone = Extract<Tone, 'green'>;
 
 const segment = cva(
   'rounded-full border border-transparent font-ui ' +
     'transition-[color,background-color,border-color,box-shadow] duration-fast disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted',
   {
     variants: {
-      tone: {
-        green: '',
-      } satisfies Record<SegmentedTone, string>,
       active: {
-        true: '',
+        true: 'border-border-active bg-row-on text-isk shadow-card-edge',
         false: 'text-muted hover:text-text',
       },
       density: {
@@ -27,14 +22,7 @@ const segment = cva(
         compact: 'px-2 py-0.5 text-label',
       },
     },
-    compoundVariants: [
-      {
-        tone: 'green',
-        active: true,
-        className: 'border-border-active bg-row-on text-isk shadow-card-edge',
-      },
-    ],
-    defaultVariants: { tone: 'green', active: false, density: 'default' },
+    defaultVariants: { active: false, density: 'default' },
   },
 );
 
@@ -72,7 +60,6 @@ export function SegmentedControl({
   value,
   onChange,
   label,
-  tone = 'green',
   density = 'default',
   className,
 }: {
@@ -80,7 +67,6 @@ export function SegmentedControl({
   value: string;
   onChange?: (value: string) => void;
   label: string;
-  tone?: SegmentedTone;
   density?: 'default' | 'compact';
   className?: string;
 }) {
@@ -89,20 +75,48 @@ export function SegmentedControl({
     return (
       <div role="group" aria-label={label} className={cn(track({ density }), className)}>
         {options.map((option) => (
-          <a
-            key={option.value}
-            href={option.href}
-            aria-current={value === option.value ? 'page' : undefined}
-            className={segment({ tone, active: value === option.value, density })}
-          >
-            {option.label}
-          </a>
+          <SegmentLink key={option.value} option={option} active={value === option.value} density={density} />
         ))}
       </div>
     );
   }
 
-  return <ToggleSegments options={options} value={value} onChange={onChange} label={label} tone={tone} density={density} className={className} />;
+  return <ToggleSegments options={options} value={value} onChange={onChange} label={label} density={density} className={className} />;
+}
+
+/**
+ * One link-mode segment: a soft navigation that keeps the scroll position,
+ * since the choice changes in place. An href with a fragment keeps Next's
+ * default scroll so it still jumps to its anchor. An option with no href,
+ * or a disabled one, stays in the row as an unavailable link that goes
+ * nowhere.
+ */
+function SegmentLink({
+  option,
+  active,
+  density,
+}: {
+  option: SegmentedOption;
+  active: boolean;
+  density: 'default' | 'compact';
+}) {
+  if (option.href === undefined || option.disabled) {
+    return (
+      <a role="link" aria-disabled className={cn(segment({ density }), 'cursor-not-allowed opacity-40 hover:text-muted')}>
+        {option.label}
+      </a>
+    );
+  }
+  return (
+    <Link
+      href={option.href}
+      scroll={option.href.includes('#') ? undefined : false}
+      aria-current={active ? 'page' : undefined}
+      className={segment({ active, density })}
+    >
+      {option.label}
+    </Link>
+  );
 }
 
 function ToggleSegments({
@@ -110,7 +124,6 @@ function ToggleSegments({
   value,
   onChange,
   label,
-  tone,
   density,
   className,
 }: {
@@ -118,7 +131,6 @@ function ToggleSegments({
   value: string;
   onChange?: (value: string) => void;
   label: string;
-  tone: SegmentedTone;
   density: 'default' | 'compact';
   className?: string;
 }) {
@@ -142,7 +154,7 @@ function ToggleSegments({
           key={option.value}
           value={option.value}
           disabled={option.disabled}
-          className={cn(segment({ tone, active: value === option.value, density }), clearOnThumb)}
+          className={cn(segment({ active: value === option.value, density }), clearOnThumb)}
         >
           {option.label}
         </Toggle>

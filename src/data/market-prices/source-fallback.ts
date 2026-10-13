@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { chunk, dedupe } from '@/lib/array';
+import { timeDependency } from '@/lib/dependency-timing';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { applySpreadFloorToBuyFigures } from './book-math';
 import { JITA_44_STATION_ID } from './constants';
@@ -82,9 +83,9 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
 
 async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
   const url = `${FUZZWORK_AGGREGATES}?station=${JITA_44_STATION_ID}&types=${typeIds.join(',')}`;
-  const res = await fetchWithTimeout(url, {
-    headers: { 'User-Agent': OUTBOUND_USER_AGENT },
-  });
+  const res = await timeDependency('fuzzwork', () =>
+    fetchWithTimeout(url, { headers: { 'User-Agent': OUTBOUND_USER_AGENT } }),
+  );
   if (!res.ok) {
     throw new Error(
       `Fuzzwork aggregates request failed: ${res.status} ${res.statusText}`,

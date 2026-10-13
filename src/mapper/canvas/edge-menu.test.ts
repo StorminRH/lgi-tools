@@ -168,7 +168,7 @@ it('offers Edit and Delete when anchored and stays closed otherwise', () => {
   expect(closed).toContain('data-anchored="false"');
 });
 
-it('opens the Signature Editor on Edit and severs through the shipped undo pathway on Delete', async () => {
+it('opens the Wormhole card on Edit and severs through the shipped undo pathway on Delete', async () => {
   function authoring() {
     return {
       setConnectionWormholeType: vi.fn(),

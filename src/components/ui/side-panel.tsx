@@ -1,8 +1,7 @@
 'use client';
 
 import { type ReactNode, useId } from 'react';
-import { Button } from './button';
-import { Dialog, DialogClose, type DialogFocusTarget, DialogTitle } from './dialog';
+import { Dialog, DialogCloseButton, type DialogFocusTarget, DialogTitle } from './dialog';
 import { scrollArea } from './scroll-area';
 
 /** A right-edge workspace panel with modal focus and nested-overlay support. */
@@ -27,9 +26,7 @@ export function SidePanel({ open, onOpenChange, title, children, finalFocus }: {
         <DialogTitle id={titleId} className="font-display text-h2 font-bold text-name">
           {title}
         </DialogTitle>
-        <DialogClose render={<Button variant="ghost" size="sm" />} aria-label="Close side panel">
-          ×
-        </DialogClose>
+        <DialogCloseButton label="Close side panel" />
       </header>
       <div className={`${scrollArea} min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]`}>
         {children}

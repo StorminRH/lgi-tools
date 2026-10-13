@@ -12,12 +12,13 @@ import {
 import { conflictFailure, notFoundFailure } from '@/lib/failure';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
-import { insertWithinCap } from '../profile-writes';
+import { createProfileWithNewId } from '../profile-writes';
 
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'planner.duplicate-industry-profile',
+    endpoint: duplicateIndustryProfileEndpoint,
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, duplicateIndustryProfileRequestSchema),
     handle: async ({ userId }, { id: sourceId, name }) => {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           notFoundFailure('profile_missing', 'profile not found'),
         );
       }
-      const id = await insertWithinCap(userId, { name, document });
+      const id = await createProfileWithNewId(userId, { name, document });
       if (id === null) {
         return apiResponse(
           duplicateIndustryProfileEndpoint,

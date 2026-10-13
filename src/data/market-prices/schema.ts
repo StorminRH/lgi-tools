@@ -8,7 +8,7 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import type { DepthBand, RegionalDiscount } from './types';
+import type { DepthBand, PriceSource, RegionalDiscount } from './types';
 
 export const marketPrices = pgTable(
   'market_prices',
@@ -24,8 +24,9 @@ export const marketPrices = pgTable(
     sellDepth: jsonb('sell_depth').$type<DepthBand[]>(),
     regionalDiscount: jsonb('regional_discount').$type<RegionalDiscount>(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
-    staleAfter: timestamp('stale_after', { withTimezone: true }).notNull(),
-    source: text('source').notNull().default('fuzzwork'),
+    /** CCP's expiry as the row was written; the response store, not this column, decides freshness. Nullable so the column can go. */
+    staleAfter: timestamp('stale_after', { withTimezone: true }),
+    source: text('source').$type<PriceSource>().notNull().default('fuzzwork'),
   },
   (t) => ({
     staleAfterIdx: index('market_prices_stale_after_idx').on(t.staleAfter),

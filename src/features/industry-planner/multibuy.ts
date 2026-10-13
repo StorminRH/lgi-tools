@@ -1,4 +1,4 @@
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { TreeNode } from '@/data/eve-data/types';
 
 export type NetMode = 'Total' | 'Remaining';
 
@@ -33,10 +33,6 @@ export function multibuyBuildSet(
 
 export function hasOwnedStock(ownedAssets: { size: number } | null): boolean {
   return (ownedAssets?.size ?? 0) > 0;
-}
-
-export function pluralCount(n: number, singular: string, plural: string): string {
-  return `${n} ${n === 1 ? singular : plural}`;
 }
 
 export interface MultibuyEntry {

@@ -1,5 +1,5 @@
-import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 
 const getCurrentUserIdMock = vi.fn();
@@ -22,13 +22,7 @@ vi.mock('@/app/api/owned-data-telemetry', () => ({
 
 import { POST } from './route';
 
-function buildRequest(body: string): NextRequest {
-  return new NextRequest('http://localhost:3000/api/industry/skill-levels', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body,
-  });
-}
+const ROUTE = '/api/industry/skill-levels';
 
 describe('POST /api/industry/skill-levels', () => {
   beforeEach(() => {
@@ -39,7 +33,7 @@ describe('POST /api/industry/skill-levels', () => {
   });
 
   it('returns 400 invalid_json for a non-JSON body', async () => {
-    const res = await POST(buildRequest('not json'));
+    const res = await POST(postJson(ROUTE, 'not json'));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_json',
@@ -47,7 +41,7 @@ describe('POST /api/industry/skill-levels', () => {
   });
 
   it('returns 400 invalid_body for a malformed character id', async () => {
-    const res = await POST(buildRequest(JSON.stringify({ characterId: -1 })));
+    const res = await POST(postJson(ROUTE, { characterId: -1 }));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_body',
@@ -57,7 +51,7 @@ describe('POST /api/industry/skill-levels', () => {
 
   it('fails open to levels:null (200) for an anonymous caller', async () => {
     getCurrentUserIdMock.mockResolvedValue(null);
-    const res = await POST(buildRequest(JSON.stringify({ characterId: 100 })));
+    const res = await POST(postJson(ROUTE, { characterId: 100 }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ levels: null });
     expect(getSkillLevelsForCharacterOnViewMock).not.toHaveBeenCalled();
@@ -66,7 +60,7 @@ describe('POST /api/industry/skill-levels', () => {
   it("fails open to levels:null when the character is not the caller's (the composition's ownership arm)", async () => {
     getCurrentUserIdMock.mockResolvedValue('u1');
     getSkillLevelsForCharacterOnViewMock.mockResolvedValue(null);
-    const res = await POST(buildRequest(JSON.stringify({ characterId: 999 })));
+    const res = await POST(postJson(ROUTE, { characterId: 999 }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ levels: null });
     expect(getSkillLevelsForCharacterOnViewMock).toHaveBeenCalledWith('u1', 999);
@@ -75,7 +69,7 @@ describe('POST /api/industry/skill-levels', () => {
   it('returns the levels map for an owned, synced character', async () => {
     getCurrentUserIdMock.mockResolvedValue('u1');
     getSkillLevelsForCharacterOnViewMock.mockResolvedValue({ '3380': 5, '3388': 4 });
-    const res = await POST(buildRequest(JSON.stringify({ characterId: 100 })));
+    const res = await POST(postJson(ROUTE, { characterId: 100 }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ levels: { '3380': 5, '3388': 4 } });
   });

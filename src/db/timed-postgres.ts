@@ -1,18 +1,14 @@
-import { addDependencyTiming } from '@/lib/dependency-timing';
+import {
+  isThenable,
+  startDependencyTimer,
+  timeDependency,
+} from '@/lib/dependency-timing';
 
 const OBSERVED = Symbol('db.query-timed');
 
 const LIFECYCLE_METHODS = new Set<string | symbol>(['end', 'listen', 'unlisten']);
 
 type AnyFunction = (...args: unknown[]) => unknown;
-
-function isThenable(value: unknown): value is PromiseLike<unknown> {
-  return (
-    typeof value === 'object'
-    && value !== null
-    && typeof (value as { then?: unknown }).then === 'function'
-  );
-}
 
 /**
  * Times a postgres-js `Query` in place, preserving its laziness. A `Query` only runs when the
@@ -32,11 +28,8 @@ function observeQuery<T>(value: T): T {
   const begin = (): void => {
     if (observed) return;
     observed = true;
-    const startedAt = performance.now();
-    const record = (): void => {
-      addDependencyTiming('neon', performance.now() - startedAt);
-    };
-    void originalThen(record, record);
+    const stop = startDependencyTimer('neon');
+    void originalThen(stop, stop);
   };
 
   query.then = (...args: unknown[]): unknown => {
@@ -48,9 +41,7 @@ function observeQuery<T>(value: T): T {
 
 function timedReserve(reserve: AnyFunction): AnyFunction {
   return async (...args: unknown[]): Promise<unknown> => {
-    const startedAt = performance.now();
-    const reserved = await reserve(...args);
-    addDependencyTiming('neon', performance.now() - startedAt);
+    const reserved = await timeDependency('neon', async () => reserve(...args));
     return typeof reserved === 'object' || typeof reserved === 'function'
       ? withQueryTiming(reserved as object)
       : reserved;

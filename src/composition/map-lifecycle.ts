@@ -1,9 +1,5 @@
 import { resolveMapPrincipals } from '@/composition/map-access';
-import {
-  projectMapAccess,
-  ProjectionUnavailableError,
-  requireCurrentProjection,
-} from '@/composition/map-access-projection';
+import { projectMapAccess, ProjectionUnavailableError } from '@/composition/map-access-projection';
 import type { MapLifecycleRequest } from '@/data/maps/api-contract';
 import {
   archiveAuthorizedMap,
@@ -38,9 +34,7 @@ async function transitionMapForUser(
   // have completed while this write was returning, and delayed delivery must
   // not undo it.
   try {
-    requireCurrentProjection(
-      await (dependencies.projectAccess ?? projectMapAccess)(input.mapId),
-    );
+    await (dependencies.projectAccess ?? projectMapAccess)(input.mapId);
     await (dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges)([pending]);
     return { ok: true, projectionPending: false };
   } catch (cause) {

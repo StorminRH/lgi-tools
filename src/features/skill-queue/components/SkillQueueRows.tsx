@@ -1,6 +1,7 @@
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { EntityRow } from '@/components/ui/row';
+import { unresolvedName } from '@/lib/format/names';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from '../esi-projection';
 import { romanLevel } from '../progress';
@@ -46,7 +47,7 @@ function QueueEntryRow({
         leading={number}
         name={
           <span className="font-data">
-            {name ?? `Skill #${entry.skill_id}`}{' '}
+            {name ?? unresolvedName('skill', entry.skill_id)}{' '}
             <span className="text-muted">{romanLevel(entry.finished_level)}</span>
           </span>
         }

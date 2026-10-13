@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { isPositiveSafeInteger } from '@/lib/id-schemas';
 
 const PATHFINDER_FIXTURE = new URL(
   './__fixtures__/pathfinder-system-static.csv',
@@ -19,7 +20,7 @@ export class PathfinderLineageError extends Error {
 
 function positiveInteger(raw: string, field: string, lineNumber: number): number {
   const value = Number(raw);
-  if (!Number.isSafeInteger(value) || value <= 0) {
+  if (!isPositiveSafeInteger(value)) {
     throw new PathfinderLineageError(
       `Invalid ${field} on Pathfinder line ${lineNumber}`,
     );

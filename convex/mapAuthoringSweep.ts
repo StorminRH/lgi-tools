@@ -1,15 +1,16 @@
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { getOrInsertComputed } from '@/lib/array';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { errorCode } from './lib/errorCode';
-import { writeMapEvent } from './mapAuthoringEvents';
+import { writeMapEvent } from './lib/mapAuthoringEvents';
+import { trackedPilotSystemsByMap, type TrackedPilotSystems } from './lib/mapTrackedPilots';
 import {
   retainRemovedConnection,
   runCollapse,
   severKeepingSystems,
 } from './mapAuthoringCollapse';
-import { readTrackedPilotSystemIds } from './mapTrackingLive';
 
 export const CEILING_COLLAPSE_GRACE_MS = 4 * 60 * 60 * 1000;
 
@@ -41,19 +42,14 @@ async function readDueCeilings(
 async function collapseDueRow(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
-  trackedByMap: Map<string, ReadonlySet<number>>,
+  tracked: TrackedPilotSystems,
 ): Promise<boolean> {
   try {
-    let tracked = trackedByMap.get(row.mapId);
-    if (tracked === undefined) {
-      tracked = await readTrackedPilotSystemIds(ctx, row.mapId);
-      trackedByMap.set(row.mapId, tracked);
-    }
     await runCollapse(ctx, {
       mapId: row.mapId,
       connectionId: row._id,
       actor: CEILING_SWEEP_ACTOR,
-      pilotsPresent: { trackedInSystemIds: tracked },
+      pilotsPresent: { trackedInSystemIds: await tracked(row.mapId) },
     });
     return true;
   } catch (error) {
@@ -75,14 +71,11 @@ type RemovedStubEvents = Map<
 
 function recordRemovedStub(events: RemovedStubEvents, stub: Doc<'mapConnections'>): void {
   if (stub.from.signatureId === null) return;
-  const key = `${stub.mapId}:${stub.fromSystemId}`;
-  const entry = events.get(key) ?? {
+  getOrInsertComputed(events, `${stub.mapId}:${stub.fromSystemId}`, () => ({
     mapId: stub.mapId,
     systemId: stub.fromSystemId,
     signatureIds: [],
-  };
-  entry.signatureIds.push(stub.from.signatureId);
-  events.set(key, entry);
+  })).signatureIds.push(stub.from.signatureId);
 }
 
 async function sweepExpiredCeilings(
@@ -99,7 +92,7 @@ async function sweepExpiredCeilings(
   // back to removing just the connection, and the daily chain purge settles
   // the systems behind it once the undo window ends.
   const { due, overflow } = await readDueCeilings(ctx, now - CEILING_COLLAPSE_GRACE_MS);
-  const trackedByMap = new Map<string, ReadonlySet<number>>();
+  const tracked = trackedPilotSystemsByMap(ctx);
   const failedMapIds = new Set<string>();
   const stubEvents: RemovedStubEvents = new Map();
   let collapsed = 0;
@@ -119,7 +112,7 @@ async function sweepExpiredCeilings(
       await retainRemovedConnection(ctx, fresh, now);
       recordRemovedStub(stubEvents, fresh);
       removedStubs += 1;
-    } else if (!failedMapIds.has(fresh.mapId) && await collapseDueRow(ctx, fresh, trackedByMap)) {
+    } else if (!failedMapIds.has(fresh.mapId) && await collapseDueRow(ctx, fresh, tracked)) {
       collapsed += 1;
     } else {
       // A failed collapse falls back to removing just the connection; the map's

@@ -2,15 +2,14 @@ import { type Infer, v } from 'convex/values';
 import {
   computeChainBoundary,
   computeNextDueAt,
-  isColdFromPresence,
   LOCATION_CADENCE_FLOOR_MS,
-  LOCATION_COLD_AFTER_MS,
   minCacheWindow,
 } from '@/lib/sync-engine';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { clearAccessLeases, leaseWriteValidator, writeAccessLeases } from './characterLocationAccess';
 import { characterSyncResultFields } from './lib/characterSync';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { dropUnsyncedCharacterCaches } from './lib/locationCaches';
 import { applyCoverageSet, clearCoverageForUser } from './lib/locationCoverage';
 import {
@@ -18,7 +17,7 @@ import {
   type LocationSyncState,
   scheduleRun,
 } from './lib/locationSchedule';
-import { getPresence } from './lib/subjects';
+import { isLocationWatcherCold } from './lib/subjects';
 
 export const JUMP_CONTINUITY_MS = 45_000;
 
@@ -36,7 +35,7 @@ const characterResultValidator = v.object({
   onlineExpiresAt: v.union(v.number(), v.null()),
 });
 
-type CharacterResult = Infer<typeof characterResultValidator>;
+export type CharacterResult = Infer<typeof characterResultValidator>;
 
 export const syncOutcomeValidator = v.union(
   v.object({
@@ -85,8 +84,7 @@ export const finishSync = internalMutation({
     };
     const next = { ...state, ...stamp };
 
-    const presence = await getPresence(ctx.db, 'characterLocation', args.userId);
-    const cold = isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, now);
+    const cold = await isLocationWatcherCold(ctx.db, args.userId, now);
     const at = cold ? null : nextRunAt(args.outcome, next, now);
     if (at === null) {
       await ctx.db.patch('locationSync', state._id, { ...stamp, jobId: null });
@@ -176,15 +174,11 @@ async function applyCharacterResults(
     }
     // A held probe and a 304 location need no read of their stored documents.
     if (result.online !== null && result.onlineExpiresAt !== null) {
-      const probe = await ctx.db.query('characterLocationOnline')
-        .withIndex('by_user_character', (q) => q.eq('userId', userId).eq('characterId', result.characterId))
-        .unique();
+      const probe = await uniqueByUserCharacter(ctx, 'characterLocationOnline', userId, result.characterId);
       await applyOnlineProbeResult(ctx, userId, result, probe ?? undefined);
     }
     const location = result.error === null && result.solarSystemId !== null
-      ? await ctx.db.query('characterLocation')
-        .withIndex('by_user_character', (q) => q.eq('userId', userId).eq('characterId', result.characterId))
-        .unique()
+      ? await uniqueByUserCharacter(ctx, 'characterLocation', userId, result.characterId)
       : null;
     const window = await applyLocationResult(
       ctx,
@@ -274,9 +268,7 @@ async function applyLocationResult(
       etagLocation: result.etagLocation,
       etagShip: result.etagShip,
     };
-    if (locationChanged(existing, next)) {
-      await ctx.db.patch(existing._id, next);
-    }
+    await ctx.db.patch(existing._id, next);
     return result.expiresAt;
   }
 
@@ -304,31 +296,4 @@ function isPrevFresh(
   if (freshness.lastFinishedAt === null) return false;
   if (now - freshness.lastFinishedAt > JUMP_CONTINUITY_MS) return false;
   return freshness.coveredCharacterIds.includes(characterId);
-}
-
-function locationChanged(
-  existing: Doc<'characterLocation'>,
-  next: {
-    solarSystemId: number;
-    stationId: number | null;
-    structureId: number | null;
-    shipTypeId: number | null;
-    prevSolarSystemId: number | null;
-    prevFresh: boolean;
-    transitionObservedAt: number;
-    etagLocation: string | null;
-    etagShip: string | null;
-  },
-): boolean {
-  return (
-    existing.solarSystemId !== next.solarSystemId
-    || existing.stationId !== next.stationId
-    || existing.structureId !== next.structureId
-    || existing.shipTypeId !== next.shipTypeId
-    || existing.prevSolarSystemId !== next.prevSolarSystemId
-    || existing.prevFresh !== next.prevFresh
-    || existing.transitionObservedAt !== next.transitionObservedAt
-    || existing.etagLocation !== next.etagLocation
-    || existing.etagShip !== next.etagShip
-  );
 }

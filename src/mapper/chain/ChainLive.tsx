@@ -42,7 +42,6 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     setFogConfig,
     setHaloLimits,
     setMotionConfig,
-    shellRef,
   } = useChainDials();
 
   const {
@@ -103,9 +102,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
 
   return (
     <div
-      ref={shellRef}
       className="relative h-full w-full"
-      data-map-shell=""
       data-map-can-edit={canEdit === true ? 'true' : 'false'}
     >
       <MapPresenceProvider mapId={mapId}>

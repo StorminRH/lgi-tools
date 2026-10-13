@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest';
-import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { indexWormholeCodex } from '@/data/eve-data/wormhole-codex-index';
 import { observationFor, type ObservationFacts } from './emission';
 
-const CODEX: WormholeCodexEntry[] = [
+const CODEX = indexWormholeCodex([
   {
     code: 'C247',
     typeId: 30_758,
@@ -15,7 +15,7 @@ const CODEX: WormholeCodexEntry[] = [
     targetClass: 3,
   },
   { code: 'K162', typeId: 30_547, farSide: true },
-];
+]);
 
 function facts(overrides: Partial<ObservationFacts> = {}): ObservationFacts {
   return {

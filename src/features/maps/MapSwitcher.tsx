@@ -1,27 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { floatSurface } from '@/components/ui/card';
-import { cn } from '@/components/ui/cn';
-import { Menu, MenuItem, menuRow } from '@/components/ui/menu';
-import { scrollArea } from '@/components/ui/scroll-area';
+import { MenuItem, menuRow } from '@/components/ui/menu';
+import { SwitcherMenu } from '@/components/ui/switcher-menu';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
   MapBlockOption,
 } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
-import { MapAccessDialog } from './MapAccessDialog';
-import {
-  closedMapDialogs,
-  connectedDialogFocus,
-  currentAdminMap,
-  editingMapRows,
-  mapDialogAuthorityKey,
-  reconcileAuthorityScopedMapDialogs,
-} from './map-dialog-state';
+import { EditingMapAccessDialog } from './MapAccessDialog';
+import { connectedDialogFocus } from './map-dialog-state';
 import { mapSelectionHref } from './map-navigation';
+import { useAuthorityScopedMapDialogs } from './use-authority-scoped-map-dialogs';
 
 function CogGlyph() {
   return (
@@ -44,12 +36,14 @@ export function MapSwitcher({
   corporations,
   grantsByMapId,
   blocksByMapId,
+  listingAvailable,
   focusFallback,
 }: {
   readonly maps: readonly AuthorizedMapRow[];
   readonly corporations: readonly CorporationAccessOption[];
   readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
   readonly blocksByMapId: Readonly<Record<string, readonly MapBlockOption[]>>;
+  readonly listingAvailable: boolean;
   readonly focusFallback?: React.RefObject<HTMLElement | null>;
 }) {
   const router = useRouter();
@@ -59,13 +53,7 @@ export function MapSwitcher({
   const selected = maps.find((map) => map.id === selectedId);
   const refreshedMissingId = useRef<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const authorityKey = mapDialogAuthorityKey(true, maps);
-  const [storedDialogs, setStoredDialogs] = useState(() =>
-    closedMapDialogs(authorityKey),
-  );
-  const dialogs = reconcileAuthorityScopedMapDialogs(storedDialogs, authorityKey);
-  if (dialogs !== storedDialogs) setStoredDialogs(dialogs);
-  const currentEditingMap = currentAdminMap(maps, dialogs.editingMapId);
+  const { setDialogs, editingMap } = useAuthorityScopedMapDialogs(maps, listingAvailable);
 
   useEffect(() => {
     if (
@@ -82,29 +70,17 @@ export function MapSwitcher({
 
   return (
     <>
-      <Menu
+      <SwitcherMenu
         label={`Switch map from ${selected.name}`}
-        trigger={
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">{selected.name}</span>
-            <span aria-hidden className="font-data text-label text-faint">⌄</span>
-          </span>
-        }
+        current={selected.name}
+        align="center"
         triggerProps={{
           ref: triggerRef,
           'data-map-switcher-trigger': '',
           'data-map-id': selected.id,
         }}
         popupProps={{ 'data-map-switcher-panel': '' }}
-        triggerClassName={cn(
-          floatSurface,
-          'flex h-10 w-max max-w-full min-w-0 cursor-pointer items-center rounded-full px-4 font-display text-h3 font-bold tracking-copy text-name outline-none transition-colors hover:border-border-active focus-visible:border-border-active',
-        )}
-        className={`${scrollArea} grid min-w-72 grid-cols-[minmax(0,1fr)_auto] rounded-card p-[5px] max-h-[min(24rem,var(--available-height))] overflow-y-auto overscroll-contain`}
-        surface="frosted"
-        side="bottom"
-        align="center"
-        sideOffset={8}
+        className="grid min-w-72 grid-cols-[minmax(0,1fr)_auto]"
       >
         {maps.map((map) => (
           <div key={map.id} className="col-span-2 grid grid-cols-subgrid">
@@ -130,7 +106,7 @@ export function MapSwitcher({
                 data-map-switcher-manage={map.id}
                 className="flex cursor-pointer items-center rounded-r-ctl px-2.5 text-muted outline-none data-[highlighted]:bg-row-on data-[highlighted]:text-name"
                 onClick={() =>
-                  setStoredDialogs((current) => ({
+                  setDialogs((current) => ({
                     ...current,
                     editingMapId: map.id,
                   }))
@@ -143,26 +119,17 @@ export function MapSwitcher({
             )}
           </div>
         ))}
-      </Menu>
-      {dialogs.editingMapId !== null ? (
-        <MapAccessDialog
-          key={dialogs.editingMapId}
-          mapId={dialogs.editingMapId}
-          mapName={currentEditingMap?.name ?? 'map'}
-          open={currentEditingMap !== null}
-          finalFocus={() =>
-            connectedDialogFocus(triggerRef.current, focusFallback?.current)
-          }
-          onOpenChange={(open) => {
-            if (!open) {
-              setStoredDialogs((current) => ({ ...current, editingMapId: null }));
-            }
-          }}
-          corporations={corporations}
-          initialGrants={editingMapRows(grantsByMapId, currentEditingMap)}
-          initialBlocks={editingMapRows(blocksByMapId, currentEditingMap)}
-        />
-      ) : null}
+      </SwitcherMenu>
+      <EditingMapAccessDialog
+        editingMap={editingMap}
+        onClose={() => setDialogs((current) => ({ ...current, editingMapId: null }))}
+        finalFocus={() =>
+          connectedDialogFocus(triggerRef.current, focusFallback?.current)
+        }
+        corporations={corporations}
+        grantsByMapId={grantsByMapId}
+        blocksByMapId={blocksByMapId}
+      />
     </>
   );
 }

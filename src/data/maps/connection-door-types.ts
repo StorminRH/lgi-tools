@@ -1,32 +1,31 @@
 import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
 import {
   FAR_SIDE_WORMHOLE_CODE,
-  isWormholeTypeCode,
+  isAttributableWormholeTypeCode,
 } from '@/data/eve-data/wormhole-contract';
 import type {
   ConnectionDoorSide,
   ConnectionDoorValue,
   ConnectionIdentity,
 } from '@/data/maps/connection-hallway';
-import { blankDoor, hallwayDoorTypes, identityFromDoors } from '@/data/maps/connection-hallway';
-
-export type { ConnectionDoorSide as ConnectionDoor };
+import {
+  blankDoor,
+  hallwayDoorTypes,
+  identityEquals,
+  identityFromDoors,
+} from '@/data/maps/connection-hallway';
 
 export interface ConnectionDoorTypes {
   readonly from: string | null;
   readonly to: string | null;
 }
 
-export function isEntranceType(code: string | null | undefined): boolean {
-  return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);
-}
-
 export function namedDoorType(doors: ConnectionDoorTypes): {
   readonly typeCode: string | null;
   readonly side: ConnectionDoorSide | null;
 } {
-  if (isEntranceType(doors.from)) return { typeCode: doors.from, side: 'from' };
-  if (isEntranceType(doors.to)) return { typeCode: doors.to, side: 'to' };
+  if (isAttributableWormholeTypeCode(doors.from)) return { typeCode: doors.from, side: 'from' };
+  if (isAttributableWormholeTypeCode(doors.to)) return { typeCode: doors.to, side: 'to' };
   if (doors.from !== null) return { typeCode: doors.from, side: 'from' };
   if (doors.to !== null) return { typeCode: doors.to, side: 'to' };
   return { typeCode: null, side: null };
@@ -41,7 +40,7 @@ export function applyDoorType(
     ? { from: value, to: current.to }
     : { from: current.from, to: value };
   const other = side === 'from' ? next.to : next.from;
-  if (!isEntranceType(value) || other !== null) return next;
+  if (!isAttributableWormholeTypeCode(value) || other !== null) return next;
   return side === 'from'
     ? { from: value, to: FAR_SIDE_WORMHOLE_CODE }
     : { from: FAR_SIDE_WORMHOLE_CODE, to: value };
@@ -53,11 +52,11 @@ export function applyReturnDoorType(
   stubType: string | null,
 ): ConnectionDoorTypes {
   const other = attachedSide === 'from' ? current.to : current.from;
-  if (isEntranceType(other)) {
+  if (isAttributableWormholeTypeCode(other)) {
     return applyDoorType(current, attachedSide, FAR_SIDE_WORMHOLE_CODE);
   }
   const attached = attachedSide === 'from' ? current.from : current.to;
-  if (isEntranceType(attached) || stubType === null) return current;
+  if (isAttributableWormholeTypeCode(attached) || stubType === null) return current;
   return applyDoorType(current, attachedSide, stubType);
 }
 
@@ -90,6 +89,23 @@ export function connectionTypePatch(
     ...doors,
     identity: identityFromDoors(doors.from.typeCode, doors.to.typeCode, provenance),
   };
+}
+
+export function sameDoorTyping(
+  hallway: {
+    readonly from: ConnectionDoorValue;
+    readonly to: ConnectionDoorValue;
+    readonly identity: ConnectionIdentity;
+  },
+  patch: {
+    readonly from: ConnectionDoorValue;
+    readonly to: ConnectionDoorValue;
+    readonly identity: ConnectionIdentity;
+  },
+): boolean {
+  return hallway.from.typeCode === patch.from.typeCode
+    && hallway.to.typeCode === patch.to.typeCode
+    && identityEquals(hallway.identity, patch.identity);
 }
 
 export function returnDoorTypePatch(

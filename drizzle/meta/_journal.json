@@ -568,6 +568,55 @@
       "when": 1791537582242,
       "tag": "0080_query_statistics",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1791595482043,
+      "tag": "0081_eve_entity_names",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1791647139143,
+      "tag": "0082_eve_entity_names_resolved_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1791739763039,
+      "tag": "0083_repair_stale_synthetic_emails",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1791825098189,
+      "tag": "0084_drop_esi_refresh_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1791827038283,
+      "tag": "0085_esi_responses",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1791836753983,
+      "tag": "0086_backfill_esi_responses",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791836913848,
+      "tag": "0087_relax_stale_after",
+      "breakpoints": true
     }
   ]
 }

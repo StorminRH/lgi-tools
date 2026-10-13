@@ -1,14 +1,13 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
-import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
-import { SectionHeader } from '@/components/ui/section-header';
+import { Pill } from '@/components/ui/pill';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getFullSession } from '@/composition/session';
+import { inlineLink } from '@/components/ui/text-link';
+import { requireSessionPage } from '@/composition/route-guards';
 import { formatIsoDay } from '@/lib/format/time';
 import { getActiveSessionCount } from '@/platform/auth/admin-users';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
@@ -24,10 +23,7 @@ function OverviewRow({ label, children }: { label: string; children: ReactNode }
 }
 
 async function AccountContent() {
-  const session = await getFullSession();
-  if (!session) {
-    redirect('/?auth_error=login_required');
-  }
+  const session = await requireSessionPage();
 
   const [characters, sessionCount] = await Promise.all([
     listLinkedCharacters(session.user.id),
@@ -36,8 +32,7 @@ async function AccountContent() {
 
   return (
     <>
-      <Card className="reveal reveal-1">
-        <SectionHeader size="md" label="Overview" />
+      <SectionPanel title="Overview" className="reveal reveal-1">
         <OverviewRow label="Signed in as">
           <CharacterPortrait
             characterId={session.characterId ?? undefined}
@@ -46,11 +41,11 @@ async function AccountContent() {
             src={session.portraitUrl}
           />
           <span className="truncate text-name">{session.name}</span>
-          {session.isAdmin ? <Chip tone="purple">Admin</Chip> : null}
+          {session.isAdmin ? <Pill tone="purple">Admin</Pill> : null}
         </OverviewRow>
         <OverviewRow label="Linked characters">
           <span className="font-data">{characters.length}</span>
-          <Link href="/settings/characters" className="text-tone-blue hover:underline">
+          <Link href="/settings/characters" className={inlineLink}>
             Manage →
           </Link>
         </OverviewRow>
@@ -60,7 +55,7 @@ async function AccountContent() {
         <OverviewRow label="Account created">
           <span className="font-data">{formatIsoDay(session.user.createdAt)}</span>
         </OverviewRow>
-      </Card>
+      </SectionPanel>
 
       <AccountDangerZone
         characters={characters.map((c) => ({ characterId: c.characterId, name: c.name }))}

@@ -3,7 +3,7 @@ import { problemBodySchema } from '@/lib/problem';
 
 vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
-import { requireBearerSecret, requireCronAuth, swallow } from './cron';
+import { requireBearerSecret, requireCronAuth } from './cron';
 
 const SECRET = 'shared-secret';
 
@@ -109,22 +109,5 @@ describe('requireCronAuth', () => {
     vi.stubEnv('CRON_SECRET', 'cron-only');
     expect(await requireCronAuth(makeRequest('Bearer cron-only'))).toBeNull();
     expect((await requireCronAuth(makeRequest(`Bearer ${SECRET}`)))?.status).toBe(401);
-  });
-});
-
-describe('swallow', () => {
-  it('awaits the side effect and returns normally when it resolves', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    let landed = false;
-    await swallow('[test]', Promise.resolve().then(() => { landed = true; }));
-    expect(landed).toBe(true);
-    expect(errorSpy).not.toHaveBeenCalled();
-  });
-
-  it('logs and swallows a rejection so observability cannot break the cron', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const boom = new Error('telemetry down');
-    await expect(swallow('[test]', Promise.reject(boom))).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalledWith('[test]', boom);
   });
 });

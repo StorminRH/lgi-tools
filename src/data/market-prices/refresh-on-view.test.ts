@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import type { EsiResponseMeta } from '@/data/esi-store';
 import type { MarketPrice, RawMarketPrice } from './types';
 
-const MARKET_PRICE_WINDOW_MS = freshnessGate('market_prices').ttlMs;
-
+const fetchPricesPerTypeMock = vi.fn();
 const fetchPricesFromSourceMock = vi.fn();
 const getPricesMock = vi.fn();
 const persistPricesMock = vi.fn();
+const storedExpiriesMock = vi.fn();
+const commitMock = vi.fn();
 const afterMock = vi.fn();
-const revalidateTagMock = vi.fn();
 
 vi.mock('./source', () => ({
+  fetchPricesPerType: (...args: unknown[]) => fetchPricesPerTypeMock(...args),
   fetchPricesFromSource: (...args: unknown[]) => fetchPricesFromSourceMock(...args),
 }));
 vi.mock('./queries', () => ({
@@ -19,15 +20,19 @@ vi.mock('./queries', () => ({
 vi.mock('./ingest', () => ({
   persistPrices: (...args: unknown[]) => persistPricesMock(...args),
 }));
-vi.mock('next/server', () => ({ after: (cb: () => unknown) => afterMock(cb) }));
-vi.mock('next/cache', () => ({
-  cacheLife: vi.fn(),
-  cacheTag: vi.fn(),
-  revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
+vi.mock('@/data/esi-store', async () => ({
+  ...(await vi.importActual<typeof import('@/data/esi-store/expiry')>('@/data/esi-store/expiry')),
+  storedExpiries: (...args: unknown[]) => storedExpiriesMock(...args),
+  commit: (...args: unknown[]) => commitMock(...args),
 }));
+vi.mock('next/server', () => ({ after: (cb: () => unknown) => afterMock(cb) }));
 vi.mock('@/db', () => ({ db: {} }));
 
-import { getLivePrices, priceTag, refreshPricesOnDemand } from './refresh-on-view';
+import { priceKey } from './keys';
+import { getLivePrices } from './refresh-on-view';
+
+const NOW = Date.parse('2026-10-12T12:00:00Z');
+const EXPIRES = NOW + 300_000;
 
 function raw(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
   return {
@@ -63,162 +68,170 @@ function seed(typeId: number): MarketPrice {
   };
 }
 
-function sourceByTypeId(
-  byId: Record<number, { prices: RawMarketPrice[]; budgetExhausted?: boolean }>,
-  opts?: { throwFor?: number[] },
-) {
-  fetchPricesFromSourceMock.mockImplementation((ids: number[]) => {
-    const id = ids[0]!;
-    if (opts?.throwFor?.includes(id)) return Promise.reject(new Error('source down'));
-    const r = byId[id] ?? { prices: [] };
-    return Promise.resolve({ prices: r.prices, budgetExhausted: r.budgetExhausted ?? false });
+function meta(typeId: number, checkedAt = NOW - 1000): EsiResponseMeta {
+  return { key: priceKey(typeId), expiresAt: EXPIRES, etags: ['"e"'], lastModified: null, checkedAt };
+}
+
+/** The store's answer per type: an expiry, or null when it has no row. */
+function expiries(byId: Record<number, number | null>) {
+  storedExpiriesMock.mockImplementation((keys: { params: { type_id: number } }[]) =>
+    Promise.resolve(keys.map((key) => byId[key.params.type_id] ?? null)),
+  );
+}
+
+function source(prices: RawMarketPrice[], opts: { budgetExhausted?: boolean; metas?: EsiResponseMeta[] } = {}) {
+  fetchPricesPerTypeMock.mockResolvedValue({
+    prices,
+    budgetExhausted: opts.budgetExhausted ?? false,
+    metaByType: new Map((opts.metas ?? prices.filter((p) => p.source === 'esi').map((p) => meta(p.typeId))).map((m) => [m.key.params!.type_id as number, m])),
   });
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  fetchPricesPerTypeMock.mockReset();
   fetchPricesFromSourceMock.mockReset();
-  getPricesMock.mockReset();
-  persistPricesMock.mockReset();
+  getPricesMock.mockReset().mockResolvedValue(new Map());
+  persistPricesMock.mockReset().mockResolvedValue({ written: 1 });
+  storedExpiriesMock.mockReset();
+  commitMock.mockReset().mockResolvedValue(undefined);
   afterMock.mockReset();
-  revalidateTagMock.mockReset();
-  persistPricesMock.mockResolvedValue({ written: 1 });
-  getPricesMock.mockResolvedValue(new Map());
+  expiries({});
 });
 
 describe('getLivePrices', () => {
-  it('returns the live value over the seed and stamps a fresh expiry', async () => {
+  it('returns the live value over the seed, stamped with CCP\'s expiry', async () => {
     getPricesMock.mockResolvedValue(new Map([[34, seed(34)]]));
-    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
+    source([raw(34, 'esi')]);
 
     const { prices, degraded, metrics } = await getLivePrices([34]);
 
     const row = prices.get(34)!;
     expect(row.source).toBe('esi');
     expect(row.bestBuy).toBe(10);
-    expect(row.staleAfter.getTime() - row.updatedAt.getTime()).toBe(
-      MARKET_PRICE_WINDOW_MS,
-    );
+    expect(row.updatedAt.getTime()).toBe(NOW - 1000);
+    expect(row.staleAfter?.getTime()).toBe(EXPIRES);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([34]);
     expect(degraded).toMatchObject({ fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
-    expect(metrics).toMatchObject({ requested: 1, returned: 1, esiCount: 1 });
+    expect(metrics).toEqual({ requested: 1, returned: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
   });
 
-  it('reuses a Neon row under five minutes old without requesting ESI or rewriting it', async () => {
-    const row = { ...seed(34), updatedAt: new Date(Date.now() - 60_000), staleAfter: new Date(Date.now() + 240_000) };
-    getPricesMock.mockResolvedValue(new Map([[34, row]]));
+  it('serves a Neon row whose stored answer is unexpired without asking the source or writing', async () => {
+    getPricesMock.mockResolvedValue(new Map([[34, seed(34)]]));
+    expiries({ 34: NOW + 240_000 });
+
     const { prices, metrics } = await getLivePrices([34]);
-    expect(prices.get(34)).toEqual(row);
-    expect(metrics).toMatchObject({ requested: 1, returned: 1, esiCount: 0 });
-    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
+
+    expect(prices.get(34)).toEqual({ ...seed(34), staleAfter: new Date(NOW + 240_000) });
+    expect(metrics).toEqual({ requested: 1, returned: 1, esiCount: 0, fuzzworkFallbackCount: 0 });
+    expect(fetchPricesPerTypeMock).not.toHaveBeenCalled();
     expect(afterMock).not.toHaveBeenCalled();
   });
 
-  it('refreshes only stale or missing rows and ignores legacy 24-hour expiry', async () => {
-    const now = Date.now();
-    const fresh = { ...seed(34), updatedAt: new Date(now - 60_000), staleAfter: new Date(now + 86_400_000) };
-    const stale = { ...seed(35), updatedAt: new Date(now - 300_000), staleAfter: new Date(now + 86_400_000) };
-    getPricesMock.mockResolvedValue(new Map([[34, fresh], [35, stale]]));
-    sourceByTypeId({ 35: { prices: [raw(35, 'esi')] }, 36: { prices: [raw(36, 'esi')] } });
+  it('reads the seed only after the expiries resolve, so a newer expiry never vouches for an older row', async () => {
+    const pending = Promise.withResolvers<(number | null)[]>();
+    storedExpiriesMock.mockReturnValue(pending.promise);
+    getPricesMock.mockResolvedValue(new Map([[34, seed(34)], [35, seed(35)]]));
+    source([raw(34, 'esi')]);
+
+    const read = getLivePrices([34, 35]);
+    await Promise.resolve();
+
+    // Nothing reads the seed while the expiry read is in flight.
+    expect(getPricesMock).not.toHaveBeenCalled();
+    expect(fetchPricesPerTypeMock).not.toHaveBeenCalled();
+    pending.resolve([NOW - 1000, EXPIRES]);
+
+    const { prices } = await read;
+    expect(storedExpiriesMock.mock.invocationCallOrder[0]).toBeLessThan(getPricesMock.mock.invocationCallOrder[0]!);
+    expect(getPricesMock).toHaveBeenCalledOnce();
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([34]);
+    expect(prices.get(34)?.source).toBe('esi');
+    expect(prices.get(35)?.staleAfter?.getTime()).toBe(EXPIRES);
+  });
+
+  it('asks only for the types whose stored answer is missing or expired', async () => {
+    getPricesMock.mockResolvedValue(new Map([[34, seed(34)], [35, seed(35)]]));
+    expiries({ 34: NOW + 1, 35: NOW });
+    source([raw(35, 'esi'), raw(36, 'esi')]);
+
     const { prices } = await getLivePrices([34, 35, 36]);
-    expect(fetchPricesFromSourceMock.mock.calls.map(([ids]) => ids)).toEqual([[35], [36]]);
-    expect(prices.get(34)?.staleAfter.getTime()).toBe(fresh.updatedAt.getTime() + 300_000);
+
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([35, 36]);
+    expect(prices.get(34)?.source).toBe('fuzzwork');
     expect(prices.get(35)?.source).toBe('esi');
     expect(prices.size).toBe(3);
   });
 
-  it('does not make an expired fallback fresh when its legacy expiry is still in the future', async () => {
-    const row = { ...seed(34), updatedAt: new Date(Date.now() - 600_000), staleAfter: new Date(Date.now() + 86_400_000) };
-    getPricesMock.mockResolvedValue(new Map([[34, row]]));
-    sourceByTypeId({}, { throwFor: [34] });
-    const { prices } = await getLivePrices([34]);
-    expect(prices.get(34)?.updatedAt).toEqual(row.updatedAt);
-    expect(prices.get(34)!.staleAfter.getTime()).toBeLessThan(Date.now());
-    expect(afterMock).not.toHaveBeenCalled();
-  });
-
-  it('reuses a confirmed empty market book until it expires', async () => {
-    const row = { ...seed(34), bestBuy: null, bestSell: null, updatedAt: new Date(), staleAfter: new Date(Date.now() + 300_000) };
-    getPricesMock.mockResolvedValue(new Map([[34, row]]));
-    const { prices } = await getLivePrices([34]);
-    expect(prices.get(34)?.bestSell).toBeNull();
-    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
-  });
-
-  it('refreshes a newly seeded placeholder despite its recent updatedAt', async () => {
-    getPricesMock.mockResolvedValue(new Map([[34, { ...seed(34), updatedAt: new Date(), staleAfter: new Date(0) }]]));
-    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
-    const { prices } = await getLivePrices([34]);
-    expect(prices.get(34)?.source).toBe('esi');
-    expect(fetchPricesFromSourceMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('falls back to the seed when a live fetch throws', async () => {
-    getPricesMock.mockResolvedValue(new Map([[34, seed(34)]]));
-    sourceByTypeId({}, { throwFor: [34] });
+  it('stamps a Fuzzwork row with its fetch time, since it has no ESI expiry and is due again at once', async () => {
+    source([raw(34, 'fuzzwork-fallback')], { budgetExhausted: true });
 
     const { prices, degraded } = await getLivePrices([34]);
 
-    expect(prices.get(34)).toEqual(seed(34));
+    expect(prices.get(34)?.updatedAt.getTime()).toBe(NOW);
+    expect(prices.get(34)?.staleAfter?.getTime()).toBe(NOW);
+    expect(degraded).toEqual({ fetched: 1, esiCount: 0, fuzzworkFallbackCount: 1, budgetExhausted: true });
+  });
+
+  it('falls back to the seed, marked due, when the source has nothing for a due type', async () => {
+    getPricesMock.mockResolvedValue(new Map([[34, seed(34)]]));
+    expiries({ 34: NOW - 60_000 });
+    source([]);
+
+    const { prices, degraded } = await getLivePrices([34]);
+
+    expect(prices.get(34)).toEqual({ ...seed(34), staleAfter: new Date(NOW - 60_000) });
     expect(degraded.fetched).toBe(0);
     expect(afterMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to the seed when the source returns no row', async () => {
-    getPricesMock.mockResolvedValue(new Map([[34, seed(34)]]));
-    sourceByTypeId({ 34: { prices: [] } });
-
-    const { prices } = await getLivePrices([34]);
-
-    expect(prices.get(34)).toEqual(seed(34));
-  });
-
   it('omits a type with neither a live nor a seed price', async () => {
-    sourceByTypeId({ 99: { prices: [] } });
+    source([]);
     const { prices } = await getLivePrices([99]);
     expect(prices.has(99)).toBe(false);
   });
 
-  it('schedules write-behind with only the freshly fetched rows', async () => {
+  it('writes the fetched rows behind the response, then commits their metas under the dataset tag', async () => {
     getPricesMock.mockResolvedValue(new Map([[35, seed(35)]]));
-    sourceByTypeId({
-      34: { prices: [raw(34, 'esi')] },
-      35: { prices: [] },
-    });
+    expiries({ 35: NOW + 1 });
+    source([raw(34, 'esi'), raw(36, 'fuzzwork-fallback')]);
 
-    await getLivePrices([34, 35]);
+    const { prices } = await getLivePrices([34, 35, 36]);
 
     expect(afterMock).toHaveBeenCalledTimes(1);
     await afterMock.mock.calls[0]![0]();
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
-    const persisted = persistPricesMock.mock.calls[0]![1] as RawMarketPrice[];
-    expect(persisted.map((r) => r.typeId)).toEqual([34]);
+    const [, persisted, stamps] = persistPricesMock.mock.calls[0]!;
+    expect((persisted as RawMarketPrice[]).map((r) => r.typeId)).toEqual([34, 36]);
+    expect(stamps.fetchedAtByType.get(34)).toEqual(prices.get(34)!.updatedAt);
+    expect(stamps.staleAfterByType.get(34)).toEqual(new Date(EXPIRES));
+    expect(stamps.staleAfterByType.get(36)).toEqual(new Date(NOW));
+    expect(commitMock).toHaveBeenCalledWith([meta(34)], { tag: 'eve:market_prices' });
   });
 
-  it('keeps the original source timestamp when write-behind runs after the response', async () => {
-    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
-    const { prices } = await getLivePrices([34]);
-    await afterMock.mock.calls[0]![0]();
-    expect(persistPricesMock.mock.calls[0]![2].fetchedAtByType.get(34)).toEqual(prices.get(34)!.updatedAt);
-  });
-
-  it('reports the asynchronous write-behind outcome through the optional observer', async () => {
-    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
-    persistPricesMock.mockResolvedValue({ written: 1 });
+  it('reports the write-behind outcome through the optional observer and records nothing when the write fails', async () => {
+    source([raw(34, 'esi')]);
     const observer = vi.fn();
 
     await getLivePrices([34], observer);
     await afterMock.mock.calls[0]![0]();
+    expect(observer).toHaveBeenCalledWith({ outcome: 'succeeded', attempted: 1, written: 1, durationMs: expect.any(Number) });
 
-    expect(observer).toHaveBeenCalledWith({
-      outcome: 'succeeded',
-      attempted: 1,
-      written: 1,
-      durationMs: expect.any(Number),
-    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    persistPricesMock.mockRejectedValueOnce(new Error('neon: connection terminated'));
+    commitMock.mockClear();
+    await getLivePrices([34], observer);
+    await afterMock.mock.calls[1]![0]();
+    expect(observer).toHaveBeenLastCalledWith({ outcome: 'failed', attempted: 1, written: 0, durationMs: expect.any(Number) });
+    expect(commitMock).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith('[market-prices/refresh-on-view] write-behind failed', expect.any(Error));
+    errorSpy.mockRestore();
   });
 
   it('does not turn an observer failure into a write-behind failure', async () => {
-    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
-    persistPricesMock.mockResolvedValue({ written: 1 });
+    source([raw(34, 'esi')]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const observer = vi.fn(() => {
       throw new Error('observer failed');
     });
@@ -228,51 +241,38 @@ describe('getLivePrices', () => {
 
     expect(observer).toHaveBeenCalledTimes(1);
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls).toEqual([['[market-prices/refresh-on-view] write-behind observer failed', expect.any(Error)]]);
+    errorSpy.mockRestore();
   });
 
-  it('tallies esi vs fuzzwork-fallback and budget exhaustion across items', async () => {
-    sourceByTypeId({
-      34: { prices: [raw(34, 'esi')] },
-      35: { prices: [raw(35, 'fuzzwork-fallback')], budgetExhausted: true },
-    });
-
-    const { degraded } = await getLivePrices([34, 35]);
-
-    expect(degraded).toEqual({
-      fetched: 2,
-      esiCount: 1,
-      fuzzworkFallbackCount: 1,
-      budgetExhausted: true,
-    });
-  });
-
-  it('dedupes type ids before reading seed and source', async () => {
-    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
+  it('dedupes type ids before reading the seed, the store and the source', async () => {
+    source([raw(34, 'esi')]);
     await getLivePrices([34, 34]);
     expect(getPricesMock).toHaveBeenCalledWith([34]);
-    expect(fetchPricesFromSourceMock).toHaveBeenCalledTimes(1);
+    expect(storedExpiriesMock).toHaveBeenCalledWith([priceKey(34)]);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([34]);
   });
 
-  it('returns empty without touching seed, source, or write-behind on empty input', async () => {
-    const { prices, degraded } = await getLivePrices([]);
-    expect(prices.size).toBe(0);
-    expect(degraded).toEqual({
-      fetched: 0,
-      esiCount: 0,
-      fuzzworkFallbackCount: 0,
-      budgetExhausted: false,
-    });
-    expect(getPricesMock).not.toHaveBeenCalled();
+  it('asks for hundreds of due types per type in one call and never through the threshold that reaches the region dump', async () => {
+    const ids = Array.from({ length: 500 }, (_, i) => 1000 + i);
+    source(ids.map((id) => raw(id, 'esi')));
+
+    const { prices } = await getLivePrices(ids);
+
+    expect(prices.size).toBe(500);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledTimes(1);
+    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith(ids);
     expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
-    expect(afterMock).not.toHaveBeenCalled();
   });
-});
 
-describe('refreshPricesOnDemand', () => {
-  it('busts each unique item tag with the max profile', async () => {
-    await refreshPricesOnDemand([34, 35, 34]);
-    expect(revalidateTagMock).toHaveBeenCalledTimes(2);
-    expect(revalidateTagMock).toHaveBeenCalledWith(priceTag(34), 'max');
-    expect(revalidateTagMock).toHaveBeenCalledWith(priceTag(35), 'max');
+  it('returns empty without touching seed, store, source, or write-behind on empty input', async () => {
+    const { prices, degraded, metrics } = await getLivePrices([]);
+    expect(prices.size).toBe(0);
+    expect(degraded).toEqual({ fetched: 0, esiCount: 0, fuzzworkFallbackCount: 0, budgetExhausted: false });
+    expect(metrics).toEqual({ requested: 0, returned: 0, esiCount: 0, fuzzworkFallbackCount: 0 });
+    expect(getPricesMock).not.toHaveBeenCalled();
+    expect(storedExpiriesMock).not.toHaveBeenCalled();
+    expect(fetchPricesPerTypeMock).not.toHaveBeenCalled();
+    expect(afterMock).not.toHaveBeenCalled();
   });
 });

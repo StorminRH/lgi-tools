@@ -1,278 +1,181 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { blueprintImage } from '@/data/eve-data/type-images';
+import { afterEach, expect, test, vi } from 'vitest';
+import { blueprintImage, itemImage } from '@/data/eve-data/type-images';
 import type { SearchResult } from '@/platform/search';
 
-function installLocalStorageShim() {
-  const store = new Map<string, string>();
-  const ls: Storage = {
-    get length() { return store.size; },
-    clear: () => store.clear(),
-    getItem: (k) => (store.has(k) ? store.get(k)! : null),
-    key: (i) => Array.from(store.keys())[i] ?? null,
-    removeItem: (k) => { store.delete(k); },
-    setItem: (k, v) => { store.set(k, String(v)); },
+const h = vi.hoisted(() => ({ hydrated: true, subscribe: null as ((listener: () => void) => () => void) | null }));
+
+vi.mock('react', () => ({
+  useSyncExternalStore: (subscribe: (listener: () => void) => () => void, client: () => unknown, server: () => unknown) => {
+    h.subscribe = subscribe;
+    return h.hydrated ? client() : server();
+  },
+}));
+
+const { pushRecent, useSearchRecents } = await import('./storage');
+
+const KEY = 'lgi:search:recents';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+/** A fresh, empty device storage behind `window.localStorage`. */
+function installStorage() {
+  const items = new Map<string, string>();
+  const storage = {
+    items,
+    getItem: (key: string) => items.get(key) ?? null,
+    setItem: vi.fn((key: string, value: string) => {
+      items.set(key, value);
+    }),
   };
-  Object.defineProperty(globalThis, 'window', {
-    configurable: true,
-    value: { localStorage: ls },
-  });
+  vi.stubGlobal('window', { localStorage: storage });
+  return storage;
 }
-
-installLocalStorageShim();
-
-const {
-  getRecentsServerSnapshot,
-  getRecentsSnapshot,
-  pushRecent,
-  subscribeRecents,
-} = await import('./storage');
-const { useSearchRecents } = await import('./use-search-recents');
-const STORAGE_KEY = 'lgi:search:recents';
-const MAX_RECENTS = 10;
 
 function row(id: string, label = id): SearchResult {
-  return {
-    kind: 'site',
-    id,
-    label,
-    href: `/sites/${id}`,
-  };
+  return { kind: 'site', id, label, href: `/sites/${id}` };
 }
 
-beforeEach(() => {
-  window.localStorage.clear();
+test('a picked result reads back as a recent row, newest first, moved up when picked again, and ten are kept', () => {
+  installStorage();
+  expect(useSearchRecents()).toEqual([]);
+
+  pushRecent(row('1', 'one'));
+  expect(useSearchRecents()).toEqual([{ kind: 'recent', originKind: 'site', id: '1', label: 'one', href: '/sites/1' }]);
+
+  pushRecent(row('2', 'two'));
+  pushRecent(row('3', 'three'));
+  pushRecent(row('1', 'one'));
+  expect(useSearchRecents().map((r) => r.label)).toEqual(['one', 'three', 'two']);
+
+  for (let i = 0; i < 15; i++) pushRecent(row(`id-${i}`, `label-${i}`));
+  const capped = useSearchRecents();
+  expect(capped).toHaveLength(10);
+  expect(capped[0]!.label).toBe('label-14');
+  expect(capped[9]!.label).toBe('label-5');
 });
 
-describe('search-recents storage', () => {
-  it('returns an empty list when nothing has been stored', () => {
-    expect(getRecentsSnapshot()).toEqual([]);
+test('a blueprint recent keeps its product typeId and rebuilds its icon from the stable id, which is never stored', () => {
+  const storage = installStorage();
+  pushRecent({
+    kind: 'blueprint',
+    id: 'blueprint:691',
+    label: 'Rifter',
+    sub: 'Blueprint',
+    href: '/industry/691',
+    icon: blueprintImage(691),
+    typeId: 587,
+    iconText: 'BP',
+    iconTone: 'tool',
   });
-
-  it('persists a pushed entry and reads it back with kind=recent', () => {
-    pushRecent(row('1', 'one'));
-    const out = getRecentsSnapshot();
-    expect(out).toHaveLength(1);
-    expect(out[0]!.label).toBe('one');
-    expect(out[0]!.kind).toBe('recent');
-    expect(out[0]!.originKind).toBe('site');
-  });
-
-  it('preserves product typeId but reconstructs a blueprint recent image from its stable id', () => {
-    pushRecent({
-      kind: 'blueprint',
-      id: 'blueprint:691',
-      label: 'Rifter',
-      sub: 'Blueprint',
-      href: '/industry/691',
-      icon: blueprintImage(691),
-      typeId: 587,
-      iconText: 'BP',
-      iconTone: 'tool',
-    });
-    const out = getRecentsSnapshot();
-    expect(out).toHaveLength(1);
-    expect(out[0]!.typeId).toBe(587);
-    expect(out[0]!.icon).toEqual(blueprintImage(691));
-    expect(out[0]!.originKind).toBe('blueprint');
-    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!);
-    expect(stored[0].icon).toBeUndefined();
-  });
-
-  it('drops stale item recents that predate the typeId (so they never render "BP")', () => {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([
-        { kind: 'blueprint', id: 'blueprint:1', label: 'old', href: '/industry/1', iconText: 'BP' },
-      ]),
-    );
-    expect(getRecentsSnapshot()).toEqual([]);
-  });
-
-  it('drops a blueprint recent whose stable id cannot reconstruct a blueprint image', () => {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([
-        {
-          kind: 'blueprint',
-          id: 'blueprint:not-an-id',
-          label: 'bad',
-          href: '/industry/691',
-          typeId: 587,
-        },
-      ]),
-    );
-    expect(getRecentsSnapshot()).toEqual([]);
-  });
-
-  it('keeps non-item recents without a typeId (sites/tools render their own glyph)', () => {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([
-        { kind: 'site', id: 's1', label: 'A Site', href: '/sites/1', iconText: 'C3', iconTone: 'cls-c3' },
-      ]),
-    );
-    const out = getRecentsSnapshot();
-    expect(out).toHaveLength(1);
-    expect(out[0]!.label).toBe('A Site');
-  });
-
-  it('floats the most recently pushed entry to the top', () => {
-    pushRecent(row('1', 'one'));
-    pushRecent(row('2', 'two'));
-    pushRecent(row('3', 'three'));
-    const labels = getRecentsSnapshot().map((r) => r.label);
-    expect(labels).toEqual(['three', 'two', 'one']);
-  });
-
-  it('dedupes by id — re-pushing an existing id moves it to the top', () => {
-    pushRecent(row('1', 'one'));
-    pushRecent(row('2', 'two'));
-    pushRecent(row('1', 'one'));
-    const labels = getRecentsSnapshot().map((r) => r.label);
-    expect(labels).toEqual(['one', 'two']);
-  });
-
-  it('caps the stored list at the configured max', () => {
-    const max = MAX_RECENTS;
-    for (let i = 0; i < max + 5; i++) {
-      pushRecent(row(`id-${i}`, `label-${i}`));
-    }
-    expect(getRecentsSnapshot()).toHaveLength(max);
-  });
-
-  it('clearing the recents key wipes the stored list', () => {
-    pushRecent(row('1'));
-    pushRecent(row('2'));
-    window.localStorage.removeItem(STORAGE_KEY);
-    expect(getRecentsSnapshot()).toEqual([]);
-  });
-
-  it('refuses to push recent-kind rows (avoids self-referential loops)', () => {
-    pushRecent({ kind: 'recent', id: '1', label: 'one', href: '/x' });
-    expect(getRecentsSnapshot()).toEqual([]);
-  });
-
-  it('refuses to push disabled rows (SOON tools)', () => {
-    pushRecent({
-      kind: 'tool',
-      id: 'soon',
-      label: 'Soon',
-      href: '#',
-      disabled: true,
-    });
-    expect(getRecentsSnapshot()).toEqual([]);
-  });
-
-  it('survives malformed localStorage content', () => {
-    window.localStorage.setItem(STORAGE_KEY, 'not-json{{');
-    expect(getRecentsSnapshot()).toEqual([]);
-  });
-
-  it('filters out non-conforming stored entries', () => {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([
-        { kind: 'site', id: '1', label: 'good', href: '/sites/1' },
-        { kind: 'site', id: 2, label: 'bad-id-type', href: '/sites/2' },
-        null,
-        { kind: 'site', label: 'missing-id', href: '/x' },
-        { kind: 'blueprint', id: '3', label: 'bad-typeId', href: '/industry/3', typeId: '587' },
-      ]),
-    );
-    const out = getRecentsSnapshot();
-    expect(out).toHaveLength(1);
-    expect(out[0]!.id).toBe('1');
-  });
+  const [recent] = useSearchRecents();
+  expect(recent!.typeId).toBe(587);
+  expect(recent!.icon).toEqual(blueprintImage(691));
+  expect(recent!.originKind).toBe('blueprint');
+  const stored = JSON.parse(storage.items.get(KEY)!) as Record<string, unknown>[];
+  expect(stored[0]!.icon).toBeUndefined();
 });
 
-describe('search-recents store emit and cache', () => {
-  it('exposes useSearchRecents as the useSyncExternalStore hook', () => {
-    expect(typeof useSearchRecents).toBe('function');
-  });
+test('stored rows that cannot render or do not match are dropped, and keys a row no longer stores do not leak through', () => {
+  const storage = installStorage();
+  storage.items.set(
+    KEY,
+    JSON.stringify([
+      // Predates the typeId, so it would render "BP".
+      { kind: 'blueprint', id: 'blueprint:1', label: 'old', href: '/industry/1', iconText: 'BP' },
+      // Its stable id cannot rebuild a blueprint image.
+      { kind: 'blueprint', id: 'blueprint:not-an-id', label: 'bad', href: '/industry/691', typeId: 587 },
+      { kind: 'site', id: 2, label: 'bad-id-type', href: '/sites/2' },
+      null,
+      { kind: 'site', label: 'missing-id', href: '/x' },
+      { kind: 'blueprint', id: '3', label: 'bad-typeId', href: '/industry/3', typeId: '587' },
+      // Sites and tools render their own glyph without a typeId; an icon stored by an old build is not theirs.
+      { kind: 'site', id: 's1', label: 'A Site', href: '/sites/1', iconText: 'C3', iconTone: 'cls-c3', icon: itemImage(34) },
+    ]),
+  );
+  expect(useSearchRecents()).toEqual([
+    { kind: 'recent', originKind: 'site', id: 's1', label: 'A Site', href: '/sites/1', iconText: 'C3', iconTone: 'cls-c3' },
+  ]);
 
-  it('returns the same snapshot reference while storage is unchanged', () => {
-    pushRecent(row('1', 'one'));
-    const first = getRecentsSnapshot();
-    const second = getRecentsSnapshot();
-    expect(first).toBe(second);
-    expect(first).toHaveLength(1);
-    expect(first[0]!.label).toBe('one');
-  });
+  storage.items.set(KEY, 'not-json{{');
+  expect(useSearchRecents()).toEqual([]);
+});
 
-  it('returns a new snapshot after a write that changes the stored list', () => {
-    pushRecent(row('1', 'one'));
-    const before = getRecentsSnapshot();
-    pushRecent(row('2', 'two'));
-    const after = getRecentsSnapshot();
-    expect(after).not.toBe(before);
-    expect(after.map((r) => r.label)).toEqual(['two', 'one']);
-  });
+test('recent and disabled rows are refused without a write or a notification', () => {
+  const storage = installStorage();
+  useSearchRecents();
+  const listener = vi.fn();
+  const unsubscribe = h.subscribe!(listener);
+  pushRecent({ kind: 'recent', id: '1', label: 'one', href: '/x' });
+  pushRecent({ kind: 'tool', id: 'soon', label: 'Soon', href: '#', disabled: true });
+  unsubscribe();
+  expect(listener).not.toHaveBeenCalled();
+  expect(storage.setItem).not.toHaveBeenCalled();
+  expect(useSearchRecents()).toEqual([]);
+});
 
-  it('notifies subscribers after a successful write', () => {
-    const seen: number[] = [];
-    const unsubscribe = subscribeRecents(() => {
-      seen.push(getRecentsSnapshot().length);
-    });
-    pushRecent(row('1', 'one'));
-    pushRecent(row('2', 'two'));
-    unsubscribe();
-    expect(seen).toEqual([1, 2]);
-  });
+test('an unchanged stored list reads as the same array, and empty storage reads as the server value', () => {
+  const storage = installStorage();
+  h.hydrated = false;
+  const server = useSearchRecents();
+  expect(server).toEqual([]);
+  h.hydrated = true;
+  expect(useSearchRecents()).toBe(server);
 
-  it('stops notifying after unsubscribe', () => {
-    let calls = 0;
-    const unsubscribe = subscribeRecents(() => {
-      calls += 1;
-    });
-    pushRecent(row('1', 'one'));
-    unsubscribe();
-    pushRecent(row('2', 'two'));
-    expect(calls).toBe(1);
-  });
+  pushRecent(row('1', 'one'));
+  const first = useSearchRecents();
+  expect(useSearchRecents()).toBe(first);
+  h.hydrated = false;
+  expect(useSearchRecents()).toBe(server);
+  h.hydrated = true;
 
-  it('does not emit when a recent-kind or disabled row is refused', () => {
-    let calls = 0;
-    const unsubscribe = subscribeRecents(() => {
-      calls += 1;
-    });
-    pushRecent({ kind: 'recent', id: '1', label: 'one', href: '/x' });
-    pushRecent({
-      kind: 'tool',
-      id: 'soon',
-      label: 'Soon',
-      href: '#',
-      disabled: true,
-    });
-    unsubscribe();
-    expect(calls).toBe(0);
-    expect(getRecentsSnapshot()).toBe(getRecentsServerSnapshot());
-  });
+  pushRecent(row('2', 'two'));
+  const second = useSearchRecents();
+  expect(second).not.toBe(first);
+  expect(second.map((r) => r.label)).toEqual(['two', 'one']);
 
-  it('keeps the server snapshot identity-stable and empty', () => {
-    pushRecent(row('1', 'one'));
-    const first = getRecentsServerSnapshot();
-    const second = getRecentsServerSnapshot();
-    expect(first).toBe(second);
-    expect(first).toEqual([]);
-  });
+  // Another writer changed the stored list without telling this store.
+  storage.items.set(KEY, JSON.stringify([{ kind: 'site', id: 's1', label: 'A Site', href: '/sites/1' }]));
+  expect(useSearchRecents().map((r) => r.label)).toEqual(['A Site']);
 
-  it('reuses the empty server snapshot when storage is empty', () => {
-    expect(getRecentsSnapshot()).toBe(getRecentsServerSnapshot());
-    pushRecent(row('1', 'one'));
-    window.localStorage.removeItem(STORAGE_KEY);
-    expect(getRecentsSnapshot()).toBe(getRecentsServerSnapshot());
-  });
+  storage.items.delete(KEY);
+  expect(useSearchRecents()).toBe(server);
+});
 
-  it('rebuilds the cached snapshot when the stored payload changes without emit', () => {
-    pushRecent(row('1', 'one'));
-    const before = getRecentsSnapshot();
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([{ kind: 'site', id: 's1', label: 'A Site', href: '/sites/1' }]),
-    );
-    const after = getRecentsSnapshot();
-    expect(after).not.toBe(before);
-    expect(after).toHaveLength(1);
-    expect(after[0]!.label).toBe('A Site');
+test('a picked result notifies whoever is listening, until they stop', () => {
+  installStorage();
+  useSearchRecents();
+  const seen: number[] = [];
+  const unsubscribe = h.subscribe!(() => {
+    seen.push(useSearchRecents().length);
   });
+  pushRecent(row('1', 'one'));
+  pushRecent(row('2', 'two'));
+  unsubscribe();
+  pushRecent(row('3', 'three'));
+  expect(seen).toEqual([1, 2]);
+});
+
+test('a device that refuses the write still lets the pick through, without a notification', () => {
+  const storage = installStorage();
+  pushRecent(row('1', 'one'));
+  useSearchRecents();
+  const listener = vi.fn();
+  const unsubscribe = h.subscribe!(listener);
+  storage.setItem.mockImplementation(() => {
+    throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+  });
+  expect(() => pushRecent(row('2', 'two'))).not.toThrow();
+  unsubscribe();
+  expect(listener).not.toHaveBeenCalled();
+  expect(useSearchRecents().map((r) => r.label)).toEqual(['one']);
+
+  vi.stubGlobal('window', {
+    get localStorage(): Storage {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    },
+  });
+  expect(() => pushRecent(row('3', 'three'))).not.toThrow();
+  expect(useSearchRecents()).toEqual([]);
 });

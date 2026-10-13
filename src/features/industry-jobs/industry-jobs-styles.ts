@@ -1,5 +1,5 @@
 import type { Tone } from '@/components/ui/tones';
-import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
+import { ACTIVITY_NAME_TO_ID, LEGACY_REACTION_ACTIVITY_ID } from '@/data/eve-data/constants';
 import type { JobStatus } from './esi-projection';
 
 export const JOB_STATUS_META: Record<JobStatus, { label: string; tone: Tone }> = {
@@ -11,22 +11,25 @@ export const JOB_STATUS_META: Record<JobStatus, { label: string; tone: Tone }> =
   reverted: { label: 'Reverted', tone: 'red-soft' },
 };
 
-export function jobActivityLabel(activityId: number): string {
-  return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
+function isReaction(activityId: number): boolean {
+  return activityId === LEGACY_REACTION_ACTIVITY_ID || activityId === ACTIVITY_NAME_TO_ID.reaction;
 }
 
-function isReaction(activityId: number): boolean {
-  return activityId === 9 || activityId === 11;
+function isScience(activityId: number): boolean {
+  return (
+    activityId === ACTIVITY_NAME_TO_ID.research_time ||
+    activityId === ACTIVITY_NAME_TO_ID.research_material ||
+    activityId === ACTIVITY_NAME_TO_ID.copying ||
+    activityId === ACTIVITY_NAME_TO_ID.invention
+  );
 }
 
 export type JobCategory = 'manufacturing' | 'science' | 'reactions';
 
 export function jobCategory(activityId: number): JobCategory | null {
-  if (activityId === 1) return 'manufacturing';
+  if (activityId === ACTIVITY_NAME_TO_ID.manufacturing) return 'manufacturing';
   if (isReaction(activityId)) return 'reactions';
-  if (activityId === 3 || activityId === 4 || activityId === 5 || activityId === 8) {
-    return 'science';
-  }
+  if (isScience(activityId)) return 'science';
   return null;
 }
 

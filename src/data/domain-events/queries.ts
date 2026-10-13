@@ -1,38 +1,37 @@
-import { after } from 'next/server';
-import { lt, sql } from 'drizzle-orm';
+import { inArray, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { runAfterResponse } from '@/lib/after-response';
 import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
-import { DOMAIN_EVENT_RETENTION_DAYS } from './constants';
 import { domainEvents } from './schema';
-import type { DomainEventInput, DomainEventRow } from './types';
-
-async function insertDomainEvent(input: DomainEventInput): Promise<void> {
-  try {
-    await db.insert(domainEvents).values({
-      eventType: input.eventType,
-      metadata: input.metadata,
-    });
-  } catch (error) {
-    console.error('[domain-events] ledger write failed', error);
-  }
-}
+import { DOMAIN_EVENT_TYPES, type DomainEventInput, type DomainEventRow } from './types';
 
 export function emitDomainEvent(input: DomainEventInput): void {
-  try {
-    after(() => insertDomainEvent(input));
-  } catch (error) {
-    console.error('[domain-events] ledger scheduling failed', error);
-  }
+  runAfterResponse('domain-events', 'ledger', () => recordDomainEvent(input, db));
+}
+
+/**
+ * Writes the event on `database` now. Given a transaction, the event stands
+ * or rolls back with the write it reports, so the ledger never shows a
+ * write that did not commit.
+ */
+export async function recordDomainEvent(input: DomainEventInput, database: AnyPgDb): Promise<void> {
+  await database.insert(domainEvents).values({
+    eventType: input.eventType,
+    metadata: input.metadata,
+  });
 }
 
 // Spelled out to match domain_events_occurred_idx (DESC NULLS LAST). Drizzle's
 // desc() means NULLS FIRST, which the index cannot serve, so Postgres would
-// sort the whole retention window to return one page.
+// sort the whole retention window to return one page. Only the current
+// vocabulary is read: rows of a retired type (the old ESI queue and budget
+// events) stay until retention prunes them and have no summary to show.
 export async function listRecentDomainEvents(limit: number): Promise<DomainEventRow[]> {
   const rows = await db
     .select()
     .from(domainEvents)
+    .where(inArray(domainEvents.eventType, [...DOMAIN_EVENT_TYPES]))
     .orderBy(sql`${domainEvents.occurredAt} desc nulls last`, sql`${domainEvents.id} desc nulls last`)
     .limit(limit);
   return rows as DomainEventRow[];
@@ -40,8 +39,8 @@ export async function listRecentDomainEvents(limit: number): Promise<DomainEvent
 
 export function pruneDomainEvents(
   database: AnyPgDb,
-  retentionDays = DOMAIN_EVENT_RETENTION_DAYS,
-  now = new Date(),
+  retentionDays: number,
+  now: Date = new Date(),
   deadline?: number,
 ): Promise<BatchedDeleteResult> {
   const cutoff = retentionCutoff(retentionDays, now);

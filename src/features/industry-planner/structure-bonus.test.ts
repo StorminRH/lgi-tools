@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { ACTIVITY_NAME_TO_ID } from '@/data/eve-data/constants';
 import type { StructureModifier } from './api-contract';
 import {
+  bestOf,
   computeStructureBonus,
   headlineStructureBonus,
+  isProductionActivity,
   MANUFACTURING_ACTIVITY,
   REACTION_ACTIVITY,
   type SecurityClass,
@@ -188,6 +191,20 @@ describe('headlineStructureBonus', () => {
   });
 });
 
+describe('bestOf', () => {
+  it('is the most any one job gets, metric by metric, and nothing with no job', () => {
+    expect(bestOf([])).toBeNull();
+    expect(bestOf([{ me: 2, te: 20, costBonus: 1 }])).toEqual({ me: 2, te: 20, costBonus: 1 });
+    expect(
+      bestOf([
+        { me: 2, te: 20, costBonus: 1 },
+        { me: 4.2, te: 0, costBonus: 3 },
+        { me: 1, te: 25, costBonus: 0 },
+      ]),
+    ).toEqual({ me: 4.2, te: 25, costBonus: 3 });
+  });
+});
+
 describe('computeStructureBonus — composes with blueprint ME (contract pin)', () => {
   const requiredQty = (baseQty: number, runs: number, bpMe: number, structureMe: number): number => {
     const modifier = (1 - bpMe / 100) * (1 - structureMe / 100);
@@ -204,5 +221,15 @@ describe('computeStructureBonus — composes with blueprint ME (contract pin)', 
   it('honours the ≥1-per-run floor under a heavy structure reduction', () => {
     const { me } = mfg([...sotiyoT2, rig('material', -2, COMPONENTS)], 'null', [COMPONENTS]);
     expect(requiredQty(1, 3, 10, me)).toBe(3);
+  });
+});
+
+describe('isProductionActivity', () => {
+  it('admits only the SDE manufacturing and reaction ids the planner prices', () => {
+    expect(MANUFACTURING_ACTIVITY).toBe(ACTIVITY_NAME_TO_ID.manufacturing);
+    expect(REACTION_ACTIVITY).toBe(ACTIVITY_NAME_TO_ID.reaction);
+    expect(isProductionActivity(1)).toBe(true);
+    expect(isProductionActivity(11)).toBe(true);
+    for (const other of [9, 3, 4, 5, 8, 0, undefined, null]) expect(isProductionActivity(other)).toBe(false);
   });
 });

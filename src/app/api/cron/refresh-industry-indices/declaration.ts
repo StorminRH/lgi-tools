@@ -1,6 +1,4 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import type { CronRefreshIndustryIndicesResponse } from '@/data/industry-indices/api-contract';
-import { ADVISORY_LOCK_INDUSTRY_INDICES } from '@/data/industry-indices/constants';
 import { refreshIndustryIndices } from '@/data/industry-indices/ingest';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 
@@ -14,11 +12,12 @@ export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefresh
     justification: 'daily batch wakes Neon by design and preserves partial dataset history',
   },
   lock: {
-    key: Number(ADVISORY_LOCK_INDUSTRY_INDICES),
-    busyBody: () => ({ status: 'busy' }),
+    mode: 'none',
+    justification:
+      'no lock on any ESI call: both datasets upsert changed rows only, so an overlap with an on-view refresh is a 304 or the same rows again',
   },
-  work: async ({ client }) => {
-    const summary = await refreshIndustryIndices(drizzle(client));
+  work: async ({ database }) => {
+    const summary = await refreshIndustryIndices(database);
 
     return {
       outcome: 'refreshed',

@@ -1,14 +1,23 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import {
+  conflictFailure,
   dependencyUnavailableFailure,
   forbiddenFailure,
   rateLimitedFailure,
+  unauthenticatedFailure,
   unexpectedFailure,
   validationFailure,
 } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
-import { apiResponse, problemResponse, type ResponseArgsFor } from './api-response';
+import {
+  apiFailure,
+  apiResponse,
+  problemResponse,
+  seeOther,
+  type ResponseArgsFor,
+} from './api-response';
+import { currentStashedFailure, withCorrelationScope } from './correlation';
 import {
   defineEndpoint,
   emptyBody,
@@ -103,6 +112,64 @@ describe('apiResponse', () => {
   });
 });
 
+describe('apiFailure', () => {
+  const serviceEndpoint = defineEndpoint({
+    method: 'POST',
+    path: '/api/test/service',
+    request: null,
+    responses: {
+      200: jsonBody(z.object({ ok: z.literal(true) })),
+      400: jsonBody(z.object({ reason: z.string() })),
+      401: problem('unauthenticated'),
+      409: textBody(),
+      500: problem('not_configured'),
+    },
+  });
+
+  it('derives the status from the failure and stashes it like apiResponse', async () => {
+    const result = await withCorrelationScope(async () => {
+      const response = apiFailure(
+        serviceEndpoint,
+        unexpectedFailure('not_configured', undefined, 'service authentication is not configured'),
+      );
+      return { response, stashed: currentStashedFailure() };
+    });
+    expect(result.response.status).toBe(500);
+    expect(result.response.headers.get('Content-Type')).toBe('application/problem+json');
+    expect(problemBodySchema.parse(await result.response.json())).toMatchObject({
+      status: 500,
+      code: 'not_configured',
+      detail: 'service authentication is not configured',
+    });
+    expect(result.stashed).toMatchObject({ category: 'unexpected', code: 'not_configured' });
+
+    const unauthenticated = apiFailure(serviceEndpoint, unauthenticatedFailure());
+    expect(unauthenticated.status).toBe(401);
+    expect(problemBodySchema.parse(await unauthenticated.json())).toMatchObject({
+      status: 401,
+      code: 'unauthenticated',
+    });
+  });
+
+  it('throws when the endpoint declares no problem at the derived status or not this code', () => {
+    expect(() => apiFailure(serviceEndpoint, forbiddenFailure())).toThrow(
+      'Endpoint POST /api/test/service does not declare a problem at status 403',
+    );
+    expect(() =>
+      apiFailure(serviceEndpoint, unauthenticatedFailure('session_expired')),
+    ).toThrow('Status 401 does not declare problem code session_expired');
+  });
+
+  it('never serializes a failure through a non-problem codec at its status', () => {
+    expect(() =>
+      apiFailure(serviceEndpoint, validationFailure('invalid_body', 'secret detail')),
+    ).toThrow('Endpoint POST /api/test/service does not declare a problem at status 400');
+    expect(() => apiFailure(serviceEndpoint, conflictFailure())).toThrow(
+      'does not declare a problem at status 409',
+    );
+  });
+});
+
 describe('problemResponse', () => {
   it('mints a fresh correlation id for each response', async () => {
     const first = problemBodySchema.parse(await problemResponse(forbiddenFailure()).json());
@@ -133,5 +200,42 @@ describe('problemResponse', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('14');
     expect(body.retryAfterSeconds).toBe(14);
+  });
+});
+
+describe('seeOther', () => {
+  const formPost = new Request('https://lgi.tools/api/admin/role', { method: 'POST' });
+
+  it('answers a form post with a 303 to the path on the request origin', () => {
+    const plain = seeOther(formPost, '/admin/statics');
+    expect(plain.status).toBe(303);
+    expect(plain.headers.get('location')).toBe('https://lgi.tools/admin/statics');
+
+    const queried = seeOther(formPost, '/admin/users', {
+      query: { q: 'Pilot One', error: undefined, outcome: '' },
+    });
+    expect(queried.headers.get('location')).toBe(
+      'https://lgi.tools/admin/users?q=Pilot+One&outcome=',
+    );
+  });
+
+  it('stashes a failure reported through the redirect, and nothing for a success', async () => {
+    const failed = await withCorrelationScope(async () => {
+      const response = seeOther(formPost, '/settings/characters', {
+        query: { error: 'unlink_failed' },
+        failure: unexpectedFailure('unlink_failed', new Error('boom')),
+      });
+      return { location: response.headers.get('location'), stashed: currentStashedFailure() };
+    });
+    expect(failed).toEqual({
+      location: 'https://lgi.tools/settings/characters?error=unlink_failed',
+      stashed: { category: 'unexpected', code: 'unlink_failed' },
+    });
+
+    const succeeded = await withCorrelationScope(async () => {
+      seeOther(formPost, '/settings/characters');
+      return currentStashedFailure();
+    });
+    expect(succeeded).toBeNull();
   });
 });

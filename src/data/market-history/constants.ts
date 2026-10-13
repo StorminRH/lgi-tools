@@ -1,5 +1,3 @@
-export const THE_FORGE_REGION_ID = 10000002;
-
 /**
  * How many trailing days of daily history to retain per type. ESI serves a
  * ~13-month rolling window; we keep ~400 days, which covers every scoring
@@ -14,10 +12,7 @@ export const HISTORY_STABILITY_WINDOW_DAYS = 30;
 
 export const ON_DEMAND_HISTORY_MAX_TYPE_IDS = 50;
 
-export const HISTORY_FETCH_CONCURRENCY = 10;
+/** History calls in flight at once; the gate keeps the whole app under its per-minute cap. */
+export const HISTORY_FETCH_CONCURRENCY = 20;
 
 export const ON_DEMAND_HISTORY_LIMIT_PER_MINUTE = 20;
-
-export function historyTag(typeId: number): string {
-  return `market-history-${typeId}`;
-}

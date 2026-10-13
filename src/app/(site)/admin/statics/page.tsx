@@ -1,15 +1,16 @@
 import { Suspense } from 'react';
 import { Banner } from '@/components/ui/banner';
+import { resolveNotice } from '@/lib/error-copy';
 import { AdminPageFrame } from '../AdminFrame';
 import { AdminSection } from '../AdminSection';
 import { getStaticsReviewShared } from '../shared-reads';
 import { loadServingCopy, PendingReview, ServingCopy, StaticsActionForm } from './StaticsCards';
-import { outcomeMessage } from './statics-view';
+import { OUTCOME_LABELS } from './statics-view';
 
 type StaticsSearchParams = Promise<{ outcome?: string | string[] }>;
 
 async function OutcomeBanner({ searchParams }: { searchParams: StaticsSearchParams }) {
-  const outcome = outcomeMessage((await searchParams).outcome);
+  const outcome = resolveNotice((await searchParams).outcome, OUTCOME_LABELS);
   return outcome ? <Banner tone="info">{outcome}</Banner> : null;
 }
 
@@ -17,7 +18,7 @@ async function OutcomeBanner({ searchParams }: { searchParams: StaticsSearchPara
 export default function StaticsPage({ searchParams }: { searchParams: StaticsSearchParams }) {
   return (
     <AdminPageFrame
-      title="Wormhole statics"
+      section="statics"
       actions={<StaticsActionForm action="refresh" label="Check feed now" />}
       fallbackLabel="Serving copy"
     >

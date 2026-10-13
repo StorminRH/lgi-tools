@@ -4,20 +4,23 @@ import { useRef, type FocusEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CheckIcon } from '@/components/ui/icons';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
+import { eyebrow } from '@/components/ui/type-roles';
 import { TypeIcon } from '@/components/type-icon';
 import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import { formatQuantity } from '@/lib/format/number';
+import { ItemNameStack } from './ledger-parts';
 import { ProvenanceRows } from './MeAdjuster';
+import type { EfficiencyState } from '../efficiency';
 import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
-import type { NodeMeState } from '../me-overrides';
 import { assetLedgerView, qtyRingView, ringQty, type LedgerCell } from '../node-card-ledger';
 import { nodeCardView } from '../node-card-view';
 import type { AssetHolding, OwnedComponentDetail } from '../types';
 
 export interface NodeEfficiency {
-  state: NodeMeState;
+  state: EfficiencyState;
   adjusters: ReactNode;
 }
 
@@ -71,22 +74,6 @@ function HoldingLine({ holding }: { holding: AssetHolding }) {
   );
 }
 
-function RingCheck() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-icon-md stroke-isk"
-      fill="none"
-      strokeWidth={3}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
 function HeldByList({ heldBy }: { heldBy?: AssetHolding[] }) {
   if (heldBy && heldBy.length > 0) {
     return (
@@ -127,16 +114,16 @@ function QtyRingCell({
         trigger={
           <QtyRing progress={view.progress} tone={view.tone} className="h-10 w-10" label={view.ringLabel}>
             {view.complete ? (
-              <RingCheck />
+              <CheckIcon strokeWidth={3} className="size-icon-md text-isk" />
             ) : (
               <span className="font-data text-ui tabular-nums text-name">{ringQty(view.remaining)}</span>
             )}
           </QtyRing>
         }
       >
-        <PopoverHeading>Asset Tracking</PopoverHeading>
+        <PopoverHeading>Asset tracking</PopoverHeading>
         <div className="flex flex-col gap-1">
-          <div className="text-label uppercase tracking-wide text-muted">Item held by</div>
+          <div className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Item held by</div>
           <HeldByList heldBy={heldBy} />
         </div>
         <AssetLedger qty={qty} value={value} ownedQty={ownedQty} />
@@ -167,9 +154,9 @@ function BuildableIcon({
           EFFICIENCY_TONE_CLASSES[efficiency.state].frame,
           'cursor-pointer',
         )}
-        trigger={<TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />}
+        trigger={<TypeIcon {...icon} size={30} mono={name} />}
       >
-        <PopoverHeading>Blueprint Research Adjusters</PopoverHeading>
+        <PopoverHeading>Blueprint research adjusters</PopoverHeading>
         {efficiency.adjusters}
         {detail && <ProvenanceRows detail={detail} />}
       </Popover>
@@ -192,7 +179,7 @@ function NodeIcon({
   if (efficiency) return <BuildableIcon icon={icon} name={name} efficiency={efficiency} detail={detail} />;
   return (
     <span className={cn(FRAME, 'border-transparent')}>
-      <TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />
+      <TypeIcon {...icon} size={30} mono={name} />
     </span>
   );
 }
@@ -271,14 +258,11 @@ export function NodeCard({
       <span className="relative z-10 pointer-events-none [grid-area:icon] [&_button]:pointer-events-auto">
         <NodeIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
       </span>
-      <div className="relative z-10 pointer-events-none flex min-w-0 flex-col gap-px [grid-area:name]">
-        <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
-          {name}
-        </span>
-        <span className="truncate font-data text-label uppercase tracking-label text-muted">
-          {label}
-        </span>
-      </div>
+      <ItemNameStack
+        className="relative z-10 pointer-events-none [grid-area:name]"
+        name={name}
+        label={label}
+      />
       <span className="relative z-10 pointer-events-none [grid-area:qty] [&_button]:pointer-events-auto">
         <QtyRingCell name={name} qty={qty} value={value} ownedQty={ownedQty} heldBy={heldBy} />
       </span>

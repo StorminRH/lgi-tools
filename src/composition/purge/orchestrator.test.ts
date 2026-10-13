@@ -1,28 +1,9 @@
 import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { chain, recorded, executions } = vi.hoisted(() => {
-  const recorded: { op: 'delete' | 'update'; table: unknown }[] = [];
-  const executions = { count: 0 };
-  const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve([]),
-  };
-  for (const method of ['set', 'where', 'returning', 'from', 'limit', 'orderBy']) {
-    chain[method] = () => chain;
-  }
-  chain.delete = (table: unknown) => {
-    recorded.push({ op: 'delete', table });
-    return chain;
-  };
-  chain.update = (table: unknown) => {
-    recorded.push({ op: 'update', table });
-    return chain;
-  };
-  chain.execute = async () => {
-    executions.count += 1;
-    return [];
-  };
-  return { chain, recorded, executions };
+const { chain, state, reset } = await vi.hoisted(async () => {
+  const { createFakeQueryChain } = await import('@/db/__tests__/support/fake-query-chain');
+  return createFakeQueryChain();
 });
 
 vi.mock('@/db', () => ({ db: chain }));
@@ -53,20 +34,53 @@ vi.mock('@/composition/map-access-projection', () => ({
   purgeUserMapAccessProjection: vi.fn().mockResolvedValue({ deleted: 0 }),
 }));
 
+vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidateTag: vi.fn() }));
+
+import { revalidateTag } from 'next/cache';
 import { runPurge } from './orchestrator';
 
-const names = (): string[] => recorded.map((r) => getTableConfig(r.table as PgTable).name);
+const names = (): string[] =>
+  state.recorded.filter((r) => r.op !== 'select').map((r) => getTableConfig(r.table as PgTable).name);
 
 beforeEach(() => {
-  recorded.length = 0;
-  executions.count = 0;
+  reset();
+  vi.mocked(revalidateTag).mockReset();
 });
 
 describe('runPurge orchestrator', () => {
   it('credential character purge removes account rows and runs the map grant statement', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 }, ['credential']);
     expect(names()).toEqual(['account']);
-    expect(executions.count).toBe(1);
+    expect(state.calls.execute).toBe(1);
+    expect(revalidateTag).not.toHaveBeenCalled();
+  });
+
+  it('full character purge expires each cached slice right after its own deletes', async () => {
+    const lastDeleteBefore = new Map<string, string | undefined>();
+    vi.mocked(revalidateTag).mockImplementation((tag) => {
+      lastDeleteBefore.set(tag, names().at(-1));
+    });
+
+    await runPurge({ kind: 'character', userId: 'u1', characterId: 42 });
+
+    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
+      ['eve:skills:character:42', { expire: 0 }],
+      ['eve:character_sheet_live:character:42', { expire: 0 }],
+      ['eve:character_sheet_hourly:character:42', { expire: 0 }],
+      ['eve:character_sheet_daily:character:42', { expire: 0 }],
+      ['eve:character_industry_jobs:character:42', { expire: 0 }],
+      ['eve:owned_assets:character:42', { expire: 0 }],
+      ['eve:owned_blueprints:character:42', { expire: 0 }],
+    ]);
+    expect(Object.fromEntries(lastDeleteBefore)).toEqual({
+      'eve:skills:character:42': 'character_skill_syncs',
+      'eve:character_sheet_live:character:42': 'character_sheets',
+      'eve:character_sheet_hourly:character:42': 'character_sheets',
+      'eve:character_sheet_daily:character:42': 'character_sheets',
+      'eve:character_industry_jobs:character:42': 'character_industry_job_syncs',
+      'eve:owned_assets:character:42': 'owned_asset_syncs',
+      'eve:owned_blueprints:character:42': 'owned_blueprint_syncs',
+    });
   });
 
   it('full character purge runs credentials before the regenerable caches', async () => {
@@ -110,5 +124,6 @@ describe('runPurge orchestrator', () => {
     expect(seq.indexOf('maps')).toBeLessThan(seq.indexOf('corp_industry_jobs'));
     expect(seq).not.toContain('account');
     expect(seq).not.toContain('character_skills');
+    expect(revalidateTag).not.toHaveBeenCalled();
   });
 });

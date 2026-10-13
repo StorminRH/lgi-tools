@@ -6,6 +6,7 @@ import {
   type PickerCharacter,
   type PortraitToggleChange,
 } from '@/components/character-portrait-picker';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { eyebrow } from '@/components/ui/type-roles';
 
 /** The caller's own characters on a map's access list, picked by portrait. */
@@ -27,7 +28,7 @@ export function OwnCharacterPicker({
     <section className="flex flex-col gap-2" data-own-character-picker aria-describedby={hintId}>
       <div className={eyebrow()}>Your characters</div>
       {characters === null ? (
-        <span className="font-ui text-ui text-muted">Loading your characters…</span>
+        <LoadingLabel label="Loading your characters…" />
       ) : (
         <CharacterPortraitPicker
           label="Your characters"

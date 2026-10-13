@@ -2,39 +2,66 @@ import {
   and,
   asc,
   eq,
-  gte,
   inArray,
   isNotNull,
   isNull,
   lte,
   or,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 import { db } from '@/db';
+import { account, user } from '@/db/auth-schema';
+import { executeRows } from '@/lib/db-execute';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import {
+  activeAdminMapsSelection,
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   type PendingMapAccessChange,
 } from './authorization-sql';
 import {
+  activeMapLifecycle,
+  archivedMapLifecycle,
+  MAP_DELETE_GRACE_MS,
   purgeClaimedMapLifecycle,
   purgeQueuedMapLifecycle,
   tombstonedMapLifecycle,
 } from './lifecycle-contract';
-import { MAP_DELETE_GRACE_MS } from './lifecycle-contract';
+import { restorableMapCondition } from './lifecycle-sql';
 import { maps } from './schema';
 
 const MAP_PURGE_MAPS_PER_RUN = 25;
 
 export const MAP_STAGED_PURGE_HOLD_MS = 30_000;
 
-export const ADVISORY_LOCK_MAP_PURGE = 8_273_619_019;
-
 export interface PurgeableMap {
   readonly id: string;
+}
+
+/**
+ * Moves the authorized map into `lifecycle`, then queues its reprojection, in
+ * one statement. `.getSQL()` keeps the UPDATE bare: an interpolated builder
+ * would be parenthesised, and a CTE body cannot be.
+ */
+async function transitionAuthorizedMap(
+  authorizedMap: SQL,
+  lifecycle: ReturnType<typeof activeMapLifecycle> | ReturnType<typeof archivedMapLifecycle>,
+  now: Date,
+  database: AnyPgDb,
+): Promise<PendingMapAccessChange | null> {
+  const update = database
+    .update(maps)
+    .set({ ...lifecycle, updatedAt: now })
+    .where(sql`${maps.id} IN (SELECT id FROM authorized_map)`)
+    .returning({ id: maps.id });
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
+    WITH authorized_map AS (${authorizedMap}), updated AS (${update.getSQL()})
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
+  `);
+  return row ?? null;
 }
 
 export async function archiveAuthorizedMap(
@@ -44,30 +71,12 @@ export async function archiveAuthorizedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const nowIso = now.toISOString();
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
-    WITH authorized_map AS (
-      ${authorizedAdminMapsSelection(
-        userId,
-        principals,
-        [mapId],
-        sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
-      )}
-    ), updated AS (
-      UPDATE ${maps}
-      SET archived_at = ${nowIso}::timestamptz,
-          purge_requested_at = NULL,
-          purge_claimed_at = NULL,
-          tombstoned_at = NULL,
-          lifecycle_status = 'archived',
-          lifecycle_entered_at = ${nowIso}::timestamptz,
-          updated_at = ${nowIso}::timestamptz
-      WHERE ${maps.id} IN (SELECT id FROM authorized_map)
-      RETURNING ${maps.id}
-    )
-    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
-  `);
-  return row ?? null;
+  return transitionAuthorizedMap(
+    activeAdminMapsSelection(userId, principals, [mapId]),
+    archivedMapLifecycle(now),
+    now,
+    database,
+  );
 }
 
 export async function restoreAuthorizedMap(
@@ -77,36 +86,12 @@ export async function restoreAuthorizedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
-  const cutoffIso = cutoff.toISOString();
-  const nowIso = now.toISOString();
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
-    WITH authorized_map AS (
-      ${authorizedAdminMapsSelection(
-        userId,
-        principals,
-        [mapId],
-        sql`${maps.archivedAt} IS NOT NULL
-          AND ${maps.archivedAt} > ${cutoffIso}::timestamptz
-          AND ${maps.purgeRequestedAt} IS NULL
-          AND ${maps.purgeClaimedAt} IS NULL
-          AND ${maps.tombstonedAt} IS NULL`,
-      )}
-    ), updated AS (
-      UPDATE ${maps}
-      SET archived_at = NULL,
-          purge_requested_at = NULL,
-          purge_claimed_at = NULL,
-          tombstoned_at = NULL,
-          lifecycle_status = 'active',
-          lifecycle_entered_at = ${nowIso}::timestamptz,
-          updated_at = ${nowIso}::timestamptz
-      WHERE ${maps.id} IN (SELECT id FROM authorized_map)
-      RETURNING ${maps.id}
-    )
-    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
-  `);
-  return row ?? null;
+  return transitionAuthorizedMap(
+    authorizedAdminMapsSelection(userId, principals, [mapId], restorableMapCondition(now)),
+    activeMapLifecycle(now),
+    now,
+    database,
+  );
 }
 
 export async function requestAuthorizedMapPurge(
@@ -115,25 +100,15 @@ export async function requestAuthorizedMapPurge(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<boolean> {
-  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const updated = await database
     .update(maps)
     .set({ ...purgeQueuedMapLifecycle(now), updatedAt: now })
-    .where(
-      and(
-        eq(maps.id, mapId),
-        eq(maps.userId, userId),
-        isNotNull(maps.archivedAt),
-        gte(maps.archivedAt, cutoff),
-        isNull(maps.tombstonedAt),
-        isNull(maps.purgeRequestedAt),
-        isNull(maps.purgeClaimedAt),
-      ),
-    )
+    .where(and(eq(maps.id, mapId), eq(maps.userId, userId), restorableMapCondition(now)))
     .returning({ id: maps.id });
   return updated.length === 1;
 }
 
+/** Sweepable maps. The grace arm is the complement of restorableMapCondition. */
 function purgeEligibility(now: Date) {
   const graceCutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const stagedHoldCutoff = new Date(now.getTime() - MAP_STAGED_PURGE_HOLD_MS);
@@ -189,6 +164,63 @@ export async function claimPurgeableMaps(
       (order.get(left.id) ?? Number.MAX_SAFE_INTEGER)
       - (order.get(right.id) ?? Number.MAX_SAFE_INTEGER),
   );
+}
+
+/**
+ * Closes every map the user owns ahead of an account deletion: a tombstoned map
+ * projects no claims. Maps the purge cron has already claimed are left to it;
+ * they are archived, so they project none either.
+ */
+export async function tombstoneOwnedMaps(
+  userId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<void> {
+  await database
+    .update(maps)
+    .set({
+      ...tombstonedMapLifecycle(now),
+      archivedAt: sql`coalesce(${maps.archivedAt}, ${now.toISOString()}::timestamptz)`,
+      updatedAt: now,
+    })
+    .where(and(eq(maps.userId, userId), isNull(maps.tombstonedAt), isNull(maps.purgeClaimedAt)));
+}
+
+/**
+ * Undoes the tombstones an account deletion left on a user who has an EVE
+ * link again and no requested deletion: the deletion was called off because a
+ * character was linked meanwhile, or failed part-way before one was. Each map
+ * comes back as deleted: archived and restorable within the grace period, or
+ * still queued for purge. A no-op otherwise, so callers can run it on every
+ * link change. The purge cron only tombstones maps it claimed, so its
+ * tombstones are left alone.
+ */
+export async function reopenOwnedMaps(
+  userId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<void> {
+  await database
+    .update(maps)
+    .set({
+      lifecycleStatus: sql`(CASE WHEN ${maps.purgeRequestedAt} IS NULL THEN 'archived' ELSE 'purge_queued' END)::"public"."map_lifecycle_status"`,
+      lifecycleEnteredAt: now,
+      tombstonedAt: null,
+      updatedAt: now,
+    })
+    .where(and(
+      eq(maps.userId, userId),
+      isNotNull(maps.tombstonedAt),
+      isNull(maps.purgeClaimedAt),
+      sql`EXISTS (
+        SELECT 1 FROM ${account}
+        WHERE ${account.userId} = ${userId} AND ${account.providerId} = ${EVE_PROVIDER_ID}
+      )`,
+      sql`NOT EXISTS (
+        SELECT 1 FROM ${user}
+        WHERE ${user.id} = ${userId} AND ${user.deletionRequestedAt} IS NOT NULL
+      )`,
+    ));
 }
 
 export async function tombstonePurgedMap(

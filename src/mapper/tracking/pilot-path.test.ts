@@ -1,11 +1,9 @@
 import { expect, test } from 'vitest';
 import {
   arrowPilotKey,
-  derivePilotPath,
   deriveOutboundArrows,
   edgeIdOfPairIndex,
   parseArrowPilotKey,
-  PILOT_PATH_MAX_JUMPS,
 } from './pilot-path';
 
 const CORRIDOR = new Map<number, readonly number[]>([
@@ -22,47 +20,40 @@ CORRIDOR.set(35, [34]);
 
 const neighbours = (id: number): readonly number[] => CORRIDOR.get(id) ?? [];
 
-test('derivePilotPath returns inclusive paths and nulls past the jump bound', () => {
-  expect(
-    derivePilotPath({
-      drawnSystemIds: new Set([10, 11]),
-      pilotSystemId: 21,
-      neighbours,
-    }),
-  ).toEqual([11, 20, 21]);
-  expect(
-    derivePilotPath({
-      drawnSystemIds: new Set([10, 11]),
-      pilotSystemId: 11,
-      neighbours,
-    }),
-  ).toEqual([11]);
+test('deriveOutboundArrows reaches pilots 15 jumps out and ignores pilots further away', () => {
+  const drawnSystemIds = new Set([10, 11]);
+  const edgeIdOfPair = edgeIdOfPairIndex([
+    { id: 'c1', source: '10', target: '11' },
+    { id: 'halo:11>20', source: '11', target: '20' },
+  ]);
 
-  expect(PILOT_PATH_MAX_JUMPS).toBe(15);
   expect(
-    derivePilotPath({
-      drawnSystemIds: new Set([11]),
-      pilotSystemId: 34,
+    deriveOutboundArrows({
+      pilotSystems: [{ systemId: 34, live: true }],
+      drawnSystemIds,
       neighbours,
+      edgeIdOfPair,
     }),
-  ).not.toBeNull();
+  ).toEqual(new Map([['halo:11>20', { towardSystemId: 20, live: true }]]));
   expect(
-    derivePilotPath({
-      drawnSystemIds: new Set([11]),
-      pilotSystemId: 35,
+    deriveOutboundArrows({
+      pilotSystems: [{ systemId: 35, live: true }],
+      drawnSystemIds,
       neighbours,
-    }),
-  ).toBeNull();
+      edgeIdOfPair,
+    }).size,
+  ).toBe(0);
   expect(
-    derivePilotPath({
-      drawnSystemIds: new Set([10, 11]),
-      pilotSystemId: 9999,
+    deriveOutboundArrows({
+      pilotSystems: [
+        { systemId: 34, live: false },
+        { systemId: 35, live: true },
+      ],
+      drawnSystemIds,
       neighbours,
+      edgeIdOfPair,
     }),
-  ).toBeNull();
-  expect(
-    derivePilotPath({ drawnSystemIds: new Set(), pilotSystemId: 20, neighbours }),
-  ).toBeNull();
+  ).toEqual(new Map([['halo:11>20', { towardSystemId: 20, live: false }]]));
 });
 
 test('deriveOutboundArrows mounts, dedupes, and keeps shared-arrow liveness honest', () => {

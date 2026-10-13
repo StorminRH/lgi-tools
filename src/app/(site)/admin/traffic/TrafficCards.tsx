@@ -7,18 +7,11 @@ import { pageViewSources, pageViewTotals } from '@/data/telemetry/page-view-stat
 import { getLoginCountsPerUser, getReturningVsNew } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { formatCount } from '@/lib/format/number';
-import { deriveActivityView } from '../activity-view';
-import { loadDeployMarkers } from '../deploy-markers';
 import { getPageViewRankingsShared, getPageViewStatsShared } from '../shared-reads';
 import { deriveTrafficView } from '../traffic-view';
 
 // Every traffic card reads the page-view days for the range and the period
 // before it through the same shared read, so the page scans them once.
-
-export async function loadTrafficActivity(range: DateRange, previous: DateRange | null) {
-  const [views, markers] = await Promise.all([getPageViewStatsShared(range, previous), loadDeployMarkers()]);
-  return deriveActivityView({ range, dailyCounts: views.current, prevDailyCounts: views.previous, markers });
-}
 
 /** The three ranked lists and the totals their shares are taken of. */
 export async function loadTrafficRankings(range: DateRange, previous: DateRange | null) {

@@ -1,8 +1,7 @@
 import { Suspense, type ReactNode } from 'react';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SectionPanel } from '@/components/ui/section-panel';
 import { CardFallback } from './CardFallback';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 
@@ -27,14 +26,16 @@ export function AdminCard({
   children: ReactNode;
 }) {
   return (
-    <Card
+    <SectionPanel
       data-admin-card={name}
       id={anchor}
-      className={cn('overflow-hidden', anchor !== undefined && 'scroll-mt-24', className)}
+      title={title}
+      titleAs="h3"
+      meta={hint}
+      className={cn(anchor !== undefined && 'scroll-mt-24', className)}
     >
-      <SectionHeader size="md" as="h3" label={title} hint={hint} />
       {children}
-    </Card>
+    </SectionPanel>
   );
 }
 

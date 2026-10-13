@@ -1,41 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EsiReadSession } from '@/data/esi-store/session';
+import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
+import { NO_STATEMENTS, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { industryJob } from './__tests__/job-fixture';
 import { refreshCorpJobsForUser } from './corp-refresh';
 import type { IndustryJob } from './esi-projection';
-import type { CorpJobsPort, JobsEsiRead, RefreshCorpMember } from './types';
+import type { CorpJobsPort } from './types';
 
 const SCOPE = 'esi-industry.read_corporation_jobs.v1';
 const ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 
-function member(overrides: Partial<RefreshCorpMember> = {}): RefreshCorpMember {
-  return {
-    characterId: 1,
-    corporationId: 2000,
-    hasRefreshToken: true,
-    missingScopes: [],
-    ...overrides,
-  };
-}
-
-function job(overrides: Partial<IndustryJob> = {}): IndustryJob {
-  return {
-    job_id: 1,
-    activity_id: 1,
-    blueprint_type_id: 100,
-    runs: 1,
-    status: 'active',
-    start_date: '2026-06-28T00:00:00Z',
-    end_date: '2026-06-28T01:00:00Z',
-    ...overrides,
-  };
-}
-
 interface FakeOptions {
-  members: RefreshCorpMember[];
+  members: EnumeratedOwner[];
   now?: Date;
   tokens?: Record<number, string | null>;
   roles?: Record<number, string[] | null>;
-  reads?: Record<number, JobsEsiRead>;
-  syncStates?: Record<number, { lastRefreshedAt: Date | null; jobsEtag: string | null }>;
+  /** One read per corporation, or one per token when a corp answers members differently. */
+  reads?: Record<number, SingleOwnerRead | ((accessToken: string) => SingleOwnerRead)>;
+  due?: Record<number, boolean>;
+  syncStates?: Record<number, { lastRefreshedAt: Date | null }>;
 }
 
 function makeFakePort(opts: FakeOptions) {
@@ -46,6 +29,7 @@ function makeFakePort(opts: FakeOptions) {
     saveJobs: [] as Array<{ corporationId: number; jobs: IndustryJob[]; etag: string | null }>,
     saveNeedsRole: [] as number[],
     stampFresh: [] as number[],
+    recordRefusal: [] as Array<{ corporationId: number; expiresAt: number | null }>,
   };
   const port: CorpJobsPort = {
     now: () => opts.now ?? new Date('2026-06-28T12:00:00Z'),
@@ -54,26 +38,27 @@ function makeFakePort(opts: FakeOptions) {
       calls.vend.push(characterId);
       const token =
         opts.tokens && characterId in opts.tokens ? opts.tokens[characterId] : `tok-${characterId}`;
-      return Promise.resolve(token ?? null);
+      return Promise.resolve(token ?? { missing: 'unavailable' as const });
     },
     readRoles: (characterId) => {
       calls.readRoles.push(characterId);
       const roles = opts.roles?.[characterId];
       return Promise.resolve(roles === undefined ? ['Factory_Manager'] : roles);
     },
-    readJobs: (corporationId) => {
+    isDue: (_userId, corporationId) => Promise.resolve(opts.due?.[corporationId] ?? true),
+    openSession: () => readSessionFake<EsiReadSession>(),
+    readJobs: (_session, _userId, corporationId, accessToken) => {
       calls.readJobs.push(corporationId);
-      return Promise.resolve(opts.reads?.[corporationId] ?? { kind: 'unchanged' });
+      const read = opts.reads?.[corporationId];
+      return Promise.resolve(typeof read === 'function' ? read(accessToken) : read ?? { kind: 'unchanged' });
     },
     readSyncState: (_userId, corporationId) => {
       const state = opts.syncStates?.[corporationId];
-      return Promise.resolve(
-        state ? { lastRefreshedAt: state.lastRefreshedAt, jobsEtag: state.jobsEtag, syncError: null } : null,
-      );
+      return Promise.resolve(state ? { lastRefreshedAt: state.lastRefreshedAt, syncError: null } : null);
     },
     saveJobs: (_userId, corporationId, jobs, etag) => {
       calls.saveJobs.push({ corporationId, jobs, etag });
-      return Promise.resolve();
+      return NO_STATEMENTS;
     },
     saveNeedsRole: (_userId, corporationId) => {
       calls.saveNeedsRole.push(corporationId);
@@ -83,16 +68,20 @@ function makeFakePort(opts: FakeOptions) {
       calls.stampFresh.push(corporationId);
       return Promise.resolve();
     },
+    recordRefusal: (_userId, corporationId, expiresAt) => {
+      calls.recordRefusal.push({ corporationId, expiresAt });
+      return Promise.resolve();
+    },
   };
   return { port, calls };
 }
 
 describe('refreshCorpJobsForUser', () => {
-  it('does zero work for a fresh corp (the staleness gate is the dedup)', async () => {
+  it('does zero work for a corp whose stored answer is unexpired (the store is the dedup)', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       now: new Date('2026-06-28T12:00:00Z'),
-      syncStates: { 2000: { lastRefreshedAt: new Date('2026-06-28T11:59:00Z'), jobsEtag: 'e' } },
+      due: { 2000: false },
     });
     await refreshCorpJobsForUser(port, 'user-1');
     expect(calls.vend).toEqual([]);
@@ -102,9 +91,9 @@ describe('refreshCorpJobsForUser', () => {
   });
 
   it('resolves a director and saves the board for a never-synced corp', async () => {
-    const fresh = job({ job_id: 7 });
+    const fresh = industryJob({ job_id: 7 });
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       reads: { 2000: { kind: 'fresh', body: [fresh], etag: 'etag-1' } },
     });
     const result = await refreshCorpJobsForUser(port, 'user-1');
@@ -116,8 +105,8 @@ describe('refreshCorpJobsForUser', () => {
   it('records needs_role when no member holds the role, without an ESI read', async () => {
     const { port, calls } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000 }),
-        member({ characterId: 2, corporationId: 2000 }),
+        ownerFixture(1, { corporationId: 2000 }),
+        ownerFixture(2, { corporationId: 2000 }),
       ],
       roles: { 1: ['Accountant'], 2: ['Station_Manager'] },
     });
@@ -128,11 +117,12 @@ describe('refreshCorpJobsForUser', () => {
     expect(calls.readJobs).toEqual([]);
     expect(calls.saveNeedsRole).toEqual([2000]);
     expect(calls.saveJobs).toEqual([]);
+    expect(calls.recordRefusal).toEqual([{ corporationId: 2000, expiresAt: null }]);
   });
 
   it('skips (no stamp) when no member can be vended — transient, retry next view', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       tokens: { 1: null },
     });
     await refreshCorpJobsForUser(port, 'user-1');
@@ -140,12 +130,13 @@ describe('refreshCorpJobsForUser', () => {
     expect(calls.saveNeedsRole).toEqual([]);
     expect(calls.stampFresh).toEqual([]);
     expect(calls.saveJobs).toEqual([]);
+    expect(calls.recordRefusal).toEqual([]);
   });
 
   it('stamps freshness on a 304', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
-      syncStates: { 2000: { lastRefreshedAt: null, jobsEtag: 'held' } },
+      members: [ownerFixture(1, { corporationId: 2000 })],
+      syncStates: { 2000: { lastRefreshedAt: null } },
       reads: { 2000: { kind: 'unchanged' } },
     });
     const result = await refreshCorpJobsForUser(port, 'user-1');
@@ -157,8 +148,8 @@ describe('refreshCorpJobsForUser', () => {
 
   it('maps a read 403 (role revoked mid-run) to needs_role', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
-      reads: { 2000: { kind: 'error', code: 'esi_403' } },
+      members: [ownerFixture(1, { corporationId: 2000 })],
+      reads: { 2000: { kind: 'error', code: 'esi_403', expiresAt: 8_000 } },
     });
     const result = await refreshCorpJobsForUser(port, 'user-1');
     expect(result).toEqual([
@@ -166,11 +157,55 @@ describe('refreshCorpJobsForUser', () => {
     ]);
     expect(calls.saveNeedsRole).toEqual([2000]);
     expect(calls.saveJobs).toEqual([]);
+    expect(calls.recordRefusal).toEqual([{ corporationId: 2000, expiresAt: 8_000 }]);
+  });
+
+  it('falls back to the next role-holder when ESI refuses the first, recording needs_role only when nobody is left', async () => {
+    const fresh = industryJob({ job_id: 9 });
+    const refusedFirst = makeFakePort({
+      members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+      reads: { 2000: (accessToken) => (accessToken === 'tok-1' ? { kind: 'error', code: 'esi_403' } : { kind: 'fresh', body: [fresh], etag: 'e2' }) },
+    });
+    expect(await refreshCorpJobsForUser(refusedFirst.port, 'user-1')).toEqual([
+      { kind: 'succeeded', target: { ownerType: 'corporation', ownerId: 2000 } },
+    ]);
+    expect(refusedFirst.calls.vend).toEqual([1, 2]);
+    expect(refusedFirst.calls.readJobs).toEqual([2000, 2000]);
+    expect(refusedFirst.calls.saveJobs).toEqual([{ corporationId: 2000, jobs: [fresh], etag: 'e2' }]);
+    expect(refusedFirst.calls.saveNeedsRole).toEqual([]);
+
+    const refusedAll = makeFakePort({
+      members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+      reads: { 2000: { kind: 'error', code: 'esi_403' } },
+    });
+    expect((await refreshCorpJobsForUser(refusedAll.port, 'user-1'))[0]).toMatchObject({ code: 'needs_role' });
+    expect(refusedAll.calls.readJobs).toEqual([2000, 2000]);
+    expect(refusedAll.calls.saveNeedsRole).toEqual([2000]);
+  });
+
+  it.each([
+    ['token', { tokens: { 2: null } }],
+    ['roles', { roles: { 2: null } }],
+  ] as const)('keeps the saved jobs and records no refusal when ESI refused the first member and the next one\'s %s is unavailable for now', async (_case, unavailable) => {
+    const { port, calls } = makeFakePort({
+      members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+      reads: { 2000: { kind: 'error', code: 'esi_403', expiresAt: 8_000 } },
+      ...unavailable,
+    });
+
+    expect(await refreshCorpJobsForUser(port, 'user-1')).toEqual([
+      { kind: 'failed_retryable', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'owner_temporarily_unavailable' },
+    ]);
+    expect(calls.readJobs).toEqual([2000]);
+    expect(calls.saveNeedsRole).toEqual([]);
+    expect(calls.recordRefusal).toEqual([]);
+    expect(calls.saveJobs).toEqual([]);
+    expect(calls.stampFresh).toEqual([]);
   });
 
   it('reports a transient read error without saving or stamping', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       reads: { 2000: { kind: 'error', code: 'esi_server_error' } },
     });
 
@@ -186,7 +221,7 @@ describe('refreshCorpJobsForUser', () => {
 
   it('reports a fresh contract rejection without saving or stamping', async () => {
     const { port, calls } = makeFakePort({
-      members: [member({ characterId: 1, corporationId: 2000 })],
+      members: [ownerFixture(1, { corporationId: 2000 })],
       reads: { 2000: { kind: 'fresh', body: { not: 'an array' }, etag: 'bad' } },
     });
 
@@ -203,16 +238,16 @@ describe('refreshCorpJobsForUser', () => {
   it('prefers a role-holder as the vending character', async () => {
     const { port } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000 }),
-        member({ characterId: 2, corporationId: 2000 }),
+        ownerFixture(1, { corporationId: 2000 }),
+        ownerFixture(2, { corporationId: 2000 }),
       ],
       roles: { 1: ['Accountant'], 2: ['Director'] },
       reads: { 2000: { kind: 'fresh', body: [], etag: 'e' } },
     });
     const readJobs = vi.fn(port.readJobs);
-    port.readJobs = (corporationId, accessToken, heldEtag) => {
+    port.readJobs = (session, userId, corporationId, accessToken) => {
       expect(accessToken).toBe('tok-2');
-      return readJobs(corporationId, accessToken, heldEtag);
+      return readJobs(session, userId, corporationId, accessToken);
     };
     await refreshCorpJobsForUser(port, 'user-1');
     expect(readJobs).toHaveBeenCalledOnce();
@@ -221,9 +256,9 @@ describe('refreshCorpJobsForUser', () => {
   it('skips members missing the corp scopes and corps with no cached id', async () => {
     const { port, calls } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000, missingScopes: [SCOPE] }),
-        member({ characterId: 2, corporationId: null }),
-        member({ characterId: 3, corporationId: 3000, missingScopes: [ROLES_SCOPE] }),
+        ownerFixture(1, { corporationId: 2000, missingScopes: [SCOPE] }),
+        ownerFixture(2, { corporationId: null }),
+        ownerFixture(3, { corporationId: 3000, missingScopes: [ROLES_SCOPE] }),
       ],
     });
     await refreshCorpJobsForUser(port, 'user-1');
@@ -234,12 +269,12 @@ describe('refreshCorpJobsForUser', () => {
   it('refreshes multiple corps independently', async () => {
     const { port, calls } = makeFakePort({
       members: [
-        member({ characterId: 1, corporationId: 2000 }),
-        member({ characterId: 2, corporationId: 3000 }),
+        ownerFixture(1, { corporationId: 2000 }),
+        ownerFixture(2, { corporationId: 3000 }),
       ],
       reads: {
-        2000: { kind: 'fresh', body: [job({ job_id: 1 })], etag: 'a' },
-        3000: { kind: 'fresh', body: [job({ job_id: 2 })], etag: 'b' },
+        2000: { kind: 'fresh', body: [industryJob({ job_id: 1 })], etag: 'a' },
+        3000: { kind: 'fresh', body: [industryJob({ job_id: 2 })], etag: 'b' },
       },
     });
     await refreshCorpJobsForUser(port, 'user-1');

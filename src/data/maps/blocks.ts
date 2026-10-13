@@ -1,13 +1,13 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account } from '@/db/auth-schema';
+import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapPrincipals } from './access';
 import {
-  authorizedAdminMapsSelection,
+  activeAdminMapsSelection,
   enqueuePendingMapAccessSelection,
-  mapAuthorizationRows,
   type PendingMapAccessChange,
 } from './authorization-sql';
 import { mapBlockAccounts, mapBlocks, maps } from './schema';
@@ -21,15 +21,6 @@ export interface MapBlockAttempt {
   readonly creatorUserId: string;
   readonly holderUserId: string | null;
   readonly pending: PendingMapAccessChange | null;
-}
-
-function activeAdminMaps(userId: string, principals: MapPrincipals, mapIds: readonly string[]) {
-  return authorizedAdminMapsSelection(
-    userId,
-    principals,
-    mapIds,
-    sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
-  );
 }
 
 function currentHolder(characterId: number) {
@@ -54,7 +45,7 @@ export async function blockAuthorizedMapCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<MapBlockAttempt | null> {
-  const [row] = await mapAuthorizationRows<{
+  const [row] = await executeRows<{
     creatorUserId: string;
     holderUserId: string | null;
     mapId: string | null;
@@ -64,7 +55,7 @@ export async function blockAuthorizedMapCharacter(
       SELECT target_map.id, target_map.user_id AS creator_user_id,
         (${currentHolder(characterId)}) AS holder_user_id
       FROM ${maps} AS target_map
-      WHERE target_map.id IN (${activeAdminMaps(userId, principals, [mapId])})
+      WHERE target_map.id IN (${activeAdminMapsSelection(userId, principals, [mapId])})
     ), allowed AS (
       SELECT id, holder_user_id
       FROM target
@@ -109,9 +100,9 @@ export async function unblockAuthorizedMapCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
-  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+  const [row] = await executeRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
-      ${activeAdminMaps(userId, principals, [mapId])}
+      ${activeAdminMapsSelection(userId, principals, [mapId])}
     ), removed AS (
       DELETE FROM ${mapBlocks}
       WHERE ${mapBlocks.mapId} IN (SELECT id FROM authorized_map)
@@ -131,10 +122,10 @@ export async function getAuthorizedMapBlocksForMaps(
 ): Promise<MapBlockRow[]> {
   const uniqueMapIds = [...new Set(mapIds)];
   if (uniqueMapIds.length === 0) return [];
-  const rows = await mapAuthorizationRows<{ mapId: string; characterId: number | string }>(database, sql`
+  const rows = await executeRows<{ mapId: string; characterId: number | string }>(database, sql`
     SELECT block.map_id AS "mapId", block.character_id AS "characterId"
     FROM ${mapBlocks} AS block
-    WHERE block.map_id IN (${activeAdminMaps(userId, principals, uniqueMapIds)})
+    WHERE block.map_id IN (${activeAdminMapsSelection(userId, principals, uniqueMapIds)})
     ORDER BY block.map_id, block.blocked_at, block.character_id
   `);
   return rows.map((row) => ({ mapId: row.mapId, characterId: Number(row.characterId) }));
@@ -145,7 +136,7 @@ export async function getBlockedMapUserIds(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<string[]> {
-  const rows = await mapAuthorizationRows<{ userId: string }>(database, sql`
+  const rows = await executeRows<{ userId: string }>(database, sql`
     SELECT holder.user_id AS "userId"
     FROM ${mapBlocks} AS block
     INNER JOIN ${mapBlockAccounts} AS holder ON holder.block_id = block.id

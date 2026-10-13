@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  capabilityOutcomeMock,
+  recordedCapabilityOutcomes,
+} from '@/lib/__tests__/capability-outcomes';
+
+const emitCostMetricMock = capabilityOutcomeMock();
 
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   resolveJumpRequest: vi.fn(),
-  logUsageEvent: vi.fn(),
 }));
 
 vi.mock('@/composition/route-guards', () => ({
@@ -12,37 +17,35 @@ vi.mock('@/composition/route-guards', () => ({
 vi.mock('@/composition/jump-resolver/resolver', () => ({
   resolveJumpRequest: (...args: unknown[]) => h.resolveJumpRequest(...args),
 }));
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => h.logUsageEvent(...args),
+
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (action: string, metadata: Record<string, unknown>) =>
+    emitCostMetricMock(action, metadata),
 }));
 
+import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-function request(body: unknown): Request {
-  return new Request('http://localhost:3000/api/maps/jump', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
-  });
-}
+const MAP_ID = '11111111-1111-4111-8111-111111111111';
+const ROUTE = '/api/maps/jump';
 
 beforeEach(() => {
+  emitCostMetricMock.mockReset();
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.resolveJumpRequest.mockReset().mockResolvedValue({
     status: 'processed',
     outcome: 'authored',
     emitted: true,
   });
-  h.logUsageEvent.mockReset().mockResolvedValue(undefined);
 });
 
 describe('POST /api/maps/jump', () => {
   it('rejects forged doorbell facts and anonymous callers before resolving, then forwards authenticated bodies', async () => {
     const forged = await POST(
-      request({
+      postJson(ROUTE, {
         kind: 'doorbell',
-        mapId: 'map-1',
+        mapId: MAP_ID,
         characterId: 90_000_001,
         fromSolarSystemId: 31_000_001,
         toSolarSystemId: 31_000_002,
@@ -59,17 +62,17 @@ describe('POST /api/maps/jump', () => {
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     const anonymous = await POST(
-      request({ kind: 'doorbell', mapId: 'map-1', characterId: 90_000_001 }),
+      postJson(ROUTE, { kind: 'doorbell', mapId: MAP_ID, characterId: 90_000_001 }),
     );
     expect(anonymous.status).toBe(401);
     expect(h.resolveJumpRequest).not.toHaveBeenCalled();
 
     const body = {
       kind: 'typed-hole' as const,
-      mapId: 'map-1',
+      mapId: MAP_ID,
       connectionId: 'connection-1',
     };
-    const ok = await POST(request(body));
+    const ok = await POST(postJson(ROUTE, body));
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({
       status: 'processed',
@@ -81,5 +84,20 @@ describe('POST /api/maps/jump', () => {
       'user-1',
       body,
     );
+  });
+
+  it('records a failure the client gave up on, since its timer showed it to the user', async () => {
+    const controller = new AbortController();
+    h.resolveJumpRequest.mockImplementationOnce(async () => {
+      controller.abort();
+      throw new Error('resolver timed out');
+    });
+
+    const request = postJson(ROUTE, { kind: 'typed-hole', mapId: MAP_ID, connectionId: 'connection-1' }, { signal: controller.signal });
+
+    await expect(POST(request)).rejects.toThrow('resolver timed out');
+    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
+      expect.objectContaining({ outcome: 'unexpected' }),
+    ]);
   });
 });

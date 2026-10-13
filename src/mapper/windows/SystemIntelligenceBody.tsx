@@ -4,17 +4,18 @@ import { useId, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { eyebrow } from '@/components/ui/type-roles';
-import { useEntityNames } from '@/components/use-entity-names';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
-import { useTypeNames } from '@/data/eve-data/use-type-names';
+import { useTypeNames } from '@/data/eve-data/use-names';
+import { useUniverseAssets, useWormholeCodexStatus } from '@/data/eve-data/use-universe-assets';
 import { WORMHOLE_EFFECT_NAME, type WormholeEffect } from '@/data/eve-data/wormhole-contract';
-import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormhole-sites/scanner-live-prices';
+import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormhole-sites/widget';
 import { formatIskShort } from '@/lib/format/isk';
-import { useUniverseAssets } from '../chain/use-universe-assets';
+import { formatSigned } from '@/lib/format/number';
 import { useSignatureRows } from '../signatures/signature-context';
-import { useSystemStaticSlots, useWormholeCodexStatus } from '../signatures/use-system-statics';
+import { useSystemStaticSlots } from '../signatures/use-system-statics';
 import { friendlyRows, type PresencePilot } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
+import { useCharacterIdentities } from '../tracking/use-character-identities';
 import { IntelIcon, WormholeEffectIcon, type IntelIconKind } from './IntelIcon';
 import { INTEL_CATEGORY_LABEL, intelCategoryBlocks, intelLocationKind, type IntelCategoryBlock } from './intel-model';
 import { useSystemLabel } from './use-system-label';
@@ -30,7 +31,7 @@ export function SystemTitleAccessory({ systemId }: { readonly systemId: number }
   );
 }
 
-const INTEL_HEADING_CLASS = eyebrow({ size: 'micro', tone: 'faint', emphasis: 'strong' });
+const INTEL_HEADING_CLASS = eyebrow({ size: 'micro', tone: 'faint' });
 
 /** One titled category of the intel body; render it only when it has content. */
 function IntelSection({ section, title, children }: {
@@ -94,17 +95,12 @@ function Disclosure({ icon, label, count, value, children }: {
   );
 }
 
-function formatEffectPercent(percent: number): string {
-  const sign = percent > 0 ? '+' : '\u2212';
-  return `${sign}${Math.abs(percent)}%`;
-}
-
 function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number }) {
   const { codex, failed } = useWormholeCodexStatus();
   if (codex === null) {
     return (
       <p className="ml-6 py-1 font-data text-micro text-muted">
-        {failed ? 'Effect details are unavailable right now.' : 'Loading effects…'}
+        {failed ? "Couldn't load effects." : 'Loading effects…'}
       </p>
     );
   }
@@ -117,7 +113,7 @@ function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffec
       {entry.modifiers.map((modifier) => (
         <li key={modifier.attributeId} className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 text-muted">{modifier.label}</span>
-          <span className="shrink-0 tabular-nums text-name">{formatEffectPercent(modifier.percent)}</span>
+          <span className="shrink-0 tabular-nums text-name">{formatSigned(modifier.percent, (magnitude) => `${magnitude}%`)}</span>
         </li>
       ))}
     </ul>
@@ -222,11 +218,11 @@ function CategoryBlock({ block }: { readonly block: IntelCategoryBlock }) {
 }
 
 function FriendlyList({ pilots }: { readonly pilots: readonly PresencePilot[] }) {
-  const names = useEntityNames(pilots.map((pilot) => pilot.characterId));
+  const identityOf = useCharacterIdentities(pilots.map((pilot) => pilot.characterId));
   const ships = useTypeNames(pilots.flatMap((pilot) => !pilot.docked && pilot.shipTypeId !== null ? [pilot.shipTypeId] : []));
   return (
     <ul className="ml-6 flex flex-col gap-1 py-1 font-data text-ui">
-      {friendlyRows(pilots, names, ships).map((row) => (
+      {friendlyRows(pilots, (id) => identityOf(id).name, ships).map((row) => (
         <li key={row.characterId} data-presence-pilot={row.characterId} className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 truncate text-name">{row.label}</span>
           <span className="max-w-1/2 shrink-0 truncate text-muted">{row.word === 'Docked' ? 'Docked' : row.shipName ?? '—'}</span>

@@ -1,6 +1,7 @@
 import { Callout } from '@/components/ui/callout';
 import { requireAdminPage } from '@/composition/route-guards';
-import { resolveErrorMessage } from '@/lib/error-copy';
+import { resolveNotice } from '@/lib/error-copy';
+import type { CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { AdminPageFrame } from '../../AdminFrame';
 import { AdminSection } from '../../AdminSection';
 import { loadSection, SECTION_LOAD_FAILED } from '../../load-section';
@@ -13,11 +14,12 @@ import {
   UserNotFound,
 } from './UserDetailCards';
 
-const ERROR_MESSAGES: Record<string, string> = {
+const ERROR_MESSAGES = {
+  not_linked: "That character isn't linked to this user.",
   last_character:
     "That's the user's only character — unlinking it would strand the account. Reassign it instead.",
   unlink_failed: 'Could not unlink that character. Please try again.',
-};
+} satisfies Record<CharacterLinkNotice, string>;
 
 async function UserDetailContent({
   params,
@@ -33,7 +35,7 @@ async function UserDetailContent({
   if (user === null) return <UserNotFound />;
 
   const isViewerSelf = userId === session.user.id;
-  const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'That action could not be completed.');
+  const error = resolveNotice(rawError, ERROR_MESSAGES, 'That action could not be completed.');
   return (
     <>
       {error ? <Callout label="Heads up">{error}</Callout> : null}

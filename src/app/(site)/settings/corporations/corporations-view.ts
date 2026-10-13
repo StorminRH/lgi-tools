@@ -7,7 +7,7 @@ export type CorporationMembershipView = {
   corporationId: number;
   corporationName: string;
   roleLabel: CorporationRoleLabel;
-  sharingLabel: 'sharing on' | 'sharing off';
+  sharingLabel: 'Sharing on' | 'Sharing off';
   structureCount: number | null;
 };
 
@@ -21,7 +21,6 @@ export type CorporationsView = {
   directorCorps: SharingCorpView[];
   memberCorps: SharingCorpView[];
   memberships: CorporationMembershipView[];
-  membershipHint: string;
 };
 
 export function settingsNeedsCorpSharing(models: readonly PageControlModel[]): boolean {
@@ -48,7 +47,7 @@ function toMembership(corp: CorpStructurePageView): CorporationMembershipView {
     corporationId: corp.corporationId,
     corporationName: corp.corporationName,
     roleLabel: roleLabelOf(corp),
-    sharingLabel: corp.sharing === 'on' ? 'sharing on' : 'sharing off',
+    sharingLabel: corp.sharing === 'on' ? 'Sharing on' : 'Sharing off',
     structureCount: corp.structureAccess === 'none' ? null : corp.structures.length,
   };
 }
@@ -65,6 +64,5 @@ export function deriveCorporationsView(rows: readonly CorpStructurePageView[]): 
     directorCorps: rows.filter((corp) => corp.canManageSharing).map(toSharingCorp),
     memberCorps: rows.filter((corp) => !corp.canManageSharing).map(toSharingCorp),
     memberships: rows.map(toMembership).sort(byRoleThenName),
-    membershipHint: `${rows.length} corporation${rows.length === 1 ? '' : 's'}`,
   };
 }

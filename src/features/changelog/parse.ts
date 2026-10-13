@@ -1,3 +1,4 @@
+import { getOrInsertComputed, groupBy } from '@/lib/array';
 import { isIsoCalendarDate } from '@/lib/iso-date';
 
 const CHANGE_TYPES = ['Added', 'Changed', 'Fixed', 'Removed'] as const;
@@ -134,9 +135,7 @@ function collectThemedMasterOverviews(md: string): MasterMeta {
   let master: string | null = null;
   const overview = createParagraphBuffer((paragraph) => {
     if (master === null) return;
-    const list = summaries.get(master) ?? [];
-    list.push(paragraph);
-    summaries.set(master, list);
+    getOrInsertComputed(summaries, master, () => []).push(paragraph);
   });
   for (const rawLine of md.split('\n')) {
     const line = rawLine.trim();
@@ -162,24 +161,11 @@ function collectThemedMasterOverviews(md: string): MasterMeta {
 
 export function parseChangelogMasters(md: string): ChangelogMaster[] {
   const { titles, summaries } = collectThemedMasterOverviews(md);
-  const masters: ChangelogMaster[] = [];
-  const byVersion = new Map<string, ChangelogMaster>();
-
-  for (const entry of parseChangelog(md)) {
-    const version = masterVersionOf(entry.version);
-    let master = byVersion.get(version);
-    if (!master) {
-      master = {
-        version,
-        title: titles.get(version) ?? null,
-        summary: summaries.get(version) ?? [],
-        subVersions: [],
-      };
-      byVersion.set(version, master);
-      masters.push(master);
-    }
-    master.subVersions.push(entry);
-  }
-
-  return masters;
+  const byVersion = groupBy(parseChangelog(md), (entry) => masterVersionOf(entry.version));
+  return [...byVersion].map(([version, subVersions]) => ({
+    version,
+    title: titles.get(version) ?? null,
+    summary: summaries.get(version) ?? [],
+    subVersions,
+  }));
 }

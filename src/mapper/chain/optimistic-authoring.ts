@@ -16,12 +16,15 @@ import {
 } from '@/data/maps/chain-contract';
 import {
   deathWindowForReport,
+  deathWindowFrom,
   intersectOrReset,
+  typedLifetimeWindow,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
-import type {
-  WormholeDestinationHint,
-  WormholeLifeStage,
+import {
+  isTypedCodexEntry,
+  type WormholeDestinationHint,
+  type WormholeLifeStage,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
@@ -43,6 +46,7 @@ import {
   replaceDoor,
 } from '@/data/maps/connection-hallway';
 import type {
+  ConnectionDoorSide,
   ConnectionDoorValue,
   ConnectionHallway,
   ConnectionLifetime,
@@ -74,6 +78,65 @@ export function optimisticTempId(table: 'mapSystems' | 'mapConnections'): string
   return `${OPTIMISTIC_ID_PREFIX}${table}:${crypto.randomUUID()}`;
 }
 
+type ChainPageQuery =
+  | typeof api.mapChainSystems.watchMapSystems
+  | typeof api.mapChainConnections.watchMapConnections
+  | typeof api.mapChainConnections.watchUnresolvedHoles;
+
+/**
+ * The loaded pages of one chain query for one map. The local store gives
+ * loading and errored pages an undefined value, so both are skipped.
+ */
+function loadedPages<Query extends ChainPageQuery>(
+  localStore: OptimisticLocalStore,
+  query: Query,
+  mapId: string,
+) {
+  return localStore.getAllQueries(query).flatMap(({ args, value }) =>
+    value === undefined || args.mapId !== mapId ? [] : [{ args, value }],
+  );
+}
+
+/**
+ * Applies one row update wherever the row is loaded. The two connection
+ * queries split a map's rows on whether toSystemId is set, so each row is in
+ * exactly one of them and the update leaves the other one's rows alone.
+ */
+function updateConnectionRows(
+  localStore: OptimisticLocalStore,
+  mapId: string,
+  apply: <Row extends OptimisticConnectionRow>(row: Row) => Row,
+): void {
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchMapConnections,
+    { mapId },
+    apply,
+  );
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchUnresolvedHoles,
+    { mapId },
+    apply,
+  );
+}
+
+/** Inserts cast it `as never`: temp ids are not branded `Id<'mapSystems'>`. */
+function optimisticSystemRow(
+  mapId: string,
+  systemId: number,
+  now: number,
+): OptimisticSystemRow {
+  return {
+    _id: optimisticTempId('mapSystems'),
+    _creationTime: now,
+    mapId,
+    systemId,
+    deletedAt: null,
+    purgeAfter: null,
+  };
+}
+
 function insertOptimisticSystemIfAbsent(
   localStore: OptimisticLocalStore,
   mapId: string,
@@ -85,14 +148,7 @@ function insertOptimisticSystemIfAbsent(
     paginatedQuery: api.mapChainSystems.watchMapSystems,
     argsToMatch: { mapId },
     localQueryStore: localStore,
-    item: {
-      _id: optimisticTempId('mapSystems'),
-      _creationTime: now,
-      mapId,
-      systemId,
-      deletedAt: null,
-      purgeAfter: null,
-    } as never,
+    item: optimisticSystemRow(mapId, systemId, now) as never,
   });
 }
 
@@ -101,14 +157,10 @@ function liveSystemPresent(
   mapId: string,
   systemId: number,
 ): boolean {
-  for (const { args, value } of localStore.getAllQueries(api.mapChainSystems.watchMapSystems)) {
-    if (value === undefined) continue;
-    if (args.mapId !== mapId) continue;
-    if (value.page.some((row) => row.systemId === systemId && row.deletedAt == null)) {
-      return true;
-    }
-  }
-  return false;
+  return loadedPages(localStore, api.mapChainSystems.watchMapSystems, mapId).some(
+    ({ value }) =>
+      value.page.some((row) => row.systemId === systemId && row.deletedAt == null),
+  );
 }
 
 export function optimisticSetHomeSystem(
@@ -116,28 +168,13 @@ export function optimisticSetHomeSystem(
   args: { mapId: string; systemId: number },
   now = Date.now(),
 ): void {
-  if (liveSystemPresent(localStore, args.mapId, args.systemId)) return;
-  for (const { args: pageArgs, value } of localStore.getAllQueries(
-    api.mapChainSystems.watchMapSystems,
-  )) {
-    if (value === undefined || pageArgs.mapId !== args.mapId) continue;
-    if (value.page.some((row) => row.deletedAt == null)) return;
-  }
-
-  const item = {
-    _id: optimisticTempId('mapSystems'),
-    _creationTime: now,
-    mapId: args.mapId,
-    systemId: args.systemId,
-    deletedAt: null,
-    purgeAfter: null,
-  } satisfies OptimisticSystemRow;
-
+  const pages = loadedPages(localStore, api.mapChainSystems.watchMapSystems, args.mapId);
+  if (pages.some(({ value }) => value.page.some((row) => row.deletedAt == null))) return;
   insertAtTop({
     paginatedQuery: api.mapChainSystems.watchMapSystems,
     argsToMatch: { mapId: args.mapId },
     localQueryStore: localStore,
-    item: item as never,
+    item: optimisticSystemRow(args.mapId, args.systemId, now) as never,
   });
 }
 
@@ -194,19 +231,8 @@ export function optimisticPatchConnection(
     patch: ConnectionFieldPatch;
   },
 ): void {
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchMapConnections,
-    { mapId: args.mapId },
-    (row) =>
-      row._id === args.connectionId ? { ...row, ...args.patch } : row,
-  );
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchUnresolvedHoles,
-    { mapId: args.mapId },
-    (row) =>
-      row._id === args.connectionId ? { ...row, ...args.patch } : row,
+  updateConnectionRows(localStore, args.mapId, (row) =>
+    row._id === args.connectionId ? { ...row, ...args.patch } : row,
   );
 }
 
@@ -227,10 +253,11 @@ function severStamp(
   mapId: string,
   connectionId: string,
 ): number | null {
-  for (const { args, value } of localStore.getAllQueries(
+  for (const { value } of loadedPages(
+    localStore,
     api.mapChainConnections.watchMapConnections,
+    mapId,
   )) {
-    if (value === undefined || args.mapId !== mapId) continue;
     const connection = value.page.find((row) => row._id === connectionId);
     if (connection !== undefined && isTombstoned(connection)) {
       return tombstoneDeletedAt(connection);
@@ -254,14 +281,12 @@ export function optimisticRestoreSeveredBranch(
         ? { ...row, deletedAt: null, purgeAfter: null }
         : row,
   );
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchMapConnections,
-    { mapId: args.mapId },
-    (row) =>
-      tombstoneDeletedAt(row) === deletedAt
-        ? { ...row, tombstone: liveTombstone() }
-        : row,
+  // runBranchRestore restores every connection with the stamp, unresolved
+  // holes included.
+  updateConnectionRows(localStore, args.mapId, (row) =>
+    tombstoneDeletedAt(row) === deletedAt
+      ? { ...row, tombstone: liveTombstone() }
+      : row,
   );
 }
 
@@ -294,7 +319,7 @@ export function optimisticSetConnectionLifeStage(
       lifetime: connectionLifetimeFrom({
         lifeStage: args.value,
         observedAt: now,
-        death: deathWindowFromArgs(args),
+        death: deathWindowFrom(args.deathEarliestAt, args.deathLatestAt),
       }),
     },
   });
@@ -306,7 +331,7 @@ export function optimisticSetConnectionWormholeType(
     mapId: string;
     connectionId: string;
     value: string | null;
-    side?: 'from' | 'to';
+    side?: ConnectionDoorSide;
     deathEarliestAt?: number | null;
     deathLatestAt?: number | null;
   },
@@ -325,23 +350,12 @@ export function optimisticSetConnectionWormholeType(
       lifetime: connectionLifetimeFrom({
         lifeStage: lifetimeStage(row.lifetime),
         observedAt: lifetimeObservedAt(row.lifetime),
-        death: deathWindowFromArgs(args),
+        death: deathWindowFrom(args.deathEarliestAt, args.deathLatestAt),
       }),
       resolution: clearPendingResolution(row.resolution),
     };
   };
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchMapConnections,
-    { mapId: args.mapId },
-    apply,
-  );
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchUnresolvedHoles,
-    { mapId: args.mapId },
-    apply,
-  );
+  updateConnectionRows(localStore, args.mapId, apply);
   if (args.value !== null) {
     optimisticClaimStaticPlaceholder(localStore, {
       mapId: args.mapId,
@@ -359,11 +373,13 @@ function optimisticClaimStaticPlaceholder(
     readonly typeCode: string;
   },
 ): void {
-  const unresolved = localStore.getAllQueries(api.mapChainConnections.watchUnresolvedHoles);
-  const claimant = unresolved.flatMap((entry) => {
-    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
-    return entry.value.page.filter((row) => row._id === args.connectionId);
-  })[0];
+  const pages = loadedPages(
+    localStore,
+    api.mapChainConnections.watchUnresolvedHoles,
+    args.mapId,
+  );
+  const rows = pages.flatMap(({ value }) => value.page);
+  const claimant = rows.find((row) => row._id === args.connectionId);
   if (
     claimant === undefined
     || claimant.staticCode !== undefined
@@ -372,20 +388,16 @@ function optimisticClaimStaticPlaceholder(
   ) {
     return;
   }
-  const placeholder = unresolved.flatMap((entry) => {
-    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
-    return entry.value.page.filter((row) =>
-      row._id !== args.connectionId
-      && row.mapId === args.mapId
-      && row.fromSystemId === claimant.fromSystemId
-      && row.staticCode === args.typeCode
-      && isStaticPlaceholder(row)
-      && !isTombstoned(row),
-    );
-  })[0];
+  const placeholder = rows.find((row) =>
+    row._id !== args.connectionId
+    && row.mapId === args.mapId
+    && row.fromSystemId === claimant.fromSystemId
+    && row.staticCode === args.typeCode
+    && isStaticPlaceholder(row)
+    && !isTombstoned(row),
+  );
   if (placeholder === undefined) return;
-  for (const entry of unresolved) {
-    if (entry.value === undefined || entry.args.mapId !== args.mapId) continue;
+  for (const entry of pages) {
     localStore.setQuery(api.mapChainConnections.watchUnresolvedHoles, entry.args, {
       ...entry.value,
       page: entry.value.page.flatMap((row) => {
@@ -422,16 +434,6 @@ function storedWindow(
   return lifetimeDeathWindow(connection.lifetime);
 }
 
-function deathWindowFromArgs(args: {
-  readonly deathEarliestAt?: number | null;
-  readonly deathLatestAt?: number | null;
-}): ConnectionDeathWindow | null {
-  const earliestAt = args.deathEarliestAt ?? null;
-  const latestAt = args.deathLatestAt ?? null;
-  if (earliestAt === null || latestAt === null) return null;
-  return { earliestAt, latestAt };
-}
-
 function namedTypeCode(connection: {
   readonly from: ConnectionDoorValue;
   readonly to: ConnectionDoorValue;
@@ -443,18 +445,9 @@ export function wormholeTypeWindowProposal(
   connection: ConnectionWindowSource,
   lifetimeMinutes: number | null,
 ): ConnectionDeathWindow | null {
-  if (
-    lifetimeMinutes === null ||
-    !Number.isFinite(lifetimeMinutes) ||
-    lifetimeMinutes < 0
-  ) {
-    return storedWindow(connection);
-  }
-  const firstSeenAt = connection.firstSeenAt ?? connection._creationTime;
-  return intersectOrReset(storedWindow(connection), {
-    earliestAt: firstSeenAt,
-    latestAt: firstSeenAt + lifetimeMinutes * 60_000,
-  });
+  const stored = storedWindow(connection);
+  const typed = typedLifetimeWindow(connection, lifetimeMinutes);
+  return typed === null ? stored : intersectOrReset(stored, typed);
 }
 
 export function lifeStageWindowProposal(
@@ -489,9 +482,7 @@ async function nullOnRejection<Value>(
 export function lifetimeMinutesFromEntry(
   entry: WormholeCodexEntry | null,
 ): number | null {
-  if (entry === null) return null;
-  if (entry.farSide) return null;
-  return entry.lifetimeMinutes;
+  return isTypedCodexEntry(entry) ? entry.lifetimeMinutes : null;
 }
 
 async function lifetimeMinutesFor(code: string | null): Promise<number | null> {
@@ -524,7 +515,7 @@ function optimisticPatchDoorLeadsTo(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     leadsTo: DoorLeadsTo;
   },
 ): void {
@@ -538,18 +529,7 @@ function optimisticPatchDoorLeadsTo(
       }),
     };
   };
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchMapConnections,
-    { mapId: args.mapId },
-    apply,
-  );
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchUnresolvedHoles,
-    { mapId: args.mapId },
-    apply,
-  );
+  updateConnectionRows(localStore, args.mapId, apply);
 }
 
 export function optimisticSetConnectionDestination(
@@ -557,7 +537,7 @@ export function optimisticSetConnectionDestination(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: number | null;
   },
 ): void {
@@ -574,7 +554,7 @@ function optimisticSetConnectionDestinationHint(
   args: {
     mapId: string;
     connectionId: string;
-    side: 'from' | 'to';
+    side: ConnectionDoorSide;
     value: WormholeDestinationHint | null;
   },
 ): void {
@@ -671,7 +651,7 @@ export function useChainAuthoringMutations() {
       mapId: string;
       connection: ConnectionEditorDetail;
       value: string | null;
-      side?: 'from' | 'to';
+      side?: ConnectionDoorSide;
     }) => {
       const proposal = wormholeTypeWindowProposal(
         args.connection,

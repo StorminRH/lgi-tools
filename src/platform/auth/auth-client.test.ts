@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { problemBodySchema } from '@/lib/problem';
+import { rateLimitedFailure } from '@/lib/failure';
+import { problemBody } from '@/lib/problem';
 
 const fetchMock = vi.fn();
 
@@ -19,16 +20,7 @@ describe('authClient OAuth failures', () => {
   it('exposes a problem response through Better Fetch without throwing', async () => {
     fetchMock.mockResolvedValue(
       new Response(
-        JSON.stringify(
-          problemBodySchema.parse({
-            type: 'https://lgi.tools/problems/rate_limited',
-            title: 'Too many requests',
-            status: 429,
-            code: 'rate_limited',
-            correlationId: 'test-correlation-id',
-            retryAfterSeconds: 23,
-          }),
-        ),
+        JSON.stringify(problemBody(rateLimitedFailure(23), 'test-correlation-id')),
         {
           status: 429,
           statusText: 'Too Many Requests',
@@ -95,10 +87,7 @@ describe('fetchConvexAccessToken', () => {
 
     vi.resetModules();
     fetchMock.mockReset().mockResolvedValue(
-      new Response(JSON.stringify({ message: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      Response.json({ message: 'Unauthorized' }, { status: 401 }),
     );
     const anon = await import('./auth-client');
     await expect(anon.fetchConvexAccessToken()).resolves.toBeNull();

@@ -1,20 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { BLUEPRINTS_SYNC_SCOPES, canSyncBlueprints } from './sync-eligibility';
+import { expect, test } from 'vitest';
+import { EVE_SCOPES } from '@/config/eve-scopes';
+import { canSyncBlueprints } from './sync-eligibility';
 
-describe('BLUEPRINTS_SYNC_SCOPES', () => {
-  it('pins the verified character blueprints scope string', () => {
+const NEEDED: readonly string[] = ['esi-characters.read_blueprints.v1'];
 
-    expect([...BLUEPRINTS_SYNC_SCOPES]).toEqual(['esi-characters.read_blueprints.v1']);
-  });
-});
-
-describe('canSyncBlueprints', () => {
-  it.each([
-    [{ hasRefreshToken: true, missingScopes: [] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
-    [{ hasRefreshToken: true, missingScopes: ['esi-characters.read_blueprints.v1'] }, false],
-    [{ hasRefreshToken: false, missingScopes: [] }, false],
-  ])('token + required scope: %j → %s', (input, expected) => {
-    expect(canSyncBlueprints(input)).toBe(expected);
-  });
+test('canSyncBlueprints needs the character blueprints scope and no other', () => {
+  for (const scope of NEEDED) {
+    expect(canSyncBlueprints({ hasRefreshToken: true, missingScopes: [scope] }), scope).toBe(false);
+  }
+  const others = EVE_SCOPES.filter((scope) => !NEEDED.includes(scope));
+  expect(canSyncBlueprints({ hasRefreshToken: true, missingScopes: others })).toBe(true);
 });

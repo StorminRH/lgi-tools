@@ -2,10 +2,10 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useState, ViewTransition } from 'react';
-import type { BoardCharacter } from '@/composition/board/api-contract';
 import { useBoardLive } from '../board/use-board-live';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Banner } from '@/components/ui/banner';
+import { cn } from '@/components/ui/cn';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { flattenJobs } from '@/features/industry-jobs/flatten-jobs';
 import type { ViewerCorpJobs, ViewerJobs } from '@/features/industry-jobs/live-derive';
@@ -20,9 +20,11 @@ import {
 } from '@/features/industry-planner/profiles/use-industry-profiles';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { useAvailableStructures } from '@/features/industry-planner/use-available-structures';
+import { unresolvedName } from '@/lib/format/names';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { OVERVIEW_MOTION } from '../board/board-motion';
+import { FOCUS_OVERVIEW_GRID, FOCUS_SHEET_GRID } from '../board/focus-rail';
 import { useFocusView } from '../board/use-focus-view';
 import type { HullName } from './FacilitiesPanel';
 import { MemberSheet } from './MemberDetail';
@@ -58,15 +60,16 @@ export interface WorkspaceCorpJobs {
 
 /**
  * Slot capacity and usage for every linked character, from one skills read
- * and the page's one jobs read. Selecting a portrait reads nothing new.
+ * and the page's one jobs read. Selecting a portrait reads no new skills or jobs.
  */
 function useCapacities(
   roster: readonly RosterCharacter[] | null,
   jobs: WorkspaceJobs,
   corp: WorkspaceCorpJobs,
   corpEligible: boolean,
+  skillEligibleCharacterIds: number[],
 ): { capacities: Map<number, MemberCapacity>; levels: Map<number, Record<string, number> | null> } {
-  const slots = useSlotsLive();
+  const slots = useSlotsLive(skillEligibleCharacterIds);
   return useMemo(() => {
     const levels = new Map(slots.characters.map((c) => [c.characterId, c.levels]));
     // A corporation feed that has not answered could hide corp-installed jobs,
@@ -107,21 +110,16 @@ function useProfileNavigation(profiles: readonly IndustryProfileRow[]) {
   return { selection, selectProfile };
 }
 
-const OVERVIEW_GRID = 'grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10';
-const SHEET_GRID = 'grid scroll-mt-28 gap-x-10 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]';
-
 function characterNamer(
   roster: readonly RosterCharacter[],
   doc: ProfileDocument | null,
 ): (characterId: number) => string {
   const names = new Map<number, string>(doc?.members.map((m) => [m.characterId, m.name]) ?? []);
   for (const character of roster) names.set(character.characterId, character.name);
-  return (characterId) => names.get(characterId) ?? `Character ${characterId}`;
+  return (characterId) => names.get(characterId) ?? unresolvedName('character', characterId);
 }
 
 interface BoardData {
-  characters: readonly BoardCharacter[];
-  now: number;
   roster: readonly RosterCharacter[];
   capacities: ReadonlyMap<number, MemberCapacity>;
   levels: ReadonlyMap<number, Record<string, number> | null>;
@@ -156,14 +154,17 @@ function ProfileBoard({
 
   if (member !== undefined) {
     return (
-      <div ref={rootRef} role="article" aria-label={`${member.name} in ${profile.name}`} className={SHEET_GRID}>
+      <div
+        ref={rootRef}
+        role="article"
+        aria-label={`${member.name} in ${profile.name}`}
+        className={cn('scroll-mt-28', FOCUS_SHEET_GRID)}
+      >
         <OpenMember
           key={`${profile.id}:${member.characterId}`}
           controls={controls}
           doc={doc}
           member={member}
-          character={data.characters.find((character) => character.characterId === member.characterId) ?? null}
-          now={data.now}
           levels={levels}
           capacities={capacities}
           onBack={toOverview}
@@ -175,7 +176,7 @@ function ProfileBoard({
     );
   }
   return (
-    <div ref={rootRef} className={OVERVIEW_GRID}>
+    <div ref={rootRef} className={cn('scroll-mt-28', FOCUS_OVERVIEW_GRID)}>
       <ViewTransition {...OVERVIEW_MOTION} default="none">
         <div className="flex min-w-0 flex-col gap-6">
           {controls}
@@ -212,6 +213,7 @@ function ProfileWorkspaceBody({
   jobs,
   corp,
   corpEligible,
+  skillEligibleCharacterIds,
   hulls,
 }: {
   state: IndustryProfilesState & { profiles: IndustryProfileRow[] };
@@ -219,12 +221,12 @@ function ProfileWorkspaceBody({
   jobs: WorkspaceJobs;
   corp: WorkspaceCorpJobs;
   corpEligible: boolean;
+  skillEligibleCharacterIds: number[];
   hulls: readonly HullName[];
 }) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const structures = useAvailableStructures();
-  const board = useBoardLive();
-  const { capacities, levels } = useCapacities(roster, jobs, corp, corpEligible);
+  const { capacities, levels } = useCapacities(roster, jobs, corp, corpEligible, skillEligibleCharacterIds);
   const { selection, selectProfile } = useProfileNavigation(state.profiles);
   const profile = selection.profile;
 
@@ -269,7 +271,7 @@ function ProfileWorkspaceBody({
             onAction={(action: ProfileAction) => setDialog({ kind: action })}
           />
         }
-        data={{ roster, capacities, levels, structures, hulls, characters: board.response?.characters ?? [], now: board.now }}
+        data={{ roster, capacities, levels, structures, hulls }}
         onEdit={(next) => state.save(profile.id, { name: profile.name, document: next })}
         onRemove={(characterId) => setDialog({ kind: 'remove-member', characterId })}
       />
@@ -278,9 +280,11 @@ function ProfileWorkspaceBody({
   );
 }
 
+/**
+ * One member's sheet. Only an open member reads the account board, for its
+ * identity header; the overview never shows it, so the landing skips that read.
+ */
 function OpenMember({
-  character,
-  now,
   controls,
   doc,
   member,
@@ -293,8 +297,6 @@ function OpenMember({
 }: {
   controls: ReactNode;
   doc: ProfileDocument;
-  character: BoardCharacter | null;
-  now: number;
   member: RailMember;
   levels: ReadonlyMap<number, Record<string, number> | null>;
   capacities: ReadonlyMap<number, MemberCapacity>;
@@ -304,12 +306,14 @@ function OpenMember({
   onRemove: (characterId: number) => void;
 }) {
   const { characterId } = member;
+  const board = useBoardLive();
+  const character = board.response?.characters.find((c) => c.characterId === characterId) ?? null;
   return (
     <MemberSheet
       controls={controls}
       member={member}
       character={character}
-      now={now}
+      now={board.now}
       levels={levels.get(characterId) ?? null}
       capacities={capacities}
       onBack={onBack}
@@ -330,11 +334,14 @@ export function ProfileWorkspace({
   jobs,
   corp,
   corpEligible,
+  skillEligibleCharacterIds,
   hulls,
 }: {
   jobs: WorkspaceJobs;
   corp: WorkspaceCorpJobs;
   corpEligible: boolean;
+  /** The pilots whose skills can sync: slots wait for their levels, and no one else's. */
+  skillEligibleCharacterIds: number[];
   hulls: readonly HullName[];
 }) {
   const { session, loading } = useAuth();
@@ -358,6 +365,7 @@ export function ProfileWorkspace({
       jobs={jobs}
       corp={corp}
       corpEligible={corpEligible}
+      skillEligibleCharacterIds={skillEligibleCharacterIds}
       hulls={hulls}
     />
   );

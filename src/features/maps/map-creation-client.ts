@@ -2,34 +2,37 @@ import {
   createMapEndpoint,
   type CreateMapRequest,
 } from '@/data/maps/api-contract';
+import { sleep } from '@/lib/retry';
 import { apiFetch } from '@/transport/api-client';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
 import type { PreparedMapCreation } from './access-editor-model';
+import { atlasMapHref } from './map-navigation';
 
 export const MAP_CREATION_INTERSTITIAL_MIN_MS = 5_000;
-
-function delay(delayMs: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, delayMs));
-}
 
 export async function createMapWithMinimumInterstitial(input: CreateMapRequest) {
   const [outcome] = await Promise.all([
     apiFetch(createMapEndpoint, { body: input, cache: 'no-store' }),
-    delay(MAP_CREATION_INTERSTITIAL_MIN_MS),
+    sleep(MAP_CREATION_INTERSTITIAL_MIN_MS),
   ]);
   return outcome;
 }
 
-export function mapCreationFailureMessage(
-  outcome: Awaited<ReturnType<typeof createMapWithMinimumInterstitial>>,
-): string {
-  if (outcome.ok) return '';
-  if (outcome.kind === 'api' && outcome.status === 429) {
-    return 'Map creation is moving too quickly. Try again in a minute.';
-  }
-  if (outcome.kind === 'api' && outcome.status === 503) {
-    return 'Map access could not be projected. The attempted map was rolled back; try again.';
-  }
-  return 'The map could not be created. Check your connection and try again.';
+// Owner-approved (promote #694): every failure without its own entry reads the connection line.
+const MAP_CREATION_FAILED = 'Check your connection and try again.';
+
+const MAP_CREATION_FAILURE_COPY = {
+  fallback: MAP_CREATION_FAILED,
+  codes: {
+    not_linked: 'Choose one of your own linked characters.',
+    rate_limited: "You're creating maps too fast. Try again in a minute.",
+    map_projection_unavailable: "Couldn't set up map access. Try again.",
+  },
+  network: MAP_CREATION_FAILED,
+} satisfies FailureCopy<FailedOutcome<typeof createMapEndpoint>>;
+
+export function mapCreationFailureMessage(failure: FailedOutcome<typeof createMapEndpoint>): string {
+  return failureMessage(failure, MAP_CREATION_FAILURE_COPY);
 }
 
 export interface MapCreationHandoffActions {
@@ -46,8 +49,7 @@ export function handoffCreatedMap(
   actions.reset();
   actions.close();
   actions.onCreated(mapId);
-  const query = new URLSearchParams({ map: mapId });
-  actions.navigate(`/atlas?${query.toString()}`);
+  actions.navigate(atlasMapHref(mapId));
 }
 
 export type MapCreationSubmitStart =

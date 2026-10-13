@@ -2,10 +2,24 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 
 /**
- * `chevron` adds the trailing ▾ that turns when the row opens (collapsible.css).
- * It is hidden from screen readers: the summary already announces its state.
- * It sits on the header's first text line, so a two-line ReadoutLine header
- * keeps its chevron level with the label and value.
+ * The disclosure mark that turns when its Collapsible opens: collapsible.css
+ * rotates `[data-chevron]` inside an open summary, so it turns only inside a
+ * Collapsible header. It is hidden from screen readers, because the summary
+ * already announces its state. `className` places it in a custom header;
+ * `children` swaps the ▾ for another mark.
+ */
+export function CollapsibleChevron({ className, children = '▾' }: { className?: string; children?: ReactNode }) {
+  return (
+    <span data-chevron aria-hidden="true" className={cn('inline-block shrink-0 text-micro text-muted transition-transform', className)}>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * `chevron` adds a trailing CollapsibleChevron after the header. It sits on
+ * the header's first text line, so a two-line ReadoutLine header keeps its
+ * chevron level with the label and value.
  */
 export function Collapsible({
   header,
@@ -42,9 +56,7 @@ export function Collapsible({
         {header}
         {chevron ? (
           <span className="flex h-lh shrink-0 items-center self-start text-ui">
-            <span data-chevron aria-hidden="true" className="inline-block text-micro text-muted transition-transform">
-              ▾
-            </span>
+            <CollapsibleChevron />
           </span>
         ) : null}
       </summary>

@@ -203,20 +203,20 @@ test('the sheet shows ESI attribute totals and a flat history for an inactive wa
     health: { hasRefreshToken: true, missingScopes: [] },
     sheet: {
       attributes: {
-        refreshedAt, etags: {},
+        refreshedAt,
         data: { attributes: {
           intelligence: 25, memory: 21, perception: 17, willpower: 17, charisma: 17,
           bonusRemaps: 1, lastRemapDate: null, accruedRemapCooldownDate: null,
         } },
       },
-      implants: { refreshedAt, etags: {}, data: { implants: [10222] } },
+      implants: { refreshedAt, data: { implants: [10222] } },
     },
     skills: { data: null, levels: null, refreshedAt: null },
     jobs: { data: null, refreshedAt: null },
     assets: { rows: null, refreshedAt: null },
   }, {
     types: new Map([[10222, { name: 'Cybernetic Subprocessor', implantSlot: 4, attributeBonus: { intelligence: 4 } }]]),
-    systems: new Map(), npcStations: new Map(), entities: {}, skillCatalog: [], prices: new Map(), typeCategories: new Map(),
+    systems: new Map(), npcStations: new Map(), entities: {}, skillCatalog: [],
   }, FIXTURE_NOW);
   character.attributes = assembled.attributes;
   character.wallet = { state: 'ready', refreshedAt: FIXTURE_NOW, data: { balance: 1_000_000_000 } };

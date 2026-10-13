@@ -11,9 +11,9 @@ import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
+import { readConvexError } from '@/lib/convex-error';
 import { atlasScannerCharacter } from '@/lib/preferences';
-import { AfkDialog } from './AfkGate';
-import { useMapPresenceAfk } from './presence-context';
+import { AfkDialog, useAfkState } from './AfkGate';
 import {
   SCANNER_ASK_VALUE,
   scannerSelectValue,
@@ -33,23 +33,37 @@ interface TrackingCharacter {
 interface TrackingControlsViewProps {
   readonly characters: readonly TrackingCharacter[];
   readonly scannerCharacters: readonly TrackingCharacter[];
-  readonly emptyLabel: string;
   readonly trackedIds: ReadonlySet<number>;
-  readonly onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
+  readonly onToggle: (characterId: number, tracked: boolean) => Promise<void>;
   readonly reconnectAction: ReactNode;
 }
 
 export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
-  const afk = useMapPresenceAfk();
+  const afk = useAfkState();
 
   useSyncSubject('characterLocation', afk.paused ? [] : trackedIds);
   return <AfkDialog afk={afk} />;
 }
 
-export function useSetMapTracking() {
-  return useMutation(api.mapTrackingOptIn.setTracking);
+/**
+ * Opt a character into or out of tracking on one map. The returned function
+ * never rejects: a refusal toasts, with the server's detail when it has one.
+ */
+export function useMapTrackingToggle(
+  mapId: string,
+): (characterId: number, tracked: boolean) => Promise<void> {
+  const setTracking = useMutation(api.mapTrackingOptIn.setTracking);
+  return async (characterId, tracked) => {
+    try {
+      await setTracking({ mapId, characterId, tracked });
+    } catch (error) {
+      const detail = readConvexError(error)?.detail ?? null;
+      if (detail === null) toast.error('Tracking not changed');
+      else toast.error('Tracking not changed', { description: detail });
+    }
+  };
 }
 
 export function TrackingControls({
@@ -62,7 +76,7 @@ export function TrackingControls({
   const characters = useAccountCharacters();
   const access = useLiveValue(api.mapChainAccess.watchMapAccess, { mapId });
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
-  const setTracking = useSetMapTracking();
+  const toggleTracking = useMapTrackingToggle(mapId);
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
 
   if (access?.granted !== true || characters === null || tracking === undefined) {
@@ -73,22 +87,8 @@ export function TrackingControls({
     <TrackingControlsView
       characters={trackableCharacters(characters, access.trackableCharacterIds ?? null)}
       scannerCharacters={characters}
-      emptyLabel={(access.trackableCharacterIds ?? null) === null
-        ? 'No linked characters'
-        : 'None of your characters are on this map\'s access list'}
       trackedIds={new Set(trackedIds)}
-      onToggle={async (characterId, tracked) => {
-        try {
-          await setTracking({ mapId, characterId, tracked });
-        } catch (error) {
-          const data = typeof error === 'object' && error !== null && 'data' in error
-            ? error.data : null;
-          const description = typeof data === 'object' && data !== null
-            && 'detail' in data && typeof data.detail === 'string'
-            ? data.detail : 'Please try again.';
-          toast.error('Tracking was not changed', { description });
-        }
-      }}
+      onToggle={toggleTracking}
       reconnectAction={reconnectAction}
     />
   );
@@ -97,7 +97,6 @@ export function TrackingControls({
 function TrackingControlsView({
   characters,
   scannerCharacters,
-  emptyLabel,
   trackedIds,
   onToggle,
   reconnectAction,
@@ -107,7 +106,7 @@ function TrackingControlsView({
   return (
     <MenuGroup data-map-tracking label="Tracking">
       {characters.length === 0 ? (
-        <span className="px-3 pb-2 font-data text-micro text-muted">{emptyLabel}</span>
+        <span className="px-3 pb-2 font-data text-micro text-muted">No characters to track</span>
       ) : (
         <CharacterPortraitMenuItems
           className={trackingRowClass}
@@ -116,11 +115,7 @@ function TrackingControlsView({
           onToggle={({ characterId, selected }) => {
             void onToggle(characterId, selected);
           }}
-          itemLabel={(character, checked) => trackingToggleLabel({
-            name: character.name,
-            tracked: checked,
-            needsLocationReconnect: character.needsLocationReconnect === true,
-          })}
+          itemLabel={trackingToggleLabel}
         />
       )}
       {scannerCharacters.length > 1 ? <DefaultScannerRow characters={scannerCharacters} /> : null}

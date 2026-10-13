@@ -6,6 +6,7 @@ import {
   createMotionState,
   finishAllTweens,
   isIdle,
+  pruneBy,
   stepMotion,
 } from './tween-model';
 
@@ -291,5 +292,24 @@ describe('finishAllTweens', () => {
     expect(finished.tweens.size).toBe(0);
     expect(finished.entering.has(1)).toBe(true);
     expect(finishAllTweens(finished)).toBe(finished);
+  });
+});
+
+describe('pruneBy', () => {
+  it('returns the input map when nothing is pruned and a filtered copy otherwise', () => {
+    const empty = new Map<number, number>();
+    expect(pruneBy(empty, () => false)).toBe(empty);
+
+    const expiries = new Map([[1, 100], [2, 200], [3, 300]]);
+    expect(pruneBy(expiries, (expiresAt) => expiresAt > 50)).toBe(expiries);
+
+    const byValue = pruneBy(expiries, (expiresAt) => expiresAt > 150);
+    expect(byValue).not.toBe(expiries);
+    expect([...byValue]).toEqual([[2, 200], [3, 300]]);
+
+    const live = new Map([[1, 'a'], [3, 'c']]);
+    const byKey = pruneBy(expiries, (_, systemId) => live.has(systemId));
+    expect([...byKey]).toEqual([[1, 100], [3, 300]]);
+    expect([...expiries]).toEqual([[1, 100], [2, 200], [3, 300]]);
   });
 });

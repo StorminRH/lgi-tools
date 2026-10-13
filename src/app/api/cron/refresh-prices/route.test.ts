@@ -1,17 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
+import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const refreshStalePricesMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const emitDomainEventMock = vi.fn();
 const alertMock = vi.fn();
 const revalidateTagMock = vi.fn();
+const directDatabaseMock = { handle: 'direct-database' };
 
 vi.mock('@/data/market-prices/cache', () => ({
-  PRICES_FRESHNESS_TAG: 'market-prices-freshness',
   refreshStalePrices: (...args: unknown[]) => refreshStalePricesMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
+vi.mock('@/data/telemetry/log', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
@@ -25,6 +27,10 @@ vi.mock('@/lib/alerts', () => ({
 
 vi.mock('@/db', () => ({ directClient: {} }));
 
+vi.mock('@/db/direct-database', () => ({
+  directDatabase: () => directDatabaseMock,
+}));
+
 vi.mock('next/cache', () => ({
   revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
 }));
@@ -33,15 +39,7 @@ vi.mock('next/server', () => ({
   connection: () => Promise.resolve(),
 }));
 
-async function importRoute() {
-  return await import('./route');
-}
-
-function authedRequest(secret = 'test-secret'): Request {
-  return new Request('http://localhost:3000/api/cron/refresh-prices', {
-    headers: { authorization: `Bearer ${secret}` },
-  });
-}
+const ROUTE = '/api/cron/refresh-prices';
 
 const REFRESHED_SUMMARY = {
   requested: 10,
@@ -63,8 +61,8 @@ describe('GET /api/cron/refresh-prices', () => {
     revalidateTagMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
     alertMock.mockResolvedValue(undefined);
-    vi.stubEnv('CRON_SECRET', 'test-secret');
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
+    silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
 
   afterEach(() => {
@@ -73,7 +71,7 @@ describe('GET /api/cron/refresh-prices', () => {
   });
 
   it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await importRoute();
+    const { GET } = await import('./route');
     const res = await GET(new Request('http://localhost:3000/api/cron/refresh-prices'));
     expect(res.status).toBe(401);
     expect(refreshStalePricesMock).not.toHaveBeenCalled();
@@ -85,9 +83,10 @@ describe('GET /api/cron/refresh-prices', () => {
       reason: 'empty-set',
       lastUpdatedAt: new Date('2026-05-30T11:00:00Z'),
     });
-    const { GET } = await importRoute();
-    const res = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const res = await GET(cronRequest(ROUTE));
     expect((await res.json()).cached).toBe(true);
+    expect(refreshStalePricesMock).toHaveBeenCalledWith(directDatabaseMock);
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_prices',
       metadata: expect.objectContaining({ outcome: 'skipped', reason: 'empty-set' }),
@@ -102,10 +101,10 @@ describe('GET /api/cron/refresh-prices', () => {
       lastUpdatedAt: new Date('2026-05-30T12:00:00Z'),
       summary: REFRESHED_SUMMARY,
     });
-    const { GET } = await importRoute();
-    const res = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const res = await GET(cronRequest(ROUTE));
     expect(res.status).toBe(200);
-    expect(revalidateTagMock).toHaveBeenCalledWith('market-prices-freshness', 'max');
+    expect(revalidateTagMock).toHaveBeenCalledWith('eve:market_prices', { expire: 0 });
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_prices',
       metadata: expect.objectContaining({
@@ -146,8 +145,8 @@ describe('GET /api/cron/refresh-prices', () => {
         budgetExhausted: true,
       },
     });
-    const { GET } = await importRoute();
-    await GET(authedRequest());
+    const { GET } = await import('./route');
+    await GET(cronRequest(ROUTE));
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'price_source_degraded',
       metadata: {
@@ -178,6 +177,23 @@ describe('GET /api/cron/refresh-prices', () => {
     });
   });
 
+  it('logs a failed degradation alert and still answers 200', async () => {
+    const errors = silenceConsolePrefixes('error', ['[cron:prices] degradation alert failed']);
+    const down = new Error('discord down');
+    alertMock.mockRejectedValue(down);
+    refreshStalePricesMock.mockResolvedValue({
+      status: 'refreshed',
+      lastUpdatedAt: new Date('2026-05-30T13:30:00Z'),
+      summary: { ...REFRESHED_SUMMARY, esiCount: 6, fuzzworkFallbackCount: 4 },
+    });
+    const { GET } = await import('./route');
+    const res = await GET(cronRequest(ROUTE));
+    expect(res.status).toBe(200);
+    expect((await res.json()).written).toBe(10);
+    expect(alertMock).toHaveBeenCalledOnce();
+    expect(errors).toHaveBeenCalledWith('[cron:prices] degradation alert failed', down);
+  });
+
   it('does not let a telemetry failure break the cron response', async () => {
     logUsageEventMock.mockRejectedValue(new Error('db down'));
     refreshStalePricesMock.mockResolvedValue({
@@ -185,8 +201,8 @@ describe('GET /api/cron/refresh-prices', () => {
       lastUpdatedAt: new Date('2026-05-30T14:00:00Z'),
       summary: REFRESHED_SUMMARY,
     });
-    const { GET } = await importRoute();
-    const res = await GET(authedRequest());
+    const { GET } = await import('./route');
+    const res = await GET(cronRequest(ROUTE));
     expect(res.status).toBe(200);
     expect((await res.json()).written).toBe(10);
   });

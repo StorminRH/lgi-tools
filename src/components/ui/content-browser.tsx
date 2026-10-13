@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ContentBrowserChapterTitle } from './content-browser-drawer';
 import { ContentBrowserNav, ContentBrowserNavTree } from './content-browser-nav';
 import type { ContentNavModel } from './content-browser-view';
-import { NavRailFrame } from './nav-rail';
+import { NavRailFrame, NavRailLayout } from './nav-rail';
 
 export type { ContentNavModel } from './content-browser-view';
 export { landingContentSlug } from './content-browser-view';
@@ -25,30 +25,33 @@ export function ContentBrowser({
 }) {
   const navProps = { basePath, navigationLabel, landingSlug, model };
   return (
-    <div
+    <NavRailLayout
       data-content-browser-layout
-      className="grid items-start gap-5 pb-16 lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-10"
-    >
-      <NavRailFrame
-        mobileProps={{ 'data-content-browser-mobile': true }}
-        panelProps={{ 'data-content-browser-rail': true }}
-        title={railLabel}
-        label={railLabel}
-        current={
-          <Suspense fallback={null}>
-            <ContentBrowserChapterTitle
-              basePath={basePath}
-              landingSlug={landingSlug}
-              model={model}
-            />
+      columns="chapters"
+      className="pb-16"
+      rail={
+        <NavRailFrame
+          mobileProps={{ 'data-content-browser-mobile': true }}
+          panelProps={{ 'data-content-browser-rail': true }}
+          title={railLabel}
+          label={railLabel}
+          current={
+            <Suspense fallback={null}>
+              <ContentBrowserChapterTitle
+                basePath={basePath}
+                landingSlug={landingSlug}
+                model={model}
+              />
+            </Suspense>
+          }
+        >
+          <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
+            <ContentBrowserNav {...navProps} />
           </Suspense>
-        }
-      >
-        <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
-          <ContentBrowserNav {...navProps} />
-        </Suspense>
-      </NavRailFrame>
-      <div className="min-w-0">{children}</div>
-    </div>
+        </NavRailFrame>
+      }
+    >
+      {children}
+    </NavRailLayout>
   );
 }

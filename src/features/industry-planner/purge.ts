@@ -1,26 +1,17 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/platform/purge/types';
+import { userRowsContributor } from '@/platform/purge/contributors';
 import { industryProfiles, savedPlans } from './schema';
 
-export const savedPlansPurgeContributor: PurgeContributor = {
+export const savedPlansPurgeContributor = userRowsContributor(db, {
   name: 'saved-plans',
-  tier: 'durable',
-  claims: [savedPlans],
-  merge: [{ table: savedPlans, rule: 'rekey' }],
-  async purgeUser({ userId }) {
-    await db.delete(savedPlans).where(eq(savedPlans.userId, userId));
-  },
-};
+  table: savedPlans,
+  merge: { rule: 'rekey' },
+});
 
 // Members that are unlinked stay on the profile as unresolved references, the
 // same way a saved plan keeps its build character, so no purgeCharacter hook.
-export const industryProfilesPurgeContributor: PurgeContributor = {
+export const industryProfilesPurgeContributor = userRowsContributor(db, {
   name: 'industry-profiles',
-  tier: 'durable',
-  claims: [industryProfiles],
-  merge: [{ table: industryProfiles, rule: 'rekey' }],
-  async purgeUser({ userId }) {
-    await db.delete(industryProfiles).where(eq(industryProfiles.userId, userId));
-  },
-};
+  table: industryProfiles,
+  merge: { rule: 'rekey' },
+});

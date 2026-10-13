@@ -1,20 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import {
   forbiddenFailure,
   unauthenticatedFailure,
   validationFailure,
 } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
+import { defineEndpoint, emptyBody, problem } from '@/transport/endpoint';
 
 const h = vi.hoisted(() => ({
   requireSameOriginMock: vi.fn(),
+  recordCapabilityOutcomeMock: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/same-origin', () => ({
   requireSameOrigin: (request: Request) => h.requireSameOriginMock(request),
 }));
+vi.mock('@/data/telemetry/capability', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/data/telemetry/capability')>()),
+  recordCapabilityOutcome: (...args: unknown[]) => h.recordCapabilityOutcomeMock(...args),
+}));
 
-import { runMutationRoute } from './mutation-route';
+import { allowAnonymous, runMutationRoute } from './mutation-route';
 
 function request(): Request {
   return new Request('https://lgi.tools/api/example', { method: 'POST' });
@@ -157,6 +164,61 @@ describe('runMutationRoute', () => {
     expect(calls).toEqual(['authorize', 'origin', 'parse', 'handle']);
   });
 
+  it('lets an anonymous caller reach the handler only through the origin gate', async () => {
+    const handle = vi.fn(() => new Response(null, { status: 204 }));
+    const options = {
+      capability: 'feedback.submit-feedback' as const,
+      authorize: allowAnonymous,
+      handle,
+    };
+
+    const accepted = await runMutationRoute(request(), options);
+    expect(accepted.status).toBe(204);
+    expect(handle).toHaveBeenCalledWith({ ok: true });
+
+    handle.mockClear();
+    h.requireSameOriginMock.mockReturnValue({
+      ok: false,
+      failure: forbiddenFailure('cross_origin', 'Cross-origin requests are not allowed'),
+    });
+    const refused = await runMutationRoute(request(), options);
+    expect(problemBodySchema.parse(await refused.json())).toMatchObject({
+      status: 403,
+      code: 'cross_origin',
+    });
+    expect(handle).not.toHaveBeenCalled();
+  });
+
+  it('records a handler failure only while the client is still waiting for it', async () => {
+    h.recordCapabilityOutcomeMock.mockReset();
+    const controller = new AbortController();
+    const options = {
+      capability: 'maps.search-characters' as const,
+      authorize: async () => ({ ok: true as const, userId: 'user-1' }),
+      handle: () => new Response(null, { status: 503 }),
+    };
+    const searchFrom = (signal: AbortSignal) =>
+      new Request('https://lgi.tools/api/example', { method: 'POST', signal });
+
+    expect((await runMutationRoute(searchFrom(controller.signal), options)).status).toBe(503);
+    expect(h.recordCapabilityOutcomeMock).toHaveBeenCalledExactlyOnceWith(
+      'maps.search-characters',
+      expect.objectContaining({ outcome: 'dependency_unavailable' }),
+    );
+
+    controller.abort();
+    expect((await runMutationRoute(searchFrom(controller.signal), options)).status).toBe(503);
+    expect(h.recordCapabilityOutcomeMock).toHaveBeenCalledOnce();
+
+    // A client that gives up on a timer showed the failure, so its route opts back in.
+    const timed = { ...options, capability: 'maps.resolve-jump' as const, recordAbortedFailures: true };
+    expect((await runMutationRoute(searchFrom(controller.signal), timed)).status).toBe(503);
+    expect(h.recordCapabilityOutcomeMock).toHaveBeenLastCalledWith(
+      'maps.resolve-jump',
+      expect.objectContaining({ outcome: 'dependency_unavailable' }),
+    );
+  });
+
   it('lets unexpected handler errors propagate', async () => {
     const error = new Error('mutation failed');
 
@@ -221,5 +283,115 @@ describe('runMutationRoute preflight', () => {
 
     expect(result).toBe(response);
     expect(calls).toEqual(['preflight', 'authorize', 'handle']);
+  });
+});
+
+describe('runMutationRoute with an endpoint', () => {
+  const contract = defineEndpoint({
+    method: 'POST',
+    path: '/api/example',
+    request: z.object({ value: z.number() }),
+    responses: {
+      204: emptyBody(),
+      400: problem('invalid_json', 'invalid_body'),
+      401: problem('unauthenticated'),
+      403: problem('cross_origin'),
+    },
+  });
+  const crossOrigin = forbiddenFailure('cross_origin', 'Cross-origin requests are not allowed');
+  const signedIn = async () => ({ ok: true as const, userId: 'user-1' });
+
+  beforeEach(() => {
+    h.requireSameOriginMock.mockReset().mockReturnValue({ ok: true });
+  });
+
+  it('serializes each declared stage failure at the status its category derives', async () => {
+    const handle = vi.fn(() => new Response(null, { status: 204 }));
+
+    const unauthenticated = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
+      endpoint: contract,
+      authorize: async () => ({ ok: false, failure: unauthenticatedFailure() }),
+      handle,
+    });
+    h.requireSameOriginMock.mockReturnValueOnce({ ok: false, failure: crossOrigin });
+    const refused = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
+      endpoint: contract,
+      authorize: signedIn,
+      handle,
+    });
+    const invalid = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
+      endpoint: contract,
+      authorize: signedIn,
+      parse: async () => ({
+        ok: false,
+        failure: validationFailure('invalid_body', 'value: Required'),
+      }),
+      handle,
+    });
+
+    const bodies = await Promise.all(
+      [unauthenticated, refused, invalid].map(async (response) => ({
+        status: response.status,
+        body: problemBodySchema.parse(await response.json()),
+      })),
+    );
+    expect(bodies).toMatchObject([
+      { status: 401, body: { status: 401, code: 'unauthenticated' } },
+      { status: 403, body: { status: 403, code: 'cross_origin' } },
+      { status: 400, body: { status: 400, code: 'invalid_body', detail: 'value: Required' } },
+    ]);
+    expect(handle).not.toHaveBeenCalled();
+  });
+
+  it('throws, as apiResponse does, when the contract omits a stage code', async () => {
+    const withoutCrossOrigin = defineEndpoint({
+      method: 'POST',
+      path: '/api/example',
+      request: null,
+      responses: {
+        204: emptyBody(),
+        401: problem('unauthenticated'),
+        403: problem('map_admin_required'),
+      },
+    });
+    h.requireSameOriginMock.mockReturnValue({ ok: false, failure: crossOrigin });
+    const handle = vi.fn(() => new Response(null, { status: 204 }));
+
+    await expect(runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
+      endpoint: withoutCrossOrigin,
+      authorize: signedIn,
+      handle,
+    })).rejects.toThrow('Status 403 does not declare problem code cross_origin');
+    expect(handle).not.toHaveBeenCalled();
+
+    const contractless = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
+      authorize: signedIn,
+      handle,
+    });
+    expect(problemBodySchema.parse(await contractless.json())).toMatchObject({
+      status: 403,
+      code: 'cross_origin',
+    });
+  });
+
+  it('throws when the contract declares no problem at a stage failure status', async () => {
+    const publicContract = defineEndpoint({
+      method: 'POST',
+      path: '/api/example',
+      request: null,
+      responses: { 204: emptyBody(), 403: problem('cross_origin') },
+    });
+
+    await expect(runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
+      endpoint: publicContract,
+      authorize: async () => ({ ok: false, failure: unauthenticatedFailure() }),
+      handle: () => new Response(null, { status: 204 }),
+    })).rejects.toThrow('Endpoint POST /api/example does not declare a problem at status 401');
   });
 });

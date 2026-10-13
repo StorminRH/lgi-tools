@@ -23,6 +23,7 @@ vi.mock('react', async (importOriginal) => ({
 const api = vi.hoisted(() => ({ apiFetch: vi.fn() }));
 vi.mock('@/transport/api-client', () => api);
 
+import { apiProblem } from '@/transport/__tests__/failed-outcomes';
 import { FeedbackModal } from './FeedbackModal';
 
 type Props = Record<string, unknown> & { children?: ReactNode };
@@ -101,18 +102,18 @@ test('a valid submission sends the page path and reports success, server refusal
   expect(sent.setState().mock.calls).toEqual([[{ kind: 'submitting' }], [{ kind: 'success' }]]);
   vi.unstubAllGlobals();
 
-  api.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'http', status: 429, error: {} });
+  api.apiFetch.mockResolvedValueOnce(apiProblem(429, 'rate_limited', { retryAfterSeconds: 45 }));
   const limited = render({ 0: 'Map crash', 1: 'It broke' });
   await limited.submit();
   expect(limited.setState()).toHaveBeenLastCalledWith({
-    kind: 'error', message: 'Too much feedback too fast — please wait a minute and try again.',
+    kind: 'error', message: 'Too many attempts. Try again in 45 seconds.',
   });
 
-  api.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  api.apiFetch.mockResolvedValueOnce({ ok: false, kind: 'network', aborted: false, cause: new Error('offline') });
   const offline = render({ 0: 'Map crash', 1: 'It broke' });
   await offline.submit();
   expect(offline.setState()).toHaveBeenLastCalledWith({
-    kind: 'error', message: 'Network error — your feedback did not send. Try again.',
+    kind: 'error', message: "Couldn't send your feedback. Check your connection and try again.",
   });
 
   // Closing the dialog closes the modal; opening it does not.

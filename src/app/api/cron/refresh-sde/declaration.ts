@@ -1,24 +1,37 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { revalidateTag } from 'next/cache';
 import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
 import {
-  ADVISORY_LOCK_SDE_INGEST,
-  BLUEPRINT_STRUCTURE_TAG,
+  SDE_CACHE_TAG,
+  SDE_META_KEY_LATEST_PUBLISHED,
   SDE_META_KEY_VERSION,
+  SDE_VERSION_CACHE_TAG,
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import { ADVISORY_LOCKS } from '@/db/advisory-lock';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import {
   runSdePipeline,
   summarizeMarketPricesRowCount,
 } from '@/composition/pipelines/sde-pipeline';
 
 export type SdePreLock = {
-  db: ReturnType<typeof drizzle>;
+  db: PostgresJsDb;
   storedVersion: string | null;
   remoteVersion: string | null;
 };
+
+/**
+ * CCP can withdraw a build after a run recorded it as the newest. Once its
+ * manifest matches what LGI has loaded again, the recorded build follows, so
+ * the status readout stops saying LGI is behind.
+ */
+async function settleLatestPublished(db: AnyPgDb, remoteVersion: string): Promise<void> {
+  if ((await getSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED)) === remoteVersion) return;
+  await setSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED, remoteVersion);
+  revalidateTag(SDE_VERSION_CACHE_TAG, 'max');
+}
 
 export const refreshSdeDeclaration: CronRouteDeclaration<
   CronRefreshSdeResponse,
@@ -33,18 +46,18 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     justification: 'daily batch wakes Neon by design and preserves version-gate history',
   },
   lock: {
-    key: Number(ADVISORY_LOCK_SDE_INGEST),
+    key: ADVISORY_LOCKS.sdeIngest,
     busyBody: () => ({
       status: 'busy',
       message: 'Another SDE ingest in flight',
     }),
   },
-  preLock: async ({ client }) => {
-    const db = drizzle(client);
+  preLock: async ({ database: db }) => {
     const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
     const remoteVersion = await getRemoteSdeVersion();
 
     if (remoteVersion !== null && storedVersion === remoteVersion) {
+      await settleLatestPublished(db, remoteVersion);
       return {
         done: {
           outcome: 'up-to-date',
@@ -72,6 +85,13 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
       };
     }
 
+    // Record the newer build before the ingest so the status readout can
+    // say LGI is behind until the ingest lands, however that goes.
+    if (remoteVersion !== null) {
+      await setSdeMetaValue(db, SDE_META_KEY_LATEST_PUBLISHED, remoteVersion);
+      revalidateTag(SDE_VERSION_CACHE_TAG, 'max');
+    }
+
     return { proceed: { db, storedVersion, remoteVersion } };
   },
   work: async (_ctx, { db, storedVersion, remoteVersion }) => {
@@ -79,7 +99,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     if (remoteVersion) {
       await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
     }
-    revalidateTag(BLUEPRINT_STRUCTURE_TAG, 'max');
+    revalidateTag(SDE_CACHE_TAG, 'max');
     const marketPrices = await summarizeMarketPricesRowCount(db);
 
     return {

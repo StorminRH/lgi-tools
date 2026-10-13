@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const door = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock('@/lib/convex-http-door', () => ({ postConvexHttpDoor: door.post }));
+vi.mock('@/lib/convex-http-door', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/convex-http-door')>()),
+  postConvexHttpDoor: door.post,
+}));
 
+import { mapTrackingSnapshotDoor } from '@/data/maps/convex-doors';
+import { ProjectionUnavailableError } from './map-access-projection';
 import {
   grandfatherGrants,
   scopeLegacyMap,
@@ -15,7 +21,7 @@ const AT = new Date('2026-09-01T00:00:00.000Z');
 function affiliation(userId: string, characterId: number, corporationId: number | null, eligible = true) {
   return {
     userId, characterId, corporationId, allianceId: null, factionId: null,
-    refreshedAt: AT, sharedAccessEligible: eligible,
+    refreshedAt: AT, expiresAt: null, sharedAccessEligible: eligible,
   };
 }
 
@@ -104,9 +110,11 @@ describe('scopeLegacyMap', () => {
     door.post.mockResolvedValue({ tracked: [{ userId: 'member', characterId: 3 }] });
     const { freezeTracking: _freezeTracking, ...rest } = deps();
     await expect(scopeLegacyMap('map-1', rest)).resolves.toBe(true);
-    expect(door.post).toHaveBeenCalledWith(expect.objectContaining({
-      path: '/map-tracking-snapshot', body: { mapId: 'map-1' },
-    }));
+    expect(door.post).toHaveBeenCalledWith(
+      mapTrackingSnapshotDoor,
+      { mapId: 'map-1' },
+      expect.objectContaining({ error: ProjectionUnavailableError }),
+    );
     expect(rest.grandfather).toHaveBeenCalledWith('map-1', [{ userId: 'member', characterId: 3, role: 'editor' }], expect.any(Date));
   });
 
@@ -180,8 +188,8 @@ describe('scopeLegacyMap', () => {
 });
 
 describe('scopeLegacyMaps', () => {
-  it('counts each map, keeps going past a failure, and stops at the deadline', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  it('counts each map, keeps going past a failure, and defers the batch past the deadline', async () => {
+    silenceConsolePrefixes('error', ['[map-character-scoping] map kept for retry']);
     const listMapIds = vi.fn().mockResolvedValue(['a', 'b', 'c']);
     const d = deps({
       freezeTracking: vi.fn(async (mapId: string) => {
@@ -193,10 +201,10 @@ describe('scopeLegacyMaps', () => {
         .mockResolvedValueOnce({ processed: 0, failed: 1 }),
     });
     await expect(scopeLegacyMaps(Date.now() + 60_000, { ...d, listMapIds }))
-      .resolves.toEqual({ succeeded: 1, failed: 2 });
+      .resolves.toEqual({ succeeded: 1, failed: 2, deferred: 0 });
     expect(listMapIds).toHaveBeenCalledWith(50);
 
     await expect(scopeLegacyMaps(Date.now() - 1, { ...d, listMapIds }))
-      .resolves.toEqual({ succeeded: 0, failed: 0 });
+      .resolves.toEqual({ succeeded: 0, failed: 0, deferred: 3 });
   });
 });

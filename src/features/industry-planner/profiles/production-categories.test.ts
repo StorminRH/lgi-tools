@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from '../structure-bonus';
-import { coveringOwners, jobCategories } from './production-categories';
+import { CATEGORY_GROUPS, coveringOwners, jobCategories } from './production-categories';
 import type { CategoryKey } from './production-categories';
 
 // CCP's industry target filters a job can match.
@@ -46,4 +46,9 @@ test('the most specific covered category decides, and owners at the same level s
   expect(names(MANUFACTURING_ACTIVITY, [EQUIPMENT])).toEqual(['Raitaru']);
   expect(names(REACTION_ACTIVITY, [COMPOSITE])).toEqual(['Tatara']);
   expect(coveringOwners([owner('Raitaru', ['manufacturing'])], REACTION_ACTIVITY, [COMPOSITE])).toEqual([]);
+});
+
+test('every class name starts with the short label the checklist shows, so speech input finds it', () => {
+  const leaves = CATEGORY_GROUPS.flatMap((group) => group.leaves);
+  expect(leaves.filter((leaf) => !leaf.name.startsWith(leaf.label))).toEqual([]);
 });

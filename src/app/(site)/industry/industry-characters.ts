@@ -6,10 +6,13 @@ import { cache } from 'react';
 import { auth } from '@/composition/auth';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { type PanelCharacter, toPanelCharacter } from '@/platform/auth/panel-character';
-import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { scopeHolderOf } from '@/platform/auth/scope-health';
 import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';
 import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
-import { readEnv } from '@/lib/env';
+import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
+import { readAuthSecret } from '@/lib/env';
+import type { ScopeEligibility } from '@/lib/scope-eligibility';
+import { readOr } from '../read-or';
 
 export interface IndustryCharacters {
   /** Every linked character, as the job boards list them. */
@@ -18,26 +21,12 @@ export interface IndustryCharacters {
   jobIds: number[];
   /** The characters that can read their corporation's jobs. */
   corpIds: number[];
+  /** The characters whose skills can sync, so their slot levels are worth waiting for. */
+  skillIds: number[];
 }
 
-type SyncEligibility = (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) => boolean;
-
-function authEnvConfigured(): boolean {
-  return Boolean(readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET'));
-}
-
-function eligibleIds(linked: readonly LinkedCharacter[], canSync: SyncEligibility): number[] {
-  return linked
-    .filter((character) =>
-      canSync({
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth({
-          scope: character.scope,
-          hasRefreshToken: character.hasRefreshToken,
-        }).missingScopes,
-      }),
-    )
-    .map((character) => character.characterId);
+function eligibleIds(linked: readonly LinkedCharacter[], canSync: ScopeEligibility): number[] {
+  return linked.filter((character) => canSync(scopeHolderOf(character))).map((character) => character.characterId);
 }
 
 /**
@@ -55,6 +44,7 @@ async function readIndustryCharacters(): Promise<IndustryCharacters | null> {
     characters: linked.map((character) => toPanelCharacter(character, canSyncIndustryJobs)),
     jobIds: eligibleIds(linked, canSyncIndustryJobs),
     corpIds: eligibleIds(linked, canSyncCorpIndustryJobs),
+    skillIds: eligibleIds(linked, canSyncSkillQueue),
   };
 }
 
@@ -64,19 +54,19 @@ export const industryCharacters = cache(async (): Promise<IndustryCharacters | n
     return await readIndustryCharacters();
   } catch (err) {
     unstable_rethrow(err);
-    if (err instanceof BetterAuthError && !authEnvConfigured()) return null;
+    if (err instanceof BetterAuthError && !readAuthSecret()) return null;
     throw err;
   }
 });
 
-/** The ids the Profiles section's job feeds read. A failed read gives none instead of failing the section. */
-export async function jobCharacterIds(): Promise<Pick<IndustryCharacters, 'jobIds' | 'corpIds'>> {
-  try {
-    const found = await industryCharacters();
-    return { jobIds: found?.jobIds ?? [], corpIds: found?.corpIds ?? [] };
-  } catch (err) {
-    unstable_rethrow(err);
-    console.error('[industry/industry-characters] failed to resolve linked characters', err);
-    return { jobIds: [], corpIds: [] };
-  }
+/** The ids the Profiles section's job and slot feeds read. A failed read gives none instead of failing the section. */
+export function jobCharacterIds(): Promise<Pick<IndustryCharacters, 'jobIds' | 'corpIds' | 'skillIds'>> {
+  return readOr(
+    '[industry/industry-characters] failed to resolve linked characters',
+    async () => {
+      const found = await industryCharacters();
+      return { jobIds: found?.jobIds ?? [], corpIds: found?.corpIds ?? [], skillIds: found?.skillIds ?? [] };
+    },
+    { jobIds: [], corpIds: [], skillIds: [] },
+  );
 }

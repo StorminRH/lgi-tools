@@ -25,6 +25,8 @@ describe("proxy site detail fallback", () => {
 
   it.each([
     "/sites/0",
+    "/sites/03",
+    "/sites/2147483648",
     "/sites/70",
     "/sites/100",
     "/sites/abc",

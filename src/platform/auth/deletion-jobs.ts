@@ -2,8 +2,9 @@ import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { deletionDatabase } from '@/db/deletion-client';
 import { account, user } from '@/db/auth-schema';
+import { lockUserRows } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
-import { accountMatch, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
+import { accountMatch, eveAccountsForUser, linkedCharacterIds, userAccountMatch } from './eve-account-shared';
 import { pendingDeletions } from './deletion-schema';
 import type { PendingDeletion } from './purge';
 
@@ -19,17 +20,10 @@ async function existingJob(database: AnyPgDb, userId: string) {
   return job;
 }
 
-async function lockUser(database: AnyPgDb, userId: string) {
-  return database.select({ id: user.id }).from(user).where(eq(user.id, userId)).for('update');
-}
-
 async function insertJob(database: AnyPgDb, request: PendingDeletion) {
   const linked = await database.select({ accountId: account.accountId }).from(account)
     .where(eveAccountsForUser(request.userId));
-  const characterIds = linked.flatMap((row) => {
-    const id = parseLinkedAccountId(row.accountId);
-    return id === null ? [] : [id];
-  });
+  const characterIds = linkedCharacterIds(linked);
   const [job] = await database.insert(pendingDeletions).values({
     userId: request.userId,
     scope: request.scope,
@@ -49,15 +43,15 @@ async function requestStillPending(database: AnyPgDb, request: PendingDeletion) 
       .where(and(eq(user.id, request.userId), eq(user.deletionRequestedAt, request.requestedAt)));
   }
   return database.select({ id: account.id }).from(account).where(and(
-    eq(account.id, request.accountRowId), eq(account.userId, request.userId),
-    accountMatch(request.characterId), eq(account.deletionRequestedAt, request.requestedAt),
+    eq(account.id, request.accountRowId), userAccountMatch(request.userId, request.characterId),
+    eq(account.deletionRequestedAt, request.requestedAt),
   ));
 }
 
-/** The user lock matches merge initialization; never wait for a job lock while holding it. */
+/** lockUserRows matches merge initialization; never wait for a job lock while holding it. */
 export async function enqueueDeletion(request: PendingDeletion): Promise<DeletionJob | undefined> {
   return deletionDatabase().transaction(async (tx) => {
-    await lockUser(tx, request.userId);
+    await lockUserRows(tx, [request.userId]);
     const existing = await existingJob(tx, request.userId);
     if (existing !== undefined) return existing;
     if ((await requestStillPending(tx, request)).length === 0) return undefined;
@@ -67,7 +61,7 @@ export async function enqueueDeletion(request: PendingDeletion): Promise<Deletio
 
 export async function requestDeletion(userId: string, characterId?: number): Promise<PendingDeletion | null> {
   return deletionDatabase().transaction(async (tx) => {
-    const owners = await lockUser(tx, userId);
+    const owners = await lockUserRows(tx, [userId]);
     if (owners.length === 0) return null;
     const now = new Date();
     if (characterId === undefined) {
@@ -78,9 +72,9 @@ export async function requestDeletion(userId: string, characterId?: number): Pro
       return owner?.requestedAt ? { scope: 'user', userId, requestedAt: owner.requestedAt } : null;
     }
     await tx.update(account).set({ deletionRequestedAt: now, updatedAt: now })
-      .where(and(eveAccountsForUser(userId), accountMatch(characterId), isNull(account.deletionRequestedAt)));
+      .where(and(userAccountMatch(userId, characterId), isNull(account.deletionRequestedAt)));
     const [link] = await tx.select({ accountRowId: account.id, requestedAt: account.deletionRequestedAt })
-      .from(account).where(and(eveAccountsForUser(userId), accountMatch(characterId)));
+      .from(account).where(userAccountMatch(userId, characterId));
     return link?.requestedAt ? { scope: 'character', userId, characterId, accountRowId: link.accountRowId, requestedAt: link.requestedAt } : null;
   });
 }
@@ -99,17 +93,18 @@ export async function jobsForCharacter(characterId: number): Promise<DeletionJob
   )).orderBy(asc(pendingDeletions.queuedAt), asc(pendingDeletions.id));
 }
 
+/** Moves a failed job behind newer work on the database clock, the clock its queued_at default uses. */
 export async function rotateDeletionJob(id: string): Promise<void> {
-  await db.update(pendingDeletions).set({ queuedAt: new Date() }).where(eq(pendingDeletions.id, id));
+  await db.update(pendingDeletions).set({ queuedAt: sql`clock_timestamp()` }).where(eq(pendingDeletions.id, id));
 }
 
 export async function enqueueTransfer(userId: string, characterId: number, accountRowId?: string): Promise<DeletionJob | undefined> {
   return deletionDatabase().transaction(async (tx) => {
-    await lockUser(tx, userId);
+    await lockUserRows(tx, [userId]);
     const existing = await existingJob(tx, userId);
     if (existing !== undefined) return existing;
     const [link] = await tx.select({ id: account.id }).from(account).where(and(
-      eveAccountsForUser(userId), accountMatch(characterId),
+      userAccountMatch(userId, characterId),
       accountRowId === undefined ? undefined : eq(account.id, accountRowId),
     ));
     if (link === undefined) return undefined;

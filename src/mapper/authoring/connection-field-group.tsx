@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Select } from '@/components/ui/select';
+import { dataLabel } from '@/components/ui/type-roles';
 
 export const UNSET_FIELD = '';
 
@@ -25,7 +26,7 @@ export function ConnectionFieldGroup({
 }) {
   return (
     <div className="flex w-full flex-col items-center gap-1 text-center [&_input]:text-center">
-      <span className="font-data text-label uppercase tracking-label text-isk">
+      <span className={dataLabel({ tone: 'isk' })}>
         {label}
       </span>
       <div className="flex w-full flex-col gap-1">{children}</div>
@@ -56,6 +57,8 @@ export interface OptionalSelectFieldProps {
   readonly readoutAttr: string;
   readonly readoutText: string;
   readonly onChange: (value: string | null) => void;
+  /** Rendered under the control or its readout, inside the field's column. */
+  readonly children?: ReactNode;
 }
 
 export function OptionalSelectField({
@@ -67,6 +70,7 @@ export function OptionalSelectField({
   readoutAttr,
   readoutText,
   onChange,
+  children,
 }: OptionalSelectFieldProps) {
   return (
     <ConnectionFieldGroup label={label}>
@@ -81,6 +85,7 @@ export function OptionalSelectField({
           onValueChange={(next) => onChange(decodeOptionalField(next))}
         />
       )}
+      {children}
     </ConnectionFieldGroup>
   );
 }

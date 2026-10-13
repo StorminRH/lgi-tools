@@ -9,10 +9,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { eyebrow } from '@/components/ui/type-roles';
-import { useSystemSearch } from '@/components/use-system-search';
-import { securityStatusTextClass } from '@/data/eve-data/security';
-import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
-import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { useSystemsById } from '@/components/use-system-search';
+import { fittingRigs, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { StructureComposer } from '@/features/custom-structures/components/StructureComposer';
 import type { CustomStructureRow } from '@/features/custom-structures/types';
 import { StructureBonusColumns } from '@/features/industry-planner/components/structure-bonus-readout';
@@ -21,16 +20,21 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import { refreshAvailableStructures, useAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { CorpRigEditor } from '@/features/owned-structures/components/CorpRigEditor';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
+import { refreshCorpStructures, useCorpStructuresLive } from '@/features/owned-structures/use-corp-structures-live';
+import { unresolvedName } from '@/lib/format/names';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
-import { currentReadIdentity, type ReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { isCurrentReadIdentity, type ReadIdentity, sameReadIdentity, useReadIdentity } from '@/platform/auth/read-identity';
+import { FacilitySubline } from './facility-subline';
 import { type NewStructure, settleNewStructure, useNewStructureRequest } from './structures-panel';
 
 type Filter = 'all' | 'corp' | 'yours';
 type Composer = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'corp'; structureId: number } | null;
 
-const rowAction =
-  'font-ui text-label uppercase tracking-wide text-muted transition-opacity hover:text-text focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100';
+const rowAction = eyebrow({
+  weight: 'inherit',
+  className: 'transition-opacity hover:text-text focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100',
+});
 const NO_READOUT: StructureReadout = { mfg: null, rxn: null };
 /**
  * Readout across the row under the name on a phone, its label column as wide as
@@ -42,15 +46,14 @@ const rowGrid =
 
 interface Lookups {
   types: StructureTypeOption[];
-  systems: SystemSearchEntry[];
+  systemsById: ReadonlyMap<number, SystemSearchEntry> | null;
   available: Map<string, AvailableStructure>;
 }
 
 function readoutFor(lookups: Lookups, id: string, systemId: number | null): StructureReadout {
   const structure = lookups.available.get(id);
   if (!structure) return NO_READOUT;
-  const security = lookups.systems.find((s) => s.id === systemId)?.security ?? null;
-  return structureBonusesAt(structure, security);
+  return structureBonusesAt(structure, lookupSystem(lookups.systemsById, systemId)?.security ?? null);
 }
 
 function StructureRow({
@@ -71,7 +74,7 @@ function StructureRow({
   action: ReactNode;
 }) {
   const hull = lookups.types.find((t) => t.typeId === typeId) ?? null;
-  const system = lookups.systems.find((s) => s.id === systemId) ?? null;
+  const system = lookupSystem(lookups.systemsById, systemId);
   return (
     <li className={cn(rowGrid, 'group items-center gap-x-3 gap-y-2 px-2 py-2.5 sm:gap-y-1.5')}>
       <span className="[grid-area:tile]">
@@ -79,15 +82,7 @@ function StructureRow({
       </span>
       <div className="flex min-w-0 flex-col gap-1 [grid-area:name]">
         <span className="truncate font-ui text-nav font-medium text-name">{name}</span>
-        <span className="truncate font-data text-micro text-muted">
-          {hull?.name ?? 'Structure'}
-          {system ? (
-            <>
-              {' · '}
-              {system.name} <span className={securityStatusTextClass(system.security)}>{formatSec(system.security)}</span>
-            </>
-          ) : null}
-        </span>
+        <FacilitySubline kind={hull?.name ?? 'Structure'} system={system} />
       </div>
       <span className="[--bonus-label-col:2.5rem] [grid-area:readout] sm:self-end sm:justify-self-end sm:[--bonus-label-col:auto]">
         <StructureBonusColumns readout={readout} taxPct={taxPct} />
@@ -132,7 +127,7 @@ function CorpGroup({
         <CorpRigEditor
           corporationId={corp.corporationId}
           structure={s}
-          validRigs={hull ? rigs.filter((r) => rigFitsStructure(r, hull)) : []}
+          validRigs={fittingRigs(rigs, hull)}
           onSaved={(saved) => onCorpSaved(s.structureId, saved)}
           onClose={() => setComposer(null)}
         />
@@ -147,7 +142,7 @@ function CorpGroup({
           <StructureRow
             key={s.structureId}
             lookups={lookups}
-            name={s.name ?? lookups.types.find((t) => t.typeId === s.typeId)?.name ?? `Structure ${s.structureId}`}
+            name={s.name ?? lookups.types.find((t) => t.typeId === s.typeId)?.name ?? unresolvedName('structure', s.structureId)}
             typeId={s.typeId}
             systemId={s.systemId}
             readout={readoutFor(lookups, `corp:${s.structureId}`, s.systemId)}
@@ -248,18 +243,62 @@ function YoursGroup({
 
 function useLookups(structureTypes: StructureTypeOption[]): Lookups {
   const available = useAvailableStructures();
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   return useMemo<Lookups>(
-    () => ({ types: structureTypes, systems, available: new Map((available ?? []).map((s) => [s.id, s])) }),
-    [structureTypes, systems, available],
+    () => ({ types: structureTypes, systemsById, available: new Map((available ?? []).map((s) => [s.id, s])) }),
+    [structureTypes, systemsById, available],
   );
 }
 
-const withCorpRigs = (structureId: number, saved: Pick<CorpStructurePageStructure, 'rigTypeIds' | 'taxPct'>) =>
+export type RigEdit = Pick<CorpStructurePageStructure, 'rigTypeIds' | 'taxPct'>;
+
+const withRigEdits = (edits: ReadonlyMap<number, RigEdit>) =>
   (corp: CorpStructurePageView): CorpStructurePageView => ({
     ...corp,
-    structures: corp.structures.map((s) => (s.structureId === structureId ? { ...s, ...saved } : s)),
+    structures: corp.structures.map((s) => ({ ...s, ...edits.get(s.structureId) })),
   });
+
+/** The rigs saved here, with the live rows they were saved over. */
+export interface RigOverlay {
+  readonly over: readonly CorpStructurePageView[];
+  readonly edits: ReadonlyMap<number, RigEdit>;
+}
+
+/** A save joins the overlay while the same live rows stand, and starts a new one once newer rows came in. */
+export function withRigSaved(
+  prev: RigOverlay | null,
+  over: readonly CorpStructurePageView[],
+  structureId: number,
+  saved: RigEdit,
+): RigOverlay {
+  return { over, edits: new Map(prev?.over === over ? prev.edits : []).set(structureId, saved) };
+}
+
+/**
+ * The live rows with the rigs saved here drawn over them, until the rows
+ * change. A save bumps the revision, which cancels any earlier read, so the
+ * next rows to land are the re-read that carries the save; a later change
+ * by another manager is never masked.
+ */
+export function overlaidCorps(
+  corporations: readonly CorpStructurePageView[],
+  overlay: RigOverlay | null,
+): readonly CorpStructurePageView[] {
+  return overlay === null || overlay.over !== corporations ? corporations : corporations.map(withRigEdits(overlay.edits));
+}
+
+/** The member corps with structures to show, newer data streaming in behind the server's first draw. */
+function useCorpGroups(initialCorps: CorpStructurePageView[]) {
+  const { corporations } = useCorpStructuresLive(initialCorps);
+  const [overlay, setOverlay] = useState<RigOverlay | null>(null);
+  const corps = useMemo(
+    () => overlaidCorps(corporations, overlay).filter((c) => c.structures.length > 0),
+    [corporations, overlay],
+  );
+  const saveRigs = (structureId: number, saved: RigEdit) =>
+    setOverlay((prev) => withRigSaved(prev, corporations, structureId, saved));
+  return { corps, saveRigs };
+}
 
 /** The structure a save just added, in the shape a profile takes it. */
 export function savedStructure(
@@ -286,7 +325,7 @@ export function StructuresManager(props: StructuresManagerProps) {
   const committed = useClientCommitted();
   const { loading } = useAuth();
   const router = useRouter();
-  const matches = identity?.userId === owner.userId && identity.characterId === owner.characterId;
+  const matches = sameReadIdentity(identity, owner);
   useEffect(() => {
     if (committed && !loading && !matches) router.refresh();
   }, [committed, loading, matches, identity, router]);
@@ -302,7 +341,7 @@ function StructuresManagerContent({
   identity,
 }: Omit<StructuresManagerProps, 'owner'> & { identity: ReadIdentity | null }) {
   const [custom, setCustom] = useState(initialCustom);
-  const [corps, setCorps] = useState(() => initialCorps.filter((c) => c.structures.length > 0));
+  const { corps, saveRigs } = useCorpGroups(initialCorps);
   const [ownComposer, setComposer] = useState<Composer>(null);
   // A profile asking for a new structure opens the form, and gets what it saves.
   const request = useNewStructureRequest();
@@ -322,7 +361,7 @@ function StructuresManagerContent({
       structureRigs={structureRigs}
       editing={row}
       onSaved={(structures, createdId) => {
-        if (identity === null || identity !== currentReadIdentity()) return;
+        if (!isCurrentReadIdentity(identity)) return;
         if (request !== null && createdId !== undefined) {
           settleNewStructure(request, savedStructure(structures, createdId, structureTypes));
         }
@@ -350,8 +389,9 @@ function StructuresManagerContent({
             composer={composer}
             setComposer={setComposer}
             onCorpSaved={(structureId, saved) => {
-              if (identity === null || identity !== currentReadIdentity()) return;
-              setCorps((prev) => prev.map(withCorpRigs(structureId, saved)));
+              if (!isCurrentReadIdentity(identity)) return;
+              saveRigs(structureId, saved);
+              refreshCorpStructures();
               settle();
             }}
           />

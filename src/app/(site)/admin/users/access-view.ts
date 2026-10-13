@@ -1,7 +1,7 @@
 import { getRoleChangeAudit } from '@/data/telemetry/queries';
+import { unresolvedName } from '@/lib/format/names';
 import { formatCount } from '@/lib/format/number';
 import { formatUtcMinute } from '@/lib/format/time';
-import { sanitiseUserText } from '@/lib/sanitise';
 import { CHARACTER_SEARCH_LIMIT, type AdminUser } from '@/platform/auth/admin-users';
 
 export type AuditRow = Awaited<ReturnType<typeof getRoleChangeAudit>>[number];
@@ -37,9 +37,9 @@ export function deriveAuditRowView(row: AuditRow): {
   toLabel: string;
 } {
   return {
-    timestamp: formatUtcMinute(row.timestamp),
-    actorLabel: row.actorName ?? (row.actorCharacterId == null ? 'Unknown actor' : `Character ${row.actorCharacterId}`),
-    targetLabel: row.targetName ?? (row.targetCharacterId == null ? 'Unknown target' : `Character ${row.targetCharacterId}`),
+    timestamp: formatUtcMinute(row.timestamp, { zone: false }),
+    actorLabel: row.actorName ?? (row.actorCharacterId == null ? 'Unknown actor' : unresolvedName('character', row.actorCharacterId)),
+    targetLabel: row.targetName ?? (row.targetCharacterId == null ? 'Unknown target' : unresolvedName('character', row.targetCharacterId)),
     fromTone: row.from === 'ADMIN' ? 'purple' : 'blue',
     fromLabel: row.from ?? '?',
     toTone: row.to === 'ADMIN' ? 'purple' : 'blue',
@@ -65,13 +65,4 @@ export function deriveAccessView(opts: {
     nonAdminMatches,
     resultsHint: searchTruncated ? `${matches} · showing first ${CHARACTER_SEARCH_LIMIT}, narrow your search` : matches,
   };
-}
-
-export const MAX_QUERY_LENGTH = 200;
-
-/** The search box's text, cleaned, or undefined when there is nothing to search for. */
-export function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
-  if (typeof raw !== 'string') return undefined;
-  const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
-  return cleaned.length === 0 ? undefined : cleaned;
 }

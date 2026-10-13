@@ -1,9 +1,9 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/components/ui/cn';
+import { formatCount } from '@/lib/format/number';
 import { MAP_SCANNER_PROMPT_RAIL_CLASS } from '../windows/MapWindow';
-import { mapFrostedSurface } from '../map-frosted-surface';
+import { MapPromptCard } from '../map-prompt-card';
 import { ScannerCharacterPrompt } from '../tracking/ScannerCharacterPrompt';
 import { SignatureJumpPrompt } from './SignatureJumpPrompt';
 import type {
@@ -11,12 +11,6 @@ import type {
   JumpResolutionModel,
 } from './jump-resolution';
 import type { PendingScannerPaste } from './use-scanner-paste';
-
-function missingPromptCopy(count: number): string {
-  return count === 1
-    ? '1 signature missing from scan'
-    : `${count} signatures missing from scan`;
-}
 
 function MissingSignaturesPrompt({
   count,
@@ -31,17 +25,11 @@ function MissingSignaturesPrompt({
 }) {
   if (count === 0) return null;
   return (
-    <div
+    <MapPromptCard
       data-signature-missing-prompt
-      className={cn(
-        'flex flex-col gap-2 p-3 text-ui',
-        mapFrostedSurface,
-      )}
+      ariaLabel="Missing signatures"
+      body={`${formatCount(count, 'signature')} missing from scan`}
     >
-      <span className="font-data text-label uppercase tracking-label text-muted">
-        Missing from scan
-      </span>
-      <p className="font-data text-micro text-name">{missingPromptCopy(count)}</p>
       <div className="flex justify-end gap-1">
         <Button variant="ghost" size="sm" onClick={onDismiss}>
           Dismiss
@@ -52,7 +40,7 @@ function MissingSignaturesPrompt({
           </Button>
         ) : null}
       </div>
-    </div>
+    </MapPromptCard>
   );
 }
 

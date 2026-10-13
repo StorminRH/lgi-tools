@@ -1,97 +1,53 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
+import { SystemWithSecurity } from '@/components/security-status';
 import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { SidePanel } from '@/components/ui/side-panel';
-import { eyebrow } from '@/components/ui/type-roles';
-import { useSystemSearch } from '@/components/use-system-search';
-import { securityStatusTextClass } from '@/data/eve-data/security';
-import { formatSec } from '@/data/eve-data/systems-search';
+import { StatFigure } from '@/components/ui/stat-figure';
+import { dataLabel, eyebrow } from '@/components/ui/type-roles';
+import { useSystemsById } from '@/components/use-system-search';
+import { activityLabel } from '@/data/eve-data/constants';
+import { lookupSystem } from '@/data/eve-data/systems-search';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import { isEfficiencyEligible, unitPriceMap } from '../build-plan-view';
 import { componentSheet, type ComponentInputRow, type ComponentSheet } from '../component-sheet-view';
-import { activityLabel } from '../industry-styles';
-import { nodeMeState } from '../me-overrides';
-import { nodeTeState } from '../te-overrides';
+import { typeName } from '../type-name';
 import type { BlueprintStructure } from '../types';
-import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
+import { BlueprintMetaLine } from './BlueprintMetaLine';
+import { EfficiencyStepperRows } from './MeAdjuster';
 import { useBuildPlan, useBuildSetup, useMarketData } from './planner-contexts';
 import { UnpricedInputs } from './UnpricedInputs';
 
 function Steppers({ sheet }: { sheet: ComponentSheet }) {
-  const plan = useBuildPlan();
-  const bp = sheet.blueprintTypeId;
-  if (!isEfficiencyEligible(bp, sheet.label)) return null;
-  const row = (icon: ReactNode, field: ReactNode) => (
-    <div className="flex items-center gap-2.5">
-      <span aria-hidden className="inline-flex size-3.5 shrink-0">
-        {icon}
-      </span>
-      {field}
-    </div>
-  );
+  if (!isEfficiencyEligible(sheet.blueprintTypeId, sheet.label)) return null;
   return (
     <div className="flex flex-col gap-2.5">
-      {row(
-        <GemIcon state={nodeMeState(plan.ownedMe?.get(bp), plan.meOverrides.get(bp))} />,
-        <MeField
-          blueprintTypeId={bp}
-          name={sheet.name}
-          ownedMe={plan.ownedMe}
-          meOverrides={plan.meOverrides}
-          setMeOverride={plan.setMeOverride}
-          resetMeOverride={plan.resetMeOverride}
-          boxed
-        />,
-      )}
-      {row(
-        <HourglassIcon state={nodeTeState(plan.ownedTe?.get(bp), plan.teOverrides.get(bp))} />,
-        <TeField
-          blueprintTypeId={bp}
-          name={sheet.name}
-          ownedTe={plan.ownedTe}
-          teOverrides={plan.teOverrides}
-          setTeOverride={plan.setTeOverride}
-          resetTeOverride={plan.resetTeOverride}
-          boxed
-        />,
-      )}
+      <EfficiencyStepperRows blueprintTypeId={sheet.blueprintTypeId} name={sheet.name} />
     </div>
   );
 }
 
 function Identity({ sheet }: { sheet: ComponentSheet }) {
-  const activity = sheet.activityId === null ? null : activityLabel(sheet.activityId);
   return (
     <div className="flex flex-col gap-4">
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-data text-micro uppercase tracking-label text-muted">
-        {sheet.label && (
-          <>
-            <span>{sheet.label}</span>
-            <span aria-hidden className="text-faint">·</span>
-          </>
-        )}
-        {activity !== null && activity !== sheet.label && (
-          <>
-            <span className="text-tone-blue">{activity}</span>
-            <span aria-hidden className="text-faint">·</span>
-          </>
-        )}
-        <span>{formatQuantity(sheet.batch)} per run</span>
-      </p>
+      <BlueprintMetaLine
+        group={sheet.label}
+        activity={sheet.activityId === null ? null : activityLabel(sheet.activityId)}
+        perRun={sheet.batch}
+      />
       <div className="flex items-center gap-5">
         <TypeIcon
           {...nodeImage(sheet.blueprintTypeId, sheet.typeId)}
           size={64}
           alt={sheet.name}
-          mono={sheet.name.slice(0, 2)}
           className="rounded-card shadow-cta-glow"
         />
         <Steppers sheet={sheet} />
@@ -100,23 +56,14 @@ function Identity({ sheet }: { sheet: ComponentSheet }) {
   );
 }
 
-function Stat({ label, children, tone }: { label: string; children: ReactNode; tone?: string }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className={eyebrow({ size: 'micro', tone: 'muted' })}>{label}</span>
-      <span className={cn('font-data text-h3 tabular-nums text-name', tone)}>{children}</span>
-    </div>
-  );
-}
-
 /** Where the profile runs this job, and who runs it. */
 function JobRoute({ blueprintTypeId }: { blueprintTypeId: number }) {
   const { profile, profilePlan } = useBuildSetup();
-  const { systems } = useSystemSearch();
+  const systemsById = useSystemsById();
   if (!profile || !profilePlan) return null;
   const route = profilePlan.routeOf(blueprintTypeId);
   const builder = profile.document.members.find((m) => m.characterId === route.characterId) ?? null;
-  const system = systems.find((s) => s.id === route.facility?.systemId) ?? null;
+  const system = lookupSystem(systemsById, route.facility?.systemId ?? null);
   if (!route.facility && !builder) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -125,7 +72,7 @@ function JobRoute({ blueprintTypeId }: { blueprintTypeId: number }) {
           <span className="truncate font-ui text-nav text-name">{route.facility.name}</span>
           {system && (
             <span className="font-data text-micro text-muted">
-              {system.name} <span className={securityStatusTextClass(system.security)}>{formatSec(system.security)}</span>
+              <SystemWithSecurity system={system} />
             </span>
           )}
         </div>
@@ -148,15 +95,15 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
         {...nodeImage(ledger.builds.get(row.typeId)?.blueprintTypeId, row.typeId)}
         size={32}
         alt=""
-        mono={row.name.slice(0, 2)}
+        mono={row.name}
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="truncate font-data text-ui text-name">{row.name}</span>
-        {row.label && <span className="truncate font-data text-label uppercase tracking-label text-muted">{row.label}</span>}
+        {row.label && <span className={dataLabel({ className: 'truncate' })}>{row.label}</span>}
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5 font-data tabular-nums">
         <span className="text-ui text-name">{formatQuantity(row.quantity)}</span>
-        <LivePrice value={row.value === null ? '—' : formatIsk(row.value)} pending={refreshing} className="text-micro text-isk" />
+        <LivePrice value={formatIsk(row.value)} pending={refreshing} className="text-micro text-isk" />
       </span>
       {row.buildable && <span aria-hidden className="text-muted">›</span>}
     </>
@@ -226,24 +173,24 @@ function Sheet({
         </Button>
       )}
       <Identity sheet={sheet} />
-      <div className="grid grid-cols-3 gap-4">
-        <Stat label="Needed">{formatQuantity(sheet.required)}</Stat>
-        <Stat label="Runs">
+      <dl className="grid grid-cols-3 gap-4">
+        <StatFigure label="Needed" className="gap-1">{formatQuantity(sheet.required)}</StatFigure>
+        <StatFigure label="Runs" className="gap-1">
           {formatQuantity(sheet.runs)}
           <span className="ml-1.5 text-micro text-muted">× {formatQuantity(sheet.batch)}</span>
-        </Stat>
-        <Stat label="Owned" tone={owned !== null && owned >= sheet.required ? 'text-isk' : undefined}>
-          {owned === null ? '—' : formatQuantity(owned)}
-        </Stat>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Stat label="Build · per unit" tone={cheaper === 'build' ? 'text-isk' : undefined}>
+        </StatFigure>
+        <StatFigure label="Owned" tone={owned !== null && owned >= sheet.required ? 'text-isk' : undefined} className="gap-1">
+          {formatQuantity(owned)}
+        </StatFigure>
+      </dl>
+      <dl className="grid grid-cols-2 gap-4">
+        <StatFigure label="Build · per unit" tone={cheaper === 'build' ? 'text-isk' : undefined} className="gap-1">
           <LivePrice value={formatIsk(sheet.buildPerUnit)} pending={refreshing} />
-        </Stat>
-        <Stat label="Buy · per unit" tone={cheaper === 'buy' ? 'text-isk' : undefined}>
+        </StatFigure>
+        <StatFigure label="Buy · per unit" tone={cheaper === 'buy' ? 'text-isk' : undefined} className="gap-1">
           <LivePrice value={formatIsk(sheet.buyPerUnit)} pending={refreshing} />
-        </Stat>
-      </div>
+        </StatFigure>
+      </dl>
       <JobRoute blueprintTypeId={sheet.blueprintTypeId} />
       {sheet.installFee && <InstallFee fee={sheet.installFee} refreshing={refreshing} />}
       <section aria-label="Inputs" className="flex flex-col gap-2">
@@ -303,10 +250,7 @@ export function ComponentDrawer({
           jobFee: pricing?.net?.componentJobs?.jobs.find((job) => job.typeId === id),
         });
   const previousId = stack.length > 1 ? stack[stack.length - 2]! : null;
-  const previous =
-    previousId === null
-      ? null
-      : (structure.buildNodeDisplay[previousId]?.name ?? structure.materialNames[previousId] ?? `Type ${previousId}`);
+  const previous = previousId === null ? null : typeName(structure, previousId);
   return (
     <SidePanel open={stack.length > 0} onOpenChange={(open) => !open && onStackChange([])} title={sheet?.name ?? ''}>
       {sheet && (

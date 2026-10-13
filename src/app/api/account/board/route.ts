@@ -9,10 +9,10 @@ import { apiResponse } from '@/transport/api-response';
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return apiResponse(boardEndpoint, 200, { characters: [], skillCatalog: [], history: [] });
+    return apiResponse(boardEndpoint, 200, { characters: [], skillCatalog: [], history: [], refreshing: false });
   }
   const board = await measureOwnedDataRead({
-    endpoint: '/api/account/board',
+    endpoint: boardEndpoint,
     read: () => getBoardForUserOnView(userId),
     returned: (value) => value.characters.length,
   });

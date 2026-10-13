@@ -1,123 +1,88 @@
 import { describe, expect, it } from 'vitest';
-import type { ChainPosition } from '../chain/intents';
-import { assignerFromPositions, type PlacementAssigner } from '../chain/placement';
+import type { ChainPosition, MapChainIntent } from '../chain/intents';
+import { chainSnapshot } from '../chain/__tests__/chain-snapshot-fixture';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
+  type ChainMerge,
   type ChainSnapshot,
-  type ConnectionRow,
+  type ChainState,
 } from '../chain/reconciler';
+import { layoutFacts } from './__tests__/layout-facts-fixture';
 import { compassKernel } from './compass';
-import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from './layout-contract';
+import { DEFAULT_LAYOUT_CONFIG } from './layout-contract';
 
 const A = 31_000_001;
 const B = 31_000_002;
 const C = 31_000_003;
 const D = 31_000_004;
 
-function snapshot(
-  systemIds: readonly number[],
-  connections: readonly ConnectionRow[] = [],
-  complete: { systems?: boolean; connections?: boolean } = {},
-): ChainSnapshot {
-  return {
-    systems: {
-      rows: systemIds.map((systemId) => ({ systemId })),
-      complete: complete.systems ?? true,
-    },
-    connections: {
-      rows: connections,
-      complete: complete.connections ?? true,
-    },
-  };
+function mergeUnplaced(previous: ChainState, snapshot: ChainSnapshot): ChainMerge {
+  return reconcileChain(previous, snapshot, new Map());
 }
 
-function candidateOrderSpy(): {
-  assigner: PlacementAssigner;
-  consultations: number[][];
-  connectionOrders: (readonly [number, number])[][];
-} {
-  const consultations: number[][] = [];
-  const connectionOrders: (readonly [number, number])[][] = [];
-  return {
-    assigner: (input) => {
-      consultations.push(input.systems.map((candidate) => candidate.systemId));
-      connectionOrders.push(
-        input.connections.map((edge) => [edge.fromSystemId, edge.toSystemId] as const),
-      );
-      return new Map();
-    },
-    consultations,
-    connectionOrders,
-  };
+function systemOrder(merge: ChainMerge): number[] {
+  return [...merge.state.systems.keys()];
 }
 
-function kernelResultAssigner(
-  positions: ReadonlyMap<number, ChainPosition>,
-): PlacementAssigner {
-  return assignerFromPositions(positions);
+function appearedOrder(intents: readonly MapChainIntent[]): number[] {
+  return intents.flatMap((intent) =>
+    intent.kind === 'system-appeared' ? [intent.systemId] : [],
+  );
 }
 
-describe('reconcileChain candidate order (synchronized creation order)', () => {
-  it('presents an initial complete snapshot in creation order', () => {
-    const { assigner, consultations } = candidateOrderSpy();
-    reconcileChain(EMPTY_CHAIN_STATE, snapshot([C, A, B]),  assigner);
-    expect(consultations).toEqual([[C, A, B]]);
+function connectionOrder(merge: ChainMerge): (readonly [number, number])[] {
+  return [...merge.state.connections.values()].map(
+    (connection) => [connection.fromSystemId, connection.toSystemId] as const,
+  );
+}
+
+describe('reconcileChain system order (synchronized creation order)', () => {
+  it('holds an initial complete snapshot in creation order', () => {
+    const merge = mergeUnplaced(EMPTY_CHAIN_STATE, chainSnapshot([C, A, B]));
+    expect(systemOrder(merge)).toEqual([C, A, B]);
+    expect(appearedOrder(merge.intents)).toEqual([C, A, B]);
   });
 
   it('keeps retained order and appends arrivals while pages drain', () => {
-    const { assigner, consultations } = candidateOrderSpy();
-    const first = reconcileChain(
+    const first = mergeUnplaced(
       EMPTY_CHAIN_STATE,
-      snapshot([A, B], [], { systems: false }),
-      assigner,
+      chainSnapshot([A, B], [], { systems: false }),
     );
-    reconcileChain(first.state, snapshot([A, B, C, D]),  assigner);
-    expect(consultations).toEqual([
-      [A, B],
-      [A, B, C, D],
-    ]);
+    const second = mergeUnplaced(first.state, chainSnapshot([A, B, C, D]));
+    expect(systemOrder(first)).toEqual([A, B]);
+    expect(systemOrder(second)).toEqual([A, B, C, D]);
+    expect(appearedOrder(second.intents)).toEqual([C, D]);
   });
 
   it('preserves survivor order across a departure', () => {
-    const { assigner, consultations } = candidateOrderSpy();
-    const first = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([A, B, C]),
-      assigner,
-    );
-    reconcileChain(first.state, snapshot([A, C]),  assigner);
-    expect(consultations[1]).toEqual([A, C]);
+    const first = mergeUnplaced(EMPTY_CHAIN_STATE, chainSnapshot([A, B, C]));
+    const second = mergeUnplaced(first.state, chainSnapshot([A, C]));
+    expect(systemOrder(second)).toEqual([A, C]);
   });
 
   it('appends a re-arrival at the end, matching its new creation time', () => {
-    const { assigner, consultations } = candidateOrderSpy();
-    const first = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([A, B, C]),
-      assigner,
-    );
-    const departed = reconcileChain(first.state, snapshot([A, C]),  assigner);
-    reconcileChain(departed.state, snapshot([A, C, B]),  assigner);
-    expect(consultations[2]).toEqual([A, C, B]);
+    const first = mergeUnplaced(EMPTY_CHAIN_STATE, chainSnapshot([A, B, C]));
+    const departed = mergeUnplaced(first.state, chainSnapshot([A, C]));
+    const returned = mergeUnplaced(departed.state, chainSnapshot([A, C, B]));
+    expect(systemOrder(returned)).toEqual([A, C, B]);
+    expect(appearedOrder(returned.intents)).toEqual([B]);
   });
 
-  it('presents visible connections retained-then-snapshot while draining, snapshot-order once complete', () => {
-    const { assigner, consultations, connectionOrders } = candidateOrderSpy();
-    const first = reconcileChain(
+  it('holds visible connections retained-then-snapshot while draining, snapshot-order once complete', () => {
+    const first = mergeUnplaced(
       EMPTY_CHAIN_STATE,
-      snapshot(
+      chainSnapshot(
         [A, B, C],
         [
           { connectionId: 'e1', fromSystemId: A, toSystemId: B },
           { connectionId: 'e2', fromSystemId: B, toSystemId: C },
         ],
       ),
-      assigner,
     );
-    const second = reconcileChain(
+    const second = mergeUnplaced(
       first.state,
-      snapshot(
+      chainSnapshot(
         [A, B, C],
         [
           { connectionId: 'e1', fromSystemId: A, toSystemId: B },
@@ -125,11 +90,10 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
         ],
         { connections: false },
       ),
-      assigner,
     );
-    reconcileChain(
+    const third = mergeUnplaced(
       second.state,
-      snapshot(
+      chainSnapshot(
         [A, B, C],
         [
           { connectionId: 'e1', fromSystemId: A, toSystemId: B },
@@ -137,44 +101,24 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
           { connectionId: 'e3', fromSystemId: A, toSystemId: C },
         ],
       ),
-      assigner,
     );
-    expect(consultations).toHaveLength(3);
-    expect(connectionOrders[0]).toEqual([[A, B], [B, C]]);
-    expect(connectionOrders[1]).toEqual([[A, B], [B, C], [A, C]]);
-    expect(connectionOrders[2]).toEqual([[A, B], [B, C], [A, C]]);
+    expect(connectionOrder(first)).toEqual([[A, B], [B, C]]);
+    expect(connectionOrder(second)).toEqual([[A, B], [B, C], [A, C]]);
+    expect(connectionOrder(third)).toEqual([[A, B], [B, C], [A, C]]);
   });
 
   it('holds every departure back while the systems collection is still draining', () => {
-    const { assigner, consultations } = candidateOrderSpy();
-    const first = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([A, B, C]),
-      assigner,
-    );
-    reconcileChain(
+    const first = mergeUnplaced(EMPTY_CHAIN_STATE, chainSnapshot([A, B, C]));
+    const second = mergeUnplaced(
       first.state,
-      snapshot([C], [], { systems: false }),
-      assigner,
+      chainSnapshot([C], [], { systems: false }),
     );
-    expect(consultations[1]).toEqual([A, B, C]);
+    expect(systemOrder(second)).toEqual([A, B, C]);
+    expect(second.intents).toEqual([]);
   });
 });
 
 describe('reconcileChain driven by kernel-produced positions', () => {
-  function factsOf(
-    systemIds: readonly number[],
-    connections: readonly (readonly [number, number])[],
-  ): LayoutFacts {
-    return {
-      systems: systemIds.map((systemId) => ({ systemId })),
-      connections: connections.map(([fromSystemId, toSystemId]) => ({
-        fromSystemId,
-        toSystemId,
-      })),
-    };
-  }
-
   function at(positions: ReadonlyMap<number, ChainPosition>, systemId: number): ChainPosition {
     const position = positions.get(systemId);
     if (position === undefined) throw new Error(`kernel omitted system ${systemId}`);
@@ -188,11 +132,11 @@ describe('reconcileChain driven by kernel-produced positions', () => {
   };
 
   it('emits exact system-appeared intents at kernel positions on first appearance', async () => {
-    const positions = await compassKernel(factsOf([A, B], [[A, B]]));
+    const positions = await compassKernel(layoutFacts([A, B], [[A, B]]));
     const merge = reconcileChain(
       EMPTY_CHAIN_STATE,
-      snapshot([A, B], [{ connectionId: 'e1', fromSystemId: A, toSystemId: B }]),
-      kernelResultAssigner(positions),
+      chainSnapshot([A, B], [{ connectionId: 'e1', fromSystemId: A, toSystemId: B }]),
+      positions,
     );
     expect(merge.intents).toEqual([
       { kind: 'system-appeared', systemId: A, position: at(positions, A) },
@@ -208,22 +152,22 @@ describe('reconcileChain driven by kernel-produced positions', () => {
   });
 
   it('emits exact system-moved intents when a new kernel result repositions a node', async () => {
-    const before = await compassKernel(factsOf([A, B, C], [[A, B], [B, C]]), PROPORTIONAL);
+    const before = await compassKernel(layoutFacts([A, B, C], [[A, B], [B, C]]), PROPORTIONAL);
     const after = await compassKernel(
-      factsOf([A, B, C, D], [[A, B], [B, C], [B, D]]),
+      layoutFacts([A, B, C, D], [[A, B], [B, C], [B, D]]),
       PROPORTIONAL,
     );
     expect(at(after, C)).not.toEqual(at(before, C));
 
     const first = reconcileChain(
       EMPTY_CHAIN_STATE,
-      snapshot([A, B, C]),
-      kernelResultAssigner(before),
+      chainSnapshot([A, B, C]),
+      before,
     );
     const merge = reconcileChain(
       first.state,
-      snapshot([A, B, C, D]),
-      kernelResultAssigner(after),
+      chainSnapshot([A, B, C, D]),
+      after,
     );
     expect(merge.intents).toEqual([
       { kind: 'system-appeared', systemId: D, position: at(after, D) },

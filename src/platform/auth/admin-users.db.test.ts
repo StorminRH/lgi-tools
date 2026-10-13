@@ -1,8 +1,9 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { directClient, getDeletionClient } from '@/db';
 import {
   createDbTestHarness,
+  seedAccount,
   seedEveAccount as insertEveAccount,
   seedCharacter,
   seedUser as insertUser,
@@ -24,6 +25,8 @@ import {
 } from './admin-users';
 import { pendingDeletions } from './deletion-schema';
 import { PendingDeletionError } from './deletion-jobs';
+import { unlinkCharacter } from './character-unlink';
+import { syntheticEmail } from './synthetic-email';
 import { account, session, user } from '@/db/auth-schema';
 
 const runners = {
@@ -62,6 +65,11 @@ const TARGET_ID = 'target-user';
 const MOVED_CHAR = 90000021;
 const SURVIVOR_CHAR = 90000022;
 
+const sourceIdentity = async () => (await harness.db
+  .select({ email: user.email, activeCharacterId: user.activeCharacterId })
+  .from(user)
+  .where(eq(user.id, SOURCE_ID)))[0];
+
 describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => {
   beforeEach(async () => {
     runners.runAfterFailedCharacterUnlink.mockReset().mockResolvedValue(undefined);
@@ -93,12 +101,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     id: string,
     characterId: number,
     userId: string,
-    createdAt: Date = new Date(),
+    createdAt?: Date,
   ) {
-    await insertEveAccount(harness.db, { id, characterId, userId }, {
-      createdAt,
-      updatedAt: createdAt,
-    });
+    await insertEveAccount(harness.db, { id, characterId, userId }, { createdAt });
   }
 
   async function seedSession(
@@ -156,30 +161,18 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await seedCharacter(harness.db, MOVED_CHAR, { name: 'Source Main', portraitUrl: 'source-portrait' });
     await seedCharacter(harness.db, OTHER_CHAR, { name: 'Target Oldest', portraitUrl: 'target-portrait' });
     // Same account id under another provider must not resolve to its holder.
-    await harness.db.insert(account).values({
+    await seedAccount(harness.db, {
       id: 'third-discord', accountId: String(UNLINKED_CHAR), providerId: 'discord', userId: THIRD_ID,
     });
 
-    // The superadmin lookup before it was one query: the owning account row,
-    // then that user read through its oldest EVE character.
-    async function twoStepOwner(characterId: number) {
-      const [owner] = await harness.db
-        .select({ userId: account.userId })
-        .from(account)
-        .where(and(eq(account.providerId, 'eve'), eq(account.accountId, String(characterId))))
-        .limit(1);
-      return owner ? getUserById(owner.userId) : null;
-    }
-
-    for (const characterId of [MOVED_CHAR, ALT_CHAR, SURVIVOR_CHAR, OTHER_CHAR, UNLINKED_CHAR]) {
-      await expect(getUserOwningCharacter(characterId)).resolves.toEqual(await twoStepOwner(characterId));
-    }
+    await expect(getUserOwningCharacter(MOVED_CHAR)).resolves.toMatchObject({ userId: SOURCE_ID, characterId: MOVED_CHAR });
     await expect(getUserOwningCharacter(ALT_CHAR)).resolves.toEqual({
       userId: SOURCE_ID, characterId: MOVED_CHAR, name: 'Source Main', portraitUrl: 'source-portrait', role: 'USER',
     });
     await expect(getUserOwningCharacter(SURVIVOR_CHAR)).resolves.toMatchObject({
       userId: TARGET_ID, characterId: OTHER_CHAR, name: 'Target Oldest',
     });
+    await expect(getUserOwningCharacter(OTHER_CHAR)).resolves.toMatchObject({ userId: TARGET_ID, characterId: OTHER_CHAR });
     await expect(getUserOwningCharacter(UNLINKED_CHAR)).resolves.toBeNull();
   });
 
@@ -233,6 +226,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       userId: SOURCE_ID,
       characterId: MOVED_CHAR,
     });
+    // The route refuses the last character; reaching here past it (a race) empties the user, as reassign does.
+    expect(runners.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
+    await expect(getUserById(SOURCE_ID)).resolves.toBeNull();
     await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(false);
   });
 
@@ -246,6 +242,53 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     expect(await getStoredActiveCharacterId(SOURCE_ID)).toBe(SURVIVOR_CHAR);
     expect(await getUserOwningCharacter(MOVED_CHAR)).toBeNull();
     expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: SOURCE_ID, characterId: MOVED_CHAR });
+  });
+
+  it('moves a synthetic email off the unlinked character on the admin path and a direct removal', async () => {
+    const NEWEST_CHAR = 90000023;
+    await harness.db.update(user)
+      .set({ email: syntheticEmail(MOVED_CHAR), activeCharacterId: MOVED_CHAR })
+      .where(eq(user.id, SOURCE_ID));
+    await seedEveAccount('newest', NEWEST_CHAR, SOURCE_ID, new Date('2026-07-03T00:00:00Z'));
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, new Date('2026-07-01T00:00:00Z'));
+    await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, new Date('2026-07-02T00:00:00Z'));
+
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(true);
+    // Left as it was, the email would let a later sign-in as MOVED_CHAR link it back here.
+    expect(await sourceIdentity()).toEqual({
+      email: syntheticEmail(SURVIVOR_CHAR), activeCharacterId: SURVIVOR_CHAR,
+    });
+
+    // Self-service unlink removes through Better Auth, outside the admin lock.
+    const outcome = await unlinkCharacter({
+      userId: SOURCE_ID,
+      characterId: SURVIVOR_CHAR,
+      runners,
+      remove: async () => (await harness.db
+        .delete(account)
+        .where(eq(account.id, 'survivor'))
+        .returning({ id: account.id })).length > 0,
+    });
+    expect(outcome).toEqual({ removed: true, accountEmptied: false });
+    expect(await sourceIdentity()).toEqual({
+      email: syntheticEmail(NEWEST_CHAR), activeCharacterId: NEWEST_CHAR,
+    });
+    expect(runners.runBeforeUserDelete).not.toHaveBeenCalled();
+  });
+
+  it('leaves the active character and email alone when an inactive character is unlinked', async () => {
+    const OLDEST_CHAR = 90000023;
+    await harness.db.update(user)
+      .set({ email: syntheticEmail(SURVIVOR_CHAR), activeCharacterId: SURVIVOR_CHAR })
+      .where(eq(user.id, SOURCE_ID));
+    await seedEveAccount('oldest', OLDEST_CHAR, SOURCE_ID, new Date('2026-07-01T00:00:00Z'));
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, new Date('2026-07-02T00:00:00Z'));
+    await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, new Date('2026-07-03T00:00:00Z'));
+
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(true);
+    expect(await sourceIdentity()).toEqual({
+      email: syntheticEmail(SURVIVOR_CHAR), activeCharacterId: SURVIVOR_CHAR,
+    });
   });
 
   it.each([false, true])('finishes reassignment source cleanup when history erasure fails (survivor: %s)', async (survivor) => {
@@ -278,11 +321,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID);
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID);
     await seedEveAccount('target', 90000023, TARGET_ID);
-    await harness.db.insert(account).values([
-      { id: 'discord', accountId: 'not-a-character', providerId: 'discord', userId: TARGET_ID },
-      // Another provider may reuse an EVE character's id; it is not a character.
-      { id: 'discord-clash', accountId: String(MOVED_CHAR), providerId: 'discord', userId: TARGET_ID },
-    ]);
+    await seedAccount(harness.db, { id: 'discord', accountId: 'not-a-character', providerId: 'discord', userId: TARGET_ID });
+    // Another provider may reuse an EVE character's id; it is not a character.
+    await seedAccount(harness.db, { id: 'discord-clash', accountId: String(MOVED_CHAR), providerId: 'discord', userId: TARGET_ID });
 
     await expect(getAccountTotals()).resolves.toEqual({ users: 2, characters: 3 });
   });
@@ -336,10 +377,10 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(0);
   });
 
-  it('keeps a surviving source and repoints its moved active character', async () => {
+  it('keeps a surviving source and moves its identity off the moved character', async () => {
     await harness.db
       .update(user)
-      .set({ activeCharacterId: MOVED_CHAR })
+      .set({ email: syntheticEmail(MOVED_CHAR), activeCharacterId: MOVED_CHAR })
       .where(eq(user.id, SOURCE_ID));
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, new Date('2026-07-02T00:00:00Z'));
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, new Date('2026-07-01T00:00:00Z'));
@@ -357,6 +398,8 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       characterId: MOVED_CHAR,
     });
     await expect(getStoredActiveCharacterId(SOURCE_ID)).resolves.toBe(SURVIVOR_CHAR);
+    const [source] = await harness.db.select({ email: user.email }).from(user).where(eq(user.id, SOURCE_ID));
+    expect(source?.email).toBe(syntheticEmail(SURVIVOR_CHAR));
     await expect(getUserById(SOURCE_ID)).resolves.not.toBeNull();
   });
 

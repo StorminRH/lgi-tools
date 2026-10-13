@@ -11,10 +11,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { ownerSyncStateColumns } from '@/lib/db-columns';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
+import { ESI_OWNER_TYPES } from '@/platform/owner-sync/owner-type';
 
-export const OWNED_ASSET_OWNER_TYPES = ['character', 'corporation'] as const;
-export type OwnedAssetOwnerType = (typeof OWNED_ASSET_OWNER_TYPES)[number];
-export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', OWNED_ASSET_OWNER_TYPES);
+export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', ESI_OWNER_TYPES);
 
 /**
  * The owned-asset rows. Columns are the OwnedAsset projection (esi-projection.ts)
@@ -29,11 +28,12 @@ export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', OWNED_AS
  * bounded per-type lookup the planner's asset ledger makes — it replaces the
  * former `owned_assets_owner_idx` rather than sitting beside it.
  *
- * The constraint is load-bearing, not decorative: a refresh REPLACES the whole
- * set for an owner (delete-then-insert) on the transaction-free neon-http
- * driver, so two concurrent refreshes for one owner can interleave and double
- * the ledger the planner sums. The unique index turns that silent corruption
- * into a caught unique violation the writer reports as 'superseded'.
+ * A refresh REPLACES the whole set for an owner (delete-then-insert) in one
+ * direct-client transaction that upserts the owner's sync row first, so
+ * concurrent refreshes for one owner queue on that row lock instead of
+ * interleaving (replaceOwnerSnapshot in src/db/snapshot-replace.ts). The unique
+ * index stays as the backstop: a set that would double a row fails, rolls back
+ * whole, and the writer reports it as 'superseded'.
  *
  * No foreign key on owner_id: for a corporation owner it is a corp id with no
  * `characters` row, so the column can't FK uniformly — the same FK-less posture

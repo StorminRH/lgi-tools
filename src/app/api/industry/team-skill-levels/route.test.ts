@@ -21,14 +21,17 @@ beforeEach(() => {
 
 it('reads every linked character’s levels for the signed-in account, and nothing when signed out', async () => {
   h.userId = null;
-  await expect((await GET()).json()).resolves.toEqual({ characters: [] });
+  await expect((await GET()).json()).resolves.toEqual({ characters: [], refreshing: false });
   expect(h.levels).not.toHaveBeenCalled();
 
   h.userId = 'user-1';
-  h.levels.mockResolvedValue([
-    { characterId: 9001, levels: { 3380: 5, 3388: 4 } },
-    { characterId: 9002, levels: null },
-  ]);
+  h.levels.mockResolvedValue({
+    characters: [
+      { characterId: 9001, levels: { 3380: 5, 3388: 4 } },
+      { characterId: 9002, levels: null },
+    ],
+    refreshing: true,
+  });
   const res = await GET();
   expect(res.status).toBe(200);
   await expect(res.json()).resolves.toEqual({
@@ -36,6 +39,7 @@ it('reads every linked character’s levels for the signed-in account, and nothi
       { characterId: 9001, levels: { 3380: 5, 3388: 4 } },
       { characterId: 9002, levels: null },
     ],
+    refreshing: true,
   });
   expect(h.levels).toHaveBeenCalledWith('user-1');
 });

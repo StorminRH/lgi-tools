@@ -5,6 +5,7 @@ import { CATEGORY_STATUS } from '@/lib/problem';
 import {
   currentCorrelationId,
   currentDependencyTimings,
+  currentDependencyWallMs,
   currentStashedFailure,
 } from '@/transport/correlation';
 import { emitCostMetric } from './cost-metrics';
@@ -20,7 +21,7 @@ export type CapabilityFeature =
   | 'cron'
   | 'feedback';
 
-export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
+export type CapabilityKind = 'mutation' | 'read' | 'cron';
 
 type CapabilitySpec = {
   readonly [F in CapabilityFeature]?: {
@@ -57,13 +58,13 @@ function catalogueFromSpec<const TSpec extends CapabilitySpec>(spec: TSpec) {
 export const CAPABILITIES = catalogueFromSpec({
   account: { mutation: ['switch-active-character', 'unlink-character', 'purge-character', 'revoke-own-sessions', 'save-preferences', 'delete-account', 'set-corp-data-sharing'] },
   structures: { mutation: ['set-corp-structure-rigs', 'create-custom-structure', 'delete-custom-structure', 'update-custom-structure'], read: ['parse-structure-fit', 'search-structures'] },
-  planner: { mutation: ['create-saved-plan', 'delete-saved-plan', 'rename-saved-plan', 'favorite-saved-plan', 'create-industry-profile', 'duplicate-industry-profile', 'update-industry-profile', 'delete-industry-profile'], read: ['resolve-entity-names', 'resolve-build-location', 'read-cost-indices', 'read-owned-assets', 'read-owned-blueprints', 'read-skill-levels'] },
+  planner: { mutation: ['create-saved-plan', 'delete-saved-plan', 'rename-saved-plan', 'favorite-saved-plan', 'create-industry-profile', 'duplicate-industry-profile', 'update-industry-profile', 'delete-industry-profile'], read: ['resolve-entity-names', 'read-cost-indices', 'read-owned-assets', 'read-owned-blueprints', 'read-skill-levels'] },
   maps: { mutation: ['create-map', 'update-access', 'delete-map', 'restore-map', 'request-map-purge', 'eliminate-signatures', 'resolve-jump'], read: ['search-characters', 'resolve-type-names'] },
-  admin: { mutation: ['unlink-character', 'revoke-user-sessions', 'reassign-character', 'requeue-esi-job', 'set-user-role', 'wh-statics-review'] },
-  cron: { cron: ['drain-esi-refresh-jobs', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'purge-maps', 'housekeeping', 'revalue-net-worth'] },
+  admin: { mutation: ['unlink-character', 'revoke-user-sessions', 'reassign-character', 'set-user-role', 'wh-statics-review'] },
+  cron: { cron: ['refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'purge-maps', 'housekeeping', 'revalue-net-worth'] },
   market: { mutation: ['refresh-market-prices', 'refresh-market-history'] },
   feedback: { mutation: ['submit-feedback'] },
-  sync: { mutation: ['leave-location'], job: ['process-esi-refresh-job'] },
+  sync: { mutation: ['leave-location'] },
 });
 
 export type CapabilityId = keyof typeof CAPABILITIES;
@@ -95,6 +96,8 @@ export interface CapabilityOutcomeRecord {
   code: string;
   durationMs: number;
   dependencies: Partial<Record<DependencyKind, DependencyTiming>>;
+  /** Elapsed time with any dependency call in flight. Records written before it existed lack it. */
+  dependencyWallMs: number;
   retry: CapabilityRetry | null;
   correlationId: string;
   appVersion: string;
@@ -118,7 +121,8 @@ function buildCapabilityRecord(
     outcome: outcome.outcome,
     code: outcome.code,
     durationMs: outcome.durationMs,
-    dependencies: { ...currentDependencyTimings() },
+    dependencies: currentDependencyTimings(),
+    dependencyWallMs: currentDependencyWallMs(),
     retry: outcome.retry,
     correlationId: currentCorrelationId(),
     appVersion: APP_VERSION,

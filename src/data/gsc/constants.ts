@@ -1,11 +1,4 @@
-/**
- * Advisory-lock id for the daily GSC sync cron — skips an overlapping run of
- * itself under Vercel's at-least-once cron delivery, so a duplicate dispatch
- * can't double-pull the quota'd GSC API. Distinct from the SDE (…013) and
- * industry-indices (…014) lock ids; the prices cron is deliberately lock-free
- * (last-write-wins), so it claims no id here.
- */
-export const ADVISORY_LOCK_GSC_SYNC = BigInt(8273619015);
+import { readEnv } from '@/lib/env';
 
 export const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
 
@@ -24,6 +17,6 @@ export const UPSERT_CHUNK_ROWS = 500;
 export const GSC_INSPECTION_URL_LIMIT = 500;
 export const GSC_INSPECTION_BATCH_SIZE = 5;
 
-export function isGscConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env.GSC_SERVICE_ACCOUNT_JSON && env.GSC_SITE_URL);
+export function isGscConfigured(): boolean {
+  return Boolean(readEnv('GSC_SERVICE_ACCOUNT_JSON') && readEnv('GSC_SITE_URL'));
 }

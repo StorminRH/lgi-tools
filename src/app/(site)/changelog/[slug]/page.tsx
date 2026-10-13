@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import {
   findChangelogDocument,
   toChangelogDocuments,
@@ -54,12 +54,12 @@ async function ChangelogMaster({ params }: { params: Promise<{ slug: string }> }
 
 function ChangelogMasterFallback() {
   return (
-    <div className="flex max-w-[820px] flex-col gap-4">
-      <Skeleton label="Loading changelog" className="h-8 w-40" />
-      <Skeleton aria-hidden="true" className="h-4 w-full" />
-      <Skeleton aria-hidden="true" className="h-4 w-5/6" />
-      <Skeleton aria-hidden="true" className="h-48 w-full rounded-card" />
-    </div>
+    <SkeletonGroup label="Loading changelog" className="flex max-w-[820px] flex-col gap-4">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-5/6" />
+      <Skeleton className="h-48 w-full rounded-card" />
+    </SkeletonGroup>
   );
 }
 

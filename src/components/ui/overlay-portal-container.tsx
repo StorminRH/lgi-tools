@@ -18,6 +18,11 @@ export function OverlayPortalContainerProvider({
   );
 }
 
-export function useOverlayPortalContainer(): HTMLElement | null {
-  return useContext(OverlayPortalContainerContext);
+/**
+ * The open dialog's popup element, for a nested popup's Portal `container`.
+ * Undefined outside a dialog and on the dialog's first frame: Base UI reads
+ * `container={null}` as "wait" and mounts nothing until it changes.
+ */
+export function useOverlayPortalContainer(): HTMLElement | undefined {
+  return useContext(OverlayPortalContainerContext) ?? undefined;
 }

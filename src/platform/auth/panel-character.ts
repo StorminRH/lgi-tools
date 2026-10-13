@@ -1,5 +1,7 @@
+import type { EveScope } from '@/config/eve-scopes';
+import type { ScopeEligibility } from '@/lib/scope-eligibility';
 import type { AccountCharactersResponse } from './api-contract';
-import { deriveCharacterHealth, deriveScopeHealth } from './scope-health';
+import { deriveScopeHealth, scopeHolderOf } from './scope-health';
 
 export interface PanelCharacter {
   characterId: number;
@@ -16,20 +18,13 @@ export function toPanelCharacter(
     scope: string | null | undefined;
     hasRefreshToken: boolean;
   },
-  canSync: (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) => boolean,
+  canSync: ScopeEligibility,
 ): PanelCharacter {
-  const health = deriveCharacterHealth({
-    scope: character.scope,
-    hasRefreshToken: character.hasRefreshToken,
-  });
   return {
     characterId: character.characterId,
     name: character.name,
     portraitUrl: character.portraitUrl,
-    needsReconnect: !canSync({
-      hasRefreshToken: character.hasRefreshToken,
-      missingScopes: health.missingScopes,
-    }),
+    needsReconnect: !canSync(scopeHolderOf(character)),
   };
 }
 
@@ -42,8 +37,8 @@ export function toAccountCharacter(
     hasRefreshToken: boolean;
   },
   scopes: {
-    skillQueue: readonly string[];
-    location: readonly string[];
+    skillQueue: readonly EveScope[];
+    location: readonly EveScope[];
   },
 ): AccountCharactersResponse['characters'][number] {
   return {

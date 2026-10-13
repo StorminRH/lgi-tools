@@ -1,24 +1,21 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { listSourceFiles, stripComments } from '@/lib/__tests__/source-scan';
 
 describe('mapper source contract', () => {
   const ROOT = 'src/mapper';
 
   function mapperFiles(): string[] {
-    return readdirSync(ROOT, { recursive: true, encoding: 'utf8' })
-      .filter(
-        (name) =>
-          /\.tsx?$/.test(name) &&
-          !name.includes('.test.') &&
-          !name.includes('__tests__/'),
-      )
-      .map((name) => name.replaceAll('\\', '/'));
+    return listSourceFiles({
+      roots: [ROOT],
+      extensions: ['.ts', '.tsx'],
+      skipDirectories: ['__tests__'],
+      skipSuffixes: ['.test.ts', '.test.tsx'],
+    }).map((file) => file.slice(`${ROOT}/`.length));
   }
 
   function sourceOf(relative: string): string {
-    return readFileSync(`${ROOT}/${relative}`, 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
+    return stripComments(readFileSync(`${ROOT}/${relative}`, 'utf8'));
   }
 
   it('walks the whole mapper zone', () => {
@@ -32,10 +29,12 @@ describe('mapper source contract', () => {
       'authoring/connection-field-setters.ts',
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
+      'authoring/connection-labels.ts',
       'authoring/home-prompt-model.ts',
       'authoring/leads-to-origin.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
+      'authoring/system-terminal-search.tsx',
       'authoring/use-wormhole-editor-data.ts',
       'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',
@@ -70,7 +69,6 @@ describe('mapper source contract', () => {
       'chain/labels.ts',
       'chain/nodes.ts',
       'chain/optimistic-authoring.ts',
-      'chain/placement.ts',
       'chain/reconciler.ts',
       'chain/stub-layout.ts',
       'chain/use-authoring-menus.ts',
@@ -81,7 +79,6 @@ describe('mapper source contract', () => {
       'chain/use-map-chain-merge.ts',
       'chain/use-map-chain-pages.ts',
       'chain/use-map-chain.ts',
-      'chain/use-universe-assets.ts',
       'fog/FogLayer.tsx',
       'fog/fog-host.ts',
       'fog/fog-model.ts',
@@ -99,11 +96,15 @@ describe('mapper source contract', () => {
       'layout/proof-kit.ts',
       'layout/trig.ts',
       'layout/use-layout-kernel.ts',
+      'lib/frame-coalescer.ts',
+      'lib/geometry.ts',
       'lib/pair-key.ts',
       'lib/prng.ts',
+      'lib/step-dial.ts',
       'log/MapEventLog.tsx',
       'log/map-event-copy.ts',
       'map-frosted-surface.ts',
+      'map-prompt-card.tsx',
       'motion/motion-contract.ts',
       'motion/motion-controls-model.ts',
       'motion/motion-host-model.ts',
@@ -125,9 +126,7 @@ describe('mapper source contract', () => {
       'signatures/scanner-field-class.ts',
       'signatures/scanner-identify-combo.tsx',
       'signatures/scanner-leads-control.tsx',
-      'signatures/scanner-life-select.tsx',
-      'signatures/scanner-mass-select.tsx',
-      'signatures/scanner-panel-body.ts',
+      'signatures/scanner-optional-select.tsx',
       'signatures/scanner-prompt-rail.tsx',
       'signatures/scanner-row-cells.tsx',
       'signatures/scanner-row-open.ts',
@@ -139,7 +138,7 @@ describe('mapper source contract', () => {
       'signatures/signature-context.tsx',
       'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
-      'signatures/signature-toast.ts',
+      'signatures/signature-removal.ts',
       'signatures/signature-update-flash.ts',
       'signatures/system-readout.ts',
       'signatures/type-setter-follow-up.ts',
@@ -160,6 +159,7 @@ describe('mapper source contract', () => {
       'tracking/ScannerCharacterPrompt.tsx',
       'tracking/TrackingControls.tsx',
       'tracking/afk-model.ts',
+      'tracking/character-location-label.tsx',
       'tracking/doorbell-model.ts',
       'tracking/outbound-arrow-context.ts',
       'tracking/pilot-path.ts',

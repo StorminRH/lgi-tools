@@ -15,7 +15,6 @@ vi.mock('../authoring/use-wormhole-editor-data', () => ({
     codes: ['B274'],
     preferredCodes: ['B274'],
     entry: null,
-    codexReady: true,
   }),
 }));
 
@@ -66,7 +65,7 @@ it('parks one titled scanner-anchored window', () => {
   const markup = render();
   expect(markup).toContain('data-map-window="signature-editor"');
   expect(markup).toContain('data-map-window-placement="scanner-anchored"');
-  expect(markup).toContain('Signature Editor');
+  expect(markup).toMatch(/<h2[^>]*>Wormhole</);
   expect(markup).toContain('data-map-connection-fields');
   expect(markup).not.toContain('--map-window-transform');
 });

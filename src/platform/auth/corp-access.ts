@@ -1,5 +1,5 @@
+import { isExpired } from '@/data/esi-store';
 import { recordCorpAccessDecision, type CachedAffiliation } from './affiliation-store';
-import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 
 export type CorpAccessReason = 'member' | 'not_member';
 
@@ -26,9 +26,9 @@ export function createCorpAccessSnapshot(
   resolvedAt = Date.now(),
 ): UserCorpAccess {
   const members: Record<number, number[]> = {};
-  const now = new Date(resolvedAt);
   for (const row of affiliations) {
-    if (row.sharedAccessEligible && row.corporationId !== null && !AFFILIATION_FRESHNESS.isStale(row.refreshedAt, now)) {
+    // An affiliation past CCP's expiry grants nothing until a refresh renews it.
+    if (row.sharedAccessEligible && row.corporationId !== null && !isExpired(row.expiresAt?.getTime() ?? null, resolvedAt)) {
       (members[row.corporationId] ??= []).push(row.characterId);
     }
   }

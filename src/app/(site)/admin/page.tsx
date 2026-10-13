@@ -1,12 +1,13 @@
-import { parseRange, rangeFor } from '@/composition/admin-period';
+import { CardLink } from '@/components/ui/text-link';
 import { getAccountTotals } from '@/platform/auth/admin-users';
+import { parseRange, rangeFor } from './period';
 import { AccountTotals } from './AccountsCard';
+import { adminHref } from './admin-sections';
 import { ActionTiles, loadActionRows } from './ActionsCard';
 import { AdminPageFrame } from './AdminFrame';
 import { AttentionList, STATUS_CARDS } from './AdminOverviewCards';
 import { AdminSection } from './AdminSection';
 import { AudienceBody, AudienceLinks, loadAudience } from './AudienceCard';
-import { CardLink } from './CardLink';
 import { LevelRows } from './LevelRows';
 import { loadAdminSignals } from './load-signals';
 import type { RangeSearchParams } from './RangeControl';
@@ -27,7 +28,7 @@ async function OverviewContent({ searchParams }: { searchParams: RangeSearchPara
         name="accounts"
         rows={2}
         reveal={2}
-        hint={<CardLink href="/admin/users">Users &amp; roles</CardLink>}
+        hint={<CardLink href={adminHref('users')}>Users &amp; roles</CardLink>}
         load={getAccountTotals}
       >
         {(totals) => <AccountTotals totals={totals} />}
@@ -57,7 +58,7 @@ async function OverviewContent({ searchParams }: { searchParams: RangeSearchPara
         name="audience"
         rows={5}
         reveal={5}
-        hint={<AudienceLinks />}
+        hint={<AudienceLinks rangeKey={rangeKey} />}
         load={() => loadAudience(rangeKey, range)}
       >
         {(audience) => <AudienceBody audience={audience} />}
@@ -68,11 +69,7 @@ async function OverviewContent({ searchParams }: { searchParams: RangeSearchPara
 
 export default function AdminOverviewPage({ searchParams }: { searchParams: RangeSearchParams }) {
   return (
-    <AdminPageFrame
-      title="Overview"
-      rangeBasePath="/admin"
-      fallbackLabel="Needs attention"
-    >
+    <AdminPageFrame section="overview" fallbackLabel="Needs attention">
       <OverviewContent searchParams={searchParams} />
     </AdminPageFrame>
   );

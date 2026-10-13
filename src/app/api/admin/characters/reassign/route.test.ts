@@ -1,18 +1,13 @@
-import { NextRequest } from 'next/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
+import type { BetterAuthSession } from '@/composition/route-guards';
 
-const ADMIN_SESSION = {
-  user: { id: 'admin-1' },
-  characterId: 1,
-  isAdmin: true,
-};
+const ADMIN_SESSION = adminSessionFixture({ user: { id: 'admin-1' }, characterId: 1 });
 
-const getSessionMock = vi.fn();
+const getSessionMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const accountBelongsToUserMock = vi.fn();
 const reassignCharacterMock = vi.fn();
-const reconcileAfterCharacterRemovalMock = vi.fn();
-const logUsageEventMock = vi.fn();
-let errorSpy: ReturnType<typeof vi.spyOn>;
+const emitUsageEventMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -26,26 +21,23 @@ vi.mock('@/platform/auth/admin-users', () => ({
   reassignCharacter: (args: unknown) => reassignCharacterMock(args),
 }));
 
-vi.mock('@/platform/auth/account-purge', () => ({
-  reconcileAfterCharacterRemoval: (...args: unknown[]) =>
-    reconcileAfterCharacterRemovalMock(...args),
+vi.mock('@/data/telemetry/usage-events', () => ({
+  emitUsageEvent: (scope: string, input: unknown) => emitUsageEventMock(scope, input),
 }));
-
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
-}));
+// Capability outcomes also reach emitUsageEvent, through cost-metrics; keep them out of the events under test.
+vi.mock('@/data/telemetry/cost-metrics', () => ({ emitCostMetric: vi.fn() }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+// The guard reads through getFullSession, which schedules the authorization check after the response.
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: vi.fn(),
+}));
 
+import { postForm } from '@/lib/__tests__/route-requests';
 import { POST } from './route';
 
-function buildRequest(form: Record<string, string>): NextRequest {
-  return new NextRequest('http://localhost:3000/api/admin/characters/reassign', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
-}
+const ROUTE = '/api/admin/characters/reassign';
 
 function locationOf(res: Response): string {
   return res.headers.get('location') ?? '';
@@ -56,31 +48,24 @@ describe('POST /api/admin/characters/reassign', () => {
     getSessionMock.mockReset();
     accountBelongsToUserMock.mockReset();
     reassignCharacterMock.mockReset();
-    reconcileAfterCharacterRemovalMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    errorSpy.mockRestore();
+    emitUsageEventMock.mockReset();
   });
 
   it('refuses non-admins, a malformed form, a no-op self-move, and an unowned character', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_SESSION, isAdmin: false });
     expect(
-      (await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }))).status,
+      (await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }))).status,
     ).toBe(403);
 
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    expect((await POST(buildRequest({ characterId: '200' }))).status).toBe(400);
-    expect((await POST(buildRequest({ fromUserId: 'admin-1', characterId: '200' }))).status).toBe(
+    expect((await POST(postForm(ROUTE, { characterId: '200' }))).status).toBe(400);
+    expect((await POST(postForm(ROUTE, { fromUserId: 'admin-1', characterId: '200' }))).status).toBe(
       400,
     );
 
     accountBelongsToUserMock.mockResolvedValue(false);
     expect(
-      (await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }))).status,
+      (await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }))).status,
     ).toBe(404);
     expect(reassignCharacterMock).not.toHaveBeenCalled();
   });
@@ -89,7 +74,7 @@ describe('POST /api/admin/characters/reassign', () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
     accountBelongsToUserMock.mockResolvedValue(true);
     reassignCharacterMock.mockResolvedValue({ sourceDeleted: true });
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
+    const res = await POST(postForm(ROUTE, { fromUserId: 'eve-user-2', characterId: '200' }));
     expect(res.status).toBe(303);
     expect(locationOf(res)).toBe('http://localhost:3000/admin/users/admin-1');
     expect(reassignCharacterMock).toHaveBeenCalledWith({
@@ -104,46 +89,9 @@ describe('POST /api/admin/characters/reassign', () => {
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     });
-    expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('rebinds the source identity after moving one of several characters', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    accountBelongsToUserMock.mockResolvedValue(true);
-    reassignCharacterMock.mockResolvedValue({ sourceDeleted: false });
-    reconcileAfterCharacterRemovalMock.mockResolvedValue({ accountEmptied: false });
-
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
-
-    expect(res.status).toBe(303);
-    expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledWith(
-      'eve-user-2',
-      200,
-      expect.objectContaining({
-        runBeforeUserDelete: expect.any(Function),
-        runBeforeCharacterUnlink: expect.any(Function),
-        runAfterFailedCharacterUnlink: expect.any(Function),
-        runAfterCharacterUnlink: expect.any(Function),
-        runAfterCharacterLinkChanged: expect.any(Function),
-      }),
+    expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith(
+      'admin/characters/reassign',
+      expect.objectContaining({ action: 'admin_character_reassign', characterId: ADMIN_SESSION.characterId }),
     );
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the committed move successful when source reconciliation fails', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    accountBelongsToUserMock.mockResolvedValue(true);
-    reassignCharacterMock.mockResolvedValue({ sourceDeleted: false });
-    reconcileAfterCharacterRemovalMock.mockRejectedValue(new Error('transient database failure'));
-
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
-
-    expect(res.status).toBe(303);
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[admin/characters/reassign] source identity rebind failed after the move committed',
-      expect.any(Error),
-    );
-    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });
 });

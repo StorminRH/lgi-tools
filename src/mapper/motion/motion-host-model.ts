@@ -13,6 +13,7 @@ import {
   createMotionState,
   finishAllTweens,
   isIdle,
+  pruneBy,
   stepMotion,
   type MotionState,
 } from './tween-model';
@@ -69,20 +70,7 @@ function pruneToLive<Key, Snapshot>(
   snapshots: ReadonlyMap<Key, Snapshot>,
   live: ReadonlyMap<Key, unknown>,
 ): ReadonlyMap<Key, Snapshot> {
-  if (snapshots.size === 0) return snapshots;
-  let stale = false;
-  for (const key of snapshots.keys()) {
-    if (!live.has(key)) {
-      stale = true;
-      break;
-    }
-  }
-  if (!stale) return snapshots;
-  const kept = new Map<Key, Snapshot>();
-  for (const [key, value] of snapshots) {
-    if (live.has(key)) kept.set(key, value);
-  }
-  return kept;
+  return pruneBy(snapshots, (_, key) => live.has(key));
 }
 
 function captureGhostNodes(

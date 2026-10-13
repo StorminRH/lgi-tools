@@ -1,4 +1,5 @@
-import type { CharacterOwner } from '@/platform/owner-sync';
+import type { EsiReadSession } from '@/data/esi-store/session';
+import type { CharacterSyncBase, OwnerWrite, SingleOwnerRead } from '@/platform/owner-sync';
 import type { SkillQueueEntry } from './esi-projection';
 
 export interface CharacterSkillData {
@@ -7,16 +8,15 @@ export interface CharacterSkillData {
   unallocatedSp?: number;
 }
 
-export interface CharacterSkillSyncState {
-  lastRefreshedAt: Date | null;
-  queueEtag: string | null;
-  skillsEtag: string | null;
+/** One character_skills row: the queue and SP figures, plus the trained levels when they are stored. */
+export interface CharacterSkillRow {
+  data: CharacterSkillData;
+  levels: Record<string, number> | null;
 }
 
-export type SkillsEsiRead =
-  | { kind: 'fresh'; body: unknown; etag: string | null }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
+export interface CharacterSkillSyncState {
+  lastRefreshedAt: Date | null;
+}
 
 export interface SkillsSaveHalves {
   queue?: { entries: SkillQueueEntry[]; etag: string | null };
@@ -28,13 +28,11 @@ export interface SkillsSaveHalves {
   };
 }
 
-export interface SkillsPort {
-  now(): Date;
-  listCharacters(userId: string): Promise<CharacterOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
-  readSkillQueue(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;
-  readSkills(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;
-  readSyncState(characterId: number): Promise<CharacterSkillSyncState | null>;
-  saveSkills(characterId: number, halves: SkillsSaveHalves): Promise<void>;
-  stampFresh(characterId: number): Promise<void>;
+export interface SkillsPort extends CharacterSyncBase<CharacterSkillSyncState, EsiReadSession> {
+  readSkillQueue(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readSkills(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
+  /** The halves' write, which the refresh's commit runs atomically with its answers. */
+  saveSkills(characterId: number, halves: SkillsSaveHalves): OwnerWrite;
+  /** Records a settled refusal (no role-holder, a token that is gone) as the owner's stored answer, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(characterId: number, expiresAt: number | null): Promise<void>;
 }

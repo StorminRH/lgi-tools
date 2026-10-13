@@ -1,10 +1,14 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {
+  listSourceFiles,
+  MODULE_EXTENSIONS,
+  resolveLocalImport,
+  valueImportSpecifiers,
+} from '@/lib/__tests__/source-scan';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '../..');
-const SOURCE_ROOT = path.join(REPO_ROOT, 'src');
-const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts'] as const;
 
 interface ServerRoot {
   path: string;
@@ -141,88 +145,13 @@ const VENDOR_OWNER_RULES: readonly VendorOwnerRule[] = [
   },
 ];
 
-function sourceFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const absolutePath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return sourceFiles(absolutePath);
-    return SOURCE_EXTENSIONS.some((extension) => entry.name.endsWith(extension))
-      ? [absolutePath]
-      : [];
-  });
-}
-
 function relativeSourceMap(): Map<string, string> {
-  return new Map(
-    sourceFiles(SOURCE_ROOT)
-      .filter((file) => !/\.(?:test|spec)\.[^.]+$/.test(file))
-      .map((file) => [
-        path.relative(REPO_ROOT, file).split(path.sep).join('/'),
-        readFileSync(file, 'utf8'),
-      ]),
-  );
-}
-
-function isTypeOnlyClause(clause: string): boolean {
-  const trimmed = clause.trim();
-  if (trimmed.startsWith('type ')) return true;
-  const named = trimmed.match(/^\{([\s\S]*)\}$/);
-  const namedSpecifiers = named?.[1];
-  if (namedSpecifiers === undefined) return false;
-  return namedSpecifiers
-    .split(',')
-    .map((specifier) => specifier.trim())
-    .filter(Boolean)
-    .every((specifier) => specifier.startsWith('type '));
-}
-
-function valueImportSpecifiers(source: string): string[] {
-  const specifiers: string[] = [];
-  const fromPattern =
-    /(?:^|\n)\s*(?:import|export)\s+([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/g;
-  for (const match of source.matchAll(fromPattern)) {
-    const clause = match[1];
-    const specifier = match[2];
-    if (
-      clause !== undefined &&
-      specifier !== undefined &&
-      !isTypeOnlyClause(clause)
-    ) {
-      specifiers.push(specifier);
-    }
-  }
-  const sideEffectPattern = /(?:^|\n)\s*import\s*['"]([^'"]+)['"]/g;
-  for (const match of source.matchAll(sideEffectPattern)) {
-    const specifier = match[1];
-    if (specifier !== undefined) specifiers.push(specifier);
-  }
-  const dynamicPattern = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  for (const match of source.matchAll(dynamicPattern)) {
-    const specifier = match[1];
-    if (specifier !== undefined) specifiers.push(specifier);
-  }
-  return specifiers;
-}
-
-function resolveLocalImport(
-  fromPath: string,
-  specifier: string,
-  files: ReadonlyMap<string, string>,
-): string | null {
-  let basePath: string;
-  if (specifier.startsWith('@/')) {
-    basePath = `src/${specifier.slice(2)}`;
-  } else if (specifier.startsWith('.')) {
-    basePath = path.posix.normalize(path.posix.join(path.posix.dirname(fromPath), specifier));
-  } else {
-    return null;
-  }
-
-  const candidates = [
-    basePath,
-    ...SOURCE_EXTENSIONS.map((extension) => `${basePath}${extension}`),
-    ...SOURCE_EXTENSIONS.map((extension) => `${basePath}/index${extension}`),
-  ];
-  return candidates.find((candidate) => files.has(candidate)) ?? null;
+  const files = listSourceFiles({
+    roots: ['src'],
+    extensions: MODULE_EXTENSIONS,
+    skipSuffixes: ['.test.ts', '.test.tsx', '.test.mts', '.spec.ts', '.spec.tsx', '.spec.mts'],
+  });
+  return new Map(files.map((file) => [file, readFileSync(path.join(REPO_ROOT, file), 'utf8')]));
 }
 
 function rootForPath(filePath: string, roots: readonly ServerRoot[]): ServerRoot | undefined {
@@ -240,7 +169,7 @@ function resolvedImports(
   const source = files.get(filePath);
   if (source === undefined) return [];
   return valueImportSpecifiers(source).flatMap((specifier) => {
-    const target = resolveLocalImport(filePath, specifier, files);
+    const target = resolveLocalImport(filePath, specifier, (candidate) => files.has(candidate));
     return target === null ? [] : [target];
   });
 }

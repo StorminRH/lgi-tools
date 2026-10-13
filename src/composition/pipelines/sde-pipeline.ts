@@ -4,15 +4,9 @@ import { runIngest } from '@/data/eve-data/ingest';
 import { listTrackedTypeIds } from '@/data/eve-data/queries';
 import { resolveNpcStationNames } from '@/data/eve-data/station-names';
 import { resolveAllTrees } from '@/data/eve-data/tree-resolver';
+import { seedPlaceholderPrices } from '@/data/market-prices/ingest';
 import { listMissingTypeIds } from '@/data/market-prices/queries';
-import { marketPrices } from '@/data/market-prices/schema';
 import type { PostgresJsDb } from '@/lib/db-types';
-
-type SeedSummary = {
-  tracked: number;
-  missing: number;
-  inserted: number;
-};
 
 /**
  * Seed market_prices with one row per tracked type ID that isn't
@@ -20,41 +14,13 @@ type SeedSummary = {
  * next price-refresh cron tick (or on-demand request) fills them in.
  * `ON CONFLICT DO NOTHING` preserves any existing rows verbatim, so
  * the 54 wormhole-site rows seeded by the wormhole-sites ingest stay
- * intact with their current prices.
+ * intact with their current prices. `missing` is counted before the
+ * insert, so it can exceed `inserted` when another writer got there first.
  */
-async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
+async function seedTrackedTypes(db: PostgresJsDb): Promise<SdePipelineSummary['seed']> {
   const tracked = await listTrackedTypeIds(db);
   const missing = await listMissingTypeIds(db, tracked);
-  if (missing.length === 0) {
-    return { tracked: tracked.length, missing: 0, inserted: 0 };
-  }
-
-  const now = new Date();
-  const epoch = new Date(0);
-  const rows = missing.map((typeId) => ({
-    typeId,
-    bestBuy: null,
-    bestSell: null,
-    pct5Buy: null,
-    pct5Sell: null,
-    buyVolume: null,
-    sellVolume: null,
-    updatedAt: now,
-    staleAfter: epoch,
-    source: 'esi',
-  }));
-
-  const BATCH = 1000;
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const written = await db
-      .insert(marketPrices)
-      .values(rows.slice(i, i + BATCH))
-      .onConflictDoNothing()
-      .returning({ typeId: marketPrices.typeId });
-    inserted += written.length;
-  }
-
+  const inserted = await seedPlaceholderPrices(db, missing);
   return { tracked: tracked.length, missing: missing.length, inserted };
 }
 
