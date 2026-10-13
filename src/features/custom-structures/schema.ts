@@ -1,4 +1,4 @@
-import { doublePrecision, integer, jsonb, pgTable } from 'drizzle-orm/pg-core';
+import { doublePrecision, index, integer, jsonb, pgTable } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
 import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
 import { ownedRowIdentityColumns } from '@/lib/db-columns';
@@ -34,4 +34,4 @@ export const customStructures = pgTable('custom_structures', {
   systemId: integer('system_id'),
   taxPct: doublePrecision('tax_pct'),
   bonuses: jsonb('bonuses').$type<EnteredBonuses>(),
-});
+}, (t) => [index('custom_structures_user_idx').on(t.userId)]);
