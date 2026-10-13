@@ -2,13 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   chainSnapshot,
   positionOfSlot,
-  sequentialTestAssigner,
+  sequentialPositions,
 } from './__tests__/chain-snapshot-fixture';
-import {
-  type ChainPosition,
-  type MapChainIntent,
-} from './intents';
-import { type PlacementAssigner } from './placement';
+import { type MapChainIntent } from './intents';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
@@ -29,22 +25,13 @@ function link(
   return { connectionId, fromSystemId, toSystemId };
 }
 
-function assignerMoving(systemId: number, to: ChainPosition): PlacementAssigner {
-  return (input) => {
-    const proposals = new Map(sequentialTestAssigner(input));
-    proposals.set(systemId, to);
-    return proposals;
-  };
-}
-
 function replay(
   snapshots: readonly ChainSnapshot[],
-  assigner: PlacementAssigner = sequentialTestAssigner,
 ): { state: ChainState; intents: readonly MapChainIntent[][] } {
   let state = EMPTY_CHAIN_STATE;
   const intents: MapChainIntent[][] = [];
   for (const next of snapshots) {
-    const merge = reconcileChain(state, next, assigner);
+    const merge = reconcileChain(state, next, sequentialPositions(state, next));
     state = merge.state;
     intents.push([...merge.intents]);
   }
@@ -58,11 +45,9 @@ function kindsOf(intents: readonly MapChainIntent[]): string[] {
 describe('map chain reconciler', () => {
   describe('intents', () => {
     it('emits system-appeared carrying the assigned position', () => {
-      const merge = reconcileChain(
-        EMPTY_CHAIN_STATE, chainSnapshot([JITA]), sequentialTestAssigner,
-      );
+      const { intents } = replay([chainSnapshot([JITA])]);
 
-      expect(merge.intents).toEqual([
+      expect(intents[0]).toEqual([
         { kind: 'system-appeared', systemId: JITA, position: positionOfSlot(0) },
       ]);
     });
@@ -192,13 +177,14 @@ describe('map chain reconciler', () => {
       ]);
     });
 
-    it('emits system-moved when the placement seam proposes a new position', () => {
+    it('emits system-moved when the positions move a placed system', () => {
       const target = { x: 999, y: 42 };
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE, chainSnapshot([JITA]), sequentialTestAssigner,
-      );
+      const { state } = replay([chainSnapshot([JITA])]);
+      const snapshot = chainSnapshot([JITA]);
       const second = reconcileChain(
-        first.state, chainSnapshot([JITA]), assignerMoving(JITA, target),
+        state,
+        snapshot,
+        sequentialPositions(state, snapshot, new Map([[JITA, target]])),
       );
 
       expect(second.intents).toEqual([
@@ -209,7 +195,10 @@ describe('map chain reconciler', () => {
           to: target,
         },
       ]);
-      expect(second.state.systems.get(JITA)?.position).toEqual(target);
+      expect(second.state.systems.get(JITA)).toEqual({
+        systemId: JITA,
+        position: target,
+      });
     });
   });
 
@@ -261,14 +250,12 @@ describe('map chain reconciler', () => {
 
   describe('edge visibility', () => {
     it('withholds a connection whose endpoint is absent and emits no intent', () => {
-      const merge = reconcileChain(
-        EMPTY_CHAIN_STATE,
+      const { state, intents } = replay([
         chainSnapshot([JITA], [link('c1', JITA, AMARR)]),
-        sequentialTestAssigner,
-      );
+      ]);
 
-      expect(merge.state.connections.size).toBe(0);
-      expect(kindsOf(merge.intents)).toEqual(['system-appeared']);
+      expect(state.connections.size).toBe(0);
+      expect(kindsOf(intents[0] ?? [])).toEqual(['system-appeared']);
     });
 
     it('emits connection-appeared only once the missing endpoint arrives', () => {
@@ -314,52 +301,39 @@ describe('map chain reconciler', () => {
 
 
   describe('placement', () => {
-    it('falls back to the origin when an assigner declines to place a new node', () => {
+    it('falls back to the origin when the positions omit a new node', () => {
       const merge = reconcileChain(
-        EMPTY_CHAIN_STATE, chainSnapshot([JITA]), () => new Map(),
+        EMPTY_CHAIN_STATE, chainSnapshot([JITA]), new Map(),
       );
 
       expect(merge.state.systems.get(JITA)?.position).toEqual({ x: 0, y: 0 });
     });
 
-    it('keeps an existing position when an assigner omits an existing node', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE, chainSnapshot([JITA]), sequentialTestAssigner,
-      );
-      const second = reconcileChain(
-        first.state, chainSnapshot([JITA]), () => new Map(),
-      );
+    it('keeps an existing position when the positions omit an existing node', () => {
+      const { state } = replay([chainSnapshot([JITA])]);
+      const second = reconcileChain(state, chainSnapshot([JITA]), new Map());
 
       expect(second.state.systems.get(JITA)?.position).toEqual(positionOfSlot(0));
       expect(second.intents).toEqual([]);
     });
-  });
 
-  describe('assigner proposals', () => {
-    it('emits system-moved when the assigner proposes new coordinates', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
+    it('frees a departed slot for the next arrival only once the snapshot is complete', () => {
+      const complete = replay([
+        chainSnapshot([JITA, AMARR]),
         chainSnapshot([JITA]),
-        sequentialTestAssigner,
-      );
-      const next = { x: 11, y: 22 };
-      const moved = reconcileChain(
-        first.state,
-        chainSnapshot([JITA]),
-        assignerMoving(JITA, next),
-      );
+        chainSnapshot([JITA, DODIXIE]),
+      ]);
+      const draining = replay([
+        chainSnapshot([JITA, AMARR]),
+        chainSnapshot([JITA, DODIXIE], [], { systems: false }),
+      ]);
 
-      expect(moved.state.systems.get(JITA)).toEqual({
-        systemId: JITA,
-        position: next,
-      });
-      expect(moved.intents).toEqual([
-        {
-          kind: 'system-moved',
-          systemId: JITA,
-          from: positionOfSlot(0),
-          to: next,
-        },
+      expect(complete.intents[2]).toEqual([
+        { kind: 'system-appeared', systemId: DODIXIE, position: positionOfSlot(1) },
+      ]);
+      expect([...draining.state.systems.keys()]).toEqual([JITA, AMARR, DODIXIE]);
+      expect(draining.intents[1]).toEqual([
+        { kind: 'system-appeared', systemId: DODIXIE, position: positionOfSlot(2) },
       ]);
     });
   });

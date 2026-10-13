@@ -80,6 +80,23 @@ function drainPending(state: Derivation, facts: LayoutFacts, pending: number[]):
   }
 }
 
+/**
+ * Classifies links in caller order: the first link joining a tree parent and
+ * its child is solid; every other link (duplicates, cross links, self links,
+ * orphan links) is a loop. Keyed by child, since each child has one parent.
+ */
+export function treeLinkClaim(
+  parents: ReadonlyMap<number, number>,
+): (a: number, b: number) => boolean {
+  const claimed = new Set<number>();
+  return (a, b) => {
+    const child = parents.get(b) === a ? b : parents.get(a) === b ? a : null;
+    if (child === null || claimed.has(child)) return false;
+    claimed.add(child);
+    return true;
+  };
+}
+
 export function deriveChainTree(facts: LayoutFacts): ChainTree {
   const known = new Set(facts.systems.map((system) => system.systemId));
   const rootSystemId = resolveRoot(facts, known);

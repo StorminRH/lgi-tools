@@ -1,33 +1,18 @@
 'use client';
 
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useRef,
-  type ForwardedRef,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { forwardRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { CloseIcon } from '@/components/ui/icons';
+import { isPopupOpen } from '@/components/ui/popup-open';
 import { scrollArea } from '@/components/ui/scroll-area';
+import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { mapFrostedSurface, mapOverlaySurface } from '../map-frosted-surface';
 import {
   keydownAction,
   surfaceKindOf,
   type WindowPlacement,
 } from './window-model';
-
-const ADOPTED_POPUP_SELECTOR = [
-  '[data-open][role="dialog"]',
-  '[data-open][role="listbox"]',
-  '[data-open][role="menu"]',
-  '[data-open] [role="dialog"]',
-  '[data-open] [role="listbox"]',
-  '[data-open] [role="menu"]',
-].join(',');
 
 // The scanner grows with its rows up to half the viewport height, so it
 // never takes more than half the map at any resolution or window size.
@@ -53,10 +38,6 @@ const MAP_SCANNER_EDITOR_CLASS =
 const MAP_SCANNER_SITE_VIEWER_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-max`;
 
-export function isAdoptedPopupOpen(): boolean {
-  return typeof document !== 'undefined' && document.querySelector(ADOPTED_POPUP_SELECTOR) !== null;
-}
-
 interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
@@ -78,21 +59,6 @@ interface MapWindowProps {
   /** Plays the anchored card's exit; the owner unmounts it afterwards. */
   readonly closing?: boolean;
   readonly children?: ReactNode;
-}
-
-function applyWindowStyles(
-  element: HTMLDivElement,
-  stackIndex: number,
-): void {
-  element.style.setProperty('--map-window-z', String(stackIndex));
-}
-
-function assignForwardedRef(
-  forwardedRef: ForwardedRef<HTMLDivElement>,
-  node: HTMLDivElement | null,
-): void {
-  if (typeof forwardedRef === 'function') forwardedRef(node);
-  else if (forwardedRef !== null) forwardedRef.current = node;
 }
 
 function placementClassName(
@@ -207,26 +173,6 @@ function windowBodyClass(
   );
 }
 
-/** The root ref callback: keeps the stacking style applied and forwards the node. */
-function useWindowRootRef(
-  forwardedRef: ForwardedRef<HTMLDivElement>,
-  stackIndex: number,
-): (node: HTMLDivElement | null) => void {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const element = rootRef.current;
-    if (element === null) return;
-    applyWindowStyles(element, stackIndex);
-  }, [stackIndex]);
-
-  return useCallback((node: HTMLDivElement | null) => {
-    rootRef.current = node;
-    if (node !== null) applyWindowStyles(node, stackIndex);
-    assignForwardedRef(forwardedRef, node);
-  }, [forwardedRef, stackIndex]);
-}
-
 function windowKeyDownHandler(
   placement: WindowPlacement,
   onClose: () => void,
@@ -236,7 +182,7 @@ function windowKeyDownHandler(
     const action = keydownAction({
       key: event.key,
       surfaceKind,
-      popupOpen: isAdoptedPopupOpen(),
+      popupOpen: isPopupOpen(),
       defaultPrevented: event.defaultPrevented,
     });
     if (action === 'dismiss-card') onClose();
@@ -274,7 +220,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
     },
     forwardedRef,
   ) {
-    const setRootRef = useWindowRootRef(forwardedRef, stackIndex);
+    const setRootRef = useStyleProperty('--map-window-z', String(stackIndex), forwardedRef);
     const overlay = appearance === 'overlay';
 
     return (

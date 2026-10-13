@@ -2,6 +2,10 @@ import { systemSecurityClass } from '@/data/eve-data/security';
 
 export const SYSTEM_FRAME_WIDTH = 150;
 export const SYSTEM_FRAME_HEIGHT = 110;
+export const SYSTEM_FRAME_SIZE = {
+  width: SYSTEM_FRAME_WIDTH,
+  height: SYSTEM_FRAME_HEIGHT,
+} as const;
 export const SYSTEM_DISC_SIZE = 55;
 const TRACK_ICON_PX = 14;
 const TRACK_AIR_GAP_PX = 4;

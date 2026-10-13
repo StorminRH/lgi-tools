@@ -1,4 +1,5 @@
 import type { ChainPosition } from '../chain/intents';
+import { pointToward, type Box } from '../lib/geometry';
 import {
   ICON_TRACK_CLEARANCE_PX,
   kspaceCaptionOffset,
@@ -36,67 +37,37 @@ export function frameCenter(frame: FrameRect): ChainPosition {
   return { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 };
 }
 
-export interface RayPoint {
-  readonly x: number;
-  readonly y: number;
-}
-
-export function pointOnRayAtRadius(
-  origin: RayPoint,
-  toward: RayPoint,
-  radius: number,
-): RayPoint | null {
-  const dx = toward.x - origin.x;
-  const dy = toward.y - origin.y;
-  const distance = Math.hypot(dx, dy);
-  if (distance === 0) return null;
-  const t = radius / distance;
-  return { x: origin.x + dx * t, y: origin.y + dy * t };
-}
-
-export interface LabelBox {
-  readonly left: number;
-  readonly right: number;
-  readonly top: number;
-  readonly bottom: number;
-}
-
 export interface EndpointLabels {
-  readonly source: LabelBox | null;
-  readonly target: LabelBox | null;
+  readonly source: Box | null;
+  readonly target: Box | null;
 }
 
 const NO_LABELS: EndpointLabels = { source: null, target: null };
 
-export function kspaceCaptionBox(): LabelBox {
-  const half = SYSTEM_FRAME_WIDTH / 2;
-  const bottom = kspaceCaptionOffset().y;
-  return {
-    left: -half,
-    right: half,
-    top: bottom - KSPACE_CAPTION_BLOCK_PX,
-    bottom,
-  };
-}
+const KSPACE_CAPTION_BOTTOM = kspaceCaptionOffset().y;
 
-export function frameNameBox(): LabelBox {
-  const halfW = SYSTEM_FRAME_WIDTH / 2;
-  const halfH = SYSTEM_FRAME_HEIGHT / 2;
-  const top = FRAME_NAME_TOP_PX - halfH;
-  return {
-    left: FRAME_NAME_INSET_PX - halfW,
-    right: halfW - FRAME_NAME_INSET_PX,
-    top,
-    bottom: top + FRAME_NAME_LINE_PX,
-  };
-}
+const KSPACE_CAPTION_LABEL: Box = {
+  left: -SYSTEM_FRAME_WIDTH / 2,
+  right: SYSTEM_FRAME_WIDTH / 2,
+  top: KSPACE_CAPTION_BOTTOM - KSPACE_CAPTION_BLOCK_PX,
+  bottom: KSPACE_CAPTION_BOTTOM,
+};
 
-export function connectionLabelBox(data: NodeCaptionData | undefined): LabelBox | null {
+const FRAME_NAME_TOP = FRAME_NAME_TOP_PX - SYSTEM_FRAME_HEIGHT / 2;
+
+const FRAME_NAME_LABEL: Box = {
+  left: FRAME_NAME_INSET_PX - SYSTEM_FRAME_WIDTH / 2,
+  right: SYSTEM_FRAME_WIDTH / 2 - FRAME_NAME_INSET_PX,
+  top: FRAME_NAME_TOP,
+  bottom: FRAME_NAME_TOP + FRAME_NAME_LINE_PX,
+};
+
+export function connectionLabelBox(data: NodeCaptionData | undefined): Box | null {
   if (data === undefined) return null;
-  return nodeCaptionKind(data) === 'kspace' ? kspaceCaptionBox() : frameNameBox();
+  return nodeCaptionKind(data) === 'kspace' ? KSPACE_CAPTION_LABEL : FRAME_NAME_LABEL;
 }
 
-function rayFarDistance(dx: number, dy: number, box: LabelBox): number | null {
+function rayFarDistance(dx: number, dy: number, box: Box): number | null {
   const length = Math.hypot(dx, dy);
   if (length === 0) return null;
   const ux = dx / length;
@@ -121,7 +92,7 @@ function rayFarDistance(dx: number, dy: number, box: LabelBox): number | null {
   return tMax < 0 ? null : tMax;
 }
 
-function clearanceAlong(dx: number, dy: number, label: LabelBox | null): number {
+function clearanceAlong(dx: number, dy: number, label: Box | null): number {
   const hit = label === null ? null : rayFarDistance(dx, dy, label);
   return Math.max(ICON_TRACK_CLEARANCE_PX, hit ?? 0);
 }
@@ -140,8 +111,8 @@ export function frameSegment(
   const sourceClearance = clearanceAlong(dx, dy, labels.source);
   const targetClearance = clearanceAlong(-dx, -dy, labels.target);
   if (distance <= sourceClearance + targetClearance) return null;
-  const startPt = pointOnRayAtRadius(from, to, sourceClearance);
-  const endPt = pointOnRayAtRadius(to, from, targetClearance);
+  const startPt = pointToward(from, to, sourceClearance);
+  const endPt = pointToward(to, from, targetClearance);
   if (startPt === null || endPt === null) return null;
   return {
     startX: startPt.x,
@@ -157,15 +128,23 @@ export function edgeTaperFraction(segment: FrameSegment): number {
   return Math.min(0.5, EDGE_TAPER_PX / length);
 }
 
-export interface EdgeEndpointNode {
+/**
+ * The parts of a React Flow internal node that place it on the canvas. It stays
+ * structural so useInternalNode() and getInternalNode() results pass straight in.
+ */
+export interface MeasuredNode {
   readonly internals: { readonly positionAbsolute: { readonly x: number; readonly y: number } };
   readonly measured: { readonly width?: number; readonly height?: number };
   readonly width?: number;
   readonly height?: number;
+}
+
+export interface EdgeEndpointNode extends MeasuredNode {
   readonly data?: NodeCaptionData;
 }
 
-export function endpointFrame(node: EdgeEndpointNode | undefined): FrameRect | null {
+/** The node's frame, sized by its measured size and else its declared size. */
+export function endpointFrame(node: MeasuredNode | undefined): FrameRect | null {
   if (node === undefined) return null;
   const width = node.measured.width ?? node.width;
   const height = node.measured.height ?? node.height;
@@ -176,6 +155,11 @@ export function endpointFrame(node: EdgeEndpointNode | undefined): FrameRect | n
     width,
     height,
   };
+}
+
+export function nodeCenter(node: MeasuredNode | undefined): ChainPosition | null {
+  const frame = endpointFrame(node);
+  return frame === null ? null : frameCenter(frame);
 }
 
 export function chainLinkSegment(
@@ -212,13 +196,8 @@ export function visibleChainLinkSegment(
     };
 }
 
-export function chainLinkPath(
-  segment: FrameSegment,
-  fogSide: 'source' | 'target' | undefined,
-  cut: number,
-): string {
-  const visible = visibleChainLinkSegment(segment, fogSide, cut);
-  return `M ${visible.startX},${visible.startY} L ${visible.endX},${visible.endY}`;
+export function segmentPath(segment: FrameSegment): string {
+  return `M ${segment.startX},${segment.startY} L ${segment.endX},${segment.endY}`;
 }
 
 export function pointAlongSegment(

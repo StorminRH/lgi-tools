@@ -34,7 +34,7 @@ export async function requireMapTrackingOpen(ctx: QueryCtx, mapId: string): Prom
   if (watermark?.scopingPending === true) {
     throw new ConvexError({
       code: 'TRACKING_SCOPING_PENDING',
-      detail: 'New tracking is paused while this map updates its character access. Try again shortly.',
+      detail: "This map's access list is updating. Try again in a moment.",
     });
   }
 }

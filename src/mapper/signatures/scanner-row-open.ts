@@ -1,32 +1,12 @@
-import type { Id } from '@/data/convex/data-model';
+import type { ScannerPanelTarget } from './signature-context';
 import type { SignatureWindowRow } from './signature-model';
 
-export type ScannerRowOpenAction =
-  | {
-      readonly kind: 'connection';
-      readonly connectionId: Id<'mapConnections'>;
-      readonly signatureId: string;
-    }
-  | {
-      readonly kind: 'site';
-      readonly siteId: number;
-      readonly signatureId: string;
-    }
-  | null;
-
-export interface ScannerRowOpenHandlers {
-  readonly openEditor: (
-    connectionId: Id<'mapConnections'>,
-    signatureId: string,
-  ) => void;
-  readonly openSite: (siteId: number, signatureId: string) => void;
-}
-
-export function scannerRowOpenAction(
+/** The panel a scanner row opens: its wormhole for editors, or its catalogue site. */
+export function scannerRowOpenTarget(
   row: SignatureWindowRow,
   canEdit: boolean,
   resolveSiteId: (name: string) => number | null,
-): ScannerRowOpenAction {
+): ScannerPanelTarget {
   if (row.connection !== null) {
     return canEdit
       ? {
@@ -47,30 +27,4 @@ export function scannerRowOpenAction(
     }
   }
   return null;
-}
-
-export function scannerRowShowsOpenAffordance(
-  row: SignatureWindowRow,
-  canEdit: boolean,
-  resolveSiteId: (name: string) => number | null,
-): boolean {
-  return scannerRowOpenAction(row, canEdit, resolveSiteId) !== null;
-}
-
-export function applyScannerRowOpenAction(
-  action: ScannerRowOpenAction,
-  handlers: ScannerRowOpenHandlers,
-  _context: {
-    readonly row: SignatureWindowRow;
-    readonly trigger: HTMLElement;
-    readonly clientX: number;
-    readonly clientY: number;
-  },
-): void {
-  if (action === null) return;
-  if (action.kind === 'connection') {
-    handlers.openEditor(action.connectionId, action.signatureId);
-    return;
-  }
-  handlers.openSite(action.siteId, action.signatureId);
 }

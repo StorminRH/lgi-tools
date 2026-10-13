@@ -9,13 +9,8 @@ import {
   type MenuAnchor,
 } from '@/components/ui/pointer-menu';
 import { pointerAnchor } from '@/components/ui/overlay-positioning';
-import { TerminalSearch } from '@/components/ui/terminal-search';
 import { displayTitle } from '@/components/ui/type-roles';
-import {
-  useSystemSearch,
-  type SystemErr,
-  type SystemParams,
-} from '@/components/use-system-search';
+import { SystemTerminalSearch } from './system-terminal-search';
 
 export interface NodeMenuAnchor {
   readonly systemId: number;
@@ -36,7 +31,6 @@ export function NodeAddMenu({
   onMenuOpenChange,
   onAdd,
 }: NodeAddMenuProps) {
-  const { parse, suggest } = useSystemSearch();
   const [searchOpen, setSearchOpen] = useState(false);
   const [fromSystemId, setFromSystemId] = useState<number | null>(null);
   const titleId = useId();
@@ -79,24 +73,16 @@ export function NodeAddMenu({
             </DialogTitle>
             <DialogCloseButton label="Close add connection" />
           </div>
-          <p className="font-ui text-ui leading-relaxed text-muted">
-            Existing systems supported.
-          </p>
-          <TerminalSearch<SystemParams, SystemErr>
-            initialValue=""
-            placeholder="Destination system — type a name"
-            parse={parse}
-            suggest={suggest}
+          <SystemTerminalSearch
+            placeholder="Destination system"
             inputRef={searchInputRef}
-            errorMessage={() => 'No system matches that name.'}
-            onSubmit={(params) => {
+            excludeSystemId={fromSystemId ?? undefined}
+            onPick={(toSystemId) => {
               if (fromSystemId === null) return;
-              onAdd(fromSystemId, params.system.id);
+              onAdd(fromSystemId, toSystemId);
               setSearchOpen(false);
               setFromSystemId(null);
             }}
-            onClear={() => undefined}
-            errorLabel="System"
           />
         </div>
       </Dialog>

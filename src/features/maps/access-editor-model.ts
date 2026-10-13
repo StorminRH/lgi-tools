@@ -144,7 +144,7 @@ export function prepareMapCreation(
   if (grants === null) {
     return {
       ok: false,
-      message: 'Choose Read-only or Write for every selected principal.',
+      message: 'Choose Read-only or Write for everyone on the access list.',
     };
   }
   return {

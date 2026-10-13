@@ -2,7 +2,6 @@
 
 import { useStore, useStoreApi } from '@xyflow/react';
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -10,11 +9,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useEscapeDismiss } from '@/components/ui/popup-open';
 import { sameItems } from '@/lib/array';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import type { ChainNode } from '../canvas/SystemNode';
 import { createNodeFollower, type NodeFollowerStore } from './follower-model';
-import { isAdoptedPopupOpen, MapWindow } from './MapWindow';
+import { MapWindow } from './MapWindow';
 import {
   MapWindowLeader,
   type MapWindowLeaderHandle,
@@ -22,7 +22,6 @@ import {
 import {
   bringToFront,
   deriveSurfaces,
-  keydownAction,
   reconcileStack,
   type MapWindowId,
 } from './window-model';
@@ -42,34 +41,14 @@ function useSelectedSystemIds(): readonly number[] {
   );
 }
 
-function useSurfacePresence(input: {
-  readonly dockSystemId: number | null;
-  readonly boxSelectActive: boolean;
-  readonly selectedIds: readonly number[];
-}) {
-  const derivation = deriveSurfaces({
-    dockSystemId: input.dockSystemId,
-    selectedIds: input.selectedIds,
-    boxSelectActive: input.boxSelectActive,
-  });
-
-  return {
-    liveIds: derivation.surfaces,
-    summarySystemId: derivation.summarySystemId,
-  };
-}
-
 function useWindowStack(liveIds: readonly MapWindowId[]) {
   const [stack, setStack] = useState<readonly MapWindowId[]>([]);
   const renderedStack = reconcileStack(stack, liveIds);
   if (!sameItems(stack, renderedStack)) setStack(renderedStack);
 
-  const activate = useCallback(
-    (id: MapWindowId) => {
-      setStack((current) => bringToFront(reconcileStack(current, liveIds), id));
-    },
-    [liveIds],
-  );
+  const activate = (id: MapWindowId) => {
+    setStack((current) => bringToFront(reconcileStack(current, liveIds), id));
+  };
 
   return { renderedStack, activate };
 }
@@ -127,23 +106,6 @@ function useNodeFollower(
       leader?.hide();
     };
   }, [cardRef, leaderRef, store, summaryId]);
-}
-
-function useCardDismissal(cardOpen: boolean, onDeselect: () => void): void {
-  useEffect(() => {
-    const handleDocumentKeyDown = (event: KeyboardEvent) => {
-      if (!cardOpen) return;
-      const action = keydownAction({
-        key: event.key,
-        surfaceKind: 'card',
-        popupOpen: isAdoptedPopupOpen(),
-        defaultPrevented: event.defaultPrevented,
-      });
-      if (action === 'dismiss-card') onDeselect();
-    };
-    document.addEventListener('keydown', handleDocumentKeyDown);
-    return () => document.removeEventListener('keydown', handleDocumentKeyDown);
-  }, [cardOpen, onDeselect]);
 }
 
 function dockTitle(title: string | undefined, dockSystemId: number): string {
@@ -248,10 +210,10 @@ function MountedMapWindowLayer({
   const selectedIds = useSelectedSystemIds();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const leaderRef = useRef<MapWindowLeaderHandle | null>(null);
-  const { liveIds, summarySystemId } = useSurfacePresence({
+  const { surfaces: liveIds, summarySystemId } = deriveSurfaces({
     dockSystemId,
-    boxSelectActive,
     selectedIds,
+    boxSelectActive,
   });
   const { renderedStack, activate } = useWindowStack(liveIds);
   const card = useLingeringCard(summarySystemId);
@@ -265,7 +227,7 @@ function MountedMapWindowLayer({
     [store],
   );
   useNodeFollower(followerStore, card.id, cardRef, leaderRef);
-  useCardDismissal(summarySystemId !== null, onDeselect);
+  useEscapeDismiss(onDeselect, { enabled: summarySystemId !== null });
 
   const zIndex = (id: MapWindowId) => renderedStack.indexOf(id) + 1;
 

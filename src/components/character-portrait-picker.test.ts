@@ -20,6 +20,37 @@ test('CharacterPortraitPicker presses the chosen portraits', () => {
   expect(markup).toMatch(/aria-pressed="true"[^>]*aria-label="Alt"/);
 });
 
+test('CharacterPortraitPicker names portraits by itemLabel and outlines reconnects only when asked', () => {
+  const characters = [
+    { characterId: 1, name: 'Main', needsLocationReconnect: true },
+    { characterId: 2, name: 'Alt', needsLocationReconnect: false },
+  ];
+  const plain = renderToStaticMarkup(createElement(CharacterPortraitPicker, {
+    label: 'Your characters',
+    characters,
+    selectedIds: new Set([2]),
+    onToggle: vi.fn(),
+  }));
+  expect(plain).toMatch(/aria-label="Main" title="Main"/);
+  expect(plain).not.toContain('data-tracking-reconnect');
+
+  const itemLabel = vi.fn((character: { name: string }, selected: boolean) =>
+    `${selected ? 'Drop' : 'Add'} ${character.name}`);
+  const tracking = renderToStaticMarkup(createElement(CharacterPortraitPicker, {
+    label: 'Tracking',
+    characters,
+    selectedIds: new Set([2]),
+    onToggle: vi.fn(),
+    itemLabel,
+    markLocationReconnect: true,
+  }));
+  expect(itemLabel).toHaveBeenCalledWith(characters[0], false);
+  expect(itemLabel).toHaveBeenCalledWith(characters[1], true);
+  expect(tracking).toMatch(/aria-pressed="false"[^>]*aria-label="Add Main" title="Add Main"[^>]*data-tracking-reconnect="true"/);
+  expect(tracking).toMatch(/aria-pressed="true"[^>]*aria-label="Drop Alt"/);
+  expect(tracking.match(/data-tracking-reconnect/g)).toHaveLength(1);
+});
+
 test('CharacterPortraitPicker reports the one portrait a group change flipped', () => {
   const onToggle = vi.fn();
   const characters = [{ characterId: 1, name: 'Main' }, { characterId: 2, name: 'Alt' }];

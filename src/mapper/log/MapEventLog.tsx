@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import { formatCount } from '@/lib/format/number';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
   formatEventTime,
@@ -67,7 +68,7 @@ export function MapEventLog({
                   data-map-event-log-count
                   className="font-data text-micro text-muted"
                 >
-                  Events - {events.length}
+                  {formatCount(events.length, 'event')}
                 </span>
               ) : null}
               <CollapsibleChevron className="ml-auto" />
@@ -83,13 +84,13 @@ export function MapEventLog({
               className="flex max-h-48 w-80 max-w-[calc(100vw-5rem)] flex-col gap-1 overflow-y-auto border-t border-border-soft px-2.5 py-1.5"
             >
               {events === undefined ? (
-                <LoadingLabel label="Loading map events…" className="text-micro" />
+                <LoadingLabel label="Loading events…" className="text-micro" />
               ) : events.length === 0 ? (
                 <p
                   data-map-event-log-empty
                   className="font-data text-micro text-muted"
                 >
-                  No map events yet.
+                  No events yet.
                 </p>
               ) : (
                 events.map((event) => (

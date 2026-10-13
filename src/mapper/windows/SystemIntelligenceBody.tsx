@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { eyebrow } from '@/components/ui/type-roles';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
-import { useEntityNames, useTypeNames } from '@/data/eve-data/use-names';
+import { useTypeNames } from '@/data/eve-data/use-names';
 import { useUniverseAssets, useWormholeCodexStatus } from '@/data/eve-data/use-universe-assets';
 import { WORMHOLE_EFFECT_NAME, type WormholeEffect } from '@/data/eve-data/wormhole-contract';
 import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormhole-sites/widget';
@@ -15,6 +15,7 @@ import { useSignatureRows } from '../signatures/signature-context';
 import { useSystemStaticSlots } from '../signatures/use-system-statics';
 import { friendlyRows, type PresencePilot } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
+import { useCharacterIdentities } from '../tracking/use-character-identities';
 import { IntelIcon, WormholeEffectIcon, type IntelIconKind } from './IntelIcon';
 import { INTEL_CATEGORY_LABEL, intelCategoryBlocks, intelLocationKind, type IntelCategoryBlock } from './intel-model';
 import { useSystemLabel } from './use-system-label';
@@ -99,7 +100,7 @@ function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffec
   if (codex === null) {
     return (
       <p className="ml-6 py-1 font-data text-micro text-muted">
-        {failed ? 'Effect details are unavailable right now.' : 'Loading effects…'}
+        {failed ? "Couldn't load effects." : 'Loading effects…'}
       </p>
     );
   }
@@ -217,11 +218,11 @@ function CategoryBlock({ block }: { readonly block: IntelCategoryBlock }) {
 }
 
 function FriendlyList({ pilots }: { readonly pilots: readonly PresencePilot[] }) {
-  const names = useEntityNames(pilots.map((pilot) => pilot.characterId));
+  const identityOf = useCharacterIdentities(pilots.map((pilot) => pilot.characterId));
   const ships = useTypeNames(pilots.flatMap((pilot) => !pilot.docked && pilot.shipTypeId !== null ? [pilot.shipTypeId] : []));
   return (
     <ul className="ml-6 flex flex-col gap-1 py-1 font-data text-ui">
-      {friendlyRows(pilots, names, ships).map((row) => (
+      {friendlyRows(pilots, (id) => identityOf(id).name, ships).map((row) => (
         <li key={row.characterId} data-presence-pilot={row.characterId} className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 truncate text-name">{row.label}</span>
           <span className="max-w-1/2 shrink-0 truncate text-muted">{row.word === 'Docked' ? 'Docked' : row.shipName ?? '—'}</span>

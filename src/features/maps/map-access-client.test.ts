@@ -34,7 +34,7 @@ describe('map access client', () => {
           'test-correlation',
         ) as ProblemBody & { code: 'map_projection_unavailable' },
       }),
-    ).toContain('Retry the same change');
+    ).toBe("Saved, but live access hasn't updated yet. Try the change again.");
   });
 
   it('names each refusal by its code', () => {
@@ -45,9 +45,11 @@ describe('map access client', () => {
         status: 409,
         error: problemBody(conflictFailure(code), 'c') as ProblemBody & { code: typeof code },
       });
-    expect(conflict('map_block_owner')).toBe('This character belongs to the map owner.');
+    expect(conflict('map_block_owner')).toBe("You can't block the map creator.");
     expect(conflict('map_block_self')).toBe("You can't block your own character.");
-    expect(conflict('map_creator_character_required')).toContain('at least one of their own characters');
+    expect(conflict('map_creator_character_required')).toBe(
+      'The map creator needs at least one of their characters on the access list.',
+    );
   });
 });
 

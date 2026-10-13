@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { ChainEdge } from '../chain/nodes';
+import { createFrameCoalescer, type FrameCoalescer } from '../lib/frame-coalescer';
 import type { MotionConfig } from '../motion/motion-contract';
 import { BROWSER_MOTION_SEAMS } from '../motion/use-motion';
 import { createFogHostRuntime, runFogTick } from './fog-host';
@@ -104,47 +105,36 @@ function useFogScheduler(
   }>,
   store: ReturnType<typeof useStoreApi>,
 ): () => void {
-  const frameIdRef = useRef(0);
-  const tickRef = useRef<() => void>(() => undefined);
+  const frameRef = useRef<FrameCoalescer | null>(null);
 
-  const schedule = useCallback(() => {
-    if (frameIdRef.current !== 0) return;
-    frameIdRef.current = requestAnimationFrame(() => {
-      frameIdRef.current = 0;
-      tickRef.current();
-    });
-  }, []);
-
-  const tick = useCallback(() => {
-    const canvas = canvasRef.current;
-    const again = runFogTick(
-      runtimeRef.current,
-      {
-        canvas,
-        context: canvas === null ? null : canvas.getContext('2d'),
-        createBrush: createFogBrush,
-        readColor: () => readFogColor(canvas),
-        viewport: store.getState(),
-        devicePixelRatio: window.devicePixelRatio,
-        reducedMotion: BROWSER_MOTION_SEAMS.prefersReducedMotion(),
-        now: performance.now(),
-      },
-      inputsRef.current,
-    );
-    if (again) schedule();
-  }, [canvasRef, inputsRef, runtimeRef, schedule, store]);
-
+  // The tick reads refs, so the coalescer that runs it is made in an effect;
+  // it asks for the next frame itself while the fog is still easing. Cleanup
+  // cancels without latching, so StrictMode's remount paints again.
   useEffect(() => {
-    tickRef.current = tick;
-  }, [tick]);
+    const frame = createFrameCoalescer(() => {
+      const canvas = canvasRef.current;
+      const again = runFogTick(
+        runtimeRef.current,
+        {
+          canvas,
+          context: canvas === null ? null : canvas.getContext('2d'),
+          createBrush: createFogBrush,
+          readColor: () => readFogColor(canvas),
+          viewport: store.getState(),
+          devicePixelRatio: window.devicePixelRatio,
+          reducedMotion: BROWSER_MOTION_SEAMS.prefersReducedMotion(),
+          now: performance.now(),
+        },
+        inputsRef.current,
+      );
+      if (again) frame.request();
+    });
+    frameRef.current = frame;
+    return () => {
+      frame.cancel();
+      frameRef.current = null;
+    };
+  }, [canvasRef, inputsRef, runtimeRef, store]);
 
-  useEffect(
-    () => () => {
-      if (frameIdRef.current !== 0) cancelAnimationFrame(frameIdRef.current);
-      frameIdRef.current = 0;
-    },
-    [],
-  );
-
-  return schedule;
+  return useCallback(() => frameRef.current?.request(), []);
 }

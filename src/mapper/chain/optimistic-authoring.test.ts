@@ -363,6 +363,31 @@ describe('optimistic collapse patches', () => {
       store.connections.every((row) => row.tombstone.kind === 'live'),
     ).toBe(true);
   });
+
+  it('restores unresolved holes sharing the cut stamp', () => {
+    const stamp = 100;
+    const removedAt = (deletedAt: number) => ({
+      tombstone: { kind: 'removed' as const, deletedAt, purgeAfter: deletedAt + 1 },
+    });
+    const store = mockStore({
+      systems: [systemRow(JITA), systemRow(AMARR)],
+      connections: [connectionRow('cut', JITA, AMARR, removedAt(stamp))],
+      unresolved: [
+        connectionRow('hole', AMARR, JITA, { toSystemId: null, ...removedAt(stamp) }),
+        connectionRow('older', AMARR, JITA, { toSystemId: null, ...removedAt(stamp - 50) }),
+      ],
+    });
+    optimisticRestoreSeveredBranch(store, {
+      mapId: MAP,
+      connectionId: 'cut',
+    });
+    expect(
+      store.unresolved.map((row) => [row._id, row.tombstone.kind]),
+    ).toEqual([
+      ['hole', 'live'],
+      ['older', 'removed'],
+    ]);
+  });
 });
 
 describe('explicit lifetime proposals', () => {

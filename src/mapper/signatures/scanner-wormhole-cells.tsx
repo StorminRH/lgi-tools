@@ -4,10 +4,20 @@ import { useCallback, useMemo, type ReactNode } from 'react';
 import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 import type { SigGroup } from '@/data/maps/scan-parse';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
+import {
+  LIFE_STAGE_LABELS,
+  leadsToReadout,
+  MASS_STATE_LABELS,
+} from '../authoring/connection-labels';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
 import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import {
+  CONNECTION_MASS_STATES,
+  WORMHOLE_LIFE_STAGES,
+  type WormholeDestinationHint,
+} from '@/data/eve-data/wormhole-contract';
 import { namedDoorType } from '@/data/maps/connection-door-types';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import {
@@ -17,10 +27,14 @@ import {
   type ConnectionDoorSide,
 } from '@/data/maps/connection-hallway';
 import { originLeadOptions } from './origin-leads';
-import { IdCell, NameCell } from './scanner-row-cells';
-import { ScannerLeadsControl, scannerLeadsReadout } from './scanner-leads-control';
-import { ScannerLifeSelect, scannerLifeReadout } from './scanner-life-select';
-import { ScannerMassSelect, scannerMassReadout } from './scanner-mass-select';
+import { IdCell, NameCell, SignatureClassChip } from './scanner-row-cells';
+import { ScannerLeadsControl } from './scanner-leads-control';
+import {
+  ScannerOptionalSelect,
+  scannerLifeReadout,
+  scannerLifeTriggerLabel,
+  scannerMassReadout,
+} from './scanner-optional-select';
 import { ScannerTypeCombo } from './scanner-type-combo';
 import {
   scannerLifeUpperBound,
@@ -164,14 +178,14 @@ function ReadOnlyWormholeCells({
   connection,
   destination,
   lifeText,
-  farSide,
+  hint,
   now,
 }: {
   readonly row: SignatureWindowRow;
   readonly connection: SignatureWindowRow['connection'];
   readonly destination: ReturnType<WormholeCellContext['destinationOf']> | null;
   readonly lifeText: string;
-  readonly farSide: boolean;
+  readonly hint: WormholeDestinationHint | null;
   readonly now: number;
 }) {
   return (
@@ -180,12 +194,7 @@ function ReadOnlyWormholeCells({
       <span className="flex min-w-0 items-baseline gap-1.5">
         <NameCell row={row} />
         {row.className !== null ? (
-          <span
-            data-signature-class
-            className="shrink-0 font-ui text-micro uppercase tracking-label text-muted"
-          >
-            {row.className}
-          </span>
+          <SignatureClassChip label={row.className} />
         ) : null}
       </span>
       <span className="truncate text-muted">
@@ -198,7 +207,7 @@ function ReadOnlyWormholeCells({
       </span>
       <span className="truncate text-muted">
         <span className="sr-only">{`Destination ${row.signatureId} `}</span>
-        {scannerLeadsReadout(scannerRowHint(connection, farSide), destination)}
+        {leadsToReadout(hint, destination, 'Unset')}
       </span>
     </>
   );
@@ -216,13 +225,11 @@ export function wormholeCells(
       : undefined;
   const destination = scannerRowDestination(row, ctx);
   const entry = connection === null ? null : ctx.entryOf(connection);
+  const lifeStage =
+    connection === null ? null : lifetimeStage(connection.lifetime);
   const lifeEstimate = scannerLifeUpperBound(connection, entry, ctx.now);
   const lifeText =
-    lifeEstimate === '—'
-      ? scannerLifeReadout(
-          connection === null ? null : lifetimeStage(connection.lifetime),
-        )
-      : lifeEstimate;
+    lifeEstimate === '—' ? scannerLifeReadout(lifeStage) : lifeEstimate;
   const hint = scannerRowHint(connection, farSide);
   if (setters === undefined || connection === null) {
     return (
@@ -231,7 +238,7 @@ export function wormholeCells(
         connection={connection}
         destination={destination}
         lifeText={lifeText}
-        farSide={farSide}
+        hint={hint}
         now={ctx.now}
       />
     );
@@ -247,22 +254,22 @@ export function wormholeCells(
         preferredCodes={ctx.preferredCodes}
         classLabelOf={ctx.classLabelOf}
         rowId={row.signatureId}
-        disabled={false}
         onCommit={setters.setWormholeType}
       />
-      <ScannerMassSelect
+      <ScannerOptionalSelect
+        ariaLabel={`Mass ${row.signatureId}`}
         value={connection.massState}
-        rowId={row.signatureId}
-        disabled={false}
+        options={CONNECTION_MASS_STATES}
+        labels={MASS_STATE_LABELS}
+        triggerLabelOf={scannerMassReadout}
         onChange={setters.setMassState}
       />
-      <ScannerLifeSelect
-        value={lifetimeStage(connection.lifetime)}
-        connection={connection}
-        entry={entry}
-        now={ctx.now}
-        rowId={row.signatureId}
-        disabled={false}
+      <ScannerOptionalSelect
+        ariaLabel={`Reliable Lifetime ${row.signatureId}`}
+        value={lifeStage}
+        options={WORMHOLE_LIFE_STAGES}
+        labels={LIFE_STAGE_LABELS}
+        triggerLabelOf={scannerLifeTriggerLabel(lifeStage, lifeEstimate)}
         onChange={setters.setLifeStage}
       />
       <ScannerLeadsControl
@@ -280,7 +287,6 @@ export function wormholeCells(
             : connection.fromSystemId
         }
         rowId={row.signatureId}
-        disabled={false}
         onChange={setters.setLeadsTo}
         onSetDestination={setters.setDestination}
         onLinkOrigin={setters.linkToOrigin}

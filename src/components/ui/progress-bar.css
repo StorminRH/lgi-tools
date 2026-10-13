@@ -30,6 +30,13 @@
   background-color: color-mix(in oklab, var(--bar) 75%, transparent);
   transition: width 700ms var(--ease-out-expo);
 }
+/* --pct is written before the first paint, so a newly shown bar grows in from
+ * empty here; it must follow the rule above, which has the same specificity. */
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    .progress-soft-fill { width: 0; }
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .progress-soft-fill { transition: none; }
 }

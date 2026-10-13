@@ -4,7 +4,8 @@ import { expect, test, vi } from 'vitest';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 import type { WormholeCodex } from '@/data/eve-data/universe-assets-client';
 
-// Render every disclosure expanded so the effect's modifier list is in the markup.
+// Render every disclosure expanded so the effect's modifier list and the
+// Friendlies list are in the markup.
 vi.mock('react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react')>();
   return {
@@ -16,10 +17,19 @@ vi.mock('react', async (importOriginal) => {
 const h = vi.hoisted(() => ({
   whClassId: 5,
   status: { codex: null, failed: false } as { codex: WormholeCodex | null; failed: boolean },
+  entityNames: vi.fn((ids: readonly number[]) =>
+    Object.fromEntries(ids.filter((id) => id === 8).map((id) => [String(id), 'Bravo Pilot']))),
 }));
 
-vi.mock('@/data/eve-data/use-names', () => ({ useEntityNames: () => ({}), useTypeNames: () => ({}) }));
-vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }));
+vi.mock('@/data/eve-data/use-names', () => ({
+  useEntityNames: h.entityNames,
+  useTypeNames: () => ({ '100': 'Astero' }),
+}));
+vi.mock('@/components/use-account-characters', () => ({
+  useAccountCharacters: () => [
+    { characterId: 7, name: 'Alpha Pilot', portraitUrl: '/alpha.png', needsReconnect: false, needsLocationReconnect: false },
+  ],
+}));
 vi.mock('../signatures/signature-context', () => ({ useSignatureRows: () => [] }));
 vi.mock('../signatures/use-system-statics', () => ({ useSystemStaticSlots: () => [] }));
 vi.mock('@/data/eve-data/use-universe-assets', () => ({
@@ -31,6 +41,8 @@ vi.mock('@/data/eve-data/use-universe-assets', () => ({
   }),
 }));
 
+import { MapPresenceContext } from '../tracking/presence-context';
+import type { SystemPresence } from '../tracking/presence-model';
 import { SystemIntelligenceBody } from './SystemIntelligenceBody';
 
 function effectMarkup(): string {
@@ -47,7 +59,7 @@ test('an expanded effect waits for the codex, then lists signed modifiers for th
   expect(effectMarkup()).toContain('Loading effects…');
 
   h.status = { codex: null, failed: true };
-  expect(effectMarkup()).toContain('Effect details are unavailable right now.');
+  expect(effectMarkup()).toContain('Couldn&#x27;t load effects.');
 
   const effect = vi.fn<WormholeCodex['effect']>(() => ({
     effect: 'pulsar',
@@ -75,4 +87,28 @@ test('an expanded effect waits for the codex, then lists signed modifiers for th
   h.whClassId = 2;
   effectMarkup();
   expect(effect).toHaveBeenLastCalledWith('pulsar', 2);
+});
+
+test('expanded Friendlies name own pilots from the roster and look up only the others', () => {
+  const presence = new Map<number, SystemPresence>([[1, {
+    pilots: [
+      { characterId: 7, shipTypeId: 100, docked: false, lastMovementAt: 3 },
+      { characterId: 8, shipTypeId: 100, docked: true, lastMovementAt: 2 },
+      { characterId: 9, shipTypeId: 100, docked: false, lastMovementAt: 1 },
+    ],
+  }]]);
+  const html = renderToStaticMarkup(createElement(
+    MapPresenceContext.Provider,
+    { value: presence },
+    createElement(SystemIntelligenceBody, { systemId: 1 }),
+  ));
+  const rows = [...html.matchAll(/data-presence-pilot="(\d+)"[^>]*><span[^>]*>([^<]*)<\/span><span[^>]*>([^<]*)</g)]
+    .map(([, id, name, status]) => [Number(id), name, status]);
+
+  expect(h.entityNames).toHaveBeenLastCalledWith([8, 9]);
+  expect(rows).toEqual([
+    [7, 'Alpha Pilot', 'Astero'],
+    [8, 'Bravo Pilot', 'Docked'],
+    [9, 'Character 9', 'Astero'],
+  ]);
 });

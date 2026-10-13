@@ -26,7 +26,6 @@ vi.mock('../authoring/use-wormhole-editor-data', () => ({
     codes: ['B274'],
     preferredCodes: [],
     entry: null,
-    codexReady: true,
   }),
 }));
 
@@ -126,7 +125,7 @@ it('opens edit for resolved and unresolved holes, and mounts nothing until named
 
   const resolved = render(RESOLVED_ID);
   expect(resolved).toContain('data-map-window="signature-editor"');
-  expect(resolved).toContain('Signature Editor');
+  expect(resolved).toMatch(/<h2[^>]*>Wormhole</);
   expect(resolved).toContain('data-map-connection-mode="edit"');
   expect(resolved).toContain('data-map-connection-delete');
 
@@ -167,7 +166,7 @@ it('restores inside the undo window, closes when the row left the feed, and keep
   const locked = render(RESOLVED_ID);
   expect(locked).not.toContain('data-map-connection-leads-locked');
   expect(locked).toContain('J123456 - C4');
-  expect(locked).toContain('System name — e.g. J120924');
+  expect(locked).toContain('data-placeholder="Search systems"');
   expect(locked).not.toContain('data-select="Leads to"');
   assets.systemInfo.mockReturnValue(null);
 });

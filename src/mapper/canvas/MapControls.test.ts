@@ -49,6 +49,26 @@ describe('MapControls', () => {
     expect(html.match(/<span data-chevron="true" aria-hidden="true"/g)).toHaveLength(4);
     expect(html).not.toContain('Map lock');
     expect(html).not.toContain('Camera follow');
+    // Each group shows its steppers, then its choices. A stepper row shows a
+    // short label and carries the full accessible name on its field.
+    const shown = [...html.matchAll(/tracking-label text-muted">([^<]+)</g)].map((match) => match[1]);
+    expect(shown).toEqual([
+      'Layout dials', 'Ring spacing', 'Separation', 'Sibling fan', 'Wedge posture', 'Direction order',
+      'Motion dials', 'Fast', 'Mid', 'Slow', 'Overshoot', 'Edge flavor', 'Collapse exit',
+      'Halo dials', 'Drawn rings', 'Fogged rings', 'Per exit', 'Total cap',
+      'Fog dials', 'Reveal', 'Corridor', 'Density %', 'Smoke tier',
+    ]);
+    const named = [...html.matchAll(/ aria-label="([^"]+)"/g)]
+      .map((match) => match[1])
+      .filter((name) => !/^(Decrease|Increase) /.test(name ?? ''));
+    expect(named).toEqual([
+      'Ring spacing', 'Minimum separation', 'Sibling fan', 'Wedge posture', 'Direction order',
+      'Fast tempo', 'Mid tempo', 'Slow tempo', 'Overshoot percent', 'Edge flavor', 'Collapse exit',
+      'Drawn halo rings', 'Fogged halo rings', 'Halo systems per exit', 'Halo total system cap',
+      'Fog reveal radius', 'Fog corridor radius', 'Fog density percent', 'Smoke tier',
+    ]);
+    // Density reads the stored fraction back as a whole percent.
+    expect(html).toMatch(/aria-label="Fog density percent"[^>]*value="95"/);
 
     vi.stubEnv('NODE_ENV', 'production');
     expect(

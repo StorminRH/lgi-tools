@@ -26,7 +26,7 @@ async function enableTracking(
   if (existing.length >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
     throw new ConvexError({
       code: 'TRACKING_CAP_EXCEEDED',
-      detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
+      detail: `You can track up to ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} characters on this map.`,
     });
   }
   // Reading capacity and inserting in one mutation makes concurrent opt-ins conflict.

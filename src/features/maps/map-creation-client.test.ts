@@ -83,7 +83,7 @@ describe('createMapWithMinimumInterstitial', () => {
     const outcome = await pending;
 
     expect(outcome.ok).toBe(false);
-    expect(mapCreationFailureMessage(outcome)).toContain('rolled back');
+    expect(mapCreationFailureMessage(outcome)).toBe("Couldn't set up map access. Try again.");
   });
 
   it('tells a caller naming someone else\'s character to pick their own, not to check the connection', async () => {
@@ -107,7 +107,7 @@ describe('createMapWithMinimumInterstitial', () => {
     await vi.advanceTimersByTimeAsync(MAP_CREATION_INTERSTITIAL_MIN_MS);
     const malformedOutcome = await malformed;
     expect(malformedOutcome).toMatchObject({ ok: false, kind: 'api', status: 400 });
-    expect(mapCreationFailureMessage(malformedOutcome)).toContain('Check your connection');
+    expect(mapCreationFailureMessage(malformedOutcome)).toBe('Check your connection and try again.');
   });
 });
 
@@ -185,7 +185,7 @@ describe('runMapCreationSubmit', () => {
     }, actions);
     expect(events).toEqual([
       'begin',
-      'failed:Map access could not be projected. The attempted map was rolled back; try again.',
+      "failed:Couldn't set up map access. Try again.",
     ]);
 
     events.length = 0;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { layoutFacts } from './__tests__/layout-facts-fixture';
-import { deriveChainTree } from './facts';
+import { deriveChainTree, treeLinkClaim } from './facts';
 
 const A = 31_000_001;
 const B = 31_000_002;
@@ -148,5 +148,33 @@ describe('deriveChainTree orphans and unknown endpoints', () => {
 
     const after = deriveChainTree(layoutFacts([A, B], [[A, B]]));
     expect(after.parents.get(B)).toBe(A);
+  });
+});
+
+describe('treeLinkClaim', () => {
+  it('claims the first link joining a parent and child solid in either direction and every other link as a loop', () => {
+    const { parents } = deriveChainTree(layoutFacts([A, B, C, D], [[A, B], [B, C], [A, D]]));
+    const isSolid = treeLinkClaim(parents);
+
+    expect(isSolid(C, B)).toBe(true);
+    expect(isSolid(B, C)).toBe(false);
+    expect(isSolid(A, B)).toBe(true);
+    expect(isSolid(A, B)).toBe(false);
+    expect(isSolid(B, D)).toBe(false);
+    expect(isSolid(A, C)).toBe(false);
+    expect(isSolid(D, D)).toBe(false);
+    expect(isSolid(A, E)).toBe(false);
+    expect(isSolid(D, A)).toBe(true);
+
+    expect(treeLinkClaim(parents)(A, B)).toBe(true);
+  });
+
+  it('marks links inside an orphan component as loops, which loopEdges leaves out', () => {
+    const tree = deriveChainTree(layoutFacts([A, C, D], [[C, D]]));
+    const isSolid = treeLinkClaim(tree.parents);
+
+    expect(isSolid(C, D)).toBe(false);
+    expect(isSolid(D, C)).toBe(false);
+    expect(tree.loopEdges).toEqual([]);
   });
 });

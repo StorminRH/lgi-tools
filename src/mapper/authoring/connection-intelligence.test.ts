@@ -62,7 +62,12 @@ describe('connection intelligence', () => {
     expect(isCodexSizeLocked(TYPED)).toBe(true);
     expect(isCodexSizeLocked(K162)).toBe(false);
     expect(isCodexSizeLocked(null)).toBe(false);
-    expect(codexPanelFacts(TYPED)?.sizeClass).toBe('L');
+    expect(codexPanelFacts(TYPED)).toEqual({
+      totalMassKg: 2_000_000_000,
+      maxJumpMassKg: 375_000_000,
+      massRegenKg: 0,
+      lifetimeMinutes: 960,
+    });
     expect(codexPanelFacts(K162)).toBeNull();
     expect(codexPanelFacts(null)).toBeNull();
 
@@ -70,12 +75,12 @@ describe('connection intelligence', () => {
       kind: 'range',
       minKg: 900_000_000,
       maxKg: 2_200_000_000,
-      label: '900M kg–2.2B kg (±10% spawn)',
+      label: '900M kg–2.2B kg',
       title: '900,000,000–2,200,000,000 kg remaining',
     });
     expect(massRowDisplay(REGEN, 'stable', null, null)).toEqual({
       kind: 'regenerates',
-      label: 'Regenerates — no mass interval',
+      label: 'Mass regenerates, so no estimate',
     });
     expect(massRowDisplay(K162, 'stable', null, null)).toEqual({ kind: 'none' });
     expect(formatKilograms(1_500_000)).toBe('1.5M kg');
@@ -125,7 +130,7 @@ describe('connection intelligence', () => {
     expect(lifetimeRowDisplay(migrated, TYPED, createdAt)).toEqual({
       kind: 'ceiling',
       label: '≤ 14h',
-      title: 'Typed ceiling 2026-01-02T02:00:00.000Z',
+      title: 'Closes by 2026-01-02 02:00 UTC',
     });
     expect(lifetimeUpperBoundLabel(migrated, TYPED, createdAt)).toBe('14h');
     expect(
@@ -133,7 +138,7 @@ describe('connection intelligence', () => {
     ).toEqual({
       kind: 'ceiling',
       label: '≤ 16h',
-      title: 'Typed ceiling 2026-01-02T04:00:00.000Z',
+      title: 'Closes by 2026-01-02 04:00 UTC',
     });
     expect(
       lifetimeRowDisplay(migrated, TYPED, createdAt + 14 * HOUR_MS),
