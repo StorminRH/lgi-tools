@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { classifyRoute } from './route-classification.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const NEXT_DIR = join(HERE, '..', '.next');
@@ -20,21 +21,11 @@ if (!existsSync(prerenderManifestPath) || !existsSync(appRoutesManifestPath)) {
 const expected = readJson(join(HERE, 'route-classification.json')).routes;
 const appRoutes = readJson(appRoutesManifestPath);
 const prerender = readJson(prerenderManifestPath);
-const prerendered = new Set([
-  ...Object.keys(prerender.routes ?? {}),
-  ...Object.keys(prerender.dynamicRoutes ?? {}),
-]);
 
-function metaPathFor(route) {
+function metaFor(route) {
   const base = route === '/' ? 'index' : route.replace(/^\//, '');
-  return join(APP_DIR, `${base}.meta`);
-}
-
-function classify(route) {
-  if (!prerendered.has(route)) return 'dynamic';
-  const metaPath = metaPathFor(route);
-  if (!existsSync(metaPath)) return 'partial';
-  return 'postponed' in readJson(metaPath) ? 'partial' : 'static';
+  const metaPath = join(APP_DIR, `${base}.meta`);
+  return existsSync(metaPath) ? readJson(metaPath) : undefined;
 }
 
 const routes = [...new Set(Object.values(appRoutes))]
@@ -43,7 +34,7 @@ const routes = [...new Set(Object.values(appRoutes))]
 
 const errors = [];
 for (const route of routes) {
-  const actual = classify(route);
+  const actual = classifyRoute({ route, prerender, metaFor });
   const want = expected[route];
   if (!want) {
     errors.push(`unclassified route "${route}" (built as ${actual}) — add it to scripts/route-classification.json`);
