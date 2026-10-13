@@ -2,21 +2,19 @@ import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import type { runSerializable, Sql } from '@/db';
 
-type RunSerializable = typeof runSerializable;
-
 const dialect = new PgDialect();
-let standIn: RunSerializable | undefined;
+let standIn: typeof runSerializable | undefined;
 
 /**
  * For a suite's `vi.mock('@/db', ...)`: the module as it is, except that
  * runSerializable hands its statement to whatever stand-in a helper below has
  * installed, and to the real one otherwise.
  */
-export function routeRunSerializable<TModule extends { runSerializable: RunSerializable }>(actual: TModule): TModule {
+export function routeRunSerializable<TModule extends { runSerializable: typeof runSerializable }>(actual: TModule): TModule {
   return { ...actual, runSerializable: (query: SQL) => (standIn ?? actual.runSerializable)(query) };
 }
 
-async function withStandIn<T>(run: RunSerializable, body: () => Promise<T>): Promise<T> {
+async function withStandIn<T>(run: typeof runSerializable, body: () => Promise<T>): Promise<T> {
   standIn = run;
   try {
     return await body();
@@ -26,7 +24,7 @@ async function withStandIn<T>(run: RunSerializable, body: () => Promise<T>): Pro
 }
 
 /** The plan Postgres picks for the statement `write` hands runSerializable. The statement itself never runs. */
-export async function explainSerializable(sql: Sql, write: () => Promise<unknown>): Promise<string> {
+async function explainSerializable(sql: Sql, write: () => Promise<unknown>): Promise<string> {
   let plan = '';
   await withStandIn(async (query) => {
     const { sql: text, params } = dialect.sqlToQuery(query);
@@ -52,7 +50,7 @@ const settle = <T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> =>
  * Each open transaction holds one of `sql`'s connections, so `writes` must
  * not outnumber them or the last statement waits for a connection forever.
  */
-export async function overlapSerializable<T>(
+async function overlapSerializable<T>(
   sql: Sql,
   writes: readonly (() => Promise<T>)[],
 ): Promise<PromiseSettledResult<T>[]> {
