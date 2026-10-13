@@ -59,6 +59,7 @@ const requestScope = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock('next/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/server')>()),
   after: () => {},
+  connection: () => Promise.resolve(),
 }));
 
 vi.mock('next/headers', () => ({
