@@ -96,6 +96,9 @@ test('a picked character is handed back, and the field clears without searching 
 test('results stay through an edit that leaves the search unchanged, and a new search shows only its own answer', async () => {
   vi.useFakeTimers();
   const { root, type, openChange, busy, hint } = mountControl(vi.fn());
+  expect(hint()).toBe('');
+  type('Pi');
+  expect(hint()).toBe('Type at least 3 letters.');
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { mode: 'typeahead', results: [PILOT] } });
   type('Pilot');
   await vi.advanceTimersByTimeAsync(300);
@@ -123,7 +126,7 @@ test('results stay through an edit that leaves the search unchanged, and a new s
   type('Pilot One');
   await vi.advanceTimersByTimeAsync(300);
   expect(root()).toMatchObject({ open: true });
-  expect(hint()).toBe('Exact-name mode — enter the full character name.');
+  expect(hint()).toBe('Enter the full character name.');
   openChange(false, 'escape-key');
   expect(root()).toMatchObject({ open: false });
   openChange(true, 'input-change');

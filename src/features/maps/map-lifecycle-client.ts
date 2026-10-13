@@ -20,10 +20,10 @@ export function requestMapPurge(input: MapLifecycleRequest) {
 
 export function mapLifecycleFailureMessage(action: 'delete' | 'restore' | 'purge'): string {
   if (action === 'restore') {
-    return 'This map could not be restored. Its undo window may have ended.';
+    return "The selected maps couldn't be restored. Try again.";
   }
   if (action === 'purge') {
-    return 'Only the map creator can permanently delete the selected maps.';
+    return "The selected maps couldn't be permanently deleted. Try again.";
   }
-  return 'This map could not be deleted. Map admin access is required.';
+  return "This map couldn't be deleted. Try again.";
 }

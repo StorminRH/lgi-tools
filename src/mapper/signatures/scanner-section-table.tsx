@@ -223,7 +223,7 @@ function ScannerRowsLoading() {
       data-signature-empty
       className="px-3 py-4 text-center font-ui text-ui text-muted"
     >
-      Reading scanner rows…
+      Loading signatures…
     </p>
   );
 }

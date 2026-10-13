@@ -190,11 +190,12 @@ describe('HomePrompt', () => {
     expect(loading).toContain('role="dialog"');
     expect(loading).toContain('Set your home system');
     expect(loading).toContain('data-map-home-prompt');
-    expect(loading).toContain('Search systems — type a name');
+    expect(loading).toContain('data-placeholder="Search systems"');
     expect(loading).toContain('Use current system');
     expect(loading).toContain('data-map-home-current-disabled');
     expect(loading).not.toContain('Start tracking');
 
+    mocks.characters = pilots();
     mocks.tracking = { ownTrackedCharacterIds: [], tracked: [] };
     mocks.coverage = { coverage: [] };
     const untracked = renderPrompt();
@@ -232,7 +233,7 @@ describe('HomePrompt', () => {
 
     const html = renderPrompt();
     expect(html).toContain('data-map-home-tracking');
-    expect(html).toContain('Track a character in space');
+    expect(html).toContain('<span class="font-ui text-micro text-muted">Tracking</span>');
     expect(html).toContain('role="group" aria-label="Tracking"');
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="Stop tracking Session Pilot"/);
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="Stop tracking In Space"/);
@@ -260,6 +261,25 @@ describe('HomePrompt', () => {
     mocks.access = { granted: true, canEdit: true, trackableCharacterIds: null };
     mocks.tracking = undefined;
     expect(renderPrompt()).not.toContain('data-map-home-tracking');
+  });
+
+  it('offers Start tracking only when the signed-in character is trackable on the map', () => {
+    mocks.characters = pilots();
+    mocks.tracking = { ownTrackedCharacterIds: [], tracked: [] };
+    mocks.coverage = { coverage: [] };
+
+    mocks.access = { granted: true, canEdit: true, trackableCharacterIds: [202] };
+    const scoped = renderPrompt();
+    expect(scoped).toMatch(/aria-label="Track In Space"/);
+    expect(scoped).not.toContain('data-map-home-start-tracking');
+    expect(scoped).not.toContain('Use current system');
+
+    mocks.access = { granted: true, canEdit: true, trackableCharacterIds: [101, 202] };
+    expect(renderPrompt()).toContain('data-map-home-start-tracking');
+
+    mocks.characters = [];
+    mocks.access = { granted: true, canEdit: true, trackableCharacterIds: null };
+    expect(renderPrompt()).not.toContain('data-map-home-start-tracking');
   });
 
   it('labels and outlines a character that must reconnect to sync location', () => {

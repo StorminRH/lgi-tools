@@ -49,11 +49,11 @@ it('shows ordered matcher survivors and dispatches the exact picked button', () 
 
   expect(markup).toContain('data-signature-jump-prompt');
   expect(markup).toContain(
-    'role="group" aria-label="Choose the signature you jumped through"',
+    'role="group" aria-label="Choose the wormhole you took"',
   );
   expect(markup).toContain('data-identity-readout');
   expect(markup).toContain('J123456 - C4');
-  expect(markup).toContain('Which signature did you jump through?');
+  expect(markup).toContain('J123456 - C4</span>. Which wormhole did you take?');
   expect(markup.indexOf('ABC-123 · K162')).toBeLessThan(
     markup.indexOf('DEF-456 · Unidentified'),
   );

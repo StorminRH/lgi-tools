@@ -44,7 +44,7 @@ export function SignatureEditor({
     <ScannerAnchoredPanel
       signatureId={anchorSignatureId ?? connection.from.signatureId}
       windowId="signature-editor"
-      title="Signature Editor"
+      title="Wormhole"
       onClose={onClose}
       layerProps={{ 'data-map-connection-mode': mode }}
     >

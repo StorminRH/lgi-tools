@@ -8,17 +8,21 @@ import {
   type SystemParams,
 } from '@/components/use-system-search';
 
+/** A destination pick fails as no match, or as the excluded origin system. */
+export type DestinationErr = SystemErr | { kind: 'same_system' };
+
 /**
  * Parses a typed system name for a picker that must not answer with one
  * system, such as a connection's own origin. A system identity readout
- * ('J120924 - C2') parses by its name, and the excluded system reads as no
- * match, because the server refuses a connection from a system to itself.
+ * ('J120924 - C2') parses by its name, and the excluded system fails as
+ * 'same_system', because the server refuses a connection from a system to
+ * itself.
  */
 export function parseDestinationSystem<P extends { system: { id: number } }>(
   parse: (input: string) => { ok: true; params: P } | { ok: false },
   input: string,
   excludeSystemId?: number,
-): { ok: true; params: P } | { ok: false; error: SystemErr } {
+): { ok: true; params: P } | { ok: false; error: DestinationErr } {
   const direct = parse(input);
   const parsed = direct.ok
     ? direct
@@ -27,7 +31,7 @@ export function parseDestinationSystem<P extends { system: { id: number } }>(
       : direct;
   if (!parsed.ok) return { ok: false, error: { kind: 'not_found' } };
   if (parsed.params.system.id === excludeSystemId) {
-    return { ok: false, error: { kind: 'not_found' } };
+    return { ok: false, error: { kind: 'same_system' } };
   }
   return parsed;
 }
@@ -42,12 +46,20 @@ export interface SystemTerminalSearchProps {
   readonly inputRef?: Ref<HTMLInputElement>;
 }
 
-const noSystemMatches = () => 'No system matches that name.';
+function destinationErrorMessage(error: DestinationErr): string {
+  switch (error.kind) {
+    case 'same_system':
+      return "A system can't connect to itself.";
+    case 'not_found':
+      return 'No system matches that name.';
+  }
+}
 const ignoreClear = () => undefined;
 
 /**
  * The mapper's system picker: a terminal search over every known system that
- * hands back the picked system's id. `excludeSystemId` reads as no match.
+ * hands back the picked system's id. `excludeSystemId` fails as a system
+ * that can't connect to itself.
  */
 export function SystemTerminalSearch({
   placeholder,
@@ -60,13 +72,13 @@ export function SystemTerminalSearch({
 }: SystemTerminalSearchProps) {
   const { parse, suggest } = useSystemSearch();
   return (
-    <TerminalSearch<SystemParams, SystemErr>
+    <TerminalSearch<SystemParams, DestinationErr>
       initialValue={initialValue}
       placeholder={placeholder}
       parse={(input) => parseDestinationSystem(parse, input, excludeSystemId)}
       suggest={suggest}
       inputRef={inputRef}
-      errorMessage={noSystemMatches}
+      errorMessage={destinationErrorMessage}
       onSubmit={(params) => onPick(params.system.id)}
       onClear={onClear}
       errorLabel={errorLabel}

@@ -59,7 +59,7 @@ test('an expanded effect waits for the codex, then lists signed modifiers for th
   expect(effectMarkup()).toContain('Loading effects…');
 
   h.status = { codex: null, failed: true };
-  expect(effectMarkup()).toContain('Effect details are unavailable right now.');
+  expect(effectMarkup()).toContain('Couldn&#x27;t load effects.');
 
   const effect = vi.fn<WormholeCodex['effect']>(() => ({
     effect: 'pulsar',

@@ -78,7 +78,7 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
   render();
   expect(ui.confirm).toMatchObject({
     open: true,
-    consequence: expect.stringMatching(/^2 selected maps will enter/),
+    consequence: "2 maps will be deleted. This can't be undone.",
   });
 
   // The second map is refused: the dialog stays open on the map still to purge.
@@ -92,7 +92,7 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
   ]);
   expect(ui.confirm).toMatchObject({
     open: true,
-    consequence: expect.stringMatching(/^1 selected map will enter/),
+    consequence: "1 map will be deleted. This can't be undone.",
     error: expect.any(String),
   });
 
@@ -104,6 +104,6 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
   expect(api.apiFetch).toHaveBeenCalledExactlyOnceWith(purgeMapNowEndpoint, expect.objectContaining({ body: { mapId: 'scratch' } }));
   expect(ui.confirm).toMatchObject({
     open: false,
-    consequence: expect.stringMatching(/^1 selected map will enter/),
+    consequence: "1 map will be deleted. This can't be undone.",
   });
 });

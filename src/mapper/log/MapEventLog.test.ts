@@ -55,8 +55,8 @@ describe('MapEventLog', () => {
       mapId: 'map-b', canEdit: true, now: NOW, onRestore: vi.fn(),
     }));
     expect(liveValue.mock.calls[0]?.[1]).toEqual({ mapId: 'map-b' });
-    expect(markup).toContain('Loading map events');
-    expect(markup).not.toContain('No map events yet');
+    expect(markup).toContain('Loading events…');
+    expect(markup).not.toContain('No events yet.');
     expect(markup).not.toContain('data-map-event-log-count');
   });
 
@@ -72,7 +72,8 @@ describe('MapEventLog', () => {
     expect(empty).toContain('data-map-event-log');
     expect(empty).toContain('data-map-event-log-empty');
     expect(empty).toContain('Audit Log');
-    expect(empty).toContain('Events - 0');
+    expect(empty).toContain('0 events');
+    expect(empty).toContain('No events yet.');
 
     const events = [
       row({
@@ -101,8 +102,8 @@ describe('MapEventLog', () => {
     expect(editor).toContain('data-map-event-restore');
     expect(editor).toContain('data-map-event-undoable="true"');
     expect(editor).toContain('bottom-4 right-14');
-    expect(editor).toContain('Events - 2');
-    expect(editor).toContain('Removed 2 downstream systems');
+    expect(editor).toContain('2 events');
+    expect(editor).toContain('Removed branch (2 systems)');
     expect(editor).toContain('Pilot');
 
     const viewer = renderToStaticMarkup(

@@ -311,7 +311,7 @@ export function scannerPasteRefusalToast(
 ): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {
   if (decision.kind === 'reject') {
     return {
-      message: 'Formatting error',
+      message: "Couldn't read scan",
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     };
   }
@@ -323,7 +323,7 @@ export function scannerPasteRefusalToast(
   }
   if (decision.kind === 'loading') {
     return {
-      message: 'Tracking not ready',
+      message: 'Still loading. Paste again.',
       options: { id: 'scanner-paste:loading', duration: 5_000 },
     };
   }

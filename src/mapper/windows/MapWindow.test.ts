@@ -68,7 +68,7 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
       MapWindow,
       {
         windowId: 'signature-editor',
-        title: 'Signature Editor',
+        title: 'Wormhole',
         placement: { kind: 'scanner-anchored' },
         stackIndex: 1,
         onClose: vi.fn(),

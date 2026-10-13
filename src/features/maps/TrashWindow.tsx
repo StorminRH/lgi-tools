@@ -166,7 +166,7 @@ export function TrashWindow({
         <DialogHeader
           titleId={titleId}
           title="Deleted maps"
-          description="Restore maps during their 30-day undo window."
+          description="Maps stay here for 30 days."
           closeLabel="Close trash"
           closeDisabled={busy !== null || purge.open}
         />
@@ -212,7 +212,7 @@ export function TrashWindow({
           if (!next) purge.cancel();
         }}
         title="Permanently delete selected maps?"
-        consequence={`${formatCount(purge.target?.length ?? 0, 'selected map')} will enter the next scheduled purge. This cannot be undone after the sweep completes.`}
+        consequence={`${formatCount(purge.target?.length ?? 0, 'map')} will be deleted. This can't be undone.`}
         busy={busy === 'purge'}
         error={error}
         confirmLabel="Permanently delete"

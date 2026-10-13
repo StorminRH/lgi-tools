@@ -25,7 +25,7 @@ function ScannerPasteHint() {
       className={cn(mapNestedSurface, 'min-w-0 max-w-full')}
     >
       <h3 className="px-2.5 py-1.5 text-center font-ui text-label font-semibold text-isk">
-        Paste signatures anywhere on the page.
+        Paste signatures anywhere.
       </h3>
     </section>
   );

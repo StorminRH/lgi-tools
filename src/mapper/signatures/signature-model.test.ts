@@ -436,11 +436,11 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     ).toMatchObject({ kind: 'reject', rejectCount: 1 });
 
     expect(scannerPasteRefusalToast({ kind: 'reject', rejectCount: 1 })).toEqual({
-      message: 'Formatting error',
+      message: "Couldn't read scan",
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     });
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).message).toBe('Read-only access');
-    expect(scannerPasteRefusalToast({ kind: 'loading' }).message).toBe('Tracking not ready');
+    expect(scannerPasteRefusalToast({ kind: 'loading' }).message).toBe('Still loading. Paste again.');
     expect(scannerPasteRefusalToast({ kind: 'untracked' }).message).toBe('No character online');
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).options.id).toBe(
       'scanner-paste:read-only',

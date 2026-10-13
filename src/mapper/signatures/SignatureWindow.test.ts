@@ -284,7 +284,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(empty).toContain('data-scanner-dock-stack');
     expect(empty).toContain('data-scanner-filled="false"');
     expect(empty).toContain('data-scanner-paste-hint');
-    expect(empty).toContain('Paste signatures anywhere on the page.');
+    expect(empty).toContain('Paste signatures anywhere.');
     expect(empty).not.toContain('data-signature-id="ABC-123"');
     expect(empty).not.toContain('data-scanner-section=');
     expect(empty).not.toContain('No scanner rows in this system.');
@@ -296,8 +296,8 @@ describe('SignatureWindow component prompt and filter states', () => {
     });
     expect(completeEmpty).toContain('data-scanner-filled="false"');
     expect(completeEmpty).toContain('data-scanner-paste-hint');
-    expect(completeEmpty).toContain('Paste signatures anywhere on the page.');
-    expect(completeEmpty).not.toContain('Reading scanner rows…');
+    expect(completeEmpty).toContain('Paste signatures anywhere.');
+    expect(completeEmpty).not.toContain('Loading signatures…');
     expect(completeEmpty).not.toContain('data-scanner-sections');
 
     const loading = render(1, new Set(), 0, null, {
@@ -305,7 +305,7 @@ describe('SignatureWindow component prompt and filter states', () => {
       complete: false,
     });
     expect(loading).toContain('data-signature-empty');
-    expect(loading).toContain('Reading scanner rows…');
+    expect(loading).toContain('Loading signatures…');
     expect(loading).not.toContain('data-scanner-paste-hint');
     expect(loading).not.toContain('No scanner rows in this system.');
   });
@@ -377,7 +377,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-scanner-prompt-rail');
     expect(html).toContain('data-signature-missing-prompt');
     expect(html).toContain('data-signature-jump-prompt');
-    expect(html).toContain('Which signature did you jump through?');
+    expect(html).toContain('. Which wormhole did you take?');
   });
 
   it('opens catalogue sites for viewers with live Est. ISK while combat stays static', () => {

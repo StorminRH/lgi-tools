@@ -25,12 +25,12 @@ export function mapCreationFailureMessage(
     return 'Choose one of your own linked characters.';
   }
   if (outcome.kind === 'api' && outcome.status === 429) {
-    return 'Map creation is moving too quickly. Try again in a minute.';
+    return "You're creating maps too fast. Try again in a minute.";
   }
   if (outcome.kind === 'api' && outcome.status === 503) {
-    return 'Map access could not be projected. The attempted map was rolled back; try again.';
+    return "Couldn't set up map access. Try again.";
   }
-  return 'The map could not be created. Check your connection and try again.';
+  return 'Check your connection and try again.';
 }
 
 export interface MapCreationHandoffActions {

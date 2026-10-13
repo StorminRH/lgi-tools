@@ -42,6 +42,7 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const trackable = access?.granted === true && characters !== null && tracking !== undefined
     ? trackableCharacters(characters, access.trackableCharacterIds)
     : [];
+  const activeTrackable = trackable.some((c) => c.characterId === characterId);
 
   return (
     <Dialog
@@ -62,7 +63,7 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
           Set your home system
         </DialogTitle>
         <SystemTerminalSearch
-          placeholder="Search systems — type a name"
+          placeholder="Search systems"
           inputRef={searchInputRef}
           onPick={onPick}
         />
@@ -74,6 +75,7 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
         <CurrentSystemControl
           current={current}
           currentSystemName={currentSystemName}
+          activeTrackable={activeTrackable}
           onPick={onPick}
           onStartTracking={() => {
             if (characterId === null) return;
@@ -97,7 +99,7 @@ function HomeTrackingToggles({
   if (characters.length === 0) return null;
   return (
     <div data-map-home-tracking className="flex flex-col gap-2">
-      <span className="font-ui text-micro text-muted">Track a character in space</span>
+      <span className="font-ui text-micro text-muted">Tracking</span>
       <CharacterPortraitPicker
         label="Tracking"
         characters={characters}
@@ -115,15 +117,20 @@ function HomeTrackingToggles({
 function CurrentSystemControl({
   current,
   currentSystemName,
+  activeTrackable,
   onPick,
   onStartTracking,
 }: {
   readonly current: HomeCurrentSystem;
   readonly currentSystemName: string | null;
+  readonly activeTrackable: boolean;
   readonly onPick: (systemId: number) => void;
   readonly onStartTracking: () => void;
 }) {
   if (current.kind === 'untracked') {
+    // The portrait row offers every trackable character; the server refuses
+    // the signed-in character when it is not one of them.
+    if (!activeTrackable) return null;
     return (
       <Button
         type="button"

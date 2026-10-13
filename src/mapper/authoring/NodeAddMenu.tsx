@@ -73,11 +73,8 @@ export function NodeAddMenu({
             </DialogTitle>
             <DialogCloseButton label="Close add connection" />
           </div>
-          <p className="font-ui text-ui leading-relaxed text-muted">
-            Existing systems supported.
-          </p>
           <SystemTerminalSearch
-            placeholder="Destination system — type a name"
+            placeholder="Destination system"
             inputRef={searchInputRef}
             excludeSystemId={fromSystemId ?? undefined}
             onPick={(toSystemId) => {
