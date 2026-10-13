@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { StructureTypeOption } from '@/data/eve-data/structures';
 import { settle } from '@/lib/__tests__/hook-runtime';
+import { apiProblem, networkDown } from '@/transport/__tests__/failed-outcomes';
 import {
   createCustomStructureEndpoint,
   deleteCustomStructureEndpoint,
@@ -230,11 +231,18 @@ test('a system lookup that rejects clears the suggestions instead of going unhan
   rt.hide();
 });
 
-test('saving a new structure creates it and hands back the list', async () => {
+test('saving a new structure names a full list, then creates it and hands back the list', async () => {
   const c = mount(null);
   c.call(named, 'onName', 'Home Raitaru');
   c.field('Hull', 'onValueChange', '35825');
   c.call(bonuses, 'onDraft', { bonus: { me: '1', te: '', cost: '', rxnMe: '', rxnTe: '' } });
+  // A full list is a refusal no retry fixes, so it says what to do instead.
+  h.apiFetch.mockResolvedValueOnce(apiProblem(409, 'structure_limit'));
+  c.button('Save');
+  await settle();
+  expect(c.error()).toBe('Structure limit reached. Delete one to make room.');
+  expect(c.onSaved).not.toHaveBeenCalled();
+
   const createdId = '38534fe4-6d47-4007-8d99-0890bc6c9770';
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: SAVED, createdId } });
   c.button('Save');
@@ -250,14 +258,18 @@ test('saving a new structure creates it and hands back the list', async () => {
 
 test('an edited structure updates or deletes in place, and a failed save says so', async () => {
   const c = mount(EDITING);
-  h.apiFetch.mockResolvedValueOnce({ ok: false });
+  h.apiFetch.mockResolvedValueOnce(networkDown());
   c.button('Save');
   await settle();
   expect(h.apiFetch).toHaveBeenCalledWith(updateCustomStructureEndpoint, {
     body: expect.objectContaining({ id: 'cs-1', name: 'Amamake Raitaru', bonuses: null }),
     cache: 'no-store',
   });
-  expect(c.error()).toBe('Could not save. Try again.');
+  expect(c.error()).toBe("Couldn't save. Try again.");
+  h.apiFetch.mockResolvedValueOnce(apiProblem(400, 'unknown_system'));
+  c.button('Save');
+  await settle();
+  expect(c.error()).toBe("Couldn't save. Try again.");
   expect(c.onSaved).not.toHaveBeenCalled();
 
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: [] } });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Banner } from '@/components/ui/banner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { dataLabel } from '@/components/ui/type-roles';
 import {
   loadUniverseAssets,
   loadWormholeCodex,
@@ -63,7 +64,7 @@ function ProofContent({ state }: { state: ProofState }) {
   }
   return (
     <>
-      <span className="font-data text-label tracking-label uppercase text-muted">
+      <span className={dataLabel()}>
         Universe assets · v{state.version}
       </span>
       <span className="font-data text-ui text-text">

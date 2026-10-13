@@ -1,5 +1,6 @@
 import { expect, expectTypeOf, test, vi } from 'vitest';
 import { MAP_CLAIM_PURGE_BATCH } from '@/data/maps/access-contract';
+import { purgeUserMapClaimsDoor } from '@/data/maps/convex-doors';
 import { createProjectedMap } from './map-creation';
 import { deleteMapForUser, restoreMapForUser } from './map-lifecycle';
 
@@ -96,12 +97,16 @@ test('delivers all batches and stops before unlink when a batch fails', async ()
   expect(calls.map(([url]) => url)).toEqual(
     Array(3).fill('http://127.0.0.1:3211/purge-user-map-claims'),
   );
-  expect(calls.map(([, init]) => JSON.parse((init as { body: string }).body).mapIds))
+  const bodies = calls.map(([, init]) => JSON.parse((init as { body: string }).body));
+  expect(bodies.map((body) => body.mapIds))
     .toEqual([
       ids.slice(0, MAP_CLAIM_PURGE_BATCH),
       ids.slice(MAP_CLAIM_PURGE_BATCH, 2 * MAP_CLAIM_PURGE_BATCH),
       ids.slice(2 * MAP_CLAIM_PURGE_BATCH),
     ]);
+  for (const body of bodies) {
+    expect(purgeUserMapClaimsDoor.request.safeParse(body).success).toBe(true);
+  }
 });
 
 test('computes creator-only, batched union, unlinked, and missing-or-archived claim sets', async () => {

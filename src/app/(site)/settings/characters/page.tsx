@@ -20,6 +20,7 @@ import { LINK_ERROR_MESSAGES } from '@/composition/auth-error';
 import { resolveNotice } from '@/lib/error-copy';
 import type { BetterAuthLinkError, CharacterLinkNotice } from '@/platform/auth/api-contract';
 import { QuietSectionHead } from '@/components/ui/section-head';
+import { eyebrow } from '@/components/ui/type-roles';
 
 const ERROR_MESSAGES = {
   ...LINK_ERROR_MESSAGES,
@@ -109,7 +110,7 @@ function CharacterRow({
           headerClassName="px-3.5 py-[6px]"
           header={
             <span className="flex min-w-0 items-center gap-2">
-              <span className="text-label uppercase tracking-label text-muted">
+              <span className={eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label' })}>
                 Granted access
               </span>
               <Pill tone="neutral">{status.scopes.length}</Pill>

@@ -1,4 +1,12 @@
-import type { IndustryProfileRow } from './api-contract';
+import type { EndpointContract } from '@/transport/endpoint';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
+import type {
+  createIndustryProfileEndpoint,
+  deleteIndustryProfileEndpoint,
+  duplicateIndustryProfileEndpoint,
+  IndustryProfileRow,
+  updateIndustryProfileEndpoint,
+} from './api-contract';
 import { MAX_PROFILE_NAME_LEN, type ProfileDocument } from './profile-document';
 
 export interface PendingEdit {
@@ -18,19 +26,54 @@ export function overlayPending(
 }
 
 const NOT_LINKED = 'A character on this profile is no longer linked to your account.';
+const PROFILE_LIMIT = 'You have reached the profile limit. Delete one to make room.';
+const PROFILE_MISSING = 'This profile was deleted somewhere else.';
 
-/** Why a save was refused, by the server's reason; any other refusal is a plain failure. */
-export function saveFailureMessage(reason: string | undefined): string {
-  if (reason === 'stale_revision') return 'This profile changed somewhere else. Showing the latest version.';
-  if (reason === 'profile_missing') return 'This profile was deleted somewhere else.';
-  if (reason === 'not_linked') return NOT_LINKED;
-  return "Couldn't save the profile. Showing the last saved version.";
+const SAVE_FAILURE_COPY = {
+  fallback: "Couldn't save the profile. Showing the last saved version.",
+  network: "Couldn't save the profile. Check your connection and try again.",
+  codes: {
+    stale_revision: 'This profile changed somewhere else. Showing the latest version.',
+    profile_missing: PROFILE_MISSING,
+    not_linked: NOT_LINKED,
+  },
+} satisfies FailureCopy<FailedOutcome<typeof updateIndustryProfileEndpoint>>;
+
+const CREATE_FAILURE_COPY = {
+  fallback: "Couldn't create the profile.",
+  codes: { profile_limit: PROFILE_LIMIT, not_linked: NOT_LINKED },
+} satisfies FailureCopy<FailedOutcome<typeof createIndustryProfileEndpoint>>;
+
+const DUPLICATE_FAILURE_COPY = {
+  fallback: "Couldn't duplicate the profile.",
+  codes: { profile_limit: PROFILE_LIMIT, profile_missing: PROFILE_MISSING },
+} satisfies FailureCopy<FailedOutcome<typeof duplicateIndustryProfileEndpoint>>;
+
+/** Why a save failed, by the server's reason; any other failure is a plain one. */
+export function saveFailureMessage(failure: FailedOutcome<typeof updateIndustryProfileEndpoint>): string {
+  return failureMessage(failure, SAVE_FAILURE_COPY);
 }
 
-export function createFailureMessage(reason: string | undefined): string {
-  if (reason === 'profile_limit') return 'You have reached the profile limit. Delete one to make room.';
-  if (reason === 'not_linked') return NOT_LINKED;
-  return "Couldn't create the profile.";
+/** A failure's copy, or the fallback for null: a queued call that never answered, such as one a session change dropped. */
+function droppedOrFailed<TFailure extends FailedOutcome<EndpointContract>>(
+  failure: TFailure | null,
+  copy: FailureCopy<TFailure>,
+): string {
+  return failure === null ? copy.fallback : failureMessage(failure, copy);
+}
+
+export function createFailureMessage(failure: FailedOutcome<typeof createIndustryProfileEndpoint> | null): string {
+  return droppedOrFailed(failure, CREATE_FAILURE_COPY);
+}
+
+export function duplicateFailureMessage(
+  failure: FailedOutcome<typeof duplicateIndustryProfileEndpoint> | null,
+): string {
+  return droppedOrFailed(failure, DUPLICATE_FAILURE_COPY);
+}
+
+export function deleteFailureMessage(failure: FailedOutcome<typeof deleteIndustryProfileEndpoint> | null): string {
+  return droppedOrFailed(failure, { fallback: "Couldn't delete the profile." });
 }
 
 /** "Production", then "Production 2", "Production 3"… skipping names in use. */

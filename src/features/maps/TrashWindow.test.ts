@@ -72,13 +72,15 @@ describe('TrashWindow', () => {
     ).toEqual(['b', 'c']);
   });
 
-  it('runs a selected lifecycle batch serially, stopping at the first refusal', async () => {
+  it('runs a selected lifecycle batch serially, stopping at the first refusal and handing it back', async () => {
+    const refusal = { ok: false, kind: 'network', aborted: false, cause: new TypeError('offline') } as const;
     const refused = vi.fn()
       .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce({ ok: false });
+      .mockResolvedValueOnce(refusal);
     await expect(runMapLifecycleBatch(['a', 'b', 'c'], refused)).resolves.toEqual({
       succeeded: ['a'],
       complete: false,
+      failed: refusal,
     });
     expect(refused).toHaveBeenCalledTimes(2);
     expect(refused).toHaveBeenNthCalledWith(1, { mapId: 'a' });

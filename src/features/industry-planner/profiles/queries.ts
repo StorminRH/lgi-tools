@@ -1,11 +1,13 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
-import { db, runSerializable } from '@/db';
+import { and, asc, eq, isNull, sql, type SQL } from 'drizzle-orm';
+import { db } from '@/db';
+import { insertWithinCap } from '@/db/capped-insert';
 import { industryProfiles } from '../schema';
 import type { IndustryProfileRow } from './api-contract';
 import { MAX_PROFILES_PER_USER, type ProfileDocument, readStoredDocument } from './profile-document';
 
-const ownedLive = (userId: string) =>
-  and(eq(industryProfiles.userId, userId), isNull(industryProfiles.deletedAt));
+/** Always SQL (and() may return undefined), so it can scope the profile cap too. */
+const ownedLive = (userId: string): SQL =>
+  sql`(${eq(industryProfiles.userId, userId)} and ${isNull(industryProfiles.deletedAt)})`;
 
 const ownedLiveProfile = (userId: string, id: string) =>
   and(ownedLive(userId), eq(industryProfiles.id, id));
@@ -38,21 +40,19 @@ export async function getIndustryProfileDocument(
 }
 
 /**
- * Saves a new profile unless the account already holds the most it may. The
- * count and the insert are one serializable statement, so no lock is held: of
- * two creates that overlap, Postgres rejects one, and runSerializable runs it
- * again, when it sees the other's profile. The retry lives there, not here.
+ * Saves a new profile unless the account already holds the most live profiles
+ * it may; deleted ones do not count. Returns whether the profile landed.
  */
-export async function createIndustryProfile(
+export function createIndustryProfile(
   userId: string,
   input: { id: string; name: string; document: ProfileDocument },
 ): Promise<boolean> {
-  const inserted = await runSerializable(sql`
-    insert into ${industryProfiles} (id, user_id, name, document)
-    select ${input.id}, ${userId}, ${input.name}, ${JSON.stringify(input.document)}::jsonb
-    where (select count(*) from ${industryProfiles} where ${ownedLive(userId)}) < ${MAX_PROFILES_PER_USER}
-    returning id`);
-  return inserted.length > 0;
+  return insertWithinCap({
+    table: industryProfiles,
+    values: { ...input, userId },
+    scope: ownedLive(userId),
+    cap: MAX_PROFILES_PER_USER,
+  });
 }
 
 /**

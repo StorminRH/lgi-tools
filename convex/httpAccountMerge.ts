@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { MERGE_RECEIPT_BATCH_SIZE, MERGE_TRACKING_LIMIT } from '@/data/location-tracking/constants';
 import {
-  trackingReceiptCandidateFields,
-  trackingSelectionFields,
-} from '@/data/location-tracking/merge-contract';
+  deleteExpiredTrackingReceiptsDoor,
+  listExpiredTrackingReceiptsDoor,
+  restoreMergeTrackingDoor,
+  snapshotMergeTrackingDoor,
+} from '@/data/location-tracking/convex-doors';
 import type { PublicHttpAction } from 'convex/server';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -24,34 +25,26 @@ export const mergeUserState: PublicHttpAction = authorizedJsonAction(
     Response.json(await ctx.runMutation(internal.accountMerge.mergeUserState, body)),
 );
 
-
 export const snapshotMergeTracking: PublicHttpAction = authorizedJsonAction(
-  z.object({ sourceUserId: z.string().min(1) }),
+  snapshotMergeTrackingDoor.request,
   async (ctx, body) =>
     Response.json(await ctx.runQuery(internal.accountMerge.snapshotMergeTracking, body)),
 );
 
 export const restoreMergeTracking: PublicHttpAction = authorizedJsonAction(
-  z.object({
-    operationId: z.string().min(1),
-    survivorUserId: z.string().min(1),
-    selections: z.array(z.object(trackingSelectionFields)).max(MERGE_TRACKING_LIMIT),
-  }),
+  restoreMergeTrackingDoor.request,
   async (ctx, body) =>
     Response.json(await ctx.runMutation(internal.accountMerge.restoreMergeTracking, body)),
 );
 
 export const listExpiredTrackingReceipts: PublicHttpAction = authorizedJsonAction(
-  z.object({ cutoff: z.number().finite(), cursor: z.string().nullable() }),
+  listExpiredTrackingReceiptsDoor.request,
   async (ctx, body) =>
     Response.json(await ctx.runQuery(internal.accountMerge.listExpiredTrackingReceipts, body)),
 );
 
 export const deleteExpiredTrackingReceipts: PublicHttpAction = authorizedJsonAction(
-  z.object({
-    cutoff: z.number().finite(),
-    receipts: z.array(z.object(trackingReceiptCandidateFields)).max(MERGE_RECEIPT_BATCH_SIZE),
-  }),
+  deleteExpiredTrackingReceiptsDoor.request,
   async (ctx, body) =>
     Response.json(await ctx.runMutation(internal.accountMerge.deleteExpiredTrackingReceipts, {
       cutoff: body.cutoff,

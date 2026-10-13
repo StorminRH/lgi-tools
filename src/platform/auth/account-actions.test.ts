@@ -21,7 +21,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('runPurgeCharacter maps stayed, emptied, HTTP error, and network throw without rejecting', async () => {
+test('runPurgeCharacter maps stayed, emptied, and an HTTP or network failure that it carries for the copy', async () => {
   const fetchMock = stubFetch(Response.json({ accountEmptied: false }));
   const stayed = await runPurgeCharacter(123, apiFetch);
   expect(stayed).toEqual({ kind: 'stayed' });
@@ -39,14 +39,20 @@ test('runPurgeCharacter maps stayed, emptied, HTTP error, and network throw with
 
   stubFetch(serializeProblem(problemBody(rateLimitedFailure(10), 'test-correlation-id')));
   const httpError = await runPurgeCharacter(789, apiFetch);
-  expect(httpError).toEqual({ kind: 'error' });
+  expect(httpError).toMatchObject({
+    kind: 'error',
+    failure: { kind: 'api', status: 429, error: { code: 'rate_limited', retryAfterSeconds: 10 } },
+  });
   expect(redirectTargetFor(httpError)).toBeNull();
 
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
-  await expect(runPurgeCharacter(1, apiFetch)).resolves.toEqual({ kind: 'error' });
+  await expect(runPurgeCharacter(1, apiFetch)).resolves.toMatchObject({
+    kind: 'error',
+    failure: { kind: 'network' },
+  });
 });
 
-test('runDeleteAccount empties on success and maps HTTP or network failure to error', async () => {
+test('runDeleteAccount empties on success and carries an HTTP or network failure in its error', async () => {
   const fetchMock = stubFetch(Response.json({ ok: true }));
   const outcome = await runDeleteAccount(apiFetch);
   expect(outcome).toEqual({ kind: 'emptied' });
@@ -54,10 +60,16 @@ test('runDeleteAccount empties on success and maps HTTP or network failure to er
   expect(fetchMock).toHaveBeenCalledWith(accountDeleteEndpoint.path, { method: 'POST' });
 
   stubFetch(serializeProblem(problemBody(rateLimitedFailure(10), 'test-correlation-id')));
-  expect(await runDeleteAccount(apiFetch)).toEqual({ kind: 'error' });
+  expect(await runDeleteAccount(apiFetch)).toMatchObject({
+    kind: 'error',
+    failure: { kind: 'api', status: 429, error: { code: 'rate_limited' } },
+  });
 
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
-  await expect(runDeleteAccount(apiFetch)).resolves.toEqual({ kind: 'error' });
+  await expect(runDeleteAccount(apiFetch)).resolves.toMatchObject({
+    kind: 'error',
+    failure: { kind: 'network' },
+  });
 });
 
 test('runLogoutEverywhere sends the browser home on success and does not redirect on error', async () => {
@@ -69,9 +81,15 @@ test('runLogoutEverywhere sends the browser home on success and does not redirec
 
   stubFetch(serializeProblem(problemBody(rateLimitedFailure(10), 'test-correlation-id')));
   const httpError = await runLogoutEverywhere(apiFetch);
-  expect(httpError).toEqual({ kind: 'error' });
+  expect(httpError).toMatchObject({
+    kind: 'error',
+    failure: { kind: 'api', status: 429, error: { code: 'rate_limited' } },
+  });
   expect(redirectTargetFor(httpError)).toBeNull();
 
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
-  await expect(runLogoutEverywhere(apiFetch)).resolves.toEqual({ kind: 'error' });
+  await expect(runLogoutEverywhere(apiFetch)).resolves.toMatchObject({
+    kind: 'error',
+    failure: { kind: 'network' },
+  });
 });

@@ -9,6 +9,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/components/ui/
 import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { eyebrow } from '@/components/ui/type-roles';
 import type { Session } from '@/platform/auth/types';
 import { apiFetch } from '@/transport/api-client';
 import { feedbackEndpoint } from '../api-contract';
@@ -48,7 +49,12 @@ function FeedbackMeta({
   path: string;
 }) {
   return (
-    <div className={cn(insetSurface, 'flex flex-col gap-1 px-3 py-2 text-label tracking-label uppercase text-muted')}>
+    <div
+      className={cn(
+        insetSurface,
+        eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label', className: 'flex flex-col gap-1 px-3 py-2' }),
+      )}
+    >
       {loading ? (
         <div>Submitting…</div>
       ) : session ? (

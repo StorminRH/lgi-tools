@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   deadAllowlistEntries,
+  handRolledTypeRoles,
   unexpectedFamilies,
 } from '@/composition/__tests__/ui-adoption-census';
 import { uiAdoptionRegistry } from '@/composition/__tests__/ui-adoption-registry';
@@ -19,6 +20,16 @@ function codeMatching(pattern: RegExp): string[] {
     stripComments(readFileSync(file, 'utf8')),
   );
 }
+
+// The type-role census reads the ui layer too: only the role owner may spell
+// an uppercase tracked class string.
+const TYPE_ROLE_OWNER = 'src/components/ui/type-roles.ts';
+const TYPE_ROLE_SOURCES = listSourceFiles({
+  roots: ['src'],
+  extensions: ['.ts', '.tsx'],
+  skipDirectories: ['node_modules', '__fixtures__', '__tests__', '_generated'],
+  skipSuffixes: ['.test.ts', '.test.tsx', '.d.ts'],
+}).filter((file) => file !== TYPE_ROLE_OWNER);
 
 function exceptionFiles(entries: readonly { file: string }[]): string[] {
   return entries.map((entry) => entry.file).sort();
@@ -95,5 +106,38 @@ describe('UI adoption CSS-family census', () => {
     );
     expect(deadAllowlistEntries(css, ['nav-host', 'sites-detail-zoom', 'prose-copy']))
       .toEqual(['prose-copy']);
+  });
+});
+
+describe('UI adoption type-role census', () => {
+  it('pins how many class strings in each file hand-roll an eyebrow or title role', () => {
+    const found = Object.fromEntries(
+      TYPE_ROLE_SOURCES.map((file): [string, number] => [
+        file,
+        handRolledTypeRoles(stripComments(readFileSync(file, 'utf8'))).length,
+      ]).filter(([, count]) => count > 0),
+    );
+    const recorded = Object.fromEntries(
+      uiAdoptionRegistry.typeRoleExceptions.map(({ file, count }) => [file, count]),
+    );
+
+    expect(found).toEqual(recorded);
+  });
+
+  it('finds uppercase tracked strings in any class order and off-step tracking, not role calls', () => {
+    const source = [
+      '<span className="text-label uppercase tracking-wide text-muted">a</span>',
+      "const head = 'tracking-eyebrow font-semibold md:uppercase';",
+      '<p className={`${link} text-micro tracking-[0.07em]`}>b</p>',
+      '<span className="uppercase text-label">c</span>',
+      '<span className="tracking-label text-muted">d</span>',
+      "<span className={eyebrow({ emphasis: 'label' })}>e</span>",
+    ].join('\n');
+
+    expect(handRolledTypeRoles(source)).toEqual([
+      'text-label uppercase tracking-wide text-muted',
+      'tracking-eyebrow font-semibold md:uppercase',
+      '${link} text-micro tracking-[0.07em]',
+    ]);
   });
 });

@@ -4,6 +4,7 @@ import {
 } from '@/data/maps/api-contract';
 import { sleep } from '@/lib/retry';
 import { apiFetch } from '@/transport/api-client';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
 import type { PreparedMapCreation } from './access-editor-model';
 import { atlasMapHref } from './map-navigation';
 
@@ -17,20 +18,21 @@ export async function createMapWithMinimumInterstitial(input: CreateMapRequest) 
   return outcome;
 }
 
-export function mapCreationFailureMessage(
-  outcome: Awaited<ReturnType<typeof createMapWithMinimumInterstitial>>,
-): string {
-  if (outcome.ok) return '';
-  if (outcome.kind === 'api' && outcome.status === 400 && outcome.error.code === 'not_linked') {
-    return 'Choose one of your own linked characters.';
-  }
-  if (outcome.kind === 'api' && outcome.status === 429) {
-    return "You're creating maps too fast. Try again in a minute.";
-  }
-  if (outcome.kind === 'api' && outcome.status === 503) {
-    return "Couldn't set up map access. Try again.";
-  }
-  return 'Check your connection and try again.';
+// Owner-approved (promote #694): every failure without its own entry reads the connection line.
+const MAP_CREATION_FAILED = 'Check your connection and try again.';
+
+const MAP_CREATION_FAILURE_COPY = {
+  fallback: MAP_CREATION_FAILED,
+  codes: {
+    not_linked: 'Choose one of your own linked characters.',
+    rate_limited: "You're creating maps too fast. Try again in a minute.",
+    map_projection_unavailable: "Couldn't set up map access. Try again.",
+  },
+  network: MAP_CREATION_FAILED,
+} satisfies FailureCopy<FailedOutcome<typeof createMapEndpoint>>;
+
+export function mapCreationFailureMessage(failure: FailedOutcome<typeof createMapEndpoint>): string {
+  return failureMessage(failure, MAP_CREATION_FAILURE_COPY);
 }
 
 export interface MapCreationHandoffActions {

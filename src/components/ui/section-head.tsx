@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { pageTitle } from './type-roles';
 
 export function SectionHead({
   title,
@@ -27,7 +28,7 @@ export function SectionHead({
       <div className="flex min-w-0 items-center gap-3">
         {leading}
         <div className="min-w-0">
-          <h2 className="font-display text-h2 font-bold uppercase leading-none tracking-optical text-name">
+          <h2 className={pageTitle({ size: 'compact' })}>
             {title}
           </h2>
           {chips != null && <span className="mt-1.5 flex items-center gap-[6px]">{chips}</span>}

@@ -1,4 +1,23 @@
-import { httpRouter } from 'convex/server';
+import { httpRouter, type PublicHttpAction } from 'convex/server';
+import { leaveSyncDoor } from '@/data/convex/leave-contract';
+import {
+  deleteExpiredTrackingReceiptsDoor,
+  listExpiredTrackingReceiptsDoor,
+  purgeLocationTrackingDoor,
+  restoreMergeTrackingDoor,
+  snapshotMergeTrackingDoor,
+} from '@/data/location-tracking/convex-doors';
+import {
+  authorJumpDoor,
+  eliminationEvidenceDoor,
+  jumpTransitionEvidenceDoor,
+  mapTrackingSnapshotDoor,
+  projectMapAccessDoor,
+  purgeMapAccessDoor,
+  purgeMapChainDoor,
+  purgeUserMapClaimsDoor,
+} from '@/data/maps/convex-doors';
+import { purgeOnlineDoor } from '@/data/online-status/convex-doors';
 import {
   mergeUserState,
   snapshotMergeTracking,
@@ -19,81 +38,35 @@ import {
 
 const http = httpRouter();
 
-http.route({
-  path: '/jump-evidence',
-  method: 'POST',
-  handler: jumpEvidence,
-});
+/**
+ * Routes a door's path once. Operations that share a path share one handler,
+ * which dispatches on the request's discriminant.
+ */
+function routeDoor(door: { readonly path: string }, handler: PublicHttpAction): void {
+  http.route({ path: door.path, method: 'POST', handler });
+}
 
-http.route({
-  path: '/resolve-jump',
-  method: 'POST',
-  handler: resolveJump,
-});
+routeDoor(jumpTransitionEvidenceDoor, jumpEvidence);
+routeDoor(authorJumpDoor, resolveJump);
+routeDoor(eliminationEvidenceDoor, signatureElimination);
+routeDoor(purgeOnlineDoor, purgeOnline);
+routeDoor(leaveSyncDoor, leaveSync);
+routeDoor(purgeLocationTrackingDoor, purgeLocationTracking);
+routeDoor(projectMapAccessDoor, projectMapAccess);
+routeDoor(purgeMapAccessDoor, purgeMapAccess);
+routeDoor(purgeUserMapClaimsDoor, purgeUserMapClaims);
+routeDoor(mapTrackingSnapshotDoor, mapTrackingSnapshot);
+routeDoor(purgeMapChainDoor, purgeMapChain);
+routeDoor(snapshotMergeTrackingDoor, snapshotMergeTracking);
+routeDoor(restoreMergeTrackingDoor, restoreMergeTracking);
+routeDoor(listExpiredTrackingReceiptsDoor, listExpiredTrackingReceipts);
+routeDoor(deleteExpiredTrackingReceiptsDoor, deleteExpiredTrackingReceipts);
 
-http.route({
-  path: '/signature-elimination',
-  method: 'POST',
-  handler: signatureElimination,
-});
-
-http.route({
-  path: '/purge-online',
-  method: 'POST',
-  handler: purgeOnline,
-});
-
-http.route({
-  path: '/leave-sync',
-  method: 'POST',
-  handler: leaveSync,
-});
-
-http.route({
-  path: '/purge-location-tracking',
-  method: 'POST',
-  handler: purgeLocationTracking,
-});
-
-http.route({
-  path: '/project-map-access',
-  method: 'POST',
-  handler: projectMapAccess,
-});
-
-http.route({
-  path: '/purge-map-access',
-  method: 'POST',
-  handler: purgeMapAccess,
-});
-
-http.route({
-  path: '/purge-user-map-claims',
-  method: 'POST',
-  handler: purgeUserMapClaims,
-});
-
-http.route({
-  path: '/map-tracking-snapshot',
-  method: 'POST',
-  handler: mapTrackingSnapshot,
-});
-
-http.route({
-  path: '/purge-map-chain',
-  method: 'POST',
-  handler: purgeMapChain,
-});
-
+// Convex-only: no Next caller, so no shared door contract.
 http.route({
   path: '/merge-user-state',
   method: 'POST',
   handler: mergeUserState,
 });
-
-http.route({ path: '/snapshot-merge-tracking', method: 'POST', handler: snapshotMergeTracking });
-http.route({ path: '/restore-merge-tracking', method: 'POST', handler: restoreMergeTracking });
-http.route({ path: '/list-expired-tracking-receipts', method: 'POST', handler: listExpiredTrackingReceipts });
-http.route({ path: '/delete-expired-tracking-receipts', method: 'POST', handler: deleteExpiredTrackingReceipts });
 
 export default http;

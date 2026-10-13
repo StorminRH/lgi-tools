@@ -6,16 +6,10 @@ import { checkUserId } from '@/composition/route-guards';
 import {
   createSavedPlanEndpoint,
   createSavedPlanRequestSchema,
-  MAX_SAVED_PLANS_PER_USER,
   savedPlansEndpoint,
 } from '@/features/industry-planner/api-contract';
 import { getBlueprintStructure } from '@/features/industry-planner/queries';
-import {
-  countSavedPlans,
-  createSavedPlan,
-  deleteSavedPlan,
-  listSavedPlans,
-} from '@/features/industry-planner/saved-plans-queries';
+import { createSavedPlan, listSavedPlans } from '@/features/industry-planner/saved-plans-queries';
 import { conflictFailure, validationFailure } from '@/lib/failure';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
@@ -44,25 +38,15 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
-      if ((await countSavedPlans(userId)) >= MAX_SAVED_PLANS_PER_USER) {
-        return apiResponse(
-          createSavedPlanEndpoint,
-          409,
-          conflictFailure('template_limit', 'template limit reached'),
-        );
-      }
-
-      const id = randomUUID();
-      await createSavedPlan(userId, {
-        id,
+      const created = await createSavedPlan(userId, {
+        id: randomUUID(),
         name: body.name,
         blueprintTypeId: body.snapshot.blueprintTypeId,
         productTypeId: structure.product.typeId,
         productName: structure.product.name,
         snapshot: body.snapshot,
       });
-      if ((await countSavedPlans(userId)) > MAX_SAVED_PLANS_PER_USER) {
-        await deleteSavedPlan(userId, id);
+      if (!created) {
         return apiResponse(
           createSavedPlanEndpoint,
           409,

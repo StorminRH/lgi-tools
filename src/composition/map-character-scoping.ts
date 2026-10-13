@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { readPendingMapTrackingTransfers } from '@/data/location-tracking/merge-store';
 import type { DatedMapGrant } from '@/data/maps/access';
 import { canonicalizeMapRoles } from '@/data/maps/access-contract';
@@ -8,6 +7,7 @@ import {
   stampCharacterScoped,
   type GrandfatherGrant,
 } from '@/data/maps/character-scoping';
+import { mapTrackingSnapshotDoor } from '@/data/maps/convex-doors';
 import { getMapGrants } from '@/data/maps/queries';
 import { groupBy } from '@/lib/array';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
@@ -31,15 +31,8 @@ export interface TrackedPair {
   readonly characterId: number;
 }
 
-const trackingSnapshotSchema = z.object({
-  tracked: z.array(z.object({ userId: z.string(), characterId: z.number().int() })),
-});
-
 async function freezeMapTrackingForScoping(mapId: string): Promise<TrackedPair[]> {
-  const snapshot = await postConvexHttpDoor({
-    path: '/map-tracking-snapshot',
-    body: { mapId },
-    schema: trackingSnapshotSchema,
+  const snapshot = await postConvexHttpDoor(mapTrackingSnapshotDoor, { mapId }, {
     error: ProjectionUnavailableError,
     label: 'Map tracking snapshot unavailable',
   });

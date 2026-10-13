@@ -14,9 +14,9 @@ const h = vi.hoisted(() => ({
   getStructureTypes: vi.fn(),
   getStructureRigs: vi.fn(),
   getBlueprintStructure: vi.fn(),
-  countSavedPlans: vi.fn(),
+  createSavedPlan: vi.fn(),
   rejectInvalidCustomStructure: vi.fn(),
-  countCustomStructures: vi.fn(),
+  createCustomStructure: vi.fn(),
   getPricedSiteDetail: vi.fn(),
 }));
 
@@ -63,17 +63,14 @@ vi.mock('@/features/industry-planner/queries', () => ({
   getBlueprintStructure: (...args: unknown[]) => h.getBlueprintStructure(...args),
 }));
 vi.mock('@/features/industry-planner/saved-plans-queries', () => ({
-  countSavedPlans: (...args: unknown[]) => h.countSavedPlans(...args),
-  createSavedPlan: vi.fn(),
-  deleteSavedPlan: vi.fn(),
+  createSavedPlan: (...args: unknown[]) => h.createSavedPlan(...args),
   listSavedPlans: vi.fn(),
 }));
 vi.mock('@/features/custom-structures/save-boundary', () => ({
   rejectInvalidCustomStructure: (...args: unknown[]) => h.rejectInvalidCustomStructure(...args),
 }));
 vi.mock('@/features/custom-structures/queries', () => ({
-  countCustomStructures: (...args: unknown[]) => h.countCustomStructures(...args),
-  createCustomStructure: vi.fn(),
+  createCustomStructure: (...args: unknown[]) => h.createCustomStructure(...args),
   listCustomStructures: vi.fn(),
 }));
 vi.mock('@/features/wormhole-sites/queries', () => ({
@@ -82,12 +79,6 @@ vi.mock('@/features/wormhole-sites/queries', () => ({
 
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import { eveTokenEndpoint } from '@/platform/auth/api-contract';
-import {
-  MAX_CUSTOM_STRUCTURES_PER_USER,
-} from '@/features/custom-structures/api-contract';
-import {
-  MAX_SAVED_PLANS_PER_USER,
-} from '@/features/industry-planner/api-contract';
 import { postForm, postJson } from '@/lib/__tests__/route-requests';
 import { dependencyUnavailableFailure } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
@@ -165,9 +156,9 @@ beforeEach(() => {
   h.getBlueprintStructure.mockReset().mockResolvedValue({
     product: { typeId: 22544, name: 'Hulk' },
   });
-  h.countSavedPlans.mockReset().mockResolvedValue(0);
+  h.createSavedPlan.mockReset().mockResolvedValue(true);
   h.rejectInvalidCustomStructure.mockReset().mockResolvedValue({ ok: true });
-  h.countCustomStructures.mockReset().mockResolvedValue(0);
+  h.createCustomStructure.mockReset().mockResolvedValue(true);
   h.getPricedSiteDetail.mockReset().mockResolvedValue(null);
 });
 
@@ -284,13 +275,13 @@ describe('route-level problem status matrix', () => {
       409,
       'reauth_required',
     );
-    h.countSavedPlans.mockResolvedValue(MAX_SAVED_PLANS_PER_USER);
+    h.createSavedPlan.mockResolvedValue(false);
     await expectProblem(
       await postSavedPlan(postJson('/api/account/saved-plans', SAVED_PLAN_BODY)),
       409,
       'template_limit',
     );
-    h.countCustomStructures.mockResolvedValue(MAX_CUSTOM_STRUCTURES_PER_USER);
+    h.createCustomStructure.mockResolvedValue(false);
     await expectProblem(
       await postCustomStructure(
         postJson('/api/account/custom-structures', CUSTOM_STRUCTURE_BODY),

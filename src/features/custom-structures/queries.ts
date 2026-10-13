@@ -1,5 +1,7 @@
-import { and, count, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
+import { insertWithinCap } from '@/db/capped-insert';
+import { MAX_CUSTOM_STRUCTURES_PER_USER } from './api-contract';
 import { customStructures } from './schema';
 import type { CustomStructureRow } from './types';
 
@@ -19,14 +21,6 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
     .orderBy(customStructures.createdAt);
 }
 
-export async function countCustomStructures(userId: string): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(customStructures)
-    .where(eq(customStructures.userId, userId));
-  return Number(row?.n ?? 0);
-}
-
 function rowValues(input: Omit<CustomStructureRow, 'id'>) {
   return {
     name: input.name,
@@ -38,11 +32,17 @@ function rowValues(input: Omit<CustomStructureRow, 'id'>) {
   };
 }
 
-export async function createCustomStructure(
+/** Saves a new structure unless the account already holds the most it may. Returns whether it landed. */
+export function createCustomStructure(
   userId: string,
   input: CustomStructureRow,
-): Promise<void> {
-  await db.insert(customStructures).values({ id: input.id, userId, ...rowValues(input) });
+): Promise<boolean> {
+  return insertWithinCap({
+    table: customStructures,
+    values: { id: input.id, userId, ...rowValues(input) },
+    scope: eq(customStructures.userId, userId),
+    cap: MAX_CUSTOM_STRUCTURES_PER_USER,
+  });
 }
 
 export async function deleteCustomStructure(userId: string, id: string): Promise<void> {

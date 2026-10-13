@@ -15,6 +15,7 @@ import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
 import { Kbd } from '@/components/ui/kbd';
 import { SearchIcon } from '@/components/ui/icons';
+import { dataLabel, eyebrow } from '@/components/ui/type-roles';
 import { formatCount } from '@/lib/format/number';
 import { searchIconClass, searchRowImage, searchRowKey, searchRowsByKey, splitMatchRuns } from './global-search-view';
 
@@ -170,7 +171,7 @@ function SearchRow({ row, value }: { row: SearchResult; value: string }) {
           {renderLabel(row.label, row.matchIndices)}
         </span>
         {row.sub && (
-          <span className="truncate font-data text-label uppercase tracking-[0.07em] text-muted">
+          <span className={cn(dataLabel({ className: 'truncate' }), 'tracking-[0.07em]')}>
             {row.sub}
           </span>
         )}
@@ -198,7 +199,15 @@ function renderLabel(label: string, indices?: number[]) {
 
 function SearchFooter() {
   return (
-    <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-label text-faint">
+    <div
+      className={eyebrow({
+        font: 'inherit',
+        tone: 'faint',
+        weight: 'inherit',
+        emphasis: 'label',
+        className: 'mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2',
+      })}
+    >
       <span>
         Scope: <span className="text-isk">all</span> · sites · tools · commands
       </span>
