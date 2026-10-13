@@ -16,8 +16,13 @@ vi.mock('@/features/industry-jobs/queries', () => ({
 vi.mock('@/features/industry-jobs/corp-refresh', () => ({ refreshCorpJobsForUser: vi.fn() }));
 vi.mock('@/data/eve-data/queries', () => ({ getTypeNameRecord: vi.fn().mockResolvedValue({}) }));
 vi.mock('@/platform/auth/linked-characters', () => ({ listLinkedCharacters: vi.fn() }));
-vi.mock('./owner-sync-port', () => ({ listCharactersWithHealth: vi.fn(), probeAndStoreRoles: vi.fn(), readSingleEndpoint: vi.fn(), vendTokenFor: vi.fn() }));
-vi.mock('./esi-refresh-owner-sync', () => ({ enqueueBudgetDeferral: vi.fn(), targetedOwnerResult: vi.fn() }));
+vi.mock('./owner-sync-port', () => ({
+  listCharactersWithHealth: vi.fn(async () => []),
+  readRolesForSync: vi.fn(),
+  vendTokenFor: vi.fn(),
+}));
+vi.mock('@/data/esi-store', () => ({ isDue: vi.fn(async () => false), isDueFor: vi.fn(async () => false) }));
+vi.mock('@/data/esi-store/session', () => ({ openReadSession: vi.fn() }));
 
 import { getCorpJobsForUserOnView } from './corp-industry-jobs-sync';
 
@@ -35,6 +40,7 @@ it('excludes a departed corporation before cached jobs are read, even with histo
   await expect(getCorpJobsForUserOnView('u1')).resolves.toEqual({
     corporations: [{ corporationId: 3000, data: null, lastRefreshedAt: null, syncError: null }],
     names: {},
+    refreshing: false,
   });
   expect(mocks.getCorpJobsForUser).toHaveBeenCalledWith('u1', [3000]);
   expect(mocks.resolveUserCorpAccess).toHaveBeenCalledOnce();

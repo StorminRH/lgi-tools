@@ -28,19 +28,38 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const characters = [{ characterId: 7, synced: true, levels: { 3380: 5 } }];
-const ok = { ok: true, data: { characters } };
+const synced = { characterId: 7, synced: true, levels: { 3380: 5 } };
+const unsynced = { characterId: 8, synced: false, levels: null };
+const ok = (characters: unknown[], refreshing = false) => ({ ok: true, data: { characters, refreshing } });
 
-test('a same-identity return keeps slots even when the background refresh fails', async () => {
-  h.apiFetch.mockResolvedValueOnce(ok);
-  expect(slots().loading).toBe(true);
+test('draws the slots at once, keeps them through a failed re-read, and reads through the shared loop', async () => {
+  h.apiFetch.mockResolvedValueOnce(ok([synced]));
+  expect(slots()).toMatchObject({ characters: [], loading: true, failed: false });
   await vi.advanceTimersByTimeAsync(0);
-  expect(slots()).toEqual({ characters, loading: false });
+  expect(slots()).toMatchObject({ characters: [synced], loading: false });
+  expect(h.apiFetch).toHaveBeenCalledWith(expect.objectContaining({ path: '/api/account/industry-slots' }));
   rt.unmount();
   h.apiFetch.mockResolvedValue({ ok: false });
-  expect(slots()).toEqual({ characters, loading: false });
+  expect(slots()).toMatchObject({ characters: [synced], loading: false, failed: false });
   await vi.advanceTimersByTimeAsync(125_000);
-  expect(slots()).toEqual({ characters, loading: false });
+  expect(slots()).toMatchObject({ characters: [synced], loading: false, failed: false });
+});
+
+test('checks back while a character is unsynced or a refresh is under way, then stops', async () => {
+  h.apiFetch
+    .mockResolvedValueOnce(ok([synced, unsynced]))
+    .mockResolvedValueOnce(ok([synced, { ...unsynced, synced: true, levels: {} }], true))
+    .mockResolvedValue(ok([synced, { ...unsynced, synced: true, levels: {} }]));
+  slots();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(h.apiFetch).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(4_000);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  await vi.advanceTimersByTimeAsync(8_000);
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
+  await vi.advanceTimersByTimeAsync(300_000);
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
+  expect(slots().characters).toHaveLength(2);
 });
 
 test('an identity change before effect cleanup rejects the old slots response and reads the new account', async () => {
@@ -48,22 +67,24 @@ test('an identity change before effect cleanup rejects the old slots response an
   h.apiFetch.mockReturnValueOnce(new Promise((yes) => { resolve = yes; }));
   slots();
   identities.publishReadIdentity({ userId: 'account-b', characterId: 7 });
-  resolve(ok);
+  resolve(ok([synced]));
   await vi.advanceTimersByTimeAsync(0);
-  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: [] } });
-  expect(slots()).toEqual({ characters: [], loading: true });
+  h.apiFetch.mockResolvedValueOnce(ok([]));
+  expect(slots()).toMatchObject({ characters: [], loading: true });
   await vi.advanceTimersByTimeAsync(0);
-  expect(slots()).toEqual({ characters: [], loading: false });
+  expect(slots()).toMatchObject({ characters: [], loading: false });
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
   identities.publishReadIdentity(null);
-  expect(slots()).toEqual({ characters: [], loading: true });
+  expect(slots()).toMatchObject({ characters: [], loading: true });
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
-test('first-read failures settle empty after the bounded retries', async () => {
+test('first-read failures settle as failed after one retry, with a retry handle', async () => {
   h.apiFetch.mockResolvedValue({ ok: false });
   slots();
   await vi.advanceTimersByTimeAsync(125_000);
-  expect(slots()).toEqual({ characters: [], loading: false });
-  expect(h.apiFetch).toHaveBeenCalledTimes(25);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  const settled = slots();
+  expect(settled).toMatchObject({ characters: [], loading: false, failed: true });
+  expect(typeof settled.retry).toBe('function');
 });

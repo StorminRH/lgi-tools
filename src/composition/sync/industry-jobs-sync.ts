@@ -1,36 +1,40 @@
+import { isDue, recordRefusal } from '@/data/esi-store';
+import { openReadSession } from '@/data/esi-store/session';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
+import { characterJobsKey, jobsDueKeys } from '@/features/industry-jobs/keys';
 import {
   getJobsForCharacters,
+  listCharacterJobSyncStates,
   readCharacterJobSyncState,
   saveCharacterJobs,
   stampCharacterJobsFresh,
 } from '@/features/industry-jobs/queries';
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
+import { singleFlight } from '@/lib/memoize';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
-import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
-import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
+import { listCharactersWithHealth, vendTokenFor } from './owner-sync-port';
 
 function makeJobsPort(): JobsPort {
   return {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readJobs: (characterId, accessToken, heldEtag) =>
-      readSingleEndpoint(`/characters/${characterId}/industry/jobs/`, accessToken, heldEtag),
+    isDue: (characterId) => isDue([characterJobsKey(characterId)]),
+    openSession: openReadSession,
+    readJobs: (session, characterId, accessToken) => session.readAuthed(characterJobsKey(characterId), accessToken),
     readSyncState: (characterId) => readCharacterJobSyncState(characterId),
     saveJobs: (characterId, jobs, etag) => saveCharacterJobs(characterId, jobs, etag),
     stampFresh: (characterId) => stampCharacterJobsFresh(characterId),
+    recordRefusal: (characterId, expiresAt) => recordRefusal([characterJobsKey(characterId)], expiresAt),
   };
 }
 
-export function refreshJobsOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshJobsForUser(
-    makeJobsPort(),
-    userId,
-    enqueueBudgetDeferral('character_industry_jobs', userId),
-  );
+const jobsInFlight = singleFlight((userId: string) => refreshJobsForUser(makeJobsPort(), userId));
+
+/** The refresh a view schedules: concurrent calls for one user in this process share one run, and a call after it settles runs again. */
+export function refreshJobsOnView(userId: string) {
+  return jobsInFlight(userId);
 }
 
 export interface ViewerJobs {
@@ -42,22 +46,16 @@ export interface ViewerJobs {
 export interface ViewerJobsResult {
   characters: ViewerJobs[];
   names: Record<string, string>;
+  refreshing: boolean;
 }
 
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
-  const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
-    read: (uid) => readCharacterOwners(uid, getJobsForCharacters, readCharacterJobSyncState),
+  const { rows, names, refreshing } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
+    read: (uid) => readCharacterOwners(uid, getJobsForCharacters, listCharacterJobSyncStates),
     refresh: refreshJobsOnView,
+    dueKeys: (_uid, owners) => jobsDueKeys(owners),
     makeRow: characterRow,
     nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
   });
-  return { characters: rows, names };
-}
-
-export async function runCharacterIndustryJobsRefreshJob(
-  userId: string,
-  target: OwnerSyncTarget,
-): Promise<OwnerSyncResult> {
-  const results = await refreshJobsForUser(makeJobsPort(), userId, { target });
-  return targetedOwnerResult(target, results);
+  return { characters: rows, names, refreshing };
 }

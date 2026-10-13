@@ -1,17 +1,24 @@
 import type { EveScope } from '@/config/eve-scopes';
+import type { EsiStoreKey } from '@/data/esi-store';
+import type { EsiReadSession } from '@/data/esi-store/session';
 import { chunk } from '@/lib/array';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import type { AnyPgDb } from '@/lib/db-types';
 import { HOUR_MS } from '@/lib/iso-date';
 import { scopeEligibility } from '@/lib/scope-eligibility';
 import {
+  corporationsOf,
+  type CorpSyncBase,
   type EnumeratedOwner,
+  errorVerdict,
   makeCorpDescriptor,
   type OwnerSyncResult,
-  type OwnerSyncRunOptions,
   type PersistVerdict,
   runOwnerSync,
+  type SaveOutcome,
+  type SingleOwnerRead,
 } from '@/platform/owner-sync';
 import type { CorpProfile, MemberBase } from './context';
+import { corpContextKeys } from './keys';
 import {
   mergeNames,
   parseAssetNamesBody,
@@ -34,35 +41,58 @@ const CORP_CONTEXT_SYNC_SCOPES = [
 
 const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 
-const CONTEXT_FRESHNESS = freshnessGate('corp_context');
+const canSyncCorpContext = scopeEligibility(CORP_CONTEXT_SYNC_SCOPES);
+
+/** The stored answers a context pass would check: the three of each corporation an eligible member belongs to. */
+function corpContextDueKeys(owners: readonly EnumeratedOwner[]): EsiStoreKey[] {
+  return [...corporationsOf(owners, canSyncCorpContext).keys()].flatMap(corpContextKeys);
+}
+
+/**
+ * A route reader's due keys with the corp context's added: a reader behind
+ * resolveCorpViewer also has the context refreshed behind its response, so
+ * divisions, container names, HQ and bases that are due mean `refreshing`
+ * too, and the live view keeps re-checking until they land.
+ */
+export function withCorpContextDueKeys(
+  dueKeys: (owners: readonly EnumeratedOwner[]) => EsiStoreKey[],
+): (owners: readonly EnumeratedOwner[]) => EsiStoreKey[] {
+  return (owners) => [...dueKeys(owners), ...corpContextDueKeys(owners)];
+}
+
 const NAMES_BATCH = 1000;
 const STRUCTURE_NAME_READS_PER_PASS = 10;
 
-export type CorpContextRead =
-  | { kind: 'fresh'; body: unknown }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-export interface CorpContextPort {
-  now(): Date;
-  listMembers(userId: string): Promise<EnumeratedOwner[]>;
-  vendToken(characterId: number): Promise<string | null>;
-  readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-  readCorporation(corporationId: number, accessToken: string): Promise<CorpContextRead>;
-  readDivisions(corporationId: number, accessToken: string): Promise<CorpContextRead>;
-  readMemberTracking(corporationId: number, accessToken: string): Promise<CorpContextRead>;
-  readAssetNames(corporationId: number, accessToken: string, itemIds: readonly number[]): Promise<CorpContextRead>;
-  readStructure(structureId: number, accessToken: string): Promise<CorpContextRead>;
+export interface CorpContextPort extends CorpSyncBase<EsiReadSession> {
+  isDue(corporationId: number): Promise<boolean>;
+  readCorporation(session: EsiReadSession, corporationId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readDivisions(session: EsiReadSession, corporationId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readMemberTracking(session: EsiReadSession, corporationId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readAssetNames(
+    session: EsiReadSession,
+    corporationId: number,
+    accessToken: string,
+    itemIds: readonly number[],
+  ): Promise<SingleOwnerRead>;
+  readStructure(session: EsiReadSession, structureId: number, accessToken: string): Promise<SingleOwnerRead>;
   currentContext(corporationId: number): Promise<CorpHoldingContext>;
   listLinkedMemberIds(corporationId: number): Promise<number[]>;
   readProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null>;
+  /**
+   * Null bases leave the stored member bases as they are: the tracking
+   * answer was unchanged. Writes on `tx`, the transaction the pass's answers
+   * commit in; 'superseded' changed nothing.
+   */
   saveProfile(
     corporationId: number,
     profile: CorpProfile,
-    bases: readonly MemberBase[],
+    bases: readonly MemberBase[] | null,
     refreshedAt: Date,
-  ): Promise<void>;
+    tx: AnyPgDb,
+  ): Promise<SaveOutcome>;
   stampFresh(corporationId: number, refreshedAt: Date): Promise<void>;
+  /** Records the syncing user's settled refusal (no role-holder among their characters) for the corporation, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(corporationId: number, expiresAt: number | null): Promise<void>;
 }
 
 interface CorpOwner {
@@ -75,27 +105,36 @@ interface CorpContextState {
 
 interface CorpContextSave {
   profile: CorpProfile;
-  bases: MemberBase[];
+  bases: MemberBase[] | null;
 }
 
-type Step<T> = { kind: 'ok'; value: T } | { kind: 'skip'; code: string };
+type Step<T> = { kind: 'ok'; value: T } | { kind: 'unchanged' } | { kind: 'skip'; code: string; expiresAt?: number };
 
-function parsed<T>(read: CorpContextRead, parse: (body: unknown) => T | null): Step<T> {
-  if (read.kind === 'error') return { kind: 'skip', code: read.code };
-  if (read.kind === 'unchanged') return { kind: 'skip', code: 'esi_unexpected_not_modified' };
+/** A read's parsed body; the error codes are the engine's (a 403 becomes `needs_role`) and an unchanged answer carries nothing. */
+function parsed<T>(read: SingleOwnerRead, parse: (body: unknown) => T | null): Step<T> {
+  if (read.kind === 'error') return { kind: 'skip', code: read.code, expiresAt: read.expiresAt };
+  if (read.kind === 'unchanged') return { kind: 'unchanged' };
   const value = parse(read.body);
   return value === null ? { kind: 'skip', code: 'contract_error' } : { kind: 'ok', value };
 }
 
+/** A stored answer's step: the parsed body, or the value carried from the stored copy while ESI's copy is unchanged. */
+function stored<T>(step: Step<T>, carried: T): Exclude<Step<T>, { kind: 'unchanged' }> {
+  return step.kind === 'unchanged' ? { kind: 'ok', value: carried } : step;
+}
+
 async function readContainerNames(
+  session: EsiReadSession,
   port: CorpContextPort,
   corporationId: number,
   accessToken: string,
   itemIds: number[],
-): Promise<Step<Record<string, string>>> {
+): Promise<Exclude<Step<Record<string, string>>, { kind: 'unchanged' }>> {
   const names: Record<string, string> = {};
   for (const batch of chunk(itemIds, NAMES_BATCH)) {
-    const step = parsed(await port.readAssetNames(corporationId, accessToken, batch), parseAssetNamesBody);
+    const step = parsed(await port.readAssetNames(session, corporationId, accessToken, batch), parseAssetNamesBody);
+    // A pass-through POST always answers; a bodyless answer is a transient upstream failure.
+    if (step.kind === 'unchanged') return { kind: 'skip', code: 'esi_server_error' };
     if (step.kind === 'skip') return step;
     Object.assign(names, step.value);
   }
@@ -104,12 +143,13 @@ async function readContainerNames(
 
 /** Best effort: a Director off a structure's docking list gets a 403, and that name stays unknown. */
 async function readStructureNames(
+  session: EsiReadSession,
   port: CorpContextPort,
   accessToken: string,
   structureIds: number[],
 ): Promise<Record<string, string>> {
   const reads = await Promise.all(
-    structureIds.map(async (id) => [id, parsed(await port.readStructure(id, accessToken), parseStructureBody)] as const),
+    structureIds.map(async (id) => [id, parsed(await port.readStructure(session, id, accessToken), parseStructureBody)] as const),
   );
   const names: Record<string, string> = {};
   for (const [id, step] of reads) if (step.kind === 'ok') names[String(id)] = step.value;
@@ -124,30 +164,39 @@ function structureNameBatch(ids: readonly number[], now: Date): number[] {
   return [...sorted.slice(start), ...sorted.slice(0, start)].slice(0, STRUCTURE_NAME_READS_PER_PASS);
 }
 
+/**
+ * The pass is due once any of its three stored answers has expired; the
+ * others answer unchanged without a call and carry the stored copy. Every
+ * answer unchanged and nothing new to name is a stamp.
+ */
 async function planContext(
   port: CorpContextPort,
   owner: CorpOwner,
   accessToken: string,
+  session: EsiReadSession,
 ): Promise<PersistVerdict<CorpContextSave>> {
   const { corporationId } = owner;
   const [corporation, divisions, tracking, linked, context] = await Promise.all([
-    port.readCorporation(corporationId, accessToken),
-    port.readDivisions(corporationId, accessToken),
-    port.readMemberTracking(corporationId, accessToken),
+    port.readCorporation(session, corporationId, accessToken),
+    port.readDivisions(session, corporationId, accessToken),
+    port.readMemberTracking(session, corporationId, accessToken),
     port.listLinkedMemberIds(corporationId),
     port.currentContext(corporationId),
   ]);
-  const hq = parsed(corporation, parseCorporationBody);
-  if (hq.kind === 'skip') return hq;
-  const divisionNames = parsed(divisions, parseDivisionsBody);
-  if (divisionNames.kind === 'skip') return divisionNames;
-  const bases = parsed(tracking, (body) => parseMemberTrackingBody(body, new Set(linked)));
-  if (bases.kind === 'skip') return bases;
+  const hq = stored(parsed(corporation, parseCorporationBody), { hqStationId: context.hq.kind === 'known' ? context.hq.value : null });
+  if (hq.kind === 'skip') return errorVerdict(hq.code, hq.expiresAt);
+  const divisionNames = stored(parsed(divisions, parseDivisionsBody), context.divisionNames);
+  if (divisionNames.kind === 'skip') return errorVerdict(divisionNames.code, divisionNames.expiresAt);
+  const bases = stored(parsed(tracking, (body) => parseMemberTrackingBody(body, new Set(linked))), null);
+  if (bases.kind === 'skip') return errorVerdict(bases.code, bases.expiresAt);
   const containerIds = unnamedContainerIds(context.index, context.containerNames);
-  const containerNames = await readContainerNames(port, corporationId, accessToken, containerIds);
-  if (containerNames.kind === 'skip') return containerNames;
+  const containerNames = await readContainerNames(session, port, corporationId, accessToken, containerIds);
+  if (containerNames.kind === 'skip') return errorVerdict(containerNames.code, containerNames.expiresAt);
   const structureIds = structureNameBatch(unnamedStructureIds(context.index, context.structureNames), port.now());
-  const structureNames = await readStructureNames(port, accessToken, structureIds);
+  const structureNames = await readStructureNames(session, port, accessToken, structureIds);
+  const allUnchanged = [corporation, divisions, tracking].every((read) => read.kind === 'unchanged');
+  const nothingNamed = Object.keys(containerNames.value).length === 0 && Object.keys(structureNames).length === 0;
+  if (allUnchanged && nothingNamed) return { kind: 'stamp' };
   return {
     kind: 'save',
     profile: {
@@ -161,22 +210,25 @@ async function planContext(
 }
 
 function makeDescriptor(port: CorpContextPort) {
-  return makeCorpDescriptor<CorpOwner, CorpContextState, CorpContextSave>(port, {
+  return makeCorpDescriptor<CorpOwner, CorpContextState, CorpContextSave, EsiReadSession>(port, {
     ownerOf: (_userId, corporationId) => ({ corporationId }),
-    eligible: scopeEligibility(CORP_CONTEXT_SYNC_SCOPES),
+    eligible: canSyncCorpContext,
     requiredRoles: CORP_CONTEXT_REQUIRED_ROLES,
-    isStale: CONTEXT_FRESHNESS.isStale,
+    isDue: (owner) => port.isDue(owner.corporationId),
     readState: (owner) => port.readProfileState(owner.corporationId),
-    fetchAndPlan: (owner, accessToken) => planContext(port, owner, accessToken),
-    save: (owner, payload) => port.saveProfile(owner.corporationId, payload.profile, payload.bases, port.now()),
+    fetchAndPlan: (owner, accessToken, _state, session) => planContext(port, owner, accessToken, session),
+    save: (owner, payload) => ({
+      kind: 'transaction',
+      run: (tx) => port.saveProfile(owner.corporationId, payload.profile, payload.bases, port.now(), tx),
+    }),
     stampFresh: (owner) => port.stampFresh(owner.corporationId, port.now()),
+    recordRefusal: (owner, expiresAt) => port.recordRefusal(owner.corporationId, expiresAt),
   });
 }
 
 export function refreshCorpContextForUser(
   port: CorpContextPort,
   userId: string,
-  options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  return runOwnerSync(makeDescriptor(port), userId, options);
+  return runOwnerSync(makeDescriptor(port), userId);
 }

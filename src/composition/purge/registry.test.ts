@@ -14,6 +14,7 @@ import {
   reflectedSchemaTables,
   registryCoverageDiff,
 } from '@/db/__tests__/support/schema-reflection';
+import { filesMatching, listSourceFiles } from '@/lib/__tests__/source-scan';
 import { convexUserKeyedTables } from '@/platform/purge/__tests__/convex-user-homes';
 import {
   NON_NEON_HOMES,
@@ -36,6 +37,14 @@ const retainedNames = PURGE_CONTRIBUTORS.flatMap((c) =>
 );
 const coverage = registryCoverageDiff(flagged, [...claimedNames, ...retainedNames]);
 
+// A slice whose queries.ts serves rows under 'use cache', keyed by its directory name.
+const cachedSlices = new Set(
+  filesMatching(
+    listSourceFiles({ roots: ['src/features', 'src/data'], extensions: ['queries.ts'] }),
+    /^\s*['"]use cache/m,
+  ).flatMap((file) => /^src\/(?:features|data)\/([^/]+)\/queries\.ts$/.exec(file)?.[1] ?? []),
+);
+
 describe('purge registry gate', () => {
   it('flags the expected user/character/owner-keyed tables (sanity on the scan)', () => {
     expect([...flagged].sort()).toEqual(
@@ -53,7 +62,7 @@ describe('purge registry gate', () => {
         'corp_member_bases',
         'corp_member_roles',
         'custom_structures',
-        'esi_refresh_jobs',
+        'esi_responses',
         'esi_snapshots',
         'industry_profiles',
         'map_access',
@@ -115,6 +124,26 @@ describe('purge registry gate', () => {
     expect(
       PURGE_CONTRIBUTORS.some((contributor) => contributor.name === 'location-tracking'),
     ).toBe(true);
+  });
+
+  it('every contributor of a slice with cached queries names the cache tags its purge expires', () => {
+    const gated = PURGE_CONTRIBUTORS.filter((contributor) => cachedSlices.has(contributor.name));
+    expect(gated.map((contributor) => contributor.name).sort()).toEqual([
+      'character-sheet',
+      'corp-holdings',
+      'industry-jobs',
+      'owned-assets',
+      'owned-blueprints',
+      'skill-queue',
+    ]);
+    const undeclared = gated
+      .filter((contributor) => contributor.cacheTags === undefined)
+      .map((contributor) => contributor.name);
+    expect(
+      undeclared,
+      `Contributor(s) without cacheTags: ${undeclared.join(', ')}. Name the 'use cache' tags ` +
+        `built from the rows purgeCharacter deletes, or () => [] with the reason none are cached.`,
+    ).toEqual([]);
   });
 
   it('every claimed or retained table has exactly one schema-consistent merge rule', () => {

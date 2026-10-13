@@ -56,14 +56,6 @@ const COMMANDS: CommandEntry[] = [
     visible: (ctx) => ctx.isAdmin,
   },
   {
-    id: 'cmd:open-admin-queue',
-    label: 'Open admin refresh queue',
-    sub: 'Retry dead-lettered ESI refresh jobs',
-    href: '/admin/queue',
-    iconText: '→',
-    visible: (ctx) => ctx.isAdmin,
-  },
-  {
     id: 'cmd:open-admin-statics',
     label: 'Open admin wormhole statics',
     sub: 'Review and promote the community statics feed',

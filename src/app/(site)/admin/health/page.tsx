@@ -17,7 +17,7 @@ async function HealthContent({ searchParams }: { searchParams: RangeSearchParams
       <AdminSection
         title="Service levels"
         name="service-levels"
-        rows={5}
+        rows={4}
         reveal={1}
         load={() => loadServiceLevels(range)}
       >

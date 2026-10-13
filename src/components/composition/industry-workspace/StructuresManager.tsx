@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { eyebrow } from '@/components/ui/type-roles';
 import { useSystemsById } from '@/components/use-system-search';
-import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import { fittingRigs, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
 import { lookupSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { StructureComposer } from '@/features/custom-structures/components/StructureComposer';
 import type { CustomStructureRow } from '@/features/custom-structures/types';
@@ -20,6 +20,7 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import { refreshAvailableStructures, useAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { CorpRigEditor } from '@/features/owned-structures/components/CorpRigEditor';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
+import { refreshCorpStructures, useCorpStructuresLive } from '@/features/owned-structures/use-corp-structures-live';
 import { unresolvedName } from '@/lib/format/names';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
@@ -124,7 +125,7 @@ function CorpGroup({
         <CorpRigEditor
           corporationId={corp.corporationId}
           structure={s}
-          validRigs={hull ? rigs.filter((r) => rigFitsStructure(r, hull)) : []}
+          validRigs={fittingRigs(rigs, hull)}
           onSaved={(saved) => onCorpSaved(s.structureId, saved)}
           onClose={() => setComposer(null)}
         />
@@ -247,11 +248,55 @@ function useLookups(structureTypes: StructureTypeOption[]): Lookups {
   );
 }
 
-const withCorpRigs = (structureId: number, saved: Pick<CorpStructurePageStructure, 'rigTypeIds' | 'taxPct'>) =>
+export type RigEdit = Pick<CorpStructurePageStructure, 'rigTypeIds' | 'taxPct'>;
+
+const withRigEdits = (edits: ReadonlyMap<number, RigEdit>) =>
   (corp: CorpStructurePageView): CorpStructurePageView => ({
     ...corp,
-    structures: corp.structures.map((s) => (s.structureId === structureId ? { ...s, ...saved } : s)),
+    structures: corp.structures.map((s) => ({ ...s, ...edits.get(s.structureId) })),
   });
+
+/** The rigs saved here, with the live rows they were saved over. */
+export interface RigOverlay {
+  readonly over: readonly CorpStructurePageView[];
+  readonly edits: ReadonlyMap<number, RigEdit>;
+}
+
+/** A save joins the overlay while the same live rows stand, and starts a new one once newer rows came in. */
+export function withRigSaved(
+  prev: RigOverlay | null,
+  over: readonly CorpStructurePageView[],
+  structureId: number,
+  saved: RigEdit,
+): RigOverlay {
+  return { over, edits: new Map(prev?.over === over ? prev.edits : []).set(structureId, saved) };
+}
+
+/**
+ * The live rows with the rigs saved here drawn over them, until the rows
+ * change. A save bumps the revision, which cancels any earlier read, so the
+ * next rows to land are the re-read that carries the save; a later change
+ * by another manager is never masked.
+ */
+export function overlaidCorps(
+  corporations: readonly CorpStructurePageView[],
+  overlay: RigOverlay | null,
+): readonly CorpStructurePageView[] {
+  return overlay === null || overlay.over !== corporations ? corporations : corporations.map(withRigEdits(overlay.edits));
+}
+
+/** The member corps with structures to show, newer data streaming in behind the server's first draw. */
+function useCorpGroups(initialCorps: CorpStructurePageView[]) {
+  const { corporations } = useCorpStructuresLive(initialCorps);
+  const [overlay, setOverlay] = useState<RigOverlay | null>(null);
+  const corps = useMemo(
+    () => overlaidCorps(corporations, overlay).filter((c) => c.structures.length > 0),
+    [corporations, overlay],
+  );
+  const saveRigs = (structureId: number, saved: RigEdit) =>
+    setOverlay((prev) => withRigSaved(prev, corporations, structureId, saved));
+  return { corps, saveRigs };
+}
 
 /** The structure a save just added, in the shape a profile takes it. */
 export function savedStructure(
@@ -294,7 +339,7 @@ function StructuresManagerContent({
   identity,
 }: Omit<StructuresManagerProps, 'owner'> & { identity: ReadIdentity | null }) {
   const [custom, setCustom] = useState(initialCustom);
-  const [corps, setCorps] = useState(() => initialCorps.filter((c) => c.structures.length > 0));
+  const { corps, saveRigs } = useCorpGroups(initialCorps);
   const [ownComposer, setComposer] = useState<Composer>(null);
   // A profile asking for a new structure opens the form, and gets what it saves.
   const request = useNewStructureRequest();
@@ -343,7 +388,8 @@ function StructuresManagerContent({
             setComposer={setComposer}
             onCorpSaved={(structureId, saved) => {
               if (!isCurrentReadIdentity(identity)) return;
-              setCorps((prev) => prev.map(withCorpRigs(structureId, saved)));
+              saveRigs(structureId, saved);
+              refreshCorpStructures();
               settle();
             }}
           />

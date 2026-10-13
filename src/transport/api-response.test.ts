@@ -207,9 +207,9 @@ describe('seeOther', () => {
   const formPost = new Request('https://lgi.tools/api/admin/role', { method: 'POST' });
 
   it('answers a form post with a 303 to the path on the request origin', () => {
-    const plain = seeOther(formPost, '/admin/queue');
+    const plain = seeOther(formPost, '/admin/statics');
     expect(plain.status).toBe(303);
-    expect(plain.headers.get('location')).toBe('https://lgi.tools/admin/queue');
+    expect(plain.headers.get('location')).toBe('https://lgi.tools/admin/statics');
 
     const queried = seeOther(formPost, '/admin/users', {
       query: { q: 'Pilot One', error: undefined, outcome: '' },

@@ -20,6 +20,7 @@ async function handlePost(req: Request): Promise<Response> {
   const limited = await checkRateLimit(req, { name: 'eve-entity-names', perMinute: ENTITY_NAMES_LIMIT_PER_MINUTE });
   if (!limited.ok) return apiResponse(entityNamesEndpoint, 429, limited.failure);
 
-  const { names, pending } = await resolveEntityNamesWithPending(parsed.data.ids);
+  // The client is waiting on these names: the gate's interactive floor.
+  const { names, pending } = await resolveEntityNamesWithPending(parsed.data.ids, { interactive: true });
   return apiResponse(entityNamesEndpoint, 200, { names, pending });
 }

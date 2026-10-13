@@ -32,6 +32,8 @@ describe('POST /api/eve/names', () => {
     // Id 9 got no answer this time, so the client knows to ask again.
     await expect(res.json()).resolves.toEqual({ names: { '7': 'Pilot' }, pending: [9] });
     expect(h.checkRateLimit).toHaveBeenCalledWith(expect.anything(), { name: 'eve-entity-names', perMinute: 60 });
+    // The client is waiting on these names: the gate's interactive floor.
+    expect(h.resolveEntityNames).toHaveBeenCalledWith(expect.any(Array), { interactive: true });
   });
 
   it('refuses a caller over the limit without asking ESI', async () => {

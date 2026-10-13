@@ -1,13 +1,14 @@
 import { eq } from 'drizzle-orm';
+import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { eveSolarSystems } from '@/data/eve-data/schema';
-import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { countSessionsWaitingOn, createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpStructureRigs,
-  readCorpStructureSyncState,
   saveCorpStructures,
   upsertCorpStructureRigs,
 } from './queries';
+import type { ParsedCorpStructure } from './esi-projection';
 import { corpStructures } from './schema';
 
 vi.mock('next/cache', () => ({
@@ -27,6 +28,26 @@ const harness = await createDbTestHarness({
   steerDbProxy: true,
 });
 
+function structure(structureId: number, typeId = 35825): ParsedCorpStructure {
+  return { structure_id: structureId, type_id: typeId, system_id: 30000142, name: `Structure ${structureId}` };
+}
+
+/** The ETags the save still writes beside the sync stamp; the response store, not this column, decides freshness. */
+async function storedPageEtags(corporationId: number): Promise<string[] | undefined> {
+  const [row] = await harness.sql<{ page_etags: string[] }[]>`
+    SELECT page_etags FROM corp_structure_syncs WHERE corporation_id = ${corporationId}`;
+  return row?.page_etags;
+}
+
+async function storedStructureIds(corporationId: number): Promise<number[]> {
+  const rows = await harness.db
+    .select({ structureId: corpStructures.structureId })
+    .from(corpStructures)
+    .where(eq(corpStructures.corporationId, corporationId))
+    .orderBy(corpStructures.structureId);
+  return rows.map((row) => row.structureId);
+}
+
 describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries against Postgres', () => {
   it('authored completions SURVIVE the full-replace pull (saveCorpStructures never clobbers them)', async () => {
     const corp = 9004;
@@ -38,8 +59,12 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       securityClass: 'high',
       name: 'Raitaru B (old)',
     });
+    vi.mocked(revalidateTag).mockClear();
     await upsertCorpStructureRigs(corp, 600002, [37178, 37180], 1.5);
+    expect(revalidateTag).not.toHaveBeenCalled();
     await saveCorpStructures(corp, [], ['"e1"']);
+    // The sync's commit clears the structures tag once the answer is recorded; the write itself clears nothing.
+    expect(revalidateTag).not.toHaveBeenCalled();
 
     const remaining = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(remaining).toHaveLength(0);
@@ -51,7 +76,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
 
   it('upserts authored rigs (replace the set for one structure)', async () => {
     const corp = 9005;
-    await upsertCorpStructureRigs(corp, 600003, [37178]);
+    expect(await upsertCorpStructureRigs(corp, 600003, [37178])).toEqual({ rigTypeIds: [37178], taxPct: null });
     await upsertCorpStructureRigs(corp, 600003, [37180, 37182]);
     const rigs = await getCorpStructureRigs([corp]);
     expect(rigs.get(600003)).toEqual({ rigTypeIds: [37180, 37182], taxPct: null });
@@ -59,15 +84,16 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
 
   it('taxPct is tri-state: a rig-only save leaves the stored tax, null clears it, a number sets it', async () => {
     const corp = 9007;
-    await upsertCorpStructureRigs(corp, 600005, [37178], 2.5);
-    await upsertCorpStructureRigs(corp, 600005, [37180]);
+    expect(await upsertCorpStructureRigs(corp, 600005, [37178], 2.5)).toEqual({ rigTypeIds: [37178], taxPct: 2.5 });
+    // The rig-only save answers with the tax the row kept, as stored.
+    expect(await upsertCorpStructureRigs(corp, 600005, [37180])).toEqual({ rigTypeIds: [37180], taxPct: 2.5 });
     expect((await getCorpStructureRigs([corp])).get(600005)).toEqual({
       rigTypeIds: [37180],
       taxPct: 2.5,
     });
-    await upsertCorpStructureRigs(corp, 600005, [37180], 0);
+    expect(await upsertCorpStructureRigs(corp, 600005, [37180], 0)).toEqual({ rigTypeIds: [37180], taxPct: 0 });
     expect((await getCorpStructureRigs([corp])).get(600005)?.taxPct).toBe(0);
-    await upsertCorpStructureRigs(corp, 600005, [37180], null);
+    expect(await upsertCorpStructureRigs(corp, 600005, [37180], null)).toEqual({ rigTypeIds: [37180], taxPct: null });
     expect((await getCorpStructureRigs([corp])).get(600005)?.taxPct).toBeNull();
   });
 
@@ -79,7 +105,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       .from(corpStructures)
       .where(eq(corpStructures.corporationId, corp));
     expect(rows).toEqual([{ structureId: 600004, name: 'Fort' }]);
-    expect((await readCorpStructureSyncState(corp))?.pageEtags).toEqual(['"s1"']);
+    expect(await storedPageEtags(corp)).toEqual(['"s1"']);
   });
 
   it('stores each structure under its system’s security class, high when the system is unknown', async () => {
@@ -109,5 +135,48 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
       { structureId: 600012, securityClass: 'high' },
       { structureId: 600013, securityClass: 'low' },
     ]);
+  });
+
+  it('queues concurrent refreshes behind the sync row, so the final rows match the final etags', async () => {
+    const corp = 9009;
+    await saveCorpStructures(corp, [structure(600020)], ['"before"']);
+    const blocker = await harness.sql.reserve();
+    let saves: Promise<('saved' | 'superseded')[]> | undefined;
+    try {
+      await blocker`BEGIN`;
+      await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;
+      await blocker`SELECT 1 FROM corp_structure_syncs WHERE corporation_id = ${corp} FOR UPDATE`;
+      const [holder] = await blocker<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+      saves = Promise.all([
+        saveCorpStructures(corp, [structure(600021)], ['"one"']),
+        saveCorpStructures(corp, [structure(600022)], ['"two"']),
+      ]);
+      await expect.poll(() => countSessionsWaitingOn(harness.sql, holder!.pid), { timeout: 3_000, interval: 20 }).toBe(2);
+      expect(await storedStructureIds(corp)).toEqual([600020]);
+      await blocker`COMMIT`;
+      await saves;
+      const [finalId, ...rest] = await storedStructureIds(corp);
+      expect(rest).toEqual([]);
+      expect(await storedPageEtags(corp)).toEqual([finalId === 600021 ? '"one"' : '"two"']);
+    } finally {
+      await blocker`ROLLBACK`;
+      blocker.release();
+      await saves;
+    }
+  });
+
+  it('rolls a failed insert back, so the prior rows and etags survive', async () => {
+    const corp = 9010;
+    await saveCorpStructures(corp, [structure(600030)], ['"kept"']);
+    await harness.sql`ALTER TABLE corp_structures ADD CONSTRAINT reject_test_type CHECK (type_id <> 99)`;
+    try {
+      vi.mocked(revalidateTag).mockClear();
+      await expect(saveCorpStructures(corp, [structure(600031, 99)], ['"lost"'])).rejects.toThrow();
+      expect(await storedStructureIds(corp)).toEqual([600030]);
+      expect(await storedPageEtags(corp)).toEqual(['"kept"']);
+      expect(revalidateTag).not.toHaveBeenCalled();
+    } finally {
+      await harness.sql`ALTER TABLE corp_structures DROP CONSTRAINT reject_test_type`;
+    }
   });
 });

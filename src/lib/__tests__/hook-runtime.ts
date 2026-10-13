@@ -35,7 +35,8 @@ function rewound() {
  * synchronously when called, after the previous run's cleanup, not after a
  * commit. useCallback hands back the callback it is given, unmemoized, so a
  * memo that depends on a callback recomputes each render and a test that
- * changes a mocked input reaches it. useSyncExternalStore reads the snapshot.
+ * changes a mocked input reaches it. useEffectEvent calls the latest render's
+ * function, through a ref slot. useSyncExternalStore reads the snapshot.
  *
  * The helper imports nothing from 'react', so a test can load it for its own
  * `vi.mock('react')`:
@@ -62,6 +63,12 @@ export function createHookRuntime() {
 
   function useRef<T>(initial: T): { current: T } {
     return (slots.refs[cursor.ref++] ??= { current: initial }) as { current: T };
+  }
+
+  function useEffectEvent<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+    const latest = useRef(fn);
+    latest.current = fn;
+    return (...args) => latest.current(...args);
   }
 
   function useMemo<T>(make: () => T, deps?: readonly unknown[]): T {
@@ -93,6 +100,7 @@ export function createHookRuntime() {
       useRef,
       useMemo,
       useCallback: <T>(callback: T, _deps?: readonly unknown[]): T => callback,
+      useEffectEvent,
       useEffect,
       useLayoutEffect: useEffect,
       useSyncExternalStore: <T>(_subscribe: unknown, getSnapshot: () => T): T => getSnapshot(),

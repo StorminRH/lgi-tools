@@ -1,19 +1,12 @@
 import { AdminNav, AdminNavFallback } from './admin-nav';
 import { ADMIN_NAV_GROUPS, deriveNavBadges, type AdminNavBadges } from './admin-sections';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { getEsiRefreshQueueStatsShared, getStaticsSummaryShared } from './shared-reads';
-import { summarizeQueue } from './signals';
+import { getStaticsSummaryShared } from './shared-reads';
 
 async function loadNavBadges(): Promise<AdminNavBadges> {
-  const fetched = await loadSection('admin-nav-badges', () =>
-    Promise.all([getEsiRefreshQueueStatsShared(), getStaticsSummaryShared()]),
-  );
-  if (fetched === SECTION_LOAD_FAILED) return {};
-  const [queueStats, staticsPending] = fetched;
-  return deriveNavBadges({
-    deadLettered: summarizeQueue(queueStats, new Date()).deadLettered,
-    staticsPending: staticsPending !== null,
-  });
+  const staticsPending = await loadSection('admin-nav-badges', getStaticsSummaryShared);
+  if (staticsPending === SECTION_LOAD_FAILED) return {};
+  return deriveNavBadges({ staticsPending: staticsPending !== null });
 }
 
 export async function AdminRail() {

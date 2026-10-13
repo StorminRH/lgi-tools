@@ -2,9 +2,6 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { account, characters, user } from '@/db/auth-schema';
 import {
-  claimPublicEsiBudgetAlert,
-  completePublicEsiBudgetAlertClaim,
-  countPublicEsiBudgetExhaustionsInWindow,
   getCronOutcomes,
   getLastCronRuns,
   getLoginCountsPerUser,
@@ -18,7 +15,6 @@ import {
   getPriceSourceSplit,
   getTopCostlyEndpoints,
   getWriteBehindOutcomes,
-  hasPublicEsiBudgetAlertForWindow,
 } from './queries';
 import { fallbackRate } from './cron-stats';
 import { pageViewSources, pageViewTotals } from './page-view-stats';
@@ -212,20 +208,10 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
         metadata: { budgetExhausted: true },
       },
       {
-        action: 'public_esi_budget_alerted',
-        characterId: null,
-        timestamp: IN_RANGE,
-        metadata: {
-          count: 3,
-          windowMinutes: 15,
-          windowStartedAt: '2020-01-03T12:00:00.000Z',
-        },
-      },
-      {
         action: 'market_price_refresh',
         characterId: null,
         timestamp: IN_RANGE,
-        metadata: { requested: 10, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 },
+        metadata: { requested: 10, returned: 9, esiCount: 6, fuzzworkFallbackCount: 1 },
       },
       {
         action: 'market_history_refresh',
@@ -261,30 +247,6 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
   it('uses the cron outcome for fallback volume and one degradation row per budget incident', async () => {
     expect(fallbackRate(await getPriceRefreshDays(RANGE))).toMatchObject({ esi: 100, fallback: 5 });
     await expect(getPriceSourceDegradation(RANGE)).resolves.toMatchObject({ budgetExhaustions: 2 });
-  });
-
-  it('counts only public on-demand exhaustion events and finds the alert marker', async () => {
-    const since = new Date('2020-01-03T00:00:00Z');
-    await expect(
-      countPublicEsiBudgetExhaustionsInWindow(since, new Date('2020-01-04T00:00:00Z')),
-    ).resolves.toBe(2);
-    await expect(
-      hasPublicEsiBudgetAlertForWindow('2020-01-03T12:00:00.000Z'),
-    ).resolves.toBe(true);
-  });
-
-  it('keeps only active claims and promotes a delivered claim', async () => {
-    const windowStartedAt = new Date().toISOString();
-    const claimId = await claimPublicEsiBudgetAlert({
-      count: 3,
-      windowMinutes: 15,
-      windowStartedAt,
-    });
-
-    await expect(hasPublicEsiBudgetAlertForWindow(windowStartedAt)).resolves.toBe(true);
-    await expect(hasPublicEsiBudgetAlertForWindow('another-window')).resolves.toBe(false);
-    await completePublicEsiBudgetAlertClaim(claimId);
-    await expect(hasPublicEsiBudgetAlertForWindow(windowStartedAt)).resolves.toBe(true);
   });
 });
 

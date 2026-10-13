@@ -1,6 +1,7 @@
 import { db } from '@/db';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import { characterCacheContributor } from '@/platform/purge/contributors';
+import { eveTag } from '@/lib/esi-datasets/routes';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
 export const ownedBlueprintsPurgeContributor = characterCacheContributor(db, {
@@ -15,4 +16,5 @@ export const ownedBlueprintsPurgeContributor = characterCacheContributor(db, {
       where: (ownerId) => ownerKeyWhere(ownedBlueprintSyncs, { ownerType: 'character', ownerId }),
     },
   ],
+  cacheTags: (ownerId) => [eveTag('owned_blueprints', { kind: 'character', id: ownerId })],
 });

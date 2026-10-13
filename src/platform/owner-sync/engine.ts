@@ -1,176 +1,248 @@
+import { mapConcurrent } from '@/lib/fan-out';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { selectCorpCredential } from './credential';
-import type {
-  CorpOwnerAxis,
-  EnumeratedOwner,
-  OwnerAxis,
-  OwnerSyncDescriptor,
-  OwnerSyncResult,
-  OwnerSyncRunOptions,
-  OwnerSyncTarget,
+import { corpCredentials } from './credential';
+import {
+  hasToken,
+  type CorpOwnerAxis,
+  type EnumeratedOwner,
+  type OwnerAxis,
+  type OwnerKey,
+  type OwnerSyncDescriptor,
+  type OwnerSyncResult,
+  type ReadSession,
 } from './types';
 
-type TokenOutcome =
-  | { kind: 'token'; accessToken: string }
-  | { kind: 'needs_role' }
-  | { kind: 'skip'; retryable: boolean };
+/** Why an owner's credentials ran out: nobody holds the role, or a token (or a member's roles) could not be had. */
+type CredentialsEnd = { kind: 'denied' } | { kind: 'unavailable'; retryable: boolean };
 
-export async function runOwnerSync<TOwner, TState, TSave>(
-  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
+/** The access tokens an owner's refresh may try, in order, and why there are no more. */
+type Credentials = AsyncGenerator<string, CredentialsEnd>;
+
+/** Owners (characters or corporations) refreshed at once in one pass; each owner's sections still run in parallel inside it. */
+export const OWNER_SYNC_CONCURRENCY = 8;
+
+export async function runOwnerSync<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
   userId: string,
-  options: OwnerSyncRunOptions = {},
 ): Promise<OwnerSyncResult[]> {
   const owners = await descriptor.enumerate(userId);
   const results: OwnerSyncResult[] = [];
   if (descriptor.characterAxis !== undefined) {
-    results.push(
-      ...(await runCharacterPass(descriptor, descriptor.characterAxis, owners, options)),
-    );
+    results.push(...(await runCharacterPass(descriptor, descriptor.characterAxis, owners)));
   }
   if (descriptor.corpAxis !== undefined) {
-    results.push(
-      ...(await runCorpPass(descriptor, descriptor.corpAxis, userId, owners, options)),
-    );
+    results.push(...(await runCorpPass(descriptor, descriptor.corpAxis, userId, owners)));
   }
   return results;
 }
 
-function targetMatches(candidate: OwnerSyncTarget, requested: OwnerSyncTarget | undefined): boolean {
-  return (
-    requested === undefined ||
-    (candidate.ownerType === requested.ownerType && candidate.ownerId === requested.ownerId)
-  );
-}
-
-async function runCharacterPass<TOwner, TState, TSave>(
-  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
+async function runCharacterPass<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
   axis: OwnerAxis<TOwner>,
   owners: EnumeratedOwner[],
-  options: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  return Promise.all(
-    owners
-      .filter((owner) => axis.eligible(owner))
-      .map((owner) => ({ owner, key: axis.ownerOf(owner.characterId) }))
-      .filter(({ key }) => targetMatches(descriptor.identityOf(key), options.target))
-      .map(({ owner, key }) =>
-        syncOwner(
-          descriptor,
-          key,
-          () => resolveCharacterToken(descriptor, owner.characterId),
-          options,
-        ),
+  return mapConcurrent(
+    owners.filter((owner) => axis.eligible(owner)),
+    OWNER_SYNC_CONCURRENCY,
+    (owner) =>
+      syncOwner(descriptor, axis.ownerOf(owner.characterId), () =>
+        characterCredentials(descriptor, owner.characterId),
       ),
   );
 }
 
-async function runCorpPass<TOwner, TState, TSave>(
-  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
-  axis: CorpOwnerAxis<TOwner>,
-  userId: string,
-  owners: EnumeratedOwner[],
-  options: OwnerSyncRunOptions,
-): Promise<OwnerSyncResult[]> {
+/**
+ * The corporations a corp pass syncs, each with the members whose tokens it
+ * may try: a corporation counts once some eligible member belongs to it.
+ */
+export function corporationsOf(
+  owners: readonly EnumeratedOwner[],
+  eligible: (owner: EnumeratedOwner) => boolean,
+): Map<number, EnumeratedOwner[]> {
   const byCorp = new Map<number, EnumeratedOwner[]>();
   for (const owner of owners) {
-    if (!axis.eligible(owner) || owner.corporationId === null) continue;
+    if (!eligible(owner) || owner.corporationId === null) continue;
     const members = byCorp.get(owner.corporationId) ?? [];
     members.push(owner);
     byCorp.set(owner.corporationId, members);
   }
+  return byCorp;
+}
 
-  return Promise.all(
-    [...byCorp]
-      .map(([corporationId, members]) => ({
-        members,
-        key: axis.ownerOf(userId, corporationId),
-      }))
-      .filter(({ key }) => targetMatches(descriptor.identityOf(key), options.target))
-      .map(({ key, members }) =>
-        syncOwner(
-          descriptor,
-          key,
-          () => resolveCorpToken(descriptor, axis, members),
-          options,
-        ),
+async function runCorpPass<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  axis: CorpOwnerAxis<TOwner>,
+  userId: string,
+  owners: EnumeratedOwner[],
+): Promise<OwnerSyncResult[]> {
+  return mapConcurrent(
+    [...corporationsOf(owners, (owner) => axis.eligible(owner))],
+    OWNER_SYNC_CONCURRENCY,
+    ([corporationId, members]) =>
+      syncOwner(descriptor, axis.ownerOf(userId, corporationId), () =>
+        corpTokens(descriptor, axis, members),
       ),
   );
 }
 
-async function syncOwner<TOwner, TState, TSave>(
-  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
+async function syncOwner<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
   owner: TOwner,
-  resolveToken: () => Promise<TokenOutcome>,
-  options: OwnerSyncRunOptions,
+  credentials: () => Credentials,
 ): Promise<OwnerSyncResult> {
   const target = descriptor.identityOf(owner);
   try {
     if (descriptor.precondition !== undefined && !(await descriptor.precondition(owner))) {
       return { kind: 'failed_permanent', target, code: 'precondition_failed' };
     }
+    if (!(await descriptor.isDue(owner))) return { kind: 'succeeded', target };
 
     const state = await descriptor.readState(owner);
-    if (!descriptor.isStale(state, descriptor.now())) {
-      return { kind: 'succeeded', target };
-    }
-
-    const token = await resolveToken();
-    if (token.kind === 'skip') {
-      return token.retryable
-        ? { kind: 'failed_retryable', target, code: 'owner_temporarily_unavailable' }
-        : { kind: 'failed_permanent', target, code: 'token_unavailable' };
-    }
-    if (token.kind === 'needs_role') {
-      await descriptor.saveGateState?.(owner);
-      return { kind: 'failed_permanent', target, code: 'needs_role' };
-    }
-
-    const verdict = await descriptor.fetchAndPlan(owner, token.accessToken, state);
-    switch (verdict.kind) {
-      case 'skip': {
-        const code = verdict.code ?? 'refresh_skipped';
-        return code === 'esi_server_error'
-          ? { kind: 'failed_retryable', target, code }
-          : { kind: 'failed_permanent', target, code };
-      }
-      case 'stamp':
-        await descriptor.stampFresh(owner);
-        return { kind: 'succeeded', target };
-      case 'needs_role':
-        await descriptor.saveGateState?.(owner);
-        return { kind: 'failed_permanent', target, code: 'needs_role' };
-      case 'save':
-        await descriptor.save(owner, verdict);
-        return { kind: 'succeeded', target };
-    }
+    return await tryCredentials(descriptor, owner, state, credentials(), target);
   } catch (error) {
     if (!(error instanceof EsiBudgetExhaustedError)) throw error;
-    await options.onBudgetDeferred?.(target, error);
+    // Nothing is queued: the next view asks the engine again.
     return { kind: 'deferred_for_budget', target, error };
   }
 }
 
-async function resolveCharacterToken<TOwner, TState, TSave>(
-  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
-  characterId: number,
-): Promise<TokenOutcome> {
-  const accessToken = await descriptor.vendToken(characterId);
-  return accessToken === null
-    ? { kind: 'skip', retryable: false }
-    : { kind: 'token', accessToken };
+/** ESI refused one credential the role, settled until the 403's own Expires when it sent one. */
+interface RoleRefused {
+  readonly refusedUntil: number | null;
 }
 
-async function resolveCorpToken<TOwner, TState, TSave>(
-  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
+const isRefused = (outcome: OwnerSyncResult | RoleRefused): outcome is RoleRefused => 'refusedUntil' in outcome;
+
+/** The earlier of two refusal lifetimes, either of which may be unknown (null). */
+function earlierRefusal(held: number | null, next: number | null): number | null {
+  if (held === null) return next;
+  return next === null ? held : Math.min(held, next);
+}
+
+/**
+ * Tries each credential in turn. A credential ESI refuses the role hands on
+ * to the next; only once the roster is spent, every member judged, does the
+ * owner record `needs_role`. A roster that ran out because a member could
+ * not be judged for now (a token or roles read failing) is no verdict, even
+ * after earlier refusals: that member may hold the role, so the saved copy
+ * stays, nothing is recorded, and the next view retries. A roster that
+ * yielded nothing reports why. A settled end (`needs_role`, or a character
+ * whose grant is lost) is recorded as the owner's answer, so the next views
+ * skip it until that answer expires.
+ */
+async function tryCredentials<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  owner: TOwner,
+  state: TState | null,
+  credentials: Credentials,
+  target: OwnerKey,
+): Promise<OwnerSyncResult> {
+  let tried = false;
+  let refusedUntil: number | null = null;
+  let next = await credentials.next();
+  while (!next.done) {
+    tried = true;
+    const outcome = await attempt(descriptor, owner, next.value, state, target);
+    if (!isRefused(outcome)) return outcome;
+    refusedUntil = earlierRefusal(refusedUntil, outcome.refusedUntil);
+    next = await credentials.next();
+  }
+  if (!tried) return settleUntried(descriptor, owner, next.value, target);
+  if (next.value.kind === 'unavailable') return unavailableForNow(target);
+  return refuseRole(descriptor, owner, refusedUntil, target);
+}
+
+/** No verdict for now: nothing is written or recorded, and the next view tries again. */
+function unavailableForNow(target: OwnerKey): OwnerSyncResult {
+  return { kind: 'failed_retryable', target, code: 'owner_temporarily_unavailable' };
+}
+
+/** Every credential tried was refused the role: `needs_role`, recorded until the earliest refusal's Expires. */
+async function refuseRole<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  owner: TOwner,
+  refusedUntil: number | null,
+  target: OwnerKey,
+): Promise<OwnerSyncResult> {
+  await descriptor.saveGateState?.(owner);
+  await descriptor.recordRefusal?.(owner, refusedUntil);
+  return { kind: 'failed_permanent', target, code: 'needs_role' };
+}
+
+/** A roster that yielded no credential: nobody holds the role, the token is gone, or a member could not be judged for now. */
+async function settleUntried<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  owner: TOwner,
+  end: CredentialsEnd,
+  target: OwnerKey,
+): Promise<OwnerSyncResult> {
+  if (end.kind === 'denied') return refuseRole(descriptor, owner, null, target);
+  if (end.retryable) return unavailableForNow(target);
+  await descriptor.recordRefusal?.(owner, null);
+  return { kind: 'failed_permanent', target, code: 'token_unavailable' };
+}
+
+/**
+ * One credential's try. The owner's write runs inside the session's commit,
+ * atomically with the answers it records, so the stored data and its ETag
+ * always come from the same answer; a write a newer answer superseded
+ * changed nothing and the newer copy stands. A skip, a refusal or a throw
+ * records nothing, so the next view reads again. A refusal means ESI refused
+ * this credential the role.
+ */
+async function attempt<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  owner: TOwner,
+  accessToken: string,
+  state: TState | null,
+  target: OwnerKey,
+): Promise<OwnerSyncResult | RoleRefused> {
+  const session = descriptor.openSession();
+  const verdict = await descriptor.fetchAndPlan(owner, accessToken, state, session);
+  switch (verdict.kind) {
+    case 'skip': {
+      const code = verdict.code ?? 'refresh_skipped';
+      return code === 'esi_server_error'
+        ? { kind: 'failed_retryable', target, code }
+        : { kind: 'failed_permanent', target, code };
+    }
+    case 'needs_role':
+      return { refusedUntil: verdict.expiresAt ?? null };
+    case 'stamp':
+      await descriptor.stampFresh(owner);
+      await session.commit();
+      return { kind: 'succeeded', target };
+    case 'save':
+      await session.commit(descriptor.save(owner, verdict));
+      return { kind: 'succeeded', target };
+  }
+}
+
+async function* characterCredentials<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
+  characterId: number,
+): Credentials {
+  const vended = await descriptor.vendToken(characterId);
+  // A grant that is gone settles until the user relinks; a token service failing for now is retried by the next view.
+  if (!hasToken(vended)) return { kind: 'unavailable', retryable: vended.missing === 'unavailable' };
+  yield vended;
+  return { kind: 'denied' };
+}
+
+async function* corpTokens<TOwner, TState, TSave, TSession extends ReadSession>(
+  descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
   axis: CorpOwnerAxis<TOwner>,
   members: EnumeratedOwner[],
-): Promise<TokenOutcome> {
-  const selection = await selectCorpCredential(
+): Credentials {
+  const credentials = corpCredentials(
     members.map((member) => member.characterId),
     axis.requiredRoles,
     { vendToken: descriptor.vendToken, readRoles: axis.readRoles },
   );
-  if (selection.kind === 'unavailable') return { kind: 'skip', retryable: true };
-  if (selection.kind === 'denied') return { kind: 'needs_role' };
-  return { kind: 'token', accessToken: selection.accessToken };
+  let next = await credentials.next();
+  while (!next.done) {
+    yield next.value.accessToken;
+    next = await credentials.next();
+  }
+  return next.value.kind === 'denied' ? { kind: 'denied' } : { kind: 'unavailable', retryable: true };
 }

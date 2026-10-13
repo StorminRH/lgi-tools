@@ -9,15 +9,18 @@ import {
   ESI_BUDGET_FLOOR,
   type EsiBudgetExhaustedReason,
 } from './errors';
-import { markRecentBudgetExhaustion } from './exhaustion-marker';
+import { intHeader } from './headers';
 import {
-  BODY_CACHE_MAX_BYTES,
+  GROUP_FLOOR_SHARE,
+  GROUP_FLOOR_SHARE_INTERACTIVE,
+  HISTORY_CALLS_PER_MINUTE,
   NO_RESPONSE_STATUS,
+  isHistoryPath,
   resolveScoreboard,
   __resetScoreboardForTests,
-  type CachedEtagMeta,
   type EsiReport,
   type EsiScoreboard,
+  type GroupBudget,
   type PreDispatchState,
   normalizeEsiPath,
   resolveRetryAfter,
@@ -34,10 +37,10 @@ let trickleWindowStart = 0;
 let trickleCount = 0;
 
 /**
- * How long this process trusts its last shared budget reading for calls that
- * need no per-URL ETag read. Errors seen locally since the reading count
- * against it, and ESI's error-limit header on each answer caps it, so the only
- * blind spot is other instances' errors that no answer here has reported yet.
+ * How long this process trusts its last shared budget reading. Errors seen
+ * locally since the reading count against it, and ESI's error-limit header on
+ * each answer caps it, so the only blind spot is other instances' errors that
+ * no answer here has reported yet.
  */
 const LOCAL_BUDGET_REUSE_MS = 1_000;
 
@@ -57,8 +60,17 @@ interface LocalBudget {
 }
 
 let localBudget: LocalBudget | null = null;
-/** Per normalized path: when the shared block was last read, until when it holds, and in what order. */
-const localBlocks = new Map<string, { readAt: number; blockedUntil: number | null; seq: number }>();
+
+/** The shared state of one path as this process last read it: its block and its group's budget. */
+interface LocalPath {
+  readAt: number;
+  blockedUntil: number | null;
+  seq: number;
+  groupBudget?: GroupBudget;
+}
+
+/** Per normalized path: when the shared state was last read, what it said, and in what order. */
+const localBlocks = new Map<string, LocalPath>();
 /** ESI's newest count of errors left, which already includes every error up to that answer. */
 let latestRemain: { value: number; seq: number } | null = null;
 
@@ -82,6 +94,7 @@ export function __resetEsiGateForTests(): void {
   localBlocks.clear();
   localSeq = 0;
   latestRemain = null;
+  pendingReports = null;
   scoreboardOverride = null;
   __resetScoreboardForTests();
 }
@@ -92,42 +105,27 @@ export function getScoreboard(): EsiScoreboard | null {
   return resolveScoreboard();
 }
 
-export function isEtagEligible(init?: RequestInit): boolean {
-  if ((init?.method ?? 'GET').toUpperCase() !== 'GET') return false;
-  return !new Headers(init?.headers).has('Authorization');
-}
-
-function parseIntHeader(headers: Headers, name: string): number | null {
-  const value = headers.get(name);
-  if (value === null) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildHeaders(init?: RequestInit, etag?: string | null): Headers {
+/** The caller's headers, including any If-None-Match it holds, under the gate's identity headers. */
+function buildHeaders(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
   if (!headers.has('User-Agent')) {
     headers.set('User-Agent', OUTBOUND_USER_AGENT);
   }
   headers.set('X-Compatibility-Date', ESI_COMPATIBILITY_DATE);
-  if (etag != null) {
-    headers.set('If-None-Match', etag);
-  }
   return headers;
 }
 
-function buildReport(
-  url: string,
-  res: Response,
-  extras: Pick<EsiReport, 'etagToStore' | 'refreshEtag'>,
-): EsiReport {
+function buildReport(url: string, res: Response): EsiReport {
   return {
     url,
     status: res.status,
-    errorLimitRemain: parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain'),
-    errorLimitReset: parseIntHeader(res.headers, 'X-ESI-Error-Limit-Reset'),
-    retryAfter: parseIntHeader(res.headers, 'Retry-After'),
-    ...extras,
+    errorLimitRemain: intHeader(res.headers, 'X-ESI-Error-Limit-Remain'),
+    errorLimitReset: intHeader(res.headers, 'X-ESI-Error-Limit-Reset'),
+    retryAfter: intHeader(res.headers, 'Retry-After'),
+    rlGroup: res.headers.get('X-Ratelimit-Group'),
+    // "150/15m": the leading integer is the limit the Remaining is a share of.
+    rlLimit: intHeader(res.headers, 'X-Ratelimit-Limit'),
+    rlRemaining: intHeader(res.headers, 'X-Ratelimit-Remaining'),
   };
 }
 
@@ -139,8 +137,9 @@ function noResponseReport(url: string): EsiReport {
     errorLimitRemain: null,
     errorLimitReset: null,
     retryAfter: null,
-    etagToStore: null,
-    refreshEtag: null,
+    rlGroup: null,
+    rlLimit: null,
+    rlRemaining: null,
   };
 }
 
@@ -178,6 +177,69 @@ async function safeReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
 const DEFERRED_ECHO_MIN_REMAIN = ESI_BUDGET_FLOOR * 2;
 
 /**
+ * How long one batch of deferred reports takes new answers. A long fan-out
+ * writes one pipeline a window instead of one per answer, and a batch whose
+ * flush never runs (a request cut off at its maxDuration drops its after()
+ * work) loses at most one window of reports, never every later one.
+ */
+const REPORT_BATCH_WINDOW_MS = 1_000;
+
+/** Deferred reports waiting for the one after() that writes them. */
+interface PendingReports {
+  readonly sb: EsiScoreboard;
+  readonly openedAt: number;
+  readonly reports: EsiReport[];
+}
+
+let pendingReports: PendingReports | null = null;
+
+function openBatch(sb: EsiScoreboard, now: number): PendingReports | null {
+  const batch = pendingReports;
+  return batch !== null && batch.sb === sb && now - batch.openedAt < REPORT_BATCH_WINDOW_MS ? batch : null;
+}
+
+/**
+ * Writes a batch as one pipeline. It runs after the response, so a failure
+ * is logged and never opens the instance-wide circuit: only a failed
+ * pre-dispatch read or an error report written before its call returns says
+ * the scoreboard is down for every call on this instance.
+ */
+async function flushReports(batch: PendingReports): Promise<void> {
+  if (pendingReports === batch) pendingReports = null;
+  try {
+    await writeReports(batch.sb, batch.reports);
+  } catch (err) {
+    console.warn('[esi] deferred scoreboard report failed', err);
+  }
+}
+
+async function writeReports(sb: EsiScoreboard, reports: readonly EsiReport[]): Promise<void> {
+  if (sb.reportMany !== undefined) {
+    await sb.reportMany(reports);
+    return;
+  }
+  for (const report of reports) await sb.report(report);
+}
+
+/**
+ * Successes and 304s are counted after the response, many in one write: an
+ * answer joins the open batch, or opens one and schedules its flush. Where
+ * nothing can run after the response (Convex, scripts), deferWork runs the
+ * flush at once and the batch holds this one answer.
+ */
+async function deferReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
+  const now = Date.now();
+  const open = openBatch(sb, now);
+  if (open !== null) {
+    open.reports.push(report);
+    return;
+  }
+  const batch: PendingReports = { sb, openedAt: now, reports: [report] };
+  pendingReports = batch;
+  await deferWork(() => flushReports(batch));
+}
+
+/**
  * Error answers, and answers whose echo shows the budget running low, are
  * counted before the call returns, so the shared budget stays current; other
  * bookkeeping for successes and 304s runs after the response.
@@ -188,85 +250,27 @@ async function reportAnswer(sb: EsiScoreboard, report: EsiReport): Promise<void>
     await safeReport(sb, report);
     return;
   }
-  await deferWork(() => safeReport(sb, report));
+  await deferReport(sb, report);
 }
 
-async function captureBodyForCache(res: Response): Promise<string | null> {
-  const contentLength = parseIntHeader(res.headers, 'Content-Length');
-  if (contentLength === null || contentLength > BODY_CACHE_MAX_BYTES) {
-    return null;
-  }
-  const text = await res.clone().text();
-  if (new TextEncoder().encode(text).length > BODY_CACHE_MAX_BYTES) {
-    return null;
-  }
-  return text;
+/** The path's state as this process holds it, read back the way a shared reading comes. */
+function pathState(path: LocalPath, now: number): Omit<PreDispatchState, 'effectiveRemaining'> {
+  const state: Omit<PreDispatchState, 'effectiveRemaining'> = {
+    blockedRetryAfter:
+      path.blockedUntil !== null && path.blockedUntil > now
+        ? Math.ceil((path.blockedUntil - now) / 1000)
+        : null,
+  };
+  if (path.groupBudget !== undefined) state.groupBudget = path.groupBudget;
+  return state;
 }
 
-function synthesizeRevalidated(
-  res304: Response,
-  body: string,
-  meta: CachedEtagMeta,
-): Response {
-  const headers = new Headers(res304.headers);
-  if (!headers.has('Content-Type') && meta.contentType !== null) {
-    headers.set('Content-Type', meta.contentType);
-  }
-  if (!headers.has('Expires') && meta.expires !== null) {
-    headers.set('Expires', meta.expires);
-  }
-  headers.delete('Content-Length');
-  headers.set('x-lgi-esi-cache', 'revalidated');
-  return new Response(body, { status: 200, statusText: 'OK', headers });
-}
-
-const CACHE_SERVE_SKEW_MS = 5_000;
-
-function isWithinExpiresWindow(expires: string | null): boolean {
-  if (expires === null) return false;
-  const expiresAt = Date.parse(expires);
-  if (Number.isNaN(expiresAt)) return false;
-  return Date.now() + CACHE_SERVE_SKEW_MS < expiresAt;
-}
-
-function synthesizeFromCache(body: string, meta: CachedEtagMeta): Response {
-  const headers = new Headers();
-  if (meta.contentType !== null) headers.set('Content-Type', meta.contentType);
-  if (meta.expires !== null) headers.set('Expires', meta.expires);
-  headers.set('ETag', meta.etag);
-  headers.set('x-lgi-esi-cache', 'window');
-  return new Response(body, { status: 200, statusText: 'OK', headers });
-}
-
-export async function serveFromExpiresWindow(
-  url: string,
-  etagMeta: CachedEtagMeta,
-  liveSb: EsiScoreboard,
-): Promise<Response | null> {
-  if (!isWithinExpiresWindow(etagMeta.expires)) return null;
-  let body: string | null;
-  try {
-    body = await liveSb.getCachedBody(url);
-  } catch {
-    body = null;
-  }
-  if (body === null) return null;
-  return synthesizeFromCache(body, etagMeta);
-}
-
-/** The shared state from this process's recent reading, when both budget and block are fresh. */
+/** The shared state from this process's recent reading, when both budget and path are fresh. */
 function localPreDispatch(url: string, now: number): PreDispatchState | null {
   if (localBudget === null || now - localBudget.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
-  const block = localBlocks.get(normalizeEsiPath(url));
-  if (block === undefined || now - block.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
-  return {
-    effectiveRemaining: localBudget.remaining - localBudget.errorsSince,
-    blockedRetryAfter:
-      block.blockedUntil !== null && block.blockedUntil > now
-        ? Math.ceil((block.blockedUntil - now) / 1000)
-        : null,
-    etag: null,
-  };
+  const path = localBlocks.get(normalizeEsiPath(url));
+  if (path === undefined || now - path.readAt >= LOCAL_BUDGET_REUSE_MS) return null;
+  return { effectiveRemaining: localBudget.remaining - localBudget.errorsSince, ...pathState(path, now) };
 }
 
 /**
@@ -286,27 +290,37 @@ function rememberBudget(pre: PreDispatchState, readSeq: number, now: number): nu
   return remaining;
 }
 
-/** The block this call obeys on its path, by the same newest-wins rule. */
-function rememberBlock(url: string, pre: PreDispatchState, readSeq: number, now: number): number | null {
+/** The block and group budget this call obeys on its path, by the same newest-wins rule. */
+function rememberPath(url: string, pre: PreDispatchState, readSeq: number, now: number): Omit<PreDispatchState, 'effectiveRemaining'> {
   const path = normalizeEsiPath(url);
   const previous = localBlocks.get(path);
-  if (previous !== undefined && previous.seq > readSeq) {
-    return previous.blockedUntil !== null && previous.blockedUntil > now
-      ? Math.ceil((previous.blockedUntil - now) / 1000)
-      : null;
-  }
-  const blockedUntil = pre.blockedRetryAfter === null ? null : now + pre.blockedRetryAfter * 1000;
-  localBlocks.set(path, { readAt: now, blockedUntil, seq: readSeq });
-  return pre.blockedRetryAfter;
+  if (previous !== undefined && previous.seq > readSeq) return pathState(previous, now);
+  const entry: LocalPath = {
+    readAt: now,
+    blockedUntil: pre.blockedRetryAfter === null ? null : now + pre.blockedRetryAfter * 1000,
+    seq: readSeq,
+  };
+  if (pre.groupBudget !== undefined) entry.groupBudget = pre.groupBudget;
+  localBlocks.set(path, entry);
+  return pathState(entry, now);
 }
 
 /** Keeps a shared reading for reuse and returns what this call should obey. */
 function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number, now: number): PreDispatchState {
-  return {
-    ...pre,
-    effectiveRemaining: rememberBudget(pre, readSeq, now),
-    blockedRetryAfter: rememberBlock(url, pre, readSeq, now),
-  };
+  return { effectiveRemaining: rememberBudget(pre, readSeq, now), ...rememberPath(url, pre, readSeq, now) };
+}
+
+/**
+ * Folds an answer's rate-limit headers into the path's local reading: the
+ * group's Remaining on the answer is the newest truth for its bucket.
+ */
+function noteLocalPath(path: string, res: Response): void {
+  const entry = localBlocks.get(path);
+  if (entry === undefined) return;
+  const group = res.headers.get('X-Ratelimit-Group');
+  const remaining = intHeader(res.headers, 'X-Ratelimit-Remaining');
+  const limit = intHeader(res.headers, 'X-Ratelimit-Limit');
+  if (group !== null && remaining !== null && limit !== null) entry.groupBudget = { group, remaining, limit };
 }
 
 /**
@@ -317,7 +331,8 @@ function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number
 function noteLocalAnswer(url: string, res: Response): void {
   const now = Date.now();
   const seq = ++localSeq;
-  const remain = parseIntHeader(res.headers, 'X-ESI-Error-Limit-Remain');
+  const path = normalizeEsiPath(url);
+  const remain = intHeader(res.headers, 'X-ESI-Error-Limit-Remain');
   if (remain !== null) latestRemain = { value: remain, seq };
   if (res.status === 420) {
     localBudget = { remaining: 0, readAt: now, errorsSince: 0, seq };
@@ -327,25 +342,23 @@ function noteLocalAnswer(url: string, res: Response): void {
       localBudget.remaining = Math.min(localBudget.remaining, remain + localBudget.errorsSince);
     }
   }
+  noteLocalPath(path, res);
   if (res.status === 429) {
-    const retryAfter = resolveRetryAfter(parseIntHeader(res.headers, 'Retry-After'));
-    localBlocks.set(normalizeEsiPath(url), { readAt: now, blockedUntil: now + retryAfter * 1000, seq });
+    const retryAfter = resolveRetryAfter(intHeader(res.headers, 'Retry-After'));
+    localBlocks.set(path, { ...localBlocks.get(path), readAt: now, blockedUntil: now + retryAfter * 1000, seq });
   }
 }
 
 export async function consultPreDispatch(
   sb: EsiScoreboard | null,
   url: string,
-  wantEtag: boolean,
 ): Promise<PreDispatchState | null> {
   if (sb === null || Date.now() < redisDownUntil) return null;
-  if (!wantEtag) {
-    const local = localPreDispatch(url, Date.now());
-    if (local !== null) return local;
-  }
+  const local = localPreDispatch(url, Date.now());
+  if (local !== null) return local;
   const readSeq = ++localSeq;
   try {
-    const pre = await sb.preDispatch(url, wantEtag);
+    const pre = await sb.preDispatch(url);
     return rememberPreDispatch(url, pre, readSeq, Date.now());
   } catch (err) {
     redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
@@ -360,7 +373,6 @@ function throwBudgetExhausted(
   retryAfterSeconds: number | null,
   resource: string,
 ): never {
-  markRecentBudgetExhaustion();
   throw new EsiBudgetExhaustedError(
     remaining,
     reason,
@@ -406,77 +418,93 @@ export function enforceBudget(
       resource,
     );
   }
+  enforceGroupBudget(pre, resource, opts?.interactive === true);
 }
 
-async function reuseOrRevalidate(
-  url: string,
-  res304: Response,
-  etagMeta: CachedEtagMeta,
-  liveSb: EsiScoreboard | null,
-): Promise<Response | null> {
-  const freshMeta: CachedEtagMeta = {
-    etag: res304.headers.get('ETag') ?? etagMeta.etag,
-    expires: res304.headers.get('Expires') ?? etagMeta.expires,
-    contentType: etagMeta.contentType,
-  };
-  let body: string | null = null;
-  if (liveSb !== null) {
-    try {
-      body = await liveSb.getCachedBody(url);
-    } catch {
-      body = null;
-    }
+/**
+ * CCP asks clients to slow down as a group's Remaining nears zero. Below a
+ * tenth of the group's limit only interactive calls go on, and below a
+ * twentieth nothing does; the echo is lowest-wins across instances, so one
+ * instance's low bucket slows every other.
+ */
+function enforceGroupBudget(pre: PreDispatchState, resource: string, interactive: boolean): void {
+  if (pre.groupBudget === undefined) return;
+  const floor = pre.groupBudget.limit * (interactive ? GROUP_FLOOR_SHARE_INTERACTIVE : GROUP_FLOOR_SHARE);
+  if (pre.groupBudget.remaining < floor) {
+    throwBudgetExhausted(pre.groupBudget.remaining, 'group_budget', null, resource);
   }
-  if (body !== null) {
-    if (liveSb !== null) {
-      await reportAnswer(
-        liveSb,
-        buildReport(url, res304, { etagToStore: null, refreshEtag: freshMeta }),
-      );
-    }
-    return synthesizeRevalidated(res304, body, freshMeta);
-  }
-  if (liveSb !== null) {
-    await reportAnswer(
-      liveSb,
-      buildReport(url, res304, { etagToStore: null, refreshEtag: null }),
-    );
-  }
-  return null;
 }
 
-async function captureEtagToStore(
-  res: Response,
-  liveSb: EsiScoreboard | null,
-  wantEtag: boolean,
-): Promise<EsiReport['etagToStore']> {
-  if (liveSb === null || !wantEtag || res.status !== 200) return null;
-  const etag = res.headers.get('ETag');
-  if (etag === null) return null;
-  const body = await captureBodyForCache(res);
-  if (body === null) return null;
-  return {
-    etag,
-    expires: res.headers.get('Expires'),
-    contentType: res.headers.get('Content-Type'),
-    body,
-  };
+/**
+ * Market history stays under its per-minute cap across every instance: each
+ * call takes its place in the shared count before it is sent, by an atomic
+ * increment (a counter, never a lock), so instances racing for the last
+ * places can never all pass. A call whose place is past the cap is refused.
+ * Without a scoreboard (an interactive call on the trickle) there is nothing
+ * to reserve; a scoreboard that cannot reserve refuses history, and a
+ * reservation that fails closes the gate the way a failed pre-dispatch read
+ * does.
+ */
+export async function reserveHistoryCall(sb: EsiScoreboard | null, url: string): Promise<void> {
+  const resource = normalizeEsiPath(url);
+  if (sb === null || !isHistoryPath(resource)) return;
+  if (sb.reserveHistoryCall === undefined) throwBudgetExhausted(0, 'history_cap', null, resource);
+  let place: number;
+  try {
+    place = await sb.reserveHistoryCall();
+  } catch (err) {
+    redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
+    console.warn('[esi] scoreboard history reservation failed', err);
+    throwBudgetExhausted(0, 'scoreboard_unavailable', null, resource);
+  }
+  if (place > HISTORY_CALLS_PER_MINUTE) throwBudgetExhausted(0, 'history_cap', null, resource);
 }
 
-function throwIfErrorStatus(url: string, res: Response): void {
+/** Every `x-esi-*` header on an answer, and its Expires, by lower-case name. */
+function esiHeaders(headers: Headers): Record<string, string> {
+  const picked: Record<string, string> = {};
+  headers.forEach((value, name) => {
+    if (name.startsWith('x-esi-') || name === 'expires') picked[name] = value;
+  });
+  return picked;
+}
+
+/** The body text of an error answer, or null when it cannot be read. */
+async function safeText(res: Response): Promise<string | null> {
+  try {
+    return await res.text();
+  } catch {
+    return null;
+  }
+}
+
+/** A 5xx keeps what ESI sent and is logged, so CCP's real downtime answer is on record. */
+async function serverError(url: string, res: Response): Promise<EsiServerError> {
+  const error = new EsiServerError(res.status, await safeText(res), esiHeaders(res.headers));
+  console.warn('[esi] server error', {
+    status: error.status,
+    path: normalizeEsiPath(url),
+    headers: error.esiHeaders,
+    body: error.body,
+  });
+  return error;
+}
+
+/** A 304 is an answer, not an error: it comes back to the caller as ESI sent it. */
+async function throwIfErrorStatus(url: string, res: Response): Promise<void> {
   if (res.status === 420) {
     throwBudgetExhausted(0, 'esi_420', null, normalizeEsiPath(url));
   }
   if (res.status === 429) {
     throwBudgetExhausted(
-      parseIntHeader(res.headers, 'X-Ratelimit-Remaining') ?? 0,
+      intHeader(res.headers, 'X-Ratelimit-Remaining') ?? 0,
       'rate_limited',
-      parseIntHeader(res.headers, 'Retry-After'),
+      intHeader(res.headers, 'Retry-After'),
       normalizeEsiPath(url),
     );
   }
   if (res.status >= 500) {
-    throw new EsiServerError(res.status);
+    throw await serverError(url, res);
   }
 }
 
@@ -496,31 +524,13 @@ async function fetchFromEsi(url: string, init: RequestInit): Promise<Response> {
 export async function dispatch(
   url: string,
   init: RequestInit | undefined,
-  wantEtag: boolean,
   liveSb: EsiScoreboard | null,
-  etagMeta: CachedEtagMeta | null,
 ): Promise<Response> {
-  for (;;) {
-    const headers = buildHeaders(init, etagMeta?.etag ?? null);
-    const res = await fetchOrReportNoResponse(url, { ...init, headers }, liveSb);
-    noteLocalAnswer(url, res);
-
-    if (res.status === 304 && etagMeta !== null) {
-      const served = await reuseOrRevalidate(url, res, etagMeta, liveSb);
-      if (served !== null) return served;
-      etagMeta = null;
-      continue;
-    }
-
-    const etagToStore = await captureEtagToStore(res, liveSb, wantEtag);
-    if (liveSb !== null) {
-      await reportAnswer(
-        liveSb,
-        buildReport(url, res, { etagToStore, refreshEtag: null }),
-      );
-    }
-
-    throwIfErrorStatus(url, res);
-    return res;
+  const res = await fetchOrReportNoResponse(url, { ...init, headers: buildHeaders(init) }, liveSb);
+  noteLocalAnswer(url, res);
+  if (liveSb !== null) {
+    await reportAnswer(liveSb, buildReport(url, res));
   }
+  await throwIfErrorStatus(url, res);
+  return res;
 }

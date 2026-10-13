@@ -10,19 +10,6 @@ export interface PriceSourceCounts {
   budgetExhausted: boolean;
 }
 
-export interface EsiRefreshDeadLetter {
-  jobId: number;
-  dataset: string;
-  resource: string;
-  attemptCount: number;
-  failureCode: string;
-}
-
-export interface PublicEsiBudgetExhaustion {
-  count: number;
-  windowMinutes: number;
-}
-
 interface OpsAlertEmbed {
   title: string;
   description: string;
@@ -31,10 +18,6 @@ interface OpsAlertEmbed {
 
 function opsAlertWebhookUrl(): string | undefined {
   return readEnv('DISCORD_ALERT_WEBHOOK_URL');
-}
-
-export function isOpsAlertConfigured(): boolean {
-  return Boolean(opsAlertWebhookUrl());
 }
 
 /**
@@ -85,30 +68,5 @@ export async function alertPriceSourceDegradation(
         inline: true,
       },
     ],
-  });
-}
-
-export async function alertEsiRefreshDeadLetter(
-  info: EsiRefreshDeadLetter,
-): Promise<void> {
-  await sendOpsAlert({
-    title: 'Deferred ESI refresh dead-lettered',
-    description: `Job ${info.jobId} exhausted its retry budget and needs operator review.`,
-    fields: [
-      { name: 'Dataset', value: info.dataset, inline: true },
-      { name: 'Attempts', value: String(info.attemptCount), inline: true },
-      { name: 'Resource', value: info.resource },
-      { name: 'Failure', value: info.failureCode },
-    ],
-  });
-}
-
-/** Resolves false when no webhook is configured, so the caller can tell an unsent alert apart. */
-export function alertPublicEsiBudgetExhaustion(
-  info: PublicEsiBudgetExhaustion,
-): Promise<boolean> {
-  return sendOpsAlert({
-    title: 'Public ESI refreshes are repeatedly budget-blocked',
-    description: `${info.count} public refresh requests hit the shared ESI gate in the last ${info.windowMinutes} minutes. Stored data or the existing price fallback kept responses available.`,
   });
 }

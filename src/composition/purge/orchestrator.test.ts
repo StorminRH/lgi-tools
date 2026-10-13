@@ -34,6 +34,9 @@ vi.mock('@/composition/map-access-projection', () => ({
   purgeUserMapAccessProjection: vi.fn().mockResolvedValue({ deleted: 0 }),
 }));
 
+vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidateTag: vi.fn() }));
+
+import { revalidateTag } from 'next/cache';
 import { runPurge } from './orchestrator';
 
 const names = (): string[] =>
@@ -41,6 +44,7 @@ const names = (): string[] =>
 
 beforeEach(() => {
   reset();
+  vi.mocked(revalidateTag).mockReset();
 });
 
 describe('runPurge orchestrator', () => {
@@ -48,6 +52,35 @@ describe('runPurge orchestrator', () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 }, ['credential']);
     expect(names()).toEqual(['account']);
     expect(state.calls.execute).toBe(1);
+    expect(revalidateTag).not.toHaveBeenCalled();
+  });
+
+  it('full character purge expires each cached slice right after its own deletes', async () => {
+    const lastDeleteBefore = new Map<string, string | undefined>();
+    vi.mocked(revalidateTag).mockImplementation((tag) => {
+      lastDeleteBefore.set(tag, names().at(-1));
+    });
+
+    await runPurge({ kind: 'character', userId: 'u1', characterId: 42 });
+
+    expect(vi.mocked(revalidateTag).mock.calls).toEqual([
+      ['eve:skills:character:42', { expire: 0 }],
+      ['eve:character_sheet_live:character:42', { expire: 0 }],
+      ['eve:character_sheet_hourly:character:42', { expire: 0 }],
+      ['eve:character_sheet_daily:character:42', { expire: 0 }],
+      ['eve:character_industry_jobs:character:42', { expire: 0 }],
+      ['eve:owned_assets:character:42', { expire: 0 }],
+      ['eve:owned_blueprints:character:42', { expire: 0 }],
+    ]);
+    expect(Object.fromEntries(lastDeleteBefore)).toEqual({
+      'eve:skills:character:42': 'character_skill_syncs',
+      'eve:character_sheet_live:character:42': 'character_sheets',
+      'eve:character_sheet_hourly:character:42': 'character_sheets',
+      'eve:character_sheet_daily:character:42': 'character_sheets',
+      'eve:character_industry_jobs:character:42': 'character_industry_job_syncs',
+      'eve:owned_assets:character:42': 'owned_asset_syncs',
+      'eve:owned_blueprints:character:42': 'owned_blueprint_syncs',
+    });
   });
 
   it('full character purge runs credentials before the regenerable caches', async () => {
@@ -91,5 +124,6 @@ describe('runPurge orchestrator', () => {
     expect(seq.indexOf('maps')).toBeLessThan(seq.indexOf('corp_industry_jobs'));
     expect(seq).not.toContain('account');
     expect(seq).not.toContain('character_skills');
+    expect(revalidateTag).not.toHaveBeenCalled();
   });
 });

@@ -1,16 +1,15 @@
 import { sortedUniqueIds } from '@/lib/array';
 import { roundIsk } from '@/lib/math';
+import type { SingleOwnerRead } from '@/platform/owner-sync';
 import { type EsiJournalEntry, parseJournalNewestFirst, parseStructureBody } from './esi-projection';
 import type {
   DirectSectionKey,
   DirectSectionSpec,
   JournalDigest,
   JournalSeriesPoint,
-  PartEtags,
   SectionEnvelope,
   SectionPlan,
   SectionSyncState,
-  SheetEsiRead,
   SheetPart,
   SheetSectionData,
   SheetSectionKey,
@@ -36,14 +35,13 @@ function deniedEnvelope<K extends SheetSectionKey>(
   return {
     data: previous?.data ?? null,
     refreshedAt: now.toISOString(),
-    etags: previous?.etags ?? {},
     denied: true,
   };
 }
 
 export function planSectionRead<K extends DirectSectionKey>(
   spec: DirectSectionSpec<K>,
-  reads: Record<SheetPart<K>, SheetEsiRead>,
+  reads: Record<SheetPart<K>, SingleOwnerRead>,
   previous: SectionEnvelope<K> | null,
   now: Date,
 ): SectionPlan<K> {
@@ -63,24 +61,21 @@ export function planSectionRead<K extends DirectSectionKey>(
   }
 
   const data: Partial<Record<SheetPart<K>, unknown>> = {};
-  const etags: PartEtags<K> = {};
   for (const part of parts) {
     const read = reads[part];
     if (read.kind === 'fresh') {
       const parsed = spec.parts[part].parse(read.body, now);
       if (parsed === null) return { kind: 'skip', code: 'contract_error' };
       data[part] = parsed;
-      etags[part] = read.etag;
       continue;
     }
     const carried = previous?.data?.[part];
     if (carried === undefined) return { kind: 'skip', code: 'unchanged_without_previous' };
     data[part] = carried;
-    etags[part] = previous?.etags[part] ?? null;
   }
   return {
     kind: 'save',
-    envelope: { data: data as SheetSectionData[K], refreshedAt: now.toISOString(), etags },
+    envelope: { data: data as SheetSectionData[K], refreshedAt: now.toISOString() },
   };
 }
 
@@ -155,7 +150,7 @@ interface StructureResolution {
 
 /** One referenced structure's name after its read; null when the body breaks the contract. */
 function resolveStructure(
-  read: SheetEsiRead | undefined,
+  read: SingleOwnerRead | undefined,
   carried: StructureName | undefined,
 ): StructureResolution | null {
   if (read === undefined) return { name: carried, changed: false, retryCode: null };
@@ -179,7 +174,7 @@ interface StructureNames {
 function collectStructureNames(
   referenced: number[],
   previous: SheetSectionData['structures'] | null,
-  reads: Map<number, SheetEsiRead>,
+  reads: Map<number, SingleOwnerRead>,
 ): StructureNames | null {
   const names: Record<string, StructureName> = {};
   let changed = false;
@@ -198,7 +193,7 @@ function collectStructureNames(
 export function planStructures(
   referenced: number[],
   previous: SheetSectionData['structures'] | null,
-  reads: Map<number, SheetEsiRead>,
+  reads: Map<number, SingleOwnerRead>,
   now: Date,
 ): SectionPlan<'structures'> {
   const collected = collectStructureNames(referenced, previous, reads);
@@ -209,18 +204,12 @@ export function planStructures(
   const rowExists = previous !== null;
   const onlyStampNeeded = rowExists && !changed && !pruned;
   if (onlyStampNeeded) return { kind: 'stamp' };
-  return { kind: 'save', envelope: { data: { names }, refreshedAt: now.toISOString(), etags: {} } };
+  return { kind: 'save', envelope: { data: { names }, refreshedAt: now.toISOString() } };
 }
 
 export function readSectionState<K extends SheetSectionKey>(
   sheet: SheetSections | null,
   key: K,
 ): SectionSyncState<K> {
-  const previous = (sheet?.[key] ?? null) as SectionEnvelope<K> | null;
-  const forceStale = key === 'structures' && unresolvedStructureIds(sheet).length > 0;
-  return {
-    lastRefreshedAt: previous === null || forceStale ? null : new Date(previous.refreshedAt),
-    previous,
-    heldEtags: previous?.data == null ? {} : previous.etags,
-  };
+  return { previous: (sheet?.[key] ?? null) as SectionEnvelope<K> | null };
 }

@@ -22,12 +22,36 @@ vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(async (userId: string) => linkedByUser[userId] ?? []),
 }));
 
-import { characterRow, getLiveDatasetOnView, type OwnerRow, readCharacterOwners } from './live-dataset-view';
+const store = vi.hoisted(() => ({
+  isDueFor: vi.fn(async (_userId: string, _keys: unknown[]) => false),
+  health: vi.fn(async (_userId: string) => [] as unknown[]),
+}));
+vi.mock('@/data/esi-store', () => ({ isDueFor: store.isDueFor }));
+vi.mock('./owner-sync-port', () => ({ listCharactersWithHealth: store.health }));
+
+import type { EsiStoreKey } from '@/data/esi-store';
+import { characterRow, getLiveDatasetOnView, type OwnerRow, readCharacterOwners, refreshDue } from './live-dataset-view';
+
+const KEY: EsiStoreKey = { route: '/characters/{character_id}/industry/jobs/', holder: { kind: 'character', id: 10 } };
 
 beforeEach(() => {
   afterCalls.length = 0;
   nameRecordArgs.length = 0;
   for (const key of Object.keys(linkedByUser)) delete linkedByUser[key];
+  store.isDueFor.mockReset().mockResolvedValue(false);
+  store.health.mockReset().mockResolvedValue([]);
+});
+
+describe('refreshDue', () => {
+  it('asks the store, as this user sees it, about the keys the refresh would check for the linked characters', async () => {
+    const owners = [{ characterId: 10, corporationId: null, hasRefreshToken: true, missingScopes: [] }];
+    store.health.mockResolvedValue(owners);
+    store.isDueFor.mockResolvedValue(true);
+    const dueKeys = vi.fn(() => [KEY]);
+    await expect(refreshDue('u1', dueKeys)).resolves.toBe(true);
+    expect(dueKeys).toHaveBeenCalledExactlyOnceWith(owners);
+    expect(store.isDueFor).toHaveBeenCalledExactlyOnceWith('u1', [KEY]);
+  });
 });
 
 describe('characterRow', () => {
@@ -50,43 +74,43 @@ describe('characterRow', () => {
 });
 
 describe('readCharacterOwners', () => {
-  it('enumerates linked characters and reads data + per-id state in parallel', async () => {
-    linkedByUser.u1 = [{ characterId: 1 }, { characterId: 2 }];
-    let dataStarted = false;
-    let stateStartedBeforeDataResolved = false;
+  it('reads data and one batched state map concurrently, keying owners by id in roster order', async () => {
+    linkedByUser.u1 = [{ characterId: 1 }, { characterId: 2 }, { characterId: 3 }];
+    const pendingData = Promise.withResolvers<Map<number, { n: number }>>();
+    const readData = vi.fn((_ids: number[]) => pendingData.promise);
+    const readStates = vi.fn(async (_ids: number[]) => new Map([
+      [3, { lastRefreshedAt: new Date('2026-06-28T11:00:00Z') }],
+      [1, { lastRefreshedAt: new Date('2026-06-28T10:00:00Z') }],
+    ]));
 
-    const readData = vi.fn(async (ids: number[]) => {
-      dataStarted = true;
-      await Promise.resolve();
-      return new Map(ids.map((id) => [id, { n: id }]));
-    });
-    const readState = vi.fn(async (id: number) => {
-      if (dataStarted) stateStartedBeforeDataResolved = true;
-      return { lastRefreshedAt: id === 1 ? new Date('2026-06-28T10:00:00Z') : null };
-    });
+    const read = readCharacterOwners('u1', readData, readStates);
+    await vi.waitFor(() => expect(readData).toHaveBeenCalledExactlyOnceWith([1, 2, 3]));
+    expect(readStates).toHaveBeenCalledExactlyOnceWith([1, 2, 3]);
+    pendingData.resolve(new Map([[1, { n: 1 }]]));
+    const { owners, data } = await read;
 
-    const { owners, data } = await readCharacterOwners('u1', readData, readState);
-
-    expect(readData).toHaveBeenCalledWith([1, 2]);
-    expect(readState).toHaveBeenCalledTimes(2);
-    expect(stateStartedBeforeDataResolved).toBe(true);
     expect(owners).toEqual([
       { id: 1, lastRefreshedAt: new Date('2026-06-28T10:00:00Z') },
       { id: 2, lastRefreshedAt: null },
+      { id: 3, lastRefreshedAt: new Date('2026-06-28T11:00:00Z') },
     ]);
     expect(data.get(1)).toEqual({ n: 1 });
   });
 
   it('returns empty owners for a user with no linked characters', async () => {
-    const { owners, data } = await readCharacterOwners('nobody', async () => new Map(), async () => null);
+    const { owners, data } = await readCharacterOwners('nobody', async () => new Map(), async () => new Map());
     expect(owners).toEqual([]);
     expect(data.size).toBe(0);
   });
 });
 
 describe('getLiveDatasetOnView', () => {
-  it('builds rows from owners+data, schedules the refresh, and resolves the name ids the rows reference', async () => {
+  it('builds rows from owners+data, schedules the refresh, says whether it will reach ESI, and resolves the name ids the rows reference', async () => {
     const refresh = vi.fn();
+    const owners = [{ characterId: 10, corporationId: null, hasRefreshToken: true, missingScopes: [] }];
+    store.health.mockResolvedValue(owners);
+    store.isDueFor.mockResolvedValue(true);
+    const dueKeys = vi.fn(() => [KEY]);
     const result = await getLiveDatasetOnView<{ ids: number[] }, { key: number; data: { ids: number[] } | null }>(
       'u1',
       {
@@ -100,6 +124,7 @@ describe('getLiveDatasetOnView', () => {
           ]),
         }),
         refresh,
+        dueKeys,
         makeRow: (owner, data) => ({ key: owner.id, data }),
         nameIds: (rows) => rows.flatMap((row) => row.data?.ids ?? []).concat(100),
       },
@@ -109,20 +134,25 @@ describe('getLiveDatasetOnView', () => {
       { key: 10, data: { ids: [100, 200] } },
       { key: 20, data: null },
     ]);
+    expect(result.refreshing).toBe(true);
+    expect(dueKeys).toHaveBeenCalledExactlyOnceWith('u1', owners);
+    expect(store.isDueFor).toHaveBeenCalledExactlyOnceWith('u1', [KEY]);
     expect(afterCalls).toHaveLength(1);
     expect(refresh).toHaveBeenCalledWith('u1');
     expect(nameRecordArgs).toEqual([[100, 200, 100]]);
     expect(result.names).toEqual({ '100': 'Type #100', '200': 'Type #200' });
   });
 
-  it('resolves no names when the built rows reference none', async () => {
+  it('resolves no names when the built rows reference none, and is not refreshing while every answer stands', async () => {
     const result = await getLiveDatasetOnView<unknown, { id: number }>('u1', {
       read: async () => ({ owners: [{ id: 1, lastRefreshedAt: null }], data: new Map() }),
       refresh: vi.fn(),
+      dueKeys: () => [],
       makeRow: (owner) => ({ id: owner.id }),
       nameIds: () => [],
     });
     expect(result.names).toEqual({});
+    expect(result.refreshing).toBe(false);
     expect(nameRecordArgs).toEqual([[]]);
   });
 });

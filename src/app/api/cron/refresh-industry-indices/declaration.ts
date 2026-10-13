@@ -1,7 +1,6 @@
 import type { CronRefreshIndustryIndicesResponse } from '@/data/industry-indices/api-contract';
 import { refreshIndustryIndices } from '@/data/industry-indices/ingest';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
-import { ADVISORY_LOCKS } from '@/db/advisory-lock';
 
 export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefreshIndustryIndicesResponse> = {
   name: 'cron:industry-indices',
@@ -13,8 +12,9 @@ export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefresh
     justification: 'daily batch wakes Neon by design and preserves partial dataset history',
   },
   lock: {
-    key: ADVISORY_LOCKS.industryIndices,
-    busyBody: () => ({ status: 'busy' }),
+    mode: 'none',
+    justification:
+      'no lock on any ESI call: both datasets upsert changed rows only, so an overlap with an on-view refresh is a 304 or the same rows again',
   },
   work: async ({ database }) => {
     const summary = await refreshIndustryIndices(database);

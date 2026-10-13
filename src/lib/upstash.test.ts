@@ -123,50 +123,6 @@ describe('createUpstashClient', () => {
   });
 });
 
-describe('resolveUpstashClient', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    redisCtorSpy.mockReset();
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
-
-  it('returns null when Upstash is unconfigured so callers keep their degradation', async () => {
-    const { resolveUpstashClient } = await importUpstash();
-
-    expect(resolveUpstashClient({ timeoutMs: 2000, retries: 0 })).toBeNull();
-    expect(redisCtorSpy).not.toHaveBeenCalled();
-  });
-
-  it('builds a bounded client from the resolved credentials', async () => {
-    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
-    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
-    const { resolveUpstashClient } = await importUpstash();
-
-    expect(resolveUpstashClient({ timeoutMs: 2000, retries: 0 })).not.toBeNull();
-
-    const config = lastConfig();
-    expect(config.url).toBe('https://example.upstash.io');
-    expect(config.token).toBe('token');
-    expect(config.retry).toEqual({ retries: 0 });
-  });
-
-  it('prefers the Vercel marketplace credential pair', async () => {
-    vi.stubEnv('KV_REST_API_URL', 'https://kv.example.upstash.io');
-    vi.stubEnv('KV_REST_API_TOKEN', 'kv-token');
-    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://direct.example.upstash.io');
-    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'direct-token');
-    const { resolveUpstashClient } = await importUpstash();
-
-    resolveUpstashClient({ timeoutMs: 2000, retries: 0 });
-
-    expect(lastConfig().url).toBe('https://kv.example.upstash.io');
-  });
-});
-
 describe('resolveUpstashRest', () => {
   beforeEach(() => {
     vi.resetModules();

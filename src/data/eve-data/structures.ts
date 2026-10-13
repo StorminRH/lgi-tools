@@ -68,14 +68,54 @@ export function attainableFilterSets(
  * "role". The structure's group id must be one of the rig's canFitShipGroup ids
  * AND the rig-size class (M/L/XL) must match. A manufacturing rig fits an
  * Engineering Complex, a Refinery, or a Citadel; a reaction rig fits a Refinery
- * only. The single rule behind both the builder's rig picker and the save trust
- * boundary, so the two can never disagree on what's valid.
+ * only. The single rule behind both the rig pickers (fittingRigs) and the save
+ * trust boundaries (findUnfitRig), so the two can never disagree on what's valid.
  */
-export function rigFitsStructure(
+function rigFitsStructure(
   rig: { canFitGroups: number[]; rigSize: number | null },
   structure: { groupId: number; rigSize: number | null },
 ): boolean {
   return rig.canFitGroups.includes(structure.groupId) && rig.rigSize === structure.rigSize;
+}
+
+/** Every Upwell structure has three rig slots. */
+export const UPWELL_RIG_SLOTS = 3;
+
+/** A hull's rig slots from its rig list: padded with empty slots, or cut to the slot count. */
+export function rigSlotsFrom(rigTypeIds: readonly number[]): (number | null)[] {
+  return Array.from({ length: UPWELL_RIG_SLOTS }, (_, i) => rigTypeIds[i] ?? null);
+}
+
+/** The rigs set in a hull's slots, in slot order, with the empty slots dropped. */
+export function fittedRigIds(slots: readonly (number | null)[]): number[] {
+  return slots.filter((slot): slot is number => slot !== null);
+}
+
+/** The rigs a hull can take, or none while no hull is known. */
+export function fittingRigs<T extends { canFitGroups: number[]; rigSize: number | null }>(
+  rigs: readonly T[],
+  hull: { groupId: number; rigSize: number | null } | null | undefined,
+): T[] {
+  return hull ? rigs.filter((rig) => rigFitsStructure(rig, hull)) : [];
+}
+
+/**
+ * The first rig in a list that the save boundary must refuse: one that is not
+ * a known structure rig, or one that does not fit the hull. Null when every
+ * rig fits.
+ */
+export function findUnfitRig(
+  rigTypeIds: readonly number[],
+  hull: { groupId: number; rigSize: number | null },
+  rigs: readonly StructureRigOption[],
+): { rigTypeId: number; cause: 'unknown' | 'misfit' } | null {
+  const rigById = new Map(rigs.map((rig) => [rig.typeId, rig]));
+  for (const rigTypeId of rigTypeIds) {
+    const rig = rigById.get(rigTypeId);
+    if (!rig) return { rigTypeId, cause: 'unknown' };
+    if (!rigFitsStructure(rig, hull)) return { rigTypeId, cause: 'misfit' };
+  }
+  return null;
 }
 
 export function shapeStructureRigs(

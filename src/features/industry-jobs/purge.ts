@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import type { MergeSubject, MergeTx, PurgeContributor } from '@/platform/purge/types';
+import { eveTag } from '@/lib/esi-datasets/routes';
 import {
   characterIndustryJobs,
   characterIndustryJobSyncs,
@@ -57,6 +58,7 @@ export const industryJobsPurgeContributor: PurgeContributor = {
       .delete(characterIndustryJobSyncs)
       .where(eq(characterIndustryJobSyncs.characterId, characterId));
   },
+  cacheTags: ({ characterId }) => [eveTag('character_industry_jobs', { kind: 'character', id: characterId })],
   async purgeUser({ userId }) {
     await db.delete(corpIndustryJobs).where(eq(corpIndustryJobs.userId, userId));
     await db.delete(corpIndustryJobSyncs).where(eq(corpIndustryJobSyncs.userId, userId));

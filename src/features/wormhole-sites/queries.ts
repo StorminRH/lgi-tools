@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from './schema';
 import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
-import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
+import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
@@ -298,10 +298,11 @@ export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   );
 }
 
+/** The scanner's catalogue, priced like the sites list and cleared by the same price writes. */
 export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG);
   const priced = await listPricedSiteDetails();
   return priced.map((site) => ({
     id: site.id,
@@ -374,18 +375,27 @@ async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   });
 }
 
+/**
+ * The whole catalogue priced from the stored Forge order books, cached
+ * across instances until a price write clears the tag. It only aggregates
+ * stored prices and never refreshes them, and every price write clears
+ * MARKET_PRICES_TAG, so it lives until then rather than until the earliest
+ * book expires: one of those has nearly always expired, and the entry
+ * would be rebuilt on every request.
+ */
 export async function listPricedSiteDetails(): Promise<SiteDetail[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG);
   const raw = await listSiteDetails({});
   return withColdStartRetry(() => overlayLivePrices(raw));
 }
 
+/** One site priced the same way, under the same tag. */
 export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG);
   const raw = await getSiteDetail(id);
   if (!raw) return null;
   const [priced] = await withColdStartRetry(() => overlayLivePrices([raw]));

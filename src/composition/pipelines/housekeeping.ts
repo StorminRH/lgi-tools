@@ -5,8 +5,6 @@ import { scopeLegacyMaps } from '@/composition/map-character-scoping';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { pruneDomainEvents } from '@/data/domain-events/queries';
 import { ENTITY_NAME_RETENTION_DAYS, pruneEntityNames } from '@/data/eve-data/entity-names-store';
-import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
-import { pruneEsiRefreshJobs } from '@/data/esi-refresh-jobs/queries';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { pruneGscSearchAnalytics, pruneGscUrlInspections } from '@/data/gsc/queries';
@@ -99,11 +97,6 @@ const DELETE_TASKS: readonly DeleteTask[] = [
   {
     task: 'esi_snapshots',
     run: (now, deadline) => pruneEsiSnapshots(db, SNAPSHOT_RETENTION_DAYS, now, deadline),
-  },
-  {
-    task: 'esi_refresh_jobs',
-    run: (now, deadline) =>
-      pruneEsiRefreshJobs(db, ESI_REFRESH_JOB_RETENTION_DAYS, now, deadline),
   },
   {
     task: 'wh_statics_snapshots',

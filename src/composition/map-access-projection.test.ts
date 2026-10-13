@@ -60,6 +60,7 @@ function affiliation(userId: string, characterId: number, corporationId: number 
     sharedAccessEligible: true,
     userId, characterId, corporationId, allianceId: null, factionId: null,
     refreshedAt: fresh ? new Date() : new Date(Date.now() - 2 * 60 * 60 * 1000),
+    expiresAt: fresh ? new Date(Date.now() + 60 * 60 * 1000) : null,
   };
 }
 

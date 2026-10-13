@@ -52,8 +52,13 @@ dialog's open, portal and focus props from its `dialogProbe`; it does not stub
 `@/components/ui/dialog`. Markup tests render the real Button; a Button stub
 that captures props for a callback stays local.
 Domain objects come from the owner's `__tests__/` fixture (`siteDetail`,
-`siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`), not a local literal builder;
-pass every field the test reads. Harness-owned `beforeAll` / `beforeEach` for disposable
+`siteResource` and `siteWave` for wormhole sites, `industryJob`, `layoutFacts`, `chainSnapshot`,
+`ownerFixture` for an owner-sync owner), not a local literal builder;
+pass every field the test reads. A corp-member builder that pins its file's
+corporation is a thin wrapper over `ownerFixture`. An owned-dataset refresh test
+(assets, blueprints) builds its port with `ownedDatasetPortFake` from
+`src/platform/owner-sync/__tests__/owner-fixtures.ts`; a port of another shape
+keeps its local fake. Harness-owned `beforeAll` / `beforeEach` for disposable
 schema lifecycle is the exception — do not introduce extra hooks that hide
 arrange steps. That conflicts with the principles below.
 

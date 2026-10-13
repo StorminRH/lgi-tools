@@ -46,21 +46,21 @@ describe('validateCustomStructureSelection', () => {
 
   it('rejects an unknown structure type', () => {
     const r = validateCustomStructureSelection({ structureTypeId: 99999, rigTypeIds: [] }, TYPES, RIGS);
-    expect(r.ok).toBe(false);
+    expect(r).toEqual({ ok: false, reason: 'unknown structure type' });
   });
 
   it('rejects an unknown rig', () => {
     const r = validateCustomStructureSelection({ structureTypeId: 35826, rigTypeIds: [11111] }, TYPES, RIGS);
-    expect(r.ok).toBe(false);
+    expect(r).toEqual({ ok: false, reason: 'unknown rig 11111' });
   });
 
   it('rejects a reaction rig on an Engineering Complex (EC not in canFitGroups)', () => {
     const r = validateCustomStructureSelection({ structureTypeId: 35826, rigTypeIds: [46490] }, TYPES, RIGS);
-    expect(r.ok).toBe(false);
+    expect(r).toEqual({ ok: false, reason: 'rig 46490 does not fit this structure' });
   });
 
   it('rejects a rig of the wrong size (M-set rig on an L structure)', () => {
     const r = validateCustomStructureSelection({ structureTypeId: 35826, rigTypeIds: [43866] }, TYPES, RIGS);
-    expect(r.ok).toBe(false);
+    expect(r).toEqual({ ok: false, reason: 'rig 43866 does not fit this structure' });
   });
 });
