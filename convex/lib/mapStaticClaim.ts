@@ -12,7 +12,8 @@ import {
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { readOriginConnections } from './mapConnectionLookup';
-import { findSystem } from './mapSystemLookup';
+import { findLiveSystem } from './mapSystemLookup';
+import { stampObservationKey } from './observationKey';
 
 export function mergeSeatFields(
   surviving: {
@@ -168,15 +169,16 @@ async function rebindAwaitingCandidates(
 
 async function runClaim(
   ctx: MutationCtx,
-  row: Doc<'mapConnections'>,
+  connectionId: Id<'mapConnections'>,
   side: ConnectionDoorSide,
 ): Promise<ClaimRun> {
   if (side === 'to') {
-    return { outcome: 'none', survivorId: row._id };
+    return { outcome: 'none', survivorId: connectionId };
   }
-  const claimant = await ctx.db.get(row._id);
+  // The claim reads the row itself, so callers pass the id straight after a patch.
+  const claimant = await ctx.db.get('mapConnections', connectionId);
   if (claimant === null || isTombstoned(claimant) || claimant.staticCode !== undefined) {
-    return { outcome: 'none', survivorId: row._id };
+    return { outcome: 'none', survivorId: connectionId };
   }
   const typeCode = hallwayDoor(claimant, side).typeCode;
   const systemId = claimSystemId(claimant, side);
@@ -202,18 +204,36 @@ async function runClaim(
 
 export async function claimStaticPlaceholder(
   ctx: MutationCtx,
-  row: Doc<'mapConnections'>,
+  connectionId: Id<'mapConnections'>,
   side: ConnectionDoorSide,
 ): Promise<'claimed' | 'none'> {
-  return (await runClaim(ctx, row, side)).outcome;
+  return (await runClaim(ctx, connectionId, side)).outcome;
 }
 
 export async function claimStaticOrKeepId(
   ctx: MutationCtx,
-  row: Doc<'mapConnections'>,
+  connectionId: Id<'mapConnections'>,
   side: ConnectionDoorSide,
 ): Promise<Id<'mapConnections'>> {
-  return (await runClaim(ctx, row, side)).survivorId;
+  return (await runClaim(ctx, connectionId, side)).survivorId;
+}
+
+export async function writeDoorTypeAndClaim(
+  ctx: MutationCtx,
+  row: Pick<Doc<'mapConnections'>, '_id' | 'observationKey'>,
+  side: ConnectionDoorSide,
+  patch: Partial<Doc<'mapConnections'>>,
+): Promise<{
+  readonly observationKey: string;
+  readonly outcome: 'claimed' | 'none';
+  readonly survivorId: Id<'mapConnections'>;
+}> {
+  // A sig claim copies the claimant's observationKey onto the placeholder,
+  // so the key must be stamped before the claim runs.
+  const stamped = stampObservationKey(row.observationKey);
+  await ctx.db.patch('mapConnections', row._id, { ...patch, ...stamped.patch });
+  const run = await runClaim(ctx, row._id, side);
+  return { observationKey: stamped.observationKey, ...run };
 }
 
 export async function respawnStaticPlaceholder(
@@ -221,8 +241,7 @@ export async function respawnStaticPlaceholder(
   dead: Doc<'mapConnections'>,
 ): Promise<Id<'mapConnections'> | null> {
   if (dead.staticCode === undefined || !isTombstoned(dead)) return null;
-  const system = await findSystem(ctx, dead.mapId, dead.fromSystemId);
-  if (system === null || isTombstoned(system)) return null;
+  if ((await findLiveSystem(ctx, dead.mapId, dead.fromSystemId)) === null) return null;
   const existing = await findLiveStaticCode(
     ctx,
     dead.mapId,

@@ -1,8 +1,8 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
-import { eventActor } from './mapAuthoringEvents';
+import { gatedAuthoringEdit } from './lib/mapAuthoringEvents';
 import schema from './schema';
 
 import { claimReconciler, expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
@@ -93,6 +93,39 @@ describe('character-scoped tracking', () => {
     expect(await trackedIds(t, MEMBER)).toEqual([MAIN]);
   });
 
+  it('prunes only ineligible tracking across hundreds of scoped claimants on one map read', async () => {
+    // One tracking read per claimant would overrun this budget on the first apply.
+    const t = convexTest({ schema, modules, transactionLimits: { databaseQueries: 32 } });
+    const reconcile = claimReconciler(t);
+    const claimants: Claim[] = Array.from({ length: 300 }, (_, index) => ({
+      userId: `user-${index}`,
+      roles: ['viewer'],
+      characters: [
+        { characterId: 91_000_000 + index * 2, name: `Main ${index}` },
+        { characterId: 91_000_001 + index * 2, name: `Alt ${index}` },
+      ],
+    }));
+    await expect(reconcile(MAP, claimants))
+      .resolves.toMatchObject({ inserted: 300, outcome: 'applied' });
+    for (const { userId, characters = [] } of claimants.slice(0, 3)) {
+      for (const { characterId } of characters) await track(t, userId, characterId);
+    }
+
+    const narrowed = claimants.map((claimant) => claimant.userId === 'user-1'
+      ? { ...claimant, characters: claimant.characters?.slice(0, 1) }
+      : claimant);
+    await expect(reconcile(MAP, narrowed)).resolves.toEqual({
+      inserted: 0, updated: 1, deleted: 0, unchanged: 299, outcome: 'applied', characterScoped: true,
+    });
+
+    const remaining = await t.run(async (ctx) =>
+      (await ctx.db.query('mapTracking').withIndex('by_map', (q) => q.eq('mapId', MAP)).collect())
+        .map((row) => `${row.userId}:${row.characterId}`).sort());
+    expect(remaining).toEqual([
+      'user-0:91000000', 'user-0:91000001', 'user-1:91000002', 'user-2:91000004', 'user-2:91000005',
+    ]);
+  });
+
   it('refuses to put a scoped map back on account-level claims', async () => {
     const t = convexTest(schema, modules);
     const reconcile = claimReconciler(t);
@@ -105,9 +138,13 @@ describe('character-scoped tracking', () => {
   });
 });
 
-describe('eventActor', () => {
+describe('gatedAuthoringEdit actor', () => {
   async function actorFor(t: Chain, userId: string, name?: string) {
-    return asUser(t, userId, name).run((ctx) => eventActor(ctx, MAP));
+    return asUser(t, userId, name).run((ctx) =>
+      gatedAuthoringEdit(ctx, MAP, async (actor, principal) => {
+        expect(principal.userId).toBe(userId);
+        return actor;
+      }));
   }
 
   it('signs legacy claims with the account name', async () => {
@@ -116,6 +153,23 @@ describe('eventActor', () => {
     await reconcile(MAP, [{ userId: OWNER, roles: ['admin'] }]);
     expect(await actorFor(t, OWNER, 'Account Name')).toBe('Account Name');
     expect(await actorFor(t, OWNER)).toBe('unknown');
+  });
+
+  it('refuses a caller without edit before running the edit', async () => {
+    const t = convexTest(schema, modules);
+    const reconcile = claimReconciler(t);
+    await reconcile(MAP, [scopedMember]);
+    const run = vi.fn(async () => 'ran');
+
+    await expectConvexErrorCode(
+      asUser(t, MEMBER, 'Account Name').run((ctx) => gatedAuthoringEdit(ctx, MAP, run)),
+      'FORBIDDEN',
+    );
+    await expectConvexErrorCode(
+      t.run((ctx) => gatedAuthoringEdit(ctx, MAP, run)),
+      'UNAUTHENTICATED',
+    );
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('signs scoped claims with the earliest tracked eligible character, else the first eligible', async () => {

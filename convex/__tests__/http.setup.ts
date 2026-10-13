@@ -14,6 +14,7 @@ export const postConvexHttp = (
     | '/purge-location-tracking'
     | '/project-map-access'
     | '/purge-map-access'
+    | '/purge-user-map-claims'
     | '/purge-map-chain'
     | '/map-tracking-snapshot'
     | '/merge-user-state'

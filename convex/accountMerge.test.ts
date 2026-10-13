@@ -3,9 +3,11 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import { api, internal } from './_generated/api';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
-import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
+import {
+  TRACKED_CHARACTERS_PER_MAP_CAP,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './lib/mapTrackingCapacity';
 
 import { expectConvexErrorCode, type Chain } from './__tests__/convexTest.setup';
 import { modules } from './__tests__/modules.setup';
@@ -112,8 +114,14 @@ describe('durable merge tracking recovery', () => {
         await ctx.db.insert('mapTracking', { mapId: `map-${i}`, userId: SOURCE, characterId: i + 1 });
       }
     });
-    await expect(t.query(internal.accountMerge.snapshotMergeTracking, { sourceUserId: SOURCE }))
-      .rejects.toThrow('Too many tracking selections');
+    const refused = await expectConvexErrorCode(
+      t.query(internal.accountMerge.snapshotMergeTracking, { sourceUserId: SOURCE }),
+      'MERGE_TRACKING_LIMIT',
+    );
+    expect(refused.data).toEqual({
+      code: 'MERGE_TRACKING_LIMIT',
+      detail: 'Too many tracking selections to safely snapshot this merge',
+    });
   });
 
   it('recovers after source cleanup, deduplicates, caps and rejects missing claims', async () => {
@@ -230,10 +238,14 @@ describe('durable merge tracking recovery', () => {
 
   it('rejects oversized restore atomically without recording a receipt', async () => {
     const t = convexTest(schema, modules);
-    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, {
+    const refused = await expectConvexErrorCode(t.mutation(internal.accountMerge.restoreMergeTracking, {
       operationId: 'large', survivorUserId: SURVIVOR,
       selections: Array.from({ length: 1001 }, (_, i) => ({ mapId: 'a', characterId: i + 1 })),
-    })).rejects.toThrow('Too many tracking selections');
+    }), 'MERGE_TRACKING_LIMIT');
+    expect(refused.data).toEqual({
+      code: 'MERGE_TRACKING_LIMIT',
+      detail: 'Too many tracking selections to safely restore this merge',
+    });
     expect(await t.run((ctx) => ctx.db.query('accountMergeTrackingReceipts').collect())).toEqual([]);
   });
 });
@@ -334,9 +346,13 @@ describe('merge tracking receipt retention', () => {
     await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, args)).resolves.toEqual({ deleted: 1 });
     await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, args)).resolves.toEqual({ deleted: 0 });
     expect(await t.run((ctx) => ctx.db.get(recent))).not.toBeNull();
-    await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, {
+    const refused = await expectConvexErrorCode(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, {
       cutoff, receipts: Array.from({ length: MERGE_RECEIPT_BATCH_SIZE + 1 }, () => args.receipts[0]!),
-    })).rejects.toThrow('Too many tracking receipts');
+    }), 'MERGE_RECEIPT_BATCH_LIMIT');
+    expect(refused.data).toEqual({
+      code: 'MERGE_RECEIPT_BATCH_LIMIT',
+      detail: 'Too many tracking receipts to delete in one batch',
+    });
   });
 });
 

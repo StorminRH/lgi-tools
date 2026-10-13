@@ -189,7 +189,7 @@ describe('system signature subscriptions', () => {
   it('places both selection bounds in the indexed read before pagination', () => {
     const source = readFileSync('convex/mapScan.ts', 'utf8');
     const reader = source.slice(source.indexOf('async function viewableSignaturePage'));
-    expect(reader).toMatch(/indexed\(ctx\.db\.query\('mapSignatures'\)\)\.paginate\(boundedPageOptions\(paginationOpts\)\)/);
+    expect(reader).toMatch(/indexed\(ctx\.db\.query\('mapSignatures'\)\)\.paginate\(clampPageSize\(paginationOpts, MAP_SIGNATURE_PAGE_SIZE\)\)/);
     const watcher = source.slice(source.indexOf('async function readSignaturePage'));
     expect(watcher).toMatch(/withIndex\('by_map_signature',[\s\S]*?q\.eq\('mapId', mapId\)\.eq\('systemId', systemId\)/);
   });

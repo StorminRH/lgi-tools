@@ -1,4 +1,4 @@
-import { ConvexError, v } from 'convex/values';
+import { v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import { leadsToEquals, leadsToFromHint } from '@/data/maps/connection-hallway';
@@ -16,7 +16,7 @@ import {
   validateUnresolvedHoleInput,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
-import { findSystem } from './lib/mapSystemLookup';
+import { requireLiveSystem } from './lib/mapSystemLookup';
 import { hallwayFromFixture } from './lib/mapFixtureHallway';
 
 interface UnresolvedHoleFixtureArgs {
@@ -50,19 +50,6 @@ function normalizeUnresolvedHole(args: UnresolvedHoleFixtureArgs): NormalizedUnr
     fromDestinationHint: normalized.fromDestinationHint,
   });
   return normalized;
-}
-
-async function requireUnresolvedHoleOrigin(
-  ctx: MutationCtx,
-  args: NormalizedUnresolvedHole,
-): Promise<void> {
-  const origin = await findSystem(ctx, args.mapId, args.fromSystemId);
-  if (origin === null || isTombstoned(origin)) {
-    throw new ConvexError({
-      code: 'UNKNOWN_ENDPOINT',
-      detail: `Origin system ${args.fromSystemId} is not live on map ${args.mapId}.`,
-    });
-  }
 }
 
 async function findUnresolvedHole(
@@ -168,7 +155,10 @@ export const upsertUnresolvedHole = internalMutation({
   },
   handler: async (ctx, input) => {
     const args = normalizeUnresolvedHole(input);
-    await requireUnresolvedHoleOrigin(ctx, args);
+    await requireLiveSystem(ctx, args.mapId, args.fromSystemId, {
+      code: 'UNKNOWN_ENDPOINT',
+      detail: `Origin system ${args.fromSystemId} is not live on map ${args.mapId}.`,
+    });
     const existing = await findUnresolvedHole(ctx, args);
     if (existing === undefined) {
       const connectionId = await insertUnresolvedHole(ctx, args);

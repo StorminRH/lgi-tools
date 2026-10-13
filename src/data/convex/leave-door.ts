@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
+import type { leaveSyncRequestSchema } from './api-contract';
 
 const leaveSyncResultSchema = z.strictObject({
   retired: z.boolean(),
@@ -12,11 +13,9 @@ export class LeaveSyncDoorError extends Error {
   }
 }
 
-export async function postLeaveSync(input: {
-  readonly userId: string;
-  readonly dataset: 'characterLocation';
-  readonly tabId: string;
-}): Promise<{ retired: boolean }> {
+export async function postLeaveSync(
+  input: { readonly userId: string } & z.infer<typeof leaveSyncRequestSchema>,
+): Promise<{ retired: boolean }> {
   return postConvexHttpDoor({
     path: '/leave-sync',
     body: input,

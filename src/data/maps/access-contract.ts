@@ -9,6 +9,13 @@ export function isMapCreateRole(role: MapRole | null): role is (typeof MAP_CREAT
   return MAP_CREATE_ROLES.some((createRole) => createRole === role);
 }
 
+/**
+ * Maps per claim-revocation request: Next slices a user's maps into batches of
+ * this size and Convex rejects a larger one, keeping each revocation mutation
+ * below Convex's per-mutation read and write limits.
+ */
+export const MAP_CLAIM_PURGE_BATCH = 32;
+
 export const MAP_ACCESS_OWNER_TYPES = ['character', 'corporation'] as const;
 export type MapAccessOwnerType = (typeof MAP_ACCESS_OWNER_TYPES)[number];
 

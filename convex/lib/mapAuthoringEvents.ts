@@ -1,36 +1,48 @@
-import type { MutationCtx } from './_generated/server';
+import type { MutationCtx } from '../_generated/server';
 import {
   MAP_EVENT_RETENTION_MS,
   type MapEventKind,
   type MapEventPayloadByKind,
 } from '@/data/maps/chain-events';
+import { requireMapAccess, type MapPrincipal } from './mapAccess';
+import { readUserMapTracking } from './mapTrackingCapacity';
 
 function accountName(identity: { name?: string } | null): string {
   return typeof identity?.name === 'string' ? identity.name : 'unknown';
 }
 
 /**
- * Names the caller on a map edit. On a character-scoped map that is one of
- * their characters eligible there: the earliest one still tracked on the map,
- * else the first by eligibility. A legacy claim signs with the account name.
+ * Names the authorized caller on a map edit. On a character-scoped map that is
+ * one of their characters eligible there: the earliest one still tracked on the
+ * map, else the first by eligibility. A legacy claim, or a scoped claim with no
+ * eligible character, signs with the account name.
  */
-export async function eventActor(ctx: MutationCtx, mapId: string): Promise<string> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (identity === null) return accountName(identity);
-  const claim = await ctx.db
-    .query('mapAccess')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', identity.subject))
-    .unique();
-  const characters = claim?.characters ?? [];
+async function eventActor(
+  ctx: MutationCtx,
+  mapId: string,
+  principal: MapPrincipal,
+): Promise<string> {
+  const characters = principal.characters ?? [];
   const [first] = characters;
-  if (first === undefined) return accountName(identity);
+  if (first === undefined) return accountName(await ctx.auth.getUserIdentity());
   const eligible = new Map(characters.map((character) => [character.characterId, character.name]));
-  const tracked = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', identity.subject))
-    .collect();
+  const tracked = await readUserMapTracking(ctx, mapId, principal.userId);
   return tracked.map((row) => eligible.get(row.characterId)).find((name) => name !== undefined)
     ?? first.name;
+}
+
+/**
+ * Gates one public map edit on the caller's edit claim, then runs it with the
+ * actor its map events sign with and the principal that passed the gate.
+ * Throws UNAUTHENTICATED or FORBIDDEN before `run` touches any chain table.
+ */
+export async function gatedAuthoringEdit<T>(
+  ctx: MutationCtx,
+  mapId: string,
+  run: (actor: string, principal: MapPrincipal) => Promise<T>,
+): Promise<T> {
+  const principal = await requireMapAccess(ctx, mapId, 'edit');
+  return run(await eventActor(ctx, mapId, principal), principal);
 }
 
 export async function writeMapEvent<Kind extends MapEventKind>(

@@ -4,6 +4,7 @@ import {
   type MapCapability,
   type MapRole,
 } from '@/data/maps/access-contract';
+import type { Doc } from '../_generated/dataModel';
 import type { QueryCtx } from '../_generated/server';
 import { currentRolesFromStored, type MapClaimCharacter } from './mapEntityContracts';
 
@@ -19,9 +20,17 @@ export function characterTrackable(principal: MapPrincipal, characterId: number)
     || principal.characters.some((character) => character.characterId === characterId);
 }
 
-export async function requireMapTrackingOpen(ctx: QueryCtx, mapId: string): Promise<void> {
-  const watermark = await ctx.db.query('mapAccessProjectionWatermarks')
+/** The map's access-projection watermark, or null before any projection has reached it. */
+export function findProjectionWatermark(
+  ctx: Pick<QueryCtx, 'db'>,
+  mapId: string,
+): Promise<Doc<'mapAccessProjectionWatermarks'> | null> {
+  return ctx.db.query('mapAccessProjectionWatermarks')
     .withIndex('by_map', (q) => q.eq('mapId', mapId)).unique();
+}
+
+export async function requireMapTrackingOpen(ctx: QueryCtx, mapId: string): Promise<void> {
+  const watermark = await findProjectionWatermark(ctx, mapId);
   if (watermark?.scopingPending === true) {
     throw new ConvexError({
       code: 'TRACKING_SCOPING_PENDING',

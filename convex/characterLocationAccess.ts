@@ -1,5 +1,7 @@
 import { v, type Infer } from 'convex/values';
 import type { MutationCtx } from './_generated/server';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
+import { deleteCharacterCache } from './lib/locationCaches';
 
 export const leaseWriteValidator = v.object({
   characterId: v.number(),
@@ -30,8 +32,7 @@ export async function clearAccessLeases(
   characterIds: readonly number[],
 ): Promise<void> {
   for (const characterId of characterIds) {
-    const existing = await findAccessLease(ctx, userId, characterId);
-    if (existing !== null) await ctx.db.delete('characterLocationAccess', existing._id);
+    await deleteCharacterCache(ctx, 'characterLocationAccess', userId, characterId);
   }
 }
 
@@ -48,7 +49,7 @@ async function upsertAccessLease(
     )
     .first();
   if (tracking === null) return;
-  const existing = await findAccessLease(ctx, userId, lease.characterId);
+  const existing = await uniqueByUserCharacter(ctx, 'characterLocationAccess', userId, lease.characterId);
   if (existing !== null) {
     await ctx.db.patch('characterLocationAccess', existing._id, {
       accessToken: lease.accessToken,
@@ -64,17 +65,4 @@ async function upsertAccessLease(
     expiresAt: lease.expiresAt,
     updatedAt: now,
   });
-}
-
-function findAccessLease(
-  ctx: Pick<MutationCtx, 'db'>,
-  userId: string,
-  characterId: number,
-) {
-  return ctx.db
-    .query('characterLocationAccess')
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', userId).eq('characterId', characterId),
-    )
-    .unique();
 }

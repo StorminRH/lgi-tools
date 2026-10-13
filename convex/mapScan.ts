@@ -26,8 +26,8 @@ import {
   tryMapAccess,
   tryMapAccessForUser,
 } from './lib/mapAccess';
+import { gatedAuthoringEdit } from './lib/mapAuthoringEvents';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
-import { eventActor } from './mapAuthoringEvents';
 import {
   scannedKindValidator,
   sigGroupValidator,
@@ -60,6 +60,7 @@ import {
   removeConfidentRows,
   type SignatureSelectionMode,
 } from './lib/mapScanSelection';
+import { clampPageSize, deniedPage } from './lib/pagination';
 
 export {
   MAP_ELIMINATION_CONNECTION_LIMIT,
@@ -74,17 +75,6 @@ const scanRowValidator = v.object({
   name: v.union(v.string(), v.null()),
   signalPct: v.union(v.number(), v.null()),
 });
-
-function deniedPage<Row>(): PaginationResult<Row> {
-  return { page: [], isDone: true, continueCursor: '' };
-}
-
-function boundedPageOptions(options: PaginationOptions): PaginationOptions {
-  return {
-    ...options,
-    numItems: Math.max(1, Math.min(options.numItems, MAP_SIGNATURE_PAGE_SIZE)),
-  };
-}
 
 export const eliminationEvidence = internalQuery({
   args: { userId: v.string(), mapId: v.string(), systemId: v.number() },
@@ -151,40 +141,40 @@ export const linkStubToResolvedConnection = mutation({
 
 export const applyScan = mutation({
   args: { mapId: v.string(), systemId: v.number(), rows: v.array(scanRowValidator) },
-  handler: async (ctx, { mapId, systemId, rows }) => {
-    const principal = await requireMapAccess(ctx, mapId, 'edit');
-    await requireTrackedSystem(ctx, mapId, systemId, principal.userId);
-    const normalizedRows = requireBoundedRows(rows);
-    const state = await readScanState(ctx, mapId, systemId);
-    const missingRows = findMissingSignatures(
-      liveLifecycleRows(state, systemId),
-      normalizedRows,
-    );
-    const now = Date.now();
-    const counts = { inserted: 0, updated: 0, unchanged: 0, migrated: 0, conflicted: 0 };
+  handler: (ctx, { mapId, systemId, rows }) =>
+    gatedAuthoringEdit(ctx, mapId, async (actor, principal) => {
+      await requireTrackedSystem(ctx, mapId, systemId, principal.userId);
+      const normalizedRows = requireBoundedRows(rows);
+      const state = await readScanState(ctx, mapId, systemId);
+      const missingRows = findMissingSignatures(
+        liveLifecycleRows(state, systemId),
+        normalizedRows,
+      );
+      const now = Date.now();
+      const counts = { inserted: 0, updated: 0, unchanged: 0, migrated: 0, conflicted: 0 };
 
-    for (const row of normalizedRows) {
-      const outcome = await applyScannedRow(ctx, state, row, mapId, systemId, now);
-      counts[outcome] += 1;
-    }
+      for (const row of normalizedRows) {
+        const outcome = await applyScannedRow(ctx, state, row, mapId, systemId, now);
+        counts[outcome] += 1;
+      }
 
-    const confident = await removeConfidentRows(
-      ctx,
-      state,
-      missingRows.map((row) => row.signatureId),
-      mapId,
-      systemId,
-      await eventActor(ctx, mapId),
-      now,
-    );
-    return {
-      ...counts,
-      removedConfident: confident.size,
-      missing: missingRows
-        .map((row) => row.signatureId)
-        .filter((signatureId) => !confident.has(signatureId)),
-    };
-  },
+      const confident = await removeConfidentRows(
+        ctx,
+        state,
+        missingRows.map((row) => row.signatureId),
+        mapId,
+        systemId,
+        actor,
+        now,
+      );
+      return {
+        ...counts,
+        removedConfident: confident.size,
+        missing: missingRows
+          .map((row) => row.signatureId)
+          .filter((signatureId) => !confident.has(signatureId)),
+      };
+    }),
 });
 
 export const identifySignature = mutation({
@@ -211,10 +201,10 @@ export const identifySignature = mutation({
 function signatureSelectionMutation(mode: SignatureSelectionMode) {
   return mutation({
     args: { mapId: v.string(), systemId: v.number(), signatureIds: v.array(v.string()) },
-    handler: async (ctx, { mapId, systemId, signatureIds }) => {
-      await requireMapAccess(ctx, mapId, 'edit');
-      return await changeSignatureSelection(ctx, mapId, systemId, signatureIds, mode);
-    },
+    handler: (ctx, { mapId, systemId, signatureIds }) =>
+      gatedAuthoringEdit(ctx, mapId, (actor) =>
+        changeSignatureSelection(ctx, mapId, systemId, signatureIds, mode, actor),
+      ),
   });
 }
 
@@ -238,7 +228,7 @@ async function viewableSignaturePage(
 ): Promise<PaginationResult<Doc<'mapSignatures'>> | null> {
   const principal = await tryMapAccess(ctx, mapId, 'view');
   if (principal === null) return null;
-  return await indexed(ctx.db.query('mapSignatures')).paginate(boundedPageOptions(paginationOpts));
+  return await indexed(ctx.db.query('mapSignatures')).paginate(clampPageSize(paginationOpts, MAP_SIGNATURE_PAGE_SIZE));
 }
 
 async function readSignaturePage(

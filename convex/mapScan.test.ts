@@ -10,6 +10,7 @@ import type { Id } from './_generated/dataModel';
 import { applyLinkDeduction } from './lib/mapScanElimination';
 import { SIGNATURE_PURGE_BATCH } from './lib/mapSignatureCleanup';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './lib/mapTrackingCapacity';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -147,6 +148,51 @@ describe('mapScan paste application and lifecycle', () => {
       await ctx.db.delete(tracking!._id);
     });
     await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'UNTRACKED_SCAN_SYSTEM');
+    expect(await readState(t)).toMatchObject({ signatures: [], connections: [], activities: [] });
+  });
+
+  it('refuses a scan from a caller tracking past the per-map cap, with the cap detail', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const extra = await t.run(async (ctx) => await Promise.all(
+      Array.from({ length: TRACKED_CHARACTERS_PER_MAP_USER_CAP }, (_, index) =>
+        ctx.db.insert('mapTracking', { mapId: MAP, userId: EDITOR, characterId: 2000 + index })),
+    ));
+
+    const refused = await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'TRACKING_CAP_EXCEEDED');
+    expect(refused.data).toEqual({
+      code: 'TRACKING_CAP_EXCEEDED',
+      detail: 'At most 32 tracked characters per map.',
+    });
+    expect(await readState(t)).toMatchObject({ signatures: [], connections: [], activities: [] });
+
+    await t.run(async (ctx) => ctx.db.delete('mapTracking', extra[0]!));
+    await expect(apply(t, [signature('ABC-001')])).resolves.toMatchObject({ inserted: 1 });
+  });
+
+  it('refuses a scan from a tracked system that is tombstoned or gone from the map (OFF_MAP_SCAN_SYSTEM)', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const offMap = {
+      code: 'OFF_MAP_SCAN_SYSTEM',
+      detail: `Tracked system ${JITA} is not live on map ${MAP}.`,
+    };
+    const systemId = await t.run(async (ctx) => {
+      const system = await ctx.db
+        .query('mapSystems')
+        .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', JITA))
+        .unique();
+      await ctx.db.patch('mapSystems', system!._id, { deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS });
+      return system!._id;
+    });
+
+    // The client matches this code to explain the refused paste, so its payload is pinned whole.
+    const tombstoned = await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'OFF_MAP_SCAN_SYSTEM');
+    expect(tombstoned.data).toEqual(offMap);
+
+    await t.run(async (ctx) => ctx.db.delete('mapSystems', systemId));
+    const gone = await expectConvexErrorCode(apply(t, [signature('ABC-001')]), 'OFF_MAP_SCAN_SYSTEM');
+    expect(gone.data).toEqual(offMap);
     expect(await readState(t)).toMatchObject({ signatures: [], connections: [], activities: [] });
   });
 
@@ -429,6 +475,72 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         observationKey,
       }],
+    });
+  });
+
+  it('hands the stamped elimination key to the static placeholder the deduction claims', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('AAA-111', { group: 'Wormhole' })]);
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: JITA,
+      codes: ['C247'],
+    });
+    const before = await readState(t);
+    const placeholder = before.connections.find((row) => row.staticCode === 'C247');
+    const stub = before.connections.find((row) => row.from.signatureId === 'AAA-111');
+    if (placeholder === undefined || stub === undefined) throw new Error('missing seeded rows');
+    expect(stub.observationKey).toBeUndefined();
+
+    const applied = await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{ signatureId: 'AAA-111', typeCode: 'C247', provenance: 'assumed' }],
+    });
+    const observationKey = applied[0]?.observationKey ?? null;
+    expect(applied).toEqual([{ signatureId: 'AAA-111', outcome: 'applied', observationKey }]);
+    expect(observationKey).toEqual(expect.any(String));
+    expect(await t.run(async (ctx) => await ctx.db.get(stub._id))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(placeholder._id))).toMatchObject({
+      staticCode: 'C247',
+      observationKey,
+      identity: { kind: 'typed', provenance: 'assumed' },
+      from: expect.objectContaining({ signatureId: 'AAA-111', typeCode: 'C247' }),
+    });
+  });
+
+  it('applies a type deduction that restores the K162 a matching assumed stub is missing', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('AAA-111', { group: 'Wormhole' })]);
+    const stub = (await readState(t)).connections.find(
+      (row) => row.from.signatureId === 'AAA-111',
+    );
+    if (stub === undefined) throw new Error('missing scanned stub');
+    await t.run(async (ctx) => {
+      await ctx.db.patch(stub._id, {
+        from: { ...stub.from, typeCode: 'B274' },
+        to: { ...stub.to, typeCode: null },
+        identity: { kind: 'typed', provenance: 'assumed' },
+      });
+    });
+
+    const applied = await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{ signatureId: 'AAA-111', typeCode: 'B274', provenance: 'assumed' }],
+    });
+    const observationKey = applied[0]?.observationKey ?? null;
+    expect(applied).toEqual([{ signatureId: 'AAA-111', outcome: 'applied', observationKey }]);
+    expect(observationKey).toEqual(expect.any(String));
+    expect(await t.run(async (ctx) => await ctx.db.get(stub._id))).toMatchObject({
+      from: expect.objectContaining({ typeCode: 'B274' }),
+      to: expect.objectContaining({ typeCode: 'K162' }),
+      identity: { kind: 'typed', provenance: 'assumed' },
+      observationKey,
     });
   });
 
@@ -1832,6 +1944,10 @@ describe('mapScan paste application and lifecycle', () => {
       });
     });
 
+    const activityIds = async () =>
+      (await readState(t)).activities.map((row) => row.signatureId);
+    expect(await activityIds()).toContain('WHL-001');
+
     expect(await apply(t, [signature('SIG-001')])).toMatchObject({
       removedConfident: 1,
       missing: [],
@@ -1839,6 +1955,7 @@ describe('mapScan paste application and lifecycle', () => {
     expect((await readState(t)).connections[0]).toMatchObject({
       tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
     });
+    expect(await activityIds()).not.toContain('WHL-001');
     const events = await t.run(async (ctx) => await ctx.db
       .query('mapEvents')
       .withIndex('by_map', (q) => q.eq('mapId', MAP))
@@ -1903,6 +2020,52 @@ describe('mapScan paste application and lifecycle', () => {
       .query('mapSystems')
       .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', WH_FAR))
       .unique()))).toMatchObject({ deletedAt: null, purgeAfter: null });
+  });
+
+  it('silently removing a missing claimed static respawns its placeholder', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('AAA-111', { group: 'Wormhole' })]);
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: JITA,
+      codes: ['C247'],
+    });
+    await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{ signatureId: 'AAA-111', typeCode: 'C247', provenance: 'assumed' }],
+    });
+    const claimed = (await readState(t)).connections.find((row) =>
+      row.staticCode === 'C247' && row.from.signatureId === 'AAA-111');
+    if (claimed === undefined) throw new Error('missing claimed static');
+    await t.run(async (ctx) => {
+      await ctx.db.patch(claimed._id, {
+        lifetime: {
+          kind: 'window',
+          earliestAt: NOW - 1000,
+          latestAt: NOW,
+          lifeStage: null,
+          observedAt: null,
+        },
+      });
+    });
+
+    expect(await apply(t, [signature('SIG-001')])).toMatchObject({
+      removedConfident: 1,
+      missing: [],
+    });
+    const after = await readState(t);
+    expect(after.connections.find((row) => row._id === claimed._id)).toMatchObject({
+      tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
+    });
+    const respawned = after.connections.filter((row) =>
+      row.staticCode === 'C247' && row.tombstone.kind === 'live');
+    expect(respawned).toHaveLength(1);
+    expect(respawned[0]?._id).not.toBe(claimed._id);
+    expect(respawned[0]?.from.signatureId).toBeNull();
+    expect(after.activities.map((row) => row.signatureId)).not.toContain('AAA-111');
   });
 
   it('silently collapses a missing resolved wormhole past its ceiling', async () => {

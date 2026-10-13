@@ -8,28 +8,28 @@ Route capped reads and batch purges through convex/lib, then uniqueByUserCharact
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P195](#p195) | Route every capped indexed read through takeIndexedOrThrow | convex | S | low | medium | — |
-| ☐ | [P196](#p196) | Add deleteIndexedBatch to convex/lib/indexedQuery and rebuild Convex batch purges on it | convex | S | low | medium | — |
-| ☐ | [P198](#p198) | Generalize uniqueByUserCharacter to all four single-row location tables and route the inline lookups and cache deletes through it | convex | S | low | medium | — |
-| ☐ | [P199](#p199) | Move readTrackedPilotSystemIds into convex/lib and share one per-map tracked-pilot memo | convex | S | low | low | [P198](#p198) |
-| ☐ | [P200](#p200) | Move the per-(map, user) tracking cap into lib/mapTrackingCapacity and read caller tracking through one bounded helper | convex | S | low | medium | — |
-| ☐ | [P201](#p201) | Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points | convex | S | low | low | [P200](#p200), [P199](#p199) |
-| ☐ | [P202](#p202) | Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup | convex | M | low | medium | — |
-| ☐ | [P203](#p203) | Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert | convex | S | low | low | — |
-| ☐ | [P204](#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
-| ☐ | [P205](#p205) | Fold the location-sync lifecycle steps into locationSchedule and subjects helpers | convex | S | low | medium | — |
-| ☐ | [P289](#p289) | Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id | efficiency | S | low | low | — |
-| ☐ | [P206](#p206) | Share the stamp-patch-claim tail of door-type writes and drop the redundant re-reads | convex | S | low | low | [P289](#p289) |
-| ☐ | [P207](#p207) | Route scan stub removal through retainRemovedConnection and share the removed-connection purgeAfter re-stamp | convex | S | low | low | — |
-| ☐ | [P215](#p215) | Prune map tracking with one by_map read per claim-set apply instead of one query per claimant | efficiency | S | medium | medium | [P196](#p196), [P200](#p200) |
-| ☐ | [P311](#p311) | Drop decideCollapse's pilotsPresent and decide pilot retention once in mapAuthoringCollapse | simplification | S | low | low | — |
-| ☐ | [P208](#p208) | Share each Convex door's request shape with its Next caller, per data area | contracts-validation | M | low | medium | — |
+| ☑ | [P195](#p195) | Route every capped indexed read through takeIndexedOrThrow | convex | S | low | medium | — |
+| ☑ | [P196](#p196) | Add deleteIndexedBatch to convex/lib/indexedQuery and rebuild Convex batch purges on it | convex | S | low | medium | — |
+| ☑ | [P198](#p198) | Generalize uniqueByUserCharacter to all four single-row location tables and route the inline lookups and cache deletes through it | convex | S | low | medium | — |
+| ☑ | [P199](#p199) | Move readTrackedPilotSystemIds into convex/lib and share one per-map tracked-pilot memo | convex | S | low | low | [P198](#p198) |
+| ☑ | [P200](#p200) | Move the per-(map, user) tracking cap into lib/mapTrackingCapacity and read caller tracking through one bounded helper | convex | S | low | medium | — |
+| ☑ | [P201](#p201) | Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points | convex | S | low | low | [P200](#p200), [P199](#p199) |
+| ☑ | [P202](#p202) | Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup | convex | M | low | medium | — |
+| ☑ | [P203](#p203) | Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert | convex | S | low | low | — |
+| ☑ | [P204](#p204) | Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies | convex | S | low | low | — |
+| ☑ | [P205](#p205) | Fold the location-sync lifecycle steps into locationSchedule and subjects helpers | convex | S | low | medium | — |
+| ☑ | [P289](#p289) | Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id | efficiency | S | low | low | — |
+| ☑ | [P206](#p206) | Share the stamp-patch-claim tail of door-type writes and drop the redundant re-reads | convex | S | low | low | [P289](#p289) |
+| ☑ | [P207](#p207) | Route scan stub removal through retainRemovedConnection and share the removed-connection purgeAfter re-stamp | convex | S | low | low | — |
+| ☑ | [P215](#p215) | Prune map tracking with one by_map read per claim-set apply instead of one query per claimant | efficiency | S | medium | medium | [P196](#p196), [P200](#p200) |
+| ☑ | [P311](#p311) | Drop decideCollapse's pilotsPresent and decide pilot retention once in mapAuthoringCollapse | simplification | S | low | low | — |
+| ☑ | [P208](#p208) | Share each Convex door's request shape with its Next caller, per data area | contracts-validation | M | low | medium | — |
 
 <a id="p195"></a>
 
 ## P195: Route every capped indexed read through takeIndexedOrThrow
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** bypasses-existing-primitive · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45/+20
 - **Depends on:** —
@@ -95,7 +95,7 @@ readTouchingConnections(ctx: QueryCtx, mapId: string, systemId: number, options?
 
 ## P196: Add deleteIndexedBatch to convex/lib/indexedQuery and rebuild Convex batch purges on it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45/+20
 - **Depends on:** —
@@ -165,7 +165,7 @@ export function purgeMapTable<Table extends MapPurgeTable>(ctx: MutationCtx, tab
 
 ## P198: Generalize uniqueByUserCharacter to all four single-row location tables and route the inline lookups and cache deletes through it
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -55 / +20
 - **Depends on:** —
@@ -255,7 +255,7 @@ function collectUserScope<T extends UserCharacterTable | 'mapTracking'>(
 
 ## P199: Move readTrackedPilotSystemIds into convex/lib and share one per-map tracked-pilot memo
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +20
 - **Depends on:** [P198](#p198)
@@ -324,7 +324,7 @@ export function trackedPilotSystemsByMap(ctx: QueryCtx): (mapId: string) => Prom
 
 ## P200: Move the per-(map, user) tracking cap into lib/mapTrackingCapacity and read caller tracking through one bounded helper
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -15 / +12
 - **Depends on:** —
@@ -395,7 +395,7 @@ export function readUserMapTracking(
 
 ## P201: Pass the authorized MapPrincipal into eventActor and share gatedAuthoringEdit across the four authoring entry points
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +15 (net neutral; removes one claim read per authoring edit)
 - **Depends on:** [P200](#p200), [P199](#p199)
@@ -485,7 +485,7 @@ export async function changeSignatureSelection(
 
 ## P202: Add findLiveSystem and move requireLiveSystem (with a caller-supplied error) into convex/lib/mapSystemLookup
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** missing-primitive · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -55 / +25 (four private helpers and eight inline checks removed; two exported helpers added)
 - **Depends on:** —
@@ -564,7 +564,7 @@ export async function requireLiveSystem(ctx: QueryCtx, mapId: string, systemId: 
 
 ## P203: Give the jump stamp and the projection watermark named finders, with a forward-only stamp upsert
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -55 / +25
 - **Depends on:** —
@@ -630,7 +630,7 @@ export function findProjectionWatermark(ctx: Pick<QueryCtx, 'db'>, mapId: string
 
 ## P204: Move clampPageSize and deniedPage into convex/lib with an explicit max, and drop mapScan's private copies
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -12 / +3 (plus one-line edits in two tests and modules.setup.ts)
 - **Depends on:** —
@@ -692,7 +692,7 @@ export function deniedPage<Row>(): PaginationResult<Row>; // { page: [], isDone:
 
 ## P205: Fold the location-sync lifecycle steps into locationSchedule and subjects helpers
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** about -30 / +20
 - **Depends on:** —
@@ -763,7 +763,7 @@ export async function isLocationWatcherCold(db: DatabaseReader, userId: string, 
 
 ## P289: Route tombstone incident reads through readTouchingConnections, parallelize independent bounded reads, and let static claims take an id
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -30 / +8
 - **Depends on:** —
@@ -858,7 +858,7 @@ Lead, not in scope: convex/lib/indexedQuery.ts:11-45 already exports uniqueByUse
 
 ## P206: Share the stamp-patch-claim tail of door-type writes and drop the redundant re-reads
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -18 / +25: three re-read blocks and three inline predicates removed, one helper and one predicate added
 - **Depends on:** [P289](#p289)
@@ -930,7 +930,7 @@ export async function writeDoorTypeAndClaim(
 
 ## P207: Route scan stub removal through retainRemovedConnection and share the removed-connection purgeAfter re-stamp
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** convex · **Kind:** bypasses-existing-primitive · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -20 / +12
 - **Depends on:** —
@@ -994,7 +994,7 @@ export async function setRemovedPurgeAfter(
 
 ## P215: Prune map tracking with one by_map read per claim-set apply instead of one query per claimant
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** medium · **Payoff:** medium · **Size:** About -45 in mapTrackingTeardown.ts (four helpers) +15 (pruneMapTracking); applyClaimSet about -11 +8
 - **Depends on:** [P196](#p196), [P200](#p200)
@@ -1059,7 +1059,7 @@ export async function pruneMapTracking(
 
 ## P311: Drop decideCollapse's pilotsPresent and decide pilot retention once in mapAuthoringCollapse
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** confirmed
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -22/+8 (chain-collapse.ts -3, mapAuthoringCollapse.ts -10/+8, chain-collapse.test.ts -8)
 - **Depends on:** —
@@ -1123,7 +1123,7 @@ function collapseOutcome(topology, cut, pilots: CollapsePilotsPresent): Collapse
 
 ## P208: Share each Convex door's request shape with its Next caller, per data area
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** contracts-validation · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -35 / +30
 - **Depends on:** —

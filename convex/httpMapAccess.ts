@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { PublicHttpAction } from 'convex/server';
-import { MAP_ROLES } from '@/data/maps/access-contract';
+import { MAP_CLAIM_PURGE_BATCH, MAP_ROLES } from '@/data/maps/access-contract';
 import { internal } from './_generated/api';
 import { authorizedJsonAction } from './lib/httpAuth';
 
@@ -59,7 +59,7 @@ const purgeMapAccessBodySchema = z.object({
 const purgeUserMapClaimsBodySchema = z.object({
   userId: z.string().min(1),
   revision: z.number().int().positive(),
-  mapIds: z.array(z.string().min(1)).min(1).max(32),
+  mapIds: z.array(z.string().min(1)).min(1).max(MAP_CLAIM_PURGE_BATCH),
 });
 
 const purgeMapChainBodySchema = z.object({

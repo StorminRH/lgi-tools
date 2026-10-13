@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
-import { MERGE_RECEIPT_BATCH_SIZE } from './constants';
-import type { TrackingSelection } from './schema';
+import { MERGE_RECEIPT_BATCH_SIZE, MERGE_TRACKING_LIMIT } from './constants';
+import {
+  trackingReceiptCandidateFields,
+  trackingSelectionFields,
+  type TrackingReceiptCandidate,
+  type TrackingSelection,
+} from './merge-contract';
 
 export class LocationTrackingMergeError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -14,10 +19,9 @@ export async function snapshotMergeTracking(sourceUserId: string): Promise<Track
   const result = await postConvexHttpDoor({
     path: '/snapshot-merge-tracking',
     body: { sourceUserId },
-    schema: z.strictObject({ selections: z.array(z.strictObject({
-      mapId: z.string().min(1), characterId: z.number().int().positive(),
-      lastProcessedTransitionAt: z.number().optional(),
-    })).max(1000) }),
+    schema: z.strictObject({
+      selections: z.array(z.strictObject(trackingSelectionFields)).max(MERGE_TRACKING_LIMIT),
+    }),
     error: LocationTrackingMergeError,
     label: 'Location tracking snapshot unavailable',
     timeoutMs: 4000,
@@ -44,22 +48,12 @@ export function restoreMergeTracking(
   });
 }
 
-const receiptCandidateSchema = z.strictObject({
-  receiptId: z.string().min(1),
-  operationId: z.string().min(1),
-});
-
-export interface TrackingReceiptCandidate {
-  readonly receiptId: string;
-  readonly operationId: string;
-}
-
 export function listExpiredTrackingReceipts(cutoff: number, cursor: string | null) {
   return postConvexHttpDoor({
     path: '/list-expired-tracking-receipts',
     body: { cutoff, cursor },
     schema: z.strictObject({
-      receipts: z.array(receiptCandidateSchema).max(MERGE_RECEIPT_BATCH_SIZE),
+      receipts: z.array(z.strictObject(trackingReceiptCandidateFields)).max(MERGE_RECEIPT_BATCH_SIZE),
       cursor: z.string(),
       done: z.boolean(),
     }),
