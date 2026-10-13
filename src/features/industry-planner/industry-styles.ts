@@ -94,12 +94,12 @@ export interface Category {
 }
 
 const MINERALS: Category = { label: 'Minerals', tone: 'neutral', order: 21 };
-const ICE: Category = { label: 'Ice Products', tone: 'blue', order: 22 };
+const ICE: Category = { label: 'Ice products', tone: 'blue', order: 22 };
 const GAS: Category = { label: 'Gas', tone: 'teal', order: 23 };
-const MOON: Category = { label: 'Moon Materials', tone: 'magenta', order: 24 };
+const MOON: Category = { label: 'Moon materials', tone: 'magenta', order: 24 };
 const SALVAGE: Category = { label: 'Salvage', tone: 'yellow', order: 25 };
 const PLANETARY: Category = { label: 'Planetary', tone: 'orange-soft', order: 26 };
-const OTHER_MATERIAL: Category = { label: 'Other Materials', tone: 'neutral', order: 29 };
+const OTHER_MATERIAL: Category = { label: 'Other materials', tone: 'neutral', order: 29 };
 
 const RAW_BY_GROUP: Record<string, Category> = {
   Mineral: MINERALS,
@@ -136,10 +136,10 @@ export function classifyBuildNode(args: {
 }): NodeLabel {
   const { isRaw, isRoot, activityId, groupName, categoryName } = args;
   if (isRaw) {
-    return { label: groupName || categoryName || 'Raw Material', tone: classifyRaw(groupName, categoryName).tone };
+    return { label: groupName || categoryName || 'Raw material', tone: classifyRaw(groupName, categoryName).tone };
   }
   if (isRoot) {
-    return { label: groupName || categoryName || 'Final Product', tone: 'teal' };
+    return { label: groupName || categoryName || 'Final product', tone: 'teal' };
   }
   if (activityId === REACTION_ACTIVITY) {
     return { label: REACTION_NODE_LABEL, tone: 'purple' };

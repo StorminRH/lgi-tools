@@ -7,26 +7,14 @@ import { ReferenceGroup, Specimen } from './specimen';
 // Each label role in use, spelled as its call, so labels can be compared side by side.
 const LABEL_ROLES: readonly { call: string; classes: string }[] = [
   { call: 'eyebrow()', classes: eyebrow() },
-  { call: "eyebrow({ emphasis: 'strong' })", classes: eyebrow({ emphasis: 'strong' }) },
-  { call: "eyebrow({ emphasis: 'label' })", classes: eyebrow({ emphasis: 'label' }) },
-  { call: 'dataLabel()', classes: dataLabel() },
-  { call: "dataLabel({ emphasis: 'strong' })", classes: dataLabel({ emphasis: 'strong' }) },
+  { call: "eyebrow({ size: 'micro' })", classes: eyebrow({ size: 'micro' }) },
+  { call: "eyebrow({ weight: 'semibold' })", classes: eyebrow({ weight: 'semibold' }) },
   {
     call: "eyebrow({ font: 'inherit', weight: 'inherit' })",
     classes: eyebrow({ font: 'inherit', weight: 'inherit' }),
   },
-  {
-    call: "eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label' })",
-    classes: eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label' }),
-  },
-  {
-    call: "eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'strong' })",
-    classes: eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'strong' }),
-  },
-  {
-    call: "eyebrow({ font: 'inherit', weight: 'semibold', emphasis: 'strong' })",
-    classes: eyebrow({ font: 'inherit', weight: 'semibold', emphasis: 'strong' }),
-  },
+  { call: 'dataLabel()', classes: dataLabel() },
+  { call: "dataLabel({ size: 'micro' })", classes: dataLabel({ size: 'micro' }) },
 ];
 
 function RoleSample({ call, children }: { call: string; children: ReactNode }) {
@@ -48,7 +36,7 @@ export function ProseGroup() {
       <Specimen
         name="Type roles"
         source="type-roles"
-        note="Class recipes rather than components: pageTitle and displayTitle for titles, eyebrow and dataLabel for uppercase labels. The inherit values take the parent's face and weight, as each label's own context would."
+        note="Titles and labels in normal case. pageTitle and displayTitle set titles, eyebrow and dataLabel set labels. Only the logo and EVE codes stay in capitals. The inherit values take the parent's face and weight."
         wide
       >
         <div className="flex flex-col gap-5">

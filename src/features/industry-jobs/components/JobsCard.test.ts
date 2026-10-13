@@ -38,15 +38,14 @@ function render(overrides: Partial<Parameters<typeof JobsCard>[0]> = {}): string
   );
 }
 
-test('lists a board’s jobs under its owner, with the summary, sync time and blue progress', () => {
+test('lists a board’s jobs under its owner, with the summary and sync time', () => {
   const html = render();
   expect(html).toContain('Aurel Vantesse');
   expect(html).toContain('1 job');
   expect(html).toContain('next done in');
-  expect(html).toContain('as of');
+  expect(html).toContain('As of');
   expect(html).toContain('Raven');
   expect(html).toContain('×2 · Manufacturing');
-  expect(html).toContain('data-tone="evb"');
 
   const runner = render({ runnerFor: () => createElement('span', { 'data-runner': '' }, 'Hauler Alt') });
   expect(runner).toContain('data-runner');
@@ -61,7 +60,7 @@ test('stands in for missing rows by load state, or lets the notice speak alone',
 
   const waiting = render({ data: null });
   expect(waiting).toContain('Awaiting first sync.');
-  expect(waiting).not.toContain('as of');
+  expect(waiting).not.toContain('As of');
 
   const noticeOnly = render({
     data: null,

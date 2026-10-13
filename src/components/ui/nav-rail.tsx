@@ -66,7 +66,7 @@ function NavRailDrawer({
         title={title}
         trigger={
           <span className="flex min-w-0 flex-1 items-center gap-3">
-            <span className={eyebrow({ tone: 'faint', weight: 'semibold', emphasis: 'label', className: 'shrink-0' })}>
+            <span className={eyebrow({ tone: 'faint', weight: 'semibold', className: 'shrink-0' })}>
               {label}
             </span>
             <span data-nav-rail-current className="min-w-0 flex-1 truncate text-left text-nav text-text">
@@ -109,7 +109,6 @@ export function NavRailGroup({
             size: 'micro',
             tone: 'faint',
             weight: 'semibold',
-            emphasis: 'strong',
             className: 'mb-1.5 pl-3',
           })}
         >

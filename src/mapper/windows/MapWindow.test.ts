@@ -79,6 +79,7 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
   );
   expect(editor).toContain('data-map-window-placement="scanner-anchored"');
   expect(editor).not.toContain('--map-window-transform');
+  expect(editor).not.toContain('uppercase');
 
   const site = renderToStaticMarkup(
     createElement(
@@ -97,6 +98,7 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
   );
   expect(site).toContain('data-map-window-placement="scanner-anchored"');
   expect(site).not.toContain('Close Site');
+  expect(site).not.toContain('uppercase');
 
   const bottomLeft = render({ kind: 'docked-bottom-left' });
   expect(bottomLeft).toContain('data-map-window-placement="docked-bottom-left"');
@@ -104,4 +106,5 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
   const nodeAnchored = render({ kind: 'node-anchored', systemId: 30_000_142 });
   expect(nodeAnchored).toContain('data-map-window-placement="node-anchored"');
   expect(nodeAnchored).toContain('[transform:var(--map-window-transform)]');
+  expect(nodeAnchored).toContain('uppercase');
 });

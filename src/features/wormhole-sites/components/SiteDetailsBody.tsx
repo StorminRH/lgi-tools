@@ -41,7 +41,7 @@ function NoWaveSection({ site, view }: { site: SiteDetail; view: SiteDetailsView
   if (view.isWaveDriven) return null;
   return (
     <>
-      <SectionHeader label="Wave Spawns" />
+      <SectionHeader label="Wave spawns" />
       {view.hasWaves ? (
         <WaveCards waves={site.waves} />
       ) : (

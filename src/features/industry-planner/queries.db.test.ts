@@ -197,19 +197,19 @@ test.skipIf(!harness.reachable)(
     });
     expect(structure.activityId).toBe(1);
 
-    // Raws are bucketed by group/category; an unlabelled raw falls to Other Materials,
+    // Raws are bucketed by group/category; an unlabelled raw falls to Other materials,
     // and the legend is ordered by category rank rather than tree order.
     expect(structure.materialCategory).toEqual({
-      9999: 'Other Materials',
+      9999: 'Other materials',
       2393: 'Planetary',
       34: 'Minerals',
-      16634: 'Moon Materials',
+      16634: 'Moon materials',
     });
     expect(structure.materialCategories).toEqual([
       { label: 'Minerals', tone: 'neutral' },
-      { label: 'Moon Materials', tone: 'magenta' },
+      { label: 'Moon materials', tone: 'magenta' },
       { label: 'Planetary', tone: 'orange-soft' },
-      { label: 'Other Materials', tone: 'neutral' },
+      { label: 'Other materials', tone: 'neutral' },
     ]);
     expect(structure.materialNames[2100]).toBe('Plate');
     expect(structure.materialNames[9999]).toBeUndefined();

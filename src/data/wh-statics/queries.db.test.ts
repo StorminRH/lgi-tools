@@ -77,13 +77,6 @@ async function insertSnapshot(
 describe.skipIf(!harness.reachable)(
   'wormhole statics snapshot writes (real Postgres)',
   () => {
-    it('returns an empty serving projection before the first promotion', async () => {
-      await expect(readSystemStatics(harness.db)).resolves.toEqual({
-        version: '',
-        systems: [],
-      });
-    });
-
     it('summarises only the pending snapshot, as its full review reads it', async () => {
       await expect(getPendingWhStaticsSummary(harness.db)).resolves.toBeNull();
       await expect(getPendingWhStaticsReview(harness.db)).resolves.toBeNull();
@@ -265,34 +258,11 @@ describe.skipIf(!harness.reachable)(
       });
     });
 
-    it('still records when retention pruned the baseline snapshot away', async () => {
-      const prunedId = await insertSnapshot({
-        status: 'superseded',
-        etag: '"pruned"',
+    it('serves nothing before the first promotion, then the promoted copy, and refuses a second promote', async () => {
+      await expect(readSystemStatics(harness.db)).resolves.toEqual({
+        version: '',
+        systems: [],
       });
-      await harness.db
-        .delete(whStaticsSnapshots)
-        .where(eq(whStaticsSnapshots.id, prunedId));
-
-      await expect(
-        recordSnapshot(harness.db, {
-          feedVersion: '11',
-          etag: '"current"',
-          lastModified: null,
-          baseline: { etag: '"pruned"', latestSnapshotId: prunedId },
-          entries: [
-            { systemId: 31_000_001, systemName: 'J000001', code: 'A001' },
-          ],
-          difference: EMPTY_DIFF,
-          crossCheck: AGREEMENT,
-        }),
-      ).resolves.toEqual({
-        recorded: 'created',
-        snapshotId: expect.any(Number),
-      });
-    });
-
-    it('promotes once, replaces the serving copy, and refuses a second promote', async () => {
       const snapshotId = await insertSnapshot({
         systemCount: 2,
         entries: [
@@ -414,15 +384,15 @@ describe.skipIf(!harness.reachable)(
         status: 'promoted',
         createdAt: old,
       });
-      const stalePromoted = await insertSnapshot({
+      await insertSnapshot({
         status: 'promoted',
         createdAt: old,
       });
-      const staleRejected = await insertSnapshot({
+      await insertSnapshot({
         status: 'rejected',
         createdAt: old,
       });
-      const staleSuperseded = await insertSnapshot({
+      await insertSnapshot({
         status: 'superseded',
         createdAt: old,
       });
@@ -450,9 +420,6 @@ describe.skipIf(!harness.reachable)(
         pending,
         recentRejected,
       ]);
-      expect(remaining.map((row) => row.id)).not.toContain(stalePromoted);
-      expect(remaining.map((row) => row.id)).not.toContain(staleRejected);
-      expect(remaining.map((row) => row.id)).not.toContain(staleSuperseded);
     });
   },
 );

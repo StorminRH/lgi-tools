@@ -2,10 +2,10 @@ import { isWaveDrivenSiteType } from '../site-type';
 import type { SiteDetail, SiteType } from '../types';
 
 const RESOURCE_SECTION_COPY = {
-  ore:    { label: 'Ore Deposits',        hint: 'qty · m³ · est. ISK',   footer: 'Total ore value' },
-  gas:    { label: 'Gas Clouds',          hint: 'units · m³ · est. ISK', footer: 'Total gas value' },
-  relic:  { label: 'Hackable Containers', hint: 'est. ISK per can',      footer: 'Total container value' },
-  data:   { label: 'Hackable Containers', hint: 'est. ISK per can',      footer: 'Total container value' },
+  ore:    { label: 'Ore deposits',        hint: 'Qty · m³ · est. ISK',   footer: 'Total ore value' },
+  gas:    { label: 'Gas clouds',          hint: 'Units · m³ · est. ISK', footer: 'Total gas value' },
+  relic:  { label: 'Hackable containers', hint: 'Est. ISK per can',      footer: 'Total container value' },
+  data:   { label: 'Hackable containers', hint: 'Est. ISK per can',      footer: 'Total container value' },
   combat: { label: 'Resources',           hint: '',                      footer: 'Total value' },
 } satisfies Record<SiteType, { label: string; hint: string; footer: string }>;
 

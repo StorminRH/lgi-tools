@@ -8,7 +8,7 @@ import { Pill } from '@/components/ui/pill';
 import { eyebrow } from '@/components/ui/type-roles';
 import { StatusPanel } from './StatusPanel';
 
-const INCIDENT_LABEL = eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'strong' });
+const INCIDENT_LABEL = eyebrow({ font: 'inherit', weight: 'inherit' });
 
 /** The status card shared by the route error boundaries; logs the error once. */
 export function ErrorPanel({

@@ -26,7 +26,7 @@ export function ProductionCapacity({
   const unlinked = members.length - linked.length;
   const incomplete = SLOT_POOLS.some((pool) => pools[pool].unknownUsed > 0 || pools[pool].unknownCapacity > 0);
   return (
-    <SectionPanel title="Production Capacity">
+    <SectionPanel title="Production capacity">
       {linked.length === 0 && unlinked > 0 ? (
         <SectionNote>Link a character in this selection to see its production capacity.</SectionNote>
       ) : (

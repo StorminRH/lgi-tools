@@ -14,7 +14,9 @@ import {
   CAPABILITIES,
   capabilityResultForError,
   errorClassOf,
+  operationsOfKind,
   recordCapabilityOutcome,
+  USER_FACING_CAPABILITY_KINDS,
   type CapabilityId,
   type CapabilityOutcomeInput,
 } from './capability';
@@ -49,6 +51,22 @@ describe('capability catalogue', () => {
       const key = `${feature}/${operation}`;
       expect(seen.has(key)).toBe(false);
       seen.add(key);
+    }
+  });
+
+  it('keeps cron runs out of the user-facing operations', () => {
+    const userFacing = operationsOfKind(...USER_FACING_CAPABILITY_KINDS);
+    for (const op of [
+      'refresh-gsc',
+      'refresh-industry-indices',
+      'refresh-prices',
+      'refresh-sde',
+      'refresh-wh-statics',
+      'purge-maps',
+      'housekeeping',
+      'revalue-net-worth',
+    ]) {
+      expect(userFacing).not.toContain(op);
     }
   });
 });

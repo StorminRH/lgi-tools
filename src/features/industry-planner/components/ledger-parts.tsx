@@ -32,7 +32,6 @@ export function LedgerColumnHead({
         eyebrow({
           font: 'inherit',
           weight: 'semibold',
-          emphasis: 'strong',
           className: 'mb-2 flex items-center gap-x-2 whitespace-nowrap',
         }),
         collapseNarrow && '@max-[14rem]:flex-col @max-[14rem]:items-start',
@@ -57,7 +56,7 @@ export function LedgerColumnHead({
   );
 }
 
-/** An item's name, clamped to two lines, over its one-line uppercase label. */
+/** An item's name, clamped to two lines, over its one-line data label. */
 export function ItemNameStack({
   name,
   label,

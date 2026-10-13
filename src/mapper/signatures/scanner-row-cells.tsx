@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Tooltip } from '@/components/ui/tooltip';
-import { eyebrow } from '@/components/ui/type-roles';
 import { useStyleProperty } from '@/components/ui/use-style-ref';
 import { formatElapsed } from '@/lib/format/time';
 import { clampPct } from '@/lib/math';
@@ -70,7 +69,7 @@ export function SignatureClassChip({ label }: { readonly label: string }) {
   return (
     <span
       data-signature-class
-      className={eyebrow({ size: 'micro', weight: 'inherit', emphasis: 'label', className: 'shrink-0' })}
+      className="shrink-0 font-ui text-micro uppercase tracking-label text-muted"
     >
       {label}
     </span>

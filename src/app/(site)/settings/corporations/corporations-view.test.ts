@@ -60,11 +60,11 @@ test('the corporations section gates on the registry feature control and separat
     { corporationId: 5, corporationName: 'Delta', sharingEnabled: false },
   ]);
   expect(view.memberships).toEqual([
-    { corporationId: 1, corporationName: 'Alpha', roleLabel: 'Director', sharingLabel: 'sharing off', structureCount: 0 },
-    { corporationId: 3, corporationName: 'Beta', roleLabel: 'Director', sharingLabel: 'sharing on', structureCount: 1 },
-    { corporationId: 4, corporationName: 'Gamma', roleLabel: 'Station Manager', sharingLabel: 'sharing off', structureCount: 1 },
-    { corporationId: 5, corporationName: 'Delta', roleLabel: 'Member', sharingLabel: 'sharing off', structureCount: null },
-    { corporationId: 2, corporationName: 'Zeta', roleLabel: 'Member', sharingLabel: 'sharing on', structureCount: 2 },
+    { corporationId: 1, corporationName: 'Alpha', roleLabel: 'Director', sharingLabel: 'Sharing off', structureCount: 0 },
+    { corporationId: 3, corporationName: 'Beta', roleLabel: 'Director', sharingLabel: 'Sharing on', structureCount: 1 },
+    { corporationId: 4, corporationName: 'Gamma', roleLabel: 'Station Manager', sharingLabel: 'Sharing off', structureCount: 1 },
+    { corporationId: 5, corporationName: 'Delta', roleLabel: 'Member', sharingLabel: 'Sharing off', structureCount: null },
+    { corporationId: 2, corporationName: 'Zeta', roleLabel: 'Member', sharingLabel: 'Sharing on', structureCount: 2 },
   ]);
 
   const single = deriveCorporationsView([row({ canManageSharing: false })]);

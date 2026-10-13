@@ -4,6 +4,7 @@ import {
   deadAllowlistEntries,
   handRolledTypeRoles,
   unexpectedFamilies,
+  uppercaseCount,
 } from '@/composition/__tests__/ui-adoption-census';
 import { uiAdoptionRegistry } from '@/composition/__tests__/ui-adoption-registry';
 import { filesMatching, listSourceFiles, stripComments } from '@/lib/__tests__/source-scan';
@@ -21,15 +22,17 @@ function codeMatching(pattern: RegExp): string[] {
   );
 }
 
-// The type-role census reads the ui layer too: only the role owner may spell
-// an uppercase tracked class string.
+// The type-role census reads the ui layer too, the role owner included: no
+// role sets text in capitals, and only the role owner may spell a tracked
+// class string.
 const TYPE_ROLE_OWNER = 'src/components/ui/type-roles.ts';
-const TYPE_ROLE_SOURCES = listSourceFiles({
+const ALL_SOURCES = listSourceFiles({
   roots: ['src'],
   extensions: ['.ts', '.tsx'],
   skipDirectories: ['node_modules', '__fixtures__', '__tests__', '_generated'],
   skipSuffixes: ['.test.ts', '.test.tsx', '.d.ts'],
-}).filter((file) => file !== TYPE_ROLE_OWNER);
+});
+const TYPE_ROLE_SOURCES = ALL_SOURCES.filter((file) => file !== TYPE_ROLE_OWNER);
 
 function exceptionFiles(entries: readonly { file: string }[]): string[] {
   return entries.map((entry) => entry.file).sort();
@@ -76,10 +79,10 @@ describe('UI adoption exception census', () => {
   });
 });
 
+const STYLESHEETS = listSourceFiles({ roots: ['src'], extensions: ['.css'] });
+
 function allStylesheets(): string {
-  return listSourceFiles({ roots: ['src'], extensions: ['.css'] })
-    .map((file) => readFileSync(file, 'utf8'))
-    .join('\n');
+  return STYLESHEETS.map((file) => readFileSync(file, 'utf8')).join('\n');
 }
 
 describe('UI adoption CSS-family census', () => {
@@ -110,6 +113,76 @@ describe('UI adoption CSS-family census', () => {
 });
 
 describe('UI adoption type-role census', () => {
+  it('pins how many places in each file set capitals to the recorded brand marks and EVE codes', () => {
+    const scripts = ALL_SOURCES.map((file): [string, number] => [
+      file,
+      uppercaseCount(stripComments(readFileSync(file, 'utf8')), 'script'),
+    ]);
+    const stylesheets = STYLESHEETS.map((file): [string, number] => [
+      file,
+      uppercaseCount(stripComments(readFileSync(file, 'utf8')), 'css'),
+    ]);
+    const found = Object.fromEntries(
+      [...scripts, ...stylesheets].filter(([, count]) => count > 0),
+    );
+    const recorded = Object.fromEntries(
+      uiAdoptionRegistry.uppercaseExceptions.map(({ file, count }) => [file, count]),
+    );
+
+    expect(found).toEqual(recorded);
+  });
+
+  it('counts an uppercase class at any variant, in any literal, or as a style value', () => {
+    const source = [
+      '<span className="font-ui uppercase text-micro">a</span>',
+      "const head = 'md:hover:uppercase text-label';",
+      "const style = { textTransform: 'uppercase' };",
+      '<a aria-label="Don\'t" className="uppercase">b</a>',
+      '<p>Don\'t</p><span className="!uppercase">c</span>',
+      "const mark = \"before:content-['/'] uppercase\";",
+      'const wrapped = `',
+      '  uppercase text-label',
+      '`;',
+      "const imp = 'uppercase! text-label';",
+      "const imp2 = 'md:!uppercase';",
+      '<b className="[text-transform:uppercase] x">d</b>',
+      "const chip = cn('font-ui', active && 'lg:uppercase', size);",
+      'const badge = cva(',
+      "  'inline-flex uppercase',",
+      "  { variants: { tone: { loud: 'tracking-label uppercase!' } } },",
+      ');',
+      '<p className={`${link} md:uppercase`}>e</p>',
+      "const nested = `${cn('uppercase')} text-label`;",
+    ].join('\n');
+
+    expect(uppercaseCount(source, 'script')).toBe(15);
+  });
+
+  it('does not count the word in copy, as JSX text or in a copy string', () => {
+    const source = [
+      '<p>Use uppercase letters</p>',
+      '<p>',
+      '  Shown in uppercase',
+      '</p>',
+      "const copy = 'Shown in uppercase.';",
+      'const hint = `Hi ${name}, set in uppercase`;',
+      "const note = 'not uppercase-ish';",
+    ].join('\n');
+
+    expect(uppercaseCount(source, 'script')).toBe(0);
+  });
+
+  it('counts a capitals declaration or an applied uppercase class in a stylesheet', () => {
+    const css = [
+      '.a { text-transform: uppercase; }',
+      '.b { @apply font-ui uppercase text-label; }',
+      '.c { text-transform: none; }',
+      '.uppercase-ish { color: red; }',
+    ].join('\n');
+
+    expect(uppercaseCount(css, 'css')).toBe(2);
+  });
+
   it('pins how many class strings in each file hand-roll an eyebrow or title role', () => {
     const found = Object.fromEntries(
       TYPE_ROLE_SOURCES.map((file): [string, number] => [
@@ -124,19 +197,25 @@ describe('UI adoption type-role census', () => {
     expect(found).toEqual(recorded);
   });
 
-  it('finds uppercase tracked strings in any class order and off-step tracking, not role calls', () => {
+  it('finds a tracking step beside a label size or capitals, and off-step tracking, not role calls', () => {
     const source = [
-      '<span className="text-label uppercase tracking-wide text-muted">a</span>',
-      "const head = 'tracking-eyebrow font-semibold md:uppercase';",
-      '<p className={`${link} text-micro tracking-[0.07em]`}>b</p>',
-      '<span className="uppercase text-label">c</span>',
-      '<span className="tracking-label text-muted">d</span>',
-      "<span className={eyebrow({ emphasis: 'label' })}>e</span>",
+      '<span className="text-eyebrow tracking-optical text-muted">a</span>',
+      "const head = 'tracking-optical font-semibold md:text-caption';",
+      '<span className="font-data text-small tracking-normal">b</span>',
+      '<span className="text-bar tracking-optical">c</span>',
+      '<span className="text-lead uppercase tracking-copy">d</span>',
+      '<p className={`${link} text-micro tracking-[0.07em]`}>e</p>',
+      '<span className="text-eyebrow text-muted">f</span>',
+      '<span className="text-ui tracking-optical text-muted">g</span>',
+      "<span className={eyebrow({ size: 'micro' })}>h</span>",
     ].join('\n');
 
     expect(handRolledTypeRoles(source)).toEqual([
-      'text-label uppercase tracking-wide text-muted',
-      'tracking-eyebrow font-semibold md:uppercase',
+      'text-eyebrow tracking-optical text-muted',
+      'tracking-optical font-semibold md:text-caption',
+      'font-data text-small tracking-normal',
+      'text-bar tracking-optical',
+      'text-lead uppercase tracking-copy',
       '${link} text-micro tracking-[0.07em]',
     ]);
   });

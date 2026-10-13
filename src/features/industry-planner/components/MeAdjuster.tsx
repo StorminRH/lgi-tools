@@ -185,10 +185,10 @@ function AdjusterRow({ label, children }: { label: string; children: ReactNode }
 export function NodeAdjusters({ blueprintTypeId, name }: { blueprintTypeId: number; name: string }) {
   return (
     <div className="flex flex-col gap-2.5">
-      <AdjusterRow label="Material Efficiency">
+      <AdjusterRow label="Material efficiency">
         <EfficiencyField kind="me" blueprintTypeId={blueprintTypeId} name={name} />
       </AdjusterRow>
-      <AdjusterRow label="Time Efficiency">
+      <AdjusterRow label="Time efficiency">
         <EfficiencyField kind="te" blueprintTypeId={blueprintTypeId} name={name} />
       </AdjusterRow>
     </div>

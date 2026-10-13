@@ -9,7 +9,7 @@ export function MasterSection({ master }: { master: ChangelogMaster }) {
       <div className="mb-[22px] flex flex-wrap items-baseline gap-x-3.5 gap-y-1 border-b border-border pb-3">
         <span
           data-changelog-master-version
-          className="font-display text-stat font-bold uppercase leading-none tracking-optical text-name"
+          className="font-display text-stat font-bold leading-none tracking-optical text-name"
         >
           v{master.version}
         </span>

@@ -346,7 +346,7 @@ function LifetimeSection({
   const stage = lifetimeStage(connection.lifetime);
   return (
     <OptionalSelectField
-      label="Reliable Lifetime"
+      label="Reliable lifetime"
       ariaLabel="Reliable Lifetime"
       items={LIFE_ITEMS}
       value={stage}

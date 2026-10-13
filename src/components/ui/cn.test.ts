@@ -14,6 +14,8 @@ test('cn drops falsy inputs and resolves the registered design tokens against Ta
   expect(cn('text-[var(--color-isk)]', 'text-label')).toBe('text-[var(--color-isk)] text-label');
   expect(cn('text-muted', 'text-ui')).toBe('text-muted text-ui');
   expect(cn('text-ui', 'text-label')).toBe('text-label');
+  expect(cn('text-eyebrow', 'text-bar')).toBe('text-bar');
+  expect(cn('text-caption text-small', 'text-muted')).toBe('text-small text-muted');
   expect(cn('text-title', 'text-isk')).toBe('text-title text-isk');
   expect(cn('text-nav', 'text-title')).toBe('text-title');
 
@@ -23,8 +25,9 @@ test('cn drops falsy inputs and resolves the registered design tokens against Ta
   expect(cn('font-data', 'font-semibold')).toBe('font-data font-semibold');
 
   // Tracking, spacing, container and radius scales: last wins.
-  expect(cn('tracking-copy', 'tracking-eyebrow')).toBe('tracking-eyebrow');
-  expect(cn('tracking-wide', 'tracking-optical')).toBe('tracking-optical');
+  expect(cn('tracking-copy', 'tracking-label')).toBe('tracking-label');
+  expect(cn('tracking-label', 'tracking-optical')).toBe('tracking-optical');
+  expect(cn('tracking-optical', 'tracking-normal')).toBe('tracking-normal');
   expect(cn('mb-cluster', 'mb-section')).toBe('mb-section');
   expect(cn('size-icon-sm', 'size-icon-lg')).toBe('size-icon-lg');
   expect(cn('max-w-reading', 'max-w-frame')).toBe('max-w-frame');

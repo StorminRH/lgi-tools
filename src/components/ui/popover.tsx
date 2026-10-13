@@ -97,7 +97,7 @@ export function Popover({
 
 export function PopoverHeading({ children }: { children: ReactNode }) {
   return (
-    <div className={eyebrow({ tone: 'isk', weight: 'semibold', emphasis: 'strong' })}>
+    <div className={eyebrow({ tone: 'isk', weight: 'semibold' })}>
       {children}
     </div>
   );

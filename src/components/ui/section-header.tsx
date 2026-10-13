@@ -3,9 +3,10 @@ import { cn } from './cn';
 import { eyebrow } from './type-roles';
 
 /**
- * `bar` is a card's header strip: an uppercase eyebrow on the row tint.
- * `sub` titles a block inside a card body in sentence case, so it reads as
- * subordinate to the card's own header rather than as a second one.
+ * `bar` is a card's header strip: a semibold label on the row tint, a step
+ * larger than an eyebrow. `sub` titles a block inside a card body in plain
+ * text, so it reads as subordinate to the card's own header rather than as a
+ * second one.
  *
  * `as` renders the label as a real heading for the document outline; the
  * default is a plain span.
@@ -25,12 +26,11 @@ export function SectionHeader({
   as?: 'span' | 'h2' | 'h3';
   className?: string;
 }) {
-  const bar = eyebrow({
-    size: size === 'md' ? 'label' : 'micro',
-    weight: 'semibold',
-    emphasis: 'strong',
-    className: cn('bg-row-hover border-b border-border-soft px-3.5', size === 'md' ? 'py-2' : 'py-[5px]'),
-  });
+  const bar = cn(
+    eyebrow({ weight: 'semibold' }),
+    'bg-row-hover border-b border-border-soft px-3.5',
+    size === 'md' ? 'text-bar py-2' : 'text-small py-[5px]',
+  );
   return (
     <div
       className={cn(

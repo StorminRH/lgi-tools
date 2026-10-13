@@ -1,39 +1,36 @@
 import { cva } from 'class-variance-authority';
 
+const LABEL_TONES = {
+  muted: 'text-muted',
+  faint: 'text-faint',
+  isk: 'text-isk',
+  callout: 'text-callout-label',
+  inherit: '',
+} as const;
+
 /**
- * The uppercase tracked label. The defaults are the interface eyebrow: font-ui,
- * medium weight, tracking-wide. The `inherit` font and weight values emit no
- * class, so a label set in its parent's face or weight keeps it. Override a
- * class through cn(eyebrow(), extra): cva appends `className` without merging.
+ * The interface label, written in sentence case. The defaults are font-ui,
+ * medium weight and optical tracking. The `inherit` font and weight values
+ * emit no class, so a label set in its parent's face or weight keeps it.
+ * Override a class through cn(eyebrow(), extra): cva appends `className`
+ * without merging.
  */
-export const eyebrow = cva('uppercase', {
+export const eyebrow = cva('tracking-optical', {
   variants: {
     font: {
       ui: 'font-ui',
-      data: 'font-data',
       inherit: '',
     },
     size: {
-      micro: 'text-micro',
-      label: 'text-label',
+      micro: 'text-caption',
+      label: 'text-eyebrow',
     },
-    tone: {
-      muted: 'text-muted',
-      faint: 'text-faint',
-      isk: 'text-isk',
-      callout: 'text-callout-label',
-      inherit: '',
-    },
+    tone: LABEL_TONES,
     weight: {
       inherit: '',
       medium: 'font-medium',
       semibold: 'font-semibold',
       bold: 'font-bold',
-    },
-    emphasis: {
-      label: 'tracking-label',
-      normal: 'tracking-wide',
-      strong: 'tracking-eyebrow',
     },
   },
   defaultVariants: {
@@ -41,22 +38,31 @@ export const eyebrow = cva('uppercase', {
     size: 'label',
     tone: 'muted',
     weight: 'medium',
-    emphasis: 'normal',
   },
 });
 
-/** The data label: an eyebrow in the data face at label tracking, in its parent's weight. */
-export function dataLabel(options?: Parameters<typeof eyebrow>[0]): string {
-  return eyebrow({ font: 'data', weight: 'inherit', emphasis: 'label', ...options });
-}
+/** The data label: the data face at normal tracking, in its parent's weight. */
+export const dataLabel = cva('font-data tracking-normal', {
+  variants: {
+    size: {
+      micro: 'text-caption',
+      label: 'text-small',
+    },
+    tone: LABEL_TONES,
+  },
+  defaultVariants: {
+    size: 'label',
+    tone: 'muted',
+  },
+});
 
 /**
- * The page title: display face, bold, tracked and uppercase. Called bare (as
+ * The page title: display face, bold, at optical tracking. Called bare (as
  * SectionHead does) it sets solid. Through cn() (as PageTitle does) the later
  * text size drops `leading-none`, so the size token's own line height applies.
  */
 export const pageTitle = cva(
-  'font-display font-bold leading-none tracking-optical uppercase text-name',
+  'font-display font-bold leading-none tracking-optical text-name',
   {
     variants: {
       size: {
@@ -69,8 +75,8 @@ export const pageTitle = cva(
   },
 );
 
-/** The display-face title of a dialog or card: semibold, tracked and uppercase. */
-export const displayTitle = cva('font-display font-semibold tracking-copy uppercase', {
+/** The display-face title of a dialog or card: semibold, at optical tracking. */
+export const displayTitle = cva('font-display font-semibold tracking-optical', {
   variants: {
     size: {
       h2: 'text-h2',

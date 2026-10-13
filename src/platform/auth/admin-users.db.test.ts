@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { directClient, getDeletionClient } from '@/db';
 import {
@@ -165,26 +165,14 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       id: 'third-discord', accountId: String(UNLINKED_CHAR), providerId: 'discord', userId: THIRD_ID,
     });
 
-    // The superadmin lookup before it was one query: the owning account row,
-    // then that user read through its oldest EVE character.
-    async function twoStepOwner(characterId: number) {
-      const [owner] = await harness.db
-        .select({ userId: account.userId })
-        .from(account)
-        .where(and(eq(account.providerId, 'eve'), eq(account.accountId, String(characterId))))
-        .limit(1);
-      return owner ? getUserById(owner.userId) : null;
-    }
-
-    for (const characterId of [MOVED_CHAR, ALT_CHAR, SURVIVOR_CHAR, OTHER_CHAR, UNLINKED_CHAR]) {
-      await expect(getUserOwningCharacter(characterId)).resolves.toEqual(await twoStepOwner(characterId));
-    }
+    await expect(getUserOwningCharacter(MOVED_CHAR)).resolves.toMatchObject({ userId: SOURCE_ID, characterId: MOVED_CHAR });
     await expect(getUserOwningCharacter(ALT_CHAR)).resolves.toEqual({
       userId: SOURCE_ID, characterId: MOVED_CHAR, name: 'Source Main', portraitUrl: 'source-portrait', role: 'USER',
     });
     await expect(getUserOwningCharacter(SURVIVOR_CHAR)).resolves.toMatchObject({
       userId: TARGET_ID, characterId: OTHER_CHAR, name: 'Target Oldest',
     });
+    await expect(getUserOwningCharacter(OTHER_CHAR)).resolves.toMatchObject({ userId: TARGET_ID, characterId: OTHER_CHAR });
     await expect(getUserOwningCharacter(UNLINKED_CHAR)).resolves.toBeNull();
   });
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { Collapsible } from '@/components/ui/collapsible';
+import { eyebrow } from '@/components/ui/type-roles';
 import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
@@ -16,7 +17,7 @@ function CatalogueCardExtras({ site }: { site: SiteDetail }) {
       <div className="border-t border-border-idle px-3 py-2 text-right">
         <Link
           href={`/sites/${site.id}`}
-          className="text-label tracking-label uppercase text-muted hover:text-name"
+          className={eyebrow({ font: 'inherit', weight: 'inherit', className: 'hover:text-name' })}
         >
           View full page →
         </Link>
