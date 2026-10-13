@@ -11,7 +11,7 @@ test('the board is one GET and a closed reconnect-gap vocabulary', () => {
 
 describe('boardResponseSchema', () => {
   it('accepts an empty board with a catalog', () => {
-    const empty = { characters: [], skillCatalog: [], history: [] };
+    const empty = { characters: [], skillCatalog: [], history: [], refreshing: false };
     expect(boardResponseSchema.parse(empty)).toEqual(empty);
   });
 
@@ -57,8 +57,8 @@ describe('boardResponseSchema', () => {
     };
     expect(boardCharacterSchema.safeParse({ ...minimal, netWorth }).success).toBe(true);
     const day = { day: '2026-09-27', netWorth: 6, liquidIsk: 1, included: 1, total: 2, pilots: { '1': { netWorth: 6, liquidIsk: 1 } } };
-    expect(boardResponseSchema.safeParse({ characters: [], skillCatalog: [], history: [day] }).success).toBe(true);
-    expect(boardResponseSchema.safeParse({ characters: [], skillCatalog: [], history: [{ ...day, day: '27/09/2026' }] }).success).toBe(false);
+    expect(boardResponseSchema.safeParse({ characters: [], skillCatalog: [], history: [day], refreshing: true }).success).toBe(true);
+    expect(boardResponseSchema.safeParse({ characters: [], skillCatalog: [], history: [{ ...day, day: '27/09/2026' }], refreshing: false }).success).toBe(false);
   });
 
   it('rejects a skill level outside 0..5 and an unlisted gap', () => {

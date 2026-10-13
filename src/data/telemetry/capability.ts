@@ -21,7 +21,7 @@ export type CapabilityFeature =
   | 'cron'
   | 'feedback';
 
-export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
+export type CapabilityKind = 'mutation' | 'read' | 'cron';
 
 type CapabilitySpec = {
   readonly [F in CapabilityFeature]?: {
@@ -60,11 +60,11 @@ export const CAPABILITIES = catalogueFromSpec({
   structures: { mutation: ['set-corp-structure-rigs', 'create-custom-structure', 'delete-custom-structure', 'update-custom-structure'], read: ['parse-structure-fit', 'search-structures'] },
   planner: { mutation: ['create-saved-plan', 'delete-saved-plan', 'rename-saved-plan', 'favorite-saved-plan', 'create-industry-profile', 'duplicate-industry-profile', 'update-industry-profile', 'delete-industry-profile'], read: ['resolve-entity-names', 'read-cost-indices', 'read-owned-assets', 'read-owned-blueprints', 'read-skill-levels'] },
   maps: { mutation: ['create-map', 'update-access', 'delete-map', 'restore-map', 'request-map-purge', 'eliminate-signatures', 'resolve-jump'], read: ['search-characters', 'resolve-type-names'] },
-  admin: { mutation: ['unlink-character', 'revoke-user-sessions', 'reassign-character', 'requeue-esi-job', 'set-user-role', 'wh-statics-review'] },
-  cron: { cron: ['drain-esi-refresh-jobs', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'purge-maps', 'housekeeping', 'revalue-net-worth'] },
+  admin: { mutation: ['unlink-character', 'revoke-user-sessions', 'reassign-character', 'set-user-role', 'wh-statics-review'] },
+  cron: { cron: ['refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'purge-maps', 'housekeeping', 'revalue-net-worth'] },
   market: { mutation: ['refresh-market-prices', 'refresh-market-history'] },
   feedback: { mutation: ['submit-feedback'] },
-  sync: { mutation: ['leave-location'], job: ['process-esi-refresh-job'] },
+  sync: { mutation: ['leave-location'] },
 });
 
 export type CapabilityId = keyof typeof CAPABILITIES;

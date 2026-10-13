@@ -26,7 +26,6 @@ const prunes = vi.hoisted(() => ({
   pruneExpiredVerifications: h.prune('verification'),
   pruneExpiredSessions: h.prune('session'),
   pruneEsiSnapshots: h.prune('esi_snapshots'),
-  pruneEsiRefreshJobs: h.prune('esi_refresh_jobs'),
   pruneWhStaticsSnapshots: h.prune('wh_statics_snapshots'),
   pruneStaleMarketHistory: h.prune('market_history'),
   pruneEntityNames: h.prune('eve_entity_names'),
@@ -45,7 +44,6 @@ vi.mock('@/platform/auth/verification-retention', () => ({
   pruneExpiredSessions: prunes.pruneExpiredSessions,
 }));
 vi.mock('./esi-snapshot-retention', () => ({ pruneEsiSnapshots: prunes.pruneEsiSnapshots }));
-vi.mock('@/data/esi-refresh-jobs/queries', () => ({ pruneEsiRefreshJobs: prunes.pruneEsiRefreshJobs }));
 vi.mock('@/data/wh-statics/queries', () => ({ pruneWhStaticsSnapshots: prunes.pruneWhStaticsSnapshots }));
 vi.mock('@/data/market-history/ingest', () => ({ pruneStaleMarketHistory: prunes.pruneStaleMarketHistory }));
 vi.mock('@/data/eve-data/entity-names-store', () => ({
@@ -99,7 +97,6 @@ describe('runHousekeeping', () => {
       'verification',
       'session',
       'esi_snapshots',
-      'esi_refresh_jobs',
       'wh_statics_snapshots',
       'market_history',
       'eve_entity_names',

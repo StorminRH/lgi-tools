@@ -3,9 +3,17 @@ import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi'
 import { fetchAffiliations } from './affiliation-source';
 import { SYNTHETIC_PILOT } from './synthetic-pilot';
 
+// The downtime halt reads the status row only inside the 10:55-11:30 UTC window; keep the unit test off the database.
+vi.mock('@/data/esi-store/halt', () => ({ esiHalted: async () => false }));
+
+const NOW = Date.parse('2026-10-12T12:00:00Z');
+const EXPIRES = 'Mon, 12 Oct 2026 12:05:00 GMT';
+/** The stamp a batch without Expires takes: the route's published cache time counted from the call. */
+const SPEC_STAMP = { expiresAt: NOW + 3_600_000, lastModified: null, checkedAt: NOW };
+
 const permissiveScoreboard = {
   async preDispatch() {
-    return { effectiveRemaining: 1000, blockedRetryAfter: null, etag: null };
+    return { effectiveRemaining: 1000, blockedRetryAfter: null };
   },
   async budgetSnapshot() {
     return { effectiveRemaining: 1000, selfCount: 0, echo: null, source: 'process-local' as const };
@@ -14,29 +22,32 @@ const permissiveScoreboard = {
     return { calls: 0, failures: 0, source: 'process-local' as const };
   },
   async report() {},
-  async getCachedBody() {
-    return null;
-  },
 };
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  vi.spyOn(console, 'info').mockImplementation(() => {});
   __setScoreboardForTests(permissiveScoreboard);
   fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   __resetEsiGateForTests();
 });
 
-test('skips ESI for empty input, POSTs de-duplicated ids, maps the response, and chunks at 1000', async () => {
+test('skips ESI for empty input, POSTs de-duplicated ids, maps the response under CCP\'s expiry, and chunks at 1000', async () => {
   await expect(fetchAffiliations([])).resolves.toEqual({
     rows: [],
     transientFailure: false,
+    answers: [],
   });
   expect(fetchMock).not.toHaveBeenCalled();
 
@@ -44,7 +55,7 @@ test('skips ESI for empty input, POSTs de-duplicated ids, maps the response, and
     Response.json([
       { character_id: 101, corporation_id: 2000, alliance_id: 99, faction_id: 500 },
       { character_id: 102, corporation_id: 3000 },
-    ]),
+    ], { headers: { Expires: EXPIRES } }),
   );
 
   const result = await fetchAffiliations([101, 102, 101]);
@@ -60,12 +71,14 @@ test('skips ESI for empty input, POSTs de-duplicated ids, maps the response, and
       { characterId: 102, corporationId: 3000, allianceId: null, factionId: null },
     ],
     transientFailure: false,
+    answers: [{ characterIds: [101, 102], stamp: { expiresAt: Date.parse(EXPIRES), lastModified: null, checkedAt: NOW } }],
   });
 
-  fetchMock.mockImplementation(() => Promise.resolve(Response.json([])));
+  fetchMock.mockImplementation(() => Promise.resolve(Response.json([{ character_id: 1, corporation_id: 1 }])));
   const ids = Array.from({ length: 1500 }, (_, i) => i + 1);
 
-  await fetchAffiliations(ids);
+  const chunked = await fetchAffiliations(ids);
+  expect(chunked.answers.map((answer) => answer.characterIds.length)).toEqual([1000, 500]);
 
   expect(fetchMock).toHaveBeenCalledTimes(3);
   expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toHaveLength(1000);
@@ -93,6 +106,8 @@ test('bisects mixed 404s so live characters refresh, confirms single-id 404s as 
       { characterId: 102, corporationId: 3000, allianceId: null, factionId: null },
     ],
     transientFailure: false,
+    // A single-id 404 is an answer too, so the departed character's key takes the route's cache time like any other.
+    answers: [{ characterIds: [101], stamp: SPEC_STAMP }, { characterIds: [102], stamp: SPEC_STAMP }],
   });
 
   fetchMock.mockReset();
@@ -100,6 +115,7 @@ test('bisects mixed 404s so live characters refresh, confirms single-id 404s as 
   await expect(fetchAffiliations([101])).resolves.toEqual({
     rows: [{ characterId: 101, corporationId: null, allianceId: null, factionId: null }],
     transientFailure: false,
+    answers: [{ characterIds: [101], stamp: SPEC_STAMP }],
   });
 });
 
@@ -131,6 +147,7 @@ test.each([
         factionId: null,
       }],
       transientFailure: true,
+      answers: [{ characterIds: [101], stamp: SPEC_STAMP }],
     });
   },
 );
@@ -163,32 +180,35 @@ test.each(['503', 'network', 'timeout', 'invalid JSON'] as const)(
   },
 );
 
-test('marks budget, 5xx, empty-200, and unparseable bodies as transient, but unexpected dispatch errors still throw', async () => {
+test('takes the gate\'s interactive floor when asked, so a read a user waits on trickles through a scoreboard outage', async () => {
   __setScoreboardForTests('unavailable');
-  await expect(fetchAffiliations([101])).resolves.toEqual({
-    rows: [],
-    transientFailure: true,
+  fetchMock.mockImplementation(async () => Response.json([{ character_id: 101, corporation_id: 98000001 }]));
+
+  await expect(fetchAffiliations([101])).resolves.toMatchObject({ transientFailure: true });
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  await expect(fetchAffiliations([101], { interactive: true })).resolves.toMatchObject({
+    transientFailure: false,
+    rows: [{ characterId: 101, corporationId: 98000001 }],
   });
+  expect(fetchMock).toHaveBeenCalledOnce();
+});
+
+test('marks budget, 5xx, empty-200, and unparseable bodies as transient, but unexpected dispatch errors still throw', async () => {
+  const transient = { rows: [], transientFailure: true, answers: [] };
+  __setScoreboardForTests('unavailable');
+  await expect(fetchAffiliations([101])).resolves.toEqual(transient);
   expect(fetchMock).not.toHaveBeenCalled();
 
   __setScoreboardForTests(permissiveScoreboard);
   fetchMock.mockResolvedValueOnce(new Response('boom', { status: 503 }));
-  await expect(fetchAffiliations([101])).resolves.toEqual({
-    rows: [],
-    transientFailure: true,
-  });
+  await expect(fetchAffiliations([101])).resolves.toEqual(transient);
 
   fetchMock.mockResolvedValueOnce(Response.json([]));
-  await expect(fetchAffiliations([101, 102])).resolves.toEqual({
-    rows: [],
-    transientFailure: true,
-  });
+  await expect(fetchAffiliations([101, 102])).resolves.toEqual(transient);
 
   fetchMock.mockResolvedValueOnce(Response.json([{ character_id: 'bad' }]));
-  await expect(fetchAffiliations([101])).resolves.toEqual({
-    rows: [],
-    transientFailure: true,
-  });
+  await expect(fetchAffiliations([101])).resolves.toEqual(transient);
 
   fetchMock.mockRejectedValueOnce(new Error('programmer bug'));
   await expect(fetchAffiliations([101])).rejects.toThrow('programmer bug');
@@ -200,6 +220,7 @@ test('in development, omits the local synthetic E2E character before calling ESI
   await expect(fetchAffiliations([SYNTHETIC_PILOT.characterId])).resolves.toEqual({
     rows: [],
     transientFailure: false,
+    answers: [],
   });
   expect(fetchMock).not.toHaveBeenCalled();
 
@@ -211,6 +232,7 @@ test('in development, omits the local synthetic E2E character before calling ESI
   expect(result).toEqual({
     rows: [{ characterId: 102, corporationId: 3000, allianceId: null, factionId: null }],
     transientFailure: false,
+    answers: [{ characterIds: [102], stamp: SPEC_STAMP }],
   });
 
   vi.stubEnv('NODE_ENV', 'production');
@@ -221,6 +243,7 @@ test('in development, omits the local synthetic E2E character before calling ESI
   await expect(fetchAffiliations([SYNTHETIC_PILOT.characterId, 102])).resolves.toEqual({
     rows: [],
     transientFailure: true,
+    answers: [],
   });
   expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual([
     SYNTHETIC_PILOT.characterId,

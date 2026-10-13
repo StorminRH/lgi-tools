@@ -16,14 +16,18 @@ import { startCharacterLink, startEveSignIn } from './link-character';
 
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-test('startEveSignIn asks the auth client for EVE sign-in, returning home by default', () => {
+test('startEveSignIn asks the auth client for EVE sign-in, returning home by default and on any refusal', () => {
   client.signInOauth2.mockResolvedValue({ data: { url: 'https://login.eveonline.test', redirect: true }, error: null });
 
   startEveSignIn('/industry');
-  expect(client.signInOauth2).toHaveBeenLastCalledWith({ providerId: 'eve', callbackURL: '/industry' });
+  expect(client.signInOauth2).toHaveBeenLastCalledWith({
+    providerId: 'eve',
+    callbackURL: '/industry',
+    errorCallbackURL: '/',
+  });
 
   startEveSignIn();
-  expect(client.signInOauth2).toHaveBeenLastCalledWith({ providerId: 'eve', callbackURL: '/' });
+  expect(client.signInOauth2).toHaveBeenLastCalledWith({ providerId: 'eve', callbackURL: '/', errorCallbackURL: '/' });
 });
 
 function watchUnhandledRejections() {

@@ -7,9 +7,8 @@ const refreshIndustryIndicesMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const dbMock = { handle: 'direct-database' };
 
-let lockGot = true;
 const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
-  () => Promise.resolve([{ got: lockGot }]),
+  () => Promise.resolve([{ got: true }]),
 );
 
 vi.mock('@/data/industry-indices/ingest', () => ({
@@ -43,7 +42,6 @@ describe('GET /api/cron/refresh-industry-indices', () => {
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     reserveMock.mockClear();
     reservedTag.mockClear();
-    lockGot = true;
     vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
     silenceConsolePrefixes('log', ['{"scope":"cron:']);
   });
@@ -64,20 +62,15 @@ describe('GET /api/cron/refresh-industry-indices', () => {
     expect(refreshIndustryIndicesMock).not.toHaveBeenCalled();
   });
 
-  it('returns busy and records the contention metadata', async () => {
-    lockGot = false;
+  it('takes no lock: an overlapping run refreshes as well, since the ESI reads and upserts are idempotent', async () => {
+    refreshIndustryIndicesMock.mockResolvedValue(SUMMARY);
     const { GET } = await import('./route');
     const response = await GET(cronRequest(ROUTE));
 
-    expect(await response.json()).toEqual({ status: 'busy' });
-    expect(refreshIndustryIndicesMock).not.toHaveBeenCalled();
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_industry_indices',
-      metadata: {
-        outcome: 'busy',
-        durationMs: expect.any(Number),
-      },
-    });
+    expect(response.status).toBe(200);
+    expect(refreshIndustryIndicesMock).toHaveBeenCalledWith(dbMock);
+    expect(reserveMock).not.toHaveBeenCalled();
+    expect(reservedTag).not.toHaveBeenCalled();
   });
 
   it('returns the dataset summary and records each dataset outcome', async () => {

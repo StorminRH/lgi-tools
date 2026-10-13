@@ -490,7 +490,7 @@ export function assembleBoard(
   names: NameBook,
   now: number,
   history: BoardHistoryDay[],
-): BoardResponse {
+): Omit<BoardResponse, 'refreshing'> {
   const stored = latestStoredWorth(history);
   return {
     characters: raws.map((raw) =>

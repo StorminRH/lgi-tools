@@ -7,8 +7,11 @@ describe('market-prices contract', () => {
     expectTypeOf<(typeof wirePriceSchema.shape.source)['options'][number]>().toEqualTypeOf<PriceSource>();
   });
 
-  it('accepts a bounded typeId batch', () => {
+  it('accepts a page\'s worth of type ids up to the 2000-id safety ceiling', () => {
     expect(refreshPricesRequestSchema.safeParse({ typeIds: [34, 35, 36] }).success).toBe(true);
+    const ceiling = Array.from({ length: 2000 }, (_, i) => i + 1);
+    expect(refreshPricesRequestSchema.safeParse({ typeIds: ceiling }).success).toBe(true);
+    expect(refreshPricesRequestSchema.safeParse({ typeIds: [...ceiling, 2001] }).success).toBe(false);
   });
 
   it('rejects an empty batch and non-positive ids', () => {

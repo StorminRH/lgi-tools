@@ -60,7 +60,7 @@ describe('withAdvisoryLock', () => {
 });
 
 it('registers each advisory-lock key once, as a safe integer outside the retired and test keys', () => {
-  const retiredKeys = [8_273_619_012, 8_273_619_016, 8_419_273_051];
+  const retiredKeys = [8_273_619_012, 8_273_619_014, 8_273_619_016, 8_273_619_017, 8_419_273_051];
   const concurrencyTestKey = 918_273_645;
   const keys = Object.values(ADVISORY_LOCKS);
 
@@ -77,9 +77,7 @@ it('keeps every advisory-lock key at its deployed value', () => {
   // "the same" lock at once, so each value is pinned to what production uses.
   expect(ADVISORY_LOCKS).toEqual({
     sdeIngest: 8_273_619_013,
-    industryIndices: 8_273_619_014,
     gscSync: 8_273_619_015,
-    esiRefreshQueue: 8_273_619_017,
     whStaticsRefresh: 8_273_619_018,
     mapPurge: 8_273_619_019,
   });

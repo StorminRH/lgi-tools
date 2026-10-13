@@ -39,9 +39,11 @@ describe('POST /api/market-history/refresh telemetry', () => {
   it('records stale-stored history without inventing a fallback source', async () => {
     const response = await POST(postJson(ROUTE, { typeIds: [34] }));
     expect(response.status).toBe(200);
+    // History stays a per-request limit: every request costs one, however many ids it carries.
     expect(checkRateLimitMock).toHaveBeenCalledWith(
       expect.any(Request),
-      expect.objectContaining({ name: 'market-history-refresh' }),
+      expect.objectContaining({ name: 'market-history-refresh', perMinute: 20 }),
+      1,
     );
     expect(getLiveHistoryMock).toHaveBeenCalledWith([34], expect.any(Function));
     expect(emitCostMetricMock).toHaveBeenCalledWith(

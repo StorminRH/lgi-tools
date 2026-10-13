@@ -1,4 +1,5 @@
-import type { CharacterSyncBase, SingleOwnerRead } from '@/platform/owner-sync';
+import type { EsiReadSession } from '@/data/esi-store/session';
+import type { CharacterSyncBase, OwnerWrite, SingleOwnerRead } from '@/platform/owner-sync';
 import type { SkillQueueEntry } from './esi-projection';
 
 export interface CharacterSkillData {
@@ -15,8 +16,6 @@ export interface CharacterSkillRow {
 
 export interface CharacterSkillSyncState {
   lastRefreshedAt: Date | null;
-  queueEtag: string | null;
-  skillsEtag: string | null;
 }
 
 export interface SkillsSaveHalves {
@@ -29,8 +28,11 @@ export interface SkillsSaveHalves {
   };
 }
 
-export interface SkillsPort extends CharacterSyncBase<CharacterSkillSyncState> {
-  readSkillQueue(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
-  readSkills(characterId: number, accessToken: string, heldEtag: string | null): Promise<SingleOwnerRead>;
-  saveSkills(characterId: number, halves: SkillsSaveHalves): Promise<void>;
+export interface SkillsPort extends CharacterSyncBase<CharacterSkillSyncState, EsiReadSession> {
+  readSkillQueue(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
+  readSkills(session: EsiReadSession, characterId: number, accessToken: string): Promise<SingleOwnerRead>;
+  /** The halves' write, which the refresh's commit runs atomically with its answers. */
+  saveSkills(characterId: number, halves: SkillsSaveHalves): OwnerWrite;
+  /** Records a settled refusal (no role-holder, a token that is gone) as the owner's stored answer, until `expiresAt` or the route's spec cache time. */
+  recordRefusal(characterId: number, expiresAt: number | null): Promise<void>;
 }

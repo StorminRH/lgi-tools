@@ -1,6 +1,6 @@
 /**
- * ESI paths read by more than one module, spelled once with the registry's
- * trailing slash so a registry-conformance test covers every caller. It
+ * ESI paths the map tracker reads, spelled once with the registry's
+ * trailing slash so a registry-conformance test covers every builder. It
  * imports nothing: the Convex isolate bundles platform/esi.
  */
 
@@ -14,12 +14,4 @@ export function characterShipPath(characterId: number): string {
 
 export function characterOnlinePath(characterId: number): string {
   return `/characters/${characterId}/online/`;
-}
-
-export function characterRolesPath(characterId: number): string {
-  return `/characters/${characterId}/roles/`;
-}
-
-export function universeStructurePath(structureId: number): string {
-  return `/universe/structures/${structureId}/`;
 }

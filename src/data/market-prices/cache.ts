@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { refreshPrices, type RefreshSummary } from './ingest';
+import { MARKET_PRICES_TAG } from './keys';
 import { listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
@@ -22,12 +23,18 @@ async function getPricesFreshness(
   return { lastUpdatedAt: row?.updatedAt ?? null };
 }
 
-export const PRICES_FRESHNESS_TAG = 'market-prices-freshness';
-
+/**
+ * When any price was last written, cached across instances until a price
+ * write clears the tag. It only aggregates stored rows and never refreshes
+ * anything, and every price write (the view's write-behind and the cron
+ * sweep) clears MARKET_PRICES_TAG, so the entry cannot outlive the rows it
+ * reads. Timing it by the earliest stored order book instead would rebuild
+ * it on nearly every request: some type's book has almost always expired.
+ */
 export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date | null }> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG);
   return withColdStartRetry(() => getPricesFreshness(db));
 }
 

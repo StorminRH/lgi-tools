@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { memoizeAsync, singleFlight } from './memoize';
+import { memoizeAsync, shareInFlight, singleFlight } from './memoize';
 
 test('singleFlight shares one load per key while it is in flight and loads again once it settles', async () => {
   const first = Promise.withResolvers<string>();
@@ -64,4 +64,41 @@ test('memoizeAsync calls through once per argument for the life of the wrapper, 
   const fresh = memoizeAsync(load);
   await expect(fresh(1)).resolves.toBe('row 1');
   expect(load).toHaveBeenCalledTimes(3);
+});
+
+test('shareInFlight shares a pending start in the caller\'s map, keeps nothing once it settles, and hands a rejection to every caller', async () => {
+  const inFlight = new Map<string, Promise<string>>();
+  const pending = Promise.withResolvers<string>();
+  const start = vi.fn(() => pending.promise);
+
+  const a = shareInFlight(inFlight, 'read', start);
+  const b = shareInFlight(inFlight, 'read', vi.fn(() => Promise.resolve('never asked')));
+  expect(start).toHaveBeenCalledOnce();
+  expect([...inFlight.keys()]).toEqual(['read']);
+
+  pending.resolve('rows');
+  await expect(Promise.all([a, b])).resolves.toEqual(['rows', 'rows']);
+  expect(inFlight.size).toBe(0);
+
+  const failure = new Error('offline');
+  const failing = Promise.withResolvers<string>();
+  const c = shareInFlight(inFlight, 'read', () => failing.promise);
+  const d = shareInFlight(inFlight, 'read', start);
+  failing.reject(failure);
+  await expect(c).rejects.toBe(failure);
+  await expect(d).rejects.toBe(failure);
+  expect(inFlight.size).toBe(0);
+  expect(start).toHaveBeenCalledOnce();
+});
+
+test('shareInFlight leaves an entry the caller replaced while the first was in flight', async () => {
+  const inFlight = new Map<string, Promise<string>>();
+  const first = Promise.withResolvers<string>();
+  const request = shareInFlight(inFlight, 'read', () => first.promise);
+  const replacement = Promise.resolve('newer');
+  inFlight.set('read', replacement);
+
+  first.resolve('older');
+  await expect(request).resolves.toBe('older');
+  expect(inFlight.get('read')).toBe(replacement);
 });

@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest';
 
-import AppSiteAdminQueuePage from '@/app/(site)/admin/queue/page';
 import AppSiteAdminSearchPage from '@/app/(site)/admin/search/page';
 import AppSiteAdminStaticsPage from '@/app/(site)/admin/statics/page';
 import { getStaticsReviewShared } from '@/app/(site)/admin/shared-reads';
@@ -37,7 +36,6 @@ import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(s
 
 test('pins leftover runtime exports on the test graph', () => {
   expect([
-    AppSiteAdminQueuePage,
     AppSiteAdminSearchPage,
     AppSiteAdminStaticsPage,
     getStaticsReviewShared,

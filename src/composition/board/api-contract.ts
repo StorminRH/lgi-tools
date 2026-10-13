@@ -176,6 +176,8 @@ export const boardResponseSchema = z.object({
   skillCatalog: z.array(skillCatalogGroupSchema),
   /** Oldest first, at most 365 recorded days; skipped days are simply absent. */
   history: z.array(historyDaySchema),
+  /** Whether the view started an ESI refresh behind this answer, so the board checks back for the newer data. */
+  refreshing: z.boolean(),
 });
 export type BoardResponse = z.infer<typeof boardResponseSchema>;
 

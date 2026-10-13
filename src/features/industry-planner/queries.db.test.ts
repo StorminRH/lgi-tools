@@ -8,6 +8,8 @@ import {
   industryTargetFilters,
   typeDogma,
 } from '@/data/eve-data/schema';
+import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
+import { INDUSTRY_INDICES_TAG } from '@/data/industry-indices/keys';
 import { adjustedPrices } from '@/data/industry-indices/schema';
 import type { TreeNode } from '@/data/eve-data/types';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
@@ -16,6 +18,8 @@ vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
   cacheTag: vi.fn(),
 }));
+
+import { cacheLife, cacheTag } from 'next/cache';
 
 import { getBlueprintAdjustedPrices, getBlueprintStructure } from './queries';
 
@@ -264,7 +268,14 @@ test.skipIf(!harness.reachable)(
     ]);
     // Intermediate products and their own nested inputs are needed for sub-job fees.
     // Duplicate Tritanium appears once; null prices and the final product stay out.
+    vi.mocked(cacheLife).mockClear();
+    vi.mocked(cacheTag).mockClear();
     const prices = await getBlueprintAdjustedPrices(1000);
+    // The entry outlives the instance until the next industry-indices commit
+    // (the on-view cost-index refresh or the daily cron's adjusted-price
+    // write) clears INDUSTRY_INDICES_TAG; its own directives come first.
+    expect(vi.mocked(cacheLife).mock.calls[0]).toEqual(['max']);
+    expect(vi.mocked(cacheTag).mock.calls[0]).toEqual([INDUSTRY_INDICES_TAG, SDE_CACHE_TAG]);
     expect(prices.sort((a, b) => a.typeId - b.typeId)).toEqual([
       { typeId: 34, adjustedPrice: 5 },
       { typeId: 2100, adjustedPrice: 120 },

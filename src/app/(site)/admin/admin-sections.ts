@@ -1,5 +1,4 @@
 import { longestSectionMatch } from '@/lib/section-path';
-import { formatQuantity } from '@/lib/format/number';
 import { parseRange, type RangeKey } from './period';
 
 export type AdminSectionId =
@@ -8,7 +7,6 @@ export type AdminSectionId =
   | 'esi'
   | 'traffic'
   | 'search'
-  | 'queue'
   | 'statics'
   | 'users'
   | 'primitives'
@@ -61,7 +59,6 @@ const SECTIONS = {
   traffic: section('traffic', '/admin/traffic', 'Traffic', { ranged: true }),
   search: section('search', '/admin/search', 'Search', { ranged: true }),
   users: section('users', '/admin/users', 'Users & roles'),
-  queue: section('queue', '/admin/queue', 'Refresh queue'),
   statics: section('statics', '/admin/statics', 'Wormhole statics'),
   primitives: section('primitives', '/preview/primitives', 'Primitives', { leavesConsole: true }),
   cards: section('cards', '/preview/cards', 'Site cards', { leavesConsole: true }),
@@ -93,7 +90,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     sections: [SECTIONS.health, SECTIONS.esi, SECTIONS.traffic, SECTIONS.search],
   },
   { id: 'accounts', label: 'Accounts', sections: [SECTIONS.users] },
-  { id: 'actions', label: 'Actions', sections: [SECTIONS.queue, SECTIONS.statics] },
+  { id: 'actions', label: 'Actions', sections: [SECTIONS.statics] },
   {
     id: 'reference',
     label: 'UI reference',
@@ -124,14 +121,8 @@ export function adminSectionHref(target: AdminSection, rawRange: string | null):
   return rangeHref(target.href, parseRange(rawRange));
 }
 
-export function deriveNavBadges(input: {
-  deadLettered: number;
-  staticsPending: boolean;
-}): AdminNavBadges {
+export function deriveNavBadges(input: { staticsPending: boolean }): AdminNavBadges {
   const badges: AdminNavBadges = {};
-  if (input.deadLettered > 0) {
-    badges.queue = { label: formatQuantity(input.deadLettered), tone: 'red' };
-  }
   if (input.staticsPending) {
     badges.statics = { label: '1', tone: 'orange' };
   }

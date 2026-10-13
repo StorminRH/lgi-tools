@@ -49,6 +49,7 @@ import {
   projectMapAccess,
   projectStagedMapAccess,
   ProjectionUnavailableError,
+  fenceMapAccessProjection,
   purgeUserMapAccessProjection,
   revokeUserMapClaims,
   teardownMapAccessProjection,
@@ -60,6 +61,7 @@ function affiliation(userId: string, characterId: number, corporationId: number 
     sharedAccessEligible: true,
     userId, characterId, corporationId, allianceId: null, factionId: null,
     refreshedAt: fresh ? new Date() : new Date(Date.now() - 2 * 60 * 60 * 1000),
+    expiresAt: fresh ? new Date(Date.now() + 60 * 60 * 1000) : null,
   };
 }
 
@@ -311,6 +313,23 @@ test('posts computed claims, refuses door/env/stale/purge failures, and does not
 
   await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
   expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
+});
+
+test('the pre-purge fence posts an empty claim set at a fresh revision and accepts a newer watermark', async () => {
+  resetProjectionMocks();
+  const result = (outcome: string) => Response.json({ inserted: 0, updated: 0, deleted: 2, unchanged: 0, outcome });
+  for (const outcome of ['applied', 'duplicate', 'stale']) {
+    mocks.fetchWithTimeout.mockResolvedValueOnce(result(outcome));
+    await expect(fenceMapAccessProjection('map-1')).resolves.toBeUndefined();
+  }
+  expect(mocks.fetchWithTimeout).toHaveBeenLastCalledWith(
+    'http://127.0.0.1:3211/project-map-access',
+    expect.objectContaining({ body: JSON.stringify({ mapId: 'map-1', revision: 41, claims: [] }) }),
+  );
+  expect(mocks.getMapAccessSubject).not.toHaveBeenCalled();
+
+  mocks.fetchWithTimeout.mockResolvedValueOnce(new Response('nope', { status: 503 }));
+  await expect(fenceMapAccessProjection('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
 });
 
 test('ordinary reprojection empties archived maps; the creation seam still projects the hidden staging row', async () => {

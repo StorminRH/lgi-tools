@@ -117,7 +117,7 @@ test('a finalize failure still settles the account, then rethrows', async () => 
   expect(runners.runAfterFailedCharacterUnlink).not.toHaveBeenCalled();
 });
 
-test('a reconcile failure skips the link-changed runners and the settle hook', async () => {
+test('a reconcile failure still runs the link-changed runners and the settle hook, then rethrows', async () => {
   const { log, runners, remove, afterSettle } = harness();
   const failure = new Error('map purge unavailable');
   reconcile.mockImplementationOnce(async () => {
@@ -126,7 +126,5 @@ test('a reconcile failure skips the link-changed runners and the settle hook', a
   });
 
   await expect(unlinkCharacter({ userId: 'u1', characterId: 100, runners, remove, afterSettle })).rejects.toBe(failure);
-  expect(log).toEqual(['revoke', 'remove', 'finalize', 'reconcile']);
-  expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
-  expect(afterSettle).not.toHaveBeenCalled();
+  expect(log).toEqual(['revoke', 'remove', 'finalize', 'reconcile', 'linkChanged', 'afterSettle:true']);
 });

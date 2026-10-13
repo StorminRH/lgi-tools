@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
+import type { PagedOwnerReadResult } from '@/platform/owner-sync';
 import { ownedDatasetPortFake, ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCharacterOwnedAssetsForUser, refreshOwnedAssetsForUser } from './refresh';
 import type { OwnedAssetsPort } from './types';
@@ -22,13 +22,15 @@ function esiAsset(typeId: number, quantity = 1000) {
 const makePort = (overrides: Partial<OwnedAssetsPort> = {}): OwnedAssetsPort =>
   ownedDatasetPortFake(NOW, overrides);
 
-const fresh = (): PagedOwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-28T11:30:00Z'), pageEtags: [] });
+const CHARACTER_1 = { ownerType: 'character', ownerId: 1 } as const;
+const CORP_5000 = { ownerType: 'corporation', ownerId: 5000 } as const;
+const readOwners = (port: OwnedAssetsPort) => vi.mocked(port.read).mock.calls.map(([, owner]) => owner);
 
 describe('refreshOwnedAssetsForUser — character path', () => {
-  it('makes no token vend and no ESI call when the owner is fresh (the staleness gate)', async () => {
+  it('makes no token vend and no ESI call while the stored answer is unexpired (the store is the gate)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1)]),
-      readSyncState: vi.fn(async () => fresh()),
+      isDue: vi.fn(async () => false),
     });
 
     await refreshOwnedAssetsForUser(port, 'u1');
@@ -54,25 +56,25 @@ describe('refreshOwnedAssetsForUser — character path', () => {
 
     await refreshOwnedAssetsForUser(port, 'u1');
 
-    expect(port.read).toHaveBeenCalledWith('/characters/1/assets/', 'token', []);
+    expect(port.read).toHaveBeenCalledWith(expect.anything(), CHARACTER_1, 'token');
     const save = vi.mocked(port.save).mock.calls[0]!;
-    expect(save[0]).toEqual({ ownerType: 'character', ownerId: 1 });
+    expect(save[0]).toEqual(CHARACTER_1);
     expect(save[1]).toEqual([
       { type_id: 34, quantity: 1500, location_id: 60003760, location_flag: 'Hangar', location_type: 'station' },
     ]);
     expect(save[2]).toEqual(['"e1"']);
   });
 
-  it('replays held etags and only stamps freshness on a 304 (no row rewrite)', async () => {
+  it('only stamps freshness on an unchanged answer (no row rewrite)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1)]),
-      readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, pageEtags: ['"held"'] })),
+      readSyncState: vi.fn(async () => ({ lastRefreshedAt: null })),
       read: vi.fn(async (): Promise<PagedOwnerReadResult> => ({ kind: 'unchanged' })),
     });
 
     await refreshOwnedAssetsForUser(port, 'u1');
 
-    expect(port.read).toHaveBeenCalledWith('/characters/1/assets/', 'token', ['"held"']);
+    expect(port.read).toHaveBeenCalledWith(expect.anything(), CHARACTER_1, 'token');
     expect(port.stampFresh).toHaveBeenCalledOnce();
     expect(port.save).not.toHaveBeenCalled();
   });
@@ -107,6 +109,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
 
     await refreshOwnedAssetsForUser(port, 'u1');
 
+    expect(port.isDue).not.toHaveBeenCalled();
     expect(port.readSyncState).not.toHaveBeenCalled();
     expect(port.read).not.toHaveBeenCalled();
   });
@@ -132,7 +135,7 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
 
     await refreshOwnedAssetsForUser(port, 'u1');
 
-    expect(port.read).toHaveBeenCalledWith('/corporations/5000/assets/', 'token-2', []);
+    expect(port.read).toHaveBeenCalledWith(expect.anything(), CORP_5000, 'token-2');
     const corpSave = vi
       .mocked(port.save)
       .mock.calls.find(([owner]) => owner.ownerType === 'corporation');
@@ -148,16 +151,14 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
 
     await refreshOwnedAssetsForUser(port, 'u1');
 
-    const corpRead = vi
-      .mocked(port.read)
-      .mock.calls.find(([path]) => path.includes('/corporations/'));
-    expect(corpRead).toBeUndefined();
+    expect(readOwners(port).find((owner) => owner.ownerType === 'corporation')).toBeUndefined();
+    expect(port.recordRefusal).toHaveBeenCalledExactlyOnceWith(CORP_5000, null);
   });
 
-  it('reads no corp roles when the corp is fresh (the corp staleness gate)', async () => {
+  it('reads no corp roles while the corp answer is unexpired (the corp gate is the store too)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1, { corporationId: 5000 })]),
-      readSyncState: vi.fn(async () => fresh()),
+      isDue: vi.fn(async () => false),
       readRoles: vi.fn(async () => ['Director']),
     });
 
@@ -181,9 +182,9 @@ describe('refreshCharacterOwnedAssetsForUser — the board variant', () => {
 
     await refreshCharacterOwnedAssetsForUser(port, 'u1');
 
-    expect(vi.mocked(port.read).mock.calls.map(([path]) => path).sort()).toEqual([
-      '/characters/1/assets/',
-      '/characters/2/assets/',
+    expect(readOwners(port).sort((a, b) => a.ownerId - b.ownerId)).toEqual([
+      CHARACTER_1,
+      { ownerType: 'character', ownerId: 2 },
     ]);
     expect(port.readRoles).not.toHaveBeenCalled();
     expect(vi.mocked(port.save).mock.calls.map(([owner]) => owner)).toEqual([
@@ -192,10 +193,10 @@ describe('refreshCharacterOwnedAssetsForUser — the board variant', () => {
     ]);
   });
 
-  it('still honours the assets scope and the staleness gate', async () => {
+  it('still honours the assets scope and the store gate', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [ownerFixture(1, { missingScopes: [CHAR_ASSETS_SCOPE] }), ownerFixture(2)]),
-      readSyncState: vi.fn(async () => fresh()),
+      isDue: vi.fn(async () => false),
     });
 
     await refreshCharacterOwnedAssetsForUser(port, 'u1');

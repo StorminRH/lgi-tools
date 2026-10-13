@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   readPendingMapAccessChanges: vi.fn(),
   eraseNetWorthHistoryForCharacter: vi.fn(),
   revalueAfterRosterChange: vi.fn(),
+  reopenOwnedMaps: vi.fn(),
 }));
 
 vi.mock('@/features/net-worth/purge', () => ({
@@ -36,6 +37,10 @@ vi.mock('@/composition/map-access-projection', async (importOriginal) => ({
   projectMapAccess: mocks.projectMapAccess,
   purgeUserMapAccessProjection: mocks.purgeUserMapAccessProjection,
   revokeUserMapClaims: mocks.revokeUserMapClaims,
+}));
+
+vi.mock('@/data/maps/lifecycle', () => ({
+  reopenOwnedMaps: mocks.reopenOwnedMaps,
 }));
 
 vi.mock('@/composition/map-purge', () => ({
@@ -194,5 +199,23 @@ describe('map-access-identity', () => {
     await expect(teardownProjectionsForDeletedUser('user-gone')).rejects.toBe(failure);
     expect(mocks.purgeUserMapAccessProjection).not.toHaveBeenCalled();
     expect(mocks.teardownLocationTracking).not.toHaveBeenCalled();
+  });
+});
+
+describe('runAfterCharacterLinkChanged reopening', () => {
+  it('reopens the maps a deletion tombstoned whenever a link changes, best-effort', async () => {
+    mocks.reopenOwnedMaps.mockResolvedValueOnce(undefined);
+    await identityProjectionRunners.runAfterCharacterLinkChanged({ userId: 'user-kept', characterId: 7 });
+    expect(mocks.reopenOwnedMaps).toHaveBeenCalledExactlyOnceWith('user-kept');
+    expect(mocks.revalueAfterRosterChange).toHaveBeenCalledWith('user-kept');
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.reopenOwnedMaps.mockRejectedValueOnce(new Error('db down'));
+    await expect(
+      identityProjectionRunners.runAfterCharacterLinkChanged({ userId: 'user-kept', characterId: 7 }),
+    ).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(mocks.revalueAfterRosterChange).toHaveBeenCalledTimes(2);
+    errorSpy.mockRestore();
   });
 });
