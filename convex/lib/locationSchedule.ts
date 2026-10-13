@@ -1,5 +1,5 @@
 import { internal } from '../_generated/api';
-import type { Doc } from '../_generated/dataModel';
+import type { Doc, Id } from '../_generated/dataModel';
 import type { DatabaseReader, MutationCtx } from '../_generated/server';
 import { clearCoverageForUser } from './locationCoverage';
 
@@ -47,12 +47,16 @@ export async function ensureLocationSync(
   return created;
 }
 
+/**
+ * Whether a scheduled job is still live. A missing id (null on locationSync,
+ * undefined on a presence that never armed a check) reads as 'none'.
+ */
 export async function runState(
   db: DatabaseReader,
-  state: LocationSyncState,
+  jobId: Id<'_scheduled_functions'> | null | undefined,
 ): Promise<RunState> {
-  if (state.jobId === null) return 'none';
-  const job = await db.system.get('_scheduled_functions', state.jobId);
+  if (jobId == null) return 'none';
+  const job = await db.system.get('_scheduled_functions', jobId);
   if (job === null) return 'none';
   const kind = job.state.kind;
   return kind === 'pending' || kind === 'inProgress' ? kind : 'none';
@@ -64,7 +68,7 @@ function nextRunId(state: LocationSyncState, now: number): number {
 
 // Cancelling a finished job throws in production, so only a pending job is cancelled.
 async function cancelPending(ctx: MutationCtx, state: LocationSyncState): Promise<void> {
-  if (await runState(ctx.db, state) === 'pending' && state.jobId !== null) {
+  if (state.jobId !== null && await runState(ctx.db, state.jobId) === 'pending') {
     await ctx.scheduler.cancel(state.jobId);
   }
 }
@@ -93,7 +97,7 @@ export async function scheduleRun(
 }
 
 /** Stops the user's sync: no run stays scheduled and any in-flight result is dropped. */
-export async function stopSync(
+async function stopSync(
   ctx: MutationCtx,
   state: LocationSyncState,
   now: number,
@@ -101,4 +105,19 @@ export async function stopSync(
   await cancelPending(ctx, state);
   await ctx.db.patch('locationSync', state._id, { runId: nextRunId(state, now), jobId: null });
   await clearCoverageForUser(ctx, state.userId);
+}
+
+/**
+ * Retires the user's location sync: stops the run when they have sync state,
+ * otherwise just clears their coverage. Returns the state that was stopped.
+ */
+export async function retireLocationSync(
+  ctx: MutationCtx,
+  userId: string,
+  now: number,
+): Promise<LocationSyncState | null> {
+  const state = await getLocationSync(ctx.db, userId);
+  if (state !== null) await stopSync(ctx, state, now);
+  else await clearCoverageForUser(ctx, userId);
+  return state;
 }

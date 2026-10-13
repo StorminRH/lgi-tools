@@ -285,6 +285,28 @@ describe('ambiguous jump identity', () => {
     expect(await state(t)).toEqual(withOther);
   });
 
+  it('rejects an answer once the origin system is removed (UNKNOWN_ORIGIN, no detail) and preserves the pending jump', async () => {
+    const { t, candidates, args } = await setup();
+    const sourceId = await pending(t, args);
+    const targetId = candidates[1];
+    if (targetId === undefined) throw new Error('missing candidate');
+    await t.run(async (ctx) => {
+      const origin = await ctx.db
+        .query('mapSystems')
+        .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', FROM))
+        .unique();
+      if (origin === null) throw new Error('missing origin');
+      await ctx.db.patch('mapSystems', origin._id, { deletedAt: AT, purgeAfter: AT + 1 });
+    });
+    const before = await state(t);
+    const refused = await expectConvexErrorCode(
+      t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, targetId)),
+      'UNKNOWN_ORIGIN',
+    );
+    expect(refused.data).toEqual({ code: 'UNKNOWN_ORIGIN' });
+    expect(await state(t)).toEqual(before);
+  });
+
   it('does not absorb an awaiting jump as an unlabelled counterpart during elimination', async () => {
     const { t, candidates, args } = await setup();
     const sourceId = await pending(t, args);

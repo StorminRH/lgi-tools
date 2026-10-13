@@ -1139,6 +1139,26 @@ describe('engine.sweep (daily retention)', () => {
     expect(await scheduledSyncUsers(t)).toHaveLength(0);
   });
 
+  it('clears coverage for abandoned location presence without sync state and counts only sync rows', async () => {
+    const t = convexTest(schema, modules);
+    const abandonedAt = Date.now() - RETENTION_MS - 5000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-stateless', lastSeenAt: abandonedAt });
+      await ctx.db.insert('characterLocationCovered', { userId: 'u-stateless', characterId: CHAR });
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u-retired', lastSeenAt: abandonedAt });
+      await ctx.db.insert('characterLocationCovered', { userId: 'u-retired', characterId: CHAR });
+    });
+
+    expect(await t.mutation(internal.engineSweep.sweep, {})).toEqual({ deleted: 0, capped: false });
+
+    const after = await t.run(async (ctx) => ({
+      presence: await ctx.db.query('syncPresence').collect(),
+      state: await ctx.db.query('locationSync').collect(),
+      covered: (await ctx.db.query('characterLocationCovered').collect()).map((row) => row.userId),
+    }));
+    expect(after).toEqual({ presence: [], state: [], covered: ['u-retired'] });
+  });
+
   it('drains retired-dataset leftovers and the characterOnline table', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
@@ -1379,6 +1399,19 @@ describe('scheduler migration and independent liveness', () => {
       expect(presence?.expiryJobId).not.toBe(dead);
       expect((await jobById(t, presence!.expiryJobId!))?.state.kind).toBe('pending');
     }
+  });
+
+  it('re-arms liveness when the recorded check failed', async () => {
+    const t = convexTest(schema, modules);
+    const failed = await terminalJob(t, 'failed');
+    await seedPresence(t, { ...warmPresence(), expiryJobId: failed });
+
+    await heartbeat(t, { characterIdsHint: [], reason: 'mount' });
+
+    const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(presence?.expiryJobId).not.toBe(failed);
+    expect((await jobById(t, presence!.expiryJobId!))?.state.kind).toBe('pending');
+    expect(await scheduledFunctionsNamed(t, 'expirePresence')).toHaveLength(1);
   });
 
   it('extends one liveness check for fresh presence and stops after that presence expires', async () => {

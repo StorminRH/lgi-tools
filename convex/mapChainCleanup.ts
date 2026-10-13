@@ -1,17 +1,20 @@
 import { v } from 'convex/values';
-import { MAP_CHAIN_UNDO_WINDOW_MS, isTombstoned } from '@/data/maps/chain-contract';
+import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { errorCode } from './lib/errorCode';
 import {
+  deleteIndexedBatch,
   queryMapSignatureActivity,
   queryMapSignatures,
   takeExpiredByPurgeAfter,
 } from './lib/indexedQuery';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
+import { findLiveSystem, findSystem } from './lib/mapSystemLookup';
+import { trackedPilotSystemsByMap, type TrackedPilotSystems } from './lib/mapTrackedPilots';
 import { settleRemovedConnection } from './mapAuthoringCollapse';
 import { CEILING_SWEEP_ACTOR } from './mapAuthoringSweep';
-import { readTrackedPilotSystemIds } from './mapTrackingLive';
 
 export const CHAIN_PURGE_BATCH = 128;
 /** Signature and activity rows one pass may delete along with purged systems. */
@@ -40,13 +43,7 @@ async function endpointIsLive(
   const key = `${mapId}:${systemId}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
-  const endpoint = await ctx.db
-    .query('mapSystems')
-    .withIndex('by_map_system', (q) =>
-      q.eq('mapId', mapId).eq('systemId', systemId),
-    )
-    .unique();
-  const live = endpoint !== null && !isTombstoned(endpoint);
+  const live = (await findLiveSystem(ctx, mapId, systemId)) !== null;
   cache.set(key, live);
   return live;
 }
@@ -61,19 +58,19 @@ async function deleteSystemChildren(
   system: Pick<Doc<'mapSystems'>, 'mapId' | 'systemId'>,
   budget: number,
 ): Promise<{ deleted: number; done: boolean }> {
-  const signatures = await queryMapSignatures(ctx, system.mapId, system.systemId).take(budget + 1);
-  const doomedSignatures = signatures.slice(0, budget);
-  for (const signature of doomedSignatures) await ctx.db.delete(signature._id);
-  if (signatures.length > budget) return { deleted: doomedSignatures.length, done: false };
+  const signatures = await deleteIndexedBatch(
+    queryMapSignatures(ctx, system.mapId, system.systemId),
+    budget,
+    (signature) => ctx.db.delete('mapSignatures', signature._id),
+  );
+  if (signatures.hasMore) return { deleted: signatures.deleted, done: false };
 
-  const room = budget - doomedSignatures.length;
-  const activity = await queryMapSignatureActivity(ctx, system.mapId, system.systemId).take(room + 1);
-  const doomedActivity = activity.slice(0, room);
-  for (const row of doomedActivity) await ctx.db.delete(row._id);
-  return {
-    deleted: doomedSignatures.length + doomedActivity.length,
-    done: activity.length <= room,
-  };
+  const activity = await deleteIndexedBatch(
+    queryMapSignatureActivity(ctx, system.mapId, system.systemId),
+    budget - signatures.deleted,
+    (row) => ctx.db.delete('mapSignatureActivity', row._id),
+  );
+  return { deleted: signatures.deleted + activity.deleted, done: !activity.hasMore };
 }
 
 async function purgeExpiredSystems(
@@ -98,19 +95,7 @@ async function purgeExpiredSystems(
 
 interface SettleState {
   readonly liveness: Map<string, boolean>;
-  readonly tracked: Map<string, ReadonlySet<number>>;
-}
-
-async function trackedFor(
-  ctx: MutationCtx,
-  state: SettleState,
-  mapId: string,
-): Promise<ReadonlySet<number>> {
-  const cached = state.tracked.get(mapId);
-  if (cached !== undefined) return cached;
-  const tracked = await readTrackedPilotSystemIds(ctx, mapId);
-  state.tracked.set(mapId, tracked);
-  return tracked;
+  readonly tracked: TrackedPilotSystems;
 }
 
 type ConnectionFate = 'deleted' | 'branch_removed' | 'held' | 'retry' | 'deferred';
@@ -130,14 +115,12 @@ async function settleExpiredConnection(
     const outcome = await settleRemovedConnection(
       ctx,
       { ...connection, toSystemId },
-      await trackedFor(ctx, state, connection.mapId),
+      await state.tracked(connection.mapId),
       CEILING_SWEEP_ACTOR,
     );
     if (outcome === 'held') {
       // Check again tomorrow; until then it shows as a restorable removed connection.
-      await ctx.db.patch(connection._id, {
-        tombstone: { ...tombstone, purgeAfter: now + MAP_CHAIN_UNDO_WINDOW_MS },
-      });
+      await setRemovedPurgeAfter(ctx, connection, now + MAP_CHAIN_UNDO_WINDOW_MS);
       return 'held';
     }
     if (outcome === 'branch_removed') {
@@ -152,9 +135,7 @@ async function settleExpiredConnection(
       connectionId: connection._id,
       error: errorCode(error),
     }));
-    await ctx.db.patch(connection._id, {
-      tombstone: { ...tombstone, purgeAfter: now + MAP_CHAIN_UNDO_WINDOW_MS },
-    });
+    await setRemovedPurgeAfter(ctx, connection, now + MAP_CHAIN_UNDO_WINDOW_MS);
     return 'retry';
   }
   await ctx.db.delete(connection._id);
@@ -177,7 +158,7 @@ async function purgeExpiredConnections(
   hasMore: boolean;
 }> {
   const expired = await takeExpiredByPurgeAfter(ctx, 'mapConnections', now, CHAIN_PURGE_BATCH + 1);
-  const state: SettleState = { liveness: new Map(), tracked: new Map() };
+  const state: SettleState = { liveness: new Map(), tracked: trackedPilotSystemsByMap(ctx) };
   const fates: Record<ConnectionFate, number> = { deleted: 0, branch_removed: 0, held: 0, retry: 0, deferred: 0 };
   let settled = 0;
   for (const candidate of expired.slice(0, CHAIN_PURGE_BATCH)) {
@@ -215,15 +196,12 @@ async function purgeExpiredEvents(
   ctx: MutationCtx,
   now: number,
 ): Promise<{ deletedEvents: number; hasMore: boolean }> {
-  const expired = await ctx.db
-    .query('mapEvents')
-    .withIndex('by_purge_after', (q) => q.lte('purgeAfter', now))
-    .take(CHAIN_PURGE_BATCH + 1);
-  const doomed = expired.slice(0, CHAIN_PURGE_BATCH);
-  for (const event of doomed) {
-    await ctx.db.delete(event._id);
-  }
-  return { deletedEvents: doomed.length, hasMore: expired.length > CHAIN_PURGE_BATCH };
+  const { deleted, hasMore } = await deleteIndexedBatch(
+    ctx.db.query('mapEvents').withIndex('by_purge_after', (q) => q.lte('purgeAfter', now)),
+    CHAIN_PURGE_BATCH,
+    (event) => ctx.db.delete('mapEvents', event._id),
+  );
+  return { deletedEvents: deleted, hasMore };
 }
 
 async function purgeExpiredChainTombstonesAt(
@@ -297,11 +275,11 @@ async function expireKeptConnections(ctx: MutationCtx, now: number): Promise<{ c
     .query('mapConnections')
     .withIndex('by_purge_after', (q) => q.eq('tombstone.purgeAfter', null))
     .take(CHAIN_RETENTION_BACKFILL_BATCH);
+  let changed = 0;
   for (const connection of kept) {
-    if (connection.tombstone.kind !== 'removed') continue;
-    await ctx.db.patch(connection._id, { tombstone: { ...connection.tombstone, purgeAfter: now } });
+    if (await setRemovedPurgeAfter(ctx, connection, now)) changed += 1;
   }
-  return { changed: kept.length, done: kept.length < CHAIN_RETENTION_BACKFILL_BATCH };
+  return { changed, done: kept.length < CHAIN_RETENTION_BACKFILL_BATCH };
 }
 
 /** Signature and activity rows left behind by systems purged before their children were. */
@@ -319,11 +297,8 @@ async function deleteOrphanedChildren(
     const key = `${row.mapId}:${row.systemId}`;
     let exists = systemExists.get(key);
     if (exists === undefined) {
-      const system = await ctx.db
-        .query('mapSystems')
-        .withIndex('by_map_system', (q) => q.eq('mapId', row.mapId).eq('systemId', row.systemId))
-        .unique();
-      exists = system !== null;
+      // Existence, not liveness: a tombstoned system's signatures stay restorable.
+      exists = (await findSystem(ctx, row.mapId, row.systemId)) !== null;
       systemExists.set(key, exists);
     }
     if (!exists) {

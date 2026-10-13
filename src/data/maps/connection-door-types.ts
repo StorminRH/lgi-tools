@@ -8,7 +8,12 @@ import type {
   ConnectionDoorValue,
   ConnectionIdentity,
 } from '@/data/maps/connection-hallway';
-import { blankDoor, hallwayDoorTypes, identityFromDoors } from '@/data/maps/connection-hallway';
+import {
+  blankDoor,
+  hallwayDoorTypes,
+  identityEquals,
+  identityFromDoors,
+} from '@/data/maps/connection-hallway';
 
 export interface ConnectionDoorTypes {
   readonly from: string | null;
@@ -84,6 +89,23 @@ export function connectionTypePatch(
     ...doors,
     identity: identityFromDoors(doors.from.typeCode, doors.to.typeCode, provenance),
   };
+}
+
+export function sameDoorTyping(
+  hallway: {
+    readonly from: ConnectionDoorValue;
+    readonly to: ConnectionDoorValue;
+    readonly identity: ConnectionIdentity;
+  },
+  patch: {
+    readonly from: ConnectionDoorValue;
+    readonly to: ConnectionDoorValue;
+    readonly identity: ConnectionIdentity;
+  },
+): boolean {
+  return hallway.from.typeCode === patch.from.typeCode
+    && hallway.to.typeCode === patch.to.typeCode
+    && identityEquals(hallway.identity, patch.identity);
 }
 
 export function returnDoorTypePatch(

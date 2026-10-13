@@ -28,6 +28,12 @@ export function authorizedAction(
   });
 }
 
+/** The body of a per-user Convex purge door: the user, and one character or null for all of them. */
+export const userPurgeBodySchema = z.object({
+  userId: z.string(),
+  characterId: z.number().nullable(),
+});
+
 export function authorizedJsonAction<T>(
   schema: z.ZodType<T>,
   handle: (ctx: ActionCtx, body: T) => Promise<Response>,

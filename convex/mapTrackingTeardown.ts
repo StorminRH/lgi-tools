@@ -1,6 +1,6 @@
 import type { Doc } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
-import type { MapClaimCharacter } from './lib/mapEntityContracts';
+import { deleteIndexedBatch, type IndexedBatchDeleteResult } from './lib/indexedQuery';
 import { deleteForMapCharacter } from './mapJumpBookkeeping';
 
 export async function deleteTrackingRow(
@@ -25,65 +25,33 @@ export async function deleteBookkeepingIfUntracked(
   return deleteForMapCharacter(ctx, mapId, characterId);
 }
 
-async function deleteUserTrackingWhere(
+/**
+ * Reads the map's tracking once and deletes every row `keep` rejects, with
+ * its bookkeeping. The read never throws on capacity: revocation must not
+ * fail closed on an over-cap map, and every insert path enforces the cap.
+ */
+export async function pruneMapTracking(
   ctx: MutationCtx,
   mapId: string,
-  userId: string,
-  shouldDelete: (row: Doc<'mapTracking'>) => boolean,
-): Promise<void> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
-    .collect();
-  for (const row of rows) {
-    if (shouldDelete(row)) await deleteTrackingRow(ctx, row);
-  }
-}
-
-export function deleteTrackingForUser(
-  ctx: MutationCtx,
-  mapId: string,
-  userId: string,
-): Promise<void> {
-  return deleteUserTrackingWhere(ctx, mapId, userId, () => true);
-}
-
-/** A character that stopped matching a grant loses its tracking while the account keeps its claim. */
-export function deleteTrackingOutsideCharacters(
-  ctx: MutationCtx,
-  mapId: string,
-  userId: string,
-  characters: readonly MapClaimCharacter[],
-): Promise<void> {
-  const eligible = new Set(characters.map((character) => character.characterId));
-  return deleteUserTrackingWhere(ctx, mapId, userId, (row) => !eligible.has(row.characterId));
-}
-
-export async function deleteAllTrackingForMap(
-  ctx: MutationCtx,
-  mapId: string,
+  keep: (row: Doc<'mapTracking'>) => boolean,
 ): Promise<void> {
   const rows = await ctx.db
     .query('mapTracking')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
     .collect();
   for (const row of rows) {
-    await deleteTrackingRow(ctx, row);
+    if (!keep(row)) await deleteTrackingRow(ctx, row);
   }
 }
 
-export async function purgeTrackingForUserBatch(
+export function purgeTrackingForUserBatch(
   ctx: MutationCtx,
   userId: string,
   limit: number,
-): Promise<{ deleted: number; hasMore: boolean }> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_user_character', (q) => q.eq('userId', userId))
-    .take(limit + 1);
-  const doomed = rows.slice(0, limit);
-  for (const row of doomed) {
-    await deleteTrackingRow(ctx, row);
-  }
-  return { deleted: doomed.length, hasMore: rows.length > limit };
+): Promise<IndexedBatchDeleteResult> {
+  return deleteIndexedBatch(
+    ctx.db.query('mapTracking').withIndex('by_user_character', (q) => q.eq('userId', userId)),
+    limit,
+    (row) => deleteTrackingRow(ctx, row),
+  );
 }

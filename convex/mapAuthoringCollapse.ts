@@ -5,17 +5,14 @@ import {
   isTombstoned,
   tombstoneDeletedAt,
 } from '@/data/maps/chain-contract';
-import {
-  decideCollapse,
-  type CollapseDecision,
-  type PilotsPresent,
-} from '@/data/maps/chain-collapse';
+import { decideCollapse, type CollapseDecision } from '@/data/maps/chain-collapse';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
-import { requireMapAccess } from './lib/mapAccess';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
+import { gatedAuthoringEdit, writeMapEvent } from './lib/mapAuthoringEvents';
+import { setRemovedPurgeAfter } from './lib/mapConnectionTombstone';
 import { deleteUnclaimedRespawn, respawnAfterTombstone } from './lib/mapStaticClaim';
 import { deleteSignatureActivity } from './lib/mapSignatures';
-import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 
 export const COLLAPSE_MAP_SCAN_CAP = 128;
 
@@ -28,23 +25,23 @@ async function readBoundedMapTopology(
   ctx: MutationCtx,
   mapId: string,
 ): Promise<BoundedMapTopology> {
-  const systems = await ctx.db
-    .query('mapSystems')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(COLLAPSE_MAP_SCAN_CAP + 1);
-  const connections = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(COLLAPSE_MAP_SCAN_CAP + 1);
-  if (
-    systems.length > COLLAPSE_MAP_SCAN_CAP ||
-    connections.length > COLLAPSE_MAP_SCAN_CAP
-  ) {
-    throw new ConvexError({
-      code: 'MAP_TOO_LARGE',
-      detail: `Map ${mapId} exceeds the ${COLLAPSE_MAP_SCAN_CAP}-row collapse bound.`,
-    });
-  }
+  // Both reads share one bound, so whichever overflows raises the same error.
+  const bound = {
+    code: 'MAP_TOO_LARGE',
+    detail: `Map ${mapId} exceeds the ${COLLAPSE_MAP_SCAN_CAP}-row collapse bound.`,
+  };
+  const [systems, connections] = await Promise.all([
+    takeIndexedOrThrow(
+      ctx.db.query('mapSystems').withIndex('by_map', (q) => q.eq('mapId', mapId)),
+      COLLAPSE_MAP_SCAN_CAP,
+      bound,
+    ),
+    takeIndexedOrThrow(
+      ctx.db.query('mapConnections').withIndex('by_map', (q) => q.eq('mapId', mapId)),
+      COLLAPSE_MAP_SCAN_CAP,
+      bound,
+    ),
+  ]);
   return { systems, connections };
 }
 
@@ -77,10 +74,11 @@ function uniqueTombstoneStamp(
   return deletedAt;
 }
 
+type RemoveCollapseDecision = Extract<CollapseDecision, { kind: 'remove' }>;
+
 function collapseDecision(
   topology: BoundedMapTopology,
   cut: Doc<'mapConnections'>,
-  pilotsPresent: PilotsPresent,
 ): CollapseDecision {
   if (isTombstoned(cut)) {
     throw new ConvexError({
@@ -125,33 +123,32 @@ function collapseDecision(
       fromSystemId: row.fromSystemId,
       toSystemId: row.toSystemId,
     })),
-    pilotsPresent,
   });
 }
 
+/** A manual sever passes 'unknown' and removes a cut-off branch whoever is in it. */
 export type CollapsePilotsPresent =
-  | PilotsPresent
+  | 'unknown'
   | { readonly trackedInSystemIds: ReadonlySet<number> };
+
+function pilotInRemovedBranch(
+  decision: RemoveCollapseDecision,
+  tracked: ReadonlySet<number>,
+): boolean {
+  return decision.systemIds.some((systemId) => tracked.has(systemId));
+}
 
 function collapseOutcome(
   topology: BoundedMapTopology,
   cut: Doc<'mapConnections'>,
-  pilotsPresent: CollapsePilotsPresent,
+  pilots: CollapsePilotsPresent,
 ): CollapseDecision {
-  if (typeof pilotsPresent === 'string') {
-    return collapseDecision(topology, cut, pilotsPresent);
-  }
-  const preview = collapseDecision(topology, cut, 'absent');
-  if (preview.kind === 'retain') return preview;
-  const pilotInOrphanedBranch = preview.systemIds.some((systemId) =>
-    pilotsPresent.trackedInSystemIds.has(systemId),
-  );
-  return pilotInOrphanedBranch
-    ? collapseDecision(topology, cut, 'present')
-    : preview;
+  const decision = collapseDecision(topology, cut);
+  if (pilots === 'unknown' || decision.kind === 'retain') return decision;
+  return pilotInRemovedBranch(decision, pilots.trackedInSystemIds)
+    ? { kind: 'retain' }
+    : decision;
 }
-
-type RemoveCollapseDecision = Extract<CollapseDecision, { kind: 'remove' }>;
 
 interface SeverWriteContext {
   readonly ctx: MutationCtx;
@@ -250,13 +247,7 @@ async function stampRemovedRows(
     await retainRemovedConnection(input.ctx, connection, input.deletedAt);
   }
   for (const connection of skeletonsToRearm) {
-    if (connection.tombstone.kind !== 'removed') continue;
-    await input.ctx.db.patch(connection._id, {
-      tombstone: {
-        ...connection.tombstone,
-        purgeAfter: input.stamps.purgeAfter,
-      },
-    });
+    await setRemovedPurgeAfter(input.ctx, connection, input.stamps.purgeAfter);
   }
 }
 
@@ -331,9 +322,9 @@ export async function settleRemovedConnection(
     systems: topology.systems,
     connections: [...topology.connections.filter((row) => row._id !== removed._id), live],
   };
-  const decision = collapseDecision(withCut, live, 'absent');
+  const decision = collapseDecision(withCut, live);
   if (decision.kind === 'retain') return 'still_linked';
-  if (decision.systemIds.some((systemId) => trackedInSystemIds.has(systemId))) return 'held';
+  if (pilotInRemovedBranch(decision, trackedInSystemIds)) return 'held';
   const deletedAt = uniqueTombstoneStamp(topology, Date.now());
   await writeRemovedSever(
     {
@@ -424,15 +415,6 @@ export async function runBranchRestore(
     },
   });
   return { restored: true as const };
-}
-
-async function gatedAuthoringEdit<T>(
-  ctx: MutationCtx,
-  mapId: string,
-  run: (actor: string) => Promise<T>,
-): Promise<T> {
-  await requireMapAccess(ctx, mapId, 'edit');
-  return run(await eventActor(ctx, mapId));
 }
 
 export const severConnection = mutation({

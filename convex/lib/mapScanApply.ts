@@ -3,7 +3,11 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { absorbDoorKnowledge } from '@/data/maps/connection-door-destinations';
-import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door-types';
+import {
+  connectionTypePatch,
+  sameDoorTyping,
+  typedDoorsFrom,
+} from '@/data/maps/connection-door-types';
 import {
   blankHallway,
   clearPendingResolution,
@@ -14,11 +18,12 @@ import {
 } from '@/data/maps/connection-hallway';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
+import { takeIndexedOrThrow, uniqueByUserCharacter } from './indexedQuery';
 import {
   findLocalSignatureConnection,
   findPasteConnection,
 } from './mapConnectionLookup';
-import { claimStaticOrKeepId } from './mapStaticClaim';
+import { claimStaticOrKeepId, writeDoorTypeAndClaim } from './mapStaticClaim';
 import {
   applyKnownSignatureTombstone,
   findMapSignature,
@@ -30,15 +35,13 @@ import {
   sigGroupValidator,
   validateSignatureKnowledge,
 } from './mapEntityContracts';
-import { stampObservationKey } from './observationKey';
-import { findSystem, requireSystemId } from './mapSystemLookup';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from '../mapTrackingOptIn';
+import { requireLiveSystem, requireSystemId } from './mapSystemLookup';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingCapacity';
 import {
   endpointSide,
   leadsNotePatch,
   readScanState,
   requireBoundedSignatureIds,
-  requireLiveSystem,
   rowMaps,
   tombstoneConnectionRow,
   type ScanState,
@@ -58,34 +61,29 @@ export async function requireTrackedSystem(
   userId: string,
 ): Promise<void> {
   requireSystemId(systemId);
-  const tracking = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP + 1);
-  if (tracking.length > TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
-    throw new ConvexError({ code: 'TRACKING_CAP_EXCEEDED' });
-  }
+  const tracking = await takeIndexedOrThrow(
+    ctx.db
+      .query('mapTracking')
+      .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId)),
+    TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+    {
+      code: 'TRACKING_CAP_EXCEEDED',
+      detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
+    },
+  );
 
   const locations = await Promise.all(tracking.map((row) =>
-    ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', userId).eq('characterId', row.characterId),
-      )
-      .unique()));
+    uniqueByUserCharacter(ctx, 'characterLocation', userId, row.characterId)));
   if (!locations.some((location) => location?.solarSystemId === systemId)) {
     throw new ConvexError({
       code: 'UNTRACKED_SCAN_SYSTEM',
       detail: `The caller has no tracked character in system ${systemId}.`,
     });
   }
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
-    throw new ConvexError({
-      code: 'OFF_MAP_SCAN_SYSTEM',
-      detail: `Tracked system ${systemId} is not live on map ${mapId}.`,
-    });
-  }
+  await requireLiveSystem(ctx, mapId, systemId, {
+    code: 'OFF_MAP_SCAN_SYSTEM',
+    detail: `Tracked system ${systemId} is not live on map ${mapId}.`,
+  });
 }
 
 async function touchScanActivity(
@@ -502,23 +500,17 @@ async function stampIdentifiedWormholeType(
   const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode, 'human');
   const resolution = clearPendingResolution(connection.resolution);
   if (
-    connection.from.typeCode === typePatch.from.typeCode
-    && connection.to.typeCode === typePatch.to.typeCode
-    && connection.identity.kind === 'typed'
-    && connection.identity.provenance === 'human'
+    sameDoorTyping(connection, typePatch)
     && connection.observationKey !== undefined
     && connection.resolution.kind === resolution.kind
   ) {
-    return await claimStaticOrKeepId(ctx, connection, 'from');
+    return await claimStaticOrKeepId(ctx, connectionId, 'from');
   }
-  await ctx.db.patch(connectionId, {
+  const written = await writeDoorTypeAndClaim(ctx, connection, 'from', {
     ...typePatch,
     resolution,
-    ...stampObservationKey(connection.observationKey).patch,
   });
-  const typed = await ctx.db.get(connectionId);
-  if (typed === null) return undefined;
-  return await claimStaticOrKeepId(ctx, typed, 'from');
+  return written.survivorId;
 }
 
 async function identifyWormholeRow(
