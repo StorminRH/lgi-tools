@@ -1,12 +1,16 @@
 import { headers } from 'next/headers';
-import { after } from 'next/server';
+import { after, connection } from 'next/server';
 import { cache } from 'react';
 import { auth } from '@/composition/auth';
 import { checkUserCharacterAuthorizations } from '@/composition/character-authorization';
 import type { Session } from '@/platform/auth/types';
 
 // Share auth enrichment within a Server Component render, never across requests.
+// The lookup waits for a real request: an App Shell prefetch prerenders with
+// the request's headers, then rejects the session query's fetch and aborts
+// the after() scope once the prerender completes.
 export const getFullSession = cache(async () => {
+  await connection();
   const result = await auth.api.getSession({ headers: await headers() });
   if (result) after(() => checkUserCharacterAuthorizations(result.user.id));
   return result;
