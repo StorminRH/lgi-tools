@@ -35,7 +35,7 @@ test('a titled panel is a clipped card section under a medium header bar', () =>
   expect(html).toMatch(/<\/section>$/);
 
   const bar = /^<section[^>]*><div class="([^"]*)"><span>Wallet<\/span>/.exec(html)?.[1]?.split(' ') ?? [];
-  expect(bar).toEqual(expect.arrayContaining(['bg-row-hover', 'border-b', 'py-2', 'uppercase']));
+  expect(bar).toEqual(expect.arrayContaining(['bg-row-hover', 'border-b', 'py-2', 'text-bar']));
   expect(html).toContain('<span class="text-micro font-normal text-muted">30 days</span></div><p>Body row</p>');
 });
 

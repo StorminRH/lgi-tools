@@ -44,7 +44,7 @@ describe('MapEventLog', () => {
       mapId: 'map-a', canEdit: true, now: NOW, onRestore: vi.fn(),
     }));
     expect(liveValue.mock.calls[0]?.[1]).toBe('skip');
-    expect(markup).toContain('Audit Log');
+    expect(markup).toContain('Audit log');
     expect(markup).not.toContain('data-map-event-log-count');
     expect(markup).not.toContain('data-map-event-log-rows');
   });
@@ -71,7 +71,7 @@ describe('MapEventLog', () => {
     );
     expect(empty).toContain('data-map-event-log');
     expect(empty).toContain('data-map-event-log-empty');
-    expect(empty).toContain('Audit Log');
+    expect(empty).toContain('Audit log');
     expect(empty).toContain('0 events');
     expect(empty).toContain('No events yet.');
 

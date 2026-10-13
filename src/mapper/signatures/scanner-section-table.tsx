@@ -121,7 +121,7 @@ function ColumnHeader({
       aria-hidden
       className={cn(
         columnsClassName,
-        eyebrow({ emphasis: 'label', className: 'px-2.5' }),
+        eyebrow({ className: 'px-2.5' }),
       )}
     >
       {labels.map((label) => (
@@ -166,7 +166,7 @@ function ScannerSectionBlock({
         header={
           <span className="flex w-full items-center gap-2">
             <CollapsibleChevron />
-            <span className={eyebrow({ weight: 'semibold', emphasis: 'label' })}>
+            <span className={eyebrow({ weight: 'semibold' })}>
               {section.title}
             </span>
             <span

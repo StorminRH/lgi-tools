@@ -351,7 +351,7 @@ it('keeps the mass and lifetime estimates under their select or restore readout'
     '>Mass<',
     'data-select="Mass"',
     'data-map-connection-mass-range',
-    '>Reliable Lifetime<',
+    '>Reliable lifetime<',
     'data-select="Reliable Lifetime"',
     'data-map-connection-lifetime',
     '>Leads to<',

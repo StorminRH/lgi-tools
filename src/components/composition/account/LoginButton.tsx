@@ -5,6 +5,7 @@ import { EveImage } from '@/components/eve-image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip } from '@/components/ui/tooltip';
+import { eyebrow } from '@/components/ui/type-roles';
 import { LocalSyntheticPilotControl } from '@/components/composition/LocalSyntheticPilotControl';
 import { startEveSignIn } from '@/platform/auth/link-character';
 import { signOutAndLeave } from '@/platform/auth/reload-document-home';
@@ -83,7 +84,7 @@ function SignedInCluster({
           variant="bare"
           type="button"
           onClick={() => signOutAndLeave()}
-          className="text-label uppercase tracking-wide text-muted hover:text-text px-2 py-1 transition-colors"
+          className={eyebrow({ font: 'inherit', weight: 'inherit', className: 'hover:text-text px-2 py-1 transition-colors' })}
         >
           Log out
         </Button>

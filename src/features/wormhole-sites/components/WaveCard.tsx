@@ -29,7 +29,6 @@ export function WaveCard({
               font: 'inherit',
               tone: 'inherit',
               weight: 'bold',
-              emphasis: 'strong',
               className: 'text-text shrink-0',
             })}
           >

@@ -62,7 +62,7 @@ export function MapEventLog({
                 data-map-event-log-toggle
                 className={dataLabel()}
               >
-                Audit Log
+                Audit log
               </span>
               {open && events !== undefined ? (
                 <span

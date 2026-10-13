@@ -52,7 +52,7 @@ function FeedbackMeta({
     <div
       className={cn(
         insetSurface,
-        eyebrow({ font: 'inherit', weight: 'inherit', emphasis: 'label', className: 'flex flex-col gap-1 px-3 py-2' }),
+        eyebrow({ font: 'inherit', weight: 'inherit', className: 'flex flex-col gap-1 px-3 py-2' }),
       )}
     >
       {loading ? (
@@ -60,7 +60,7 @@ function FeedbackMeta({
       ) : session ? (
         <div>
           <span>Submitting as</span>{' '}
-          <span className="text-text normal-case tracking-normal">{session.name}</span>
+          <span className="text-text">{session.name}</span>
         </div>
       ) : (
         <div>Submitting anonymously</div>
@@ -68,7 +68,7 @@ function FeedbackMeta({
       {path && (
         <div className="truncate">
           <span>From</span>{' '}
-          <span className="font-data text-text normal-case tracking-normal">{path}</span>
+          <span className="font-data text-text">{path}</span>
         </div>
       )}
     </div>

@@ -50,7 +50,7 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
           variant="bare"
           type="button"
           onClick={handoff}
-          className={`${inlineLink} self-start text-label uppercase tracking-wide`}
+          className={eyebrow({ font: 'inherit', weight: 'inherit', tone: 'inherit', className: `${inlineLink} self-start` })}
         >
           Go now
         </Button>

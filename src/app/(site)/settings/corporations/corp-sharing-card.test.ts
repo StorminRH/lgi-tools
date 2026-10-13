@@ -70,7 +70,7 @@ test('switching sharing off asks first, then stops sharing and closes once the r
   // The switch is named by the corporation alone; its sharing state stays out of the name.
   const nameId = /<span role="switch" aria-checked="true" aria-labelledby="([^"]+)"><\/span>/.exec(html)?.[1];
   expect(html).toContain(`<span id="${nameId}" hidden="">Signal Cartel</span><span>Signal Cartel</span>`);
-  expect(html).toMatch(/>sharing on<\/span><\/label>/);
+  expect(html).toMatch(/>Sharing on<\/span><\/label>/);
   expect(html).not.toContain('role="dialog"');
 
   ui.toggle?.(false);

@@ -231,11 +231,10 @@ export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: R
                   className={eyebrow({
                     font: 'inherit',
                     weight: 'semibold',
-                    emphasis: 'strong',
                     className: 'whitespace-nowrap',
                   })}
                 >
-                  {SITE_TYPE_LABEL[type]} Sites
+                  {SITE_TYPE_LABEL[type]} sites
                 </span>
                 <div className="flex-1 h-px bg-border" />
               </div>

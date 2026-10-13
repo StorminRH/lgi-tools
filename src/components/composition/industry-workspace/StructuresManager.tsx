@@ -31,8 +31,10 @@ import { type NewStructure, settleNewStructure, useNewStructureRequest } from '.
 type Filter = 'all' | 'corp' | 'yours';
 type Composer = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'corp'; structureId: number } | null;
 
-const rowAction =
-  'font-ui text-label uppercase tracking-wide text-muted transition-opacity hover:text-text focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100';
+const rowAction = eyebrow({
+  weight: 'inherit',
+  className: 'transition-opacity hover:text-text focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100',
+});
 const NO_READOUT: StructureReadout = { mfg: null, rxn: null };
 /**
  * Readout across the row under the name on a phone, its label column as wide as

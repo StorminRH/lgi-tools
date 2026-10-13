@@ -27,10 +27,10 @@ export function StatusPanel({
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-20">
       <div className={cn(cardSurface, 'reveal flex w-full max-w-[720px] flex-col items-center gap-8 rounded-panel px-6 py-12 text-center sm:px-12')}>
         <div className="flex flex-col items-center gap-3 max-w-[640px]">
-          <div className={dataLabel({ emphasis: 'strong' })}>
+          <div className={dataLabel()}>
             {eyebrow}
           </div>
-          <h1 className="font-display font-bold text-hero leading-none tracking-copy uppercase text-name">
+          <h1 className="font-display font-bold text-hero leading-none tracking-optical text-name">
             {title}
           </h1>
           {children ? <p className="text-body text-text leading-relaxed">{children}</p> : null}

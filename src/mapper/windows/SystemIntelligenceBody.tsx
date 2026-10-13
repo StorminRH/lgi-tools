@@ -31,7 +31,7 @@ export function SystemTitleAccessory({ systemId }: { readonly systemId: number }
   );
 }
 
-const INTEL_HEADING_CLASS = eyebrow({ size: 'micro', tone: 'faint', emphasis: 'strong' });
+const INTEL_HEADING_CLASS = eyebrow({ size: 'micro', tone: 'faint' });
 
 /** One titled category of the intel body; render it only when it has content. */
 function IntelSection({ section, title, children }: {

@@ -51,7 +51,7 @@ describe('MapControls', () => {
     expect(html).not.toContain('Camera follow');
     // Each group shows its steppers, then its choices. A stepper row shows a
     // short label and carries the full accessible name on its field.
-    const shown = [...html.matchAll(/text-muted tracking-label">([^<]+)</g)].map((match) => match[1]);
+    const shown = [...html.matchAll(/tracking-optical text-eyebrow text-muted">([^<]+)</g)].map((match) => match[1]);
     expect(shown).toEqual([
       'Layout dials', 'Ring spacing', 'Separation', 'Sibling fan', 'Wedge posture', 'Direction order',
       'Motion dials', 'Fast', 'Mid', 'Slow', 'Overshoot', 'Edge flavor', 'Collapse exit',

@@ -336,7 +336,7 @@ describe('evaluateAbort', () => {
 describe('detail sentinel counting', () => {
   it('counts both detail-only strings', () => {
     expect(
-      countDetailSentinels('Wave Spawns ... Wave Spawns ... No Sleeper presence'),
+      countDetailSentinels('Wave spawns ... Wave spawns ... No Sleeper presence'),
     ).toEqual({ waveSpawns: 2, noSleeperPresence: 1 });
   });
 });

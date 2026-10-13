@@ -65,7 +65,7 @@ export function JobsCard({
         <>
           <SectionHeader
             label="Industry jobs"
-            hint={data !== null && lastSyncedAt != null ? `as of ${formatUtcTime(lastSyncedAt)}` : undefined}
+            hint={data !== null && lastSyncedAt != null ? `As of ${formatUtcTime(lastSyncedAt)}` : undefined}
           />
           <JobsCardRows
             data={data}

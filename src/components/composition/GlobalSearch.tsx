@@ -171,7 +171,7 @@ function SearchRow({ row, value }: { row: SearchResult; value: string }) {
           {renderLabel(row.label, row.matchIndices)}
         </span>
         {row.sub && (
-          <span className={cn(dataLabel({ className: 'truncate' }), 'tracking-[0.07em]')}>
+          <span className={dataLabel({ className: 'truncate' })}>
             {row.sub}
           </span>
         )}
@@ -204,7 +204,6 @@ function SearchFooter() {
         font: 'inherit',
         tone: 'faint',
         weight: 'inherit',
-        emphasis: 'label',
         className: 'mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2',
       })}
     >

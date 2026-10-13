@@ -120,6 +120,6 @@ test('a boxed field sits beside one glyph in its icon row; the popover’s inlin
   const inline = adjusters(100);
   expect(inline.match(/industry-me\.png/g)).toHaveLength(1);
   expect(inline.match(/industry-te\.png/g)).toHaveLength(1);
-  expect(inline).toMatch(/Material Efficiency<\/span><span class="inline-flex items-center gap-1"><span class="inline-flex h-3 w-3 shrink-0"><span[^>]*><span[^>]*industry-me\.png/);
+  expect(inline).toMatch(/Material efficiency<\/span><span class="inline-flex items-center gap-1"><span class="inline-flex h-3 w-3 shrink-0"><span[^>]*><span[^>]*industry-me\.png/);
   expect(inline).not.toContain('size-3.5');
 });

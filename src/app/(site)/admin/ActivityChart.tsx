@@ -14,7 +14,7 @@ export function ActivityChart({ activity }: { activity: ActivityChartData }) {
           {formatQuantity(activity.totalValue)}
         </span>
         {/* Labelled like the tiles above it. */}
-        <span className={eyebrow({ emphasis: 'strong' })}>page views</span>
+        <span className={eyebrow()}>Page views</span>
         {activity.endDelta && <DeltaBadge delta={activity.endDelta} />}
       </div>
       <div className="overflow-x-auto px-3.5 py-3">

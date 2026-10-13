@@ -198,7 +198,7 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(team).toContain('NPC station');
   expect(team).toContain('All manufacturing');
   expect(team).toContain('aria-label="Add a facility"');
-  expect(team).toContain('Production Capacity');
+  expect(team).toContain('Production capacity');
   expect(capacityReadout(team)).toContain('?/8+');
   // Each member's row reads its slots the way the panel does: known totals
   // beside unknown usage, and "?" for skills that have not synced.

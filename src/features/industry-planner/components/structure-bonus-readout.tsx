@@ -24,7 +24,7 @@ function Metric({ icon, title, value }: { icon: ReactNode; title: string; value:
 }
 
 function RxnMarker() {
-  return <span className={dataLabel({ className: 'leading-none' })}>rxn</span>;
+  return <span className={dataLabel({ className: 'leading-none' })}>RXN</span>;
 }
 
 function ReactionMetric({ withMarker, children }: { withMarker: boolean; children: ReactNode }) {

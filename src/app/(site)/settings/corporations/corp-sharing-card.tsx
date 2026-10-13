@@ -79,7 +79,7 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
       >
         <span>{corp.corporationName}</span>
         <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>
-          {enabled ? 'sharing on' : 'sharing off'}
+          {enabled ? 'Sharing on' : 'Sharing off'}
         </span>
       </Switch>
       <p className="text-body text-muted">Share corporation data with members based on their in-game role access.</p>
