@@ -265,11 +265,11 @@ test('an edited structure updates or deletes in place, and a failed save says so
     body: expect.objectContaining({ id: 'cs-1', name: 'Amamake Raitaru', bonuses: null }),
     cache: 'no-store',
   });
-  expect(c.error()).toBe('Could not save. Try again.');
+  expect(c.error()).toBe("Couldn't save. Try again.");
   h.apiFetch.mockResolvedValueOnce(apiProblem(400, 'unknown_system'));
   c.button('Save');
   await settle();
-  expect(c.error()).toBe('Pick a known system.');
+  expect(c.error()).toBe("Couldn't save. Try again.");
   expect(c.onSaved).not.toHaveBeenCalled();
 
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: [] } });

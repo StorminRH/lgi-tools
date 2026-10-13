@@ -113,7 +113,7 @@ test('a valid submission sends the page path and reports success, server refusal
   const offline = render({ 0: 'Map crash', 1: 'It broke' });
   await offline.submit();
   expect(offline.setState()).toHaveBeenLastCalledWith({
-    kind: 'error', message: 'Network error — your feedback did not send. Try again.',
+    kind: 'error', message: "Couldn't send your feedback. Check your connection and try again.",
   });
 
   // Closing the dialog closes the modal; opening it does not.

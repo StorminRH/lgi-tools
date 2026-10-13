@@ -31,6 +31,7 @@ const PROFILE_MISSING = 'This profile was deleted somewhere else.';
 
 const SAVE_FAILURE_COPY = {
   fallback: "Couldn't save the profile. Showing the last saved version.",
+  network: "Couldn't save the profile. Check your connection and try again.",
   codes: {
     stale_revision: 'This profile changed somewhere else. Showing the latest version.',
     profile_missing: PROFILE_MISSING,

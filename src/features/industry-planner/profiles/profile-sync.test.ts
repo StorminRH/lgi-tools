@@ -105,7 +105,7 @@ test('a refused save says why, and any other failure shows the last saved versio
   );
   expect(saveFailureMessage(protocolFailure())).toBe("Couldn't save the profile. Showing the last saved version.");
   expect(saveFailureMessage(networkDown())).toBe(
-    "Couldn't save the profile. Showing the last saved version. Check your connection and try again.",
+    "Couldn't save the profile. Check your connection and try again.",
   );
 });
 

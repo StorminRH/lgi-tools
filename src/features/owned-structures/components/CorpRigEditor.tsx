@@ -17,12 +17,8 @@ import { setCorpStructureRigsEndpoint } from '../api-contract';
 import type { CorpStructurePageStructure } from '../types';
 
 const RIG_SAVE_FAILURE_COPY = {
-  fallback: 'Could not save. Try again.',
-  network: 'Could not save. Check your connection and try again.',
-  codes: {
-    not_station_manager: 'Setting rigs and tax needs a character with the Station Manager or Director role.',
-    not_corp_member: 'None of your characters is in this corporation.',
-  },
+  fallback: "Couldn't save. Try again.",
+  network: "Couldn't save. Check your connection and try again.",
 } satisfies FailureCopy<FailedOutcome<typeof setCorpStructureRigsEndpoint>>;
 
 /** Rigs and tax for a synced corporation structure; ESI gives neither, a manager sets them. */

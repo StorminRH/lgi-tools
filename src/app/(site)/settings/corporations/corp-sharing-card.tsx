@@ -13,10 +13,6 @@ import type { SharingCorpView } from './corporations-view';
 
 const SHARING_FAILURE_COPY = {
   fallback: 'Sharing not changed',
-  codes: {
-    not_director: 'Only a Director can change sharing.',
-    not_corp_member: 'None of your characters is in this corporation.',
-  },
 } satisfies FailureCopy<FailedOutcome<typeof setCorpDataSharingEndpoint>>;
 
 export function CorpSharingCard({

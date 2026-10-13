@@ -60,14 +60,13 @@ const HULL_GROUPS: [number, string][] = [
   [SDE_CITADEL_GROUP_ID, 'Citadel'],
 ];
 
-const FIELD_ERROR: Record<'name' | 'hull' | 'tax' | 'bonus' | 'save' | 'limit' | 'system' | 'fit', string> = {
+const FIELD_ERROR: Record<'name' | 'hull' | 'tax' | 'bonus' | 'save' | 'limit' | 'fit', string> = {
   name: 'Name the structure.',
   hull: 'Pick the hull.',
   tax: `Tax must be 0–${MAX_FACILITY_TAX_PCT}%.`,
   bonus: `Bonuses must be 0–${MAX_ENTERED_BONUS_PCT}%.`,
-  save: 'Could not save. Try again.',
+  save: "Couldn't save. Try again.",
   limit: 'Structure limit reached. Delete one to make room.',
-  system: 'Pick a known system.',
   fit: 'No structure in that fit.',
 };
 type ComposerError = keyof typeof FIELD_ERROR;
@@ -293,12 +292,9 @@ type MutationFailure =
   | FailedOutcome<typeof deleteCustomStructureEndpoint>;
 type Mutation = { ok: true; data: { structures: CustomStructureRow[]; createdId?: string } } | MutationFailure;
 
-/** The refusals a retry cannot fix get their own words; anything else is a plain failed save. */
+/** A full structure list gets its own words; anything else is a plain failed save. */
 function mutationError(failure: MutationFailure): ComposerError {
-  const code = failureCode(failure);
-  if (code === 'structure_limit') return 'limit';
-  if (code === 'unknown_system') return 'system';
-  return 'save';
+  return failureCode(failure) === 'structure_limit' ? 'limit' : 'save';
 }
 
 export function StructureComposer({

@@ -9,7 +9,7 @@ export type SubmitState =
   | { kind: 'error'; message: string; field?: 'title' | 'message' };
 
 export const FEEDBACK_NETWORK_ERROR_MESSAGE =
-  'Network error — your feedback did not send. Try again.';
+  "Couldn't send your feedback. Check your connection and try again.";
 
 export function feedbackSubmitGate(
   title: string,
@@ -25,14 +25,10 @@ export function feedbackSubmitGate(
 }
 
 const FEEDBACK_FAILURE_COPY = {
-  fallback: 'Something went wrong sending your feedback. Try again.',
+  fallback: "Couldn't send your feedback. Try again.",
   network: FEEDBACK_NETWORK_ERROR_MESSAGE,
   codes: {
-    invalid_body: 'Please check your message and try again.',
-    title_empty: 'Add a title to your feedback.',
-    message_empty: 'Add a message to your feedback.',
-    path_invalid: 'Your feedback could not note this page. Reload it and try again.',
-    linear_failed: 'Your feedback could not be delivered. Try again in a few minutes.',
+    linear_failed: "Couldn't send your feedback. Try again in a few minutes.",
     feedback_unconfigured: 'Feedback is unavailable right now.',
   },
 } satisfies FailureCopy<FailedOutcome<typeof feedbackEndpoint>>;

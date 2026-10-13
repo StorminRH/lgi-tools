@@ -39,7 +39,7 @@ function* walk(node: unknown): Generator<Props> {
   yield* walk(props.children);
 }
 
-test('a refused rig save says which role it needs, and a save that got no answer asks for a connection check', async () => {
+test('a refused rig save says it did not save, and a save that got no answer asks for a connection check', async () => {
   rt.unmount();
   const onSaved = vi.fn();
   const render = () =>
@@ -61,12 +61,12 @@ test('a refused rig save says which role it needs, and a save that got no answer
     body: { corporationId: 98000001, structureId: 1035466617946, rigTypeIds: [43920], taxPct: 1 },
     cache: 'no-store',
   });
-  expect(error()).toBe('Setting rigs and tax needs a character with the Station Manager or Director role.');
+  expect(error()).toBe("Couldn't save. Try again.");
 
   h.apiFetch.mockResolvedValueOnce(networkDown());
   save();
   await settle();
-  expect(error()).toBe('Could not save. Check your connection and try again.');
+  expect(error()).toBe("Couldn't save. Check your connection and try again.");
 
   h.apiFetch.mockResolvedValueOnce({ ok: true, status: 200, data: { structureId: 1035466617946, rigTypeIds: [43920], taxPct: 1 } });
   save();

@@ -27,18 +27,17 @@ describe('feedbackSubmitGate', () => {
 describe('feedbackErrorMessage', () => {
   it('maps each refusal code to user copy and never shows the server detail', () => {
     // The server's detail is developer text; the reader sees copy for the code.
-    expect(
-      feedbackErrorMessage(apiProblem(400, 'title_empty', { detail: 'title must not be empty' })),
-    ).toBe('Add a title to your feedback.');
-    expect(
-      feedbackErrorMessage(apiProblem(400, 'path_invalid', { detail: 'path must start with /' })),
-    ).toBe('Your feedback could not note this page. Reload it and try again.');
+    // The form blocks an empty title or message and sends its own path, so those refusals take the plain line.
+    for (const code of ['title_empty', 'message_empty', 'path_invalid'] as const) {
+      expect(feedbackErrorMessage(apiProblem(400, code, { detail: `${code} detail` }))).toBe(
+        "Couldn't send your feedback. Try again.",
+      );
+    }
     expect(feedbackErrorMessage(apiProblem(400, 'invalid_body', { detail: 'Too big: expected string to have <=8000 characters' }))).toBe(
-      'Please check your message and try again.',
+      "Couldn't send your feedback. Try again.",
     );
-    expect(feedbackErrorMessage(apiProblem(400, 'message_empty'))).toBe('Add a message to your feedback.');
     expect(feedbackErrorMessage(apiProblem(502, 'linear_failed'))).toBe(
-      'Your feedback could not be delivered. Try again in a few minutes.',
+      "Couldn't send your feedback. Try again in a few minutes.",
     );
     expect(feedbackErrorMessage(apiProblem(503, 'feedback_unconfigured'))).toBe('Feedback is unavailable right now.');
   });
@@ -48,11 +47,8 @@ describe('feedbackErrorMessage', () => {
       'Too many attempts. Try again in 60 seconds.',
     );
     expect(feedbackErrorMessage(networkDown())).toBe(FEEDBACK_NETWORK_ERROR_MESSAGE);
-    expect(feedbackErrorMessage(apiProblem(403, 'cross_origin'))).toBe(
-      'Something went wrong sending your feedback. Try again.',
-    );
-    expect(feedbackErrorMessage(protocolFailure(418))).toBe(
-      'Something went wrong sending your feedback. Try again.',
-    );
+    expect(FEEDBACK_NETWORK_ERROR_MESSAGE).toBe("Couldn't send your feedback. Check your connection and try again.");
+    expect(feedbackErrorMessage(apiProblem(403, 'cross_origin'))).toBe("Couldn't send your feedback. Try again.");
+    expect(feedbackErrorMessage(protocolFailure(418))).toBe("Couldn't send your feedback. Try again.");
   });
 });

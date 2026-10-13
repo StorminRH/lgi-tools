@@ -10,7 +10,8 @@ export function updateMapAccess(input: UpdateMapAccessRequest) {
 }
 
 const MAP_ACCESS_FAILURE_COPY = {
-  fallback: 'Map access could not be updated.',
+  fallback: "Couldn't update map access. Try again.",
+  network: "Couldn't update map access. Check your connection and try again.",
   codes: {
     map_admin_required: 'Only map admins can change access.',
     map_creator_character_required:

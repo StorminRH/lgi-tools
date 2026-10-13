@@ -98,7 +98,7 @@ test('switching sharing off asks first, then stops sharing and closes once the r
   expect(ui.toast.success).toHaveBeenCalledExactlyOnceWith('Sharing off');
 });
 
-test('a refused switch stays put and the toast says why', async () => {
+test('a refused switch stays put and the toast says it did not change', async () => {
   rt.unmount();
   ui.toast.error.mockReset();
   api.apiFetch.mockReset();
@@ -111,7 +111,7 @@ test('a refused switch stays put and the toast says why', async () => {
   ui.toggle?.(true);
   await settle();
   expect(renderOff()).toContain('aria-checked="false"');
-  expect(ui.toast.error).toHaveBeenLastCalledWith('Only a Director can change sharing.');
+  expect(ui.toast.error).toHaveBeenLastCalledWith('Sharing not changed');
 
   api.apiFetch.mockResolvedValueOnce(networkDown());
   ui.toggle?.(true);

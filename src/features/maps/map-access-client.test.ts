@@ -39,12 +39,12 @@ describe('map access client', () => {
 
   it('keeps the connection hint for a request that got no answer and blames neither admin access nor the connection otherwise', () => {
     expect(mapAccessFailureMessage(networkDown())).toBe(
-      'Map access could not be updated. Check your connection and try again.',
+      "Couldn't update map access. Check your connection and try again.",
     );
     expect(mapAccessFailureMessage(apiProblem(401, 'unauthenticated'))).toBe('Your session has ended. Sign in again.');
     // A malformed request, the cross-origin guard and an undeclared answer all get the plain fallback.
-    expect(mapAccessFailureMessage(apiProblem(400, 'invalid_body'))).toBe('Map access could not be updated.');
-    expect(mapAccessFailureMessage(apiProblem(403, 'cross_origin'))).toBe('Map access could not be updated.');
-    expect(mapAccessFailureMessage(protocolFailure())).toBe('Map access could not be updated.');
+    expect(mapAccessFailureMessage(apiProblem(400, 'invalid_body'))).toBe("Couldn't update map access. Try again.");
+    expect(mapAccessFailureMessage(apiProblem(403, 'cross_origin'))).toBe("Couldn't update map access. Try again.");
+    expect(mapAccessFailureMessage(protocolFailure())).toBe("Couldn't update map access. Try again.");
   });
 });
