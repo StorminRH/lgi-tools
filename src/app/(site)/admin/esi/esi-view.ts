@@ -29,9 +29,9 @@ function budgetFigures(budget: EsiBudgetSnapshot): OpsMetricRow[] {
       note: '4xx/5xx · last 2 min',
     },
     {
-      label: 'Lowest recent CCP allowance',
+      label: 'Lowest recent ESI allowance',
       value: formatQuantity(budget.echo),
-      note: budget.echo === null ? 'not observed' : 'CCP response header',
+      note: budget.echo === null ? 'not observed' : 'ESI response header',
     },
     {
       label: 'Scoreboard source',

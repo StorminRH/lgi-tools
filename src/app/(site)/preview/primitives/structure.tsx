@@ -271,7 +271,7 @@ export function StructureGroup() {
           className="m-0"
           left={<span className="text-muted">LGI.tools · Lo-Gang Industries</span>}
           center={<span className="text-faint">v4.1</span>}
-          right={<span className="text-muted">EVE Online © CCP</span>}
+          right={<span className="text-muted">EVE Online © Fenris Creations</span>}
         />
       </Specimen>
     </ReferenceGroup>
