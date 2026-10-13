@@ -7,11 +7,18 @@ import { domainEvents } from './schema';
 import { DOMAIN_EVENT_TYPES, type DomainEventInput, type DomainEventRow } from './types';
 
 export function emitDomainEvent(input: DomainEventInput): void {
-  runAfterResponse('domain-events', 'ledger', async () => {
-    await db.insert(domainEvents).values({
-      eventType: input.eventType,
-      metadata: input.metadata,
-    });
+  runAfterResponse('domain-events', 'ledger', () => recordDomainEvent(input, db));
+}
+
+/**
+ * Writes the event on `database` now. Given a transaction, the event stands
+ * or rolls back with the write it reports, so the ledger never shows a
+ * write that did not commit.
+ */
+export async function recordDomainEvent(input: DomainEventInput, database: AnyPgDb): Promise<void> {
+  await database.insert(domainEvents).values({
+    eventType: input.eventType,
+    metadata: input.metadata,
   });
 }
 

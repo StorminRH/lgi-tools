@@ -7,12 +7,12 @@ const mocks = vi.hoisted(() => ({
   saveOwnedAssetsMock: vi.fn(
     async (_owner: unknown, _rows: unknown, _etags: unknown, _database: unknown): Promise<'saved' | 'superseded'> => 'saved',
   ),
-  emitDomainEventMock: vi.fn(),
+  recordDomainEventMock: vi.fn(async (_input: unknown, _database: unknown) => {}),
   saveCorpOwnedAssetsMock: vi.fn(async (..._args: unknown[]): Promise<'saved' | 'superseded'> => 'saved'),
 }));
 
 vi.mock('@/data/domain-events/queries', () => ({
-  emitDomainEvent: (input: unknown) => mocks.emitDomainEventMock(input),
+  recordDomainEvent: (input: unknown, database: unknown) => mocks.recordDomainEventMock(input, database),
 }));
 
 vi.mock('@/data/esi-snapshots/crypto', () => ({
@@ -69,7 +69,7 @@ describe('saveOwnedAssetsFromSource', () => {
     mocks.encryptSnapshotBodyMock.mockClear();
     mocks.insertEsiSnapshotMock.mockClear();
     mocks.saveOwnedAssetsMock.mockReset();
-    mocks.emitDomainEventMock.mockReset();
+    mocks.recordDomainEventMock.mockClear();
     mocks.saveCorpOwnedAssetsMock.mockReset();
     mocks.saveOwnedAssetsMock.mockResolvedValue('saved');
     mocks.saveCorpOwnedAssetsMock.mockResolvedValue('saved');
@@ -82,7 +82,7 @@ describe('saveOwnedAssetsFromSource', () => {
 
     expect(mocks.insertEsiSnapshotMock).not.toHaveBeenCalled();
     expect(mocks.saveCorpOwnedAssetsMock).not.toHaveBeenCalled();
-    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
+    expect(mocks.recordDomainEventMock).not.toHaveBeenCalled();
     expect(mocks.saveOwnedAssetsMock).toHaveBeenCalledWith(
       { ownerType: 'character', ownerId: 7 },
       rows,
@@ -117,10 +117,10 @@ describe('saveOwnedAssetsFromSource', () => {
     expect(mocks.insertEsiSnapshotMock).not.toHaveBeenCalled();
     expect(mocks.saveCorpOwnedAssetsMock).not.toHaveBeenCalled();
     expect(mocks.saveOwnedAssetsMock).not.toHaveBeenCalled();
-    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
+    expect(mocks.recordDomainEventMock).not.toHaveBeenCalled();
   });
 
-  it('writes one encrypted corp snapshot on the commit\'s transaction and gives its id to every derived row save', async () => {
+  it('writes one encrypted corp snapshot and its event on the commit\'s transaction and gives its id to every derived row save', async () => {
     const save = await loadSave();
 
     await save({ ownerType: 'corporation', ownerId: 5000 }, rows, ['"fallback"'], source, FAKE_TX);
@@ -146,7 +146,7 @@ describe('saveOwnedAssetsFromSource', () => {
       44,
       { database: FAKE_TX },
     );
-    expect(mocks.emitDomainEventMock).toHaveBeenCalledWith({
+    expect(mocks.recordDomainEventMock).toHaveBeenCalledWith({
       eventType: 'esi_snapshot_pulled',
       metadata: {
         snapshotId: 44,
@@ -155,7 +155,8 @@ describe('saveOwnedAssetsFromSource', () => {
         ownerId: 5000,
         itemCount: 2,
       },
-    });
+    }, FAKE_TX);
+    expect(mocks.recordDomainEventMock).toHaveBeenCalledTimes(1);
   });
 
   it('rethrows a failed derived save, emitting nothing, so the commit rolls the snapshot back with it', async () => {
@@ -166,7 +167,7 @@ describe('saveOwnedAssetsFromSource', () => {
       save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source, FAKE_TX),
     ).rejects.toThrow('derived save failed');
 
-    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
+    expect(mocks.recordDomainEventMock).not.toHaveBeenCalled();
   });
 
   it('reports a superseded publication and emits nothing, so the commit rolls the snapshot back', async () => {
@@ -177,6 +178,6 @@ describe('saveOwnedAssetsFromSource', () => {
       save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source, FAKE_TX),
     ).resolves.toBe('superseded');
 
-    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
+    expect(mocks.recordDomainEventMock).not.toHaveBeenCalled();
   });
 });

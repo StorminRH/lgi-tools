@@ -1,4 +1,4 @@
-import { emitDomainEvent } from '@/data/domain-events/queries';
+import { recordDomainEvent } from '@/data/domain-events/queries';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { buildHoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
 import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
@@ -13,9 +13,11 @@ import type { OwnerKey, SaveOutcome } from '@/platform/owner-sync';
 /**
  * Publishes an owner's assets on the transaction the sync's answers commit
  * in. A corporation's source body is kept as an encrypted snapshot on that
- * same transaction, so a publication that is superseded or fails takes its
- * snapshot with it. A body the holding index cannot read stores nothing,
- * and reports so, so the answer behind it is not recorded either.
+ * same transaction, and so is the `esi_snapshot_pulled` event that reports
+ * it, so a publication that is superseded or fails, or a commit that fails,
+ * takes its snapshot and its event with it. A body the holding index cannot
+ * read stores nothing, and reports so, so the answer behind it is not
+ * recorded either.
  */
 export async function saveOwnedAssetsFromSource(
   owner: OwnerKey,
@@ -40,7 +42,7 @@ export async function saveOwnedAssetsFromSource(
   }, tx);
   const outcome = await saveCorpOwnedAssets(owner.ownerId, buildHoldingIndex(items), rows, etags, snapshotId, { database: tx });
   if (outcome === 'saved') {
-    emitDomainEvent({
+    await recordDomainEvent({
       eventType: 'esi_snapshot_pulled',
       metadata: {
         snapshotId,
@@ -49,7 +51,7 @@ export async function saveOwnedAssetsFromSource(
         ownerId: owner.ownerId,
         itemCount: source.items.length,
       },
-    });
+    }, tx);
   }
   return outcome;
 }
