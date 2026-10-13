@@ -49,6 +49,8 @@ const settle = <T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> =>
  * until every statement has run, and the transactions then commit one by one
  * in the order their statements arrived. Each write gets that one attempt and
  * no retry, so a serialization failure reaches its result as a rejection.
+ * Each open transaction holds one of `sql`'s connections, so `writes` must
+ * not outnumber them or the last statement waits for a connection forever.
  */
 export async function overlapSerializable<T>(
   sql: Sql,
