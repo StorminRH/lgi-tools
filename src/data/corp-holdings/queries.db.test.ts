@@ -22,7 +22,7 @@ vi.mock('next/cache', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_holdings',
-  tables: ['corp_holding_nodes', 'corp_profiles', 'corp_member_bases'],
+  tables: ['corp_holding_nodes', 'corp_profiles', 'corp_member_bases', 'esi_responses'],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
 });
@@ -152,10 +152,10 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
     expect((await readCorpMemberContext(CORP, []))?.bases).toEqual(new Map());
   });
 
-  it('rolls the profile and member snapshot back together when a base write fails, expiring the profile tag only on commit', async () => {
+  it('rolls the profile and member snapshot back together when a base write fails, leaving the tag to the sync\'s commit', async () => {
     vi.mocked(revalidateTag).mockClear();
     await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
-    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith('corp-profile:98000001', { expire: 0 });
+    expect(revalidateTag).not.toHaveBeenCalled();
     await harness.sql`ALTER TABLE corp_member_bases ADD CONSTRAINT reject_test_base CHECK (base_id <> 60008494)`;
     try {
       vi.mocked(revalidateTag).mockClear();
@@ -180,7 +180,7 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
   it('serializes concurrent profile saves so the final member list belongs to the final profile', async () => {
     await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
     const blocker = await harness.sql.reserve();
-    let saves: Promise<void[]> | undefined;
+    let saves: Promise<('saved' | 'superseded')[]> | undefined;
     try {
       await blocker`BEGIN`;
       await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;

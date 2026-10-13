@@ -20,9 +20,8 @@ const h = vi.hoisted(() => ({
     pending: false,
   },
   refresh: { refreshing: false },
-  /** What the account's owned-blueprints read answers; null leaves it failing. */
+  /** What the account's owned-blueprints read has landed; null while it has not. */
   ownedBlueprints: null as OwnedBlueprintMeEntry[] | null,
-  startedReads: new Set<unknown>(),
 }));
 const rt = await vi.hoisted(async () =>
   (await import('@/lib/__tests__/hook-runtime')).createHookRuntime({ memoizeCallbacks: true }),
@@ -37,21 +36,18 @@ vi.mock('@/components/PreferencesProvider', () => ({ usePreference: () => h.cost
 vi.mock('@/components/ui/loading-toast', () => ({ useLoadingToast: () => undefined }));
 vi.mock('@/data/market-prices/use-refresh-on-view', () => ({ useRefreshOnView: () => h.refresh }));
 vi.mock('@/data/market-history/use-refresh-on-view', () => ({ useRefreshHistoryOnView: () => undefined }));
-vi.mock('@/lib/use-resource-read', () => ({
-  // Each read starts once and lands its data, as the real hook does for a read that keeps its identity.
-  useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, opts: { onData: (data: unknown) => void }) => {
-    if (h.startedReads.has(read)) return;
-    h.startedReads.add(read);
-    void read(new AbortController().signal).then((data) => {
-      if (data !== null) opts.onData(data);
-    });
-  },
-}));
-vi.mock('@/transport/api-client', () => ({
-  apiFetch: async (endpoint: { path: string }) =>
-    endpoint.path === '/api/industry/owned-blueprints' && h.ownedBlueprints
-      ? { ok: true, data: { blueprints: h.ownedBlueprints } }
-      : { ok: false },
+vi.mock('@/components/use-live-dataset', () => ({
+  // The owned-blueprints read answers once the test lands it; the assets read never does.
+  useLiveDataset: (read: { endpoint: { path: string } }) => ({
+    response:
+      read.endpoint.path === '/api/industry/owned-blueprints' && h.ownedBlueprints
+        ? { blueprints: h.ownedBlueprints, refreshing: false }
+        : null,
+    now: 0,
+    loading: false,
+    failed: false,
+    retry: () => {},
+  }),
 }));
 vi.mock('../use-available-structures', () => ({ useAvailableStructures: () => null }));
 vi.mock('./use-planner-location-writes', () => ({ usePlannerLocationWrites: () => h.writes }));
@@ -122,7 +118,6 @@ function renderProvider(props: Parameters<typeof PricingProvider>[0]): ProviderT
 afterEach(() => {
   rt.unmount();
   h.resolved.clear();
-  h.startedReads.clear();
   h.ownedBlueprints = null;
 });
 
@@ -164,9 +159,6 @@ test('the build is charged on the seeded adjusted prices before any system cost 
 });
 
 test('owned blueprint maps stay null until their read lands, then the TE read gives the build its time', async () => {
-  h.ownedBlueprints = [
-    { blueprintTypeId: 1000, me: 10, te: 20, ownerType: 'character', ownerName: 'Builder', locationName: 'Jita IV', locationFlag: 'Hangar', containerName: null },
-  ];
   const props = {
     structure: { ...STRUCTURE, topJobSeconds: 1_000 },
     pricingPromise: new Promise<null>(() => undefined),
@@ -180,6 +172,9 @@ test('owned blueprint maps stay null until their read lands, then the TE read gi
   expect([plan.ownedMe, plan.ownedTe, plan.ownedDetail]).toEqual([null, null, null]);
   expect(plan.buildTimes.topTe).toBe(0);
 
+  h.ownedBlueprints = [
+    { blueprintTypeId: 1000, me: 10, te: 20, ownerType: 'character', ownerName: 'Builder', locationName: 'Jita IV', locationFlag: 'Hangar', containerName: null },
+  ];
   await settle();
   plan = renderProvider(props).props.buildPlan;
   expect(plan.ownedMe).toEqual(new Map([[1000, 10]]));

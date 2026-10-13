@@ -4,9 +4,9 @@ import { problemBodySchema } from '@/lib/problem';
 
 const getSystemCostIndicesBatchMock = vi.fn();
 
-vi.mock('@/data/industry-indices/queries', () => ({
-  getAdjustedPrices: vi.fn(),
-  getSystemCostIndicesBatch: (systemIds: number[]) => getSystemCostIndicesBatchMock(systemIds),
+vi.mock('@/data/industry-indices/queries', () => ({ getAdjustedPrices: vi.fn() }));
+vi.mock('@/data/industry-indices/on-view', () => ({
+  getSystemCostIndicesOnView: (systemIds: number[]) => getSystemCostIndicesBatchMock(systemIds),
 }));
 
 import { POST } from './route';

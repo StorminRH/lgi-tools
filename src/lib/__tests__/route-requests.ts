@@ -22,7 +22,13 @@ export function postJson(
     origin,
     authorization,
     headers,
-  }: { origin?: string; authorization?: string; headers?: Record<string, string> } = {},
+    signal,
+  }: {
+    origin?: string;
+    authorization?: string;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+  } = {},
 ): NextRequest {
   const requestHeaders = new Headers(headers);
   requestHeaders.set('content-type', 'application/json');
@@ -32,6 +38,7 @@ export function postJson(
     method: 'POST',
     headers: requestHeaders,
     body: typeof body === 'string' ? body : JSON.stringify(body),
+    signal,
   });
 }
 

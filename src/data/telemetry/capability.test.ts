@@ -104,7 +104,7 @@ describe('recordCapabilityOutcome', () => {
 
   it('carries retry and rate-limit results for re-runnable work', async () => {
     await withCorrelationScope(async () => {
-      recordCapabilityOutcome('sync.process-esi-refresh-job', {
+      recordCapabilityOutcome('cron.refresh-prices', {
         outcome: 'rate_limited',
         code: 'deferred_for_budget',
         durationMs: 12,

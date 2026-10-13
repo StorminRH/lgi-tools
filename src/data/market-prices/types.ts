@@ -33,7 +33,8 @@ export interface PricedFigures extends PriceFigures<bigint> {
 
 export interface MarketPrice extends PricedFigures {
   updatedAt: Date;
-  staleAfter: Date;
+  /** CCP's expiry as the row was written; null once the column is retired. The response store decides freshness. */
+  staleAfter: Date | null;
 }
 
 export type PriceSource = 'esi' | 'fuzzwork-fallback' | 'fuzzwork';

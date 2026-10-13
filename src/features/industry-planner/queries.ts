@@ -20,8 +20,10 @@ import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures
 import { computeHeights } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
 import type { TreeNode } from '@/data/eve-data/types';
-import { getAdjustedPrices, getSystemCostIndicesBatch } from '@/data/industry-indices/queries';
-import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
+import { getSystemCostIndicesOnView } from '@/data/industry-indices/on-view';
+import { INDUSTRY_INDICES_TAG } from '@/data/industry-indices/keys';
+import { getAdjustedPrices } from '@/data/industry-indices/queries';
+import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
 import { toClientPrice } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
@@ -190,12 +192,20 @@ function nodeFilterIdsFor(
   return out;
 }
 
+/**
+ * A blueprint's tree priced from the stored Forge order books, cached
+ * across instances until a price write clears the tag. It only aggregates
+ * stored prices (the planner's price request refreshes them), and every
+ * price write clears MARKET_PRICES_TAG, so it lives until then rather than
+ * until the earliest book in the tree expires, which a never-stored or
+ * never-refreshed type would hold in the past for good.
+ */
 export async function getBlueprintPricing(
   blueprintId: number,
 ): Promise<BlueprintPricing | null> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG, SDE_CACHE_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(MARKET_PRICES_TAG, SDE_CACHE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId);
   if (!structure) return null;
@@ -206,7 +216,7 @@ export async function getBlueprintPricing(
     structure,
     (typeId) => {
       const p = priceMap.get(typeId);
-      return p === undefined ? undefined : toClientPrice(p, p.staleAfter.getTime());
+      return p === undefined ? undefined : toClientPrice(p, p.staleAfter?.getTime() ?? null);
     },
     { basis: 'marginal' },
   );
@@ -245,14 +255,15 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
 /**
  * The adjusted price of every type a job in the build consumes, nested inputs
  * included, so each job's fee is valued on its own inputs. They depend on the
- * blueprint alone. cron:industry-indices rewrites them daily without a tag, so
- * the hourly lifetime bounds how stale they get. Types CCP gives no adjusted
- * price are left out, and an unknown blueprint has none.
+ * blueprint alone. They are stored rows only, refreshed by the daily
+ * cron:industry-indices, and every write clears INDUSTRY_INDICES_TAG, so the
+ * entry lives across instances until then. Types CCP gives no adjusted price
+ * are left out, and an unknown blueprint has none.
  */
 export async function getBlueprintAdjustedPrices(blueprintId: number): Promise<TypeAdjustedPrice[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(SDE_CACHE_TAG);
+  'use cache: remote';
+  cacheLife('max');
+  cacheTag(INDUSTRY_INDICES_TAG, SDE_CACHE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId);
   if (!structure) return [];
@@ -263,7 +274,7 @@ export async function getBlueprintAdjustedPrices(blueprintId: number): Promise<T
 /** Each system's manufacturing and reaction cost indices, in the order asked. */
 export async function getJobCostIndices(systemIds: number[]): Promise<SystemJobCostIndex[]> {
   const ids = dedupe(systemIds);
-  const indices = await getSystemCostIndicesBatch(ids);
+  const indices = await getSystemCostIndicesOnView(ids);
   return ids.map((systemId) => ({
     systemId,
     manufacturing: indices.get(systemId)?.get('manufacturing') ?? null,

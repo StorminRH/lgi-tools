@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import { commitWithWrite } from '@/data/esi-store';
 import { characterSkills, characterSkillSyncs } from './schema';
 
 const mocks = vi.hoisted(() => ({
@@ -13,7 +14,7 @@ vi.mock('next/cache', () => ({
   revalidateTag: mocks.revalidateTag,
 }));
 
-import { listCharacterSkillSyncStates, readCharacterSkillRow, saveCharacterSkills, skillsTag } from './queries';
+import { listCharacterSkillSyncStates, readCharacterSkillRow, saveCharacterSkills } from './queries';
 
 const harness = await createDbTestHarness({
   schema: 'test_skill_queue_save',
@@ -42,7 +43,7 @@ beforeEach(() => {
 
 describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgres', () => {
   it('inserts the first full save and replaces both halves on conflict', async () => {
-    await saveCharacterSkills(101, {
+    await commitWithWrite([], saveCharacterSkills(101, {
       queue: {
         entries: [{ skill_id: 3300, queue_position: 0, finished_level: 4 }],
         etag: 'queue-first',
@@ -53,7 +54,7 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
         levels: { '3300': 3 },
         etag: 'skills-first',
       },
-    });
+    }));
 
     expect(await readRows(101)).toEqual({
       data: {
@@ -71,7 +72,7 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
       },
     });
 
-    await saveCharacterSkills(101, {
+    await commitWithWrite([], saveCharacterSkills(101, {
       queue: {
         entries: [{ skill_id: 4400, queue_position: 0, finished_level: 5 }],
         etag: 'queue-second',
@@ -81,7 +82,7 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
         levels: { '3300': 4, '4400': 2 },
         etag: 'skills-second',
       },
-    });
+    }));
 
     expect(await readRows(101)).toEqual({
       data: {
@@ -98,8 +99,8 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
         skillsEtag: 'skills-second',
       },
     });
-    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(1, skillsTag(101), { expire: 0 });
-    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(2, skillsTag(101), { expire: 0 });
+    // The sync's commit clears the skills tag once the answers are recorded; the write itself clears nothing.
+    expect(mocks.revalidateTag).not.toHaveBeenCalled();
   });
 
   it('updates only the queue half and advances freshness', async () => {
@@ -117,12 +118,12 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
       skillsEtag: 'skills-held',
     });
 
-    await saveCharacterSkills(202, {
+    await commitWithWrite([], saveCharacterSkills(202, {
       queue: {
         entries: [{ skill_id: 4400, queue_position: 0, finished_level: 5 }],
         etag: 'queue-new',
       },
-    });
+    }));
 
     const { data, sync } = await readRows(202);
     expect(data).toEqual({
@@ -138,7 +139,7 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
       skillsEtag: 'skills-held',
     });
     expect(sync?.lastRefreshedAt.getTime()).toBeGreaterThan(OLD_STAMP.getTime());
-    expect(mocks.revalidateTag).toHaveBeenCalledWith(skillsTag(202), { expire: 0 });
+    expect(mocks.revalidateTag).not.toHaveBeenCalled();
   });
 
   it('updates only the skills half and preserves the queue contract', async () => {
@@ -156,13 +157,13 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
       skillsEtag: 'skills-old',
     });
 
-    await saveCharacterSkills(303, {
+    await commitWithWrite([], saveCharacterSkills(303, {
       skills: {
         totalSp: 4_000_000,
         levels: { '3300': 4, '4400': 1 },
         etag: 'skills-new',
       },
-    });
+    }));
 
     const { data, sync } = await readRows(303);
     expect(data).toEqual({
@@ -178,7 +179,7 @@ describe.skipIf(!harness.reachable)('saveCharacterSkills executes against Postgr
       skillsEtag: 'skills-new',
     });
     expect(sync?.lastRefreshedAt.getTime()).toBeGreaterThan(OLD_STAMP.getTime());
-    expect(mocks.revalidateTag).toHaveBeenCalledWith(skillsTag(303), { expire: 0 });
+    expect(mocks.revalidateTag).not.toHaveBeenCalled();
   });
 });
 
@@ -230,8 +231,8 @@ describe.skipIf(!harness.reachable)('listCharacterSkillSyncStates executes again
     ]);
 
     expect(await listCharacterSkillSyncStates([707, 909, 606])).toEqual(new Map([
-      [707, { lastRefreshedAt: newer, queueEtag: null, skillsEtag: '"skills-707"' }],
-      [606, { lastRefreshedAt: OLD_STAMP, queueEtag: '"queue-606"', skillsEtag: null }],
+      [707, { lastRefreshedAt: newer }],
+      [606, { lastRefreshedAt: OLD_STAMP }],
     ]));
   });
 });

@@ -41,7 +41,10 @@ const ACTIVE_CHARACTER = 90002;
 const ROUTE = '/api/account/corp-sharing';
 
 function pilotIn(corporationId: number) {
-  return [{ characterId: 90001, sharedAccessEligible: true, corporationId, allianceId: null, factionId: null, refreshedAt: new Date() }];
+  return [{
+    characterId: 90001, sharedAccessEligible: true, corporationId, allianceId: null, factionId: null,
+    refreshedAt: new Date(), expiresAt: new Date(Date.now() + 3_600_000),
+  }];
 }
 
 beforeEach(() => {

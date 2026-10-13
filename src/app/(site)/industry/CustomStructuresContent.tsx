@@ -2,7 +2,7 @@ import { EveSignInButton } from '@/components/composition/account/LoginButton';
 import { StructuresManager } from '@/components/composition/industry-workspace/StructuresManager';
 import { EmptyState } from '@/components/ui/empty-state';
 import { getFullSession } from '@/composition/session';
-import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
+import { getCorpStructuresFirstDraw } from '@/composition/sync/corp-structures-sync';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 
@@ -15,11 +15,11 @@ export async function CustomStructuresContent() {
     </div>
   );
 
-  const [structureTypes, structureRigs, initialCustom, initialCorps] = await Promise.all([
+  const [structureTypes, structureRigs, initialCustom, corps] = await Promise.all([
     getStructureTypes(),
     getStructureRigs(),
     listCustomStructures(session.user.id),
-    getCorpStructuresPageData(session.user.id),
+    getCorpStructuresFirstDraw(session.user.id),
   ]);
   return (
     <StructuresManager
@@ -27,7 +27,7 @@ export async function CustomStructuresContent() {
       structureTypes={structureTypes}
       structureRigs={structureRigs}
       initialCustom={initialCustom}
-      initialCorps={initialCorps}
+      initialCorps={corps.corporations}
     />
   );
 }

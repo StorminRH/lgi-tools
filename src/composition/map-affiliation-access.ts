@@ -80,7 +80,12 @@ async function deliverPendingMapAccessChanges(
   return { processed: completed.length, failed: pending.length - completed.length };
 }
 
+/**
+ * The sign-in refresh: the character who just signed in is waiting on the
+ * corporation access it decides, so its read takes the gate's interactive
+ * floor.
+ */
 export async function refreshAffiliationsAndReconcile(characterIds: number[]): Promise<void> {
-  const result = await refreshAffiliationsWithOutcome(characterIds);
+  const result = await refreshAffiliationsWithOutcome(characterIds, { interactive: true });
   if (result.accessChanged) await reconcileAffiliationAccess();
 }

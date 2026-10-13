@@ -20,7 +20,7 @@ vi.mock('@/platform/auth/affiliation', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_map_character_scoping',
-  tables: ['user', 'account', 'characters', 'pending_tracking_merges', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'esi_responses', 'pending_tracking_merges', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },

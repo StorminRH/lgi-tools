@@ -15,7 +15,6 @@ const INPUT_MARKER_RE = /^[ \t]*\/\/[ \t]*input:[ \t]*([a-z]+)[ \t]*$/gm;
 const VALID_INPUT_CLASSES = new Set(['none', 'query', 'path']);
 
 const CRON_ROUTES = new Set([
-  'cron/drain-esi-refresh-jobs/route.ts',
   'cron/daily-batch/route.ts',
   'cron/refresh-gsc/route.ts',
   'cron/refresh-industry-indices/route.ts',
@@ -30,7 +29,6 @@ const FORM_ROUTES = new Set([
   'account/characters/unlink/route.ts',
   'admin/characters/reassign/route.ts',
   'admin/characters/unlink/route.ts',
-  'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/sessions/revoke/route.ts',
   'admin/wh-statics/route.ts',

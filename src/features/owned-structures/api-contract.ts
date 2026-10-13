@@ -8,25 +8,34 @@ import {
   jsonBody,
   problem,
 } from '@/transport/endpoint';
+import type { CorpStructurePageStructure, CorpStructurePageView, CorpStructuresPageResult } from './types';
 
-const corpStructureRowSchema = z.object({
+const corpStructurePageStructureSchema = z.object({
   structureId: z.number(),
   typeId: z.number(),
   systemId: z.number(),
   securityClass: z.enum(SECURITY_CLASSES),
   name: z.string().nullable(),
-});
+  rigTypeIds: z.array(z.number()),
+  taxPct: z.number().nullable(),
+}) satisfies z.ZodType<CorpStructurePageStructure>;
 
-const viewerCorpStructuresSchema = z.object({
+const corpStructurePageViewSchema = z.object({
   corporationId: z.number(),
-  structures: z.array(corpStructureRowSchema),
+  corporationName: z.string(),
+  structureAccess: z.enum(['none', 'use', 'manage']),
+  canManageSharing: z.boolean(),
+  sharing: z.enum(['on', 'off']),
+  structures: z.array(corpStructurePageStructureSchema),
   lastRefreshedAt: z.number().nullable(),
-});
+}) satisfies z.ZodType<CorpStructurePageView>;
 
 const corpStructuresResponseSchema = z.object({
-  corporations: z.array(viewerCorpStructuresSchema),
-});
+  corporations: z.array(corpStructurePageViewSchema),
+  refreshing: z.boolean(),
+}) satisfies z.ZodType<CorpStructuresPageResult>;
 
+/** The structures drawer's and the corporation settings page's live read: what their server render was given, checked back for newer data. */
 export const corpStructuresEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/corp-structures',

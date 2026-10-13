@@ -1,5 +1,6 @@
 import { deferWork } from '@/lib/deferred-work';
 import { int4IdSchema } from '@/lib/id-schemas';
+import type { EsiFetchOptions } from '@/platform/esi';
 import {
   readStoredEntityNames,
   storeEntityNames,
@@ -86,10 +87,15 @@ function absorbBatch(chunk: readonly number[], data: readonly UniverseNameRow[],
  * are remembered as unresolvable. Whatever the split budget cannot cover is
  * asked again next time.
  */
-async function askBatch(ids: readonly number[], budget: { postsLeft: number }, into: EsiNames): Promise<void> {
+async function askBatch(
+  ids: readonly number[],
+  budget: { postsLeft: number },
+  into: EsiNames,
+  opts: EsiFetchOptions | undefined,
+): Promise<void> {
   let posted: Awaited<ReturnType<typeof postUniverseNames>>;
   try {
-    posted = await postUniverseNames(ids);
+    posted = await postUniverseNames(ids, opts);
   } catch (err) {
     into.unresolved.push(...ids);
     into.failure ??= err;
@@ -114,14 +120,14 @@ async function askBatch(ids: readonly number[], budget: { postsLeft: number }, i
   }
   budget.postsLeft -= 2;
   const half = Math.ceil(ids.length / 2);
-  await Promise.all([askBatch(ids.slice(0, half), budget, into), askBatch(ids.slice(half), budget, into)]);
+  await Promise.all([askBatch(ids.slice(0, half), budget, into, opts), askBatch(ids.slice(half), budget, into, opts)]);
 }
 
-async function askEsi(ids: readonly number[]): Promise<EsiNames> {
+async function askEsi(ids: readonly number[], opts: EsiFetchOptions | undefined): Promise<EsiNames> {
   const result: EsiNames = { found: [], missing: [], unresolved: [], failure: null };
   const budget = { postsLeft: SPLIT_POST_LIMIT };
   for (let i = 0; i < ids.length; i += NAMES_PER_POST) {
-    await askBatch(ids.slice(i, i + NAMES_PER_POST), budget, result);
+    await askBatch(ids.slice(i, i + NAMES_PER_POST), budget, result, opts);
   }
   return result;
 }
@@ -142,7 +148,7 @@ function remember(answers: EsiNames): Promise<void> {
   });
 }
 
-async function resolve(ids: readonly number[]): Promise<Resolution> {
+async function resolve(ids: readonly number[], opts: EsiFetchOptions | undefined): Promise<Resolution> {
   const unique = [...new Set(ids)];
   const resolvable = unique.filter(isResolvableId);
   const names: Record<string, string> = {};
@@ -159,7 +165,7 @@ async function resolve(ids: readonly number[]): Promise<Resolution> {
   }
   if (toAsk.length === 0) return { names, unnamed, pending: [], failure: null };
 
-  const answers = await askEsi(toAsk);
+  const answers = await askEsi(toAsk, opts);
   for (const row of answers.found) names[String(row.id)] = row.name;
   unnamed.push(...answers.missing);
   // ESI could not answer for these this time: an older stored name (rows are
@@ -175,22 +181,27 @@ async function resolve(ids: readonly number[]): Promise<Resolution> {
   return { names, unnamed, pending, failure: answers.failure };
 }
 
-/** Names for the ids ESI can resolve; the rest are left out. */
-export async function resolveEntityNames(ids: number[]): Promise<Record<string, string>> {
-  return (await resolve(ids)).names;
+/**
+ * Names for the ids ESI can resolve; the rest are left out. `opts` marks a
+ * resolution a user is waiting on (a page or route answer), which takes the
+ * gate's interactive floor; a refresh after the response passes none.
+ */
+export async function resolveEntityNames(ids: number[], opts?: EsiFetchOptions): Promise<Record<string, string>> {
+  return (await resolve(ids, opts)).names;
 }
 
 /** Names as above, plus the ids ESI could not answer for this time, so a client knows to ask again. */
 export async function resolveEntityNamesWithPending(
   ids: number[],
+  opts?: EsiFetchOptions,
 ): Promise<{ names: Record<string, string>; pending: number[] }> {
-  const { names, pending } = await resolve(ids);
+  const { names, pending } = await resolve(ids, opts);
   return { names, pending };
 }
 
 /** Names for every id, or a throw when any id cannot be named right now. */
-export async function resolveEntityNamesStrict(ids: number[]): Promise<Record<string, string>> {
-  const { names, unnamed, failure } = await resolve(ids);
+export async function resolveEntityNamesStrict(ids: number[], opts?: EsiFetchOptions): Promise<Record<string, string>> {
+  const { names, unnamed, failure } = await resolve(ids, opts);
   if (failure !== null) throw failure;
   if (unnamed.length > 0) throw new Error(`EVE entity name missing for ${unnamed[0]}`);
   return names;

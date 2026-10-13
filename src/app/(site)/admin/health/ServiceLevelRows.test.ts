@@ -12,8 +12,7 @@ vi.mock('../charts', () => ({
 }));
 
 const rows = deriveServiceLevels(
-  { readSuccess: 0.97, mutationSuccess: 0.98, latencyP95: 2000, esiSuccess: 0.9 },
-  { due: 4, deadLettered: 1, oldestDueHours: 1 },
+  { readSuccess: 0.9, mutationSuccess: 0.98, latencyP95: 2000, esiSuccess: 0.9 },
 );
 
 const range = {
@@ -35,14 +34,11 @@ function failure(operation: string): FailureGroup {
 
 function emptyDetails(): ServiceLevelDetails {
   return {
-    now: range.to,
     read: { range, groups: [], daily: [] },
     mutation: { range, groups: [], daily: [] },
     slowest: [],
     esi: [],
     esiClientErrors: { errors: 0, calls: 0, rate: null, groups: [] },
-    queue: [],
-    deadLetters: [],
   };
 }
 
@@ -57,12 +53,12 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('service level rows', () => {
   it('reads like the overview: verdict spoken, value in the value column, target under the title', () => {
-    const html = render('job_backlog', emptyDetails());
+    const html = render('read_success_rate', emptyDetails());
 
     expect(html).toContain('<span class="sr-only">Critical</span>');
-    expect(html).toMatch(/<span class="block font-ui[^"]*">Active jobs and exhausted retries<\/span><span class="block font-data[^"]*">target 0 dead<\/span>/);
-    expect(html).toMatch(/<span class="max-w-2\/3[^"]*text-tone-red">4 active · 1 dead<\/span>/);
-    expect(html).toContain('Review the refresh queue.');
+    expect(html).toMatch(/<span class="block font-ui[^"]*">Tracked read success<\/span><span class="block font-data[^"]*">target ≥ 99%<\/span>/);
+    expect(html).toMatch(/<span class="max-w-2\/3[^"]*text-tone-red">90.0%<\/span>/);
+    expect(html).toContain('Check failed reads.');
     expect(html).toContain('data-chevron="true" aria-hidden="true"');
   });
 });
@@ -147,14 +143,11 @@ describe('service level details', () => {
 
   it.each(rows.map((row) => [row.id] as const))('keeps %s available when its detail query fails', (id) => {
     const html = render(id, {
-      now: range.to,
       read: SECTION_LOAD_FAILED,
       mutation: SECTION_LOAD_FAILED,
       slowest: SECTION_LOAD_FAILED,
       esi: SECTION_LOAD_FAILED,
       esiClientErrors: SECTION_LOAD_FAILED,
-      queue: SECTION_LOAD_FAILED,
-      deadLetters: SECTION_LOAD_FAILED,
     });
 
     expect(html).toContain('>target ');
@@ -212,7 +205,7 @@ describe('service level details', () => {
         feature: 'maps', operation: 'search-characters', errors: 7, calls: 200,
         lastSeen: new Date('2026-09-21T10:00:00Z'),
       }, {
-        feature: 'sync', operation: 'process-esi-refresh-job', errors: 1, calls: 2_500,
+        feature: 'planner', operation: 'read-owned-assets', errors: 1, calls: 2_500,
         lastSeen: new Date('2026-09-20T10:00:00Z'),
       }],
     };
@@ -225,26 +218,5 @@ describe('service level details', () => {
     expect(html).toContain('2026-09-21');
     // One 4xx in 2,500 calls still reads as a share, not as none.
     expect(html).toContain('&lt;0.1%');
-  });
-
-  it('shows queue counts, dead-letter timing and the queue link', () => {
-    const details = emptyDetails();
-    expect(render('job_backlog', details)).toContain('No dead-lettered jobs.');
-    details.queue = [{ status: 'queued', count: 4, oldestCreatedAt: new Date('2026-09-20T18:00:00Z') }];
-    details.deadLetters = [{
-      id: 1, dataset: 'owned_assets', ownerType: 'character', ownerId: 42,
-      resource: '/characters/42/assets/', budgetReason: null, lastErrorCode: 'esi_503',
-      attemptCount: 3, createdAt: new Date('2026-09-19T10:00:00Z'),
-      finishedAt: new Date('2026-09-20T18:04:00Z'),
-    }];
-
-    const html = render('job_backlog', details);
-
-    expect(html).toContain('Queued &amp; running 4');
-    expect(html).toContain('Latest dead letters');
-    expect(html).toContain('owned assets · character 42');
-    expect(html).toContain('esi_503');
-    expect(html).toContain('2026-09-20 18:04 UTC');
-    expect(html).toContain('href="/admin/queue"');
   });
 });

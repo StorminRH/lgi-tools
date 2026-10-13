@@ -19,16 +19,16 @@ async function handlePost(request: NextRequest): Promise<Response> {
 
   const userId = await getCurrentUserId();
   if (!userId) {
-    return apiResponse(ownedBlueprintsEndpoint, 200, { blueprints: [] });
+    return apiResponse(ownedBlueprintsEndpoint, 200, { blueprints: [], refreshing: false });
   }
 
   const blueprintTypeIds = Array.from(new Set(parsed.data.blueprintTypeIds));
-  const blueprints = await measureOwnedDataRead({
+  const result = await measureOwnedDataRead({
     endpoint: ownedBlueprintsEndpoint,
     requested: blueprintTypeIds.length,
     read: () => getOwnedBlueprintDetailOnView(userId, blueprintTypeIds),
-    returned: (value) => value.length,
+    returned: (value) => value.blueprints.length,
   });
 
-  return apiResponse(ownedBlueprintsEndpoint, 200, { blueprints });
+  return apiResponse(ownedBlueprintsEndpoint, 200, result);
 }

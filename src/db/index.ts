@@ -1,5 +1,5 @@
 import { neon, neonConfig } from '@neondatabase/serverless';
-import type { SQL } from 'drizzle-orm';
+import type { Query, SQL } from 'drizzle-orm';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
@@ -108,21 +108,41 @@ const dialect = new PgDialect();
  * safe because a rejected transaction left nothing behind, so callers never
  * retry it themselves. Over Neon's HTTP driver each attempt is a single request.
  */
-export function runSerializable(query: SQL): Promise<Record<string, unknown>[]> {
-  const { sql: text, params } = dialect.sqlToQuery(query);
-  return retrySerializationFailures(() => runSerializableOnce(text, params));
+export async function runSerializable(query: SQL): Promise<Record<string, unknown>[]> {
+  const statement = dialect.sqlToQuery(query);
+  const [rows = []] = await retrySerializationFailures(() => runSerializableOnce([statement]));
+  return rows;
 }
 
-async function runSerializableOnce(text: string, params: unknown[]): Promise<Record<string, unknown>[]> {
+/**
+ * Runs built statements (Drizzle inserts, updates and deletes, rendered by
+ * their own `toSQL()`) in order as one atomic, non-interactive serializable
+ * transaction, and hands back each statement's rows in the same order. No
+ * statement can read another's result, so a later statement that depends on
+ * an earlier one says so in its own SQL (an EXISTS guard on what the earlier
+ * one wrote). Any failure rolls every statement back; a serialization
+ * failure reruns the whole list in a fresh transaction, as runSerializable
+ * does. Over Neon's HTTP driver each attempt is one request; locally it is
+ * one postgres-js transaction on the request client.
+ */
+export function runAtomically(statements: readonly { toSQL(): Query }[]): Promise<Record<string, unknown>[][]> {
+  const queries = statements.map((statement) => statement.toSQL());
+  return retrySerializationFailures(() => runSerializableOnce(queries));
+}
+
+async function runSerializableOnce(queries: readonly Query[]): Promise<Record<string, unknown>[][]> {
   if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
     const client = (getDb() as unknown as { $client: Sql }).$client;
-    const rows = await client.begin('isolation level serializable', (tx) => tx.unsafe(text, params as never[]));
-    return rows as unknown as Record<string, unknown>[];
+    const results = await client.begin('isolation level serializable', async (tx) => {
+      const rows: unknown[] = [];
+      for (const { sql: text, params } of queries) rows.push(await tx.unsafe(text, params as never[]));
+      return rows;
+    });
+    return results as Record<string, unknown>[][];
   }
-  const [rows = []] = await getClient().transaction<false, false>((tx) => [tx.query(text, params)], {
+  return getClient().transaction<false, false>((tx) => queries.map(({ sql: text, params }) => tx.query(text, params)), {
     isolationLevel: 'Serializable',
   });
-  return rows;
 }
 
 export const db: Db = new Proxy({} as Db, {

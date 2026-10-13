@@ -6,7 +6,7 @@ import {
   seedEveAccount as insertEveAccount,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import { recordExpiryFor } from '@/data/esi-store';
 import {
   acknowledgeMapAccessChanges,
   captureAffiliationObservedAt,
@@ -15,18 +15,16 @@ import {
   readPendingMapAccessChanges,
   getUserAffiliations,
   listLinkedCharacterIdsInCorporation,
-  listStaleLinkedCharacterIds,
   recordCorpAccessDecision,
   updateAffiliations,
 } from './affiliation-store';
+import { affiliationKey } from './affiliation-key';
 import { characters, corpAccessAudit } from '@/db/auth-schema';
 import { enqueueAffectedMapAccessChanges } from '@/data/maps/queries';
 import { maps, mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
-
-const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
 const harness = await createDbTestHarness({
   schema: 'test_auth_affiliation_store',
-  tables: ['user', 'account', 'characters', 'corp_access_audit', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'esi_responses', 'corp_access_audit', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [{ table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' }],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
@@ -61,8 +59,9 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await insertEveAccount(harness.db, { id, characterId, userId: USER_ID });
   }
 
-  it('returns joined affiliation rows and fails closed across missing profile fields', async () => {
+  it('returns joined affiliation rows with the stored expiry, and fails closed across missing profile fields', async () => {
     const refreshedAt = new Date('2026-07-15T12:00:00Z');
+    const expiresAt = new Date('2026-07-15T13:00:00Z');
     await seedCharacter(FIRST_CHAR, {
       corporationId: 98000011,
       allianceId: 99000011,
@@ -71,6 +70,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     });
     await seedEveAccount('first', FIRST_CHAR);
     await seedEveAccount('second', SECOND_CHAR);
+    await recordExpiryFor([affiliationKey(FIRST_CHAR)], { expiresAt: expiresAt.getTime(), lastModified: null, checkedAt: refreshedAt.getTime() });
 
     await expect(getUserAffiliations(USER_ID)).resolves.toEqual([
       {
@@ -80,6 +80,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
         allianceId: 99000011,
         factionId: 500011,
         refreshedAt,
+        expiresAt,
       },
       {
         sharedAccessEligible: false,
@@ -88,27 +89,10 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
         allianceId: null,
         factionId: null,
         refreshedAt: null,
+        expiresAt: null,
       },
     ]);
 
-  });
-
-  it('returns only missing or older-than-TTL linked characters without duplicates', async () => {
-    const now = Date.now();
-    await seedCharacter(FIRST_CHAR, {
-      affiliationRefreshedAt: new Date(now - AFFILIATION_WINDOW_MS - 1000),
-    });
-    await seedCharacter(SECOND_CHAR, {
-      affiliationRefreshedAt: new Date(now - AFFILIATION_WINDOW_MS + 60_000),
-    });
-    await seedEveAccount('first', FIRST_CHAR);
-    await seedEveAccount('second', SECOND_CHAR);
-    await seedEveAccount('missing-profile', 90000013);
-
-    const stale = await listStaleLinkedCharacterIds();
-
-    expect(stale.sort((a, b) => a - b)).toEqual([FIRST_CHAR, 90000013]);
-    expect(new Set(stale).size).toBe(stale.length);
   });
 
   it('lists the linked characters in one corp across users, ignoring unlinked profiles', async () => {
@@ -193,7 +177,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
       .toEqual([mapId(98000011), mapId(98000031)]);
   });
 
-  it('queues stale restorations and corp changes, not fresh or near-boundary unchanged rows', async () => {
+  it('queues first observations and corp changes, not unchanged rows however long ago they were observed', async () => {
     await seedCorpMap(98000011);
     await seedCorpMap(98000021);
     await seedCharacter(FIRST_CHAR, { corporationId: 98000011, affiliationRefreshedAt: new Date() });
@@ -205,20 +189,17 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await expect(readPendingMapAccessChanges()).resolves.toEqual(pending);
     await acknowledgeMapAccessChanges(pending);
 
-    await seedCharacter(SECOND_CHAR, {
-      corporationId: 98000011,
-      affiliationRefreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS - 1000),
-    });
+    await seedCharacter(SECOND_CHAR, { corporationId: 98000011, affiliationRefreshedAt: null });
     expect((await updateAffiliations([affiliation(98000011, SECOND_CHAR)], new Date())).accessChanged).toBe(true);
     expect((await readPendingMapAccessChanges()).map((row) => row.mapId)).toEqual([mapId(98000011)]);
     await acknowledgeMapAccessChanges(await readPendingMapAccessChanges());
 
-    const nearBoundaryChar = 90000013;
-    await seedCharacter(nearBoundaryChar, {
+    const longAgoChar = 90000013;
+    await seedCharacter(longAgoChar, {
       corporationId: 98000011,
-      affiliationRefreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS + 60_000),
+      affiliationRefreshedAt: new Date(Date.now() - 7 * 24 * 60 * 60_000),
     });
-    expect((await updateAffiliations([affiliation(98000011, nearBoundaryChar)], new Date())).accessChanged).toBe(false);
+    expect((await updateAffiliations([affiliation(98000011, longAgoChar)], new Date())).accessChanged).toBe(false);
     await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
   });
 
