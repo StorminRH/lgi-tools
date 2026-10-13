@@ -26,8 +26,10 @@ export function afkConfigFromOverrides(hiddenRaw: unknown, timeoutRaw: unknown):
   };
 }
 
+export const ACTIVE_AFK_STATE: AfkState = { phase: 'active', hiddenSince: null, promptedAt: null };
+
 export function initialAfkState(visible: boolean, now: number): AfkState {
-  return { phase: 'active', hiddenSince: visible ? null : now, promptedAt: null };
+  return visible ? ACTIVE_AFK_STATE : { ...ACTIVE_AFK_STATE, hiddenSince: now };
 }
 
 export function onAfkVisibilityChange(state: AfkState, visible: boolean, now: number): AfkState {

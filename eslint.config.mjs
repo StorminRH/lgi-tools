@@ -764,6 +764,72 @@ const uiReferenceListed = {
   },
 };
 
+// With Cache Components a clock read while a page prerenders or prefetches
+// fails the render (blocking-prerender-current-time). partialPrefetching makes
+// a per-link prefetch, which resolves params and searchParams, one of those
+// renders, and only `next dev` reports it there, so a read below an awaited
+// searchParams passes the build and still breaks. react-hooks/purity only
+// sees synchronous component bodies; this rule covers all of render code,
+// including async Server Components, module-level helpers and constants, and
+// the initializers and array callbacks React runs while rendering.
+const RENDER_TIME_HOOKS = /^use(State|Reducer|Memo)$/;
+const RENDER_TIME_ITERATORS = new Set([
+  "every",
+  "filter",
+  "find",
+  "findIndex",
+  "flatMap",
+  "forEach",
+  "map",
+  "reduce",
+  "some",
+  "sort",
+  "toSorted",
+]);
+
+function isFunctionNode(node) {
+  return (
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "ArrowFunctionExpression"
+  );
+}
+
+// A function nested in render code defers a clock read (a handler, effect,
+// timer or promise callback) unless React or an array method calls it while
+// rendering.
+function runsWhileRendering(fn) {
+  const call = fn.parent;
+  if (call?.type !== "CallExpression" || !call.arguments.includes(fn)) return false;
+  const { callee } = call;
+  if (callee.type === "Identifier") return RENDER_TIME_HOOKS.test(callee.name);
+  if (callee.type !== "MemberExpression" || callee.computed) return false;
+  const name = callee.property.name;
+  return RENDER_TIME_HOOKS.test(name) || RENDER_TIME_ITERATORS.has(name);
+}
+
+const renderClock = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      read:
+        "Render code must not read the clock: under Cache Components a read while a page prerenders or prefetches fails the render (blocking-prerender-current-time), and per-link prefetches only fail in `next dev`. A Server Component awaits requestNow() from @/lib/request-now inside <Suspense>; a Client Component shows the time once hydrated (useHydrating, then useNow; see PriceUpdateAge); a helper takes `now` as a parameter. Reads in handlers, effects and timers are fine.",
+    },
+  },
+  create(context) {
+    const check = (node) => {
+      const [, ...nested] = context.sourceCode.getAncestors(node).filter(isFunctionNode);
+      if (nested.every(runsWhileRendering)) context.report({ node, messageId: "read" });
+    };
+    return {
+      "CallExpression[callee.type='MemberExpression'][callee.object.name='Date'][callee.property.name='now']":
+        check,
+      "NewExpression[callee.name='Date'][arguments.length=0]": check,
+    };
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -1427,6 +1493,23 @@ const eslintConfig = defineConfig([
     ignores: ["**/*.test.{ts,tsx}"],
     plugins: { "ui-reference": { rules: { listed: uiReferenceListed } } },
     rules: { "ui-reference/listed": "error" },
+  },
+
+  // Render code: components, hooks, view models and formatters. The two clock
+  // primitives are outside it: request-now.ts suspends a prerender before it
+  // reads, and use-now.ts is the client clock a hydrated component reads.
+  {
+    files: [
+      "src/**/*.tsx",
+      "src/**/use-*.ts",
+      "src/{app,components,features,mapper}/**/*-view.ts",
+      "src/components/**/*.ts",
+      "src/features/*/components/**/*.ts",
+      "src/lib/format/**/*.ts",
+    ],
+    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**", "src/lib/use-now.ts"],
+    plugins: { "render-clock": { rules: { "no-read": renderClock } } },
+    rules: { "render-clock/no-read": "error" },
   },
 
   globalIgnores([
