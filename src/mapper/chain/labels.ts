@@ -1,5 +1,5 @@
 import { systemClassText } from '@/data/eve-data/system-identity';
-import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import type { SystemInfoLookup } from '@/data/eve-data/universe-assets-client';
 import type { WormholeEffect } from '@/data/eve-data/wormhole-contract';
 
 export interface SystemLabel {
@@ -12,7 +12,7 @@ export interface SystemLabel {
 
 export function resolveSystemLabel(
   systemId: number,
-  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
+  systemInfo: SystemInfoLookup | null,
 ): SystemLabel {
   const entry = systemInfo === null ? null : systemInfo(systemId);
   if (entry === null) {

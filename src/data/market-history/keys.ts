@@ -1,6 +1,6 @@
 import type { EsiStoreKey } from '@/data/esi-store';
 import { eveTag } from '@/lib/esi-datasets/routes';
-import { THE_FORGE_REGION_ID } from './constants';
+import { THE_FORGE_REGION_ID } from '@/data/eve-data/constants';
 
 export const MARKET_HISTORY_TAG = eveTag('market_history');
 

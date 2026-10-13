@@ -2,8 +2,8 @@
 
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { WormholeCodex } from '@/data/eve-data/universe-assets-client';
+import { useWormholeCodex } from '@/data/eve-data/use-universe-assets';
 import { useSystemStaticCodes } from '@/data/wh-statics/use-system-static-codes';
-import { useWormholeCodex } from '../signatures/use-system-statics';
 
 export interface WormholeEditorData {
   readonly codex: WormholeCodex | null;

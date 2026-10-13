@@ -18,14 +18,12 @@ const h = vi.hoisted(() => ({
   status: { codex: null, failed: false } as { codex: WormholeCodex | null; failed: boolean },
 }));
 
-vi.mock('@/components/use-entity-names', () => ({ useEntityNames: () => ({}) }));
+vi.mock('@/data/eve-data/use-names', () => ({ useEntityNames: () => ({}), useTypeNames: () => ({}) }));
 vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }));
 vi.mock('../signatures/signature-context', () => ({ useSignatureRows: () => [] }));
-vi.mock('../signatures/use-system-statics', () => ({
-  useSystemStaticSlots: () => [],
+vi.mock('../signatures/use-system-statics', () => ({ useSystemStaticSlots: () => [] }));
+vi.mock('@/data/eve-data/use-universe-assets', () => ({
   useWormholeCodexStatus: () => h.status,
-}));
-vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => ({
     systemInfo: (): SystemDirectoryEntry => ({
       id: 1, name: 'J123456', regionName: 'Test Region', security: -1, whClassId: h.whClassId, effect: 'pulsar',

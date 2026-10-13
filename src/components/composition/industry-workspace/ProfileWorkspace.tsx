@@ -67,8 +67,9 @@ function useCapacities(
   jobs: WorkspaceJobs,
   corp: WorkspaceCorpJobs,
   corpEligible: boolean,
+  skillEligibleCharacterIds: number[],
 ): { capacities: Map<number, MemberCapacity>; levels: Map<number, Record<string, number> | null> } {
-  const slots = useSlotsLive();
+  const slots = useSlotsLive(skillEligibleCharacterIds);
   return useMemo(() => {
     const levels = new Map(slots.characters.map((c) => [c.characterId, c.levels]));
     // A corporation feed that has not answered could hide corp-installed jobs,
@@ -212,6 +213,7 @@ function ProfileWorkspaceBody({
   jobs,
   corp,
   corpEligible,
+  skillEligibleCharacterIds,
   hulls,
 }: {
   state: IndustryProfilesState & { profiles: IndustryProfileRow[] };
@@ -219,11 +221,12 @@ function ProfileWorkspaceBody({
   jobs: WorkspaceJobs;
   corp: WorkspaceCorpJobs;
   corpEligible: boolean;
+  skillEligibleCharacterIds: number[];
   hulls: readonly HullName[];
 }) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const structures = useAvailableStructures();
-  const { capacities, levels } = useCapacities(roster, jobs, corp, corpEligible);
+  const { capacities, levels } = useCapacities(roster, jobs, corp, corpEligible, skillEligibleCharacterIds);
   const { selection, selectProfile } = useProfileNavigation(state.profiles);
   const profile = selection.profile;
 
@@ -331,11 +334,14 @@ export function ProfileWorkspace({
   jobs,
   corp,
   corpEligible,
+  skillEligibleCharacterIds,
   hulls,
 }: {
   jobs: WorkspaceJobs;
   corp: WorkspaceCorpJobs;
   corpEligible: boolean;
+  /** The pilots whose skills can sync: slots wait for their levels, and no one else's. */
+  skillEligibleCharacterIds: number[];
   hulls: readonly HullName[];
 }) {
   const { session, loading } = useAuth();
@@ -359,6 +365,7 @@ export function ProfileWorkspace({
       jobs={jobs}
       corp={corp}
       corpEligible={corpEligible}
+      skillEligibleCharacterIds={skillEligibleCharacterIds}
       hulls={hulls}
     />
   );

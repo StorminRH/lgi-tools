@@ -16,7 +16,7 @@ vi.mock('@/components/use-account-characters', () => ({
   ],
 }));
 
-vi.mock('@/components/use-entity-names', () => ({
+vi.mock('@/data/eve-data/use-names', () => ({
   useEntityNames: (ids: readonly number[]) =>
     Object.fromEntries(ids.map((id) => [String(id), `Named ${id}`])),
 }));

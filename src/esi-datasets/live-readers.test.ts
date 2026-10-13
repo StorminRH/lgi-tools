@@ -69,9 +69,9 @@ describe('client readers of EVE dataset endpoints', () => {
     expect(liveEndpoints.map((endpoint) => endpoint.path).sort()).toEqual(EVE_DATASET_ENDPOINTS);
   });
 
-  it('reads each one through useLiveDataset and never with its own apiFetch', () => {
+  it('reads each one through useLiveDataset and never with its own apiFetch or apiFetchData', () => {
     const offenders = liveEndpoints
-      .filter((endpoint) => filesCalling('apiFetch', endpoint.name).some((file) => file !== LIVE_READER))
+      .filter((endpoint) => filesCalling('apiFetch(?:Data)?', endpoint.name).some((file) => file !== LIVE_READER))
       .map((endpoint) => endpoint.path);
     expect(offenders).toEqual([]);
     const unread = liveEndpoints

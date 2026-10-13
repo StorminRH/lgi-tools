@@ -98,7 +98,7 @@ beforeEach(() => {
   mocks.resolveEntityNames.mockResolvedValue({});
 });
 
-function viewWithThreeCorps(): void {
+function viewWithThreeCorps(): Map<number, ReturnType<typeof fort>[]> {
   const viewer = {
     corporations: [
       viewerCorp(SHARED_CORP, 'on', []),
@@ -108,13 +108,13 @@ function viewWithThreeCorps(): void {
   };
   mocks.resolveCorpViewer.mockResolvedValue(viewer);
   mocks.readCorpViewer.mockResolvedValue(viewer);
-  mocks.getCorpStructures.mockResolvedValue(
-    new Map([
-      [SHARED_CORP, [fort(1)]],
-      [MANAGED_CORP, [fort(2)]],
-      [PRIVATE_CORP, [fort(3)]],
-    ]),
-  );
+  const structuresByCorp = new Map([
+    [SHARED_CORP, [fort(1)]],
+    [MANAGED_CORP, [fort(2)]],
+    [PRIVATE_CORP, [fort(3)]],
+  ]);
+  mocks.getCorpStructures.mockResolvedValue(structuresByCorp);
+  return structuresByCorp;
 }
 
 describe('corp structure reads', () => {
@@ -130,20 +130,37 @@ describe('corp structure reads', () => {
   });
 
   it('offers the planner the structures of shared corps and of corps the viewer manages', async () => {
-    viewWithThreeCorps();
+    const structuresByCorp = viewWithThreeCorps();
+    const structures = Promise.withResolvers<typeof structuresByCorp>();
+    mocks.getCorpStructures.mockReturnValue(structures.promise);
     mocks.getCorpStructureRigs.mockResolvedValue(new Map([[2, { rigTypeIds: [37178], taxPct: 1.5 }]]));
 
     mocks.refreshDue.mockResolvedValue(true);
 
-    const available = await getAvailableCorpStructuresForUser('user-1');
+    const pending = getAvailableCorpStructuresForUser('user-1');
+    await vi.waitFor(() => expect(mocks.getCorpStructures).toHaveBeenCalledOnce());
 
-    expect(available).toEqual({
+    // Rigs are read beside the structures, not after them.
+    expect(mocks.getCorpStructureRigs).toHaveBeenCalledWith([SHARED_CORP, MANAGED_CORP, PRIVATE_CORP]);
+    structures.resolve(structuresByCorp);
+
+    expect(await pending).toEqual({
       structures: [
         { structureId: 1, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 1', rigTypeIds: [], taxPct: null },
         { structureId: 2, typeId: 35832, systemId: 30000142, securityClass: 'high', name: 'Fort 2', rigTypeIds: [37178], taxPct: 1.5 },
       ],
       refreshing: true,
     });
+    // The planner read has no use for the sync state, so it never queries it.
+    expect(mocks.listCorpStructureSyncStates).not.toHaveBeenCalled();
+    expect(mocks.after).toHaveBeenCalledOnce();
+  });
+
+  it('schedules the corp refresh from the planner read even when the viewer has no corporations', async () => {
+    await expect(getCorpStructuresPageData('user-1')).resolves.toEqual({ corporations: [], refreshing: false });
+    expect(mocks.after).not.toHaveBeenCalled();
+
+    await expect(getAvailableCorpStructuresForUser('user-1')).resolves.toEqual({ structures: [], refreshing: false });
     expect(mocks.after).toHaveBeenCalledOnce();
   });
 

@@ -12,7 +12,7 @@ vi.mock('react', () => ({
     const cleanup = effect();
     if (cleanup) h.cleanups.push(cleanup);
   },
-  useRef: <T>(value: T) => ({ current: value }),
+  useEffectEvent: <F>(fn: F): F => fn,
   useState: <T>(initial: T | (() => T)) => {
     const setter = vi.fn();
     h.stateSetters.push(setter);

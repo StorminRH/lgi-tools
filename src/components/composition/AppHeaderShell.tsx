@@ -7,8 +7,6 @@ import { NavMenu } from '@/components/composition/NavMenu';
 import { NavTools } from '@/components/composition/NavTools';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 
-import '@/composition/search/register-all';
-
 export function AppHeaderShell({
   siteIndex,
   serverStatusSlot,

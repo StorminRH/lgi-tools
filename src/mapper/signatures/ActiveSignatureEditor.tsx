@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import type { Id } from '@/data/convex/data-model';
+import { useUniverseAssets } from '@/data/eve-data/use-universe-assets';
 import {
   bindConnectionSetters,
   connectionLifecycleActions,
@@ -14,7 +15,6 @@ import type {
   ConnectionEditorDetail,
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
-import { useUniverseAssets } from '../chain/use-universe-assets';
 import { SignatureEditor } from './SignatureEditor';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import { destinationReadout } from './system-readout';
@@ -60,7 +60,7 @@ export function ActiveSignatureEditor({
   );
   const selection = connectionEditorMode(connection, now);
   const assets = useUniverseAssets();
-  const systemInfo = assets === null ? null : (id: number) => assets.systemInfo(id);
+  const systemInfo = assets?.systemInfo ?? null;
   const destination = destinationReadout(
     connection === null
       ? null

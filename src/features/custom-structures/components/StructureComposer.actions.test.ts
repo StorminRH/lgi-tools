@@ -132,7 +132,7 @@ const bonuses = (p: Props) => 'onReadFit' in p;
 
 beforeEach(() => {
   h.apiFetch.mockReset();
-  h.suggest.mockClear();
+  h.suggest.mockReset();
   h.hits = [];
 });
 
@@ -208,6 +208,26 @@ test('a typed system pins only on an exact name, and suggests the rest', async (
   c.call(system, 'onPick', { id: 30004759, name: '1DQ1-A', security: -0.4 });
   expect(c.draft().systemId).toBe(30004759);
   expect(c.find(system)!.sys).toMatchObject({ shown: '1DQ1-A' });
+});
+
+test('a system lookup that rejects clears the suggestions instead of going unhandled', async () => {
+  const c = mount(null);
+  // Each render looks the query up again, so answer by query rather than by call.
+  h.suggest.mockImplementation(async (query) => {
+    if (query === 'amx') throw new DOMException('Aborted', 'AbortError');
+    return ['Amamake'];
+  });
+  c.call(system, 'onType', 'ama');
+  c.find(system);
+  await settle();
+  expect(c.find(system)!.sys).toMatchObject({ shown: 'ama', suggestions: [{ name: 'Amamake' }] });
+
+  c.call(system, 'onType', 'amx');
+  c.find(system);
+  await settle();
+  expect(h.suggest).toHaveBeenLastCalledWith('amx');
+  expect(c.find(system)!.sys).toMatchObject({ shown: 'amx', suggestions: [] });
+  rt.hide();
 });
 
 test('saving a new structure creates it and hands back the list', async () => {

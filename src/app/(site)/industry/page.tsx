@@ -14,9 +14,16 @@ export const metadata = buildPageMetadata({
 });
 
 async function Workspace() {
-  const [{ jobIds, corpIds }, structureTypes] = await Promise.all([jobCharacterIds(), getStructureTypes()]);
+  const [{ jobIds, corpIds, skillIds }, structureTypes] = await Promise.all([jobCharacterIds(), getStructureTypes()]);
   const hulls = structureTypes.map((t) => ({ typeId: t.typeId, name: t.name }));
-  return <IndustryLanding characterIds={jobIds} corpEligibleCharacterIds={corpIds} hulls={hulls} />;
+  return (
+    <IndustryLanding
+      characterIds={jobIds}
+      corpEligibleCharacterIds={corpIds}
+      skillEligibleCharacterIds={skillIds}
+      hulls={hulls}
+    />
+  );
 }
 
 export default function IndustryProfilesPage() {

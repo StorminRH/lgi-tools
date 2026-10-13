@@ -2,8 +2,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 
-vi.mock('@/data/eve-data/stations-search', () => ({
-  loadStations: async () => [],
+vi.mock('@/data/eve-data/stations-search', async () => ({
+  stationsResource: (await import('@/lib/client-resource')).createClientResource(async () => []),
   matchStations: () => [],
 }));
 

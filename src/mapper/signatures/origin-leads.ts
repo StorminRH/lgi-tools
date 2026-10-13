@@ -5,7 +5,7 @@ import {
 } from '../authoring/leads-to-origin';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import { destinationReadout } from './system-readout';
-import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import type { SystemInfoLookup } from '@/data/eve-data/universe-assets-client';
 
 export function originLeadOptions(
   connection: Pick<
@@ -13,7 +13,7 @@ export function originLeadOptions(
     'fromSystemId' | 'connectionId' | 'toSystemId'
   > | null,
   connections: readonly OriginLeadConnection[],
-  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
+  systemInfo: SystemInfoLookup | null,
 ): readonly OriginLeadOption[] {
   if (connection === null || connection.toSystemId !== null) return [];
   return originLeadCandidates(

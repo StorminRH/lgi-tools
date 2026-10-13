@@ -2,7 +2,7 @@
 
 import { insetSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { EntityLogo } from '@/components/entity-logo';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
   type AccessGrantDraft,
   type AccessPrincipalOption,
 } from './access-editor-model';
+import { CharacterSearchControl } from './CharacterSearchControl';
 
 function roleOptions(mode: AccessEditorMode): RadioOption[] {
   return accessRolesForMode(mode).map((role) => ({
@@ -58,7 +59,6 @@ export interface AccessListEditorProps {
   readonly onPrincipalAdd: (principal: AccessPrincipalOption) => void;
   readonly onRoleChange: (principal: AccessGrantDraft, role: MapRole) => void;
   readonly onPrincipalRemove: (principal: AccessGrantDraft) => void;
-  readonly characterSearch?: ReactNode;
   readonly disabled?: boolean;
 }
 
@@ -69,7 +69,6 @@ export function AccessListEditor({
   onPrincipalAdd,
   onRoleChange,
   onPrincipalRemove,
-  characterSearch,
   disabled = false,
 }: AccessListEditorProps) {
   const revoke = useConfirmGate<AccessGrantDraft>();
@@ -137,7 +136,11 @@ export function AccessListEditor({
         )}
       </section>
 
-      {characterSearch}
+      <CharacterSearchControl
+        disabled={disabled}
+        selectedPrincipals={currentGrants}
+        onSelect={onPrincipalAdd}
+      />
 
       <section className="flex flex-col gap-2" aria-labelledby="map-access-selected">
         <h3 id="map-access-selected" className={displayTitle({ size: 'nav' })}>

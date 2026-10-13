@@ -53,7 +53,7 @@ vi.mock('../authoring/use-wormhole-editor-data', () => ({
   }),
 }));
 
-vi.mock('../chain/use-universe-assets', () => ({
+vi.mock('@/data/eve-data/use-universe-assets', () => ({
   useUniverseAssets: () => null,
 }));
 

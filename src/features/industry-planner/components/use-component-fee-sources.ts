@@ -9,7 +9,7 @@ import type { AssembleOptions } from '../build-pricing';
 import { profileFeeSiteOf } from '../component-job-fees';
 import type { ProfilePlan } from '../profiles/profile-plan';
 import type { BlueprintStructure, SystemJobCostIndex } from '../types';
-import { useResourceRead } from '../use-resource-read';
+import { useResourceRead } from '@/lib/use-resource-read';
 
 export type ComponentFeeInputs = NonNullable<NonNullable<AssembleOptions['fee']>['components']> & {
   adjustedPriceOf: (typeId: number) => number | null;

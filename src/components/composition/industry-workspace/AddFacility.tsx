@@ -1,11 +1,12 @@
 'use client';
 
-import { type ReactNode, type Ref, useEffect, useState } from 'react';
+import { type ReactNode, type Ref, useState } from 'react';
 import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
 import { SearchIcon } from '@/components/ui/icons';
-import { loadStations, type StationSearchEntry } from '@/data/eve-data/stations-search';
+import { stationsResource, type StationSearchEntry } from '@/data/eve-data/stations-search';
 import type { AvailableStructure } from '@/features/industry-planner/types';
+import { useClientResource } from '@/lib/client-resource';
 import { type FacilityOptionGroup, type FacilityPick, facilityOptionGroups } from './facilities-model';
 
 function addPlaceholder(full: boolean, stationsOnly: boolean): string {
@@ -45,22 +46,11 @@ function FacilityOptions({
   );
 }
 
-/** The station index, read the first time someone opens the list. */
-function useStations(wanted: boolean): StationSearchEntry[] {
-  const [stations, setStations] = useState<StationSearchEntry[]>([]);
-  useEffect(() => {
-    if (!wanted) return;
-    let alive = true;
-    loadStations()
-      .then((loaded) => {
-        if (alive) setStations(loaded);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [wanted]);
-  return stations;
+const NO_STATIONS: readonly StationSearchEntry[] = [];
+
+/** The station index, read the first time someone opens the list, types in it or scopes it to stations. */
+function useStations(wanted: boolean): readonly StationSearchEntry[] {
+  return useClientResource(stationsResource, wanted).value ?? NO_STATIONS;
 }
 
 /** Where the add-facility search looks: everywhere, or NPC stations only. */

@@ -25,17 +25,13 @@ import { getSystemCostIndicesOnView } from '@/data/industry-indices/on-view';
 import { getAdjustedPrices } from '@/data/industry-indices/queries';
 import type { SystemCostIndices } from '@/data/industry-indices/types';
 import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
-import { toPlainPriceFigures } from '@/data/market-prices/narrow';
+import { toClientPrice } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
 import { unresolvedName } from '@/lib/format/names';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { collectBlueprintTypeIds, collectRawTypeIds, productTypeByBlueprint } from './build-batch';
-import {
-  assemblePricing,
-  collectIntermediateTypeIds,
-  type PriceLite,
-} from './build-pricing';
+import { assemblePricing, collectIntermediateTypeIds } from './build-pricing';
 import { toBuildTree } from './build-tree';
 import { classifyRaw } from './industry-styles';
 import type {
@@ -224,14 +220,9 @@ export async function getBlueprintPricing(
 
   return assemblePricing(
     structure,
-    (typeId): PriceLite | undefined => {
+    (typeId) => {
       const p = priceMap.get(typeId);
-      if (!p) return undefined;
-      return {
-        ...toPlainPriceFigures(p),
-        source: p.source,
-        staleAfterMs: p.staleAfter?.getTime() ?? null,
-      };
+      return p === undefined ? undefined : toClientPrice(p, p.staleAfter?.getTime() ?? null);
     },
     { basis: 'marginal' },
   );
