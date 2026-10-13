@@ -1,14 +1,12 @@
 import { eyebrow } from '@/components/ui/type-roles';
-import { formatRelativeTime } from '@/lib/format/time';
+import { PriceUpdateAge } from './PriceUpdateAge';
 
 export function SiteMetaStrip({
   source,
   lastPriceUpdate,
-  now,
 }: {
   source: string;
   lastPriceUpdate: Date | null;
-  now?: number;
 }) {
   return (
     <div className="flex items-center gap-8 px-1 py-3 border-y border-border-soft text-ui">
@@ -23,7 +21,7 @@ export function SiteMetaStrip({
           Last price update
         </span>
         <span className="text-name font-data">
-          {formatRelativeTime(lastPriceUpdate, now)}
+          <PriceUpdateAge updatedAt={lastPriceUpdate} />
         </span>
       </div>
     </div>
