@@ -1,20 +1,23 @@
 'use client';
 
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { readWithRetries } from '@/lib/retry';
-import { apiFetch } from '@/transport/api-client';
-import { buildLocationEndpoint } from '../api-contract';
-import { createBuildSystemApplier, type ApplySystemOptions, type BuildSystemRef } from '../build-system-apply';
+import { createBuildSystemApplier, type ApplySystemOptions } from '../build-system-apply';
 import type { ReactionLocationSnapshot } from '../selection-policy';
 import { REACTION_ACTIVITY } from '../structure-bonus';
-import type { BlueprintStructure } from '../types';
+import type { BlueprintStructure, JobSystemRef } from '../types';
 import { useResourceRead } from '@/lib/use-resource-read';
 import type { SelectedLocation } from './planner-contexts';
+import { readCostIndices } from './read-cost-indices';
+
+/** One system's job cost indices; null when the read failed or was cancelled. */
+async function readSystemCostIndex(systemId: number, signal: AbortSignal) {
+  const bySystem = await readCostIndices([systemId], signal);
+  return bySystem?.get(systemId) ?? null;
+}
 
 /**
- * Reads the build and reaction systems' cost indices and prices.
- * A profile picks the systems; with none, nothing is
- * read and the build prices without fees.
+ * Reads the build and reaction systems' cost indices. A profile picks the
+ * systems; with none, nothing is read and the build prices without fees.
  */
 export function usePlannerLocationWrites(
   structure: BlueprintStructure,
@@ -33,30 +36,20 @@ export function usePlannerLocationWrites(
   const applyBuildSystem = useMemo(
     () => {
       const apply = createBuildSystemApplier({
-        fetchLocation: (systemId, signal) =>
-          readWithRetries(async () => {
-            const res = await apiFetch(buildLocationEndpoint, {
-              body: { systemId, blueprintId: structure.blueprintTypeId },
-              cache: 'no-store',
-              signal,
-            });
-            return res.ok ? res.data : null;
-          }, signal),
-        onApplied: (sys, data) =>
+        fetchLocation: readSystemCostIndex,
+        onApplied: (sys, index) =>
           setLocation({
             systemId: sys.systemId,
             systemName: sys.systemName,
             security: sys.security,
-            stations: data.stations,
-            costIndices: data.costIndices,
-            adjustedPrices: new Map(data.adjustedPrices.map((a) => [a.typeId, a.adjustedPrice])),
+            costIndices: { manufacturing: index.manufacturing, reaction: index.reaction },
           }),
         onPersist: () => {},
       });
       // The system priced until now stays while the next is read, so the
       // planner does not ask twice; a failed read clears it rather than
       // leaving another system's fees standing.
-      return async (sys: BuildSystemRef, opts: ApplySystemOptions) => {
+      return async (sys: JobSystemRef, opts: ApplySystemOptions) => {
         const outcome = await apply(sys, opts);
         if (outcome.status === 'failed') {
           setLocation(null);
@@ -66,31 +59,17 @@ export function usePlannerLocationWrites(
         return outcome;
       };
     },
-    [structure.blueprintTypeId, setLocation],
+    [setLocation],
   );
   const readReactionLocation = useCallback(
     async (signal: AbortSignal): Promise<ReactionLocationSnapshot | null> => {
       if (reactionSystemId === null) return null;
       setFetchedReactionLocation(null);
-      const data = await readWithRetries(async () => {
-        const res = await apiFetch(buildLocationEndpoint, {
-          body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
-          cache: 'no-store',
-          signal,
-        });
-        return res.ok ? res.data : null;
-      }, signal);
+      const index = await readSystemCostIndex(reactionSystemId, signal);
       if (signal.aborted) return null;
-      setFailureSystemId(data ? null : reactionSystemId);
-      return data
-        ? {
-            systemId: reactionSystemId,
-            blueprintTypeId: structure.blueprintTypeId,
-            costIndex: data.costIndices.reaction ?? null,
-            adjustedPrices: new Map(
-              data.adjustedPrices.map((price) => [price.typeId, price.adjustedPrice]),
-            ),
-          }
+      setFailureSystemId(index ? null : reactionSystemId);
+      return index
+        ? { systemId: reactionSystemId, blueprintTypeId: structure.blueprintTypeId, costIndex: index.reaction }
         : null;
     },
     [reactionSystemId, structure.blueprintTypeId, setFetchedReactionLocation],

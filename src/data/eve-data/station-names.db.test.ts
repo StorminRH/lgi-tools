@@ -6,7 +6,11 @@ import { eveNpcStations } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_station_name_resolution',
-  tables: ['eve_npc_stations'],
+  // The ESI store reads the shared /status/ row from esi_responses through the
+  // request DB inside the daily downtime window, so the suite steers that DB
+  // here and clones the table; without it the suite fails 10:55-11:30 UTC.
+  tables: ['eve_npc_stations', 'esi_responses'],
+  steerDbProxy: true,
   resetBetweenTests: 'truncate',
 });
 

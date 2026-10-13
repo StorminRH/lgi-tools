@@ -13,12 +13,13 @@ import {
   type PriceOf,
 } from '@/data/industry-math/profitability';
 import type { PlainPriceFigures, PriceSource } from '@/data/market-prices/types';
+import { dedupe } from '@/lib/array';
 import {
+  collectRawTypeIds,
   computeBatchLedger,
-  computeBatchMaterials,
-  computeMarginalMaterials,
-  computeMarginalRuns,
+  computeMarginalDemand,
   feeJobs,
+  materialRows,
   type BatchLedger,
   type MeOptions,
 } from './build-batch';
@@ -81,7 +82,7 @@ function rowPriceFields(p: PriceLite | undefined): RowPriceFields {
   };
 }
 
-export function collectIntermediateTypeIds(
+function collectIntermediateTypeIds(
   buildTree: BuildNode[],
   display: Record<number, BuildNodeDisplay>,
 ): number[] {
@@ -96,6 +97,21 @@ export function collectIntermediateTypeIds(
   };
   for (const root of buildTree) walk(root);
   return [...out];
+}
+
+/**
+ * Every type assemblePricing reads: the raw materials, the product, then the
+ * intermediates, each once. The server prices exactly these ids and the
+ * client refreshes them, so the two cannot drift apart.
+ */
+export function pricedTypeIds(
+  structure: Pick<BlueprintStructure, 'tree' | 'product' | 'buildTree' | 'buildNodeDisplay'>,
+): number[] {
+  return dedupe([
+    ...collectRawTypeIds(structure.tree),
+    structure.product.typeId,
+    ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
+  ]);
 }
 
 export interface AssembleOptions {
@@ -131,12 +147,8 @@ function componentJobFees(
   if (!fee.components) return null;
   const runsOf =
     bill.basis === 'marginal'
-      ? computeMarginalRuns(structure.tree, bill.runs, bill.meOpts)
-      : new Map(
-          [...(bill.ledger ?? computeBatchLedger(structure.tree, bill.runs, bill.meOpts)).builds].map(
-            ([typeId, build]) => [typeId, build.runs],
-          ),
-        );
+      ? bill.marginalRuns
+      : new Map([...bill.ledger.builds].map(([typeId, build]) => [typeId, build.runs]));
   return computeComponentJobFees(feeJobs(structure.tree, runsOf), {
     ...fee.components,
     activityOf: (blueprintTypeId) => structure.nodeActivityByBlueprint[blueprintTypeId],
@@ -206,8 +218,10 @@ function computeNet(
 interface CostBill {
   basis: CostBasis;
   runs: number;
-  meOpts: MeOptions;
-  ledger: BatchLedger | undefined;
+  /** The full line: its raw totals price the rows, its whole runs the batched fees. */
+  ledger: BatchLedger;
+  /** The share of each job one build draws, which the marginal fees charge. */
+  marginalRuns: ReadonlyMap<number, number>;
   rowsCost: BuildCost;
   buildCost: BuildCost;
   bases: { batched: number; marginal: number };
@@ -224,21 +238,17 @@ function resolveCostBills(
     topBlueprintTypeId: structure.blueprintTypeId,
     structureMeFactorOf: opts.structureMeFactorOf,
   };
-  const batchedMaterials = opts.ledger
-    ? [...opts.ledger.raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }))
-    : computeBatchMaterials(structure.tree, runs, meOpts);
-  const rowsCost = computeBuildCost(batchedMaterials, buyOf);
-  const marginalCost = computeBuildCost(
-    computeMarginalMaterials(structure.tree, runs, meOpts),
-    buyOf,
-  );
+  const ledger = opts.ledger ?? computeBatchLedger(structure.tree, runs, meOpts);
+  const marginal = computeMarginalDemand(structure.tree, runs, meOpts);
+  const rowsCost = computeBuildCost(materialRows(ledger.raws), buyOf);
+  const marginalCost = computeBuildCost(marginal.materials, buyOf);
   const basis = opts.basis ?? 'batched';
   const buildCost = basis === 'marginal' ? marginalCost : rowsCost;
   return {
     basis,
     runs,
-    meOpts,
-    ledger: opts.ledger,
+    ledger,
+    marginalRuns: marginal.runs,
     rowsCost,
     buildCost,
     bases: { batched: rowsCost.total, marginal: marginalCost.total },
@@ -278,11 +288,10 @@ export function assemblePricing(
   const intermediatePrices: IntermediatePrice[] = collectIntermediateTypeIds(
     structure.buildTree,
     structure.buildNodeDisplay,
-  ).map((typeId) => ({
-    typeId,
-    bestBuy: priceOf(typeId)?.bestBuy ?? null,
-    ...rowPriceFields(priceOf(typeId)),
-  }));
+  ).map((typeId) => {
+    const p = priceOf(typeId);
+    return { typeId, bestBuy: p?.bestBuy ?? null, ...rowPriceFields(p) };
+  });
 
   return {
     rows,

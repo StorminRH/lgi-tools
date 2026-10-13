@@ -18,7 +18,6 @@ import { maxDuration as AppApiCronRefreshSdeRouteMaxDuration } from '@/app/api/c
 import { maxDuration as AppApiCronRefreshWhStaticsRouteMaxDuration } from '@/app/api/cron/refresh-wh-statics/route';
 import { POST as AppApiEveNamesRoutePOST } from '@/app/api/eve/names/route';
 import { GET as AppApiIndustryBlueprintsRouteGET } from '@/app/api/industry/blueprints/route';
-import { POST as AppApiIndustryBuildLocationRoutePOST } from '@/app/api/industry/build-location/route';
 import { POST as AppApiIndustryOwnedAssetsRoutePOST } from '@/app/api/industry/owned-assets/route';
 import { POST as AppApiIndustryOwnedBlueprintsRoutePOST } from '@/app/api/industry/owned-blueprints/route';
 import { GET as AppApiIndustrySystemsRouteGET } from '@/app/api/industry/systems/route';
@@ -50,7 +49,6 @@ test('pins leftover runtime exports on the test graph', () => {
     AppApiCronRefreshWhStaticsRouteMaxDuration,
     AppApiEveNamesRoutePOST,
     AppApiIndustryBlueprintsRouteGET,
-    AppApiIndustryBuildLocationRoutePOST,
     AppApiIndustryOwnedAssetsRoutePOST,
     AppApiIndustryOwnedBlueprintsRoutePOST,
     AppApiIndustrySystemsRouteGET,

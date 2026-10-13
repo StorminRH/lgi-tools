@@ -14,8 +14,8 @@ import { useIndustryProfiles } from '../profiles/use-industry-profiles';
 import type { SkillTimeFactors } from '../skill-time';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import type { StructureFactors } from '../structure-factors';
-import type { AvailableStructure, BlueprintStructure } from '../types';
-import type { SelectedLocation, SelectedReactionSystem } from './planner-contexts';
+import type { AvailableStructure, BlueprintStructure, JobSystemRef } from '../types';
+import type { SelectedLocation } from './planner-contexts';
 import type { ApplySystemOptions, ApplySystemOutcome } from '../build-system-apply';
 
 export interface PlannerProfileState {
@@ -85,12 +85,9 @@ export interface LocationWriters {
   failureSystemId: number | null;
   location: SelectedLocation | null;
   setLocation: (location: SelectedLocation | null) => void;
-  applyBuildSystem: (
-    sys: { systemId: number; systemName: string; security: number | null },
-    opts: ApplySystemOptions,
-  ) => Promise<ApplySystemOutcome>;
+  applyBuildSystem: (sys: JobSystemRef, opts: ApplySystemOptions) => Promise<ApplySystemOutcome>;
   setSelectedStructure: (structure: AvailableStructure | null) => void;
-  setReactionSystem: (system: SelectedReactionSystem | null) => void;
+  setReactionSystem: (system: JobSystemRef | null) => void;
   setReactionStructure: (structure: AvailableStructure | null) => void;
 }
 
@@ -169,12 +166,15 @@ export function useProfileFactors(
   structureFactors: StructureFactors;
   skillTimeFactors: SkillTimeFactors | null;
   locationPending: boolean;
+  /** The read of the system the product's own job runs in failed. */
+  locationFailed: boolean;
 } {
   const profile = usePlannerProfile(structure, location.availableStructures);
   const locationPending = useProfileLocation(profile.plan, profile.profile?.id ?? null, structure.activityId, location);
   return {
     ...profile,
     locationPending,
+    locationFailed: location.failureSystemId !== null && location.failureSystemId === profile.plan?.top.facility?.systemId,
     structureFactors: profile.plan?.structureFactors ?? location.structureFactors,
     skillTimeFactors: profile.plan?.skillTimeFactors ?? null,
   };

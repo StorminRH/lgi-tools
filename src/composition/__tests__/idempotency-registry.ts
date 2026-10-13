@@ -305,10 +305,6 @@ const eveNamesRoute = readRoute({
   route: 'src/app/api/eve/names/route.ts',
   evidence: 'Pure resolution of posted ids through the ESI gate; writes nothing.',
 });
-const industryBuildLocationRoute = readRoute({
-  route: 'src/app/api/industry/build-location/route.ts',
-  evidence: 'Pure resolution over reference data; writes nothing.',
-});
 const industryCostIndicesRoute = readRoute({
   route: 'src/app/api/industry/cost-indices/route.ts',
   evidence: 'Read of public cost index reference data; writes nothing.',
@@ -568,7 +564,6 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mapsSearchCharactersRoute,
   eveNamesRoute,
   eveTypeNamesRoute,
-  industryBuildLocationRoute,
   industryCostIndicesRoute,
   industryOwnedAssetsRoute,
   industryOwnedBlueprintsRoute,

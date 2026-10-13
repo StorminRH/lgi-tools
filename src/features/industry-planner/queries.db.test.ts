@@ -8,7 +8,9 @@ import {
   industryTargetFilters,
   typeDogma,
 } from '@/data/eve-data/schema';
-import { adjustedPrices, industryCostIndices } from '@/data/industry-indices/schema';
+import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
+import { INDUSTRY_INDICES_TAG } from '@/data/industry-indices/keys';
+import { adjustedPrices } from '@/data/industry-indices/schema';
 import type { TreeNode } from '@/data/eve-data/types';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 
@@ -16,10 +18,10 @@ vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
   cacheTag: vi.fn(),
 }));
-// The cost indices have no stored answer here, so the read schedules a refresh; this test is not a request.
-vi.mock('@/lib/after-response', () => ({ runAfterResponse: vi.fn() }));
 
-import { getBlueprintStructure, getBuildLocation } from './queries';
+import { cacheLife, cacheTag } from 'next/cache';
+
+import { getBlueprintAdjustedPrices, getBlueprintStructure } from './queries';
 
 const harness = await createDbTestHarness({
   schema: 'test_industry_planner_structure',
@@ -31,11 +33,7 @@ const harness = await createDbTestHarness({
     'industry_blueprints',
     'blueprint_trees',
     'industry_target_filters',
-    'industry_cost_indices',
     'adjusted_prices',
-    'eve_npc_stations',
-    'eve_station_operations',
-    'esi_responses',
   ],
   steerDbProxy: true,
 });
@@ -257,13 +255,9 @@ test.skipIf(!harness.reachable)(
 
 
 test.skipIf(!harness.reachable)(
-  'build location prices every nested job input and leaves unavailable data unknown',
+  'blueprint adjusted prices cover every nested job input and leave the unpriced out',
   async () => {
     const updatedAt = new Date();
-    await harness.db.insert(industryCostIndices).values([
-      { solarSystemId: 30000142, activity: 'manufacturing', costIndex: 0.03, updatedAt },
-      { solarSystemId: 30000142, activity: 'reaction', costIndex: 0.07, updatedAt },
-    ]);
     await harness.db.insert(adjustedPrices).values([
       { typeId: 34, adjustedPrice: 5, updatedAt },
       { typeId: 2100, adjustedPrice: 120, updatedAt },
@@ -272,25 +266,22 @@ test.skipIf(!harness.reachable)(
       { typeId: 2393, adjustedPrice: null, updatedAt },
       { typeId: 2000, adjustedPrice: 999, updatedAt },
     ]);
-    const location = await getBuildLocation(30000142, 1000);
-    expect(location.stations).toEqual([]);
-    expect(location.costIndices).toEqual({ manufacturing: 0.03, reaction: 0.07 });
     // Intermediate products and their own nested inputs are needed for sub-job fees.
     // Duplicate Tritanium appears once; null prices and the final product stay out.
-    expect(location.adjustedPrices.sort((a, b) => a.typeId - b.typeId)).toEqual([
+    vi.mocked(cacheLife).mockClear();
+    vi.mocked(cacheTag).mockClear();
+    const prices = await getBlueprintAdjustedPrices(1000);
+    // The entry outlives the instance until the daily cron's adjusted-price
+    // commit clears INDUSTRY_INDICES_TAG; its own directives come first.
+    expect(vi.mocked(cacheLife).mock.calls[0]).toEqual(['max']);
+    expect(vi.mocked(cacheTag).mock.calls[0]).toEqual([INDUSTRY_INDICES_TAG, SDE_CACHE_TAG]);
+    expect(prices.sort((a, b) => a.typeId - b.typeId)).toEqual([
       { typeId: 34, adjustedPrice: 5 },
       { typeId: 2100, adjustedPrice: 120 },
       { typeId: 2200, adjustedPrice: 80 },
       { typeId: 16634, adjustedPrice: 20 },
     ]);
-    const unplaced = await getBuildLocation(null, 1000);
-    expect(unplaced.stations).toEqual([]);
-    expect(unplaced.costIndices).toEqual({ manufacturing: null, reaction: null });
-    expect(unplaced.adjustedPrices.sort((a, b) => a.typeId - b.typeId)).toEqual(location.adjustedPrices);
-    await expect(getBuildLocation(30004759, 1300)).resolves.toEqual({
-      stations: [],
-      costIndices: { manufacturing: null, reaction: null },
-      adjustedPrices: [],
-    });
+    // A blueprint that resolves to nothing has nothing to price.
+    await expect(getBlueprintAdjustedPrices(1300)).resolves.toEqual([]);
   },
 );

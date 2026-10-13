@@ -10,10 +10,10 @@ import { argumentSymbol, cachedScopes, cacheTagArguments, type CachedScope } fro
  * census tests hold every production source to that shape.
  *
  * One exception: a reader that only aggregates stored rows of a dataset
- * every write of which clears its tag (prices) lives until that clear, as
- * cacheLife('max'). Its earliest stored expiry is nearly always past, since
- * no view refreshes every key behind it, so timing it by that would rebuild
- * it on every request.
+ * every write of which clears its tag (prices, and the industry indices'
+ * cron-only adjusted prices) lives until that clear, as cacheLife('max').
+ * Its earliest stored expiry is nearly always past, since no view refreshes
+ * every key behind it, so timing it by that would rebuild it on every request.
  */
 
 const PRODUCTION_SOURCES = listSourceFiles({
@@ -30,7 +30,7 @@ const EXPIRY_LIFE = /\bcacheLife\(untilExpires\(/;
 const MAX_LIFE = /\bcacheLife\('max'\)/;
 
 /** Dataset tags that every write of the dataset clears, so an aggregate under one may live until the clear. */
-const WRITE_CLEARED_TAGS = ['MARKET_PRICES_TAG'];
+const WRITE_CLEARED_TAGS = ['MARKET_PRICES_TAG', 'INDUSTRY_INDICES_TAG'];
 
 /** The files holding those aggregate readers, pinned so a new one is a deliberate choice. */
 const WRITE_CLEARED_READER_FILES = [

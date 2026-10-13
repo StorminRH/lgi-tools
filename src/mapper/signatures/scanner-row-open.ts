@@ -1,4 +1,3 @@
-import { siteIdForSiteName } from '@/features/wormhole-sites/site-name-lookup';
 import type { Id } from '@/data/convex/data-model';
 import type { SignatureWindowRow } from './signature-model';
 
@@ -26,7 +25,7 @@ export interface ScannerRowOpenHandlers {
 export function scannerRowOpenAction(
   row: SignatureWindowRow,
   canEdit: boolean,
-  resolveSiteId: (name: string) => number | null = siteIdForSiteName,
+  resolveSiteId: (name: string) => number | null,
 ): ScannerRowOpenAction {
   if (row.connection !== null) {
     return canEdit
@@ -53,7 +52,7 @@ export function scannerRowOpenAction(
 export function scannerRowShowsOpenAffordance(
   row: SignatureWindowRow,
   canEdit: boolean,
-  resolveSiteId: (name: string) => number | null = siteIdForSiteName,
+  resolveSiteId: (name: string) => number | null,
 ): boolean {
   return scannerRowOpenAction(row, canEdit, resolveSiteId) !== null;
 }

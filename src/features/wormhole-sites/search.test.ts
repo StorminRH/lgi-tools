@@ -40,6 +40,15 @@ describe('sitesSearchSource', () => {
     expect(results.map((r) => r.id)).toEqual(['site:3', 'site:2', 'site:1']);
   });
 
+  it('ranks a class-less site after C6 on an equal score', async () => {
+    setSiteSearchIndex([
+      entry({ id: 1, name: 'Vault', wormholeClass: null, blueLootIsk: 999 }),
+      entry({ id: 2, name: 'Vault', wormholeClass: 'C6', blueLootIsk: 1 }),
+    ]);
+    const results = await sitesSearchSource.search('Vault', ctx);
+    expect(results.map((r) => r.id)).toEqual(['site:2', 'site:1']);
+  });
+
   it('summarizes gas/ore sites by resource value, not blue loot', async () => {
     setSiteSearchIndex([
       entry({

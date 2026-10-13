@@ -1,9 +1,10 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
-import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
+import { siteSearchEntry } from '@/features/wormhole-sites/__tests__/site-fixtures';
+import { SiteCatalogueProvider } from '@/features/wormhole-sites/site-catalogue';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import { ScannerWindowFrame } from './scanner-window-frame';
 import { SignatureWindow } from './SignatureWindow';
@@ -18,10 +19,6 @@ vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
     refreshing: false,
   }),
 }));
-
-afterEach(() => {
-  setSiteNameIndex([]);
-});
 
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children?: React.ReactNode }) => children,
@@ -332,36 +329,42 @@ describe('SignatureWindow component prompt and filter states', () => {
   });
 
   it('opens catalogue sites for viewers with live Est. ISK while combat stays static', () => {
-    setSiteNameIndex([
-      {
+    const siteIndex = [
+      siteSearchEntry({
         id: 49,
         name: 'Barren Perimeter Reservoir',
-        estIsk: 28_100_000,
+        siteType: 'gas',
+        wormholeClass: null,
+        resourceValueIsk: 28_100_000,
         liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
-      },
-      { id: 1, name: 'Sansha Hideout', estIsk: 12_000_000 },
-      { id: 33, name: 'Unsecured Frontier', estIsk: 4_200_000 },
-    ]);
-    const html = renderToStaticMarkup(
-      createElement(SignatureWindow, {
-        scannerSystemId: 1,
-        rows: ROWS,
-        missingIds: new Set<string>(),
-        missingCount: 0,
-        canEdit: false,
-        complete: true,
-        now: 60_000,
-        onDismissMissing: vi.fn(),
-        onRemoveMissing: vi.fn(async () => undefined),
-        jumpResolution: null,
-        onPickJumpCandidate: vi.fn(),
-        pendingPaste: null,
-        onChooseScanner: vi.fn(),
-        onCancelPendingPaste: vi.fn(),
-        onIdentify: vi.fn(async () => undefined),
-        onOpenEditor: vi.fn(),
-        onOpenSite: vi.fn(),
       }),
+      siteSearchEntry({ id: 1, name: 'Sansha Hideout', blueLootIsk: 12_000_000 }),
+      siteSearchEntry({ id: 33, name: 'Unsecured Frontier', siteType: 'data', blueLootIsk: 4_200_000 }),
+    ];
+    const html = renderToStaticMarkup(
+      createElement(
+        SiteCatalogueProvider,
+        { siteIndex },
+        createElement(SignatureWindow, {
+          scannerSystemId: 1,
+          rows: ROWS,
+          missingIds: new Set<string>(),
+          missingCount: 0,
+          canEdit: false,
+          complete: true,
+          now: 60_000,
+          onDismissMissing: vi.fn(),
+          onRemoveMissing: vi.fn(async () => undefined),
+          jumpResolution: null,
+          onPickJumpCandidate: vi.fn(),
+          pendingPaste: null,
+          onChooseScanner: vi.fn(),
+          onCancelPendingPaste: vi.fn(),
+          onIdentify: vi.fn(async () => undefined),
+          onOpenEditor: vi.fn(),
+          onOpenSite: vi.fn(),
+        }),
+      ),
     );
     expect(html.match(/sr-only">View site /g)?.length).toBe(3);
     expect(html).toContain('Barren Perimeter Reservoir');

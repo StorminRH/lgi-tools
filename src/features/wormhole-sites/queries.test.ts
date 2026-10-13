@@ -145,7 +145,7 @@ describe('listPricedSiteDetails', () => {
 describe('getPricedSiteDetail', () => {
   it('overlays prices on a site detail cached under the SDE tag, and returns null for a missing site', async () => {
     const site = siteRow(9);
-    state.results = [[site], [], []];
+    state.results = [[site], [], [], []];
     h.getCombatStatsBatch.mockResolvedValue(new Map());
 
     await expect(getPricedSiteDetail(9)).resolves.toEqual({
@@ -154,7 +154,8 @@ describe('getPricedSiteDetail', () => {
       resources: [],
     });
 
-    expect(state.calls.select).toBe(3);
+    expect(state.calls.select).toBe(4);
+    expect(state.results).toEqual([]);
     expect(h.overlayLivePrices).toHaveBeenCalledWith([
       { ...site, waves: [], resources: [] },
     ]);
@@ -164,12 +165,16 @@ describe('getPricedSiteDetail', () => {
     ]);
     expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
 
+    reset();
     h.overlayLivePrices.mockClear();
+    h.getCombatStatsBatch.mockClear();
     h.cacheLife.mockClear();
     state.results = [[]];
 
     await expect(getPricedSiteDetail(10)).resolves.toBeNull();
 
+    expect(state.calls.select).toBe(1);
+    expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
     expect(h.overlayLivePrices).not.toHaveBeenCalled();
     expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
   });
@@ -179,7 +184,7 @@ describe('listSiteDetails', () => {
   it('caches under the SDE tag and short-circuits an empty catalogue without dependent reads', async () => {
     state.results = [[]];
 
-    await expect(listSiteDetails({})).resolves.toEqual([]);
+    await expect(listSiteDetails()).resolves.toEqual([]);
 
     expect(h.cacheLife.mock.calls).toEqual([['max']]);
     expect(h.cacheTag.mock.calls).toEqual([[SDE_CACHE_TAG]]);
@@ -189,9 +194,8 @@ describe('listSiteDetails', () => {
     expect(state.results).toEqual([]);
   });
 
-  it('assembles filtered sites with weighted combat, per-type EWAR, and raw resources', async () => {
-    const included = siteRow(1);
-    const excludedClass = siteRow(2, { wormholeClass: 'C4' });
+  it('assembles every site with weighted combat, per-type EWAR, and raw resources', async () => {
+    const fought = siteRow(1);
     const emptyDetail = siteRow(3, { name: 'Empty C3 site' });
     const statsA = combatStats({
       dps: 10.4,
@@ -241,7 +245,7 @@ describe('listSiteDetails', () => {
     };
 
     state.results = [
-      [included, excludedClass, emptyDetail],
+      [fought, emptyDetail],
       [
         { id: 11, siteId: 1, waveNumber: 1, waveLabel: 'Initial' },
         { id: 12, siteId: 1, waveNumber: 2, waveLabel: 'Reinforcement' },
@@ -296,10 +300,7 @@ describe('listSiteDetails', () => {
       [200, statsB],
     ]));
 
-    const result = await listSiteDetails({
-      type: 'combat',
-      wormholeClass: 'C3',
-    });
+    const result = await listSiteDetails();
 
     expect(result.map((site) => site.id)).toEqual([1, 3]);
     expect(state.calls.select).toBe(4);
@@ -414,39 +415,5 @@ describe('listSiteDetails', () => {
       },
     ]);
     expect(result[1]).toEqual({ ...emptyDetail, waves: [], resources: [] });
-  });
-
-  it('matches gas class ranges while excluding out-of-range and unknown gas sites', async () => {
-    const perimeter = siteRow(4, {
-      name: 'Barren Perimeter Reservoir',
-      siteType: 'gas',
-      wormholeClass: null,
-    });
-    const frontier = siteRow(5, {
-      name: 'Bountiful Frontier Reservoir',
-      siteType: 'gas',
-      wormholeClass: null,
-    });
-    const unknown = siteRow(6, {
-      name: 'Unknown Reservoir',
-      siteType: 'gas',
-      wormholeClass: null,
-    });
-    const exactClass = siteRow(7, { wormholeClass: 'C2' });
-    state.results = [
-      [perimeter, frontier, unknown, exactClass],
-      [],
-      [],
-    ];
-    h.getCombatStatsBatch.mockResolvedValue(new Map());
-
-    const result = await listSiteDetails({ wormholeClass: 'C2' });
-
-    expect(result).toEqual([
-      { ...perimeter, waves: [], resources: [] },
-      { ...exactClass, waves: [], resources: [] },
-    ]);
-    expect(state.calls.select).toBe(3);
-    expect(h.getCombatStatsBatch).toHaveBeenCalledWith([]);
   });
 });

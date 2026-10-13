@@ -425,12 +425,12 @@ describe('structureReadouts — per-slot pills', () => {
 
 describe('composeFeeInputs', () => {
   const location = (mfg: number | null, rxn: number | null) => ({
-    adjustedPrices: new Map([[34, 5]]),
     costIndices: { manufacturing: mfg, reaction: rxn },
   });
-  const rxnLocation = { costIndex: 0.02, adjustedPrices: new Map([[16656, 7]]) };
+  const adjustedPriceOf = (id: number) => ({ 34: 5, 16656: 7 })[id] ?? null;
   const compose = (over: Partial<Parameters<typeof composeFeeInputs>[0]>) =>
     composeFeeInputs({
+      adjustedPriceOf,
       location: null,
       reactionLocation: null,
       buildStructure: null,
@@ -444,20 +444,19 @@ describe('composeFeeInputs', () => {
     expect(compose({ reactionStructure: make({ groupId: SDE_REFINERY_GROUP_ID }) })).toBeUndefined();
   });
 
-  it('uses independent component prices without assigning the uncovered product a system or index', () => {
+  it('values component jobs on the blueprint prices before, and after, the product system is read', () => {
     const components = {
-      adjustedPriceOf: (id: number) => id === 34 ? 9 : null,
       siteOf: () => ({ systemId: 7, facilityTaxPct: 1, costBonusPct: 0 }),
       costIndexOf: () => 0.04,
     };
     const fee = compose({ components })!;
     expect(fee.systemCostIndex).toBeNull();
     expect(fee.reaction).toBeUndefined();
-    expect(fee.adjustedPriceOf(34)).toBe(9);
+    expect(fee.adjustedPriceOf).toBe(adjustedPriceOf);
     expect(fee.components).toBe(components);
     const located = compose({ components, location: location(0.04, null) })!;
-    expect(located.adjustedPriceOf(34)).toBe(5);
-    expect(located.adjustedPriceOf(99)).toBeNull();
+    expect(located.systemCostIndex).toBe(0.04);
+    expect(located.adjustedPriceOf).toBe(adjustedPriceOf);
   });
 
   it('composes the mfg keys from the build location + the build slot structure tax', () => {
@@ -485,7 +484,7 @@ describe('composeFeeInputs', () => {
 
   it('routes the reaction-slot fetch + the reaction host tax into the reaction key', () => {
     const fee = compose({
-      reactionLocation: rxnLocation,
+      reactionLocation: { costIndex: 0.02 },
       reactionStructure: make({ groupId: SDE_REFINERY_GROUP_ID, taxPct: 0.5 }),
     })!;
     expect(fee.reaction).toEqual({ systemCostIndex: 0.02, facilityTaxPct: 0.5 });

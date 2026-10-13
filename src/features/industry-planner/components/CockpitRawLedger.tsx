@@ -8,6 +8,7 @@ import { groupBy } from '@/lib/array';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import type { BlueprintPricing, BlueprintStructure, MaterialCostRow } from '../types';
+import { ItemNameStack, LedgerColumnHead } from './ledger-parts';
 
 interface CategoryGroup {
   label: string;
@@ -39,16 +40,12 @@ function groupByCategory(
 function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshing: boolean }) {
   return (
     <div className="mb-4 break-inside-avoid">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
-        {group.label}
-        <span className="text-faint">· {group.rows.length}</span>
-        <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <LivePrice
-          value={formatIsk(group.total)}
-          pending={refreshing}
-          className="text-ui font-semibold tracking-normal text-isk"
-        />
-      </div>
+      <LedgerColumnHead
+        label={group.label}
+        count={group.rows.length}
+        total={group.total}
+        pending={refreshing}
+      />
       <Card>
         {group.rows.map((row) => (
           <EntityRow
@@ -56,14 +53,10 @@ function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshin
             colsClass="grid-cols-[30px_minmax(0,1fr)_auto]"
             className="min-h-[44px] px-3 py-[9px]"
             leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name} />}
-            name={<div className="flex min-w-0 flex-col gap-px">
-              <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
-                {row.name}
-              </span>
-              <span className="truncate font-data text-label uppercase tracking-label text-muted">
-                {row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
-              </span>
-            </div>}
+            name={<ItemNameStack
+              name={row.name}
+              label={row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
+            />}
             trailing={<span className="flex flex-col items-end gap-px text-right">
               <span className="whitespace-nowrap font-data text-ui tabular-nums text-muted">
                 × {formatQuantity(row.quantity)}

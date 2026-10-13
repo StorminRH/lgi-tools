@@ -4,15 +4,14 @@ import { Pill } from '@/components/ui/pill';
 import { floatingRow, SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { UrlSync } from '@/components/ui/url-sync';
 import { formatIskShort } from '@/lib/format/isk';
-import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import { displayableResources } from '../resource-display';
 import { siteClassSet } from '../site-filter';
-import { primarySiteIsk } from '../site-primary-isk';
+import { primarySiteIsk } from '../site-type';
 import type { SiteDetail } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
 import { SiteLiveProvider } from './SiteResourcesLive';
-import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
+import { SITE_TYPE_LABEL, SITE_TYPE_TONE, siteClassPill } from './wormhole-styles';
 
 
 const COLUMNS: SortableColumn<SiteDetail>[] = [
@@ -61,18 +60,12 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
     key: 'class',
     label: 'Class',
     render: (s) => {
-      if (s.wormholeClass) {
-        return <Pill tone={CLASS_TONE[s.wormholeClass]} size="sm">{s.wormholeClass}</Pill>;
-      }
-      if (s.siteType === 'gas') {
-        const range = gasClassRange(s.name);
-        if (range) {
-          return (
-            <Pill tone={CLASS_TONE[range.min]} size="sm">{formatClassRange(range)}</Pill>
-          );
-        }
-      }
-      return <span className="text-muted">—</span>;
+      const pill = siteClassPill(s);
+      return pill ? (
+        <Pill tone={pill.tone} size="sm">{pill.label}</Pill>
+      ) : (
+        <span className="text-muted">—</span>
+      );
     },
   },
 ];

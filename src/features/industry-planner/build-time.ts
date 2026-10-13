@@ -1,8 +1,5 @@
 import { formatRemaining } from '@/lib/format/time';
-
-export function teFactor(te: number): number {
-  return te <= 0 ? 1 : 1 - te / 100;
-}
+import { efficiencyFactor } from './efficiency';
 
 export function formatBuildDuration(seconds: number): string {
   return formatRemaining(Math.round(seconds) * 1000);
@@ -44,7 +41,7 @@ export function computeBuildTimes(args: {
   const topPerRun =
     topJobSeconds === null || topJobSeconds <= 0
       ? 0
-      : topJobSeconds * teFactor(topTe) * structureTeOf(topBlueprintTypeId) * skillTimeOf(topBlueprintTypeId);
+      : topJobSeconds * efficiencyFactor(topTe) * structureTeOf(topBlueprintTypeId) * skillTimeOf(topBlueprintTypeId);
   const topTotal = topPerRun * wholeRuns;
 
   const components: BuildTimeLine[] = [];
@@ -53,7 +50,7 @@ export function computeBuildTimes(args: {
     if (base <= 0) continue;
     const perRunSeconds =
       base *
-      teFactor(teOf(entry.blueprintTypeId) ?? 0) *
+      efficiencyFactor(teOf(entry.blueprintTypeId) ?? 0) *
       structureTeOf(entry.blueprintTypeId) *
       skillTimeOf(entry.blueprintTypeId);
     const totalSeconds = perRunSeconds * entry.runs;

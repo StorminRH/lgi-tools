@@ -1,8 +1,11 @@
+import type { SiteType } from './site-taxonomy';
+import { primarySiteIsk } from './site-type';
+
 const SITE_NAME_ALIASES: readonly (readonly [string, string])[] = [
   ['Ordinary Permiter Deposit', 'Ordinary Perimeter Deposit'],
 ];
 
-export function siteNameIndexKeys(name: string): readonly string[] {
+function siteNameIndexKeys(name: string): readonly string[] {
   const keys = [name];
   for (const [typo, eve] of SITE_NAME_ALIASES) {
     if (name === typo) keys.push(eve);
@@ -17,44 +20,46 @@ export type SiteLiveRecipe = {
   readonly seedIsk: number | null;
 };
 
-type SiteNameRecord = {
-  readonly id: number;
-  readonly estIsk: number | null;
-  readonly liveRecipes: readonly SiteLiveRecipe[];
-};
-
-let BY_NAME: ReadonlyMap<string, SiteNameRecord> = new Map();
-
-export type SiteNameIndexEntry = {
+/**
+ * The fields of a site index entry the name lookups read. It is declared
+ * here rather than taken from SiteSearchEntry because queries.ts imports
+ * SiteLiveRecipe from this module.
+ */
+export type SiteCatalogueEntry = {
   readonly id: number;
   readonly name: string;
-  readonly estIsk?: number | null;
+  readonly siteType: SiteType;
+  readonly blueLootIsk: number | null;
+  readonly resourceValueIsk: number | null;
   readonly liveRecipes?: readonly SiteLiveRecipe[];
 };
 
-export function setSiteNameIndex(entries: readonly SiteNameIndexEntry[]): void {
-  const byName = new Map<string, SiteNameRecord>();
+export type SiteCatalogueLookups = {
+  readonly siteIdForName: (name: string) => number | null;
+  readonly estIskForName: (name: string) => number | null;
+  readonly liveRecipesForName: (name: string) => readonly SiteLiveRecipe[];
+};
+
+/**
+ * Resolves scanner site names against one site index. A name matches its
+ * catalogue spelling or a known typo of it; a name with no site reads as
+ * null or no recipes.
+ */
+export function createSiteNameLookups(
+  entries: readonly SiteCatalogueEntry[],
+): SiteCatalogueLookups {
+  const byName = new Map<string, SiteCatalogueEntry>();
   for (const entry of entries) {
-    const record = {
-      id: entry.id,
-      estIsk: entry.estIsk ?? null,
-      liveRecipes: entry.liveRecipes ?? [],
-    };
     for (const key of siteNameIndexKeys(entry.name)) {
-      byName.set(key, record);
+      byName.set(key, entry);
     }
   }
-  BY_NAME = byName;
-}
-
-export function siteIdForSiteName(name: string): number | null {
-  return BY_NAME.get(name)?.id ?? null;
-}
-
-export function siteEstIskForSiteName(name: string): number | null {
-  return BY_NAME.get(name)?.estIsk ?? null;
-}
-
-export function siteLiveRecipesForSiteName(name: string): readonly SiteLiveRecipe[] {
-  return BY_NAME.get(name)?.liveRecipes ?? [];
+  return {
+    siteIdForName: (name) => byName.get(name)?.id ?? null,
+    estIskForName: (name) => {
+      const entry = byName.get(name);
+      return entry === undefined ? null : primarySiteIsk(entry);
+    },
+    liveRecipesForName: (name) => byName.get(name)?.liveRecipes ?? [],
+  };
 }
