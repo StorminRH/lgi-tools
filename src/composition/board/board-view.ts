@@ -1,8 +1,13 @@
 import { after } from 'next/server';
+import { type EsiStoreKey, isDueFor } from '@/data/esi-store';
+import { sheetDueKeys } from '@/features/character-sheet/keys';
 import { getCharacterSheets, readSheetRow } from '@/features/character-sheet/queries';
+import { jobsDueKeys } from '@/features/industry-jobs/keys';
 import { getJobsForCharacters, listCharacterJobSyncStates, readCharacterJobs } from '@/features/industry-jobs/queries';
 import { getNetWorthHistory, upsertNetWorthDay } from '@/features/net-worth/queries';
+import { characterAssetsDueKeys } from '@/features/owned-assets/keys';
 import { listCharacterAssetRows, listCharacterAssetSyncStates, readOwnerAssetRows } from '@/features/owned-assets/queries';
+import { skillsDueKeys } from '@/features/skill-queue/keys';
 import {
   getSkillRowsForCharacters,
   listCharacterSkillSyncStates,
@@ -10,11 +15,13 @@ import {
 } from '@/features/skill-queue/queries';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { scopeHolderOf } from '@/platform/auth/scope-health';
+import type { EnumeratedOwner } from '@/platform/owner-sync';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { isoDay } from '@/lib/iso-date';
 import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
 import { refreshJobsOnView } from '@/composition/sync/industry-jobs-sync';
 import { refreshCharacterAssetsOnView } from '@/composition/sync/owned-assets-sync';
+import { charactersWithHealth } from '@/composition/sync/owner-sync-port';
 import { refreshSkillsOnView } from '@/composition/sync/skills-sync';
 import type { BoardResponse } from './api-contract';
 import {
@@ -99,6 +106,16 @@ export function refreshBoardDatasets(userId: string): Promise<unknown> {
   ]);
 }
 
+/** The stored answers the four board refreshes would check, so the board says `refreshing` exactly when one of them will reach ESI. */
+function boardDueKeys(owners: readonly EnumeratedOwner[]): EsiStoreKey[] {
+  return [
+    ...skillsDueKeys(owners),
+    ...jobsDueKeys(owners),
+    ...sheetDueKeys(owners),
+    ...characterAssetsDueKeys(owners),
+  ];
+}
+
 /**
  * Serves net worth from the recorded days only: the view refreshes the pilots' datasets behind their
  * freshness gates but never values or records them, so nothing prices on view.
@@ -107,9 +124,10 @@ export async function getBoardForUserOnView(userId: string): Promise<BoardRespon
   const linked = await listLinkedCharacters(userId);
   const raws = await readRaws(linked);
   after(() => refreshBoardDatasets(userId));
-  const [names, history] = await Promise.all([
+  const [names, history, refreshing] = await Promise.all([
     resolveNameBook(collectNameIds(raws)),
     getNetWorthHistory(userId),
+    isDueFor(userId, boardDueKeys(charactersWithHealth(linked))),
   ]);
-  return assembleBoard(raws, names, Date.now(), history.map(toHistoryDay));
+  return { ...assembleBoard(raws, names, Date.now(), history.map(toHistoryDay)), refreshing };
 }

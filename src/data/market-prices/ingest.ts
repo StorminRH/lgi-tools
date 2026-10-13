@@ -1,14 +1,13 @@
 import { sql } from 'drizzle-orm';
+import { recordMetas, type EsiResponseMeta } from '@/data/esi-store';
 import type { PriceSourceCounts } from '@/lib/alerts';
 import { chunk } from '@/lib/array';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AnyPgDb } from '@/lib/db-types';
 import { excluded, excludedSet } from '@/lib/db-upsert';
 import { marketPrices } from './schema';
 import { fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 
-const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
 /** Rows per market_prices insert: 13 binds a row for a priced upsert, far below the bind-parameter cap. */
 const INSERT_BATCH = 1000;
 
@@ -33,8 +32,20 @@ export async function refreshPrices(
       budgetExhausted: false,
     };
   }
-  const { prices: raw, budgetExhausted } = await fetchPricesFromSource(typeIds);
-  return persistPrices(db, raw, { requested: typeIds.length, budgetExhausted });
+  const { prices: raw, budgetExhausted, metaByType } = await fetchPricesFromSource(typeIds);
+  const summary = await persistPrices(db, raw, {
+    requested: typeIds.length,
+    budgetExhausted,
+    staleAfterByType: staleAfterFromMetas(metaByType),
+  });
+  // Outside a request, so the cron clears its own tag once it has run.
+  await recordMetas([...metaByType.values()]);
+  return summary;
+}
+
+/** Each ESI-priced type expires when CCP said; an answer with no expiry at all is due at once. */
+function staleAfterFromMetas(metaByType: ReadonlyMap<number, EsiResponseMeta>): Map<number, Date> {
+  return new Map([...metaByType].map(([typeId, meta]) => [typeId, new Date(meta.expiresAt ?? meta.checkedAt)]));
 }
 
 /**
@@ -57,10 +68,20 @@ export async function seedPlaceholderPrices(db: AnyPgDb, typeIds: readonly numbe
   return inserted;
 }
 
+/**
+ * Writes the priced rows. `stale_after` is CCP's expiry for an ESI row and
+ * the fetch time for a Fuzzwork one, which has no ESI expiry and is due
+ * again at once; the response store, not this column, decides freshness.
+ */
 export async function persistPrices(
   db: AnyPgDb,
   raw: RawMarketPrice[],
-  meta?: { requested?: number; budgetExhausted?: boolean; fetchedAtByType?: ReadonlyMap<number, Date> },
+  meta?: {
+    requested?: number;
+    budgetExhausted?: boolean;
+    fetchedAtByType?: ReadonlyMap<number, Date>;
+    staleAfterByType?: ReadonlyMap<number, Date>;
+  },
 ): Promise<RefreshSummary> {
   const start = Date.now();
   const summary: RefreshSummary = {
@@ -97,7 +118,7 @@ export async function persistPrices(
       sellDepth: r.sellDepth,
       regionalDiscount: r.regionalDiscount ?? null,
       updatedAt,
-      staleAfter: new Date(updatedAt.getTime() + MARKET_PRICES_FRESHNESS.ttlMs),
+      staleAfter: meta?.staleAfterByType?.get(r.typeId) ?? updatedAt,
       source: r.source,
     };
   });

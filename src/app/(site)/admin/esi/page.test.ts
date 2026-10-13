@@ -7,7 +7,6 @@ import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 const m = vi.hoisted(() => ({
   budget: vi.fn(),
   outcomeStats: vi.fn(),
-  queue: vi.fn(),
   priceRefreshDays: vi.fn(),
   degradation: vi.fn(),
   clientErrors: vi.fn(),
@@ -28,7 +27,6 @@ vi.mock('next/dynamic', () => ({ default: () => () => null }));
 vi.mock('@/platform/esi/scoreboard', () => ({ readEsiBudgetSnapshot: m.budget }));
 vi.mock('../shared-reads', () => ({
   getCapabilityOutcomeStatsShared: m.outcomeStats,
-  getEsiRefreshQueueStatsShared: m.queue,
   getPriceRefreshDaysShared: m.priceRefreshDays,
   getPriceSourceDegradationShared: m.degradation,
   getEsiClientErrorsShared: m.clientErrors,
@@ -55,13 +53,12 @@ describe('admin ESI', () => {
   beforeEach(() => {
     m.budget.mockResolvedValue({ effectiveRemaining: 12, selfCount: 88, echo: 14, source: 'shared' });
     m.outcomeStats.mockResolvedValue([]);
-    m.queue.mockResolvedValue([]);
     m.priceRefreshDays.mockResolvedValue([]);
     m.degradation.mockResolvedValue({ budgetExhaustions: 1, byCaller: [] });
     m.clientErrors.mockResolvedValue([
       { feature: 'maps', operation: 'search-characters', errors: 3, calls: 60, lastSeen: new Date('2026-09-20T00:00:00Z') },
     ]);
-    m.priceSplit.mockResolvedValue({ requested: 1_200, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 });
+    m.priceSplit.mockResolvedValue({ requested: 1_200, returned: 9, esiCount: 6, fuzzworkFallbackCount: 1 });
     m.historySplit.mockResolvedValue({ freshEsi: 2, warmStored: 5, staleStored: 1, missing: 1 });
     m.writeBehind.mockResolvedValue([]);
     m.endpoints.mockResolvedValue([]);

@@ -16,7 +16,8 @@ describe('CharacterSearchControl', () => {
     // The visible "Add character" label names the search input, so speech input finds it.
     const inputId = /<label for="([^"]+)"[^>]*>Add character<\/label>/.exec(markup)?.[1];
     const input = /<input[^>]*role="combobox"[^>]*>/.exec(markup)?.[0] ?? '';
-    const hintId = /<span id="([^"]+)"[^>]*>Search by character name\.<\/span>/.exec(markup)?.[1];
+    const hintId = /<span id="([^"]+)"[^>]*><\/span>/.exec(markup)?.[1];
+    expect(hintId).toBeTruthy();
     expect(inputId).toBeTruthy();
     expect(input).toContain(` id="${inputId}"`);
     expect(input).not.toContain('aria-label=');

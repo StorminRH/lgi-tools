@@ -1,8 +1,7 @@
 /**
  * The request init for an ESI call, built one way. It imports nothing: the
  * Convex isolate bundles platform/esi. Headers stay a plain object; dispatch
- * wraps them in `Headers`, and an Authorization header is what keeps a read
- * out of the shared ETag cache.
+ * wraps them in `Headers` and passes a held If-None-Match through to ESI.
  */
 
 function bearer(accessToken: string): Record<string, string> {

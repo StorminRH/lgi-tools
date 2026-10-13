@@ -2,7 +2,6 @@ import {
   isTypedCodexEntry,
   remainingMassAfterTravel,
   type ConnectionMassState,
-  type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type {
   TypedWormholeCodexEntry,
@@ -16,6 +15,7 @@ import {
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
 import { formatQuantity } from '@/lib/format/number';
+import { formatUtcMinute } from '@/lib/format/time';
 import { HOUR_MS } from '@/lib/iso-date';
 import type { ConnectionDetail } from '../chain/connection-detail';
 
@@ -24,7 +24,6 @@ export interface CodexPanelFacts {
   readonly maxJumpMassKg: number;
   readonly massRegenKg: number;
   readonly lifetimeMinutes: number;
-  readonly sizeClass: WormholeSizeClass;
 }
 
 export type MassRowDisplay =
@@ -67,7 +66,6 @@ export function codexPanelFacts(
     maxJumpMassKg: entry.maxJumpMass,
     massRegenKg: entry.massRegen,
     lifetimeMinutes: entry.lifetimeMinutes,
-    sizeClass: entry.sizeClass,
   };
 }
 
@@ -104,7 +102,7 @@ export function massRowDisplay(
 ): MassRowDisplay {
   if (!isTypedCodexEntry(entry)) return { kind: 'none' };
   if (entry.massRegen > 0) {
-    return { kind: 'regenerates', label: 'Regenerates — no mass interval' };
+    return { kind: 'regenerates', label: 'Mass regenerates, so no estimate' };
   }
   const bounds = remainingMassAfterTravel(
     entry,
@@ -117,7 +115,7 @@ export function massRowDisplay(
     kind: 'range',
     minKg: bounds.minKg,
     maxKg: bounds.maxKg,
-    label: `${formatKilograms(bounds.minKg)}–${formatKilograms(bounds.maxKg)} (±10% spawn)`,
+    label: `${formatKilograms(bounds.minKg)}–${formatKilograms(bounds.maxKg)}`,
     title: `${formatQuantity(bounds.minKg)}–${formatQuantity(bounds.maxKg)} kg remaining`,
   };
 }
@@ -182,7 +180,7 @@ export function lifetimeRowDisplay(
     return {
       kind: 'ceiling',
       label: `≤ ${formatDurationBound(source.remainingMs)}`,
-      title: `Typed ceiling ${new Date(source.ceilingAt).toISOString()}`,
+      title: `Closes by ${formatUtcMinute(source.ceilingAt)}`,
     };
   }
   return { kind: 'unset' };

@@ -146,7 +146,7 @@ describe('TrackingControls', () => {
     const empty = renderToStaticMarkup(
       TrackingControls({ mapId: 'map-a', reconnectAction }) as ReactElement,
     );
-    expect(empty).toContain('None of your characters are on this map&#x27;s access list');
+    expect(empty).toContain('No characters to track');
     expect(empty).not.toContain('data-tracking-portrait');
   });
 
@@ -197,21 +197,17 @@ describe('TrackingControls', () => {
     mocks.mutate.mockRejectedValueOnce({ data: { code: 'TRACKING_MAP_CAP_EXCEEDED', detail } });
     await expect(toggleTracking(202, true)).resolves.toBeUndefined();
     expect(mocks.mutate).toHaveBeenLastCalledWith(change);
-    expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking was not changed', {
+    expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking not changed', {
       description: detail,
     });
 
     mocks.mutate.mockRejectedValueOnce({ data: { code: 'FORBIDDEN' } });
     await expect(toggleTracking(202, true)).resolves.toBeUndefined();
-    expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking was not changed', {
-      description: 'Please try again.',
-    });
+    expect(mocks.toastError.mock.lastCall).toEqual(['Tracking not changed']);
 
     mocks.mutate.mockRejectedValueOnce(new Error('Connection lost'));
     await expect(toggleTracking(202, true)).resolves.toBeUndefined();
-    expect(mocks.toastError).toHaveBeenLastCalledWith('Tracking was not changed', {
-      description: 'Please try again.',
-    });
+    expect(mocks.toastError.mock.lastCall).toEqual(['Tracking not changed']);
 
     await expect(toggleTracking(202, true)).resolves.toBeUndefined();
     expect(mocks.toastError).toHaveBeenCalledTimes(3);

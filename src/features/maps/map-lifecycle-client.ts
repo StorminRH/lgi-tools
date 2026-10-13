@@ -20,25 +20,31 @@ export function requestMapPurge(input: MapLifecycleRequest) {
   return apiFetch(purgeMapNowEndpoint, { body: input, cache: 'no-store' });
 }
 
+const DELETE_FAILED = "This map couldn't be deleted. Try again.";
+const RESTORE_FAILED = "The selected maps couldn't be restored. Try again.";
+const PURGE_FAILED = "The selected maps couldn't be permanently deleted. Try again.";
+
 const LIFECYCLE_FAILURE_COPY = {
   delete: {
-    fallback: 'This map could not be deleted.',
-    codes: { map_admin_required: 'This map could not be deleted. Map admin access is required.' },
+    fallback: DELETE_FAILED,
+    network: DELETE_FAILED,
   } satisfies FailureCopy<FailedOutcome<typeof deleteMapEndpoint>>,
   restore: {
-    fallback: 'This map could not be restored.',
-    codes: { map_restore_unavailable: 'This map could not be restored. Its undo window may have ended.' },
+    fallback: RESTORE_FAILED,
+    network: RESTORE_FAILED,
   } satisfies FailureCopy<FailedOutcome<typeof restoreMapEndpoint>>,
   purge: {
-    fallback: 'The selected maps could not be permanently deleted.',
-    codes: { map_creator_required: 'Only the map creator can permanently delete the selected maps.' },
+    fallback: PURGE_FAILED,
+    network: PURGE_FAILED,
   } satisfies FailureCopy<FailedOutcome<typeof purgeMapNowEndpoint>>,
 };
 
 /**
- * Why a delete, restore or purge failed, by the server's refusal code. A
- * network failure, an ended session or any other refusal says so instead of
- * blaming map access.
+ * Why a delete, restore or purge failed. An ended session or a rate limit
+ * says so; any other failure, an access refusal or a lost connection
+ * included, takes the action's plain retry copy. The route folds every
+ * refusal (not yours, window ended, missing, already queued) into one 403
+ * code, so the copy never names a single cause.
  */
 export function mapLifecycleFailureMessage(
   action: 'delete',

@@ -50,11 +50,11 @@ function characterSearchHint({
   readonly searchLength: number;
 }): string {
   if (failed) return 'Character search is temporarily unavailable.';
-  if (mode === 'exact') return 'Exact-name mode — enter the full character name.';
+  if (mode === 'exact') return 'Enter the full character name.';
   if (searchLength > 0 && searchLength < MIN_CHARACTER_SEARCH_LENGTH) {
-    return `Enter at least ${MIN_CHARACTER_SEARCH_LENGTH} characters.`;
+    return `Type at least ${MIN_CHARACTER_SEARCH_LENGTH} letters.`;
   }
-  return 'Search by character name.';
+  return '';
 }
 
 function characterSearchState(outcome: CharacterSearchOutcome): CharacterSearchState {

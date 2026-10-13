@@ -8,11 +8,11 @@ import { apiResponse } from '@/transport/api-response';
 // input: none
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
-  if (!userId) return apiResponse(teamSkillLevelsEndpoint, 200, { characters: [] });
-  const characters = await measureOwnedDataRead({
+  if (!userId) return apiResponse(teamSkillLevelsEndpoint, 200, { characters: [], refreshing: false });
+  const result = await measureOwnedDataRead({
     endpoint: teamSkillLevelsEndpoint,
     read: () => getSkillLevelsForUserOnView(userId),
-    returned: (value) => value.length,
+    returned: (value) => value.characters.length,
   });
-  return apiResponse(teamSkillLevelsEndpoint, 200, { characters });
+  return apiResponse(teamSkillLevelsEndpoint, 200, result);
 }

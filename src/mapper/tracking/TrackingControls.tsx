@@ -33,7 +33,6 @@ interface TrackingCharacter {
 interface TrackingControlsViewProps {
   readonly characters: readonly TrackingCharacter[];
   readonly scannerCharacters: readonly TrackingCharacter[];
-  readonly emptyLabel: string;
   readonly trackedIds: ReadonlySet<number>;
   readonly onToggle: (characterId: number, tracked: boolean) => Promise<void>;
   readonly reconnectAction: ReactNode;
@@ -50,8 +49,7 @@ export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
 
 /**
  * Opt a character into or out of tracking on one map. The returned function
- * never rejects: a refusal toasts the server's detail, which setTracking
- * writes for users, or asks the user to try again when there is none.
+ * never rejects: a refusal toasts, with the server's detail when it has one.
  */
 export function useMapTrackingToggle(
   mapId: string,
@@ -61,9 +59,9 @@ export function useMapTrackingToggle(
     try {
       await setTracking({ mapId, characterId, tracked });
     } catch (error) {
-      toast.error('Tracking was not changed', {
-        description: readConvexError(error)?.detail ?? 'Please try again.',
-      });
+      const detail = readConvexError(error)?.detail ?? null;
+      if (detail === null) toast.error('Tracking not changed');
+      else toast.error('Tracking not changed', { description: detail });
     }
   };
 }
@@ -89,9 +87,6 @@ export function TrackingControls({
     <TrackingControlsView
       characters={trackableCharacters(characters, access.trackableCharacterIds ?? null)}
       scannerCharacters={characters}
-      emptyLabel={(access.trackableCharacterIds ?? null) === null
-        ? 'No linked characters'
-        : 'None of your characters are on this map\'s access list'}
       trackedIds={new Set(trackedIds)}
       onToggle={toggleTracking}
       reconnectAction={reconnectAction}
@@ -102,7 +97,6 @@ export function TrackingControls({
 function TrackingControlsView({
   characters,
   scannerCharacters,
-  emptyLabel,
   trackedIds,
   onToggle,
   reconnectAction,
@@ -112,7 +106,7 @@ function TrackingControlsView({
   return (
     <MenuGroup data-map-tracking label="Tracking">
       {characters.length === 0 ? (
-        <span className="px-3 pb-2 font-data text-micro text-muted">{emptyLabel}</span>
+        <span className="px-3 pb-2 font-data text-micro text-muted">No characters to track</span>
       ) : (
         <CharacterPortraitMenuItems
           className={trackingRowClass}

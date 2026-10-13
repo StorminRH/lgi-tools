@@ -23,20 +23,18 @@ describe('map access client', () => {
       cache: 'no-store',
     });
 
-    expect(mapAccessFailureMessage(apiProblem(503, 'map_projection_unavailable'))).toContain(
-      'Retry the same change',
+    expect(mapAccessFailureMessage(apiProblem(503, 'map_projection_unavailable'))).toBe(
+      "Saved, but live access hasn't updated yet. Try the change again.",
     );
   });
 
   it('names each refusal by its code', () => {
-    expect(mapAccessFailureMessage(apiProblem(409, 'map_block_owner'))).toBe('This character belongs to the map owner.');
+    expect(mapAccessFailureMessage(apiProblem(409, 'map_block_owner'))).toBe("You can't block the map creator.");
     expect(mapAccessFailureMessage(apiProblem(409, 'map_block_self'))).toBe("You can't block your own character.");
-    expect(mapAccessFailureMessage(apiProblem(409, 'map_creator_character_required'))).toContain(
-      'at least one of their own characters',
+    expect(mapAccessFailureMessage(apiProblem(409, 'map_creator_character_required'))).toBe(
+      'The map creator needs at least one of their characters on the access list.',
     );
-    expect(mapAccessFailureMessage(apiProblem(403, 'map_admin_required'))).toBe(
-      'Map admin access is required to change this access list.',
-    );
+    expect(mapAccessFailureMessage(apiProblem(403, 'map_admin_required'))).toBe('Only map admins can change access.');
   });
 
   it('keeps the connection hint for a request that got no answer and blames neither admin access nor the connection otherwise', () => {

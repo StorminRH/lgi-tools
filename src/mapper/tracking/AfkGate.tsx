@@ -75,8 +75,8 @@ export function AfkDialog({ afk }: { readonly afk: AfkGateState }) {
       <DialogBody data-afk-dialog>
         <DialogDescription className="font-ui text-ui leading-relaxed text-text">
           {afk.paused
-            ? 'It looked like you were AFK, so location tracking is paused. Continue to resume.'
-            : 'It looks like you might be AFK. Tracking pauses in a few minutes unless you continue.'}
+            ? 'Tracking paused while you were AFK.'
+            : 'Tracking pauses in a few minutes unless you continue.'}
         </DialogDescription>
       </DialogBody>
       <DialogFooter>

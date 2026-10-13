@@ -382,6 +382,14 @@ export interface MapAccessProjectionPurgeHooks {
 
 **Notes.** Differences the migration keeps at the call sites. The contributor deletes map rows, forgets block accounts, and purges claims best-effort. The identity runner relies on the FK cascade from deleteUserIfUnlinked, purges claims best-effort and calls teardownLocationTracking. The synthetic reset is non-best-effort, fences each map with teardownMapAccessProjection and calls purgeLocationTracking. Drift leads that need a decision, not this refactor: (1) Fence. map-purge.ts:71-78 and the synthetic reset fence each purged map with an empty-claim teardown. The two user-deletion paths do not, although /purge-map-chain deletes mapAccessProjectionWatermarks (convex/mapPurge.ts:7-18). A projection reserved before the purge and delivered after it could therefore re-apply claims for a deleted map. Making the helper fence would add one Convex call per owned map and needs a test. (2) Blocks. The identity path never nulls map_blocks.blocked_by_user_id, a column with no FK (data/maps/schema.ts:95), while the contributor's forgetMapBlockAccounts does. Do not move forgetMapBlockAccounts into runBeforeUserDelete: deleteUserIfUnlinked can return false and loop (platform/auth/account-purge.ts:47-50), and forgetting map_block_accounts for a user who survives would lift their block. If the dangling id matters, null it inside deleteUserIfUnlinked's locked transaction.
 
+**After the promote 10 review.** Lead (1) is fixed, and the fix goes further than a fence. The chain purge also left a gap while the owner's map rows were still active: a projection computed then carried full claims, and with no watermark Convex accepted it.
+- `/purge-map-chain` now keeps the map's projection watermark.
+- `purgeOwnedMapChains` tombstones the owner's maps first (`tombstoneOwnedMaps`; maps the purge cron already claimed stay with the cron). From then on, any projection computes no claims.
+- It then fences each map with an empty projection (`fenceMapAccessProjection`) before purging its chain. The kept watermark refuses every projection reserved before the fence. A stale fence is fine, because a newer revision already holds the watermark and the purge clears what is left.
+- The purge cron fences before it purges, for the same reason, so neither flow can erase the other's fence.
+- If a deletion is called off because a character was linked meanwhile, or failed part-way before one was, the tombstoned maps come back as deleted, restorable maps (`reopenOwnedMaps`). The reopen runs on every link change and only acts for a user who holds an EVE link and has no requested deletion.
+- The synthetic reset no longer fences on its own. Lead (2) is unchanged.
+
 <sub>Reported by: area:composition.</sub>
 
 <a id="p240"></a>

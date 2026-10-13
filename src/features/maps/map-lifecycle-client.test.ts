@@ -30,29 +30,30 @@ describe('map lifecycle client', () => {
     });
   });
 
-  it('names a refusal by its code and blames map access only when the server did', () => {
+  it('gives every refusal the action\'s retry copy, naming only an ended session', () => {
+    // The route folds every refusal into one 403 code, so none of them names a cause.
     expect(mapLifecycleFailureMessage('delete', apiProblem(403, 'map_admin_required'))).toBe(
-      'This map could not be deleted. Map admin access is required.',
+      "This map couldn't be deleted. Try again.",
     );
     expect(mapLifecycleFailureMessage('restore', apiProblem(403, 'map_restore_unavailable'))).toBe(
-      'This map could not be restored. Its undo window may have ended.',
+      "The selected maps couldn't be restored. Try again.",
     );
     expect(mapLifecycleFailureMessage('purge', apiProblem(403, 'map_creator_required'))).toBe(
-      'Only the map creator can permanently delete the selected maps.',
+      "The selected maps couldn't be permanently deleted. Try again.",
     );
 
     // No answer, an ended session or a malformed request is not a permission problem.
     expect(mapLifecycleFailureMessage('delete', networkDown())).toBe(
-      'This map could not be deleted. Check your connection and try again.',
+      "This map couldn't be deleted. Try again.",
     );
     expect(mapLifecycleFailureMessage('purge', apiProblem(401, 'unauthenticated'))).toBe(
       'Your session has ended. Sign in again.',
     );
     expect(mapLifecycleFailureMessage('restore', apiProblem(400, 'invalid_body'))).toBe(
-      'This map could not be restored.',
+      "The selected maps couldn't be restored. Try again.",
     );
     expect(mapLifecycleFailureMessage('purge', apiProblem(403, 'cross_origin'))).toBe(
-      'The selected maps could not be permanently deleted.',
+      "The selected maps couldn't be permanently deleted. Try again.",
     );
   });
 });

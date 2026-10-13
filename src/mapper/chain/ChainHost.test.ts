@@ -242,7 +242,7 @@ describe('chain host access states', () => {
     const markup = await renderHost();
 
     expect(markup).toContain('data-chain-no-access');
-    expect(markup).toContain('lost access to this map');
+    expect(markup).toContain('have access to this map');
     expect(markup).not.toContain('data-react-flow');
     expect(markup).not.toMatch(/error|try again|refresh|retry/i);
   });

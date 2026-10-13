@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
-import { CardLink } from '@/components/ui/text-link';
-import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import type {
   CapabilityFailureDetail,
   EsiClientErrorGroup,
@@ -15,12 +13,9 @@ import type { DateRange } from '@/data/telemetry/types';
 import { formatQuantity } from '@/lib/format/number';
 import { isoDay } from '@/lib/iso-date';
 import { trendSeries } from '../period';
-import { adminHref } from '../admin-sections';
 import { zeroFillDaily } from '../aggregate';
 import { AdminTrendChart } from '../charts';
 import { SECTION_LOAD_FAILED } from '../load-section';
-import { deriveDeadLetterView } from '../ops-view';
-import { deriveQueueCells } from '../queue/queue-view';
 import type { Loaded } from '../signals';
 import { TitledBlock } from '../TitledBlock';
 import { DetailBody, DetailCaption } from './DetailBlocks';
@@ -37,18 +32,12 @@ export interface FailureDetail extends CapabilityFailureDetail {
 }
 
 export interface ServiceLevelDetails {
-  /** The card's clock, so queue ages match the headline. */
-  now: Date;
   read: Loaded<FailureDetail>;
   mutation: Loaded<FailureDetail>;
   slowest: Loaded<SlowOperation[]>;
   esi: Loaded<FailureGroup[]>;
   esiClientErrors: Loaded<EsiClientErrorSummary>;
-  queue: Loaded<EsiRefreshQueueStat[]>;
-  deadLetters: Loaded<DeadLetterRow[]>;
 }
-
-export const DEAD_LETTER_PREVIEW = 5;
 
 const FAILURE_COLUMNS = [
   {
@@ -221,44 +210,6 @@ function EsiBody({ details }: { details: ServiceLevelDetails }) {
   );
 }
 
-function BacklogBody({ details }: { details: ServiceLevelDetails }) {
-  const { now, queue, deadLetters } = details;
-  return (
-    <>
-      {queue === SECTION_LOAD_FAILED ? (
-        <Unavailable />
-      ) : (
-        <DetailCaption>
-          {deriveQueueCells(queue, now)
-            .map((cell) => `${cell.title} ${cell.value}`)
-            .join(' · ')}
-        </DetailCaption>
-      )}
-      {deadLetters === SECTION_LOAD_FAILED ? (
-        <Unavailable />
-      ) : deadLetters.length === 0 ? (
-        <EmptyState inset kind="clear">No dead-lettered jobs.</EmptyState>
-      ) : (
-        <TitledBlock title="Latest dead letters">
-          <ul>
-            {deriveDeadLetterView(deadLetters).map((row) => (
-              <li key={row.id} className="border-b border-border-soft py-2 last:border-b-0">
-                <div className="text-ui text-text">{row.title}</div>
-                <div className="break-all font-data text-micro text-muted">
-                  <span className="text-tone-red">{row.failureClass}</span> · {row.timing}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </TitledBlock>
-      )}
-      <div className="font-data text-ui">
-        <CardLink href={adminHref('queue')}>Open queue</CardLink>
-      </div>
-    </>
-  );
-}
-
 function detailFor(row: ServiceLevelRow, details: ServiceLevelDetails): ReactNode {
   switch (row.id) {
     case 'read_success_rate':
@@ -269,8 +220,6 @@ function detailFor(row: ServiceLevelRow, details: ServiceLevelDetails): ReactNod
       return <SlowestBody slowest={details.slowest} />;
     case 'esi_success_rate':
       return <EsiBody details={details} />;
-    case 'job_backlog':
-      return <BacklogBody details={details} />;
   }
 }
 

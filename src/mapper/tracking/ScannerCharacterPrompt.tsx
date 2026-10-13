@@ -57,12 +57,7 @@ export function ScannerCharacterPrompt({
       data-scanner-character-prompt
       ariaLabel="Choose scanning character"
       eyebrow="Which character scanned this?"
-      body={
-        <>
-          Your logged-in characters are in different systems. Your pick becomes
-          the default scanner; change it under Tracking in the map menu.
-        </>
-      }
+      body="Your pick becomes the default scanner. Change it under Tracking in the map menu."
     >
       <div className="flex flex-col gap-1">
         {candidates.map((candidate) => (

@@ -164,7 +164,6 @@ export function MapAccessDialog({
       <DialogHeader
         titleId={titleId}
         title={`Manage ${mapName}`}
-        description="Grant, change, or revoke access. Only characters on this list can be tracked here."
         closeLabel="Close map access"
         closeDisabled={disabled}
       />
@@ -175,7 +174,7 @@ export function MapAccessDialog({
           selectedIds={grantedCharacterIds(access.grants)}
           onToggle={toggleOwnCharacter}
           disabled={disabled}
-          hint="Your chosen characters can be tracked on this map."
+          hint="Chosen characters can be tracked on this map."
         />
         <AccessListEditor
           mode="manage"

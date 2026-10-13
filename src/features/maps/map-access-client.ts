@@ -12,13 +12,12 @@ export function updateMapAccess(input: UpdateMapAccessRequest) {
 const MAP_ACCESS_FAILURE_COPY = {
   fallback: 'Map access could not be updated.',
   codes: {
-    map_admin_required: 'Map admin access is required to change this access list.',
+    map_admin_required: 'Only map admins can change access.',
     map_creator_character_required:
-      'The map creator must keep at least one of their own characters on the access list.',
-    map_block_owner: 'This character belongs to the map owner.',
+      'The map creator needs at least one of their characters on the access list.',
+    map_block_owner: "You can't block the map creator.",
     map_block_self: "You can't block your own character.",
-    map_projection_unavailable:
-      'The durable change was saved, but live access has not caught up. Retry the same change.',
+    map_projection_unavailable: "Saved, but live access hasn't updated yet. Try the change again.",
   },
 } satisfies FailureCopy<FailedOutcome<typeof updateMapAccessEndpoint>>;
 

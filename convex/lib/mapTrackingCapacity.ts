@@ -24,7 +24,7 @@ export function requireMapTrackingSpace(count: number): void {
   if (count >= TRACKED_CHARACTERS_PER_MAP_CAP) {
     throw new ConvexError({
       code: 'TRACKING_MAP_CAP_EXCEEDED',
-      detail: `This map has reached its ${TRACKED_CHARACTERS_PER_MAP_CAP}-character tracking limit. Stop tracking a character before adding another.`,
+      detail: `This map is at its ${TRACKED_CHARACTERS_PER_MAP_CAP}-character tracking limit.`,
     });
   }
 }

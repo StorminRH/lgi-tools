@@ -14,11 +14,10 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: (...args: unknown[]) => h.getFreshAccessTokenForCharacter(...args),
 }));
-vi.mock('@/platform/esi', async (importOriginal) => ({
-  ...await importOriginal<Record<string, unknown>>(),
-  esiUrl: (path: string) => `https://esi.test${path}`,
-  esiFetch: (...args: unknown[]) => h.esiFetch(...args),
-}));
+vi.mock('@/data/esi-store', async () => {
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
+});
 
 const BOTH_SCOPES = 'esi-search.search_structures.v1 esi-universe.read_structures.v1';
 const pilot = (characterId: number, scope: string, corporationId: number | null = null) => ({
@@ -56,9 +55,12 @@ describe('searchUpwellStructures', () => {
     expect(results).toEqual([
       { structureId: 1_035_000_000_001, name: 'Sobaseki - Industry Azbel', systemId: 30001363, structureTypeId: 35826 },
     ]);
-    const [searchUrl, init] = h.esiFetch.mock.calls[0]!;
+    const [searchUrl, init, opts] = h.esiFetch.mock.calls[0]!;
     expect(searchUrl).toBe('https://esi.test/characters/9001/search/?categories=structure&search=Sobaseki&strict=false');
     expect(init).toEqual({ headers: { Authorization: 'Bearer tok' } });
+    // The search and each structure lookup are user-initiated: the gate's interactive floor.
+    expect(opts).toEqual({ interactive: true });
+    expect(h.esiFetch.mock.calls[1]![2]).toEqual({ interactive: true });
   });
 
   it('drops structures ESI refuses (not on the access list) and keeps a missing type as null', async () => {

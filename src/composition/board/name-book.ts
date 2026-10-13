@@ -17,7 +17,8 @@ export async function resolveNameBook(request: NameIdRequest): Promise<NameBook>
     getTypeNames(request.typeIds),
     getImplantDogma(request.typeIds),
     getSystemFacts(systemIds),
-    resolveEntityNames([...request.entityIds, ...namelessStations]),
+    // The board route answers with these names: a user is waiting on them.
+    resolveEntityNames([...request.entityIds, ...namelessStations], { interactive: true }),
     getSkillCatalog(),
   ]);
 

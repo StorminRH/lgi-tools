@@ -93,7 +93,7 @@ describe('createMapWithMinimumInterstitial', () => {
     await vi.advanceTimersByTimeAsync(5_000);
     const outcome = await pending;
 
-    expect(mapCreationFailureMessage(failed(outcome))).toContain('rolled back');
+    expect(mapCreationFailureMessage(failed(outcome))).toBe("Couldn't set up map access. Try again.");
   });
 
   it('names each refusal by its code and keeps the connection hint for a request that got no answer', async () => {
@@ -117,11 +117,11 @@ describe('createMapWithMinimumInterstitial', () => {
 
     // Naming someone else's character is not a connection problem.
     expect(await settled()).toBe('Choose one of your own linked characters.');
-    expect(await settled()).toBe('The map could not be created.');
+    // A malformed request keeps the owner-approved line rather than repeating the dialog title.
+    expect(await settled()).toBe('Check your connection and try again.');
     expect(await settled()).toBe('Your session has ended. Sign in again.');
-    // The wait comes from the server's retry delay, not a fixed minute.
-    expect(await settled()).toBe('Too many attempts. Try again in 37 seconds.');
-    expect(await settled()).toBe('The map could not be created. Check your connection and try again.');
+    expect(await settled()).toBe("You're creating maps too fast. Try again in a minute.");
+    expect(await settled()).toBe('Check your connection and try again.');
   });
 });
 
@@ -199,7 +199,7 @@ describe('runMapCreationSubmit', () => {
     }, actions);
     expect(events).toEqual([
       'begin',
-      'failed:Map access could not be projected. The attempted map was rolled back; try again.',
+      "failed:Couldn't set up map access. Try again.",
     ]);
 
     events.length = 0;

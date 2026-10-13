@@ -88,7 +88,7 @@ test('a refused delete keeps its error to that attempt, and a deleted map stays 
   render();
   expect(ui.confirm).toMatchObject({
     open: true,
-    consequence: expect.stringMatching(/^Home Chain leaves the catalogue/),
+    consequence: 'Home Chain moves to Trash. You can restore it within 30 days.',
     error: null,
   });
 
@@ -118,6 +118,6 @@ test('a refused delete keeps its error to that attempt, and a deleted map stays 
   expect(ui.confirm).toMatchObject({
     open: false,
     busy: false,
-    consequence: expect.stringMatching(/^Home Chain leaves the catalogue/),
+    consequence: 'Home Chain moves to Trash. You can restore it within 30 days.',
   });
 });

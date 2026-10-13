@@ -20,7 +20,7 @@ export function SignatureJumpPrompt({
   return (
     <MapPromptCard
       data-signature-jump-prompt
-      ariaLabel="Choose the signature you jumped through"
+      ariaLabel="Choose the wormhole you took"
       body={
         <>
           You jumped into{' '}
@@ -29,8 +29,8 @@ export function SignatureJumpPrompt({
             className={resolution.destination.tone}
           >
             {resolution.destination.label}
-          </span>{' '}
-          — Which signature did you jump through?
+          </span>
+          . Which wormhole did you take?
         </>
       }
     >

@@ -10,7 +10,7 @@ it('renders a labelled group with its data attributes, eyebrow, body and actions
     'data-test-prompt': true,
     'data-prompt-count': 3,
     ariaLabel: 'Missing signatures',
-    eyebrow: 'Missing from scan',
+    eyebrow: 'Which character scanned this?',
     body: createElement('span', { 'data-body-part': '' }, '3 missing'),
     children: createElement('button', { 'data-prompt-action': '' }, 'Dismiss'),
   };
@@ -25,7 +25,7 @@ it('renders a labelled group with its data attributes, eyebrow, body and actions
   expect(markup).toContain(
     `${BODY_OPEN}<span data-body-part="">3 missing</span></p>`,
   );
-  const eyebrow = markup.indexOf('Missing from scan');
+  const eyebrow = markup.indexOf('Which character scanned this?');
   const body = markup.indexOf(BODY_OPEN);
   const action = markup.indexOf('data-prompt-action');
   expect(eyebrow).toBeGreaterThan(-1);
@@ -36,18 +36,18 @@ it('renders a labelled group with its data attributes, eyebrow, body and actions
 
 it('leaves the eyebrow out when the prompt has none', () => {
   const props: ComponentProps<typeof MapPromptCard> = {
-    ariaLabel: 'Choose the signature you jumped through',
-    body: 'Which signature did you jump through?',
+    ariaLabel: 'Choose the wormhole you took',
+    body: 'Which wormhole did you take?',
     children: null,
   };
   const markup = renderToStaticMarkup(createElement(MapPromptCard, props));
 
   expect(markup).toContain(
-    'role="group" aria-label="Choose the signature you jumped through"',
+    'role="group" aria-label="Choose the wormhole you took"',
   );
   expect(markup).not.toContain('tracking-label');
   expect(markup).not.toContain('<span');
   expect(markup).toContain(
-    `${BODY_OPEN}Which signature did you jump through?</p>`,
+    `${BODY_OPEN}Which wormhole did you take?</p>`,
   );
 });

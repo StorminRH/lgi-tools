@@ -240,6 +240,18 @@ export async function teardownMapAccessProjection(mapId: string): Promise<Curren
   }));
 }
 
+/**
+ * The empty projection a map gets before its chain is purged. A stale outcome
+ * is fine here: a newer revision already holds the watermark, which the purge
+ * keeps, so nothing older can land, and the purge deletes whatever claims are
+ * left.
+ */
+export async function fenceMapAccessProjection(mapId: string): Promise<void> {
+  const revision = await reserveMapAccessProjectionRevision();
+  const result = await postMapAccessProjection({ mapId, revision, claims: [] });
+  if (result.outcome !== 'stale') requireCurrentDelivery([], result);
+}
+
 export async function purgeUserMapAccessProjection(
   userId: string,
 ): Promise<{ deleted: number }> {

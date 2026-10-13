@@ -126,7 +126,7 @@ export function ConnectionFields({
           data-map-connection-restore-mode
           className="font-data text-micro text-muted"
         >
-          Severed connection — restore within the undo window.
+          Connection severed.
         </p>
       ) : null}
       <TypeField
@@ -227,7 +227,7 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
       className="flex w-full flex-col gap-1 rounded-ctl border border-border-soft px-2 py-1.5 text-center"
     >
       <CodexFact label="Total mass" value={formatFactKg(facts.totalMassKg)} />
-      <CodexFact label="Per-jump" value={formatFactKg(facts.maxJumpMassKg)} />
+      <CodexFact label="Jump mass" value={formatFactKg(facts.maxJumpMassKg)} />
       {facts.massRegenKg > 0 ? (
         <CodexFact label="Regeneration" value={formatFactKg(facts.massRegenKg)} />
       ) : null}
@@ -235,7 +235,6 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
         label="Lifetime"
         value={formatDurationBound(facts.lifetimeMinutes * 60 * 1000)}
       />
-      <CodexFact label="Size" value={facts.sizeClass} />
     </div>
   );
 }
@@ -313,7 +312,7 @@ function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
           data-map-connection-mass-range=""
           className="font-data text-micro text-muted"
         >
-          Remaining mass {display.label}
+          {display.label} remaining
         </p>
       </Tooltip>
     );
@@ -377,7 +376,7 @@ function LifetimeEstimateView({
           data-lifetime-kind={display.kind}
           className="font-data text-micro text-muted"
         >
-          Lifetime {display.label}
+          {display.label} remaining
         </p>
       </Tooltip>
     );
@@ -420,7 +419,7 @@ function LeadsToField({
         <SystemTerminalSearch
           key={`${connection.connectionId}:${destination.label}`}
           initialValue={destination.label}
-          placeholder="System name — e.g. J120924"
+          placeholder="Search systems"
           excludeSystemId={connection.fromSystemId}
           onPick={onSetDestination}
           onClear={() => onSetDestination(null)}

@@ -281,6 +281,28 @@ describe('POST /purge-map-chain', () => {
     expect((await postConvexHttp('/purge-map-chain', JSON.stringify({ mapId: '' }))).status).toBe(400);
   });
 
+  it('keeps the fence watermark through the purge, so an older projection stays refused', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    const t = convexTest(schema, modules);
+    const post = (path: string, body: unknown) => t.fetch(path, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify(body),
+    });
+    const grantee = [{ userId: 'grantee', roles: ['viewer'] }];
+    await post('/project-map-access', { mapId: 'map-erased', revision: 5, claims: grantee });
+    await expect((await post('/project-map-access', { mapId: 'map-erased', revision: 9, claims: [] })).json())
+      .resolves.toMatchObject({ outcome: 'applied' });
+    expect((await post('/purge-map-chain', { mapId: 'map-erased' })).status).toBe(200);
+
+    // A delivery reserved before the fence lands after the purge.
+    await expect((await post('/project-map-access', { mapId: 'map-erased', revision: 7, claims: grantee })).json())
+      .resolves.toMatchObject({ outcome: 'stale' });
+    await expect(t.run((ctx) => ctx.db.query('mapAccess')
+      .withIndex('by_map', (query) => query.eq('mapId', 'map-erased'))
+      .collect())).resolves.toEqual([]);
+  });
+
   it('drains multiple batches across map tables and preserves another map', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
     const t = convexTest(schema, modules);

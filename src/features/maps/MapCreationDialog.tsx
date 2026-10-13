@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { dataLabel, displayTitle } from '@/components/ui/type-roles';
+import { displayTitle } from '@/components/ui/type-roles';
 import { MAX_MAP_NAME_LENGTH } from '@/data/maps/api-contract';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
@@ -88,23 +88,19 @@ function CreationInterstitial({
       <Compass failed={failed} />
       <div className="flex max-w-sm flex-col gap-1.5">
         <DialogTitle id={titleId} className={displayTitle()}>
-          {failed ? 'Map creation paused' : 'Creating your map'}
+          {failed ? 'Map not created' : 'Creating your map'}
         </DialogTitle>
-        <DialogDescription className="font-ui text-ui leading-relaxed text-muted">
-          {failed
-            ? phase.message
-            : 'Committing the map and confirming access before the first jump.'}
-        </DialogDescription>
+        {failed ? (
+          <DialogDescription className="font-ui text-ui leading-relaxed text-muted">
+            {phase.message}
+          </DialogDescription>
+        ) : null}
       </div>
       {failed ? (
         <Button variant="primary" onClick={onRetry}>
           Try again
         </Button>
-      ) : (
-        <span className={dataLabel({ tone: 'faint' })}>
-          Neon → access projection → Atlas
-        </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -271,7 +267,7 @@ function CreationForm({
           }}
           hint={creatorCharacterIds.length === 0
             ? CREATOR_CHARACTER_REQUIRED_MESSAGE
-            : 'Chosen characters can be tracked on this map. You stay the map admin.'}
+            : 'Chosen characters can be tracked on this map.'}
         />
         <AccessListEditor
           mode="create"

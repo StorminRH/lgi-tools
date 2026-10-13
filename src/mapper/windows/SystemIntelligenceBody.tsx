@@ -100,7 +100,7 @@ function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffec
   if (codex === null) {
     return (
       <p className="ml-6 py-1 font-data text-micro text-muted">
-        {failed ? 'Effect details are unavailable right now.' : 'Loading effects…'}
+        {failed ? "Couldn't load effects." : 'Loading effects…'}
       </p>
     );
   }

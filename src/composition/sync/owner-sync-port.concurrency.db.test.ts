@@ -51,7 +51,7 @@ describe.skipIf(!harness.reachable)('owner-sync token vending (real Postgres)', 
 
       // Unlinking ends custody after the vend settled; the next vend must not reuse its token.
       await harness.db.update(account).set({ refreshToken: null }).where(eq(account.id, 'acc1'));
-      await expect(vendTokenFor(CHARACTER_ID)).resolves.toBeNull();
+      await expect(vendTokenFor(CHARACTER_ID)).resolves.toEqual({ missing: 'lost' });
     } finally {
       fetchSpy.mockRestore();
     }

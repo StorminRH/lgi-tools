@@ -2,33 +2,37 @@ import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
+import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { getSystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
-import { expireNow } from '@/lib/cache-expiry';
+import type { AnyPgDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
+import { corpStructuresKey } from './keys';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
 import type { CorpStructureRow } from './types';
 
-function corpStructuresTag(corporationId: number): string {
-  return `corp-structures:${corporationId}`;
-}
-
+/** One corporation's structures, cached across instances until the stored paged answer behind them expires. */
 async function getCorpStructureRows(corporationId: number): Promise<CorpStructureRow[]> {
-  'use cache';
-  cacheLife('hours');
-  cacheTag(corpStructuresTag(corporationId));
-  return db
-    .select({
-      structureId: corpStructures.structureId,
-      typeId: corpStructures.typeId,
-      systemId: corpStructures.systemId,
-      securityClass: corpStructures.securityClass,
-      name: corpStructures.name,
-    })
-    .from(corpStructures)
-    .where(eq(corpStructures.corporationId, corporationId));
+  'use cache: remote';
+  const key = corpStructuresKey(corporationId);
+  cacheTag(datasetTag(key));
+  const [rows, expiresAt] = await Promise.all([
+    db
+      .select({
+        structureId: corpStructures.structureId,
+        typeId: corpStructures.typeId,
+        systemId: corpStructures.systemId,
+        securityClass: corpStructures.securityClass,
+        name: corpStructures.name,
+      })
+      .from(corpStructures)
+      .where(eq(corpStructures.corporationId, corporationId)),
+    storedExpiry([key]),
+  ]);
+  cacheLife(untilExpires(expiresAt));
+  return rows;
 }
 
 export async function getCorpStructures(
@@ -41,7 +45,7 @@ export async function readCorpStructureSyncState(
   corporationId: number,
 ): Promise<PagedOwnerSyncState | null> {
   const rows = await db
-    .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt, pageEtags: corpStructureSyncs.pageEtags })
+    .select({ lastRefreshedAt: corpStructureSyncs.lastRefreshedAt })
     .from(corpStructureSyncs)
     .where(eq(corpStructureSyncs.corporationId, corporationId))
     .limit(1);
@@ -59,14 +63,16 @@ export async function listCorpStructureSyncStates(
 }
 
 /**
- * Replace a corporation's structures under its sync-row lock. The port keeps
- * Promise<void>: a superseded save changed nothing and invalidates nothing.
+ * Replace a corporation's structures under its sync-row lock; a unique
+ * violation is 'superseded' and changes nothing. An owner sync passes the
+ * transaction its answers commit in, and its commit clears the cache tag.
  */
 export async function saveCorpStructures(
   corporationId: number,
   rows: ParsedCorpStructure[],
   etags: string[],
-): Promise<void> {
+  database?: AnyPgDb,
+): Promise<'saved' | 'superseded'> {
   const now = new Date();
   const systems = await getSystemFacts([...new Set(rows.map((r) => r.system_id))]);
   const records = rows.map((r) => ({
@@ -77,7 +83,7 @@ export async function saveCorpStructures(
     securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
     name: r.name ?? null,
   }));
-  const outcome = await replaceOwnerSnapshot({
+  return replaceOwnerSnapshot({
     lock: (tx) => tx
       .insert(corpStructureSyncs)
       .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
@@ -89,8 +95,7 @@ export async function saveCorpStructures(
       await tx.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
       await insertInBatches(tx, corpStructures, records);
     },
-  });
-  if (outcome === 'saved') expireNow(corpStructuresTag(corporationId));
+  }, database);
 }
 
 export async function stampCorpStructuresFresh(corporationId: number): Promise<void> {

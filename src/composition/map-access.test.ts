@@ -53,6 +53,8 @@ function affiliation(
     allianceId: null,
     factionId: null,
     refreshedAt,
+    // CCP's affiliation answers live an hour, so a row observed longer ago than that has expired.
+    expiresAt: new Date(refreshedAt.getTime() + 60 * 60_000),
   };
 }
 
@@ -177,7 +179,7 @@ describe('map chrome data', () => {
       { characterIds: [42, 43], corporationIds: [99, 100] },
       ['map-a'],
     );
-    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100, 77, 78]);
+    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100, 77, 78], { interactive: true });
     expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
     // A chrome load drains the outbox opportunistically, sharing the coalesced visit drain.
     expect(mocks.after).toHaveBeenCalledExactlyOnceWith(mocks.reconcileAffiliationAccessOnVisit);

@@ -21,7 +21,7 @@ const AT = new Date('2026-09-01T00:00:00.000Z');
 function affiliation(userId: string, characterId: number, corporationId: number | null, eligible = true) {
   return {
     userId, characterId, corporationId, allianceId: null, factionId: null,
-    refreshedAt: AT, sharedAccessEligible: eligible,
+    refreshedAt: AT, expiresAt: null, sharedAccessEligible: eligible,
   };
 }
 

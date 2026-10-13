@@ -79,10 +79,10 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
   render();
   expect(ui.confirm).toMatchObject({
     open: true,
-    consequence: expect.stringMatching(/^2 selected maps will enter/),
+    consequence: "2 maps will be deleted. This can't be undone.",
   });
 
-  // The second map is refused: the dialog stays open on the map still to purge, saying why.
+  // The second map is refused: the dialog stays open on the map still to purge, with the retry copy.
   api.apiFetch.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce(apiProblem(403, 'map_creator_required'));
   ui.confirm?.onConfirm();
   await settle();
@@ -93,8 +93,8 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
   ]);
   expect(ui.confirm).toMatchObject({
     open: true,
-    consequence: expect.stringMatching(/^1 selected map will enter/),
-    error: 'Only the map creator can permanently delete the selected maps.',
+    consequence: "1 map will be deleted. This can't be undone.",
+    error: "The selected maps couldn't be permanently deleted. Try again.",
   });
 
   // The retry purges only that map, and the closing dialog still counts it.
@@ -105,6 +105,6 @@ test('the purge confirmation counts the maps it was opened for, through a refuse
   expect(api.apiFetch).toHaveBeenCalledExactlyOnceWith(purgeMapNowEndpoint, expect.objectContaining({ body: { mapId: 'scratch' } }));
   expect(ui.confirm).toMatchObject({
     open: false,
-    consequence: expect.stringMatching(/^1 selected map will enter/),
+    consequence: "1 map will be deleted. This can't be undone.",
   });
 });

@@ -18,13 +18,17 @@ export async function createMapWithMinimumInterstitial(input: CreateMapRequest) 
   return outcome;
 }
 
+// Owner-approved (promote #694): every failure without its own entry reads the connection line.
+const MAP_CREATION_FAILED = 'Check your connection and try again.';
+
 const MAP_CREATION_FAILURE_COPY = {
-  fallback: 'The map could not be created.',
+  fallback: MAP_CREATION_FAILED,
   codes: {
     not_linked: 'Choose one of your own linked characters.',
-    map_projection_unavailable:
-      'Map access could not be projected. The attempted map was rolled back; try again.',
+    rate_limited: "You're creating maps too fast. Try again in a minute.",
+    map_projection_unavailable: "Couldn't set up map access. Try again.",
   },
+  network: MAP_CREATION_FAILED,
 } satisfies FailureCopy<FailedOutcome<typeof createMapEndpoint>>;
 
 export function mapCreationFailureMessage(failure: FailedOutcome<typeof createMapEndpoint>): string {

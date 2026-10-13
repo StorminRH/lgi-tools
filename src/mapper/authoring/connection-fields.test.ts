@@ -169,7 +169,7 @@ it('groups codex kilograms in en-US under any host locale', () => {
     ),
   );
   expect(markup).toMatch(/data-map-codex-fact="Total mass"[^>]*>2,000,000,000 kg</);
-  expect(markup).toMatch(/data-map-codex-fact="Per-jump"[^>]*>375,000,000 kg</);
+  expect(markup).toMatch(/data-map-codex-fact="Jump mass"[^>]*>375,000,000 kg</);
   expect(markup).toMatch(/data-map-codex-fact="Regeneration"[^>]*>500,000,000 kg</);
 });
 
@@ -186,13 +186,15 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   );
   expect(typed).toContain('data-map-connection-codex');
   expect(typed).toContain('data-map-codex-fact="Total mass"');
-  expect(typed).toContain('data-map-codex-fact="Per-jump"');
+  expect(typed).toContain('data-map-codex-fact="Jump mass"');
   expect(typed).toContain('data-map-codex-fact="Lifetime"');
-  expect(typed).toContain('data-map-codex-fact="Size"');
+  expect(typed).not.toContain('data-map-codex-fact="Size"');
   expect(typed).not.toContain('>Codex<');
   expect(typed).toContain('data-map-connection-size-locked');
   expect(typed).not.toContain('data-select="Size"');
   expect(typed).toContain('data-map-connection-mass-range');
+  expect(typed).toMatch(/data-map-connection-mass-range=""[^>]*>0 kg–2.2B kg remaining</);
+  expect(typed).toMatch(/data-lifetime-kind="ceiling"[^>]*>≤ \d+h remaining</);
   expect(typed).not.toContain('data-map-codex-fact="Regeneration"');
 
   const k162 = renderToStaticMarkup(
@@ -240,7 +242,7 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   );
   expect(resolved).not.toContain('data-map-connection-leads-locked');
   expect(resolved).toContain('J123456 - C4');
-  expect(resolved).toContain('System name — e.g. J120924');
+  expect(resolved).toContain('data-placeholder="Search systems"');
   expect(resolved).not.toContain('data-select="Leads to"');
 
   const unresolved = renderToStaticMarkup(
@@ -324,7 +326,7 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
       setters: SETTERS,
     }),
   );
-  expect(restore).toContain('data-map-connection-restore-mode');
+  expect(restore).toMatch(/data-map-connection-restore-mode="true"[^>]*>Connection severed\.</);
   expect(restore).toContain('data-map-connection-restore');
   expect(restore).not.toContain('data-map-connection-delete');
   expect(restore).not.toContain('data-terminal-search');

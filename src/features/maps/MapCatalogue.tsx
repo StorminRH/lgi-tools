@@ -242,8 +242,7 @@ function MapCatalogueSurface({
         <PageShell mode="workspace">
           <h1 className="sr-only">Atlas</h1>
           <LoadFailed
-            title="Map catalogue unavailable"
-            detail="Atlas could not load your authorized maps. Retry before creating or managing a map."
+            title="Maps didn't load"
             retryLabel="Try again"
             onRetry={onRetry}
             className="max-w-lg"
@@ -260,7 +259,7 @@ function MapCatalogueSurface({
         <div className="mb-5 flex flex-wrap items-center gap-2">
           {maps.length === 0 ? (
             <p data-map-catalogue-empty-hint className="font-ui text-ui text-muted">
-              Create a map to begin charting a chain.
+              No maps yet.
             </p>
           ) : null}
           <Button
@@ -271,7 +270,7 @@ function MapCatalogueSurface({
             onClick={(event) => onCreate(event.currentTarget)}
           >
             <PlusGlyph />
-            Create new map
+            New map
           </Button>
           <Button
             variant="secondary"
@@ -424,7 +423,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
         consequence={
           deleteGate.target === null
             ? ''
-            : `${deleteGate.target.name} leaves the catalogue. Restore it from Trash within 30 days.`
+            : `${deleteGate.target.name} moves to Trash. You can restore it within 30 days.`
         }
         busy={deleteGate.busy}
         error={deleteGate.errored ? deletion.error : null}

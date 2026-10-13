@@ -28,7 +28,6 @@ function MissingSignaturesPrompt({
     <MapPromptCard
       data-signature-missing-prompt
       ariaLabel="Missing signatures"
-      eyebrow="Missing from scan"
       body={`${formatCount(count, 'signature')} missing from scan`}
     >
       <div className="flex justify-end gap-1">

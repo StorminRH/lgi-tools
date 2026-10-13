@@ -29,6 +29,10 @@ vi.mock('@/lib/use-resource-read', () => ({
   useResourceRead: () => undefined,
 }));
 
+vi.mock('@/components/use-live-dataset', () => ({
+  useLiveDataset: () => ({ response: null, now: 0, loading: true, failed: false, retry: () => undefined }),
+}));
+
 const STRUCTURE: BlueprintStructure = {
   blueprintTypeId: 100,
   activityId: 1,

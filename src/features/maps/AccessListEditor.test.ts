@@ -45,7 +45,7 @@ it('renders durable grants, private create state, and an unchosen controlled rol
       onPrincipalRemove: vi.fn(),
     }),
   );
-  expect(create).toContain('Private — no delegated access.');
+  expect(create).toContain('Only you.');
   expect(create).toContain('No linked corporations available.');
   expect(create).not.toContain('>Admin<');
   expect(create).toContain('data-map-character-search');
