@@ -46,9 +46,11 @@ export async function getLiveHistory(
   };
   if (ids.length === 0) return { inputs: new Map(), degraded, metrics };
 
-  // The stored series depends only on ids, so it is read beside the expiries
-  // rather than after the source fetch.
-  const [expiries, stored] = await Promise.all([storedExpiries(ids.map(historyKey)), getStoredHistory(ids)]);
+  // Expiries first, then the stored series. A write-behind saves its rows
+  // before it commits their expiry, so rows read after an expiry are at
+  // least as fresh as it; read together, an old series could pass as fresh.
+  const expiries = await storedExpiries(ids.map(historyKey));
+  const stored = await getStoredHistory(ids);
   const now = Date.now();
   const staleIds = ids.filter((_id, i) => isExpired(expiries[i] ?? null, now));
 
