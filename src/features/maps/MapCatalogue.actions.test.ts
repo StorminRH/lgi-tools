@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import { deleteMapEndpoint } from '@/data/maps/api-contract';
 import { settle } from '@/lib/__tests__/hook-runtime';
+import { apiProblem } from '@/transport/__tests__/failed-outcomes';
 
 interface ConfirmProps {
   open: boolean;
@@ -91,14 +92,15 @@ test('a refused delete keeps its error to that attempt, and a deleted map stays 
     error: null,
   });
 
-  api.apiFetch.mockResolvedValueOnce({ ok: false });
+  api.apiFetch.mockResolvedValueOnce(apiProblem(401, 'unauthenticated'));
   ui.confirm?.onConfirm();
   render();
   expect(ui.confirm).toMatchObject({ open: true, busy: true });
   await settle();
   render();
   expect(api.apiFetch).toHaveBeenCalledExactlyOnceWith(deleteMapEndpoint, expect.objectContaining({ body: { mapId: 'map-home' } }));
-  expect(ui.confirm).toMatchObject({ open: true, busy: false, error: expect.any(String) });
+  // The refusal says why: an ended session, not missing admin access.
+  expect(ui.confirm).toMatchObject({ open: true, busy: false, error: 'Your session has ended. Sign in again.' });
 
   // Closing and asking again starts clean: the refusal belonged to the last attempt.
   ui.confirm?.onOpenChange(false);

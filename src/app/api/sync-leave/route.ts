@@ -21,11 +21,7 @@ export async function POST(request: Request): Promise<Response> {
     parse: (incoming) => readJsonBody(incoming, leaveSyncRequestSchema),
     handle: async ({ userId }, body) => {
       try {
-        await postLeaveSync({
-          userId,
-          dataset: body.dataset,
-          tabId: body.tabId,
-        });
+        await postLeaveSync({ ...body, userId });
       } catch (cause) {
         if (!(cause instanceof LeaveSyncDoorError)) throw cause;
         return apiResponse(

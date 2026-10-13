@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
+import { eyebrow } from '@/components/ui/type-roles';
 import {
   MAX_CHARACTER_SEARCH_LENGTH,
   MIN_CHARACTER_SEARCH_LENGTH,
@@ -127,7 +128,7 @@ export function CharacterSearchControl({
 
   return (
     <div className="flex flex-col gap-1.5" data-map-character-search>
-      <label htmlFor={inputId} className="font-ui text-label tracking-label uppercase text-muted">
+      <label htmlFor={inputId} className={eyebrow({ weight: 'inherit', emphasis: 'label' })}>
         {label}
       </label>
       <Combobox.Root

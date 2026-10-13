@@ -1,4 +1,4 @@
-import type { OutcomeOf } from '@/transport/endpoint';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
 import { feedbackEndpoint } from '../api-contract';
 import { isFeedbackCategory } from '../categories';
 
@@ -24,20 +24,20 @@ export function feedbackSubmitGate(
   return 'ok';
 }
 
-export function feedbackErrorMessage(
-  result: Exclude<OutcomeOf<typeof feedbackEndpoint>, { ok: true }>,
-): string {
-  if (result.kind === 'network') {
-    return FEEDBACK_NETWORK_ERROR_MESSAGE;
-  }
-  if (result.kind === 'protocol') {
-    return 'Something went wrong sending your feedback. Try again.';
-  }
-  if (result.status === 400) {
-    return result.error.detail || 'Please check your message and try again.';
-  }
-  if (result.status === 429) {
-    return 'Too much feedback too fast — please wait a minute and try again.';
-  }
-  return 'Something went wrong sending your feedback. Try again.';
+const FEEDBACK_FAILURE_COPY = {
+  fallback: 'Something went wrong sending your feedback. Try again.',
+  network: FEEDBACK_NETWORK_ERROR_MESSAGE,
+  codes: {
+    invalid_body: 'Please check your message and try again.',
+    title_empty: 'Add a title to your feedback.',
+    message_empty: 'Add a message to your feedback.',
+    path_invalid: 'Your feedback could not note this page. Reload it and try again.',
+    linear_failed: 'Your feedback could not be delivered. Try again in a few minutes.',
+    feedback_unconfigured: 'Feedback is unavailable right now.',
+  },
+} satisfies FailureCopy<FailedOutcome<typeof feedbackEndpoint>>;
+
+/** User copy for a failed send, by the server's code; the server's own detail is developer text and stays out. */
+export function feedbackErrorMessage(result: FailedOutcome<typeof feedbackEndpoint>): string {
+  return failureMessage(result, FEEDBACK_FAILURE_COPY);
 }

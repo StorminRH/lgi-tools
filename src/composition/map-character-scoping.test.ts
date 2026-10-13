@@ -2,8 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const door = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock('@/lib/convex-http-door', () => ({ postConvexHttpDoor: door.post }));
+vi.mock('@/lib/convex-http-door', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/convex-http-door')>()),
+  postConvexHttpDoor: door.post,
+}));
 
+import { mapTrackingSnapshotDoor } from '@/data/maps/convex-doors';
+import { ProjectionUnavailableError } from './map-access-projection';
 import {
   grandfatherGrants,
   scopeLegacyMap,
@@ -105,9 +110,11 @@ describe('scopeLegacyMap', () => {
     door.post.mockResolvedValue({ tracked: [{ userId: 'member', characterId: 3 }] });
     const { freezeTracking: _freezeTracking, ...rest } = deps();
     await expect(scopeLegacyMap('map-1', rest)).resolves.toBe(true);
-    expect(door.post).toHaveBeenCalledWith(expect.objectContaining({
-      path: '/map-tracking-snapshot', body: { mapId: 'map-1' },
-    }));
+    expect(door.post).toHaveBeenCalledWith(
+      mapTrackingSnapshotDoor,
+      { mapId: 'map-1' },
+      expect.objectContaining({ error: ProjectionUnavailableError }),
+    );
     expect(rest.grandfather).toHaveBeenCalledWith('map-1', [{ userId: 'member', characterId: 3, role: 'editor' }], expect.any(Date));
   });
 

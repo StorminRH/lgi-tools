@@ -23,7 +23,7 @@
    "focus": "vitest 4.1.11 as installed. Cover vi.hoisted plus vi.mock with a top-level await import, as create-profile.test.ts does, and whether vi.mock('@/db') also intercepts a relative ./index import from a new src/db/capped-insert.ts. Cover mockResolvedValueOnce chains, and type-level assertions (expectTypeOf, or @ts-expect-error in test files). vitest typecheck mode is not configured; `pnpm check` runs tsc --noEmit, so confirm that tsc covers test files. Cover running *.db.test.ts suites against local Postgres; they skip when it is down, and a skip is not a pass. Read these first: vitest.config.ts, tsconfig.json, src/features/industry-planner/profiles/create-profile.test.ts, src/db/serialization-retry.test.ts, src/db/__tests__/support/db-test-harness.ts, src/esi-datasets/ui-adoption.test.ts with src/lib/__tests__/source-scan.ts, and src/lib/convex-http-door.test.ts."
   }
  ],
- "waveCautions": "P219: runSerializable already retries serialization failures (src/db/serialization-retry.ts, 10 attempts). insertWithinCap therefore adds no retry, and no retry tests need to move. Rename profile-writes.ts insertWithinCap, or fold it into createIndustryProfile, so two modules do not export the same name. DB tests must actually run on local Postgres; a skip is not green. P138 needs P063, P054 and P146 landed first. Its copy changes (feedback detail dropped, 429 copy from retryAfterSeconds, cross_origin fallback) need red-to-green tests and PR-body notes. AccountDangerZone now toasts inline after gate.run (P056), and it is a hotspot: one PR touching it at a time. P046: panel titles are already done through displayTitle. Phase 2 must produce identical classes (eyebrow defaults to font-medium). Phase 3 changes visuals and needs user review on /preview/primitives. The census regex also matches Footer tracking-[0.03em] and HeroBanner tracking-[0.28em], works per file, and skips every ui directory. P246 needs P208: wrap its merge-contract, leave-contract and MAP_CLAIM_REVOKE_BATCH rather than redeclaring them, and move its Convex-only userPurgeBodySchema into lib. Check whether zod .extend throws on refined objects. Switch postConvexHttpDoor and all 9 callers in one commit. Convex must never import convex-http-door.ts or transport. The strict snapshot parser must match Convex's real response. Notes left by earlier waves: P306 sees AccountDangerZone importing HelpPopover from ui/help-popover (P007), not Popover. Serialization-failure retries live in runSerializable (wave 5).",
+ "waveCautions": "P219: runSerializable already retries serialization failures (src/db/serialization-retry.ts, 10 attempts). insertWithinCap therefore adds no retry, and no retry tests need to move. Rename profile-writes.ts insertWithinCap, or fold it into createIndustryProfile, so two modules do not export the same name. DB tests must actually run on local Postgres; a skip is not green. P138's P063 (wave 12), P054 (wave 12) and P146 (wave 9) are implemented on this base. Build on what they added: apiFetchData and apiFailureLabel in src/transport/api-fetch-data.ts (P063), useMapAccessWrite and mapAccessFailureMessage in features/maps/use-map-access-editor.ts (P054), seeOther in transport/api-response (P146), and resolveNotice in lib/error-copy (P255). Its copy changes (feedback detail dropped, 429 copy from retryAfterSeconds, cross_origin fallback) need red-to-green tests and PR-body notes. AccountDangerZone now toasts inline after gate.run (P056), and it is a hotspot: one PR touching it at a time. P046: panel titles are already done through displayTitle. Phase 2 must produce identical classes (eyebrow defaults to font-medium). Phase 3 changes visuals and every collapse is a design decision that needs the owner's review on /preview/primitives, which nobody can view here. Land phases 1 and 2 (output-identical classes) and the census locked on the phase 2 role set; do not make phase 3's visual collapses. List each proposed phase 3 collapse (with the exact class change and the sites it touches) in your deviations so the PR can put them to the owner. The census regex also matches Footer tracking-[0.03em] and HeroBanner tracking-[0.28em], works per file, and skips every ui directory. P246's P208 (wave 14) is implemented: wrap src/data/location-tracking/merge-contract.ts, src/data/convex/leave-contract.ts and MAP_CLAIM_PURGE_BATCH (the real name, in src/data/maps/access-contract.ts) rather than redeclaring them, and move the Convex-only userPurgeBodySchema from convex/lib/httpAuth.ts into lib. Check whether zod .extend throws on refined objects. Switch postConvexHttpDoor and all 9 callers in one commit. Convex must never import convex-http-door.ts or transport. The strict snapshot parser must match Convex's real response. Notes left by earlier waves: P306 sees AccountDangerZone importing HelpPopover from ui/help-popover (P007), not Popover. Serialization-failure retries live in runSerializable (wave 5). Notes from waves 8 to 15 (implemented; wave 8 is on development, waves 9 to 15 are PRs #676 to #683): besides the auth.ts accountLinking and repairUserIdentity spots, the pending account-takeover fix also sets Better Auth disabledPaths ['/unlink-account'] in src/platform/auth/auth.ts and adds a refused-sign-in notice; leave those alone. Do not build on usableStoredRoles' fetched_at + 1h rule in composition/sync/owner-sync-port.ts: the owner chose to reuse stored corp roles only until ESI's own Expires, which promote 11 changes. The maps/jump and maps/signature-elimination routes set CapabilityOption.recordAbortedFailures (on development after promote 11); keep it if P246 touches those doors' callers. readConvexError in src/lib/convex-error.ts decodes ConvexError payloads structurally (P217). Wave 14 already added merge-contract.ts, leave-contract.ts, userPurgeBodySchema and the shared MAP_CLAIM_PURGE_BATCH (P208), takeIndexedOrThrow and deleteIndexedBatch (P195, P196).",
  "possiblyAlreadyDone": [
   {
    "item": "P219 steps 1-2: serialization retry and its tests",
@@ -55,13 +55,13 @@
    "item": "P138",
    "dependsOn": "P063",
    "dependencyWave": 12,
-   "dependencyStatus": "- **Status:** [ ] not started"
+   "dependencyStatus": "- **Status:** [x] done"
   },
   {
    "item": "P138",
    "dependsOn": "P054",
    "dependencyWave": 12,
-   "dependencyStatus": "- **Status:** [ ] not started"
+   "dependencyStatus": "- **Status:** [x] done"
   },
   {
    "item": "P138",
@@ -79,7 +79,7 @@
    "item": "P138",
    "dependsOn": "P146",
    "dependencyWave": 9,
-   "dependencyStatus": "- **Status:** [ ] not started"
+   "dependencyStatus": "- **Status:** [x] done"
   },
   {
    "item": "P046",
@@ -109,7 +109,7 @@
    "item": "P246",
    "dependsOn": "P208",
    "dependencyWave": 14,
-   "dependencyStatus": "- **Status:** [ ] not started"
+   "dependencyStatus": "- **Status:** [x] done"
   },
   {
    "item": "P246",

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
+import { dataLabel, eyebrow } from '@/components/ui/type-roles';
 import { formatIsk } from '@/lib/format/isk';
 
 /**
@@ -28,7 +29,12 @@ export function LedgerColumnHead({
   return (
     <div
       className={cn(
-        'mb-2 flex items-center gap-x-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted',
+        eyebrow({
+          font: 'inherit',
+          weight: 'semibold',
+          emphasis: 'strong',
+          className: 'mb-2 flex items-center gap-x-2 whitespace-nowrap',
+        }),
         collapseNarrow && '@max-[14rem]:flex-col @max-[14rem]:items-start',
       )}
     >
@@ -66,7 +72,7 @@ export function ItemNameStack({
       <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
         {name}
       </span>
-      <span className="truncate font-data text-label uppercase tracking-label text-muted">
+      <span className={dataLabel({ className: 'truncate' })}>
         {label}
       </span>
     </div>

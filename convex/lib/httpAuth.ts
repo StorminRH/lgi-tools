@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import type { PublicHttpAction } from 'convex/server';
 import { bearerMatches } from '@/lib/bearer';
 import { readEnv } from '@/lib/env';
@@ -27,12 +27,6 @@ export function authorizedAction(
     return handle(ctx, req);
   });
 }
-
-/** The body of a per-user Convex purge door: the user, and one character or null for all of them. */
-export const userPurgeBodySchema = z.object({
-  userId: z.string(),
-  characterId: z.number().nullable(),
-});
 
 export function authorizedJsonAction<T>(
   schema: z.ZodType<T>,

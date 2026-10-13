@@ -1,12 +1,20 @@
-import { z } from 'zod';
 import {
   orderEligibleCharacters,
   resolveMatchedMapRoles,
   type DatedMapGrant,
   type MapPrincipals,
 } from '@/data/maps/access';
-import { MAP_CLAIM_PURGE_BATCH, type MapRole } from '@/data/maps/access-contract';
+import {
+  claimsCarryCharacters,
+  MAP_CLAIM_PURGE_BATCH,
+  type MapRole,
+} from '@/data/maps/access-contract';
 import { getBlockedMapUserIds } from '@/data/maps/blocks';
+import {
+  projectMapAccessDoor,
+  purgeMapAccessDoor,
+  purgeUserMapClaimsDoor,
+} from '@/data/maps/convex-doors';
 import {
   getCharacterNames,
   getMapAccessSubject,
@@ -15,61 +23,25 @@ import {
   reserveMapAccessProjectionRevision,
 } from '@/data/maps/queries';
 import { chunk, groupBy } from '@/lib/array';
-import { postConvexHttpDoor } from '@/lib/convex-http-door';
+import type { ConvexDoorRequest, ConvexDoorResponse } from '@/lib/convex-door-contract';
+import { ConvexDoorError, postConvexHttpDoor } from '@/lib/convex-http-door';
 import { unresolvedName } from '@/lib/format/names';
 import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
 
-export interface MapClaimCharacter {
-  readonly characterId: number;
-  readonly name: string;
-}
-
 /** `characters` is sent only for character-scoped maps; its absence keeps Convex on account-level tracking. */
-export interface MapAccessClaim {
-  readonly userId: string;
-  readonly roles: readonly MapRole[];
-  readonly characters?: readonly MapClaimCharacter[];
-}
-
-export interface ProjectionCounts {
-  readonly inserted: number;
-  readonly updated: number;
-  readonly deleted: number;
-  readonly unchanged: number;
-}
+export type MapAccessClaim = ConvexDoorRequest<typeof projectMapAccessDoor>['claims'][number];
 
 /**
  * A delivery that counts. One a newer projection already overrode, or one
  * Convex refused, rejects with ProjectionUnavailableError instead.
  */
-export type CurrentProjectionResult = ProjectionCounts & {
-  readonly outcome: 'applied' | 'duplicate';
-  readonly characterScoped?: true;
-};
+export type CurrentProjectionResult = Exclude<
+  ConvexDoorResponse<typeof projectMapAccessDoor>,
+  { readonly outcome: 'stale' | 'unscoped-refused' }
+>;
 
-const projectionCountFields = {
-  inserted: z.number().int().nonnegative(),
-  updated: z.number().int().nonnegative(),
-  deleted: z.number().int().nonnegative(),
-  unchanged: z.number().int().nonnegative(),
-};
-const characterScopedField = { characterScoped: z.literal(true).optional() };
-const projectionResultSchema = z.discriminatedUnion('outcome', [
-  z.strictObject({ ...projectionCountFields, ...characterScopedField, outcome: z.literal('applied') }),
-  z.strictObject({ ...projectionCountFields, ...characterScopedField, outcome: z.literal('duplicate') }),
-  z.strictObject({ ...projectionCountFields, outcome: z.literal('stale') }),
-  z.strictObject({ ...projectionCountFields, outcome: z.literal('unscoped-refused') }),
-]);
-
-const userPurgeResultSchema = z.strictObject({
-  deleted: z.number().int().nonnegative(),
-});
-
-export class ProjectionUnavailableError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'ProjectionUnavailableError';
-  }
+export class ProjectionUnavailableError extends ConvexDoorError {
+  override readonly name = 'ProjectionUnavailableError';
 }
 
 function sharedAccessRows(rows: readonly CachedAffiliation[]): CachedAffiliation[] {
@@ -108,7 +80,7 @@ function grantOwnerIds(grants: readonly DatedMapGrant[], ownerType: DatedMapGran
 }
 
 async function nameCharacters(
-  claims: readonly { userId: string; roles: readonly MapRole[]; characterIds: number[] }[],
+  claims: readonly { userId: string; roles: MapRole[]; characterIds: number[] }[],
 ): Promise<MapAccessClaim[]> {
   const names = await getCharacterNames(claims.flatMap((claim) => claim.characterIds));
   return claims.map(({ characterIds, ...claim }) => ({
@@ -187,22 +159,15 @@ export const MAP_ACCESS_DELIVERY_TIMEOUT_MS = 4_000;
 export const MAP_ACCESS_RECONCILE_BUDGET_MS = 20_000;
 
 function postMapAccessProjection(
-  body: unknown,
+  body: ConvexDoorRequest<typeof projectMapAccessDoor>,
   options: ProjectMapAccessOptions = {},
-): Promise<z.infer<typeof projectionResultSchema>> {
-  return postConvexHttpDoor({
-    path: '/project-map-access',
-    body,
-    schema: projectionResultSchema,
+): Promise<ConvexDoorResponse<typeof projectMapAccessDoor>> {
+  return postConvexHttpDoor(projectMapAccessDoor, body, {
     error: ProjectionUnavailableError,
     label: 'Map access projection unavailable',
     timeoutMs: options.timeoutMs,
     signal: options.signal,
   });
-}
-
-function claimsCarryCharacters(claims: readonly MapAccessClaim[]): boolean {
-  return claims.length > 0 && claims.every((claim) => claim.characters !== undefined);
 }
 
 /**
@@ -213,7 +178,7 @@ function claimsCarryCharacters(claims: readonly MapAccessClaim[]): boolean {
  */
 function requireCurrentDelivery(
   claims: readonly MapAccessClaim[],
-  result: z.infer<typeof projectionResultSchema>,
+  result: ConvexDoorResponse<typeof projectMapAccessDoor>,
 ): CurrentProjectionResult {
   if (result.outcome === 'unscoped-refused') {
     throw new ProjectionUnavailableError(
@@ -290,10 +255,7 @@ export async function fenceMapAccessProjection(mapId: string): Promise<void> {
 export async function purgeUserMapAccessProjection(
   userId: string,
 ): Promise<{ deleted: number }> {
-  return postConvexHttpDoor({
-    path: '/purge-map-access',
-    body: { userId },
-    schema: userPurgeResultSchema,
+  return postConvexHttpDoor(purgeMapAccessDoor, { userId }, {
     error: ProjectionUnavailableError,
     label: 'Map access projection unavailable',
   });
@@ -307,10 +269,7 @@ export async function revokeUserMapClaims(
   // character linked.
   for (const batch of chunk(mapIds, MAP_CLAIM_PURGE_BATCH)) {
     const revision = await reserveMapAccessProjectionRevision();
-    await postConvexHttpDoor({
-      path: '/purge-user-map-claims',
-      body: { userId, revision, mapIds: batch },
-      schema: userPurgeResultSchema,
+    await postConvexHttpDoor(purgeUserMapClaimsDoor, { userId, revision, mapIds: batch }, {
       error: ProjectionUnavailableError,
       label: 'Map access revocation unavailable',
     });

@@ -1,34 +1,24 @@
-import { z } from 'zod';
 import { fenceMapAccessProjection } from '@/composition/map-access-projection';
+import { purgeMapChainDoor } from '@/data/maps/convex-doors';
 import {
   claimPurgeableMaps,
   tombstoneOwnedMaps,
   tombstonePurgedMap,
 } from '@/data/maps/lifecycle';
 import { getOwnedMapIds } from '@/data/maps/queries';
-import { postConvexHttpDoor } from '@/lib/convex-http-door';
+import type { ConvexDoorResponse } from '@/lib/convex-door-contract';
+import { ConvexDoorError, postConvexHttpDoor } from '@/lib/convex-http-door';
 
 const MAP_PURGE_WORK_BUDGET_MS = 60_000;
 
-const mapPurgeResponseSchema = z.strictObject({
-  deleted: z.number().int().nonnegative(),
-  remaining: z.literal(false),
-});
-
-export class MapPurgeUnavailableError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'MapPurgeUnavailableError';
-  }
+export class MapPurgeUnavailableError extends ConvexDoorError {
+  override readonly name = 'MapPurgeUnavailableError';
 }
 
 async function purgeMapChain(
   mapId: string,
-): Promise<{ readonly deleted: number; readonly remaining: false }> {
-  return postConvexHttpDoor({
-    path: '/purge-map-chain',
-    body: { mapId },
-    schema: mapPurgeResponseSchema,
+): Promise<ConvexDoorResponse<typeof purgeMapChainDoor>> {
+  return postConvexHttpDoor(purgeMapChainDoor, { mapId }, {
     error: MapPurgeUnavailableError,
     label: 'Map purge unavailable',
   });

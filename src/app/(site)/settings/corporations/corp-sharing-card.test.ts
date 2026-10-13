@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import { settle } from '@/lib/__tests__/hook-runtime';
+import { apiProblem, networkDown } from '@/transport/__tests__/failed-outcomes';
 
 interface ConfirmProps {
   open: boolean;
@@ -95,4 +96,26 @@ test('switching sharing off asks first, then stops sharing and closes once the r
   expect(html).toContain('aria-checked="false"');
   expect(html).not.toContain('role="dialog"');
   expect(ui.toast.success).toHaveBeenCalledExactlyOnceWith('Sharing off');
+});
+
+test('a refused switch stays put and the toast says why', async () => {
+  rt.unmount();
+  ui.toast.error.mockReset();
+  api.apiFetch.mockReset();
+  const off = { ...corp, sharingEnabled: false };
+  const renderOff = () =>
+    rt.render(renderToStaticMarkup, createElement(CorpSharingCard, { directorCorps: [off], memberCorps: [] }));
+  renderOff();
+
+  api.apiFetch.mockResolvedValueOnce(apiProblem(403, 'not_director'));
+  ui.toggle?.(true);
+  await settle();
+  expect(renderOff()).toContain('aria-checked="false"');
+  expect(ui.toast.error).toHaveBeenLastCalledWith('Only a Director can change sharing.');
+
+  api.apiFetch.mockResolvedValueOnce(networkDown());
+  ui.toggle?.(true);
+  await settle();
+  expect(renderOff()).toContain('aria-checked="false"');
+  expect(ui.toast.error).toHaveBeenLastCalledWith('Sharing not changed. Check your connection and try again.');
 });

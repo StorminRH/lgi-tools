@@ -10,7 +10,7 @@ import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { SidePanel } from '@/components/ui/side-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
-import { eyebrow } from '@/components/ui/type-roles';
+import { dataLabel, eyebrow } from '@/components/ui/type-roles';
 import { useSystemsById } from '@/components/use-system-search';
 import { activityLabel } from '@/data/eve-data/constants';
 import { lookupSystem } from '@/data/eve-data/systems-search';
@@ -99,7 +99,7 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="truncate font-data text-ui text-name">{row.name}</span>
-        {row.label && <span className="truncate font-data text-label uppercase tracking-label text-muted">{row.label}</span>}
+        {row.label && <span className={dataLabel({ className: 'truncate' })}>{row.label}</span>}
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5 font-data tabular-nums">
         <span className="text-ui text-name">{formatQuantity(row.quantity)}</span>

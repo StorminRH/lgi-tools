@@ -34,13 +34,32 @@ export function selectedCreatorMapIds(
     .map((map) => map.id);
 }
 
-export async function runMapLifecycleBatch(
+/** A failed outcome among an action's outcomes, so the batch can hand it back typed. */
+function isFailed<TOutcome extends { readonly ok: boolean }>(
+  outcome: TOutcome,
+): outcome is Extract<TOutcome, { readonly ok: false }> {
+  return !outcome.ok;
+}
+
+/**
+ * Runs `action` over the maps one at a time and stops at the first failure,
+ * which it hands back as `failed` so the copy can name why.
+ */
+export async function runMapLifecycleBatch<TOutcome extends { readonly ok: boolean }>(
   mapIds: Iterable<string>,
-  action: (input: { readonly mapId: string }) => Promise<{ readonly ok: boolean }>,
-): Promise<{ readonly succeeded: readonly string[]; readonly complete: boolean }> {
+  action: (input: { readonly mapId: string }) => Promise<TOutcome>,
+): Promise<
+  | { readonly succeeded: readonly string[]; readonly complete: true }
+  | {
+      readonly succeeded: readonly string[];
+      readonly complete: false;
+      readonly failed: Extract<TOutcome, { readonly ok: false }>;
+    }
+> {
   const succeeded: string[] = [];
   for (const mapId of mapIds) {
-    if (!(await action({ mapId })).ok) return { succeeded, complete: false };
+    const outcome = await action({ mapId });
+    if (isFailed(outcome)) return { succeeded, complete: false, failed: outcome };
     succeeded.push(mapId);
   }
   return { succeeded, complete: true };
@@ -132,7 +151,7 @@ export function TrashWindow({
     setBusy(null);
     setSelected((current) => pruneTrashSelection(current, result.succeeded));
     if (result.complete) setSelected(new Set());
-    else setError(mapLifecycleFailureMessage('restore'));
+    else setError(mapLifecycleFailureMessage('restore', result.failed));
     router.refresh();
   }
 
@@ -147,7 +166,7 @@ export function TrashWindow({
       setSelected(new Set());
     } else {
       purge.request(mapIds.filter((mapId) => !result.succeeded.includes(mapId)));
-      setError(mapLifecycleFailureMessage('purge'));
+      setError(mapLifecycleFailureMessage('purge', result.failed));
     }
     router.refresh();
   }

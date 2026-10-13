@@ -12,8 +12,18 @@ import { eyebrow } from '@/components/ui/type-roles';
 import { fittedRigIds, rigSlotsFrom, type StructureRigOption } from '@/data/eve-data/structures';
 import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
 import { setCorpStructureRigsEndpoint } from '../api-contract';
 import type { CorpStructurePageStructure } from '../types';
+
+const RIG_SAVE_FAILURE_COPY = {
+  fallback: 'Could not save. Try again.',
+  network: 'Could not save. Check your connection and try again.',
+  codes: {
+    not_station_manager: 'Setting rigs and tax needs a character with the Station Manager or Director role.',
+    not_corp_member: 'None of your characters is in this corporation.',
+  },
+} satisfies FailureCopy<FailedOutcome<typeof setCorpStructureRigsEndpoint>>;
 
 /** Rigs and tax for a synced corporation structure; ESI gives neither, a manager sets them. */
 export function CorpRigEditor({
@@ -44,7 +54,7 @@ export function CorpRigEditor({
       cache: 'no-store',
     });
     setBusy(false);
-    if (!res.ok) return setError('Could not save. Try again.');
+    if (!res.ok) return setError(failureMessage(res, RIG_SAVE_FAILURE_COPY));
     onSaved({ rigTypeIds: res.data.rigTypeIds, taxPct: res.data.taxPct });
   }
 

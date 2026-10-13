@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Stepper } from '@/components/ui/stepper';
+import { eyebrow } from '@/components/ui/type-roles';
 import { effectiveEfficiencyOf, efficiencyGlyphState, MAX_ME, MAX_TE } from '../efficiency';
 import { EFFICIENCY_TONE_CLASSES, type EfficiencyToneState } from '../industry-styles';
 import type { OwnedComponentDetail } from '../types';
@@ -174,7 +175,7 @@ export function EfficiencyStepperRows({ blueprintTypeId, name }: { blueprintType
 function AdjusterRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-5">
-      <span className="text-label uppercase tracking-wide text-muted">{label}</span>
+      <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>{label}</span>
       {children}
     </div>
   );

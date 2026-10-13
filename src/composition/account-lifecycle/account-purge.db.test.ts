@@ -38,15 +38,15 @@ vi.mock('@/lib/convex-http-door', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
   return {
     ...actual,
-    postConvexHttpDoor: async (options: Parameters<typeof actual.postConvexHttpDoor>[0]) => {
-      if (options.path === '/purge-map-chain') {
-        return options.schema.parse(await mapPurge.purgeMapChain((options.body as { mapId: string }).mapId));
+    postConvexHttpDoor: async (...[door, body, options]: Parameters<typeof actual.postConvexHttpDoor>) => {
+      if (door.path === '/purge-map-chain') {
+        return door.response.parse(await mapPurge.purgeMapChain((body as { mapId: string }).mapId));
       }
-      if (options.path === '/project-map-access' && (options.body as { claims: unknown[] }).claims.length === 0) {
-        mapPurge.fenceMapAccess(options.body);
-        return options.schema.parse({ outcome: 'applied', inserted: 0, updated: 0, deleted: 0, unchanged: 0 });
+      if (door.path === '/project-map-access' && (body as { claims: unknown[] }).claims.length === 0) {
+        mapPurge.fenceMapAccess(body);
+        return door.response.parse({ outcome: 'applied', inserted: 0, updated: 0, deleted: 0, unchanged: 0 });
       }
-      return actual.postConvexHttpDoor(options);
+      return actual.postConvexHttpDoor(door, body, options);
     },
   };
 });

@@ -17,22 +17,21 @@ vi.mock('@/lib/env', () => ({
   readEnv: (...args: unknown[]) => h.readEnv(...args),
 }));
 
-import { postConvexHttpDoor } from './convex-http-door';
+import { defineConvexDoor } from './convex-door-contract';
+import { ConvexDoorError, postConvexHttpDoor } from './convex-http-door';
 
-class DoorUnavailableError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'DoorUnavailableError';
-  }
+class DoorUnavailableError extends ConvexDoorError {
+  override readonly name = 'DoorUnavailableError';
 }
 
-const payloadSchema = z.strictObject({ ok: z.literal(true) });
+const sampleDoor = defineConvexDoor({
+  path: '/sample-door',
+  request: z.strictObject({ ping: z.boolean() }),
+  response: z.strictObject({ ok: z.literal(true) }),
+});
 
 function postSample() {
-  return postConvexHttpDoor({
-    path: '/sample-door',
-    body: { ping: true },
-    schema: payloadSchema,
+  return postConvexHttpDoor(sampleDoor, { ping: true }, {
     error: DoorUnavailableError,
     label: 'Sample door unavailable',
   });
@@ -50,7 +49,7 @@ afterEach(() => {
 });
 
 describe('postConvexHttpDoor', () => {
-  it('posts bearer JSON and returns the parsed contract', async () => {
+  it('posts the door body as bearer JSON and returns the reply its response schema parsed', async () => {
     h.fetchWithTimeout.mockResolvedValueOnce(Response.json({ ok: true }));
 
     await expect(postSample()).resolves.toEqual({ ok: true });
@@ -82,8 +81,16 @@ describe('postConvexHttpDoor', () => {
   });
 
   it('fails closed when transport, status, JSON, or contract is invalid', async () => {
-    h.fetchWithTimeout.mockRejectedValueOnce(new Error('down'));
-    await expect(postSample()).rejects.toBeInstanceOf(DoorUnavailableError);
+    const down = new Error('down');
+    h.fetchWithTimeout.mockRejectedValueOnce(down);
+    const failed = postSample();
+    await expect(failed).rejects.toBeInstanceOf(DoorUnavailableError);
+    await expect(failed).rejects.toBeInstanceOf(ConvexDoorError);
+    await expect(failed).rejects.toMatchObject({
+      name: 'DoorUnavailableError',
+      message: 'Sample door unavailable: /sample-door request failed',
+      cause: down,
+    });
 
     h.fetchWithTimeout.mockResolvedValueOnce(new Response('no', { status: 503 }));
     await expect(postSample()).rejects.toMatchObject({
@@ -104,15 +111,24 @@ describe('postConvexHttpDoor', () => {
     });
   });
 
+  it('throws a ConvexDoorError when the caller names no subclass', async () => {
+    h.fetchWithTimeout.mockResolvedValueOnce(new Response('no', { status: 503 }));
+
+    const failure = postConvexHttpDoor(sampleDoor, { ping: true }, { label: 'Sample door' });
+
+    await expect(failure).rejects.toBeInstanceOf(ConvexDoorError);
+    await expect(failure).rejects.toMatchObject({
+      name: 'ConvexDoorError',
+      message: 'Sample door: /sample-door answered 503',
+    });
+  });
+
   it('forwards an explicit timeout and abort signal', async () => {
     const signal = new AbortController().signal;
     h.fetchWithTimeout.mockResolvedValueOnce(Response.json({ ok: true }));
 
     await expect(
-      postConvexHttpDoor({
-        path: '/sample-door',
-        body: { ping: true },
-        schema: payloadSchema,
+      postConvexHttpDoor(sampleDoor, { ping: true }, {
         error: DoorUnavailableError,
         label: 'Sample door unavailable',
         timeoutMs: 2_000,

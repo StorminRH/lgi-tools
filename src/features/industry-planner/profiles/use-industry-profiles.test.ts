@@ -1,7 +1,13 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { settle } from '@/lib/__tests__/hook-runtime';
 import { currentReadIdentity, publishReadIdentity } from '@/platform/auth/read-identity';
-import { deleteIndustryProfileEndpoint, industryProfilesEndpoint, type IndustryProfileRow } from './api-contract';
+import { apiProblem } from '@/transport/__tests__/failed-outcomes';
+import {
+  deleteIndustryProfileEndpoint,
+  duplicateIndustryProfileEndpoint,
+  industryProfilesEndpoint,
+  type IndustryProfileRow,
+} from './api-contract';
 import { emptyProfileDocument } from './profile-document';
 
 const h = vi.hoisted(() => ({ apiFetch: vi.fn(), notify: vi.fn() }));
@@ -99,15 +105,31 @@ test('deleting a profile publishes the returned list and remembers it across a s
   expect(h.notify).not.toHaveBeenCalled();
 });
 
-test.each(['refused', 'rejected'] as const)('a %s delete preserves profiles, clears busy and reports the failure', async (failure) => {
+test.each([
+  ['refused', "Your session has ended. Sign in again."],
+  ['rejected', "Couldn't delete the profile."],
+] as const)('a %s delete preserves profiles, clears busy and reports the failure', async (failure, message) => {
   h.apiFetch.mockResolvedValueOnce(ok([profile]));
   render();
   await settle();
-  if (failure === 'refused') h.apiFetch.mockResolvedValueOnce({ ok: false, error: { code: 'profile_missing' } });
+  if (failure === 'refused') h.apiFetch.mockResolvedValueOnce(apiProblem(401, 'unauthenticated'));
   else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
   expect(await render().remove(profile.id)).toBe(false);
   expect(render()).toMatchObject({ profiles: [profile], busy: false });
-  expect(h.notify).toHaveBeenCalledExactlyOnceWith("Couldn't delete the profile.");
+  expect(h.notify).toHaveBeenCalledExactlyOnceWith(message);
+});
+
+test('duplicating a profile deleted elsewhere says so rather than that the create failed', async () => {
+  h.apiFetch.mockResolvedValueOnce(ok([profile]));
+  render();
+  await settle();
+  h.apiFetch.mockResolvedValueOnce(apiProblem(404, 'profile_missing'));
+  expect(await render().duplicate(profile.id, 'Private production line copy')).toBeNull();
+  expect(h.apiFetch).toHaveBeenLastCalledWith(duplicateIndustryProfileEndpoint, {
+    body: { id: profile.id, name: 'Private production line copy' },
+  });
+  expect(render()).toMatchObject({ profiles: [profile], busy: false });
+  expect(h.notify).toHaveBeenCalledExactlyOnceWith('This profile was deleted somewhere else.');
 });
 
 test.each([

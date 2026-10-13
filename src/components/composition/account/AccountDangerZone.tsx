@@ -16,6 +16,7 @@ import { inlineLink } from '@/components/ui/text-link';
 import { toast } from '@/components/ui/toast';
 import { useConfirmGate } from '@/components/ui/use-confirm-gate';
 import { apiFetch } from '@/transport/api-client';
+import { failureMessage } from '@/transport/failure-copy';
 import {
   redirectTargetFor,
   runDeleteAccount,
@@ -137,7 +138,12 @@ function PurgeCharacterControl({
   async function onConfirm() {
     const outcome = await gate.run(() => runPurgeCharacter(characterId, apiFetch), isError);
     if (outcome.kind === 'error') {
-      toast.error('Purge failed');
+      toast.error(
+        failureMessage(outcome.failure, {
+          fallback: 'Purge failed',
+          codes: { not_linked: 'That character is no longer linked to your account.' },
+        }),
+      );
     } else if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();
@@ -188,7 +194,7 @@ function LogoutEverywhereControl() {
   async function onConfirm() {
     const outcome = await gate.run(() => runLogoutEverywhere(apiFetch), isError);
     if (outcome.kind === 'error') {
-      toast.error('Sign-out failed');
+      toast.error(failureMessage(outcome.failure, { fallback: 'Sign-out failed' }));
     } else if (outcome.kind === 'done') {
       signOutAndLeave(redirectTargetFor(outcome) ?? '/');
     }
@@ -244,7 +250,7 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
     if (!acknowledged) return;
     const outcome = await gate.run(() => runDeleteAccount(apiFetch), isError);
     if (outcome.kind === 'error') {
-      toast.error('Account deletion failed');
+      toast.error(failureMessage(outcome.failure, { fallback: 'Account deletion failed' }));
     } else if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();

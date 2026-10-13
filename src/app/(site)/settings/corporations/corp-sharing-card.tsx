@@ -5,9 +5,19 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SectionPanel } from '@/components/ui/section-panel';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
+import { eyebrow } from '@/components/ui/type-roles';
 import { setCorpDataSharingEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/transport/api-client';
+import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transport/failure-copy';
 import type { SharingCorpView } from './corporations-view';
+
+const SHARING_FAILURE_COPY = {
+  fallback: 'Sharing not changed',
+  codes: {
+    not_director: 'Only a Director can change sharing.',
+    not_corp_member: 'None of your characters is in this corporation.',
+  },
+} satisfies FailureCopy<FailedOutcome<typeof setCorpDataSharingEndpoint>>;
 
 export function CorpSharingCard({
   directorCorps,
@@ -46,7 +56,7 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
     });
     setBusy(false);
     if (!res.ok) {
-      toast.error('Sharing not changed');
+      toast.error(failureMessage(res, SHARING_FAILURE_COPY));
       return;
     }
     setEnabled(next);
@@ -72,7 +82,7 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
         label={corp.corporationName}
       >
         <span>{corp.corporationName}</span>
-        <span className="text-label uppercase tracking-wide text-muted">
+        <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>
           {enabled ? 'sharing on' : 'sharing off'}
         </span>
       </Switch>

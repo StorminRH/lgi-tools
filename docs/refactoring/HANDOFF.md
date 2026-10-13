@@ -242,7 +242,7 @@ These are open questions and leads from waves 1 to 7. Do not settle the owner's 
   - **P134:** optional step 9, linting `NEXT_PUBLIC_*` reads outside `src/config`, was skipped. The owner decides.
   - **P209:** should the maps purge contributor skip Convex calls when Convex is unconfigured? `account-purge.db.test.ts` pins today's retry.
   - **P015:** the `/atlas` failure state now shows the warn LoadFailed banner with no visible heading, and the design screenshot check was never done.
-  - **The kit itself:** it stays Python. The owner was offered a Node port and did not choose one. The session that runs wave 16 asks the owner whether to delete `docs/refactoring/kit/` once the last wave lands; if yes, do it in a separate commit after wave 16's workflow has finished.
+  - **The kit itself:** it stays Python. The owner was offered a Node port and did not choose one. After wave 16 the owner chose to keep `docs/refactoring/kit/` in the repository (2026-10-11).
 - **Optional leads:**
   - Inline `isBoundaryStaleMs` (P304).
   - Demo-board `demoHistory` (P096).

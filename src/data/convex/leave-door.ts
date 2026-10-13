@@ -1,25 +1,15 @@
-import { z } from 'zod';
-import { postConvexHttpDoor } from '@/lib/convex-http-door';
-import type { leaveSyncRequestSchema } from './api-contract';
+import type { ConvexDoorRequest, ConvexDoorResponse } from '@/lib/convex-door-contract';
+import { ConvexDoorError, postConvexHttpDoor } from '@/lib/convex-http-door';
+import { leaveSyncDoor } from './leave-contract';
 
-const leaveSyncResultSchema = z.strictObject({
-  retired: z.boolean(),
-});
-
-export class LeaveSyncDoorError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'LeaveSyncDoorError';
-  }
+export class LeaveSyncDoorError extends ConvexDoorError {
+  override readonly name = 'LeaveSyncDoorError';
 }
 
-export async function postLeaveSync(
-  input: { readonly userId: string } & z.infer<typeof leaveSyncRequestSchema>,
-): Promise<{ retired: boolean }> {
-  return postConvexHttpDoor({
-    path: '/leave-sync',
-    body: input,
-    schema: leaveSyncResultSchema,
+export function postLeaveSync(
+  input: ConvexDoorRequest<typeof leaveSyncDoor>,
+): Promise<ConvexDoorResponse<typeof leaveSyncDoor>> {
+  return postConvexHttpDoor(leaveSyncDoor, input, {
     error: LeaveSyncDoorError,
     label: 'leave-sync',
   });
