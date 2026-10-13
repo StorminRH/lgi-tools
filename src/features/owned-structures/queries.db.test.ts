@@ -141,7 +141,7 @@ describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries aga
     const corp = 9009;
     await saveCorpStructures(corp, [structure(600020)], ['"before"']);
     const blocker = await harness.sql.reserve();
-    let saves: Promise<void[]> | undefined;
+    let saves: Promise<('saved' | 'superseded')[]> | undefined;
     try {
       await blocker`BEGIN`;
       await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;

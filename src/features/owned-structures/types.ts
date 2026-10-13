@@ -1,7 +1,8 @@
 import type { SecurityClass } from '@/data/eve-data/security';
 import type { SharingState, StructuresAccess } from '@/platform/auth/corp-visibility';
 import type { EsiReadSession } from '@/data/esi-store/session';
-import type { CorpSyncBase, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
+import type { AnyPgDb } from '@/lib/db-types';
+import type { CorpSyncBase, PagedOwnerReadResult, PagedOwnerSyncState, SaveOutcome } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
 
 export interface CorpStructureRow {
@@ -47,7 +48,8 @@ export interface CorpStructuresPort extends CorpSyncBase<EsiReadSession> {
   isDue(corporationId: number): Promise<boolean>;
   readStructures(session: EsiReadSession, corporationId: number, accessToken: string): Promise<PagedOwnerReadResult>;
   readSyncState(corporationId: number): Promise<PagedOwnerSyncState | null>;
-  saveStructures(corporationId: number, rows: ParsedCorpStructure[], etags: string[]): Promise<void>;
+  /** Writes on `tx`, the transaction the refresh's answers commit in; 'superseded' changed nothing. */
+  saveStructures(corporationId: number, rows: ParsedCorpStructure[], etags: string[], tx: AnyPgDb): Promise<SaveOutcome>;
   stampFresh(corporationId: number): Promise<void>;
   /** Records the syncing user's settled refusal (no role-holder among their characters) for the corporation, until `expiresAt` or the route's spec cache time. */
   recordRefusal(corporationId: number, expiresAt: number | null): Promise<void>;

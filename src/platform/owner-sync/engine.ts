@@ -121,12 +121,14 @@ function earlierRefusal(held: number | null, next: number | null): number | null
 
 /**
  * Tries each credential in turn. A credential ESI refuses the role hands on
- * to the next; only once the roster is spent does the owner record
- * `needs_role`. A roster that yielded nothing reports why. A settled end
- * (`needs_role`, or a character whose grant is lost) is recorded as the
- * owner's answer, so the next views skip it until that answer expires; a
- * transient one (the token service failing for now) records nothing and
- * the next view retries.
+ * to the next; only once the roster is spent, every member judged, does the
+ * owner record `needs_role`. A roster that ran out because a member could
+ * not be judged for now (a token or roles read failing) is no verdict, even
+ * after earlier refusals: that member may hold the role, so the saved copy
+ * stays, nothing is recorded, and the next view retries. A roster that
+ * yielded nothing reports why. A settled end (`needs_role`, or a character
+ * whose grant is lost) is recorded as the owner's answer, so the next views
+ * skip it until that answer expires.
  */
 async function tryCredentials<TOwner, TState, TSave, TSession extends ReadSession>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
@@ -145,7 +147,14 @@ async function tryCredentials<TOwner, TState, TSave, TSession extends ReadSessio
     refusedUntil = earlierRefusal(refusedUntil, outcome.refusedUntil);
     next = await credentials.next();
   }
-  return tried ? refuseRole(descriptor, owner, refusedUntil, target) : settleUntried(descriptor, owner, next.value, target);
+  if (!tried) return settleUntried(descriptor, owner, next.value, target);
+  if (next.value.kind === 'unavailable') return unavailableForNow(target);
+  return refuseRole(descriptor, owner, refusedUntil, target);
+}
+
+/** No verdict for now: nothing is written or recorded, and the next view tries again. */
+function unavailableForNow(target: OwnerKey): OwnerSyncResult {
+  return { kind: 'failed_retryable', target, code: 'owner_temporarily_unavailable' };
 }
 
 /** Every credential tried was refused the role: `needs_role`, recorded until the earliest refusal's Expires. */
@@ -168,15 +177,18 @@ async function settleUntried<TOwner, TState, TSave, TSession extends ReadSession
   target: OwnerKey,
 ): Promise<OwnerSyncResult> {
   if (end.kind === 'denied') return refuseRole(descriptor, owner, null, target);
-  if (end.retryable) return { kind: 'failed_retryable', target, code: 'owner_temporarily_unavailable' };
+  if (end.retryable) return unavailableForNow(target);
   await descriptor.recordRefusal?.(owner, null);
   return { kind: 'failed_permanent', target, code: 'token_unavailable' };
 }
 
 /**
- * One credential's try. The session's metas are committed only after the
- * owner's write has stood; a skip, a refusal or a throw drops them, so the
- * next view reads again. A refusal means ESI refused this credential the role.
+ * One credential's try. The owner's write runs inside the session's commit,
+ * atomically with the answers it records, so the stored data and its ETag
+ * always come from the same answer; a write a newer answer superseded
+ * changed nothing and the newer copy stands. A skip, a refusal or a throw
+ * records nothing, so the next view reads again. A refusal means ESI refused
+ * this credential the role.
  */
 async function attempt<TOwner, TState, TSave, TSession extends ReadSession>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave, TSession>,
@@ -201,8 +213,7 @@ async function attempt<TOwner, TState, TSave, TSession extends ReadSession>(
       await session.commit();
       return { kind: 'succeeded', target };
     case 'save':
-      await descriptor.save(owner, verdict);
-      await session.commit();
+      await session.commit(descriptor.save(owner, verdict));
       return { kind: 'succeeded', target };
   }
 }

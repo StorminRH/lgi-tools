@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EsiReadSession } from '@/data/esi-store/session';
 import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
-import { ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { NO_STATEMENTS, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { industryJob } from './__tests__/job-fixture';
 import { refreshCorpJobsForUser } from './corp-refresh';
 import type { IndustryJob } from './esi-projection';
@@ -58,7 +58,7 @@ function makeFakePort(opts: FakeOptions) {
     },
     saveJobs: (_userId, corporationId, jobs, etag) => {
       calls.saveJobs.push({ corporationId, jobs, etag });
-      return Promise.resolve();
+      return NO_STATEMENTS;
     },
     saveNeedsRole: (_userId, corporationId) => {
       calls.saveNeedsRole.push(corporationId);
@@ -181,6 +181,26 @@ describe('refreshCorpJobsForUser', () => {
     expect((await refreshCorpJobsForUser(refusedAll.port, 'user-1'))[0]).toMatchObject({ code: 'needs_role' });
     expect(refusedAll.calls.readJobs).toEqual([2000, 2000]);
     expect(refusedAll.calls.saveNeedsRole).toEqual([2000]);
+  });
+
+  it.each([
+    ['token', { tokens: { 2: null } }],
+    ['roles', { roles: { 2: null } }],
+  ] as const)('keeps the saved jobs and records no refusal when ESI refused the first member and the next one\'s %s is unavailable for now', async (_case, unavailable) => {
+    const { port, calls } = makeFakePort({
+      members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+      reads: { 2000: { kind: 'error', code: 'esi_403', expiresAt: 8_000 } },
+      ...unavailable,
+    });
+
+    expect(await refreshCorpJobsForUser(port, 'user-1')).toEqual([
+      { kind: 'failed_retryable', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'owner_temporarily_unavailable' },
+    ]);
+    expect(calls.readJobs).toEqual([2000]);
+    expect(calls.saveNeedsRole).toEqual([]);
+    expect(calls.recordRefusal).toEqual([]);
+    expect(calls.saveJobs).toEqual([]);
+    expect(calls.stampFresh).toEqual([]);
   });
 
   it('reports a transient read error without saving or stamping', async () => {

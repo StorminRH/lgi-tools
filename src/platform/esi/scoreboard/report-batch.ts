@@ -1,5 +1,5 @@
 import { isFailedCall } from './availability';
-import { isHistoryPath, keyBlock, keyGroupBlock, normalizeEsiPath, resolveRetryAfter } from './keys';
+import { keyBlock, keyGroupBlock, normalizeEsiPath, resolveRetryAfter } from './keys';
 import type { EsiReport } from './types';
 
 /** The lowest error-limit count ESI echoed across a batch (0 for a 420), with the reset that came with it. */
@@ -23,7 +23,6 @@ export interface ReportBatch {
   readonly calls: number;
   readonly failures: number;
   readonly errors: number;
-  readonly historyCalls: number;
   readonly errorEcho: ErrorEcho | null;
   readonly groupOfPath: ReadonlyMap<string, string>;
   readonly groupEchoes: ReadonlyMap<string, GroupEcho>;
@@ -76,7 +75,6 @@ export function summarizeReports(reports: readonly EsiReport[]): ReportBatch {
     calls: reports.length,
     failures: count(reports, (report) => isFailedCall(report.status)),
     errors: count(reports, (report) => report.status >= 400),
-    historyCalls: paths.filter(isHistoryPath).length,
     errorEcho,
     groupOfPath,
     groupEchoes,

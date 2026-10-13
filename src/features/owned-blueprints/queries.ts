@@ -4,7 +4,7 @@ import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
 import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { ownerKeyWhere } from '@/lib/db-columns';
-import type { PostgresJsDb } from '@/lib/db-types';
+import type { AnyPgDb } from '@/lib/db-types';
 import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
 import {
   type BlueprintMapInput,
@@ -78,15 +78,19 @@ export async function readBlueprintSyncState(owner: OwnerKey): Promise<PagedOwne
   return rows[0] ?? null;
 }
 
-/** Replace an owner's blueprints under its sync-row lock; the sync's commit clears the cache tag afterwards. */
+/**
+ * Replace an owner's blueprints under its sync-row lock; a unique violation
+ * is 'superseded' and changes nothing. An owner sync passes the transaction
+ * its answers commit in, and its commit clears the cache tag afterwards.
+ */
 export async function saveOwnedBlueprints(
   owner: OwnerKey,
   rows: OwnedBlueprint[],
   etags: string[],
-  options: { database?: PostgresJsDb } = {},
-): Promise<void> {
+  options: { database?: AnyPgDb } = {},
+): Promise<'saved' | 'superseded'> {
   const now = new Date();
-  await replaceOwnerSnapshot({
+  return replaceOwnerSnapshot({
     lock: (tx) => tx
       .insert(ownedBlueprintSyncs)
       .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })

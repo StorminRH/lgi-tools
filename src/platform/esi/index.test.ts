@@ -13,6 +13,7 @@ import {
   esiUrl,
 } from './index';
 import type { EsiScoreboard } from './scoreboard';
+import { createMemoryScoreboard } from './scoreboard/memory';
 import {
   setDependencyTimingSink,
   type DependencyCall,
@@ -57,7 +58,7 @@ describe('esiFetch', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    warnSpy = silenceConsolePrefixes('warn', ['[esi] scoreboard pre-dispatch failed', '[esi] server error']);
+    warnSpy = silenceConsolePrefixes('warn', ['[esi] scoreboard pre-dispatch failed', '[esi] scoreboard history reservation failed', '[esi] server error']);
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
@@ -379,51 +380,79 @@ describe('esiFetch', () => {
       expect((await esiFetch(TEST_URL)).status).toBe(200);
     });
 
-    it('refuses market-history calls once the shared count reaches the cap, and counts its own calls until the next reading', async () => {
-      const preDispatch = vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 249 });
+    it('reserves each market-history call in the shared count before sending it, and refuses one whose place is past the cap', async () => {
+      let shared = 248;
+      const reserveHistoryCall = vi.fn(async () => {
+        shared += 1;
+        return shared;
+      });
+      const report = vi.fn().mockResolvedValue(undefined);
       __setScoreboardForTests({
-        preDispatch,
+        preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null }),
         budgetSnapshot: vi.fn(),
         availabilitySnapshot: vi.fn(),
-        report: vi.fn().mockResolvedValue(undefined),
+        report,
+        reserveHistoryCall,
       });
-      fetchSpy.mockResolvedValue(mockResponse(200));
+      fetchSpy.mockImplementation(async () => mockResponse(200));
 
+      expect((await esiFetch(HISTORY_URL)).status).toBe(200);
+      expect(reserveHistoryCall.mock.invocationCallOrder[0]).toBeLessThan(fetchSpy.mock.invocationCallOrder[0]!);
       expect((await esiFetch(HISTORY_URL)).status).toBe(200);
       const capped = await esiFetch(HISTORY_URL).catch((e: unknown) => e);
       expect(capped).toBeInstanceOf(EsiBudgetExhaustedError);
       expect(capped).toMatchObject({ reason: 'history_cap', remaining: 0, resource: '/markets/{n}/history' });
-      expect(preDispatch).toHaveBeenCalledTimes(1);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(reserveHistoryCall).toHaveBeenCalledTimes(3);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
 
-      preDispatch.mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 250 });
-      vi.useFakeTimers();
-      vi.advanceTimersByTime(1_001);
-      await expect(esiFetch(HISTORY_URL)).rejects.toMatchObject({ reason: 'history_cap' });
+      await esiFetch(TEST_URL);
+      expect(reserveHistoryCall).toHaveBeenCalledTimes(3);
+    });
+
+    it('lets two racing callers take the last place only once: the reservation decides, not a shared reading', async () => {
+      const scoreboard = createMemoryScoreboard();
+      for (let i = 0; i < 249; i += 1) await scoreboard.reserveHistoryCall!();
+      __setScoreboardForTests(scoreboard);
+      fetchSpy.mockImplementation(async () => mockResponse(200));
+
+      const outcomes = await Promise.allSettled([esiFetch(HISTORY_URL), esiFetch(HISTORY_URL), esiFetch(HISTORY_URL)]);
+
+      expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === 'rejected').map((outcome) => (outcome as PromiseRejectedResult).reason))
+        .toEqual([expect.objectContaining({ reason: 'history_cap' }), expect.objectContaining({ reason: 'history_cap' })]);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
-    it('keeps its own history calls through a newer shared reading that has not counted them yet, until the minute turns', async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(Date.parse('2026-10-12T12:00:00Z'));
-      const preDispatch = vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 248 });
+
+    it('does not count an answered history call a second time when its report is written', async () => {
+      const scoreboard = createMemoryScoreboard();
+      __setScoreboardForTests(scoreboard);
+      fetchSpy.mockImplementation(async () => mockResponse(200));
+
+      // Outside a request the deferred report is written at once.
+      await esiFetch(HISTORY_URL);
+
+      expect(await scoreboard.reserveHistoryCall!()).toBe(2);
+    });
+
+    it('refuses history when the reservation fails or the scoreboard cannot reserve, and sends nothing', async () => {
       __setScoreboardForTests({
-        preDispatch,
+        preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null }),
+        budgetSnapshot: vi.fn(),
+        availabilitySnapshot: vi.fn(),
+        report: vi.fn().mockResolvedValue(undefined),
+        reserveHistoryCall: vi.fn().mockRejectedValue(new Error('redis down')),
+      });
+      await expect(esiFetch(HISTORY_URL)).rejects.toMatchObject({ reason: 'scoreboard_unavailable' });
+
+      __resetEsiGateForTests();
+      __setScoreboardForTests({
+        preDispatch: vi.fn().mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null }),
         budgetSnapshot: vi.fn(),
         availabilitySnapshot: vi.fn(),
         report: vi.fn().mockResolvedValue(undefined),
       });
-      fetchSpy.mockImplementation(async () => mockResponse(200));
-
-      await esiFetch(HISTORY_URL);
-      vi.advanceTimersByTime(1_001);
-      // The shared count still reads 248: this process's call is still waiting in its deferred report.
-      expect((await esiFetch(HISTORY_URL)).status).toBe(200);
       await expect(esiFetch(HISTORY_URL)).rejects.toMatchObject({ reason: 'history_cap' });
-      expect(preDispatch).toHaveBeenCalledTimes(2);
-
-      vi.setSystemTime(Date.parse('2026-10-12T12:01:00Z'));
-      preDispatch.mockResolvedValue({ effectiveRemaining: 100, blockedRetryAfter: null, historyCalls: 0 });
-      expect((await esiFetch(HISTORY_URL)).status).toBe(200);
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 

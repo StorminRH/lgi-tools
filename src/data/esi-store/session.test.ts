@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import type { EsiResponseMeta, EsiStoreKey } from './types';
+import type { OwnerWrite } from '@/platform/owner-sync';
 
 const mocks = vi.hoisted(() => ({
   readStoredAuthed: vi.fn(),
   readStoredPaged: vi.fn(),
   readPassThroughAuthed: vi.fn(),
   postPassThroughAuthed: vi.fn(),
-  commit: vi.fn<(metas: unknown, opts: unknown) => Promise<void>>(async () => {}),
+  commitWithWrite: vi.fn<(metas: unknown, write: unknown) => Promise<'saved' | 'superseded'>>(async () => 'saved'),
 }));
 
 vi.mock('./index', () => ({
@@ -17,8 +18,7 @@ vi.mock('./index', () => ({
     mocks.readPassThroughAuthed(route, params, accessToken),
   postPassThroughAuthed: (route: unknown, params: unknown, accessToken: unknown, body: unknown) =>
     mocks.postPassThroughAuthed(route, params, accessToken, body),
-  commit: (metas: unknown, opts: unknown) => mocks.commit(metas, opts),
-  datasetTag: (key: EsiStoreKey) => `eve:${key.route}:${key.holder.kind}`,
+  commitWithWrite: (metas: unknown, write: unknown) => mocks.commitWithWrite(metas, write),
   refusalMeta: (key: EsiStoreKey, expiresAt: number | null, checkedAt: number): EsiResponseMeta => ({
     key,
     expiresAt: expiresAt ?? checkedAt + SPEC_MS,
@@ -48,7 +48,7 @@ beforeEach(() => {
 });
 
 describe('openReadSession', () => {
-  it('answers in the port\'s shape, keeps each 200\'s meta aside, and commits them by dataset tag after the write', async () => {
+  it('answers in the port\'s shape, keeps each 200\'s meta aside, and commits them with the owner\'s write in one call', async () => {
     const session = openReadSession();
     mocks.readStoredAuthed
       .mockResolvedValueOnce({ kind: 'fresh', body: { total_sp: 1 }, etag: '"s"', meta: meta(SKILLS_KEY, '"s"') })
@@ -66,18 +66,24 @@ describe('openReadSession', () => {
     });
     expect(mocks.readStoredAuthed).toHaveBeenCalledWith(SKILLS_KEY, 'token');
     expect(mocks.readStoredPaged).toHaveBeenCalledWith(ASSETS_KEY, 'token');
-    expect(mocks.commit).not.toHaveBeenCalled();
+    expect(mocks.commitWithWrite).not.toHaveBeenCalled();
 
-    await session.commit();
+    const write: OwnerWrite = { kind: 'statements', build: () => [] };
+    await expect(session.commit(write)).resolves.toBe('saved');
 
-    expect(mocks.commit.mock.calls).toEqual([
-      [[meta(SKILLS_KEY, '"s"')], { tag: 'eve:/characters/{character_id}/skills/:character' }],
-      [[meta(QUEUE_KEY, '"q"')], { tag: 'eve:/characters/{character_id}/skillqueue/:character' }],
-      [[meta(ASSETS_KEY, '"p1"')], { tag: 'eve:/corporations/{corporation_id}/assets/:corporation' }],
+    expect(mocks.commitWithWrite.mock.calls).toEqual([
+      [[meta(SKILLS_KEY, '"s"'), meta(QUEUE_KEY, '"q"'), meta(ASSETS_KEY, '"p1"')], write],
     ]);
 
     await session.commit();
-    expect(mocks.commit).toHaveBeenCalledTimes(3);
+    expect(mocks.commitWithWrite).toHaveBeenLastCalledWith([], undefined);
+  });
+
+  it('hands back a superseded commit as it came', async () => {
+    const session = openReadSession();
+    mocks.commitWithWrite.mockResolvedValueOnce('superseded');
+
+    await expect(session.commit({ kind: 'statements', build: () => [] })).resolves.toBe('superseded');
   });
 
   it('records expiries but no ETags once the bodies were discarded, and keeps them again after that commit', async () => {
@@ -90,16 +96,14 @@ describe('openReadSession', () => {
     session.discardBodies();
     await session.commit();
 
-    expect(mocks.commit.mock.calls).toEqual([
-      [[{ ...meta(SKILLS_KEY, '"s"'), etags: [] }], { tag: 'eve:/characters/{character_id}/skills/:character' }],
-    ]);
+    expect(mocks.commitWithWrite.mock.calls).toEqual([[[{ ...meta(SKILLS_KEY, '"s"'), etags: [] }], undefined]]);
 
     await session.readAuthed(QUEUE_KEY, 'token');
     await session.commit();
-    expect(mocks.commit).toHaveBeenLastCalledWith([meta(QUEUE_KEY, '"q"')], { tag: 'eve:/characters/{character_id}/skillqueue/:character' });
+    expect(mocks.commitWithWrite).toHaveBeenLastCalledWith([meta(QUEUE_KEY, '"q"')], undefined);
   });
 
-  it('commits nothing for a session whose reads were all unchanged or failed short of a refusal', async () => {
+  it('hands no answers to the commit for a session whose reads were all unchanged or failed short of a refusal', async () => {
     const session = openReadSession();
     mocks.readStoredAuthed.mockResolvedValueOnce({ kind: 'unchanged', expiresAt: null });
     mocks.readStoredPaged.mockResolvedValueOnce({ kind: 'error', code: 'esi_404' });
@@ -108,7 +112,7 @@ describe('openReadSession', () => {
     await expect(session.readPaged(ASSETS_KEY, 'token')).resolves.toEqual({ kind: 'error', code: 'esi_404' });
     await session.commit();
 
-    expect(mocks.commit).not.toHaveBeenCalled();
+    expect(mocks.commitWithWrite).toHaveBeenCalledExactlyOnceWith([], undefined);
   });
 
   it('keeps a 403 aside as its key\'s answer, with no ETag, and records it once a write stands over it', async () => {
@@ -123,20 +127,19 @@ describe('openReadSession', () => {
       await session.readAuthed(SKILLS_KEY, 'token');
       await expect(session.readAuthed(QUEUE_KEY, 'token')).resolves.toEqual({ kind: 'error', code: 'esi_403', expiresAt: NOW + 90_000 });
       await session.readPaged(ASSETS_KEY, 'token');
-      expect(mocks.commit).not.toHaveBeenCalled();
+      expect(mocks.commitWithWrite).not.toHaveBeenCalled();
 
       session.discardBodies();
       await session.commit();
 
-      expect(mocks.commit.mock.calls).toEqual([
-        [[{ ...meta(SKILLS_KEY, '"s"'), etags: [] }], { tag: 'eve:/characters/{character_id}/skills/:character' }],
+      expect(mocks.commitWithWrite.mock.calls).toEqual([
         [
-          [{ key: QUEUE_KEY, expiresAt: NOW + 90_000, etags: [], lastModified: null, checkedAt: NOW }],
-          { tag: 'eve:/characters/{character_id}/skillqueue/:character' },
-        ],
-        [
-          [{ key: ASSETS_KEY, expiresAt: NOW + SPEC_MS, etags: [], lastModified: null, checkedAt: NOW }],
-          { tag: 'eve:/corporations/{corporation_id}/assets/:corporation' },
+          [
+            { ...meta(SKILLS_KEY, '"s"'), etags: [] },
+            { key: QUEUE_KEY, expiresAt: NOW + 90_000, etags: [], lastModified: null, checkedAt: NOW },
+            { key: ASSETS_KEY, expiresAt: NOW + SPEC_MS, etags: [], lastModified: null, checkedAt: NOW },
+          ],
+          undefined,
         ],
       ]);
     } finally {
@@ -156,7 +159,7 @@ describe('openReadSession', () => {
     expect(mocks.readPassThroughAuthed).toHaveBeenCalledWith(STRUCTURE_ROUTE, { structure_id: 7 }, 'token');
     expect(mocks.postPassThroughAuthed).toHaveBeenCalledWith('/corporations/{corporation_id}/assets/names/', { corporation_id: 98 }, 'token', [1]);
     await session.commit();
-    expect(mocks.commit).not.toHaveBeenCalled();
+    expect(mocks.commitWithWrite).toHaveBeenCalledExactlyOnceWith([], undefined);
   });
 
   it.each([

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EsiReadSession } from '@/data/esi-store/session';
 import type { EnumeratedOwner, PagedOwnerReadResult } from '@/platform/owner-sync';
-import { ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { FAKE_TX, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCorpStructuresForUser } from './refresh';
 import type { CorpStructuresPort } from './types';
 
@@ -32,7 +32,7 @@ function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPo
       async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [], etags: [], responseHeaders: [] }),
     ),
     readSyncState: vi.fn(async () => null),
-    saveStructures: vi.fn(async () => {}),
+    saveStructures: vi.fn(async () => 'saved' as const),
     stampFresh: vi.fn(async () => {}),
     recordRefusal: vi.fn(async () => {}),
     ...overrides,
@@ -80,6 +80,7 @@ describe('refreshCorpStructuresForUser', () => {
       5000,
       [{ structure_id: 1001, type_id: 35832, system_id: 30000142, name: 'Struct 1001' }],
       ['"d1"'],
+      FAKE_TX,
     );
   });
 
@@ -157,6 +158,24 @@ describe('refreshCorpStructuresForUser', () => {
     expect(port.saveStructures).not.toHaveBeenCalled();
     expect(port.stampFresh).not.toHaveBeenCalled();
     expect(port.recordRefusal).toHaveBeenCalledExactlyOnceWith(5000, null);
+  });
+
+  it('keeps the saved board and records no refusal when ESI refused the first role-holder and the next one\'s roles are unavailable for now', async () => {
+    const port = makePort({
+      listMembers: vi.fn(async () => [member(1), member(2)]),
+      vendToken: vi.fn(async (id: number) => `token-${id}`),
+      readRoles: vi.fn(async (id: number) => (id === 2 ? null : ['Station_Manager'])),
+      readStructures: vi.fn(
+        async (): Promise<PagedOwnerReadResult> => ({ kind: 'error', code: 'esi_403', expiresAt: 9_000 }),
+      ),
+    });
+
+    await refreshCorpStructuresForUser(port, 'u1');
+
+    expect(port.readStructures).toHaveBeenCalledExactlyOnceWith(expect.anything(), 5000, 'token-1');
+    expect(port.saveStructures).not.toHaveBeenCalled();
+    expect(port.stampFresh).not.toHaveBeenCalled();
+    expect(port.recordRefusal).not.toHaveBeenCalled();
   });
 
   it('writes the same corp-keyed row no matter which member triggers it (the shared store)', async () => {

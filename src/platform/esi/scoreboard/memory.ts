@@ -2,7 +2,6 @@ import { isFailedCall, sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
   epochMinute,
-  isHistoryPath,
   normalizeEsiPath,
   resolveRetryAfter,
 } from './keys';
@@ -107,7 +106,6 @@ class MemoryScoreboard implements EsiScoreboard {
       ),
     };
     if (groupBudget !== undefined) state.groupBudget = groupBudget;
-    if (isHistoryPath(path)) state.historyCalls = this.historyCounts.get(epochMinute()) ?? 0;
     return state;
   }
 
@@ -135,9 +133,13 @@ class MemoryScoreboard implements EsiScoreboard {
     pruneMinutes(this.callCounts, minute, AVAILABILITY_WINDOW_MINUTES);
   }
 
-  private recordHistoryCall(minute: number): void {
-    this.historyCounts.set(minute, (this.historyCounts.get(minute) ?? 0) + 1);
+  /** The process-local mirror of the shared reservation: the increment and the count it returns are one step. */
+  async reserveHistoryCall(): Promise<number> {
+    const minute = epochMinute();
+    const count = (this.historyCounts.get(minute) ?? 0) + 1;
+    this.historyCounts.set(minute, count);
     pruneMinutes(this.historyCounts, minute, 2);
+    return count;
   }
 
   /** What the answer's rate-limit headers say: the path's group, and the group's remaining tokens. */
@@ -162,7 +164,6 @@ class MemoryScoreboard implements EsiScoreboard {
     const minute = epochMinute();
     const path = normalizeEsiPath(report.url);
     this.recordCall(minute, report.status);
-    if (isHistoryPath(path)) this.recordHistoryCall(minute);
 
     if (report.status >= 400) {
       this.errorCounts.set(minute, (this.errorCounts.get(minute) ?? 0) + 1);

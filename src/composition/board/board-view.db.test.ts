@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { EVE_SCOPES } from '@/config/eve-scopes';
+import { commitWithWrite } from '@/data/esi-store';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -516,15 +517,15 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       refreshToken: 'rt', scope: EVE_SCOPES.join(' '),
     });
     await harness.db.insert(ownedAssetSyncs).values({ ownerType: 'character', ownerId: characterId, lastRefreshedAt: new Date(STAMP) });
-    if (!firstView) await sheetQueries.mergeSheetSection(characterId, 'wallet', {
+    if (!firstView) await commitWithWrite([], sheetQueries.mergeSheetSection(characterId, 'wallet', {
       data: { balance: 100 }, refreshedAt: STAMP,
-    });
+    }));
     const staleSheets = await sheetQueries.getCharacterSheets([characterId]);
     const cachedRead = vi.spyOn(sheetQueries, 'getCharacterSheets').mockResolvedValue(staleSheets);
     mocks.refreshSheets.mockImplementationOnce(async () => {
-      await sheetQueries.mergeSheetSection(characterId, 'wallet', {
+      await commitWithWrite([], sheetQueries.mergeSheetSection(characterId, 'wallet', {
         data: { balance: 750 }, refreshedAt: STAMP,
-      });
+      }));
     });
     try {
       const before = await getBoardForUserOnView(userId);

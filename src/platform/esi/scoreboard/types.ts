@@ -41,8 +41,6 @@ export interface PreDispatchState {
   blockedRetryAfter: number | null;
   /** Present once the path's group and its echoed Remaining are known. */
   groupBudget?: GroupBudget;
-  /** Present for a market-history path: the calls counted this minute across every instance. */
-  historyCalls?: number;
 }
 
 export interface EsiBudgetSnapshot {
@@ -80,6 +78,14 @@ export interface EsiScoreboard {
   budgetSnapshot(): Promise<EsiBudgetSnapshot>;
   availabilitySnapshot(): Promise<EsiAvailabilitySnapshot>;
   report(report: EsiReport): Promise<void>;
+  /**
+   * Takes one market-history call's place in this minute's shared count
+   * before the call is sent, by an atomic increment, and returns the count
+   * with it included. The count is of calls asked for: a call the cap then
+   * refuses keeps its place, and the minute's key runs out on its own. A
+   * scoreboard without it cannot hold the cap, so the gate refuses history.
+   */
+  reserveHistoryCall?(): Promise<number>;
   /**
    * Many answers as one write: what `report` records for each, in one round
    * trip. A scoreboard without it has each answer reported alone.

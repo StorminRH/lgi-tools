@@ -6,9 +6,11 @@ import type {
   OwnerSyncDescriptor,
   PagedOwnerSyncState,
   ReadSession,
+  SaveOutcome,
   VendedToken,
 } from './types';
 import type { EsiResponseHeaders } from '../esi/response-metadata';
+import type { AnyPgDb } from '@/lib/db-types';
 
 export type PagedOwnerReadResult =
   | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
@@ -29,7 +31,8 @@ export interface OwnedDatasetPort<TRow, TSession extends ReadSession> {
     rows: TRow[],
     etags: string[],
     source: { endpoint: string; items: unknown[]; responseHeaders: EsiResponseHeaders },
-  ): Promise<void>;
+    tx: AnyPgDb,
+  ): Promise<SaveOutcome>;
   stampFresh(owner: OwnerKey): Promise<void>;
   /** Records a settled refusal as the owner's stored answer: see `OwnerSyncDescriptor.recordRefusal`. */
   recordRefusal(owner: OwnerKey, expiresAt: number | null): Promise<void>;
@@ -96,7 +99,10 @@ export function makeOwnedDescriptor<TRow, TSession extends ReadSession>(
             };
       });
     },
-    save: (owner, payload) => port.save(owner, payload.rows, payload.etags, payload.source),
+    save: (owner, payload) => ({
+      kind: 'transaction',
+      run: (tx) => port.save(owner, payload.rows, payload.etags, payload.source, tx),
+    }),
     stampFresh: (owner) => port.stampFresh(owner),
     recordRefusal: (owner, expiresAt) => port.recordRefusal(owner, expiresAt),
   };

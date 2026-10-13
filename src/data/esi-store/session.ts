@@ -2,8 +2,7 @@ import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import type { EsiRoute } from '@/lib/esi-datasets/routes';
 import type { PagedOwnerReadResult, ReadSession, SingleOwnerRead } from '@/platform/owner-sync';
 import {
-  commit,
-  datasetTag,
+  commitWithWrite,
   postPassThroughAuthed,
   readPassThroughAuthed,
   readStoredAuthed,
@@ -15,14 +14,16 @@ import type { EsiParams, EsiResponseMeta, EsiStoreKey, StoredAuthedRead, StoredP
 /**
  * The ESI reads of one owner's refresh, as a sync port sees them. Each
  * stored read answers in the port's own shape and keeps the meta of a 200
- * aside; `commit` records every meta and clears each dataset's tag once
- * the owner's write has stood, so a crash between the two can never turn
- * later answers into 304s with nothing stored behind them. A stored read
- * ESI refused with a 403 keeps a refusal meta aside too (no ETag, the
- * 403's Expires or the route's spec cache time): a write that stood over
- * it (a sheet section saved as denied) records the refusal as that key's
- * answer, so nothing re-asks before it expires. A session that is never
- * committed records nothing, and the next view reads again.
+ * aside; `commit` records every meta and runs the owner's write
+ * atomically (see `commitWithWrite`), then clears each dataset's tag once
+ * both have stood, so the stored data and the ETag that vouches for it
+ * always come from the same answer. An answer asked for before the one
+ * already stored commits nothing, write included. A stored read ESI refused with a 403 keeps a
+ * refusal meta aside too (no ETag, the 403's Expires or the route's spec
+ * cache time): a write that stood over it (a sheet section saved as denied)
+ * records the refusal as that key's answer, so nothing re-asks before it
+ * expires. A session that is never committed records nothing, and the next
+ * view reads again.
  */
 export interface EsiReadSession extends ReadSession {
   readAuthed(key: EsiStoreKey, accessToken: string): Promise<SingleOwnerRead>;
@@ -64,16 +65,6 @@ function withoutEtags(meta: EsiResponseMeta): EsiResponseMeta {
   return { ...meta, etags: [] };
 }
 
-/** The tags a set of metas clears: one per dataset and holder, however many keys fed it. */
-function groupByTag(metas: readonly EsiResponseMeta[]): Map<string, EsiResponseMeta[]> {
-  const groups = new Map<string, EsiResponseMeta[]>();
-  for (const meta of metas) {
-    const tag = datasetTag(meta.key);
-    groups.set(tag, [...(groups.get(tag) ?? []), meta]);
-  }
-  return groups;
-}
-
 export function openReadSession(): EsiReadSession {
   const metas: EsiResponseMeta[] = [];
   let bodiesStored = true;
@@ -104,11 +95,11 @@ export function openReadSession(): EsiReadSession {
     discardBodies() {
       bodiesStored = false;
     },
-    async commit() {
-      const recorded = bodiesStored ? metas : metas.map(withoutEtags);
-      for (const [tag, group] of groupByTag(recorded)) await commit(group, { tag });
-      metas.length = 0;
+    commit(write) {
+      const kept = metas.splice(0);
+      const recorded = bodiesStored ? kept : kept.map(withoutEtags);
       bodiesStored = true;
+      return commitWithWrite(recorded, write);
     },
   };
 }

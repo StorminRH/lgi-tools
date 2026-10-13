@@ -397,7 +397,6 @@ describe('RedisScoreboard', () => {
 
     const state = await sb.preDispatch(TEST_URL);
     expect(state.groupBudget).toEqual({ group: 'market-order', remaining: 300, limit: 12000 });
-    expect(state.historyCalls).toBeUndefined();
 
     vi.advanceTimersByTime(61_000);
     expect((await sb.preDispatch(TEST_URL)).groupBudget).toBeUndefined();
@@ -437,16 +436,20 @@ describe('RedisScoreboard', () => {
     expect((await sb.preDispatch(TEST_URL)).blockedRetryAfter).toBe(45);
   });
 
-  it('counts market-history calls a minute across instances and reports the count before a history dispatch', async () => {
+  it('reserves market-history calls in a shared per-minute count before dispatch, and the answers do not count them again', async () => {
     const sb = redisScoreboard();
-    expect((await sb.preDispatch(HISTORY_URL)).historyCalls).toBe(0);
+    h.execs.count = 0;
+    expect(await sb.reserveHistoryCall!()).toBe(1);
+    expect(await sb.reserveHistoryCall!()).toBe(2);
+    expect(h.execs.count).toBe(2);
+    expect(h.store.get(`lgi:esi:history:count:${currentMinute()}`)).toEqual({ value: '2', expiresAt: Date.now() + 120_000 });
+
     await sb.report(makeReport({ url: HISTORY_URL, status: 200 }));
     await sb.report(makeReport({ url: HISTORY_URL, status: NO_RESPONSE_STATUS }));
-    await sb.report(makeReport({ url: HISTORY_URL, status: 500 }));
-    await sb.report(makeReport({ status: 200 }));
-    expect(h.store.get(`lgi:esi:history:count:${currentMinute()}`)).toEqual({ value: '3', expiresAt: Date.now() + 120_000 });
-    expect((await sb.preDispatch(HISTORY_URL)).historyCalls).toBe(3);
-    expect((await sb.preDispatch(TEST_URL)).historyCalls).toBeUndefined();
+    expect(h.store.get(`lgi:esi:history:count:${currentMinute()}`)?.value).toBe('2');
+
+    vi.advanceTimersByTime(60_000);
+    expect(await sb.reserveHistoryCall!()).toBe(1);
   });
 
   it('writes a batch of answers in one pipeline: counts summed, echoes at their lowest, blocks at their longest', async () => {
@@ -467,7 +470,7 @@ describe('RedisScoreboard', () => {
     expect(h.store.get(`lgi:esi:call:count:${minute}`)?.value).toBe('7');
     expect(h.store.get(`lgi:esi:fail:count:${minute}`)?.value).toBe('3');
     expect(h.store.get(`lgi:esi:err:count:${minute}`)?.value).toBe('3');
-    expect(h.store.get(`lgi:esi:history:count:${minute}`)?.value).toBe('2');
+    expect(h.store.has(`lgi:esi:history:count:${minute}`)).toBe(false);
     expect(h.store.get(ECHO_KEY)).toEqual({ value: '70', expiresAt: Date.now() + 20_000 });
     expect(h.store.get(GROUP_OF_ORDERS)?.value).toBe('market-order');
     expect((await sb.preDispatch(TEST_URL)).groupBudget).toEqual({ group: 'market-order', remaining: 400, limit: 12000 });
@@ -546,13 +549,12 @@ describe('resolveScoreboard fallback selection', () => {
     await sb.report(makeReport({ status: 429, retryAfter: 45 }));
     expect((await sb.preDispatch(TEST_URL)).blockedRetryAfter).toBe(45);
 
-    expect((await sb.preDispatch(HISTORY_URL)).historyCalls).toBe(0);
+    expect(await sb.reserveHistoryCall!()).toBe(1);
     await sb.report(makeReport({ url: HISTORY_URL, status: 200 }));
     await sb.report(makeReport({ url: HISTORY_URL, status: 500 }));
-    expect((await sb.preDispatch(HISTORY_URL)).historyCalls).toBe(2);
-    expect((await sb.preDispatch(TEST_URL)).historyCalls).toBeUndefined();
+    expect(await sb.reserveHistoryCall!()).toBe(2);
     vi.advanceTimersByTime(120_000);
-    expect((await sb.preDispatch(HISTORY_URL)).historyCalls).toBe(0);
+    expect(await sb.reserveHistoryCall!()).toBe(1);
   });
 
   it('keeps an hour of in-process call buckets and drops the rest', async () => {

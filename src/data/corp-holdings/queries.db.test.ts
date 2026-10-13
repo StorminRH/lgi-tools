@@ -180,7 +180,7 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
   it('serializes concurrent profile saves so the final member list belongs to the final profile', async () => {
     await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
     const blocker = await harness.sql.reserve();
-    let saves: Promise<void[]> | undefined;
+    let saves: Promise<('saved' | 'superseded')[]> | undefined;
     try {
       await blocker`BEGIN`;
       await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;

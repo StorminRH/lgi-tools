@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EsiReadSession } from '@/data/esi-store/session';
 import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
-import { ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { FAKE_TX, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { buildCorpHoldingContext, type CorpProfile } from './context';
 import { type CorpContextPort, refreshCorpContextForUser } from './context-sync';
 import { buildHoldingIndex, type CorpAssetItem, toHoldingNodes } from './placement';
@@ -71,7 +71,7 @@ function makePort(overrides: Partial<CorpContextPort> = {}): CorpContextPort {
     currentContext: vi.fn(async () => buildCorpHoldingContext(CORP, toHoldingNodes(tree), priorProfile)),
     listLinkedMemberIds: vi.fn(async () => [90001, 90002]),
     readProfileState: vi.fn(async () => null),
-    saveProfile: vi.fn(async () => {}),
+    saveProfile: vi.fn(async () => 'saved' as const),
     stampFresh: vi.fn(async () => {}),
     recordRefusal: vi.fn(async () => {}),
     ...overrides,
@@ -104,6 +104,7 @@ describe('refreshCorpContextForUser', () => {
         { characterId: 90002, baseId: null },
       ],
       NOW,
+      FAKE_TX,
     );
   });
 
@@ -199,6 +200,7 @@ describe('refreshCorpContextForUser', () => {
       },
       null,
       NOW,
+      FAKE_TX,
     );
   });
 

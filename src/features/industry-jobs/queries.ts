@@ -2,6 +2,8 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { datasetTag, forgetStored, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
+import { excludedSet, proposedRowsWhere } from '@/lib/db-upsert';
+import type { OwnerWrite } from '@/platform/owner-sync';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryJob } from './esi-projection';
 import { characterJobsKey, corpJobsKey } from './keys';
@@ -65,23 +67,29 @@ export async function listCharacterJobSyncStates(
   return new Map(rows.map(({ characterId, ...state }) => [characterId, state]));
 }
 
-export async function saveCharacterJobs(
-  characterId: number,
-  jobs: IndustryJob[],
-  etag: string | null,
-): Promise<void> {
+/**
+ * A character's jobs and the ETag beside them, as statements the refresh's
+ * commit sends with its answers: each row is proposed only where those
+ * answers stand, so an older answer writes neither.
+ */
+export function saveCharacterJobs(characterId: number, jobs: IndustryJob[], etag: string | null): OwnerWrite {
   const now = new Date();
-  await db
-    .insert(characterIndustryJobs)
-    .values({ characterId, jobs })
-    .onConflictDoUpdate({ target: characterIndustryJobs.characterId, set: { jobs } });
-  await db
-    .insert(characterIndustryJobSyncs)
-    .values({ characterId, lastRefreshedAt: now, jobsEtag: etag })
-    .onConflictDoUpdate({
-      target: characterIndustryJobSyncs.characterId,
-      set: { lastRefreshedAt: now, jobsEtag: etag },
-    });
+  return {
+    kind: 'statements',
+    build: (answersStand) => [
+      db
+        .insert(characterIndustryJobs)
+        .select(proposedRowsWhere(characterIndustryJobs, [{ characterId, jobs }], answersStand))
+        .onConflictDoUpdate({ target: characterIndustryJobs.characterId, set: excludedSet(characterIndustryJobs, ['jobs']) }),
+      db
+        .insert(characterIndustryJobSyncs)
+        .select(proposedRowsWhere(characterIndustryJobSyncs, [{ characterId, lastRefreshedAt: now, jobsEtag: etag }], answersStand))
+        .onConflictDoUpdate({
+          target: characterIndustryJobSyncs.characterId,
+          set: excludedSet(characterIndustryJobSyncs, ['lastRefreshedAt', 'jobsEtag']),
+        }),
+    ],
+  };
 }
 
 export async function stampCharacterJobsFresh(characterId: number): Promise<void> {
@@ -146,27 +154,29 @@ export async function readCorpJobSyncState(
   return rows[0] ?? null;
 }
 
-export async function saveCorpJobs(
-  userId: string,
-  corporationId: number,
-  jobs: IndustryJob[],
-  etag: string | null,
-): Promise<void> {
+/** One user's view of a corporation's jobs, as statements guarded like `saveCharacterJobs`. */
+export function saveCorpJobs(userId: string, corporationId: number, jobs: IndustryJob[], etag: string | null): OwnerWrite {
   const now = new Date();
-  await db
-    .insert(corpIndustryJobs)
-    .values({ userId, corporationId, jobs })
-    .onConflictDoUpdate({
-      target: [corpIndustryJobs.userId, corpIndustryJobs.corporationId],
-      set: { jobs },
-    });
-  await db
-    .insert(corpIndustryJobSyncs)
-    .values({ userId, corporationId, lastRefreshedAt: now, jobsEtag: etag, syncError: null })
-    .onConflictDoUpdate({
-      target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
-      set: { lastRefreshedAt: now, jobsEtag: etag, syncError: null },
-    });
+  const sync = { userId, corporationId, lastRefreshedAt: now, jobsEtag: etag, syncError: null };
+  return {
+    kind: 'statements',
+    build: (answersStand) => [
+      db
+        .insert(corpIndustryJobs)
+        .select(proposedRowsWhere(corpIndustryJobs, [{ userId, corporationId, jobs }], answersStand))
+        .onConflictDoUpdate({
+          target: [corpIndustryJobs.userId, corpIndustryJobs.corporationId],
+          set: excludedSet(corpIndustryJobs, ['jobs']),
+        }),
+      db
+        .insert(corpIndustryJobSyncs)
+        .select(proposedRowsWhere(corpIndustryJobSyncs, [sync], answersStand))
+        .onConflictDoUpdate({
+          target: [corpIndustryJobSyncs.userId, corpIndustryJobSyncs.corporationId],
+          set: excludedSet(corpIndustryJobSyncs, ['lastRefreshedAt', 'jobsEtag', 'syncError']),
+        }),
+    ],
+  };
 }
 
 /** Nobody holds the role: the jobs go, and with them the stored answer, so the next read after the role returns is unconditional. */

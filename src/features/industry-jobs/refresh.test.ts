@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EsiReadSession } from '@/data/esi-store/session';
 import type { SingleOwnerRead } from '@/platform/owner-sync';
-import { ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { NO_STATEMENTS, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshJobsForUser } from './refresh';
 import type { JobsPort } from './types';
 
@@ -31,7 +31,7 @@ function makePort(overrides: Partial<JobsPort> = {}): JobsPort {
       async (): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: [esiJob(5)], etag: '"j"' }),
     ),
     readSyncState: vi.fn(async () => null),
-    saveJobs: vi.fn(async () => {}),
+    saveJobs: vi.fn(() => NO_STATEMENTS),
     stampFresh: vi.fn(async () => {}),
     recordRefusal: vi.fn(async () => {}),
     ...overrides,

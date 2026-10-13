@@ -5,6 +5,7 @@ import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { getSystemFacts } from '@/data/eve-data/character-facts';
 import { systemSecurityClass } from '@/data/eve-data/security';
+import type { AnyPgDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { ParsedCorpStructure } from './esi-projection';
@@ -62,15 +63,16 @@ export async function listCorpStructureSyncStates(
 }
 
 /**
- * Replace a corporation's structures under its sync-row lock. The port keeps
- * Promise<void>: a superseded save changed nothing, and the sync's commit
- * clears the cache tag once the answer behind the rows is recorded.
+ * Replace a corporation's structures under its sync-row lock; a unique
+ * violation is 'superseded' and changes nothing. An owner sync passes the
+ * transaction its answers commit in, and its commit clears the cache tag.
  */
 export async function saveCorpStructures(
   corporationId: number,
   rows: ParsedCorpStructure[],
   etags: string[],
-): Promise<void> {
+  database?: AnyPgDb,
+): Promise<'saved' | 'superseded'> {
   const now = new Date();
   const systems = await getSystemFacts([...new Set(rows.map((r) => r.system_id))]);
   const records = rows.map((r) => ({
@@ -81,7 +83,7 @@ export async function saveCorpStructures(
     securityClass: systems.get(r.system_id)?.secClass ?? systemSecurityClass(null, null),
     name: r.name ?? null,
   }));
-  await replaceOwnerSnapshot({
+  return replaceOwnerSnapshot({
     lock: (tx) => tx
       .insert(corpStructureSyncs)
       .values({ corporationId, lastRefreshedAt: now, pageEtags: etags })
@@ -93,7 +95,7 @@ export async function saveCorpStructures(
       await tx.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
       await insertInBatches(tx, corpStructures, records);
     },
-  });
+  }, database);
 }
 
 export async function stampCorpStructuresFresh(corporationId: number): Promise<void> {

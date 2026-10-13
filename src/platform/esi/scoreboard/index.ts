@@ -14,7 +14,7 @@ export {
   type GroupBudget,
   type PreDispatchState,
 } from './types';
-export { normalizeEsiPath, resolveRetryAfter } from './keys';
+export { isHistoryPath, normalizeEsiPath, resolveRetryAfter } from './keys';
 
 const redisScoreboards = new Map<string, EsiScoreboard>();
 let memoryScoreboard: EsiScoreboard | null = null;

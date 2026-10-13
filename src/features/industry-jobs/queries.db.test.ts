@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { revalidateTag } from 'next/cache';
 import { expect, test, vi } from 'vitest';
-import { recordMetas, storedRow } from '@/data/esi-store';
+import { commitWithWrite, recordMetas, storedRow } from '@/data/esi-store';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { industryJob } from './__tests__/job-fixture';
 import { corpJobsKey } from './keys';
@@ -77,7 +77,7 @@ test.skipIf(!harness.reachable)(
   'job saves store the feed and leave the tag to the sync\'s commit, and a needs-role save clears the corporation jobs',
   async () => {
     vi.mocked(revalidateTag).mockClear();
-    await saveCharacterJobs(90_000_010, [industryJob({ job_id: 7 })], '"char"');
+    await commitWithWrite([], saveCharacterJobs(90_000_010, [industryJob({ job_id: 7 })], '"char"'));
     expect(await readCharacterJobs(90_000_010)).toEqual({ jobs: [industryJob({ job_id: 7 })] });
     expect(revalidateTag).not.toHaveBeenCalled();
 
@@ -86,7 +86,7 @@ test.skipIf(!harness.reachable)(
       .from(corpIndustryJobs)
       .where(and(eq(corpIndustryJobs.userId, 'user-d'), eq(corpIndustryJobs.corporationId, 98_000_010)));
     vi.mocked(revalidateTag).mockClear();
-    await saveCorpJobs('user-d', 98_000_010, [industryJob({ job_id: 8 })], '"corp"');
+    await commitWithWrite([], saveCorpJobs('user-d', 98_000_010, [industryJob({ job_id: 8 })], '"corp"'));
     const key = corpJobsKey('user-d', 98_000_010);
     await recordMetas([{ key, expiresAt: Date.now() + 300_000, etags: ['"corp"'], lastModified: null, checkedAt: Date.now() }]);
     expect(await corpJobs()).toEqual([{ jobs: [industryJob({ job_id: 8 })] }]);

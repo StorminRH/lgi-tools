@@ -3,6 +3,7 @@ import {
   dispatch,
   enforceBudget,
   getScoreboard,
+  reserveHistoryCall,
   type EsiFetchOptions,
 } from './dispatch';
 
@@ -33,5 +34,7 @@ export async function esiFetch(
   const sb = getScoreboard();
   const pre = await consultPreDispatch(sb, url);
   enforceBudget(pre, url, opts);
-  return dispatch(url, init, pre !== null ? sb : null);
+  const liveSb = pre !== null ? sb : null;
+  await reserveHistoryCall(liveSb, url);
+  return dispatch(url, init, liveSb);
 }

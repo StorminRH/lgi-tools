@@ -1,6 +1,7 @@
 import { after } from 'next/server';
 import { getCorpAssetEvidence } from '@/features/owned-assets/queries';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
+import { withCorpContextDueKeys } from '@/data/corp-holdings/context-sync';
 import { isDueFor, recordRefusalFor } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
@@ -31,7 +32,7 @@ function makeOwnedBlueprintsPort(userId: string): OwnedBlueprintsPort {
     openSession: openReadSession,
     read: (session, owner, accessToken) => session.readPaged(ownedBlueprintsKey(owner), accessToken),
     readSyncState: (owner) => readBlueprintSyncState(owner),
-    save: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
+    save: (owner, rows, etags, _source, tx) => saveOwnedBlueprints(owner, rows, etags, { database: tx }),
     stampFresh: (owner) => stampBlueprintFresh(owner),
     recordRefusal: (owner, expiresAt) => recordRefusalFor(userId, [ownedBlueprintsKey(owner)], expiresAt),
   };
@@ -54,7 +55,7 @@ export async function getOwnedBlueprintDetailOnView(
       viewer.scope.corps.filter((grant) => grant.blueprints.kind === 'by-location').map((grant) => grant.corporationId),
       getCorpAssetEvidence,
     ),
-    refreshDue(userId, ownedBlueprintsDueKeys),
+    refreshDue(userId, withCorpContextDueKeys(ownedBlueprintsDueKeys)),
   ]);
   const map = await getOwnedBlueprintMap(viewer.scope, evidence);
   after(() => refreshOwnedBlueprintsOnView(userId));

@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
-import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
+import type { AnyPgDb } from '@/lib/db-types';
 import { excluded } from '@/lib/db-upsert';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
 import { corpAssetsKey, corpContextKeys, corporationKey } from './keys';
@@ -76,16 +76,17 @@ export async function replaceHoldingNodes(
  * The profile upsert takes the corporation's lock before its member bases are
  * replaced, so freshness, HQ, and bases commit together as one authorization
  * snapshot. Null bases keep the stored ones: the tracking answer was unchanged.
- * The context sync's commit clears the cache tag once the answers are recorded.
+ * The context sync passes the transaction its answers commit in, and its
+ * commit clears the cache tag once both stand.
  */
 export async function saveCorpProfile(
   corporationId: number,
   profile: CorpProfile,
   bases: readonly MemberBase[] | null,
   refreshedAt: Date,
-  options: { database?: PostgresJsDb } = {},
-): Promise<void> {
-  await replaceOwnerSnapshot({
+  options: { database?: AnyPgDb } = {},
+): Promise<'saved' | 'superseded'> {
+  return replaceOwnerSnapshot({
     lock: (tx) => tx
       .insert(corpProfiles)
       .values({ corporationId, ...profile, lastRefreshedAt: refreshedAt })

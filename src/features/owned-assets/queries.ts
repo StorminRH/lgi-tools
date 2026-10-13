@@ -4,7 +4,7 @@ import { datasetTag, storedExpiry, untilExpires } from '@/data/esi-store';
 import { db } from '@/db';
 import { insertInBatches, replaceOwnerSnapshot } from '@/db/snapshot-replace';
 import { ownerKeyWhere } from '@/lib/db-columns';
-import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
+import type { AnyPgDb } from '@/lib/db-types';
 import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { buildHoldingIndex, type CorpAssetEvidence, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
 import { replaceHoldingNodes } from '@/data/corp-holdings/queries';
@@ -164,18 +164,19 @@ async function replaceOwnerAssetRows(
 
 /**
  * Publish a character's assets under its sync-row lock; a unique violation
- * is 'superseded' and changes nothing. The sync's commit clears the cache
- * tag once the answer behind these rows is recorded.
+ * is 'superseded' and changes nothing. An owner sync passes the transaction
+ * its answers commit in, and its commit clears the cache tag.
  */
 export function saveOwnedAssets(
   owner: OwnerKey,
   rows: OwnedAsset[],
   etags: string[],
+  database?: AnyPgDb,
 ): Promise<'saved' | 'superseded'> {
   return replaceOwnerSnapshot({
     lock: upsertAssetSync(owner, etags, new Date()),
     replace: (tx) => replaceOwnerAssetRows(tx, owner, rows, null),
-  });
+  }, database);
 }
 
 export async function stampOwnerFresh(owner: OwnerKey): Promise<void> {
@@ -192,7 +193,7 @@ export function saveCorpOwnedAssets(
   rows: OwnedAsset[],
   etags: string[],
   snapshotId: number,
-  options: { database?: PostgresJsDb } = {},
+  options: { database?: AnyPgDb } = {},
 ): Promise<'saved' | 'superseded'> {
   const owner = { ownerType: 'corporation', ownerId: corporationId } as const;
   const refreshedAt = new Date();

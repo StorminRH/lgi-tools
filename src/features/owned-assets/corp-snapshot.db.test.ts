@@ -58,7 +58,7 @@ async function save(division: number, quantity: number, id: number) {
 }
 /** The endpoint a Director's corporation assets sync hands to the save, read through the real descriptor. */
 async function syncedEndpoint(): Promise<string> {
-  const saveSource = vi.fn<OwnedAssetsPort['save']>(async () => {});
+  const saveSource = vi.fn<OwnedAssetsPort['save']>(async () => 'saved');
   await refreshOwnedAssetsForUser(ownedDatasetPortFake(new Date(), {
     listCharacters: async () => [ownerFixture(90001, { corporationId: CORP })],
     readRoles: async () => ['Director'],

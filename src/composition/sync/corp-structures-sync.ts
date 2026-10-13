@@ -1,5 +1,6 @@
 import { after, connection } from 'next/server';
 import { type CorpViewer, readCorpViewer, resolveCorpViewer } from '@/composition/corp-viewer';
+import { withCorpContextDueKeys } from '@/data/corp-holdings/context-sync';
 import { isDueFor, recordRefusalFor } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { corpStructuresDueKeys, corpStructuresKey } from '@/features/owned-structures/keys';
@@ -39,7 +40,7 @@ function makeCorpStructuresPort(userId: string): CorpStructuresPort {
     openSession: openReadSession,
     readStructures: (session, corporationId, accessToken) => session.readPaged(corpStructuresKey(corporationId), accessToken),
     readSyncState: (corporationId) => readCorpStructureSyncState(corporationId),
-    saveStructures: (corporationId, rows, etags) => saveCorpStructures(corporationId, rows, etags),
+    saveStructures: (corporationId, rows, etags, tx) => saveCorpStructures(corporationId, rows, etags, tx),
     stampFresh: (corporationId) => stampCorpStructuresFresh(corporationId),
     recordRefusal: (corporationId, expiresAt) => recordRefusalFor(userId, [corpStructuresKey(corporationId)], expiresAt),
   };
@@ -60,10 +61,10 @@ interface ViewerCorpStructuresResult {
   refreshing: boolean;
 }
 
-/** Schedules the refresh, and says whether it will reach ESI. */
+/** Schedules the refresh, and says whether it, or the corp context refresh resolveCorpViewer scheduled, will reach ESI. */
 function scheduleCorpStructuresRefresh(userId: string): Promise<boolean> {
   after(() => refreshCorpStructuresOnView(userId));
-  return refreshDue(userId, corpStructuresDueKeys);
+  return refreshDue(userId, withCorpContextDueKeys(corpStructuresDueKeys));
 }
 
 async function loadCorpViewer(userId: string): Promise<CorpViewer> {

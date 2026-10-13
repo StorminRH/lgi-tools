@@ -23,7 +23,10 @@ function makeDescriptor(port: CorpStructuresPort) {
         return rows === null ? null : { rows, etags: fresh.etags };
       });
     },
-    save: (owner, payload) => port.saveStructures(owner.corporationId, payload.rows, payload.etags),
+    save: (owner, payload) => ({
+      kind: 'transaction',
+      run: (tx) => port.saveStructures(owner.corporationId, payload.rows, payload.etags, tx),
+    }),
     stampFresh: (owner) => port.stampFresh(owner.corporationId),
     recordRefusal: (owner, expiresAt) => port.recordRefusal(owner.corporationId, expiresAt),
   });

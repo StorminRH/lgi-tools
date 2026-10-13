@@ -5,7 +5,7 @@ import { SHEET_ROUTES, STRUCTURE_LOOKUP_ROUTE } from '@/features/character-sheet
 import type { SheetSections } from '@/features/character-sheet/types';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { NO_STATEMENTS, ownerFixture } from '@/platform/owner-sync/__tests__/owner-fixtures';
 
 const mocks = vi.hoisted(() => ({
   listCharactersWithHealth: vi.fn(),
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   isDue: vi.fn<(keys: unknown) => Promise<boolean>>(async () => true),
   readAuthed: vi.fn(),
   readPassThrough: vi.fn(),
-  commit: vi.fn(async () => {}),
+  commit: vi.fn(async (_write?: unknown) => 'saved' as const),
   readSheetRow: vi.fn(),
   mergeSheetSection: vi.fn(),
   stampSheetSection: vi.fn(),
@@ -72,7 +72,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.isDue.mockResolvedValue(true);
   mocks.readSheetRow.mockResolvedValue(null);
-  mocks.mergeSheetSection.mockResolvedValue(undefined);
+  mocks.mergeSheetSection.mockReturnValue(NO_STATEMENTS);
   mocks.stampSheetSection.mockResolvedValue(undefined);
   mocks.readAuthed.mockImplementation(async (key: EsiStoreKey) => {
     const body = BODIES[key.route];
@@ -141,7 +141,7 @@ describe('makeSheetPort', () => {
     await expect(port.readSheet(7)).resolves.toBe(sheet);
     await expect(port.readSheet(7)).resolves.toBe(sheet);
     expect(mocks.readSheetRow).toHaveBeenCalledTimes(2);
-    await port.mergeSection(7, 'wallet', sheet.wallet!);
+    expect(port.mergeSection(7, 'wallet', sheet.wallet!)).toBe(NO_STATEMENTS);
     await port.stampSection(7, 'wallet');
 
     expect(mocks.readPassThrough).toHaveBeenCalledWith(STRUCTURE_LOOKUP_ROUTE, { structure_id: 1099000000001 }, 'token');
@@ -149,7 +149,7 @@ describe('makeSheetPort', () => {
     expect(mocks.stampSheetSection).toHaveBeenCalledWith(7, 'wallet');
   });
 
-  it('commits each section\'s session after its merge', async () => {
+  it('hands each section\'s merge to its session\'s commit', async () => {
     mocks.listCharactersWithHealth.mockResolvedValue([ownerFixture(1)]);
     mocks.vendTokenFor.mockResolvedValue('token');
 
@@ -157,9 +157,8 @@ describe('makeSheetPort', () => {
 
     // Eight direct sections each committed once; the structures pass found nothing to resolve.
     expect(mocks.commit).toHaveBeenCalledTimes(8);
-    expect(Math.min(...mocks.commit.mock.invocationCallOrder)).toBeGreaterThan(
-      Math.min(...mocks.mergeSheetSection.mock.invocationCallOrder),
-    );
+    expect(mocks.mergeSheetSection).toHaveBeenCalledTimes(8);
+    expect(mocks.commit.mock.calls.every(([write]) => write === NO_STATEMENTS)).toBe(true);
   });
 });
 

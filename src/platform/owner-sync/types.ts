@@ -1,3 +1,5 @@
+import type { Query, SQL } from 'drizzle-orm';
+import type { AnyPgDb } from '@/lib/db-types';
 import type { EsiOwnerType } from './owner-type';
 
 export interface EnumeratedOwner {
@@ -45,13 +47,38 @@ export interface OwnerReadError {
   expiresAt?: number;
 }
 
+/** How an owner's write ended: it stood, or a newer answer already stood and it changed nothing. */
+export type SaveOutcome = 'saved' | 'superseded';
+
+/**
+ * An owner's domain write, as the session's commit runs it beside the
+ * refresh's answers.
+ *
+ * `statements`: Drizzle inserts, updates and deletes, built but not run,
+ * sent after the answers' upsert in one atomic HTTP batch over Neon's
+ * stateless driver. `answersStand` holds only once every answer of the
+ * commit is stored as this refresh's, so each statement carries it in its
+ * own WHERE (the insert branch too, through an insert-select): an answer
+ * asked for before the stored one writes nothing.
+ *
+ * `transaction`: a write that must hold row locks, run on the direct-client
+ * transaction the answers are recorded in; 'superseded' (a unique
+ * violation, a newer publication) rolls both back.
+ */
+export type OwnerWrite =
+  | { readonly kind: 'statements'; readonly build: (answersStand: SQL) => readonly { toSQL(): Query }[] }
+  | { readonly kind: 'transaction'; readonly run: (tx: AnyPgDb) => Promise<SaveOutcome> };
+
 /**
  * The ESI reads of one try at one owner. What they learned about expiry
- * and ETags is committed only once the owner's write has stood; a try
- * that ends any other way drops it, and the next view reads again.
+ * and ETags commits atomically with the owner's write, so the stored data
+ * and the ETag that vouches for it never come from two different
+ * refreshes; an answer asked for before the stored one changes nothing,
+ * write included ('superseded'). A try that ends any other way drops it,
+ * and the next view reads again.
  */
 export interface ReadSession {
-  commit(): Promise<void>;
+  commit(write?: OwnerWrite): Promise<SaveOutcome>;
 }
 
 export type PersistVerdict<TSave> =
@@ -95,7 +122,8 @@ export interface OwnerSyncDescriptor<TOwner, TState, TSave, TSession extends Rea
   corpAxis?: CorpOwnerAxis<TOwner>;
   readState(owner: TOwner): Promise<TState | null>;
   fetchAndPlan(owner: TOwner, accessToken: string, state: TState | null, session: TSession): Promise<PersistVerdict<TSave>>;
-  save(owner: TOwner, payload: TSave): Promise<void>;
+  /** The owner's write, which the session's commit runs atomically with its answers. */
+  save(owner: TOwner, payload: TSave): OwnerWrite;
   stampFresh(owner: TOwner): Promise<void>;
   saveGateState?(owner: TOwner): Promise<void>;
   /**

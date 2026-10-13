@@ -1,4 +1,12 @@
-import type { CharacterOwner, EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict, ReadSession, VendedToken } from './types';
+import type {
+  CharacterOwner,
+  EnumeratedOwner,
+  OwnerSyncDescriptor,
+  OwnerWrite,
+  PersistVerdict,
+  ReadSession,
+  VendedToken,
+} from './types';
 
 export interface CharacterSyncBase<TState, TSession extends ReadSession> {
   now(): Date;
@@ -20,7 +28,7 @@ export interface CharacterDatasetSpec<TState, TSave, TSession extends ReadSessio
     state: TState | null,
     session: TSession,
   ): Promise<PersistVerdict<TSave>>;
-  save(characterId: number, payload: TSave): Promise<void>;
+  save(characterId: number, payload: TSave): OwnerWrite;
 }
 
 export function makeCharacterDescriptor<TState, TSave, TSession extends ReadSession>(

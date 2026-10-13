@@ -1,18 +1,24 @@
 import type { EveScope } from '@/config/eve-scopes';
+import type { EsiStoreKey } from '@/data/esi-store';
 import type { EsiReadSession } from '@/data/esi-store/session';
 import { chunk } from '@/lib/array';
+import type { AnyPgDb } from '@/lib/db-types';
 import { HOUR_MS } from '@/lib/iso-date';
 import { scopeEligibility } from '@/lib/scope-eligibility';
 import {
+  corporationsOf,
   type CorpSyncBase,
+  type EnumeratedOwner,
   errorVerdict,
   makeCorpDescriptor,
   type OwnerSyncResult,
   type PersistVerdict,
   runOwnerSync,
+  type SaveOutcome,
   type SingleOwnerRead,
 } from '@/platform/owner-sync';
 import type { CorpProfile, MemberBase } from './context';
+import { corpContextKeys } from './keys';
 import {
   mergeNames,
   parseAssetNamesBody,
@@ -35,6 +41,25 @@ const CORP_CONTEXT_SYNC_SCOPES = [
 
 const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 
+const canSyncCorpContext = scopeEligibility(CORP_CONTEXT_SYNC_SCOPES);
+
+/** The stored answers a context pass would check: the three of each corporation an eligible member belongs to. */
+function corpContextDueKeys(owners: readonly EnumeratedOwner[]): EsiStoreKey[] {
+  return [...corporationsOf(owners, canSyncCorpContext).keys()].flatMap(corpContextKeys);
+}
+
+/**
+ * A route reader's due keys with the corp context's added: a reader behind
+ * resolveCorpViewer also has the context refreshed behind its response, so
+ * divisions, container names, HQ and bases that are due mean `refreshing`
+ * too, and the live view keeps re-checking until they land.
+ */
+export function withCorpContextDueKeys(
+  dueKeys: (owners: readonly EnumeratedOwner[]) => EsiStoreKey[],
+): (owners: readonly EnumeratedOwner[]) => EsiStoreKey[] {
+  return (owners) => [...dueKeys(owners), ...corpContextDueKeys(owners)];
+}
+
 const NAMES_BATCH = 1000;
 const STRUCTURE_NAME_READS_PER_PASS = 10;
 
@@ -53,13 +78,18 @@ export interface CorpContextPort extends CorpSyncBase<EsiReadSession> {
   currentContext(corporationId: number): Promise<CorpHoldingContext>;
   listLinkedMemberIds(corporationId: number): Promise<number[]>;
   readProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null>;
-  /** Null bases leave the stored member bases as they are: the tracking answer was unchanged. */
+  /**
+   * Null bases leave the stored member bases as they are: the tracking
+   * answer was unchanged. Writes on `tx`, the transaction the pass's answers
+   * commit in; 'superseded' changed nothing.
+   */
   saveProfile(
     corporationId: number,
     profile: CorpProfile,
     bases: readonly MemberBase[] | null,
     refreshedAt: Date,
-  ): Promise<void>;
+    tx: AnyPgDb,
+  ): Promise<SaveOutcome>;
   stampFresh(corporationId: number, refreshedAt: Date): Promise<void>;
   /** Records the syncing user's settled refusal (no role-holder among their characters) for the corporation, until `expiresAt` or the route's spec cache time. */
   recordRefusal(corporationId: number, expiresAt: number | null): Promise<void>;
@@ -182,12 +212,15 @@ async function planContext(
 function makeDescriptor(port: CorpContextPort) {
   return makeCorpDescriptor<CorpOwner, CorpContextState, CorpContextSave, EsiReadSession>(port, {
     ownerOf: (_userId, corporationId) => ({ corporationId }),
-    eligible: scopeEligibility(CORP_CONTEXT_SYNC_SCOPES),
+    eligible: canSyncCorpContext,
     requiredRoles: CORP_CONTEXT_REQUIRED_ROLES,
     isDue: (owner) => port.isDue(owner.corporationId),
     readState: (owner) => port.readProfileState(owner.corporationId),
     fetchAndPlan: (owner, accessToken, _state, session) => planContext(port, owner, accessToken, session),
-    save: (owner, payload) => port.saveProfile(owner.corporationId, payload.profile, payload.bases, port.now()),
+    save: (owner, payload) => ({
+      kind: 'transaction',
+      run: (tx) => port.saveProfile(owner.corporationId, payload.profile, payload.bases, port.now(), tx),
+    }),
     stampFresh: (owner) => port.stampFresh(owner.corporationId, port.now()),
     recordRefusal: (owner, expiresAt) => port.recordRefusal(owner.corporationId, expiresAt),
   });

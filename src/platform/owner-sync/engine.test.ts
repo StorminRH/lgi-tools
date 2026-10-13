@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { corporationsOf, OWNER_SYNC_CONCURRENCY, runOwnerSync } from './engine';
-import type { CorpOwnerAxis, OwnerSyncDescriptor, PersistVerdict, ReadSession } from './types';
-import { ownerFixture, readSessionFake } from './__tests__/owner-fixtures';
+import type { CorpOwnerAxis, OwnerSyncDescriptor, OwnerWrite, PersistVerdict, ReadSession } from './types';
+import { FAKE_TX, NO_STATEMENTS, ownerFixture, readSessionFake } from './__tests__/owner-fixtures';
 
 const NOW = new Date('2026-06-29T12:00:00Z');
 
@@ -49,7 +49,7 @@ function makeDescriptor(
     openSession: () => readSessionFake(),
     readState: vi.fn(async () => null),
     fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'save', value: 1 })),
-    save: vi.fn(async () => {}),
+    save: vi.fn(() => NO_STATEMENTS),
     stampFresh: vi.fn(async () => {}),
     characterAxis: { eligible: () => true, ownerOf: (characterId: number) => `char:${characterId}` },
     ...overrides,
@@ -70,12 +70,14 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(d.stampFresh).not.toHaveBeenCalled();
   });
 
-  it('vends, fetches with a session and saves a due character owner, then commits the session', async () => {
+  it('vends, fetches with a session and hands a due character owner\'s write to the session\'s commit', async () => {
     const { opened, openSession } = sessions();
+    const write: OwnerWrite = { kind: 'statements', build: () => [] };
     const d = makeDescriptor({
       enumerate: vi.fn(async () => [ownerFixture(1)]),
       openSession,
       fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'save', value: 7 })),
+      save: vi.fn(() => write),
     });
 
     await runOwnerSync(d, 'u');
@@ -85,10 +87,30 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(d.fetchAndPlan).toHaveBeenCalledWith('char:1', 'tok-1', null, opened[0]);
     expect(d.save).toHaveBeenCalledWith('char:1', { kind: 'save', value: 7 });
     expect(opened).toHaveLength(1);
-    expect(opened[0]!.commit).toHaveBeenCalledOnce();
-    expect(vi.mocked(opened[0]!.commit).mock.invocationCallOrder[0]).toBeGreaterThan(
-      vi.mocked(d.save).mock.invocationCallOrder[0]!,
-    );
+    expect(opened[0]!.commit).toHaveBeenCalledExactlyOnceWith(write);
+  });
+
+  it('runs a transaction write on the transaction the session\'s commit hands it', async () => {
+    const run = vi.fn(async () => 'saved' as const);
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
+      save: vi.fn((): OwnerWrite => ({ kind: 'transaction', run })),
+    });
+
+    await runOwnerSync(d, 'u');
+
+    expect(run).toHaveBeenCalledExactlyOnceWith(FAKE_TX);
+  });
+
+  it('counts a save a newer answer superseded as a success: the newer copy stands and nothing is retried', async () => {
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => [ownerFixture(1)]),
+      save: vi.fn((): OwnerWrite => ({ kind: 'transaction', run: async () => 'superseded' })),
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(results).toEqual([{ kind: 'succeeded', target: { ownerType: 'character', ownerId: 1 } }]);
   });
 
   it('stamps (no save) on a stamp verdict and commits after the stamp', async () => {
@@ -121,20 +143,24 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(opened[0]!.commit).not.toHaveBeenCalled();
   });
 
-  it('discards the session when the save throws, so nothing is recorded for data that was not stored', async () => {
+  it('rejects the commit when the write fails inside it, so its transaction records nothing for data that was not stored', async () => {
     const { opened, openSession } = sessions();
     const failure = new Error('neon unavailable');
     const d = makeDescriptor({
       enumerate: vi.fn(async () => [ownerFixture(1)]),
       openSession,
-      save: vi.fn(async () => {
-        throw failure;
-      }),
+      save: vi.fn((): OwnerWrite => ({
+        kind: 'transaction',
+        run: async () => {
+          throw failure;
+        },
+      })),
     });
 
     await expect(runOwnerSync(d, 'u')).rejects.toBe(failure);
 
-    expect(opened[0]!.commit).not.toHaveBeenCalled();
+    expect(opened[0]!.commit).toHaveBeenCalledOnce();
+    await expect(vi.mocked(opened[0]!.commit).mock.results[0]!.value).rejects.toBe(failure);
   });
 
   it('skips a character whose grant is lost (no fetch)', async () => {
@@ -431,21 +457,31 @@ describe('runOwnerSync — the corporation pass', () => {
     );
   });
 
-  it('still records needs_role when the refused role-holder was the only one judged', async () => {
+  it.each([
+    ['a later member\'s token', { missing: 'unavailable' as const }, ['Director']],
+    ['a later member\'s roles', 'tok-2', null],
+  ])('keeps the saved copy and records nothing when ESI refused the first role-holder and %s is unavailable for now', async (_case, secondVend, secondRoles) => {
     const saveGateState = vi.fn(async () => {});
+    const recordRefusal = vi.fn(async () => {});
     const d = makeDescriptor({
       characterAxis: undefined,
-      vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? { missing: 'unavailable' as const } : `tok-${characterId}`)),
+      vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? secondVend : `tok-${characterId}`)),
       enumerate: vi.fn(async () => [1, 2].map((id) => ownerFixture(id, { corporationId: 5000 }))),
-      corpAxis: corpAxis(vi.fn(async () => ['Director'])),
-      fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'needs_role' })),
+      corpAxis: corpAxis(vi.fn(async (characterId: number) => (characterId === 2 ? secondRoles : ['Director']))),
+      fetchAndPlan: vi.fn(async (): Promise<PersistVerdict<Save>> => ({ kind: 'needs_role', expiresAt: 1 })),
       saveGateState,
+      recordRefusal,
     });
 
     const results = await runOwnerSync(d, 'u');
 
-    expect(results[0]).toMatchObject({ kind: 'failed_permanent', code: 'needs_role' });
-    expect(saveGateState).toHaveBeenCalledOnce();
+    expect(results).toEqual([
+      { kind: 'failed_retryable', target: { ownerType: 'corporation', ownerId: 5000 }, code: 'owner_temporarily_unavailable' },
+    ]);
+    expect(d.fetchAndPlan).toHaveBeenCalledOnce();
+    expect(saveGateState).not.toHaveBeenCalled();
+    expect(recordRefusal).not.toHaveBeenCalled();
+    expect(d.save).not.toHaveBeenCalled();
   });
 
   it('reads no roles for a corp that is not due (the due check comes before director resolution)', async () => {

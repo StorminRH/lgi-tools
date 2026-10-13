@@ -1,8 +1,11 @@
+import { revalidateTag } from 'next/cache';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { __resetEsiGateForTests, EsiServerError } from '@/platform/esi';
 import {
   commit,
+  commitWithWrite,
+  datasetTag,
   fetchStored,
   fetchStoredMany,
   isDue,
@@ -175,6 +178,35 @@ describe.skipIf(!harness.reachable)('ESI response store against Postgres', () =>
     expect((await rowOf(PRICE_KEY))?.expiresAt?.getTime()).toBe(NOW + 3000);
     await recordExpiryFor([PRICE_KEY, OTHER_PRICE_KEY, PRICE_KEY], { expiresAt: NOW + 9000, lastModified: null, checkedAt: NOW });
     expect((await allRows()).every((row) => row.expiresAt?.getTime() === NOW + 9000 && row.etags.length === 0)).toBe(true);
+  });
+
+  it('never lets an answer asked for earlier replace a later one, a committed 200 or a fanned-out stamp alike', async () => {
+    await commit([{ key: PRICE_KEY, expiresAt: NOW + 5000, etags: ['"new"'], lastModified: null, checkedAt: NOW }], { tag: 'eve:market_prices' });
+
+    await commit([{ key: PRICE_KEY, expiresAt: NOW + 1000, etags: ['"old"'], lastModified: null, checkedAt: NOW - 1000 }], { tag: 'eve:market_prices' });
+    expect(await rowOf(PRICE_KEY)).toMatchObject({ etags: ['"new"'], checkedAt: new Date(NOW) });
+
+    await recordExpiryFor([PRICE_KEY], { expiresAt: NOW + 2000, lastModified: null, checkedAt: NOW - 500 });
+    expect((await rowOf(PRICE_KEY))?.expiresAt?.getTime()).toBe(NOW + 5000);
+  });
+
+  it('records an owner commit\'s answers in one HTTP batch, all or none, and clears the tags only once they stood', async () => {
+    const answers = [
+      { key: SKILLS_KEY, expiresAt: NOW + 5000, etags: ['"sk"'], lastModified: null, checkedAt: NOW },
+      { key: CORP_JOBS_KEY, expiresAt: NOW + 5000, etags: ['"cj"'], lastModified: NOW - 60_000, checkedAt: NOW },
+    ];
+    vi.mocked(revalidateTag).mockClear();
+    await expect(commitWithWrite(answers)).resolves.toBe('saved');
+    expect(await rowOf(SKILLS_KEY)).toMatchObject({ etags: ['"sk"'], checkedAt: new Date(NOW), expiresAt: new Date(NOW + 5000) });
+    expect(await rowOf(CORP_JOBS_KEY)).toMatchObject({ etags: ['"cj"'], lastModified: new Date(NOW - 60_000) });
+    expect(vi.mocked(revalidateTag).mock.calls.map(([tag]) => tag).sort()).toEqual([datasetTag(CORP_JOBS_KEY), datasetTag(SKILLS_KEY)].sort());
+
+    vi.mocked(revalidateTag).mockClear();
+    const older = answers.map((answer) => ({ ...answer, etags: ['"old"'], checkedAt: NOW - 1000 }));
+    await expect(commitWithWrite([{ ...older[0]!, checkedAt: NOW + 1000 }, older[1]!])).resolves.toBe('superseded');
+    expect((await rowOf(SKILLS_KEY))?.etags).toEqual(['"sk"']);
+    expect((await rowOf(CORP_JOBS_KEY))?.etags).toEqual(['"cj"']);
+    expect(revalidateTag).not.toHaveBeenCalled();
   });
 
   it('keys an authed owner read by its holder and records its 304', async () => {

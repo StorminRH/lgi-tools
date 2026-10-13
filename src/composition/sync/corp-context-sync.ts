@@ -35,7 +35,8 @@ function makeCorpContextPort(userId: string): CorpContextPort {
     currentContext: getCorpHoldingContext,
     listLinkedMemberIds: listLinkedCharacterIdsInCorporation,
     readProfileState: readCorpProfileState,
-    saveProfile: saveCorpProfile,
+    saveProfile: (corporationId, profile, bases, refreshedAt, tx) =>
+      saveCorpProfile(corporationId, profile, bases, refreshedAt, { database: tx }),
     stampFresh: stampCorpProfileFresh,
     recordRefusal: (corporationId, expiresAt) => recordRefusalFor(userId, corpContextKeys(corporationId), expiresAt),
   };

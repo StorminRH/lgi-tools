@@ -13,9 +13,11 @@ export type {
   OwnerKey,
   OwnerSyncDescriptor,
   OwnerSyncResult,
+  OwnerWrite,
   PagedOwnerSyncState,
   PersistVerdict,
   ReadSession,
+  SaveOutcome,
   SingleOwnerRead,
   VendedToken,
 } from './types';

@@ -1,5 +1,6 @@
 import { after } from 'next/server';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
+import { withCorpContextDueKeys } from '@/data/corp-holdings/context-sync';
 import { isDueFor, recordRefusalFor } from '@/data/esi-store';
 import { openReadSession } from '@/data/esi-store/session';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
@@ -61,7 +62,7 @@ export async function getOwnedAssetDetailOnView(
   const viewer = await resolveCorpViewer(userId);
   const [map, refreshing] = await Promise.all([
     getOwnedAssetMap(viewer.scope, requestedTypeIds),
-    refreshDue(userId, ownedAssetsDueKeys),
+    refreshDue(userId, withCorpContextDueKeys(ownedAssetsDueKeys)),
   ]);
   after(() => refreshOwnedAssetsOnView(userId));
   const contexts = contextsByCorp(viewer.scope);

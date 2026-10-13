@@ -15,6 +15,7 @@ import {
   GROUP_FLOOR_SHARE_INTERACTIVE,
   HISTORY_CALLS_PER_MINUTE,
   NO_RESPONSE_STATUS,
+  isHistoryPath,
   resolveScoreboard,
   __resetScoreboardForTests,
   type EsiReport,
@@ -60,13 +61,12 @@ interface LocalBudget {
 
 let localBudget: LocalBudget | null = null;
 
-/** The shared state of one path as this process last read it: its block, its group's budget and its history count. */
+/** The shared state of one path as this process last read it: its block and its group's budget. */
 interface LocalPath {
   readAt: number;
   blockedUntil: number | null;
   seq: number;
   groupBudget?: GroupBudget;
-  historyCalls?: number;
 }
 
 /** Per normalized path: when the shared state was last read, what it said, and in what order. */
@@ -262,7 +262,6 @@ function pathState(path: LocalPath, now: number): Omit<PreDispatchState, 'effect
         : null,
   };
   if (path.groupBudget !== undefined) state.groupBudget = path.groupBudget;
-  if (path.historyCalls !== undefined) state.historyCalls = path.historyCalls;
   return state;
 }
 
@@ -291,7 +290,7 @@ function rememberBudget(pre: PreDispatchState, readSeq: number, now: number): nu
   return remaining;
 }
 
-/** The block, group budget and history count this call obeys on its path, by the same newest-wins rule. */
+/** The block and group budget this call obeys on its path, by the same newest-wins rule. */
 function rememberPath(url: string, pre: PreDispatchState, readSeq: number, now: number): Omit<PreDispatchState, 'effectiveRemaining'> {
   const path = normalizeEsiPath(url);
   const previous = localBlocks.get(path);
@@ -302,20 +301,8 @@ function rememberPath(url: string, pre: PreDispatchState, readSeq: number, now: 
     seq: readSeq,
   };
   if (pre.groupBudget !== undefined) entry.groupBudget = pre.groupBudget;
-  if (pre.historyCalls !== undefined) entry.historyCalls = keptHistoryCalls(previous, pre.historyCalls, now);
   localBlocks.set(path, entry);
   return pathState(entry, now);
-}
-
-/**
- * The history count a new shared reading leaves this process obeying. This
- * process's own calls since its last reading may not have reached the shared
- * count yet (their reports wait for the response), so within the same minute
- * the larger count stands; a new minute starts from the shared one.
- */
-function keptHistoryCalls(previous: LocalPath | undefined, shared: number, now: number): number {
-  if (previous?.historyCalls === undefined || Math.floor(previous.readAt / 60_000) !== Math.floor(now / 60_000)) return shared;
-  return Math.max(previous.historyCalls, shared);
 }
 
 /** Keeps a shared reading for reuse and returns what this call should obey. */
@@ -324,9 +311,8 @@ function rememberPreDispatch(url: string, pre: PreDispatchState, readSeq: number
 }
 
 /**
- * Folds an answer's rate-limit headers and a history call into the path's
- * local reading: the group's Remaining on the answer is the newest truth
- * for its bucket, and each history call counts until the next shared read.
+ * Folds an answer's rate-limit headers into the path's local reading: the
+ * group's Remaining on the answer is the newest truth for its bucket.
  */
 function noteLocalPath(path: string, res: Response): void {
   const entry = localBlocks.get(path);
@@ -335,7 +321,6 @@ function noteLocalPath(path: string, res: Response): void {
   const remaining = intHeader(res.headers, 'X-Ratelimit-Remaining');
   const limit = intHeader(res.headers, 'X-Ratelimit-Limit');
   if (group !== null && remaining !== null && limit !== null) entry.groupBudget = { group, remaining, limit };
-  if (entry.historyCalls !== undefined) entry.historyCalls += 1;
 }
 
 /**
@@ -434,7 +419,6 @@ export function enforceBudget(
     );
   }
   enforceGroupBudget(pre, resource, opts?.interactive === true);
-  enforceHistoryCap(pre, resource);
 }
 
 /**
@@ -451,10 +435,29 @@ function enforceGroupBudget(pre: PreDispatchState, resource: string, interactive
   }
 }
 
-/** Market history stays under its per-minute cap across every instance: a counter, never a lock. */
-function enforceHistoryCap(pre: PreDispatchState, resource: string): void {
-  if (pre.historyCalls === undefined || pre.historyCalls < HISTORY_CALLS_PER_MINUTE) return;
-  throwBudgetExhausted(Math.max(0, HISTORY_CALLS_PER_MINUTE - pre.historyCalls), 'history_cap', null, resource);
+/**
+ * Market history stays under its per-minute cap across every instance: each
+ * call takes its place in the shared count before it is sent, by an atomic
+ * increment (a counter, never a lock), so instances racing for the last
+ * places can never all pass. A call whose place is past the cap is refused.
+ * Without a scoreboard (an interactive call on the trickle) there is nothing
+ * to reserve; a scoreboard that cannot reserve refuses history, and a
+ * reservation that fails closes the gate the way a failed pre-dispatch read
+ * does.
+ */
+export async function reserveHistoryCall(sb: EsiScoreboard | null, url: string): Promise<void> {
+  const resource = normalizeEsiPath(url);
+  if (sb === null || !isHistoryPath(resource)) return;
+  if (sb.reserveHistoryCall === undefined) throwBudgetExhausted(0, 'history_cap', null, resource);
+  let place: number;
+  try {
+    place = await sb.reserveHistoryCall();
+  } catch (err) {
+    redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
+    console.warn('[esi] scoreboard history reservation failed', err);
+    throwBudgetExhausted(0, 'scoreboard_unavailable', null, resource);
+  }
+  if (place > HISTORY_CALLS_PER_MINUTE) throwBudgetExhausted(0, 'history_cap', null, resource);
 }
 
 /** Every `x-esi-*` header on an answer, and its Expires, by lower-case name. */

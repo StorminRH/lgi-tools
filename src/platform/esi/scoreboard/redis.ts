@@ -4,7 +4,6 @@ import { sumCounts, windowMinutes } from './availability';
 import {
   echoTtl,
   epochMinute,
-  isHistoryPath,
   keyBlock,
   keyCallCount,
   keyErrorCount,
@@ -112,21 +111,29 @@ class RedisScoreboard implements EsiScoreboard {
     const pipeline = this.redis.pipeline();
     queueBudgetReads(pipeline, minute);
     pipeline.get(keyBlock(path));
-    pipeline.get(keyHistoryCount(minute));
     pipeline.get(keyGroupOfPath(path));
     if (known !== null) queueGroupReads(pipeline, known);
     const rows = await pipeline.exec<Rows>();
 
-    const group = known ?? this.learnGroup(path, rows[5] ?? null);
-    const groupRows = known !== null ? rows.slice(6) : await this.readGroupState(group);
+    const group = known ?? this.learnGroup(path, rows[4] ?? null);
+    const groupRows = known !== null ? rows.slice(5) : await this.readGroupState(group);
     const state: PreDispatchState = {
       effectiveRemaining: budgetFromRows(rows).effectiveRemaining,
       blockedRetryAfter: longestBlock(blockRemaining(rows[3]), blockRemaining(groupRows?.[2])),
     };
     const groupBudget = groupBudgetFrom(group, groupRows);
     if (groupBudget !== undefined) state.groupBudget = groupBudget;
-    if (isHistoryPath(path)) state.historyCalls = parseIntOrNull(rows[4] ?? null) ?? 0;
     return state;
+  }
+
+  /** INCRBY 1 then EXPIRE in one pipeline: the increment alone decides, so no two instances can take the same place. */
+  async reserveHistoryCall(): Promise<number> {
+    const key = keyHistoryCount(epochMinute());
+    const pipeline = this.redis.pipeline();
+    pipeline.incrby(key, 1);
+    pipeline.expire(key, HISTORY_COUNT_TTL_SECONDS);
+    const [count] = await pipeline.exec<[number | string, number | string]>();
+    return Number(count);
   }
 
   private learnGroup(path: string, row: string | null): string | null {
@@ -207,15 +214,14 @@ function queueIncrement(pipeline: Pipeline, key: string, by: number, ttlSeconds:
 
 /**
  * Every dispatch counts as a call, and the failed ones as failures; every
- * non-2xx/3xx against the error budget; every market-history dispatch,
- * answered or not, against the history cap, since the cap is on calls made.
+ * non-2xx/3xx against the error budget. A market-history call was already
+ * counted against its cap when it reserved its place before dispatch.
  */
 function queueCounts(pipeline: Pipeline, batch: ReportBatch): void {
   const minute = epochMinute();
   queueIncrement(pipeline, keyCallCount(minute), batch.calls, CALL_COUNT_TTL_SECONDS);
   queueIncrement(pipeline, keyFailureCount(minute), batch.failures, CALL_COUNT_TTL_SECONDS);
   queueIncrement(pipeline, keyErrorCount(minute), batch.errors, ERROR_COUNT_TTL_SECONDS);
-  queueIncrement(pipeline, keyHistoryCount(minute), batch.historyCalls, HISTORY_COUNT_TTL_SECONDS);
 }
 
 function queueErrorEcho(pipeline: Pipeline, echo: ErrorEcho | null): void {

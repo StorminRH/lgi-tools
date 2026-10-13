@@ -23,6 +23,7 @@ import {
 import { httpDateMs } from '@/platform/esi/headers';
 import { esiJsonPostInit } from '@/platform/esi/request-init';
 import { mapConcurrent } from '@/lib/fan-out';
+import type { OwnerWrite, SaveOutcome } from '@/platform/owner-sync';
 import { earliestExpiry, expiryFor, isExpired } from './expiry';
 import { esiHalted } from './halt';
 import { resolvePath } from './key';
@@ -31,6 +32,8 @@ import {
   readStoredRows,
   recordResponses,
   recordUnchangedMany,
+  recordWithStatements,
+  recordWithTransaction,
   type UnchangedRecord,
 } from './rows';
 import type {
@@ -524,8 +527,8 @@ export async function recordRefusalFor(userId: string, keys: readonly EsiStoreKe
  * the cache: for a cron or script outside a request, which clears its own
  * tag when it has one.
  */
-export function recordMetas(metas: readonly EsiResponseMeta[]): Promise<void> {
-  return recordResponses(metas);
+export async function recordMetas(metas: readonly EsiResponseMeta[]): Promise<void> {
+  await recordResponses(metas);
 }
 
 /**
@@ -541,14 +544,33 @@ export async function commit(metas: readonly EsiResponseMeta[], opts: { readonly
 }
 
 /**
+ * An owner refresh's commit: its answers and the domain write they vouch
+ * for, atomically, ordered by when each answer was asked for, then each
+ * dataset's tag cleared once both stood. Built statements (and answers
+ * with no write) go in one HTTP batch (`recordWithStatements`); a write
+ * that holds row locks runs on a direct-client transaction
+ * (`recordWithTransaction`). A superseded commit changed nothing, so it
+ * clears nothing either. With no answers and no write there is nothing to
+ * commit.
+ */
+export async function commitWithWrite(metas: readonly EsiResponseMeta[], write?: OwnerWrite): Promise<SaveOutcome> {
+  if (metas.length === 0 && write === undefined) return 'saved';
+  const outcome = write?.kind === 'transaction'
+    ? await recordWithTransaction(metas, write.run)
+    : await recordWithStatements(metas, write?.build);
+  if (outcome === 'saved') for (const tag of new Set(metas.map((meta) => datasetTag(meta.key)))) expireNow(tag);
+  return outcome;
+}
+
+/**
  * One answer fanned out to many keys: the region order dump prices every
  * type, and the affiliation batch answers for every character in it. Each
  * key takes the answer's expiry and Last-Modified; the answer's ETag and
  * body belong to the request that was made, not to the keys, so neither is
  * carried over.
  */
-export function recordExpiryFor(keys: readonly EsiStoreKey[], stamp: EsiAnswerStamp): Promise<void> {
-  return recordResponses(
+export async function recordExpiryFor(keys: readonly EsiStoreKey[], stamp: EsiAnswerStamp): Promise<void> {
+  await recordResponses(
     keys.map((key) => ({ key, expiresAt: stamp.expiresAt, etags: [], lastModified: stamp.lastModified, checkedAt: stamp.checkedAt })),
   );
 }

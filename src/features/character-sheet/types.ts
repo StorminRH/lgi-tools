@@ -1,6 +1,6 @@
 import type { EveScope } from '@/config/eve-scopes';
 import type { EsiReadSession } from '@/data/esi-store/session';
-import type { CharacterOwner, SingleOwnerRead, VendedToken } from '@/platform/owner-sync';
+import type { CharacterOwner, OwnerWrite, SingleOwnerRead, VendedToken } from '@/platform/owner-sync';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import type { LocationBody } from '@/data/location-tracking/esi-projection';
 
@@ -190,11 +190,8 @@ export interface SheetPort {
   ): Promise<SingleOwnerRead>;
   readStructure(session: EsiReadSession, structureId: number, accessToken: string): Promise<SingleOwnerRead>;
   readSheet(characterId: number): Promise<SheetSections | null>;
-  mergeSection<K extends SheetSectionKey>(
-    characterId: number,
-    key: K,
-    envelope: SectionEnvelope<K>,
-  ): Promise<void>;
+  /** The section's write, which the section sync's commit runs atomically with its answers. */
+  mergeSection<K extends SheetSectionKey>(characterId: number, key: K, envelope: SectionEnvelope<K>): OwnerWrite;
   stampSection(characterId: number, key: SheetSectionKey): Promise<void>;
   /** Records a settled refusal (a token that is gone) as the section's stored answers, until `expiresAt` or each route's spec cache time. */
   recordSectionRefusal(characterId: number, key: DirectSectionKey, expiresAt: number | null): Promise<void>;

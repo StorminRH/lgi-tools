@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EsiReadSession } from '@/data/esi-store/session';
 import type { SingleOwnerRead } from '@/platform/owner-sync';
-import { ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
+import { NO_STATEMENTS, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
 import { refreshCharacterSheetForUser } from './refresh';
 import { digestJournalBody } from './plan';
 import type {
@@ -74,8 +74,9 @@ function makePort(
       async (_session, structureId): Promise<SingleOwnerRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
     ),
     readSheet: vi.fn(async (id) => sheets.get(id) ?? null),
-    mergeSection: vi.fn(async (id, key, envelope) => {
+    mergeSection: vi.fn((id, key, envelope) => {
       sheets.set(id, { ...(sheets.get(id) ?? {}), [key]: envelope });
+      return NO_STATEMENTS;
     }),
     stampSection: vi.fn(async () => {}),
     recordSectionRefusal: vi.fn(async () => {}),
