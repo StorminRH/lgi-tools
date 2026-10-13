@@ -144,9 +144,12 @@ describe('UI adoption type-role census', () => {
       '`;',
       '<p>Shown in uppercase</p>',
       "const note = 'not uppercase-ish';",
+      "const imp = 'uppercase! text-label';",
+      "const imp2 = 'md:!uppercase';",
+      '<b className="[text-transform:uppercase] x">c</b>',
     ].join('\n');
 
-    expect(uppercaseCount(source, 'script')).toBe(6);
+    expect(uppercaseCount(source, 'script')).toBe(9);
   });
 
   it('counts a capitals declaration or an applied uppercase class in a stylesheet', () => {

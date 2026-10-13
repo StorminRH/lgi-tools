@@ -56,7 +56,7 @@ export const uiAdoptionRegistry = {
     {
       file: 'src/mapper/windows/MapWindow.tsx',
       count: 1,
-      reason: 'The docked window title, an EVE system name.',
+      reason: 'The system summary card title, an EVE system name.',
     },
   ],
   typeRoleExceptions: [
@@ -98,7 +98,7 @@ export const uiAdoptionRegistry = {
     {
       file: 'src/mapper/windows/MapWindow.tsx',
       count: 1,
-      reason: 'The docked window title, an EVE system name in capitals.',
+      reason: 'The system summary card title, an EVE system name in capitals.',
     },
   ],
   temporaryCssFamilies: [],

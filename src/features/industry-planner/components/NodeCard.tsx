@@ -121,7 +121,7 @@ function QtyRingCell({
           </QtyRing>
         }
       >
-        <PopoverHeading>Asset Tracking</PopoverHeading>
+        <PopoverHeading>Asset tracking</PopoverHeading>
         <div className="flex flex-col gap-1">
           <div className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Item held by</div>
           <HeldByList heldBy={heldBy} />
@@ -156,7 +156,7 @@ function BuildableIcon({
         )}
         trigger={<TypeIcon {...icon} size={30} mono={name} />}
       >
-        <PopoverHeading>Blueprint Research Adjusters</PopoverHeading>
+        <PopoverHeading>Blueprint research adjusters</PopoverHeading>
         {efficiency.adjusters}
         {detail && <ProvenanceRows detail={detail} />}
       </Popover>

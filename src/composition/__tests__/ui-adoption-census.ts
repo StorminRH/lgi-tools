@@ -54,17 +54,20 @@ export function handRolledTypeRoles(source: string): string[] {
     .filter(handRollsTypeRole);
 }
 
-// `uppercase` as a whole class token: after a line start, whitespace, a
-// variant colon or a quote, and before whitespace, a quote or the line end.
-// Quote pairing is not needed, so a multi-line template literal or an earlier
-// apostrophe on the line does not hide it. The word in copy, before `<` or
-// punctuation, is not a class.
-const UPPERCASE_TOKEN = /(?:^|[\s:'"`])uppercase(?=[\s'"`]|$)/gm;
+// `uppercase` as a whole class token, with or without the `!` important
+// modifier on either side, or the `[text-transform:uppercase]` arbitrary
+// property: after a line start, whitespace, a variant colon or a quote, and
+// before whitespace, a quote or the line end. Quote pairing is not needed, so
+// a multi-line template literal or an earlier apostrophe on the line does not
+// hide it. The word in copy, before `<` or punctuation, is not a class.
+const UPPERCASE_TOKEN =
+  /(?:^|[\s:'"`])(?:!?uppercase!?|\[text-transform:uppercase\]!?)(?=[\s'"`]|$)/gm;
 const CSS_UPPERCASE = /\btext-transform\s*:\s*uppercase\b|@apply\b[^;}]*\buppercase\b/g;
 
 /**
  * How many times `source` sets text in capitals: an `uppercase` class at any
- * variant, the `'uppercase'` style value, or, in a stylesheet, a
+ * variant, important or not, the `[text-transform:uppercase]` arbitrary
+ * property, the `'uppercase'` style value, or, in a stylesheet, a
  * `text-transform: uppercase` declaration or an `@apply` of `uppercase`.
  * Pass comment-stripped source.
  */
